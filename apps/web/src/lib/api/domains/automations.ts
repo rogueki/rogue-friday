@@ -1,6 +1,15 @@
 "use client";
 
-import type { AutomationCreateRequest, AutomationRunListResponse, AutomationRunResponse, AutomationTestRequest, AutomationUpdateRequest, components } from "@jarvis/sdk";
+import type {
+  AutomationCreateRequest,
+  AutomationPauseAllRequest,
+  AutomationPauseAllResponse,
+  AutomationRunListResponse,
+  AutomationRunResponse,
+  AutomationTestRequest,
+  AutomationUpdateRequest,
+  components,
+} from "@jarvis/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
@@ -12,6 +21,9 @@ import { staleTimes } from "../staleTimes";
 export type AutomationDto = components["schemas"]["Automation"];
 type AutomationListResponse = components["schemas"]["AutomationListResponse"];
 type AutomationResponse = components["schemas"]["AutomationResponse"];
+/** OpenAPI shape of a version entry (same `AutomationCondition.value` caveat as {@link AutomationDto}). */
+export type AutomationVersionDto = components["schemas"]["AutomationVersion"];
+type AutomationVersionListResponse = components["schemas"]["AutomationVersionListResponse"];
 
 export interface AutomationFilters {
   enabled?: boolean;
@@ -28,6 +40,14 @@ export const automationQueries = {
         call(getApiClient().GET("/api/v1/automations/{id}/runs", { params: { path: { id }, query: filters } })),
       staleTime: staleTimes.automations,
     }),
+  /** Version history, newest first (capability `automations.versions`). */
+  versions: (id: string, filters: { limit?: number; cursor?: string } = {}) =>
+    queryOptions({
+      queryKey: [...queryKeys.automations.versions(id), filters] as const,
+      queryFn: (): Promise<AutomationVersionListResponse> =>
+        call(getApiClient().GET("/api/v1/automations/{id}/versions", { params: { path: { id }, query: filters } })),
+      staleTime: staleTimes.automations,
+    }),
   list: (filters: AutomationFilters = {}) =>
     queryOptions({
       queryKey: queryKeys.automations.list(filters),
@@ -39,6 +59,9 @@ export const automationQueries = {
 export const useAutomations = (filters?: AutomationFilters) => useQuery(automationQueries.list(filters));
 export const useAutomationRuns = (id: string | null | undefined, filters?: { limit?: number; cursor?: string }) =>
   useQuery({ ...automationQueries.runs(id ?? "", filters), enabled: Boolean(id) });
+
+export const useAutomationVersions = (id: string | null | undefined, filters?: { limit?: number; cursor?: string }, enabled = true) =>
+  useQuery({ ...automationQueries.versions(id ?? "", filters), enabled: Boolean(id) && enabled });
 
 export function useToggleAutomation(enable: boolean) {
   return useApiMutation<AutomationResponse, { id: string; version?: number } & IntentVars>({
@@ -89,25 +112,44 @@ export function useUpdateAutomation() {
   });
 }
 
-export interface PauseAllResult {
+/**
+ * "Pause All" (PLAN §35.3): one request (POST /automations/pause-all, capability `automations.pauseAll`). The server
+ * pauses every enabled automation, writes one audit entry and answers with the outcome per automation.
+ */
+export function usePauseAllAutomations() {
+  return useApiMutation<AutomationPauseAllResponse, AutomationPauseAllRequest & IntentVars>({
+    label: "Alle Automationen pausieren",
+    mutationFn: ({ reason, idempotencyKey }) =>
+      call(
+        getApiClient().POST("/api/v1/automations/pause-all", {
+          params: { header: { "Idempotency-Key": idempotencyKey } },
+          body: reason ? { reason } : {},
+        }),
+      ),
+    invalidate: [queryKeys.automations.all, queryKeys.overview],
+    conflictKeys: [queryKeys.automations.all],
+  });
+}
+
+export interface ResumeAllResult {
   succeeded: string[];
   failed: { id: string; message: string }[];
 }
 
 /**
- * "Pause All" (PLAN §35.3). The contract has no bulk operation: it is one `PATCH { paused }` per automation, each with
- * its own `If-Match`. Failures are collected per automation instead of aborting the rest.
+ * "Alle fortsetzen". The contract only has a bulk operation for pausing, so resuming is one `PATCH { paused: false }` per
+ * automation, each with its own `If-Match`. Failures are collected per automation instead of aborting the rest.
  */
-export function usePauseAllAutomations() {
-  return useApiMutation<PauseAllResult, { targets: readonly { id: string; version: number }[]; paused: boolean } & IntentVars>({
-    label: "Alle Automationen pausieren",
-    mutationFn: async ({ targets, paused }) => {
+export function useResumeAllAutomations() {
+  return useApiMutation<ResumeAllResult, { targets: readonly { id: string; version: number }[] } & IntentVars>({
+    label: "Alle Automationen fortsetzen",
+    mutationFn: async ({ targets }) => {
       const outcomes = await Promise.allSettled(
         targets.map(({ id, version }) =>
-          call(getApiClient().PATCH("/api/v1/automations/{id}", { params: { path: { id }, header: { "If-Match": String(version) } }, body: { paused } })),
+          call(getApiClient().PATCH("/api/v1/automations/{id}", { params: { path: { id }, header: { "If-Match": String(version) } }, body: { paused: false } })),
         ),
       );
-      const result: PauseAllResult = { succeeded: [], failed: [] };
+      const result: ResumeAllResult = { succeeded: [], failed: [] };
       outcomes.forEach((outcome, index) => {
         const id = targets[index]?.id ?? "";
         if (outcome.status === "fulfilled") result.succeeded.push(id);
@@ -115,7 +157,7 @@ export function usePauseAllAutomations() {
       });
       return result;
     },
-    invalidate: [queryKeys.automations.all],
+    invalidate: [queryKeys.automations.all, queryKeys.overview],
     conflictKeys: [queryKeys.automations.all],
   });
 }

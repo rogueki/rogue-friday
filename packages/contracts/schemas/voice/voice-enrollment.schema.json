@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/voice/voice-enrollment.schema.json",
+  "title": "VoiceEnrollment",
+  "description": "Status of one enrollment job.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^venr_[0-9A-Za-z]{26}$"
+    },
+    "profileId": {
+      "type": "string",
+      "pattern": "^vprof_[0-9A-Za-z]{26}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["queued", "capturing", "calibrating", "completed", "failed", "cancelled"]
+    },
+    "samplesCaptured": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "samplesRequired": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "progress": {
+      "$ref": "../common/progress.schema.json"
+    },
+    "quality": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Quality of the profile after the job (null until known)."
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finishedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "message": {
+      "type": ["string", "null"],
+      "description": "Human readable hint, e.g. the next sentence to read or the failure reason."
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    }
+  },
+  "required": [
+    "id",
+    "profileId",
+    "status",
+    "samplesCaptured",
+    "samplesRequired",
+    "progress",
+    "quality",
+    "startedAt",
+    "updatedAt",
+    "finishedAt",
+    "message",
+    "source"
+  ],
+  "additionalProperties": false
+}

@@ -23,7 +23,7 @@ The dashboard is for a friend who will install it from GitHub on Windows (`D:\Ja
 | Area | Path | Verification |
 |---|---|---|
 | Monorepo, tooling, CI | root, `.github/workflows/ci.yml` | — |
-| Contracts (252 JSON Schemas, OpenAPI 3.1.1 with 107 operations, AsyncAPI 3.1.0 with 44 events, 195 examples, codegen, breaking-change gate) | `packages/contracts` | `pnpm contracts:check` green |
+| Contracts (252 JSON Schemas, OpenAPI 3.1.1 with 122 operations (2026-10-14, was 107), AsyncAPI 3.1.0 with 44 events, 195 examples, codegen, breaking-change gate) | `packages/contracts` | `pnpm contracts:check` green |
 | Generated SDK (types, openapi-fetch client, validator, event map) | `packages/generated-sdk` (`@jarvis/sdk`) | typecheck + tests green |
 | Config / Auth / Observability | `packages/config`, `packages/auth`, `packages/observability` | 119 tests green |
 | Design tokens, themes, HUD UI library (all PLAN §24.16 components), Storybook (81 stories, overview composition) | `packages/design-tokens`, `packages/ui`, `apps/storybook` | 36 tests, storybook build, screenshots in `apps/storybook/screenshots/` accepted by lead |

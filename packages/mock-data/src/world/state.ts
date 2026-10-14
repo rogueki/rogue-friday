@@ -1,12 +1,14 @@
 import type {
   ActivityEvent,
   AdapterCategory,
+  AdapterLogEntry,
   AdapterManifest,
   Agent,
   Approval,
   AuditEvent,
   Automation,
   AutomationRun,
+  AutomationVersion,
   CalendarBriefing,
   CalendarConflict,
   CalendarEvent,
@@ -35,6 +37,7 @@ import type {
   Theme,
   Thread,
   VoiceDevice,
+  VoiceEnrollment,
   VoiceMetrics,
   VoiceProfile,
   VoiceStatus,
@@ -112,6 +115,14 @@ export interface UiHints {
   [key: string]: boolean;
 }
 
+/** One enrollment job plus the simulation parameters the contract object does not carry. */
+export interface EnrollmentRecord {
+  job: VoiceEnrollment;
+  recalibrate: boolean;
+  /** The finished job has been applied to its voice profile (sample count, quality, calibration). */
+  applied: boolean;
+}
+
 export interface FileContent {
   text: string;
 }
@@ -133,6 +144,8 @@ export interface WorldState {
   calendarProposals: CalendarProposal[];
   automations: Automation[];
   automationRuns: AutomationRun[];
+  /** Version history per automation id, oldest first. */
+  automationVersions: Record<string, AutomationVersion[]>;
   researchProjects: ResearchProject[];
   researchSources: ResearchSource[];
   researchFindings: ResearchFinding[];
@@ -144,6 +157,9 @@ export interface WorldState {
     devices: VoiceDevice[];
     metrics: VoiceMetrics;
     profiles: VoiceProfile[];
+    enrollments: EnrollmentRecord[];
+    /** Timestamps of stored voice-history entries (optional voice history, PLAN §38.4). */
+    history: string[];
   };
   notifications: Notification[];
   system: {
@@ -161,6 +177,8 @@ export interface WorldState {
   quickCommands: QuickCommand[];
   capabilities: Capabilities;
   adapters: AdapterRuntime[];
+  /** Redacted log lines of the adapters (bounded ring buffer, oldest first); `GET /adapters/{id}/logs`. */
+  adapterLogs: AdapterLogEntry[];
   sync: SyncJob[];
   orb: OrbMemo;
   forcedOrb: ForcedOrb | null;

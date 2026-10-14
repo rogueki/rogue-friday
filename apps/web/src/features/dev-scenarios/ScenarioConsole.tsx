@@ -2,7 +2,7 @@
 
 import type { OrbMode, ScenarioControlRequest, ScenarioState } from "@jarvis/sdk";
 import { Button, EmptyState, HudPanel, Select, Skeleton, Slider, StatusChip, Switch, TagPill, TextField } from "@jarvis/ui";
-import { Clock, FlaskConical, Play, Plug, RotateCcw, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { Clock, FlaskConical, Play, Plug, RotateCcw, ShieldCheck, Sparkles, Unlock, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NumberField } from "@/features/settings/controls";
@@ -332,6 +332,16 @@ function ScenarioConsole() {
             <div className="ds-row">
               <Button type="button" variant="jarvis" icon={<Zap size={15} />} disabled={busy} onClick={() => void send(forceOrbRequest(orbMode, { text: orbText.trim(), level: orbLevel }), t("devScenarios.orb.forceDone", { mode: modeLabel(t, orbMode) }))}>
                 {t("devScenarios.orb.force")}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                icon={<Unlock size={15} />}
+                disabled={busy || !state?.forcedOrbMode}
+                title={state?.forcedOrbMode ? undefined : t("devScenarios.orb.releaseNothing")}
+                onClick={() => void send({ action: "release_orb_state" }, t("devScenarios.orb.releaseDone"))}
+              >
+                {t("devScenarios.orb.release")}
               </Button>
             </div>
             <p className="ds-muted">{t("devScenarios.orb.releaseHint")}</p>

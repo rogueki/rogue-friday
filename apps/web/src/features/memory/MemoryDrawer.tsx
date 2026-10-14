@@ -1,12 +1,12 @@
 "use client";
 
-import type { Memory, MemoryHistoryEntry } from "@jarvis/sdk";
+import type { Memory, MemoryConflict, MemoryConflictResolveRequest, MemoryHistoryEntry } from "@jarvis/sdk";
 import { Button, ConfirmDialog, Drawer, TagPill, Tabs, useToast } from "@jarvis/ui";
-import { BadgeCheck, Download, Lock, LockOpen, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
+import { BadgeCheck, Download, GitMerge, Lock, LockOpen, Pencil, Pin, PinOff, Trash2, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useT, type MessageKey } from "@/i18n";
-import { useDeleteMemory, useMemory, useUpdateMemory } from "@/lib/api/domains/memory";
+import { useDeleteMemory, useMemory, useResolveMemoryConflict, useUpdateMemory } from "@/lib/api/domains/memory";
 import { useCapability } from "@/lib/capabilities";
 import { DataBadges } from "./kit/Badges";
 import { downloadJson, stamp } from "./kit/download";
@@ -60,10 +60,25 @@ function MemoryDetail({ memory, freshness, onClose, onOpenOther }: DetailProps) 
   const canLock = useCapability("memory", "lock");
   const canDelete = useCapability("memory", "delete");
   const canRead = useCapability("memory", "read");
+  const canResolve = useCapability("memory", "resolveConflict");
   const update = useUpdateMemory();
   const remove = useDeleteMemory();
+  const resolve = useResolveMemoryConflict();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [replacing, setReplacing] = useState<MemoryConflict | null>(null);
+
+  const resolveConflict = (conflict: MemoryConflict, resolution: MemoryConflictResolveRequest["resolution"]): void =>
+    resolve.mutate(
+      { id: memory.id, conflictId: conflict.memoryId, version: memory.version, resolution },
+      {
+        onSuccess: () => {
+          setReplacing(null);
+          toast({ title: t(`memory.conflicts.resolved.${resolution}` as MessageKey), tone: "green", duration: 3500 });
+        },
+        onError: () => setReplacing(null),
+      },
+    );
 
   const patch = (changes: Parameters<typeof update.mutate>[0]["patch"], done?: () => void): void =>
     update.mutate({ id: memory.id, version: memory.version, patch: changes }, { onSuccess: done });
@@ -207,6 +222,26 @@ function MemoryDetail({ memory, freshness, onClose, onOpenOther }: DetailProps) 
               {t("memory.conflicts.open")}
             </button>
           </p>
+          {conflict.resolution === "pending" ? (
+            <div className="mk-actions" role="group" aria-label={t("memory.conflicts.resolve")}>
+              <Button size="sm" variant="ghost" icon={<GitMerge size={14} />} disabled={!canResolve || resolve.isPending} onClick={() => resolveConflict(conflict, "keep_both")}>
+                {t("memory.conflicts.action.keep_both")}
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                icon={<Trash2 size={14} />}
+                disabled={!canResolve || resolve.isPending}
+                onClick={() => setReplacing(conflict)}
+              >
+                {t("memory.conflicts.action.replace")}
+              </Button>
+              <Button size="sm" variant="ghost" icon={<XCircle size={14} />} disabled={!canResolve || resolve.isPending} onClick={() => resolveConflict(conflict, "dismiss")}>
+                {t("memory.conflicts.action.dismiss")}
+              </Button>
+              {canResolve ? null : <span className="mk-muted">{t("memory.conflicts.unavailable")}</span>}
+            </div>
+          ) : null}
         </li>
       ))}
     </ul>
@@ -266,6 +301,22 @@ function MemoryDetail({ memory, freshness, onClose, onOpenOther }: DetailProps) 
         memory={memory}
         busy={update.isPending}
         onUpdate={(changes) => patch(changes, () => setEditing(false))}
+      />
+      <ConfirmDialog
+        open={replacing !== null}
+        onOpenChange={(open) => {
+          if (!open) setReplacing(null);
+        }}
+        tone="danger"
+        title={t("memory.conflicts.replace.title")}
+        description={t("memory.conflicts.replace.description", { title: memoryTitle(memory) })}
+        details={[t("memory.conflicts.replace.detail.forget"), t("memory.conflicts.replace.detail.locked"), t("memory.conflicts.replace.detail.audit")]}
+        confirmLabel={t("memory.conflicts.replace.confirm")}
+        cancelLabel={t("common.cancel")}
+        loading={resolve.isPending}
+        onConfirm={() => {
+          if (replacing) resolveConflict(replacing, "replace");
+        }}
       />
       <ConfirmDialog
         open={confirmDelete}

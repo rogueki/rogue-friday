@@ -10,6 +10,7 @@ import type { AdapterOverrideStore, CommandHistoryStore, IdempotencyStore, Libra
 import type { EventHub } from "../realtime/hub";
 import type { AuthService } from "../security/auth-service";
 import type { AdapterSettingsService } from "../services/adapter-settings";
+import type { LogBuffer } from "../services/log-buffer";
 import type { OrbService, OverviewService, StatusService } from "../services/core-views";
 import type { SettingsService } from "../services/settings";
 import type { FrontendTelemetryService } from "../services/telemetry";
@@ -28,6 +29,8 @@ export interface Runtime {
   config: JarvisConfig;
   env: NodeJS.ProcessEnv;
   logger: Logger;
+  /** Redacted adapter log lines behind `GET /adapters/{id}/logs`; `logger` already mirrors into it. */
+  logBuffer: LogBuffer;
   metrics: JarvisMetrics;
   db: Db;
   validator: SchemaValidator;

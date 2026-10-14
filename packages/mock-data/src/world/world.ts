@@ -6,6 +6,7 @@ import {
   type Actor,
   type AdapterCategory,
   type AdapterHealth,
+  type AdapterLogEntry,
   type AuditEvent,
   type Capabilities,
   type ErrorDetail,
@@ -119,6 +120,9 @@ export interface ActivityInput {
 
 export type AuditInput = Omit<AuditDraft, "occurredAt" | "actor" | "severity" | "result" | "durationMs" | "before" | "after" | "artifactIds" | "childEventIds"> &
   Partial<Pick<AuditDraft, "actor" | "severity" | "result" | "durationMs" | "before" | "after" | "artifactIds" | "childEventIds">>;
+
+/** Size of the adapter log ring buffer. */
+const ADAPTER_LOG_LIMIT = 500;
 
 const SYSTEM_ACTOR: Actor = { type: "system", id: "control-api", name: "Control API" };
 
@@ -472,6 +476,13 @@ export class MockWorld {
     adapter.lastSuccessAt = this.clock.nowIso();
   }
 
+  /** Appends a log line of an adapter to the bounded buffer behind `GET /adapters/{id}/logs`. */
+  logAdapter(adapterId: string, level: AdapterLogEntry["level"], message: string, context: AdapterLogEntry["context"] = {}, correlationId: string | null = null): void {
+    const logs = this.state.adapterLogs;
+    logs.push({ timestamp: this.clock.nowIso(), level, message, adapterId, correlationId, context });
+    if (logs.length > ADAPTER_LOG_LIMIT) logs.splice(0, logs.length - ADAPTER_LOG_LIMIT);
+  }
+
   /** Dev control: sets the availability mode of an adapter (by category or adapter id) and publishes health events. */
   setAdapterState(target: AdapterCategory | string, mode: AdapterMode, options: { reason?: string } = {}): AdapterHealth {
     const category = (ADAPTER_CATEGORIES as readonly string[]).includes(target) ? (target as AdapterCategory) : categoryForAdapterId(target);
@@ -495,6 +506,14 @@ export class MockWorld {
       adapter.circuit = mode === "offline" ? "open" : mode === "recovering" ? "half_open" : "closed";
     }
     const health = this.adapterHealth(category);
+    if (mode !== previous) {
+      this.logAdapter(
+        adapter.manifest.id,
+        mode === "online" ? "info" : mode === "degraded" || mode === "recovering" ? "warn" : "error",
+        mode === "online" ? "Adapter ist wieder erreichbar" : (adapter.lastError?.message ?? "Adapter nicht erreichbar"),
+        { from: previous, to: mode },
+      );
+    }
     this.emit("jarvis.adapter.health_changed", health, {
       source: "control-api://core",
       subject: `adapter/${adapter.manifest.id}`,

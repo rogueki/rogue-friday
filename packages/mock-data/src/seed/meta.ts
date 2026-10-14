@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type AdapterManifest, type CommandHistoryEntry, type QuickCommand } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type AdapterLogEntry, type AdapterManifest, type CommandHistoryEntry, type QuickCommand } from "@jarvis/sdk";
 import { ADAPTER_CATEGORIES, CATEGORY_LABEL, adapterIdFor, defaultCapabilities } from "../core/constants";
 import { DAY, HOUR, MIN, type SeedContext } from "./context";
 import { adapterSecretFields } from "./settings";
@@ -38,6 +38,19 @@ export function buildAdapters(ctx: SeedContext): AdapterRuntime[] {
       errorRateOverride: null,
     };
   });
+}
+
+/** Start-up and periodic health lines per adapter, deterministic (no random draw) so existing seeds keep their ids. */
+export function buildAdapterLogs(ctx: SeedContext, adapters: readonly AdapterRuntime[]): AdapterLogEntry[] {
+  const logs: AdapterLogEntry[] = [];
+  adapters.forEach((adapter, index) => {
+    const adapterId = adapter.manifest.id;
+    logs.push({ timestamp: ctx.at(-(26 * HOUR + 12 * MIN) + index * 1_000), level: "info", message: "Adapter gestartet", adapterId, correlationId: null, context: { version: adapter.manifest.adapterVersion } });
+    for (let tick = 3; tick >= 1; tick--) {
+      logs.push({ timestamp: ctx.at(-(tick * 5 * MIN) + index * 1_000), level: "info", message: "Healthcheck erfolgreich", adapterId, correlationId: null, context: { latencyMs: 4 + ((index * 3 + tick) % 7) } });
+    }
+  });
+  return logs.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 }
 
 export function buildQuickCommands(): QuickCommand[] {

@@ -18,6 +18,9 @@ import { checkEnum, pageOf, PRIORITIES, THREAD_STATUSES, type Query } from "./sh
 
 export type ThreadListQuery = Query<"listThreads">;
 export type ChannelListQuery = Query<"listChannels">;
+export type DraftListQuery = Query<"listDrafts">;
+
+const DRAFT_STATUSES = ["draft", "pending_approval", "approved", "sent", "failed", "discarded"] as const;
 
 const OWNER_ADDRESS: Participant = { name: "Erik Brandt", address: "erik.brandt@gmx.example", role: "owner" };
 
@@ -77,8 +80,17 @@ export class CommunicationService {
     });
   }
 
-  listDrafts(): Draft[] {
-    return clone(this.w.state.drafts);
+  /** Drafts, newest change first; optionally only those of one thread or in the given states. */
+  listDrafts(query: DraftListQuery = {}): Page<Draft> {
+    return this.w.read("listDrafts", () => {
+      const statuses = asList(query.status);
+      checkEnum("status", statuses, DRAFT_STATUSES);
+      const items = this.w.state.drafts
+        .filter((draft) => (query.threadId ? draft.threadId === query.threadId : true))
+        .filter((draft) => (statuses.length ? statuses.includes(draft.status) : true))
+        .sort((a, b) => compareDesc(a.updatedAt, b.updatedAt) || compareDesc(a.id, b.id));
+      return pageOf(items, query);
+    });
   }
 
   createDraft(body: DraftCreateRequest, ctx?: OpContext): Draft {

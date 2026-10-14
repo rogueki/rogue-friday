@@ -47,3 +47,10 @@
 .aut-fieldset legend { padding: 0 6px; font-family: var(--jv-font-display); font-size: var(--jv-fs-2xs); letter-spacing: 0.14em; text-transform: uppercase; color: var(--jarvis-muted); }
 .aut-fieldset__grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.6fr) auto; gap: 10px; align-items: end; }
 @media (max-width: 760px) { .aut-fieldset__grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Version history (aut-version*). */
+.aut-versions { gap: 8px; }
+.aut-version--current { border-color: var(--jarvis-tint-green-border, var(--jv-line-soft)); }
+.aut-version__changes { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.aut-version__snapshot { margin-top: 8px; }
+.aut-version__list { margin: 0; padding-left: 18px; }

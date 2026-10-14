@@ -150,6 +150,8 @@ export interface JarvisModelMap {
   AdapterInfo: AdapterInfo;
   AdapterInfoListResponse: AdapterInfoListResponse;
   AdapterLifecycle: AdapterLifecycle;
+  AdapterLogEntry: AdapterLogEntry;
+  AdapterLogListResponse: AdapterLogListResponse;
   AdapterManifest: AdapterManifest;
   AdapterTestResult: AdapterTestResult;
   AdapterTestResultResponse: AdapterTestResultResponse;
@@ -181,6 +183,9 @@ export interface JarvisModelMap {
   AutomationCondition: AutomationCondition;
   AutomationCreateRequest: AutomationCreateRequest;
   AutomationListResponse: AutomationListResponse;
+  AutomationPauseAllRequest: AutomationPauseAllRequest;
+  AutomationPauseAllResponse: AutomationPauseAllResponse;
+  AutomationPauseAllResult: AutomationPauseAllResult;
   AutomationResponse: AutomationResponse;
   AutomationRun: AutomationRun;
   AutomationRunListResponse: AutomationRunListResponse;
@@ -188,6 +193,8 @@ export interface JarvisModelMap {
   AutomationTestRequest: AutomationTestRequest;
   AutomationTrigger: AutomationTrigger;
   AutomationUpdateRequest: AutomationUpdateRequest;
+  AutomationVersion: AutomationVersion;
+  AutomationVersionListResponse: AutomationVersionListResponse;
   BackupSettings: BackupSettings;
   CalendarBriefing: CalendarBriefing;
   CalendarBriefingListResponse: CalendarBriefingListResponse;
@@ -240,6 +247,7 @@ export interface JarvisModelMap {
   FilePreview: FilePreview;
   FilePreviewKind: FilePreviewKind;
   FilePreviewResponse: FilePreviewResponse;
+  FileRenameRequest: FileRenameRequest;
   FileVersion: FileVersion;
   Freshness: Freshness;
   FreshnessState: FreshnessState;
@@ -264,8 +272,10 @@ export interface JarvisModelMap {
   LoginRequest: LoginRequest;
   Memory: Memory;
   MemoryConflict: MemoryConflict;
+  MemoryConflictResolveRequest: MemoryConflictResolveRequest;
   MemoryCreateRequest: MemoryCreateRequest;
   MemoryEntity: MemoryEntity;
+  MemoryExport: MemoryExport;
   MemoryHistoryEntry: MemoryHistoryEntry;
   MemoryListResponse: MemoryListResponse;
   MemoryProvenance: MemoryProvenance;
@@ -356,8 +366,10 @@ export interface JarvisModelMap {
   SystemMetricsResponse: SystemMetricsResponse;
   Task: Task;
   TaskActionRequest: TaskActionRequest;
+  TaskAssignRequest: TaskAssignRequest;
   TaskBlocker: TaskBlocker;
   TaskCreateRequest: TaskCreateRequest;
+  TaskInputRequest: TaskInputRequest;
   TaskListResponse: TaskListResponse;
   TaskProgressEvent: TaskProgressEvent;
   TaskResponse: TaskResponse;
@@ -377,6 +389,9 @@ export interface JarvisModelMap {
   VoiceAudioLevel: VoiceAudioLevel;
   VoiceDevice: VoiceDevice;
   VoiceDeviceListResponse: VoiceDeviceListResponse;
+  VoiceEnrollment: VoiceEnrollment;
+  VoiceEnrollmentResponse: VoiceEnrollmentResponse;
+  VoiceEnrollRequest: VoiceEnrollRequest;
   VoiceMetrics: VoiceMetrics;
   VoiceMetricsResponse: VoiceMetricsResponse;
   VoiceProfile: VoiceProfile;
@@ -631,6 +646,31 @@ export interface AdapterInfoListResponse {
   contractVersion: ContractVersion;
   items: AdapterInfo[];
   pageInfo: PageInfo;
+  freshness: Freshness;
+  sources: SourceDescriptor[];
+}
+/**
+ * One redacted log line of an adapter from the Control API's log buffer (PLAN §40.4 Open Logs). Secrets, tokens and personal data never appear.
+ */
+export interface AdapterLogEntry {
+  timestamp: string;
+  level: "debug" | "info" | "warn" | "error";
+  message: string;
+  adapterId: string;
+  correlationId: string | null;
+  /**
+   * Redacted scalar fields of the log call.
+   */
+  context: {
+    [k: string]: string | number | boolean | null;
+  };
+}
+/**
+ * Recent log lines of one adapter, newest last. Not paginated: the buffer is bounded and limit caps the result.
+ */
+export interface AdapterLogListResponse {
+  contractVersion: ContractVersion;
+  items: AdapterLogEntry[];
   freshness: Freshness;
   sources: SourceDescriptor[];
 }
@@ -1024,6 +1064,38 @@ export interface AutomationListResponse {
   sources: SourceDescriptor[];
 }
 /**
+ * Optional body of the bulk pause (PLAN §35.3 Pause All).
+ */
+export interface AutomationPauseAllRequest {
+  reason?: string;
+}
+/**
+ * Single-resource envelope for AutomationPauseAllResult.
+ */
+export interface AutomationPauseAllResponse {
+  contractVersion: ContractVersion;
+  data: AutomationPauseAllResult;
+  freshness: Freshness;
+}
+/**
+ * Per-automation outcome of the bulk pause. Automations that are already paused or disabled stay untouched.
+ */
+export interface AutomationPauseAllResult {
+  results: {
+    automationId: string;
+    name: string;
+    outcome: "paused" | "already_paused" | "skipped" | "failed";
+    /**
+     * Version after the operation (null when the automation could not be read).
+     */
+    version: number | null;
+    message?: string;
+  }[];
+  pausedCount: number;
+  unchangedCount: number;
+  failedCount: number;
+}
+/**
  * Single-resource envelope for Automation.
  */
 export interface AutomationResponse {
@@ -1102,6 +1174,47 @@ export interface AutomationUpdateRequest {
   conditions?: AutomationCondition[];
   actions?: AutomationAction[];
   escalation?: EscalationStep[];
+}
+/**
+ * One entry of the version history of an automation (PLAN §35.3 Versionierung). Newest version first.
+ */
+export interface AutomationVersion {
+  automationId: string;
+  version: number;
+  createdAt: string;
+  changedBy: Actor;
+  /**
+   * What changed compared to the previous version.
+   */
+  summary: string;
+  /**
+   * True for the version that is live now.
+   */
+  current: boolean;
+  /**
+   * Definition of the automation at this version.
+   */
+  snapshot: {
+    name: string;
+    description?: string;
+    enabled: boolean;
+    paused: boolean;
+    trigger: AutomationTrigger;
+    conditions: AutomationCondition[];
+    actions: AutomationAction[];
+    escalation: EscalationStep[];
+  };
+  source: SourceDescriptor;
+}
+/**
+ * Cursor-paginated list envelope for AutomationVersion.
+ */
+export interface AutomationVersionListResponse {
+  contractVersion: ContractVersion;
+  items: AutomationVersion[];
+  pageInfo: PageInfo;
+  freshness: Freshness;
+  sources: SourceDescriptor[];
 }
 export interface BackupSettings {
   enabled: boolean;
@@ -1321,6 +1434,10 @@ export interface TasksCapability {
   pause: boolean;
   resume: boolean;
   stream: boolean;
+  /**
+   * Answer tasks that wait for input (POST /tasks/{id}/input).
+   */
+  input?: boolean;
   sources: string[];
 }
 export interface ActivityCapability {
@@ -1335,6 +1452,14 @@ export interface MemoryCapability {
   delete: boolean;
   search: boolean;
   lock: boolean;
+  /**
+   * Export the memory store as JSON.
+   */
+  export?: boolean;
+  /**
+   * Resolve memory conflicts.
+   */
+  resolveConflict?: boolean;
   sources: string[];
 }
 export interface AgentsCapability {
@@ -1383,6 +1508,10 @@ export interface AutomationsCapability {
   enable: boolean;
   disable: boolean;
   pauseAll: boolean;
+  /**
+   * Read the version history of an automation.
+   */
+  versions?: boolean;
   sources: string[];
 }
 export interface ResearchCapability {
@@ -1397,6 +1526,10 @@ export interface FilesCapability {
   download: boolean;
   delete: boolean;
   upload: boolean;
+  /**
+   * Rename files (PATCH /files/{id}).
+   */
+  rename?: boolean;
   sources: string[];
 }
 export interface VoiceCapability {
@@ -1404,6 +1537,10 @@ export interface VoiceCapability {
   test: boolean;
   stop: boolean;
   enroll: boolean;
+  /**
+   * Delete the voice history (DELETE /voice/history).
+   */
+  deleteHistory?: boolean;
   sources: string[];
 }
 export interface NotificationsCapability {
@@ -1774,6 +1911,15 @@ export interface FilePreviewResponse {
   freshness: Freshness;
 }
 /**
+ * Renames a file (PLAN §37.3). The location and the content stay unchanged; the name must not contain path separators or reserved characters.
+ */
+export interface FileRenameRequest {
+  /**
+   * New file name including extension.
+   */
+  name: string;
+}
+/**
  * One aggregated browser error (PLAN §50.3). Contains no user data: no stack traces, no URLs with query strings, no identifiers. The server additionally redacts the message.
  */
 export interface FrontendErrorReport {
@@ -2010,6 +2156,16 @@ export interface MemoryHistoryEntry {
   before: string | null;
   after: string | null;
 }
+/**
+ * Resolution of one memory conflict (PLAN §30.3). The conflict is addressed by the id of the conflicting memory (MemoryConflict.memoryId). keep_both keeps both entries, replace lets the addressed memory replace the conflicting one (the conflicting entry is forgotten, locked entries refuse with 409), dismiss marks the hint as irrelevant.
+ */
+export interface MemoryConflictResolveRequest {
+  resolution: "keep_both" | "replace" | "dismiss";
+  /**
+   * Optional reason that is stored in the memory history.
+   */
+  note?: string;
+}
 export interface MemoryCreateRequest {
   type: MemoryType;
   content: string;
@@ -2020,6 +2176,22 @@ export interface MemoryCreateRequest {
   sensitivity?: MemorySensitivity;
   pinned?: boolean;
   expiresAt?: string | null;
+}
+/**
+ * JSON export of the memory store (PLAN §30.3). Never contains secrets: restricted memories are omitted and only counted.
+ */
+export interface MemoryExport {
+  contractVersion: ContractVersion;
+  exportedAt: string;
+  /**
+   * Number of exported memories (items.length).
+   */
+  count: number;
+  /**
+   * Memories with sensitivity restricted that were left out.
+   */
+  omittedRestricted: number;
+  items: Memory[];
 }
 /**
  * Cursor-paginated list envelope for Memory.
@@ -3114,6 +3286,13 @@ export interface TaskActionRequest {
   reason?: string;
   confirm?: boolean;
 }
+/**
+ * Assigns a task to an agent or releases it (agentId null).
+ */
+export interface TaskAssignRequest {
+  agentId: string | null;
+  reason?: string;
+}
 export interface TaskCreateRequest {
   title: string;
   description?: string;
@@ -3122,6 +3301,16 @@ export interface TaskCreateRequest {
   model?: string | null;
   dueAt?: string | null;
   labels?: string[];
+}
+/**
+ * Answer to a task that waits for input (blocker kind input_needed). The text is forwarded to the agent; it resolves the blocker.
+ */
+export interface TaskInputRequest {
+  input: string;
+  /**
+   * Blocker to resolve; defaults to the first input_needed blocker.
+   */
+  blockerId?: string;
 }
 /**
  * Cursor-paginated list envelope for Task.
@@ -3272,6 +3461,50 @@ export interface VoiceDeviceListResponse {
   pageInfo: PageInfo;
   freshness: Freshness;
   sources: SourceDescriptor[];
+}
+/**
+ * Status of one enrollment job.
+ */
+export interface VoiceEnrollment {
+  id: string;
+  profileId: string;
+  status: "queued" | "capturing" | "calibrating" | "completed" | "failed" | "cancelled";
+  samplesCaptured: number;
+  samplesRequired: number;
+  progress: Progress;
+  /**
+   * Quality of the profile after the job (null until known).
+   */
+  quality: number | null;
+  startedAt: string;
+  updatedAt: string;
+  finishedAt: string | null;
+  /**
+   * Human readable hint, e.g. the next sentence to read or the failure reason.
+   */
+  message: string | null;
+  source: SourceDescriptor;
+}
+/**
+ * Single-resource envelope for VoiceEnrollment.
+ */
+export interface VoiceEnrollmentResponse {
+  contractVersion: ContractVersion;
+  data: VoiceEnrollment;
+  freshness: Freshness;
+}
+/**
+ * Starts (or repeats) the enrollment of a voice profile (PLAN §38.3). The audio itself is captured by the voice service, never uploaded through this API.
+ */
+export interface VoiceEnrollRequest {
+  /**
+   * Number of samples to capture; the adapter chooses its default when omitted.
+   */
+  sampleTarget?: number;
+  /**
+   * Re-run the calibration of the threshold after the samples are captured.
+   */
+  recalibrate?: boolean;
 }
 /**
  * Pipeline latencies (PLAN §38.2).

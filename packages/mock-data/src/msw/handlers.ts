@@ -26,7 +26,8 @@ const METHOD_FACTORY: Record<HttpMethod, (path: string, resolver: (info: { reque
  */
 export function createMswHandlers(world: MockWorld, options: MswHandlerOptions = {}): HttpHandler[] {
   const origin = (options.baseUrl ?? "").replace(/\/+$/, "") || "*";
-  const resolve = ({ request }: { request: Request }): Promise<Response> => handleApiRequest(world, request, options);
+  // The browser mock mirrors the Control API's approval-token rule unless a test opts out.
+  const resolve = ({ request }: { request: Request }): Promise<Response> => handleApiRequest(world, request, { approvalTokens: true, ...options });
   const handlers = ROUTES.map((route) => METHOD_FACTORY[route.method](`${origin}/api/v1${route.path}`, resolve));
   handlers.push(
     http.all(`${origin}/api/v1/*`, ({ request }) => {

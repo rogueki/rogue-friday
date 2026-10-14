@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/automations/automation-pause-all-result.schema.json",
+  "title": "AutomationPauseAllResult",
+  "description": "Per-automation outcome of the bulk pause. Automations that are already paused or disabled stay untouched.",
+  "type": "object",
+  "properties": {
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "automationId": {
+            "type": "string",
+            "pattern": "^auto_[0-9A-Za-z]{26}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": ["paused", "already_paused", "skipped", "failed"]
+          },
+          "version": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "description": "Version after the operation (null when the automation could not be read)."
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["automationId", "name", "outcome", "version"],
+        "additionalProperties": false
+      }
+    },
+    "pausedCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "unchangedCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "failedCount": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": ["results", "pausedCount", "unchangedCount", "failedCount"],
+  "additionalProperties": false
+}

@@ -54,6 +54,28 @@ export async function downloadFileBlob(id: string, version?: number): Promise<Bl
   return data instanceof Blob ? data : new Blob([typeof data === "string" ? data : ""]);
 }
 
+export interface RenameFileVars extends IntentVars {
+  id: string;
+  /** Current resource version for If-Match. */
+  version: number;
+  name: string;
+}
+
+/**
+ * PATCH /files/{id} (capability `files.rename`, If-Match). Errors are shown inline by the dialog, so the global toast is
+ * suppressed; a 409 still refetches the files so the dialog's file is current.
+ */
+export function useRenameFile() {
+  return useApiMutation<FileItemResponse, RenameFileVars>({
+    label: "Datei umbenennen",
+    silent: true,
+    conflictKeys: [queryKeys.files.all],
+    mutationFn: ({ id, version, name }) =>
+      call(getApiClient().PATCH("/api/v1/files/{id}", { params: { path: { id }, header: { "If-Match": String(version) } }, body: { name } })),
+    invalidate: [queryKeys.files.all],
+  });
+}
+
 export interface DeleteFileVars extends IntentVars {
   id: string;
   /** Current resource version for If-Match. */

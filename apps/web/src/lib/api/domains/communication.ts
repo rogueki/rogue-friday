@@ -1,6 +1,6 @@
 "use client";
 
-import type { ApprovalResponse, ChannelListResponse, components, DraftCreateRequest, DraftUpdateRequest, Priority, ThreadListResponse, ThreadResponse } from "@jarvis/sdk";
+import type { ApprovalResponse, ChannelListResponse, components, DraftCreateRequest, DraftListResponse, DraftStatus, DraftUpdateRequest, Priority, ThreadListResponse, ThreadResponse } from "@jarvis/sdk";
 import { queryOptions, useQuery, type QueryClient } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
@@ -21,7 +21,21 @@ export interface ThreadFilters {
   cursor?: string;
 }
 
+export interface DraftFilters {
+  threadId?: string;
+  status?: DraftStatus[];
+  limit?: number;
+  cursor?: string;
+}
+
 export const communicationQueries = {
+  /** Drafts, newest change first (GET /communication/drafts, capability `communication.draft`). */
+  drafts: (filters: DraftFilters = {}) =>
+    queryOptions({
+      queryKey: queryKeys.communication.drafts.list(filters),
+      queryFn: (): Promise<DraftListResponse> => call(getApiClient().GET("/api/v1/communication/drafts", { params: { query: filters } })),
+      staleTime: staleTimes.communication,
+    }),
   channels: () =>
     queryOptions({
       queryKey: queryKeys.communication.channels,
@@ -42,6 +56,7 @@ export const communicationQueries = {
     }),
 };
 
+export const useDrafts = (filters?: DraftFilters, enabled = true) => useQuery({ ...communicationQueries.drafts(filters), enabled });
 export const useChannels = () => useQuery(communicationQueries.channels());
 export const useThreads = (filters?: ThreadFilters) => useQuery(communicationQueries.threads(filters));
 export const useThread = (id: string | null | undefined) => useQuery({ ...communicationQueries.thread(id ?? ""), enabled: Boolean(id) });
@@ -90,8 +105,9 @@ export function useRequestDraftSend() {
 }
 
 /**
- * The contract has no `GET /communication/drafts/{id}`: drafts are known from create/update responses and from
- * `jarvis.communication.draft_updated` events. This hook only reads that cache entry (it never fetches).
+ * There is no `GET /communication/drafts/{id}`: a single draft is known from the draft list, from create/update
+ * responses and from `jarvis.communication.draft_updated` events. This hook only reads that cache entry (it never
+ * fetches); it is the fallback for adapters without the list operation.
  */
 export const useCachedDraft = (id: string | null | undefined) =>
   useQuery<DraftResponse>({

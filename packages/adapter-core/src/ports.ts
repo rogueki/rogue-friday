@@ -13,9 +13,12 @@ import type {
   AuditEvent,
   Automation,
   AutomationCreateRequest,
+  AutomationPauseAllRequest,
+  AutomationPauseAllResult,
   AutomationRun,
   AutomationTestRequest,
   AutomationUpdateRequest,
+  AutomationVersion,
   CalendarBriefing,
   CalendarConflict,
   CalendarEvent,
@@ -29,14 +32,18 @@ import type {
   Draft,
   DraftCreateRequest,
   DraftSendRequest,
+  DraftStatus,
   DraftUpdateRequest,
   FileCategory,
   FileItem,
   FilePreview,
+  FileRenameRequest,
   Freshness,
   HealthcheckResult,
   Memory,
+  MemoryConflictResolveRequest,
   MemoryCreateRequest,
+  MemoryExport,
   MemorySearchHit,
   MemorySearchRequest,
   MemorySensitivity,
@@ -61,11 +68,15 @@ import type {
   SystemMetrics,
   Task,
   TaskActionRequest,
+  TaskAssignRequest,
   TaskCreateRequest,
+  TaskInputRequest,
   TaskStatus,
   TaskUpdateRequest,
   Thread,
   VoiceDevice,
+  VoiceEnrollRequest,
+  VoiceEnrollment,
   VoiceMetrics,
   VoiceProfile,
   VoiceStatus,
@@ -161,6 +172,11 @@ export interface TaskPort {
   retryTask?(params: IdParam & { body?: TaskActionRequest }, call: MutationContext): Promise<Single<Task>>;
   pauseTask?(params: IdParam & { body?: TaskActionRequest }, call: MutationContext): Promise<Single<Task>>;
   resumeTask?(params: IdParam & { body?: TaskActionRequest }, call: MutationContext): Promise<Single<Task>>;
+  /** Answers a task that waits for input (blocker `input_needed`); the adapter resolves the blocker and continues. */
+  provideTaskInput?(
+    params: IdParam & { body: TaskInputRequest },
+    call: MutationContext,
+  ): Promise<Single<Task>>;
 }
 
 export interface ListActivityParams extends PageParams {
@@ -204,6 +220,19 @@ export interface MemoryPort {
   ): Promise<Single<Memory>>;
   deleteMemory?(params: IdParam, call: MutationContext): Promise<ActionOutcome>;
   searchMemory?(params: { body: MemorySearchRequest }, call: CallContext): Promise<Hits<MemorySearchHit>>;
+  /**
+   * Complete export without the `contractVersion`. The Control API removes `restricted` memories again before the
+   * document leaves the system, so an adapter must not rely on its own filtering.
+   */
+  exportMemory?(
+    params: Record<string, never>,
+    call: CallContext,
+  ): Promise<Omit<MemoryExport, "contractVersion">>;
+  /** `conflictId` is the id of the conflicting memory (`MemoryConflict.memoryId`) of memory `id`. */
+  resolveMemoryConflict?(
+    params: IdParam & { conflictId: string; body: MemoryConflictResolveRequest },
+    call: MutationContext,
+  ): Promise<Single<Memory>>;
 }
 
 export interface ListAgentsParams extends PageParams {
@@ -217,6 +246,8 @@ export interface AgentPort {
   pauseAgent?(params: IdParam, call: MutationContext): Promise<Single<Agent>>;
   resumeAgent?(params: IdParam, call: MutationContext): Promise<Single<Agent>>;
   stopAgent?(params: IdParam, call: MutationContext): Promise<Single<Agent>>;
+  /** `id` is the task id (`POST /tasks/{id}/assign`); `agentId: null` releases the task. */
+  assignTask?(params: IdParam & { body: TaskAssignRequest }, call: MutationContext): Promise<Single<Task>>;
 }
 
 export interface ListApprovalsParams extends PageParams {
@@ -253,10 +284,16 @@ export interface ListThreadsParams extends PageParams {
   q?: string;
 }
 
+export interface ListDraftsParams extends PageParams {
+  threadId?: string;
+  status?: DraftStatus[];
+}
+
 export interface CommunicationPort {
   listChannels(params: PageParams, call: CallContext): Promise<Page<Channel>>;
   listThreads(params: ListThreadsParams, call: CallContext): Promise<Page<Thread>>;
   getThread(params: IdParam, call: CallContext): Promise<Single<Thread>>;
+  listDrafts?(params: ListDraftsParams, call: CallContext): Promise<Page<Draft>>;
   createDraft?(params: { body: DraftCreateRequest }, call: MutationContext): Promise<Single<Draft>>;
   updateDraft?(params: IdParam & { body: DraftUpdateRequest }, call: MutationContext): Promise<Single<Draft>>;
   /** Never sends directly: yields an Approval (Tier 2/3) that has to be decided before anything leaves the system. */
@@ -321,6 +358,13 @@ export interface AutomationPort {
   ): Promise<Single<AutomationRun>>;
   enableAutomation?(params: IdParam, call: MutationContext): Promise<Single<Automation>>;
   disableAutomation?(params: IdParam, call: MutationContext): Promise<Single<Automation>>;
+  /** Version history, newest first. */
+  listAutomationVersions?(params: IdParam & PageParams, call: CallContext): Promise<Page<AutomationVersion>>;
+  /** Pauses every enabled automation and reports the outcome per automation. */
+  pauseAllAutomations?(
+    params: { body?: AutomationPauseAllRequest },
+    call: MutationContext,
+  ): Promise<Single<AutomationPauseAllResult>>;
 }
 
 export interface ListResearchProjectsParams extends PageParams {
@@ -353,6 +397,10 @@ export interface FilePort {
   getFilePreview?(params: IdParam, call: CallContext): Promise<Single<FilePreview>>;
   downloadFile?(params: IdParam & { version?: number }, call: CallContext): Promise<FileDownload>;
   deleteFile?(params: IdParam, call: MutationContext): Promise<DeleteFileResult>;
+  renameFile?(
+    params: IdParam & { body: FileRenameRequest },
+    call: MutationContext,
+  ): Promise<Single<FileItem>>;
 }
 
 export interface VoicePort {
@@ -362,6 +410,17 @@ export interface VoicePort {
   listVoiceProfiles(params: PageParams, call: CallContext): Promise<Page<VoiceProfile>>;
   runVoiceTest?(params: { body: VoiceTestRequest }, call: MutationContext): Promise<Single<VoiceTestResult>>;
   stopVoice?(params: Record<string, never>, call: MutationContext): Promise<ActionOutcome>;
+  /** Starts the enrollment job of profile `id`; the job runs asynchronously and is polled with `getVoiceEnrollment`. */
+  enrollVoiceProfile?(
+    params: IdParam & { body?: VoiceEnrollRequest },
+    call: MutationContext,
+  ): Promise<Single<VoiceEnrollment>>;
+  getVoiceEnrollment?(params: IdParam, call: CallContext): Promise<Single<VoiceEnrollment>>;
+  /** The Control API has already checked `confirm === true`; `before` limits the deletion to older entries. */
+  deleteVoiceHistory?(
+    params: { confirm: boolean; before?: string },
+    call: MutationContext,
+  ): Promise<ActionOutcome>;
 }
 
 export interface ListNotificationsParams extends PageParams {

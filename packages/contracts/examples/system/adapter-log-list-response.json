@@ -1,0 +1,38 @@
+{
+  "$schema": "https://jarvis.local/schemas/system/adapter-log-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "timestamp": "2026-10-14T08:14:58Z",
+      "level": "warn",
+      "message": "Healthcheck langsam",
+      "adapterId": "mock-tasks",
+      "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00001",
+      "context": {
+        "latencyMs": 1840,
+        "threshold": 1500
+      }
+    },
+    {
+      "timestamp": "2026-10-14T08:15:02Z",
+      "level": "info",
+      "message": "Healthcheck erfolgreich",
+      "adapterId": "mock-tasks",
+      "correlationId": null,
+      "context": {
+        "latencyMs": 210
+      }
+    }
+  ],
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "control-api",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

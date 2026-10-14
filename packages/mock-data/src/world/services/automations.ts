@@ -2,19 +2,24 @@ import type {
   Automation,
   AutomationCondition,
   AutomationCreateRequest,
+  AutomationPauseAllRequest,
+  AutomationPauseAllResult,
   AutomationRun,
   AutomationTestRequest,
   AutomationUpdateRequest,
+  AutomationVersion,
 } from "@jarvis/sdk";
 import { isValidCron, nextCronRun } from "../../core/cron";
 import { notFound, validationFailed } from "../../core/errors";
 import { asBool, clone, compareAsc, compareDesc, matchesQuery, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
 import type { OpContext } from "../types";
+import { automationSnapshot } from "../../seed/automations";
 import { pageOf, type Query } from "./shared";
 
 export type AutomationListQuery = Query<"listAutomations">;
 export type AutomationRunQuery = Query<"listAutomationRuns">;
+export type AutomationVersionQuery = Query<"listAutomationVersions">;
 
 function readPath(sample: Record<string, unknown>, field: string): unknown {
   if (field in sample) return sample[field];
@@ -100,6 +105,7 @@ export class AutomationService {
       };
       automation.nextRunAt = this.computeNextRun(automation);
       this.w.state.automations.push(automation);
+      this.recordVersion(automation, ctx, "Automation angelegt.");
       this.publish(automation, ctx, "automation.created", null);
       return clone(automation);
     });
@@ -112,6 +118,7 @@ export class AutomationService {
       this.w.assertVersion(automation, ctx, "Automation");
       if (body.trigger) this.assertTrigger(body.trigger);
       const before = { enabled: automation.enabled, paused: automation.paused, name: automation.name };
+      const changes = this.describeChanges(automation, body);
       if (body.name !== undefined) automation.name = body.name;
       if (body.description !== undefined) automation.description = body.description;
       if (body.enabled !== undefined) automation.enabled = body.enabled;
@@ -122,6 +129,7 @@ export class AutomationService {
       if (body.escalation) automation.escalation = body.escalation;
       automation.nextRunAt = this.computeNextRun(automation);
       this.w.bump(automation);
+      this.recordVersion(automation, ctx, changes);
       this.publish(automation, ctx, "automation.updated", before);
       return clone(automation);
     });
@@ -243,10 +251,61 @@ export class AutomationService {
       automation.paused = paused;
       automation.nextRunAt = this.computeNextRun(automation);
       this.w.bump(automation);
+      this.recordVersion(automation, ctx, paused ? "Pausiert (alle Automationen)." : "Fortgesetzt (alle Automationen).");
       this.w.emitFor("automations", "jarvis.automation.updated", automation, `automation/${automation.id}`, ctx?.correlationId);
       changed++;
     }
     return changed;
+  }
+
+  /** Version history of one automation, newest first (PLAN §35.3). */
+  listVersions(id: string, query: AutomationVersionQuery = {}): Page<AutomationVersion> {
+    return this.w.read("listAutomationVersions", () => {
+      this.find(id);
+      const history = this.w.state.automationVersions[id] ?? [];
+      const items = [...history].sort((a, b) => b.version - a.version).map((entry, index) => ({ ...entry, current: index === 0 }));
+      return pageOf(items, query);
+    });
+  }
+
+  /**
+   * Pause All: pauses every enabled, not yet paused automation and reports one outcome per automation. Disabled
+   * automations are skipped (they do not run anyway); already paused ones stay untouched.
+   */
+  pauseAll(body: AutomationPauseAllRequest = {}, ctx?: OpContext): AutomationPauseAllResult {
+    return this.w.run("pauseAllAutomations", ctx, body, () => {
+      this.w.validate("AutomationPauseAllRequest", body);
+      const correlationId = this.w.correlationId(ctx);
+      const results: AutomationPauseAllResult["results"] = [];
+      const ordered = [...this.w.state.automations].sort((a, b) => compareAsc(a.name, b.name) || compareAsc(a.id, b.id));
+      for (const automation of ordered) {
+        if (!automation.enabled) {
+          results.push({ automationId: automation.id, name: automation.name, outcome: "skipped", version: automation.version, message: "Automation ist deaktiviert." });
+        } else if (automation.paused) {
+          results.push({ automationId: automation.id, name: automation.name, outcome: "already_paused", version: automation.version });
+        } else {
+          automation.paused = true;
+          automation.nextRunAt = this.computeNextRun(automation);
+          this.w.bump(automation);
+          this.recordVersion(automation, ctx, body.reason ? `Pausiert (Alle pausieren): ${body.reason}` : "Pausiert (Alle pausieren).");
+          this.w.emitFor("automations", "jarvis.automation.updated", automation, `automation/${automation.id}`, correlationId);
+          results.push({ automationId: automation.id, name: automation.name, outcome: "paused", version: automation.version });
+        }
+      }
+      const pausedCount = results.filter((entry) => entry.outcome === "paused").length;
+      const failedCount = results.filter((entry) => entry.outcome === "failed").length;
+      this.w.recordAudit({
+        category: "user_action",
+        action: "automation.paused_all",
+        severity: pausedCount > 0 ? "warning" : "info",
+        correlationId,
+        adapterId: "mock-automations",
+        actor: this.w.actorOf(ctx),
+        after: { paused: pausedCount, unchanged: results.length - pausedCount - failedCount, failed: failedCount },
+        context: body.reason ? { reason: body.reason } : {},
+      });
+      return { results, pausedCount, unchangedCount: results.length - pausedCount - failedCount, failedCount };
+    });
   }
 
   private toggle(id: string, enabled: boolean, ctx?: OpContext): Automation {
@@ -256,8 +315,37 @@ export class AutomationService {
     automation.enabled = enabled;
     automation.nextRunAt = this.computeNextRun(automation);
     this.w.bump(automation);
+    this.recordVersion(automation, ctx, enabled ? "Automation aktiviert." : "Automation deaktiviert.");
     this.publish(automation, ctx, enabled ? "automation.enabled" : "automation.disabled", before);
     return clone(automation);
+  }
+
+  private recordVersion(automation: Automation, ctx: OpContext | undefined, summary: string): void {
+    const history = (this.w.state.automationVersions[automation.id] ??= []);
+    for (const entry of history) entry.current = false;
+    history.push({
+      automationId: automation.id,
+      version: automation.version,
+      createdAt: this.w.nowIso(),
+      changedBy: this.w.actorOf(ctx),
+      summary,
+      current: true,
+      snapshot: automationSnapshot(automation),
+      source: this.w.source("automations"),
+    });
+  }
+
+  private describeChanges(automation: Automation, body: AutomationUpdateRequest): string {
+    const parts: string[] = [];
+    if (body.name !== undefined && body.name !== automation.name) parts.push(`Name „${body.name}“`);
+    if (body.description !== undefined && body.description !== automation.description) parts.push("Beschreibung");
+    if (body.enabled !== undefined && body.enabled !== automation.enabled) parts.push(body.enabled ? "aktiviert" : "deaktiviert");
+    if (body.paused !== undefined && body.paused !== automation.paused) parts.push(body.paused ? "pausiert" : "fortgesetzt");
+    if (body.trigger) parts.push("Auslöser");
+    if (body.conditions) parts.push("Bedingungen");
+    if (body.actions) parts.push("Aktionen");
+    if (body.escalation) parts.push("Eskalation");
+    return parts.length > 0 ? `Geändert: ${parts.join(", ")}.` : "Definition gespeichert.";
   }
 
   private computeNextRun(automation: Automation): string | null {

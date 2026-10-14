@@ -56,6 +56,20 @@ describe("mock-console CLI against the Control API", () => {
     expect((await observer.get("/api/v1/orb/status")).json().data.status.mode).toBe("success");
   });
 
+  it("releases a forced orb state and plays an event from the event list", async () => {
+    expect((await cli("orb", "error", "--text", "TEST")).code).toBe(0);
+    expect((await observer.get("/api/v1/orb/status")).json().data.status.mode).toBe("error");
+    expect((await cli("release-orb")).code).toBe(0);
+    expect((await observer.get("/api/v1/dev/scenarios/state")).json().data.forcedOrbMode).toBeNull();
+    expect((await observer.get("/api/v1/orb/status")).json().data.status.mode).not.toBe("error");
+    const played = await cli("play-event", "jarvis.orb.status_changed");
+    expect(played.code, played.err).toBe(0);
+    expect(played.out).toContain("jarvis.orb.status_changed");
+    const rejected = await cli("play-event", "jarvis.task.created");
+    expect(rejected.code).toBe(1);
+    expect(rejected.err).toMatch(/API-Fehler 422 VALIDATION_FAILED/);
+  });
+
   it("advances the clock, sets latency and error rate, toggles capabilities and resets", async () => {
     const before = (await observer.get("/api/v1/dev/scenarios/state")).json().data.simulatedTime as string;
     expect((await cli("advance", "2h")).code).toBe(0);

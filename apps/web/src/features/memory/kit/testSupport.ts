@@ -64,10 +64,10 @@ export function modules(flags: Record<string, Record<string, boolean>>): Capabil
 }
 
 export const FULL = {
-  memory: { read: true, write: true, delete: true, search: true, lock: true },
+  memory: { read: true, write: true, delete: true, search: true, lock: true, export: true, resolveConflict: true },
   notifications: { read: true, acknowledge: true, snooze: true, resolve: true },
   communication: { read: true, draft: true, send: true, multiChannel: true },
   mail: { read: true, draft: true, send: true },
   calendar: { read: true, create: true, reschedule: true, cancel: true, invite: true, respond: true, propose: true },
-  automations: { read: true, create: true, update: true, test: true, enable: true, disable: true, pauseAll: true },
+  automations: { read: true, create: true, update: true, test: true, enable: true, disable: true, pauseAll: true, versions: true },
 };

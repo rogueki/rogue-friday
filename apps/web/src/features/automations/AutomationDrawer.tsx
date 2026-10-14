@@ -9,6 +9,7 @@ import { useCapability } from "@/lib/capabilities";
 import { DataBadges } from "../memory/kit/Badges";
 import { useFormat } from "../memory/kit/hooks";
 import { AutomationFlow } from "./AutomationFlow";
+import { VersionHistory } from "./VersionHistory";
 import { RunHistory } from "./RunHistory";
 import { automationState, STATE_TONE, stateKey } from "./labels";
 import { TestPanel } from "./TestPanel";
@@ -98,7 +99,7 @@ function Detail({ automation, onEdit }: { automation: Automation; onEdit: (autom
                 .join(" · ")}
         </dd>
       </dl>
-      <p className="mk-note">{t("automations.version.noHistory")}</p>
+      <VersionHistory automationId={automation.id} />
     </div>
   );
 

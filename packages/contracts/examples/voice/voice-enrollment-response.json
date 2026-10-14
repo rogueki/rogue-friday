@@ -1,0 +1,29 @@
+{
+  "$schema": "https://jarvis.local/schemas/voice/voice-enrollment-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "id": "venr_01JCW5E9R2Q7T4M8N3B6V00001",
+    "profileId": "vprof_01JCW5E9R2Q7T4M8N3B6V00001",
+    "status": "capturing",
+    "samplesCaptured": 5,
+    "samplesRequired": 12,
+    "progress": {
+      "mode": "determinate",
+      "value": 0.42
+    },
+    "quality": null,
+    "startedAt": "2026-10-14T08:14:00Z",
+    "updatedAt": "2026-10-14T08:15:00Z",
+    "finishedAt": null,
+    "message": "Bitte sprich den nächsten Satz laut und deutlich.",
+    "source": {
+      "adapterId": "mock-voice",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

@@ -202,8 +202,8 @@ describe("AgentDrawer", () => {
     await waitFor(() => expect(api.callsTo("POST /agents/:id/stop")).toHaveLength(1));
   });
 
-  it("assigns an open task to the agent (task update with If-Match)", async () => {
-    const api = routes({ "PATCH /tasks/:id": () => dataOf({ ...open, agentId: agent.id, version: 2 }) });
+  it("assigns an open task to the agent (POST /tasks/{id}/assign with If-Match)", async () => {
+    const api = routes({ "POST /tasks/:id/assign": () => dataOf({ ...open, agentId: agent.id, version: 2 }) });
     const user = userEvent.setup();
     renderWithProviders(<AgentsPage />, { capabilities: FULL, fetchImpl: api.fetch });
     const dialog = await screen.findByRole("dialog");
@@ -213,10 +213,11 @@ describe("AgentDrawer", () => {
     expect(confirm).toBeDisabled();
     await user.selectOptions(await within(assign).findByRole("combobox", { name: "Aufgabe" }), open.id);
     await user.click(confirm);
-    await waitFor(() => expect(api.callsTo("PATCH /tasks/:id")).toHaveLength(1));
-    const call = api.callsTo("PATCH /tasks/:id")[0]!;
+    await waitFor(() => expect(api.callsTo("POST /tasks/:id/assign")).toHaveLength(1));
+    const call = api.callsTo("POST /tasks/:id/assign")[0]!;
     expect(call.body).toEqual({ agentId: agent.id });
     expect(call.headers.get("if-match")).toBe("1");
+    expect(api.callsTo("PATCH /tasks/:id")).toHaveLength(0);
   });
 
   it("opens the activity filtered to the agent", async () => {

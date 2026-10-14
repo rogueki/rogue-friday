@@ -6,6 +6,8 @@ export interface VoiceSeed {
   devices: VoiceDevice[];
   metrics: VoiceMetrics;
   profiles: VoiceProfile[];
+  enrollments: [];
+  history: string[];
 }
 
 const stat = (currentMs: number, avgMs: number, p95Ms: number, sampleCount: number): LatencyStat => ({
@@ -88,5 +90,8 @@ export function buildVoice(ctx: SeedContext): VoiceSeed {
       profile("Erik Brandt", true, 24, 0.93, true, 0.72, "pass"),
       profile("Gastprofil Büro", false, 6, 0.58, false, 0.8, "unknown"),
     ],
+    enrollments: [],
+    // 38 stored utterances over the last ten days (deterministic offsets, no random draw).
+    history: Array.from({ length: 38 }, (_, index) => ctx.at(-(index * 6 * 3_600_000 + 12 * MIN))),
   };
 }

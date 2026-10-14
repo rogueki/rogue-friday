@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { paths, readYaml } from "../scripts/lib/contract.mjs";
+import path from "node:path";
+import { paths, readJson, readYaml } from "../scripts/lib/contract.mjs";
 
 type Header = { $ref?: string };
 type Operation = {
   operationId: string;
+  "x-capability"?: string;
   parameters?: Array<{ $ref?: string }>;
   responses: Record<string, { headers?: Record<string, Header>; content?: Record<string, unknown> } | { $ref: string }>;
   "x-required-role"?: string;
@@ -67,7 +69,75 @@ describe("observability operations (PLAN §50.3)", () => {
     expect(Object.keys(telemetry?.op.responses ?? {})).toEqual(expect.arrayContaining(["202", "401", "403", "413", "422", "429"]));
   });
 
-  it("the contract has 109 operations", () => {
-    expect(operations).toHaveLength(109);
+  it("the contract has 122 operations", () => {
+    expect(operations).toHaveLength(122);
+  });
+});
+
+describe("operations that close the contract gaps", () => {
+  const find = (operationId: string) => operations.find(({ op }) => op.operationId === operationId);
+  const table: Array<[string, string, string, string, string]> = [
+    // operationId, method, path, capability, minimum role
+    ["renameFile", "patch", "/api/v1/files/{id}", "files.rename", "operator"],
+    ["restartAdapter", "post", "/api/v1/adapters/{id}/restart", "system.restartAdapter", "owner"],
+    ["getAdapterLogs", "get", "/api/v1/adapters/{id}/logs", "system.openLogs", "owner"],
+    ["exportMemory", "get", "/api/v1/memory/export", "memory.export", "owner"],
+    ["resolveMemoryConflict", "post", "/api/v1/memory/{id}/conflicts/{conflictId}/resolve", "memory.resolveConflict", "operator"],
+    ["listAutomationVersions", "get", "/api/v1/automations/{id}/versions", "automations.versions", "viewer"],
+    ["pauseAllAutomations", "post", "/api/v1/automations/pause-all", "automations.pauseAll", "operator"],
+    ["listDrafts", "get", "/api/v1/communication/drafts", "communication.draft", "viewer"],
+    ["enrollVoiceProfile", "post", "/api/v1/voice/profiles/{id}/enroll", "voice.enroll", "operator"],
+    ["getVoiceEnrollment", "get", "/api/v1/voice/enrollments/{id}", "voice.enroll", "viewer"],
+    ["deleteVoiceHistory", "delete", "/api/v1/voice/history", "voice.deleteHistory", "owner"],
+    ["assignTask", "post", "/api/v1/tasks/{id}/assign", "agents.assignTask", "operator"],
+    ["provideTaskInput", "post", "/api/v1/tasks/{id}/input", "tasks.input", "operator"],
+  ];
+
+  it.each(table)("%s: %s %s needs %s and at least the role %s", (operationId, method, path, capability, role) => {
+    const found = find(operationId);
+    expect(found, operationId).toMatchObject({ path, method });
+    expect(found?.op["x-capability"]).toBe(capability);
+    expect(found?.op["x-required-role"]).toBe(role);
+  });
+
+  it("only mutating operations that can be repeated by mistake accept an Idempotency-Key", () => {
+    for (const id of ["restartAdapter", "resolveMemoryConflict", "pauseAllAutomations", "enrollVoiceProfile", "deleteVoiceHistory", "assignTask", "provideTaskInput"]) {
+      expect(find(id)?.op.parameters?.some((parameter) => parameter.$ref === "#/components/parameters/IdempotencyKey"), id).toBe(true);
+    }
+    for (const id of ["renameFile", "exportMemory", "getAdapterLogs", "listDrafts", "listAutomationVersions", "getVoiceEnrollment"]) {
+      expect(find(id)?.op.parameters?.some((parameter) => parameter.$ref === "#/components/parameters/IdempotencyKey"), id).toBe(false);
+    }
+  });
+
+  it("renameFile and resolveMemoryConflict use optimistic concurrency", () => {
+    for (const id of ["renameFile", "resolveMemoryConflict", "assignTask", "provideTaskInput"]) {
+      expect(find(id)?.op.parameters?.some((parameter) => parameter.$ref === "#/components/parameters/IfMatch"), id).toBe(true);
+    }
+  });
+
+  it("enrollVoiceProfile answers 202 with the job, exportMemory serves JSON with a download header", () => {
+    expect(Object.keys(find("enrollVoiceProfile")?.op.responses ?? {})).toContain("202");
+    const exported = find("exportMemory")?.op.responses["200"] as { headers?: Record<string, unknown>; content?: Record<string, unknown> };
+    expect(Object.keys(exported.content ?? {})).toEqual(["application/json"]);
+    expect(exported.headers).toHaveProperty("Content-Disposition");
+  });
+
+  it("deleteVoiceHistory demands the confirmation as a required query parameter", () => {
+    const params = find("deleteVoiceHistory")?.op.parameters as Array<{ name?: string; in?: string; required?: boolean }>;
+    expect(params.find((parameter) => parameter.name === "confirm")).toMatchObject({ in: "query", required: true });
+  });
+
+  it("the capability document announces every new capability flag", () => {
+    const capabilities = readJson(path.join(paths.schemas, "meta", "capabilities.schema.json")) as { $defs: Record<string, { properties: Record<string, unknown> }> };
+    const expected: Record<string, string[]> = {
+      TasksCapability: ["input"],
+      MemoryCapability: ["export", "resolveConflict"],
+      AutomationsCapability: ["versions"],
+      FilesCapability: ["rename"],
+      VoiceCapability: ["deleteHistory", "enroll"],
+      SystemCapability: ["restartAdapter", "openLogs"],
+      AgentsCapability: ["assignTask"],
+    };
+    for (const [def, flags] of Object.entries(expected)) for (const flag of flags) expect(capabilities.$defs[def]?.properties, `${def}.${flag}`).toHaveProperty(flag);
   });
 });

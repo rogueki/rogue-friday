@@ -1,0 +1,12 @@
+{
+  "$schema": "https://jarvis.local/schemas/system/adapter-log-entry.schema.json",
+  "timestamp": "2026-10-14T08:14:58Z",
+  "level": "warn",
+  "message": "Healthcheck langsam",
+  "adapterId": "mock-tasks",
+  "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00001",
+  "context": {
+    "latencyMs": 1840,
+    "threshold": 1500
+  }
+}

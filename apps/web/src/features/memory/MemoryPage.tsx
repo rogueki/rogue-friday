@@ -1,12 +1,12 @@
 "use client";
 
 import type { Memory, MemoryListResponse, MemorySearchRequest, MemorySearchResponse, MemorySensitivity, MemoryType } from "@jarvis/sdk";
-import { Button, FilterBar, HudPanel, StatusChip, Switch } from "@jarvis/ui";
+import { Button, FilterBar, HudPanel, StatusChip, Switch, useToast } from "@jarvis/ui";
 import { Brain, Download, Plus } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { useT } from "@/i18n";
-import { useMemories, useMemorySearch, useCreateMemory, type MemoryFilters } from "@/lib/api/domains/memory";
+import { useCreateMemory, useExportMemory, useMemories, useMemorySearch, type MemoryFilters } from "@/lib/api/domains/memory";
 import { useCapability, useCapabilityState } from "@/lib/capabilities";
 import { CapabilityNote, DataBadges } from "./kit/Badges";
 import { downloadJson, stamp } from "./kit/download";
@@ -42,6 +42,9 @@ function MemoryPageInner() {
 
   const canSearch = useCapability("memory", "search");
   const canWrite = useCapability("memory", "write");
+  const canExport = useCapability("memory", "export");
+  const { toast } = useToast();
+  const exportAll = useExportMemory();
   const readState = useCapabilityState("memory", "read");
   const writeState = useCapabilityState("memory", "write");
   const create = useCreateMemory();
@@ -106,6 +109,21 @@ function MemoryPageInner() {
     [memories],
   );
 
+  const runExport = (): void =>
+    exportAll.mutate(
+      {},
+      {
+        onSuccess: (document) => {
+          downloadJson(`gedaechtnis-${stamp(new Date(document.exportedAt))}.json`, document);
+          toast({
+            title: t("memory.export.done", { count: document.count }),
+            description: document.omittedRestricted > 0 ? t("memory.export.omitted", { count: document.omittedRestricted }) : t("memory.export.complete"),
+            tone: "green",
+          });
+        },
+      },
+    );
+
   const resetFilters = (): void => {
     setSearch("");
     setType("all");
@@ -129,7 +147,15 @@ function MemoryPageInner() {
         actions={
           <span className="mk-actions">
             <DataBadges sources={activeQuery.data?.sources} freshness={effectiveFreshness<MemoryListResponse | MemorySearchResponse>(activeQuery)} />
-            <Button size="sm" variant="ghost" icon={<Download size={14} />} disabled={readState !== "available" || memories.length === 0} onClick={() => downloadJson(`gedaechtnis-${stamp()}.json`, memories)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<Download size={14} />}
+              disabled={readState !== "available" || !canExport}
+              loading={exportAll.isPending}
+              title={!canExport ? t("memory.export.unavailable") : t("memory.export.hint")}
+              onClick={runExport}
+            >
               {t("memory.exportList")}
             </Button>
             <Button size="sm" icon={<Plus size={14} />} disabled={!canWrite} title={!canWrite ? t("memory.kit.noWrite") : undefined} onClick={() => setCreating(true)}>

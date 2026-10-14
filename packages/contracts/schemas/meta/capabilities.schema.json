@@ -116,6 +116,10 @@
         "stream": {
           "type": "boolean"
         },
+        "input": {
+          "type": "boolean",
+          "description": "Answer tasks that wait for input (POST /tasks/{id}/input)."
+        },
         "sources": {
           "type": "array",
           "items": {
@@ -173,6 +177,14 @@
         },
         "lock": {
           "type": "boolean"
+        },
+        "export": {
+          "type": "boolean",
+          "description": "Export the memory store as JSON."
+        },
+        "resolveConflict": {
+          "type": "boolean",
+          "description": "Resolve memory conflicts."
         },
         "sources": {
           "type": "array",
@@ -366,6 +378,10 @@
         "pauseAll": {
           "type": "boolean"
         },
+        "versions": {
+          "type": "boolean",
+          "description": "Read the version history of an automation."
+        },
         "sources": {
           "type": "array",
           "items": {
@@ -424,6 +440,10 @@
         "upload": {
           "type": "boolean"
         },
+        "rename": {
+          "type": "boolean",
+          "description": "Rename files (PATCH /files/{id})."
+        },
         "sources": {
           "type": "array",
           "items": {
@@ -452,6 +472,10 @@
         },
         "enroll": {
           "type": "boolean"
+        },
+        "deleteHistory": {
+          "type": "boolean",
+          "description": "Delete the voice history (DELETE /voice/history)."
         },
         "sources": {
           "type": "array",

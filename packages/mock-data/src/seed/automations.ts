@@ -4,6 +4,7 @@ import type {
   AutomationCondition,
   AutomationRun,
   AutomationTrigger,
+  AutomationVersion,
   EscalationStep,
 } from "@jarvis/sdk";
 import { nextCronRun } from "../core/cron";
@@ -255,4 +256,42 @@ export function buildBulkAutomations(ctx: SeedContext, count: number): Automatio
     });
   }
   return { automations, runs };
+}
+
+/** Definition part of an automation, as stored in the version history. */
+export function automationSnapshot(automation: Automation): AutomationVersion["snapshot"] {
+  return {
+    name: automation.name,
+    ...(automation.description !== undefined ? { description: automation.description } : {}),
+    enabled: automation.enabled,
+    paused: automation.paused,
+    trigger: structuredClone(automation.trigger),
+    conditions: structuredClone(automation.conditions),
+    actions: structuredClone(automation.actions),
+    escalation: structuredClone(automation.escalation),
+  };
+}
+
+/**
+ * Seed history: every automation starts with the version it was created in (all seeded automations are at version 1).
+ * The mock world appends one entry per later definition change.
+ */
+export function buildAutomationVersions(ctx: SeedContext, automations: readonly Automation[]): Record<string, AutomationVersion[]> {
+  const history: Record<string, AutomationVersion[]> = {};
+  for (const automation of automations) {
+    history[automation.id] = Array.from({ length: automation.version }, (_, index) => {
+      const version = index + 1;
+      return {
+        automationId: automation.id,
+        version,
+        createdAt: version === 1 ? automation.createdAt : automation.updatedAt,
+        changedBy: ctx.owner,
+        summary: version === 1 ? "Automation angelegt." : "Definition angepasst.",
+        current: version === automation.version,
+        snapshot: automationSnapshot(automation),
+        source: automation.source,
+      };
+    });
+  }
+  return history;
 }

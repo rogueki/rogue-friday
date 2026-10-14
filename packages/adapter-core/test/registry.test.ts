@@ -190,6 +190,7 @@ describe("AdapterRegistry capabilities", () => {
       pause: false,
       resume: false,
       stream: true,
+      input: false,
       sources: ["test-tasks"],
     });
     expect(document.modules.memory.read).toBe(false);
@@ -429,5 +430,22 @@ describe("AdapterRegistry events, restart and shutdown", () => {
       manifest: { id: "test-tasks" },
       health: { lifecycle: "ONLINE" },
     });
+  });
+});
+
+describe("control-plane capabilities", () => {
+  it("switches the capabilities the control plane provides itself on, in the document and in its change event", async () => {
+    const { registry, events } = setup();
+    await registry.initialize(config());
+    expect(registry.aggregateCapabilities().modules.system).toMatchObject({ restartAdapter: false, openLogs: false });
+    events.length = 0;
+    registry.provideControlPlaneCapabilities(["system.restartAdapter", "system.openLogs", "not.a.flag", "system.sources"]);
+    const system = registry.aggregateCapabilities().modules.system;
+    expect(system).toMatchObject({ restartAdapter: true, openLogs: true, healthcheck: false });
+    expect(system.sources).toEqual([]);
+    const changed = events.find((entry) => entry.event.type === "jarvis.adapter.capabilities_changed");
+    expect((changed?.event.data as { modules: { system: { restartAdapter: boolean } } }).modules.system.restartAdapter).toBe(true);
+    registry.provideControlPlaneCapabilities([]);
+    expect(registry.aggregateCapabilities().modules.system.restartAdapter).toBe(false);
   });
 });

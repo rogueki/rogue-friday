@@ -12,14 +12,14 @@ WebSocket-Ereignisstrom und das statische Web (`apps/web/out`) auf **einem Port*
 |---|---|
 | `src/main.ts` | Start: Konfiguration laden, Dev-Fallback, `listen`, geordnetes Beenden (SIGINT/SIGTERM) |
 | `src/app.ts` | Nest-Modul mit expliziten Tokens (läuft unter `tsx` und `tsup`), schließt WebSockets vor dem HTTP-Server |
-| `src/http/route-table.generated.ts` | **generiert** aus dem gebündelten OpenAPI (`pnpm --filter @jarvis/control-api generate:routes`): 109 Operationen mit Rolle, Capability, CSRF, Body-Limit, Body-/Antwortschema |
+| `src/http/route-table.generated.ts` | **generiert** aus dem gebündelten OpenAPI (`pnpm --filter @jarvis/control-api generate:routes`): 122 Operationen mit Rolle, Capability, CSRF, Body-Limit, Body-/Antwortschema |
 | `src/http/pipeline.ts` | Anfragepipeline je Operation: Korrelations-ID, Sitzung, Rollenmatrix, CSRF, Query-/Body-Validierung, `If-Match`, `Idempotency-Key`, Audit, Antwortvalidierung |
 | `src/http/server.ts`, `static.ts` | Host-/Origin-Prüfung, Security-Header, CSP mit Hashes der Inline-Skripte, SPA-Fallback ohne Ausbruch aus dem Web-Root |
-| `src/handlers/*` | Handler je Operation; portbasierte Operationen werden aus `PORT_SPEC` (`@jarvis/adapter-core`) abgeleitet, Sonderfälle (Freigaben, Auth, Befehle, Einstellungen, Dev-Konsole) liegen in eigenen Dateien |
+| `src/handlers/*` | Handler je Operation; portbasierte Operationen werden aus `PORT_SPEC` (`@jarvis/adapter-core`) abgeleitet, Sonderfälle (Freigaben, Auth, Befehle, Einstellungen, Dev-Konsole, Adapter-Neustart/-Logs in `adapters.ts`, Audit-Hinweise und Durchsetzung in `domain-ops.ts`) liegen in eigenen Dateien |
 | `src/security/*` | Sitzungen, Login-Drosselung, Re-Auth, Approval-Tokens (`@jarvis/auth`); Aktion-Berechtigungsmatrix |
 | `src/realtime/hub.ts` | Ereignis-Hub: globale Sequenz, Ringpuffer, Replay (`?since=`), `resync_required`, Heartbeat, Backpressure |
 | `src/runtime/*` | Verdrahtung: Konfiguration, Welt, Adapter-Registry, Dienste, SQLite, Timer |
-| `src/services/*` | Einstellungen, Adapter-Einstellungen (Secrets write-only, Version/`If-Match`), Orb-/Status-/Overview-Ableitung, Befehls-Intents, Frontend-Telemetrie |
+| `src/services/*` | Einstellungen, Adapter-Einstellungen (Secrets write-only, Version/`If-Match`), Orb-/Status-/Overview-Ableitung, Befehls-Intents, Frontend-Telemetrie, Log-Ringpuffer (`log-buffer.ts`) |
 | `src/db/*` | `node:sqlite`: Einstellungen, Sitzungen, Audit-Hashkette samt Kopf-Anker (`audit-anchor.ts`), Idempotenz-Schlüssel, Befehlsverlauf, Themes/Layouts |
 
 Verbindliche Regeln: Modelle kommen aus `@jarvis/sdk` (nie handgeschrieben), Antworten werden in Dev/Test gegen das
@@ -92,6 +92,40 @@ Adapter-Secrets stehen nie im Klartext in Dateien: `env:NAME` oder `wincred:ZIEL
 - **Befehls-Intents**: `POST /commands` mit dem Text "Sprachaufnahme starten" bzw. "Fokus-Modus umschalten" steuert die
   Sprachpipeline (Mock-Modus), alle anderen Texte gehen als Auftrag an den Befehls-Adapter.
 
+## Adapter-Neustart, Logs und weitere Funktionen (Vertragslücken geschlossen)
+
+- **Adapter neu starten** `POST /adapters/{id}/restart` (nur `owner`, Capability `system.restartAdapter`, `Idempotency-Key`): die Control
+  API stoppt den Adapter über die Registry (`registry.restart`), erzeugt eine frische Instanz und initialisiert sie. Antwort `200`
+  mit `ActionResult` (`status: completed`); startet der Adapter nicht wieder, `503 ADAPTER_UNAVAILABLE`. Der Audit-Eintrag
+  (`adapter.restarted`, Kategorie `system`, Schweregrad `warning`) enthält Adapter-ID und Lebenszyklus vorher/nachher. Die Capability
+  `system.restartAdapter`/`system.openLogs` stellt die Control API selbst bereit (`registry.provideControlPlaneCapabilities`) und
+  nimmt sie nur im Mock-Modus mit Szenario-Konsole zurück, damit die Konsole sie schalten kann.
+- **Adapter-Logs** `GET /adapters/{id}/logs?limit&level` (nur `owner`, Capability `system.openLogs`): die letzten Zeilen aus einem
+  Ringpuffer (`LogBuffer`, 2000 Zeilen) des Control-API-Loggers, gefiltert nach Adapter (Feld `adapterId` oder Kategorie der
+  Operation) und Mindest-Level, älteste zuerst. Zeilen ab `info` landen unabhängig vom konfigurierten Log-Level im Puffer. Jede Zeile
+  ist vor dem Speichern geschwärzt (Schlüsselnamen wie `token`/`password`, Tokens, API-Schlüssel, URL-Zugangsdaten, optional
+  E-Mail-Adressen); Kontextwerte sind kurze Skalare, Stacktraces gelangen nie in den Puffer.
+- **Datei umbenennen** `PATCH /files/{id}` (`operator`, `files.rename`, `If-Match`): Name ohne Pfadtrenner/reservierte Zeichen,
+  eindeutig je Speicherort; Audit mit altem und neuem Namen (`file.renamed`).
+- **Memory** `GET /memory/export` (`owner`, `memory.export`): JSON-Download mit `Content-Disposition`; `restricted`-Einträge werden
+  auch dann entfernt, wenn der Adapter sie liefert (Zähler `omittedRestricted`), alle Texte laufen durch die Log-Schwärzung
+  (Schlüssel, Tokens). Der Export wird auditiert (`memory.exported`). `POST /memory/{id}/conflicts/{conflictId}/resolve`
+  (`operator`, `memory.resolveConflict`, `If-Match`): `conflictId` ist die ID des widersprechenden Eintrags;
+  `keep_both`/`dismiss` markieren beide Seiten, `replace` vergisst den anderen Eintrag (gesperrte: `409`).
+- **Automationen** `GET /automations/{id}/versions` (`automations.versions`): Versionsverlauf, neueste zuerst, genau ein Eintrag
+  `current`, je Eintrag Änderer, Zusammenfassung und Definition. `POST /automations/pause-all` (`operator`,
+  `automations.pauseAll`, `Idempotency-Key`): pausiert alle aktivierten Automationen, Antwort je Automation
+  (`paused`/`already_paused`/`skipped`/`failed`), ein Audit-Eintrag (`automation.paused_all`).
+- **Kommunikation** `GET /communication/drafts?threadId=&status=` (`communication.draft`): Entwürfe, zuletzt geändert zuerst.
+- **Stimme** `POST /voice/profiles/{id}/enroll` (`voice.enroll`): startet einen Einrichtungsjob (`202`, `Location`), Stand über
+  `GET /voice/enrollments/{id}` (Polling); Audio läuft nie durch die API. `DELETE /voice/history?confirm=true` (`owner`,
+  `voice.deleteHistory`): ohne `confirm=true` `422`, mit Audit (`voice.history_deleted`, `warning`).
+- **Aufgaben** `POST /tasks/{id}/assign` (`agents.assignTask`, `If-Match`) weist einen Agenten zu oder gibt die Aufgabe frei;
+  `POST /tasks/{id}/input` (`tasks.input`, `If-Match`) beantwortet eine Aufgabe mit Blocker `input_needed`. Der Antworttext steht
+  weder im Audit noch in Ereignissen.
+- **Dev-Konsole**: `apps/mock-console` kennt `release-orb` (`release_orb_state`) und `play-event <typ> [--subject] [--payload]`
+  (`play_event`).
+
 ## Metriken und Frontend-Telemetrie (PLAN §50.3)
 
 - `GET /api/v1/metrics` (nur `owner`, `text/plain; version=0.0.4`): Anfragedauer (`jarvis_http_request_duration_seconds`),
@@ -121,7 +155,8 @@ pnpm --filter @jarvis/control-api test        # vitest, test/*.test.ts
 
 | Datei | Prüft |
 |---|---|
-| `contract.test.ts` | alle 109 Operationen aus der Routentabelle mit vertragsgültiger Antwort (Status, Body, Header); schlägt fehl, wenn eine Operation fehlt |
+| `contract.test.ts` | alle 122 Operationen aus der Routentabelle mit vertragsgültiger Antwort (Status, Body, Header); schlägt fehl, wenn eine Operation fehlt |
+| `contract-gaps.test.ts` | die Operationen der geschlossenen Vertragslücken: Rollen, CSRF, Capability, Idempotenz, Audit, Schwärzung der Logs/Exporte, Neustart über die Registry |
 | `security.test.ts` | Sitzungen, Cookies, CSRF, Origin/Host, Rollenmatrix über alle Operationen, Login-Drosselung, Sitzungsablauf |
 | `mutations.test.ts` | Idempotenz (Replay, Konflikt, parallel, Neustart), `If-Match`, `assistantName` |
 | `approvals.test.ts` | Approval-Token, Einmaligkeit, Ablauf, Doppel-Approve, Tier 3 mit Re-Auth, Sprachkanal, Rollen |

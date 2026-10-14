@@ -270,13 +270,62 @@ describe("communication page: thread detail and drafts", () => {
     expect(within(dialog).getByText("Entwürfe sind für diesen Kanal nicht verfügbar.")).toBeInTheDocument();
   });
 
-  it("an existing draft the API cannot return is shown as living in the source system", async () => {
+  it("loads the drafts of the thread from GET /communication/drafts?threadId= and makes them editable", async () => {
     const user = userEvent.setup();
     const thread = makeThread({ hasDraft: true, draftIds: [DRAFT] });
-    const fake = routedFetch(routes(thread));
+    const fake = routedFetch({
+      ...routes(thread),
+      "GET /api/v1/communication/drafts": () => listOf([draft({ version: 3 })]),
+      [`PATCH /api/v1/communication/drafts/${DRAFT}`]: () => single(draft({ version: 4, body: "Geändert" })),
+    });
+    renderWithProviders(<CommunicationPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    const dialog = await openThread(user);
+    const body = await within(dialog).findByLabelText("Nachricht");
+    expect(body).toHaveValue("Sehr geehrte Frau Becker, der Termin passt. Das Protokoll sende ich vorab.");
+    const listCall = fake.to("GET", "/api/v1/communication/drafts")[0];
+    expect(new URLSearchParams(listCall?.search).get("threadId")).toBe(THREAD);
+    expect(within(dialog).queryByText("Entwurf im Quellsystem")).toBeNull();
+    await user.clear(body);
+    await user.type(body, "Geändert");
+    await user.click(within(dialog).getByRole("button", { name: "Entwurf speichern" }));
+    await waitFor(() => expect(fake.to("PATCH", `/api/v1/communication/drafts/${DRAFT}`)).toHaveLength(1));
+    expect(fake.to("PATCH", `/api/v1/communication/drafts/${DRAFT}`)[0]?.headers.get("If-Match")).toBe("3");
+  });
+
+  it("shows a draft the thread lists even if the draft list does not know it (older adapters)", async () => {
+    const user = userEvent.setup();
+    const thread = makeThread({ hasDraft: true, draftIds: [DRAFT] });
+    const fake = routedFetch({ ...routes(thread), "GET /api/v1/communication/drafts": () => listOf([]) });
     renderWithProviders(<CommunicationPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     const dialog = await openThread(user);
     expect(await within(dialog).findByText("Entwurf im Quellsystem")).toBeInTheDocument();
+  });
+
+  it("does not request the draft list without the capability and falls back to the placeholder", async () => {
+    const user = userEvent.setup();
+    const thread = makeThread({ hasDraft: true, draftIds: [DRAFT] });
+    const fake = routedFetch({ ...routes(thread), "GET /api/v1/communication/drafts": () => listOf([draft()]) });
+    renderWithProviders(<CommunicationPage />, { fetchImpl: fake.fetch, capabilities: modules({ communication: { read: true, draft: false, send: false }, mail: { read: true } }) });
+    const dialog = await openThread(user);
+    expect(await within(dialog).findByText("Entwurf im Quellsystem")).toBeInTheDocument();
+    expect(fake.to("GET", "/api/v1/communication/drafts")).toHaveLength(0);
+  });
+
+  it("explains a failed draft list with a retry and keeps the placeholder", async () => {
+    const user = userEvent.setup();
+    const thread = makeThread({ hasDraft: true, draftIds: [DRAFT] });
+    let fail = true;
+    const fake = routedFetch({
+      ...routes(thread),
+      "GET /api/v1/communication/drafts": () => (fail ? errorResponse("INTERNAL", "Entwurfsspeicher nicht erreichbar", 500) : listOf([draft()])),
+    });
+    renderWithProviders(<CommunicationPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    const dialog = await openThread(user);
+    expect(await within(dialog).findByText(/Die Entwürfe dieses Threads konnten nicht geladen werden/)).toBeInTheDocument();
+    expect(within(dialog).getByText("Entwurf im Quellsystem")).toBeInTheDocument();
+    fail = false;
+    await user.click(within(dialog).getByRole("button", { name: "Erneut versuchen" }));
+    expect(await within(dialog).findByLabelText("Nachricht")).toBeInTheDocument();
   });
 
   it("sending unavailable: the request button is disabled with the reason", async () => {

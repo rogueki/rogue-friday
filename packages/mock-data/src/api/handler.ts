@@ -1,8 +1,9 @@
 import { MockApiError } from "../core/errors";
+import { MockApprovalTokens } from "./approval-tokens";
 import { ScenarioEngine } from "../scenarios/engine";
 import type { OpContext } from "../world/types";
 import type { MockWorld } from "../world/world";
-import { ROUTES, type HttpMethod, type RouteDef, type RouteInput } from "./routes";
+import { ROUTES, type HttpMethod, type RouteDef, type RouteInput, type RouteResult } from "./routes";
 
 export interface ApiHandlerOptions {
   /** Delay responses by the injected per-category latency (default true; 0 ms means no delay). */
@@ -11,6 +12,12 @@ export interface ApiHandlerOptions {
   enforceCsrf?: boolean;
   /** Scenario engine to use; defaults to the engine shared per world. */
   engine?: ScenarioEngine;
+  /**
+   * Behave like the Control API for approvals (PLAN §32.5): `GET /approvals/{id}` issues a single-use token in the
+   * `X-Approval-Token` header and `POST /approvals/{id}/approve` is refused (403 APPROVAL_REQUIRED) without a valid one.
+   * Off by default; the MSW handlers of the browser mock switch it on.
+   */
+  approvalTokens?: boolean;
 }
 
 export const API_PREFIX = "/api/v1";
@@ -110,7 +117,9 @@ export async function handleApiRequest(world: MockWorld, request: Request, optio
 
     const input: RouteInput = { params: matched.params, query: queryOf(url), body, ctx, raw: url.searchParams };
     const engine = options.engine ?? ScenarioEngine.for(world);
+    if (options.approvalTokens) requireApprovalToken(world, matched.route.operationId, matched.params.id, body, request.headers.get("X-Approval-Token"));
     const result = matched.route.run(world, engine, input);
+    if (options.approvalTokens) issueApprovalToken(world, matched.route.operationId, result);
 
     if (options.simulateLatency !== false && result.category) {
       const delayMs = world.latencyFor(result.category);
@@ -127,6 +136,39 @@ export async function handleApiRequest(world: MockWorld, request: Request, optio
     const internal = new MockApiError({ code: "INTERNAL", message: error instanceof Error ? error.message : "Interner Fehler im Mock-Server" });
     return errorResponse(internal, correlationId);
   }
+}
+
+const REAUTH_MARKER = "reauthToken";
+
+/** An approve of a pending approval needs the token its details view issued (decided/unknown approvals fail in the world). */
+function requireApprovalToken(world: MockWorld, operationId: string, approvalId: string | undefined, body: unknown, header: string | null): void {
+  if (operationId !== "approveApproval" || !approvalId) return;
+  const approval = world.state.approvals.find((candidate) => candidate.id === approvalId);
+  if (!approval || approval.status !== "pending") return;
+  // Tier 3 without a re-auth token fails first (REAUTH_REQUIRED) and must not spend the token.
+  const needsReauth = approval.riskTier === 3 || approval.requiredAuth === "reauth";
+  if (needsReauth && !(body as Record<string, unknown> | undefined)?.[REAUTH_MARKER]) return;
+  const check = MockApprovalTokens.for(world).consume(header, approvalId);
+  if (check === "ok") return;
+  throw new MockApiError({
+    code: "APPROVAL_REQUIRED",
+    message:
+      check === "missing"
+        ? "Das Freigabe-Token fehlt. Bitte die Freigabe öffnen und erneut entscheiden."
+        : check === "expired"
+          ? "Das Freigabe-Token ist abgelaufen. Bitte die Freigabe erneut öffnen."
+          : "Das Freigabe-Token ist ungültig oder wurde bereits verwendet.",
+    details: { reason: check === "missing" ? "missing_approval_token" : check },
+  });
+}
+
+/** Opening a pending approval issues the token (the role matrix of the mock is the session role, see `requireRole`). */
+function issueApprovalToken(world: MockWorld, operationId: string, result: RouteResult): void {
+  if (operationId !== "getApproval") return;
+  const approval = (result.body as { data?: { id?: string; status?: string } } | undefined)?.data;
+  if (!approval?.id || approval.status !== "pending" || world.state.session.role === "viewer") return;
+  const { token, expiresAt } = MockApprovalTokens.for(world).issue(approval.id);
+  result.headers = { ...(result.headers ?? {}), "X-Approval-Token": token, "X-Approval-Token-Expires": expiresAt };
 }
 
 export type { HttpMethod };

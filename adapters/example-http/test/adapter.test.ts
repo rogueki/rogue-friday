@@ -95,6 +95,8 @@ describe("ExampleTasksAdapter behind the registry", () => {
       pause: false,
       resume: false,
       stream: true,
+      // Optional flag added with POST /tasks/{id}/input; the example adapter does not declare it.
+      input: false,
       sources: ["example-tasks-http"],
     });
   });

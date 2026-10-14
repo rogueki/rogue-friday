@@ -6,7 +6,7 @@ import { PauseCircle, PlayCircle, Plus, Workflow } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { useT } from "@/i18n";
-import { useAutomations, usePauseAllAutomations, useToggleAutomation } from "@/lib/api/domains/automations";
+import { useAutomations, usePauseAllAutomations, useResumeAllAutomations, useToggleAutomation } from "@/lib/api/domains/automations";
 import { useCapability, useCapabilityState } from "@/lib/capabilities";
 import { CapabilityNote, DataBadges } from "../memory/kit/Badges";
 import { useDebounced, useUrlParam } from "../memory/kit/hooks";
@@ -44,9 +44,11 @@ function AutomationsPageInner() {
   const canEnable = useCapability("automations", "enable");
   const canDisable = useCapability("automations", "disable");
   const canPauseAll = useCapability("automations", "pauseAll");
+  const canUpdate = useCapability("automations", "update");
   const enable = useToggleAutomation(true);
   const disable = useToggleAutomation(false);
   const pauseAll = usePauseAllAutomations();
+  const resumeAll = useResumeAllAutomations();
 
   const items = useMemo<Automation[]>(() => query.data?.items ?? [], [query.data]);
   const counts = useMemo(() => {
@@ -79,15 +81,33 @@ function AutomationsPageInner() {
     degraded: counts.paused > 0 ? { reason: t("automations.pausedNotice", { count: counts.paused }), affected: [] } : undefined,
   });
 
+  // Pausing is one bulk request with a result per automation; resuming has no bulk operation in the contract.
+  const mayRun = mode === "pause" ? canPauseAll : canPauseAll && canUpdate;
   const runPauseAll = (): void => {
     if (!confirmPause) return;
-    pauseAll.mutate(
-      { targets: targets.map((automation) => ({ id: automation.id, version: automation.version })), paused: confirmPause === "pause" },
+    if (confirmPause === "pause") {
+      pauseAll.mutate(
+        {},
+        {
+          onSuccess: ({ data }) => {
+            setConfirmPause(null);
+            toast({
+              title: data.failedCount === 0 ? t("automations.pauseAll.done") : t("automations.pauseAll.partial"),
+              description: t("automations.pauseAll.summary", { paused: data.pausedCount, unchanged: data.unchangedCount, failed: data.failedCount }),
+              tone: data.failedCount === 0 ? "green" : "amber",
+            });
+          },
+        },
+      );
+      return;
+    }
+    resumeAll.mutate(
+      { targets: targets.map((automation) => ({ id: automation.id, version: automation.version })) },
       {
         onSuccess: (result) => {
           setConfirmPause(null);
           toast({
-            title: result.failed.length === 0 ? t(confirmPause === "pause" ? "automations.pauseAll.done" : "automations.resumeAll.done") : t("automations.pauseAll.partial"),
+            title: result.failed.length === 0 ? t("automations.resumeAll.done") : t("automations.pauseAll.partial"),
             description: t("automations.pauseAll.result", { ok: result.succeeded.length, total: result.succeeded.length + result.failed.length }),
             tone: result.failed.length === 0 ? "green" : "amber",
           });
@@ -109,8 +129,8 @@ function AutomationsPageInner() {
               size="sm"
               variant="ghost"
               icon={mode === "pause" ? <PauseCircle size={14} /> : <PlayCircle size={14} />}
-              disabled={!canPauseAll || targets.length === 0}
-              title={!canPauseAll ? t("automations.kit.noPauseAll") : undefined}
+              disabled={!mayRun || targets.length === 0}
+              title={!mayRun ? t("automations.kit.noPauseAll") : undefined}
               onClick={() => setConfirmPause(mode)}
             >
               {mode === "pause" ? t("automations.pauseAll") : t("automations.resumeAll")}
@@ -203,7 +223,7 @@ function AutomationsPageInner() {
         details={targets.slice(0, 8).map((automation) => automation.name)}
         confirmLabel={confirmPause === "resume" ? t("automations.resumeAll") : t("automations.pauseAll")}
         cancelLabel={t("common.cancel")}
-        loading={pauseAll.isPending}
+        loading={pauseAll.isPending || resumeAll.isPending}
         onConfirm={runPauseAll}
       />
     </div>

@@ -1,5 +1,5 @@
-import { CONTRACT_VERSION, type ActionResult, type Approval, type FileItem, type FilePreview } from "@jarvis/sdk";
-import { notFound } from "../../core/errors";
+import { CONTRACT_VERSION, type ActionResult, type Approval, type FileItem, type FilePreview, type FileRenameRequest } from "@jarvis/sdk";
+import { conflict, notFound, validationFailed } from "../../core/errors";
 import { asList, clone, compareDesc, matchesQuery, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
 import type { DeleteOutcome, OpContext } from "../types";
@@ -70,6 +70,40 @@ export class FileService {
       if (!file.versions.some((candidate) => candidate.version === wanted)) throw notFound("Dateiversion", `${id}@${wanted}`);
       const text = this.w.state.fileContents[id]?.text ?? `Mock-Inhalt von ${file.name} (Version ${wanted}, ${file.sizeBytes} Bytes)`;
       return { fileName: file.name, contentType: file.mimeType, body: text, version: wanted };
+    });
+  }
+
+  /**
+   * Renames a file in place (PLAN §37.3). Content, location and versions stay; the name must be a plain file name and
+   * unique within the location (case-insensitive, like the target file system).
+   */
+  rename(id: string, body: FileRenameRequest, ctx?: OpContext): FileItem {
+    return this.w.run("renameFile", ctx, { id, body }, () => {
+      this.w.validate("FileRenameRequest", body);
+      const file = this.find(id);
+      this.w.assertVersion(file, ctx, "Datei");
+      const name = body.name.trim();
+      if (name === "" || /^\.+$/.test(name) || /[. ]$/.test(name)) {
+        throw validationFailed("Der Dateiname ist ungültig.", [{ path: "name", message: "darf nicht leer sein, nur aus Punkten bestehen oder mit Punkt/Leerzeichen enden" }]);
+      }
+      if (name === file.name) return clone(file);
+      const taken = this.w.state.files.some((other) => other.id !== file.id && other.location === file.location && other.name.toLowerCase() === name.toLowerCase());
+      if (taken) throw conflict(`Im Ordner existiert bereits eine Datei mit dem Namen „${name}“.`, { name, location: file.location });
+      const correlationId = this.w.correlationId(ctx);
+      const previous = file.name;
+      file.name = name;
+      this.w.bump(file);
+      this.w.emitFor("files", "jarvis.file.updated", file, `file/${file.id}`, correlationId);
+      this.w.recordAudit({
+        category: "user_action",
+        action: "file.renamed",
+        correlationId,
+        adapterId: "mock-files",
+        actor: this.w.actorOf(ctx),
+        before: { name: previous },
+        after: { name, version: file.version },
+      });
+      return clone(file);
     });
   }
 

@@ -17,9 +17,6 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => params,
 }));
 
-const runCommand = vi.fn();
-vi.mock("@/features/palette/commandRunner", () => ({ useRunCommand: () => runCommand }));
-
 function adapter(id: string, name: string, status: AdapterInfo["health"]["status"], extra: Partial<AdapterInfo["health"]> = {}): AdapterInfo {
   return {
     manifest: { id, name, adapterVersion: "1.2.0", contractVersion: "1.0.0", apiVersion: "v1", category: "tasks", capabilities: ["tasks.read", "tasks.create"], configSchemaRef: "x", secretFields: [] },
@@ -52,7 +49,6 @@ beforeEach(() => {
   params = new URLSearchParams();
   push.mockReset();
   replace.mockReset();
-  runCommand.mockReset();
 });
 afterEach(() => {
   restoreSize();
@@ -108,20 +104,103 @@ describe("adapter matrix (PLAN §40.3)", () => {
     expect(within(dialog).getByText("IMAP nicht erreichbar", { exact: false })).toBeInTheDocument();
   });
 
-  it("asks for confirmation before restarting and only then sends the command", async () => {
+  it("asks for confirmation before restarting and only then calls the restart operation", async () => {
     params = new URLSearchParams("adapter=mock-mail");
     const user = userEvent.setup();
-    const fake = routedFetch(routes());
+    const fake = routedFetch({
+      ...routes(),
+      "POST /api/v1/adapters/mock-mail/restart": { contractVersion: "1.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES", resourceId: "mock-mail", message: "Adapter „Mail“ wurde neu gestartet (ONLINE)." },
+    });
     renderWithProviders(<SystemPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true, healthcheck: true, restartAdapter: true, openLogs: true } }) });
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: /Adapter neu starten/ }));
     const confirm = await screen.findByRole("alertdialog");
-    expect(runCommand).not.toHaveBeenCalled();
+    expect(fake.calls.some((call) => call.method === "POST")).toBe(false);
     expect(within(confirm).getByText(/im Audit-Log protokolliert/)).toBeInTheDocument();
     await user.click(within(confirm).getByRole("button", { name: "Neu starten" }));
-    await waitFor(() => expect(runCommand).toHaveBeenCalledWith({ text: "Adapter Mail neu starten", source: "text" }));
-    await user.click(within(dialog).getByRole("button", { name: /Logs öffnen/ }));
-    expect(push).toHaveBeenCalledWith("/audit?adapter=mock-mail");
+    await waitFor(() => expect(fake.calls.some((call) => call.path === "/api/v1/adapters/mock-mail/restart")).toBe(true));
+    const call = fake.calls.find((entry) => entry.path.endsWith("/restart"));
+    expect(call?.method).toBe("POST");
+    expect(call?.headers.get("Idempotency-Key")).toBeTruthy();
+    expect(call?.headers.get("X-CSRF-Token") ?? "").toBeDefined();
+    expect(await screen.findByText("Mail wurde neu gestartet")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    // the restart is no longer routed through the command bar
+    expect(fake.calls.some((entry) => entry.path === "/api/v1/commands")).toBe(false);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("keeps working when the restart fails and reports the error", async () => {
+    params = new URLSearchParams("adapter=mock-mail");
+    const user = userEvent.setup();
+    const fake = routedFetch({ ...routes(), "POST /api/v1/adapters/mock-mail/restart": () => errorBody("ADAPTER_UNAVAILABLE", "Der Adapter konnte nicht gestartet werden", 503) });
+    renderWithProviders(<SystemPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true, restartAdapter: true } }) });
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: /Adapter neu starten/ }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Neu starten" }));
+    await waitFor(() => expect(fake.calls.some((call) => call.path.endsWith("/restart"))).toBe(true));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(screen.queryByText("Mail wurde neu gestartet")).toBeNull();
+  });
+
+  describe("logs", () => {
+    const entry = (message: string, level: "debug" | "info" | "warn" | "error", extra: Record<string, unknown> = {}) => ({
+      timestamp: "2026-10-14T08:14:58Z",
+      level,
+      message,
+      adapterId: "mock-mail",
+      correlationId: level === "error" ? "corr_01JTESTTESTTESTTESTTESTTES" : null,
+      context: extra,
+    });
+
+    it("opens the log view in place (no jump to the audit page), shows the redacted lines and filters by level", async () => {
+      params = new URLSearchParams("adapter=mock-mail");
+      const user = userEvent.setup();
+      const fake = routedFetch({
+        ...routes(),
+        "GET /api/v1/adapters/mock-mail/logs": (url: URL) =>
+          url.searchParams.get("level") === "error"
+            ? { contractVersion: "1.0.0", items: [entry("IMAP-Verbindung verloren", "error", { code: "ECONNRESET", token: "[REDACTED]" })], freshness: FRESH, sources: [SOURCE] }
+            : { contractVersion: "1.0.0", items: [entry("Healthcheck erfolgreich", "info", { latencyMs: 12 }), entry("IMAP-Verbindung verloren", "error", { code: "ECONNRESET", token: "[REDACTED]" })], freshness: FRESH, sources: [SOURCE] },
+      });
+      renderWithProviders(<SystemPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true, healthcheck: true, restartAdapter: true, openLogs: true } }) });
+      const drawer = await screen.findByRole("dialog");
+      await user.click(within(drawer).getByRole("button", { name: /Logs öffnen/ }));
+      const logs = await screen.findByRole("dialog", { name: "Logs: Mail" });
+      const list = await within(logs).findByRole("list", { name: "Logzeilen von Mail" });
+      expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+      expect(within(list).getByText(/Healthcheck erfolgreich/)).toBeInTheDocument();
+      expect(within(list).getByText(/latencyMs=12/)).toBeInTheDocument();
+      expect(within(list).getByText(/token=\[REDACTED\]/)).toBeInTheDocument();
+      expect(within(list).getByText("corr_01JTESTTESTTESTTESTTESTTES")).toBeInTheDocument();
+      expect(push).not.toHaveBeenCalled();
+      const first = fake.calls.find((call) => call.path.endsWith("/logs"));
+      expect(first?.search).toContain("level=info");
+      expect(first?.search).toContain("limit=100");
+
+      await user.selectOptions(within(logs).getByLabelText("Mindestlevel"), "error");
+      await waitFor(() => expect(within(logs).getAllByRole("listitem")).toHaveLength(1));
+      expect(fake.calls.some((call) => call.search.includes("level=error"))).toBe(true);
+      await user.selectOptions(within(logs).getByLabelText("Anzahl Zeilen"), "500");
+      await waitFor(() => expect(fake.calls.some((call) => call.search.includes("limit=500"))).toBe(true));
+    });
+
+    it("shows the empty and the error state of the log view", async () => {
+      params = new URLSearchParams("adapter=mock-mail");
+      const user = userEvent.setup();
+      let fail = false;
+      const fake = routedFetch({
+        ...routes(),
+        "GET /api/v1/adapters/mock-mail/logs": () => (fail ? errorBody("FORBIDDEN", "Für diese Aktion ist mindestens die Rolle owner erforderlich.", 403) : { contractVersion: "1.0.0", items: [], freshness: FRESH, sources: [SOURCE] }),
+      });
+      renderWithProviders(<SystemPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true, openLogs: true } }) });
+      await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /Logs öffnen/ }));
+      const logs = await screen.findByRole("dialog", { name: "Logs: Mail" });
+      expect(await within(logs).findByText("Keine Logzeilen")).toBeInTheDocument();
+      fail = true;
+      await user.selectOptions(within(logs).getByLabelText("Mindestlevel"), "warn");
+      expect(await within(logs).findByText("Für diese Aktion ist mindestens die Rolle owner erforderlich.")).toBeInTheDocument();
+    });
   });
 
   it("runs the healthcheck for the selected adapter", async () => {

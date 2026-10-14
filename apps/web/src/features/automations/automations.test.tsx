@@ -122,26 +122,65 @@ describe("automations page: list", () => {
 });
 
 describe("automations page: Pause All", () => {
-  it("needs confirmation and pauses every active automation with its own If-Match", async () => {
+  it("needs confirmation and pauses everything with ONE bulk request instead of one PATCH per automation", async () => {
     const user = userEvent.setup();
-    const fake = routedFetch({
-      ...routes(),
-      [`PATCH /api/v1/automations/${A1}`]: () => single({ ...mail, paused: true, version: 4 }),
-      [`PATCH /api/v1/automations/${A2}`]: () => single({ ...backup, paused: true, version: 4 }),
-    });
+    const result = {
+      results: [
+        { automationId: A1, name: "Wichtige Mail eskalieren", outcome: "paused", version: 4 },
+        { automationId: A2, name: "Backup-Verifikation", outcome: "paused", version: 4 },
+        { automationId: A3, name: "Rechnungseingang", outcome: "skipped", version: 3, message: "Automation ist deaktiviert." },
+      ],
+      pausedCount: 2,
+      unchangedCount: 1,
+      failedCount: 0,
+    };
+    const fake = routedFetch({ ...routes(), "POST /api/v1/automations/pause-all": single(result) });
     renderWithProviders(<AutomationsPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     await screen.findByText("Backup-Verifikation");
     await user.click(screen.getByRole("button", { name: "Alle pausieren" }));
     const confirm = await screen.findByRole("alertdialog");
     expect(within(confirm).getByText(/2 aktive Automationen anzuhalten/)).toBeInTheDocument();
     expect(within(confirm).getByText("Wichtige Mail eskalieren")).toBeInTheDocument();
-    expect(fake.calls.filter((call) => call.method === "PATCH")).toHaveLength(0);
+    expect(fake.to("POST", "/api/v1/automations/pause-all")).toHaveLength(0);
     await user.click(within(confirm).getByRole("button", { name: "Alle pausieren" }));
-    await waitFor(() => expect(fake.calls.filter((call) => call.method === "PATCH")).toHaveLength(2));
-    for (const call of fake.calls.filter((entry) => entry.method === "PATCH")) {
-      expect(call.body).toEqual({ paused: true });
-      expect(call.headers.get("If-Match")).toBe("3");
-    }
+    await waitFor(() => expect(fake.to("POST", "/api/v1/automations/pause-all")).toHaveLength(1));
+    expect(fake.calls.filter((call) => call.method === "PATCH")).toHaveLength(0);
+    expect(fake.to("POST", "/api/v1/automations/pause-all")[0]?.headers.get("Idempotency-Key")).toBeTruthy();
+    expect(await screen.findByText("Alle Automationen pausiert")).toBeInTheDocument();
+    expect(screen.getByText("2 pausiert, 1 unverändert, 0 fehlgeschlagen.")).toBeInTheDocument();
+  });
+
+  it("reports a partial result per automation", async () => {
+    const user = userEvent.setup();
+    const result = {
+      results: [
+        { automationId: A1, name: "Wichtige Mail eskalieren", outcome: "paused", version: 4 },
+        { automationId: A2, name: "Backup-Verifikation", outcome: "failed", version: null, message: "Adapter nicht erreichbar" },
+      ],
+      pausedCount: 1,
+      unchangedCount: 0,
+      failedCount: 1,
+    };
+    const fake = routedFetch({ ...routes(), "POST /api/v1/automations/pause-all": single(result) });
+    renderWithProviders(<AutomationsPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    await screen.findByText("Backup-Verifikation");
+    await user.click(screen.getByRole("button", { name: "Alle pausieren" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Alle pausieren" }));
+    expect(await screen.findByText("Nicht alle Automationen geändert")).toBeInTheDocument();
+    expect(screen.getByText("1 pausiert, 0 unverändert, 1 fehlgeschlagen.")).toBeInTheDocument();
+  });
+
+  it("resumes with one PATCH { paused: false } per automation (no bulk operation for resuming)", async () => {
+    const user = userEvent.setup();
+    const paused = automation(A1, { paused: true, version: 4 });
+    const fake = routedFetch({ ...routes([paused, idle]), [`PATCH /api/v1/automations/${A1}`]: () => single({ ...paused, paused: false, version: 5 }) });
+    renderWithProviders(<AutomationsPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    await user.click(await screen.findByRole("button", { name: "Alle fortsetzen" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Alle fortsetzen" }));
+    await waitFor(() => expect(fake.to("PATCH", `/api/v1/automations/${A1}`)).toHaveLength(1));
+    expect(fake.to("PATCH", `/api/v1/automations/${A1}`)[0]?.body).toEqual({ paused: false });
+    expect(fake.to("PATCH", `/api/v1/automations/${A1}`)[0]?.headers.get("If-Match")).toBe("4");
+    expect(fake.to("POST", "/api/v1/automations/pause-all")).toHaveLength(0);
   });
 
   it("offers 'Alle fortsetzen' when everything enabled is paused", async () => {
@@ -353,5 +392,86 @@ describe("sample data derivation", () => {
         ],
       }),
     ).toEqual({ thread: { priority: "P1", meta: { kind: "a" } } });
+  });
+});
+
+describe("automations drawer: version history (PLAN §35.3 Versionierung)", () => {
+  const snapshot = (overrides: Record<string, unknown> = {}) => ({
+    name: "Wichtige Mail eskalieren",
+    description: "Neue P1-Mail → Telegram",
+    enabled: true,
+    paused: false,
+    trigger: { type: "event", event: "jarvis.communication.thread_updated", description: "Neuer E-Mail-Thread mit Priorität P1" },
+    conditions: [{ id: "cond_1", field: "thread.priority", operator: "eq", value: "P1", description: "Priorität ist P1" }],
+    actions: [{ id: "act_1", type: "notify", channel: "telegram", requiresApproval: false, description: "Telegram senden" }],
+    escalation: [{ afterSeconds: 600, channel: "phone", description: "Anruf nach 10 Minuten", stopOnAcknowledge: true }],
+    ...overrides,
+  });
+  const version = (n: number, current: boolean, summary: string, snap = snapshot()) => ({
+    automationId: A1,
+    version: n,
+    createdAt: `2026-10-0${n}T09:00:00Z`,
+    changedBy: n === 2 ? { type: "agent", id: "agent_1", name: "Planungs-Agent" } : { type: "user", id: "usr_1", name: "Erik Brandt" },
+    summary,
+    current,
+    snapshot: snap,
+    source: { adapterId: "mock-b", system: "mock", lastSyncedAt: NOW },
+  });
+  const history = () => ({
+    ...listOf([
+      version(3, true, "Eskalation auf 10 Minuten verkürzt", snapshot()),
+      version(2, false, "Telegram als Kanal", snapshot({ escalation: [{ afterSeconds: 1200, channel: "phone", description: "Anruf nach 20 Minuten", stopOnAcknowledge: true }], enabled: false })),
+      version(1, false, "Automation angelegt.", snapshot({ name: "Mail eskalieren", actions: [], escalation: [] })),
+    ]),
+  });
+
+  async function openVersionTab(user: ReturnType<typeof userEvent.setup>, extra: Record<string, unknown>, caps = FULL) {
+    const fake = routedFetch({ ...routes(), ...extra });
+    renderWithProviders(<AutomationsPage />, { fetchImpl: fake.fetch, capabilities: modules(caps) });
+    const drawer = await openFirst(user);
+    await user.click(within(drawer).getByRole("tab", { name: /Version/ }));
+    return { fake, drawer };
+  }
+
+  it("lists the versions newest first, marks the current one and shows who changed what", async () => {
+    const user = userEvent.setup();
+    const { fake, drawer } = await openVersionTab(user, { [`GET /api/v1/automations/${A1}/versions`]: history() });
+    const list = await within(drawer).findByRole("list", { name: "Versionsverlauf" });
+    const entries = within(list).getAllByRole("listitem");
+    expect(entries).toHaveLength(3);
+    expect(within(entries[0] as HTMLElement).getByText("Aktuell")).toBeInTheDocument();
+    expect(within(entries[0] as HTMLElement).getByText("Eskalation auf 10 Minuten verkürzt")).toBeInTheDocument();
+    expect(within(entries[1] as HTMLElement).getByText(/Planungs-Agent/)).toBeInTheDocument();
+    // v3 differs from v2 in escalation and state; v2 differs from v1 in actions, escalation, name and state
+    expect(within(entries[0] as HTMLElement).getAllByText(/Eskalation|Zustand/).length).toBeGreaterThanOrEqual(2);
+    expect(within(entries[1] as HTMLElement).getByText("Aktionen")).toBeInTheDocument();
+    expect(within(entries[2] as HTMLElement).queryByText("Aktionen")).toBeNull();
+    expect(fake.to("GET", `/api/v1/automations/${A1}/versions`)).toHaveLength(1);
+  });
+
+  it("expands the stored definition of a version", async () => {
+    const user = userEvent.setup();
+    const { drawer } = await openVersionTab(user, { [`GET /api/v1/automations/${A1}/versions`]: history() });
+    const list = await within(drawer).findByRole("list", { name: "Versionsverlauf" });
+    const second = within(list).getAllByRole("listitem")[1] as HTMLElement;
+    await user.click(within(second).getByRole("button", { name: "Definition anzeigen" }));
+    expect(within(second).getByText("Anruf nach 20 Minuten")).toBeInTheDocument();
+    expect(within(second).getByText("Telegram senden")).toBeInTheDocument();
+    await user.click(within(second).getByRole("button", { name: "Definition ausblenden" }));
+    expect(within(second).queryByText("Anruf nach 20 Minuten")).toBeNull();
+  });
+
+  it("explains the missing capability and does not call the API", async () => {
+    const user = userEvent.setup();
+    const { fake, drawer } = await openVersionTab(user, { [`GET /api/v1/automations/${A1}/versions`]: history() }, { ...FULL, automations: { ...FULL.automations, versions: false } });
+    expect(await within(drawer).findByText(/automations\.versions fehlt/)).toBeInTheDocument();
+    expect(fake.to("GET", `/api/v1/automations/${A1}/versions`)).toHaveLength(0);
+  });
+
+  it("shows the error state with a retry", async () => {
+    const user = userEvent.setup();
+    const { drawer } = await openVersionTab(user, { [`GET /api/v1/automations/${A1}/versions`]: () => errorResponse("INTERNAL", "Versionsspeicher defekt", 500) });
+    expect(await within(drawer).findByText("Versionsverlauf konnte nicht geladen werden")).toBeInTheDocument();
+    expect(within(drawer).getByRole("button", { name: /Erneut versuchen/ })).toBeInTheDocument();
   });
 });

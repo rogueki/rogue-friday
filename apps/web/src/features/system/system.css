@@ -36,3 +36,15 @@
 .sy-services { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 8px; }
 @media (max-width: 700px) { .sy-services { grid-template-columns: minmax(0, 1fr); } }
 .sy-providers--stack { grid-template-columns: minmax(0, 1fr); }
+
+/* Adapter logs (sy-log*). */
+.sy-logs-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 10px; }
+.sy-logs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 52vh; overflow: auto; border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm); }
+.sy-log { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: baseline; gap: 10px; padding: 4px 10px; font-size: var(--jv-fs-sm); border-bottom: 1px solid var(--jv-line-soft); }
+.sy-log:last-child { border-bottom: 0; }
+.sy-log[data-level="error"] { background: var(--jarvis-tint-red-bg); }
+.sy-log[data-level="warn"] { background: var(--jarvis-tint-amber-bg); }
+.sy-log__time { color: var(--jarvis-muted); white-space: nowrap; }
+.sy-log__message { display: flex; flex-wrap: wrap; gap: 4px 10px; min-width: 0; overflow-wrap: anywhere; }
+.sy-log__context, .sy-log__correlation { color: var(--jarvis-muted); }
+@media (max-width: 700px) { .sy-log { grid-template-columns: auto minmax(0, 1fr); } .sy-log__message { grid-column: 1 / -1; } }

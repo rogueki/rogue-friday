@@ -9,11 +9,9 @@ type PortFunction = (params: unknown, call: unknown) => Promise<unknown>;
 /** Path parameters plus either the validated query (reads) or the body (writes), as the port methods expect them. */
 function portParams(ctx: RequestContext): Record<string, unknown> {
   const params: Record<string, unknown> = { ...ctx.pathParams };
-  if (ctx.spec.method === "GET") {
-    for (const [key, value] of Object.entries(ctx.query)) if (value !== undefined) params[key] = value;
-  } else if (ctx.body !== undefined) {
-    params.body = ctx.body;
-  }
+  // Reads and bodiless mutations (DELETE /voice/history?confirm=true) carry their parameters in the query.
+  for (const [key, value] of Object.entries(ctx.query)) if (value !== undefined) params[key] = value;
+  if (ctx.spec.method !== "GET" && ctx.body !== undefined) params.body = ctx.body;
   return params;
 }
 

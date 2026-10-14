@@ -24,3 +24,5 @@
 .vp-fail { color: var(--jarvis-tone-red); }
 .vp-device { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 7px 10px; border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm); font-size: var(--jv-fs-sm); list-style: none; }
 .vp-device__name { min-width: 0; overflow-wrap: anywhere; }
+.vp-enroll { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm); }
+.vp-progress { width: 100%; height: 8px; accent-color: var(--jarvis-tone-cyan); }

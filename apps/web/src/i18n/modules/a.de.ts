@@ -90,7 +90,14 @@ export const deA = {
   "tasks.decisions.why.input": "Für den nächsten Schritt fehlt eine Eingabe von dir.",
   "tasks.decisions.waiting": "wartet seit {time}",
   "tasks.decisions.openApproval": "Freigabe öffnen",
-  "tasks.decisions.provideInput": "Eingabe prüfen",
+  "tasks.decisions.provideInput": "Eingabe geben",
+  "tasks.input.title": "Eingabe für „{title}“",
+  "tasks.input.label": "Antwort",
+  "tasks.input.hint": "Der Text geht an den Agenten und löst die Blockade. Er wird nicht im Audit-Log gespeichert.",
+  "tasks.input.send": "Eingabe senden",
+  "tasks.input.sent": "Eingabe gesendet",
+  "tasks.toast.unassigned": "Zuweisung aufgehoben",
+  "tasks.action.reason.noInput": "Die Aufgabe wartet auf keine Eingabe.",
   "tasks.decisions.details": "Details",
 
   // ── tasks: drawer ──

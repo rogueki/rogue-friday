@@ -3,6 +3,7 @@
 import type { LatencyStat, VoiceDevice, VoiceProfile, VoiceStatus, VoiceTestKind, VoiceTestResult } from "@jarvis/sdk";
 import {
   Button,
+  ConfirmDialog,
   EmptyState,
   IconTile,
   MetricCard,
@@ -37,12 +38,12 @@ import {
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
-import { useRunCommand } from "@/features/palette/commandRunner";
 import { KeyValue, StatusStrip, useFormatters, useQueryPanelState } from "@/features/system/common";
 import { formatFraction, formatMs, MISSING } from "@/features/system/format";
 import { useT, type MessageKey } from "@/i18n";
-import { useStopVoice, useVoiceDevices, useVoiceMetrics, useVoiceProfiles, useVoiceStatus, useVoiceTest } from "@/lib/api/domains/voice";
+import { useDeleteVoiceHistory, useStopVoice, useVoiceDevices, useVoiceMetrics, useVoiceProfiles, useVoiceStatus, useVoiceTest } from "@/lib/api/domains/voice";
 import { useCapability } from "@/lib/capabilities";
+import { EnrollmentControls } from "./EnrollmentFlow";
 import "./voice-page.css";
 
 const ICON = { size: 18, strokeWidth: 1.5 } as const;
@@ -320,7 +321,7 @@ function MetricsPanel() {
 
 /* ── Enrollment (§38.3) ───────────────────────────────────────────────── */
 
-function ProfileCard({ profile }: { profile: VoiceProfile }) {
+function ProfileCard({ profile, canEnroll }: { profile: VoiceProfile; canEnroll: boolean }) {
   const { t, locale } = useT();
   const formatters = useFormatters();
   const result: Record<VoiceProfile["lastTestResult"], { tone: Tone; label: string; icon: ReactNode }> = {
@@ -357,6 +358,7 @@ function ProfileCard({ profile }: { profile: VoiceProfile }) {
           {profile.lastTestAt ? formatters.dateTime(profile.lastTestAt) : null}
         </KeyValue>
       </dl>
+      {canEnroll ? <EnrollmentControls profile={profile} /> : null}
     </li>
   );
 }
@@ -365,7 +367,6 @@ function EnrollmentPanel() {
   const { t } = useT();
   const query = useVoiceProfiles();
   const canEnroll = useCapability("voice", "enroll");
-  const runCommand = useRunCommand();
   const profiles = query.data?.items ?? [];
   const state = useQueryPanelState(query, {
     module: "voice",
@@ -387,13 +388,7 @@ function EnrollmentPanel() {
         <div className="mc-strip-row">
           <StatusStrip freshness={query.data?.freshness} source={query.data?.sources[0]?.system} />
         </div>
-        {canEnroll ? (
-          <div className="mc-toolbar">
-            <Button size="sm" variant="primary" icon={<Fingerprint size={14} strokeWidth={1.5} />} onClick={() => void runCommand({ text: t("voicePage.enrollment.command"), source: "text" })}>
-              {t("voicePage.enrollment.start")}
-            </Button>
-          </div>
-        ) : (
+        {canEnroll ? null : (
           <div className="mc-box mc-box--amber" role="note" data-testid="enrollment-readonly">
             <strong>{t("voicePage.enrollment.readOnly")}</strong>
             <p className="mc-note">{t("voicePage.enrollment.readOnlyDescription")}</p>
@@ -401,7 +396,7 @@ function EnrollmentPanel() {
         )}
         <ul className="mc-list">
           {profiles.map((profile) => (
-            <ProfileCard key={profile.id} profile={profile} />
+            <ProfileCard key={profile.id} profile={profile} canEnroll={canEnroll} />
           ))}
         </ul>
       </div>
@@ -417,6 +412,21 @@ function PrivacyPanel() {
   const query = useVoiceStatus();
   const status = query.data?.data;
   const state = useQueryPanelState(query, { module: "voice", freshness: query.data?.freshness });
+  const canDelete = useCapability("voice", "deleteHistory");
+  const { toast } = useToast();
+  const deleteHistory = useDeleteVoiceHistory();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const runDelete = (): void =>
+    deleteHistory.mutate(
+      {},
+      {
+        onSuccess: (result) => {
+          setConfirmDelete(false);
+          toast({ title: t("voicePage.privacy.deleted"), description: result.message, tone: "green" });
+        },
+        onError: () => setConfirmDelete(false),
+      },
+    );
   const flag = (on: boolean, onLabel: string, offLabel: string): ReactNode => <StatusChip tone={on ? "amber" : "green"}>{on ? onLabel : offLabel}</StatusChip>;
   return (
     <PanelFrame title={t("voicePage.privacy.title")} icon={<Lock {...ICON} />} state={state} skeletonRows={3}>
@@ -451,11 +461,30 @@ function PrivacyPanel() {
             <Button size="sm" variant="ghost" onClick={() => router.push("/settings")}>
               {t("voicePage.privacy.settings")}
             </Button>
-            <Button size="sm" variant="ghost" icon={<Trash2 size={14} strokeWidth={1.5} />} disabled title={t("voicePage.privacy.deleteUnavailable")}>
+            <Button
+              size="sm"
+              variant="danger"
+              icon={<Trash2 size={14} strokeWidth={1.5} />}
+              disabled={!canDelete}
+              title={canDelete ? undefined : t("voicePage.privacy.deleteUnavailable")}
+              onClick={() => setConfirmDelete(true)}
+            >
               {t("voicePage.privacy.delete")}
             </Button>
           </div>
-          <p className="mc-note mc-note--muted">{t("voicePage.privacy.deleteUnavailable")}</p>
+          {canDelete ? null : <p className="mc-note mc-note--muted">{t("voicePage.privacy.deleteUnavailable")}</p>}
+          <ConfirmDialog
+            open={confirmDelete}
+            onOpenChange={setConfirmDelete}
+            tone="danger"
+            title={t("voicePage.privacy.deleteConfirm.title")}
+            description={t("voicePage.privacy.deleteConfirm.description")}
+            details={[t("voicePage.privacy.deleteConfirm.final"), t("voicePage.privacy.deleteConfirm.profiles"), t("voicePage.privacy.deleteConfirm.audit")]}
+            confirmLabel={t("voicePage.privacy.deleteConfirm.confirm")}
+            cancelLabel={t("common.cancel")}
+            loading={deleteHistory.isPending}
+            onConfirm={runDelete}
+          />
         </div>
       ) : null}
     </PanelFrame>

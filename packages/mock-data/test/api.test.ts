@@ -46,6 +46,13 @@ const service = s.system.services[0]!;
 const unlockedMemory = first(s.memory, (m) => !m.locked);
 const idleAgent = first(s.agents, (a) => a.status === "idle");
 const workingAgent = first(s.agents, (a) => a.status === "working");
+const conflictMemory = first(s.memory, (m) => m.conflicts.some((entry) => entry.resolution === "pending"));
+const pendingConflict = conflictMemory.conflicts.find((entry) => entry.resolution === "pending")!;
+const inputTask = first(s.tasks, (t) => t.blockers.some((blocker) => blocker.kind === "input_needed"));
+const draftThread = first(s.drafts, (d) => d.threadId !== null);
+const voiceProfile = s.voice.profiles[0]!;
+// Ids are deterministic per seed, so a throw-away world yields the id the sample world will create in `setup`.
+const enrollmentId = new MockWorld().voice.enroll(voiceProfile.id, { sampleTarget: 5 }).id;
 
 const SAMPLES: Sample[] = [
   { operationId: "getMeta", method: "GET", path: "/meta", status: 200, schema: "Meta" },
@@ -53,6 +60,8 @@ const SAMPLES: Sample[] = [
   { operationId: "getCapabilities", method: "GET", path: "/capabilities", status: 200, schema: "Capabilities" },
   { operationId: "listAdapters", method: "GET", path: "/adapters", status: 200, schema: "AdapterInfoListResponse" },
   { operationId: "getAdapterHealth", method: "GET", path: "/adapters/mock-tasks/health", status: 200, schema: "AdapterHealthResponse" },
+  { operationId: "restartAdapter", method: "POST", path: "/adapters/mock-tasks/restart", status: 200, schema: "ActionResult" },
+  { operationId: "getAdapterLogs", method: "GET", path: "/adapters/mock-tasks/logs?limit=5&level=info", status: 200, schema: "AdapterLogListResponse" },
   { operationId: "getOverview", method: "GET", path: "/overview", status: 200, schema: "OverviewResponse" },
   { operationId: "getStatus", method: "GET", path: "/status", status: 200, schema: "JarvisStatusResponse" },
   { operationId: "getOrbStatus", method: "GET", path: "/orb/status", status: 200, schema: "OrbSnapshotResponse" },
@@ -69,11 +78,15 @@ const SAMPLES: Sample[] = [
   { operationId: "retryTask", method: "POST", path: `/tasks/${failedTask.id}/retry`, status: 200, schema: "TaskResponse" },
   { operationId: "pauseTask", method: "POST", path: `/tasks/${runningTask.id}/pause`, status: 200, schema: "TaskResponse" },
   { operationId: "resumeTask", method: "POST", path: `/tasks/${runningTask.id}/resume`, status: 200, schema: "TaskResponse", setup: (w) => void w.tasks.pause(runningTask.id) },
+  { operationId: "assignTask", method: "POST", path: `/tasks/${runningTask.id}/assign`, status: 200, schema: "TaskResponse", body: { agentId: idleAgent.id } },
+  { operationId: "provideTaskInput", method: "POST", path: `/tasks/${inputTask.id}/input`, status: 200, schema: "TaskResponse", body: { input: "Bitte das günstigere Angebot verwenden." } },
   { operationId: "listActivity", method: "GET", path: "/activity?limit=20&kind=tool_call", status: 200, schema: "ActivityEventListResponse" },
   { operationId: "getActivityEvent", method: "GET", path: `/activity/${s.activity[0]!.id}`, status: 200, schema: "ActivityEventResponse" },
   { operationId: "listMemory", method: "GET", path: "/memory?type=person&type=company&limit=10", status: 200, schema: "MemoryListResponse" },
   { operationId: "createMemory", method: "POST", path: "/memory", status: 201, schema: "MemoryResponse", body: { type: "fact", content: "Der Drucker steht im Flur.", tags: ["büro"] } },
   { operationId: "searchMemory", method: "POST", path: "/memory/search", status: 200, schema: "MemorySearchResponse", body: { query: "Becker", limit: 5 } },
+  { operationId: "exportMemory", method: "GET", path: "/memory/export", status: 200, schema: "MemoryExport" },
+  { operationId: "resolveMemoryConflict", method: "POST", path: `/memory/${conflictMemory.id}/conflicts/${pendingConflict.memoryId}/resolve`, status: 200, schema: "MemoryResponse", body: { resolution: "keep_both" } },
   { operationId: "getMemory", method: "GET", path: `/memory/${unlockedMemory.id}`, status: 200, schema: "MemoryResponse" },
   { operationId: "updateMemory", method: "PATCH", path: `/memory/${unlockedMemory.id}`, status: 200, schema: "MemoryResponse", body: { pinned: true, confirm: true } },
   { operationId: "deleteMemory", method: "DELETE", path: `/memory/${unlockedMemory.id}`, status: 200, schema: "ActionResult" },
@@ -90,6 +103,7 @@ const SAMPLES: Sample[] = [
   { operationId: "listChannels", method: "GET", path: "/communication/channels", status: 200, schema: "ChannelListResponse" },
   { operationId: "listThreads", method: "GET", path: "/communication/threads?needsReply=true&priority=P1&priority=P2", status: 200, schema: "ThreadListResponse" },
   { operationId: "getThread", method: "GET", path: `/communication/threads/${thread.id}`, status: 200, schema: "ThreadResponse" },
+  { operationId: "listDrafts", method: "GET", path: `/communication/drafts?threadId=${draftThread.threadId}&status=draft`, status: 200, schema: "DraftListResponse" },
   { operationId: "createDraft", method: "POST", path: "/communication/drafts", status: 201, schema: "DraftResponse", body: { channelId: emailChannel.id, to: [{ name: "Thomas Albrecht", address: "t.albrecht@albrecht-partner.example" }], subject: "Belege", body: "Anbei die Belege." } },
   { operationId: "updateDraft", method: "PATCH", path: `/communication/drafts/${draft.id}`, status: 200, schema: "DraftResponse", body: { subject: "Geänderter Betreff" }, headers: { "If-Match": String(draft.version) } },
   { operationId: "requestDraftSend", method: "POST", path: `/communication/drafts/${draft.id}/request-send`, status: 202, schema: "ApprovalResponse", body: {} },
@@ -100,12 +114,14 @@ const SAMPLES: Sample[] = [
   { operationId: "createCalendarProposal", method: "POST", path: "/calendar/proposals", status: 201, schema: "CalendarProposalResponse", body: { type: "reschedule", eventId: event.id, start: "2026-10-20T09:00:00Z", end: "2026-10-20T09:45:00Z", reason: "Neuer Vorschlag" } },
   { operationId: "listAutomations", method: "GET", path: "/automations?enabled=true", status: 200, schema: "AutomationListResponse" },
   { operationId: "createAutomation", method: "POST", path: "/automations", status: 201, schema: "AutomationResponse", body: { name: "Wochenbericht", trigger: { type: "schedule", schedule: "0 8 * * 1", timeZone: "Europe/Berlin", description: "Montags 08:00" }, conditions: [], actions: [{ id: "act_1", type: "notify", channel: "dashboard", requiresApproval: false, description: "Hinweis" }] } },
+  { operationId: "pauseAllAutomations", method: "POST", path: "/automations/pause-all", status: 200, schema: "AutomationPauseAllResponse", body: { reason: "Urlaub" } },
   { operationId: "getAutomation", method: "GET", path: `/automations/${automation.id}`, status: 200, schema: "AutomationResponse" },
   { operationId: "updateAutomation", method: "PATCH", path: `/automations/${automation.id}`, status: 200, schema: "AutomationResponse", body: { name: "Umbenannt" }, headers: { "If-Match": String(automation.version) } },
   { operationId: "testAutomation", method: "POST", path: `/automations/${automation.id}/test`, status: 200, schema: "AutomationRunResponse", body: { dryRun: true } },
   { operationId: "enableAutomation", method: "POST", path: `/automations/${automation.id}/enable`, status: 200, schema: "AutomationResponse" },
   { operationId: "disableAutomation", method: "POST", path: `/automations/${automation.id}/disable`, status: 200, schema: "AutomationResponse" },
   { operationId: "listAutomationRuns", method: "GET", path: `/automations/${automation.id}/runs`, status: 200, schema: "AutomationRunListResponse" },
+  { operationId: "listAutomationVersions", method: "GET", path: `/automations/${automation.id}/versions`, status: 200, schema: "AutomationVersionListResponse" },
   { operationId: "listResearchProjects", method: "GET", path: "/research/projects", status: 200, schema: "ResearchProjectListResponse" },
   { operationId: "getResearchProject", method: "GET", path: `/research/projects/${project.id}`, status: 200, schema: "ResearchProjectResponse" },
   { operationId: "listResearchSources", method: "GET", path: `/research/projects/${project.id}/sources`, status: 200, schema: "ResearchSourceListResponse" },
@@ -113,6 +129,7 @@ const SAMPLES: Sample[] = [
   { operationId: "listResearchArtifacts", method: "GET", path: `/research/projects/${project.id}/artifacts`, status: 200, schema: "ResearchArtifactListResponse" },
   { operationId: "listFiles", method: "GET", path: "/files?category=reports&category=research&q=bericht", status: 200, schema: "FileItemListResponse" },
   { operationId: "getFile", method: "GET", path: `/files/${reportFile.id}`, status: 200, schema: "FileItemResponse" },
+  { operationId: "renameFile", method: "PATCH", path: `/files/${reportFile.id}`, status: 200, schema: "FileItemResponse", body: { name: "Umbenannter Bericht.md" }, headers: { "If-Match": String(reportFile.version) } },
   { operationId: "deleteFile", method: "DELETE", path: `/files/${tempFile.id}`, status: 200, schema: "ActionResult", label: "temporary file" },
   { operationId: "deleteFile", method: "DELETE", path: `/files/${reportFile.id}`, status: 202, schema: "ApprovalResponse", label: "needs approval" },
   { operationId: "getFilePreview", method: "GET", path: `/files/${textFile.id}/preview`, status: 200, schema: "FilePreviewResponse" },
@@ -121,6 +138,9 @@ const SAMPLES: Sample[] = [
   { operationId: "listVoiceDevices", method: "GET", path: "/voice/devices", status: 200, schema: "VoiceDeviceListResponse" },
   { operationId: "getVoiceMetrics", method: "GET", path: "/voice/metrics", status: 200, schema: "VoiceMetricsResponse" },
   { operationId: "listVoiceProfiles", method: "GET", path: "/voice/profiles", status: 200, schema: "VoiceProfileListResponse" },
+  { operationId: "enrollVoiceProfile", method: "POST", path: `/voice/profiles/${voiceProfile.id}/enroll`, status: 202, schema: "VoiceEnrollmentResponse", body: { sampleTarget: 5 } },
+  { operationId: "getVoiceEnrollment", method: "GET", path: `/voice/enrollments/${enrollmentId}`, status: 200, schema: "VoiceEnrollmentResponse", setup: (w) => void w.voice.enroll(voiceProfile.id, { sampleTarget: 5 }) },
+  { operationId: "deleteVoiceHistory", method: "DELETE", path: "/voice/history?confirm=true", status: 200, schema: "ActionResult" },
   { operationId: "runVoiceTest", method: "POST", path: "/voice/test", status: 200, schema: "VoiceTestResultResponse", body: { kind: "full_pipeline" } },
   { operationId: "stopVoice", method: "POST", path: "/voice/stop", status: 200, schema: "ActionResult", setup: (w) => void w.voice.setMode("listening") },
   { operationId: "listNotifications", method: "GET", path: "/notifications?priority=P1&status=open", status: 200, schema: "NotificationListResponse" },

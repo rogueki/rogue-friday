@@ -1,0 +1,34 @@
+{
+  "$schema": "https://jarvis.local/schemas/automations/automation-pause-all-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "results": [
+      {
+        "automationId": "auto_01JCW5E9R2Q7T4M8N3B6V00001",
+        "name": "Wichtige Mail eskalieren",
+        "outcome": "paused",
+        "version": 4
+      },
+      {
+        "automationId": "auto_01JCW5E9R2Q7T4M8N3B6V00002",
+        "name": "Tagesbriefing um 07:30",
+        "outcome": "already_paused",
+        "version": 2
+      },
+      {
+        "automationId": "auto_01JCW5E9R2Q7T4M8N3B6V00003",
+        "name": "Wöchentlicher Bericht",
+        "outcome": "skipped",
+        "version": 1,
+        "message": "Automation ist deaktiviert."
+      }
+    ],
+    "pausedCount": 1,
+    "unchangedCount": 2,
+    "failedCount": 0
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}
