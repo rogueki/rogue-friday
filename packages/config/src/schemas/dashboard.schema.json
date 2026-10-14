@@ -48,9 +48,9 @@
         },
         "ownerUsername": { "type": "string", "minLength": 1, "maxLength": 64, "default": "owner" },
         "ownerPasswordHash": {
-          "description": "Secret reference to the owner's scrypt hash (env:NAME or wincred:TARGET). The value itself is never loaded into the config object.",
+          "description": "Secret reference to the owner's scrypt hash (env:NAME, file:ABSOLUTE_PATH or wincred:TARGET). The value itself is never loaded into the config object.",
           "type": "string",
-          "pattern": "^(env|wincred):.+$",
+          "pattern": "^(env|wincred|file):.+$",
           "default": "env:JARVIS_OWNER_PASSWORD_HASH"
         },
         "sessionTtlMinutes": { "type": "integer", "minimum": 5, "maximum": 10080, "default": 720 },

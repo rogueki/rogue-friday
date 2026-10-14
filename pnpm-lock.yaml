@@ -225,6 +225,9 @@ importers:
       '@jarvis/adapter-example-http':
         specifier: workspace:*
         version: link:../../adapters/example-http
+      '@jarvis/adapter-hermes':
+        specifier: workspace:*
+        version: link:../../adapters/hermes
       '@jarvis/adapter-hermes-placeholder':
         specifier: workspace:*
         version: link:../../adapters/hermes-placeholder
@@ -234,9 +237,15 @@ importers:
       '@jarvis/adapter-mock':
         specifier: workspace:*
         version: link:../../adapters/mock
+      '@jarvis/adapter-system-local':
+        specifier: workspace:*
+        version: link:../../adapters/system-local
       '@jarvis/adapter-system-placeholder':
         specifier: workspace:*
         version: link:../../adapters/system-placeholder
+      '@jarvis/adapter-voice-http':
+        specifier: workspace:*
+        version: link:../../adapters/voice-http
       '@jarvis/adapter-voice-placeholder':
         specifier: workspace:*
         version: link:../../adapters/voice-placeholder
@@ -314,9 +323,21 @@ importers:
       '@jarvis/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
+      '@jarvis/mock-data':
+        specifier: workspace:*
+        version: link:../../packages/mock-data
+      '@jarvis/orb':
+        specifier: workspace:*
+        version: link:../../packages/orb
+      '@jarvis/sdk':
+        specifier: workspace:*
+        version: link:../../packages/generated-sdk
       '@jarvis/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@tanstack/react-query':
+        specifier: ^5.104.2
+        version: 5.104.2(react@19.3.0)
       lucide-react:
         specifier: ^1.56.0
         version: 1.56.0(@types/react@19.3.0)(react@19.3.0)

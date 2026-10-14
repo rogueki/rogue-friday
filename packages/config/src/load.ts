@@ -325,7 +325,7 @@ function protectSecrets(value: unknown, path: string, secretOptions: ResolveSecr
   if (typeof value === 'string') {
     if (looksLikeSecretRef(value)) {
       if (!parseSecretRef(value)) {
-        problems.push({ source: 'adapters.yaml', path, message: 'invalid secret reference (expected env:NAME or wincred:TARGET)' });
+        problems.push({ source: 'adapters.yaml', path, message: 'invalid secret reference (expected env:NAME, file:ABSOLUTE_PATH or wincred:TARGET)' });
         return { ref: value, configured: false };
       }
       return describeSecretRef(value, secretOptions);
@@ -334,7 +334,7 @@ function protectSecrets(value: unknown, path: string, secretOptions: ResolveSecr
       problems.push({
         source: 'adapters.yaml',
         path,
-        message: 'credential-looking field must be a secret reference ("env:NAME" or "wincred:TARGET"), not a literal value or ${...} interpolation',
+        message: 'credential-looking field must be a secret reference ("env:NAME", "file:ABSOLUTE_PATH" or "wincred:TARGET"), not a literal value or ${...} interpolation',
       });
       return '';
     }

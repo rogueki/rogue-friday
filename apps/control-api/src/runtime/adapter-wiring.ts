@@ -9,10 +9,13 @@ import {
 } from "@jarvis/adapter-core";
 import { calendarFactory } from "@jarvis/adapter-calendar-placeholder";
 import { exampleTasksFactory } from "@jarvis/adapter-example-http";
-import { hermesFactories } from "@jarvis/adapter-hermes-placeholder";
+import { hermesFactories as hermesLiveFactories } from "@jarvis/adapter-hermes";
+import { hermesFactories as hermesPlaceholderFactories } from "@jarvis/adapter-hermes-placeholder";
 import { mailFactory } from "@jarvis/adapter-mail-placeholder";
 import { createMockFactories } from "@jarvis/adapter-mock";
+import { localSystemFactory } from "@jarvis/adapter-system-local";
 import { systemFactory } from "@jarvis/adapter-system-placeholder";
+import { voiceHttpFactory } from "@jarvis/adapter-voice-http";
 import { voiceFactory } from "@jarvis/adapter-voice-placeholder";
 import {
   isSecretRefState,
@@ -44,6 +47,18 @@ export function createRuntimeSecrets(): RuntimeSecrets {
   };
 }
 
+/**
+ * Placeholder packages that a real adapter package supersedes. The real packages deliberately reuse the placeholder
+ * provider ids (`hermes-tasks`, `hermes-activity`, `hermes-agents`, `jarvis-voice-http`), so an existing
+ * `allowlist` entry that still points to the placeholder package keeps working and silently gets the real adapter
+ * (a warning is logged). `windows-wsl-system` has no successor under the same id: the real system adapter is
+ * `local-system` (`@jarvis/adapter-system-local`), the placeholder stays selectable.
+ */
+const SUPERSEDED_BY: Readonly<Record<string, string>> = {
+  "@jarvis/adapter-hermes-placeholder": "@jarvis/adapter-hermes",
+  "@jarvis/adapter-voice-placeholder": "@jarvis/adapter-voice-http",
+};
+
 /** Factories of every package the allowlist can point to. The API bundles them statically (no dynamic import). */
 function packageFactories(world: MockWorld | undefined): Record<string, AdapterFactory[]> {
   return {
@@ -53,7 +68,10 @@ function packageFactories(world: MockWorld | undefined): Record<string, AdapterF
     "@jarvis/adapter-calendar-placeholder": [calendarFactory],
     "@jarvis/adapter-voice-placeholder": [voiceFactory],
     "@jarvis/adapter-system-placeholder": [systemFactory],
-    "@jarvis/adapter-hermes-placeholder": [...hermesFactories],
+    "@jarvis/adapter-hermes-placeholder": [...hermesPlaceholderFactories],
+    "@jarvis/adapter-hermes": [...hermesLiveFactories],
+    "@jarvis/adapter-voice-http": [voiceHttpFactory],
+    "@jarvis/adapter-system-local": [localSystemFactory],
   };
 }
 
@@ -101,6 +119,13 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
   const factories = new Map<string, AdapterFactory>();
   const available = packageFactories(world);
   for (const [providerId, packageName] of Object.entries(config.allowlist)) {
+    const successor = SUPERSEDED_BY[packageName];
+    const real = successor ? available[successor]?.find((candidate) => candidate.providerId === providerId) : undefined;
+    if (real) {
+      logger.warn("Allowlist verweist auf ein Placeholder-Paket; der echte Adapter wird verwendet", { providerId, packageName, using: successor });
+      factories.set(providerId, real);
+      continue;
+    }
     const factory = available[packageName]?.find((candidate) => candidate.providerId === providerId);
     if (factory) factories.set(providerId, factory);
     else logger.warn("Provider ist in der Allowlist, aber nicht im Build enthalten", { providerId, packageName });
