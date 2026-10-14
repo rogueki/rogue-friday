@@ -89,6 +89,23 @@ an extension; hub sequence ≠ world `ActivityEvent.sequence` in mock mode (need
 MockWorld); control-plane audit chain (SQLite) is separate from `GET /audit/events`. Dev-auth fallback: missing owner
 hash + mock + loopback silently switches to dev auth — production must set `auth.mode: local` + `JARVIS_OWNER_PASSWORD_HASH`.
 
+## Repository layout (complete package)
+
+- `installer/` — the original Windows one-click installer (WSL2 + Hermes Agent + Kimi + local Qwen + voice service
+  with speaker verification), added unchanged except for a neutral default persona text in
+  `installer/voice/jarvis_voice.py`. Installs to `C:\Jarvis`; services on 127.0.0.1:43691–43694.
+- root pnpm monorepo — F.R.I.D.A.Y. Command Center (`apps/`, `packages/`, `adapters/`, `config/`, `docs/`).
+- `skills/` — reserved for separate skills (conventions in `skills/README.md`).
+
+Integration tasks (installer ↔ dashboard), to schedule after the dashboard is complete:
+- Installer step that deploys the Command Center (Node runtime check, `pnpm install --prod`/prebuilt bundle, config,
+  owner password hash, autostart after QA per PLAN §54) — target path to decide: plan says `D:\Jarvis\dashboard`,
+  installer uses `C:\Jarvis`.
+- Real adapters for the installed services: Hermes (tasks/activity/agents, API on 127.0.0.1:43693), voice service
+  status on 127.0.0.1:43694 (see `docs/MAPPING/voice.md`), local Qwen on 127.0.0.1:43692.
+- Branding of the installer/voice persona to F.R.I.D.A.Y. (wake word "Hey Jarvis" is trained per user — changing it
+  requires new enrollment; decide with the owner).
+
 ## Remaining work (in order)
 
 0. **Branding F.R.I.D.A.Y.** (owner decision 2026-10-14: the product is F.R.I.D.A.Y., successor of J.A.R.V.I.S.;

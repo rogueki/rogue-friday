@@ -1,6 +1,7 @@
 # rogue-friday — Projektanweisungen für Claude Code
 
-Produkt: **F.R.I.D.A.Y.** — Nachfolger von J.A.R.V.I.S. Dieses Repo ist ihr Command Center (Dashboard + Control API).
+Produkt: **F.R.I.D.A.Y.** — Nachfolger von J.A.R.V.I.S. Dieses Repo ist das Komplettpaket: Windows-Installer
+(`installer/`), Command Center (Dashboard + Control API, pnpm-Monorepo im Root) und später separate Skills (`skills/`).
 Operator: RogueKI. Kommunikation: **Deutsch**, direkt, technisch, präzise. Code-Bezeichner/Kommentare: Englisch.
 
 ## Pflicht zu Beginn jeder Session
@@ -33,6 +34,14 @@ Operator: RogueKI. Kommunikation: **Deutsch**, direkt, technisch, präzise. Code
 - Orb: prozedural (R3F), Gold/Amber-Identität, keine Videos/GIFs/Bilder als Orb; keine React-State-Updates pro Frame.
 - Interne Paket-/Event-Namen (`@jarvis/*`, `jarvis.*`, `/api/v1`) bleiben stabil (Contract); die **sichtbare Marke**
   ist F.R.I.D.A.Y. (siehe Aufgabe „Branding“ in `docs/PROJECT_STATUS.md`).
+
+## Installer (`installer/`)
+
+- Läuft nur unter Windows 11 (PowerShell 5.1, WSL2); in der Cloud nicht ausführbar — nur statisch prüfen/ändern.
+- `install-jarvis.ps1` kopiert den eigenen Ordner (`$PSScriptRoot`) per robocopy nach `C:\Jarvis\installer` → der Installer
+  muss in seinem eigenen Unterordner bleiben.
+- Zeilenenden: `.bat/.ps1/.vbs` CRLF, `.sh` LF (per `.gitattributes` erzwungen). `.ps1` sind UTF-8 mit BOM.
+- Keine Secrets im Code: API-Keys/Passwörter werden zur Installationszeit abgefragt und nur lokal gespeichert.
 
 ## Gates (müssen grün sein)
 
