@@ -4,10 +4,12 @@
   Standardassistent: F.R.I.D.A.Y. ("Friday", Nachfolger von J.A.R.V.I.S.), Wake Word "Hey Friday". Der Name wird
   vor der Stimmaufnahme abgefragt und kann frei gewählt werden (z. B. Jarvis, James). Später ändern: change-assistant-name.bat
   (= install-jarvis.ps1 -ChangeName).
+  Zuletzt (Schritt 15) wird das F.R.I.D.A.Y. Command Center (Dashboard + Control API, http://127.0.0.1:3100) nach
+  C:\Jarvis\dashboard installiert; -UpdateDashboard (update-dashboard.bat) spielt nur dieses Update ein.
   Start per Doppelklick auf install-jarvis.bat. Kann jederzeit erneut gestartet werden: erledigte Schritte
   werden übersprungen (Fortschritt: C:\Jarvis\config\install-state.json).
 #>
-param([switch]$Resume, [switch]$ChangeName)
+param([switch]$Resume, [switch]$ChangeName, [switch]$UpdateDashboard)
 
 $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
@@ -16,8 +18,15 @@ $OutputEncoding = New-Object Text.UTF8Encoding $false  # Eingaben (z. B. Passwor
 $Root   = 'C:\Jarvis'
 $Inst   = "$Root\installer"
 $Distro = 'Ubuntu'
-$Ports  = @{ Dashboard = 43691; Qwen = 43692; HermesApi = 43693; Voice = 43694 }
+$Ports  = @{ Dashboard = 43691; Qwen = 43692; HermesApi = 43693; Voice = 43694; CommandCenter = 3100 }
 $ResumeTask = 'JARVIS_Installation_fortsetzen'
+# Command Center (Schritt 15). Zielpfad C:\Jarvis\dashboard weicht bewusst von PLAN §54 (D:\Jarvis\dashboard) ab, siehe docs/DEPLOYMENT.md.
+$Dash       = "$Root\dashboard"
+$DashUrl    = "http://127.0.0.1:$($Ports.CommandCenter)"
+$DashPort   = $Ports.CommandCenter
+$DashTask   = 'JARVIS_Dashboard'
+$DashInstallLog = "$Root\logs\dashboard-install.log"
+$DashHashFile   = "$Root\config\dashboard_owner.hash"   # nur der scrypt-Hash des Owner-Passworts, ACL nur Installationsbenutzer
 
 # ---------------------------------------------------------------- Admin
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
@@ -26,6 +35,7 @@ if (-not $admin) {
     $fwd = ''
     if ($Resume) { $fwd += ' -Resume' }
     if ($ChangeName) { $fwd += ' -ChangeName' }
+    if ($UpdateDashboard) { $fwd += ' -UpdateDashboard' }
     Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"$fwd"
     exit
 }
@@ -208,7 +218,7 @@ $Slug = $State.wake_slug
 
 # ================================================================ 1 Systemcheck
 if (-not (IsDone 'preflight')) {
-    Title 'Schritt 1/14 – Systemcheck'
+    Title 'Schritt 1/15 – Systemcheck'
     $build = [Environment]::OSVersion.Version.Build
     $ramGB = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
     $cores = (Get-CimInstance Win32_Processor | Measure-Object NumberOfLogicalProcessors -Sum).Sum
@@ -242,7 +252,7 @@ if (-not (IsDone 'preflight')) {
 # Bei jedem Start synchronisieren, solange das Skript nicht aus C:\Jarvis\installer laeuft: ein aktualisiertes Paket
 # muss die dort liegenden Kopien (WSL-Skripte, Voice-Dateien) ersetzen, auch wenn der Schritt schon erledigt ist.
 if (-not (IsDone 'files') -or $PSScriptRoot -ne $Inst) {
-    Title 'Schritt 2/14 – Installationsdateien nach C:\Jarvis kopieren'
+    Title 'Schritt 2/15 – Installationsdateien nach C:\Jarvis kopieren'
     if ($PSScriptRoot -ne $Inst) {
         & robocopy.exe $PSScriptRoot $Inst /E /NFL /NDL /NJH /NJS /NP | Out-Null
         if ($LASTEXITCODE -ge 8) { Stop-Install "Kopieren der Installationsdateien fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
@@ -250,10 +260,18 @@ if (-not (IsDone 'files') -or $PSScriptRoot -ne $Inst) {
     Ok "Dateien liegen in $Inst"
     MarkDone 'files'
 }
+# Quelle des Command Centers (Ordner ueber installer\) merken: nach einem Neustart laeuft das Skript aus C:\Jarvis\installer,
+# wo die Quellen nicht liegen. Schritt 15 findet sie dann ueber install-state.json (dashboard_source).
+if ($PSScriptRoot -ne $Inst) {
+    $repoCand = (Split-Path $PSScriptRoot -Parent).TrimEnd('\')
+    if ((Test-Path "$repoCand\pnpm-workspace.yaml") -and (Test-Path "$repoCand\apps\control-api\package.json") -and $State.dashboard_source -ne $repoCand) {
+        $State.dashboard_source = $repoCand; Save-State
+    }
+}
 
 # ================================================================ 3 WSL-Grundlage (ggf. Neustart)
 if (-not (IsDone 'wslfeature')) {
-    Title 'Schritt 3/14 – WSL2 (Linux-Subsystem) vorbereiten'
+    Title 'Schritt 3/15 – WSL2 (Linux-Subsystem) vorbereiten'
     & wsl.exe --status *> $null
     if ($LASTEXITCODE -ne 0) {
         Info 'WSL wird installiert …'
@@ -274,7 +292,7 @@ if (-not (IsDone 'wslfeature')) {
 
 # ================================================================ 4 Energie
 if (-not (IsDone 'power')) {
-    Title 'Schritt 4/14 – Energieoptionen (am Netzteil immer wach bleiben)'
+    Title 'Schritt 4/15 – Energieoptionen (am Netzteil immer wach bleiben)'
     & powercfg /change standby-timeout-ac 0
     & powercfg /change hibernate-timeout-ac 0
     & powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0
@@ -285,7 +303,7 @@ if (-not (IsDone 'power')) {
 
 # ================================================================ 5 Persönlichkeit
 if (-not (IsDone 'persona')) {
-    Title "Schritt 5/14 – Deine Wünsche an $AN"
+    Title "Schritt 5/15 – Deine Wünsche an $AN"
     $name = ''
     while (-not $name) { $name = Ask 'Wie heißt du (Vorname)?' }
     $addr = Choose "Wie soll $AN dich ansprechen?" @("Mit 'Sir' und Sie – wie ein britischer Butler", "Mit Vornamen und Sie ($name)", "Mit Vornamen und Du ($name)") 1
@@ -308,7 +326,7 @@ if (-not (IsDone 'persona')) {
 
 # ================================================================ 6 .wslconfig
 if (-not (IsDone 'wslconfig')) {
-    Title 'Schritt 6/14 – WSL-Ressourcen festlegen'
+    Title 'Schritt 6/15 – WSL-Ressourcen festlegen'
     $mem = [math]::Max(4, [math]::Min(16, [math]::Floor($State.ram_gb / 2)))
     $cpu = [math]::Max(2, [math]::Min(10, $State.cores - 2))
     $cfgFile = "$env:USERPROFILE\.wslconfig"
@@ -325,7 +343,7 @@ if (-not (IsDone 'wslconfig')) {
 
 # ================================================================ 7 Ubuntu
 if (-not (IsDone 'distro')) {
-    Title 'Schritt 7/14 – Ubuntu 24.04 installieren'
+    Title 'Schritt 7/15 – Ubuntu 24.04 installieren'
     $existing = @(& wsl.exe -l -q 2>$null | ForEach-Object { "$_".Trim() } | Where-Object { $_ })
     if ($existing -contains $Distro) {
         if (-not (YesNo "Es gibt bereits eine WSL-Distribution '$Distro'. Diese verwenden?")) { Stop-Install "Bitte vorhandenes '$Distro' sichern/entfernen oder umbenennen." }
@@ -340,7 +358,7 @@ if (-not (IsDone 'distro')) {
 
 # ================================================================ 8 Linux-Benutzer
 if (-not (IsDone 'linuxuser')) {
-    Title 'Schritt 8/14 – Linux-Benutzer anlegen'
+    Title 'Schritt 8/15 – Linux-Benutzer anlegen'
     Info "$AN läuft in Ubuntu unter einem eigenen Benutzer. Name: nur Kleinbuchstaben/Zahlen."
     $suggest = ($env:USERNAME.ToLower() -replace '[^a-z0-9_-]', '')
     if ($suggest -notmatch '^[a-z_]') { $suggest = 'jarvis' }
@@ -367,7 +385,7 @@ if (-not (IsDone 'linuxuser')) {
 
 # ================================================================ 9 WSL wach halten
 if (-not (IsDone 'keepalive')) {
-    Title 'Schritt 9/14 – WSL dauerhaft aktiv halten'
+    Title 'Schritt 9/15 – WSL dauerhaft aktiv halten'
     Register-UserTask 'JARVIS_WSL_Keepalive' "`"$Inst\scripts\wsl-keepalive.vbs`"" 'Hält Ubuntu/WSL für Hermes dauerhaft aktiv'
     Start-ScheduledTask -TaskName 'JARVIS_WSL_Keepalive'
     Ok 'Aufgabe JARVIS_WSL_Keepalive eingerichtet (startet bei jeder Anmeldung).'
@@ -376,7 +394,7 @@ if (-not (IsDone 'keepalive')) {
 
 # ================================================================ 10 Hermes + Kimi
 if (-not (IsDone 'hermes')) {
-    Title 'Schritt 10/14 – Hermes Agent + Kimi K3'
+    Title 'Schritt 10/15 – Hermes Agent + Kimi K3'
     $key = [Environment]::GetEnvironmentVariable('KIMI_API_KEY', 'User')
     if ($key -and (YesNo 'Kimi-API-Key aus der Kimi-Code-Einrichtung gefunden. Verwenden?')) { }
     else {
@@ -407,7 +425,7 @@ if (-not (IsDone 'hermes')) {
 
 # ================================================================ 11 Qwen lokal
 if (-not (IsDone 'qwen')) {
-    Title 'Schritt 11/14 – Lokales Sprachmodell (Qwen3-4B) für schnelle Antworten'
+    Title 'Schritt 11/15 – Lokales Sprachmodell (Qwen3-4B) für schnelle Antworten'
     $gpu = $State.gpu
     # Pascal (GTX 10xx) & Co. laufen nur mit dem CUDA-12.4-Build; RTX 50xx braucht CUDA 13.
     $flavor = if (-not $gpu.nvidia) { 'cpu' } elseif ([double]$gpu.cc -ge 12.0) { 'cuda-13' } else { 'cuda-12.4' }
@@ -451,7 +469,7 @@ if (-not (IsDone 'qwen')) {
 
 # ================================================================ 12 Python + Sprachpakete
 if (-not (IsDone 'voicepython')) {
-    Title 'Schritt 12/14 – Sprachsteuerung installieren (Python + Modelle)'
+    Title 'Schritt 12/15 – Sprachsteuerung installieren (Python + Modelle)'
     $py = $null
     # Ohne Python-Launcher wirft der Aufruf nur einen Befehl-nicht-gefunden-Fehler und laesst $LASTEXITCODE unveraendert (alter Wert 0).
     $havePy = $false
@@ -484,7 +502,7 @@ if (-not (IsDone 'voicepython')) {
 
 # ================================================================ 13 Stimme einlernen
 if (-not (IsDone 'enroll')) {
-    Title "Schritt 13/14 – $AN lernt deine Stimme"
+    Title "Schritt 13/15 – $AN lernt deine Stimme"
     Info "$AN reagiert nur auf DEINE Stimme. Dafür nimmst du jetzt einige Sätze auf (ca. 10–12 Minuten):"
     Info "  • 26x ""$WP"", 18x ""$AN"", 15 ähnlich klingende Wörter, 8 kurze Texte vorlesen"
     Info '  • Ruhige Umgebung, normal sprechen, nach jedem Piepton sprechen.'
@@ -520,7 +538,7 @@ if (-not (IsDone 'enroll')) {
 
 # ================================================================ 14 Sprachdienst + Abschluss
 if (-not (IsDone 'voiceservice')) {
-    Title "Schritt 14/14 – $AN starten"
+    Title "Schritt 14/15 – $AN starten"
     Register-UserTask 'JARVIS_Voice' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-jarvis-voice.ps1`"" "$AN Sprachsteuerung ($WP)" 45
     # Läuft noch ein Sprachdienst mit alter Konfiguration (Namenswechsel), erst beenden: die Aufgabe startet keine zweite Instanz.
     Stop-ScheduledTask -TaskName 'JARVIS_Voice' -ErrorAction SilentlyContinue
@@ -538,6 +556,437 @@ if (-not (IsDone 'voiceservice')) {
     MarkDone 'voiceservice'
 }
 
+# ================================================================ 15 F.R.I.D.A.Y. Command Center (Dashboard + Control API)
+# Zielpfad C:\Jarvis\dashboard - Entscheidung des Eigentuemers; PLAN §54 nennt D:\Jarvis\dashboard. Der Installer legt
+# ueberall C:\Jarvis zugrunde (kein D:-Laufwerk garantiert); der Pfad steht in dashboard.yaml und ist dort aenderbar.
+# Details: docs/DEPLOYMENT.md. Der Schritt ist idempotent; ein Fehler hier laesst Sprache/Hermes/Qwen unangetastet.
+$NodeMin = [version]'22.13.0'
+# Verzeichnisse, die nie ins Ziel kopiert werden (Build-Ausgaben, Abhaengigkeiten, Screenshots/Belege, Metadaten).
+$DashExcludeDirs = @('node_modules', '.git', '.next', 'dist', 'out', 'coverage', 'storybook-static', 'playwright-report',
+                     'test-results', 'screenshots', 'evidence', '.turbo', '__pycache__', '.claude')
+$DashSyncDirs  = @('apps', 'packages', 'adapters', 'scripts')
+$DashRootFiles = @('package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'tsconfig.base.json', 'eslint.config.js',
+                   'vitest.config.ts', '.npmrc', '.nvmrc', 'README.md', 'LICENSE')
+$script:DashOk = $false
+
+function Write-DashLog([string]$text) { Add-Content -Path $DashInstallLog -Value "$(Get-Date -Format s) $text" -Encoding UTF8 }
+function Show-DashLogTail { Get-Content $DashInstallLog -Tail 15 -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "     $_" -ForegroundColor DarkGray } }
+function Update-SessionPath {
+    $env:Path = (@([Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User'), $env:Path) |
+        Where-Object { $_ }) -join ';'
+}
+function Find-Node {
+    $c = Get-Command node.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($c) { return $c.Source }
+    foreach ($p in @("$env:ProgramFiles\nodejs\node.exe", "$env:LOCALAPPDATA\Programs\nodejs\node.exe")) { if (Test-Path $p) { return $p } }
+    return $null
+}
+function Get-NodeVersion($nodeExe) {
+    if (-not $nodeExe) { return $null }
+    $v = (& $nodeExe --version 2>$null | Select-Object -First 1)
+    if ("$v" -match '^v(\d+)\.(\d+)\.(\d+)') { return [version]"$($Matches[1]).$($Matches[2]).$($Matches[3])" }
+    return $null
+}
+function Get-PnpmVersion {
+    $c = Get-Command pnpm.cmd -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $c) { return $null }
+    $v = (& $c.Source --version 2>$null | Select-Object -First 1)
+    return "$v".Trim()
+}
+function Ensure-Node {
+    $node = Find-Node; $ver = Get-NodeVersion $node
+    if ($ver -and $ver -ge $NodeMin) { Ok "Node.js $ver gefunden"; return $node }
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Stop-Install "Für das Command Center wird Node.js $NodeMin oder neuer gebraucht, aber winget (App-Installer) fehlt. Bitte im Microsoft Store den 'App-Installer' aktualisieren oder Node.js LTS von https://nodejs.org installieren und install-jarvis.bat erneut starten."
+    }
+    $wingetArgs = @('--id', 'OpenJS.NodeJS.LTS', '-e', '--silent', '--accept-package-agreements', '--accept-source-agreements')
+    $verbs = if ($ver) { Info "Node.js $ver ist zu alt (mindestens $NodeMin) - aktualisiere per winget …"; @('upgrade', 'install') } else { Info 'Installiere Node.js LTS per winget …'; @('install') }
+    foreach ($verb in $verbs) {
+        Write-DashLog ">>> winget $verb OpenJS.NodeJS.LTS"
+        Native { winget $verb @wingetArgs } | ForEach-Object { Write-DashLog $_ }
+        # Fundortpruefung statt Exitcode (winget meldet "bereits installiert" mit Code != 0).
+        Update-SessionPath; $node = Find-Node; $ver = Get-NodeVersion $node
+        if ($ver -and $ver -ge $NodeMin) { break }
+    }
+    if ($ver -and $ver -ge $NodeMin) {
+        $nd = Split-Path $node
+        if (($env:Path -split ';') -notcontains $nd) { $env:Path = "$nd;$env:Path" }
+        Ok "Node.js $ver bereit"; return $node
+    }
+    if ($ver) { Stop-Install "Node.js $ver ist zu alt (mindestens $NodeMin) und ließ sich nicht aktualisieren (Log: $DashInstallLog). Bitte Node.js LTS manuell von https://nodejs.org installieren und install-jarvis.bat erneut starten." }
+    Stop-Install "Node.js wurde installiert oder angefordert, ist in dieser Sitzung aber nicht auffindbar (der PATH wird erst in einer neuen Shell aktualisiert). Dieses Fenster schließen und install-jarvis.bat erneut starten. Log: $DashInstallLog"
+}
+function Ensure-Pnpm([string]$wanted) {
+    $env:COREPACK_ENABLE_DOWNLOAD_PROMPT = '0'
+    if ((Get-PnpmVersion) -eq $wanted) { Ok "pnpm $wanted bereit"; return }
+    Info "Aktiviere pnpm $wanted (corepack) …"
+    if (Get-Command corepack -ErrorAction SilentlyContinue) {
+        Write-DashLog ">>> corepack enable / prepare pnpm@$wanted"
+        Native { corepack enable } | ForEach-Object { Write-DashLog $_ }
+        Native { corepack prepare "pnpm@$wanted" --activate } | ForEach-Object { Write-DashLog $_ }
+    }
+    if ((Get-PnpmVersion) -ne $wanted) {
+        Write-DashLog ">>> npm install -g pnpm@$wanted (Ausweichweg)"
+        Native { npm.cmd install -g "pnpm@$wanted" } | ForEach-Object { Write-DashLog $_ }
+        Update-SessionPath
+    }
+    if ((Get-PnpmVersion) -ne $wanted) {
+        Stop-Install "pnpm $wanted konnte nicht aktiviert werden (Internet? corepack/npm laden es aus der npm-Registry). Log: $DashInstallLog"
+    }
+    Ok "pnpm $wanted bereit"
+}
+function Get-SourceHash([string]$src) {
+    # Inhaltshash ueber alles, was ins Ziel kopiert wird (ohne Build-Ausgaben und ohne die lokalen Konfigurationsdateien).
+    $files = New-Object System.Collections.Generic.List[string]
+    foreach ($f in $DashRootFiles) { if (Test-Path "$src\$f") { $files.Add("$src\$f") } }
+    $stack = New-Object System.Collections.Generic.Stack[string]
+    foreach ($d in ($DashSyncDirs + 'config')) { if (Test-Path "$src\$d") { $stack.Push("$src\$d") } }
+    while ($stack.Count -gt 0) {
+        $cur = $stack.Pop()
+        $di = New-Object IO.DirectoryInfo $cur
+        foreach ($sub in $di.GetDirectories()) { if ($DashExcludeDirs -notcontains $sub.Name) { $stack.Push($sub.FullName) } }
+        foreach ($fi in $di.GetFiles()) { $files.Add($fi.FullName) }
+    }
+    $files.Sort([StringComparer]::Ordinal)
+    $sb = New-Object Text.StringBuilder
+    foreach ($f in $files) {
+        $rel = $f.Substring($src.Length).TrimStart('\')
+        if ($rel -in 'config\dashboard.yaml', 'config\adapters.yaml') { continue }
+        [void]$sb.Append($rel).Append(':').Append((Get-FileHash $f -Algorithm SHA256).Hash).Append("`n")
+    }
+    $sha = [Security.Cryptography.SHA256]::Create()
+    return (-join ($sha.ComputeHash((New-Object Text.UTF8Encoding $false).GetBytes($sb.ToString())) | ForEach-Object { $_.ToString('x2') }))
+}
+function Sync-DashSource([string]$src) {
+    New-Item -ItemType Directory -Force $Dash | Out-Null
+    foreach ($f in $DashRootFiles) { if (Test-Path "$src\$f") { Copy-Item "$src\$f" "$Dash\$f" -Force } }
+    foreach ($d in $DashSyncDirs) {
+        if (-not (Test-Path "$src\$d")) { continue }
+        # /MIR spiegelt (entfernt Veraltetes); ausgeschlossene Ordner (node_modules, dist, out, ...) bleiben im Ziel unberuehrt.
+        & robocopy.exe "$src\$d" "$Dash\$d" /MIR /XD @DashExcludeDirs /XF '*.log' /NFL /NDL /NJH /NJS /NP | Out-Null
+        if ($LASTEXITCODE -ge 8) { Stop-Install "Kopieren von '$d' nach $Dash fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
+    }
+    if (Test-Path "$src\config") {
+        # Ohne /MIR und ohne dashboard.yaml/adapters.yaml: lokale Konfiguration des Benutzers bleibt erhalten.
+        & robocopy.exe "$src\config" "$Dash\config" /E /XF dashboard.yaml adapters.yaml /NFL /NDL /NJH /NJS /NP | Out-Null
+        if ($LASTEXITCODE -ge 8) { Stop-Install "Kopieren von 'config' nach $Dash fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
+    }
+    foreach ($d in 'config', 'data', 'backups') { New-Item -ItemType Directory -Force "$Dash\$d" | Out-Null }
+    New-Item -ItemType Directory -Force "$Root\logs\dashboard" | Out-Null
+}
+function Invoke-Pnpm([string[]]$pnpmArgs) {
+    Write-DashLog ">>> pnpm $($pnpmArgs -join ' ')   (in $Dash)"
+    Push-Location $Dash
+    try { & pnpm.cmd @pnpmArgs 2>&1 | ForEach-Object { Add-Content -Path $DashInstallLog -Value "$_" -Encoding UTF8 }; $code = $LASTEXITCODE }
+    finally { Pop-Location }
+    Write-DashLog "<<< Exitcode $code"
+    return $code
+}
+function Test-DashboardHealth([int]$timeoutSec = 3) {
+    try {
+        $r = Invoke-WebRequest -UseBasicParsing "$DashUrl/api/v1/health" -TimeoutSec $timeoutSec
+        return [pscustomobject]@{ Up = $true; Code = [int]$r.StatusCode; Body = "$($r.Content)" }
+    } catch {
+        # Eine HTTP-Antwort mit Fehlercode (z. B. 503 bei Teilausfall) heisst: der Server laeuft.
+        if ($_.Exception.Response) { return [pscustomobject]@{ Up = $true; Code = [int]$_.Exception.Response.StatusCode; Body = '' } }
+        return [pscustomobject]@{ Up = $false; Code = 0; Body = '' }
+    }
+}
+function Get-ConfiguredPort([string]$yamlFile, [int]$default) {
+    # server.port aus dashboard.yaml (einfacher Zeilenscan; Umgebungsvariable JARVIS_PORT bleibt unberuecksichtigt).
+    if (-not (Test-Path $yamlFile)) { return $default }
+    $inServer = $false
+    foreach ($line in (Get-Content $yamlFile)) {
+        if ($line -match '^server:') { $inServer = $true; continue }
+        if ($inServer -and $line -match '^\S' -and $line -notmatch '^\s*#') { $inServer = $false }
+        if ($inServer -and $line -match '^\s+port:\s*(\d{2,5})\b') { return [int]$Matches[1] }
+    }
+    return $default
+}
+function Set-DashPort {
+    $script:DashPort = Get-ConfiguredPort "$Dash\config\dashboard.yaml" $Ports.CommandCenter
+    $script:DashUrl = "http://127.0.0.1:$($script:DashPort)"
+}
+function Get-PortOwner([int]$port) {
+    $c = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $c) { return $null }
+    $p = Get-CimInstance Win32_Process -Filter "ProcessId=$($c.OwningProcess)" -ErrorAction SilentlyContinue
+    return [pscustomobject]@{ ProcessId = $c.OwningProcess; Name = "$($p.Name)"; CommandLine = "$($p.CommandLine)" }
+}
+function Stop-DashboardService {
+    # Erst die Neustartschleife (Launcher), dann Node - sonst startet der Launcher den Server sofort neu.
+    Stop-ScheduledTask -TaskName $DashTask -ErrorAction SilentlyContinue
+    Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -like '*start-dashboard.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -like '*control-api*dist*main.js*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep 2
+}
+function Write-DashFile([string]$path, [string]$content, [string]$label) {
+    $content = $content.Replace("`r`n", "`n")
+    $enc = New-Object Text.UTF8Encoding $false
+    if (-not (Test-Path $path)) { [IO.File]::WriteAllText($path, $content, $enc); Ok "$label geschrieben: $path"; return }
+    if ([IO.File]::ReadAllText($path).Replace("`r`n", "`n") -eq $content) { Info "$label ist aktuell: $path"; return }
+    if ($UpdateDashboard) { Info "$label bleibt unverändert (deine Änderungen werden behalten): $path"; return }
+    Warn "$label existiert bereits und weicht von der Vorgabe des Installers ab: $path"
+    if (YesNo 'Mit der Vorgabe überschreiben? (die alte Datei wird nach C:\Jarvis\backups gesichert)' $false) {
+        Copy-Item $path "$Root\backups\$(Split-Path $path -Leaf).bak-$(Get-Date -Format yyyyMMdd-HHmmss)" -Force
+        [IO.File]::WriteAllText($path, $content, $enc); Ok "$label überschrieben"
+    } else { Info "$label bleibt unverändert (deine Änderungen werden behalten)." }
+}
+function Write-DashboardConfig {
+    $cfg = "$Dash\config"
+    # Nur der Anzeigename wird in einer bestehenden dashboard.yaml nachgezogen (Namenswechsel), alles andere bleibt wie es ist.
+    if (Test-Path "$cfg\dashboard.yaml") {
+        $old = [IO.File]::ReadAllText("$cfg\dashboard.yaml")
+        $new = [regex]::Replace($old, '(?m)^(\s*assistantName:[ \t]*)("[^"\r\n]*"|[^\s#"]+)', { param($m) "$($m.Groups[1].Value)`"$AN`"" })
+        if ($new -ne $old) { [IO.File]::WriteAllText("$cfg\dashboard.yaml", $new, (New-Object Text.UTF8Encoding $false)); Info "Anzeigename in dashboard.yaml auf '$AN' gesetzt." }
+    }
+    $dashboardYaml = @"
+# F.R.I.D.A.Y. Command Center - Dashboard-Konfiguration (vom Installer erzeugt, HYBRID-Betrieb; frei editierbar).
+# Der Installer ueberschreibt diese Datei nie ohne Rueckfrage. Mehr: docs/DEPLOYMENT.md, config/dashboard.example.yaml.
+# Geaendert wird nach einem Neustart der Aufgabe JARVIS_Dashboard wirksam.
+
+dataMode: hybrid # mock | hybrid | live - hybrid: in adapters.yaml genannte Kategorien live, der Rest mock
+
+server:
+  host: 127.0.0.1 # nur Loopback
+  port: 3100
+  allowRemote: false
+
+# Pfade ohne Backslash (YAML). Entscheidung: C:\Jarvis\dashboard statt D:\Jarvis\dashboard (PLAN 54), Logs bei den
+# anderen Diensten in C:\Jarvis\logs.
+paths:
+  dataDir: C:/Jarvis/dashboard/data
+  logDir: C:/Jarvis/logs/dashboard
+  backupDir: C:/Jarvis/dashboard/backups
+  webRoot: C:/Jarvis/dashboard/apps/web/out
+
+auth:
+  mode: local
+  ownerUsername: owner
+  # Nur der scrypt-Hash, nie das Passwort. Datei mit Zugriff nur fuer den Installationsbenutzer (icacls).
+  ownerPasswordHash: file:C:/Jarvis/config/dashboard_owner.hash
+  sessionTtlMinutes: 720
+  reauthWindowMinutes: 5
+  idleTimeoutMinutes: 30
+  secureCookies: false
+
+realtime:
+  ringBufferSize: 5000
+  heartbeatSeconds: 15
+
+ui:
+  locale: de-DE
+  timezone: Europe/Berlin
+  assistantName: "$AN" # Anzeigename; settings.profile.assistantName (in der Oberflaeche geaendert) hat Vorrang
+  theme: jarvis-command-midnight
+  layout: jarvis-command-overview
+
+dev:
+  scenarioConsole: false
+  responseValidation: true
+
+logging:
+  level: info
+  redactEmails: false
+  file:
+    enabled: true
+    maxBytes: 10485760
+    maxFiles: 5
+"@
+    $adaptersYaml = @"
+# F.R.I.D.A.Y. Command Center - Adapter (vom Installer erzeugt, HYBRID-Betrieb; frei editierbar).
+# Live: Aufgaben/Aktivitaet/Agenten ueber Hermes, Sprache ueber den Voice-Dienst, Systemstatus vom lokalen Rechner.
+# Alle anderen Kategorien (memory, approvals, communication, calendar, automations, research, files, notifications,
+# audit, commands) bleiben im Hybrid-Modus mock-* und sind in der Oberflaeche als Simulation erkennbar.
+# Ports (Installer): 43691 Hermes-Dashboard, 43692 Qwen, 43693 Hermes-API, 43694 Voice-Status.
+# Geheimnisse nie im Klartext: file:<absoluter Pfad> (nur serverseitig gelesen), env:NAME oder wincred:ZIEL.
+
+allowlist:
+  hermes-tasks: "@jarvis/adapter-hermes"
+  hermes-activity: "@jarvis/adapter-hermes"
+  hermes-agents: "@jarvis/adapter-hermes"
+  jarvis-voice-http: "@jarvis/adapter-voice-http"
+  local-system: "@jarvis/adapter-system-local"
+
+adapters:
+  tasks:
+    provider: hermes-tasks
+    enabled: true
+    timeoutMs: 10000
+    config:
+      dashboardBaseUrl: http://127.0.0.1:43691
+      dashboardAuth: scrape
+      boards: [default]
+  activity:
+    provider: hermes-activity
+    enabled: true
+    timeoutMs: 10000
+    config:
+      apiBaseUrl: http://127.0.0.1:43693
+      apiKey: "file:C:/Jarvis/config/hermes_api.key"
+      dashboardBaseUrl: http://127.0.0.1:43691
+      boards: [default]
+  agents:
+    provider: hermes-agents
+    enabled: true
+    timeoutMs: 10000
+    config:
+      apiBaseUrl: http://127.0.0.1:43693
+      apiKey: "file:C:/Jarvis/config/hermes_api.key"
+      dashboardBaseUrl: http://127.0.0.1:43691
+      boards: [default]
+  voice:
+    provider: jarvis-voice-http
+    enabled: true
+    timeoutMs: 3000
+    config:
+      baseUrl: http://127.0.0.1:43694
+      localModelUrl: http://127.0.0.1:43692
+      wakePhrase: "$WP"
+  system:
+    provider: local-system
+    enabled: true
+    timeoutMs: 5000
+    config:
+      qwenUrl: http://127.0.0.1:43692
+      hermesApiUrl: http://127.0.0.1:43693
+      hermesDashboardUrl: http://127.0.0.1:43691
+      voiceUrl: http://127.0.0.1:43694
+      hermesApiKey: "file:C:/Jarvis/config/hermes_api.key"
+      storagePaths: ["C:/"]
+      wslDistro: $Distro
+"@
+    Write-DashFile "$cfg\dashboard.yaml" $dashboardYaml 'dashboard.yaml'
+    Write-DashFile "$cfg\adapters.yaml" $adaptersYaml 'adapters.yaml'
+}
+function Protect-OwnerFile([string]$file) {
+    & icacls.exe $file /inheritance:r /grant:r "$($env:USERNAME):(R,W)" /grant:r 'SYSTEM:(R)' | Out-Null
+    if ($LASTEXITCODE -ne 0) { Stop-Install "Zugriffsrechte für $file konnten nicht gesetzt werden." }
+}
+function Set-DashboardOwnerPassword {
+    $have = (Test-Path $DashHashFile) -and ((Get-Item $DashHashFile).Length -gt 0)
+    if ($have) {
+        Protect-OwnerFile $DashHashFile
+        if ($UpdateDashboard -or -not (YesNo 'Für das Command Center ist bereits ein Owner-Passwort gesetzt. Neu setzen?' $false)) { Ok 'Owner-Passwort bleibt bestehen.'; return }
+    }
+    Info 'Lege das Passwort für den Login im Command Center fest (Benutzername: owner).'
+    Info 'Mindestens 12 Zeichen. Gespeichert wird nur ein Hash (scrypt), nie das Passwort selbst.'
+    while ($true) {
+        $pw = Plain (Read-Host '  Owner-Passwort' -AsSecureString)
+        $pw2 = Plain (Read-Host '  Passwort wiederholen' -AsSecureString)
+        if ($pw.Length -lt 12) { Warn 'Das Passwort braucht mindestens 12 Zeichen.'; continue }
+        if ($pw -ne $pw2) { Warn 'Die Eingaben sind nicht gleich - bitte nochmal.'; continue }
+        break
+    }
+    $pw2 = $null
+    Push-Location $Dash
+    try { $lines = @($pw | & pnpm.cmd --filter '@jarvis/auth' hash-password 2>&1 | ForEach-Object { "$_" }) }
+    finally { Pop-Location; $pw = $null }
+    $text = $lines -join "`n"
+    if (-not ($text -match 'JARVIS_OWNER_PASSWORD_HASH=''(scrypt\$\d+\$\d+\$\d+\$[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+)''')) {
+        Write-DashLog ">>> hash-password fehlgeschlagen:`n$text"
+        Stop-Install "Das Passwort-Hash-Werkzeug (pnpm --filter @jarvis/auth hash-password) hat keinen Hash geliefert. Log: $DashInstallLog"
+    }
+    $hash = $Matches[1]
+    # Datei zuerst leer anlegen und absichern, dann erst den Hash hineinschreiben (Muster hermes_api.key).
+    if (-not (Test-Path $DashHashFile)) { New-Item -ItemType File -Path $DashHashFile | Out-Null }
+    Protect-OwnerFile $DashHashFile
+    [IO.File]::WriteAllText($DashHashFile, $hash, (New-Object Text.UTF8Encoding $false))
+    $hash = $null; $text = $null; $lines = $null
+    Ok "Owner-Passwort gesetzt (Hash in $DashHashFile, nur für $($env:USERNAME) lesbar)."
+}
+function Install-Dashboard {
+    Write-DashLog "=== Dashboard-Schritt gestartet ($(Get-Date -Format s)) ==="
+    Info "Ziel: $Dash  |  URL: $DashUrl  |  Log: $DashInstallLog"
+    Info 'Hinweis: PLAN §54 nennt D:\Jarvis\dashboard; hier gilt C:\Jarvis\dashboard (Entscheidung des Eigentümers, siehe docs\DEPLOYMENT.md).'
+
+    # --- Quelle des Command Centers: Ordner neben installer\ (oder der beim ersten Start gemerkte)
+    $src = $null
+    foreach ($cand in @((Split-Path $PSScriptRoot -Parent), $State.dashboard_source)) {
+        if ($cand -and (Test-Path "$cand\pnpm-workspace.yaml") -and (Test-Path "$cand\apps\control-api\package.json")) { $src = "$cand".TrimEnd('\'); break }
+    }
+    if (-not $src) {
+        Stop-Install "Die Quellen des Command Centers (Ordner apps, packages, adapters, config neben dem Ordner 'installer') wurden nicht gefunden. Bitte das komplette Paket entpacken (nicht nur den Ordner 'installer') und install-jarvis.bat aus dem entpackten Paket starten; der entpackte Ordner muss bis zum Ende der Installation an seinem Platz bleiben."
+    }
+    if ($src -eq $Dash) { Stop-Install "Die Quelle darf nicht $Dash selbst sein - bitte install-jarvis.bat aus dem entpackten Paket starten." }
+    Info "Quelle: $src"
+
+    # --- Node.js + pnpm
+    $node = Ensure-Node
+    $pm = (Get-Content "$src\package.json" -Raw | ConvertFrom-Json).packageManager
+    if (-not ("$pm" -match '^pnpm@(\d+\.\d+\.\d+)')) { Stop-Install "Im package.json fehlt 'packageManager: pnpm@<Version>' ($src\package.json)." }
+    $pnpmVersion = $Matches[1]
+    Ensure-Pnpm $pnpmVersion
+
+    # --- Quellen bereitstellen, installieren, bauen (nur wenn sich etwas geaendert hat)
+    Info 'Prüfe Quellstand …'
+    $hash = Get-SourceHash $src
+    $built = (Test-Path "$Dash\apps\control-api\dist\main.js") -and [bool](Get-ChildItem "$Dash\apps\web\out" -ErrorAction SilentlyContinue | Select-Object -First 1)
+    if ($State.dashboard_hash -eq $hash -and $built) {
+        Ok "Quellen unverändert (Hash $($hash.Substring(0, 12))) - Build übersprungen."
+    } else {
+        Stop-DashboardService
+        Info "Kopiere das Command Center nach $Dash …"
+        Sync-DashSource $src
+        Info 'pnpm install --frozen-lockfile (beim ersten Mal einige Minuten, braucht Internet) …'
+        $code = Invoke-Pnpm @('install', '--frozen-lockfile')
+        if ($code -ne 0) {
+            Show-DashLogTail
+            if ((Get-Content $DashInstallLog -Tail 60 -ErrorAction SilentlyContinue) -match 'ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNREFUSED|ERR_PNPM_FETCH|ERR_SOCKET') {
+                Stop-Install "pnpm install ist fehlgeschlagen: die npm-Registry ist nicht erreichbar (Internet/Proxy prüfen). Log: $DashInstallLog"
+            }
+            Stop-Install "pnpm install ist fehlgeschlagen (Exitcode $code). Log: $DashInstallLog"
+        }
+        Info 'pnpm build:app (Web + Control API, einige Minuten) …'
+        $code = Invoke-Pnpm @('build:app')
+        if ($code -ne 0) { Show-DashLogTail; Stop-Install "Der Build des Command Centers ist fehlgeschlagen (Exitcode $code). Log: $DashInstallLog" }
+        if (-not (Test-Path "$Dash\apps\control-api\dist\main.js")) { Stop-Install "Build ohne Ergebnis: $Dash\apps\control-api\dist\main.js fehlt. Log: $DashInstallLog" }
+        $State.dashboard_hash = $hash; $State.dashboard_pnpm = $pnpmVersion; Save-State
+        Ok 'Command Center gebaut.'
+    }
+    $State.dashboard_source = $src; Save-State
+
+    # --- Konfiguration + Owner-Passwort
+    Write-DashboardConfig
+    Set-DashPort
+    if ($DashPort -ne $Ports.CommandCenter) { Info "Port aus dashboard.yaml: $DashPort" }
+    Set-DashboardOwnerPassword
+
+    # --- Autostart, Start, Healthcheck
+    Stop-DashboardService
+    $owner = Get-PortOwner $DashPort
+    if ($owner) {
+        Warn "Port $DashPort ist belegt durch '$($owner.Name)' (PID $($owner.ProcessId)): $($owner.CommandLine)"
+        Warn "Das Command Center wurde gebaut und konfiguriert, aber nicht gestartet. Programm beenden oder in $Dash\config\dashboard.yaml einen anderen Port wählen, dann install-jarvis.bat erneut starten."
+        return
+    }
+    Register-UserTask $DashTask "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-dashboard.ps1`"" 'F.R.I.D.A.Y. Command Center (Dashboard + Control API)' 60
+    Ok "Aufgabe $DashTask eingerichtet (startet bei jeder Anmeldung, bei Absturz Neustart nach 10 s)."
+    Start-ScheduledTask -TaskName $DashTask
+    Info 'Warte auf das Command Center (bis zu 60 Sekunden) …'
+    $h = $null
+    foreach ($i in 1..30) { $h = Test-DashboardHealth 3; if ($h.Up) { break }; Start-Sleep 2 }
+    if (-not $h.Up) {
+        Warn "Das Command Center antwortet nicht auf $DashUrl/api/v1/health. Log: $Root\logs\dashboard-service.log (und $DashInstallLog)."
+        Warn 'Sprache und Hermes laufen davon unabhängig weiter. Ursache beheben und install-jarvis.bat erneut starten.'
+        return
+    }
+    if ($h.Code -ge 200 -and $h.Code -lt 300) { Ok "Command Center läuft: $DashUrl (Health $($h.Code))" }
+    else { Warn "Command Center läuft, meldet aber HTTP $($h.Code) (einzelne Adapter eingeschränkt? Siehe $Root\logs\dashboard-service.log). Es bleibt eingerichtet." }
+    $script:DashOk = $true
+}
+
+Set-DashPort
+if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
+    Title 'Schritt 15/15 – F.R.I.D.A.Y. Command Center (Dashboard) einrichten'
+    Install-Dashboard
+    if ($script:DashOk) { MarkDone 'dashboard' }
+    else { Warn 'Das Command Center ist noch nicht fertig eingerichtet (Details oben). Der Rest der Installation ist davon nicht betroffen.' }
+}
+
+$DashProbe = Test-DashboardHealth 3
 $p = Get-Content "$Root\config\persona.json" -Raw | ConvertFrom-Json
 $report = @"
 # F.R.I.D.A.Y. – Installationsstatus
@@ -546,13 +995,14 @@ Installiert am $(Get-Date -Format 'dd.MM.yyyy HH:mm') für $($p.owner_name). Ass
 
 | Komponente | Adresse |
 |---|---|
+| F.R.I.D.A.Y. Command Center | $DashUrl (Login: owner) |
 | Hermes Dashboard | http://127.0.0.1:$($Ports.Dashboard) |
 | Qwen3-4B (lokal) | http://127.0.0.1:$($Ports.Qwen)/v1 |
 | Hermes API (für Sprache) | http://127.0.0.1:$($Ports.HermesApi)/v1 |
 | Sprachdienst-Status | http://127.0.0.1:$($Ports.Voice) |
 
 Grafikkarte: $($State.gpu.name) ($($State.gpu.vram_mb) MB) · Linux-Benutzer: $($State.linux_user)
-Autostart: JARVIS_WSL_Keepalive, JARVIS_Qwen, JARVIS_Voice (Aufgabenplanung). Hermes-Dienste: systemd in Ubuntu.
+Autostart: JARVIS_WSL_Keepalive, JARVIS_Qwen, JARVIS_Voice, JARVIS_Dashboard (Aufgabenplanung). Hermes-Dienste: systemd in Ubuntu.
 Erledigte Schritte: $(@($State.done) -join ', ')
 "@
 [IO.File]::WriteAllText("$Root\INSTALL_STATE.md", $report, (New-Object Text.UTF8Encoding $false))
@@ -560,9 +1010,12 @@ Erledigte Schritte: $(@($State.done) -join ', ')
 Title "FERTIG – $AN ist einsatzbereit"
 Info "Sag:  ""$WP""  … kurzer Piepton … dann deine Frage, z. B. ""Wie spät ist es?"""
 Info "Folgefragen gehen 90 Sekunden lang ohne erneutes ""$WP""."
-Info "Dashboard (Kanban, Einstellungen): http://127.0.0.1:$($Ports.Dashboard)"
+if ($DashProbe.Up) { Info "Command Center (Dashboard, Login 'owner'): $DashUrl" }
+else { Warn "Command Center nicht erreichbar ($DashUrl) - Log: $Root\logs\dashboard-service.log; install-jarvis.bat erneut starten." }
+Info "Hermes-Dashboard (Kanban, Einstellungen): http://127.0.0.1:$($Ports.Dashboard)"
 Info 'Alles startet ab jetzt automatisch bei der Anmeldung.'
 Info 'Nächste Schritte (Telegram, E-Mail, Kalender): siehe ANLEITUNG.md'
-Start-Process "http://127.0.0.1:$($Ports.Dashboard)"
+if ($DashProbe.Up -and (YesNo 'Command Center jetzt im Browser öffnen?')) { Start-Process $DashUrl }
+elseif (-not $DashProbe.Up) { Start-Process "http://127.0.0.1:$($Ports.Dashboard)" }
 Stop-Transcript | Out-Null
 Read-Host '  Enter zum Schließen'
