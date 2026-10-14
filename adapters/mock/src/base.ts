@@ -82,6 +82,26 @@ export function mockManifest(category: PortCategory): AdapterManifest {
   };
 }
 
+/**
+ * Capabilities of one category as the world currently offers them: the manifest's capabilities whose flag is on in the
+ * world's capability document. Also used by the Control API to notice dev toggles without waiting for a restart.
+ */
+export function worldCapabilities(world: MockWorld, category: PortCategory): string[] {
+  const manifest = new Set(mockManifest(category).capabilities);
+  const modules = world.state.capabilities.modules as unknown as Record<string, Record<string, unknown>>;
+  const capabilities: string[] = [];
+  for (const [moduleName, flags] of Object.entries(modules)) {
+    const owner = MODULE_CATEGORY[moduleName as keyof typeof MODULE_CATEGORY];
+    // `mail` mirrors `communication`; only the canonical module names are reported.
+    if (owner !== category || moduleName === "mail" || moduleName === "telephony") continue;
+    for (const [flag, value] of Object.entries(flags)) {
+      const capability = `${moduleName}.${flag}`;
+      if (value === true && manifest.has(capability)) capabilities.push(capability);
+    }
+  }
+  return capabilities.sort();
+}
+
 const ORB_AND_CORE_SOURCES = /^control-api:\/\//;
 
 /**
@@ -161,19 +181,7 @@ export abstract class MockAdapterBase implements JarvisAdapter {
 
   /** Capabilities currently switched on in the world (`dev` capability toggles are reflected here). */
   async getCapabilities(): Promise<CapabilitySet> {
-    const manifest = new Set(this.manifest.capabilities);
-    const modules = this.world.state.capabilities.modules as unknown as Record<string, Record<string, unknown>>;
-    const capabilities: string[] = [];
-    for (const [moduleName, flags] of Object.entries(modules)) {
-      const owner = MODULE_CATEGORY[moduleName as keyof typeof MODULE_CATEGORY];
-      // `mail` mirrors `communication`; only the canonical module names are reported.
-      if (owner !== this.category || moduleName === "mail" || moduleName === "telephony") continue;
-      for (const [flag, value] of Object.entries(flags)) {
-        const capability = `${moduleName}.${flag}`;
-        if (value === true && manifest.has(capability)) capabilities.push(capability);
-      }
-    }
-    return { capabilities: capabilities.sort() };
+    return { capabilities: worldCapabilities(this.world, this.category) };
   }
 
   async shutdown(): Promise<void> {

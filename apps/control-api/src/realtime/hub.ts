@@ -360,6 +360,34 @@ export class EventHub {
     };
   }
 
+  /**
+   * Sends every client a "going away" close frame and waits briefly for the handshake, then terminates stragglers.
+   * Must run before the HTTP server closes: upgraded sockets keep `server.close()` pending until they are gone.
+   */
+  async disconnectAll(graceMs = 1_000): Promise<void> {
+    const sockets = [...this.clients].map((client) => client.socket);
+    this.clients.clear();
+    this.options.metrics.wsConnections.set(0);
+    await Promise.all(
+      sockets.map(
+        (socket) =>
+          new Promise<void>((resolve) => {
+            if (socket.readyState === socket.CLOSED) return resolve();
+            const timer = setTimeout(() => {
+              socket.terminate();
+              resolve();
+            }, graceMs);
+            timer.unref?.();
+            socket.once("close", () => {
+              clearTimeout(timer);
+              resolve();
+            });
+            if (socket.readyState === socket.OPEN) socket.close(1001, "server shutting down");
+          }),
+      ),
+    );
+  }
+
   async close(): Promise<void> {
     if (this.heartbeat) clearInterval(this.heartbeat);
     this.heartbeat = undefined;

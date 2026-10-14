@@ -78,6 +78,12 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
     ctx.audit.agentId = current.agentId;
     ctx.audit.context = { riskTier: tier, inputChannel: channel, type: current.type };
 
+    // 0. a decided or expired approval is a conflict, whatever credentials the caller presents (double click, second tab)
+    if (current.status !== "pending") throw conflict(`Die Freigabe ist nicht mehr offen (${current.status}).`, { status: current.status });
+    if (current.expiresAt !== null && Date.parse(current.expiresAt) <= runtime.nowMs()) {
+      throw conflict("Die Freigabe ist abgelaufen.", { expiresAt: current.expiresAt });
+    }
+
     // 1. role, tier-3 rules (owner only, no voice, fresh re-auth)
     const reauthAt = runtime.auth.reauthAt(principal);
     const decision = authorize(principal.role, APPROVE_ACTION, {
@@ -87,6 +93,16 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
       reauthWindowMs: runtime.config.auth.reauthWindowMinutes * 60_000,
     });
     if (!decision.allowed) throw denied(decision.reason, tier);
+
+    // A tier-3 decision without a re-auth token fails before any credential is spent, so the user can retry right away.
+    const needsReauth = tier === 3 || current.requiredAuth === "reauth";
+    if (needsReauth && !body?.reauthToken) {
+      throw new ApiError({
+        code: "REAUTH_REQUIRED",
+        message: "Für diese Freigabe ist eine erneute Authentifizierung nötig.",
+        details: { requiredAuth: "reauth", riskTier: tier },
+      });
+    }
 
     // 2. approval token (single use; bound to this approval, this user and this action)
     const token = ctx.headers[APPROVAL_TOKEN_HEADER];
@@ -107,7 +123,7 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
     }
 
     // 3. tier 3: the re-auth token from POST /auth/reauth (single use)
-    if (tier === 3 || current.requiredAuth === "reauth") {
+    if (needsReauth) {
       if (!runtime.auth.consumeReauthToken(principal, body?.reauthToken)) {
         throw new ApiError({
           code: "REAUTH_REQUIRED",
@@ -120,7 +136,7 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
     // 4. final recheck right before execution: state, expiry, version, session
     const latest = (await approvals.getApproval({ id }, ctx.call)).data;
     if (latest.status !== "pending") throw conflict(`Die Freigabe ist nicht mehr offen (${latest.status}).`, { status: latest.status });
-    if (latest.expiresAt !== null && Date.parse(latest.expiresAt) <= Date.now()) {
+    if (latest.expiresAt !== null && Date.parse(latest.expiresAt) <= runtime.nowMs()) {
       throw conflict("Die Freigabe ist abgelaufen.", { expiresAt: latest.expiresAt });
     }
     if (ctx.mutation.ifMatchVersion !== undefined && ctx.mutation.ifMatchVersion !== latest.version) {

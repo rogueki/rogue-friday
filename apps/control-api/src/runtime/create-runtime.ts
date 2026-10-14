@@ -22,10 +22,11 @@ import type { AdapterHealth, JarvisEvent } from "@jarvis/sdk";
 import { kvGet, kvSet, openDatabase } from "../db/database";
 import { AuditStore, type AuditVerification } from "../db/audit-store";
 import { AdapterOverrideStore, CommandHistoryStore, IdempotencyStore, LibraryStore } from "../db/stores";
+import { worldCapabilities } from "@jarvis/adapter-mock";
 import { EventHub } from "../realtime/hub";
 import { AuthService } from "../security/auth-service";
 import { AdapterSettingsService } from "../services/adapter-settings";
-import { OrbService, OverviewService, StatusService, summarizeAdapters } from "../services/core-views";
+import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, summarizeAdapters } from "../services/core-views";
 import { SettingsService, seedLibrary } from "../services/settings";
 import { createRuntimeSecrets, createWorld, wireAdapters } from "./adapter-wiring";
 import type { AuditRecorder, ResponseValidationMode, Runtime } from "./types";
@@ -47,6 +48,10 @@ export interface CreateRuntimeOptions {
   strictEvents?: boolean;
   worldSeed?: number;
   worldProfile?: string;
+  /** Wall clock for sessions, approval tokens and re-authentication windows (tests move it to prove expiry). */
+  now?: () => number;
+  /** Lifetime of approval tokens in ms; defaults to the `@jarvis/auth` value (2 minutes). */
+  approvalTokenTtlMs?: number;
 }
 
 const HEALTH_GAUGE: Record<string, "healthy" | "degraded" | "down" | "unknown"> = {
@@ -86,8 +91,14 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const sessions = new SqliteSessionStore(db, {
     defaultTtlMs: config.auth.sessionTtlMinutes * 60_000,
     defaultIdleTimeoutMs: config.auth.idleTimeoutMinutes * 60_000,
+    ...(options.now ? { now: options.now } : {}),
   });
-  const approvalTokens = new ApprovalTokenService({ key: deriveKey(serverKey.key, "approval"), nonceStore: new SqliteNonceStore(db) });
+  const approvalTokens = new ApprovalTokenService({
+    key: deriveKey(serverKey.key, "approval"),
+    nonceStore: new SqliteNonceStore(db, options.now),
+    ...(options.now ? { now: options.now } : {}),
+    ...(options.approvalTokenTtlMs !== undefined ? { ttlMs: options.approvalTokenTtlMs } : {}),
+  });
   const settingsHolder: { current?: SettingsService } = {};
   const auth = new AuthService({
     config,
@@ -96,6 +107,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     approvalTokens,
     limiter: new LoginRateLimiter(),
     env,
+    ...(options.now ? { now: options.now } : {}),
     displayName: () => settingsHolder.current?.get().profile.displayName ?? config.auth.ownerUsername,
   });
 
@@ -145,8 +157,9 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const settings = new SettingsService(db, config, validator, library, () => adapterSettings.list());
   settingsHolder.current = settings;
 
-  const orb = new OrbService({ registry, world, dataMode: config.dataMode });
-  const status = new StatusService({ registry, hub, dataMode: config.dataMode, version: buildVersion, startedAt, world, orbMode: () => orb.mode });
+  const assistantName = (): string => settings.get().profile.assistantName ?? DEFAULT_ASSISTANT_NAME;
+  const orb = new OrbService({ registry, world, dataMode: config.dataMode, assistantName });
+  const status = new StatusService({ registry, hub, dataMode: config.dataMode, version: buildVersion, startedAt, world, orbMode: () => orb.mode, assistantName });
 
   const capabilities = (): ReturnType<Runtime["capabilities"]> => registry.aggregateCapabilities();
   const capabilityEnabled = (capability: string): boolean => {
@@ -191,12 +204,41 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const unsubscribers: Array<() => void> = [];
   let started = false;
 
+  /**
+   * Mock adapters read their capabilities from the world; the registry caches them from the last (re)start. After a dev
+   * toggle (or a scenario that changes capabilities) restart exactly the adapters whose cached set went stale.
+   */
+  const syncMockCapabilities = async (): Promise<void> => {
+    if (!world) return;
+    for (const entry of registry.describe()) {
+      if (!entry.provider.startsWith("mock-")) continue;
+      const expected = worldCapabilities(world, entry.category).join(",");
+      const cached = [...entry.capabilities].sort().join(",");
+      if (expected !== cached) await registry.restart(entry.adapterId).catch((error: unknown) => logger.warn("Adapter-Neustart nach Capability-Änderung fehlgeschlagen", { adapterId: entry.adapterId, error: error instanceof Error ? error.message : String(error) }));
+    }
+  };
+
+  /**
+   * Forces a health check of every adapter. A failing adapter is re-checked until the monitor has made up its mind
+   * (DEGRADED after the first failure, OFFLINE after `failureThreshold`), so a dev "adapter offline" shows as offline at
+   * once instead of after three polling intervals.
+   */
   const refreshAdapters = async (): Promise<void> => {
+    await syncMockCapabilities();
     await Promise.all(
       registry
         .listAdapters()
         .filter((info) => info.enabled)
-        .map((info) => registry.checkHealth(info.manifest.id).catch(() => undefined)),
+        .map(async (info) => {
+          try {
+            let health = await registry.checkHealth(info.manifest.id);
+            for (let attempt = 0; attempt < 5 && health.status === "degraded" && health.consecutiveFailures > 0; attempt += 1) {
+              health = await registry.checkHealth(info.manifest.id);
+            }
+          } catch {
+            // an adapter that cannot even be checked is reported by the registry itself
+          }
+        }),
     );
   };
 
@@ -307,6 +349,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     refreshAdapters,
     capabilities,
     capabilityEnabled,
+    // Mock data lives on the world's (controllable) clock; its timestamps must not be compared with wall time.
+    nowMs: () => world?.nowMs() ?? Date.now(),
     async start() {
       if (started) return;
       started = true;

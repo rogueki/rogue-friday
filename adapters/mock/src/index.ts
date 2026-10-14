@@ -21,8 +21,10 @@ import {
 import { mockConfigSchema, type MockAdapterOptions } from "./base";
 
 export * from "./adapters";
-export { MOCK_CONFIG_SCHEMA_ID, MockAdapterBase, mockConfigSchema, mockManifest, mockSecretFields } from "./base";
+export { MOCK_CONFIG_SCHEMA_ID, MockAdapterBase, mockConfigSchema, mockManifest, mockSecretFields, worldCapabilities } from "./base";
 export type { MockAdapterOptions } from "./base";
+export { httpTransport } from "./http-transport";
+export type { HttpTransportConfig } from "./http-transport";
 export { worldTransport } from "./transport";
 export type { MockTransport, TransportCall } from "./transport";
 

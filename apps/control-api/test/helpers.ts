@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { LightMyRequestResponse } from "fastify";
 import { hashPassword } from "@jarvis/auth";
 import { loadConfig, type JarvisConfig } from "@jarvis/config";
+import { createLogger } from "@jarvis/observability";
 import { createControlApi, type ControlApi } from "../src/app";
 import type { ResponseValidationMode } from "../src/runtime/types";
 
@@ -23,6 +24,11 @@ export interface TestApiOptions {
   healthIntervalMs?: number;
   listen?: boolean;
   background?: boolean;
+  now?: () => number;
+  approvalTokenTtlMs?: number;
+  worldProfile?: string;
+  /** Receives every log line (JSON) the API writes, to scan for leaks. */
+  logs?: string[];
 }
 
 export interface TestApi extends ControlApi {
@@ -30,6 +36,7 @@ export interface TestApi extends ControlApi {
   config: JarvisConfig;
   port: number;
   origin: string;
+  env: NodeJS.ProcessEnv;
   close(): Promise<void>;
   client(): ApiClient;
 }
@@ -72,14 +79,21 @@ ${options.yamlExtra ?? ""}
   if (options.ownerPassword) env.JARVIS_OWNER_PASSWORD_HASH = await hashPassword(options.ownerPassword);
   const config = loadConfig({ configDir, cwd: dir, env });
 
+  const logger = options.logs
+    ? createLogger({ service: "control-api", level: "debug", stdout: false, sinks: [{ write: (line: string) => void options.logs?.push(line) }] })
+    : undefined;
   const api = await createControlApi({
     config,
     env,
+    ...(logger ? { logger } : {}),
     responseValidation: options.responseValidation ?? "throw",
     realTimeWorld: false,
     background: options.background ?? false,
     healthIntervalMs: options.healthIntervalMs ?? 3_600_000,
     strictEvents: true,
+    ...(options.now ? { now: options.now } : {}),
+    ...(options.approvalTokenTtlMs !== undefined ? { approvalTokenTtlMs: options.approvalTokenTtlMs } : {}),
+    ...(options.worldProfile ? { worldProfile: options.worldProfile } : {}),
   });
   await api.app.init();
   let port = 0;
@@ -95,6 +109,7 @@ ${options.yamlExtra ?? ""}
     dir,
     config,
     port,
+    env,
     origin: `http://127.0.0.1:${port}`,
     async close() {
       await api.app.close();

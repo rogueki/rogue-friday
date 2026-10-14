@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   CSRF_COOKIE,
   CSRF_HEADER,
@@ -48,7 +49,17 @@ export interface AuthServiceDeps {
   now?: () => number;
 }
 
-const OWNER_USER_ID = "user_owner";
+/** Deterministic `usr_` ids (contract: `^usr_[0-9A-Za-z]{26}$`) derived from a stable label. */
+export function stableUserId(label: string): string {
+  return `usr_${createHash("sha256").update(`jarvis-user:${label}`).digest("hex").slice(0, 26).toUpperCase()}`;
+}
+
+const OWNER_USER_ID = stableUserId("owner");
+const DEV_USER_IDS: Record<Role, string> = {
+  owner: stableUserId("dev-owner"),
+  operator: stableUserId("dev-operator"),
+  viewer: stableUserId("dev-viewer"),
+};
 const DEV_USERS: Record<string, Role> = {
   "dev-owner": "owner",
   "dev-operator": "operator",
@@ -83,7 +94,7 @@ export class AuthService {
   }
 
   private principalOf(sessionId: string, session: Session): Principal {
-    const dev = this.devMode && session.userId.startsWith("dev-");
+    const dev = this.devMode && Object.values(DEV_USER_IDS).includes(session.userId);
     return {
       userId: session.userId,
       displayName: dev ? `Dev ${session.role}` : this.deps.displayName(),
@@ -128,7 +139,7 @@ export class AuthService {
   /** Dev auth: a session for `dev-<role>` is issued without credentials (mock data and loopback only). */
   issueDevSession(role: Role): { principal: Principal } & CookieSet {
     assertDevAuthAllowed({ dataMode: this.deps.config.dataMode, host: this.deps.config.server.host });
-    const { sessionId, session } = this.createSession(`dev-${role}`, role);
+    const { sessionId, session } = this.createSession(DEV_USER_IDS[role], role);
     return { principal: this.principalOf(sessionId, session), setCookie: this.cookiesFor(sessionId) };
   }
 

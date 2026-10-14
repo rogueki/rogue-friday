@@ -52,15 +52,26 @@ const FINAL_TASK = new Set(["done", "failed", "cancelled"]);
 const SEVERITY_RANK: Record<Severity, number> = { critical: 0, error: 1, warning: 2, info: 3 };
 const PRIORITY_RANK: Record<string, number> = { P0: 0, P1: 1, P2: 2, P3: 3, P4: 4 };
 
+export const DEFAULT_ASSISTANT_NAME = "F.R.I.D.A.Y.";
+
+/**
+ * Applies the configured assistant name to server-generated copy. Adapters (the mock world today) may still produce the
+ * legacy "JARVIS" wording or the default brand "F.R.I.D.A.Y."; both are replaced, upper-cased for all-caps orb labels.
+ */
+export function brandText(text: string, assistantName: string): string {
+  const loud = text === text.toUpperCase();
+  return text.replace(/\{ASSISTANT\}|\bJARVIS\b|\bJarvis\b|F\.R\.I\.D\.A\.Y\./g, loud ? assistantName.toUpperCase() : assistantName);
+}
+
 const ORB_TEXT: Readonly<Record<OrbMode, string>> = {
-  booting: "JARVIS WIRD INITIALISIERT",
+  booting: "{ASSISTANT} WIRD INITIALISIERT",
   idle: "BEREIT",
   listening: "ICH HÖRE ZU",
   transcribing: "SPRACHE WIRD VERARBEITET",
   thinking: "ANALYSE",
   syncing: "SYNCHRONISIERUNG LÄUFT",
   working: "ARBEIT LÄUFT",
-  speaking: "JARVIS SPRICHT",
+  speaking: "{ASSISTANT} SPRICHT",
   waiting_approval: "FREIGABE ERFORDERLICH",
   success: "ABGESCHLOSSEN",
   warning: "EINGESCHRÄNKTER BETRIEB",
@@ -133,6 +144,7 @@ export interface StatusServiceDeps {
   world: MockWorld | undefined;
   orbMode: () => OrbMode;
   now?: () => number;
+  assistantName?: () => string;
 }
 
 export class StatusService {
@@ -143,13 +155,14 @@ export class StatusService {
     const { world, dataMode } = this.deps;
     if (world && dataMode === "mock") {
       world.refresh();
-      return { ...world.jarvisStatus(), dataMode, eventStream: this.eventStream() };
+      const raw = world.jarvisStatus();
+      return { ...raw, label: brandText(raw.label, this.assistantName()), dataMode, eventStream: this.eventStream() };
     }
     const overall = summarizeAdapters(this.deps.registry.listAdapters());
     const now = (this.deps.now ?? Date.now)();
     return {
       status: overall.health,
-      label: overall.health === "online" ? "Jarvis online" : overall.health === "degraded" ? "Jarvis eingeschränkt" : "Jarvis offline",
+      label: `${this.assistantName()} ${overall.health === "online" ? "online" : overall.health === "degraded" ? "eingeschränkt" : "offline"}`,
       mode: this.deps.orbMode(),
       dataMode,
       uptimeSeconds: Math.max(0, Math.round((now - this.deps.startedAt.getTime()) / 1000)),
@@ -158,6 +171,10 @@ export class StatusService {
       eventStream: this.eventStream(),
       adapterSummary: overall.summary,
     };
+  }
+
+  private assistantName(): string {
+    return this.deps.assistantName?.() ?? DEFAULT_ASSISTANT_NAME;
   }
 
   private eventStream(): JarvisStatus["eventStream"] {
@@ -201,6 +218,7 @@ export interface OrbInputs {
   voiceMode: "idle" | "listening" | "transcribing" | "thinking" | "speaking" | "error";
   audioLevel: number | undefined;
   degraded: string[];
+  assistantName?: string;
 }
 
 /**
@@ -245,7 +263,7 @@ export function deriveOrb(input: OrbInputs, since: string): OrbSnapshot {
   const done = (mode: OrbMode, extra: Partial<OrbStatus> = {}): OrbSnapshot => ({
     status: {
       mode,
-      activityText: ORB_TEXT[mode],
+      activityText: brandText(ORB_TEXT[mode], input.assistantName ?? DEFAULT_ASSISTANT_NAME),
       progress: null,
       progressMode: "none",
       urgency: "none",
@@ -301,6 +319,7 @@ export interface OrbServiceDeps {
   world: MockWorld | undefined;
   dataMode: DataMode;
   now?: () => number;
+  assistantName?: () => string;
 }
 
 export class OrbService {
@@ -316,7 +335,15 @@ export class OrbService {
   /** Prefers an adapter-provided snapshot (mock world today); otherwise derives it from the other ports. */
   async snapshot(call: CallContext = currentCall()): Promise<OrbSnapshot> {
     const { world, dataMode } = this.deps;
-    const snapshot = world && dataMode === "mock" ? world.orbSnapshot() : await this.derive(call);
+    const assistantName = this.deps.assistantName?.() ?? DEFAULT_ASSISTANT_NAME;
+    const raw = world && dataMode === "mock" ? world.orbSnapshot() : await this.derive(call, assistantName);
+    const snapshot: OrbSnapshot = {
+      ...raw,
+      status: {
+        ...raw.status,
+        ...(raw.status.activityText !== undefined ? { activityText: brandText(raw.status.activityText, assistantName) } : {}),
+      },
+    };
     if (snapshot.status.mode !== this.lastMode) {
       this.lastMode = snapshot.status.mode;
       this.since = snapshot.status.since;
@@ -324,7 +351,7 @@ export class OrbService {
     return snapshot;
   }
 
-  private async derive(call: CallContext): Promise<OrbSnapshot> {
+  private async derive(call: CallContext, assistantName: string): Promise<OrbSnapshot> {
     const { registry } = this.deps;
     const adapters = registry.listAdapters();
     const overall = summarizeAdapters(adapters);
@@ -348,6 +375,7 @@ export class OrbService {
       {
         health: overall.health,
         nowMs,
+        assistantName,
         workingAgentIds: (agents?.items ?? []).map((agent) => agent.id),
         runningTasks: tasks?.items ?? [],
         pendingApprovals: (approvals?.items ?? []).filter((approval) => approval.expiresAt === null || Date.parse(approval.expiresAt) > nowMs),
