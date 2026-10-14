@@ -1,14 +1,20 @@
-"""JARVIS-Persoenlichkeit aus den Antworten des Installations-Fragebogens (config/persona.json).
+"""Persoenlichkeit des Assistenten aus den Antworten des Installations-Fragebogens (config/persona.json).
 
 Wird unter Windows (Voice-Service-Konfiguration) und in WSL (Hermes SOUL.md) verwendet - nur Standardbibliothek.
-persona.json: {"owner_name": "...", "address": "sir|sie|du", "character": "butler|freundlich|sachlich",
-               "length": "kurz|normal", "about": "..."}
+persona.json: {"assistant_name": "Friday", "owner_name": "...", "address": "sir|sie|du",
+               "character": "butler|freundlich|sachlich", "length": "kurz|normal", "about": "..."}
+Standardname ist Friday (F.R.I.D.A.Y., Nachfolger von J.A.R.V.I.S.); der Nutzer kann im Installer jeden Namen waehlen.
 """
 import json
+import re
 import sys
+import unicodedata
+
+DEFAULT_NAME = "Friday"
+PRODUCT = "F.R.I.D.A.Y."
 
 ADDRESS = {
-    "sir": {"rule": "Siez den Nutzer und sprich ihn mit 'Sir' an (wie JARVIS im Film).",
+    "sir": {"rule": "Siez den Nutzer und sprich ihn mit 'Sir' an (wie ein britischer Butler).",
             "smalltalk": "Danke der Nachfrage, Sir. Alle Systeme laufen einwandfrei. Womit kann ich dienen?",
             "wait": "Einen Moment, Sir.",
             "background": "Sehr wohl, Sir. Ich kuemmere mich darum und melde mich, sobald es erledigt ist."},
@@ -34,8 +40,47 @@ LENGTH = {
 }
 
 
+def valid_name(name: str) -> bool:
+    """2-20 Buchstaben (inkl. Umlaute), keine Ziffern/Leerzeichen/Sonderzeichen - wie die Abfrage im Installer."""
+    return re.fullmatch(r"[^\W\d_]{2,20}", name or "") is not None
+
+
+def display_name(name: str) -> str:
+    name = name.strip()
+    return name[:1].upper() + name[1:]
+
+
+def slugify(name: str) -> str:
+    """Ordnername: ASCII, Kleinbuchstaben, ae/oe/ue (identisch zu voice/personal_wake.py:slugify)."""
+    text = name.strip().lower()
+    for src, dst in (("\u00e4", "ae"), ("\u00f6", "oe"), ("\u00fc", "ue"), ("\u00df", "ss")):
+        text = text.replace(src, dst)
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in text if c.isascii())
+    return re.sub(r"[^a-z0-9]+", "_", text).strip("_") or "assistant"
+
+
+def wake_phrase(name: str) -> str:
+    return f"Hey {display_name(name)}"
+
+
+def wake_engine(name: str) -> str:
+    """Nur "Jarvis" hat ein vortrainiertes openWakeWord-Modell; jeder andere Name nutzt das persoenliche Wake Word."""
+    return "openwakeword" if slugify(name) == "jarvis" else "personal"
+
+
+def successor_note(name: str) -> str:
+    """Friday = F.R.I.D.A.Y., neuerer und leistungsfaehigerer Nachfolger von J.A.R.V.I.S. (nur beilaeufig erwaehnen)."""
+    if slugify(name) != "friday":
+        return ""
+    return (f"Du bist {PRODUCT}, der Nachfolger von J.A.R.V.I.S.: neuer, schneller und faehiger. "
+            "Erwaehne das nur beilaeufig, wenn jemand danach fragt.")
+
+
 def load(path: str) -> dict:
     p = json.load(open(path, encoding="utf-8-sig"))
+    p["assistant_name"] = display_name(p.get("assistant_name") or "") if valid_name(
+        (p.get("assistant_name") or "").strip()) else DEFAULT_NAME
     p.setdefault("address", "sir")
     p.setdefault("character", "butler")
     p.setdefault("length", "kurz")
@@ -47,21 +92,24 @@ def load(path: str) -> dict:
 def voice_settings(p: dict) -> dict:
     """Felder fuer config/voice.json (Router-Persona + feste Sprachbausteine)."""
     a, name = ADDRESS[p["address"]], p["owner_name"]
-    persona = (f"Du bist Jarvis, der persoenliche KI-Assistent von {name}: {CHARACTER[p['character']]}. "
-               f"{a['rule'].format(name=name)}")
-    return {"assistant_name": "Jarvis", "wake_phrase": "Hey Jarvis", "persona": persona,
-            "smalltalk_example": a["smalltalk"].format(name=name), "ack_wait": a["wait"],
+    assistant = p["assistant_name"]
+    persona = (f"Du bist {assistant}, der persoenliche KI-Assistent von {name}: {CHARACTER[p['character']]}. "
+               f"{a['rule'].format(name=name)} {successor_note(assistant)}").strip()
+    return {"assistant_name": assistant, "wake_phrase": wake_phrase(assistant), "wake_engine": wake_engine(assistant),
+            "persona": persona, "smalltalk_example": a["smalltalk"].format(name=name), "ack_wait": a["wait"],
             "ack_background": a["background"]}
 
 
 def soul_md(p: dict) -> str:
     a, name = ADDRESS[p["address"]], p["owner_name"]
     about = p["about"].strip() or "(noch keine Angaben)"
-    return f"""Your name is Jarvis. You are the personal AI assistant of {name}, running on the Hermes Agent framework by Nous Research.
+    assistant = p["assistant_name"]
+    successor = f"\n{successor_note(assistant)}\n" if successor_note(assistant) else ""
+    return f"""Your name is {assistant}. You are the personal AI assistant of {name}, running on the Hermes Agent framework by Nous Research.
 ---
 
-# Regeln fuer Jarvis
-
+# Regeln fuer {assistant}
+{successor}
 ## Sprache & Stil
 - Antworte immer auf Deutsch.
 - Charakter: {CHARACTER[p['character']]}.

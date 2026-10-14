@@ -9,6 +9,11 @@ nur lesend untersucht). Zielpaket: `adapters/voice-placeholder`
 Alle Angaben unten sind gegen `installer/voice/jarvis_voice.py` (`JV`), `installer/voice/voice_setup.py` (`VS`) und
 `installer/scripts/start-jarvis-voice.ps1` (`SV`) geprüft. Der Dienst wurde **nicht ausgeführt** (Windows-only: `winsound`, `JV:24`).
 
+> **Hinweis zu den Zeilenangaben:** `JV:`/`VS:`-Zeilen in 0.1–0.3 beziehen sich auf den Stand **vor** der Änderung
+> „personalisierter Assistentenname + Wake Word“ (2026-10-14). Die Struktur ist unverändert, die Zeilen haben sich
+> verschoben. Abschnitt **0.4** beschreibt die Änderung samt aktuellen Fundstellen (`JV@neu`). Das HTTP-Statusformat
+> ist **abwärtskompatibel erweitert**: alle bisherigen Schlüssel bleiben mit gleicher Bedeutung, vier Felder kommen hinzu.
+
 ### 0.1 HTTP-Schnittstelle (vollständig, so implementiert)
 
 | Aspekt          | Befund (Beleg)                                                                                                                                                                                         |
@@ -18,7 +23,7 @@ Alle Angaben unten sind gegen `installer/voice/jarvis_voice.py` (`JV`), `install
 | Andere Methoden | Kein `do_POST/HEAD/OPTIONS` -> Standardantwort `501 Unsupported method` der Python-Standardbibliothek. `Invoke-WebRequest -Method Head` schlägt damit fehl                                             |
 | Auth / CORS     | **Keine** Authentifizierung, **keine** CORS-Header, kein Host-Check. Nur ein serverseitiger Adapter (Node) kann die Antwort lesen                                                                      |
 | Status / Header | Immer `200`, `Content-Type: application/json`, kein `Content-Length`; HTTP/1.0 (Verbindung wird nach der Antwort geschlossen) (`JV:582-585`)                                                           |
-| Antwort         | `{**status, "speaking": bool, "trusted": bool}` (`JV:581`), `json.dumps` ohne Einrückung                                                                                                               |
+| Antwort         | `{**status, "speaking": bool, "trusted": bool}` (`JV:581`), `json.dumps` ohne Einrückung; seit 0.4 zusätzlich `assistant_name`, `wake_phrase`, `wake_engine`, `wake_rejected` (in `status`)             |
 | Verfügbarkeit   | Der Server startet erst in `run()` (`JV:468`), **nach** dem Laden aller Modelle (`JV:285-297`). Während des Ladens (bis ca. 3 min) ist der Port **geschlossen** (Connection refused), nicht `starting` |
 | Wartezeit       | Der Installer wartet bis zu 90 x (2 s Timeout + 2 s Pause) auf `state == "listening"` (`install-jarvis.ps1:423-428`)                                                                                   |
 
@@ -32,10 +37,17 @@ Beispielantwort (Schlüsselreihenfolge wie im Code; `game_mode` fehlt, solange d
   "wake_count": 0,
   "rejected_speaker": 0,
   "commands": 0,
+  "assistant_name": "Friday",
+  "wake_phrase": "Hey Friday",
+  "wake_engine": "personal",
+  "wake_rejected": 0,
   "speaking": false,
   "trusted": false
 }
 ```
+
+Die vier Felder `assistant_name`, `wake_phrase`, `wake_engine`, `wake_rejected` sind **additiv** (ältere Dienstversionen liefern sie
+nicht: der Adapter muss sie als optional behandeln und unbekannte Schlüssel ignorieren).
 
 | Feld               | Typ            | Semantik (Beleg)                                                                                                                                                        |
 | ------------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -47,6 +59,10 @@ Beispielantwort (Schlüsselreihenfolge wie im Code; `game_mode` fehlt, solange d
 | `commands`         | int            | akzeptierte Befehle ohne Stoppwort (`JV:434`)                                                                                                                           |
 | `speaking`         | bool           | TTS-Flag (`tts.speaking`, `JV:581`); wird schon beim Einreihen gesetzt (`JV:214`), 0,35 s nach Wiedergabeende gelöscht (`JV:245-247`)                                   |
 | `trusted`          | bool           | `monotonic() < trusted_until` (`JV:582`); Fenster `trusted_session_s` = 90 (`VS:98`)                                                                                    |
+| `assistant_name`   | string         | **neu (0.4)**: Name des Assistenten aus `voice.json` (Standard `Friday`; Anzeigename, nie Quelle für Ordnernamen)                                                          |
+| `wake_phrase`      | string         | **neu (0.4)**: Wake-Phrase, z. B. `Hey Friday` (= `"Hey " + assistant_name`, aus `voice.json: wake_phrase`)                                                                |
+| `wake_engine`      | string         | **neu (0.4)**: `openwakeword` (vortrainiertes `hey_jarvis` + Owner-Verifier, nur Name Jarvis) oder `personal` (persönliches Wake Word, zweistufig)                          |
+| `wake_rejected`    | int            | **neu (0.4)**: von Stufe 2 (Whisper-Namenscheck) abgewiesene Stufe-1-Auslösungen seit Dienststart; bei `openwakeword` immer 0                                              |
 | `game_mode`        | string \| null | optional: Schlüssel existiert erst, wenn der Gaming-Modus einmal griff (`JV:556`, `571`). **Im Installer-Standard nie** (siehe 0.3)                                     |
 
 ### 0.2 Frühere Annahmen dieses Dokuments
@@ -76,7 +92,32 @@ Beispielantwort (Schlüsselreihenfolge wie im Code; `game_mode` fehlt, solange d
 `hermes_model jarvis` · `hermes_key_file C:\Jarvis\config\hermes_api.key` · `tts_url null` · `tts_film_filter true` ·
 `speaker_threshold 0.4` · `wake_threshold 0.5` · `trusted_session_s 90` · `followup_window_s 8.0` · `game_processes []` ·
 `whisper_model small|base` (GPU-Test, `VS:50-57`) · `input_device`/`output_device null`. Die Persona-Felder (`assistant_name`, `wake_phrase`,
-`persona`, ...) kommen aus `installer/common/persona.py:voice_settings` (`assistant_name = "Jarvis"`, `wake_phrase = "Hey Jarvis"`).
+`wake_engine`, `persona`, ...) kommen aus `installer/common/persona.py:voice_settings`; Standard seit 0.4: `assistant_name = "Friday"`,
+`wake_phrase = "Hey Friday"`, `wake_engine = "personal"` (Name `Jarvis`: `"Jarvis"` / `"Hey Jarvis"` / `"openwakeword"`). Weitere Schlüssel für das
+persönliche Wake Word siehe 0.4.
+
+### 0.4 Personalisierter Name und Wake Word (Stand 2026-10-14)
+
+Der Assistent heißt standardmäßig **Friday** (F.R.I.D.A.Y., Nachfolger von J.A.R.V.I.S.), Wake-Phrase „Hey Friday“. Der Installer fragt den Namen
+**vor** allen Aufnahmen (`install-state.json`: `assistant_name`, `wake_phrase`, `wake_slug`, `wake_engine`; bestehende Schlüssel/Dateinamen/Aufgabennamen
+bleiben stabil) und schreibt ihn nach `config/persona.json` (`assistant_name`) und von dort via `voice_setup.py` nach `config/voice.json`.
+
+| Aspekt | Verhalten (`JV@neu` = `jarvis_voice.py` nach der Änderung) |
+| --- | --- |
+| Engine-Wahl | `voice.json: wake_engine`. `openwakeword` = bisheriger Weg unverändert (Schwelle `wake_threshold`, Verifier). `personal` = neuer Weg (`JV@neu:_load_wake`, `_load_personal_wake`). `--test-wake-model` erzwingt `openwakeword` |
+| Grund | openWakeWord liefert nur für `hey_jarvis` ein vortrainiertes Modell; der Custom-Verifier bewertet nur ein vorhandenes Basismodell neu und erkennt keine neue Phrase |
+| Stufe 1 (`personal`) | `personal_wake.py`: Fenstermodell (pro Gruppe „Hey Name“/„Name“ ein linearer Klassifikator über 96-dim openWakeWord-Embeddings, 3 Zeitstreckungen) aus den eigenen Aufnahmen; Dateien `models/openwakeword/personal_wake.npz` + `personal_wake.json` (kalibrierte Schwelle als Logit, Qualität `gut/mittel/schwach`). Läuft pro 80-ms-Chunk (Kosten wie `Model.predict`) |
+| Stufe 2 (`personal`) | nur wenn Stufe 1 ≥ Schwelle: `faster-whisper` auf dem 2-s-Ring (`_confirm_name`), Sprachen `wake_confirm_languages` (Standard `de`, bei Fehlschlag `en`), unscharfer Namensabgleich `personal_wake.name_matches` (Umlaute/Groß-Klein, Lautnormalform, Editierdistanz nach Namenslänge, `wake_aliases`, Sperrliste `wake_reject_words`) |
+| Stufe 3 | unverändert: ECAPA-Sprecherprüfung in `_handle_command` (fail closed) |
+| Schutzlogik | 1,5-s-Doppelauslösungsschutz und Barge-In bleiben; Barge-In (TTS unterbrechen) erst **nach** bestandener Stufe 2. Abgewiesene Auslösung: `wake_refractory_s` (1,0 s) Sperre + Puffer-Reset. Befehlsanfang, der während Stufe 2 aufläuft, wird vor dem Piepton gesichert und der Befehlsaufnahme vorangestellt (`preroll`) |
+| Neue `voice.json`-Schlüssel | `wake_engine`, `personal_wake_model`, `personal_wake_meta`, `personal_wake_threshold` (`null` = aus Meta), `wake_confirm` (`true`), `wake_confirm_languages`, `wake_aliases`, `wake_reject_words`, `wake_match_max_dist` (`null` = nach Namenslänge), `wake_refractory_s` |
+| Log (`voice.jsonl`) | `wake` zusätzlich `engine`, `stage2_ms` (`null` bei `openwakeword`); neues Ereignis `wake_rejected` (`engine`, `stage` = 2, `score`, `stage2_ms`) – kein Transkript im Log. `score` ist bei `personal` ein Logit (nicht 0–1) |
+| Fail closed | `personal` ohne `personal_wake.npz`/`.json` oder mit Modell eines anderen Namens: Dienst startet nicht (`SystemExit`) |
+
+Adapter-Folgerungen: `VoiceStatus.wakeWord.phrase` aus `status.wake_phrase` (Fallback `voice.json: wake_phrase`); `wake_engine` kann in einer
+Diagnoseansicht als Engine-Label dienen; `wake_rejected` ist ein reiner Zähler (Qualitätsindikator, kein Ereignis). Alle vier Felder optional behandeln.
+
+**Messwerte:** siehe `installer/voice/tests/eval_synthetic_wake.py` (synthetische Piper-Sprecher; Zahlen im Übergabebericht, nicht echte Sprecher).
 
 ## 1. Schnittstellen des Dienstes heute
 
@@ -109,7 +150,8 @@ Regel: `OrbLayers.voice` darf nur aus diesen semantischen Zuständen entstehen, 
 
 | `event` im Log                     | Felder                                                                                                     | Kanonisches Ereignis                                             | Payload / Hinweis                                                                                                                                                                             |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `wake`                             | `score`, `barge_in`                                                                                        | `jarvis.voice.state_changed`                                     | `mode = listening`; bei `barge_in = true` zusätzlich `jarvis.voice.tts_ended` des laufenden Utterance                                                                                         |
+| `wake`                             | `score`, `barge_in`, ab 0.4 zusätzlich `engine`, `stage2_ms`                                               | `jarvis.voice.state_changed`                                     | `mode = listening`; bei `barge_in = true` zusätzlich `jarvis.voice.tts_ended` des laufenden Utterance                                                                                         |
+| `wake_rejected` (ab 0.4)           | `engine`, `stage` (2), `score`, `stage2_ms`                                                                | (kein Ereignis)                                                  | Stufe 2 hat eine Stufe-1-Auslösung abgewiesen (ähnliches Wort/Geräusch); nur Zähler `wake_rejected`                                                                                           |
 | `no_speech_after_wake`             | -                                                                                                          | `jarvis.voice.state_changed`                                     | zurück auf `idle`                                                                                                                                                                             |
 | `too_short`                        | `followup`                                                                                                 | (kein Ereignis)                                                  | nur Metrik-Zähler                                                                                                                                                                             |
 | `speaker_rejected`                 | `score`, `followup`                                                                                        | `jarvis.voice.state_changed`                                     | `speakerVerification.state = "rejected"`, `trustedSession.active = false`; **kein** Transkript-Ereignis                                                                                       |
@@ -136,7 +178,7 @@ Regel: `OrbLayers.voice` darf nur aus diesen semantischen Zuständen entstehen, 
 | `microphone.state/active`                    | `state in {listening, command, followup}` -> aktiv; Dienst läuft nicht -> `off`                                |
 | `microphone.deviceId`                        | `voice.json: input_device`                                                                                     |
 | `microphone.inputLevel`                      | Bridge (sonst `0`)                                                                                             |
-| `wakeWord.phrase/enabled/state`              | `voice.json: wake_phrase`; `armed` solange `listening`; `triggered` bis Befehlsende                            |
+| `wakeWord.phrase/enabled/state`              | `status.wake_phrase` (ab 0.4; Fallback `voice.json: wake_phrase`); `armed` solange `listening`; `triggered` bis Befehlsende |
 | `speakerVerification.*`                      | `speaker_score` aus `command`/`speaker_rejected`; `enabled = true` (Dienst startet fail-closed nur mit Profil) |
 | `trustedSession.active/expiresAt`            | Health `trusted`; Ablauf = Zeitpunkt des letzten `command` + `trusted_session_s`                               |
 | `stt.engine` / `stt.latencyMs`               | `faster-whisper` (`voice.json: whisper_model`), `stt_ms`                                                       |
