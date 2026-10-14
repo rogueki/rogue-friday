@@ -2,6 +2,25 @@
 
 One chapter per area. Other areas (Control API, adapters, mock platform) add their own chapters below the frontend chapter.
 
+## Namen und Bezeichner
+
+Der Produktname ist **F.R.I.D.A.Y.** (Command Center). Die technischen Bezeichner stammen aus der Vorgängergeneration
+J.A.R.V.I.S. und sind stabil: Sie sind Teil des Vertrags (`packages/contracts`), der Workspace-Imports und der
+gespeicherten Konfiguration. Eine Umbenennung wäre ein Breaking Change und ist eine eigene, bewusste Entscheidung.
+
+| Bezeichner | Beispiele | Bereich |
+|---|---|---|
+| `@jarvis/*` Paketnamen | `@jarvis/sdk`, `@jarvis/orb`, `@jarvis/adapter-core` | Workspace, Imports |
+| `jarvis.*` Event-Typen | `jarvis.orb.status_changed`, `jarvis.status.resync_required` | AsyncAPI, Realtime |
+| `/api/v1`, `$id` `https://jarvis.local/...` | WebSocket `/api/v1/events` | Vertrag |
+| `JARVIS_*` Umgebungsvariablen | `JARVIS_API_ORIGIN`, `JARVIS_OWNER_PASSWORD_HASH` | Konfiguration |
+| `--jarvis-*` CSS-Variablen, Theme-IDs | `--jarvis-focus`, `jarvis-command-gold-core` | Design-Tokens, Themes |
+| Komponenten, Hooks, Clients | `JarvisOrb`, `JarvisShell`, `createJarvisClient` | öffentliche API |
+| Pfade und Dateien | `installer/install-jarvis.bat`, `C:\Jarvis`, `design-references/jarvis_orb_reference.webp` | Installer, Referenzen |
+
+Sichtbare Texte (UI, Orb-Beschriftungen, Dokumentation) verwenden dagegen den Namen F.R.I.D.A.Y. Der Assistentenname ist
+über `settings.profile.assistantName` konfigurierbar (Standard „F.R.I.D.A.Y.“).
+
 # Frontend (`apps/web`)
 
 Next.js 16 App Router, **static export** (`output: "export"` -> `apps/web/out`, served by the Control API at `/`), React 19,

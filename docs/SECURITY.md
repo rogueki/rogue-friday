@@ -1,4 +1,4 @@
-# Security (JARVIS Command Center)
+# Security (F.R.I.D.A.Y. Command Center)
 
 Implements PLAN §32.5, §37.4, §41.4, §42.2, §49, §50.4. Library code: `@jarvis/auth` (identity, sessions, CSRF, approvals),
 `@jarvis/config` (loopback guard, secret references), `@jarvis/observability` (redaction, audit hash chain).

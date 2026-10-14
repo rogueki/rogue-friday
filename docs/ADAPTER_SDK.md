@@ -1,6 +1,6 @@
 # Adapter SDK
 
-Der Adapter SDK (`@jarvis/adapter-core`) ist die einzige Brücke zwischen der Jarvis Control API und einem Fremdsystem
+Der Adapter SDK (`@jarvis/adapter-core`) ist die einzige Brücke zwischen der F.R.I.D.A.Y. Control API und einem Fremdsystem
 (PLAN §10). Das Frontend spricht nie mit Hermes, GMX, Voice, Kalender oder dem Betriebssystem, sondern nur mit der Control API; diese
 arbeitet ausschließlich über **Ports** und austauschbare **Adapter**. Ein produktiver Adapter lässt sich gegen den Mock-Adapter
 austauschen, ohne Frontend, Routen, UI-Typen oder Komponenten zu ändern (PLAN §11.2 "Goldene Regel").

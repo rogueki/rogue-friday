@@ -42,7 +42,7 @@ TypeScript mirror (`import { … } from '@jarvis/design-tokens'`):
 ## Colour discipline
 
 80–85 % navy surfaces · 10–15 % cyan (lines, interaction, focus) · 2–5 % semantic accents (green/amber/red/violet) ·
-**gold only in the AI-core context**: `HudPanel tone="gold"`, the orb slot, the voice capsule while Jarvis speaks
+**gold only in the AI-core context**: `HudPanel tone="gold"`, the orb slot, the voice capsule while F.R.I.D.A.Y. speaks
 (`state="speaking"`), `Button variant="jarvis"`. Never use gold for normal panels, rows or status. Glow is reserved for level 2/3
 panels, active tiles and the capsule; text never glows (the clock has a soft halo as the single exception).
 States are never colour-only: status chips carry a dot **and** a word, `HealthBadge`/`FreshnessBadge` carry an icon **and** text,
