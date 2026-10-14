@@ -124,14 +124,19 @@ Decisions: contract version stays `1.0.0` (additive, unreleased). Open owner dec
 | A.2 web: orb ~90 % panel height, text input in command bar, no mock code in prod build, typecheck shim removed (Next type check on), orb audio ref without 12 Hz cap, chips explain missing sources | `1903958` | lead: 181 tests, prod build grep (no mockServiceWorker/mock code), screenshots `apps/web/screenshots/a2/` reviewed |
 | Contract: `X-Approval-Token` request/response headers declared | `7f8b5f8` | contracts:check, API contract + approval tests |
 
+| B.3 Hermes adapter (`adapters/hermes`: tasks/Kanban, activity, agents; unverified actions capability=false) | `ffa7daa` | 179 tests, conformance 10/10 adapters |
+| Platform gaps: `/metrics`, `/telemetry/frontend`, global sequence in mock, adapter settings version/If-Match, scenario `release_orb_state`/`play_event`, valid layout JSON, HealthMonitor capability refresh, audit head anchor; fix orb defaults 1 → 70/60 (orb rendered at 1 %) | `6963206` | contracts:check (109 ops), API/mock tests, live `/metrics` |
+| Installer: assistant name asked before recordings (default Friday / "Hey Friday"), personal wake word for non-Jarvis names, `change-assistant-name.bat` | `1ca7cdb` | PS parser 0 errors, CRLF/BOM, py_compile, 12 tests; detection quality only synthetic (mixed), Whisper stage BLOCKED in cloud |
+| A.3 module pages: all 16 menus + `/dev/scenarios` | `609e82a` | typecheck/eslint clean, 354 web tests, static export all routes, screenshots `apps/web/screenshots/modules-*` (WebP) |
+
 Web status items 1–7 and 9 are done; item 8 (location/weather) stays a contract gap, chips now explain it.
 
-In progress: A.3 module pages (4 agents: A tasks/activity/approvals/agents, B memory/alerts/mail/calendar/automations,
-C research/files/voice/system/audit, D settings + /dev/scenarios; separate i18n fragments `apps/web/src/i18n/modules/*`,
-separate dev servers via `JARVIS_NEXT_DIST_DIR`), contract/platform gaps (metrics/telemetry, hub sequence, adapter
-settings version, release orb, layout JSON, HealthMonitor capabilities, audit head anchor), Hermes adapter
-(`adapters/hermes`), personalized wake word in the installer (default "Hey Friday", name chosen before recordings;
-Jarvis keeps the pretrained openWakeWord model, other names use few-shot templates + Whisper confirmation).
+In progress (wave 3): B.5 integration (real adapters registered, `file:` secret refs, hybrid/live example configs,
+fake upstreams, Playwright proof), B.4 installer dashboard step (C:\Jarvis\dashboard, Node LTS, pnpm, owner hash,
+JARVIS_Dashboard task), contract completion (files rename, adapter restart/logs, memory export/conflicts, automation
+versions, drafts list, voice enroll/history delete, pause-all, task assign/input, MSW approval token), Storybook
+domain stories + ui polish (TextArea, compact states, axe fix, theme preview orb).
+Next: Playwright E2E/visual/axe/perf, docs TESTING/HANDOFF/DEPLOYMENT/ARCHITECTURE, PLAN §57 acceptance, B.6 review.
 
 ## Remaining work (in order)
 
