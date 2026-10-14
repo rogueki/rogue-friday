@@ -106,6 +106,19 @@ Integration tasks (installer ↔ dashboard), to schedule after the dashboard is 
 - Branding of the installer/voice persona to F.R.I.D.A.Y. (wake word "Hey Jarvis" is trained per user — changing it
   requires new enrollment; decide with the owner).
 
+## Cloud session 2026-10-14 — progress log (lead-verified)
+
+| Unit | Commit | Verification |
+|---|---|---|
+| Contract `settings.profile.assistantName` (optional, 1..40, no schema default so generated OpenAPI types keep it optional) | `8733b2e`, `717f898` | `contracts:check` green, SDK 218 tests |
+| A.0 Branding F.R.I.D.A.Y. (orb labels via `createOrbLabels`, ui brand/bottom-bar props, web `useAssistantName()` + `{assistant}` i18n, config `ui.assistantName`, mock-data texts + canonical layout widget ids → status item 5 done) | `717f898` | typecheck/eslint clean, 514 tests in scope, web static build, screenshot `apps/web/screenshots/branding/` checked against reference |
+| B.1 Installer static review: 8 real fixes (robocopy exit code + re-sync, nvidia-smi fallback, py.exe check, corrupt zip removal, key-file ACL order, `IFS= read`, `set -e` FAIL path, shellcheck) | `c3ede6d` | CRLF/BOM preserved, `bash -n`, shellcheck 0.9.0, `py_compile`, PS 7.4 parser 0 errors; findings in `docs/INSTALLER_INTEGRATION_REVIEW.md` |
+| B.2 Hermes interface verified from source (commit `0e427d7`) + live instance in VM | `c3ede6d` | `docs/MAPPING/hermes.md` (API 43693 Bearer, dashboard 43691 `X-Hermes-Session-Token`, Kanban CLI/REST/WebSocket); voice/qwen mapping from installer code |
+
+Decisions: contract version stays `1.0.0` (additive, unreleased). Open owner decisions are collected at the end of this file.
+
+In progress: A.1 Control API, A.2 web open items, B.3 adapters (`adapters/hermes`, `adapters/voice-http`, `adapters/system-local`).
+
 ## Remaining work (in order)
 
 0. **Branding F.R.I.D.A.Y.** (owner decision 2026-10-14: the product is F.R.I.D.A.Y., successor of J.A.R.V.I.S.;
@@ -189,3 +202,8 @@ pnpm test:conformance
 pnpm build
 pnpm test:e2e
 ```
+
+## Open owner decisions (collected, not decided by agents)
+
+1. Wake word "Hey Jarvis" → "Hey Friday" (requires new voice enrollment per user).
+2. Rename internal identifiers `@jarvis/*`, `jarvis.*` events, `JARVIS_*` env (breaking contract change).
