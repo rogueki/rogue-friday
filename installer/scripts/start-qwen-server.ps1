@@ -4,6 +4,8 @@ $root = 'C:\Jarvis'
 $cfg  = Get-Content "$root\config\qwen.json" -Raw | ConvertFrom-Json
 $log  = "$root\logs\qwen-server.log"
 if (Get-NetTCPConnection -LocalPort 43692 -State Listen -ErrorAction SilentlyContinue) { exit 0 }
+# Einzelinstanz auch waehrend des Modellladens (Port noch zu): laeuft schon ein llama-server auf diesem Port, nichts doppelt starten.
+if (Get-CimInstance Win32_Process -Filter "Name='llama-server.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*--port 43692*' }) { exit 0 }
 $serverArgs = @(
     '-m', "$root\models\Qwen3-4B\Qwen3-4B-Q4_K_M.gguf",
     '--alias', 'qwen3-router',

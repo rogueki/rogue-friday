@@ -140,6 +140,30 @@ function Register-UserTask($name, $vbsArgs, $description, $delaySeconds = 0) {
     Register-ScheduledTask -TaskName $name -Description $description -Action $action -Trigger $trigger `
         -Settings $settings -Principal $principal -Force | Out-Null
 }
+# Dienst-Launcher (hidden.vbs startet powershell mit Neustartschleife entkoppelt): Stop-ScheduledTask beendet die Schleife nicht.
+# Darum Stop-Flag setzen (Schleife beendet sich selbst), Launcher-Prozess und Kindprozess per CommandLine beenden.
+# Die Launcher halten ausserdem einen benannten Mutex (Einzelinstanz).
+function Get-LauncherProcesses([string]$Launcher, [string]$ChildPattern) {
+    return @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='cmd.exe' OR Name='python.exe' OR Name='node.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.ProcessId -ne $PID -and ($_.CommandLine -like "*$Launcher*" -or $_.CommandLine -like $ChildPattern) })
+}
+function Stop-LauncherService([string]$Task, [string]$Launcher, [string]$ChildPattern) {
+    New-Item -ItemType Directory -Force "$Root\run" | Out-Null
+    $flag = "$Root\run\$Launcher.stop"
+    Set-Content -Path $flag -Value 'stop' -Encoding Ascii
+    Stop-ScheduledTask -TaskName $Task -ErrorAction SilentlyContinue
+    foreach ($round in 1..3) {
+        $procs = Get-LauncherProcesses $Launcher $ChildPattern
+        if ($procs.Count -eq 0) { break }
+        # Erst die Schleife (powershell), dann deren Kinder - sonst startet sie den Dienst sofort neu.
+        $procs | Where-Object { $_.Name -eq 'powershell.exe' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+        $procs | Where-Object { $_.Name -ne 'powershell.exe' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+        Start-Sleep 2
+    }
+    Remove-Item $flag -Force -ErrorAction SilentlyContinue
+}
+function Stop-VoiceService { Stop-LauncherService 'JARVIS_Voice' 'start-jarvis-voice.ps1' '*jarvis_voice.py*' }
+function Test-VoiceServiceRunning { return ((Get-LauncherProcesses 'start-jarvis-voice.ps1' '*jarvis_voice.py*').Count -gt 0) }
 function Download($url, $file) {
     & curl.exe -L --fail --retry 5 -C - -s -o $file $url
     return $LASTEXITCODE -eq 0
@@ -268,6 +292,29 @@ if ($PSScriptRoot -ne $Inst) {
         $State.dashboard_source = $repoCand; Save-State
     }
 }
+
+# Aktualisierte Voice-Dateien muessen auch eine bestehende Installation erreichen (Schritt 12 laeuft nur einmal): Hash-Vergleich
+# je Datei, geaendert -> nach C:\Jarvis\voice kopieren (profiles, models, .venv bleiben unberuehrt) und den Sprachdienst neu starten,
+# falls er lief.
+function Sync-VoiceFiles {
+    $src = "$Inst\voice"; $dst = "$Root\voice"
+    if (-not (Test-Path "$dst\.venv\Scripts\python.exe") -or -not (Test-Path $src)) { return }
+    $changed = @(Get-ChildItem $src -File | Where-Object {
+        -not (Test-Path "$dst\$($_.Name)") -or (Sha256 $_.FullName) -ne (Sha256 "$dst\$($_.Name)") })
+    if ($changed.Count -eq 0) { return }
+    Info "Sprachdateien im Paket sind neuer: $(($changed | ForEach-Object { $_.Name }) -join ', ')"
+    $wasRunning = Test-VoiceServiceRunning
+    if ($wasRunning) { Stop-VoiceService }
+    $changed | ForEach-Object { Copy-Item $_.FullName "$dst\$($_.Name)" -Force }
+    Ok "$($changed.Count) Sprachdatei(en) nach $dst aktualisiert."
+    if ($wasRunning) {
+        if (Get-ScheduledTask -TaskName 'JARVIS_Voice' -ErrorAction SilentlyContinue) {
+            Start-ScheduledTask -TaskName 'JARVIS_Voice'
+            Ok 'Sprachdienst mit den neuen Dateien neu gestartet (lädt die Modelle, ca. 1-3 Minuten).'
+        } else { Warn 'Aufgabe JARVIS_Voice fehlt - Sprachdienst nicht neu gestartet. install-jarvis.bat mit entferntem Eintrag "voiceservice" in install-state.json starten.' }
+    }
+}
+Sync-VoiceFiles
 
 # ================================================================ 3 WSL-Grundlage (ggf. Neustart)
 if (-not (IsDone 'wslfeature')) {
@@ -540,10 +587,9 @@ if (-not (IsDone 'enroll')) {
 if (-not (IsDone 'voiceservice')) {
     Title "Schritt 14/15 – $AN starten"
     Register-UserTask 'JARVIS_Voice' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-jarvis-voice.ps1`"" "$AN Sprachsteuerung ($WP)" 45
-    # Läuft noch ein Sprachdienst mit alter Konfiguration (Namenswechsel), erst beenden: die Aufgabe startet keine zweite Instanz.
-    Stop-ScheduledTask -TaskName 'JARVIS_Voice' -ErrorAction SilentlyContinue
-    Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandLine -like '*jarvis_voice.py*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    # Läuft noch ein Sprachdienst mit alter Konfiguration (Namenswechsel), erst Neustartschleife und Python beenden:
+    # sonst startet die Schleife Python nach 10 s neu oder die Aufgabe startet eine zweite Instanz.
+    Stop-VoiceService
     Start-ScheduledTask -TaskName 'JARVIS_Voice'
     Info 'Lade die Sprachmodelle (bis zu 3 Minuten) …'
     $ok = $false
@@ -552,7 +598,17 @@ if (-not (IsDone 'voiceservice')) {
         Start-Sleep 2
     }
     if (-not $ok) { Stop-Install 'Sprachdienst startet nicht (C:\Jarvis\logs\voice-service.log).' }
-    & "$Root\voice\.venv\Scripts\python.exe" "$Root\voice\say_hello.py" $Root 2>$null
+    Ok "$AN antwortet auf dem Sprachport (state=listening)."
+    $helloLog = "$Root\logs\say-hello.log"
+    $helloOut = @(& "$Root\voice\.venv\Scripts\python.exe" "$Root\voice\say_hello.py" $Root "Guten Tag. $AN ist installiert und bereit." 2>&1 | ForEach-Object { "$_" })
+    $helloCode = $LASTEXITCODE
+    Set-Content -Path $helloLog -Value (@("$(Get-Date -Format s) say_hello Exitcode $helloCode") + $helloOut) -Encoding UTF8
+    if ($helloCode -eq 0) { Ok 'Begrüßung gesprochen.' }
+    else {
+        Warn "Die gesprochene Begrüßung ist fehlgeschlagen (Exitcode $helloCode) - Lautsprecher/Stimme prüfen. Details: $helloLog"
+        $helloOut | Select-Object -Last 3 | ForEach-Object { Warn $_ }
+        Warn "$AN läuft trotzdem; die Installation wird fortgesetzt."
+    }
     MarkDone 'voiceservice'
 }
 
@@ -568,6 +624,9 @@ $DashSyncDirs  = @('apps', 'packages', 'adapters', 'scripts')
 $DashRootFiles = @('package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'tsconfig.base.json', 'eslint.config.js',
                    'vitest.config.ts', '.npmrc', '.nvmrc', 'README.md', 'LICENSE')
 $script:DashOk = $false
+# Fehler im Dashboard-Schritt beenden nur diesen Schritt (Ausnahme, vom Aufrufer gefangen), nicht den ganzen Installer:
+# Abschlussbericht und Schlussmeldung sollen trotzdem erscheinen.
+function Stop-Dashboard([string]$text) { throw (New-Object System.InvalidOperationException $text) }
 
 function Write-DashLog([string]$text) { Add-Content -Path $DashInstallLog -Value "$(Get-Date -Format s) $text" -Encoding UTF8 }
 function Show-DashLogTail { Get-Content $DashInstallLog -Tail 15 -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "     $_" -ForegroundColor DarkGray } }
@@ -597,7 +656,7 @@ function Ensure-Node {
     $node = Find-Node; $ver = Get-NodeVersion $node
     if ($ver -and $ver -ge $NodeMin) { Ok "Node.js $ver gefunden"; return $node }
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Stop-Install "Für das Command Center wird Node.js $NodeMin oder neuer gebraucht, aber winget (App-Installer) fehlt. Bitte im Microsoft Store den 'App-Installer' aktualisieren oder Node.js LTS von https://nodejs.org installieren und install-jarvis.bat erneut starten."
+        Stop-Dashboard "Für das Command Center wird Node.js $NodeMin oder neuer gebraucht, aber winget (App-Installer) fehlt. Bitte im Microsoft Store den 'App-Installer' aktualisieren oder Node.js LTS von https://nodejs.org installieren und install-jarvis.bat erneut starten."
     }
     $wingetArgs = @('--id', 'OpenJS.NodeJS.LTS', '-e', '--silent', '--accept-package-agreements', '--accept-source-agreements')
     $verbs = if ($ver) { Info "Node.js $ver ist zu alt (mindestens $NodeMin) - aktualisiere per winget …"; @('upgrade', 'install') } else { Info 'Installiere Node.js LTS per winget …'; @('install') }
@@ -613,8 +672,8 @@ function Ensure-Node {
         if (($env:Path -split ';') -notcontains $nd) { $env:Path = "$nd;$env:Path" }
         Ok "Node.js $ver bereit"; return $node
     }
-    if ($ver) { Stop-Install "Node.js $ver ist zu alt (mindestens $NodeMin) und ließ sich nicht aktualisieren (Log: $DashInstallLog). Bitte Node.js LTS manuell von https://nodejs.org installieren und install-jarvis.bat erneut starten." }
-    Stop-Install "Node.js wurde installiert oder angefordert, ist in dieser Sitzung aber nicht auffindbar (der PATH wird erst in einer neuen Shell aktualisiert). Dieses Fenster schließen und install-jarvis.bat erneut starten. Log: $DashInstallLog"
+    if ($ver) { Stop-Dashboard "Node.js $ver ist zu alt (mindestens $NodeMin) und ließ sich nicht aktualisieren (Log: $DashInstallLog). Bitte Node.js LTS manuell von https://nodejs.org installieren und install-jarvis.bat erneut starten." }
+    Stop-Dashboard "Node.js wurde installiert oder angefordert, ist in dieser Sitzung aber nicht auffindbar (der PATH wird erst in einer neuen Shell aktualisiert). Dieses Fenster schließen und install-jarvis.bat erneut starten. Log: $DashInstallLog"
 }
 function Ensure-Pnpm([string]$wanted) {
     $env:COREPACK_ENABLE_DOWNLOAD_PROMPT = '0'
@@ -631,7 +690,7 @@ function Ensure-Pnpm([string]$wanted) {
         Update-SessionPath
     }
     if ((Get-PnpmVersion) -ne $wanted) {
-        Stop-Install "pnpm $wanted konnte nicht aktiviert werden (Internet? corepack/npm laden es aus der npm-Registry). Log: $DashInstallLog"
+        Stop-Dashboard "pnpm $wanted konnte nicht aktiviert werden (Internet? corepack/npm laden es aus der npm-Registry). Log: $DashInstallLog"
     }
     Ok "pnpm $wanted bereit"
 }
@@ -664,12 +723,12 @@ function Sync-DashSource([string]$src) {
         if (-not (Test-Path "$src\$d")) { continue }
         # /MIR spiegelt (entfernt Veraltetes); ausgeschlossene Ordner (node_modules, dist, out, ...) bleiben im Ziel unberuehrt.
         & robocopy.exe "$src\$d" "$Dash\$d" /MIR /XD @DashExcludeDirs /XF '*.log' /NFL /NDL /NJH /NJS /NP | Out-Null
-        if ($LASTEXITCODE -ge 8) { Stop-Install "Kopieren von '$d' nach $Dash fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
+        if ($LASTEXITCODE -ge 8) { Stop-Dashboard "Kopieren von '$d' nach $Dash fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
     }
     if (Test-Path "$src\config") {
         # Ohne /MIR und ohne dashboard.yaml/adapters.yaml: lokale Konfiguration des Benutzers bleibt erhalten.
         & robocopy.exe "$src\config" "$Dash\config" /E /XF dashboard.yaml adapters.yaml /NFL /NDL /NJH /NJS /NP | Out-Null
-        if ($LASTEXITCODE -ge 8) { Stop-Install "Kopieren von 'config' nach $Dash fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
+        if ($LASTEXITCODE -ge 8) { Stop-Dashboard "Kopieren von 'config' nach $Dash fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
     }
     foreach ($d in 'config', 'data', 'backups') { New-Item -ItemType Directory -Force "$Dash\$d" | Out-Null }
     New-Item -ItemType Directory -Force "$Root\logs\dashboard" | Out-Null
@@ -715,12 +774,7 @@ function Get-PortOwner([int]$port) {
 }
 function Stop-DashboardService {
     # Erst die Neustartschleife (Launcher), dann Node - sonst startet der Launcher den Server sofort neu.
-    Stop-ScheduledTask -TaskName $DashTask -ErrorAction SilentlyContinue
-    Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandLine -like '*start-dashboard.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-    Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandLine -like '*control-api*dist*main.js*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-    Start-Sleep 2
+    Stop-LauncherService $DashTask 'start-dashboard.ps1' '*control-api*dist*main.js*'
 }
 function Write-DashFile([string]$path, [string]$content, [string]$label) {
     $content = $content.Replace("`r`n", "`n")
@@ -863,7 +917,7 @@ adapters:
 }
 function Protect-OwnerFile([string]$file) {
     & icacls.exe $file /inheritance:r /grant:r "$($env:USERNAME):(R,W)" /grant:r 'SYSTEM:(R)' | Out-Null
-    if ($LASTEXITCODE -ne 0) { Stop-Install "Zugriffsrechte für $file konnten nicht gesetzt werden." }
+    if ($LASTEXITCODE -ne 0) { Stop-Dashboard "Zugriffsrechte für $file konnten nicht gesetzt werden." }
 }
 function Set-DashboardOwnerPassword {
     $have = (Test-Path $DashHashFile) -and ((Get-Item $DashHashFile).Length -gt 0)
@@ -887,7 +941,7 @@ function Set-DashboardOwnerPassword {
     $text = $lines -join "`n"
     if (-not ($text -match 'JARVIS_OWNER_PASSWORD_HASH=''(scrypt\$\d+\$\d+\$\d+\$[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+)''')) {
         Write-DashLog ">>> hash-password fehlgeschlagen:`n$text"
-        Stop-Install "Das Passwort-Hash-Werkzeug (pnpm --filter @jarvis/auth hash-password) hat keinen Hash geliefert. Log: $DashInstallLog"
+        Stop-Dashboard "Das Passwort-Hash-Werkzeug (pnpm --filter @jarvis/auth hash-password) hat keinen Hash geliefert. Log: $DashInstallLog"
     }
     $hash = $Matches[1]
     # Datei zuerst leer anlegen und absichern, dann erst den Hash hineinschreiben (Muster hermes_api.key).
@@ -908,15 +962,15 @@ function Install-Dashboard {
         if ($cand -and (Test-Path "$cand\pnpm-workspace.yaml") -and (Test-Path "$cand\apps\control-api\package.json")) { $src = "$cand".TrimEnd('\'); break }
     }
     if (-not $src) {
-        Stop-Install "Die Quellen des Command Centers (Ordner apps, packages, adapters, config neben dem Ordner 'installer') wurden nicht gefunden. Bitte das komplette Paket entpacken (nicht nur den Ordner 'installer') und install-jarvis.bat aus dem entpackten Paket starten; der entpackte Ordner muss bis zum Ende der Installation an seinem Platz bleiben."
+        Stop-Dashboard "Die Quellen des Command Centers (Ordner apps, packages, adapters, config neben dem Ordner 'installer') wurden nicht gefunden. Bitte das komplette Paket entpacken (nicht nur den Ordner 'installer') und install-jarvis.bat aus dem entpackten Paket starten; der entpackte Ordner muss bis zum Ende der Installation an seinem Platz bleiben."
     }
-    if ($src -eq $Dash) { Stop-Install "Die Quelle darf nicht $Dash selbst sein - bitte install-jarvis.bat aus dem entpackten Paket starten." }
+    if ($src -eq $Dash) { Stop-Dashboard "Die Quelle darf nicht $Dash selbst sein - bitte install-jarvis.bat aus dem entpackten Paket starten." }
     Info "Quelle: $src"
 
     # --- Node.js + pnpm
     $node = Ensure-Node
     $pm = (Get-Content "$src\package.json" -Raw | ConvertFrom-Json).packageManager
-    if (-not ("$pm" -match '^pnpm@(\d+\.\d+\.\d+)')) { Stop-Install "Im package.json fehlt 'packageManager: pnpm@<Version>' ($src\package.json)." }
+    if (-not ("$pm" -match '^pnpm@(\d+\.\d+\.\d+)')) { Stop-Dashboard "Im package.json fehlt 'packageManager: pnpm@<Version>' ($src\package.json)." }
     $pnpmVersion = $Matches[1]
     Ensure-Pnpm $pnpmVersion
 
@@ -935,14 +989,14 @@ function Install-Dashboard {
         if ($code -ne 0) {
             Show-DashLogTail
             if ((Get-Content $DashInstallLog -Tail 60 -ErrorAction SilentlyContinue) -match 'ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNREFUSED|ERR_PNPM_FETCH|ERR_SOCKET') {
-                Stop-Install "pnpm install ist fehlgeschlagen: die npm-Registry ist nicht erreichbar (Internet/Proxy prüfen). Log: $DashInstallLog"
+                Stop-Dashboard "pnpm install ist fehlgeschlagen: die npm-Registry ist nicht erreichbar (Internet/Proxy prüfen). Log: $DashInstallLog"
             }
-            Stop-Install "pnpm install ist fehlgeschlagen (Exitcode $code). Log: $DashInstallLog"
+            Stop-Dashboard "pnpm install ist fehlgeschlagen (Exitcode $code). Log: $DashInstallLog"
         }
         Info 'pnpm build:app (Web + Control API, einige Minuten) …'
         $code = Invoke-Pnpm @('build:app')
-        if ($code -ne 0) { Show-DashLogTail; Stop-Install "Der Build des Command Centers ist fehlgeschlagen (Exitcode $code). Log: $DashInstallLog" }
-        if (-not (Test-Path "$Dash\apps\control-api\dist\main.js")) { Stop-Install "Build ohne Ergebnis: $Dash\apps\control-api\dist\main.js fehlt. Log: $DashInstallLog" }
+        if ($code -ne 0) { Show-DashLogTail; Stop-Dashboard "Der Build des Command Centers ist fehlgeschlagen (Exitcode $code). Log: $DashInstallLog" }
+        if (-not (Test-Path "$Dash\apps\control-api\dist\main.js")) { Stop-Dashboard "Build ohne Ergebnis: $Dash\apps\control-api\dist\main.js fehlt. Log: $DashInstallLog" }
         $State.dashboard_hash = $hash; $State.dashboard_pnpm = $pnpmVersion; Save-State
         Ok 'Command Center gebaut.'
     }
@@ -981,13 +1035,23 @@ function Install-Dashboard {
 Set-DashPort
 if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
     Title 'Schritt 15/15 – F.R.I.D.A.Y. Command Center (Dashboard) einrichten'
-    Install-Dashboard
+    try { Install-Dashboard }
+    catch {
+        $script:DashOk = $false
+        Write-DashLog "FEHLER: $($_.Exception.Message)"
+        Write-Host ""; Write-Host "  [FEHLER] Command Center: $($_.Exception.Message)" -ForegroundColor Red
+        Warn "Log: $DashInstallLog"
+    }
     if ($script:DashOk) { MarkDone 'dashboard' }
-    else { Warn 'Das Command Center ist noch nicht fertig eingerichtet (Details oben). Der Rest der Installation ist davon nicht betroffen.' }
+    else {
+        Warn 'Das Command Center ist noch nicht fertig eingerichtet (Details oben). Sprache und Hermes sind davon nicht betroffen.'
+        Warn "Erneut versuchen: update-dashboard.bat (im Paketordner) oder install-jarvis.bat -Resume. Log: $DashInstallLog"
+    }
 }
 
 $DashProbe = Test-DashboardHealth 3
 $p = Get-Content "$Root\config\persona.json" -Raw | ConvertFrom-Json
+$dashNote = if (IsDone 'dashboard') { '' } else { "ACHTUNG: Command Center nicht eingerichtet - update-dashboard.bat oder install-jarvis.bat -Resume starten. Log: $DashInstallLog" }
 $report = @"
 # F.R.I.D.A.Y. – Installationsstatus
 
@@ -1003,6 +1067,7 @@ Installiert am $(Get-Date -Format 'dd.MM.yyyy HH:mm') für $($p.owner_name). Ass
 
 Grafikkarte: $($State.gpu.name) ($($State.gpu.vram_mb) MB) · Linux-Benutzer: $($State.linux_user)
 Autostart: JARVIS_WSL_Keepalive, JARVIS_Qwen, JARVIS_Voice, JARVIS_Dashboard (Aufgabenplanung). Hermes-Dienste: systemd in Ubuntu.
+$dashNote
 Erledigte Schritte: $(@($State.done) -join ', ')
 "@
 [IO.File]::WriteAllText("$Root\INSTALL_STATE.md", $report, (New-Object Text.UTF8Encoding $false))
@@ -1011,7 +1076,7 @@ Title "FERTIG – $AN ist einsatzbereit"
 Info "Sag:  ""$WP""  … kurzer Piepton … dann deine Frage, z. B. ""Wie spät ist es?"""
 Info "Folgefragen gehen 90 Sekunden lang ohne erneutes ""$WP""."
 if ($DashProbe.Up) { Info "Command Center (Dashboard, Login 'owner'): $DashUrl" }
-else { Warn "Command Center nicht erreichbar ($DashUrl) - Log: $Root\logs\dashboard-service.log; install-jarvis.bat erneut starten." }
+else { Warn "Command Center nicht erreichbar ($DashUrl) - Logs: $Root\logs\dashboard-service.log, $DashInstallLog. Erneut versuchen: update-dashboard.bat oder install-jarvis.bat -Resume." }
 Info "Hermes-Dashboard (Kanban, Einstellungen): http://127.0.0.1:$($Ports.Dashboard)"
 Info 'Alles startet ab jetzt automatisch bei der Anmeldung.'
 Info 'Nächste Schritte (Telegram, E-Mail, Kalender): siehe ANLEITUNG.md'

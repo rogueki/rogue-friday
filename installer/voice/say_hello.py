@@ -1,4 +1,6 @@
-"""Begruessung nach der Installation: JARVIS spricht einen Satz (prueft Lautsprecher + Stimme + Filmfilter)."""
+"""Begruessung nach der Installation: der Assistent spricht einen Satz (prueft Lautsprecher + Stimme + Filmfilter).
+
+Aufruf: say_hello.py [ROOT] [TEXT]. Ohne TEXT wird der Assistentenname aus voice.json verwendet."""
 import json
 import os
 import sys
@@ -11,7 +13,9 @@ from film_filter import FilmFilter  # noqa: E402
 from piper import PiperVoice  # noqa: E402
 
 cfg = json.load(open(os.path.join(ROOT, "config", "voice.json"), encoding="utf-8-sig"))
-text = sys.argv[2] if len(sys.argv) > 2 else "Guten Tag. JARVIS ist installiert und einsatzbereit."
+name = cfg.get("assistant_name")
+default_text = f"Guten Tag. {name} ist installiert und einsatzbereit." if name else "Guten Tag. Der Assistent ist installiert und einsatzbereit."
+text = sys.argv[2] if len(sys.argv) > 2 else default_text
 voice = PiperVoice.load(cfg["tts_voice"])
 fx = FilmFilter(voice.config.sample_rate, cfg.get("tts_film_filter", True))
 audio = np.concatenate([fx.process(c.audio_float_array) for c in voice.synthesize(text)] + [fx.flush()])
