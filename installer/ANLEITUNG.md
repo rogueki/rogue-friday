@@ -6,6 +6,7 @@ komplett ein. Den **Namen kannst du selbst wählen** (Standard: *Friday*, z. B. 
 - **„Hey Friday“** (bzw. „Hey“ + dein gewählter Name) – reagiert nur auf **deine** Stimme
 - schnelle Antworten lokal auf deinem PC (Qwen3-4B), alles Komplexe über **Kimi K3**
 - **Hermes Agent** als „Gehirn“ mit Werkzeugen, Kanban-Board und Dashboard
+- **F.R.I.D.A.Y. Command Center**: dein Dashboard mit Orb, Aufgaben, Aktivität und Systemstatus unter <http://127.0.0.1:3100>
 - startet automatisch bei jeder Anmeldung
 
 ---
@@ -19,6 +20,9 @@ komplett ein. Den **Namen kannst du selbst wählen** (Standard: *Friday*, z. B. 
    Kimi-Schlüssel dann automatisch. Alternativ fragt er dich danach.
 5. **Mikrofon und Lautsprecher** angeschlossen, ruhiger Raum für die Stimmaufnahme.
 6. Mindestens **40 GB frei** auf C:, stabile Internetverbindung (ca. 10 GB Downloads).
+7. Das **komplette Paket** entpacken (nicht nur den Ordner `installer`): für das Command Center müssen die Ordner `apps`,
+   `packages`, `adapters` und `config` neben `installer` liegen. Der entpackte Ordner muss bis zum Ende der Installation
+   (auch nach dem WSL-Neustart) an seinem Platz bleiben. Für Node.js wird `winget` (App-Installer, bei Windows 11 dabei) gebraucht.
 
 ## Installation
 
@@ -32,12 +36,16 @@ komplett ein. Den **Namen kannst du selbst wählen** (Standard: *Friday*, z. B. 
    - optional ein paar Infos über dich (Beruf, Interessen …)
    - einem **Linux-Benutzernamen und Passwort** (gut merken!)
    - deinem **Kimi-Schlüssel** (falls nicht automatisch gefunden)
+   - ganz am Ende (Schritt 15) einem **Passwort für das Command Center** (mindestens 12 Zeichen, zweimal eingeben). Benutzername
+     beim Login ist `owner`. Gespeichert wird nur ein Hash, nie das Passwort selbst.
 4. **Neustart:** Falls WSL noch fehlt, startet Windows einmal neu. Danach geht es **automatisch weiter**.
 5. **Stimmaufnahme (ca. 10 Minuten):** Ein eigenes Fenster öffnet sich. Nach jedem **Piepton** sagst du, was dort
    steht: 26× „Hey Friday“ (bzw. dein Name), 18× „Friday“, 15 ähnlich klingende Wörter (z. B. *Freitag*, *Frieda*,
    *Feierabend* – das sind Gegenbeispiele und **nicht** dein Wake Word), 8 kurze Texte vorlesen.
    Danach lernt der Rechner dein Wake Word (bei eigenem Namen einige Minuten Rechenzeit, ohne Internet).
-6. Am Ende **begrüßt dich dein Assistent** und das Dashboard öffnet sich.
+6. Danach richtet der Installer das **Command Center** ein (Schritt 15: Node.js und pnpm, Kopieren nach `C:\Jarvis\dashboard`,
+   Bauen, Start; beim ersten Mal einige Minuten und Internet nötig). Am Ende **begrüßt dich dein Assistent** und auf Wunsch
+   öffnet sich das Command Center.
 
 Dauer gesamt: ca. 45–90 Minuten. Bricht etwas ab: Fehler beheben und **`install-jarvis.bat` einfach nochmal
 starten** – erledigte Schritte werden übersprungen.
@@ -49,7 +57,10 @@ starten** – erledigte Schritte werden übersprungen.
 - **Unterbrechen:** während dein Assistent spricht einfach das Wake Word sagen.
 - Einfache Dinge (Uhrzeit, Rechnen, Wissen) beantwortet er sofort lokal. Aufgaben mit Mails, Kalender,
   Recherche oder Analysen gehen an Kimi K3 – dann sagt er kurz „Einen Moment“ bzw. meldet sich, wenn es fertig ist.
-- **Dashboard:** <http://127.0.0.1:43691> (Kanban-Boards, Einstellungen, Verlauf)
+- **Command Center:** <http://127.0.0.1:3100> – Login `owner` mit deinem Command-Center-Passwort. Startet automatisch bei der
+  Anmeldung (Aufgabe `JARVIS_Dashboard`, ca. 1 Minute nach dem Anmelden). Zeigt Aufgaben, Aktivität und Agenten live aus Hermes,
+  Sprachstatus und Systemdaten; alle übrigen Bereiche (z. B. Mail, Kalender) sind noch **simuliert** und als solche gekennzeichnet.
+- **Hermes-Dashboard:** <http://127.0.0.1:43691> (Kanban-Boards, Einstellungen, Verlauf)
 - Fremde Stimmen, Kinder oder der Fernseher werden ignoriert (Stimmprüfung).
 
 ## Wichtige Orte
@@ -60,7 +71,10 @@ starten** – erledigte Schritte werden übersprungen.
 | Persönlichkeit ändern | `C:\Jarvis\config\persona.json`, danach Schritt erneut: siehe unten |
 | Sprach-Einstellungen (Name, Wake Word, Engine) | `C:\Jarvis\config\voice.json` |
 | Dein persönliches Wake-Word-Modell | `C:\Jarvis\models\openwakeword\personal_wake.npz` und `personal_wake.json` (Schwelle, Qualität) |
-| Protokolle | `C:\Jarvis\logs` |
+| Protokolle | `C:\Jarvis\logs` (Command Center: `dashboard-install.log`, `dashboard-service.log`, `dashboard\`) |
+| Command Center (Programm, Daten, Sicherungen) | `C:\Jarvis\dashboard` (`data`, `backups`) |
+| Command-Center-Einstellungen (Modus, Port, Adapter) | `C:\Jarvis\dashboard\config\dashboard.yaml` und `adapters.yaml` – Installer überschreibt sie nie ohne Rückfrage |
+| Passwort-Hash des Command Centers | `C:\Jarvis\config\dashboard_owner.hash` (nur du hast Zugriff) |
 | Austauschordner mit dem Assistenten | `C:\Jarvis\exchange` |
 | Status | `C:\Jarvis\INSTALL_STATE.md` |
 
@@ -68,6 +82,12 @@ starten** – erledigte Schritte werden übersprungen.
 `"voicepython"` aus der Liste `done` löschen und `install-jarvis.bat` erneut starten.
 **Stimme / Wake Word neu einlernen (gleicher Name):** Ordner `C:\Jarvis\voice\profiles\owner` löschen, die Einträge
 `"enroll"` und `"voiceservice"` aus `done` entfernen, `install-jarvis.bat` erneut starten (der alte Sprachdienst wird dabei beendet).
+
+## Command Center aktualisieren
+
+Neues Paket entpacken und darin `update-dashboard.bat` doppelklicken (liegt neben `install-jarvis.bat`). Das Skript kopiert die
+neuen Quellen nach `C:\Jarvis\dashboard`, baut nur neu, wenn sich etwas geändert hat, und startet das Command Center neu.
+Einstellungen, Daten und Passwort bleiben erhalten. Technische Details, manuelle Befehle und Fehlersuche: `docs/DEPLOYMENT.md`.
 
 ## Name und Wake Word
 
@@ -109,7 +129,11 @@ Solange noch **keine** Aufnahmen existieren, fragt `install-jarvis.bat` beim ern
 | Der Assistent reagiert nicht | <http://127.0.0.1:43694> öffnen – steht dort `listening`? Sonst abmelden/anmelden. Log: `C:\Jarvis\logs\voice-service.log` |
 | Reagiert auf das Wake Word (Piepton), antwortet aber nicht | Deine Stimme wurde evtl. nicht erkannt: näher ans Mikrofon, normal laut sprechen |
 | „Der Cloud-Agent ist nicht verfügbar“ | Internet prüfen; in Ubuntu: `hermes status` |
-| Dashboard lädt nicht | Ubuntu-Fenster öffnen: `systemctl --user status hermes-dashboard` |
+| Hermes-Dashboard (43691) lädt nicht | Ubuntu-Fenster öffnen: `systemctl --user status hermes-dashboard` |
+| Command Center (3100) lädt nicht | Aufgabenplanung: `JARVIS_Dashboard` ausführen; Log `C:\Jarvis\logs\dashboard-service.log`. Hilft das nicht: `install-jarvis.bat` erneut starten (Schritt 15 wird wiederholt) |
+| Installer meldet „Port 3100 ist belegt“ | Das genannte Programm beenden oder in `C:\Jarvis\dashboard\config\dashboard.yaml` einen anderen `server.port` eintragen (Installer und Autostart lesen den Port von dort), `install-jarvis.bat` erneut starten |
+| Schritt 15: „pnpm install“/Build fehlgeschlagen | Internet prüfen, Details in `C:\Jarvis\logs\dashboard-install.log`, dann `install-jarvis.bat` erneut starten |
+| Command-Center-Passwort vergessen | In `C:\Jarvis\config\install-state.json` den Eintrag `"dashboard"` aus `done` löschen, `install-jarvis.bat` starten und beim Passwort „Neu setzen“ mit `j` beantworten |
 | Wake Word wird oft überhört / spricht ohne Grund an | Eigener Name: Aufnahme in ruhigerer Umgebung wiederholen (siehe oben). Im Log `C:\Jarvis\logs\voice.jsonl` zeigt `wake_rejected`, wie oft Stufe 2 eine Fehlauslösung abgefangen hat |
 | Spiel ruckelt / Grafikspeicher voll | In `voice.json` bei `"game_processes"` das Spiel eintragen, z. B. `["Diablo IV.exe"]` |
 
@@ -126,11 +150,11 @@ Regel: Lesen/Entwürfe macht der Assistent selbst. **Senden, Löschen, Termine �
 
 ## Deinstallation
 
-Aufgabenplanung: `JARVIS_Voice`, `JARVIS_Qwen`, `JARVIS_WSL_Keepalive` löschen → PowerShell: `wsl --unregister Ubuntu`
+Aufgabenplanung: `JARVIS_Voice`, `JARVIS_Qwen`, `JARVIS_WSL_Keepalive`, `JARVIS_Dashboard` löschen → PowerShell: `wsl --unregister Ubuntu`
 (löscht Ubuntu samt Hermes!) → Ordner `C:\Jarvis` löschen.
 
 ---
 
 *Technik: Windows 11 + WSL2 (Ubuntu 24.04, systemd) · Hermes Agent · Kimi K3 · llama.cpp + Qwen3-4B ·
 openWakeWord („Hey Jarvis“ + Verifier bzw. persönliches Wake Word auf openWakeWord-Features) · SpeechBrain ECAPA
-(Stimmprüfung) · Silero VAD · faster-whisper · Piper + Filmfilter. Alle Dienste nur lokal auf 127.0.0.1 (Ports 43691–43694).*
+(Stimmprüfung) · Silero VAD · faster-whisper · Piper + Filmfilter. Alle Dienste nur lokal auf 127.0.0.1 (Ports 43691–43694 und 3100 für das Command Center).*
