@@ -1,3 +1,9 @@
 * text=auto eol=lf
+# Windows scripts of the installer must keep CRLF; WSL shell scripts must stay LF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.vbs text eol=crlf
+*.sh  text eol=lf
 *.webp binary
 *.png binary
