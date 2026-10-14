@@ -127,6 +127,39 @@ describe("HealthMonitor", () => {
     expect(state.capabilityChanges).toEqual([["tasks.read", "tasks.create"]]);
   });
 
+  it("re-reads capabilities on every successful check, not only after recovery", async () => {
+    const { monitor, state, lifecycle } = setup();
+    monitor.rememberCapabilities({ capabilities: ["tasks.read"] });
+    await monitor.checkNow();
+    expect(lifecycle.state).toBe("ONLINE");
+    expect(state.capabilityChanges).toEqual([]);
+
+    state.capabilities = ["tasks.read", "tasks.create"];
+    await monitor.checkNow();
+    expect(state.capabilityChanges).toEqual([["tasks.read", "tasks.create"]]);
+
+    // unchanged set: no further notification
+    await monitor.checkNow();
+    expect(state.capabilityChanges).toHaveLength(1);
+
+    // a degraded (still serving) check also refreshes
+    state.report = { status: "degraded", latencyMs: 20, message: "langsam" };
+    state.capabilities = ["tasks.read"];
+    await monitor.checkNow();
+    expect(lifecycle.state).toBe("DEGRADED");
+    expect(state.capabilityChanges).toEqual([["tasks.read", "tasks.create"], ["tasks.read"]]);
+  });
+
+  it("does not ask for capabilities while the adapter is failing", async () => {
+    const { monitor, state } = setup({ failureThreshold: 1 });
+    let calls = 0;
+    const original = state.capabilities;
+    Object.defineProperty(state, "capabilities", { get: () => (calls += 1, original) });
+    state.report = { status: "offline", latencyMs: null };
+    await monitor.checkNow();
+    expect(calls).toBe(0);
+  });
+
   it("polls on the injected clock and stops cleanly", async () => {
     const { monitor, clock, state } = setup();
     monitor.start();

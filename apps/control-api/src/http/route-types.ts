@@ -38,5 +38,7 @@ export interface RouteSpec {
   /** Mutating operations carry an `X-CSRF-Token` parameter in the contract. */
   csrf: boolean;
   requestBody: { required: boolean; schema: string } | null;
+  /** `x-max-body-bytes`: stricter request body limit than the server default (null = default). */
+  maxBodyBytes: number | null;
   responses: ResponseSpec[];
 }

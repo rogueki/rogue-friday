@@ -993,6 +993,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Prometheus metrics of the control API (text exposition format 0.0.4)
+         * @description Request latency, error rate, WebSocket connections, events per second, adapter health, cache hits and the frontend telemetry gauges (orb FPS, frame time, WebGL memory, frontend errors). Contains no personal data.
+         */
+        get: operations["getMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -1574,6 +1594,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/telemetry/frontend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report frontend errors and orb performance samples (size- and rate-limited, no personal data)
+         * @description Body limit 32 KiB, at most 20 errors and 60 orb samples per request, 30 requests per minute per session. Messages are redacted server-side; only aggregated metrics and a redacted log line are kept.
+         */
+        post: operations["submitFrontendTelemetry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/devices": {
         parameters: {
             query?: never;
@@ -1812,6 +1852,8 @@ export interface components {
             secretFields: {
                 [key: string]: components["schemas"]["SecretStatus"];
             };
+            /** @description Optimistic-concurrency token of this configuration; send it as If-Match on PATCH /settings/adapters/{id}. Increases with every change. */
+            version?: number;
         };
         /**
          * AdapterConfigSettingsListResponse
@@ -3296,6 +3338,47 @@ export interface components {
          */
         FreshnessState: "fresh" | "stale" | "unknown" | "offline-cache";
         /**
+         * FrontendErrorReport
+         * @description One aggregated browser error (PLAN §50.3). Contains no user data: no stack traces, no URLs with query strings, no identifiers. The server additionally redacts the message.
+         */
+        FrontendErrorReport: {
+            /** @description Occurrences of this error since the last batch (1 when absent). */
+            count?: number;
+            /** @enum {string} */
+            kind: "js_error" | "unhandled_rejection" | "render_error" | "network_error" | "webgl_context_lost" | "resource_error";
+            /** @description Short technical message (for example the error class and the failing module). */
+            message: string;
+            /** Format: date-time */
+            occurredAt?: string;
+            /** @description Dashboard route path without query or fragment. */
+            route?: string;
+        };
+        /**
+         * FrontendTelemetryBatch
+         * @description Batch of frontend errors and orb performance samples (PLAN §50.3). Limited to 20 errors and 60 samples per request; the server also caps the body size (32 KiB) and the request rate. Must not contain personal data.
+         */
+        FrontendTelemetryBatch: {
+            errors?: components["schemas"]["FrontendErrorReport"][];
+            orbSamples?: components["schemas"]["OrbPerformanceSample"][];
+        };
+        /**
+         * FrontendTelemetryReceipt
+         * @description How much of a telemetry batch the server recorded.
+         */
+        FrontendTelemetryReceipt: {
+            acceptedErrors: number;
+            acceptedOrbSamples: number;
+        };
+        /**
+         * FrontendTelemetryReceiptResponse
+         * @description Single-resource envelope for FrontendTelemetryReceipt.
+         */
+        FrontendTelemetryReceiptResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["FrontendTelemetryReceipt"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
          * Health
          * @description Liveness/readiness summary of the control API and its components.
          */
@@ -3864,6 +3947,19 @@ export interface components {
          */
         OrbMode: "booting" | "idle" | "listening" | "transcribing" | "thinking" | "syncing" | "working" | "speaking" | "waiting_approval" | "success" | "warning" | "error" | "offline" | "paused";
         /**
+         * OrbPerformanceSample
+         * @description One orb render performance sample of the browser (PLAN §50.3): frames per second, frame time and WebGL memory.
+         */
+        OrbPerformanceSample: {
+            fps: number;
+            /** @description Mean frame time of the sampling window. */
+            frameTimeMs: number;
+            /** Format: date-time */
+            occurredAt?: string;
+            /** @description Estimated GPU memory held by the orb scene (textures plus geometries). */
+            webglMemoryBytes?: number;
+        };
+        /**
          * OrbProgressMode
          * @enum {string}
          */
@@ -4342,6 +4438,17 @@ export interface components {
             audioLevel?: number;
             mode: components["schemas"]["OrbMode"];
             progress?: number | null;
+        } | {
+            /** @constant */
+            action: "release_orb_state";
+        } | {
+            /** @constant */
+            action: "play_event";
+            eventType: string;
+            payload?: {
+                [key: string]: unknown;
+            };
+            subject?: string;
         } | {
             /** @constant */
             action: "reset";
@@ -5266,6 +5373,16 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
+        /** @description Request body exceeds the size limit of the operation (VALIDATION_FAILED) */
+        PayloadTooLarge: {
+            headers: {
+                "X-Correlation-Id": components["headers"]["CorrelationId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
         /** @description Adapter unavailable or timed out (ADAPTER_UNAVAILABLE, ADAPTER_TIMEOUT, INTERNAL) */
         ServiceUnavailable: {
             headers: {
@@ -5333,6 +5450,8 @@ export interface components {
         ApprovalTokenExpires: string;
         /** @description Correlation id of this request */
         CorrelationId: string;
+        /** @description Set to "true" when the response was replayed from the idempotency store for a repeated Idempotency-Key instead of executing the operation again. */
+        IdempotentReplayed: "true";
     };
     pathItems: never;
 }
@@ -5591,6 +5710,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -5629,6 +5749,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -5667,6 +5788,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -5792,6 +5914,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -5837,6 +5960,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -5880,6 +6004,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -6248,6 +6373,7 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     /** @description URL of the created resource */
                     Location?: string;
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
@@ -6666,6 +6792,7 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     /** @description URL of the created resource */
                     Location?: string;
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
@@ -6736,6 +6863,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -6809,6 +6937,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -6848,6 +6977,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -6887,6 +7017,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -6960,6 +7091,7 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     /** @description URL of the created resource */
                     Location?: string;
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
@@ -7049,6 +7181,7 @@ export interface operations {
             /** @description Accepted (approval required) */
             202: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -7378,6 +7511,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -7388,6 +7522,7 @@ export interface operations {
             /** @description Approval required before execution */
             202: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -7571,6 +7706,7 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     /** @description URL of the created resource */
                     Location?: string;
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
@@ -7766,6 +7902,40 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    getMetrics: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example # HELP jarvis_http_requests_total HTTP requests handled
+                     *     # TYPE jarvis_http_requests_total counter
+                     *     jarvis_http_requests_total{method="GET",route="/api/v1/health",status="200"} 12
+                     */
+                    "text/plain": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     listNotifications: {
         parameters: {
             query?: {
@@ -7834,6 +8004,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -7879,6 +8050,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -8866,6 +9038,7 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     /** @description URL of the created resource */
                     Location?: string;
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
@@ -8988,6 +9161,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -9033,6 +9207,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -9078,6 +9253,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -9123,6 +9299,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
@@ -9135,6 +9312,43 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    submitFrontendTelemetry: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FrontendTelemetryBatch"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FrontendTelemetryReceiptResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["ServiceUnavailable"];
@@ -9285,6 +9499,7 @@ export interface operations {
             /** @description Success */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };

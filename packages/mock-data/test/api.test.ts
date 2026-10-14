@@ -153,6 +153,8 @@ const SAMPLES: Sample[] = [
   { operationId: "pauseCommand", method: "POST", path: "/commands/pause", status: 200, schema: "ActionResult", body: { scope: "automations" } },
   { operationId: "resumeCommand", method: "POST", path: "/commands/resume", status: 200, schema: "ActionResult", body: { scope: "automations" } },
   { operationId: "listCommandHistory", method: "GET", path: "/commands/history", status: 200, schema: "CommandHistoryEntryListResponse" },
+  { operationId: "getMetrics", method: "GET", path: "/metrics", status: 200, text: /# TYPE jarvis_adapter_health gauge/ },
+  { operationId: "submitFrontendTelemetry", method: "POST", path: "/telemetry/frontend", status: 202, schema: "FrontendTelemetryReceiptResponse", body: { errors: [{ kind: "js_error", message: "Fehler in OrbScene" }], orbSamples: [{ fps: 60, frameTimeMs: 16.7 }] } },
   { operationId: "listScenarios", method: "GET", path: "/dev/scenarios", status: 200, schema: "ScenarioListResponse" },
   { operationId: "playScenario", method: "POST", path: "/dev/scenarios/clean-idle/play", status: 200, schema: "ScenarioStateResponse" },
   { operationId: "controlScenario", method: "POST", path: "/dev/scenarios/control", status: 200, schema: "ScenarioStateResponse", body: { action: "latency", ms: 10 } },

@@ -13,6 +13,7 @@ import {
   type DraftCreateRequest,
   type DraftSendRequest,
   type DraftUpdateRequest,
+  type FrontendTelemetryBatch,
   type LayoutImportRequest,
   type LoginRequest,
   type MemoryCreateRequest,
@@ -91,6 +92,27 @@ const q = <T>(query: RouteInput["query"]): T => query as unknown as T;
 const body = <T>(input: RouteInput): T => input.body as T;
 const bodyOr = <T extends object>(input: RouteInput): T => ((input.body ?? {}) as T);
 
+/** Static Prometheus sample for the browser mock (the real series come from the Control API's registry). */
+function prometheusSample(world: MockWorld): string {
+  const lines = [
+    "# HELP jarvis_ws_connections Open WebSocket connections",
+    "# TYPE jarvis_ws_connections gauge",
+    "jarvis_ws_connections 1",
+    "# HELP jarvis_http_error_ratio Share of HTTP responses with status >= 500 since start",
+    "# TYPE jarvis_http_error_ratio gauge",
+    "jarvis_http_error_ratio 0",
+    "# HELP jarvis_events_per_second Realtime events per second (10 s window)",
+    "# TYPE jarvis_events_per_second gauge",
+    "jarvis_events_per_second 0.4",
+    "# HELP jarvis_adapter_health Adapter health: 1 healthy, 0.5 degraded, 0 down, -1 unknown",
+    "# TYPE jarvis_adapter_health gauge",
+  ];
+  for (const adapter of world.state.adapters) {
+    lines.push(`jarvis_adapter_health{adapter="${adapter.manifest.id}"} ${adapter.mode === "online" ? 1 : adapter.mode === "offline" ? 0 : 0.5}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+
 export const ROUTES: RouteDef[] = [
   // ---- meta / overview / orb
   { operationId: "getMeta", method: "GET", path: "/meta", role: "none", run: (w) => bare(w.meta.getMeta()) },
@@ -101,6 +123,19 @@ export const ROUTES: RouteDef[] = [
   { operationId: "getOverview", method: "GET", path: "/overview", role: "viewer", run: (w) => single(w, null, w.meta.getOverview()) },
   { operationId: "getStatus", method: "GET", path: "/status", role: "viewer", run: (w) => single(w, null, w.meta.getStatus()) },
   { operationId: "getOrbStatus", method: "GET", path: "/orb/status", role: "viewer", run: (w) => single(w, null, w.meta.getOrb()) },
+
+  // ---- observability
+  { operationId: "getMetrics", method: "GET", path: "/metrics", role: "owner", run: (w) => ({ category: null, text: { contentType: "text/plain; version=0.0.4; charset=utf-8", body: prometheusSample(w) } }) },
+  {
+    operationId: "submitFrontendTelemetry",
+    method: "POST",
+    path: "/telemetry/frontend",
+    role: "operator",
+    run: (w, _e, i) => {
+      const batch = w.validate<FrontendTelemetryBatch>("FrontendTelemetryBatch", body(i));
+      return single(w, null, { acceptedErrors: batch.errors?.length ?? 0, acceptedOrbSamples: batch.orbSamples?.length ?? 0 }, 202);
+    },
+  },
 
   // ---- auth
   { operationId: "login", method: "POST", path: "/auth/login", role: "none", run: (w, _e, i) => single(w, null, w.auth.login(body<LoginRequest>(i))) },

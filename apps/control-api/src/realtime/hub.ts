@@ -186,6 +186,16 @@ export class EventHub {
     return this.sequence;
   }
 
+  /**
+   * Raises the sequence counter so the next published event is numbered above `floor`. Used when a producer (the mock
+   * world) already numbered content, e.g. seeded activity items, that must stay below every live event. Never lowers it.
+   */
+  ensureSequenceAtLeast(floor: number): void {
+    if (floor <= this.sequence) return;
+    this.sequence = floor;
+    this.options.persistSequence?.(this.sequence);
+  }
+
   get oldestSequence(): number | null {
     return this.ring[0]?.sequence ?? null;
   }

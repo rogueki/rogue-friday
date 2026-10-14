@@ -46,6 +46,26 @@ describe("branding (assistantName)", () => {
     expect(await orbText()).toBe("FRIDOLIN WIRD INITIALISIERT");
   });
 
+  it("makes brandText a no-op: the mock world words its texts with the configured name itself", async () => {
+    const world = api.runtime.world;
+    expect(world).toBeDefined();
+    await force("speaking");
+    expect(world?.orbSnapshot().status.activityText, "default name straight from the world").toBe("F.R.I.D.A.Y. SPRICHT");
+    expect(brandText(world?.orbSnapshot().status.activityText ?? "", "F.R.I.D.A.Y.")).toBe("F.R.I.D.A.Y. SPRICHT");
+
+    const seen: JarvisEvent[] = [];
+    api.runtime.hub.subscribe((event) => seen.push(event));
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    await owner.patch("/api/v1/settings", { profile: { ...settings.profile, assistantName: "Fridolin" } });
+    // unbranded, as the world produced it
+    expect(world?.orbSnapshot().status.activityText).toBe("FRIDOLIN SPRICHT");
+    expect(world?.jarvisStatus().label).toBe("Fridolin online");
+    // and the stream already carries the new wording (no rewrite at the API edge)
+    const orbEvent = seen.find((event) => event.type === "jarvis.orb.status_changed");
+    expect((orbEvent?.data as { status: { activityText: string } } | undefined)?.status.activityText).toBe("FRIDOLIN SPRICHT");
+    expect(JSON.stringify((await owner.get("/api/v1/orb/status")).json())).not.toMatch(/F\.R\.I\.D\.A\.Y\.|JARVIS/);
+  });
+
   it("validates the name (1 to 40 characters)", async () => {
     const settings = (await owner.get("/api/v1/settings")).json().data;
     for (const assistantName of ["", "x".repeat(41), 42]) {
@@ -148,6 +168,20 @@ describe("command conventions of the web client", () => {
     const off = await execute("Fokus-Modus umschalten", operator, "quick_command");
     expect(off.json().status).toBe("executed");
     expect((await voice()).focusMode).toBe(false);
+  });
+
+  it("lists both intents in the command history of the commands adapter", async () => {
+    await execute("Sprachaufnahme starten");
+    await execute("Fokus-Modus umschalten", operator, "quick_command");
+    const history = (await owner.get("/api/v1/commands/history", { query: { limit: "10" } })).json().items as Array<{ text: string; status: string; origin: string; riskTier: number | null }>;
+    const started = history.find((entry) => entry.text === "Sprachaufnahme starten");
+    const focus = history.find((entry) => entry.text === "Fokus-Modus umschalten");
+    expect(started).toMatchObject({ status: "executed", origin: "voice", riskTier: 1 });
+    expect(focus).toMatchObject({ status: "executed", origin: "quick_command", riskTier: 1 });
+    // a rejected attempt (focus mode on) is history too
+    await execute("Sprachaufnahme starten");
+    const again = (await owner.get("/api/v1/commands/history", { query: { limit: "10" } })).json().items as Array<{ text: string; status: string }>;
+    expect(again[0]).toMatchObject({ text: "Sprachaufnahme starten", status: "rejected" });
   });
 
   it("records the commands in the control-plane history and the audit trail", async () => {

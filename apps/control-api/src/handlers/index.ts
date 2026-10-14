@@ -5,6 +5,7 @@ import { authHandlers } from "./auth";
 import { commandHandlers } from "./commands";
 import { devHandlers } from "./dev";
 import { metaHandlers } from "./meta";
+import { observabilityHandlers } from "./observability";
 import { buildPortHandlers } from "./ports";
 import { settingsHandlers } from "./settings";
 
@@ -18,6 +19,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     devHandlers,
     approvalHandlers,
     commandHandlers,
+    observabilityHandlers,
   ];
   for (const group of overrides) {
     for (const [operationId, handler] of Object.entries(group) as Array<[OperationId, Handler]>) handlers.set(operationId, handler);

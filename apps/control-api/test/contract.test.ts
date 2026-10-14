@@ -256,6 +256,17 @@ describe("contract: all operations", () => {
       await call("listModelProviders");
       await call("runServiceHealthcheck", { params: { id: services.json.items[0].id } });
     });
+
+    it("serves Prometheus metrics and accepts frontend telemetry", async () => {
+      const metrics = await call("getMetrics");
+      expect(metrics.response.headers["content-type"]).toContain("text/plain");
+      expect(metrics.response.body).toContain("# TYPE jarvis_http_requests_total counter");
+      const receipt = await call("submitFrontendTelemetry", {
+        body: { errors: [{ kind: "js_error", message: "ReferenceError in OrbScene" }], orbSamples: [{ fps: 59.4, frameTimeMs: 16.8, webglMemoryBytes: 52428800 }] },
+        expect: 202,
+      });
+      expect(receipt.json.data).toEqual({ acceptedErrors: 1, acceptedOrbSamples: 1 });
+    });
   });
 
   describe("audit", () => {
@@ -336,7 +347,7 @@ describe("contract: all operations", () => {
   });
 
   it("covers every operation of the route table with a contract-valid success response", () => {
-    expect(ROUTE_TABLE).toHaveLength(107);
+    expect(ROUTE_TABLE).toHaveLength(109);
     expect(probe.uncovered(), "Operationen ohne erfolgreichen, vertragsgültigen Aufruf").toEqual([]);
     expect(probe.problems).toEqual([]);
     for (const spec of ROUTE_TABLE) expect(specOf(spec.operationId)).toBe(spec);

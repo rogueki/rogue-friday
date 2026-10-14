@@ -125,6 +125,8 @@ export type ScenarioControlRequest =
   | ScenarioErrorRate
   | ScenarioCapabilityToggle
   | ScenarioForceOrbState
+  | ScenarioReleaseOrbState
+  | ScenarioPlayEvent
   | ScenarioReset;
 export type VoiceTestKind = "wake_word" | "speaker" | "stt" | "tts" | "full_pipeline";
 
@@ -241,6 +243,10 @@ export interface JarvisModelMap {
   FileVersion: FileVersion;
   Freshness: Freshness;
   FreshnessState: FreshnessState;
+  FrontendErrorReport: FrontendErrorReport;
+  FrontendTelemetryBatch: FrontendTelemetryBatch;
+  FrontendTelemetryReceipt: FrontendTelemetryReceipt;
+  FrontendTelemetryReceiptResponse: FrontendTelemetryReceiptResponse;
   Health: Health;
   HealthcheckResult: HealthcheckResult;
   HealthcheckResultResponse: HealthcheckResultResponse;
@@ -287,6 +293,7 @@ export interface JarvisModelMap {
   OrbHealth: OrbHealth;
   OrbLayers: OrbLayers;
   OrbMode: OrbMode;
+  OrbPerformanceSample: OrbPerformanceSample;
   OrbProgressMode: OrbProgressMode;
   OrbSettings: OrbSettings;
   OrbSnapshot: OrbSnapshot;
@@ -526,6 +533,10 @@ export interface AdapterConfigSettings {
   category: AdapterCategory;
   provider: string;
   enabled: boolean;
+  /**
+   * Optimistic-concurrency token of this configuration; send it as If-Match on PATCH /settings/adapters/{id}. Increases with every change.
+   */
+  version?: number;
   config: {
     [k: string]: unknown;
   };
@@ -1763,6 +1774,68 @@ export interface FilePreviewResponse {
   freshness: Freshness;
 }
 /**
+ * One aggregated browser error (PLAN §50.3). Contains no user data: no stack traces, no URLs with query strings, no identifiers. The server additionally redacts the message.
+ */
+export interface FrontendErrorReport {
+  kind:
+    | "js_error"
+    | "unhandled_rejection"
+    | "render_error"
+    | "network_error"
+    | "webgl_context_lost"
+    | "resource_error";
+  /**
+   * Short technical message (for example the error class and the failing module).
+   */
+  message: string;
+  /**
+   * Dashboard route path without query or fragment.
+   */
+  route?: string;
+  /**
+   * Occurrences of this error since the last batch (1 when absent).
+   */
+  count?: number;
+  occurredAt?: string;
+}
+/**
+ * Batch of frontend errors and orb performance samples (PLAN §50.3). Limited to 20 errors and 60 samples per request; the server also caps the body size (32 KiB) and the request rate. Must not contain personal data.
+ */
+export interface FrontendTelemetryBatch {
+  errors?: FrontendErrorReport[];
+  orbSamples?: OrbPerformanceSample[];
+}
+/**
+ * One orb render performance sample of the browser (PLAN §50.3): frames per second, frame time and WebGL memory.
+ */
+export interface OrbPerformanceSample {
+  fps: number;
+  /**
+   * Mean frame time of the sampling window.
+   */
+  frameTimeMs: number;
+  /**
+   * Estimated GPU memory held by the orb scene (textures plus geometries).
+   */
+  webglMemoryBytes?: number;
+  occurredAt?: string;
+}
+/**
+ * How much of a telemetry batch the server recorded.
+ */
+export interface FrontendTelemetryReceipt {
+  acceptedErrors: number;
+  acceptedOrbSamples: number;
+}
+/**
+ * Single-resource envelope for FrontendTelemetryReceipt.
+ */
+export interface FrontendTelemetryReceiptResponse {
+  contractVersion: ContractVersion;
+  data: FrontendTelemetryReceipt;
+  freshness: Freshness;
+}
+/**
  * Liveness/readiness summary of the control API and its components.
  */
 export interface Health {
@@ -2698,6 +2771,23 @@ export interface ScenarioForceOrbState {
   activityText?: string;
   audioLevel?: number;
   progress?: number | null;
+}
+/**
+ * Releases a forced orb state (force_orb_state) so the orb follows the derived state again.
+ */
+export interface ScenarioReleaseOrbState {
+  action: "release_orb_state";
+}
+/**
+ * Plays one event of the AsyncAPI event list on the event stream. The optional payload (data) is validated against the payload schema of the event type (AsyncAPI). Without a payload the mock derives one from its current state for event types that mirror state (orb, overall status, system metrics, voice state); every other type needs a payload (422).
+ */
+export interface ScenarioPlayEvent {
+  action: "play_event";
+  eventType: string;
+  subject?: string;
+  payload?: {
+    [k: string]: unknown;
+  };
 }
 export interface ScenarioReset {
   action: "reset";

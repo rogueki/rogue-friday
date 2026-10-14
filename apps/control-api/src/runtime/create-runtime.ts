@@ -20,14 +20,15 @@ import {
 } from "@jarvis/observability";
 import type { AdapterHealth, JarvisEvent } from "@jarvis/sdk";
 import { kvGet, kvSet, openDatabase } from "../db/database";
+import { AuditAnchor } from "../db/audit-anchor";
 import { AuditStore, type AuditVerification } from "../db/audit-store";
 import { AdapterOverrideStore, CommandHistoryStore, IdempotencyStore, LibraryStore } from "../db/stores";
-import { worldCapabilities } from "@jarvis/adapter-mock";
 import { EventHub } from "../realtime/hub";
 import { AuthService } from "../security/auth-service";
 import { AdapterSettingsService } from "../services/adapter-settings";
 import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, summarizeAdapters } from "../services/core-views";
 import { SettingsService, seedLibrary } from "../services/settings";
+import { FrontendTelemetryService } from "../services/telemetry";
 import { createRuntimeSecrets, createWorld, wireAdapters } from "./adapter-wiring";
 import type { AuditRecorder, ResponseValidationMode, Runtime } from "./types";
 
@@ -112,7 +113,14 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   });
 
   // ---- persistence --------------------------------------------------------------------------------------------
-  const audit = new AuditStore(db);
+  const auditAnchor = new AuditAnchor({
+    db,
+    key: deriveKey(serverKey.key, "audit-head"),
+    // An in-memory database (tests) has no data directory to anchor in; the kv row still anchors the chain.
+    ...(options.dbPath === ":memory:" ? {} : { file: join(config.paths.dataDir, "audit-head.json") }),
+    onError: (error) => logger.error("Audit-Anker konnte nicht geschrieben werden", { error: error instanceof Error ? error.message : String(error) }),
+  });
+  const audit = new AuditStore(db, undefined, auditAnchor);
   const idempotency = new IdempotencyStore(db);
   const commands = new CommandHistoryStore(db);
   const library = new LibraryStore(db);
@@ -136,9 +144,18 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   // ---- adapters -----------------------------------------------------------------------------------------------
   const world: MockWorld | undefined = createWorld(config, {
     realTime: options.realTimeWorld ?? true,
+    // One global sequence: the mock world numbers its events (and `ActivityEvent.sequence`) with the hub's counter, so
+    // an activity item's sequence equals the envelope sequence of its `jarvis.activity.appended` event.
+    assistantName: () => settingsHolder.current?.area("profile").assistantName ?? DEFAULT_ASSISTANT_NAME,
+    nextSequence: (floor) => {
+      hub.ensureSequenceAtLeast(floor);
+      return hub.latestSequence + 1;
+    },
     ...(options.worldSeed !== undefined ? { seed: options.worldSeed } : {}),
     ...(options.worldProfile ? { profile: options.worldProfile } : {}),
   });
+  // Seeded activity is numbered before the hub existed; keep every live event above it.
+  if (world) hub.ensureSequenceAtLeast(world.state.sequence);
   const engine = world && config.dataMode === "mock" ? ScenarioEngine.for(world) : undefined;
   const secrets = createRuntimeSecrets();
   const wiring = wireAdapters({
@@ -169,6 +186,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     return module[flag] === true;
   };
   const overview = new OverviewService({ registry, status, orb, capabilityEnabled });
+  const telemetry = new FrontendTelemetryService(metrics, logger, undefined, options.now);
 
   // ---- audit --------------------------------------------------------------------------------------------------
   let verification: AuditVerification = audit.verify();
@@ -205,26 +223,12 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   let started = false;
 
   /**
-   * Mock adapters read their capabilities from the world; the registry caches them from the last (re)start. After a dev
-   * toggle (or a scenario that changes capabilities) restart exactly the adapters whose cached set went stale.
-   */
-  const syncMockCapabilities = async (): Promise<void> => {
-    if (!world) return;
-    for (const entry of registry.describe()) {
-      if (!entry.provider.startsWith("mock-")) continue;
-      const expected = worldCapabilities(world, entry.category).join(",");
-      const cached = [...entry.capabilities].sort().join(",");
-      if (expected !== cached) await registry.restart(entry.adapterId).catch((error: unknown) => logger.warn("Adapter-Neustart nach Capability-Änderung fehlgeschlagen", { adapterId: entry.adapterId, error: error instanceof Error ? error.message : String(error) }));
-    }
-  };
-
-  /**
-   * Forces a health check of every adapter. A failing adapter is re-checked until the monitor has made up its mind
+   * Forces a health check of every adapter (a successful check also re-reads the adapter's capabilities, so dev capability
+   * toggles show up at once). A failing adapter is re-checked until the monitor has made up its mind
    * (DEGRADED after the first failure, OFFLINE after `failureThreshold`), so a dev "adapter offline" shows as offline at
    * once instead of after three polling intervals.
    */
   const refreshAdapters = async (): Promise<void> => {
-    await syncMockCapabilities();
     await Promise.all(
       registry
         .listAdapters()
@@ -342,6 +346,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     status,
     orb,
     overview,
+    telemetry,
     audit: auditRecorder,
     buildVersion,
     startedAt,
@@ -349,6 +354,20 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     refreshAdapters,
     capabilities,
     capabilityEnabled,
+    renderMetrics() {
+      // Adapter health is event-driven; sync the gauges with the registry so adapters that never changed state appear too.
+      for (const info of registry.listAdapters()) {
+        let state: "healthy" | "degraded" | "down" | "unknown" = "unknown";
+        try {
+          state = HEALTH_GAUGE[registry.getHealth(info.manifest.id).status] ?? "unknown";
+        } catch {
+          // an adapter without health information stays "unknown"
+        }
+        metrics.setAdapterHealth(info.manifest.id, state);
+      }
+      metrics.refreshDerived();
+      return metrics.registry.renderPrometheus();
+    },
     // Mock data lives on the world's (controllable) clock; its timestamps must not be compared with wall time.
     nowMs: () => world?.nowMs() ?? Date.now(),
     async start() {

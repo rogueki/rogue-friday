@@ -1,6 +1,6 @@
 import { CONTRACT_VERSION, type CommandResponse } from "@jarvis/sdk";
 import { createId } from "@jarvis/observability";
-import type { RequestContext } from "../http/context";
+import type { HandlerResult, RequestContext } from "../http/context";
 
 /**
  * Command texts the web client sends as intents (apps/web `useVoiceUi`); the Control API maps them to the voice
@@ -33,11 +33,20 @@ export function matchBuiltinIntent(text: string): BuiltinIntent | null {
 /**
  * Executes a built-in intent. The voice adapter is asked first (so an offline voice module answers 503 and a missing
  * capability `CAPABILITY_MISSING` like every other voice call); the pipeline itself is only controllable in
- * mock mode, where the world simulates it.
+ * mock mode, where the world simulates it. With the mock commands adapter the world's own command service recognizes
+ * the intents (so they run through the regular command port and show up in the command history); `delegate` is that
+ * regular path. Only a mixed setup (live commands adapter next to a mock world) drives the world directly.
  */
-export async function executeBuiltinIntent(ctx: RequestContext, intent: BuiltinIntent): Promise<CommandResponse> {
+export async function executeBuiltinIntent(ctx: RequestContext, intent: BuiltinIntent, delegate: () => Promise<HandlerResult>): Promise<HandlerResult> {
   const voice = ctx.runtime.registry.getPort("voice");
   const status = await voice.getVoiceStatus({}, ctx.call);
+  const world = ctx.runtime.world;
+  const commandsAreMock = ctx.runtime.registry.listAdapters().some((info) => info.manifest.category === "commands" && info.provider.startsWith("mock-"));
+  if (world && commandsAreMock) return delegate();
+  return { status: 200, body: executeDirectly(ctx, intent, status.data.focusMode) };
+}
+
+function executeDirectly(ctx: RequestContext, intent: BuiltinIntent, focusMode: boolean): CommandResponse {
   const world = ctx.runtime.world;
   const commandId = createId("cmd");
   const base = { contractVersion: CONTRACT_VERSION, commandId, requiresConfirmation: false, previewText: null, riskTier: 1, approvalId: null, correlationId: ctx.correlationId } as const;
@@ -48,14 +57,14 @@ export async function executeBuiltinIntent(ctx: RequestContext, intent: BuiltinI
   }
 
   if (intent === "voice_start") {
-    if (status.data.focusMode) {
+    if (focusMode) {
       return { ...base, status: "rejected", result: { message: "Der Fokus-Modus ist aktiv. Bitte zuerst den Fokus-Modus beenden." } };
     }
     world.voice.setMode("listening");
     return { ...base, status: "executed", result: { message: "Sprachaufnahme gestartet.", targetRoute: "/voice" } };
   }
 
-  const enable = !status.data.focusMode;
+  const enable = !focusMode;
   const outcome = enable
     ? world.commands.pause({ scope: "voice", reason: "Fokus-Modus" }, opContext)
     : world.commands.resume({ scope: "voice", reason: "Fokus-Modus beendet" }, opContext);

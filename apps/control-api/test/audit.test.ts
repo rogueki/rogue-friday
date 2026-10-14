@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- test code reads untyped JSON bodies and frames that the contract validators check */
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { deriveKey, loadOrCreateServerKey } from "@jarvis/auth";
 import { GENESIS_HASH } from "@jarvis/observability";
 import { createSchemaValidator, type AuditEvent, type JarvisEvent } from "@jarvis/sdk";
+import { AuditAnchor } from "../src/db/audit-anchor";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 
 const validator = createSchemaValidator();
@@ -196,6 +198,111 @@ describe("control-plane audit trail", () => {
           await again.post("/api/v1/tasks", { title: "Nachher" });
           expect(second.runtime.stores.audit.verify()).toMatchObject({ valid: true });
           expect(second.runtime.stores.audit.count()).toBeGreaterThanOrEqual(4);
+        } finally {
+          await second.app.close();
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe("tail truncation (head anchor)", () => {
+    const anchorFile = () => join(api.config.paths.dataDir, "audit-head.json");
+    const anchorOf = () =>
+      new AuditAnchor({ db: api.runtime.db, key: deriveKey(loadOrCreateServerKey(api.config.paths.dataDir).key, "audit-head"), file: anchorFile() });
+    const kvAnchor = () => (api.runtime.db.prepare("SELECT value FROM kv WHERE key = 'audit.head'").get() as { value: string } | undefined)?.value;
+
+    it("persists the chain head (length + hash) outside the audit table after every append", () => {
+      const stored = rows();
+      expect(existsSync(anchorFile())).toBe(true);
+      const file = JSON.parse(readFileSync(anchorFile(), "utf8")) as { length: number; hash: string; mac: string };
+      expect(file).toMatchObject({ length: stored.length, hash: stored.at(-1)?.hash });
+      expect(file.mac).toMatch(/^[0-9a-f]{64}$/);
+      expect(JSON.parse(kvAnchor() as string)).toMatchObject({ length: stored.length, hash: stored.at(-1)?.hash });
+    });
+
+    it("detects events cut off at the end although the remaining chain is valid", () => {
+      const all = rows();
+      const cut = all.slice(-2);
+      api.runtime.db.prepare("DELETE FROM audit_log WHERE seq >= ?").run((cut[0] as { seq: number }).seq);
+      const verification = api.runtime.stores.audit.verify();
+      expect(verification).toMatchObject({ valid: false, reason: "truncated", length: all.length - 2, brokenAtSequence: (cut[0] as { seq: number }).seq });
+    });
+
+    it("detects a single removed newest event and a fully emptied trail", () => {
+      const last = rows().at(-1) as { seq: number };
+      api.runtime.db.prepare("DELETE FROM audit_log WHERE seq = ?").run(last.seq);
+      expect(api.runtime.stores.audit.verify()).toMatchObject({ valid: false, reason: "truncated" });
+      api.runtime.db.prepare("DELETE FROM audit_log").run();
+      expect(api.runtime.stores.audit.verify()).toMatchObject({ valid: false, reason: "truncated", length: 0 });
+    });
+
+    it("detects a rewritten head (older database restored, tail replaced)", () => {
+      const all = rows();
+      const last = all.at(-1) as { seq: number; json: string; hash: string };
+      // replace the newest event by another one that is chain-consistent on its own
+      api.runtime.db.prepare("DELETE FROM audit_log WHERE seq = ?").run(last.seq);
+      const previous = all.at(-2) as { hash: string };
+      const forged = JSON.stringify({ ...JSON.parse(last.json), action: "forged.action" });
+      const forgedHash = "f".repeat(64);
+      api.runtime.db.prepare("INSERT INTO audit_log (id, occurred_at, correlation_id, category, action, json, prev_hash, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run("aud_FORGED00000000000000000000", new Date().toISOString(), "corr_FORGED0000000000000000000", "system", "forged.action", forged, previous.hash, forgedHash);
+      const verification = api.runtime.stores.audit.verify();
+      expect(verification.valid).toBe(false);
+      // the forged hash cannot match the signed head; the chain check itself may already reject the row
+      expect(["hash_mismatch", "head_mismatch"]).toContain(verification.reason);
+    });
+
+    it("rejects a forged anchor: a file edited without the server key is flagged", () => {
+      const file = JSON.parse(readFileSync(anchorFile(), "utf8")) as { v: number; length: number; hash: string; mac: string };
+      writeFileSync(anchorFile(), JSON.stringify({ ...file, length: file.length - 2 }));
+      expect(api.runtime.stores.audit.verify()).toMatchObject({ valid: false, reason: "anchor_tampered" });
+    });
+
+    it("still detects a truncation when one of the two anchors was deleted", () => {
+      rmSync(anchorFile());
+      api.runtime.db.prepare("DELETE FROM audit_log WHERE seq = (SELECT MAX(seq) FROM audit_log)").run();
+      expect(api.runtime.stores.audit.verify()).toMatchObject({ valid: false, reason: "truncated" });
+    });
+
+    it("recreates a missing anchor from a consistent chain (first start after an upgrade) and protects it from then on", () => {
+      rmSync(anchorFile());
+      api.runtime.db.prepare("DELETE FROM kv WHERE key = 'audit.head'").run();
+      expect(api.runtime.stores.audit.verify().valid).toBe(true);
+      expect(existsSync(anchorFile())).toBe(true);
+      expect(kvAnchor()).toBeDefined();
+      api.runtime.db.prepare("DELETE FROM audit_log WHERE seq = (SELECT MAX(seq) FROM audit_log)").run();
+      expect(api.runtime.stores.audit.verify()).toMatchObject({ valid: false, reason: "truncated" });
+    });
+
+    it("accepts a chain that is longer than its anchor (crash between insert and anchor write) and re-anchors it", () => {
+      const all = rows();
+      const behind = all.at(-2) as { hash: string };
+      anchorOf().write({ length: all.length - 1, hash: behind.hash });
+      expect(api.runtime.stores.audit.verify()).toMatchObject({ valid: true, length: all.length });
+      expect(JSON.parse(readFileSync(anchorFile(), "utf8"))).toMatchObject({ length: all.length, hash: all.at(-1)?.hash });
+    });
+
+    it("reports a truncated trail in /health after a restart and keeps serving", async () => {
+      const dir = mkdtempSync(join(tmpdir(), "jarvis-audit-"));
+      try {
+        const first = await startTestApi({ dir });
+        const client = first.client();
+        await client.loginDev("owner");
+        for (let index = 0; index < 3; index += 1) await client.post("/api/v1/tasks", { title: `Vor dem Kürzen ${index}` });
+        const total = first.runtime.stores.audit.count();
+        first.runtime.db.prepare("DELETE FROM audit_log WHERE seq > ?").run(total - 2);
+        await first.app.close();
+
+        const second = await startTestApi({ dir });
+        try {
+          const again = second.client();
+          await again.loginDev("owner");
+          const health = (await again.get("/api/v1/health")).json();
+          expect(health.status).toBe("degraded");
+          expect(health.components.find((component: any) => component.id === "audit-chain")).toMatchObject({ status: "offline" });
+          expect(second.runtime.audit.verification()).toMatchObject({ valid: false, reason: "truncated" });
+          expect((await again.get("/api/v1/tasks")).statusCode).toBe(200);
         } finally {
           await second.app.close();
         }

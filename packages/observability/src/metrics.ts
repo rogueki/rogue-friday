@@ -6,6 +6,8 @@ const LABEL_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 /** Guard against unbounded label cardinality (e.g. raw URLs as a label). */
 const MAX_SERIES_PER_METRIC = 500;
 
+const FRAME_TIME_BUCKETS_SECONDS = [0.004, 0.008, 0.012, 0.0167, 0.0222, 0.0334, 0.05, 0.1, 0.25] as const;
+
 export const DEFAULT_LATENCY_BUCKETS_SECONDS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10] as const;
 
 export interface CounterSeries {
@@ -317,9 +319,18 @@ export class RateMeter {
 export type AdapterHealthState = 'healthy' | 'degraded' | 'down' | 'unknown';
 const HEALTH_VALUE: Record<AdapterHealthState, number> = { healthy: 1, degraded: 0.5, down: 0, unknown: -1 };
 
+export interface OrbSample {
+  fps: number;
+  frameTimeMs: number;
+  webglMemoryBytes?: number;
+}
+
 export interface FrontendReport {
   orbFps?: number;
+  orbFrameTimeMs?: number;
   webglMemoryBytes?: number;
+  /** Samples are applied in order: the gauges end up at the last sample, the frame-time histogram sees every one. */
+  orbSamples?: OrbSample[];
   errors?: { kind: string; count?: number }[];
 }
 
@@ -353,9 +364,19 @@ export function createJarvisMetrics(registry: MetricsRegistry = new MetricsRegis
   );
   const cache = registry.counter('jarvis_cache_requests_total', 'Cache lookups', ['result']);
   const orbFps = registry.gauge('jarvis_frontend_orb_fps', 'Orb frames per second reported by the browser');
+  const orbFrameTime = registry.gauge('jarvis_frontend_orb_frame_time_ms', 'Orb frame time in milliseconds reported by the browser (last sample)');
+  const orbFrameTimeHistogram = registry.histogram(
+    'jarvis_frontend_orb_frame_time_seconds',
+    'Distribution of orb frame times reported by the browser',
+    [],
+    FRAME_TIME_BUCKETS_SECONDS,
+  );
   const webglMemory = registry.gauge('jarvis_frontend_webgl_memory_bytes', 'WebGL memory reported by the browser');
   const frontendErrors = registry.counter('jarvis_frontend_errors_total', 'Errors reported by the browser', ['kind']);
   const eventRate = new RateMeter(10_000, now);
+  const errorRatio = registry.gauge('jarvis_http_error_ratio', 'Share of HTTP responses with status >= 500 since start');
+  const eventsPerSecond = registry.gauge('jarvis_events_per_second', 'Realtime events per second (10 s window)');
+  const cacheHitRatio = registry.gauge('jarvis_cache_hit_ratio', 'Share of cache lookups that were hits (absent until the first lookup)');
 
   return {
     registry,
@@ -367,8 +388,13 @@ export function createJarvisMetrics(registry: MetricsRegistry = new MetricsRegis
     adapterHealth,
     cache,
     orbFps,
+    orbFrameTime,
+    orbFrameTimeHistogram,
     webglMemory,
     frontendErrors,
+    errorRatio,
+    eventsPerSecond,
+    cacheHitRatio,
 
     recordRequest(method: string, route: string, status: number, durationSeconds: number): void {
       httpRequests.inc({ method, route, status });
@@ -387,8 +413,26 @@ export function createJarvisMetrics(registry: MetricsRegistry = new MetricsRegis
     },
     recordFrontendReport(report: FrontendReport): void {
       if (report.orbFps !== undefined) orbFps.set(report.orbFps);
+      if (report.orbFrameTimeMs !== undefined) orbFrameTime.set(report.orbFrameTimeMs);
       if (report.webglMemoryBytes !== undefined) webglMemory.set(report.webglMemoryBytes);
+      for (const sample of report.orbSamples ?? []) {
+        orbFps.set(sample.fps);
+        orbFrameTime.set(sample.frameTimeMs);
+        orbFrameTimeHistogram.observe(sample.frameTimeMs / 1000);
+        if (sample.webglMemoryBytes !== undefined) webglMemory.set(sample.webglMemoryBytes);
+      }
       for (const error of report.errors ?? []) frontendErrors.inc({ kind: error.kind.slice(0, 64) }, error.count ?? 1);
+    },
+
+    /** Updates the gauges that are derived from other series (call right before rendering the exposition). */
+    refreshDerived(): void {
+      const requests = httpRequests.total();
+      errorRatio.set(requests === 0 ? 0 : httpErrors.total() / requests);
+      eventsPerSecond.set(eventRate.perSecond());
+      const hits = cache.value({ result: 'hit' });
+      const misses = cache.value({ result: 'miss' });
+      if (hits + misses === 0) cacheHitRatio.remove();
+      else cacheHitRatio.set(hits / (hits + misses));
     },
 
     summary(): DashboardSummary {

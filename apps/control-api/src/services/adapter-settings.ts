@@ -4,7 +4,7 @@ import type { AdapterInfo, AdapterConfigPatch, AdapterConfigSettings, AdapterTes
 import type { AdapterCategory } from "@jarvis/config";
 import type { AdapterOverrideStore } from "../db/stores";
 import type { AdapterWiring, RuntimeSecrets } from "../runtime/adapter-wiring";
-import { ApiError, notFound, validationFailed } from "../util/errors";
+import { ApiError, conflict, notFound, validationFailed } from "../util/errors";
 import { createCorrelationId } from "../util/ids";
 
 interface JsonSchemaObject {
@@ -60,6 +60,7 @@ export class AdapterSettingsService {
       category: manifest.category,
       provider: info.provider,
       enabled: info.enabled,
+      version: this.overrides.version(manifest.id),
       config: structuredClone(entry?.config ?? {}),
       configSchema: structuredClone(factory?.configSchema ?? {}) as AdapterConfigSettings["configSchema"],
       secretFields,
@@ -88,10 +89,21 @@ export class AdapterSettingsService {
     return candidate;
   }
 
-  /** Applies a patch (owner only, checked by the caller) and restarts the adapter so the change takes effect. */
-  async patch(adapterId: string, patch: AdapterConfigPatch): Promise<{ settings: AdapterConfigSettings; changed: string[] }> {
+  /**
+   * Applies a patch (owner only, checked by the caller) and restarts the adapter so the change takes effect. `ifMatch`
+   * is compared with `AdapterConfigSettings.version`; a stale value yields CONFLICT and changes nothing.
+   */
+  async patch(adapterId: string, patch: AdapterConfigPatch, ifMatch?: number): Promise<{ settings: AdapterConfigSettings; changed: string[] }> {
     const info = this.wiring.registry.listAdapters().find((candidate) => candidate.manifest.id === adapterId);
     if (!info) throw notFound("Adapter", adapterId);
+    const currentVersion = this.overrides.version(adapterId);
+    if (ifMatch !== undefined && ifMatch !== currentVersion) {
+      throw conflict(`Die Adapter-Konfiguration wurde zwischenzeitlich geändert (erwartet Version ${ifMatch}, aktuell ${currentVersion}).`, {
+        expectedVersion: ifMatch,
+        currentVersion,
+        id: adapterId,
+      });
+    }
     const { manifest } = info;
     const category = manifest.category as AdapterCategory;
     const entry = this.wiring.entries.get(category);

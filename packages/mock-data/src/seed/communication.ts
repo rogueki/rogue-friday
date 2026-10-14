@@ -306,7 +306,7 @@ const CHANNEL_SPECS: {
   syncedAgoMs: number | null;
 }[] = [
   { key: "email", kind: "email", name: "GMX Postfach", status: "online", address: "erik.brandt@gmx.example", caps: { read: true, draft: true, send: true }, unread: 5, syncedAgoMs: 45_000 },
-  { key: "telegram", kind: "telegram", name: "Telegram", status: "online", address: "@jarvis_erik_bot", caps: { read: true, draft: true, send: true }, unread: 0, syncedAgoMs: 20_000 },
+  { key: "telegram", kind: "telegram", name: "Telegram", status: "online", address: "@friday_erik_bot", caps: { read: true, draft: true, send: true }, unread: 0, syncedAgoMs: 20_000 },
   { key: "whatsapp", kind: "whatsapp", name: "WhatsApp", status: "read_only", caps: { read: true, draft: false, send: false }, unread: 3, syncedAgoMs: 2 * MIN },
   { key: "sms", kind: "sms", name: "SMS", status: "not_configured", caps: { read: false, draft: false, send: false }, unread: 0, syncedAgoMs: null },
   { key: "phone", kind: "phone", name: "Telefon", status: "degraded", caps: { read: true, draft: false, send: false }, unread: 1, syncedAgoMs: 15 * MIN },

@@ -17,6 +17,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -62,6 +63,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -107,6 +109,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -184,6 +187,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -245,6 +249,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -311,6 +316,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -370,6 +376,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -429,6 +436,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -491,6 +499,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "LoginRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -557,6 +566,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -616,6 +626,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -675,6 +686,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -737,6 +749,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "ReauthRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -891,6 +904,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -953,6 +967,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "TaskCreateRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 201,
@@ -1028,6 +1043,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -1099,6 +1115,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "TaskUpdateRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -1184,6 +1201,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "TaskActionRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -1269,6 +1287,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "TaskActionRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -1354,6 +1373,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "TaskActionRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -1439,6 +1459,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "TaskActionRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -1637,6 +1658,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -1698,6 +1720,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -1830,6 +1853,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -1892,6 +1916,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "MemoryCreateRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 201,
@@ -1967,6 +1992,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -2038,6 +2064,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "MemoryUpdateRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -2120,6 +2147,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -2196,6 +2224,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "MemorySearchRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -2297,6 +2326,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -2358,6 +2388,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -2426,6 +2457,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": true,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -2501,6 +2533,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": true,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -2576,6 +2609,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": true,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -2711,6 +2745,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -2772,6 +2807,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -2843,6 +2879,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "ApprovalDecisionRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -2928,6 +2965,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "ApprovalDecisionRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -3013,6 +3051,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "ApprovalContextRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -3111,6 +3150,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -3242,6 +3282,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -3303,6 +3344,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -3372,6 +3414,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "DraftCreateRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 201,
@@ -3450,6 +3493,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "DraftUpdateRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -3535,6 +3579,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "DraftSendRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 202,
@@ -3656,6 +3701,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -3717,6 +3763,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -3817,6 +3864,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -3901,6 +3949,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -3963,6 +4012,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "CalendarProposalRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 201,
@@ -4068,6 +4118,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -4130,6 +4181,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "AutomationCreateRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 201,
@@ -4205,6 +4257,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -4276,6 +4329,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "AutomationUpdateRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -4361,6 +4415,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "AutomationTestRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -4436,6 +4491,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -4511,6 +4567,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -4604,6 +4661,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -4695,6 +4753,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -4756,6 +4815,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -4842,6 +4902,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -4928,6 +4989,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5014,6 +5076,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5129,6 +5192,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5190,6 +5254,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5258,6 +5323,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": true,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5340,6 +5406,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5417,6 +5484,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5483,6 +5551,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5560,6 +5629,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5619,6 +5689,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5696,6 +5767,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5758,6 +5830,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "VoiceTestRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5824,6 +5897,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": true,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -5941,6 +6015,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -6005,6 +6080,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "NotificationActionRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -6090,6 +6166,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "NotificationSnoozeRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -6175,6 +6252,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "NotificationActionRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -6255,6 +6333,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -6332,6 +6411,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -6409,6 +6489,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -6486,6 +6567,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -6547,6 +6629,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -6733,6 +6816,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -6794,6 +6878,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -6890,6 +6975,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -6951,6 +7037,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -7013,6 +7100,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "SettingsPatch"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -7086,6 +7174,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -7163,6 +7252,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -7227,6 +7317,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "AdapterConfigPatch"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -7309,6 +7400,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -7393,6 +7485,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -7455,6 +7548,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "ThemeImportRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 201,
@@ -7539,6 +7633,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -7601,6 +7696,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "LayoutImportRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 201,
@@ -7667,6 +7763,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -7729,6 +7826,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "SettingsExport"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -7798,6 +7896,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "CommandRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -7874,6 +7973,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "CommandControlRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -7950,6 +8050,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "CommandControlRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -8026,6 +8127,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": false,
       "schema": "CommandControlRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -8117,6 +8219,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -8141,6 +8244,143 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       },
       {
         "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "getMetrics",
+    "method": "GET",
+    "path": "/api/v1/metrics",
+    "tag": "observability",
+    "capability": null,
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": false,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": null,
+        "contentTypes": [
+          "text/plain"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "submitFrontendTelemetry",
+    "method": "POST",
+    "path": "/api/v1/telemetry/frontend",
+    "tag": "observability",
+    "capability": null,
+    "role": "operator",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "FrontendTelemetryBatch"
+    },
+    "maxBodyBytes": 32768,
+    "responses": [
+      {
+        "status": 202,
+        "schema": "FrontendTelemetryReceiptResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 413,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
         "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
@@ -8194,6 +8434,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -8255,6 +8496,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": true,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -8324,6 +8566,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       "required": true,
       "schema": "ScenarioControlRequest"
     },
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,
@@ -8390,6 +8633,7 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     "acceptsIdempotencyKey": false,
     "csrf": false,
     "requestBody": null,
+    "maxBodyBytes": null,
     "responses": [
       {
         "status": 200,

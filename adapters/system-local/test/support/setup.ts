@@ -8,7 +8,9 @@ import { createFakeVoiceService, type FakeVoiceService } from "../fake/voice-sta
 import { createFakeHost, type FakeHostControl } from "./fake-host";
 import { closeSession, openSession, type Session } from "./conformance-kit";
 
-export const FAST = { timeoutMs: 250 } as const;
+// Probe timeout for tests: short enough for the slow-service cases (fault latency 2 s), long enough that a loaded CI
+// machine does not turn a healthy local fake into "degraded".
+export const FAST = { timeoutMs: 1_000 } as const;
 
 export interface Rig {
   qwen: FakeUpstream;

@@ -175,11 +175,16 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
   };
 }
 
-export function createWorld(config: JarvisConfig, options: { realTime: boolean; seed?: number; profile?: string }): MockWorld | undefined {
+export function createWorld(
+  config: JarvisConfig,
+  options: { realTime: boolean; seed?: number; profile?: string; nextSequence?: (floor: number) => number; assistantName?: () => string },
+): MockWorld | undefined {
   if (config.dataMode === "live") return undefined;
   return new MockWorld({
     ...(options.seed !== undefined ? { seed: options.seed } : {}),
     ...(options.profile ? { profile: options.profile as never } : {}),
+    ...(options.nextSequence ? { nextSequence: options.nextSequence } : {}),
+    ...(options.assistantName ? { assistantName: options.assistantName } : {}),
     realTime: options.realTime,
   });
 }

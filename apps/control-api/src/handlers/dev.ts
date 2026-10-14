@@ -1,8 +1,8 @@
 import { CONTRACT_VERSION, type Freshness, type ScenarioControlRequest } from "@jarvis/sdk";
-import type { ScenarioEngine } from "@jarvis/mock-data";
+import { isMockApiError, type ScenarioEngine } from "@jarvis/mock-data";
 import type { Handler, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";
-import { notFound } from "../util/errors";
+import { ApiError, notFound } from "../util/errors";
 import { localList } from "./meta";
 
 const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString() });
@@ -34,7 +34,14 @@ export const devHandlers: Partial<Record<OperationId, Handler>> = {
   async controlScenario(ctx) {
     const engine = engineOf(ctx);
     const request = ctx.body as ScenarioControlRequest;
-    const state = engine.control(request);
+    let state;
+    try {
+      state = engine.control(request);
+    } catch (error) {
+      // Keep the field-level details of the mock's validation errors (unknown event type, payload violates its schema).
+      if (isMockApiError(error)) throw new ApiError({ code: error.code, message: error.message, details: error.details });
+      throw error;
+    }
     ctx.audit.action = `dev.${request.action}`;
     ctx.audit.after = { ...request };
     // Availability/capability changes reach the registry through health checks; make the response consistent with them.

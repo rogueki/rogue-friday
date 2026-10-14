@@ -1,0 +1,14 @@
+{
+  "$schema": "https://jarvis.local/schemas/dev/scenario-control-request.schema.json",
+  "action": "play_event",
+  "eventType": "jarvis.voice.transcript_partial",
+  "subject": "voice/utterance",
+  "payload": {
+    "utteranceId": "utt_demo_0001",
+    "text": "Wie ist der Stand der Steuererklärung",
+    "final": false,
+    "confidence": 0.82,
+    "language": "de",
+    "startedAt": "2026-10-14T08:15:00Z"
+  }
+}

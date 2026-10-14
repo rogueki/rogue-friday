@@ -73,6 +73,7 @@ export function buildRouteTable(bundledYaml: string): RouteSpec[] {
         acceptsIdempotencyKey: headerNames.includes("idempotency-key"),
         csrf: headerNames.includes("x-csrf-token"),
         requestBody: body && bodySchema ? { required: body.required === true, schema: bodySchema } : null,
+        maxBodyBytes: typeof op["x-max-body-bytes"] === "number" ? (op["x-max-body-bytes"] as number) : null,
         responses,
       });
     }

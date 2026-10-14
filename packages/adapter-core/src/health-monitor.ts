@@ -13,7 +13,7 @@ export interface HealthMonitorOptions {
   clock: Clock;
   logger: Logger;
   emit: (event: AdapterEventInput) => void;
-  /** Called when the capability set differs from the previous check (after recovery, upstream feature changes). */
+  /** Called when the capability set differs from the previous successful check (recovery, upstream feature changes). */
   onCapabilitiesChanged?: (capabilities: CapabilitySet) => void;
   breaker?: CircuitBreaker;
   /** Poll interval. Default 15 000 ms. */
@@ -144,7 +144,8 @@ export class HealthMonitor {
       this.moveTo(hardDown ? "OFFLINE" : "DEGRADED", this.lastError.message);
     }
 
-    if (success && (before === "OFFLINE" || before === "INITIALIZING")) await this.refreshCapabilities();
+    // Every successful check re-reads the capability set, so upstream feature changes surface without a restart.
+    if (success) await this.refreshCapabilities();
     this.emitIfChanged();
     return this.snapshot();
   }

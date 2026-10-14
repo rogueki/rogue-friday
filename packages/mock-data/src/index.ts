@@ -27,7 +27,7 @@ export type { MockWorldOptions, WorldSnapshot, ActivityInput, AuditInput } from 
 export type { AdapterMode, AdapterRuntime, ProfileName, WorldState } from "./world/state";
 export type { OpContext, WorldEvent, WorldEventListener, DeleteOutcome } from "./world/types";
 export { WorldEventBus } from "./world/event-bus";
-export { deriveOrbSnapshot, computeHealth, ORB_TEXT } from "./world/orb";
+export { deriveOrbSnapshot, computeHealth, orbText, ORB_TEXT, DEFAULT_ASSISTANT_NAME } from "./world/orb";
 export { sizesFor } from "./seed/profiles";
 export { evaluateCondition } from "./world/services/automations";
 export type { AuditExport, AuditExportFormat } from "./world/services/audit";

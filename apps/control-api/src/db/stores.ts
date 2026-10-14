@@ -203,6 +203,8 @@ export interface AdapterOverride {
   provider: string | null;
   enabled: boolean | null;
   config: Record<string, unknown>;
+  /** Optimistic-concurrency token (`If-Match`); 1 for an adapter that was never changed through the settings UI. */
+  version: number;
 }
 
 /** Non-secret adapter configuration edited through the settings UI; it layers over `adapters.yaml` at startup. */
@@ -216,6 +218,7 @@ export class AdapterOverrideStore {
       provider: string | null;
       enabled: number | null;
       config_json: string;
+      version: number;
     }>;
     return rows.map((row) => ({
       adapterId: row.adapter_id,
@@ -223,6 +226,7 @@ export class AdapterOverrideStore {
       provider: row.provider,
       enabled: row.enabled === null ? null : row.enabled === 1,
       config: JSON.parse(row.config_json) as Record<string, unknown>,
+      version: row.version,
     }));
   }
 
@@ -230,12 +234,20 @@ export class AdapterOverrideStore {
     return this.list().find((entry) => entry.adapterId === adapterId);
   }
 
-  save(entry: AdapterOverride): void {
+  /** Current version of an adapter's configuration (1 until the first change is saved). */
+  version(adapterId: string): number {
+    const row = this.db.prepare("SELECT version FROM adapter_overrides WHERE adapter_id = ?").get(adapterId) as { version: number } | undefined;
+    return row?.version ?? 1;
+  }
+
+  /** Stores the change and increments the version; returns the new version. */
+  save(entry: Omit<AdapterOverride, "version">): number {
     this.db
       .prepare(
-        `INSERT INTO adapter_overrides (adapter_id, category, provider, enabled, config_json, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO adapter_overrides (adapter_id, category, provider, enabled, config_json, updated_at, version) VALUES (?, ?, ?, ?, ?, ?, 2)
          ON CONFLICT(adapter_id) DO UPDATE SET category = excluded.category, provider = excluded.provider,
-           enabled = excluded.enabled, config_json = excluded.config_json, updated_at = excluded.updated_at`,
+           enabled = excluded.enabled, config_json = excluded.config_json, updated_at = excluded.updated_at,
+           version = adapter_overrides.version + 1`,
       )
       .run(
         entry.adapterId,
@@ -245,5 +257,6 @@ export class AdapterOverrideStore {
         JSON.stringify(entry.config),
         new Date().toISOString(),
       );
+    return this.version(entry.adapterId);
   }
 }

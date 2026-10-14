@@ -345,6 +345,38 @@ describe('metrics', () => {
     expect(m.summary().events.perSecond).toBe(0);
   });
 
+  it('records orb samples (fps, frame time, WebGL memory) and derives ratio gauges for the exposition', () => {
+    let now = 1_000_000;
+    const m = createJarvisMetrics(new MetricsRegistry(), () => now);
+    m.recordFrontendReport({
+      orbSamples: [
+        { fps: 60, frameTimeMs: 16.7, webglMemoryBytes: 1000 },
+        { fps: 30, frameTimeMs: 33, webglMemoryBytes: 2000 },
+      ],
+      errors: [{ kind: 'js_error', count: 2 }],
+    });
+    m.recordRequest('GET', '/a', 200, 0.01);
+    m.recordRequest('GET', '/a', 503, 0.01);
+    m.recordEvent('jarvis.task.updated');
+    m.refreshDerived();
+    expect(m.cacheHitRatio.value()).toBeUndefined();
+    m.recordCache(true);
+    m.recordCache(false);
+    m.refreshDerived();
+    const text = m.registry.renderPrometheus();
+    expect(text).toContain('jarvis_frontend_orb_fps 30');
+    expect(text).toContain('jarvis_frontend_orb_frame_time_ms 33');
+    expect(text).toContain('jarvis_frontend_webgl_memory_bytes 2000');
+    expect(text).toContain('jarvis_frontend_orb_frame_time_seconds_count 2');
+    expect(text).toContain('jarvis_frontend_errors_total{kind="js_error"} 2');
+    expect(text).toContain('jarvis_http_error_ratio 0.5');
+    expect(text).toContain('jarvis_events_per_second 0.1');
+    expect(text).toContain('jarvis_cache_hit_ratio 0.5');
+    now += 20_000;
+    m.refreshDerived();
+    expect(m.eventsPerSecond.value()).toBe(0);
+  });
+
   it('RateMeter slides', () => {
     let t = 0;
     const r = new RateMeter(1000, () => t);
