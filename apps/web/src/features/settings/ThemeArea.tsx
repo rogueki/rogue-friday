@@ -1,7 +1,8 @@
 "use client";
 
 import { defaultTheme, getTheme, parseColor } from "@jarvis/design-tokens";
-import type { Theme } from "@jarvis/sdk";
+import { OrbFallback2D } from "@jarvis/orb";
+import type { OrbStatus, Theme } from "@jarvis/sdk";
 import { Button, EmptyState, HudPanel, Slider, StatusChip, Switch, TagPill } from "@jarvis/ui";
 import { Download, FileUp, RotateCcw, Upload } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
@@ -12,6 +13,10 @@ import { FieldGrid, Section, TextAreaField } from "./controls";
 import { useAreaDraft } from "./SettingsDrafts";
 import { downloadJson, parseThemeImport, resolveRuntimeTheme, slugify } from "./settingsLogic";
 import type { MessageKey } from "@/i18n";
+
+/** Static idle orb for the preview: the real orb identity (gold core, circuit shell) drawn once, no animation loop. */
+const PREVIEW_ORB_STATUS: OrbStatus = { mode: "idle", health: "online", since: "2026-01-01T00:00:00.000Z", urgency: "none", progressMode: "none" };
+const PREVIEW_ORB_SETTINGS = { animations: "off" } as const;
 
 /** Tokens a user can recolour in the editor (all of them exist in the design-token map, so they apply live). */
 const EDITABLE_TOKENS = [
@@ -183,7 +188,9 @@ export function ThemeArea() {
           </div>
           <HudPanel className="st-preview" title={t("settings.theme.preview")} subtitle={t("settings.theme.previewDesc")} level={2} padding="md">
             <div className="st-preview__body">
-              <span className="st-preview__orb" aria-hidden="true" />
+              <span className="st-preview__orb" aria-hidden="true">
+                <OrbFallback2D status={PREVIEW_ORB_STATUS} settings={PREVIEW_ORB_SETTINGS} />
+              </span>
               <div className="st-preview__chips">
                 <StatusChip tone="cyan">{t("settings.theme.preview.chip")}</StatusChip>
                 <StatusChip tone="green">{t("settings.theme.preview.ok")}</StatusChip>

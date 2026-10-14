@@ -12,7 +12,11 @@
   },
   "dependencies": {
     "@jarvis/design-tokens": "workspace:*",
+    "@jarvis/mock-data": "workspace:*",
+    "@jarvis/orb": "workspace:*",
+    "@jarvis/sdk": "workspace:*",
     "@jarvis/ui": "workspace:*",
+    "@tanstack/react-query": "^5.104.2",
     "lucide-react": "^1.56.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

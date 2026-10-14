@@ -2,11 +2,13 @@ import { ChevronDown, Search, X } from 'lucide-react';
 import {
   forwardRef,
   useRef,
+  useState,
   type ChangeEvent,
   type InputHTMLAttributes,
   type KeyboardEvent,
   type ReactNode,
   type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
 } from 'react';
 import { cx } from '../cx';
 import { useControllable, useStableId } from '../hooks';
@@ -100,6 +102,74 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
       ) : hint ? (
         <p id={hintId} className="jv-field__hint">
           {hint}
+        </p>
+      ) : null}
+    </div>
+  );
+});
+
+/* ── TextArea ───────────────────────────────────────────────────────────── */
+
+export interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label: string;
+  hideLabel?: boolean;
+  hint?: string;
+  /** Error message; sets aria-invalid and is announced (role="alert"). */
+  error?: string;
+  /** Shows "n / maxLength" below the field (needs `maxLength`); updates are not announced per keystroke. */
+  showCount?: boolean;
+}
+
+/** Multi-line text input with the same label / hint / error contract as {@link TextField}. */
+export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
+  { label, hideLabel, hint, error, showCount, className, id, required, disabled, rows = 4, maxLength, value, defaultValue, onChange, ...rest },
+  ref,
+) {
+  const autoId = useStableId('jv-textarea');
+  const fieldId = id ?? autoId;
+  const hintId = `${fieldId}-hint`;
+  const errorId = `${fieldId}-error`;
+  const countId = `${fieldId}-count`;
+  const [length, setLength] = useState(() => String(value ?? defaultValue ?? '').length);
+  const counted = showCount && maxLength !== undefined;
+  const handleChange = (event: ChangeEvent<HTMLTextAreaElement>): void => {
+    setLength(event.target.value.length);
+    onChange?.(event);
+  };
+  const currentLength = value !== undefined ? String(value).length : length;
+  return (
+    <div className={cx('jv-field', error && 'jv-field--invalid', disabled && 'jv-field--disabled', className)}>
+      <label htmlFor={fieldId} className={cx('jv-field__label', hideLabel && 'jv-sr-only')}>
+        {label}
+        {required ? <span aria-hidden="true"> *</span> : null}
+      </label>
+      <textarea
+        ref={ref}
+        id={fieldId}
+        className="jv-field__input jv-field__textarea"
+        rows={rows}
+        required={required}
+        disabled={disabled}
+        maxLength={maxLength}
+        value={value}
+        defaultValue={defaultValue}
+        onChange={handleChange}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={cx(error && errorId, hint && hintId, counted && countId) || undefined}
+        {...rest}
+      />
+      {error ? (
+        <p id={errorId} className="jv-field__error" role="alert">
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={hintId} className="jv-field__hint">
+          {hint}
+        </p>
+      ) : null}
+      {counted ? (
+        <p id={countId} className="jv-field__count">
+          {currentLength} / {maxLength}
         </p>
       ) : null}
     </div>
@@ -329,7 +399,7 @@ export function Tabs({ items, value, defaultValue, onValueChange, label, variant
               id={`${baseId}-tab-${item.id}`}
               data-tab={item.id}
               aria-selected={selected}
-              aria-controls={`${baseId}-panel-${item.id}`}
+              aria-controls={selected && current?.content !== undefined ? `${baseId}-panel-${item.id}` : undefined}
               tabIndex={selected ? 0 : -1}
               disabled={item.disabled}
               className={cx('jv-tabs__tab', selected && 'jv-tabs__tab--active')}

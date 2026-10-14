@@ -96,6 +96,26 @@ export const Loading: Story = {
   ),
 };
 
+/** Compact variants in narrow panels (< 320 px): the action wraps below the text instead of being clipped. */
+export const CompactInNarrowPanels: Story = {
+  name: 'Compact (schmale Panels)',
+  render: () => (
+    <div style={{ padding: 28, display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
+      {[220, 280, 320].map((width) => (
+        <div key={width} style={{ width, display: 'grid', gap: 10 }}>
+          <HudPanel title={`${width} px`} padding="sm">
+            <div style={{ display: 'grid', gap: 10 }}>
+              <ErrorState compact title="Verlauf nicht verfügbar" code="ADAPTER_TIMEOUT" onRetry={() => undefined} />
+              <OfflineState compact title="Offline" lastSync="2026-06-15T10:58:00+02:00" now={now} onRetry={() => undefined} />
+              <EmptyState compact title="Keine Freigaben offen" action={<Button size="sm">Neu laden</Button>} />
+            </div>
+          </HudPanel>
+        </div>
+      ))}
+    </div>
+  ),
+};
+
 export const MissingAndReadOnlyCapability: Story = {
   name: 'Missing / read-only capability',
   render: () => (

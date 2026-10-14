@@ -27,6 +27,11 @@
   outline-offset: 1px;
   border-color: var(--jarvis-border-active);
 }
+.jv-field__textarea { display: block; height: auto; min-height: 76px; padding: 9px 12px; line-height: 1.5; resize: vertical; }
+.jv-field__textarea:hover { border-color: var(--jarvis-border); }
+.jv-field__textarea:focus-visible { outline: 2px solid var(--jarvis-focus); outline-offset: 1px; border-color: var(--jarvis-border-active); }
+.jv-field__count { margin: 0; align-self: flex-end; font-family: var(--jv-font-mono); font-size: var(--jv-fs-2xs); color: var(--jarvis-muted); }
+.jv-field--disabled textarea { cursor: not-allowed; }
 .jv-field__icon { position: absolute; left: 11px; display: inline-flex; color: var(--jarvis-cyan); pointer-events: none; }
 .jv-field__icon + .jv-field__input { padding-left: 34px; }
 .jv-field__suffix { position: absolute; right: 10px; color: var(--jarvis-muted); font-size: var(--jv-fs-xs); }
@@ -90,3 +95,9 @@
 .jv-tabs--boxed .jv-tabs__tab--active { border-color: var(--jarvis-border-active); background: color-mix(in srgb, var(--jarvis-cyan) 12%, transparent); }
 .jv-tabs--boxed .jv-tabs__tab--active::after { display: none; }
 .jv-tabs__panel { min-width: 0; }
+
+/* StatusFlag: small icon-only status marker (wake word, microphone, …) with a text alternative */
+.jv-flag { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 20px; color: var(--jarvis-muted); background: rgba(2, 10, 18, 0.55); border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm); }
+.jv-flag:focus-visible { outline: 2px solid var(--jarvis-focus); outline-offset: 2px; }
+.jv-flag--ok { color: var(--jarvis-tone-green); border-color: var(--jarvis-tint-green-border); background: var(--jarvis-tint-green-bg); }
+.jv-flag--warn { color: var(--jarvis-tone-amber); border-color: var(--jarvis-tint-amber-border); background: var(--jarvis-tint-amber-bg); }

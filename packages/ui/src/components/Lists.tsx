@@ -150,7 +150,6 @@ export const ActivityFeed = forwardRef<HTMLDivElement, ActivityFeedProps>(functi
       style={{ height, ...style }}
       role="list"
       aria-label={label}
-      aria-rowcount={totalCount ?? items.length}
       tabIndex={0}
       {...rest}
     >
