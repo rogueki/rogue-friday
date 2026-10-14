@@ -11,7 +11,8 @@ KEY="$(printf '%s' "$KEY" | tr -d '\r\n ')"
 
 # Windows-PATH ist angehaengt; Linux-Programme muessen vorne stehen.
 export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
-export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+XDG_RUNTIME_DIR="/run/user/$(id -u)"
+export XDG_RUNTIME_DIR
 INST="${JARVIS_INSTALLER:-/mnt/c/Jarvis/installer}"
 CFG="${JARVIS_CONFIG:-/mnt/c/Jarvis/config}"
 DASH_PORT="${JARVIS_DASH_PORT:-43691}"
@@ -28,6 +29,7 @@ fi
 hermes --version | head -1
 
 step "Kimi-Zugang"
+mkdir -p "$H"
 touch "$H/.env" && chmod 600 "$H/.env"
 sed -i '/^KIMI_API_KEY=/d' "$H/.env"
 printf 'KIMI_API_KEY=%s\n' "$KEY" >> "$H/.env"
@@ -91,15 +93,20 @@ systemctl --user daemon-reload
 systemctl --user enable --now hermes-dashboard.service
 
 step "Pruefen"
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
     curl -sf -o /dev/null "http://127.0.0.1:$DASH_PORT/" && break
     sleep 3
 done
-DASH="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$DASH_PORT/")"
-for i in $(seq 1 60); do
+# "|| true": curl liefert bei "Verbindung abgelehnt" Exit 7; unter set -e wuerde das Skript sonst ohne FAIL-Meldung enden.
+DASH="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$DASH_PORT/" || true)"
+for _ in $(seq 1 60); do
     curl -sf -o /dev/null -H "Authorization: Bearer $API_KEY" "http://127.0.0.1:$API_PORT/v1/models" && break
     sleep 3
 done
-API="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $API_KEY" "http://127.0.0.1:$API_PORT/v1/models")"
+API="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $API_KEY" "http://127.0.0.1:$API_PORT/v1/models" || true)"
 echo "gateway=$(systemctl --user is-active hermes-gateway) dashboard=$(systemctl --user is-active hermes-dashboard) dashboard_http=$DASH api_http=$API"
-[ "$DASH" = "200" ] && [ "$API" = "200" ] && echo "HERMES_SETUP_DONE" || { echo "FAIL Dienste nicht erreichbar"; exit 1; }
+if [ "$DASH" = "200" ] && [ "$API" = "200" ]; then
+    echo "HERMES_SETUP_DONE"
+else
+    echo "FAIL Dienste nicht erreichbar"; exit 1
+fi

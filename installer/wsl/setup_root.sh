@@ -3,7 +3,7 @@
 # stdin: Zeile 1 = Benutzername, Zeile 2 = Passwort (kommt vom Windows-Installer, landet nirgends auf Platte).
 set -euo pipefail
 read -r U
-read -r PW
+IFS= read -r PW   # IFS leer: Passwort mit fuehrenden/abschliessenden Leerzeichen bleibt unveraendert
 # PowerShell 5.1 stellt beim Pipen ein UTF-8-BOM voran (getestet) - entfernen, ebenso CR.
 U="${U#$'\xEF\xBB\xBF'}"; U="${U//$'\r'/}"; PW="${PW//$'\r'/}"
 [[ "$U" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || { echo "FAIL ungueltiger Benutzername"; exit 1; }
