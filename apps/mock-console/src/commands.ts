@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { JarvisApiError, type OrbMode, type ScenarioControlRequest, type ScenarioState } from "@jarvis/sdk";
 import { openSession, type ConsoleSession, type DevRole } from "./session";
@@ -58,6 +59,10 @@ Befehle
                                  oder Sequenz: ${Object.keys(EVENT_SEQUENCES).join(", ")}   [--step-ms <ms>]
   orb <modus> [--text <t>] [--level <0..1>] [--progress <0..1>]
                                  Orb-Zustand erzwingen (${ORB_MODES.join(", ")})
+  release-orb                    erzwungenen Orb-Zustand freigeben (Orb folgt wieder dem abgeleiteten Zustand)
+  play-event <typ> [--subject <s>] [--payload <json|@datei>]
+                                 beliebiges Ereignis der Ereignisliste abspielen (z. B. jarvis.orb.status_changed;
+                                 Typen ohne abgeleiteten Zustand brauchen --payload)
   reset                          Snapshot zurücksetzen
   status                         Gesamtstatus und Orb-Zustand anzeigen
   watch [--count <n>] [--for <ms>] [--type <prefix>] [--since <sequenz>]
@@ -106,6 +111,28 @@ function parseNumber(text: string | undefined, label: string, min: number, max: 
   return value;
 }
 
+const EVENT_TYPE = /^jarvis\.[a-z_]+(\.[a-z_]+)+$/;
+
+/** `--payload '{"a":1}'` or `--payload @datei.json`; the payload must be a JSON object. */
+function parsePayload(text: string): Record<string, unknown> {
+  let raw = text;
+  if (text.startsWith("@")) {
+    try {
+      raw = readFileSync(text.slice(1), "utf8");
+    } catch (error) {
+      throw new UsageError(`--payload: Datei "${text.slice(1)}" nicht lesbar (${error instanceof Error ? error.message : String(error)}).`);
+    }
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new UsageError("--payload: kein gültiges JSON.");
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw new UsageError("--payload: erwartet ein JSON-Objekt.");
+  return parsed as Record<string, unknown>;
+}
+
 function isOrbMode(value: string): value is OrbMode {
   return (ORB_MODES as readonly string[]).includes(value);
 }
@@ -148,6 +175,8 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
         level: { type: "string" },
         progress: { type: "string" },
         "step-ms": { type: "string" },
+        subject: { type: "string" },
+        payload: { type: "string" },
         count: { type: "string" },
         for: { type: "string" },
         type: { type: "string" },
@@ -282,6 +311,26 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
           ...(values.progress !== undefined ? { progress: parseNumber(values.progress, "--progress", 0, 1) } : {}),
         });
         print(state, () => [`Orb-Zustand erzwungen: ${mode}.`]);
+        return 0;
+      }
+      case "release-orb": {
+        const state = await control({ action: "release_orb_state" });
+        print(state, () => ["Erzwungener Orb-Zustand freigegeben.", ...describeState(state)]);
+        return 0;
+      }
+      case "play-event": {
+        const eventType = rest[0];
+        if (!eventType || !EVENT_TYPE.test(eventType)) {
+          throw new UsageError("play-event: Ereignistyp fehlt oder ist ungültig (z. B. jarvis.orb.status_changed).");
+        }
+        const payload = values.payload === undefined ? undefined : parsePayload(values.payload);
+        const state = await control({
+          action: "play_event",
+          eventType,
+          ...(values.subject !== undefined ? { subject: values.subject } : {}),
+          ...(payload !== undefined ? { payload } : {}),
+        });
+        print(state, () => [`Ereignis ${eventType} abgespielt.`]);
         return 0;
       }
       case "reset": {

@@ -60,6 +60,7 @@ export const PORT_SPEC: Spec = {
     retryTask: single("retryTask", "tasks.retry", "TaskResponse", true),
     pauseTask: single("pauseTask", "tasks.pause", "TaskResponse", true),
     resumeTask: single("resumeTask", "tasks.resume", "TaskResponse", true),
+    provideTaskInput: single("provideTaskInput", "tasks.input", "TaskResponse", true),
   },
   activity: {
     listActivity: page("listActivity", "activity.read", "ActivityEventListResponse"),
@@ -72,6 +73,8 @@ export const PORT_SPEC: Spec = {
     updateMemory: single("updateMemory", "memory.write", "MemoryResponse", true),
     deleteMemory: action("deleteMemory", "memory.delete"),
     searchMemory: method("searchMemory", "memory.search", { kind: "hits", schema: "MemorySearchResponse" }),
+    exportMemory: method("exportMemory", "memory.export", { kind: "flat", schema: "MemoryExport" }),
+    resolveMemoryConflict: single("resolveMemoryConflict", "memory.resolveConflict", "MemoryResponse", true),
   },
   agents: {
     listAgents: page("listAgents", "agents.read", "AgentListResponse"),
@@ -79,6 +82,7 @@ export const PORT_SPEC: Spec = {
     pauseAgent: single("pauseAgent", "agents.pause", "AgentResponse", true),
     resumeAgent: single("resumeAgent", "agents.resume", "AgentResponse", true),
     stopAgent: single("stopAgent", "agents.stop", "AgentResponse", true),
+    assignTask: single("assignTask", "agents.assignTask", "TaskResponse", true),
   },
   approvals: {
     listApprovals: page("listApprovals", "approvals.read", "ApprovalListResponse"),
@@ -96,6 +100,7 @@ export const PORT_SPEC: Spec = {
     listChannels: page("listChannels", "communication.read", "ChannelListResponse"),
     listThreads: page("listThreads", "communication.read", "ThreadListResponse"),
     getThread: single("getThread", "communication.read", "ThreadResponse"),
+    listDrafts: page("listDrafts", "communication.draft", "DraftListResponse"),
     createDraft: single("createDraft", "communication.draft", "DraftResponse", true),
     updateDraft: single("updateDraft", "communication.draft", "DraftResponse", true),
     requestDraftSend: single("requestDraftSend", "communication.send", "ApprovalResponse", true),
@@ -121,6 +126,17 @@ export const PORT_SPEC: Spec = {
     testAutomation: single("testAutomation", "automations.test", "AutomationRunResponse", true),
     enableAutomation: single("enableAutomation", "automations.enable", "AutomationResponse", true),
     disableAutomation: single("disableAutomation", "automations.disable", "AutomationResponse", true),
+    listAutomationVersions: page(
+      "listAutomationVersions",
+      "automations.versions",
+      "AutomationVersionListResponse",
+    ),
+    pauseAllAutomations: single(
+      "pauseAllAutomations",
+      "automations.pauseAll",
+      "AutomationPauseAllResponse",
+      true,
+    ),
   },
   research: {
     listResearchProjects: page("listResearchProjects", "research.read", "ResearchProjectListResponse"),
@@ -135,6 +151,7 @@ export const PORT_SPEC: Spec = {
     getFilePreview: single("getFilePreview", "files.preview", "FilePreviewResponse"),
     downloadFile: method("downloadFile", "files.download", { kind: "raw" }),
     deleteFile: method("deleteFile", "files.delete", { kind: "delete-file" }, true),
+    renameFile: single("renameFile", "files.rename", "FileItemResponse", true),
   },
   voice: {
     getVoiceStatus: single("getVoiceStatus", "voice.read", "VoiceStatusResponse"),
@@ -143,6 +160,9 @@ export const PORT_SPEC: Spec = {
     listVoiceProfiles: page("listVoiceProfiles", "voice.read", "VoiceProfileListResponse"),
     runVoiceTest: single("runVoiceTest", "voice.test", "VoiceTestResultResponse", true),
     stopVoice: action("stopVoice", "voice.stop"),
+    enrollVoiceProfile: single("enrollVoiceProfile", "voice.enroll", "VoiceEnrollmentResponse", true),
+    getVoiceEnrollment: single("getVoiceEnrollment", "voice.enroll", "VoiceEnrollmentResponse"),
+    deleteVoiceHistory: action("deleteVoiceHistory", "voice.deleteHistory"),
   },
   notifications: {
     listNotifications: page("listNotifications", "notifications.read", "NotificationListResponse"),
@@ -197,7 +217,7 @@ export const FLAG_ONLY_CAPABILITIES: Readonly<Record<PortCategory, readonly stri
   tasks: ["tasks.stream"],
   activity: ["activity.stream", "activity.backfill"],
   memory: ["memory.lock"],
-  agents: ["agents.assignTask"],
+  agents: [],
   approvals: ["approvals.editBeforeApprove"],
   communication: ["communication.multiChannel"],
   calendar: [
@@ -207,10 +227,10 @@ export const FLAG_ONLY_CAPABILITIES: Readonly<Record<PortCategory, readonly stri
     "calendar.invite",
     "calendar.respond",
   ],
-  automations: ["automations.pauseAll"],
+  automations: [],
   research: ["research.create", "research.export"],
   files: ["files.upload"],
-  voice: ["voice.enroll"],
+  voice: [],
   notifications: [],
   system: ["system.restartAdapter", "system.openLogs"],
   audit: ["audit.hashChain"],

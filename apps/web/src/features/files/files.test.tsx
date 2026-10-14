@@ -4,10 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
 import { capabilitiesOf, renderWithProviders } from "@/test/render";
-import { listOf, NOW, routedFetch, single, SOURCE } from "@/features/system/testSupport";
+import { errorBody, listOf, NOW, routedFetch, single, SOURCE } from "@/features/system/testSupport";
 import { FilesPage } from "./FilesPage";
 import { isSameOriginPath, PreviewContent } from "./FilePreview";
 import { SafeMarkdown } from "./SafeMarkdown";
+import { validateFileName } from "./RenameFileDialog";
 
 const push = vi.fn();
 const replace = vi.fn();
@@ -228,5 +229,83 @@ describe("files page", () => {
     await user.click(screen.getByRole("tab", { name: /Herkunft/ }));
     await user.click(await screen.findByRole("button", { name: "Aufgabe öffnen", hidden: false }));
     expect(push).toHaveBeenCalledWith("/tasks?task=task_01JAAAAAAAAAAAAAAAAAAAAAAA");
+  });
+});
+
+describe("rename (PLAN §37.3)", () => {
+  const ID = "file_01JAAAAAAAAAAAAAAAAAAAAAAA";
+
+  it("validates names like the contract", () => {
+    expect(validateFileName("Bericht.md")).toBeNull();
+    expect(validateFileName("   ")).toBe("empty");
+    for (const bad of ["a/b.md", "a\\b.md", "x:y", "..", "ende.", "a*b", "tab\tname", "x".repeat(256)]) expect(validateFileName(bad), bad).toBe("invalid");
+  });
+
+  it("is disabled with the reason when the capability is missing", async () => {
+    params = new URLSearchParams(`file=${ID}`);
+    const fake = routedFetch(filesRoutes([file()]));
+    renderWithProviders(<FilesPage />, { fetchImpl: fake.fetch, capabilities: caps({ rename: false }) });
+    const button = await screen.findByRole("button", { name: "Umbenennen …" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", "Nicht verfügbar: Capability files.rename fehlt.");
+  });
+
+  it("renames with If-Match, refuses unchanged, invalid and duplicate names before any request, and confirms", async () => {
+    params = new URLSearchParams(`file=${ID}`);
+    const user = userEvent.setup();
+    const other = file({ id: "file_01JBBBBBBBBBBBBBBBBBBBBBBB", name: "Angebot.md" });
+    const fake = routedFetch(
+      filesRoutes([file(), other], {
+        [`PATCH /api/v1/files/${ID}`]: (_url: URL, request: Request) => {
+          void request;
+          return single(file({ name: "Bericht final.md", version: 4 }));
+        },
+      }),
+    );
+    renderWithProviders(<FilesPage />, { fetchImpl: fake.fetch, capabilities: caps({ rename: true }) });
+    await user.click(await screen.findByRole("button", { name: "Umbenennen …" }));
+    const dialog = await screen.findByRole("dialog", { name: /umbenennen/ });
+    const field = within(dialog).getByRole("textbox", { name: "Neuer Name" });
+    const confirm = within(dialog).getByRole("button", { name: "Umbenennen" });
+    expect(field).toHaveValue("Bericht.md");
+    expect(confirm).toBeDisabled();
+    expect(within(dialog).getByText("Der Name ist unverändert.")).toBeInTheDocument();
+
+    await user.clear(field);
+    await user.type(field, "ordner/neu.md");
+    expect(within(dialog).getByText(/darf nicht leer sein/)).toBeInTheDocument();
+    expect(confirm).toBeDisabled();
+
+    await user.clear(field);
+    await user.type(field, "angebot.MD");
+    expect(within(dialog).getByText("Im selben Ordner gibt es bereits eine Datei mit diesem Namen.")).toBeInTheDocument();
+    expect(confirm).toBeDisabled();
+    expect(fake.calls.some((call) => call.method === "PATCH")).toBe(false);
+
+    await user.clear(field);
+    await user.type(field, "Bericht final.md");
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+    await waitFor(() => expect(fake.calls.some((call) => call.method === "PATCH")).toBe(true));
+    const call = fake.calls.find((entry) => entry.method === "PATCH");
+    expect(call?.headers.get("If-Match")).toBe("3");
+    expect(JSON.parse(call?.body ?? "{}")).toEqual({ name: "Bericht final.md" });
+    expect(await screen.findByText("Umbenannt in „Bericht final.md“")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: /umbenennen/ })).toBeNull());
+  });
+
+  it("keeps the dialog open and shows the server message when the rename is refused", async () => {
+    params = new URLSearchParams(`file=${ID}`);
+    const user = userEvent.setup();
+    const fake = routedFetch(filesRoutes([file()], { [`PATCH /api/v1/files/${ID}`]: () => errorBody("VALIDATION_FAILED", "Der Dateiname ist ungültig.", 422) }));
+    renderWithProviders(<FilesPage />, { fetchImpl: fake.fetch, capabilities: caps({ rename: true }) });
+    await user.click(await screen.findByRole("button", { name: "Umbenennen …" }));
+    const dialog = await screen.findByRole("dialog", { name: /umbenennen/ });
+    const field = within(dialog).getByRole("textbox", { name: "Neuer Name" });
+    await user.clear(field);
+    await user.type(field, "Neu.md");
+    await user.click(within(dialog).getByRole("button", { name: "Umbenennen" }));
+    expect(await within(dialog).findByText("Der Dateiname ist ungültig.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /umbenennen/ })).toBeInTheDocument();
   });
 });

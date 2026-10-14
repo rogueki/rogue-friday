@@ -69,6 +69,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/adapters/{id}/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent redacted log lines of one adapter from the Control API log buffer */
+        get: operations["getAdapterLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/adapters/{id}/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restart one adapter (owner, audited; shutdown, new instance, initialize) */
+        post: operations["restartAdapter"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents": {
         parameters: {
             query?: never;
@@ -479,6 +513,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/automations/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Version history of an automation, newest first */
+        get: operations["listAutomationVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/pause-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pause every enabled automation (Pause All) and report the outcome per automation */
+        post: operations["pauseAllAutomations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/calendar/briefings": {
         parameters: {
             query?: never;
@@ -690,7 +758,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List drafts, optionally of one thread */
+        get: operations["listDrafts"];
         put?: never;
         /** Create a draft */
         post: operations["createDraft"];
@@ -868,7 +937,8 @@ export interface paths {
         delete: operations["deleteFile"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Rename a file (If-Match) */
+        patch: operations["renameFile"];
         trace?: never;
     };
     "/api/v1/files/{id}/download": {
@@ -957,6 +1027,40 @@ export interface paths {
         head?: never;
         /** Edit, lock or confirm a memory */
         patch: operations["updateMemory"];
+        trace?: never;
+    };
+    "/api/v1/memory/{id}/conflicts/{conflictId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve a memory conflict (keep_both, replace or dismiss) */
+        post: operations["resolveMemoryConflict"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/memory/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export all memories as JSON (restricted memories are omitted, never secrets) */
+        get: operations["exportMemory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/memory/search": {
@@ -1526,6 +1630,23 @@ export interface paths {
         patch: operations["updateTask"];
         trace?: never;
     };
+    "/api/v1/tasks/{id}/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign a task to an agent or release it */
+        post: operations["assignTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks/{id}/cancel": {
         parameters: {
             query?: never;
@@ -1537,6 +1658,23 @@ export interface paths {
         put?: never;
         /** Cancel a task */
         post: operations["cancelTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/input": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Answer a task that waits for input (blocker input_needed) */
+        post: operations["provideTaskInput"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1631,6 +1769,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/enrollments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status of one enrollment job */
+        get: operations["getVoiceEnrollment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete the voice history (needs confirm=true, audited) */
+        delete: operations["deleteVoiceHistory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/metrics": {
         parameters: {
             query?: never;
@@ -1659,6 +1831,23 @@ export interface paths {
         get: operations["listVoiceProfiles"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/profiles/{id}/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start the enrollment of a voice profile; returns the job (202) */
+        post: operations["enrollVoiceProfile"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1931,6 +2120,33 @@ export interface components {
          * @enum {string}
          */
         AdapterLifecycle: "UNREGISTERED" | "INITIALIZING" | "ONLINE" | "DEGRADED" | "OFFLINE" | "RECOVERING" | "STOPPING" | "STOPPED";
+        /**
+         * AdapterLogEntry
+         * @description One redacted log line of an adapter from the Control API's log buffer (PLAN §40.4 Open Logs). Secrets, tokens and personal data never appear.
+         */
+        AdapterLogEntry: {
+            adapterId: string;
+            /** @description Redacted scalar fields of the log call. */
+            context: {
+                [key: string]: string | number | boolean | null;
+            };
+            correlationId: string | null;
+            /** @enum {string} */
+            level: "debug" | "info" | "warn" | "error";
+            message: string;
+            /** Format: date-time */
+            timestamp: string;
+        };
+        /**
+         * AdapterLogListResponse
+         * @description Recent log lines of one adapter, newest last. Not paginated: the buffer is bounded and limit caps the result.
+         */
+        AdapterLogListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["AdapterLogEntry"][];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
         /**
          * AdapterManifest
          * @description Static description of an adapter package (PLAN §10.4).
@@ -2369,6 +2585,40 @@ export interface components {
             sources: components["schemas"]["SourceDescriptor"][];
         };
         /**
+         * AutomationPauseAllRequest
+         * @description Optional body of the bulk pause (PLAN §35.3 Pause All).
+         */
+        AutomationPauseAllRequest: {
+            reason?: string;
+        };
+        /**
+         * AutomationPauseAllResponse
+         * @description Single-resource envelope for AutomationPauseAllResult.
+         */
+        AutomationPauseAllResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["AutomationPauseAllResult"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * AutomationPauseAllResult
+         * @description Per-automation outcome of the bulk pause. Automations that are already paused or disabled stay untouched.
+         */
+        AutomationPauseAllResult: {
+            failedCount: number;
+            pausedCount: number;
+            results: {
+                automationId: string;
+                message?: string;
+                name: string;
+                /** @enum {string} */
+                outcome: "paused" | "already_paused" | "skipped" | "failed";
+                /** @description Version after the operation (null when the automation could not be read). */
+                version: number | null;
+            }[];
+            unchangedCount: number;
+        };
+        /**
          * AutomationResponse
          * @description Single-resource envelope for Automation.
          */
@@ -2448,6 +2698,8 @@ export interface components {
             sources: string[];
             test: boolean;
             update: boolean;
+            /** @description Read the version history of an automation. */
+            versions?: boolean;
         };
         /** AutomationTestRequest */
         AutomationTestRequest: {
@@ -2479,6 +2731,44 @@ export interface components {
             name?: string;
             paused?: boolean;
             trigger?: components["schemas"]["AutomationTrigger"];
+        };
+        /**
+         * AutomationVersion
+         * @description One entry of the version history of an automation (PLAN §35.3 Versionierung). Newest version first.
+         */
+        AutomationVersion: {
+            automationId: string;
+            changedBy: components["schemas"]["Actor"];
+            /** Format: date-time */
+            createdAt: string;
+            /** @description True for the version that is live now. */
+            current: boolean;
+            /** @description Definition of the automation at this version. */
+            snapshot: {
+                actions: components["schemas"]["AutomationAction"][];
+                conditions: components["schemas"]["AutomationCondition"][];
+                description?: string;
+                enabled: boolean;
+                escalation: components["schemas"]["EscalationStep"][];
+                name: string;
+                paused: boolean;
+                trigger: components["schemas"]["AutomationTrigger"];
+            };
+            source: components["schemas"]["SourceDescriptor"];
+            /** @description What changed compared to the previous version. */
+            summary: string;
+            version: number;
+        };
+        /**
+         * AutomationVersionListResponse
+         * @description Cursor-paginated list envelope for AutomationVersion.
+         */
+        AutomationVersionListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["AutomationVersion"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
         };
         /** BackupSettings */
         BackupSettings: {
@@ -2735,6 +3025,8 @@ export interface components {
                 TasksCapability: {
                     cancel: boolean;
                     create: boolean;
+                    /** @description Answer tasks that wait for input (POST /tasks/{id}/input). */
+                    input?: boolean;
                     pause: boolean;
                     read: boolean;
                     resume: boolean;
@@ -2753,8 +3045,12 @@ export interface components {
                 /** MemoryCapability */
                 MemoryCapability: {
                     delete: boolean;
+                    /** @description Export the memory store as JSON. */
+                    export?: boolean;
                     lock: boolean;
                     read: boolean;
+                    /** @description Resolve memory conflicts. */
+                    resolveConflict?: boolean;
                     search: boolean;
                     sources: string[];
                     write: boolean;
@@ -2812,6 +3108,8 @@ export interface components {
                     sources: string[];
                     test: boolean;
                     update: boolean;
+                    /** @description Read the version history of an automation. */
+                    versions?: boolean;
                 };
                 /** ResearchCapability */
                 ResearchCapability: {
@@ -2826,11 +3124,15 @@ export interface components {
                     download: boolean;
                     preview: boolean;
                     read: boolean;
+                    /** @description Rename files (PATCH /files/{id}). */
+                    rename?: boolean;
                     sources: string[];
                     upload: boolean;
                 };
                 /** VoiceCapability */
                 VoiceCapability: {
+                    /** @description Delete the voice history (DELETE /voice/history). */
+                    deleteHistory?: boolean;
                     enroll: boolean;
                     read: boolean;
                     sources: string[];
@@ -3305,12 +3607,22 @@ export interface components {
             data: components["schemas"]["FilePreview"];
             freshness: components["schemas"]["Freshness"];
         };
+        /**
+         * FileRenameRequest
+         * @description Renames a file (PLAN §37.3). The location and the content stay unchanged; the name must not contain path separators or reserved characters.
+         */
+        FileRenameRequest: {
+            /** @description New file name including extension. */
+            name: string;
+        };
         /** FilesCapability */
         FilesCapability: {
             delete: boolean;
             download: boolean;
             preview: boolean;
             read: boolean;
+            /** @description Rename files (PATCH /files/{id}). */
+            rename?: boolean;
             sources: string[];
             upload: boolean;
         };
@@ -3573,8 +3885,12 @@ export interface components {
         /** MemoryCapability */
         MemoryCapability: {
             delete: boolean;
+            /** @description Export the memory store as JSON. */
+            export?: boolean;
             lock: boolean;
             read: boolean;
+            /** @description Resolve memory conflicts. */
+            resolveConflict?: boolean;
             search: boolean;
             sources: string[];
             write: boolean;
@@ -3587,6 +3903,16 @@ export interface components {
             reason: string;
             /** @enum {string} */
             resolution: "pending" | "keep_both" | "replaced" | "dismissed";
+        };
+        /**
+         * MemoryConflictResolveRequest
+         * @description Resolution of one memory conflict (PLAN §30.3). The conflict is addressed by the id of the conflicting memory (MemoryConflict.memoryId). keep_both keeps both entries, replace lets the addressed memory replace the conflicting one (the conflicting entry is forgotten, locked entries refuse with 409), dismiss marks the hint as irrelevant.
+         */
+        MemoryConflictResolveRequest: {
+            /** @description Optional reason that is stored in the memory history. */
+            note?: string;
+            /** @enum {string} */
+            resolution: "keep_both" | "replace" | "dismiss";
         };
         /** MemoryCreateRequest */
         MemoryCreateRequest: {
@@ -3607,6 +3933,20 @@ export interface components {
             /** @enum {string} */
             kind: "person" | "company" | "project" | "place" | "other";
             label: string;
+        };
+        /**
+         * MemoryExport
+         * @description JSON export of the memory store (PLAN §30.3). Never contains secrets: restricted memories are omitted and only counted.
+         */
+        MemoryExport: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            /** @description Number of exported memories (items.length). */
+            count: number;
+            /** Format: date-time */
+            exportedAt: string;
+            items: components["schemas"]["Memory"][];
+            /** @description Memories with sensitivity restricted that were left out. */
+            omittedRestricted: number;
         };
         /** MemoryHistoryEntry */
         MemoryHistoryEntry: {
@@ -4829,6 +5169,14 @@ export interface components {
             confirm?: boolean;
             reason?: string;
         };
+        /**
+         * TaskAssignRequest
+         * @description Assigns a task to an agent or releases it (agentId null).
+         */
+        TaskAssignRequest: {
+            agentId: string | null;
+            reason?: string;
+        };
         /** TaskBlocker */
         TaskBlocker: {
             description: string;
@@ -4849,6 +5197,15 @@ export interface components {
             model?: string | null;
             priority?: components["schemas"]["Priority"];
             title: string;
+        };
+        /**
+         * TaskInputRequest
+         * @description Answer to a task that waits for input (blocker kind input_needed). The text is forwarded to the agent; it resolves the blocker.
+         */
+        TaskInputRequest: {
+            /** @description Blocker to resolve; defaults to the first input_needed blocker. */
+            blockerId?: string;
+            input: string;
         };
         /**
          * TaskListResponse
@@ -4882,6 +5239,8 @@ export interface components {
         TasksCapability: {
             cancel: boolean;
             create: boolean;
+            /** @description Answer tasks that wait for input (POST /tasks/{id}/input). */
+            input?: boolean;
             pause: boolean;
             read: boolean;
             resume: boolean;
@@ -5088,6 +5447,8 @@ export interface components {
         };
         /** VoiceCapability */
         VoiceCapability: {
+            /** @description Delete the voice history (DELETE /voice/history). */
+            deleteHistory?: boolean;
             enroll: boolean;
             read: boolean;
             sources: string[];
@@ -5123,6 +5484,49 @@ export interface components {
             items: components["schemas"]["VoiceDevice"][];
             pageInfo: components["schemas"]["PageInfo"];
             sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * VoiceEnrollment
+         * @description Status of one enrollment job.
+         */
+        VoiceEnrollment: {
+            /** Format: date-time */
+            finishedAt: string | null;
+            id: string;
+            /** @description Human readable hint, e.g. the next sentence to read or the failure reason. */
+            message: string | null;
+            profileId: string;
+            progress: components["schemas"]["Progress"];
+            /** @description Quality of the profile after the job (null until known). */
+            quality: number | null;
+            samplesCaptured: number;
+            samplesRequired: number;
+            source: components["schemas"]["SourceDescriptor"];
+            /** Format: date-time */
+            startedAt: string;
+            /** @enum {string} */
+            status: "queued" | "capturing" | "calibrating" | "completed" | "failed" | "cancelled";
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /**
+         * VoiceEnrollmentResponse
+         * @description Single-resource envelope for VoiceEnrollment.
+         */
+        VoiceEnrollmentResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["VoiceEnrollment"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * VoiceEnrollRequest
+         * @description Starts (or repeats) the enrollment of a voice profile (PLAN §38.3). The audio itself is captured by the voice service, never uploaded through this API.
+         */
+        VoiceEnrollRequest: {
+            /** @description Re-run the calibration of the threshold after the samples are captured. */
+            recalibrate?: boolean;
+            /** @description Number of samples to capture; the adapter chooses its default when omitted. */
+            sampleTarget?: number;
         };
         /**
          * VoiceMetrics
@@ -5613,6 +6017,83 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getAdapterLogs: {
+        parameters: {
+            query?: {
+                /** @description Minimum level */
+                level?: "debug" | "info" | "warn" | "error";
+                /** @description Maximum number of lines (newest kept) */
+                limit?: number;
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdapterLogListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    restartAdapter: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -6622,6 +7103,83 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    listAutomationVersions: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationVersionListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    pauseAllAutomations: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AutomationPauseAllRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationPauseAllResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     listCalendarBriefings: {
         parameters: {
             query?: {
@@ -7059,6 +7617,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChannelListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listDrafts: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Filter by draft status */
+                status?: components["schemas"]["DraftStatus"][];
+                /** @description Only drafts of this thread */
+                threadId?: string;
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftListResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -7539,6 +8135,49 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    renameFile: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileRenameRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileItemResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     downloadFile: {
         parameters: {
             query?: {
@@ -7835,6 +8474,85 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    resolveMemoryConflict: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Id of the conflicting memory (MemoryConflict.memoryId) */
+                conflictId: string;
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoryConflictResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    exportMemory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description attachment with the export file name */
+                    "Content-Disposition"?: string;
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryExport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -9133,6 +9851,52 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    assignTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskAssignRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     cancelTask: {
         parameters: {
             query?: never;
@@ -9155,6 +9919,52 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": components["schemas"]["TaskActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    provideTaskInput: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskInputRequest"];
             };
         };
         responses: {
@@ -9388,6 +10198,80 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    getVoiceEnrollment: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceEnrollmentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    deleteVoiceHistory: {
+        parameters: {
+            query: {
+                /** @description Only delete entries older than this timestamp */
+                before?: string;
+                /** @description Must be true; protects against accidental deletion */
+                confirm: boolean;
+            };
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     getVoiceMetrics: {
         parameters: {
             query?: never;
@@ -9447,6 +10331,52 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    enrollVoiceProfile: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["VoiceEnrollRequest"];
+            };
+        };
+        responses: {
+            /** @description Enrollment job accepted */
+            202: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    /** @description URL of the enrollment job */
+                    Location?: string;
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceEnrollmentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["ServiceUnavailable"];
         };

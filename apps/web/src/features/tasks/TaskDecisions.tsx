@@ -2,12 +2,13 @@
 
 import type { Task } from "@jarvis/sdk";
 import { Button, TagPill } from "@jarvis/ui";
-import { Check, ExternalLink, Eye } from "lucide-react";
+import { Check, ExternalLink, Eye, MessageSquareReply } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { PanelFrame, type PanelState } from "@/components/PanelFrame";
 import { useT, type MessageKey } from "@/i18n";
 import { useTasks } from "@/lib/api/domains/tasks";
+import { ProvideInputDialog } from "./ProvideInputDialog";
 import { StatusChip } from "./TaskCard";
 import { PRIORITY_TONE, decisionKind, type DecisionKind } from "./model";
 import { DataOrigin, GatedButton, useDateFormatter } from "./moduleKit";
@@ -20,6 +21,7 @@ function DecisionCard({ task, kind, onOpen }: { task: Task; kind: DecisionKind; 
   const format = useDateFormatter();
   const commands = useTaskCommands();
   const states = useTaskActionStates(task);
+  const [answering, setAnswering] = useState(false);
   const blocker = task.blockers.find((candidate) => candidate.kind === (kind === "approval" ? "approval" : "input_needed"));
   const approvalId = blocker?.refId ?? task.approvalIds[0];
   return (
@@ -43,15 +45,20 @@ function DecisionCard({ task, kind, onOpen }: { task: Task; kind: DecisionKind; 
           <GatedButton size="sm" variant="primary" icon={<Check size={14} />} gate={states.approveResult.gate} blockedReason={states.approveResult.blockedReason} disabled={commands.pending} onClick={() => commands.approveResult(task)}>
             {t("tasks.action.approveResult")}
           </GatedButton>
+        ) : kind === "input" ? (
+          <GatedButton size="sm" variant="primary" icon={<MessageSquareReply size={14} />} gate={states.input.gate} blockedReason={states.input.blockedReason} onClick={() => setAnswering(true)}>
+            {t("tasks.decisions.provideInput")}
+          </GatedButton>
         ) : (
           <Button size="sm" variant="primary" icon={<ExternalLink size={14} />} onClick={() => router.push(approvalId ? `/approvals?approval=${encodeURIComponent(approvalId)}` : "/approvals")}>
-            {kind === "approval" ? t("tasks.decisions.openApproval") : t("tasks.decisions.provideInput")}
+            {t("tasks.decisions.openApproval")}
           </Button>
         )}
         <Button size="sm" variant="ghost" icon={<Eye size={14} />} onClick={() => onOpen(task)}>
           {t("tasks.decisions.details")}
         </Button>
       </div>
+      {kind === "input" && answering ? <ProvideInputDialog task={task} open onOpenChange={setAnswering} /> : null}
     </article>
   );
 }

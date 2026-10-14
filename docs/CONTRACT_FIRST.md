@@ -19,7 +19,7 @@ Frontend, Backend oder Adaptern gepflegt.
 | Pfad                          | Inhalt                                                                                                       |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `schemas/<domain>/*.json`     | JSON Schema 2020-12, ein Modell je Datei, `$id` = `https://jarvis.local/schemas/<domain>/<name>.schema.json` |
-| `openapi/jarvis-api.yaml`     | OpenAPI **3.1.1**, 107 Operationen unter `/api/v1`                                                           |
+| `openapi/jarvis-api.yaml`     | OpenAPI **3.1.1**, 122 Operationen unter `/api/v1`                                                           |
 | `asyncapi/jarvis-events.yaml` | AsyncAPI **3.1.0**, WebSocket `/api/v1/events`, 44 Event-Typen plus `ping`/`pong`                            |
 | `examples/<domain>/*.json`    | Deutsche, realistische Beispiele je Modell und je Response-Envelope                                          |
 | `baseline/`                   | Schnappschuss des zuletzt freigegebenen Vertrags für die Breaking-Change-Prüfung                             |

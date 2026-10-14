@@ -140,6 +140,7 @@ export class AdapterRegistry {
   private readonly ports = new Map<PortCategory, PortMap[PortCategory]>();
   private config: RegistryConfig | undefined;
   private lastCapabilitiesKey: string | undefined;
+  private readonly controlPlaneCapabilities = new Set<string>();
   private shuttingDown = false;
   private readonly ajv: Ajv2020;
 
@@ -598,7 +599,22 @@ export class AdapterRegistry {
         if (!sources.includes(adapterId)) sources.push(adapterId);
       }
     }
+    for (const capability of this.controlPlaneCapabilities) {
+      const [moduleName, flag] = capability.split(".");
+      const module = moduleName ? modules[moduleName] : undefined;
+      if (module && flag && flag in module && flag !== "sources") module[flag] = true;
+    }
     return { contractVersion: CONTRACT_VERSION, modules: modules as unknown as Capabilities["modules"] };
+  }
+
+  /**
+   * Capabilities the control plane offers itself, independent of what the adapters declare (e.g. `system.restartAdapter`:
+   * the registry restarts any loaded adapter). They are switched on in the aggregated document and in its change events.
+   */
+  provideControlPlaneCapabilities(capabilities: readonly string[]): void {
+    this.controlPlaneCapabilities.clear();
+    for (const capability of capabilities) this.controlPlaneCapabilities.add(capability);
+    this.publishCapabilitiesIfChanged();
   }
 
   private publishCapabilitiesIfChanged(): void {
@@ -765,18 +781,18 @@ export class AdapterRegistry {
 type ModuleFlags = Record<string, boolean | string[]>;
 
 const MODULE_FLAGS: Readonly<Record<string, readonly string[]>> = {
-  tasks: ["read", "create", "update", "cancel", "retry", "pause", "resume", "stream"],
+  tasks: ["read", "create", "update", "cancel", "retry", "pause", "resume", "stream", "input"],
   activity: ["read", "stream", "backfill"],
-  memory: ["read", "write", "delete", "search", "lock"],
+  memory: ["read", "write", "delete", "search", "lock", "export", "resolveConflict"],
   agents: ["read", "pause", "resume", "stop", "assignTask"],
   approvals: ["read", "decide", "requestContext", "editBeforeApprove"],
   mail: ["read", "draft", "send"],
   communication: ["read", "draft", "send", "multiChannel"],
   calendar: ["read", "create", "reschedule", "cancel", "invite", "respond", "propose"],
-  automations: ["read", "create", "update", "test", "enable", "disable", "pauseAll"],
+  automations: ["read", "create", "update", "test", "enable", "disable", "pauseAll", "versions"],
   research: ["read", "create", "export"],
-  files: ["read", "preview", "download", "delete", "upload"],
-  voice: ["read", "test", "stop", "enroll"],
+  files: ["read", "preview", "download", "delete", "upload", "rename"],
+  voice: ["read", "test", "stop", "enroll", "deleteHistory"],
   notifications: ["read", "acknowledge", "snooze", "resolve"],
   system: ["read", "healthcheck", "restartAdapter", "openLogs"],
   audit: ["read", "export", "hashChain"],

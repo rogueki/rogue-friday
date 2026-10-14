@@ -1,0 +1,55 @@
+{
+  "$schema": "https://jarvis.local/schemas/automations/automation-version.schema.json",
+  "automationId": "auto_01JCW5E9R2Q7T4M8N3B6V00001",
+  "version": 3,
+  "createdAt": "2026-10-14T08:10:00Z",
+  "changedBy": {
+    "type": "user",
+    "id": "usr_01JCW5E9R2Q7T4M8N3B6V00001",
+    "name": "Erik Brandt"
+  },
+  "summary": "Eskalation auf 10 Minuten verkürzt",
+  "current": true,
+  "snapshot": {
+    "name": "Wichtige Mail eskalieren",
+    "description": "Neue P1-Mail → Telegram, nach 10 Minuten ohne Bestätigung Anruf.",
+    "enabled": true,
+    "paused": false,
+    "trigger": {
+      "type": "event",
+      "event": "jarvis.communication.thread_updated",
+      "description": "Neuer Thread mit Priorität P1"
+    },
+    "conditions": [
+      {
+        "id": "cond_1",
+        "field": "thread.priority",
+        "operator": "eq",
+        "value": "P1",
+        "description": "Priorität ist P1"
+      }
+    ],
+    "actions": [
+      {
+        "id": "act_1",
+        "type": "notify",
+        "channel": "telegram",
+        "requiresApproval": false,
+        "description": "Telegram-Nachricht senden"
+      }
+    ],
+    "escalation": [
+      {
+        "afterSeconds": 600,
+        "channel": "phone",
+        "description": "Anruf nach 10 Minuten ohne Bestätigung",
+        "stopOnAcknowledge": true
+      }
+    ]
+  },
+  "source": {
+    "adapterId": "mock-automations",
+    "system": "mock",
+    "lastSyncedAt": "2026-10-14T08:15:00Z"
+  }
+}

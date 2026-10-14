@@ -1,8 +1,10 @@
 import {
   CONTRACT_VERSION,
+  type ActionResult,
   type AdapterCategory,
   type AdapterHealth,
   type AdapterInfo,
+  type AdapterLogEntry,
   type AttentionItem,
   type Capabilities,
   type CalendarEvent,
@@ -15,10 +17,15 @@ import {
   type Task,
 } from "@jarvis/sdk";
 import { CATEGORY_LABEL, MODULE_CATEGORY, isCapabilityModule } from "../../core/constants";
-import { notFound } from "../../core/errors";
+import { notFound, validationFailed } from "../../core/errors";
 import { clone, compareAsc, priorityRank, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
+import type { OpContext } from "../types";
 import { pageOf, type Query } from "./shared";
+
+const LOG_LEVEL_RANK: Record<AdapterLogEntry["level"], number> = { debug: 0, info: 1, warn: 2, error: 3 };
+/** Simulated duration of an adapter restart on the world clock. */
+const RESTART_MS = 1_500;
 
 const SEVERITY_RANK: Record<Severity, number> = { critical: 0, error: 1, warning: 2, info: 3 };
 const FINAL: Task["status"][] = ["done", "failed", "cancelled"];
@@ -74,6 +81,52 @@ export class MetaService {
     const adapter = this.w.state.adapters.find((candidate) => candidate.manifest.id === id);
     if (!adapter) throw notFound("Adapter", id);
     return this.w.adapterHealth(adapter.category);
+  }
+
+  /** Recent log lines of one adapter (newest last), optionally from a minimum level. */
+  listAdapterLogs(id: string, query: { limit?: number | string; level?: string } = {}): { items: AdapterLogEntry[] } {
+    return this.w.read("getAdapterLogs", () => {
+      this.adapterById(id);
+      const limit = query.limit === undefined || query.limit === "" ? 100 : Number(query.limit);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw validationFailed("limit muss zwischen 1 und 500 liegen.", [{ path: "limit", message: "1..500" }]);
+      const level = (query.level ?? "debug") as AdapterLogEntry["level"];
+      if (!(level in LOG_LEVEL_RANK)) throw validationFailed(`Ungültiger Wert für level: ${level}.`, [{ path: "level", message: "erlaubt: debug, info, warn, error" }]);
+      const lines = this.w.state.adapterLogs.filter((entry) => entry.adapterId === id && LOG_LEVEL_RANK[entry.level] >= LOG_LEVEL_RANK[level]);
+      return { items: clone(lines.slice(-limit)) };
+    });
+  }
+
+  /**
+   * Restarts an adapter: it goes `recovering` right away and is `online` again after a short simulated start-up. The
+   * Control API does the real thing through the adapter registry; this keeps the standalone mock behaving alike.
+   */
+  restartAdapter(id: string, ctx?: OpContext): ActionResult {
+    return this.w.run("restartAdapter", ctx, { id }, () => {
+      const adapter = this.adapterById(id);
+      const correlationId = this.w.correlationId(ctx);
+      this.w.logAdapter(adapter.manifest.id, "info", "Neustart angefordert", { by: this.w.actorOf(ctx).id }, correlationId);
+      this.w.setAdapterState(adapter.category, "recovering", { reason: "Adapter wird neu gestartet" });
+      this.w.clock.setTimeout(() => {
+        this.w.logAdapter(adapter.manifest.id, "info", "Adapter neu gestartet", {}, correlationId);
+        this.w.setAdapterState(adapter.category, "online");
+      }, RESTART_MS);
+      const audit = this.w.recordAudit({
+        category: "system",
+        action: "adapter.restarted",
+        severity: "warning",
+        correlationId,
+        adapterId: adapter.manifest.id,
+        actor: this.w.actorOf(ctx),
+        after: { adapterId: adapter.manifest.id },
+      });
+      return { contractVersion: CONTRACT_VERSION, accepted: true, status: "queued", correlationId, resourceId: adapter.manifest.id, auditEventId: audit.id, message: `Adapter „${adapter.manifest.name}“ wird neu gestartet.` };
+    });
+  }
+
+  private adapterById(id: string): MockWorld["state"]["adapters"][number] {
+    const adapter = this.w.state.adapters.find((candidate) => candidate.manifest.id === id);
+    if (!adapter) throw notFound("Adapter", id);
+    return adapter;
   }
 
   getStatus(): JarvisStatus {

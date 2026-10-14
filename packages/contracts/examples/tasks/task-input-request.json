@@ -1,0 +1,5 @@
+{
+  "$schema": "https://jarvis.local/schemas/tasks/task-input-request.schema.json",
+  "input": "Bitte das Angebot von Büro Nord verwenden, Budget bleibt bei 4.500 Euro.",
+  "blockerId": "blk_1"
+}

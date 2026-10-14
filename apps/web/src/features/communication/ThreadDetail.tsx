@@ -1,13 +1,14 @@
 "use client";
 
 import type { Channel, Message, Thread } from "@jarvis/sdk";
-import { Button, IconTile, StatusChip, TagPill, useToast } from "@jarvis/ui";
+import { Button, IconTile, Skeleton, StatusChip, TagPill, useToast } from "@jarvis/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, FileText, ListChecks, Paperclip, Reply, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useT } from "@/i18n";
-import { seedDraftCache, useCachedDraft, useCreateDraft } from "@/lib/api/domains/communication";
+import { useCapability } from "@/lib/capabilities";
+import { seedDraftCache, useCachedDraft, useCreateDraft, useDrafts } from "@/lib/api/domains/communication";
 import { PRIORITY_TONE, priorityKey } from "../alerts/labels";
 import { DataBadges } from "../memory/kit/Badges";
 import { CHANNEL_ICON, CHANNEL_STATUS_TONE, channelKindKey, channelStatusKey } from "../memory/kit/channelStatus";
@@ -235,21 +236,47 @@ function ReplySection({ thread, channel }: { thread: Thread; channel: Channel | 
       ) : (
         <p className="mk-note">{t("communication.suggestedReply.none")}</p>
       )}
-      <ThreadDrafts draftIds={Array.from(new Set([...thread.draftIds, ...createdIds]))} channel={channel} />
+      <ThreadDrafts threadId={thread.id} draftIds={Array.from(new Set([...thread.draftIds, ...createdIds]))} channel={channel} />
     </section>
   );
 }
 
-function ThreadDrafts({ draftIds, channel }: { draftIds: readonly string[]; channel: Channel | undefined }) {
-  if (draftIds.length === 0) return null;
+/**
+ * The drafts of a thread come from `GET /communication/drafts?threadId=` (capability `communication.draft`). Ids the thread
+ * mentions but the list does not return (older adapters, a failed request) fall back to the cached draft or a note.
+ */
+function ThreadDrafts({ threadId, draftIds, channel }: { threadId: string; draftIds: readonly string[]; channel: Channel | undefined }) {
+  const { t } = useT();
+  const canList = useCapability("communication", "draft");
+  const list = useDrafts({ threadId, limit: 50 }, canList);
+  const listed = canList ? (list.data?.items ?? []) : [];
+  const listedIds = new Set(listed.map((draft) => draft.id));
+  const missing = draftIds.filter((id) => !listedIds.has(id));
+  if (canList && list.isPending && draftIds.length > 0) return <Skeleton lines={3} />;
+  if (listed.length === 0 && missing.length === 0) return null;
   return (
-    <ul className="mk-list">
-      {draftIds.map((id) => (
-        <li key={id}>
-          <CachedDraft id={id} channel={channel} />
-        </li>
-      ))}
-    </ul>
+    <>
+      {canList && list.isError && list.data === undefined ? (
+        <p className="mk-block mk-block--amber mk-note" role="alert">
+          {t("communication.draft.listError")}{" "}
+          <button type="button" className="mk-link" onClick={() => void list.refetch()}>
+            {t("common.retry")}
+          </button>
+        </p>
+      ) : null}
+      <ul className="mk-list" aria-label={t("communication.drafts")}>
+        {listed.map((draft) => (
+          <li key={draft.id} className="mk-block">
+            <DraftEditor key={`${draft.id}:${draft.version}`} draft={draft} channel={channel} />
+          </li>
+        ))}
+        {missing.map((id) => (
+          <li key={id}>
+            <CachedDraft id={id} channel={channel} />
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

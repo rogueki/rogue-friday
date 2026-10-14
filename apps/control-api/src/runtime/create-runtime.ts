@@ -28,6 +28,7 @@ import { AuthService } from "../security/auth-service";
 import { AdapterSettingsService } from "../services/adapter-settings";
 import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, summarizeAdapters } from "../services/core-views";
 import { SettingsService, seedLibrary } from "../services/settings";
+import { LogBuffer, withLogBuffer } from "../services/log-buffer";
 import { FrontendTelemetryService } from "../services/telemetry";
 import { createRuntimeSecrets, createWorld, wireAdapters } from "./adapter-wiring";
 import type { AuditRecorder, ResponseValidationMode, Runtime } from "./types";
@@ -69,7 +70,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const startedAt = new Date();
   const buildVersion = options.buildVersion ?? process.env.JARVIS_BUILD_VERSION ?? "1.0.0";
 
-  const logger =
+  const logBuffer = new LogBuffer({ redactEmails: config.logging.redactEmails });
+  const baseLogger =
     options.logger ??
     createLogger({
       service: "control-api",
@@ -79,6 +81,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
         ? { file: { dir: config.paths.logDir, maxBytes: config.logging.file.maxBytes, maxFiles: config.logging.file.maxFiles } }
         : {}),
     });
+  // Every log call also lands (redacted) in the ring buffer that serves the adapter logs of the System page.
+  const logger = withLogBuffer(baseLogger, logBuffer);
   const metrics: JarvisMetrics = createJarvisMetrics();
   for (const warning of config.warnings) logger.warn(warning);
 
@@ -169,6 +173,9 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     ...(options.healthIntervalMs ? { healthIntervalMs: options.healthIntervalMs } : {}),
   });
   const { registry } = wiring;
+  // Restarting an adapter and reading its log lines are control-plane functions (registry + log buffer), not adapter
+  // capabilities. With the scenario console (mock) the capability stays a switch the console can toggle.
+  if (!engine) registry.provideControlPlaneCapabilities(["system.restartAdapter", "system.openLogs"]);
 
   const adapterSettings = new AdapterSettingsService(wiring, adapterOverrides, secrets, config.dataMode);
   const settings = new SettingsService(db, config, validator, library, () => adapterSettings.list());
@@ -330,6 +337,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     config,
     env,
     logger,
+    logBuffer,
     metrics,
     db,
     validator,

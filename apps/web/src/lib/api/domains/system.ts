@@ -1,8 +1,11 @@
 "use client";
 
 import type {
+  ActionResult,
   AdapterHealthResponse,
   AdapterInfoListResponse,
+  AdapterLogEntry,
+  AdapterLogListResponse,
   AdapterTestResultResponse,
   HealthcheckResultResponse,
   ModelProviderListResponse,
@@ -50,6 +53,28 @@ export const systemQueries = {
     }),
 };
 
+export interface AdapterLogFilters {
+  level?: AdapterLogEntry["level"];
+  limit?: number;
+}
+
+/** Recent redacted log lines of one adapter (capability `system.openLogs`); `refetchMs` turns on live following. */
+export const adapterLogQuery = (id: string, filters: AdapterLogFilters = {}) =>
+  queryOptions({
+    queryKey: queryKeys.adapters.logs(id, filters),
+    queryFn: (): Promise<AdapterLogListResponse> => call(getApiClient().GET("/api/v1/adapters/{id}/logs", { params: { path: { id }, query: filters } })),
+    // The buffer changes with every request; a cached copy is never "fresh".
+    staleTime: 0,
+  });
+
+export function useAdapterLogs(id: string | null | undefined, filters: AdapterLogFilters, options: { enabled?: boolean; refetchMs?: number | false } = {}) {
+  return useQuery({
+    ...adapterLogQuery(id ?? "", filters),
+    enabled: Boolean(id) && (options.enabled ?? true),
+    refetchInterval: options.refetchMs ?? false,
+  });
+}
+
 export const useSystemMetrics = () => useQuery(systemQueries.metrics());
 export const useServices = () => useQuery(systemQueries.services());
 export const useStorage = () => useQuery(systemQueries.storage());
@@ -71,6 +96,19 @@ export function useAdapterHealthCheck() {
     label: "Adapter-Healthcheck",
     mutationFn: ({ id }) => call(getApiClient().GET("/api/v1/adapters/{id}/health", { params: { path: { id } } })),
     invalidate: [queryKeys.adapters.all, queryKeys.health],
+  });
+}
+
+/**
+ * Restarts an adapter through the Control API's registry (POST /adapters/{id}/restart, owner, audited, capability
+ * `system.restartAdapter`). Health, capabilities and services change with the new instance.
+ */
+export function useRestartAdapter() {
+  return useApiMutation<ActionResult, { id: string } & IntentVars>({
+    label: "Adapter neu starten",
+    mutationFn: ({ id, idempotencyKey }) =>
+      call(getApiClient().POST("/api/v1/adapters/{id}/restart", { params: { path: { id }, header: { "Idempotency-Key": idempotencyKey } } })),
+    invalidate: [queryKeys.adapters.all, queryKeys.health, queryKeys.capabilities, queryKeys.system.services],
   });
 }
 

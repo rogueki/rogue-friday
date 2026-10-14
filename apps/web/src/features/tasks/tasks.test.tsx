@@ -357,3 +357,130 @@ describe("task actions: retry, artifacts, create", () => {
     useCreateTaskDialog.setState({ open: false });
   });
 });
+
+describe("assigning a task (agents.assignTask)", () => {
+  const agent = makeAgentWith({ name: "Coding-Agent", status: "idle" });
+  const task = makeTaskWith({ title: "Rechnung prüfen", status: "ready", agentId: null });
+  const withAssign = capabilitiesOf({ tasks: { read: true, update: true }, agents: { read: true, assignTask: true } });
+  const withoutAssign = capabilitiesOf({ tasks: { read: true, update: true }, agents: { read: true } });
+
+  const open = async (capabilities: ReturnType<typeof capabilitiesOf>, extra: Parameters<typeof routerFetch>[0] = {}) => {
+    nav.params = new URLSearchParams(`task=${task.id}`);
+    const api = routerFetch({ "GET /tasks": listOf([task]), "GET /agents": listOf([agent]), "GET /tasks/:id": dataOf(task), ...extra });
+    renderWithProviders(<TasksPage />, { capabilities, fetchImpl: api.fetch });
+    const dialog = await screen.findByRole("dialog");
+    const select = await within(dialog).findByRole("combobox", { name: "Agent zuweisen" });
+    await within(dialog).findByRole("option", { name: /Coding-Agent/ });
+    return { api, dialog, select };
+  };
+
+  it("uses POST /tasks/{id}/assign with If-Match and an idempotency key instead of a PATCH", async () => {
+    const user = userEvent.setup();
+    const { api, select } = await open(withAssign, { "POST /tasks/:id/assign": () => dataOf({ ...task, agentId: agent.id, agentName: agent.name, version: 2 }) });
+    await user.selectOptions(select, agent.id);
+    await waitFor(() => expect(api.callsTo("POST /tasks/:id/assign")).toHaveLength(1));
+    const call = api.callsTo("POST /tasks/:id/assign")[0]!;
+    expect(call.body).toEqual({ agentId: agent.id });
+    expect(call.headers.get("if-match")).toBe("1");
+    expect(call.headers.get("idempotency-key")).toBeTruthy();
+    expect(api.callsTo("PATCH /tasks/:id")).toHaveLength(0);
+    expect(await screen.findByText("Agent zugewiesen")).toBeInTheDocument();
+  });
+
+  it("releases the task with agentId null", async () => {
+    const assigned = { ...task, agentId: agent.id, agentName: agent.name };
+    nav.params = new URLSearchParams(`task=${task.id}`);
+    const api = routerFetch({ "GET /tasks": listOf([assigned]), "GET /agents": listOf([agent]), "GET /tasks/:id": dataOf(assigned), "POST /tasks/:id/assign": () => dataOf({ ...task, version: 2 }) });
+    const user = userEvent.setup();
+    renderWithProviders(<TasksPage />, { capabilities: withAssign, fetchImpl: api.fetch });
+    const dialog = await screen.findByRole("dialog");
+    await user.selectOptions(await within(dialog).findByRole("combobox", { name: "Agent zuweisen" }), "");
+    await waitFor(() => expect(api.callsTo("POST /tasks/:id/assign")).toHaveLength(1));
+    expect(api.callsTo("POST /tasks/:id/assign")[0]?.body).toEqual({ agentId: null });
+    expect(await screen.findByText("Zuweisung aufgehoben")).toBeInTheDocument();
+  });
+
+  it("falls back to the task update for adapters without the assign operation", async () => {
+    const user = userEvent.setup();
+    const { api, select } = await open(withoutAssign, { "PATCH /tasks/:id": () => dataOf({ ...task, agentId: agent.id, agentName: agent.name, version: 2 }) });
+    await user.selectOptions(select, agent.id);
+    await waitFor(() => expect(api.callsTo("PATCH /tasks/:id")).toHaveLength(1));
+    expect(api.callsTo("PATCH /tasks/:id")[0]?.body).toEqual({ agentId: agent.id });
+    expect(api.callsTo("POST /tasks/:id/assign")).toHaveLength(0);
+  });
+
+  it("is disabled when neither operation is available", async () => {
+    const { select } = await open(capabilitiesOf({ tasks: { read: true }, agents: { read: true } }));
+    expect(select).toBeDisabled();
+  });
+});
+
+describe("answering a task that waits for input (tasks.input)", () => {
+  const agent = makeAgentWith({ name: "Rechercheagent" });
+  const waiting = makeTaskWith({
+    title: "Angebot einholen",
+    status: "waiting",
+    agentId: agent.id,
+    agentName: agent.name,
+    blockers: [{ id: "blk_input_1", kind: "input_needed", description: "Welches Budget gilt für das Angebot?", since: "2026-10-14T07:00:00Z" }],
+  });
+  const withInput = capabilitiesOf({ tasks: { read: true, update: true, input: true }, agents: { read: true } });
+
+  const routes = (extra: Parameters<typeof routerFetch>[0] = {}) =>
+    routerFetch({ "GET /tasks": listOf([waiting]), "GET /agents": listOf([agent]), "GET /tasks/:id": dataOf(waiting), ...extra });
+
+  it("sends the answer to POST /tasks/{id}/input with the blocker id, If-Match and an idempotency key, without leaving the page", async () => {
+    nav.params = new URLSearchParams("view=decisions");
+    const api = routes({ "POST /tasks/:id/input": () => dataOf({ ...waiting, status: "running", blockers: [], version: 2 }) });
+    const user = userEvent.setup();
+    renderWithProviders(<TasksPage />, { capabilities: withInput, fetchImpl: api.fetch });
+    expect(await screen.findByText("Welches Budget gilt für das Angebot?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Eingabe geben" }));
+    const dialog = await screen.findByRole("dialog", { name: /Eingabe für/ });
+    const send = within(dialog).getByRole("button", { name: "Eingabe senden" });
+    expect(send).toBeDisabled();
+    await user.type(within(dialog).getByLabelText("Antwort"), "  Das Budget liegt bei 4.500 Euro.  ");
+    expect(send).toBeEnabled();
+    expect(api.callsTo("POST /tasks/:id/input")).toHaveLength(0);
+    await user.click(send);
+    await waitFor(() => expect(api.callsTo("POST /tasks/:id/input")).toHaveLength(1));
+    const call = api.callsTo("POST /tasks/:id/input")[0]!;
+    expect(call.body).toEqual({ input: "Das Budget liegt bei 4.500 Euro.", blockerId: "blk_input_1" });
+    expect(call.headers.get("if-match")).toBe(String(waiting.version));
+    expect(call.headers.get("idempotency-key")).toBeTruthy();
+    expect(await screen.findByText("Eingabe gesendet")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: /Eingabe für/ })).toBeNull());
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("is disabled with the reason when the adapter does not offer it", async () => {
+    nav.params = new URLSearchParams("view=decisions");
+    renderWithProviders(<TasksPage />, { capabilities: capabilitiesOf({ tasks: { read: true, update: true }, agents: { read: true } }), fetchImpl: routes().fetch });
+    const button = await screen.findByRole("button", { name: /Eingabe geben/ });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", expect.stringContaining("Nur Lesezugriff"));
+  });
+
+  it("offers the same answer dialog next to the blocker in the task drawer", async () => {
+    nav.params = new URLSearchParams(`task=${waiting.id}`);
+    const user = userEvent.setup();
+    renderWithProviders(<TasksPage />, { capabilities: withInput, fetchImpl: routes().fetch });
+    const drawer = await screen.findByRole("dialog");
+    await user.click(await within(drawer).findByRole("button", { name: "Eingabe geben" }));
+    expect(await screen.findByRole("dialog", { name: /Eingabe für/ })).toBeInTheDocument();
+  });
+
+  it("keeps the dialog open when the server refuses the answer", async () => {
+    nav.params = new URLSearchParams("view=decisions");
+    const api = routes({ "POST /tasks/:id/input": () => ({ status: 409, body: { error: { code: "CONFLICT", message: "Die Aufgabe wartet auf keine Eingabe.", severity: "warning", retryable: false, correlationId: "corr_00000000000000000000000011", details: {} } } }) });
+    const user = userEvent.setup();
+    renderWithProviders(<TasksPage />, { capabilities: withInput, fetchImpl: api.fetch });
+    await user.click(await screen.findByRole("button", { name: "Eingabe geben" }));
+    const dialog = await screen.findByRole("dialog", { name: /Eingabe für/ });
+    await user.type(within(dialog).getByLabelText("Antwort"), "Antwort");
+    await user.click(within(dialog).getByRole("button", { name: "Eingabe senden" }));
+    await waitFor(() => expect(api.callsTo("POST /tasks/:id/input")).toHaveLength(1));
+    expect(screen.getByRole("dialog", { name: /Eingabe für/ })).toBeInTheDocument();
+    expect(screen.queryByText("Eingabe gesendet")).toBeNull();
+  });
+});

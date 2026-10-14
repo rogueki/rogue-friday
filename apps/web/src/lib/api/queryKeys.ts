@@ -17,7 +17,12 @@ export const queryKeys = {
   session: ["auth", "session"] as const,
   health: ["health"] as const,
   capabilities: ["capabilities"] as const,
-  adapters: { ...domain("adapters"), health: (id: string) => ["adapters", "health", id] as const },
+  adapters: {
+    ...domain("adapters"),
+    health: (id: string) => ["adapters", "health", id] as const,
+    /** Redacted log lines of one adapter (`GET /adapters/{id}/logs`). */
+    logs: (id: string, filters?: Filters) => ["adapters", "logs", id, filters ?? {}] as const,
+  },
   overview: ["overview"] as const,
   status: ["status"] as const,
   orb: ["orb", "status"] as const,
@@ -47,6 +52,7 @@ export const queryKeys = {
   automations: {
     ...domain("automations"),
     runs: (id: string) => ["automations", "runs", id] as const,
+    versions: (id: string) => ["automations", "versions", id] as const,
   },
   files: { ...domain("files"), preview: (id: string) => ["files", "preview", id] as const },
   audit: domain("audit"),
@@ -67,6 +73,8 @@ export const queryKeys = {
     devices: ["voice", "devices"] as const,
     metrics: ["voice", "metrics"] as const,
     profiles: ["voice", "profiles"] as const,
+    /** One enrollment job (`GET /voice/enrollments/{id}`). */
+    enrollment: (id: string) => ["voice", "enrollments", id] as const,
   },
   settings: {
     root: ["settings"] as const,

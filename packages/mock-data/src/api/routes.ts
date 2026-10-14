@@ -5,6 +5,7 @@ import {
   type ApprovalContextRequest,
   type ApprovalDecisionRequest,
   type AutomationCreateRequest,
+  type AutomationPauseAllRequest,
   type AutomationTestRequest,
   type AutomationUpdateRequest,
   type CalendarProposalRequest,
@@ -13,9 +14,11 @@ import {
   type DraftCreateRequest,
   type DraftSendRequest,
   type DraftUpdateRequest,
+  type FileRenameRequest,
   type FrontendTelemetryBatch,
   type LayoutImportRequest,
   type LoginRequest,
+  type MemoryConflictResolveRequest,
   type MemoryCreateRequest,
   type MemorySearchRequest,
   type MemoryUpdateRequest,
@@ -27,9 +30,12 @@ import {
   type SettingsExport,
   type SettingsPatch,
   type TaskActionRequest,
+  type TaskAssignRequest,
   type TaskCreateRequest,
+  type TaskInputRequest,
   type TaskUpdateRequest,
   type ThemeImportRequest,
+  type VoiceEnrollRequest,
   type VoiceTestRequest,
 } from "@jarvis/sdk";
 import type { Page } from "../core/util";
@@ -120,6 +126,17 @@ export const ROUTES: RouteDef[] = [
   { operationId: "getCapabilities", method: "GET", path: "/capabilities", role: "viewer", run: (w) => bare(w.meta.getCapabilities()) },
   { operationId: "listAdapters", method: "GET", path: "/adapters", role: "viewer", run: (w, _e, i) => list(w, "system", w.meta.listAdapters(q(i.query))) },
   { operationId: "getAdapterHealth", method: "GET", path: "/adapters/:id/health", role: "viewer", run: (w, _e, i) => single(w, "system", w.meta.getAdapterHealth(i.params.id as string)) },
+  { operationId: "restartAdapter", method: "POST", path: "/adapters/:id/restart", role: "owner", run: (w, _e, i) => bare(w.meta.restartAdapter(i.params.id as string, i.ctx), "system") },
+  {
+    operationId: "getAdapterLogs",
+    method: "GET",
+    path: "/adapters/:id/logs",
+    role: "owner",
+    run: (w, _e, i) => {
+      const page = w.meta.listAdapterLogs(i.params.id as string, { ...(typeof i.query.limit === "string" ? { limit: i.query.limit } : {}), ...(typeof i.query.level === "string" ? { level: i.query.level } : {}) });
+      return { category: "system", body: { contractVersion: CONTRACT_VERSION, items: page.items, freshness: w.freshness("system"), sources: w.sources("system") } };
+    },
+  },
   { operationId: "getOverview", method: "GET", path: "/overview", role: "viewer", run: (w) => single(w, null, w.meta.getOverview()) },
   { operationId: "getStatus", method: "GET", path: "/status", role: "viewer", run: (w) => single(w, null, w.meta.getStatus()) },
   { operationId: "getOrbStatus", method: "GET", path: "/orb/status", role: "viewer", run: (w) => single(w, null, w.meta.getOrb()) },
@@ -153,6 +170,8 @@ export const ROUTES: RouteDef[] = [
   { operationId: "retryTask", method: "POST", path: "/tasks/:id/retry", role: "operator", run: (w, _e, i) => single(w, "tasks", w.tasks.retry(i.params.id as string, bodyOr<TaskActionRequest>(i), i.ctx)) },
   { operationId: "pauseTask", method: "POST", path: "/tasks/:id/pause", role: "operator", run: (w, _e, i) => single(w, "tasks", w.tasks.pause(i.params.id as string, bodyOr<TaskActionRequest>(i), i.ctx)) },
   { operationId: "resumeTask", method: "POST", path: "/tasks/:id/resume", role: "operator", run: (w, _e, i) => single(w, "tasks", w.tasks.resume(i.params.id as string, bodyOr<TaskActionRequest>(i), i.ctx)) },
+  { operationId: "assignTask", method: "POST", path: "/tasks/:id/assign", role: "operator", run: (w, _e, i) => single(w, "tasks", w.tasks.assign(i.params.id as string, body<TaskAssignRequest>(i), i.ctx)) },
+  { operationId: "provideTaskInput", method: "POST", path: "/tasks/:id/input", role: "operator", run: (w, _e, i) => single(w, "tasks", w.tasks.provideInput(i.params.id as string, body<TaskInputRequest>(i), i.ctx)) },
 
   // ---- activity
   { operationId: "listActivity", method: "GET", path: "/activity", role: "viewer", run: (w, _e, i) => list(w, "activity", w.activity.list(q(i.query))) },
@@ -162,9 +181,22 @@ export const ROUTES: RouteDef[] = [
   { operationId: "listMemory", method: "GET", path: "/memory", role: "viewer", run: (w, _e, i) => list(w, "memory", w.memory.list(q(i.query))) },
   { operationId: "createMemory", method: "POST", path: "/memory", role: "operator", run: (w, _e, i) => { const memory = w.memory.create(body<MemoryCreateRequest>(i), i.ctx); return single(w, "memory", memory, 201, { Location: `/api/v1/memory/${memory.id}` }); } },
   { operationId: "searchMemory", method: "POST", path: "/memory/search", role: "viewer", run: (w, _e, i) => ({ category: "memory", body: { contractVersion: CONTRACT_VERSION, items: w.memory.search(body<MemorySearchRequest>(i)), freshness: w.freshness("memory"), sources: w.sources("memory") } }) },
+  // `/memory/export` must precede `/memory/:id` (the matcher takes the first pattern that fits).
+  {
+    operationId: "exportMemory",
+    method: "GET",
+    path: "/memory/export",
+    role: "owner",
+    run: (w) => ({
+      category: "memory",
+      body: { contractVersion: CONTRACT_VERSION, ...w.memory.exportAll() },
+      headers: { "Content-Disposition": 'attachment; filename="memory-export.json"' },
+    }),
+  },
   { operationId: "getMemory", method: "GET", path: "/memory/:id", role: "viewer", run: (w, _e, i) => single(w, "memory", w.memory.get(i.params.id as string)) },
   { operationId: "updateMemory", method: "PATCH", path: "/memory/:id", role: "operator", run: (w, _e, i) => single(w, "memory", w.memory.update(i.params.id as string, body<MemoryUpdateRequest>(i), i.ctx)) },
   { operationId: "deleteMemory", method: "DELETE", path: "/memory/:id", role: "operator", run: (w, _e, i) => bare(w.memory.delete(i.params.id as string, i.ctx), "memory") },
+  { operationId: "resolveMemoryConflict", method: "POST", path: "/memory/:id/conflicts/:conflictId/resolve", role: "operator", run: (w, _e, i) => single(w, "memory", w.memory.resolveConflict(i.params.id as string, i.params.conflictId as string, body<MemoryConflictResolveRequest>(i), i.ctx)) },
 
   // ---- agents
   { operationId: "listAgents", method: "GET", path: "/agents", role: "viewer", run: (w, _e, i) => list(w, "agents", w.agents.list(q(i.query))) },
@@ -184,6 +216,7 @@ export const ROUTES: RouteDef[] = [
   { operationId: "listChannels", method: "GET", path: "/communication/channels", role: "viewer", run: (w, _e, i) => list(w, "communication", w.communication.listChannels(q(i.query))) },
   { operationId: "listThreads", method: "GET", path: "/communication/threads", role: "viewer", run: (w, _e, i) => list(w, "communication", w.communication.listThreads(q(i.query))) },
   { operationId: "getThread", method: "GET", path: "/communication/threads/:id", role: "viewer", run: (w, _e, i) => single(w, "communication", w.communication.getThread(i.params.id as string)) },
+  { operationId: "listDrafts", method: "GET", path: "/communication/drafts", role: "viewer", run: (w, _e, i) => list(w, "communication", w.communication.listDrafts(q(i.query))) },
   { operationId: "createDraft", method: "POST", path: "/communication/drafts", role: "operator", run: (w, _e, i) => { const draft = w.communication.createDraft(body<DraftCreateRequest>(i), i.ctx); return single(w, "communication", draft, 201, { Location: `/api/v1/communication/drafts/${draft.id}` }); } },
   { operationId: "updateDraft", method: "PATCH", path: "/communication/drafts/:id", role: "operator", run: (w, _e, i) => single(w, "communication", w.communication.updateDraft(i.params.id as string, body<DraftUpdateRequest>(i), i.ctx)) },
   { operationId: "requestDraftSend", method: "POST", path: "/communication/drafts/:id/request-send", role: "operator", run: (w, _e, i) => single(w, "approvals", w.communication.requestSend(i.params.id as string, bodyOr<DraftSendRequest>(i), i.ctx), 202) },
@@ -198,12 +231,14 @@ export const ROUTES: RouteDef[] = [
   // ---- automations
   { operationId: "listAutomations", method: "GET", path: "/automations", role: "viewer", run: (w, _e, i) => list(w, "automations", w.automations.list(q(i.query))) },
   { operationId: "createAutomation", method: "POST", path: "/automations", role: "operator", run: (w, _e, i) => { const automation = w.automations.create(body<AutomationCreateRequest>(i), i.ctx); return single(w, "automations", automation, 201, { Location: `/api/v1/automations/${automation.id}` }); } },
+  { operationId: "pauseAllAutomations", method: "POST", path: "/automations/pause-all", role: "operator", run: (w, _e, i) => single(w, "automations", w.automations.pauseAll(bodyOr<AutomationPauseAllRequest>(i), i.ctx)) },
   { operationId: "getAutomation", method: "GET", path: "/automations/:id", role: "viewer", run: (w, _e, i) => single(w, "automations", w.automations.get(i.params.id as string)) },
   { operationId: "updateAutomation", method: "PATCH", path: "/automations/:id", role: "operator", run: (w, _e, i) => single(w, "automations", w.automations.update(i.params.id as string, body<AutomationUpdateRequest>(i), i.ctx)) },
   { operationId: "testAutomation", method: "POST", path: "/automations/:id/test", role: "operator", run: (w, _e, i) => single(w, "automations", w.automations.test(i.params.id as string, bodyOr<AutomationTestRequest>(i), i.ctx)) },
   { operationId: "enableAutomation", method: "POST", path: "/automations/:id/enable", role: "operator", run: (w, _e, i) => single(w, "automations", w.automations.enable(i.params.id as string, i.ctx)) },
   { operationId: "disableAutomation", method: "POST", path: "/automations/:id/disable", role: "operator", run: (w, _e, i) => single(w, "automations", w.automations.disable(i.params.id as string, i.ctx)) },
   { operationId: "listAutomationRuns", method: "GET", path: "/automations/:id/runs", role: "viewer", run: (w, _e, i) => list(w, "automations", w.automations.listRuns(i.params.id as string, q(i.query))) },
+  { operationId: "listAutomationVersions", method: "GET", path: "/automations/:id/versions", role: "viewer", run: (w, _e, i) => list(w, "automations", w.automations.listVersions(i.params.id as string, q(i.query))) },
 
   // ---- research
   { operationId: "listResearchProjects", method: "GET", path: "/research/projects", role: "viewer", run: (w, _e, i) => list(w, "research", w.research.listProjects(q(i.query))) },
@@ -215,6 +250,7 @@ export const ROUTES: RouteDef[] = [
   // ---- files
   { operationId: "listFiles", method: "GET", path: "/files", role: "viewer", run: (w, _e, i) => list(w, "files", w.files.list(q(i.query))) },
   { operationId: "getFile", method: "GET", path: "/files/:id", role: "viewer", run: (w, _e, i) => single(w, "files", w.files.get(i.params.id as string)) },
+  { operationId: "renameFile", method: "PATCH", path: "/files/:id", role: "operator", run: (w, _e, i) => single(w, "files", w.files.rename(i.params.id as string, body<FileRenameRequest>(i), i.ctx)) },
   {
     operationId: "deleteFile",
     method: "DELETE",
@@ -243,6 +279,18 @@ export const ROUTES: RouteDef[] = [
   { operationId: "listVoiceDevices", method: "GET", path: "/voice/devices", role: "viewer", run: (w, _e, i) => list(w, "voice", w.voice.listDevices(q(i.query))) },
   { operationId: "getVoiceMetrics", method: "GET", path: "/voice/metrics", role: "viewer", run: (w) => single(w, "voice", w.voice.getMetrics()) },
   { operationId: "listVoiceProfiles", method: "GET", path: "/voice/profiles", role: "viewer", run: (w, _e, i) => list(w, "voice", w.voice.listProfiles(q(i.query))) },
+  {
+    operationId: "enrollVoiceProfile",
+    method: "POST",
+    path: "/voice/profiles/:id/enroll",
+    role: "operator",
+    run: (w, _e, i) => {
+      const job = w.voice.enroll(i.params.id as string, bodyOr<VoiceEnrollRequest>(i), i.ctx);
+      return single(w, "voice", job, 202, { Location: `/api/v1/voice/enrollments/${job.id}` });
+    },
+  },
+  { operationId: "getVoiceEnrollment", method: "GET", path: "/voice/enrollments/:id", role: "viewer", run: (w, _e, i) => single(w, "voice", w.voice.getEnrollment(i.params.id as string)) },
+  { operationId: "deleteVoiceHistory", method: "DELETE", path: "/voice/history", role: "owner", run: (w, _e, i) => bare(w.voice.deleteHistory({ confirm: String(i.query.confirm ?? "false") === "true", ...(typeof i.query.before === "string" ? { before: i.query.before } : {}) }, i.ctx), "voice") },
   { operationId: "runVoiceTest", method: "POST", path: "/voice/test", role: "operator", run: (w, _e, i) => single(w, "voice", w.voice.test(body<VoiceTestRequest>(i), i.ctx)) },
   { operationId: "stopVoice", method: "POST", path: "/voice/stop", role: "operator", run: (w, _e, i) => bare(w.voice.stop(i.ctx), "voice") },
 

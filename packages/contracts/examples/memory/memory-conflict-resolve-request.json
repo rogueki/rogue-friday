@@ -1,0 +1,5 @@
+{
+  "$schema": "https://jarvis.local/schemas/memory/memory-conflict-resolve-request.schema.json",
+  "resolution": "replace",
+  "note": "Die neuere Angabe stammt aus der Bestätigung vom 1. Oktober."
+}

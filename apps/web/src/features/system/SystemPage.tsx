@@ -23,7 +23,6 @@ import { Activity, Cpu, FileText, HardDrive, Network, PlugZap, RefreshCw, Rotate
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useMemo, useState, type ReactNode } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
-import { useRunCommand } from "@/features/palette/commandRunner";
 import { healthStateFromWire, toneFromHealth } from "@/features/shared/presentation";
 import { useT, type MessageKey } from "@/i18n";
 import {
@@ -31,6 +30,7 @@ import {
   useAdapterReconnect,
   useAdapters,
   useModelProviders,
+  useRestartAdapter,
   useServiceHealthcheck,
   useServices,
   useStorage,
@@ -38,6 +38,7 @@ import {
 } from "@/lib/api/domains/system";
 import { useCapability } from "@/lib/capabilities";
 import { useRealtimeStatus, type RealtimeStatus } from "@/lib/realtime/store";
+import { AdapterLogsDialog } from "./AdapterLogs";
 import { KeyValue, StatusStrip, useFormatters, useHealthLabels, useQueryPanelState } from "./common";
 import { formatBytes, formatMs, formatPercent, formatRate, formatTemperature, MISSING } from "./format";
 import "./system.css";
@@ -466,18 +467,17 @@ function ActionButton({
 
 function AdapterDrawer({ adapter, onClose }: AdapterDrawerProps) {
   const { t, locale } = useT();
-  const router = useRouter();
   const { toast } = useToast();
   const formatters = useFormatters();
   const healthLabels = useHealthLabels();
-  const runCommand = useRunCommand();
+  const restart = useRestartAdapter();
   const healthcheck = useAdapterHealthCheck();
   const reconnect = useAdapterReconnect();
   const canCheck = useCapability("system", "healthcheck");
   const canRestart = useCapability("system", "restartAdapter");
   const canLogs = useCapability("system", "openLogs");
   const [confirmRestart, setConfirmRestart] = useState(false);
-  const [restarting, setRestarting] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
 
   const id = adapter?.manifest.id;
   const name = adapter?.manifest.name ?? "";
@@ -505,14 +505,18 @@ function AdapterDrawer({ adapter, onClose }: AdapterDrawerProps) {
       },
     );
   };
-  const doRestart = async (): Promise<void> => {
-    setRestarting(true);
-    try {
-      await runCommand({ text: t("system.adapters.restartCommand", { name }), source: "text" });
-    } finally {
-      setRestarting(false);
-      setConfirmRestart(false);
-    }
+  const doRestart = (): void => {
+    if (!id) return;
+    restart.mutate(
+      { id },
+      {
+        onSuccess: (result) => {
+          setConfirmRestart(false);
+          toast({ title: t("system.restart.done", { name }), description: result.message, tone: "green" });
+        },
+        onError: () => setConfirmRestart(false),
+      },
+    );
   };
 
   return (
@@ -616,7 +620,7 @@ function AdapterDrawer({ adapter, onClose }: AdapterDrawerProps) {
                   icon={<FileText size={14} strokeWidth={1.5} />}
                   capability="system.openLogs"
                   granted={canLogs}
-                  onClick={() => router.push(`/audit?adapter=${encodeURIComponent(adapter.manifest.id)}`)}
+                  onClick={() => setShowLogs(true)}
                 />
               </div>
               <p className="mc-note mc-note--muted sy-actions__hint">{t("system.actions.hint")}</p>
@@ -633,9 +637,10 @@ function AdapterDrawer({ adapter, onClose }: AdapterDrawerProps) {
         confirmLabel={t("system.restart.confirm")}
         cancelLabel={t("common.cancel")}
         tone="danger"
-        loading={restarting}
-        onConfirm={() => void doRestart()}
+        loading={restart.isPending}
+        onConfirm={doRestart}
       />
+      {id && showLogs ? <AdapterLogsDialog adapterId={id} name={name} open onOpenChange={setShowLogs} /> : null}
     </>
   );
 }

@@ -1,9 +1,11 @@
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
+import { adapterHandlers } from "./adapters";
 import { approvalHandlers } from "./approvals";
 import { authHandlers } from "./auth";
 import { commandHandlers } from "./commands";
 import { devHandlers } from "./dev";
+import { domainOpHandlers } from "./domain-ops";
 import { metaHandlers } from "./meta";
 import { observabilityHandlers } from "./observability";
 import { buildPortHandlers } from "./ports";
@@ -18,6 +20,8 @@ export function buildHandlers(): Map<OperationId, Handler> {
     settingsHandlers,
     devHandlers,
     approvalHandlers,
+    adapterHandlers,
+    domainOpHandlers,
     commandHandlers,
     observabilityHandlers,
   ];

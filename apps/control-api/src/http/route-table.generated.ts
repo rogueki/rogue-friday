@@ -303,6 +303,174 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "restartAdapter",
+    "method": "POST",
+    "path": "/api/v1/adapters/{id}/restart",
+    "tag": "meta",
+    "capability": "system.restartAdapter",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [
+      "id"
+    ],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": true,
+    "csrf": true,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "ActionResult",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 404,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "getAdapterLogs",
+    "method": "GET",
+    "path": "/api/v1/adapters/{id}/logs",
+    "tag": "meta",
+    "capability": "system.openLogs",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [
+      "id"
+    ],
+    "query": [
+      {
+        "name": "limit",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500
+        }
+      },
+      {
+        "name": "level",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ]
+        }
+      }
+    ],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": false,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "AdapterLogListResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 404,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "getOverview",
     "method": "GET",
     "path": "/api/v1/overview",
@@ -1527,6 +1695,178 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "assignTask",
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/assign",
+    "tag": "tasks",
+    "capability": "agents.assignTask",
+    "role": "operator",
+    "requiresSession": true,
+    "pathParams": [
+      "id"
+    ],
+    "query": [],
+    "acceptsIfMatch": true,
+    "acceptsIdempotencyKey": true,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "TaskAssignRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "TaskResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 404,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "provideTaskInput",
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/input",
+    "tag": "tasks",
+    "capability": "tasks.input",
+    "role": "operator",
+    "requiresSession": true,
+    "pathParams": [
+      "id"
+    ],
+    "query": [],
+    "acceptsIfMatch": true,
+    "acceptsIdempotencyKey": true,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "TaskInputRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "TaskResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 404,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "listActivity",
     "method": "GET",
     "path": "/api/v1/activity",
@@ -1977,6 +2317,66 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "exportMemory",
+    "method": "GET",
+    "path": "/api/v1/memory/export",
+    "tag": "memory",
+    "capability": "memory.export",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": false,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "MemoryExport",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "getMemory",
     "method": "GET",
     "path": "/api/v1/memory/{id}",
@@ -2186,6 +2586,93 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       },
       {
         "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "resolveMemoryConflict",
+    "method": "POST",
+    "path": "/api/v1/memory/{id}/conflicts/{conflictId}/resolve",
+    "tag": "memory",
+    "capability": "memory.resolveConflict",
+    "role": "operator",
+    "requiresSession": true,
+    "pathParams": [
+      "id",
+      "conflictId"
+    ],
+    "query": [],
+    "acceptsIfMatch": true,
+    "acceptsIdempotencyKey": true,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "MemoryConflictResolveRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "MemoryResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 404,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
         "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
@@ -3398,6 +3885,102 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "listDrafts",
+    "method": "GET",
+    "path": "/api/v1/communication/drafts",
+    "tag": "communication",
+    "capability": "communication.draft",
+    "role": "viewer",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [
+      {
+        "name": "threadId",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "pattern": "^thr_[0-9A-Za-z]{26}$"
+        }
+      },
+      {
+        "name": "status",
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/DraftStatus"
+          }
+        }
+      },
+      {
+        "name": "cursor",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 50
+        }
+      }
+    ],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": false,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "DraftListResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "createDraft",
     "method": "POST",
     "path": "/api/v1/communication/drafts",
@@ -4242,6 +4825,76 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "pauseAllAutomations",
+    "method": "POST",
+    "path": "/api/v1/automations/pause-all",
+    "tag": "automations",
+    "capability": "automations.pauseAll",
+    "role": "operator",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": true,
+    "csrf": true,
+    "requestBody": {
+      "required": false,
+      "schema": "AutomationPauseAllRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "AutomationPauseAllResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "getAutomation",
     "method": "GET",
     "path": "/api/v1/automations/{id}",
@@ -4666,6 +5319,93 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       {
         "status": 200,
         "schema": "AutomationRunListResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 404,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "listAutomationVersions",
+    "method": "GET",
+    "path": "/api/v1/automations/{id}/versions",
+    "tag": "automations",
+    "capability": "automations.versions",
+    "role": "viewer",
+    "requiresSession": true,
+    "pathParams": [
+      "id"
+    ],
+    "query": [
+      {
+        "name": "cursor",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 50
+        }
+      }
+    ],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": false,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "AutomationVersionListResponse",
         "contentTypes": [
           "application/json"
         ]
@@ -5286,6 +6026,92 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       },
       {
         "status": 404,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "renameFile",
+    "method": "PATCH",
+    "path": "/api/v1/files/{id}",
+    "tag": "files",
+    "capability": "files.rename",
+    "role": "operator",
+    "requiresSession": true,
+    "pathParams": [
+      "id"
+    ],
+    "query": [],
+    "acceptsIfMatch": true,
+    "acceptsIdempotencyKey": false,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "FileRenameRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "FileItemResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 404,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
         "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
@@ -5929,6 +6755,251 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       },
       {
         "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "enrollVoiceProfile",
+    "method": "POST",
+    "path": "/api/v1/voice/profiles/{id}/enroll",
+    "tag": "voice",
+    "capability": "voice.enroll",
+    "role": "operator",
+    "requiresSession": true,
+    "pathParams": [
+      "id"
+    ],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": true,
+    "csrf": true,
+    "requestBody": {
+      "required": false,
+      "schema": "VoiceEnrollRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 202,
+        "schema": "VoiceEnrollmentResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 404,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "getVoiceEnrollment",
+    "method": "GET",
+    "path": "/api/v1/voice/enrollments/{id}",
+    "tag": "voice",
+    "capability": "voice.enroll",
+    "role": "viewer",
+    "requiresSession": true,
+    "pathParams": [
+      "id"
+    ],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": false,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "VoiceEnrollmentResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 404,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 429,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "deleteVoiceHistory",
+    "method": "DELETE",
+    "path": "/api/v1/voice/history",
+    "tag": "voice",
+    "capability": "voice.deleteHistory",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [
+      {
+        "name": "confirm",
+        "required": true,
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      {
+        "name": "before",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    ],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": true,
+    "csrf": true,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "ActionResult",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
         "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"

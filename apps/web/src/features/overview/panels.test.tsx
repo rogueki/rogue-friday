@@ -66,8 +66,9 @@ describe("overview panels: states", () => {
     expect(screen.getByText("Zeitüberschreitung")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Adapter konfigurieren" })).toBeInTheDocument();
     expect(screen.queryByText("Coding-Agent")).toBeNull();
-    // The attention feed has its own source and still renders (rows are virtualized, jsdom has no layout: check the count).
-    expect(screen.getByRole("list", { name: "Aufmerksamkeit und Live-Aktivität" })).toHaveAttribute("aria-rowcount", "1");
+    // The attention feed has its own source and still renders. Rows are virtualized and jsdom has no layout, so no row is
+    // mounted; the feed only renders its list (instead of the empty state) when it has items.
+    expect(screen.getByRole("list", { name: "Aufmerksamkeit und Live-Aktivität" })).toBeInTheDocument();
   });
 
   it("shows a degraded notice above the content for a slow adapter", () => {

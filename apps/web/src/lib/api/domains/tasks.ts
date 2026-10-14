@@ -4,7 +4,9 @@ import type {
   AuditEventListResponse,
   Priority,
   Task,
+  TaskAssignRequest,
   TaskCreateRequest,
+  TaskInputRequest,
   TaskListResponse,
   TaskResponse,
   TaskStatus,
@@ -133,6 +135,44 @@ export function useTaskAction(action: TaskAction) {
         }),
       ),
     invalidate: invalidateTasks,
+    conflictKeys: [queryKeys.tasks.all],
+  });
+}
+
+/**
+ * Assigns a task to an agent or releases it (POST /tasks/{id}/assign, capability `agents.assignTask`). Adapters without
+ * this operation still accept `agentId` through the task update (see `useTaskCommands`).
+ */
+export function useAssignTask() {
+  return useApiMutation<TaskResponse, { id: string; version?: number } & TaskAssignRequest & IntentVars>({
+    label: "Agent zuweisen",
+    mutationFn: ({ id, version, agentId, reason, idempotencyKey }) =>
+      call(
+        getApiClient().POST("/api/v1/tasks/{id}/assign", {
+          params: { path: { id }, header: { "Idempotency-Key": idempotencyKey, ...(version === undefined ? {} : { "If-Match": String(version) }) } },
+          body: { agentId, ...(reason ? { reason } : {}) },
+        }),
+      ),
+    invalidate: [...invalidateTasks, queryKeys.agents.all],
+    conflictKeys: [queryKeys.tasks.all],
+  });
+}
+
+/**
+ * Answers a task that waits for input (POST /tasks/{id}/input, capability `tasks.input`): the server forwards the text to
+ * the agent and resolves the `input_needed` blocker. The text itself is never logged or audited.
+ */
+export function useProvideTaskInput() {
+  return useApiMutation<TaskResponse, { id: string; version?: number } & TaskInputRequest & IntentVars>({
+    label: "Eingabe senden",
+    mutationFn: ({ id, version, input, blockerId, idempotencyKey }) =>
+      call(
+        getApiClient().POST("/api/v1/tasks/{id}/input", {
+          params: { path: { id }, header: { "Idempotency-Key": idempotencyKey, ...(version === undefined ? {} : { "If-Match": String(version) }) } },
+          body: { input, ...(blockerId ? { blockerId } : {}) },
+        }),
+      ),
+    invalidate: [...invalidateTasks, queryKeys.approvals.all],
     conflictKeys: [queryKeys.tasks.all],
   });
 }

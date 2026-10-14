@@ -7,13 +7,13 @@ import { buildActivity } from "./activity";
 import { buildAgents, buildBulkAgents } from "./agents";
 import { buildBulkApprovals, buildCuratedApprovals } from "./approvals";
 import { buildAudit } from "./audit";
-import { buildAutomations, buildBulkAutomations } from "./automations";
+import { buildAutomationVersions, buildAutomations, buildBulkAutomations } from "./automations";
 import { buildCuratedCalendar, buildFillerEvents } from "./calendar";
 import { buildBulkThreads, buildChannels, buildCuratedCommunication } from "./communication";
 import { createSeedContext, type SeedContext, type SeedSizes } from "./context";
 import { buildBulkFiles, buildFiles } from "./files";
 import { applyLongGerman } from "./long-german";
-import { buildAdapters, buildCommandHistory, buildQuickCommands } from "./meta";
+import { buildAdapterLogs, buildAdapters, buildCommandHistory, buildQuickCommands } from "./meta";
 import { buildBulkMemory, buildCuratedMemory } from "./memory";
 import { buildBulkNotifications, buildNotifications } from "./notifications";
 import { buildResearch } from "./research";
@@ -123,6 +123,7 @@ export function buildWorldState(ctx: SeedContext, profile: ProfileName): WorldSt
       calendarProposals: calendar.proposals,
       automations: [...automations.automations, ...bulkAutomations.automations],
       automationRuns: [...automations.runs, ...bulkAutomations.runs],
+      automationVersions: buildAutomationVersions(ctx, [...automations.automations, ...bulkAutomations.automations]),
       researchProjects: research.projects,
       researchSources: research.sources,
       researchFindings: research.findings,
@@ -159,6 +160,7 @@ export function buildWorldState(ctx: SeedContext, profile: ProfileName): WorldSt
       calendarProposals: [],
       automations: [],
       automationRuns: [],
+      automationVersions: {},
       researchProjects: [],
       researchSources: [],
       researchFindings: [],
@@ -172,6 +174,7 @@ export function buildWorldState(ctx: SeedContext, profile: ProfileName): WorldSt
       commandHistory: [],
     });
     voice.profiles = [];
+    voice.history = [];
     voice.status.speakerVerification = { enabled: false, state: "disabled", recognizedSpeaker: null, confidence: null };
     voice.status.trustedSession = { active: false, expiresAt: null };
     voice.metrics = {
@@ -194,11 +197,12 @@ export function buildWorldState(ctx: SeedContext, profile: ProfileName): WorldSt
   }
 
   const sessionSuffix = ctx.id("csrf");
+  const adapters = buildAdapters(ctx);
   const full: WorldState = {
     ...(state as Required<Pick<WorldState,
       | "tasks" | "activity" | "memory" | "agents" | "approvals" | "channels" | "threads" | "messages" | "drafts"
       | "calendarEvents" | "calendarConflicts" | "calendarBriefings" | "calendarProposals" | "automations"
-      | "automationRuns" | "researchProjects" | "researchSources" | "researchFindings" | "researchArtifacts"
+      | "automationRuns" | "automationVersions" | "researchProjects" | "researchSources" | "researchFindings" | "researchArtifacts"
       | "files" | "fileContents" | "notifications" | "audit" | "auditSequence" | "sequence" | "commandHistory">>),
     voice,
     system,
@@ -208,7 +212,8 @@ export function buildWorldState(ctx: SeedContext, profile: ProfileName): WorldSt
     commandPreviews: {},
     quickCommands: buildQuickCommands(),
     capabilities: defaultCapabilities(CONTRACT_VERSION),
-    adapters: buildAdapters(ctx),
+    adapters,
+    adapterLogs: buildAdapterLogs(ctx, adapters),
     sync: [],
     orb: { mode: "idle", since: ctx.at(0), signature: "" },
     forcedOrb: null,

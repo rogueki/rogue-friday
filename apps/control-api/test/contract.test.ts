@@ -72,6 +72,14 @@ describe("contract: all operations", () => {
       expect(health.json.data.adapterId).toBe(first.manifest.id);
     });
 
+    it("restarts an adapter and reads its log lines", async () => {
+      const restarted = await call("restartAdapter", { params: { id: "mock-tasks" }, headers: { "idempotency-key": "idem-contract-restart-1" } });
+      expect(restarted.json).toMatchObject({ accepted: true, status: "completed", resourceId: "mock-tasks" });
+      const logs = await call("getAdapterLogs", { params: { id: "mock-tasks" }, query: { limit: "20", level: "info" } });
+      expect(logs.json.items.length).toBeGreaterThan(0);
+      expect(logs.json.items.every((entry: any) => entry.adapterId === "mock-tasks")).toBe(true);
+    });
+
     it("serves overview, status and orb status", async () => {
       const overview = await call("getOverview");
       expect(overview.json.data).toBeDefined();
@@ -111,6 +119,17 @@ describe("contract: all operations", () => {
       await call("cancelTask", { params: { id: ids.cancelTask }, body: { reason: "nicht mehr nötig" } });
       await call("retryTask", { params: { id: ids.retryTask } });
     });
+
+    it("assigns a task to an agent and answers a task that waits for input", async () => {
+      const agents = await idsOf("/api/v1/agents");
+      const idle = agents.find((agent) => agent.status === "idle");
+      const open = (await idsOf("/api/v1/tasks", { status: ["todo", "ready"] }))[0];
+      const assigned = await call("assignTask", { params: { id: open.id }, body: { agentId: idle.id }, headers: { "idempotency-key": "idem-contract-assign-01", "if-match": String(open.version) } });
+      expect(assigned.json.data.agentId).toBe(idle.id);
+      const waiting = (await idsOf("/api/v1/tasks", { status: ["waiting"] })).find((task) => task.blockers.some((blocker: any) => blocker.kind === "input_needed"));
+      const answered = await call("provideTaskInput", { params: { id: waiting.id }, body: { input: "Bitte das günstigere Angebot nehmen." }, headers: { "idempotency-key": "idem-contract-input-01" } });
+      expect(answered.json.data.blockers.some((blocker: any) => blocker.kind === "input_needed")).toBe(false);
+    });
   });
 
   describe("activity and memory", () => {
@@ -128,6 +147,17 @@ describe("contract: all operations", () => {
       const search = await call("searchMemory", { body: { query: "Dienstreise" } });
       expect(search.json.items.length).toBeGreaterThan(0);
       await call("deleteMemory", { params: { id } });
+    });
+
+    it("exports the memory and resolves a conflict", async () => {
+      const exported = await call("exportMemory");
+      expect(exported.response.headers["content-disposition"]).toContain("attachment");
+      expect(exported.json.count).toBe(exported.json.items.length);
+      expect(exported.json.items.some((memory: any) => memory.sensitivity === "restricted")).toBe(false);
+      const conflicting = (await idsOf("/api/v1/memory")).find((memory) => memory.conflicts.some((entry: any) => entry.resolution === "pending"));
+      const conflictId = conflicting.conflicts.find((entry: any) => entry.resolution === "pending").memoryId as string;
+      const resolved = await call("resolveMemoryConflict", { params: { id: conflicting.id, conflictId }, body: { resolution: "keep_both" }, headers: { "idempotency-key": "idem-contract-conflict-1" } });
+      expect(resolved.json.data.conflicts.find((entry: any) => entry.memoryId === conflictId).resolution).toBe("keep_both");
     });
   });
 
@@ -172,6 +202,8 @@ describe("contract: all operations", () => {
       await call("updateDraft", { params: { id }, body: { subject: "Terminabstimmung Donnerstag" }, headers: { "if-match": String(draft.json.data.version) } });
       const fresh = await owner.get(`/api/v1/communication/threads/${threads.json.items[0].id}`);
       expect(fresh.statusCode).toBe(200);
+      const drafts = await call("listDrafts", { query: { threadId: threads.json.items[0].id } });
+      expect(drafts.json.items.every((entry: any) => entry.threadId === threads.json.items[0].id)).toBe(true);
       const send = await call("requestDraftSend", { params: { id }, body: { comment: "Bitte freigeben" } });
       expect(send.status).toBe(202);
     });
@@ -203,6 +235,15 @@ describe("contract: all operations", () => {
       await call("enableAutomation", { params: { id } });
       await call("disableAutomation", { params: { id } });
       await call("listAutomationRuns", { params: { id: ids.automation } });
+      const versions = await call("listAutomationVersions", { params: { id } });
+      expect(versions.json.items.length).toBeGreaterThanOrEqual(4);
+      expect(versions.json.items[0]).toMatchObject({ current: true });
+    });
+
+    it("pauses all automations with one request", async () => {
+      const result = await call("pauseAllAutomations", { body: { reason: "Urlaub" }, headers: { "idempotency-key": "idem-contract-pauseall-1" } });
+      expect(result.json.data.pausedCount).toBeGreaterThan(0);
+      expect(result.json.data.results.length).toBeGreaterThanOrEqual(result.json.data.pausedCount);
     });
 
     it("reads research projects and their parts", async () => {
@@ -225,6 +266,9 @@ describe("contract: all operations", () => {
       expect(download.response.headers["content-disposition"]).toContain("attachment");
       expect(download.response.headers["content-type"]).toBe("application/octet-stream");
       const temporary = files.json.items.find((file: any) => file.category === "temporary");
+      const target = files.json.items.find((file: any) => file.category === "reports");
+      const renamed = await call("renameFile", { params: { id: target.id }, body: { name: "Umbenannter Bericht.md" }, headers: { "if-match": String(target.version) } });
+      expect(renamed.json.data).toMatchObject({ id: target.id, name: "Umbenannter Bericht.md", version: target.version + 1 });
       const removed = await call("deleteFile", { params: { id: temporary.id }, expect: [200, 202] });
       expect([200, 202]).toContain(removed.status);
     });
@@ -235,7 +279,13 @@ describe("contract: all operations", () => {
       await call("getVoiceStatus");
       await call("listVoiceDevices");
       await call("getVoiceMetrics");
-      await call("listVoiceProfiles");
+      const profiles = await call("listVoiceProfiles");
+      const enrollment = await call("enrollVoiceProfile", { params: { id: profiles.json.items[0].id }, body: { sampleTarget: 5 }, headers: { "idempotency-key": "idem-contract-enroll-01" }, expect: 202 });
+      expect(enrollment.response.headers.location).toBe(`/api/v1/voice/enrollments/${enrollment.json.data.id}`);
+      const job = await call("getVoiceEnrollment", { params: { id: enrollment.json.data.id } });
+      expect(job.json.data).toMatchObject({ profileId: profiles.json.items[0].id, samplesRequired: 5 });
+      const deleted = await call("deleteVoiceHistory", { query: { confirm: "true" }, headers: { "idempotency-key": "idem-contract-history-01" } });
+      expect(deleted.json.message).toMatch(/Verlaufseinträge/);
       await call("runVoiceTest", { body: { kind: "stt" } });
       const started = await call("executeCommand", { body: { text: "Sprachaufnahme starten", source: "voice" } });
       expect(started.json.status).toBe("executed");
@@ -347,7 +397,7 @@ describe("contract: all operations", () => {
   });
 
   it("covers every operation of the route table with a contract-valid success response", () => {
-    expect(ROUTE_TABLE).toHaveLength(109);
+    expect(ROUTE_TABLE).toHaveLength(122);
     expect(probe.uncovered(), "Operationen ohne erfolgreichen, vertragsgültigen Aufruf").toEqual([]);
     expect(probe.problems).toEqual([]);
     for (const spec of ROUTE_TABLE) expect(specOf(spec.operationId)).toBe(spec);

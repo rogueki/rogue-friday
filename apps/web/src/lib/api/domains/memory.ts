@@ -2,7 +2,9 @@
 
 import type {
   ActionResult,
+  MemoryConflictResolveRequest,
   MemoryCreateRequest,
+  MemoryExport,
   MemoryListResponse,
   MemoryResponse,
   MemorySearchRequest,
@@ -92,6 +94,46 @@ export function useDeleteMemory() {
     label: "Gedächtniseintrag vergessen",
     mutationFn: ({ id, version }) =>
       call(getApiClient().DELETE("/api/v1/memory/{id}", { params: { path: { id }, header: { "If-Match": String(version) } } })),
+    invalidate: [...invalidate, queryKeys.audit.all],
+    conflictKeys: [queryKeys.memory.all],
+  });
+}
+
+/**
+ * Complete memory export from the server (GET /memory/export, owner, capability `memory.export`). The server leaves
+ * restricted memories out and masks secrets; the document is handed to the browser as a file, nothing is stored.
+ * A mutation (not a query): it runs on click and is never cached or refetched.
+ */
+export function useExportMemory() {
+  return useApiMutation<MemoryExport, IntentVars>({
+    label: "Gedächtnis exportieren",
+    mutationFn: () => call(getApiClient().GET("/api/v1/memory/export")),
+    invalidate: [queryKeys.audit.all],
+  });
+}
+
+export interface ResolveConflictVars extends IntentVars {
+  /** The memory the conflict belongs to. */
+  id: string;
+  /** Id of the conflicting memory (`MemoryConflict.memoryId`). */
+  conflictId: string;
+  /** Current version of memory `id` for If-Match. */
+  version: number;
+  resolution: MemoryConflictResolveRequest["resolution"];
+  note?: string;
+}
+
+/** keep_both | replace | dismiss (POST /memory/{id}/conflicts/{conflictId}/resolve). `replace` forgets the other memory. */
+export function useResolveMemoryConflict() {
+  return useApiMutation<MemoryResponse, ResolveConflictVars>({
+    label: "Konflikt lösen",
+    mutationFn: ({ id, conflictId, version, resolution, note, idempotencyKey }) =>
+      call(
+        getApiClient().POST("/api/v1/memory/{id}/conflicts/{conflictId}/resolve", {
+          params: { path: { id, conflictId }, header: { "Idempotency-Key": idempotencyKey, "If-Match": String(version) } },
+          body: { resolution, ...(note ? { note } : {}) },
+        }),
+      ),
     invalidate: [...invalidate, queryKeys.audit.all],
     conflictKeys: [queryKeys.memory.all],
   });

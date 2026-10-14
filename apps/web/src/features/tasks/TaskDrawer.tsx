@@ -13,6 +13,7 @@ import { useAgents } from "@/lib/api/domains/agents";
 import { useApprovals } from "@/lib/api/domains/approvals";
 import { useTask, useTaskAudit } from "@/lib/api/domains/tasks";
 import { useCapability } from "@/lib/capabilities";
+import { ProvideInputDialog } from "./ProvideInputDialog";
 import { StatusChip, TaskProgress } from "./TaskCard";
 import { PRIORITY_TONE, entityRoute, progressPercent } from "./model";
 import { CopyButton, DataOrigin, FactList, GatedButton, useDateFormatter } from "./moduleKit";
@@ -64,6 +65,7 @@ function OverviewTab({ task, assignable }: { task: Task; assignable: boolean }) 
   const commands = useTaskCommands();
   const states = useTaskActionStates(task);
   const canAssign = states.assign.gate === "available" && !states.assign.blockedReason;
+  const [answering, setAnswering] = useState(false);
   return (
     <div className="tk-tab">
       <FactList
@@ -138,11 +140,17 @@ function OverviewTab({ task, assignable }: { task: Task; assignable: boolean }) 
                   {blocker.since ? <span className="tk-list__aside">{t("tasks.blocker.since", { time: format.relative(blocker.since) })}</span> : null}
                 </div>
                 <p className="tk-list__text">{blocker.description}</p>
+                {blocker.kind === "input_needed" ? (
+                  <GatedButton size="sm" variant="primary" gate={states.input.gate} onClick={() => setAnswering(true)}>
+                    {t("tasks.decisions.provideInput")}
+                  </GatedButton>
+                ) : null}
               </li>
             ))}
           </ul>
         </div>
       ) : null}
+      {answering ? <ProvideInputDialog task={task} open onOpenChange={setAnswering} /> : null}
     </div>
   );
 }

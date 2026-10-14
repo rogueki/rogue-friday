@@ -51,6 +51,8 @@ export class MockTasksAdapter extends MockAdapterBase implements TaskPort {
     this.call("pauseTask", call, () => this.single(this.world.tasks.pause(id, body, this.op(call))), { mutating: true });
   resumeTask: NonNullable<TaskPort["resumeTask"]> = ({ id, body }, call) =>
     this.call("resumeTask", call, () => this.single(this.world.tasks.resume(id, body, this.op(call))), { mutating: true });
+  provideTaskInput: NonNullable<TaskPort["provideTaskInput"]> = ({ id, body }, call) =>
+    this.call("provideTaskInput", call, () => this.single(this.world.tasks.provideInput(id, body, this.op(call))), { mutating: true });
 }
 
 export class MockActivityAdapter extends MockAdapterBase implements ActivityPort {
@@ -77,6 +79,12 @@ export class MockMemoryAdapter extends MockAdapterBase implements MemoryPort {
     this.call("updateMemory", call, () => this.single(this.world.memory.update(id, body, this.op(call))), { mutating: true });
   deleteMemory: NonNullable<MemoryPort["deleteMemory"]> = ({ id }, call) =>
     this.call("deleteMemory", call, () => outcome(this.world.memory.delete(id, this.op(call))), { mutating: true });
+  exportMemory: NonNullable<MemoryPort["exportMemory"]> = (_params, call) =>
+    this.call("exportMemory", call, () => this.world.memory.exportAll());
+  resolveMemoryConflict: NonNullable<MemoryPort["resolveMemoryConflict"]> = ({ id, conflictId, body }, call) =>
+    this.call("resolveMemoryConflict", call, () => this.single(this.world.memory.resolveConflict(id, conflictId, body, this.op(call))), {
+      mutating: true,
+    });
   searchMemory: NonNullable<MemoryPort["searchMemory"]> = ({ body }, call) =>
     this.call("searchMemory", call, () => ({
       items: this.world.memory.search(body),
@@ -99,6 +107,8 @@ export class MockAgentsAdapter extends MockAdapterBase implements AgentPort {
     this.call("resumeAgent", call, () => this.single(this.world.agents.resume(id, this.op(call))), { mutating: true });
   stopAgent: NonNullable<AgentPort["stopAgent"]> = ({ id }, call) =>
     this.call("stopAgent", call, () => this.single(this.world.agents.stop(id, this.op(call))), { mutating: true });
+  assignTask: NonNullable<AgentPort["assignTask"]> = ({ id, body }, call) =>
+    this.call("assignTask", call, () => this.single(this.world.tasks.assign(id, body, this.op(call))), { mutating: true });
 }
 
 export class MockApprovalsAdapter extends MockAdapterBase implements ApprovalPort {
@@ -143,6 +153,8 @@ export class MockCommunicationAdapter extends MockAdapterBase implements Communi
     this.call("listThreads", call, () => this.page(this.world.communication.listThreads(this.q(params))));
   getThread: CommunicationPort["getThread"] = ({ id }, call) =>
     this.call("getThread", call, () => this.single(this.world.communication.getThread(id)));
+  listDrafts: NonNullable<CommunicationPort["listDrafts"]> = (params, call) =>
+    this.call("listDrafts", call, () => this.page(this.world.communication.listDrafts(this.q(params))));
   createDraft: NonNullable<CommunicationPort["createDraft"]> = ({ body }, call) =>
     this.call("createDraft", call, () => this.single(this.world.communication.createDraft(body, this.op(call))), { mutating: true });
   updateDraft: NonNullable<CommunicationPort["updateDraft"]> = ({ id, body }, call) =>
@@ -191,6 +203,10 @@ export class MockAutomationsAdapter extends MockAdapterBase implements Automatio
     this.call("enableAutomation", call, () => this.single(this.world.automations.enable(id, this.op(call))), { mutating: true });
   disableAutomation: NonNullable<AutomationPort["disableAutomation"]> = ({ id }, call) =>
     this.call("disableAutomation", call, () => this.single(this.world.automations.disable(id, this.op(call))), { mutating: true });
+  listAutomationVersions: NonNullable<AutomationPort["listAutomationVersions"]> = ({ id, ...paging }, call) =>
+    this.call("listAutomationVersions", call, () => this.page(this.world.automations.listVersions(id, this.q(paging))));
+  pauseAllAutomations: NonNullable<AutomationPort["pauseAllAutomations"]> = ({ body }, call) =>
+    this.call("pauseAllAutomations", call, () => this.single(this.world.automations.pauseAll(body, this.op(call))), { mutating: true });
 }
 
 export class MockResearchAdapter extends MockAdapterBase implements ResearchPort {
@@ -225,6 +241,8 @@ export class MockFilesAdapter extends MockAdapterBase implements FilePort {
       const body = new TextEncoder().encode(download.body);
       return { fileId: id, filename: download.fileName, contentType: download.contentType, sizeBytes: body.byteLength, body };
     });
+  renameFile: NonNullable<FilePort["renameFile"]> = ({ id, body }, call) =>
+    this.call("renameFile", call, () => this.single(this.world.files.rename(id, body, this.op(call))), { mutating: true });
   deleteFile: NonNullable<FilePort["deleteFile"]> = ({ id }, call) =>
     this.call(
       "deleteFile",
@@ -254,6 +272,12 @@ export class MockVoiceAdapter extends MockAdapterBase implements VoicePort {
     this.call("runVoiceTest", call, () => this.single(this.world.voice.test(body, this.op(call))), { mutating: true });
   stopVoice: NonNullable<VoicePort["stopVoice"]> = (_params, call) =>
     this.call("stopVoice", call, () => outcome(this.world.voice.stop(this.op(call))), { mutating: true });
+  enrollVoiceProfile: NonNullable<VoicePort["enrollVoiceProfile"]> = ({ id, body }, call) =>
+    this.call("enrollVoiceProfile", call, () => this.single(this.world.voice.enroll(id, body, this.op(call))), { mutating: true });
+  getVoiceEnrollment: NonNullable<VoicePort["getVoiceEnrollment"]> = ({ id }, call) =>
+    this.call("getVoiceEnrollment", call, () => this.single(this.world.voice.getEnrollment(id)));
+  deleteVoiceHistory: NonNullable<VoicePort["deleteVoiceHistory"]> = (params, call) =>
+    this.call("deleteVoiceHistory", call, () => outcome(this.world.voice.deleteHistory(params, this.op(call))), { mutating: true });
 }
 
 export class MockNotificationsAdapter extends MockAdapterBase implements NotificationPort {

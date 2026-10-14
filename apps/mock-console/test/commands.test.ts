@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CONTRACT_VERSION, type ScenarioState } from "@jarvis/sdk";
 import { EVENT_MODES, ORB_MODES, parseDuration, run, UsageError } from "../src/commands";
@@ -150,6 +153,12 @@ describe("scenario CLI", () => {
     [["orb", "thinking", "--text", "ANALYSE", "--level", "0.4", "--progress", "0.5"], { action: "force_orb_state", mode: "thinking", activityText: "ANALYSE", audioLevel: 0.4, progress: 0.5 }],
     [["event", "approval"], { action: "force_orb_state", mode: "waiting_approval" }],
     [["reset"], { action: "reset" }],
+    [["release-orb"], { action: "release_orb_state" }],
+    [["play-event", "jarvis.orb.status_changed"], { action: "play_event", eventType: "jarvis.orb.status_changed" }],
+    [
+      ["play-event", "jarvis.voice.transcript_partial", "--subject", "voice/utterance", "--payload", '{"text":"Hallo"}'],
+      { action: "play_event", eventType: "jarvis.voice.transcript_partial", subject: "voice/utterance", payload: { text: "Hallo" } },
+    ],
   ] as const)("maps %j to the control request", async (argv, expected) => {
     const h = harness(controlHandler);
     expect(await h.exec(...argv)).toBe(0);
@@ -185,11 +194,35 @@ describe("scenario CLI", () => {
     [["event", "nonsense"], "Unbekanntes Ereignis"],
     [["frobnicate"], "Unbekannter Befehl"],
     [["play"], "Szenario-ID"],
+    [["play-event"], "Ereignistyp"],
+    [["play-event", "orb-status"], "Ereignistyp"],
+    [["play-event", "jarvis.orb.status_changed", "--payload", "{kaputt"], "kein gültiges JSON"],
+    [["play-event", "jarvis.orb.status_changed", "--payload", "[1]"], "JSON-Objekt"],
+    [["play-event", "jarvis.orb.status_changed", "--payload", "@/gibt/es/nicht.json"], "nicht lesbar"],
   ] as const)("rejects bad input %j with exit code 2", async (argv, message) => {
     const h = harness(controlHandler);
     expect(await h.exec(...argv)).toBe(2);
     expect(h.err.join("\n")).toContain(message);
     expect(lastControl(h.calls)).toBeUndefined();
+  });
+
+  it("reads the play-event payload from a file", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "jarvis-console-"));
+    const file = join(dir, "payload.json");
+    writeFileSync(file, JSON.stringify({ text: "Aus Datei" }));
+    try {
+      const h = harness(controlHandler);
+      expect(await h.exec("play-event", "jarvis.voice.transcript_partial", "--payload", `@${file}`)).toBe(0);
+      expect(lastControl(h.calls)?.body).toEqual({ action: "play_event", eventType: "jarvis.voice.transcript_partial", payload: { text: "Aus Datei" } });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("documents the new commands in the help", async () => {
+    const h = harness();
+    await h.exec("--help");
+    expect(h.out.join("\n")).toMatch(/release-orb[\s\S]*play-event/);
   });
 
   it("rejects unknown options and roles with exit code 2", async () => {

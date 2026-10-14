@@ -16,7 +16,7 @@ import {
   useToast,
   type Tone,
 } from "@jarvis/ui";
-import { Download, ExternalLink, File as FileGlyph, FileCode, FileImage, FileSpreadsheet, FileText, FolderOpen, Presentation, Trash2 } from "lucide-react";
+import { Download, ExternalLink, File as FileGlyph, FileCode, FileImage, FileSpreadsheet, FileText, FolderOpen, Pencil, Presentation, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
@@ -28,6 +28,7 @@ import { describeError } from "@/lib/api/queryClient";
 import { downloadFileBlob, useDeleteFile, useFile, useFiles, type FileFilters } from "@/lib/api/domains/files";
 import { useCapability } from "@/lib/capabilities";
 import { FilePreviewPane } from "./FilePreview";
+import { RenameFileDialog } from "./RenameFileDialog";
 import "./files.css";
 
 const ICON = { size: 18, strokeWidth: 1.5 } as const;
@@ -114,9 +115,11 @@ interface FileDetailProps {
   file: FileItem;
   onClose: () => void;
   onSelectFile: (id: string) => void;
+  /** Names of the other files in the list; the rename dialog refuses duplicates in the same location. */
+  siblings?: readonly FileItem[];
 }
 
-export function FileDetail({ file, onClose, onSelectFile }: FileDetailProps) {
+export function FileDetail({ file, onClose, onSelectFile, siblings = [] }: FileDetailProps) {
   const { t, locale } = useT();
   const router = useRouter();
   const { toast } = useToast();
@@ -124,8 +127,10 @@ export function FileDetail({ file, onClose, onSelectFile }: FileDetailProps) {
   const canDownload = useCapability("files", "download");
   const canPreview = useCapability("files", "preview");
   const canDelete = useCapability("files", "delete");
+  const canRename = useCapability("files", "rename");
   const remove = useDeleteFile();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const [downloading, setDownloading] = useState<number | "current" | null>(null);
   const [openPreview, setOpenPreview] = useState(false);
 
@@ -300,6 +305,16 @@ export function FileDetail({ file, onClose, onSelectFile }: FileDetailProps) {
         >
           {t("files.action.download")}
         </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          icon={<Pencil size={14} strokeWidth={1.5} />}
+          disabled={!canRename}
+          title={canRename ? undefined : t("files.action.unavailable", { capability: "files.rename" })}
+          onClick={() => setRenaming(true)}
+        >
+          {t("files.action.rename")}
+        </Button>
         {canDelete ? (
           <Button size="sm" variant="danger" icon={<Trash2 size={14} strokeWidth={1.5} />} onClick={() => setConfirmDelete(true)}>
             {t("files.action.delete")}
@@ -336,6 +351,16 @@ export function FileDetail({ file, onClose, onSelectFile }: FileDetailProps) {
         onConfirm={requestDelete}
       />
       <FileOpenDialog file={file} open={openPreview} onOpenChange={setOpenPreview} />
+      {renaming ? (
+        <RenameFileDialog
+          // Remounting per file and version resets the field when the name changed elsewhere.
+          key={`${file.id}-${file.version}`}
+          file={file}
+          open
+          onOpenChange={setRenaming}
+          siblingNames={siblings.filter((other) => other.id !== file.id && other.location === file.location).map((other) => other.name)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -413,7 +438,7 @@ function FilesContent() {
     setLimit(PAGE_SIZE);
   };
 
-  const detail = selected ? <FileDetail file={selected} onClose={() => select(null)} onSelectFile={(id) => select(id)} /> : null;
+  const detail = selected ? <FileDetail file={selected} onClose={() => select(null)} onSelectFile={(id) => select(id)} siblings={items} /> : null;
 
   return (
     <div className="mc-page fl-page">

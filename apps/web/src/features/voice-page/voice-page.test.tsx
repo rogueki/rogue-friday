@@ -1,16 +1,15 @@
-import type { VoiceMetrics, VoiceProfile, VoiceStatus } from "@jarvis/sdk";
+import type { VoiceEnrollment, VoiceMetrics, VoiceProfile, VoiceStatus } from "@jarvis/sdk";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
 import { capabilitiesOf, renderWithProviders } from "@/test/render";
-import { listOf, NOW, routedFetch, single, SOURCE } from "@/features/system/testSupport";
+import { errorBody, listOf, NOW, routedFetch, single, SOURCE } from "@/features/system/testSupport";
+import { validateSampleTarget } from "./EnrollmentFlow";
 import { VoicePage } from "./VoicePage";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }), usePathname: () => "/voice", useSearchParams: () => new URLSearchParams() }));
-const runCommand = vi.fn();
-vi.mock("@/features/palette/commandRunner", () => ({ useRunCommand: () => runCommand }));
 
 const stat = (currentMs: number | null, avgMs: number | null, p95Ms: number | null, sampleCount: number) => ({ currentMs, avgMs, p95Ms, sampleCount });
 
@@ -62,7 +61,6 @@ const caps = (voice: Record<string, boolean>) => capabilitiesOf({ voice: { read:
 
 beforeEach(() => {
   push.mockReset();
-  runCommand.mockReset();
 });
 afterEach(() => setApiClient(null));
 
@@ -133,20 +131,136 @@ describe("enrollment (PLAN §38.3) and privacy (PLAN §38.4)", () => {
     expect(screen.getByText("Nicht getestet")).toBeInTheDocument();
   });
 
-  it("offers enrollment through the command bus only with the capability", async () => {
+  const job = (partial: Partial<VoiceEnrollment> = {}): VoiceEnrollment => ({
+    id: "venr_01JAAAAAAAAAAAAAAAAAAAAAAA",
+    profileId: "vprof_1",
+    status: "queued",
+    samplesCaptured: 0,
+    samplesRequired: 12,
+    progress: { mode: "determinate", value: 0 },
+    quality: null,
+    startedAt: NOW,
+    updatedAt: NOW,
+    finishedAt: null,
+    message: "Einrichtung wird vorbereitet.",
+    source: SOURCE,
+    ...partial,
+  });
+
+  it("starts an enrollment through POST /voice/profiles/{id}/enroll with the chosen options and follows the job to completion", async () => {
+    const user = userEvent.setup();
+    let polls = 0;
+    const fake = routedFetch(
+      routes({
+        "POST /api/v1/voice/profiles/vprof_1/enroll": () => new Response(JSON.stringify(single(job())), { status: 202, headers: { "content-type": "application/json", Location: "/api/v1/voice/enrollments/venr_01JAAAAAAAAAAAAAAAAAAAAAAA" } }),
+        "GET /api/v1/voice/enrollments/venr_01JAAAAAAAAAAAAAAAAAAAAAAA": () => {
+          polls += 1;
+          return polls < 2
+            ? single(job({ status: "capturing", samplesCaptured: 5, progress: { mode: "determinate", value: 0.42 }, message: "Bitte sprich Satz 6 von 12 laut und deutlich." }))
+            : single(job({ status: "completed", samplesCaptured: 12, progress: { mode: "determinate", value: 1 }, quality: 0.95, finishedAt: NOW, message: "Das Sprachprofil wurde aktualisiert." }));
+        },
+      }),
+    );
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({ enroll: true }) });
+    await user.click(await screen.findByRole("button", { name: "Enrollment starten" }));
+    const dialog = await screen.findByRole("dialog", { name: /einlernen/ });
+    const samples = within(dialog).getByLabelText("Anzahl Samples");
+    await user.clear(samples);
+    await user.type(samples, "8");
+    await user.click(within(dialog).getByRole("switch", { name: /Schwelle neu kalibrieren/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Einrichtung starten" }));
+    await waitFor(() => expect(fake.calls.some((call) => call.method === "POST" && call.path.endsWith("/enroll"))).toBe(true));
+    const post = fake.calls.find((call) => call.path.endsWith("/enroll"));
+    expect(JSON.parse(post?.body ?? "{}")).toEqual({ sampleTarget: 8, recalibrate: false });
+    expect(post?.headers.get("Idempotency-Key")).toBeTruthy();
+    const running = await screen.findByTestId("enrollment-job");
+    expect(running).toHaveAttribute("data-status", "capturing");
+    expect(within(running).getByText("5 von 12 Samples")).toBeInTheDocument();
+    expect(within(running).getByText("Bitte sprich Satz 6 von 12 laut und deutlich.")).toBeInTheDocument();
+    expect(within(running).getByRole("progressbar", { name: "Fortschritt der Einrichtung" })).toHaveValue(42);
+    // the poll continues until the job is final
+    await waitFor(() => expect(screen.getByTestId("enrollment-job")).toHaveAttribute("data-status", "completed"), { timeout: 5000 });
+    expect(screen.getByText(/Das Profil wurde aktualisiert, Qualität jetzt/)).toBeInTheDocument();
+    const callsAfter = fake.calls.filter((call) => call.path.includes("/enrollments/")).length;
+    await new Promise((resolve) => setTimeout(resolve, 1800));
+    expect(fake.calls.filter((call) => call.path.includes("/enrollments/")).length).toBe(callsAfter);
+    await user.click(within(screen.getByTestId("enrollment-job")).getByRole("button", { name: "Ausblenden" }));
+    expect(screen.queryByTestId("enrollment-job")).toBeNull();
+  }, 15_000);
+
+  it("validates the sample count before anything is sent", async () => {
     const user = userEvent.setup();
     const fake = routedFetch(routes());
     renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({ enroll: true }) });
     await user.click(await screen.findByRole("button", { name: "Enrollment starten" }));
-    expect(runCommand).toHaveBeenCalledWith({ text: "Voice-Enrollment starten", source: "text" });
+    const dialog = await screen.findByRole("dialog", { name: /einlernen/ });
+    const samples = within(dialog).getByLabelText("Anzahl Samples");
+    for (const bad of ["2", "51", "abc", ""]) {
+      await user.clear(samples);
+      if (bad) await user.type(samples, bad);
+      expect(within(dialog).getByRole("button", { name: "Einrichtung starten" })).toBeDisabled();
+    }
+    expect(within(dialog).getByText("Bitte eine ganze Zahl zwischen 3 und 50 eingeben.")).toBeInTheDocument();
+    expect(validateSampleTarget("3")).toBeNull();
+    expect(validateSampleTarget("50")).toBeNull();
+    expect(fake.calls.some((call) => call.method === "POST")).toBe(false);
   });
 
-  it("shows raw recording off by default and an honest, disabled delete action", async () => {
+  it("shows a failed job honestly and keeps the profile unchanged", async () => {
+    const user = userEvent.setup();
+    const fake = routedFetch(
+      routes({
+        "POST /api/v1/voice/profiles/vprof_1/enroll": () => new Response(JSON.stringify(single(job())), { status: 202, headers: { "content-type": "application/json" } }),
+        "GET /api/v1/voice/enrollments/venr_01JAAAAAAAAAAAAAAAAAAAAAAA": single(job({ status: "failed", message: "Mikrofon nicht erreichbar", finishedAt: NOW })),
+      }),
+    );
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({ enroll: true }) });
+    await user.click(await screen.findByRole("button", { name: "Enrollment starten" }));
+    await user.click(within(await screen.findByRole("dialog", { name: /einlernen/ })).getByRole("button", { name: "Einrichtung starten" }));
+    const failed = await screen.findByText("Mikrofon nicht erreichbar");
+    expect(failed).toBeInTheDocument();
+    expect(screen.getByText(/Die Einrichtung wurde nicht abgeschlossen/)).toBeInTheDocument();
+  });
+
+  it("shows raw recording off by default; delete history is disabled with the reason when the capability is missing", async () => {
     const fake = routedFetch(routes());
     renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({}) });
     const privacy = (await screen.findByText("Rohaufnahmen speichern")).closest("li") as HTMLElement;
     expect(within(privacy).getByText("Aus")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Voice-History löschen/ })).toBeDisabled();
+    const button = screen.getByRole("button", { name: /Voice-History löschen/ });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", "Nicht verfügbar: Capability voice.deleteHistory fehlt.");
+  });
+
+  it("deletes the voice history only after an explicit confirmation, with confirm=true", async () => {
+    const user = userEvent.setup();
+    const fake = routedFetch(
+      routes({
+        "DELETE /api/v1/voice/history": { contractVersion: "1.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES", message: "38 Verlaufseinträge wurden gelöscht." },
+      }),
+    );
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({ deleteHistory: true }) });
+    await user.click(await screen.findByRole("button", { name: /Voice-History löschen/ }));
+    const confirm = await screen.findByRole("alertdialog");
+    expect(within(confirm).getByText("Das Löschen ist endgültig und nicht umkehrbar.")).toBeInTheDocument();
+    expect(fake.calls.some((call) => call.method === "DELETE")).toBe(false);
+    await user.click(within(confirm).getByRole("button", { name: "Endgültig löschen" }));
+    await waitFor(() => expect(fake.calls.some((call) => call.method === "DELETE")).toBe(true));
+    const call = fake.calls.find((entry) => entry.method === "DELETE");
+    expect(call?.search).toBe("?confirm=true");
+    expect(call?.headers.get("Idempotency-Key")).toBeTruthy();
+    expect(await screen.findByText("Voice-History gelöscht")).toBeInTheDocument();
+    expect(screen.getByText("38 Verlaufseinträge wurden gelöscht.")).toBeInTheDocument();
+  });
+
+  it("keeps the confirmation closed and reports the error when the server refuses", async () => {
+    const user = userEvent.setup();
+    const fake = routedFetch(routes({ "DELETE /api/v1/voice/history": () => errorBody("FORBIDDEN", "Für diese Aktion ist mindestens die Rolle owner erforderlich.", 403) }));
+    renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({ deleteHistory: true }) });
+    await user.click(await screen.findByRole("button", { name: /Voice-History löschen/ }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Endgültig löschen" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(screen.queryByText("Voice-History gelöscht")).toBeNull();
   });
 });
 

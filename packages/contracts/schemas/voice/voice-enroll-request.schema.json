@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/voice/voice-enroll-request.schema.json",
+  "title": "VoiceEnrollRequest",
+  "description": "Starts (or repeats) the enrollment of a voice profile (PLAN §38.3). The audio itself is captured by the voice service, never uploaded through this API.",
+  "type": "object",
+  "properties": {
+    "sampleTarget": {
+      "type": "integer",
+      "minimum": 3,
+      "maximum": 50,
+      "description": "Number of samples to capture; the adapter chooses its default when omitted."
+    },
+    "recalibrate": {
+      "type": "boolean",
+      "description": "Re-run the calibration of the threshold after the samples are captured."
+    }
+  },
+  "additionalProperties": false
+}

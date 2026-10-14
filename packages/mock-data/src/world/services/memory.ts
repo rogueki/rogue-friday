@@ -1,6 +1,8 @@
 import type {
   Memory,
+  MemoryConflictResolveRequest,
   MemoryCreateRequest,
+  MemoryExport,
   MemoryHistoryEntry,
   MemorySearchHit,
   MemorySearchRequest,
@@ -172,6 +174,74 @@ export class MemoryService {
         after: null,
       });
       return { contractVersion: CONTRACT_VERSION, accepted: true, status: "completed", correlationId, resourceId: id, auditEventId: audit.id, message: "Eintrag wurde vergessen. Die Löschung bleibt im Audit nachvollziehbar." };
+    });
+  }
+
+  /**
+   * Complete export for backup and portability (PLAN §30.3). Restricted memories never leave the system through an
+   * export: they are left out and only counted. The transport adds `contractVersion`.
+   */
+  exportAll(): Omit<MemoryExport, "contractVersion"> {
+    return this.w.read("exportMemory", () => {
+      const exportable = this.w.state.memory.filter((memory) => memory.sensitivity !== "restricted");
+      const items = clone(exportable).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+      return { exportedAt: this.w.nowIso(), count: items.length, omittedRestricted: this.w.state.memory.length - items.length, items };
+    });
+  }
+
+  /**
+   * Resolves one conflict of memory `id`; `conflictId` is the id of the conflicting memory. `replace` lets `id` replace
+   * the other entry (it is forgotten, unless it is locked), `keep_both` and `dismiss` only mark the hint on both sides.
+   */
+  resolveConflict(id: string, conflictId: string, body: MemoryConflictResolveRequest, ctx?: OpContext): Memory {
+    return this.w.run("resolveMemoryConflict", ctx, { id, conflictId, body }, () => {
+      this.w.validate("MemoryConflictResolveRequest", body);
+      const memory = this.find(id);
+      this.w.assertVersion(memory, ctx, "Memory");
+      const entry = memory.conflicts.find((candidate) => candidate.memoryId === conflictId);
+      if (!entry) throw notFound("Konflikt", `${id}/${conflictId}`);
+      if (entry.resolution !== "pending") throw conflict(`Der Konflikt ist bereits gelöst (${entry.resolution}).`, { resolution: entry.resolution });
+      const other = this.w.state.memory.find((candidate) => candidate.id === conflictId);
+      if (body.resolution === "replace" && other?.locked) {
+        throw conflict("Der widersprechende Eintrag ist gesperrt und kann nicht ersetzt werden.", { locked: true, memoryId: conflictId });
+      }
+      const resolution = body.resolution === "keep_both" ? "keep_both" : body.resolution === "replace" ? "replaced" : "dismissed";
+      const correlationId = this.w.correlationId(ctx);
+      const actor = this.w.actorOf(ctx);
+      const now = this.w.nowIso();
+      entry.resolution = resolution;
+      const summary = {
+        keep_both: "Konflikt gelöst: beide Einträge bleiben bestehen.",
+        replace: "Konflikt gelöst: dieser Eintrag ersetzt den widersprechenden.",
+        dismiss: "Konflikt als gegenstandslos verworfen.",
+      }[body.resolution];
+      memory.history.push({ version: memory.version + 1, changedAt: now, actor, change: "updated", summary: body.note ? `${summary} ${body.note}` : summary, before: null, after: null });
+      this.w.bump(memory);
+      this.w.emitFor("memory", "jarvis.memory.updated", memory, `memory/${memory.id}`, correlationId);
+      if (other) {
+        const mirror = other.conflicts.find((candidate) => candidate.memoryId === id && candidate.resolution === "pending");
+        if (mirror && body.resolution !== "replace") {
+          mirror.resolution = resolution;
+          other.history.push({ version: other.version + 1, changedAt: now, actor, change: "updated", summary, before: null, after: null });
+          this.w.bump(other);
+          this.w.emitFor("memory", "jarvis.memory.updated", other, `memory/${other.id}`, correlationId);
+        }
+        if (body.resolution === "replace") {
+          this.w.state.memory = this.w.state.memory.filter((candidate) => candidate.id !== conflictId);
+          this.w.emitFor("memory", "jarvis.memory.deleted", { id: conflictId, deletedAt: now, deletedBy: actor }, `memory/${conflictId}`, correlationId);
+        }
+      }
+      this.w.recordAudit({
+        category: "user_action",
+        action: "memory.conflict_resolved",
+        correlationId,
+        adapterId: "mock-memory",
+        actor,
+        severity: body.resolution === "replace" ? "warning" : "info",
+        before: { resolution: "pending" },
+        after: { resolution, conflictingMemoryId: conflictId },
+      });
+      return clone(memory);
     });
   }
 

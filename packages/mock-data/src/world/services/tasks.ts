@@ -3,7 +3,9 @@ import type {
   Priority,
   Task,
   TaskActionRequest,
+  TaskAssignRequest,
   TaskCreateRequest,
+  TaskInputRequest,
   TaskStatus,
   TaskUpdateRequest,
 } from "@jarvis/sdk";
@@ -206,6 +208,52 @@ export class TaskService {
     });
   }
 
+  /** Assigns the task to an agent or releases it (`agentId: null`). Finished tasks cannot be reassigned. */
+  assign(id: string, body: TaskAssignRequest, ctx?: OpContext): Task {
+    return this.w.run("assignTask", ctx, { id, body }, () => {
+      this.w.validate("TaskAssignRequest", body);
+      const task = this.find(id);
+      this.w.assertVersion(task, ctx, "Aufgabe");
+      if (FINAL_STATES.includes(task.status)) throw conflict(`Beendete Aufgaben (${task.status}) können nicht neu zugewiesen werden.`, { status: task.status });
+      const agent = body.agentId === null ? undefined : this.w.state.agents.find((candidate) => candidate.id === body.agentId);
+      if (body.agentId !== null && !agent) throw validationFailed("Der angegebene Agent existiert nicht.", [{ path: "agentId", message: "unbekannt" }]);
+      const before = { status: task.status, agentId: task.agentId };
+      if (task.agentId !== (agent?.id ?? null)) {
+        if (task.status === "running") this.w.agents.release(task.id);
+        if (agent) {
+          task.agentId = agent.id;
+          task.agentName = agent.name;
+          task.model ??= agent.model;
+          if (task.status === "running") this.w.agents.attach(agent.id, task.id);
+        } else {
+          task.agentId = null;
+          delete task.agentName;
+        }
+      }
+      this.finishMutation(task, ctx, "task.assigned", before, "jarvis.task.updated", body.reason);
+      return clone(task);
+    });
+  }
+
+  /** Answers a task that waits for input: the `input_needed` blocker is resolved and the task continues. */
+  provideInput(id: string, body: TaskInputRequest, ctx?: OpContext): Task {
+    return this.w.run("provideTaskInput", ctx, { id, body }, () => {
+      this.w.validate("TaskInputRequest", body);
+      const task = this.find(id);
+      this.w.assertVersion(task, ctx, "Aufgabe");
+      const blocker = task.blockers.find((candidate) => candidate.kind === "input_needed" && (body.blockerId === undefined || candidate.id === body.blockerId));
+      if (!blocker) throw conflict("Die Aufgabe wartet auf keine Eingabe.", { status: task.status, ...(body.blockerId ? { blockerId: body.blockerId } : {}) });
+      const before = { status: task.status, blockers: task.blockers.length };
+      task.blockers = task.blockers.filter((candidate) => candidate.id !== blocker.id);
+      if (task.status === "waiting" && task.blockers.length === 0) this.applyStatus(task, task.agentId ? "running" : "ready");
+      const correlationId = this.w.correlationId(ctx);
+      // The answer itself stays out of audit and events (it may contain personal data); the activity feed gets its length.
+      this.finishMutation(task, ctx, "task.input_provided", before, "jarvis.task.updated", `Eingabe (${body.input.length} Zeichen) für „${blocker.description}“`);
+      this.w.logActivity({ kind: "user_request", title: `Eingabe für Aufgabe: ${task.title}`, correlationId, taskId: task.id, agentId: task.agentId, adapterId: "mock-tasks", actor: this.w.actorOf(ctx) });
+      return clone(task);
+    });
+  }
+
   // ---- simulation hooks used by scenarios, commands and approval execution (no guard, no idempotency) ----
 
   /** Creates a task directly in the given state (scenarios, commands). */
@@ -396,6 +444,8 @@ const ACTION_TITLES: Record<string, string> = {
   "task.retried": "Aufgabe wird wiederholt",
   "task.paused": "Aufgabe pausiert",
   "task.resumed": "Aufgabe fortgesetzt",
+  "task.assigned": "Aufgabe zugewiesen",
+  "task.input_provided": "Eingabe erhalten",
   "task.completed": "Aufgabe abgeschlossen",
   "task.failed": "Aufgabe fehlgeschlagen",
 };
