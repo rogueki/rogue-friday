@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { useT } from "@/i18n";
 import { useCalendarBriefings, useCalendarConflicts } from "@/lib/api/domains/calendar";
-import { useCapability, useCapabilityState } from "@/lib/capabilities";
+import { useCapability } from "@/lib/capabilities";
 import { severityFromWire } from "../shared/presentation";
 import { DataBadges } from "../memory/kit/Badges";
 import { useFormat } from "../memory/kit/hooks";
@@ -41,12 +41,11 @@ function ConflictsPanel({ onOpenEvent, onPropose }: Pick<CalendarSideProps, "onO
   const { t } = useT();
   const format = useFormat();
   const query = useCalendarConflicts();
-  const readState = useCapabilityState("calendar", "read");
   const canPropose = useCapability("calendar", "propose");
   const canReschedule = useCapability("calendar", "reschedule");
   const items: CalendarConflict[] = query.data?.items ?? [];
   const state = usePanelState(query, {
-    read: readState,
+    module: "calendar",
     moduleName: t("nav.calendar"),
     adapterId: query.data?.sources[0]?.adapterId,
     empty: items.length === 0,
@@ -156,7 +155,7 @@ function BriefingsPanel({ events, now, onOpenEvent }: Pick<CalendarSideProps, "e
     .sort((a, b) => a.start.localeCompare(b.start))
     .slice(0, MAX_BRIEFINGS);
   const state = usePanelState(query, {
-    read: useCapabilityState("calendar", "read"),
+    module: "calendar",
     moduleName: t("nav.calendar"),
     adapterId: query.data?.sources[0]?.adapterId,
     empty: upcoming.length === 0,

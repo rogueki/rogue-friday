@@ -1,6 +1,6 @@
 "use client";
 
-import { Tooltip, VoiceStatusPanel } from "@jarvis/ui";
+import { StatusFlag, Tooltip, VoiceStatusPanel } from "@jarvis/ui";
 import { AudioLines, Fingerprint, KeyRound, Mic, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -22,7 +22,8 @@ export function VoiceNavPanel() {
   const voice = useVoiceUi();
   const status = voice.voice;
 
-  const flags: Flag[] = status
+  // Without a reachable voice service the last known flags would be stale: show none (the status text names the outage).
+  const flags: Flag[] = status && voice.availability.kind === "ok"
     ? [
         {
           id: "wake",
@@ -74,18 +75,19 @@ export function VoiceNavPanel() {
           {flags.map((flag) => (
             <li key={flag.id}>
               <Tooltip content={`${flag.label}: ${flag.value}`}>
-                <span className={`web-flag web-flag--${flag.tone}`} tabIndex={0} aria-label={`${flag.label}: ${flag.value}`}>
-                  {flag.icon}
-                </span>
+                <StatusFlag icon={flag.icon} label={flag.label} value={flag.value} tone={flag.tone} />
               </Tooltip>
             </li>
           ))}
           {status?.pushToTalk.enabled ? (
             <li>
               <Tooltip content={t("voice.pushToTalkActive", { state: status.pushToTalk.active ? t("voice.active") : t("voice.inactive") })}>
-                <span className={`web-flag web-flag--${status.pushToTalk.active ? "ok" : "off"}`} tabIndex={0} aria-label={t("voice.pushToTalk")}>
-                  <KeyRound size={13} strokeWidth={1.6} />
-                </span>
+                <StatusFlag
+                  icon={<KeyRound size={13} strokeWidth={1.6} />}
+                  label={t("voice.pushToTalk")}
+                  value={status.pushToTalk.active ? t("voice.active") : t("voice.inactive")}
+                  tone={status.pushToTalk.active ? "ok" : "off"}
+                />
               </Tooltip>
             </li>
           ) : null}

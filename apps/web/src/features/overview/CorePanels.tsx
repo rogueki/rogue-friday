@@ -1,6 +1,6 @@
 "use client";
 
-import type { HealthStatus, Overview } from "@jarvis/sdk";
+import type { AdapterInfo, HealthStatus, Overview } from "@jarvis/sdk";
 import { ActivityFeed, ActivityRow, HudPanel, PanelLink, StatusChip, type ActivityItem, type Tone } from "@jarvis/ui";
 import { Bot, Brain, CheckCircle2, Database, Mic, ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -12,8 +12,10 @@ import { attentionVisual, severityFromWire, toneFromHealth } from "@/features/sh
 import { formatClockTime } from "@/features/shared/time";
 import { orbStatusKey } from "@/features/voice/useVoiceUi";
 import { useT, type MessageKey } from "@/i18n";
+import { useAdapters } from "@/lib/api/domains/system";
 import { useAppSettings } from "@/lib/settings";
-import { useOverviewPanel } from "./useOverviewPanel";
+import { adapterNotConfigured, isUnconfiguredEntry } from "@/features/shared/availability";
+import { sectionStatus, useOverviewPanel } from "./useOverviewPanel";
 
 const ICON = { size: 18, strokeWidth: 1.5 } as const;
 
@@ -32,56 +34,89 @@ interface CoreRow {
   route: string;
 }
 
-function coreRows(overview: Overview, t: (key: MessageKey, vars?: Record<string, string | number>) => string, locale: string): CoreRow[] {
-  const { jarvis, voice, memoryInsights, activeAgents, models, systemSummary } = overview;
+type TileAvailability = "ok" | "degraded" | "offline" | "not-configured";
+
+/** What the overview says about the adapter behind one tile: outage, nothing configured, degraded or fine (PLAN §9.3). */
+function tileAvailability(overview: Overview, category: string, adapters: readonly AdapterInfo[] | undefined): TileAvailability {
+  const status = sectionStatus(overview, [category], adapters);
+  const entry = status.offline;
+  if (entry) {
+    const adapter = adapters?.find((candidate) => candidate.manifest.id === entry.adapterId);
+    return isUnconfiguredEntry(entry) || (adapter !== undefined && adapterNotConfigured(adapter)) ? "not-configured" : "offline";
+  }
+  return status.degraded ? "degraded" : "ok";
+}
+
+/** Health of the host itself: metrics pressure, not the services (those belong to the voice/agents/models tiles). */
+function systemHealth(overview: Overview, adapters: readonly AdapterInfo[] | undefined): HealthStatus {
+  const availability = tileAvailability(overview, "system", adapters);
+  if (availability === "offline") return "offline";
+  if (availability === "degraded") return "degraded";
+  const { cpuPercent, ramPercent, storageUsedPercent, gpuPercent, vramPercent } = overview.systemSummary;
+  const readings = [cpuPercent, ramPercent, storageUsedPercent, gpuPercent, vramPercent].filter((value): value is number => typeof value === "number");
+  if (readings.length === 0) return "unknown";
+  return readings.some((value) => value >= PRESSURE_PERCENT) ? "degraded" : "online";
+}
+
+const PRESSURE_PERCENT = 90;
+
+function coreRows(overview: Overview, adapters: readonly AdapterInfo[] | undefined, t: (key: MessageKey, vars?: Record<string, string | number>) => string, locale: string): CoreRow[] {
+  const { jarvis, voice, memoryInsights, activeAgents, models } = overview;
   const statusWord = (status: HealthStatus): string => t(`health.${status}` as MessageKey);
   const connectedModels = models.filter((m) => m.status === "online").length;
-  const worst: HealthStatus = systemSummary.services.some((s) => s.status === "offline")
-    ? "offline"
-    : systemSummary.services.some((s) => s.status === "degraded") || jarvis.adapterSummary.degraded > 0 || jarvis.adapterSummary.offline > 0
-      ? "degraded"
-      : "online";
   const working = activeAgents.filter((a) => a.status === "working" || a.status === "starting").length;
+  /** Row text and tone for a tile whose adapter is down; `null` when the adapter is fine. */
+  const unavailable = (category: string): { meta: string; tone: Tone } | null => {
+    const availability = tileAvailability(overview, category, adapters);
+    if (availability === "offline") return { meta: t("core.offline"), tone: toneFromHealth("offline") };
+    if (availability === "not-configured") return { meta: t("core.notConnected"), tone: "muted" };
+    return null;
+  };
+  const memoryDown = memoryInsights ? null : unavailable("memory");
+  const voiceDown = voice ? null : unavailable("voice");
+  const agentsDown = unavailable("agents");
+  const systemDown = unavailable("system");
+  const host = systemHealth(overview, adapters);
   return [
     { id: "core", icon: <Brain {...ICON} />, tone: toneFromHealth(jarvis.status), title: t("core.aiCore"), meta: statusWord(jarvis.status), route: "/system" },
     {
       id: "memory",
       icon: <Database {...ICON} />,
-      tone: memoryInsights ? "blue" : "muted",
+      tone: memoryInsights ? "blue" : (memoryDown?.tone ?? "muted"),
       title: t("core.memory"),
-      meta: memoryInsights ? t("core.memory.stored", { count: formatCount(memoryInsights.total, locale) }) : t("core.notConnected"),
+      meta: memoryInsights ? t("core.memory.stored", { count: formatCount(memoryInsights.total, locale) }) : (memoryDown?.meta ?? t("core.notConnected")),
       route: "/memory",
     },
     {
       id: "voice",
       icon: <Mic {...ICON} />,
-      tone: voice ? (voice.mode === "error" ? "red" : "green") : "muted",
+      tone: voice ? (voice.mode === "error" ? "red" : "green") : (voiceDown?.tone ?? "muted"),
       title: t("core.voice"),
-      meta: voice ? t(`core.voice.${voice.mode}` as MessageKey) : t("core.notConnected"),
+      meta: voice ? t(`core.voice.${voice.mode}` as MessageKey) : (voiceDown?.meta ?? t("core.notConnected")),
       route: "/voice",
     },
     {
       id: "agents",
       icon: <Bot {...ICON} />,
-      tone: "violet",
+      tone: agentsDown?.tone ?? "violet",
       title: t("core.agents"),
-      meta: t("core.agents.active", { count: working }),
+      meta: agentsDown?.meta ?? t("core.agents.active", { count: working }),
       route: "/agents",
     },
     {
       id: "models",
       icon: <Sparkles {...ICON} />,
-      tone: connectedModels > 0 ? "amber" : "muted",
+      tone: systemDown?.tone ?? (connectedModels > 0 ? "amber" : "muted"),
       title: t("core.models"),
-      meta: t("core.models.connected", { count: connectedModels }),
+      meta: systemDown?.meta ?? t("core.models.connected", { count: connectedModels }),
       route: "/system",
     },
     {
       id: "system",
       icon: <ShieldCheck {...ICON} />,
-      tone: toneFromHealth(worst),
+      tone: systemDown?.tone ?? toneFromHealth(host),
       title: t("core.system"),
-      meta: worst === "online" ? t("core.system.optimal") : statusWord(worst),
+      meta: systemDown?.meta ?? (host === "online" ? t("core.system.optimal") : host === "degraded" ? t("core.system.degraded") : statusWord(host)),
       route: "/system",
     },
   ];
@@ -90,9 +125,11 @@ function coreRows(overview: Overview, t: (key: MessageKey, vars?: Record<string,
 export function CoreOverviewPanel({ className, style }: { className?: string; style?: React.CSSProperties }) {
   const { t, locale } = useT();
   const router = useRouter();
-  const { overview, resolve } = useOverviewPanel(["core", "voice", "memory", "agents", "models", "system"]);
+  // No sections: one failing adapter must not replace the whole tile list, each tile derives its own outage / "not connected".
+  const { overview, resolve } = useOverviewPanel([]);
   const state = resolve();
-  const rows = overview ? coreRows(overview, t, locale) : [];
+  const adapters = useAdapters().data?.items;
+  const rows = overview ? coreRows(overview, adapters, t, locale) : [];
   return (
     <PanelFrame className={className} style={style} title={t("overview.core.title")} state={state} scroll skeletonRows={6}>
       <div className="ov-stack ov-stack--fill">

@@ -66,7 +66,6 @@ function CalendarPageInner() {
 
   const eventsQuery = useCalendarEvents({ from: range.from.toISOString(), to: range.to.toISOString(), limit: 200 });
   const conflicts = useCalendarConflicts();
-  const readState = useCapabilityState("calendar", "read");
   const proposeState = useCapabilityState("calendar", "propose");
   const canPropose = useCapability("calendar", "propose");
 
@@ -75,7 +74,7 @@ function CalendarPageInner() {
   const visibleCount = events.filter((event) => event.status !== "cancelled").length;
 
   const state = usePanelState(eventsQuery, {
-    read: readState,
+    module: "calendar",
     moduleName: t("nav.calendar"),
     adapterId: eventsQuery.data?.sources[0]?.adapterId,
     empty: view === "agenda" && events.length === 0,

@@ -39,9 +39,12 @@
 .cal-now::before { content: ""; position: absolute; left: -4px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--jarvis-error); }
 .cal-free { position: absolute; left: 3px; right: 3px; border: 1px dashed var(--jarvis-tint-green-border); background: var(--jarvis-tint-green-bg); border-radius: var(--jv-radius-sm); pointer-events: none; display: flex; align-items: flex-start; justify-content: flex-end; padding: 2px 6px; font-size: var(--jv-fs-2xs); color: var(--jarvis-success); }
 
-.cal-event { position: absolute; display: flex; flex-direction: column; gap: 1px; padding: 3px 6px; overflow: hidden; text-align: left; font: inherit; color: var(--jarvis-text-strong); background: color-mix(in srgb, var(--jarvis-cyan) 18%, rgba(3, 15, 27, 0.92)); border: 1px solid var(--jarvis-tint-cyan-border); border-left: 3px solid var(--jarvis-cyan); border-radius: var(--jv-radius-sm); cursor: pointer; z-index: 1; }
-.cal-event:hover { border-color: var(--jarvis-border-active); z-index: 2; }
-.cal-event:focus-visible { outline: 2px solid var(--jarvis-focus); outline-offset: 1px; z-index: 4; }
+.cal-event-slot { position: absolute; z-index: 1; }
+.cal-event-slot:hover, .cal-event-slot:focus-within { z-index: 3; }
+.cal-grid__scroll:focus-visible { outline: 2px solid var(--jarvis-focus); outline-offset: -2px; }
+.cal-event { position: relative; box-sizing: border-box; width: 100%; height: 100%; display: flex; flex-direction: column; gap: 1px; padding: 3px 6px; overflow: hidden; text-align: left; font: inherit; color: var(--jarvis-text-strong); background: color-mix(in srgb, var(--jarvis-cyan) 18%, rgba(3, 15, 27, 0.92)); border: 1px solid var(--jarvis-tint-cyan-border); border-left: 3px solid var(--jarvis-cyan); border-radius: var(--jv-radius-sm); cursor: pointer; }
+.cal-event:hover { border-color: var(--jarvis-border-active); }
+.cal-event:focus-visible { outline: 2px solid var(--jarvis-focus); outline-offset: 1px; }
 .cal-event--tentative { border-style: dashed; border-left-color: var(--jarvis-warning); background: color-mix(in srgb, var(--jarvis-warning) 10%, rgba(3, 15, 27, 0.92)); }
 .cal-event--cancelled { opacity: 0.55; border-left-color: var(--jarvis-muted); }
 .cal-event--cancelled .cal-event__title { text-decoration: line-through; }

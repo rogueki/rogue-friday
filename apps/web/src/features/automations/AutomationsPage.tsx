@@ -38,7 +38,6 @@ function AutomationsPageInner() {
 
   const term = useDebounced(search.trim(), 250);
   const query = useAutomations({ limit: 200, ...(term !== "" ? { q: term } : {}) });
-  const readState = useCapabilityState("automations", "read");
   const writeState = useCapabilityState("automations", "update");
   const canCreate = useCapability("automations", "create");
   const canEnable = useCapability("automations", "enable");
@@ -66,7 +65,7 @@ function AutomationsPageInner() {
   const targets = mode === "pause" ? pausable : resumable;
 
   const state = usePanelState(query, {
-    read: readState,
+    module: "automations",
     moduleName: t("nav.automations"),
     adapterId: query.data?.sources[0]?.adapterId,
     empty: visible.length === 0,

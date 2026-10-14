@@ -6,6 +6,7 @@ import { CalendarClock, KanbanSquare, List, Plus, UserCheck } from "lucide-react
 import { useEffect, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { useCreateTaskDialog } from "@/features/palette/CreateTaskDialog";
+import { useModulePanelGate } from "@/features/shared/useAvailability";
 import { useT, type MessageKey } from "@/i18n";
 import { useAgents } from "@/lib/api/domains/agents";
 import { useTaskPages, type TaskFilters } from "@/lib/api/domains/tasks";
@@ -120,6 +121,7 @@ function TasksPageContent() {
   ];
 
   const tasks = pages.items;
+  const gate = useModulePanelGate("tasks", { moduleName: t("nav.tasks"), error: first.error, hasData: first.data !== undefined, onRetry: () => void first.refetch() });
   const state = resolvePanelState({
     pending: first.isPending,
     error: first.error,
@@ -132,7 +134,7 @@ function TasksPageContent() {
           description: t("tasks.empty.hint"),
           action: <GatedButton size="sm" variant="primary" icon={<Plus size={14} />} gate={gates.create} onClick={() => setCreateOpen(true)}>{t("tasks.create")}</GatedButton>,
         },
-    unavailable: access.readable === "unavailable" ? t("tasks.unavailable") : undefined,
+    gate,
     section,
     freshness: first.data?.freshness,
     onRetry: () => void first.refetch(),

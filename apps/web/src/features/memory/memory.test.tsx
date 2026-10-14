@@ -74,12 +74,12 @@ describe("memory page: states", () => {
     expect(screen.getByRole("button", { name: /Erneut versuchen/ })).toBeInTheDocument();
   });
 
-  it("shows 'Nicht verbunden' with an adapter shortcut when the adapter is down", async () => {
+  it("shows the outage with a retry when the adapter is unreachable", async () => {
     const fake = routedFetch({ "GET /api/v1/memory": errorResponse("ADAPTER_UNAVAILABLE", "Gedächtnis-Adapter nicht erreichbar", 503) });
     renderWithProviders(<MemoryPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
-    expect(await screen.findByText("Nicht verbunden")).toBeInTheDocument();
-    expect(screen.getByText("Gedächtnis-Adapter nicht erreichbar")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Adapter konfigurieren/ })).toBeInTheDocument();
+    expect(await screen.findByText("Offline")).toBeInTheDocument();
+    expect(screen.getByText(/Gedächtnis-Adapter nicht erreichbar/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Erneut versuchen/ })).toBeInTheDocument();
   });
 
   it("treats a missing memory module as not connected", async () => {

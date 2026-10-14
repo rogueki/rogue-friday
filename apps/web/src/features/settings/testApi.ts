@@ -200,7 +200,7 @@ export function createFakeApi(options: FakeApiOptions = {}) {
     if (method === "POST" && path === "/dev/scenarios/control") {
       const request = body as { action: string; mode?: string };
       if (request.action === "force_orb_state") state.forced = request.mode ?? null;
-      if (request.action === "reset") state.forced = null;
+      if (request.action === "reset" || request.action === "release_orb_state") state.forced = null;
       return single(scenarioState());
     }
     return apiError(404, "NOT_FOUND", `${method} ${path}`);

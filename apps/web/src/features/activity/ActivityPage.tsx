@@ -5,7 +5,8 @@ import { ActivityRow, Button, FilterBar, LivePill, Switch, TagPill, type FilterC
 import { ChevronDown, ChevronRight, ListTree, Pause, Play, Rows3 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
-import { DataOrigin, DateFormatterProvider, resolvePanelState, SegmentedControl, useDateFormatter, useModuleAccess, useModuleSection, useQueryParams } from "@/features/tasks/moduleKit";
+import { DataOrigin, DateFormatterProvider, resolvePanelState, SegmentedControl, useDateFormatter, useModuleSection, useQueryParams } from "@/features/tasks/moduleKit";
+import { useModulePanelGate } from "@/features/shared/useAvailability";
 import { useT, type MessageKey } from "@/i18n";
 import { useAgents } from "@/lib/api/domains/agents";
 import { useRealtimeStatus } from "@/lib/realtime/store";
@@ -16,7 +17,6 @@ import { useActivityBuffer } from "./useActivityBuffer";
 import "./activity.css";
 
 const ROW_HEIGHT = 58;
-const ACTIVITY_READ = [] as const;
 const ACTIVITY_SECTIONS = ["activity", "Live-Aktivität"] as const;
 type FeedView = "list" | "tree";
 
@@ -108,7 +108,6 @@ function ActivityPageContent() {
   }, [agentParam, taskParam, setParams]);
   const [autoScroll, setAutoScroll] = useState(true);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  const access = useModuleAccess("activity", ACTIVITY_READ);
   const section = useModuleSection(ACTIVITY_SECTIONS);
   const stream = useRealtimeStatus();
   const buffer = useActivityBuffer(filters);
@@ -166,14 +165,14 @@ function ActivityPageContent() {
   );
   const selectEvent = useCallback((id: string) => setParams({ event: id }, "push"), [setParams]);
 
-  const unavailable = access.readable === "unavailable" ? t("activity.unavailable") : undefined;
+  const gate = useModulePanelGate("activity", { moduleName: t("nav.activity"), error: buffer.error, hasData: buffer.hasData, onRetry: buffer.refetch });
   const state = resolvePanelState({
     pending: buffer.loading,
     error: buffer.error,
     hasData: buffer.hasData,
     empty: buffer.hasData && buffer.all.length === 0 && !isFiltered(filters),
     emptyState: { title: t("activity.empty.title"), description: t("activity.empty.hint") },
-    unavailable,
+    gate,
     section,
     freshness: buffer.freshness,
     onRetry: buffer.refetch,

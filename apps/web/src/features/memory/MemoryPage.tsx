@@ -85,7 +85,7 @@ function MemoryPageInner() {
   const filtered = type !== "all" || sensitivity !== "all" || flag !== "all" || term !== "";
 
   const state = usePanelState<MemoryListResponse | MemorySearchResponse>(activeQuery, {
-    read: readState,
+    module: "memory",
     moduleName: t("nav.memory"),
     adapterId: activeQuery.data?.sources[0]?.adapterId,
     empty: visible.length === 0,

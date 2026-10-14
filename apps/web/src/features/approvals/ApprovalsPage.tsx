@@ -5,6 +5,7 @@ import { Button, FilterBar, type FilterChip, type FilterDef } from "@jarvis/ui";
 import { useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { DataOrigin, DateFormatterProvider, ReadOnlyNotice, resolvePanelState, useModuleAccess, useModuleSection, useQueryParams } from "@/features/tasks/moduleKit";
+import { useModulePanelGate } from "@/features/shared/useAvailability";
 import { useT, type MessageKey } from "@/i18n";
 import { useAgents } from "@/lib/api/domains/agents";
 import { useApprovalPages, type ApprovalFilters } from "@/lib/api/domains/approvals";
@@ -77,6 +78,7 @@ function ApprovalsPageContent() {
   ];
 
   const items = pages.items;
+  const gate = useModulePanelGate("approvals", { moduleName: t("nav.approvals"), error: first.error, hasData: first.data !== undefined, onRetry: () => void first.refetch() });
   const state = resolvePanelState({
     pending: first.isPending,
     error: first.error,
@@ -85,7 +87,7 @@ function ApprovalsPageContent() {
     emptyState: filtered
       ? { title: t("approvals.empty.filtered"), description: t("approvals.empty.filteredHint"), action: <Button size="sm" variant="ghost" onClick={reset}>{t("approvals.filter.reset")}</Button> }
       : { title: t("approvals.empty.title"), description: t("approvals.empty.hint") },
-    unavailable: access.readable === "unavailable" ? t("approvals.unavailable") : undefined,
+    gate,
     section,
     freshness: first.data?.freshness,
     onRetry: () => void first.refetch(),

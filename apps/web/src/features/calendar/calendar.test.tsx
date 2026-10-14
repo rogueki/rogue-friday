@@ -189,8 +189,8 @@ describe("calendar page: conflicts, free time, briefings and detail", () => {
 
     const offline = routedFetch({ ...routes(), "GET /api/v1/calendar/events": errorResponse("ADAPTER_UNAVAILABLE", "Kalender-Server nicht erreichbar", 503) });
     const third = renderWithProviders(<CalendarPage />, { fetchImpl: offline.fetch, capabilities: modules(FULL) });
-    expect(await screen.findByText("Kalender-Server nicht erreichbar")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Adapter konfigurieren/ }).length).toBeGreaterThan(0);
+    expect(await screen.findByText(/Kalender-Server nicht erreichbar/)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Erneut versuchen/ }).length).toBeGreaterThan(0);
     third.unmount();
 
     const stale = routedFetch({ ...routes(), "GET /api/v1/calendar/events": listOf([standup], { freshness: { state: "stale", asOf: NOW } }) });

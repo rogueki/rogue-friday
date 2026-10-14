@@ -9,6 +9,8 @@ import { useOrbSnapshot } from "@/features/orb/useOrbSnapshot";
 import { useExecuteCommand } from "@/lib/api/domains/commands";
 import { useOverview } from "@/lib/api/domains/core";
 import { useStopVoice, useVoiceStatus } from "@/lib/api/domains/voice";
+import { useModuleAvailability } from "@/features/shared/useAvailability";
+import type { Availability } from "@/features/shared/availability";
 import { useCapability } from "@/lib/capabilities";
 import { useT, type MessageKey } from "@/i18n";
 
@@ -54,6 +56,8 @@ export function deriveVoiceState(snapshot: OrbSnapshot | undefined, voice: Voice
 }
 
 export interface VoiceUi {
+  /** Why voice is unusable (service offline vs. nothing configured vs. fine); the status text names it. */
+  availability: Availability;
   state: VoiceState;
   statusText: string;
   voice: VoiceStatus | null | undefined;
@@ -78,11 +82,20 @@ export function useVoiceUi(): VoiceUi {
   const execute = useExecuteCommand();
   const stopVoice = useStopVoice();
 
-  const state = deriveVoiceState(snapshot, voice, voiceRead || commandsExecute);
+  const availability = useModuleAvailability("voice", { error: voiceQuery.error });
+  const outage = availability.kind === "outage" ? availability.outage : null;
+  const unavailable = outage !== null || availability.kind === "not-configured";
+  // A voice outage must show as such, not as the orb's last mode ("Wartet auf Freigabe") or a missing capability.
+  const state: VoiceState = outage ? "error" : unavailable ? "disabled" : deriveVoiceState(snapshot, voice, voiceRead || commandsExecute);
+  const statusText = outage ? t(outage.recovering ? "voice.nav.recovering" : "voice.nav.offline") : unavailable ? t("voice.nav.notConfigured") : t(orbStatusKey(snapshot?.status.mode));
   const active = state === "listening" || state === "speaking";
   const audio = useAudioSamples(active);
 
   const toggle = useCallback(() => {
+    if (unavailable) {
+      toast({ title: statusText, tone: "amber" });
+      return;
+    }
     if (active) {
       if (!voiceStop) {
         toast({ title: t("voice.stopUnavailable"), tone: "amber" });
@@ -96,7 +109,7 @@ export function useVoiceUi(): VoiceUi {
       return;
     }
     execute.mutate({ text: VOICE_START_COMMAND, source: "voice" });
-  }, [active, voiceStop, commandsExecute, stopVoice, execute, toast, t]);
+  }, [unavailable, statusText, active, voiceStop, commandsExecute, stopVoice, execute, toast, t]);
 
   const toggleFocus = useCallback(() => {
     if (!commandsExecute) {
@@ -108,15 +121,16 @@ export function useVoiceUi(): VoiceUi {
 
   return useMemo<VoiceUi>(
     () => ({
+      availability,
       state,
-      statusText: t(orbStatusKey(snapshot?.status.mode)),
+      statusText,
       voice,
       audio,
       focusMode: voice?.focusMode ?? false,
       toggle,
       toggleFocus,
-      canToggle: state !== "disabled",
+      canToggle: !unavailable && state !== "disabled",
     }),
-    [state, snapshot?.status.mode, voice, audio, toggle, toggleFocus, t],
+    [availability, state, statusText, unavailable, voice, audio, toggle, toggleFocus],
   );
 }

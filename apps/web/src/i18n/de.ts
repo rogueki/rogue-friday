@@ -2,6 +2,7 @@ import { deA } from "./modules/a.de";
 import { deB } from "./modules/b.de";
 import { deC } from "./modules/c.de";
 import { deD } from "./modules/d.de";
+import { deE } from "./modules/e.de";
 
 /** German dictionary (default locale). Keys are the contract for `en.ts`: a missing English key is a compile error. */
 export const de = {
@@ -9,6 +10,7 @@ export const de = {
   ...deB,
   ...deC,
   ...deD,
+  ...deE,
   // common
   "common.all": "Alle",
   "common.cancel": "Abbrechen",

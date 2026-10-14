@@ -7,7 +7,6 @@ import { Suspense, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { useT } from "@/i18n";
 import { useNotifications } from "@/lib/api/domains/notifications";
-import { useCapabilityState } from "@/lib/capabilities";
 import { CapabilityNote, DataBadges } from "../memory/kit/Badges";
 import { useUrlParam } from "../memory/kit/hooks";
 import { effectiveFreshness, usePanelState } from "../memory/kit/panelState";
@@ -41,7 +40,6 @@ function AlertsPageInner() {
   const [resolving, setResolving] = useState<Notification | null>(null);
 
   const actions = useAlertActions();
-  const readState = useCapabilityState("notifications", "read");
 
   const active = useNotifications({ status: ACTIVE_STATUSES, limit });
   const selectedInActive = active.data?.items.some((item) => item.id === selectedId) ?? false;
@@ -66,7 +64,7 @@ function AlertsPageInner() {
   const filtered = priority !== "all" || category !== "all";
 
   const state = usePanelState(query, {
-    read: readState,
+    module: "notifications",
     moduleName: t("nav.alerts"),
     adapterId: query.data?.sources[0]?.adapterId,
     empty: items.length === 0,
