@@ -1,9 +1,9 @@
 @echo off
 setlocal
 chcp 65001 >nul
-title JARVIS - Installation
+title F.R.I.D.A.Y. - Installation
 REM ===============================================================
-REM  JARVIS - Komplettinstallation. Einfach per Doppelklick starten.
+REM  F.R.I.D.A.Y. - Komplettinstallation. Einfach per Doppelklick starten.
 REM  Administratorrechte werden automatisch angefragt.
 REM  Kann jederzeit erneut gestartet werden (macht dort weiter).
 REM ===============================================================

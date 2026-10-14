@@ -5,6 +5,7 @@ Danach Selbsttest: Cosine-Score jeder Wake-Word-Aufnahme gegen das Profil.
 """
 import glob
 import os
+import sys
 
 import numpy as np
 import soundfile as sf
@@ -12,8 +13,13 @@ import torch
 from speechbrain.inference.speaker import EncoderClassifier
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, ROOT)
 OWNER = os.path.join(ROOT, "profiles", "owner")
 SR = 16000
+
+import personal_wake  # noqa: E402
+
+SLUG = personal_wake.slugify(personal_wake.resolve_assistant_name(os.path.join(ROOT, "..", "config")))
 
 enc = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
                                      savedir=os.path.join(ROOT, "..", "models", "ecapa"))
@@ -62,10 +68,14 @@ for i, p in enumerate(paths):
 cv = np.array(cv)
 print(f"Kreuzvalidierung 1,5-s-Fenster: n={len(cv)} min={cv.min():.3f} p10={np.percentile(cv, 10):.3f} median={np.median(cv):.3f}")
 
-for block in ("wake_hey_jarvis", "wake_jarvis", "negatives"):
+# Wake-Blocks heissen wake_hey_<slug> / wake_<slug> (Jarvis: wake_hey_jarvis / wake_jarvis).
+for block in (f"wake_hey_{SLUG}", f"wake_{SLUG}", "negatives"):
     scores = []
     for path in sorted(glob.glob(os.path.join(OWNER, "raw", block, "*.wav"))):
         audio, _ = sf.read(path, dtype="float32")
         scores.append(float(np.dot(embed(voiced(audio, frame=320, thresh=0.02)), profile)))
+    if not scores:
+        print(f"{block:<18} keine Aufnahmen")
+        continue
     s = np.array(scores)
-    print(f"{block:<14} n={len(s):<3} score min={s.min():.3f} p10={np.percentile(s, 10):.3f} median={np.median(s):.3f}")
+    print(f"{block:<18} n={len(s):<3} score min={s.min():.3f} p10={np.percentile(s, 10):.3f} median={np.median(s):.3f}")

@@ -1,7 +1,12 @@
-"""Voice Service (Windows) fuer Kira bzw. Jarvis - Name, Persona, Wake Word per config\voice.json.
+"""Voice Service (Windows) fuer den Assistenten - Name, Persona, Wake Word und Wake-Engine per config/voice.json.
 
-Mikrofon -> openWakeWord (+ Owner-Verifier) -> Befehl per Silero-VAD -> ECAPA-Sprecherpruefung
--> faster-whisper (GPU) -> Qwen3-8B-Router -> lokale Antwort oder Hermes/Kimi -> Piper-TTS.
+Mikrofon -> Wake Word -> Befehl per Silero-VAD -> ECAPA-Sprecherpruefung
+-> faster-whisper (GPU) -> Qwen-Router -> lokale Antwort oder Hermes/Kimi -> Piper-TTS.
+
+Wake-Engines (voice.json "wake_engine"):
+- "openwakeword": vortrainiertes hey_jarvis + Owner-Verifier (nur Name Jarvis).
+- "personal": persoenliches Wake Word (personal_wake.py): Stufe 1 Few-Shot-Fenstermodell auf openWakeWord-Features,
+  Stufe 2 Whisper-Namenscheck nur wenn Stufe 1 ausloest, danach wie immer die ECAPA-Sprecherpruefung.
 
 Fail closed: ohne Sprecherprofil/ECAPA startet der Dienst nicht; unbekannte Sprecher werden still ignoriert.
 Keine Rohaudios werden gespeichert, nur Metadaten in logs/voice.jsonl.
@@ -35,6 +40,8 @@ cuda_dlls.register()
 import numpy as np  # noqa: E402
 import sounddevice as sd  # noqa: E402
 import torch  # noqa: E402
+
+import personal_wake  # noqa: E402
 
 SR = 16000
 CHUNK = 1280  # 80 ms, Eingabegroesse von openWakeWord
@@ -70,8 +77,9 @@ text ::= [^\n|]*'''
 
 ROUTE_NAMES = {"L": "local", "K1": "kimi_low", "K2": "kimi_high", "K3": "kimi_max"}
 
-# Standardwerte = Kira; Jarvis & Co. ueberschreiben sie in config\voice.json.
-DEFAULT_PERSONA = "Du bist Kira, eine persoenliche KI-Assistentin: freundlich, locker, du duzt den Nutzer."
+# Standardwerte (Friday); der Installer schreibt Name, Persona und Sprachbausteine in config\voice.json.
+DEFAULT_NAME = "Friday"
+DEFAULT_PERSONA = "Du bist {name}, ein persoenlicher KI-Assistent: freundlich, locker, du duzt den Nutzer."
 DEFAULT_SMALLTALK = "Mir geht's gut, danke! Was kann ich fuer dich tun?"
 DEFAULT_ACK_WAIT = "Moment."
 DEFAULT_ACK_BACKGROUND = "Verstanden, ich kuemmere mich darum und melde mich, sobald es fertig ist."
@@ -112,7 +120,7 @@ def clock_answer(text: str) -> str | None:
 
 
 def clean_for_speech(text: str) -> str:
-    """Markdown, URLs und Emojis (z. B. Kiras Signatur) nicht vorlesen."""
+    """Markdown, URLs und Emojis (z. B. Signaturen) nicht vorlesen."""
     text = re.sub(r"https?://\S+", "", text)
     text = re.sub(r"[*_`#>|~]+", " ", text)
     text = re.sub(r"[\U0001F000-\U0001FAFF☀-➿️]", "", text)
@@ -127,7 +135,7 @@ def post_json(url: str, payload: dict, headers: dict | None = None, timeout: flo
 
 
 class Speaker:
-    """Kiras Stimme: Streaming vom Qwen3-TTS-Server (WSL, GPU), Piper als Fallback. Unterbrechbar (Barge-In)."""
+    """Stimme des Assistenten: Streaming vom Qwen3-TTS-Server (WSL, GPU), Piper als Fallback. Unterbrechbar (Barge-In)."""
 
     CACHE_MAX_CHARS = 80
 
@@ -135,7 +143,7 @@ class Speaker:
         from piper import PiperVoice
         self.voice = PiperVoice.load(fallback_voice_path)
         self.sr = self.voice.config.sample_rate
-        self.film_filter = film_filter  # JARVIS-Filmklang (Chorus + Hall) auf Piper-Ausgabe, laeuft auf der CPU
+        self.film_filter = film_filter  # Filmklang (Chorus + Hall) auf Piper-Ausgabe, laeuft auf der CPU
         self.output_device = output_device
         self.tts_url = tts_url
         self.cache: dict[str, tuple[bytes, int]] = {}
@@ -210,7 +218,7 @@ class Speaker:
         text = clean_for_speech(text)
         if text:
             # Flag schon beim Einreihen setzen: sonst startet die Folgefrage-Aufnahme, bevor der Worker
-            # losspricht, und Kira hoert ihre eigene Stimme (live beobachtet, beendete die Trusted Session).
+            # losspricht, und der Assistent hoert seine eigene Stimme (live beobachtet, beendete die Trusted Session).
             self.speaking.set()
             self.queue.put(text)
 
@@ -270,11 +278,21 @@ class SpeakerVerifier:
         return float(np.dot(emb / np.linalg.norm(emb), self.profile))
 
 
-class KiraVoice:
+class VoiceService:
     def __init__(self, cfg: dict, test_wake_model: str | None):
         self.cfg = cfg
+        self.name = cfg.get("assistant_name") or DEFAULT_NAME
+        self.engine = "openwakeword" if test_wake_model else cfg.get("wake_engine", "openwakeword")
+        if self.engine not in ("openwakeword", "personal"):
+            raise SystemExit(f"Unbekannte wake_engine '{self.engine}' in voice.json (openwakeword|personal).")
+        self.phrase = cfg.get("wake_phrase") or personal_wake.wake_phrase(self.name)
+        # Additive Felder (assistant_name, wake_phrase, wake_engine, wake_rejected): bisherige Schluessel bleiben gleich.
         self.status = {"state": "starting", "started": datetime.datetime.now().isoformat(timespec="seconds"),
-                       "last_event": None, "wake_count": 0, "rejected_speaker": 0, "commands": 0}
+                       "last_event": None, "wake_count": 0, "rejected_speaker": 0, "commands": 0,
+                       "assistant_name": self.name, "wake_phrase": self.phrase, "wake_engine": self.engine,
+                       "wake_rejected": 0}
+        self.preroll: list[np.ndarray] = []   # waehrend Stufe 2 aufgelaufenes Audio (Befehlsanfang)
+        self.stage1_block_until = 0.0
         self.audio_q: queue.Queue[np.ndarray] = queue.Queue()
         self.ring = collections.deque(maxlen=int(2.0 * SR / CHUNK))  # 2 s Vorlauf fuer Sprecherpruefung
         self.trusted_until = 0.0
@@ -297,8 +315,11 @@ class KiraVoice:
         self._route("Hallo")  # Router-Warmup: erster Aufruf dauerte live 7,2 s statt ~0,4 s
 
     def _load_wake(self, test_wake_model: str | None) -> None:
-        from openwakeword.model import Model
         oww_dir = os.path.join(JARVIS, "models", "openwakeword")
+        if self.engine == "personal":
+            self._load_personal_wake(oww_dir)
+            return
+        from openwakeword.model import Model
         path = test_wake_model or self.cfg["wake_model"]
         if not os.path.exists(path):
             raise SystemExit(f"Wake-Word-Modell fehlt: {path}")
@@ -311,18 +332,40 @@ class KiraVoice:
                          melspec_model_path=os.path.join(oww_dir, "melspectrogram.onnx"),
                          embedding_model_path=os.path.join(oww_dir, "embedding_model.onnx"), **kwargs)
         self.wake_name = list(self.oww.models.keys())[0]
+        self.wake_threshold = self.cfg["wake_threshold"]
         print(f"Wake-Modell: {self.wake_name}  Verifier: {'ja' if kwargs else 'nein'}", flush=True)
+
+    def _load_personal_wake(self, oww_dir: str) -> None:
+        """Persoenliches Wake Word: Fenstermodell + kalibrierte Schwelle (Fail closed ohne Modell)."""
+        model_path = self.cfg.get("personal_wake_model") or os.path.join(oww_dir, "personal_wake.npz")
+        meta_path = self.cfg.get("personal_wake_meta") or os.path.join(oww_dir, "personal_wake.json")
+        for path in (model_path, meta_path):
+            if not os.path.exists(path):
+                raise SystemExit(f"Persoenliches Wake-Word-Modell fehlt: {path} - Stimmaufnahme/Training erneut "
+                                 "ausfuehren (install-jarvis.bat). Fail closed, Dienst startet nicht.")
+        meta = personal_wake.load_meta(meta_path)
+        if meta.get("slug") and meta["slug"] != personal_wake.slugify(self.name):
+            raise SystemExit(f"Wake-Word-Modell gehoert zu '{meta.get('assistant_name')}', nicht zu '{self.name}'.")
+        self.wake_threshold = self.cfg.get("personal_wake_threshold") or meta["threshold"]
+        self.oww = personal_wake.PersonalWakeDetector(
+            personal_wake.WindowModel.load(model_path), os.path.join(oww_dir, "melspectrogram.onnx"),
+            os.path.join(oww_dir, "embedding_model.onnx"))
+        self.wake_name = "personal"
+        print(f"Wake Word: {self.phrase} (persoenlich, Schwelle {self.wake_threshold}, Qualitaet "
+              f"{meta.get('quality', '?')}, Namenscheck {'an' if self.cfg.get('wake_confirm', True) else 'aus'})",
+              flush=True)
 
     # ---------- Audio ----------
     def _on_audio(self, indata, frames, time_info, status) -> None:
         self.audio_q.put(indata[:, 0].copy())
 
     def _read_chunk(self) -> np.ndarray:
-        chunk = self.audio_q.get()
+        chunk = self.preroll.pop(0) if self.preroll else self.audio_q.get()
         self.ring.append(chunk)
         return chunk
 
     def _drain(self) -> None:
+        self.preroll.clear()
         while not self.audio_q.empty():
             self.audio_q.get_nowait()
         self.oww.reset()
@@ -358,7 +401,7 @@ class KiraVoice:
     # ---------- Verarbeitung ----------
     def _transcribe(self, audio: np.ndarray) -> str:
         segs, _ = self.whisper.transcribe(audio, language="de", beam_size=1, vad_filter=False,
-                                          initial_prompt=f"{self.cfg['assistant_name']}, Sprachassistent.")
+                                          initial_prompt=f"{self.name}, Sprachassistent.")
         return " ".join(s.text.strip() for s in segs).strip()
 
     def _route(self, text: str) -> dict:
@@ -371,7 +414,7 @@ class KiraVoice:
         payload = {
             "model": "qwen3-router",
             "messages": [{"role": "system", "content": ROUTER_PROMPT.format(
-                now=now, persona=self.cfg.get("persona", DEFAULT_PERSONA),
+                now=now, persona=self.cfg.get("persona", DEFAULT_PERSONA.format(name=self.name)),
                 smalltalk_example=self.cfg.get("smalltalk_example", DEFAULT_SMALLTALK))}, *self.history[-6:],
                          {"role": "user", "content": text}],
             "temperature": 0.2,
@@ -470,42 +513,83 @@ class KiraVoice:
         with sd.InputStream(samplerate=SR, channels=1, dtype="int16", blocksize=CHUNK,
                             device=cfg["input_device"], callback=self._on_audio):
             self.status["state"] = "listening"
-            print(f"{cfg['assistant_name']} hoert zu (sag '{cfg.get('wake_phrase', 'Hey Kira')}').", flush=True)
+            print(f"{self.name} hoert zu (sag '{self.phrase}').", flush=True)
             winsound.Beep(900, 120)
             while True:
                 if self._wake_detected(self._read_chunk()):
                     self._session()
 
+    def _wake_score(self, chunk: np.ndarray) -> float:
+        if self.engine == "personal":
+            return self.oww.predict(chunk)
+        return float(self.oww.predict(chunk).get(self.wake_name, 0.0))
+
+    def _confirm_name(self) -> tuple[bool, int]:
+        """Stufe 2 (persoenliches Wake Word): Whisper auf dem ~2-s-Fenster, unscharfer Namensvergleich.
+        Der Name steht am Ende des Fensters; Rueckgabe (bestaetigt, Dauer in ms)."""
+        cfg = self.cfg
+        t0 = time.monotonic()
+        audio = np.concatenate(list(self.ring)).astype(np.float32) / 32768.0
+        for language in cfg.get("wake_confirm_languages", ["de", "en"]):
+            segs, _ = self.whisper.transcribe(audio, language=language, beam_size=1, vad_filter=False,
+                                              condition_on_previous_text=False, temperature=0.0)
+            text = " ".join(seg.text.strip() for seg in segs)
+            hit, _, _ = personal_wake.name_matches(text, self.name, cfg.get("wake_aliases", ()),
+                                                   cfg.get("wake_reject_words", ()), cfg.get("wake_match_max_dist"))
+            if hit:
+                return True, round((time.monotonic() - t0) * 1000)
+        return False, round((time.monotonic() - t0) * 1000)
+
     def _wake_detected(self, chunk: np.ndarray) -> bool:
-        score = float(self.oww.predict(chunk).get(self.wake_name, 0.0))
-        if score < self.cfg["wake_threshold"]:
+        score = self._wake_score(chunk)
+        if score < self.wake_threshold:
             return False
-        if time.monotonic() - self.last_wake < 1.5:  # Doppelausloesung auf dasselbe "Hey Kira" verhindern
+        now = time.monotonic()
+        if now - self.last_wake < 1.5 or now < self.stage1_block_until:  # Doppelausloesung auf dasselbe Wake Word
             return False
+        stage2_ms = None
+        if self.engine == "personal" and self.cfg.get("wake_confirm", True):
+            confirmed, stage2_ms = self._confirm_name()
+            if not confirmed:
+                # Stufe 1 hat sich geirrt (aehnliches Wort, Fernseher, Geraeusch): kurz sperren, Puffer leeren.
+                self.status["wake_rejected"] += 1
+                self.stage1_block_until = time.monotonic() + self.cfg.get("wake_refractory_s", 1.0)
+                self.oww.reset()
+                self.preroll = []
+                log_event(event="wake_rejected", engine=self.engine, stage=2, score=round(score, 3),
+                          stage2_ms=stage2_ms)
+                return False
         self.last_wake = time.monotonic()
-        # Modellpuffer leeren: er enthaelt noch das erkannte "Hey Kira" und loeste sonst sofort ein zweites
-        # Mal aus - live als Barge-In 23 ms nach dem Befehl beobachtet, das schaltete Kiras Antwort stumm.
+        # Modellpuffer leeren: er enthaelt noch das erkannte Wake Word und loeste sonst sofort ein zweites
+        # Mal aus - live als Barge-In 23 ms nach dem Befehl beobachtet, das schaltete die Antwort stumm.
         self.oww.reset()
         self.status["wake_count"] += 1
         self.status["last_event"] = datetime.datetime.now().isoformat(timespec="seconds")
         barge_in = self.tts.speaking.is_set()
         if barge_in:
             self.tts.interrupt()
-        log_event(event="wake", score=round(score, 3), barge_in=barge_in)
+        log_event(event="wake", score=round(score, 3), barge_in=barge_in, engine=self.engine, stage2_ms=stage2_ms)
         return True
 
     def _acknowledge_wake(self) -> np.ndarray:
         wake_audio = np.concatenate(list(self.ring)).astype(np.float32) / 32768.0
+        # Stufe 2 dauert (Whisper): wer das Wake Word und den Befehl in einem Atemzug spricht, hat den Befehlsanfang
+        # schon im Eingabepuffer. Diesen Rueckstand VOR dem Piepton sichern und der Befehlsaufnahme voranstellen.
+        backlog = []
+        if self.engine == "personal":
+            while not self.audio_q.empty():
+                backlog.append(self.audio_q.get_nowait())
         winsound.Beep(1200, 80)
         # Waehrend des Pieptons aufgenommene Bloecke verwerfen: sonst startet der Piepton selbst die
         # Befehlsaufnahme und endet nach 0,7 s "Stille" mit leerem Transkript (live beobachtet).
         while not self.audio_q.empty():
             self.audio_q.get_nowait()
+        self.preroll = backlog
         return wake_audio
 
     def _session(self) -> None:
         """Ein Wake-Ereignis: Befehl, danach Folgefragen ohne Wake Word, solange die Trusted Session laeuft.
-        Waehrend Kira spricht, laeuft die Wake-Word-Erkennung weiter (Barge-In)."""
+        Waehrend der Assistent spricht, laeuft die Wake-Word-Erkennung weiter (Barge-In)."""
         cfg = self.cfg
         wake_audio = self._acknowledge_wake()
         self.status["state"] = "command"
@@ -540,7 +624,7 @@ class KiraVoice:
 
     def _game_mode_watcher(self) -> None:
         """Gaming-Modus: laeuft ein Spiel aus cfg["game_processes"], wird der GPU-TTS-Server (~3,5 GB VRAM)
-        gestoppt und Kira spricht mit Piper (CPU). Nach Spielende wird Stimme 3 wieder hochgefahren."""
+        gestoppt und der Assistent spricht mit Piper (CPU). Nach Spielende wird Stimme 3 wieder hochgefahren."""
         games = [g.lower() for g in self.cfg.get("game_processes", [])]
         tts_url = self.cfg.get("tts_url")
         if not games or not tts_url:
@@ -595,11 +679,12 @@ class KiraVoice:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default=os.path.join(JARVIS, "config", "voice.json"))
-    ap.add_argument("--test-wake-model", help="Ersatzmodell zum Testen der Kette (z. B. hey_jarvis), ohne Verifier")
+    ap.add_argument("--test-wake-model", help="Ersatzmodell zum Testen der Kette (z. B. hey_jarvis), ohne Verifier; "
+                    "erzwingt die Engine openwakeword")
     args = ap.parse_args()
     cfg = json.load(open(args.config, encoding="utf-8-sig"))  # BOM-tolerant (Windows-Editoren)
     os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
-    KiraVoice(cfg, args.test_wake_model).run()
+    VoiceService(cfg, args.test_wake_model).run()
 
 
 if __name__ == "__main__":

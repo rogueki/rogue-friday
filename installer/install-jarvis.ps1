@@ -1,10 +1,13 @@
 ﻿#Requires -Version 5.1
 <#
-  JARVIS – Komplettinstallation (Windows 11 + WSL2 + Hermes Agent + Kimi K3 + lokale Sprachsteuerung)
+  F.R.I.D.A.Y. – Komplettinstallation (Windows 11 + WSL2 + Hermes Agent + Kimi K3 + lokale Sprachsteuerung)
+  Standardassistent: F.R.I.D.A.Y. ("Friday", Nachfolger von J.A.R.V.I.S.), Wake Word "Hey Friday". Der Name wird
+  vor der Stimmaufnahme abgefragt und kann frei gewählt werden (z. B. Jarvis, James). Später ändern: change-assistant-name.bat
+  (= install-jarvis.ps1 -ChangeName).
   Start per Doppelklick auf install-jarvis.bat. Kann jederzeit erneut gestartet werden: erledigte Schritte
   werden übersprungen (Fortschritt: C:\Jarvis\config\install-state.json).
 #>
-param([switch]$Resume)
+param([switch]$Resume, [switch]$ChangeName)
 
 $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
@@ -20,10 +23,13 @@ $ResumeTask = 'JARVIS_Installation_fortsetzen'
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) {
-    Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+    $fwd = ''
+    if ($Resume) { $fwd += ' -Resume' }
+    if ($ChangeName) { $fwd += ' -ChangeName' }
+    Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"$fwd"
     exit
 }
-$Host.UI.RawUI.WindowTitle = 'JARVIS Installation'
+$Host.UI.RawUI.WindowTitle = 'F.R.I.D.A.Y. Installation'
 
 foreach ($d in 'config','exchange','logs','models','scripts','voice','windows-worker','backups','cache','installer') {
     New-Item -ItemType Directory -Force "$Root\$d" | Out-Null
@@ -60,6 +66,32 @@ function YesNo($question, $defaultYes = $true) {
 function Plain([Security.SecureString]$s) {
     $b = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)
     try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($b) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b) }
+}
+
+# ---------------------------------------------------------------- Assistentenname
+# Gleiche Regeln wie voice/personal_wake.py (valid_name, slugify, wake_phrase) und common/persona.py.
+$DefaultName = 'Friday'
+function Test-AssistantName($n) { return $n -match '^\p{L}{2,20}$' }
+function Format-AssistantName($n) { return $n.Substring(0, 1).ToUpper() + $n.Substring(1) }
+function Get-WakeSlug($n) {
+    $s = $n.ToLower().Replace('ä', 'ae').Replace('ö', 'oe').Replace('ü', 'ue').Replace('ß', 'ss')
+    $s = ($s.Normalize([Text.NormalizationForm]::FormD) -replace '[^\x00-\x7F]', '') -replace '[^a-z0-9]+', '_'
+    $s = $s.Trim('_')
+    if ($s) { return $s } else { return 'assistant' }
+}
+function Read-AssistantName($default) {
+    while ($true) {
+        $n = Ask 'Wie soll dein Assistent heißen?' $default
+        if (Test-AssistantName $n) { return (Format-AssistantName $n) }
+        Warn 'Bitte nur Buchstaben (auch Umlaute), 2 bis 20 Zeichen, ohne Leerzeichen und Zahlen.'
+    }
+}
+function Set-AssistantName($n) {
+    $State.assistant_name = $n
+    $State.wake_phrase = "Hey $n"
+    $State.wake_slug = Get-WakeSlug $n
+    $State.wake_engine = if ($State.wake_slug -eq 'jarvis') { 'openwakeword' } else { 'personal' }
+    Save-State
 }
 
 # ---------------------------------------------------------------- Fortschritt
@@ -108,9 +140,71 @@ if (Get-ScheduledTask -TaskName $ResumeTask -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName $ResumeTask -Confirm:$false
 }
 
-Title 'JARVIS – Installation'
-Info 'Dieser Assistent richtet JARVIS komplett ein. Du wirst nur nach wenigen Dingen gefragt.'
+Title 'F.R.I.D.A.Y. – Installation'
+Info 'Dieser Assistent richtet F.R.I.D.A.Y., deinen persönlichen Sprachassistenten, komplett ein. Du wirst nur nach wenigen Dingen gefragt.'
 Info 'Dauer: ca. 45–90 Minuten (viele Downloads). Unterbrechen ist kein Problem – einfach neu starten.'
+
+# ================================================================ 0 Name des Assistenten (VOR allen Aufnahmen und Konfigurationsdateien)
+# Einmal fragen, bei Fortsetzung wiederverwenden. Ändern ohne Zusatzaufwand nur, solange noch keine Stimmaufnahmen
+# existieren; danach über change-assistant-name.bat (-ChangeName): neuer Name, Aufnahme und Sprachdienst werden wiederholt.
+function Update-PersonaName($newName, [string[]]$redo) {
+    # persona.json, SOUL.md (Hermes) und voice.json tragen den alten Namen: Name ersetzen, die abhängigen Schritte wiederholen.
+    $pf = "$Root\config\persona.json"
+    if (Test-Path $pf) {
+        $pj = Get-Content $pf -Raw | ConvertFrom-Json
+        $pj | Add-Member -NotePropertyName assistant_name -NotePropertyValue $newName -Force
+        [IO.File]::WriteAllText($pf, ($pj | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
+    }
+    $State.done = @(@($State.done) | Where-Object { $_ -notin $redo })
+    Save-State
+}
+$recordingsExist = (IsDone 'enroll') -or [bool](Get-ChildItem "$Root\voice\profiles\owner\raw" -Recurse -Filter *.wav -ErrorAction SilentlyContinue | Select-Object -First 1)
+$oldName = $null
+if ($ChangeName -and $State.assistant_name) {
+    $oldName = $State.assistant_name
+    foreach ($k in 'assistant_name', 'wake_phrase', 'wake_slug', 'wake_engine') { $State.Remove($k) }
+    Save-State
+    Info "Bisheriger Name: $oldName. Du kannst einen neuen Namen wählen (Enter = $oldName behalten)."
+}
+if (-not $State.assistant_name) {
+    Title 'Dein Assistent'
+    # Installation aus der Zeit vor der Namensabfrage (persona.json ohne assistant_name): der Assistent hieß Jarvis.
+    $legacy = (-not $oldName) -and ((IsDone 'persona') -or $recordingsExist)
+    $prev = if ($oldName) { $oldName } elseif ($legacy) { 'Jarvis' } else { $null }
+    if ($legacy) {
+        Info "Vorhandene Installation erkannt: Der Assistent heißt bisher $prev (Enter = beibehalten)."
+    } elseif (-not $oldName) {
+        Info 'Standardmäßig heißt dein Assistent Friday (F.R.I.D.A.Y., der Nachfolger von J.A.R.V.I.S.) und hört auf "Hey Friday".'
+        Info 'Du kannst ihm jetzt einen eigenen Namen geben, z. B. Jarvis, James oder Frida. Der Name wird für die Stimmaufnahme gebraucht.'
+    }
+    $new = Read-AssistantName $(if ($prev) { $prev } else { $DefaultName })
+    Set-AssistantName $new
+    if ($prev) {
+        $redo = @()
+        if ($new -ne $prev) {
+            $redo = @('hermes', 'voicepython')
+            if ($recordingsExist) { $redo += @('enroll', 'voiceservice') }
+        } elseif ($oldName -and (YesNo 'Name unverändert. Stimmaufnahme trotzdem wiederholen?' $false)) {
+            $redo = @('enroll', 'voiceservice')
+        }
+        Update-PersonaName $new $redo
+        if ($redo.Count -gt 0) { Warn 'Die abhängigen Schritte (Hermes-Persönlichkeit, Sprachmodell-Konfiguration, ggf. Stimmaufnahme und Sprachdienst) werden jetzt mit diesem Namen erneut durchlaufen.' }
+    }
+    Ok "Dein Assistent heißt $($State.assistant_name) – Wake Word: '$($State.wake_phrase)'."
+} elseif (-not $Resume -and -not $recordingsExist) {
+    Info "Dein Assistent heißt $($State.assistant_name) (Wake Word '$($State.wake_phrase)')."
+    if (-not (YesNo 'Namen beibehalten?')) {
+        $new = Read-AssistantName $State.assistant_name
+        if ($new -ne $State.assistant_name) {
+            Set-AssistantName $new
+            Update-PersonaName $new @('hermes', 'voicepython')
+            Ok "Dein Assistent heißt jetzt $new – Wake Word: '$($State.wake_phrase)'."
+        }
+    }
+}
+$AN = $State.assistant_name
+$WP = $State.wake_phrase
+$Slug = $State.wake_slug
 
 # ================================================================ 1 Systemcheck
 if (-not (IsDone 'preflight')) {
@@ -137,7 +231,7 @@ if (-not (IsDone 'preflight')) {
         }
     }
     Info "Grafikkarte: $($gpu.name) | VRAM $($gpu.vram_mb) MB | Treiber $($gpu.driver) | Compute $($gpu.cc)"
-    if (-not $gpu.nvidia) { Warn 'Keine NVIDIA-GPU gefunden: JARVIS läuft dann komplett auf der CPU (langsamer).' }
+    if (-not $gpu.nvidia) { Warn "Keine NVIDIA-GPU gefunden: $AN läuft dann komplett auf der CPU (langsamer)." }
     try { Invoke-WebRequest -UseBasicParsing https://huggingface.co -Method Head -TimeoutSec 15 | Out-Null; Ok 'Internet erreichbar' }
     catch { Stop-Install 'Keine Internetverbindung.' }
     $State.build = $build; $State.ram_gb = $ramGB; $State.cores = $cores; $State.gpu = $gpu
@@ -191,15 +285,16 @@ if (-not (IsDone 'power')) {
 
 # ================================================================ 5 Persönlichkeit
 if (-not (IsDone 'persona')) {
-    Title 'Schritt 5/14 – Deine Wünsche an JARVIS'
+    Title "Schritt 5/14 – Deine Wünsche an $AN"
     $name = ''
     while (-not $name) { $name = Ask 'Wie heißt du (Vorname)?' }
-    $addr = Choose 'Wie soll JARVIS dich ansprechen?' @("Mit 'Sir' und Sie – wie im Film", "Mit Vornamen und Sie ($name)", "Mit Vornamen und Du ($name)") 1
-    $char = Choose 'Welcher Charakter?' @('Britischer Butler: höflich, elegant, trockener Humor (wie im Film)', 'Freundlich und locker', 'Sachlich und knapp') 1
+    $addr = Choose "Wie soll $AN dich ansprechen?" @("Mit 'Sir' und Sie – wie ein britischer Butler", "Mit Vornamen und Sie ($name)", "Mit Vornamen und Du ($name)") 1
+    $char = Choose 'Welcher Charakter?' @('Britischer Butler: höflich, elegant, trockener Humor', 'Freundlich und locker', 'Sachlich und knapp') 1
     $len  = Choose 'Wie ausführlich sollen Antworten sein?' @('Kurz und auf den Punkt', 'Ausführlicher') 1
-    Info 'Optional: Was soll JARVIS über dich wissen? (Beruf, Firma, Interessen, Familie … – Enter = überspringen)'
+    Info "Optional: Was soll $AN über dich wissen? (Beruf, Firma, Interessen, Familie … – Enter = überspringen)"
     $about = Ask 'Über mich'
     $persona = [ordered]@{
+        assistant_name = $AN
         owner_name = $name
         address    = @('sir', 'sie', 'du')[$addr - 1]
         character  = @('butler', 'freundlich', 'sachlich')[$char - 1]
@@ -246,7 +341,7 @@ if (-not (IsDone 'distro')) {
 # ================================================================ 8 Linux-Benutzer
 if (-not (IsDone 'linuxuser')) {
     Title 'Schritt 8/14 – Linux-Benutzer anlegen'
-    Info 'JARVIS läuft in Ubuntu unter einem eigenen Benutzer. Name: nur Kleinbuchstaben/Zahlen.'
+    Info "$AN läuft in Ubuntu unter einem eigenen Benutzer. Name: nur Kleinbuchstaben/Zahlen."
     $suggest = ($env:USERNAME.ToLower() -replace '[^a-z0-9_-]', '')
     if ($suggest -notmatch '^[a-z_]') { $suggest = 'jarvis' }
     do { $user = Ask 'Linux-Benutzername' $suggest } until ($user -match '^[a-z_][a-z0-9_-]{0,31}$')
@@ -288,7 +383,7 @@ if (-not (IsDone 'hermes')) {
         Info 'Kimi-API-Key eingeben (Eingabe bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
         $key = Plain (Read-Host '  Kimi-API-Key' -AsSecureString)
     }
-    if (-not $key) { Stop-Install 'Ohne Kimi-API-Key kann JARVIS nicht denken.' }
+    if (-not $key) { Stop-Install "Ohne Kimi-API-Key kann $AN nicht denken." }
     # Datei zuerst leer anlegen und absichern, dann erst den Schluessel hineinschreiben (kein Fenster mit geerbten Rechten);
     # die Rechte werden bei jedem Lauf neu gesetzt, damit ein frueherer Fehlschlag nicht dauerhaft ungeschuetzt bleibt.
     $apiKeyFile = "$Root\config\hermes_api.key"
@@ -350,7 +445,7 @@ if (-not (IsDone 'qwen')) {
                messages = @(@{ role = 'user'; content = 'Antworte nur mit LOCAL_OK' }) } | ConvertTo-Json -Depth 5
     $t = Measure-Command { $r = Invoke-RestMethod -Method Post "http://127.0.0.1:$($Ports.Qwen)/v1/chat/completions" -ContentType 'application/json' -Body $body -TimeoutSec 120 }
     Ok ("Qwen antwortet ({0:N1} s): {1}" -f $t.TotalSeconds, $r.choices[0].message.content.Trim())
-    Register-UserTask 'JARVIS_Qwen' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-qwen-server.ps1`"" 'Lokaler Qwen3-4B-Router für JARVIS'
+    Register-UserTask 'JARVIS_Qwen' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-qwen-server.ps1`"" 'Lokaler Qwen3-4B-Router für F.R.I.D.A.Y.'
     MarkDone 'qwen'
 }
 
@@ -377,7 +472,7 @@ if (-not (IsDone 'voicepython')) {
     & $vpy -m pip install -q --upgrade pip wheel 2>&1 | Out-Null
     & $vpy -m pip install -q torch torchaudio --index-url https://download.pytorch.org/whl/cpu 2>&1 | Out-File "$Root\logs\pip.log" -Append
     & $vpy -m pip install -q faster-whisper nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*" openwakeword speechbrain silero-vad `
-        piper-tts sounddevice soundfile scipy huggingface_hub 2>&1 | Out-File "$Root\logs\pip.log" -Append
+        piper-tts sounddevice soundfile scipy scikit-learn huggingface_hub 2>&1 | Out-File "$Root\logs\pip.log" -Append
     if ($LASTEXITCODE -ne 0) { Stop-Install 'Python-Pakete konnten nicht installiert werden (C:\Jarvis\logs\pip.log).' }
     Info 'Lade Sprachmodelle und teste die Grafikkarte …'
     $out = & $vpy "$Root\voice\voice_setup.py" $Root 2>&1 | ForEach-Object { "$_" }
@@ -389,34 +484,48 @@ if (-not (IsDone 'voicepython')) {
 
 # ================================================================ 13 Stimme einlernen
 if (-not (IsDone 'enroll')) {
-    Title 'Schritt 13/14 – JARVIS lernt deine Stimme'
-    Info 'JARVIS reagiert nur auf DEINE Stimme. Dafür nimmst du jetzt einige Sätze auf (ca. 10–12 Minuten):'
-    Info '  • 26x "Hey Jarvis", 18x "Jarvis", 15 ähnlich klingende Wörter, 8 kurze Texte vorlesen'
+    Title "Schritt 13/14 – $AN lernt deine Stimme"
+    Info "$AN reagiert nur auf DEINE Stimme. Dafür nimmst du jetzt einige Sätze auf (ca. 10–12 Minuten):"
+    Info "  • 26x ""$WP"", 18x ""$AN"", 15 ähnlich klingende Wörter, 8 kurze Texte vorlesen"
     Info '  • Ruhige Umgebung, normal sprechen, nach jedem Piepton sprechen.'
     Info 'Es öffnet sich gleich ein eigenes Fenster. Dort Enter drücken und den Anweisungen folgen.'
     Read-Host '  Enter, wenn du bereit bist'
     $vpy = "$Root\voice\.venv\Scripts\python.exe"
     $raw = "$Root\voice\profiles\owner\raw"
     while ($true) {
-        Start-Process -FilePath $vpy -ArgumentList "`"$Root\voice\enroll_record.py`"" -WorkingDirectory "$Root\voice" -Wait
-        $nWake = @(Get-ChildItem "$raw\wake_hey_jarvis\*.wav" -ErrorAction SilentlyContinue).Count
+        Start-Process -FilePath $vpy -ArgumentList "`"$Root\voice\enroll_record.py`" --name `"$AN`"" -WorkingDirectory "$Root\voice" -Wait
+        $nWake = @(Get-ChildItem "$raw\wake_hey_$Slug\*.wav" -ErrorAction SilentlyContinue).Count
         $nSpeech = @(Get-ChildItem "$raw\speech\*.wav" -ErrorAction SilentlyContinue).Count
         if ($nWake -ge 20 -and $nSpeech -ge 6) { break }
-        Warn "Zu wenige Aufnahmen ($nWake x 'Hey Jarvis', $nSpeech Texte). Bitte vollständig durchlaufen."
+        Warn "Zu wenige Aufnahmen ($nWake x '$WP', $nSpeech Texte). Bitte vollständig durchlaufen."
         if (-not (YesNo 'Aufnahme fortsetzen?')) { Stop-Install 'Stimmprofil unvollständig.' }
     }
-    Info 'Berechne dein Stimmprofil und trainiere den Wake-Word-Verifier …'
+    Info 'Berechne dein Stimmprofil und trainiere die Wake-Word-Erkennung (bei eigenem Namen einige Minuten) …'
     & $vpy "$Root\voice\build_speaker_profile.py" 2>&1 | ForEach-Object { "$_" } | Where-Object { $_ -match 'Profil|score|Kreuz' } | ForEach-Object { Info $_ }
-    & $vpy "$Root\voice\train_owner_verifier.py" 2>&1 | ForEach-Object { "$_" } | Where-Object { $_ -match 'Verifier' } | ForEach-Object { Info $_ }
+    $wakeOut = @(& $vpy "$Root\voice\train_owner_verifier.py" 2>&1 | ForEach-Object { "$_" })
+    $wakeOut | Where-Object { $_ -match 'Verifier|Wake|Schwelle|Aufnahmen|Kalibrier' } | ForEach-Object { Info $_ }
     if (-not (Test-Path "$Root\voice\profiles\owner\embeddings\owner_ecapa.npy")) { Stop-Install 'Stimmprofil konnte nicht erstellt werden.' }
+    if ($State.wake_engine -eq 'personal') {
+        if (-not (Test-Path "$Root\models\openwakeword\personal_wake.npz") -or -not (Test-Path "$Root\models\openwakeword\personal_wake.json")) {
+            Stop-Install "Wake-Word-Modell für '$WP' konnte nicht erstellt werden (Ausgabe oben). Aufnahme prüfen und erneut starten."
+        }
+        if (($wakeOut -join "`n") -match 'WAKE_QUALITY=schwach') {
+            Warn "Das Wake Word '$WP' ist noch unsicher erkennbar (ähnlich klingende Wörter). Es funktioniert, kann aber öfter nicht oder fälschlich anspringen."
+            Warn 'Tipp: Aufnahme in ruhigerer Umgebung wiederholen (siehe ANLEITUNG.md) oder einen längeren, markanteren Namen wählen.'
+        }
+    }
     Ok 'Stimmprofil erstellt (bleibt nur auf diesem PC).'
     MarkDone 'enroll'
 }
 
 # ================================================================ 14 Sprachdienst + Abschluss
 if (-not (IsDone 'voiceservice')) {
-    Title 'Schritt 14/14 – JARVIS starten'
-    Register-UserTask 'JARVIS_Voice' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-jarvis-voice.ps1`"" 'JARVIS Sprachsteuerung (Hey Jarvis)' 45
+    Title "Schritt 14/14 – $AN starten"
+    Register-UserTask 'JARVIS_Voice' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-jarvis-voice.ps1`"" "$AN Sprachsteuerung ($WP)" 45
+    # Läuft noch ein Sprachdienst mit alter Konfiguration (Namenswechsel), erst beenden: die Aufgabe startet keine zweite Instanz.
+    Stop-ScheduledTask -TaskName 'JARVIS_Voice' -ErrorAction SilentlyContinue
+    Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -like '*jarvis_voice.py*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     Start-ScheduledTask -TaskName 'JARVIS_Voice'
     Info 'Lade die Sprachmodelle (bis zu 3 Minuten) …'
     $ok = $false
@@ -431,9 +540,9 @@ if (-not (IsDone 'voiceservice')) {
 
 $p = Get-Content "$Root\config\persona.json" -Raw | ConvertFrom-Json
 $report = @"
-# JARVIS – Installationsstatus
+# F.R.I.D.A.Y. – Installationsstatus
 
-Installiert am $(Get-Date -Format 'dd.MM.yyyy HH:mm') für $($p.owner_name).
+Installiert am $(Get-Date -Format 'dd.MM.yyyy HH:mm') für $($p.owner_name). Assistent: $AN · Wake Word: "$WP" ($($State.wake_engine)).
 
 | Komponente | Adresse |
 |---|---|
@@ -448,9 +557,9 @@ Erledigte Schritte: $(@($State.done) -join ', ')
 "@
 [IO.File]::WriteAllText("$Root\INSTALL_STATE.md", $report, (New-Object Text.UTF8Encoding $false))
 
-Title 'FERTIG – JARVIS ist einsatzbereit'
-Info 'Sag:  "Hey Jarvis"  … kurzer Piepton … dann deine Frage, z. B. "Wie spät ist es?"'
-Info 'Folgefragen gehen 90 Sekunden lang ohne erneutes "Hey Jarvis".'
+Title "FERTIG – $AN ist einsatzbereit"
+Info "Sag:  ""$WP""  … kurzer Piepton … dann deine Frage, z. B. ""Wie spät ist es?"""
+Info "Folgefragen gehen 90 Sekunden lang ohne erneutes ""$WP""."
 Info "Dashboard (Kanban, Einstellungen): http://127.0.0.1:$($Ports.Dashboard)"
 Info 'Alles startet ab jetzt automatisch bei der Anmeldung.'
 Info 'Nächste Schritte (Telegram, E-Mail, Kalender): siehe ANLEITUNG.md'

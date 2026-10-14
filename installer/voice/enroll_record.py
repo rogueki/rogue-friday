@@ -1,7 +1,10 @@
-"""Gefuehrte Aufnahme fuer JARVIS: Wake-Word-Samples, Sprecher-Enrollment, harte Negativbeispiele.
+"""Gefuehrte Aufnahme fuer den Assistenten: Wake-Word-Samples, Sprecher-Enrollment, harte Negativbeispiele.
 
+Aufruf: python enroll_record.py [--name Friday]   (ohne --name: assistant_name aus ../config/persona.json, sonst Friday)
 Speichert 16 kHz Mono WAVs unter profiles/owner/raw/<block>/. Biometrische Daten bleiben lokal.
+Ordner der Wake-Blocks: wake_hey_<slug> und wake_<slug> (slug = ASCII-Kleinschreibung des Namens, "Jarvis" -> jarvis).
 """
+import argparse
 import datetime
 import json
 import os
@@ -15,28 +18,57 @@ import soundfile as sf
 
 SR = 16000
 ROOT = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, ROOT)
 RAW = os.path.join(ROOT, "profiles", "owner", "raw")
 MANIFEST = os.path.join(RAW, "manifest.jsonl")
+DEFAULT_NAME = "Friday"
 
-WAKE_BLOCKS = [
-    ("wake_hey_jarvis", "Hey Jarvis", [
-        ("normal, ca. 50 cm vom Laptop", 8),
-        ("leise", 4),
-        ("laut / bestimmt", 4),
-        ("ca. 1-2 m entfernt (aufstehen oder zuruecklehnen)", 6),
-        ("schnell/beilaeufig, wie im Alltag", 4),
-    ]),
-    ("wake_jarvis", "Jarvis", [
-        ("normal", 8),
-        ("leise oder aus 1-2 m", 6),
-        ("fragend, z. B. 'Jarvis?'", 4),
-    ]),
-]
+import personal_wake  # noqa: E402  (gleicher Ordner: slugify, hard_negatives)
 
-NEGATIVES = [
-    "Hey Charles", "Harvest", "Hey Davis", "Service", "Hey Travis", "Jahres", "Hey Chris",
-    "Marvin", "Hey Janis", "Paris", "Carlos", "Garnix", "Hey Jakob", "Hier ja", "Hey, wie geht's",
-]
+
+def assistant_name() -> str:
+    """--name, sonst persona.json, sonst Friday. Ungueltige Namen brechen ab (der Installer prueft sie vorher)."""
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--name")
+    name = ap.parse_args().name
+    if not name:
+        try:
+            with open(os.path.join(ROOT, "..", "config", "persona.json"), encoding="utf-8-sig") as f:
+                name = json.load(f).get("assistant_name")
+        except (OSError, ValueError):
+            name = None
+    name = (name or DEFAULT_NAME).strip()
+    if not personal_wake.valid_name(name):
+        raise SystemExit(f"Ungueltiger Assistentenname '{name}' (2-20 Buchstaben).")
+    return personal_wake.display_name(name)
+
+
+def wake_blocks(name: str, slug: str) -> list:
+    return [
+        (f"wake_hey_{slug}", personal_wake.wake_phrase(name), [
+            ("normal, ca. 50 cm vom Laptop", 8),
+            ("leise", 4),
+            ("laut / bestimmt", 4),
+            ("ca. 1-2 m entfernt (aufstehen oder zuruecklehnen)", 6),
+            ("schnell/beilaeufig, wie im Alltag", 4),
+        ]),
+        (f"wake_{slug}", name, [
+            ("normal", 8),
+            ("leise oder aus 1-2 m", 6),
+            (f"fragend, z. B. '{name}?'", 4),
+        ]),
+    ]
+
+
+def passages(name: str) -> list:
+    """Lesetexte. Der Name kommt nur beim Jarvis-Weg (Verifier-Training, unveraendert) im Text vor: beim persoenlichen
+    Wake Word wuerden Namensnennungen in den Lesetexten als falsche Negativbeispiele kalibriert."""
+    texts = list(PASSAGES)
+    if personal_wake.slugify(name) == "jarvis":
+        texts[-1] = (f"{name}, starte bitte den Hintergrundtask und melde dich, sobald das Ergebnis da ist. "
+                     f"{name}, stopp. {name}, abbrechen. {name}, wie ist der Status?")
+    return texts
+
 
 PASSAGES = [
     "Guten Morgen. Bitte fasse mir die wichtigsten E-Mails von heute zusammen und sag mir, "
@@ -53,8 +85,8 @@ PASSAGES = [
     "Und jetzt das Alphabet: A, B, C, D, E, F, G, H, I, J, K, L, M.",
     "Erzaehl mir frei etwas: Was hast du heute gemacht, was steht diese Woche noch an, "
     "und worauf freust du dich? Sprich einfach natuerlich weiter, bis die Zeit abgelaufen ist.",
-    "Jarvis, starte bitte den Hintergrundtask und melde dich, sobald das Ergebnis da ist. "
-    "Jarvis, stopp. Jarvis, abbrechen. Jarvis, wie ist der Status?",
+    "Starte bitte den Hintergrundtask und melde dich, sobald das Ergebnis da ist. "
+    "Stopp. Abbrechen. Wie ist der Status? Und wie viel Uhr ist es gerade?",
 ]
 
 
@@ -107,8 +139,11 @@ def pause(msg: str) -> None:
 
 
 def main() -> None:
+    name = assistant_name()
+    slug = personal_wake.slugify(name)
+    texts = passages(name)
     print("=" * 70)
-    print(" JARVIS - Stimmaufnahme (alles bleibt lokal auf diesem Rechner)")
+    print(f" {name} - Stimmaufnahme (alles bleibt lokal auf diesem Rechner)")
     print("=" * 70)
     print(f" Mikrofon: {sd.query_devices(kind='input')['name']}")
     print(" Ruhige Umgebung, normal sprechen. Nach jedem Piepton sprechen.")
@@ -120,7 +155,7 @@ def main() -> None:
     if peak < 0.05:
         print("  WARNUNG: sehr leise. Mikrofon in Windows-Soundeinstellungen pruefen (Pegel ~80-100%).")
 
-    for block, text, phases in WAKE_BLOCKS:
+    for block, text, phases in wake_blocks(name, slug):
         idx = len([f for f in os.listdir(os.path.join(RAW, block))]) if os.path.isdir(os.path.join(RAW, block)) else 0
         for hint, count in phases:
             pause(f"SCHRITT Wake Word '{text}' - Variante: {hint}  ({count} Aufnahmen)")
@@ -129,13 +164,13 @@ def main() -> None:
                 capture_short(block, idx, text, hint)
 
     pause("SCHRITT Gegenbeispiele: aehnlich klingende Woerter, NICHT das Wake Word (je 2 s).")
-    for i, word in enumerate(NEGATIVES, 1):
+    for i, word in enumerate(personal_wake.hard_negatives(name), 1):
         capture_short("negatives", i, word, "Gegenbeispiel")
 
     pause("SCHRITT Sprecherprofil: 8 Texte vorlesen, je 20 Sekunden. Natuerlich sprechen; "
           "wenn der Text vor Ablauf fertig ist, einfach frei weiterreden.")
-    for i, text in enumerate(PASSAGES, 1):
-        print(f"\n  Text {i}/{len(PASSAGES)}:\n\n    {text}\n")
+    for i, text in enumerate(texts, 1):
+        print(f"\n  Text {i}/{len(texts)}:\n\n    {text}\n")
         input("  -> Enter, dann nach dem Piepton vorlesen ... ")
         beep()
         print("      Aufnahme laeuft (20 s) ...", flush=True)
