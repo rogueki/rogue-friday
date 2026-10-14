@@ -1,7 +1,82 @@
 # Mapping: Jarvis Voice (`voice/jarvis_voice.py`) -> kanonisches Voice-Modell
 
-Quelle der Analyse: `..\voice\jarvis_voice.py` (Windows-Dienst, nur lesend untersucht). Zielpaket: `adapters/voice-placeholder`
+Quelle der Analyse: `installer/voice/jarvis_voice.py` im Repo (Windows-Dienst; installiert nach `C:\Jarvis\voice\jarvis_voice.py`,
+nur lesend untersucht). Zielpaket: `adapters/voice-placeholder`
 (Provider `jarvis-voice-http`, Kategorie `voice`). Das Dashboard spricht nie mit dem Dienst; der Adapter übersetzt.
+
+## 0. Verifikation gegen den Code (Stand 2026-10-14, statische Prüfung)
+
+Alle Angaben unten sind gegen `installer/voice/jarvis_voice.py` (`JV`), `installer/voice/voice_setup.py` (`VS`) und
+`installer/scripts/start-jarvis-voice.ps1` (`SV`) geprüft. Der Dienst wurde **nicht ausgeführt** (Windows-only: `winsound`, `JV:24`).
+
+### 0.1 HTTP-Schnittstelle (vollständig, so implementiert)
+
+| Aspekt          | Befund (Beleg)                                                                                                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Adresse         | `127.0.0.1:<health_port>`, nur Loopback (`JV:591`); `health_port` = **43694** (`VS:107`)                                                                                                               |
+| Endpunkte       | **Genau ein Handler:** `do_GET` (`JV:580`). Der Pfad wird nicht ausgewertet: `GET /`, `/status`, `/x?y` liefern dieselbe Antwort                                                                       |
+| Andere Methoden | Kein `do_POST/HEAD/OPTIONS` -> Standardantwort `501 Unsupported method` der Python-Standardbibliothek. `Invoke-WebRequest -Method Head` schlägt damit fehl                                             |
+| Auth / CORS     | **Keine** Authentifizierung, **keine** CORS-Header, kein Host-Check. Nur ein serverseitiger Adapter (Node) kann die Antwort lesen                                                                      |
+| Status / Header | Immer `200`, `Content-Type: application/json`, kein `Content-Length`; HTTP/1.0 (Verbindung wird nach der Antwort geschlossen) (`JV:582-585`)                                                           |
+| Antwort         | `{**status, "speaking": bool, "trusted": bool}` (`JV:581`), `json.dumps` ohne Einrückung                                                                                                               |
+| Verfügbarkeit   | Der Server startet erst in `run()` (`JV:468`), **nach** dem Laden aller Modelle (`JV:285-297`). Während des Ladens (bis ca. 3 min) ist der Port **geschlossen** (Connection refused), nicht `starting` |
+| Wartezeit       | Der Installer wartet bis zu 90 x (2 s Timeout + 2 s Pause) auf `state == "listening"` (`install-jarvis.ps1:423-428`)                                                                                   |
+
+Beispielantwort (Schlüsselreihenfolge wie im Code; `game_mode` fehlt, solange der Gaming-Modus nie aktiv war):
+
+```json
+{
+  "state": "listening",
+  "started": "2026-10-14T09:12:03",
+  "last_event": null,
+  "wake_count": 0,
+  "rejected_speaker": 0,
+  "commands": 0,
+  "speaking": false,
+  "trusted": false
+}
+```
+
+| Feld               | Typ            | Semantik (Beleg)                                                                                                                                                        |
+| ------------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `state`            | string         | `starting` (`JV:276`), `listening` (`JV:472`, `539`), `command` (`JV:511`, `528`), `speaking` (`JV:518`), `followup` (`JV:533`). Setzen ohne Sperre aus dem Hauptthread |
+| `started`          | string         | lokale Zeit, ISO-8601 auf Sekunden, **ohne Zeitzone** (`JV:276`)                                                                                                        |
+| `last_event`       | string \| null | nur Zeitpunkt des **letzten Wake-Ereignisses** (`JV:490`), nicht des letzten Befehls                                                                                    |
+| `wake_count`       | int            | Wake-Ereignisse seit Dienststart (`JV:489`)                                                                                                                             |
+| `rejected_speaker` | int            | abgelehnte Sprecher (`JV:418`)                                                                                                                                          |
+| `commands`         | int            | akzeptierte Befehle ohne Stoppwort (`JV:434`)                                                                                                                           |
+| `speaking`         | bool           | TTS-Flag (`tts.speaking`, `JV:581`); wird schon beim Einreihen gesetzt (`JV:214`), 0,35 s nach Wiedergabeende gelöscht (`JV:245-247`)                                   |
+| `trusted`          | bool           | `monotonic() < trusted_until` (`JV:582`); Fenster `trusted_session_s` = 90 (`VS:98`)                                                                                    |
+| `game_mode`        | string \| null | optional: Schlüssel existiert erst, wenn der Gaming-Modus einmal griff (`JV:556`, `571`). **Im Installer-Standard nie** (siehe 0.3)                                     |
+
+### 0.2 Frühere Annahmen dieses Dokuments
+
+| Annahme (Abschnitt)                                                | Urteil           | Beleg / Korrektur                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Health-Server liefert JSON auf `GET /`, Felder `state`..`commands` | richtig          | `JV:276-277`, `579-589`                                                                                                                                                                                                                                      |
+| `speaking`, `trusted` zusätzlich im Health-JSON                    | richtig          | `JV:581`                                                                                                                                                                                                                                                     |
+| `game_mode` optional                                               | richtig          | `JV:555-571`; aber im Installer-Standard nie gesetzt (0.3)                                                                                                                                                                                                   |
+| `logs/voice.jsonl`, Felder `ts` + `event`, keine Rohaudios         | richtig          | `JV:42`, `88-91`. Pfad real `C:\Jarvis\logs\voice.jsonl`; `ts` = lokale Zeit mit ms, ohne Zeitzone                                                                                                                                                           |
+| Steuerung (Stopp/Test) existiert nicht, Stoppwörter im Dienst      | richtig          | nur `do_GET` (`JV:580`); `STOP_WORDS` (`JV:85`), Aktion `tts.interrupt()` (`JV:431`)                                                                                                                                                                         |
+| Status `starting` ist per Health sichtbar                          | **falsch**       | Port ist beim Laden zu (`JV:468` nach `JV:285-297`). Connection refused == `starting` oder aus. `starting` im JSON nur für Millisekunden zwischen `_start_health()` und InputStream-Start                                                                    |
+| `command` = Wake erkannt, Aufnahme läuft -> `mode = listening`     | **ungenau**      | `state` bleibt `command` auch während Sprecherprüfung, STT, Routing und Wartezeit auf Hermes (`_handle_command` ist synchron, `JV:409-459`; Hermes-Timeout 900 s `JV:400`). Erst danach `speaking` (`JV:518`). Unterphasen nur über Log-Ereignisse ableitbar |
+| Transkripttext steht nur auf der Konsole                           | richtig, aber    | Konsole wird in `C:\Jarvis\logs\voice-service.log` umgeleitet (`SV:23`): Zeilen `> <Transkript>` (`JV:429`) und `< <Antwort>` (`JV:446`, `457`) im Klartext, **ohne Zeitstempel**. Personenbezogene Daten, nie in Dashboard-Logs spiegeln                    |
+| `tts.engine = qwen3-tts` solange `tts_url` aktiv                   | gilt hier nie    | Installer schreibt `tts_url: null` (`VS:104`) -> immer `piper`. Qwen3-TTS-Server (`kira-tts`) gehört nicht zum Installer                                                                                                                                     |
+| `game_mode_on/off` -> Service `kira-tts` `paused/online`           | gilt hier nie    | Watcher beendet sich sofort ohne `game_processes` oder `tts_url` (`JV:546-547`); Standard `[]` / `null` (`VS:104`, `108`). Service `kira-tts` existiert im Installer nicht                                                                                   |
+| `command`-Event-Felder                                             | richtig, ergänzt | zusätzlich `channel: "voice"` (`JV:439`); `intent` ist der Router-Code `L`/`K1`/`K2`/`K3` oder `clock` / `fallback` (`JV:368`, `386`, `390`); `needs_confirmation` wird **nicht** geloggt                                                                    |
+| `hermes_error`: `task_id`, `error`, `success`                      | richtig          | `JV:406` (kein `route`)                                                                                                                                                                                                                                      |
+| `hermes_done`: `task_id`, `route`, `duration_s`, `success`         | richtig          | `JV:402-403`                                                                                                                                                                                                                                                 |
+| `microphone.deviceId` aus `voice.json: input_device`               | richtig          | Standard `null` = Systemstandardgerät (`VS:110`)                                                                                                                                                                                                             |
+| `speakerVerification.enabled = true` (fail closed)                 | richtig          | `JV:254-255`; Schwelle 0,4 (`VS:92`)                                                                                                                                                                                                                         |
+| `hermes_model` Standard                                            | Hinweis          | Im Code-Default `kira` (`JV:394`), vom Installer auf **`jarvis`** gesetzt (`VS:102`; passt zu `API_SERVER_MODEL_NAME=jarvis`, `setup_hermes.sh:98`)                                                                                                          |
+
+### 0.3 Wirksame Standardkonfiguration des Installers (`C:\Jarvis\config\voice.json`, geschrieben von `VS:113`)
+
+`health_port 43694` · `qwen_url http://127.0.0.1:43692/v1/chat/completions` · `hermes_url http://127.0.0.1:43693/v1/chat/completions` ·
+`hermes_model jarvis` · `hermes_key_file C:\Jarvis\config\hermes_api.key` · `tts_url null` · `tts_film_filter true` ·
+`speaker_threshold 0.4` · `wake_threshold 0.5` · `trusted_session_s 90` · `followup_window_s 8.0` · `game_processes []` ·
+`whisper_model small|base` (GPU-Test, `VS:50-57`) · `input_device`/`output_device null`. Die Persona-Felder (`assistant_name`, `wake_phrase`,
+`persona`, ...) kommen aus `installer/common/persona.py:voice_settings` (`assistant_name = "Jarvis"`, `wake_phrase = "Hey Jarvis"`).
 
 ## 1. Schnittstellen des Dienstes heute
 
@@ -17,16 +92,16 @@ Der Adapter deklariert deshalb zunächst nur `voice.read`; `voice.test`/`voice.s
 
 `status["state"]` kennt: `starting`, `listening`, `command`, `speaking`, `followup`. Dazu `speaking` (TTS-Wiedergabe läuft) aus dem Health-JSON.
 
-| Dienstzustand                           | Bedingung                                                         | `VoiceStatus.mode`                      | `OrbLayers.voice`    | Anmerkung                                                              |
-| --------------------------------------- | ----------------------------------------------------------------- | --------------------------------------- | -------------------- | ---------------------------------------------------------------------- |
-| `starting`                              | Modelle werden geladen                                            | `idle` (+ Service `voice` = `degraded`) | `idle`               | Orb-Hauptzustand `booting` kommt aus dem Systemstatus, nicht aus Voice |
-| `listening`                             | wartet auf Wake Word                                              | `idle`                                  | `idle`               | Mikrofon aktiv: `microphone.state = "idle"`, `active = true`           |
-| `command`                               | Wake erkannt, `_record_command` nimmt auf                         | `listening`                             | `listening`          | `microphone.state = "listening"`                                       |
-| `command` + Aufnahme beendet, STT läuft | zwischen `_record_command` und Routing (`stt_ms` im Log)          | `transcribing`                          | `transcribing`       | nur aus dem Log ableitbar: `wake` ... `command`-Event                  |
-| Routing/Hermes                          | `command`-Event geloggt, `speaking = false`, Antwort noch offen   | `thinking`                              | `idle` (Voice-Ebene) | `OrbLayers.work = thinking` bzw. `working` bei `background = true`     |
-| `speaking` oder `speaking = true`       | TTS-Worker spielt                                                 | `speaking`                              | `speaking`           | `tts.state = "busy"`                                                   |
-| `followup`                              | Folgefrage-Fenster ohne Wake Word (`followup_window_s`)           | `listening`                             | `listening`          | `trustedSession.active = true`                                         |
-| Fehler                                  | `tts_error`, `hermes_error`, `router_fallback`, `game_mode_error` | `error` (nur bei dauerhaftem Ausfall)   | unverändert          | einzelne Fehler -> `OrbLayers.attention = warning`, nicht Voice        |
+| Dienstzustand                           | Bedingung                                                                                                     | `VoiceStatus.mode`                      | `OrbLayers.voice`    | Anmerkung                                                              |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------- | -------------------- | ---------------------------------------------------------------------- |
+| `starting`                              | Modelle werden geladen; **Port ist dabei geschlossen** (Connection refused, siehe 0.1)                        | `idle` (+ Service `voice` = `degraded`) | `idle`               | Orb-Hauptzustand `booting` kommt aus dem Systemstatus, nicht aus Voice |
+| `listening`                             | wartet auf Wake Word                                                                                          | `idle`                                  | `idle`               | Mikrofon aktiv: `microphone.state = "idle"`, `active = true`           |
+| `command`                               | Wake erkannt; `state` bleibt `command` bis zum Ende von Aufnahme, STT, Routing **und** Hermes-Wartezeit (0.2) | `listening`                             | `listening`          | `microphone.state = "listening"`                                       |
+| `command` + Aufnahme beendet, STT läuft | zwischen `_record_command` und Routing (`stt_ms` im Log)                                                      | `transcribing`                          | `transcribing`       | nur aus dem Log ableitbar: `wake` ... `command`-Event                  |
+| Routing/Hermes                          | `command`-Event geloggt, `speaking = false`, Antwort noch offen                                               | `thinking`                              | `idle` (Voice-Ebene) | `OrbLayers.work = thinking` bzw. `working` bei `background = true`     |
+| `speaking` oder `speaking = true`       | TTS-Worker spielt                                                                                             | `speaking`                              | `speaking`           | `tts.state = "busy"`                                                   |
+| `followup`                              | Folgefrage-Fenster ohne Wake Word (`followup_window_s`)                                                       | `listening`                             | `listening`          | `trustedSession.active = true`                                         |
+| Fehler                                  | `tts_error`, `hermes_error`, `router_fallback`, `game_mode_error`                                             | `error` (nur bei dauerhaftem Ausfall)   | unverändert          | einzelne Fehler -> `OrbLayers.attention = warning`, nicht Voice        |
 
 Regel: `OrbLayers.voice` darf nur aus diesen semantischen Zuständen entstehen, nie aus Textinhalten (PLAN §1.1 Nr. 12).
 

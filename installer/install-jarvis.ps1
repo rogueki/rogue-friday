@@ -125,8 +125,14 @@ if (-not (IsDone 'preflight')) {
     $gpu = @{ nvidia = $false; name = 'keine NVIDIA-GPU'; vram_mb = 0; driver = ''; cc = 0.0 }
     if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
         $q = (& nvidia-smi --query-gpu=name,memory.total,driver_version,compute_cap --format=csv,noheader,nounits 2>$null | Select-Object -First 1)
-        if ($q) {
-            $p = $q -split ',\s*'
+        $p = @(if ($q) { "$q" -split ',\s*' })
+        if ($p.Count -lt 4 -or $p[1] -notmatch '^\d+$') {
+            # Aeltere Treiber kennen compute_cap nicht (Fehlertext auf stdout): ohne das Feld erneut abfragen, cc=0 -> CUDA-12.4-Build.
+            $q = (& nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader,nounits 2>$null | Select-Object -First 1)
+            $p = @(if ($q) { "$q" -split ',\s*' })
+            if ($p.Count -ge 3) { $p += '0' }
+        }
+        if ($p.Count -ge 4 -and $p[1] -match '^\d+$') {
             $gpu = @{ nvidia = $true; name = $p[0]; vram_mb = [int]$p[1]; driver = $p[2]; cc = [double]($p[3] -replace ',', '.') }
         }
     }
@@ -139,9 +145,14 @@ if (-not (IsDone 'preflight')) {
 }
 
 # ================================================================ 2 Dateien
-if (-not (IsDone 'files')) {
+# Bei jedem Start synchronisieren, solange das Skript nicht aus C:\Jarvis\installer laeuft: ein aktualisiertes Paket
+# muss die dort liegenden Kopien (WSL-Skripte, Voice-Dateien) ersetzen, auch wenn der Schritt schon erledigt ist.
+if (-not (IsDone 'files') -or $PSScriptRoot -ne $Inst) {
     Title 'Schritt 2/14 – Installationsdateien nach C:\Jarvis kopieren'
-    if ($PSScriptRoot -ne $Inst) { & robocopy.exe $PSScriptRoot $Inst /E /NFL /NDL /NJH /NJS /NP | Out-Null }
+    if ($PSScriptRoot -ne $Inst) {
+        & robocopy.exe $PSScriptRoot $Inst /E /NFL /NDL /NJH /NJS /NP | Out-Null
+        if ($LASTEXITCODE -ge 8) { Stop-Install "Kopieren der Installationsdateien fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
+    }
     Ok "Dateien liegen in $Inst"
     MarkDone 'files'
 }
@@ -278,11 +289,16 @@ if (-not (IsDone 'hermes')) {
         $key = Plain (Read-Host '  Kimi-API-Key' -AsSecureString)
     }
     if (-not $key) { Stop-Install 'Ohne Kimi-API-Key kann JARVIS nicht denken.' }
-    if (-not (Test-Path "$Root\config\hermes_api.key")) {
+    # Datei zuerst leer anlegen und absichern, dann erst den Schluessel hineinschreiben (kein Fenster mit geerbten Rechten);
+    # die Rechte werden bei jedem Lauf neu gesetzt, damit ein frueherer Fehlschlag nicht dauerhaft ungeschuetzt bleibt.
+    $apiKeyFile = "$Root\config\hermes_api.key"
+    if (-not (Test-Path $apiKeyFile)) { New-Item -ItemType File -Path $apiKeyFile | Out-Null }
+    & icacls.exe $apiKeyFile /inheritance:r /grant:r "$($env:USERNAME):(R,W)" /grant:r 'SYSTEM:(R)' | Out-Null
+    if ($LASTEXITCODE -ne 0) { Stop-Install "Zugriffsrechte für $apiKeyFile konnten nicht gesetzt werden." }
+    if ((Get-Item $apiKeyFile).Length -eq 0) {
         $bytes = New-Object byte[] 32
         [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
-        [IO.File]::WriteAllText("$Root\config\hermes_api.key", (-join ($bytes | ForEach-Object { $_.ToString('x2') })))
-        & icacls.exe "$Root\config\hermes_api.key" /inheritance:r /grant:r "$($env:USERNAME):(R,W)" /grant:r 'SYSTEM:(R)' | Out-Null
+        [IO.File]::WriteAllText($apiKeyFile, (-join ($bytes | ForEach-Object { $_.ToString('x2') })))
     }
     Info 'Installiere Hermes, verbinde Kimi, richte Persönlichkeit, Kanban, Dashboard und Gateway ein (10–20 min) …'
     $out = Wsl-Run $State.linux_user '/mnt/c/Jarvis/installer/wsl/setup_hermes.sh' $key
@@ -315,7 +331,7 @@ if (-not (IsDone 'qwen')) {
     foreach ($a in $assets) {
         $zip = "$Root\cache\$($a.name)"
         if (-not (Download $a.browser_download_url $zip)) { Stop-Install "Download fehlgeschlagen: $($a.name)" }
-        if ($a.digest -and ("sha256:" + (Sha256 $zip)) -ne $a.digest) { Stop-Install "Prüfsumme falsch: $($a.name)" }
+        if ($a.digest -and ("sha256:" + (Sha256 $zip)) -ne $a.digest) { Remove-Item $zip -Force; Stop-Install "Prüfsumme falsch: $($a.name) - Datei gelöscht, erneut starten." }
         Expand-Archive $zip -DestinationPath "$Root\llama.cpp" -Force
         Ok "$($a.name) ($($rel.tag_name)) geprüft und entpackt"
     }
@@ -342,13 +358,15 @@ if (-not (IsDone 'qwen')) {
 if (-not (IsDone 'voicepython')) {
     Title 'Schritt 12/14 – Sprachsteuerung installieren (Python + Modelle)'
     $py = $null
-    & py.exe -3.11 --version *> $null
-    if ($LASTEXITCODE -ne 0) {
+    # Ohne Python-Launcher wirft der Aufruf nur einen Befehl-nicht-gefunden-Fehler und laesst $LASTEXITCODE unveraendert (alter Wert 0).
+    $havePy = $false
+    if (Get-Command py.exe -ErrorAction SilentlyContinue) { & py.exe -3.11 --version *> $null; $havePy = ($LASTEXITCODE -eq 0) }
+    if (-not $havePy) {
         Info 'Installiere Python 3.11 …'
         Native { winget install --id Python.Python.3.11 -e --silent --scope user --accept-package-agreements --accept-source-agreements } | Out-Null
     }
     foreach ($cand in @("$env:LOCALAPPDATA\Programs\Python\Python311\python.exe", 'C:\Program Files\Python311\python.exe')) { if (Test-Path $cand) { $py = $cand; break } }
-    if (-not $py) { $py = (& py.exe -3.11 -c "import sys; print(sys.executable)" 2>$null) }
+    if (-not $py -and (Get-Command py.exe -ErrorAction SilentlyContinue)) { $py = (& py.exe -3.11 -c "import sys; print(sys.executable)" 2>$null) }
     if (-not $py -or -not (Test-Path $py)) { Stop-Install 'Python 3.11 nicht gefunden – bitte von python.org installieren und erneut starten.' }
     Copy-Item "$Inst\voice\*" "$Root\voice\" -Force
     $venv = "$Root\voice\.venv"
