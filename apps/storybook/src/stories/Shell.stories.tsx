@@ -45,7 +45,7 @@ export const TopAndBottomBars: Story = {
       <Section title="BottomCommandBar – listening · speaking (Gold) · paused · compact">
         <div style={{ display: 'grid', gap: 12 }}>
           <BottomCommandBar chips={contextChips} state="listening" quickAction={{ label: 'Executive Briefing', icon: <Zap size={14} /> }} />
-          <BottomCommandBar chips={contextChips} state="speaking" statusText="Jarvis spricht …" quickAction={{ label: 'Executive Briefing' }} />
+          <BottomCommandBar chips={contextChips} state="speaking" statusText="F.R.I.D.A.Y. spricht …" quickAction={{ label: 'Executive Briefing' }} />
           <BottomCommandBar chips={contextChips} state="idle" paused statusText="Pausiert" quickAction={{ label: 'Executive Briefing' }} />
           <BottomCommandBar compact state="thinking" />
         </div>

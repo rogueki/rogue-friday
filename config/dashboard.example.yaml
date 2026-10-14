@@ -1,4 +1,4 @@
-# JARVIS Command Center - Dashboard-Konfiguration
+# F.R.I.D.A.Y. Command Center - Dashboard-Konfiguration
 # Kopieren nach config/dashboard.yaml und anpassen. Werte koennen ${ENV_VAR} oder ${ENV_VAR:-default} enthalten.
 # Umgebungsvariablen ueberschreiben diese Datei: JARVIS_DATA_MODE, JARVIS_HOST, JARVIS_PORT,
 # JARVIS_DATA_DIR, JARVIS_LOG_DIR, JARVIS_CONFIG_DIR.
@@ -39,6 +39,7 @@ realtime:
 ui:
   locale: de-DE
   timezone: Europe/Berlin
+  assistantName: F.R.I.D.A.Y. # Anzeigename; settings.profile.assistantName hat Vorrang
   theme: jarvis-command-midnight
   layout: jarvis-command-overview
 

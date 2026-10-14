@@ -55,8 +55,8 @@ export { OrbPerfOverlay, readPerfSnapshot } from "./debug/OrbPerfOverlay";
 export type { OrbPerfSnapshot } from "./debug/OrbPerfOverlay";
 export { OrbOverlay } from "./OrbOverlay";
 
-export { ORB_LABELS_DE, ORB_LABELS_EN, activationTarget, buildAriaSentence, formatRuntime, resolveLabels } from "./labels";
-export type { OrbActivationTarget, OrbLabels } from "./labels";
+export { DEFAULT_ASSISTANT_NAME, ORB_LABELS_DE, ORB_LABELS_EN, activationTarget, buildAriaSentence, createOrbLabels, formatRuntime, resolveLabels } from "./labels";
+export type { OrbActivationTarget, OrbLabelLocale, OrbLabelOptions, OrbLabels } from "./labels";
 
 export {
   AUDIO_FIXTURE_NAMES,

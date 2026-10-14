@@ -10,14 +10,14 @@ export interface OrbSource {
 
 /** Default German status line per mode (PLAN §19). */
 export const ORB_TEXT: Readonly<Record<OrbMode, string>> = {
-  booting: "JARVIS WIRD INITIALISIERT",
+  booting: "F.R.I.D.A.Y. WIRD INITIALISIERT",
   idle: "BEREIT",
   listening: "ICH HÖRE ZU",
   transcribing: "SPRACHE WIRD VERARBEITET",
   thinking: "ANALYSE",
   syncing: "SYNCHRONISIERUNG LÄUFT",
   working: "ARBEIT LÄUFT",
-  speaking: "JARVIS SPRICHT",
+  speaking: "F.R.I.D.A.Y. SPRICHT",
   waiting_approval: "FREIGABE ERFORDERLICH",
   success: "ABGESCHLOSSEN",
   warning: "EINGESCHRÄNKTER BETRIEB",

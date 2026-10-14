@@ -6,11 +6,11 @@ import { useT } from "@/i18n";
 
 /** Full-viewport boot placeholder shown while the session / meta are resolved. */
 export function BootScreen() {
-  const { t } = useT();
+  const { t, assistantName } = useT();
   return (
     <div className="web-fullscreen jv-bg-stage" role="status" aria-live="polite">
       <BrandMark size={64} />
-      <span className="web-fullscreen__title">JARVIS</span>
+      <span className="web-fullscreen__title">{assistantName}</span>
       <span className="web-fullscreen__sub">{t("boot.loading")}</span>
     </div>
   );

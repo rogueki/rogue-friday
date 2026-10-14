@@ -779,9 +779,10 @@ export class MockWorld {
       else summary.degraded++;
     }
     const orbMode = this.state.orb.mode;
+    const assistant = this.state.settings.profile.assistantName ?? "F.R.I.D.A.Y.";
     return {
       status: health,
-      label: health === "online" ? "Jarvis online" : health === "degraded" ? "Jarvis eingeschränkt" : "Jarvis offline",
+      label: `${assistant} ${health === "online" ? "online" : health === "degraded" ? "eingeschränkt" : "offline"}`,
       mode: orbMode,
       dataMode: "mock",
       uptimeSeconds: Math.max(0, Math.round((this.clock.now() - Date.parse(this.state.startedAt)) / 1000)),

@@ -26,7 +26,7 @@ function unavailableIcon(icon: React.ReactNode, reason: string): React.ReactNode
 }
 
 export function AppBottomBar() {
-  const { t } = useT();
+  const { t, assistantName } = useT();
   const { toast } = useToast();
   const pathname = usePathname();
   const voice = useVoiceUi();
@@ -73,7 +73,7 @@ export function AppBottomBar() {
         return canPause ? pause.mutate({ scope: "all" }) : unavailable();
       }}
       paused={paused}
-      talkLabel={t("bottom.talk")}
+      talkLabel={t("bottom.talk", { assistant: assistantName.toUpperCase() })}
       stopLabel={t("bottom.stop")}
       pauseLabel={t("bottom.pause")}
       resumeLabel={t("bottom.resume")}

@@ -107,7 +107,7 @@ export function CoreOverviewPanel({ className, style }: { className?: string; st
 /* ── AI Core / orb panel (center) ─────────────────────────────────────── */
 
 export function OrbPanel({ className, style }: { className?: string; style?: React.CSSProperties }) {
-  const { t, locale } = useT();
+  const { t, locale, assistantName } = useT();
   const { timeZone, hour12 } = useAppSettings();
   const { overview } = useOverviewPanel([]);
   const orb = useOrbSnapshot().snapshot ?? overview?.orb;
@@ -127,8 +127,8 @@ export function OrbPanel({ className, style }: { className?: string; style?: Rea
           <OrbSlot />
         </div>
         <div className="ov-orb__brand">
-          <span className="ov-orb__name">JARVIS</span>
-          <span className="ov-orb__sub">AI CORE</span>
+          <span className="ov-orb__name">{assistantName}</span>
+          <span className="ov-orb__sub">{t("brand.aiCore")}</span>
           <span className="ov-orb__ver">
             {[version ? `v${version}` : null, dataMode ? t(`dataMode.${dataMode}` as MessageKey) : null].filter(Boolean).join(" · ")}
           </span>

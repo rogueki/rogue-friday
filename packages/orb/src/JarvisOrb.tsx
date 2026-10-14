@@ -11,7 +11,7 @@ import {
 import type { OrbLayers, OrbSnapshot, OrbStatus } from "./contract-types";
 import { OrbPerfOverlay } from "./debug/OrbPerfOverlay";
 import { OrbFallback2D } from "./fallback/OrbFallback2D";
-import { activationTarget, buildAriaSentence, formatRuntime, resolveLabels, type OrbActivationTarget, type OrbLabels } from "./labels";
+import { DEFAULT_ASSISTANT_NAME, activationTarget, buildAriaSentence, formatRuntime, resolveLabels, type OrbActivationTarget, type OrbLabelLocale, type OrbLabels } from "./labels";
 import { layersFromStatus } from "./machine/orbMachine";
 import { ORB_CSS, OrbOverlay } from "./OrbOverlay";
 import { OrbCanvas } from "./scene/OrbCanvas";
@@ -23,6 +23,10 @@ interface JarvisOrbBaseProps {
   onActivate?: (target: OrbActivationTarget) => void;
   onVoiceToggle?: () => void;
   labels?: Partial<OrbLabels>;
+  /** Display name interpolated into the default labels (default "F.R.I.D.A.Y."). */
+  assistantName?: string;
+  /** Locale of the default labels (default "de"). */
+  locale?: OrbLabelLocale;
   className?: string;
   style?: CSSProperties;
   /** Show the development performance overlay (PLAN §52.4). */
@@ -127,6 +131,8 @@ export function JarvisOrb({
   onActivate,
   onVoiceToggle,
   labels: labelsInput,
+  assistantName,
+  locale,
   className,
   style,
   showPerf = false,
@@ -135,7 +141,7 @@ export function JarvisOrb({
   const status = (snapshot?.status ?? statusProp) as OrbStatus;
   const layers = snapshot?.layers ?? layersProp;
   const settings = useStableSettings(settingsInput);
-  const labels = useMemo(() => resolveLabels(labelsInput), [labelsInput]);
+  const labels = useMemo(() => resolveLabels(labelsInput, { assistantName, locale }), [labelsInput, assistantName, locale]);
   const containerRef = useRef<HTMLDivElement>(null);
   const osReduced = usePrefersReducedMotion();
   const active = useRenderActive(containerRef);
@@ -233,7 +239,7 @@ export function JarvisOrb({
       data-orb-quality={quality}
       data-orb-webgl={webgl}
       role="group"
-      aria-label="Jarvis Orb"
+      aria-label={`${assistantName?.trim() || DEFAULT_ASSISTANT_NAME} Orb`}
     >
       <style>{ORB_CSS}</style>
       {show3d ? (

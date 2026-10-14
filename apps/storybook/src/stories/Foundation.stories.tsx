@@ -113,7 +113,7 @@ export const Typography: Story = {
   render: () => (
     <div style={{ padding: 28, display: 'grid', gap: 24, maxWidth: 900 }}>
       <Section title={`Oxanium – Überschriften, Labels, Uhr (${fontFamilies.display.split(',')[0]})`}>
-        <div style={{ fontFamily: 'var(--jv-font-display)', fontSize: 40, letterSpacing: '0.42em', color: 'var(--jarvis-text-strong)' }}>JARVIS</div>
+        <div style={{ fontFamily: 'var(--jv-font-display)', fontSize: 40, letterSpacing: '0.42em', color: 'var(--jarvis-text-strong)' }}>F.R.I.D.A.Y.</div>
         <div style={{ fontFamily: 'var(--jv-font-display)', fontSize: 30, color: 'var(--jarvis-cyan)', marginTop: 8 }}>11:18:21</div>
         <div style={{ fontFamily: 'var(--jv-font-display)', fontSize: 12, letterSpacing: '0.16em', textTransform: 'uppercase', marginTop: 8 }}>
           Panel-Titel · Aktive Agenten

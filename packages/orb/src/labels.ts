@@ -23,127 +23,154 @@ export interface OrbLabels {
 
 const GERMAN_NUMBERS = ["Null", "Ein", "Zwei", "Drei", "Vier", "Fünf", "Sechs", "Sieben", "Acht", "Neun", "Zehn"];
 
-export const ORB_LABELS_DE: OrbLabels = {
-  states: {
-    booting: "JARVIS WIRD INITIALISIERT",
-    idle: "BEREIT",
-    listening: "ICH HÖRE ZU",
-    transcribing: "SPRACHE WIRD VERARBEITET",
-    thinking: "ANALYSE",
-    syncing: "SYNCHRONISIERUNG",
-    working: "ARBEIT LÄUFT",
-    speaking: "JARVIS SPRICHT",
-    waiting_approval: "FREIGABE ERFORDERLICH",
-    success: "ERLEDIGT",
-    warning: "EINGESCHRÄNKTER BETRIEB",
-    error: "FEHLER",
-    offline: "OFFLINE",
-    paused: "PAUSIERT",
-  },
-  tooltip: {
-    state: "Zustand",
-    action: "Aktion",
-    runtime: "Laufzeit",
-    agent: "Agent",
-    task: "Task-ID",
-    source: "Quelle",
-    none: "–",
-  },
-  hitTarget: "Orb: Details öffnen",
-  agentsActive: (n) => `${n} ${n === 1 ? "AGENT" : "AGENTEN"} AKTIV`,
-  agentsShort: (n) => `${n} ${n === 1 ? "AGENT" : "AGENTEN"}`,
-  micActive: "Mikrofon aktiv",
-  paused: "Pausiert",
-  approval: "Freigabe erforderlich",
-  aria: {
-    modes: {
-      booting: "Jarvis wird initialisiert.",
-      idle: "Jarvis ist bereit.",
-      listening: "Jarvis hört zu.",
-      transcribing: "Jarvis verarbeitet Sprache.",
-      thinking: "Jarvis analysiert.",
-      syncing: "Jarvis synchronisiert.",
-      working: "Jarvis arbeitet.",
-      speaking: "Jarvis spricht.",
-      waiting_approval: "Freigabe erforderlich.",
-      success: "Aufgabe abgeschlossen.",
-      warning: "Eingeschränkter Betrieb.",
-      error: "Fehler aufgetreten.",
-      offline: "Jarvis ist offline.",
-      paused: "Jarvis ist pausiert.",
-    },
-    task: "Aufgabe",
-    agents: (n) => `${n === 1 ? "Ein Agent" : `${GERMAN_NUMBERS[n] ?? n} Agenten`} aktiv.`,
-    progress: (p) => `Fortschritt ${p} Prozent.`,
-    degraded: "Systemzustand eingeschränkt.",
-    detail: "Details",
-  },
-};
+/** Default display name; the effective one comes from `settings.profile.assistantName`. */
+export const DEFAULT_ASSISTANT_NAME = "F.R.I.D.A.Y.";
 
-export const ORB_LABELS_EN: OrbLabels = {
-  states: {
-    booting: "JARVIS INITIALISING",
-    idle: "READY",
-    listening: "LISTENING",
-    transcribing: "PROCESSING SPEECH",
-    thinking: "ANALYSING",
-    syncing: "SYNCING",
-    working: "WORKING",
-    speaking: "JARVIS SPEAKING",
-    waiting_approval: "APPROVAL REQUIRED",
-    success: "DONE",
-    warning: "DEGRADED OPERATION",
-    error: "ERROR",
-    offline: "OFFLINE",
-    paused: "PAUSED",
-  },
-  tooltip: { state: "State", action: "Action", runtime: "Runtime", agent: "Agent", task: "Task ID", source: "Source", none: "–" },
-  hitTarget: "Orb: open details",
-  agentsActive: (n) => `${n} ${n === 1 ? "AGENT" : "AGENTS"} ACTIVE`,
-  agentsShort: (n) => `${n} ${n === 1 ? "AGENT" : "AGENTS"}`,
-  micActive: "Microphone active",
-  paused: "Paused",
-  approval: "Approval required",
-  aria: {
-    modes: {
-      booting: "Jarvis is initialising.",
-      idle: "Jarvis is ready.",
-      listening: "Jarvis is listening.",
-      transcribing: "Jarvis is processing speech.",
-      thinking: "Jarvis is analysing.",
-      syncing: "Jarvis is syncing.",
-      working: "Jarvis is working.",
-      speaking: "Jarvis is speaking.",
-      waiting_approval: "Approval required.",
-      success: "Task completed.",
-      warning: "Degraded operation.",
-      error: "An error occurred.",
-      offline: "Jarvis is offline.",
-      paused: "Jarvis is paused.",
-    },
-    task: "Task",
-    agents: (n) => `${n} ${n === 1 ? "agent" : "agents"} active.`,
-    progress: (p) => `Progress ${p} percent.`,
-    degraded: "System health degraded.",
-    detail: "Details",
-  },
-};
+export type OrbLabelLocale = "de" | "en";
 
-/** Normalises user supplied partial labels over the German defaults. */
-export function resolveLabels(partial?: Partial<OrbLabels>): OrbLabels {
-  if (!partial) return ORB_LABELS_DE;
+export interface OrbLabelOptions {
+  /** Display name of the assistant (default "F.R.I.D.A.Y."). */
+  assistantName?: string;
+  locale?: OrbLabelLocale;
+}
+
+function germanLabels(name: string, upper: string): OrbLabels {
   return {
-    ...ORB_LABELS_DE,
+    states: {
+      booting: `${upper} WIRD INITIALISIERT`,
+      idle: "BEREIT",
+      listening: "ICH HÖRE ZU",
+      transcribing: "SPRACHE WIRD VERARBEITET",
+      thinking: "ANALYSE",
+      syncing: "SYNCHRONISIERUNG",
+      working: "ARBEIT LÄUFT",
+      speaking: `${upper} SPRICHT`,
+      waiting_approval: "FREIGABE ERFORDERLICH",
+      success: "ERLEDIGT",
+      warning: "EINGESCHRÄNKTER BETRIEB",
+      error: "FEHLER",
+      offline: "OFFLINE",
+      paused: "PAUSIERT",
+    },
+    tooltip: {
+      state: "Zustand",
+      action: "Aktion",
+      runtime: "Laufzeit",
+      agent: "Agent",
+      task: "Task-ID",
+      source: "Quelle",
+      none: "–",
+    },
+    hitTarget: "Orb: Details öffnen",
+    agentsActive: (n) => `${n} ${n === 1 ? "AGENT" : "AGENTEN"} AKTIV`,
+    agentsShort: (n) => `${n} ${n === 1 ? "AGENT" : "AGENTEN"}`,
+    micActive: "Mikrofon aktiv",
+    paused: "Pausiert",
+    approval: "Freigabe erforderlich",
+    aria: {
+      modes: {
+        booting: `${name} wird initialisiert.`,
+        idle: `${name} ist bereit.`,
+        listening: `${name} hört zu.`,
+        transcribing: `${name} verarbeitet Sprache.`,
+        thinking: `${name} analysiert.`,
+        syncing: `${name} synchronisiert.`,
+        working: `${name} arbeitet.`,
+        speaking: `${name} spricht.`,
+        waiting_approval: "Freigabe erforderlich.",
+        success: "Aufgabe abgeschlossen.",
+        warning: "Eingeschränkter Betrieb.",
+        error: "Fehler aufgetreten.",
+        offline: `${name} ist offline.`,
+        paused: `${name} ist pausiert.`,
+      },
+      task: "Aufgabe",
+      agents: (n) => `${n === 1 ? "Ein Agent" : `${GERMAN_NUMBERS[n] ?? n} Agenten`} aktiv.`,
+      progress: (p) => `Fortschritt ${p} Prozent.`,
+      degraded: "Systemzustand eingeschränkt.",
+      detail: "Details",
+    },
+  };
+}
+
+function englishLabels(name: string, upper: string): OrbLabels {
+  return {
+    states: {
+      booting: `${upper} INITIALISING`,
+      idle: "READY",
+      listening: "LISTENING",
+      transcribing: "PROCESSING SPEECH",
+      thinking: "ANALYSING",
+      syncing: "SYNCING",
+      working: "WORKING",
+      speaking: `${upper} SPEAKING`,
+      waiting_approval: "APPROVAL REQUIRED",
+      success: "DONE",
+      warning: "DEGRADED OPERATION",
+      error: "ERROR",
+      offline: "OFFLINE",
+      paused: "PAUSED",
+    },
+    tooltip: { state: "State", action: "Action", runtime: "Runtime", agent: "Agent", task: "Task ID", source: "Source", none: "–" },
+    hitTarget: "Orb: open details",
+    agentsActive: (n) => `${n} ${n === 1 ? "AGENT" : "AGENTS"} ACTIVE`,
+    agentsShort: (n) => `${n} ${n === 1 ? "AGENT" : "AGENTS"}`,
+    micActive: "Microphone active",
+    paused: "Paused",
+    approval: "Approval required",
+    aria: {
+      modes: {
+        booting: `${name} is initialising.`,
+        idle: `${name} is ready.`,
+        listening: `${name} is listening.`,
+        transcribing: `${name} is processing speech.`,
+        thinking: `${name} is analysing.`,
+        syncing: `${name} is syncing.`,
+        working: `${name} is working.`,
+        speaking: `${name} is speaking.`,
+        waiting_approval: "Approval required.",
+        success: "Task completed.",
+        warning: "Degraded operation.",
+        error: "An error occurred.",
+        offline: `${name} is offline.`,
+        paused: `${name} is paused.`,
+      },
+      task: "Task",
+      agents: (n) => `${n} ${n === 1 ? "agent" : "agents"} active.`,
+      progress: (p) => `Progress ${p} percent.`,
+      degraded: "System health degraded.",
+      detail: "Details",
+    },
+  };
+}
+
+/** Builds the label set for a locale with the configured assistant name interpolated. */
+export function createOrbLabels(options: OrbLabelOptions = {}): OrbLabels {
+  const name = options.assistantName?.trim() || DEFAULT_ASSISTANT_NAME;
+  const upper = name.toUpperCase();
+  return options.locale === "en" ? englishLabels(name, upper) : germanLabels(name, upper);
+}
+
+export const ORB_LABELS_DE: OrbLabels = createOrbLabels({ locale: "de" });
+
+export const ORB_LABELS_EN: OrbLabels = createOrbLabels({ locale: "en" });
+
+/** Normalises user supplied partial labels over the (name-aware) defaults. */
+export function resolveLabels(partial?: Partial<OrbLabels>, options?: OrbLabelOptions): OrbLabels {
+  const base = options ? createOrbLabels(options) : ORB_LABELS_DE;
+  if (!partial) return base;
+  return {
+    ...base,
     ...partial,
-    states: { ...ORB_LABELS_DE.states, ...partial.states },
-    tooltip: { ...ORB_LABELS_DE.tooltip, ...partial.tooltip },
-    aria: { ...ORB_LABELS_DE.aria, ...partial.aria, modes: { ...ORB_LABELS_DE.aria.modes, ...partial.aria?.modes } },
+    states: { ...base.states, ...partial.states },
+    tooltip: { ...base.tooltip, ...partial.tooltip },
+    aria: { ...base.aria, ...partial.aria, modes: { ...base.aria.modes, ...partial.aria?.modes } },
   };
 }
 
 const TASK_MODES: readonly OrbMode[] = ["working", "syncing", "thinking"];
 
-/** Screen reader sentence (PLAN §21): "Jarvis arbeitet. Aufgabe Wettbewerbsanalyse. Drei Agenten aktiv. Fortschritt 62 Prozent." */
+/** Screen reader sentence (PLAN §21): "F.R.I.D.A.Y. arbeitet. Aufgabe Wettbewerbsanalyse. Drei Agenten aktiv. Fortschritt 62 Prozent." */
 export function buildAriaSentence(status: OrbStatus, layers: OrbLayers | undefined, labels: OrbLabels = ORB_LABELS_DE): string {
   const parts: string[] = [labels.aria.modes[status.mode]];
   const text = status.activityText?.trim();

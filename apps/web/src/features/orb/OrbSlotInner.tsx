@@ -3,6 +3,7 @@
 import { JarvisOrb, orbSettingsFromWire, type JarvisOrbProps } from "@jarvis/orb";
 import type { OrbSnapshot } from "@jarvis/sdk";
 import { useMemo } from "react";
+import { useT } from "@/i18n";
 import { useMeta } from "@/lib/api/domains/core";
 import { useAppSettings } from "@/lib/settings";
 import { useAudioSamples } from "./audioStore";
@@ -25,6 +26,7 @@ export interface OrbSlotProps {
 export function OrbSlotInner({ className }: OrbSlotProps) {
   const { snapshot: live, isError } = useOrbSnapshot();
   const { settings } = useAppSettings();
+  const { locale, assistantName } = useT();
   const features = useMeta().data?.features;
   const { onActivate, onVoiceToggle } = useOrbActions();
 
@@ -45,5 +47,5 @@ export function OrbSlotInner({ className }: OrbSlotProps) {
   }, [settings?.orb, forceFallback2D]);
 
   if (!snapshot) return null;
-  return <JarvisOrb snapshot={snapshot} settings={orbSettings} onActivate={onActivate} onVoiceToggle={onVoiceToggle} className={className} />;
+  return <JarvisOrb snapshot={snapshot} settings={orbSettings} onActivate={onActivate} onVoiceToggle={onVoiceToggle} assistantName={assistantName} locale={locale} className={className} />;
 }

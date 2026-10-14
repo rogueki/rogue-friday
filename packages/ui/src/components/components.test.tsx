@@ -11,7 +11,7 @@ import { Tabs } from './Forms';
 import { ActivityFeed, DataTable, type DataTableColumn } from './Lists';
 
 const items: CommandItem[] = [
-  { id: 'ask', label: 'Jarvis fragen', group: 'Jarvis' },
+  { id: 'ask', label: 'F.R.I.D.A.Y. fragen', group: 'F.R.I.D.A.Y.' },
   { id: 'task', label: 'Aufgabe anlegen', group: 'Erstellen', keywords: ['todo'] },
   { id: 'mail', label: 'E-Mail senden', group: 'Erstellen', critical: true, preview: { title: 'E-Mail an Max senden', warning: 'verlässt das System' } },
   { id: 'ro', label: 'Automationen pausieren', group: 'Automationen', disabled: true, disabledReason: 'Nur Lesezugriff' },
@@ -80,8 +80,8 @@ describe('CommandPalette', () => {
   });
 
   it('ranks prefix matches above subsequence matches', () => {
-    expect(fuzzyScore('jar', 'Jarvis fragen')).toBeGreaterThan(fuzzyScore('jfn', 'Jarvis fragen'));
-    expect(fuzzyScore('xyz', 'Jarvis')).toBe(-1);
+    expect(fuzzyScore('fri', 'F.R.I.D.A.Y. fragen')).toBeGreaterThan(fuzzyScore('ffn', 'F.R.I.D.A.Y. fragen'));
+    expect(fuzzyScore('xyz', 'F.R.I.D.A.Y.')).toBe(-1);
   });
 });
 

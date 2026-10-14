@@ -67,7 +67,7 @@ export function buildSystem(ctx: SeedContext): SystemSeed {
     detail: spec.detail,
   }));
   const storage = [
-    volume(ctx, "D:\\", "Jarvis-Daten", "NTFS", 1862, 1043),
+    volume(ctx, "D:\\", "F.R.I.D.A.Y.-Daten", "NTFS", 1862, 1043),
     volume(ctx, "C:\\", "System", "NTFS", 931, 612),
   ];
   const models: ModelProvider[] = [

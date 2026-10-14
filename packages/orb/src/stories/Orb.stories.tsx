@@ -80,7 +80,7 @@ type Story = StoryObj<OrbStoryArgs>;
 
 const story = (name: string, args: Partial<OrbStoryArgs>): Story => ({ name, args: { ...base, ...args }, render: (a) => render(a as OrbStoryArgs) });
 
-export const Booting = story("Booting", { snapshot: snap("booting", { activityText: "JARVIS WIRD INITIALISIERT" }) });
+export const Booting = story("Booting", { snapshot: snap("booting", { activityText: "F.R.I.D.A.Y. WIRD INITIALISIERT" }) });
 export const Idle = story("Idle", { snapshot: snap("idle") });
 export const ListeningLowAudio = story("Listening low audio", {
   snapshot: snap("listening", { audioLevel: 0.15 }),

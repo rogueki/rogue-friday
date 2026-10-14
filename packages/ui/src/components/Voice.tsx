@@ -17,16 +17,21 @@ const stateIcon: Record<VoiceState, ReactNode> = {
   disabled: <MicOff strokeWidth={1.5} />,
 };
 
-export const defaultVoiceLabels: Record<VoiceState, string> = {
-  idle: 'Bereit',
-  listening: 'Ich höre zu …',
-  transcribing: 'Transkribiere …',
-  thinking: 'Jarvis denkt …',
-  speaking: 'Jarvis spricht …',
-  muted: 'Mikrofon stumm',
-  error: 'Sprachfehler',
-  disabled: 'Sprache nicht verfügbar',
-};
+/** Status labels per voice state; `assistantName` is the configured display name (settings.profile.assistantName). */
+export function createVoiceLabels(assistantName = 'F.R.I.D.A.Y.'): Record<VoiceState, string> {
+  return {
+    idle: 'Bereit',
+    listening: 'Ich höre zu …',
+    transcribing: 'Transkribiere …',
+    thinking: `${assistantName} denkt …`,
+    speaking: `${assistantName} spricht …`,
+    muted: 'Mikrofon stumm',
+    error: 'Sprachfehler',
+    disabled: 'Sprache nicht verfügbar',
+  };
+}
+
+export const defaultVoiceLabels: Record<VoiceState, string> = createVoiceLabels();
 
 export interface VoiceControlProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   state?: VoiceState;

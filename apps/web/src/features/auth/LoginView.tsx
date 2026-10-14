@@ -21,7 +21,7 @@ const DEV_ROLES: readonly { role: Role; icon: React.ReactNode }[] = [
  * `dev-owner|operator|viewer`, SECURITY.md), so a role picker is offered in addition; it never appears for hybrid/live.
  */
 export function LoginView() {
-  const { t } = useT();
+  const { t, assistantName } = useT();
   const router = useRouter();
   const session = useSession();
   const meta = useMeta();
@@ -53,8 +53,8 @@ export function LoginView() {
         <div className="web-login__brand">
           <BrandMark size={56} />
           <div>
-            <h1 className="web-login__title">JARVIS</h1>
-            <p className="web-login__subtitle">COMMAND CENTER</p>
+            <h1 className="web-login__title">{assistantName}</h1>
+            <p className="web-login__subtitle">{t("brand.subtitle")}</p>
           </div>
         </div>
         <form className="web-form" onSubmit={onSubmit}>

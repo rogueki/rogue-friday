@@ -26,7 +26,7 @@ export const WIDGET_IDS: readonly WidgetId[] = [
 /** Built-in layout (same as config/layouts/jarvis-command-overview.json); used until/unless the settings deliver another. */
 export const DEFAULT_OVERVIEW_LAYOUT: Layout = {
   layoutId: "jarvis-command-overview",
-  name: "Jarvis Command / Overview",
+  name: "F.R.I.D.A.Y. Command / Overview",
   columns: 12,
   widgets: [
     { id: "core-overview", x: 0, y: 0, w: 3, h: 7, visible: true },

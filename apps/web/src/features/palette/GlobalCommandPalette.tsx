@@ -140,7 +140,7 @@ export function GlobalCommandPalette() {
     const missing = t("command.capabilityMissing");
     const text = query.trim();
 
-    // Jarvis
+    // F.R.I.D.A.Y.
     add(
       {
         id: "ask",

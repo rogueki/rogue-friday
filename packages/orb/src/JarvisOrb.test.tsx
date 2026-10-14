@@ -36,8 +36,8 @@ describe("<JarvisOrb> without WebGL (2D fallback path)", () => {
       layers: { voice: "speaking", work: "working", attention: "none", health: "online", activeAgentIds: ["a", "b", "c"] },
     };
     render(<JarvisOrb snapshot={snapshot} settings={{ renderer: "2d" }} />);
-    expect(await screen.findByTestId("orb-state-label")).toHaveTextContent("JARVIS SPRICHT");
-    expect(screen.getByTestId("orb-aria-live")).toHaveTextContent("Jarvis spricht. 3 AGENTEN AKTIV. Drei Agenten aktiv.");
+    expect(await screen.findByTestId("orb-state-label")).toHaveTextContent("F.R.I.D.A.Y. SPRICHT");
+    expect(screen.getByTestId("orb-aria-live")).toHaveTextContent("F.R.I.D.A.Y. spricht. 3 AGENTEN AKTIV. Drei Agenten aktiv.");
   });
 
   it("Enter/click activates with the target of the current mode, Space toggles voice", () => {

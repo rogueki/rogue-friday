@@ -60,7 +60,7 @@ export function createQueryClient(sink: () => ErrorSink | null): QueryClient {
           return;
         }
         if (isJarvisApiError(error) && error.code === "CONFLICT") {
-          // If-Match mismatch: somebody (or Jarvis itself) changed the resource. Reload instead of overwriting.
+          // If-Match mismatch: somebody (or the assistant itself) changed the resource. Reload instead of overwriting.
           for (const key of meta.conflictKeys ?? []) void client.invalidateQueries({ queryKey: key });
           sink()?.notify({
             title: "Änderung nicht übernommen",
