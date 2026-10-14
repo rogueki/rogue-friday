@@ -21,11 +21,7 @@ const child = spawn(process.execPath, [nextBin, command, ...nextArgs], {
   stdio: "inherit",
   env: { ...process.env, ...(mock ? { NEXT_PUBLIC_JARVIS_MSW: "1" } : {}) },
 });
-const cleanup = () => {
-  if (mock) rmSync(workerTarget, { force: true });
-};
-child.on("exit", (code) => {
-  cleanup();
-  process.exit(code ?? 0);
-});
+// The worker is not removed on exit: parallel mock dev servers share public/. Every non-mock run (dev or build)
+// deletes it before starting, so a production export never contains it.
+child.on("exit", (code) => process.exit(code ?? 0));
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => child.kill(signal));
