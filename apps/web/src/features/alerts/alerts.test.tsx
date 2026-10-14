@@ -211,7 +211,8 @@ describe("alerts page", () => {
 
     const offline = routedFetch({ ...routes(), "GET /api/v1/notifications": errorResponse("ADAPTER_UNAVAILABLE", "Benachrichtigungsdienst offline", 503) });
     const second = renderWithProviders(<AlertsPage />, { fetchImpl: offline.fetch, capabilities: modules(FULL) });
-    expect(await screen.findByText("Benachrichtigungsdienst offline")).toBeInTheDocument();
+    expect(await screen.findByText(/Benachrichtigungsdienst offline/)).toBeInTheDocument();
+    expect(screen.getByText("Offline")).toBeInTheDocument();
     second.unmount();
 
     const broken = routedFetch({ ...routes(), "GET /api/v1/notifications": errorResponse("INTERNAL", "Kaputt", 500) });

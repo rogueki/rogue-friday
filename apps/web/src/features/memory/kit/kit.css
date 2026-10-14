@@ -24,6 +24,7 @@
 .mk-block--green { border-color: var(--jarvis-tint-green-border); background: var(--jarvis-tint-green-bg); }
 .mk-block p { margin: 0; line-height: 1.5; font-size: var(--jv-fs-md); overflow-wrap: anywhere; }
 .mk-block p + p { margin-top: 6px; }
+.mk-block > .mk-actions { margin-top: 10px; }
 
 .mk-dl { display: grid; grid-template-columns: minmax(96px, auto) minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: var(--jv-fs-sm); }
 .mk-dl dt { color: var(--jarvis-muted); }

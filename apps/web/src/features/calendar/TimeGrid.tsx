@@ -2,7 +2,7 @@
 
 import type { CalendarEvent } from "@jarvis/sdk";
 import { AlertTriangle } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useT } from "@/i18n";
 import { useFormat } from "../memory/kit/hooks";
 import { civilKey, clock, minutesOfDay, sameDay, type Civil } from "./dates";
@@ -31,12 +31,25 @@ export function TimeGrid({ days, today, now, events, conflictEventIds, selectedE
   const { t } = useT();
   const format = useFormat();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollable, setScrollable] = useState(false);
   const layouts = days.map((day) => ({ day, ...layoutDay(events, day, format.timeZone) }));
   const hasAllDay = layouts.some((entry) => entry.allDay.length > 0);
 
   useEffect(() => {
     const node = scrollRef.current;
     if (node) node.scrollTop = Math.max(0, (7 * 60 - 30) * (HOUR_HEIGHT / 60));
+  }, [days.length]);
+
+  // A scrollable region must be reachable by keyboard (axe: scrollable-region-focusable); not focusable when it does not scroll.
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return undefined;
+    const measure = (): void => setScrollable(node.scrollHeight > node.clientHeight + 1);
+    measure();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
   }, [days.length]);
 
   const columns = `56px repeat(${days.length}, minmax(0, 1fr))`;
@@ -69,7 +82,7 @@ export function TimeGrid({ days, today, now, events, conflictEventIds, selectedE
             ))}
           </div>
         ) : null}
-        <div className="cal-grid__scroll" ref={scrollRef}>
+        <div className="cal-grid__scroll" ref={scrollRef} {...(scrollable ? { tabIndex: 0, role: "region", "aria-label": `${label}: ${t("calendar.grid.scroll")}` } : {})}>
           <div className="cal-grid__body" style={{ gridTemplateColumns: columns, height: HOUR_HEIGHT * 24 }}>
             <div className="cal-grid__hours" aria-hidden="true">
               {HOURS.map((hour) => (
@@ -92,22 +105,26 @@ export function TimeGrid({ days, today, now, events, conflictEventIds, selectedE
                     const conflict = conflictEventIds.has(event.id) || event.conflictIds.length > 0;
                     const height = Math.max(20, ((endMin - startMin) / 60) * HOUR_HEIGHT - 2);
                     return (
-                      <button
+                      <div
                         key={event.id}
-                        type="button"
                         role="listitem"
-                        className={`cal-event cal-event--${event.status}${conflict ? " cal-event--conflict" : ""}${selectedEventId === event.id ? " cal-event--selected" : ""}${height < 38 ? " cal-event--short" : ""}`}
+                        className="cal-event-slot"
                         style={{ top: (startMin / 60) * HOUR_HEIGHT, height, left: `calc(${(column / count) * 100}% + 1px)`, width: `calc(${100 / count}% - 3px)` }}
-                        onClick={() => onOpenEvent(event.id)}
-                        title={`${event.title} · ${format.time(event.start)}–${format.time(event.end)}`}
                       >
-                        <span className="cal-event__time">
-                          {conflict ? <AlertTriangle size={11} strokeWidth={2} aria-label={t("calendar.conflict.marker")} /> : null}
-                          {format.time(event.start)}–{format.time(event.end)}
-                        </span>
-                        <span className="cal-event__title">{event.title}</span>
-                        {height > 52 && event.location ? <span className="cal-event__loc">{event.location}</span> : null}
-                      </button>
+                        <button
+                          type="button"
+                          className={`cal-event cal-event--${event.status}${conflict ? " cal-event--conflict" : ""}${selectedEventId === event.id ? " cal-event--selected" : ""}${height < 38 ? " cal-event--short" : ""}`}
+                          onClick={() => onOpenEvent(event.id)}
+                          title={`${event.title} · ${format.time(event.start)}–${format.time(event.end)}`}
+                        >
+                          <span className="cal-event__time">
+                            {conflict ? <AlertTriangle size={11} strokeWidth={2} aria-label={t("calendar.conflict.marker")} /> : null}
+                            {format.time(event.start)}–{format.time(event.end)}
+                          </span>
+                          <span className="cal-event__title">{event.title}</span>
+                          {height > 52 && event.location ? <span className="cal-event__loc">{event.location}</span> : null}
+                        </button>
+                      </div>
                     );
                   })}
                   {isToday ? <NowLine now={now} timeZone={format.timeZone} /> : null}

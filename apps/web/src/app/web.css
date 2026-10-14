@@ -41,20 +41,6 @@ body { min-height: 100dvh; }
 /* ── Shell parts ─────────────────────────────────────────────────────── */
 .web-voicenav { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
 .web-voicenav__flags { display: flex; justify-content: center; gap: 8px; margin: 0; padding: 0 0 2px; list-style: none; }
-.web-flag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 24px;
-  color: var(--jarvis-muted);
-  border: 1px solid var(--jv-line-soft);
-  border-radius: var(--jv-radius-sm);
-  outline: none;
-}
-.web-flag:focus-visible { outline: 1px solid var(--jarvis-focus); outline-offset: 2px; }
-.web-flag--ok { color: var(--jarvis-tone-green); border-color: var(--jarvis-tint-green-border); background: var(--jarvis-tint-green-bg); }
-.web-flag--warn { color: var(--jarvis-tone-amber); border-color: var(--jarvis-tint-amber-border); background: var(--jarvis-tint-amber-bg); }
 
 .web-drawer-list { display: flex; flex-direction: column; gap: 6px; }
 .web-drawer-note { margin: 0 0 4px; font-size: var(--jv-fs-sm); color: var(--jarvis-text); line-height: 1.5; }
@@ -169,4 +155,3 @@ body { min-height: 100dvh; }
   .jv-nav__scroll { padding-block: 8px 4px; }
 }
 .web-voicenav__flags { gap: 6px; }
-.web-flag { width: 24px; height: 20px; }

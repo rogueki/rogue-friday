@@ -115,7 +115,8 @@ describe("AgentsPage", () => {
       capabilities: FULL,
       fetchImpl: routerFetch({ "GET /agents": () => ({ status: 503, body: { error: { code: "ADAPTER_UNAVAILABLE", message: "Agenten-Adapter offline.", severity: "error", retryable: true, correlationId: "corr_00000000000000000000000009", details: {} } } }), "GET /tasks": listOf([]) }).fetch,
     });
-    expect(await screen.findByText("Nicht verbunden")).toBeInTheDocument();
+    expect(await screen.findByText("Offline")).toBeInTheDocument();
+    expect(screen.getByText(/Agenten-Adapter offline/)).toBeInTheDocument();
     offline.unmount();
     renderWithProviders(<AgentsPage />, {
       capabilities: FULL,

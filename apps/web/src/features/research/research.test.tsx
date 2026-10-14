@@ -183,6 +183,7 @@ describe("research page", () => {
     expect(await screen.findByText("Noch keine Rechercheprojekte")).toBeInTheDocument();
     first.unmount();
     renderWithProviders(<ResearchPage />, { fetchImpl: routedFetch({}).fetch, capabilities: capabilitiesOf({ files: { read: true } }) });
-    expect(screen.getByText(/nicht verfügbar/)).toBeInTheDocument();
+    expect(await screen.findByText("Nicht verbunden")).toBeInTheDocument();
+    expect(screen.getByText(/Für „Recherche“ ist kein Adapter konfiguriert/)).toBeInTheDocument();
   });
 });

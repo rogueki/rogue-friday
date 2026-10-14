@@ -4,6 +4,7 @@ import type { Capabilities } from "@jarvis/sdk";
 import { useQuery } from "@tanstack/react-query";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { coreQueries } from "./api/domains/core";
+import { systemQueries } from "./api/domains/system";
 
 export type CapabilityModule = keyof Capabilities["modules"];
 export type CapabilityState = "available" | "read-only" | "missing";
@@ -35,6 +36,9 @@ export const CapabilitiesContext = createContext<CapabilitiesValue>({ capabiliti
 /** Loads /capabilities once; every action in the UI is enabled or disabled from this document (PLAN §9.3). */
 export function CapabilitiesProvider({ enabled = true, children }: { enabled?: boolean; children: ReactNode }) {
   const query = useQuery({ ...coreQueries.capabilities(), enabled });
+  // Adapter list + health decide "not configured" vs. "offline" vs. "capability missing" (PLAN §9.3) for every module;
+  // loading it with the capability document means no page flashes the wrong state first.
+  useQuery({ ...systemQueries.adapters(), enabled });
   const value = useMemo<CapabilitiesValue>(
     () => ({ capabilities: query.data, isLoading: query.isPending && enabled, isError: query.isError }),
     [query.data, query.isPending, query.isError, enabled],

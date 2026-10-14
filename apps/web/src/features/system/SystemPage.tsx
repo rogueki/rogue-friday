@@ -361,6 +361,9 @@ function providerStatus(status: HealthStatus, models: number): ProviderStatus {
   return models === 0 ? "no-models" : "connected";
 }
 
+/** Model names shown per provider; a provider with more models gets a "+N weitere" chip (full list as tooltip). */
+const MAX_MODEL_NAMES = 12;
+
 export function ModelsPanel() {
   const { t, locale } = useT();
   const query = useModelProviders();
@@ -392,17 +395,40 @@ export function ModelsPanel() {
       <div className="sy-providers sy-providers--stack">
         {items.map((provider) => {
           const status = providerStatus(provider.status, provider.models.length);
+          const shown = provider.models.slice(0, MAX_MODEL_NAMES);
+          const hidden = provider.models.slice(MAX_MODEL_NAMES);
           return (
-            <ProviderCard
-              key={provider.id}
-              name={provider.name}
-              icon={<Sparkles size={16} strokeWidth={1.5} />}
-              status={status}
-              statusLabel={labels[status]}
-              detail={[provider.providerKind === "local" ? t("system.models.local") : t("system.models.cloud"), provider.latencyMs === null ? null : formatMs(provider.latencyMs, locale), t("system.models.count", { count: provider.models.length })]
-                .filter(Boolean)
-                .join(" · ")}
-            />
+            <div key={provider.id} className="sy-provider">
+              <ProviderCard
+                name={provider.name}
+                icon={<Sparkles size={16} strokeWidth={1.5} />}
+                status={status}
+                statusLabel={labels[status]}
+                detail={[provider.providerKind === "local" ? t("system.models.local") : t("system.models.cloud"), provider.latencyMs === null ? null : formatMs(provider.latencyMs, locale), t("system.models.count", { count: provider.models.length })]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+              {provider.models.length > 0 ? (
+                <ul className="sy-models" aria-label={`${t("system.models.names")}: ${provider.name}`}>
+                  {shown.map((model) => (
+                    <li key={model}>
+                      <TagPill tone="muted" className="mc-mono">
+                        {model}
+                      </TagPill>
+                    </li>
+                  ))}
+                  {hidden.length > 0 ? (
+                    <li>
+                      <TagPill tone="muted" title={hidden.join(", ")}>
+                        {t("system.models.more", { count: hidden.length })}
+                      </TagPill>
+                    </li>
+                  ) : null}
+                </ul>
+              ) : (
+                <p className="mc-muted sy-models__none">{t("system.models.noNames")}</p>
+              )}
+            </div>
           );
         })}
       </div>
@@ -658,6 +684,7 @@ function AdapterMatrix() {
   const selected = items.find((adapter) => adapter.manifest.id === selectedId);
   const state = useQueryPanelState(query, {
     module: "system",
+    gate: false,
     empty: query.isSuccess && items.length === 0,
     emptyTitle: t("system.adapters.empty"),
     emptyDescription: t("system.adapters.emptyDescription"),

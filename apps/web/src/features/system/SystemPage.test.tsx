@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
 import { useRealtimeStore } from "@/lib/realtime/store";
 import { capabilitiesOf, renderWithProviders } from "@/test/render";
-import { HardwarePanel, ServicesPanel, SystemPage } from "./SystemPage";
+import { HardwarePanel, ModelsPanel, ServicesPanel, SystemPage } from "./SystemPage";
 import { errorBody, FRESH, listOf, mockElementSize, NOW, routedFetch, single, SOURCE } from "./testSupport";
 
 const push = vi.fn();
@@ -232,17 +232,19 @@ describe("hardware (PLAN §40.1)", () => {
   it("renders the offline state when the adapter is unreachable and the error state otherwise", async () => {
     const offline = routedFetch({ "GET /api/v1/system/metrics": () => errorBody("ADAPTER_UNAVAILABLE", "System-Adapter nicht erreichbar", 503) });
     const first = renderWithProviders(<HardwarePanel />, { fetchImpl: offline.fetch, capabilities: capabilitiesOf({ system: { read: true } }) });
-    expect(await screen.findByText("System-Adapter nicht erreichbar")).toBeInTheDocument();
+    expect(await screen.findByText("Offline")).toBeInTheDocument();
+    expect(screen.getByText(/System-Adapter nicht erreichbar/)).toBeInTheDocument();
     first.unmount();
     const broken = routedFetch({ "GET /api/v1/system/metrics": () => errorBody("INTERNAL", "Interner Fehler", 500) });
     renderWithProviders(<HardwarePanel />, { fetchImpl: broken.fetch, capabilities: capabilitiesOf({ system: { read: true } }) });
     expect(await screen.findByText("Daten konnten nicht geladen werden")).toBeInTheDocument();
   });
 
-  it("shows the unavailable state instead of data when the read capability is missing", () => {
+  it("shows 'Nicht verbunden' instead of data when no adapter serves the module", async () => {
     const fake = routedFetch(routes());
     renderWithProviders(<HardwarePanel />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ files: { read: true } }) });
-    expect(screen.getByText(/nicht verfügbar/)).toBeInTheDocument();
+    expect(await screen.findByText("Nicht verbunden")).toBeInTheDocument();
+    expect(screen.getByText(/Für „System“ ist kein Adapter konfiguriert/)).toBeInTheDocument();
   });
 });
 
@@ -283,3 +285,26 @@ describe("event stream (PLAN §12.6)", () => {
 });
 
 void FRESH;
+
+describe("models (PLAN §40.4)", () => {
+  const provider = (name: string, models: string[]) => ({ id: "svc_01JAAAAAAAAAAAAAAAAAAAAAAA", version: "1", createdAt: NOW, updatedAt: NOW, source: SOURCE, name, providerKind: "local", status: "online", latencyMs: 40, models });
+
+  it("names the models of every provider, not only their count", async () => {
+    const fake = routedFetch({ "GET /api/v1/system/models": listOf([provider("Qwen lokal", ["qwen3-router", "qwen3-coder"]), provider("Leer", [])]) });
+    renderWithProviders(<ModelsPanel />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true } }) });
+    const names = await screen.findByRole("list", { name: "Modelle: Qwen lokal" });
+    expect(within(names).getByText("qwen3-router")).toBeInTheDocument();
+    expect(within(names).getByText("qwen3-coder")).toBeInTheDocument();
+    expect(screen.getByText(/2 Modelle/)).toBeInTheDocument();
+    expect(screen.getByText("Keine Modelle gemeldet")).toBeInTheDocument();
+  });
+
+  it("collapses a long model list into a '+N weitere' chip with the full list as tooltip", async () => {
+    const many = Array.from({ length: 15 }, (_, index) => `modell-${index + 1}`);
+    const fake = routedFetch({ "GET /api/v1/system/models": listOf([provider("Cloud", many)]) });
+    renderWithProviders(<ModelsPanel />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true } }) });
+    expect(await screen.findByText("modell-12")).toBeInTheDocument();
+    expect(screen.queryByText("modell-13")).toBeNull();
+    expect(screen.getByText("+3 weitere")).toHaveAttribute("title", "modell-13, modell-14, modell-15");
+  });
+});

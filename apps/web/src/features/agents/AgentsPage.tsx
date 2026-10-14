@@ -5,6 +5,7 @@ import { Button, FilterBar, StatusDot, type FilterChip, type FilterDef } from "@
 import { useEffect, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { DataOrigin, DateFormatterProvider, ReadOnlyNotice, resolvePanelState, useModuleAccess, useModuleSection, useQueryParams } from "@/features/tasks/moduleKit";
+import { useModulePanelGate } from "@/features/shared/useAvailability";
 import { useT, type MessageKey } from "@/i18n";
 import { useAgents, type AgentFilters } from "@/lib/api/domains/agents";
 import { useTasks } from "@/lib/api/domains/tasks";
@@ -66,6 +67,7 @@ function AgentsPageContent() {
     ...(status ? [{ id: "status", label: t(`agent.status.${status}` as MessageKey), onRemove: () => setStatus("") }] : []),
   ];
 
+  const gate = useModulePanelGate("agents", { moduleName: t("nav.agents"), error: query.error, hasData: query.data !== undefined, onRetry: () => void query.refetch() });
   const state = resolvePanelState({
     pending: query.isPending,
     error: query.error,
@@ -74,7 +76,7 @@ function AgentsPageContent() {
     emptyState: filtered
       ? { title: t("agents.empty.filtered"), description: t("agents.empty.filteredHint"), action: <Button size="sm" variant="ghost" onClick={reset}>{t("agents.filter.reset")}</Button> }
       : { title: t("agents.empty.title"), description: t("agents.empty.hint") },
-    unavailable: access.readable === "unavailable" ? t("agents.unavailable") : undefined,
+    gate,
     section,
     freshness: query.data?.freshness,
     onRetry: () => void query.refetch(),

@@ -738,5 +738,5 @@ export const deB = {
   "automations.count.active": "{count} aktiv",
   "automations.count.paused": "{count} pausiert",
   "automations.count.inactive": "{count} inaktiv",
-  "automations.list.title": "Automationen",
+  "automations.list.title": "Alle Automationen",
 } as const;

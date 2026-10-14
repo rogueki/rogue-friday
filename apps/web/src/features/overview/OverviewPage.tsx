@@ -8,6 +8,7 @@ import { useLayouts } from "@/lib/api/domains/settings";
 import { useRealtimeStatus } from "@/lib/realtime/store";
 import { useAppSettings } from "@/lib/settings";
 import { AttentionPanel, CoreOverviewPanel, OrbPanel } from "./CorePanels";
+import { overviewFreshness } from "./useOverviewPanel";
 import { resolveOverviewLayout, widgetPlacement, type WidgetId } from "./layout";
 import { ActiveAgentsPanel, MemoryInsightsPanel, MissionTimelinePanel, ModelsServicesPanel, QuickCommandsPanel, SystemMonitorPanel } from "./WidgetPanels";
 
@@ -40,7 +41,7 @@ export function OverviewPage() {
   const realtime = useRealtimeStatus();
   const layout = useMemo(() => resolveOverviewLayout(layouts.data?.items, settings?.dashboard.activeLayoutId), [layouts.data?.items, settings?.dashboard.activeLayoutId]);
 
-  const freshness = overview.data?.freshness;
+  const freshness = overviewFreshness(overview);
   const stale = freshness && freshness.state !== "fresh" ? freshness : null;
   const streamDown = realtime.state === "offline" || realtime.state === "polling";
 

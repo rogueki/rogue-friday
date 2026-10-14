@@ -32,32 +32,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/**
- * The shared fake API (features/settings/testApi.ts) predates `release_orb_state` and only clears a forced orb on
- * `reset`. This wrapper records the real `release_orb_state` request and lets the fake clear the orb the way the server
- * does, so the test still exercises what the console sends.
- */
-function setupWithRelease() {
-  const api = createFakeApi();
-  const released: unknown[] = [];
-  const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const request = input instanceof Request ? input : new Request(input, init);
-    if (request.method === "POST" && new URL(request.url).pathname.endsWith("/dev/scenarios/control")) {
-      const body = (await request.clone().json()) as { action?: string };
-      if (body.action === "release_orb_state") {
-        released.push(body);
-        return api.fetchImpl(new Request(request.url, { method: "POST", headers: request.headers, body: JSON.stringify({ action: "reset" }) }));
-      }
-    }
-    return api.fetchImpl(input, init);
-  }) as typeof fetch;
-  renderWithProviders(<ScenarioConsolePage />, {
-    fetchImpl,
-    capabilities: capabilitiesOf({ tasks: { read: true, create: true }, mail: { read: true, send: true } }),
-  });
-  return { api, released };
-}
-
 const control = (api: ReturnType<typeof createFakeApi>) => api.find("POST", "/dev/scenarios/control").map((call) => call.body);
 
 describe("scenario console", () => {
@@ -139,7 +113,7 @@ describe("scenario console", () => {
 
   it("releases a forced orb state with release_orb_state, not with the snapshot reset", async () => {
     const user = userEvent.setup();
-    const { released } = setupWithRelease();
+    const { api } = setup();
     const release = await screen.findByRole("button", { name: "Freigeben" });
     expect(release).toBeDisabled();
     expect(release).toHaveAttribute("title", "Es ist kein Orb-Zustand erzwungen.");
@@ -150,12 +124,12 @@ describe("scenario console", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Freigeben" })).toBeEnabled());
 
     await user.click(screen.getByRole("button", { name: "Freigeben" }));
-    await waitFor(() => expect(released).toHaveLength(1));
-    expect(released[0]).toEqual({ action: "release_orb_state" });
+    await waitFor(() => expect(control(api)).toHaveLength(2));
+    expect(control(api)[1]).toEqual({ action: "release_orb_state" });
     expect(await screen.findByText(/Orb-Zustand freigegeben/)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText(/Erzwungen: Spricht/)).toBeNull());
-    // the console asked for the release; the `reset` seen by the fake API is the wrapper's stand-in for clearing the orb
-    expect(released).toEqual([{ action: "release_orb_state" }]);
+    // the release never goes through the snapshot reset
+    expect(control(api).some((body) => (body as { action: string }).action === "reset")).toBe(false);
   });
 
   it("plays a single event and a multi-step sequence through the orb override", async () => {

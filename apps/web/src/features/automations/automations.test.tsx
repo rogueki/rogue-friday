@@ -97,8 +97,10 @@ describe("automations page: list", () => {
     second.unmount();
     const offline = routedFetch({ "GET /api/v1/automations": errorResponse("ADAPTER_UNAVAILABLE", "Automations-Dienst offline", 503) });
     renderWithProviders(<AutomationsPage />, { fetchImpl: offline.fetch, capabilities: modules(FULL) });
-    expect(await screen.findByText("Automations-Dienst offline")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Adapter konfigurieren/ })).toBeInTheDocument();
+    expect(await screen.findByText(/Automations-Dienst offline/)).toBeInTheDocument();
+    expect(screen.getByText("Offline")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Erneut versuchen/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Adapter konfigurieren/ })).toBeNull();
   });
 
   it("disables the switch and creation without the matching capabilities", async () => {

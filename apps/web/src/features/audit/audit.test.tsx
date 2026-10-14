@@ -234,6 +234,6 @@ describe("audit states", () => {
     second.unmount();
     const offline = routedFetch(routes({ "GET /api/v1/audit/events": () => errorBody("ADAPTER_UNAVAILABLE", "Audit-Adapter offline", 503) }));
     renderWithProviders(<AuditPage />, { fetchImpl: offline.fetch, capabilities: caps({}) });
-    expect(await screen.findByText("Audit-Adapter offline")).toBeInTheDocument();
+    expect(await screen.findByText(/Audit-Adapter offline/)).toBeInTheDocument();
   });
 });

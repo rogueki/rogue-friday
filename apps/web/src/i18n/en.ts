@@ -3,6 +3,7 @@ import { enA } from "./modules/a.en";
 import { enB } from "./modules/b.en";
 import { enC } from "./modules/c.en";
 import { enD } from "./modules/d.en";
+import { enE } from "./modules/e.en";
 
 /** English dictionary; must contain exactly the German keys. */
 export const en: Record<keyof typeof de, string> = {
@@ -10,6 +11,7 @@ export const en: Record<keyof typeof de, string> = {
   ...enB,
   ...enC,
   ...enD,
+  ...enE,
   "common.all": "All",
   "common.cancel": "Cancel",
   "common.close": "Close",

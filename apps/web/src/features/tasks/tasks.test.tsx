@@ -129,8 +129,9 @@ describe("TasksPage", () => {
   it("explains an unreachable adapter as offline state with a retry", async () => {
     const api = routerFetch({ "GET /tasks": () => ADAPTER_DOWN, "GET /agents": listOf([agent]) });
     renderWithProviders(<TasksPage />, { capabilities: FULL, fetchImpl: api.fetch });
-    expect(await screen.findByText("Nicht verbunden")).toBeInTheDocument();
-    expect(screen.getByText("Der Adapter für Aufgaben ist derzeit nicht erreichbar.")).toBeInTheDocument();
+    expect(await screen.findByText("Offline")).toBeInTheDocument();
+    expect(screen.getByText(/Adapter für Aufgaben nicht erreichbar/)).toBeInTheDocument();
+    expect(screen.getByText(/Der Adapter für Aufgaben ist derzeit nicht erreichbar\./)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Erneut versuchen" })).toBeInTheDocument();
   });
 

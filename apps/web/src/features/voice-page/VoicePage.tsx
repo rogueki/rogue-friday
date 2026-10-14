@@ -42,6 +42,7 @@ import { KeyValue, StatusStrip, useFormatters, useQueryPanelState } from "@/feat
 import { formatFraction, formatMs, MISSING } from "@/features/system/format";
 import { useT, type MessageKey } from "@/i18n";
 import { useDeleteVoiceHistory, useStopVoice, useVoiceDevices, useVoiceMetrics, useVoiceProfiles, useVoiceStatus, useVoiceTest } from "@/lib/api/domains/voice";
+import { useModuleAvailability, useModulePanelGate } from "@/features/shared/useAvailability";
 import { useCapability } from "@/lib/capabilities";
 import { EnrollmentControls } from "./EnrollmentFlow";
 import "./voice-page.css";
@@ -189,14 +190,19 @@ function MicActivityBanner() {
   const { t } = useT();
   const query = useVoiceStatus();
   const status = query.data?.data;
-  const active = status?.microphone.active ?? false;
-  const known = Boolean(status);
+  const availability = useModuleAvailability("voice", { error: query.error });
+  // Cached data of an unreachable service is not "known": the banner must not claim the microphone is idle.
+  const known = Boolean(status) && availability.kind === "ok";
+  const active = known && (status?.microphone.active ?? false);
+  // Unknown is not "service offline": say which of the two it is.
+  const unknownHint =
+    availability.kind === "outage" ? t("voice.nav.offline") : availability.kind === "not-configured" ? t("voice.nav.notConfigured") : t("voicePage.mic.unknownHint");
   return (
     <div className={`vp-mic${active ? " vp-mic--active" : ""}`} role="status" aria-live="polite" data-testid="mic-activity">
       <IconTile icon={active ? <Mic size={16} strokeWidth={1.5} /> : <MicOff size={16} strokeWidth={1.5} />} tone={!known ? "muted" : active ? "red" : "green"} size="sm" active={active} />
       <span className="vp-mic__text">
         <strong>{!known ? t("voicePage.mic.unknown") : active ? t("voicePage.mic.recording") : t("voicePage.mic.notRecording")}</strong>
-        <span className="mc-muted">{!known ? t("voicePage.mic.unknownHint") : t("voicePage.mic.alwaysVisible")}</span>
+        <span className="mc-muted">{!known ? unknownHint : t("voicePage.mic.alwaysVisible")}</span>
       </span>
     </div>
   );
@@ -532,6 +538,8 @@ function TestResult({ result }: { result: VoiceTestResult }) {
 function TestPanel() {
   const { t } = useT();
   const canTest = useCapability("voice", "test");
+  // The panel has no query of its own, but the test needs the adapter: outage / not connected replace the form.
+  const gate = useModulePanelGate("voice", { moduleName: t("nav.voice") });
   const test = useVoiceTest();
   const [text, setText] = useState("");
   const [running, setRunning] = useState<VoiceTestKind | null>(null);
@@ -541,7 +549,7 @@ function TestPanel() {
     test.mutate(body, { onSettled: () => setRunning(null) });
   };
   return (
-    <PanelFrame title={t("voicePage.test.title")} subtitle={t("voicePage.test.subtitle")} icon={<AudioLines {...ICON} />} state={{ kind: "ready" }}>
+    <PanelFrame title={t("voicePage.test.title")} subtitle={t("voicePage.test.subtitle")} icon={<AudioLines {...ICON} />} state={gate.state ?? { kind: "ready", outage: gate.outage }}>
       <div className="mc-stack">
         {canTest ? null : (
           <div className="mc-box mc-box--amber" role="note" data-testid="test-unavailable">

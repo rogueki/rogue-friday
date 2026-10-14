@@ -740,5 +740,5 @@ export const enB: Record<keyof typeof deB, string> = {
   "automations.count.active": "{count} active",
   "automations.count.paused": "{count} paused",
   "automations.count.inactive": "{count} inactive",
-  "automations.list.title": "Automations",
+  "automations.list.title": "All automations",
 };

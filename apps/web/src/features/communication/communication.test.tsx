@@ -154,15 +154,16 @@ describe("communication page: inbox and channels", () => {
     expect(screen.getByText("Senden nicht verfügbar")).toBeInTheDocument();
   });
 
-  it("shows 'Nicht verbunden' when the mail adapter is offline", async () => {
+  it("shows 'Offline' (not 'Nicht verbunden') when the mail adapter is unreachable", async () => {
     const fake = routedFetch({
       "GET /api/v1/communication/channels": errorResponse("ADAPTER_UNAVAILABLE", "IMAP-Server nicht erreichbar", 503),
       "GET /api/v1/communication/threads": errorResponse("ADAPTER_UNAVAILABLE", "IMAP-Server nicht erreichbar", 503),
     });
     renderWithProviders(<CommunicationPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
-    await waitFor(() => expect(screen.getAllByText("Nicht verbunden").length).toBeGreaterThan(0));
-    expect(screen.getAllByText("IMAP-Server nicht erreichbar").length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("button", { name: /Adapter konfigurieren/ }).length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getAllByText("Offline").length).toBeGreaterThan(0));
+    expect(screen.getAllByText(/IMAP-Server nicht erreichbar/).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /Erneut versuchen/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Nicht verbunden")).toBeNull();
   });
 
   it("shows empty and error states", async () => {

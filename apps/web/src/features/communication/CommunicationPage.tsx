@@ -7,7 +7,6 @@ import { Suspense, useMemo, useState } from "react";
 import { PanelFrame, type PanelState } from "@/components/PanelFrame";
 import { useT } from "@/i18n";
 import { useChannels, useThread, useThreads, type ThreadFilters } from "@/lib/api/domains/communication";
-import { useCapabilityState } from "@/lib/capabilities";
 import { PRIORITIES, priorityKey } from "../alerts/labels";
 import { CapabilityNote, DataBadges } from "../memory/kit/Badges";
 import { useDebounced, useUrlParam } from "../memory/kit/hooks";
@@ -44,7 +43,6 @@ function CommunicationPageInner() {
   const [composing, setComposing] = useState(false);
   const wide = useMediaQuery("(min-width: 1500px)");
 
-  const readState = useCapabilityState("communication", "read");
   const access = useChannelAccess();
   const term = useDebounced(search.trim(), 250);
 
@@ -68,7 +66,7 @@ function CommunicationPageInner() {
 
   const degradedChannels = channelItems.filter((channel) => (channelId ? channel.id === channelId : true) && (channel.status === "degraded" || channel.status === "offline"));
   const threadState = usePanelState(threads, {
-    read: readState,
+    module: "communication",
     moduleName: t("nav.communication"),
     adapterId: threads.data?.sources[0]?.adapterId ?? channelItems[0]?.source.adapterId,
     empty: (threads.data?.items.length ?? 0) === 0,
@@ -80,10 +78,11 @@ function CommunicationPageInner() {
         ? { reason: t("communication.degraded"), affected: degradedChannels.map((channel) => `${channel.name} · ${t(`communication.status.${channel.status}` as const)}`) }
         : undefined,
   });
-  const channelState: PanelState = usePanelState(channels, { read: readState, moduleName: t("nav.communication"), adapterId: channelItems[0]?.source.adapterId, empty: channelItems.length === 0, emptyTitle: t("communication.channels.empty"), emptyDescription: t("communication.channels.emptyHint") });
+  const channelState: PanelState = usePanelState(channels, { module: "communication", moduleName: t("nav.communication"), adapterId: channelItems[0]?.source.adapterId, empty: channelItems.length === 0, emptyTitle: t("communication.channels.empty"), emptyDescription: t("communication.channels.emptyHint") });
 
-  // One adapter serves channels and threads: when both are down, a single "Nicht verbunden" panel says it once.
-  const fullOutage = threadState.kind === "offline" && channelState.kind === "offline";
+  // One adapter serves channels and threads: when both are unavailable, a single panel (offline / not connected) says it once.
+  const blocked = (state: PanelState): boolean => state.kind === "offline" || state.kind === "not-configured" || state.kind === "unsupported";
+  const fullOutage = blocked(threadState) && blocked(channelState);
   const detail = useThread(threadId);
   const threadItems = threads.data?.items ?? [];
 

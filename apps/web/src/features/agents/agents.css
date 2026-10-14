@@ -11,7 +11,8 @@
 .ag-grid__cell { min-width: 0; display: flex; }
 .ag-grid__cell > .ag-card { flex: 1; }
 
-.ag-card { display: flex; flex-direction: column; gap: 10px; border-left: 2px solid var(--tone); }
+/* Long German compounds ("Wettbewerbsanalyse-Zwischenbericht") must wrap instead of pushing the card wider. */
+.ag-card { display: flex; flex-direction: column; gap: 10px; min-width: 0; overflow-wrap: anywhere; border-left: 2px solid var(--tone); }
 .ag-card__head { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .ag-card__titles { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .ag-card__name { padding: 0; font: inherit; font-size: var(--jv-fs-xl); font-weight: 600; text-align: left; color: var(--jarvis-text-strong); background: none; border: 0; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -20,7 +21,7 @@
 .ag-card__role { font-size: var(--jv-fs-xs); color: var(--jarvis-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ag-card__status { display: inline-flex; align-items: center; gap: 6px; flex: none; font-size: var(--jv-fs-sm); font-weight: 500; color: var(--tone); }
 .ag-card__trace { height: 22px; overflow: hidden; }
-.ag-card__task { display: flex; align-items: center; gap: 6px; margin: 0; font-size: var(--jv-fs-sm); color: var(--jarvis-text); min-width: 0; }
+.ag-card__task { display: flex; align-items: center; gap: 6px; margin: 0; font-size: var(--jv-fs-sm); color: var(--jarvis-text); min-width: 0; overflow-wrap: anywhere; }
 .ag-card__task svg { flex: none; color: var(--jarvis-muted); }
 .ag-card__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; margin: 0; }
 .ag-card__facts > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -28,7 +29,8 @@
 .ag-card__facts dt { display: inline-flex; align-items: center; gap: 4px; font-family: var(--jv-font-display); font-size: var(--jv-fs-2xs); letter-spacing: 0.12em; text-transform: uppercase; color: var(--jarvis-muted); }
 .ag-card__facts dd { margin: 0; font-size: var(--jv-fs-sm); color: var(--jarvis-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ag-card__warn { font-size: var(--jv-fs-xs); }
-.ag-card__chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.ag-card__chips { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+.ag-card__chips > * { max-width: 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .ag-card__error { margin: 0; }
 
 .ag-tab { display: flex; flex-direction: column; gap: 14px; padding-top: 12px; }

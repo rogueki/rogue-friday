@@ -194,10 +194,14 @@ describe("ActivityPage", () => {
       "GET /agents": listOf([]),
     });
     const { unmount } = renderWithProviders(<ActivityPage />, { capabilities: CAPS, fetchImpl: down.fetch });
-    expect(await screen.findByText("Nicht verbunden")).toBeInTheDocument();
+    // The call failed with ADAPTER_UNAVAILABLE: an outage, not "no adapter configured" (PLAN §9.3).
+    expect(await screen.findByText("Offline")).toBeInTheDocument();
+    expect(screen.getByText(/Adapter für Live-Aktivität nicht erreichbar/)).toBeInTheDocument();
+    expect(screen.queryByText("Nicht verbunden")).toBeNull();
     unmount();
-    renderWithProviders(<ActivityPage />, { capabilities: capabilitiesOf({ tasks: { read: true } }), fetchImpl: routes().fetch });
-    expect(await screen.findByText("Die Live-Aktivität ist im aktuellen Betrieb nicht verfügbar.")).toBeInTheDocument();
+    renderWithProviders(<ActivityPage />, { capabilities: capabilitiesOf({ tasks: { read: true } }), fetchImpl: routes({ "GET /adapters": listOf([]) }).fetch });
+    expect(await screen.findByText("Nicht verbunden")).toBeInTheDocument();
+    expect(screen.getByText(/Für „Live-Aktivität“ ist kein Adapter konfiguriert/)).toBeInTheDocument();
   });
 
   it("filters by severity and by free text and can reset", async () => {

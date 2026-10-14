@@ -1,13 +1,14 @@
 "use client";
 
-import { isJarvisApiError, type Freshness } from "@jarvis/sdk";
+import type { Freshness } from "@jarvis/sdk";
 import { FreshnessBadge, SourceBadge, useNow, type HealthState } from "@jarvis/ui";
 import { useMemo, type ReactNode } from "react";
 import type { PanelState } from "@/components/PanelFrame";
+import { useModulePanelGate } from "@/features/shared/useAvailability";
 import { formatRelative } from "@/features/shared/time";
-import { useT } from "@/i18n";
+import { useT, type MessageKey } from "@/i18n";
 import { useMeta } from "@/lib/api/domains/core";
-import { useCapabilities, capabilityState, type CapabilityModule } from "@/lib/capabilities";
+import type { CapabilityModule } from "@/lib/capabilities";
 import { useAppSettings } from "@/lib/settings";
 import { bcp47, MISSING } from "./format";
 import "./common.css";
@@ -59,8 +60,12 @@ interface QueryLike<T> {
 }
 
 export interface QueryStateOptions {
-  /** Capability module whose `read` flag must be granted; a loaded capability document without it shows "nicht verfügbar". */
+  /** Capability module that serves the query: decides not configured / offline / unsupported (PLAN §9.3). */
   module?: CapabilityModule;
+  /** Display name for "nicht verbunden"; defaults to the module's nav label. */
+  moduleName?: string;
+  /** `false` for control-plane data (the adapter registry itself): no adapter's availability applies to it. */
+  gate?: boolean;
   empty?: boolean;
   emptyTitle?: string;
   emptyDescription?: ReactNode;
@@ -69,34 +74,37 @@ export interface QueryStateOptions {
 }
 
 /**
- * Maps one query onto the shared `PanelState` vocabulary (PLAN §1.1 rule 11): loading, error, offline (adapter
- * unreachable), empty and ready. A failed refetch while data is cached stays `ready` but flags the data as stale, so
- * old data is never shown as live (PLAN §48.10).
+ * Maps one query onto the shared `PanelState` vocabulary (PLAN §1.1 rule 11): loading, error, not configured, offline
+ * (adapter registered but unreachable), unsupported capability, empty and ready. A failed refetch while data is cached
+ * stays `ready` but flags the data as offline cache, so old data is never shown as live (PLAN §48.10).
  */
 export function useQueryPanelState<T>(query: QueryLike<T>, options: QueryStateOptions = {}): PanelState {
   const { t } = useT();
-  const { capabilities } = useCapabilities();
   const retry = (): void => void query.refetch();
-  if (options.module && capabilities && capabilityState(capabilities, options.module, "read") !== "available") {
-    return { kind: "offline", reason: t("system.common.capabilityReadMissing"), onRetry: retry };
-  }
+  const module = options.module ?? "system";
+  const gate = useModulePanelGate(module, {
+    moduleName: options.moduleName ?? t(`nav.${module}` as MessageKey),
+    error: query.error,
+    hasData: query.data !== undefined,
+    onRetry: retry,
+  });
+  const gated = options.gate !== false;
+  if (gated && gate.state) return gate.state;
   if (query.isPending) return { kind: "loading" };
   if (query.isError && query.data === undefined) {
-    const api = isJarvisApiError(query.error) ? query.error : null;
-    if (api && (api.code === "ADAPTER_UNAVAILABLE" || api.code === "ADAPTER_TIMEOUT")) {
-      const adapterId = typeof api.details.adapterId === "string" ? api.details.adapterId : undefined;
-      return { kind: "offline", adapterId, reason: api.message, onRetry: retry };
-    }
     return { kind: "error", error: query.error, onRetry: retry, retrying: query.isFetching };
   }
+  const outage = gated ? gate.outage : undefined;
+  if (options.empty && outage) return { kind: "offline", outage, onRetry: gate.retry };
   if (options.empty) {
     return { kind: "empty", title: options.emptyTitle, description: options.emptyDescription, icon: options.emptyIcon };
   }
-  const freshness: Freshness | null =
-    query.isError && query.dataUpdatedAt > 0
+  const freshness: Freshness | null = outage
+    ? { state: "offline-cache", asOf: outage.lastSuccessAt ?? (query.dataUpdatedAt > 0 ? new Date(query.dataUpdatedAt).toISOString() : new Date().toISOString()) }
+    : query.isError && query.dataUpdatedAt > 0
       ? { state: "stale", asOf: new Date(query.dataUpdatedAt).toISOString() }
       : (options.freshness ?? null);
-  return { kind: "ready", freshness, onRefresh: retry };
+  return { kind: "ready", freshness, outage, onRefresh: gate.retry };
 }
 
 interface StatusStripProps {

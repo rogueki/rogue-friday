@@ -1,6 +1,6 @@
 "use client";
 
-import { isJarvisApiError, type Freshness, type SourceDescriptor } from "@jarvis/sdk";
+import type { Freshness, SourceDescriptor } from "@jarvis/sdk";
 import {
   Button,
   FreshnessBadge,
@@ -17,6 +17,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useT } from "@/i18n";
 import type { PanelState } from "@/components/PanelFrame";
 import { sectionStatus } from "@/features/overview/useOverviewPanel";
+import { isAdapterOutage, outageFromSection } from "@/features/shared/availability";
+import type { PanelGate } from "@/features/shared/useAvailability";
+import { useServerClockOffset } from "@/features/shared/useServerClock";
 import { useMeta, useOverview } from "@/lib/api/domains/core";
 import { useCapabilities, capabilityState, type CapabilityModule, type CapabilityState } from "@/lib/capabilities";
 import { useAppSettings } from "@/lib/settings";
@@ -185,19 +188,6 @@ export interface DateFormatter {
   duration: (ms: number | null | undefined) => string;
 }
 
-/**
- * Offset between the server clock (`meta.serverTime`) and the browser clock in ms. Relative times, expiry countdowns and
- * "überfällig" are computed on the server's time so a wrong browser clock (or the mock clock) never makes an approval
- * look expired or a task look overdue.
- */
-export function useServerClockOffset(): number {
-  const meta = useMeta();
-  return useMemo(() => {
-    const server = meta.data?.serverTime ? Date.parse(meta.data.serverTime) : Number.NaN;
-    return Number.isNaN(server) ? 0 : server - meta.dataUpdatedAt;
-  }, [meta.data?.serverTime, meta.dataUpdatedAt]);
-}
-
 type Translate = ReturnType<typeof useT>["t"];
 
 // Intl objects are expensive to construct; rows of a virtualized list mount by the dozen, so they are shared per setting.
@@ -323,8 +313,6 @@ export function useFillHeight(minimum = 320): [RefObject<HTMLDivElement | null>,
 
 /* ── panel state ──────────────────────────────────────────────────────── */
 
-const OFFLINE_CODES: ReadonlySet<string> = new Set(["ADAPTER_UNAVAILABLE", "ADAPTER_TIMEOUT", "CAPABILITY_MISSING"]);
-
 /** Offline/degraded entries of the overview (`degradedSections`) that belong to a module (section ids or German labels). */
 export function useModuleSection(sections: readonly string[]) {
   const overview = useOverview();
@@ -338,7 +326,9 @@ export interface PanelStateInput {
   hasData: boolean;
   empty: boolean;
   emptyState?: { title: string; description?: ReactNode; action?: ReactNode };
-  unavailable?: string;
+  /** Availability of the module's adapter (`useModulePanelGate`): not configured / offline / unsupported (PLAN §9.3). */
+  gate: PanelGate;
+  /** Offline/degraded entries of the overview; covers the case that `/adapters` is not readable for this role. */
   section?: ReturnType<typeof sectionStatus>;
   freshness?: Freshness | null;
   onRetry: () => void;
@@ -346,25 +336,24 @@ export interface PanelStateInput {
   refreshFailedLabel: string;
 }
 
-/** One decision table for loading / error / offline / empty / degraded / stale of every module page (PLAN §1.1 rule 11). */
+/** One decision table for loading / error / not configured / offline / unsupported / empty / degraded / stale of every module page (PLAN §1.1 rule 11, §9.3). */
 export function resolvePanelState(input: PanelStateInput): PanelState {
-  const { pending, error, hasData, section } = input;
-  if (input.unavailable) return { kind: "offline", reason: input.unavailable, onRetry: input.onRetry };
+  const { pending, error, hasData, section, gate } = input;
+  if (gate.state) return gate.state;
   if (pending && !hasData) return { kind: "loading" };
-  if (error && !hasData) {
-    if (isJarvisApiError(error) && OFFLINE_CODES.has(error.code)) return { kind: "offline", adapterId: section?.offline?.adapterId, reason: error.message, onRetry: input.onRetry };
-    return { kind: "error", error, onRetry: input.onRetry, retrying: input.retrying };
-  }
+  if (error && !hasData) return { kind: "error", error, onRetry: input.onRetry, retrying: input.retrying };
   if (!hasData) return { kind: "loading" };
-  if (section?.offline && input.empty) return { kind: "offline", adapterId: section.offline.adapterId, reason: section.offline.reason, onRetry: input.onRetry };
+  const outage = gate.outage ?? (section?.offline ? outageFromSection(section.offline) : undefined);
+  if (outage && input.empty) return { kind: "offline", outage, onRetry: gate.retry };
   if (input.empty) return { kind: "empty", title: input.emptyState?.title, description: input.emptyState?.description, action: input.emptyState?.action };
-  const notice = section?.offline ?? section?.degraded;
+  const notice = section?.degraded;
   const degraded = notice
     ? { adapterId: notice.adapterId, reason: notice.reason, affected: [notice.adapterId] }
-    : error
+    : error && !outage && !isAdapterOutage(error)
       ? { reason: `${input.refreshFailedLabel} ${error instanceof Error ? error.message : ""}`.trim() }
       : undefined;
-  return { kind: "ready", degraded, freshness: input.freshness ?? undefined, onRefresh: input.onRetry };
+  const freshness: Freshness | null | undefined = outage ? { state: "offline-cache", asOf: outage.lastSuccessAt ?? input.freshness?.asOf ?? new Date().toISOString() } : input.freshness;
+  return { kind: "ready", degraded, freshness: freshness ?? undefined, outage, onRefresh: gate.retry };
 }
 
 /** Two- or three-way switch for views and display modes (`aria-pressed` buttons, never colour-only). */

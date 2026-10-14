@@ -103,7 +103,8 @@ describe("ApprovalsPage: list and states", () => {
 
     const down = routerFetch({ "GET /approvals": () => error(503, "ADAPTER_UNAVAILABLE", "Adapter nicht erreichbar."), "GET /agents": listOf([]), "GET /tasks": listOf([]) });
     const second = renderWithProviders(<ApprovalsPage />, { capabilities: FULL, fetchImpl: down.fetch });
-    expect(await screen.findByText("Nicht verbunden")).toBeInTheDocument();
+    expect(await screen.findByText("Offline")).toBeInTheDocument();
+    expect(screen.getByText(/Adapter nicht erreichbar\./)).toBeInTheDocument();
     second.unmount();
 
     const broken = routerFetch({ "GET /approvals": () => error(500, "INTERNAL", "Interner Fehler"), "GET /agents": listOf([]), "GET /tasks": listOf([]) });

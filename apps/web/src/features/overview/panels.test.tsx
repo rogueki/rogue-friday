@@ -62,9 +62,10 @@ describe("overview panels: states", () => {
       </>,
       { overview: overviewResponse(overview) },
     );
-    expect(screen.getByText("Nicht verbunden")).toBeInTheDocument();
-    expect(screen.getByText("Zeitüberschreitung")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Adapter konfigurieren" })).toBeInTheDocument();
+    expect(screen.getByText("Offline")).toBeInTheDocument();
+    expect(screen.getByText(/mock-hermes nicht erreichbar/)).toBeInTheDocument();
+    expect(screen.getByText(/Letzte Meldung: Zeitüberschreitung/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Erneut versuchen/ })).toBeInTheDocument();
     expect(screen.queryByText("Coding-Agent")).toBeNull();
     // The attention feed has its own source and still renders. Rows are virtualized and jsdom has no layout, so no row is
     // mounted; the feed only renders its list (instead of the empty state) when it has items.

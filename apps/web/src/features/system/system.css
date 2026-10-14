@@ -36,6 +36,11 @@
 .sy-services { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 8px; }
 @media (max-width: 700px) { .sy-services { grid-template-columns: minmax(0, 1fr); } }
 .sy-providers--stack { grid-template-columns: minmax(0, 1fr); }
+.sy-provider { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sy-models { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0 2px 2px; list-style: none; }
+.sy-models > li { min-width: 0; max-width: 100%; }
+.sy-models .jv-tag { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-transform: none; letter-spacing: 0; }
+.sy-models__none { margin: 0; padding: 0 2px; font-size: var(--jv-fs-xs); }
 
 /* Adapter logs (sy-log*). */
 .sy-logs-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 10px; }
