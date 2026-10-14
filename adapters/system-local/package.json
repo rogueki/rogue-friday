@@ -1,0 +1,22 @@
+{
+  "name": "@jarvis/adapter-system-local",
+  "version": "1.0.0",
+  "private": true,
+  "description": "System-Adapter für den lokalen Rechner (CPU/RAM/Speicher/GPU, Dienste, Modelle)",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@jarvis/adapter-core": "workspace:*",
+    "@jarvis/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@jarvis/adapter-testkit": "workspace:*",
+    "ajv": "^8.20.0"
+  }
+}
