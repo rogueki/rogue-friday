@@ -109,7 +109,9 @@ function shape(ctx: RequestContext, spec: MethodSpec, result: unknown): HandlerR
       return {
         status,
         raw: {
-          contentType: download.contentType,
+          // The contract declares `application/octet-stream`; with `attachment` and `nosniff` the file's own media type
+          // is never interpreted by the browser (and is available from the preview endpoint / file metadata).
+          contentType: "application/octet-stream",
           data,
           disposition: `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(download.filename)}`,
         },

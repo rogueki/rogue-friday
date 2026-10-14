@@ -66,6 +66,7 @@ export function defaultSettingsAreas(config: JarvisConfig): SettingsAreas {
   return {
     profile: {
       displayName: config.auth.ownerUsername,
+      assistantName: "F.R.I.D.A.Y.",
       locale,
       timeZone: config.ui.timezone,
       dateFormat: "dd.MM.yyyy",
@@ -241,7 +242,7 @@ function readJsonFiles(dir: string, logger: Logger): Array<{ file: string; value
   const out: Array<{ file: string; value: unknown }> = [];
   for (const file of readdirSync(dir).filter((name) => name.endsWith(".json") && !name.endsWith(".schema.json"))) {
     try {
-      out.push({ file, value: JSON.parse(readFileSync(join(dir, file), "utf8").replace(/^﻿/, "")) as unknown });
+      out.push({ file, value: JSON.parse(readFileSync(join(dir, file), "utf8").replace(/^\uFEFF/, "")) as unknown });
     } catch (error) {
       logger.warn("Theme-/Layout-Datei ist kein gültiges JSON und wird übersprungen", {
         file,
@@ -254,7 +255,7 @@ function readJsonFiles(dir: string, logger: Logger): Array<{ file: string; value
 
 const FALLBACK_THEME: Theme = {
   id: FALLBACK_THEME_ID,
-  name: "Jarvis Command / Midnight",
+  name: "F.R.I.D.A.Y. Command / Midnight",
   builtIn: true,
   tokens: { "color.background": "#00030a", "color.primary": "#2fb8d6", "color.orb": "#ffb52e", "text.default": "#dcecf2" },
   orb: { preset: "gold-reference", particleDensity: 0.6, fragmentDensity: 0.7, glowIntensity: 0.66, motionSpeed: 0.85, mouseParallax: false },
@@ -263,7 +264,7 @@ const FALLBACK_THEME: Theme = {
 
 const FALLBACK_LAYOUT: Layout = {
   layoutId: FALLBACK_LAYOUT_ID,
-  name: "Jarvis Command / Overview",
+  name: "F.R.I.D.A.Y. Command / Overview",
   columns: 12,
   widgets: [
     { id: "core-overview", x: 0, y: 0, w: 3, h: 7, visible: true },

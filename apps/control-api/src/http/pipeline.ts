@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { authorize } from "@jarvis/auth";
 import { CONTRACT_VERSION, type Actor, type ErrorDetail } from "@jarvis/sdk";
@@ -6,7 +7,6 @@ import type { AuditDraft } from "../db/audit-store";
 import { IdempotencyStore, type StoredResponse } from "../db/stores";
 import { buildHandlers } from "../handlers";
 import type { Runtime } from "../runtime/types";
-import type { Principal } from "../security/auth-service";
 import { ACTION_BY_OPERATION, AUDIT_CATEGORY_BY_TAG, NON_AUDITED_POSTS } from "../security/action-map";
 import { ApiError, toFailure, validationFailed } from "../util/errors";
 import { createCorrelationId } from "../util/ids";
@@ -117,7 +117,9 @@ export class ApiPipeline {
       mutation: {
         ...call,
         ...(ifMatch !== undefined ? { ifMatchVersion: ifMatch } : {}),
-        ...(idempotencyKey && spec.acceptsIdempotencyKey ? { idempotencyKey } : {}),
+        ...(idempotencyKey && spec.acceptsIdempotencyKey
+          ? { idempotencyKey: scopedIdempotencyKey(idempotencyKey, spec, request.params as Record<string, string> | undefined, principal?.userId ?? request.ip) }
+          : {}),
       },
       idempotencyKey: spec.acceptsIdempotencyKey ? idempotencyKey : undefined,
       audit: {},
@@ -326,6 +328,17 @@ export class ApiPipeline {
     const result = this.runtime.validator.validate(schema, body);
     return result.valid ? null : result.errors.slice(0, 10);
   }
+}
+
+/**
+ * The key adapters see. A client-chosen key is only unique per user and request target, so the adapter layer gets a key
+ * derived from user + operation + resource + client key; two users (or two resources) reusing one key never collide
+ * upstream.
+ */
+export function scopedIdempotencyKey(key: string, spec: RouteSpec, params: Record<string, string> | undefined, actor: string): string {
+  const target = spec.path.replace(/\{(\w+)\}/g, (_m, name: string) => params?.[name] ?? name);
+  const digest = createHash("sha256").update(`${actor}\0${spec.method} ${target}\0${key}`).digest("hex").toUpperCase();
+  return `idem_${digest.slice(0, 26)}`;
 }
 
 function requestPath(ctx: RequestContext): string {

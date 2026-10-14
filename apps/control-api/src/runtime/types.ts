@@ -55,6 +55,8 @@ export interface Runtime {
   responseValidation: ResponseValidationMode;
   /** Forces an immediate health check of every adapter (after dev controls, settings changes, capability toggles). */
   refreshAdapters(): Promise<void>;
+  /** Current time in epoch ms on the clock the data lives on (the mock world's clock in mock mode, wall time otherwise). */
+  nowMs(): number;
   capabilities(): Capabilities;
   /** True when the capability (`tasks.create`) is currently offered; capability strings outside the document are allowed. */
   capabilityEnabled(capability: string): boolean;

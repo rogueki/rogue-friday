@@ -3,6 +3,7 @@ import type { CommandRequest, CommandResponse } from "@jarvis/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { CommandHistoryStore } from "../db/stores";
+import { executeBuiltinIntent, matchBuiltinIntent } from "../services/command-intents";
 import { portHandler } from "./ports";
 
 const executeBase = portHandler("commands", "executeCommand", PORT_SPEC.commands.executeCommand);
@@ -18,7 +19,8 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
     ctx.audit.action = "command.executed";
     let status = "failed";
     try {
-      const result = await executeBase(ctx);
+      const intent = request.confirm ? null : matchBuiltinIntent(request.text);
+      const result = intent ? { status: 200, body: await executeBuiltinIntent(ctx, intent) } : await executeBase(ctx);
       const response = result.body as CommandResponse;
       status = response.status;
       ctx.audit.context = {
@@ -27,6 +29,7 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         riskTier: response.riskTier,
         approvalId: response.approvalId,
         source: request.source,
+        ...(intent ? { intent } : {}),
         redacted: sensitive,
         ...(sensitive ? {} : { text: request.text.slice(0, 200) }),
       };

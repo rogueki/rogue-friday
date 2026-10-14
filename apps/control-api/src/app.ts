@@ -40,6 +40,11 @@ class HttpLayer {
     await this.runtime.start();
   }
 
+  /** Runs first on `app.close()`, before Fastify waits for open connections (WebSockets would block it). */
+  async onModuleDestroy(): Promise<void> {
+    await this.runtime.hub.disconnectAll();
+  }
+
   async onApplicationShutdown(): Promise<void> {
     await this.runtime.close();
   }
