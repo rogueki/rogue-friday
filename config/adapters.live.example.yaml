@@ -19,7 +19,6 @@ adapters:
     provider: hermes-tasks
     enabled: true
     timeoutMs: 10000
-    retry: { maxAttempts: 3, baseDelayMs: 250, maxDelayMs: 4000, jitter: 0.2 }
     circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
     config:
       dashboardBaseUrl: http://127.0.0.1:43691
@@ -29,7 +28,6 @@ adapters:
     provider: hermes-activity
     enabled: true
     timeoutMs: 10000
-    retry: { maxAttempts: 3, baseDelayMs: 250, maxDelayMs: 4000, jitter: 0.2 }
     circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
     config:
       apiBaseUrl: http://127.0.0.1:43693
@@ -40,7 +38,6 @@ adapters:
     provider: hermes-agents
     enabled: true
     timeoutMs: 10000
-    retry: { maxAttempts: 3, baseDelayMs: 250, maxDelayMs: 4000, jitter: 0.2 }
     circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
     config:
       apiBaseUrl: http://127.0.0.1:43693

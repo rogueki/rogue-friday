@@ -337,6 +337,10 @@ registry.listAdapters(); registry.getHealth("example-tasks-http");
 await registry.restart("example-tasks-http"); await registry.shutdownAll();
 ```
 
+In der Control API ruft niemand `registerFactory` von Hand auf: `apps/control-api/src/runtime/adapter-wiring.ts` enthält die
+statische Zuordnung Paketname → Factories (`packageFactories()`), aus der die Allowlist in `config/adapters.yaml` bedient wird.
+Ein neues Adapterpaket braucht deshalb einen Eintrag dort und eine `workspace:*`-Abhängigkeit in `apps/control-api/package.json`.
+
 Verhalten:
 
 - **Allowlist:** `registerFactory` und `initialize` verweisen unbekannte Provider mit klarer Meldung zurück ("nicht in der Allowlist"). Factory-Kategorie

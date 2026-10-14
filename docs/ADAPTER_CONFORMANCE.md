@@ -11,7 +11,7 @@ pnpm test:conformance                    # alle Adapter in adapters/*  (findet t
 pnpm exec vitest run adapters/example-http   # ein Adapter
 ```
 
-`scripts/run-conformance.mjs` listet die gefundenen Adapter auf und startet Vitest mit der Root-Konfiguration. Ein neuer Adapter braucht nur seine
+`packages/adapter-testkit/scripts/run-conformance.mjs` listet die gefundenen Adapter auf und startet Vitest mit der Root-Konfiguration. Ein neuer Adapter braucht nur seine
 `test/conformance.test.ts`.
 
 ## Test einbinden

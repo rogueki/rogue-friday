@@ -22,7 +22,7 @@ allowlist: {}
 # Gemeinsame Optionen je Kategorie (alle optional, hier die Standardwerte):
 #   enabled: true
 #   timeoutMs: 5000
-#   retry:           { maxAttempts: 3, baseDelayMs: 200, maxDelayMs: 5000, jitter: 0.2 }
+#   retry:           { maxAttempts: 1, baseDelayMs: 200, maxDelayMs: 5000, jitter: 0.2 }   # Registry-Ebene; die Adapter-Clients wiederholen selbst
 #   circuitBreaker:  { failureThreshold: 5, resetAfterMs: 30000 }
 
 adapters:
@@ -73,56 +73,5 @@ adapters:
     enabled: true
 
 # ---------------------------------------------------------------------------------------------
-# Beispiel HYBRID (dataMode: hybrid): Tasks/Aktivitaet live ueber Hermes, Rest bleibt mock.
-# Die Provider muessen oben unter "allowlist" stehen.
-#
-# adapters:
-#   tasks:
-#     provider: hermes-tasks
-#     enabled: true
-#     timeoutMs: 8000
-#     config:
-#       baseUrl: ${HERMES_BASE_URL}
-#       apiToken: env:HERMES_API_TOKEN
-#   activity:
-#     provider: hermes-activity
-#     enabled: true
-#     config:
-#       baseUrl: ${HERMES_BASE_URL}
-#       apiToken: env:HERMES_API_TOKEN
-#   communication:
-#     provider: mock-communication   # (PLAN-Beispiel "mail": hier Kategorie communication)
-#   system:
-#     provider: windows-wsl-system
-#     enabled: true
-#     config:
-#       distro: ${WSL_DISTRO:-Ubuntu}
-#
-# ---------------------------------------------------------------------------------------------
-# Beispiel LIVE (dataMode: live): nur gelistete Kategorien sind aktiv, alle anderen deaktiviert.
-#
-# adapters:
-#   tasks:
-#     provider: hermes-tasks
-#     config:
-#       baseUrl: ${HERMES_BASE_URL}
-#       apiToken: env:HERMES_API_TOKEN
-#     retry: { maxAttempts: 3, baseDelayMs: 250, maxDelayMs: 4000, jitter: 0.2 }
-#     circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
-#   voice:
-#     provider: jarvis-voice-http
-#     config:
-#       baseUrl: ${VOICE_BASE_URL}
-#       apiToken: wincred:jarvis-voice
-#   communication:
-#     provider: gmx-mail
-#     config:
-#       imapHost: ${GMX_IMAP_HOST:-imap.gmx.net}
-#       username: ${GMX_USERNAME}
-#       password: env:GMX_PASSWORD
-#   calendar:
-#     provider: caldav-calendar
-#     config:
-#       url: ${CALDAV_URL}
-#       username: ${CALDAV_USERNAME}
-#       password: wincred:jarvis-caldav
+# Vollstaendige Beispiele fuer echte Dienste (Hermes 43693/43691, Voice 43694, lokales System + Qwen 43692):
+#   config/adapters.hybrid.example.yaml und config/adapters.live.example.yaml

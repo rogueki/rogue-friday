@@ -51,9 +51,7 @@ Open items from the web hand-off:
    ~85–90 % of the panel height and move "JARVIS / AI CORE / version" to a compact strip so it does not shrink the orb.
 2. `BottomCommandBar` (`@jarvis/ui`) has no text-input slot → add one; typed commands currently go via the palette.
 3. Production build still bundles the mock platform in 2 lazy chunks and ships `mockServiceWorker.js` → exclude in non-mock builds.
-4. Typecheck uses `tsconfig.typecheck.json` with a shim `src/shims/jarvis-orb.d.ts` because R3F's global JSX
-   augmentation breaks `HudPanel`'s `as` prop; Next's own type check is off. Better fix: make `HudPanel`'s `as` prop
-   robust against the augmented JSX namespace, then drop the shim.
+4. ~~Typecheck shim~~ done in `1903958` (HudPanel without ElementType, shim removed, Next type check on).
 5. Mock-data layouts use widget ids `orb`, `attention`, `agents`… but the app uses the canonical ids from
    `config/layouts/jarvis-command-overview.json` → switch mock-data to canonical ids.
 6. Command conventions to align with the Control API: voice start = command text "Sprachaufnahme starten",

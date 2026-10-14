@@ -444,25 +444,17 @@ describe('example files', () => {
     expect(config.warnings).toEqual([]);
   });
 
-  it('commented hybrid example works once uncommented', () => {
-    const text = fixture('adapters.example.yaml');
-    const hybrid = text
-      .split('# Beispiel HYBRID')[1]!
-      .split('# ---')[0]!
-      .split('\n')
-      .filter((l) => l.startsWith('# ') && !l.startsWith('# Die Provider') && !l.startsWith('# Beispiel') && l.length > 2)
-      .map((l) => l.slice(2))
-      .filter((l) => /^(adapters:|\s)/.test(l))
-      .join('\n');
-    const allow = 'allowlist:\n  hermes-tasks: "@jarvis/adapter-hermes-placeholder"\n  hermes-activity: "@jarvis/adapter-hermes-placeholder"\n  windows-wsl-system: "@jarvis/adapter-system-placeholder"\n';
-    const config = load(
-      { dashboard: 'dataMode: hybrid\n', adapters: `${allow}${hybrid}\n` },
-      { HERMES_BASE_URL: 'http://127.0.0.1:8642', HERMES_API_TOKEN: 'x' },
-    );
-    expect(config.adapters.tasks).toMatchObject({ provider: 'hermes-tasks', enabled: true });
-    expect(config.adapters.tasks.config).toMatchObject({ baseUrl: 'http://127.0.0.1:8642', apiToken: { configured: true } });
-    expect(config.adapters.system.provider).toBe('windows-wsl-system');
-    expect(config.adapters.voice.provider).toBe('mock-voice');
+  it('hybrid and live example files load with the real adapter providers', () => {
+    const hybrid = load({ dashboard: 'dataMode: hybrid\n', adapters: fixture('adapters.hybrid.example.yaml') }, {});
+    expect(hybrid.adapters.tasks).toMatchObject({ provider: 'hermes-tasks', enabled: true });
+    expect(hybrid.adapters.voice.provider).toBe('jarvis-voice-http');
+    expect(hybrid.adapters.system.provider).toBe('local-system');
+    expect(hybrid.adapters.memory.provider).toBe('mock-memory');
+    // Registry-level retry stays opt-in: one attempt unless a category configures more.
+    expect(hybrid.adapters.tasks.retry).toMatchObject({ maxAttempts: 1 });
+    const live = load({ dashboard: 'dataMode: live\n', adapters: fixture('adapters.live.example.yaml') }, {});
+    expect(live.adapters.tasks.provider).toBe('hermes-tasks');
+    expect(live.adapters.memory.enabled).toBe(false);
   });
 
   it('.env.example contains no real values', () => {

@@ -200,7 +200,7 @@ pnpm test:conformance                          # alle Adapter, darunter adapters
 
 ## Offene Punkte / Vertragslücken
 
-- **Secret-Referenz `file:`**: `packages/config` kennt nur `env:` und `wincred:`. Bis es ein `file:`-Schema gibt, deckt `apiKeyFile`/`dashboardTokenFile` den Schlüsseldatei-Fall ab
+- **Secret-Referenz `file:`**: `packages/config` unterstützt inzwischen `file:<absoluter Pfad>` (z. B. `apiKey: file:C:/Jarvis/config/hermes_api.key`). `apiKeyFile`/`dashboardTokenFile` bleiben als gleichwertige Alternative erhalten.
   (als gewöhnlicher Pfad, nicht als Secret-Feld).
 - **`ActivityEvent.sequence`** ist Pflicht; der Adapter vergibt eine lokale Folge je Prozess. Der Hub nummeriert eigene Ereignisse getrennt (`activity.backfill` über `sinceSequence`
   bezieht sich auf die Adapter-Folge).
