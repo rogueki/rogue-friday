@@ -1,7 +1,7 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { SystemPage } from "@/features/system/SystemPage";
 
 export default function Page() {
-  return <ModulePlaceholder page="system" />;
+  return <SystemPage />;
 }

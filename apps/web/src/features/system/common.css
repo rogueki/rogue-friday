@@ -1,0 +1,57 @@
+/* Shared styling of the group-C module pages (research, files, voice, system, audit). Class prefix: mc-. */
+.mc-page { display: flex; flex-direction: column; gap: 10px; min-height: 100%; }
+.mc-grid { display: grid; gap: 10px; align-items: start; }
+.mc-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mc-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mc-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.mc-grid--main-side { grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); }
+@media (max-width: 1100px) {
+  .mc-grid--3, .mc-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mc-grid--main-side { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .mc-grid--2, .mc-grid--3, .mc-grid--4 { grid-template-columns: minmax(0, 1fr); }
+}
+
+.mc-strip { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mc-stack { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mc-stack--tight { gap: 5px; }
+.mc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.mc-row--between { justify-content: space-between; }
+.mc-spacer { flex: 1; }
+
+.mc-kvlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 16px; margin: 0; }
+.mc-kvlist--single { grid-template-columns: minmax(0, 1fr); }
+.mc-kv { min-width: 0; }
+.mc-kv dt { font-family: var(--jv-font-display); font-size: var(--jv-fs-2xs); letter-spacing: 0.14em; text-transform: uppercase; color: var(--jarvis-muted); margin-bottom: 2px; }
+.mc-kv dd { margin: 0; font-size: var(--jv-fs-sm); color: var(--jarvis-text); overflow-wrap: anywhere; }
+.mc-mono { font-family: var(--jv-font-mono); font-size: var(--jv-fs-xs); }
+.mc-muted { color: var(--jarvis-muted); }
+.mc-null { color: var(--jarvis-muted); font-family: var(--jv-font-mono); }
+
+.mc-subtitle { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-family: var(--jv-font-display); font-size: var(--jv-fs-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--jarvis-muted); font-weight: 600; }
+.mc-note { margin: 0; font-size: var(--jv-fs-sm); line-height: 1.5; color: var(--jarvis-text); }
+.mc-note--muted { color: var(--jarvis-muted); }
+.mc-box { border: 1px solid var(--jv-line-soft); background: var(--jarvis-tint-cyan-bg); padding: 10px 12px; border-radius: var(--jv-radius-sm); }
+.mc-box--amber { border-color: var(--jarvis-tint-amber-border); background: var(--jarvis-tint-amber-bg); }
+.mc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mc-pre {
+  margin: 0; padding: 10px 12px; overflow: auto; max-height: 420px; white-space: pre-wrap; overflow-wrap: anywhere;
+  font-family: var(--jv-font-mono); font-size: var(--jv-fs-xs); line-height: 1.55; color: var(--jarvis-text);
+  background: color-mix(in srgb, var(--jarvis-bg-0) 70%, transparent); border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm);
+}
+.mc-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mc-progress { height: 6px; background: var(--jv-line-soft); border-radius: 3px; overflow: hidden; }
+.mc-progress > span { display: block; height: 100%; background: var(--jarvis-tone-cyan); }
+.mc-progress--indeterminate > span { width: 35%; animation: mc-slide 1.6s ease-in-out infinite alternate; }
+@keyframes mc-slide { from { margin-left: 0; } to { margin-left: 65%; } }
+[data-motion="reduced"] .mc-progress--indeterminate > span, [data-motion="off"] .mc-progress--indeterminate > span { animation: none; margin-left: 30%; }
+.mc-strip-row { margin-bottom: 8px; }
+
+/* Source/freshness badges sit in the panel header; on narrow panels they wrap below the title instead of covering it. */
+.jv-panel-header:has(.mc-strip) { flex-wrap: wrap; row-gap: 6px; }
+.jv-panel-header:has(.mc-strip) .jv-panel-header__text { flex: 1 1 160px; }
+.jv-panel-header__actions:has(.mc-strip) { flex: 0 1 auto; flex-wrap: wrap; margin-left: auto; justify-content: flex-end; }
+@media (max-width: 700px) {
+  .jv-panel-header__actions:has(.mc-strip) { flex-basis: 100%; justify-content: flex-start; margin-left: 0; }
+}

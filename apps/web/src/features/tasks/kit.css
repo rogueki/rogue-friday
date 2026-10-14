@@ -1,0 +1,111 @@
+/* Shared parts of the module pages Tasks, Live Activity, Approvals, Agents. Layout only; components come from @jarvis/ui. */
+
+.mod-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: var(--jv-fs-xs);
+  color: var(--jarvis-tone-amber);
+  border: 1px solid var(--jarvis-tint-amber-border);
+  background: var(--jarvis-tint-amber-bg);
+  border-radius: var(--jv-radius-sm);
+}
+.mod-origin { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+/* Narrow screens: the header only has room for the title and the main action, source and freshness move into the body. */
+.mod-origin--body { display: none; }
+@media (max-width: 699px) {
+  .mod-origin--header { display: none; }
+  .mod-origin--body { display: inline-flex; }
+}
+
+.mod-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin: 0; }
+.mod-facts__row { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-bottom: 6px; border-bottom: 1px solid var(--jv-line-hair); }
+.mod-facts__row--wide { grid-column: 1 / -1; }
+.mod-facts dt { font-family: var(--jv-font-display); font-size: var(--jv-fs-2xs); letter-spacing: 0.14em; text-transform: uppercase; color: var(--jarvis-muted); }
+.mod-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; font-size: var(--jv-fs-md); color: var(--jarvis-text); }
+.mod-facts code { font-family: var(--jv-font-mono); font-size: var(--jv-fs-sm); }
+
+.mod-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm); overflow: hidden; }
+.mod-seg__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: var(--jv-fs-sm);
+  color: var(--jarvis-muted);
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--jv-line-soft);
+  cursor: pointer;
+}
+.mod-seg__btn:last-child { border-right: 0; }
+.mod-seg__btn:hover { color: var(--jarvis-text); background: var(--jv-row-bg-hover); }
+.mod-seg__btn[aria-pressed="true"] { color: var(--jarvis-text-strong); background: var(--jarvis-tint-cyan-bg); box-shadow: inset 0 -2px 0 var(--jarvis-cyan); }
+.mod-seg__btn:focus-visible { outline: 1px solid var(--jarvis-focus); outline-offset: -2px; }
+
+@media (max-width: 699px) {
+  .mod-facts { grid-template-columns: 1fr; }
+  .mod-seg__btn { padding: 0 8px; }
+}
+
+/* Drawers of the module pages: all tabs stay visible (wrapping instead of a hidden sideways scroll) and the heading shows the full title. */
+.mod-drawer .jv-tabs__list { flex-wrap: wrap; overflow: visible; row-gap: 0; }
+.mod-drawer .jv-tabs__tab { padding: 8px 10px; letter-spacing: 0.06em; font-size: var(--jv-fs-2xs); }
+.mod-heading { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.mod-heading__title { margin: 0; font-size: var(--jv-fs-xl); font-weight: 600; line-height: 1.35; color: var(--jarvis-text-strong); overflow-wrap: anywhere; }
+
+/* Shared detail-drawer parts (lists, tabs, headings) used by tasks, activity, approvals and agents. */
+.tk-more { display: flex; align-items: center; justify-content: center; gap: 12px; flex: none; }
+.tk-muted { font-size: var(--jv-fs-xs); color: var(--jarvis-muted); }
+.tk-mono { font-family: var(--jv-font-mono); }
+.tk-text { margin: 0; font-size: var(--jv-fs-md); line-height: 1.55; color: var(--jarvis-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.tk-card__title {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--jv-fs-md);
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  color: var(--jarvis-text-strong);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tk-card__title:hover { color: var(--jarvis-cyan); }
+.tk-card__title:focus-visible { outline: 1px solid var(--jarvis-focus); outline-offset: 2px; }
+.tk-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.tk-drawer__sub { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--jv-fs-xs); }
+.tk-drawer__sub code { font-family: var(--jv-font-mono); font-size: var(--jv-fs-xs); color: var(--jarvis-muted); }
+.tk-tab { display: flex; flex-direction: column; gap: 14px; padding-top: 12px; }
+.tk-tab__block { display: flex; flex-direction: column; gap: 6px; }
+.tk-tab__h { margin: 0; font-family: var(--jv-font-display); font-size: var(--jv-fs-xs); font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--jarvis-muted); }
+.tk-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tk-rows { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; }
+.tk-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 12px 0 0; list-style: none; }
+.tk-tab .tk-list { padding-top: 0; }
+.tk-list__item { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: var(--jv-row-bg); border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-md); min-width: 0; }
+.tk-list__item--row { flex-direction: row; align-items: center; gap: 10px; }
+.tk-list__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.tk-list__title { flex: 1; min-width: 0; font-size: var(--jv-fs-md); color: var(--jarvis-text-strong); overflow-wrap: anywhere; }
+.tk-list__aside { font-size: var(--jv-fs-xs); color: var(--jarvis-muted); }
+.tk-list__text { margin: 0; font-size: var(--jv-fs-sm); line-height: 1.5; color: var(--jarvis-text); overflow-wrap: anywhere; }
+.tk-list__foot { display: flex; align-items: center; gap: 8px; }
+.tk-list__foot code { font-family: var(--jv-font-mono); font-size: var(--jv-fs-xs); color: var(--jarvis-muted); overflow-wrap: anywhere; }
+.tk-err { color: var(--jarvis-tone-red); }
+
+@media (max-width: 699px) {
+  .tk-page .jv-panel-header__subtitle,
+  .ac-page .jv-panel-header__subtitle,
+  .ap-page .jv-panel-header__subtitle,
+  .ag-page .jv-panel-header__subtitle { display: none; }
+}

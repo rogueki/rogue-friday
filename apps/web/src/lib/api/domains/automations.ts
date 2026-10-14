@@ -1,6 +1,6 @@
 "use client";
 
-import type { components } from "@jarvis/sdk";
+import type { AutomationCreateRequest, AutomationRunListResponse, AutomationRunResponse, AutomationTestRequest, AutomationUpdateRequest, components } from "@jarvis/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
@@ -8,6 +8,8 @@ import { useApiMutation, type IntentVars } from "../mutation";
 import { queryKeys } from "../queryKeys";
 import { staleTimes } from "../staleTimes";
 
+/** The OpenAPI shape of an automation (condition `value` is `unknown` there; the JSON-Schema model narrows it, see PROJECT_STATUS gap 2). */
+export type AutomationDto = components["schemas"]["Automation"];
 type AutomationListResponse = components["schemas"]["AutomationListResponse"];
 type AutomationResponse = components["schemas"]["AutomationResponse"];
 
@@ -19,6 +21,13 @@ export interface AutomationFilters {
 }
 
 export const automationQueries = {
+  runs: (id: string, filters: { limit?: number; cursor?: string } = {}) =>
+    queryOptions({
+      queryKey: [...queryKeys.automations.runs(id), filters] as const,
+      queryFn: (): Promise<AutomationRunListResponse> =>
+        call(getApiClient().GET("/api/v1/automations/{id}/runs", { params: { path: { id }, query: filters } })),
+      staleTime: staleTimes.automations,
+    }),
   list: (filters: AutomationFilters = {}) =>
     queryOptions({
       queryKey: queryKeys.automations.list(filters),
@@ -28,6 +37,8 @@ export const automationQueries = {
 };
 
 export const useAutomations = (filters?: AutomationFilters) => useQuery(automationQueries.list(filters));
+export const useAutomationRuns = (id: string | null | undefined, filters?: { limit?: number; cursor?: string }) =>
+  useQuery({ ...automationQueries.runs(id ?? "", filters), enabled: Boolean(id) });
 
 export function useToggleAutomation(enable: boolean) {
   return useApiMutation<AutomationResponse, { id: string; version?: number } & IntentVars>({
@@ -43,11 +54,68 @@ export function useToggleAutomation(enable: boolean) {
   });
 }
 
+/** Dry run / test with mock data (PLAN §35.3): the server evaluates the trigger against `sampleData` and records a run. */
 export function useTestAutomation() {
-  return useApiMutation<unknown, { id: string; dryRun?: boolean } & IntentVars>({
+  return useApiMutation<AutomationRunResponse, { id: string } & AutomationTestRequest & IntentVars>({
     label: "Automation testen",
-    mutationFn: async ({ id, dryRun }) =>
-      call(getApiClient().POST("/api/v1/automations/{id}/test", { params: { path: { id } }, body: { dryRun: dryRun ?? true } })),
-    invalidate: [queryKeys.automations.all, queryKeys.activity.all],
+    mutationFn: ({ id, dryRun, sampleData }) =>
+      call(
+        getApiClient().POST("/api/v1/automations/{id}/test", {
+          params: { path: { id } },
+          body: { dryRun: dryRun ?? true, ...(sampleData ? { sampleData } : {}) },
+        }),
+      ),
+    invalidate: (data) => [queryKeys.automations.runs(data.data.automationId), queryKeys.automations.lists(), queryKeys.activity.all],
+  });
+}
+
+export function useCreateAutomation() {
+  return useApiMutation<AutomationResponse, AutomationCreateRequest & IntentVars>({
+    label: "Automation anlegen",
+    mutationFn: ({ idempotencyKey, ...body }) =>
+      call(getApiClient().POST("/api/v1/automations", { body, params: { header: { "Idempotency-Key": idempotencyKey } } })),
+    invalidate: [queryKeys.automations.all],
+  });
+}
+
+/** Every definition change increments `version`; `If-Match` makes a concurrent edit a 409 instead of a silent overwrite. */
+export function useUpdateAutomation() {
+  return useApiMutation<AutomationResponse, { id: string; version: number; patch: AutomationUpdateRequest } & IntentVars>({
+    label: "Automation ändern",
+    mutationFn: ({ id, version, patch }) =>
+      call(getApiClient().PATCH("/api/v1/automations/{id}", { params: { path: { id }, header: { "If-Match": String(version) } }, body: patch })),
+    invalidate: [queryKeys.automations.all],
+    conflictKeys: [queryKeys.automations.all],
+  });
+}
+
+export interface PauseAllResult {
+  succeeded: string[];
+  failed: { id: string; message: string }[];
+}
+
+/**
+ * "Pause All" (PLAN §35.3). The contract has no bulk operation: it is one `PATCH { paused }` per automation, each with
+ * its own `If-Match`. Failures are collected per automation instead of aborting the rest.
+ */
+export function usePauseAllAutomations() {
+  return useApiMutation<PauseAllResult, { targets: readonly { id: string; version: number }[]; paused: boolean } & IntentVars>({
+    label: "Alle Automationen pausieren",
+    mutationFn: async ({ targets, paused }) => {
+      const outcomes = await Promise.allSettled(
+        targets.map(({ id, version }) =>
+          call(getApiClient().PATCH("/api/v1/automations/{id}", { params: { path: { id }, header: { "If-Match": String(version) } }, body: { paused } })),
+        ),
+      );
+      const result: PauseAllResult = { succeeded: [], failed: [] };
+      outcomes.forEach((outcome, index) => {
+        const id = targets[index]?.id ?? "";
+        if (outcome.status === "fulfilled") result.succeeded.push(id);
+        else result.failed.push({ id, message: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason) });
+      });
+      return result;
+    },
+    invalidate: [queryKeys.automations.all],
+    conflictKeys: [queryKeys.automations.all],
   });
 }

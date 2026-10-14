@@ -1,7 +1,7 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { VoicePage } from "@/features/voice-page/VoicePage";
 
 export default function Page() {
-  return <ModulePlaceholder page="voice" />;
+  return <VoicePage />;
 }

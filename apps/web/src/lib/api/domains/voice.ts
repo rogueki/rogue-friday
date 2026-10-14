@@ -1,6 +1,14 @@
 "use client";
 
-import type { ActionResult, VoiceMetricsResponse, VoiceStatusResponse, VoiceTestRequest, VoiceTestResultResponse } from "@jarvis/sdk";
+import type {
+  ActionResult,
+  VoiceDeviceListResponse,
+  VoiceMetricsResponse,
+  VoiceProfileListResponse,
+  VoiceStatusResponse,
+  VoiceTestRequest,
+  VoiceTestResultResponse,
+} from "@jarvis/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
@@ -21,10 +29,24 @@ export const voiceQueries = {
       queryFn: (): Promise<VoiceMetricsResponse> => call(getApiClient().GET("/api/v1/voice/metrics")),
       staleTime: staleTimes.voice,
     }),
+  profiles: () =>
+    queryOptions({
+      queryKey: queryKeys.voice.profiles,
+      queryFn: (): Promise<VoiceProfileListResponse> => call(getApiClient().GET("/api/v1/voice/profiles")),
+      staleTime: staleTimes.voice,
+    }),
+  devices: () =>
+    queryOptions({
+      queryKey: queryKeys.voice.devices,
+      queryFn: (): Promise<VoiceDeviceListResponse> => call(getApiClient().GET("/api/v1/voice/devices")),
+      staleTime: staleTimes.voice,
+    }),
 };
 
 export const useVoiceStatus = () => useQuery(voiceQueries.status());
 export const useVoiceMetrics = () => useQuery(voiceQueries.metrics());
+export const useVoiceProfiles = () => useQuery(voiceQueries.profiles());
+export const useVoiceDevices = () => useQuery(voiceQueries.devices());
 
 export function useStopVoice() {
   return useApiMutation<ActionResult, IntentVars>({

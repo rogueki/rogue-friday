@@ -1,7 +1,12 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { Suspense } from "react";
+import { TasksPage } from "@/features/tasks/TasksPage";
 
 export default function Page() {
-  return <ModulePlaceholder page="tasks" />;
+  return (
+    <Suspense fallback={null}>
+      <TasksPage />
+    </Suspense>
+  );
 }

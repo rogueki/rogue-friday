@@ -1,7 +1,7 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { ResearchPage } from "@/features/research/ResearchPage";
 
 export default function Page() {
-  return <ModulePlaceholder page="research" />;
+  return <ResearchPage />;
 }

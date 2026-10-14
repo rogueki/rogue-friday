@@ -1,7 +1,7 @@
 "use client";
 
 import type { ApprovalResponse, ChannelListResponse, components, DraftCreateRequest, DraftUpdateRequest, Priority, ThreadListResponse, ThreadResponse } from "@jarvis/sdk";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery, type QueryClient } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
 import { useApiMutation, type IntentVars } from "../mutation";
@@ -73,16 +73,36 @@ export function useUpdateDraft() {
   });
 }
 
+/** Creates the send approval; `version` pins the draft revision the user looked at (If-Match). */
 export function useRequestDraftSend() {
-  return useApiMutation<ApprovalResponse, { id: string; comment?: string } & IntentVars>({
+  return useApiMutation<ApprovalResponse, { id: string; version?: number; comment?: string } & IntentVars>({
     label: "Versand anfragen",
-    mutationFn: ({ id, comment, idempotencyKey }) =>
+    mutationFn: ({ id, version, comment, idempotencyKey }) =>
       call(
         getApiClient().POST("/api/v1/communication/drafts/{id}/request-send", {
-          params: { path: { id }, header: { "Idempotency-Key": idempotencyKey } },
+          params: { path: { id }, header: { "Idempotency-Key": idempotencyKey, ...(version === undefined ? {} : { "If-Match": String(version) }) } },
           body: { comment },
         }),
       ),
     invalidate: [...invalidate, queryKeys.approvals.all],
+    conflictKeys: [queryKeys.communication.drafts.all],
   });
+}
+
+/**
+ * The contract has no `GET /communication/drafts/{id}`: drafts are known from create/update responses and from
+ * `jarvis.communication.draft_updated` events. This hook only reads that cache entry (it never fetches).
+ */
+export const useCachedDraft = (id: string | null | undefined) =>
+  useQuery<DraftResponse>({
+    queryKey: queryKeys.communication.drafts.detail(id ?? ""),
+    queryFn: () => Promise.reject(new Error("Entwürfe können nicht einzeln abgerufen werden.")),
+    enabled: false,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+
+/** Writes a draft returned by the API into the cache so the thread view can show and edit it. */
+export function seedDraftCache(queryClient: QueryClient, response: DraftResponse): void {
+  queryClient.setQueryData(queryKeys.communication.drafts.detail(response.data.id), response);
 }

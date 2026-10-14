@@ -25,7 +25,7 @@ export const notificationQueries = {
     }),
 };
 
-export const useNotifications = (filters?: NotificationFilters) => useQuery(notificationQueries.list(filters));
+export const useNotifications = (filters?: NotificationFilters, enabled = true) => useQuery({ ...notificationQueries.list(filters), enabled });
 
 const invalidate = [queryKeys.notifications.all, queryKeys.overview] as const;
 const ifMatch = (version: number | undefined): Record<string, string> => (version === undefined ? {} : { "If-Match": String(version) });

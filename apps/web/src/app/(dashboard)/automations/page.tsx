@@ -1,7 +1,7 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { AutomationsPage } from "@/features/automations/AutomationsPage";
 
 export default function Page() {
-  return <ModulePlaceholder page="automations" />;
+  return <AutomationsPage />;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { AuditPage } from "@/features/audit/AuditPage";
 
 export default function Page() {
-  return <ModulePlaceholder page="audit" />;
+  return <AuditPage />;
 }

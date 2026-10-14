@@ -1,7 +1,7 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { CalendarPage } from "@/features/calendar/CalendarPage";
 
 export default function Page() {
-  return <ModulePlaceholder page="calendar" />;
+  return <CalendarPage />;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { MemoryPage } from "@/features/memory/MemoryPage";
 
 export default function Page() {
-  return <ModulePlaceholder page="memory" />;
+  return <MemoryPage />;
 }
