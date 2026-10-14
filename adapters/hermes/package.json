@@ -1,0 +1,23 @@
+{
+  "name": "@jarvis/adapter-hermes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hermes Agent adapter (tasks/kanban, activity, agents)",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "smoke": "tsx scripts/live-smoke.ts"
+  },
+  "dependencies": {
+    "@jarvis/adapter-core": "workspace:*",
+    "@jarvis/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@jarvis/adapter-testkit": "workspace:*",
+    "ajv": "^8.20.0"
+  }
+}

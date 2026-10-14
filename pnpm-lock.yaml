@@ -104,6 +104,9 @@ importers:
       '@jarvis/adapter-testkit':
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
 
   adapters/hermes-placeholder:
     dependencies:
