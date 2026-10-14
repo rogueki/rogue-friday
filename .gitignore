@@ -25,3 +25,5 @@ PROMPT.md
 .claude/settings.local.json
 .kimi/
 .openclaw/
+__pycache__/
+*.pyc
