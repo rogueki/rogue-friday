@@ -14,7 +14,10 @@
     "dev:api": "pnpm --filter @jarvis/control-api dev",
     "dev:web": "pnpm --filter @jarvis/web dev",
     "build": "pnpm -r --workspace-concurrency=1 build",
+    "build:app": "pnpm -r --workspace-concurrency=1 --filter @jarvis/web --filter @jarvis/control-api build",
     "start": "pnpm --filter @jarvis/control-api start",
+    "start:hybrid": "node scripts/start-hybrid.mjs",
+    "fake:upstreams": "tsx scripts/fake-upstreams/cli.ts",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -22,6 +25,7 @@
     "test": "vitest run",
     "test:conformance": "pnpm --filter @jarvis/adapter-testkit test:conformance",
     "test:e2e": "playwright test",
+    "test:integration": "playwright test --config playwright.integration.config.ts",
     "storybook": "pnpm --filter @jarvis/storybook dev",
     "scenario": "pnpm --filter @jarvis/mock-console start --"
   },

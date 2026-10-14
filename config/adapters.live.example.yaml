@@ -1,0 +1,69 @@
+# F.R.I.D.A.Y. Command Center - Adapter-Registry fuer den LIVE-Betrieb mit der Installer-Umgebung (PLAN 10.9 / 10.10)
+# Kopieren nach config/adapters.yaml und dashboard.live.example.yaml nach config/dashboard.yaml.
+#
+# Live: nur die hier genannten Kategorien sind aktiv; alle anderen sind deaktiviert (nicht gemockt) und erscheinen in der
+# Oberflaeche als "nicht angebunden". Es gibt keine Simulationsdaten. Ports und Schluessel stammen aus dem Installer
+# (C:\Jarvis): 43691 Hermes-Dashboard, 43692 Qwen, 43693 Hermes-API-Server, 43694 Voice-Statusserver.
+#
+# Geheimnisse nur als Referenz: file:<absoluter Pfad>, env:NAME oder wincred:ZIEL (siehe adapters.hybrid.example.yaml).
+
+allowlist:
+  hermes-tasks: "@jarvis/adapter-hermes"
+  hermes-activity: "@jarvis/adapter-hermes"
+  hermes-agents: "@jarvis/adapter-hermes"
+  jarvis-voice-http: "@jarvis/adapter-voice-http"
+  local-system: "@jarvis/adapter-system-local"
+
+adapters:
+  tasks:
+    provider: hermes-tasks
+    enabled: true
+    timeoutMs: 10000
+    retry: { maxAttempts: 3, baseDelayMs: 250, maxDelayMs: 4000, jitter: 0.2 }
+    circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
+    config:
+      dashboardBaseUrl: http://127.0.0.1:43691
+      dashboardAuth: scrape
+      boards: [default]
+  activity:
+    provider: hermes-activity
+    enabled: true
+    timeoutMs: 10000
+    retry: { maxAttempts: 3, baseDelayMs: 250, maxDelayMs: 4000, jitter: 0.2 }
+    circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
+    config:
+      apiBaseUrl: http://127.0.0.1:43693
+      apiKey: "file:${HERMES_API_KEY_FILE:-C:/Jarvis/config/hermes_api.key}"
+      dashboardBaseUrl: http://127.0.0.1:43691
+      boards: [default]
+  agents:
+    provider: hermes-agents
+    enabled: true
+    timeoutMs: 10000
+    retry: { maxAttempts: 3, baseDelayMs: 250, maxDelayMs: 4000, jitter: 0.2 }
+    circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
+    config:
+      apiBaseUrl: http://127.0.0.1:43693
+      apiKey: "file:${HERMES_API_KEY_FILE:-C:/Jarvis/config/hermes_api.key}"
+      dashboardBaseUrl: http://127.0.0.1:43691
+      boards: [default]
+  voice:
+    provider: jarvis-voice-http
+    enabled: true
+    timeoutMs: 3000
+    config:
+      baseUrl: http://127.0.0.1:43694
+      localModelUrl: http://127.0.0.1:43692
+      wakePhrase: Hey Friday
+  system:
+    provider: local-system
+    enabled: true
+    timeoutMs: 5000
+    config:
+      qwenUrl: http://127.0.0.1:43692
+      hermesApiUrl: http://127.0.0.1:43693
+      hermesDashboardUrl: http://127.0.0.1:43691
+      voiceUrl: http://127.0.0.1:43694
+      hermesApiKey: "file:${HERMES_API_KEY_FILE:-C:/Jarvis/config/hermes_api.key}"
+      storagePaths: ["${JARVIS_STORAGE_PATH:-C:/}"]
+      wslDistro: Ubuntu
