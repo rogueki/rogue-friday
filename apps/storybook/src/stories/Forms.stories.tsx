@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Activity, Bot, Settings } from 'lucide-react';
 import { useState } from 'react';
-import { SearchField, Select, Slider, Switch, Tabs, TextField } from '@jarvis/ui';
+import { SearchField, Select, Slider, Switch, Tabs, TextArea, TextField } from '@jarvis/ui';
 import { Section } from './_helpers';
 
 const meta = { title: 'Components/Forms', parameters: { layout: 'fullscreen' } } satisfies Meta;
@@ -33,6 +33,18 @@ export const TextFields: Story = {
       <TextField label="Fehler" error="Der Wert darf nicht leer sein." defaultValue="" required />
       <TextField label="Deaktiviert" disabled defaultValue="Schreibgeschützt (read-only capability)" />
       <TextField label="Mit Icon" icon={<Bot size={15} />} suffix="ms" defaultValue="182" />
+    </div>
+  ),
+};
+
+export const TextAreas: Story = {
+  name: 'TextArea',
+  render: () => (
+    <div style={wrap}>
+      <TextArea label="Notiz" placeholder="Was soll F.R.I.D.A.Y. beachten?" />
+      <TextArea label="Mit Hinweis und Zähler" hint="Wird an die Aufgabe angehängt." showCount maxLength={240} defaultValue="Bitte vor dem Versand die Anhänge prüfen." rows={3} />
+      <TextArea label="Begründung" required error="Eine Begründung ist erforderlich." />
+      <TextArea label="Deaktiviert" disabled defaultValue="Schreibgeschützt (read-only capability)" rows={2} />
     </div>
   ),
 };

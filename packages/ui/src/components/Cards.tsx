@@ -312,21 +312,39 @@ export const AlertCard = forwardRef<HTMLDivElement, AlertCardProps>(function Ale
   ref,
 ) {
   const tone = severityTone[severity];
+  // A card that is a button must not contain another button: with an acknowledge action the card stays mouse-clickable
+  // while the title becomes the keyboard-reachable button (axe: nested-interactive).
+  const hasAction = Boolean(onAcknowledge && !acknowledged && capability !== 'missing');
+  const titleButton = Boolean(onClick && hasAction);
   return (
     <div
       ref={ref}
       className={cx('jv-card jv-alert', `jv-tone-${tone}`, acknowledged && 'jv-alert--ack', selected && 'jv-card--selected', onClick && 'jv-card--clickable', className)}
       data-severity={severity}
-      {...interactiveProps(onClick)}
+      {...(titleButton ? { onClick } : interactiveProps(onClick))}
       {...rest}
     >
       <IconTile icon={severityIcon[severity]} tone={tone} size="md" active={severity === 'critical' && !acknowledged} />
       <div className="jv-alert__main">
         <div className="jv-alert__top">
           <TagPill tone={tone}>{defaultSeverityLabels[severity]}</TagPill>
-          <span className="jv-alert__title" title={title}>
-            {title}
-          </span>
+          {titleButton ? (
+            <button
+              type="button"
+              className="jv-alert__title jv-alert__title--button"
+              title={title}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick?.();
+              }}
+            >
+              {title}
+            </button>
+          ) : (
+            <span className="jv-alert__title" title={title}>
+              {title}
+            </span>
+          )}
         </div>
         {description ? <p className="jv-alert__desc">{description}</p> : null}
         <div className="jv-alert__foot">

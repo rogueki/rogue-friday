@@ -44,10 +44,10 @@ export const TopAndBottomBars: Story = {
       </Section>
       <Section title="BottomCommandBar – listening · speaking (Gold) · paused · compact">
         <div style={{ display: 'grid', gap: 12 }}>
-          <BottomCommandBar chips={contextChips} state="listening" quickAction={{ label: 'Executive Briefing', icon: <Zap size={14} /> }} />
-          <BottomCommandBar chips={contextChips} state="speaking" statusText="F.R.I.D.A.Y. spricht …" quickAction={{ label: 'Executive Briefing' }} />
-          <BottomCommandBar chips={contextChips} state="idle" paused statusText="Pausiert" quickAction={{ label: 'Executive Briefing' }} />
-          <BottomCommandBar compact state="thinking" />
+          <BottomCommandBar aria-label="Befehlsleiste: Zuhören" chips={contextChips} state="listening" quickAction={{ label: 'Executive Briefing', icon: <Zap size={14} /> }} />
+          <BottomCommandBar aria-label="Befehlsleiste: Sprechen" chips={contextChips} state="speaking" statusText="F.R.I.D.A.Y. spricht …" quickAction={{ label: 'Executive Briefing' }} />
+          <BottomCommandBar aria-label="Befehlsleiste: Pausiert" chips={contextChips} state="idle" paused statusText="Pausiert" quickAction={{ label: 'Executive Briefing' }} />
+          <BottomCommandBar aria-label="Befehlsleiste: Kompakt" compact state="thinking" />
         </div>
       </Section>
     </div>
@@ -71,10 +71,10 @@ export const LeftNav: Story = {
     return (
       <div style={{ display: 'flex', gap: 24, padding: 16, height: '100vh' }}>
         <div style={{ width: 264 }}>
-          <LeftCommandNav items={navItems} activeId={active} onNavigate={setActive} collapsed={false} footer={<VoiceStatusPanel state="listening" onFocusModeToggle={() => undefined} collapsed={false} />} />
+          <LeftCommandNav aria-label="Seitenleiste (erweitert)" items={navItems} activeId={active} onNavigate={setActive} navLabel="Hauptnavigation (erweitert)" collapsed={false} footer={<VoiceStatusPanel state="listening" onFocusModeToggle={() => undefined} collapsed={false} />} />
         </div>
         <div style={{ width: 68 }}>
-          <LeftCommandNav items={navItems} activeId={active} onNavigate={setActive} collapsed footer={<VoiceStatusPanel state="idle" collapsed onFocusModeToggle={() => undefined} />} />
+          <LeftCommandNav aria-label="Seitenleiste (kompakt)" items={navItems} activeId={active} onNavigate={setActive} navLabel="Hauptnavigation (kompakt)" collapsed footer={<VoiceStatusPanel state="idle" collapsed onFocusModeToggle={() => undefined} />} />
         </div>
       </div>
     );

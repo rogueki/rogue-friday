@@ -4,6 +4,8 @@ import '@jarvis/ui/styles.css';
 import { mswLoader } from 'msw-storybook-addon/csf3';
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { initialHandlers } from './handlers';
+import '../../web/src/app/web.css';
+import '../../web/src/app/responsive.css';
 import './preview.css';
 
 interface HudStageProps {

@@ -474,7 +474,7 @@ export const TopStatusBar = forwardRef<HTMLElement, TopStatusBarProps>(function 
       </div>
 
       <div className="jv-topbar__right">
-        <button type="button" className="jv-topbar__search" onClick={onSearchClick} aria-keyshortcuts="Control+K" aria-label={`${searchLabel} (${searchHint})`}>
+        <button type="button" className="jv-topbar__search" onClick={onSearchClick} aria-keyshortcuts="Control+K" aria-label={`${searchLabel} ${searchHint}`}>
           <Search size={15} strokeWidth={1.5} aria-hidden="true" />
           <span className="jv-topbar__search-label">{searchLabel}</span>
           <kbd className="jv-kbd">{searchHint}</kbd>
@@ -489,7 +489,7 @@ export const TopStatusBar = forwardRef<HTMLElement, TopStatusBarProps>(function 
           />
         ))}
         {operator ? (
-          <div className="jv-operator" aria-label={`Operator: ${operator.name}${operator.role ? `, ${operator.role}` : ''}`}>
+          <div className="jv-operator" role="group" aria-label={`Operator: ${operator.name}${operator.role ? `, ${operator.role}` : ''}`}>
             <div className="jv-operator__text">
               <span className="jv-operator__name">{operator.name}</span>
               {operator.role ? <span className="jv-operator__role">{operator.role}</span> : null}

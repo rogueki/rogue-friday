@@ -6,8 +6,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { mockElementSize } from '../test-utils';
 import { CircularMetric } from './Metrics';
 import { ConfirmDialog, CommandPalette, Dialog, fuzzyScore, type CommandItem } from './Overlays';
-import { FreshnessBadge } from './Primitives';
-import { Tabs } from './Forms';
+import { FreshnessBadge, StatusFlag } from './Primitives';
+import { Tabs, TextArea } from './Forms';
+import { EmptyState, ErrorState, OfflineState } from './States';
 import { ActivityFeed, DataTable, type DataTableColumn } from './Lists';
 
 const items: CommandItem[] = [
@@ -283,5 +284,68 @@ describe('virtualization', () => {
     const count = screen.getAllByRole('listitem').length;
     expect(count).toBeGreaterThan(0);
     expect(count).toBeLessThan(40);
+  });
+});
+
+describe('TextArea', () => {
+  it('links label, hint and error to the textarea and reports changes', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = render(<TextArea label="Notiz" hint="Wird lokal gespeichert." onChange={onChange} />);
+    const field = screen.getByLabelText('Notiz');
+    expect(field.tagName).toBe('TEXTAREA');
+    expect(field).toHaveAccessibleDescription('Wird lokal gespeichert.');
+    expect(field).not.toHaveAttribute('aria-invalid');
+    await user.type(field, 'abc');
+    expect(onChange).toHaveBeenCalledTimes(3);
+
+    rerender(<TextArea label="Notiz" hint="Wird lokal gespeichert." error="Darf nicht leer sein." />);
+    expect(screen.getByLabelText('Notiz')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Notiz')).toHaveAccessibleDescription('Darf nicht leer sein.');
+    expect(screen.getByRole('alert')).toHaveTextContent('Darf nicht leer sein.');
+  });
+
+  it('shows a character counter, marks required and honours hideLabel and disabled', async () => {
+    const user = userEvent.setup();
+    render(<TextArea label="Begründung" required showCount maxLength={20} hideLabel />);
+    const field = screen.getByLabelText(/Begründung/);
+    expect(field).toBeRequired();
+    expect(field).toHaveAccessibleDescription('0 / 20');
+    await user.type(field, 'Hallo');
+    expect(field).toHaveAccessibleDescription('5 / 20');
+    expect(screen.getByText(/Begründung/, { selector: 'label' })).toHaveClass('jv-sr-only');
+  });
+
+  it('is disabled for read-only capabilities', () => {
+    render(<TextArea label="Notiz" disabled defaultValue="gesperrt" />);
+    expect(screen.getByLabelText('Notiz')).toBeDisabled();
+  });
+});
+
+describe('StatusFlag', () => {
+  it('exposes its text alternative as hidden text, not as aria-label on a role-less span', () => {
+    const { container } = render(<StatusFlag icon={<svg />} label="Wake-Word" value="bereit" tone="ok" />);
+    const flag = container.querySelector('.jv-flag') as HTMLElement;
+    expect(flag).not.toHaveAttribute('aria-label');
+    expect(flag).toHaveTextContent('Wake-Word: bereit');
+    expect(flag).toHaveAttribute('tabindex', '0');
+    expect(flag).toHaveClass('jv-flag--ok');
+  });
+});
+
+describe('compact states', () => {
+  it('render title, description and the action in one wrapping container', () => {
+    render(
+      <div>
+        <EmptyState compact title="Keine Freigaben" action={<button type="button">Anlegen</button>} />
+        <ErrorState compact title="Nicht verfügbar" onRetry={() => undefined} />
+        <OfflineState compact title="Offline" onRetry={() => undefined} />
+      </div>,
+    );
+    for (const state of document.querySelectorAll('.jv-state--compact')) {
+      expect(state.querySelector('.jv-state__text')).not.toBeNull();
+      expect(state.querySelector('.jv-state__actions button')).not.toBeNull();
+    }
+    expect(document.querySelectorAll('.jv-state--compact')).toHaveLength(3);
   });
 });

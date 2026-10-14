@@ -1,4 +1,18 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src", "test", ".storybook", "*.ts", "*.tsx"]
+  "include": [
+    "src",
+    "test",
+    ".storybook",
+    "*.ts",
+    "*.tsx",
+    "../web/src/css.d.ts"
+  ],
+  "compilerOptions": {
+    "paths": {
+      "@/*": [
+        "../web/src/*"
+      ]
+    }
+  }
 }

@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react';
-import { forwardRef, useId, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
 import { cx } from '../cx';
 import type { Corner, PanelCut, PanelCutSize, PanelLevel, PanelTone } from '../types';
 
@@ -175,6 +175,26 @@ export const HudPanel = forwardRef<HTMLElement, HudPanelProps>(function HudPanel
   const titleId = useId();
   const bracketCorners = brackets === true ? defaultBrackets[cut] : brackets === false ? [] : brackets;
   const glowOn = glow ?? level >= 2;
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [scrollable, setScrollable] = useState(false);
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!scroll || !body) {
+      setScrollable(false);
+      return;
+    }
+    const measure = (): void => setScrollable(body.scrollHeight > body.clientHeight + 1 || body.scrollWidth > body.clientWidth + 1);
+    measure();
+    const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    resize?.observe(body);
+    // Content growing inside a fixed-height body does not resize the body itself.
+    const mutations = typeof MutationObserver === 'undefined' ? null : new MutationObserver(measure);
+    mutations?.observe(body, { childList: true, subtree: true });
+    return () => {
+      resize?.disconnect();
+      mutations?.disconnect();
+    };
+  }, [scroll]);
   const labelled = !rest['aria-label'] && !rest['aria-labelledby'] && title && typeof title === 'string';
 
   return (
@@ -213,7 +233,14 @@ export const HudPanel = forwardRef<HTMLElement, HudPanelProps>(function HudPanel
               headingLevel={headingLevel}
             />
           ) : null)}
-        <div className={cx('jv-panel__body', `jv-panel__body--${padding}`, scroll && 'jv-panel__body--scroll', bodyClassName)}>
+        <div
+          ref={bodyRef}
+          className={cx('jv-panel__body', `jv-panel__body--${padding}`, scroll && 'jv-panel__body--scroll', bodyClassName)}
+          // Keyboard users must be able to scroll overflowing content (axe: scrollable-region-focusable).
+          tabIndex={scrollable ? 0 : undefined}
+          role={scrollable && labelled ? 'group' : undefined}
+          aria-labelledby={scrollable && labelled ? titleId : undefined}
+        >
           {children}
         </div>
         {footer ? <div className="jv-panel__footer">{footer}</div> : null}

@@ -95,8 +95,9 @@ export function Badge({ count, max = 99, tone = 'cyan', label, showZero = false,
   if (count <= 0 && !showZero) return null;
   const text = count > max ? `${max}+` : String(count);
   return (
-    <span className={cx('jv-badge', `jv-tone-${tone}`, className)} aria-label={label ?? `${count}`} {...rest}>
+    <span className={cx('jv-badge', `jv-tone-${tone}`, className)} {...rest}>
       <span aria-hidden="true">{text}</span>
+      <span className="jv-sr-only">{label ?? count}</span>
     </span>
   );
 }
@@ -116,6 +117,36 @@ export function StatusChip({ tone = 'cyan', icon, dot = true, pulse = false, cla
     <span className={cx('jv-chip', `jv-tone-${tone}`, className)} {...rest}>
       {icon ? <span className="jv-chip__icon">{icon}</span> : dot ? <StatusDot tone={tone} pulse={pulse} /> : null}
       <span className="jv-chip__label">{children}</span>
+    </span>
+  );
+}
+
+/* ── StatusFlag ─────────────────────────────────────────────────────────── */
+
+export interface StatusFlagProps extends Omit<HTMLAttributes<HTMLSpanElement>, 'children' | 'aria-label'> {
+  icon: ReactNode;
+  /** What is flagged, e.g. "Wake-Word". */
+  label: string;
+  /** Current state in words, e.g. "bereit". */
+  value: string;
+  tone?: 'ok' | 'warn' | 'off';
+  /** Reachable by keyboard so the (tooltip) text can be read; default true. */
+  focusable?: boolean;
+}
+
+/**
+ * Icon-only status marker. The text alternative is visually hidden text rather than `aria-label` on a role-less
+ * `<span>` (axe: aria-prohibited-attr); the icon itself is decorative.
+ */
+export function StatusFlag({ icon, label, value, tone = 'off', focusable = true, className, ...rest }: StatusFlagProps) {
+  return (
+    <span className={cx('jv-flag', tone !== 'off' && `jv-flag--${tone}`, className)} tabIndex={focusable ? 0 : undefined} {...rest}>
+      <span aria-hidden="true" className="jv-flag__icon">
+        {icon}
+      </span>
+      <span className="jv-sr-only">
+        {label}: {value}
+      </span>
     </span>
   );
 }

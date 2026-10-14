@@ -117,7 +117,7 @@
 .st-color__input:focus-visible { outline: 1px solid var(--jarvis-focus); outline-offset: 2px; }
 .st-color__input:disabled { cursor: not-allowed; opacity: 0.6; }
 .st-preview__body { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
-.st-preview__orb { width: 64px; height: 64px; border-radius: 50%; background: radial-gradient(circle at 40% 38%, var(--jarvis-orb-hot), var(--jarvis-orb-gold) 42%, var(--jarvis-orb-orange) 70%, var(--jarvis-orb-deep)); box-shadow: 0 0 calc(24px * var(--jv-orb-intensity, 1)) color-mix(in srgb, var(--jarvis-orb-gold) 55%, transparent); }
+.st-preview__orb { position: relative; display: block; width: 96px; height: 96px; flex: none; overflow: hidden; }
 .st-preview__chips, .st-preview__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* navigation sorter */
