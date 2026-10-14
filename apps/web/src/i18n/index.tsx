@@ -20,10 +20,17 @@ export function resolveAssistantName(configured: string | null | undefined): str
 const dictionaries: Record<Locale, Record<MessageKey, string>> = { de, en };
 
 /** Pure translation (also used outside React, e.g. in tests). Missing keys fall back to German, then to the key. */
-export function translate(locale: Locale, key: MessageKey, vars?: MessageVars, assistantName: string = DEFAULT_ASSISTANT_NAME): string {
+export function translate(
+  locale: Locale,
+  key: MessageKey,
+  vars?: MessageVars,
+  assistantName: string = DEFAULT_ASSISTANT_NAME,
+): string {
   const template = dictionaries[locale][key] ?? de[key] ?? key;
   const values: MessageVars = { assistant: assistantName, ...vars };
-  return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in values ? String(values[name]) : match));
+  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
+    name in values ? String(values[name]) : match,
+  );
 }
 
 export type TranslateFn = (key: MessageKey, vars?: MessageVars) => string;
@@ -35,10 +42,22 @@ interface I18nValue {
   assistantName: string;
 }
 
-const defaultValue: I18nValue = { locale: "de", t: (key, vars) => translate("de", key, vars), assistantName: DEFAULT_ASSISTANT_NAME };
+const defaultValue: I18nValue = {
+  locale: "de",
+  t: (key, vars) => translate("de", key, vars),
+  assistantName: DEFAULT_ASSISTANT_NAME,
+};
 const I18nContext = createContext<I18nValue>(defaultValue);
 
-export function I18nProvider({ locale, assistantName = DEFAULT_ASSISTANT_NAME, children }: { locale: Locale; assistantName?: string; children: ReactNode }) {
+export function I18nProvider({
+  locale,
+  assistantName = DEFAULT_ASSISTANT_NAME,
+  children,
+}: {
+  locale: Locale;
+  assistantName?: string;
+  children: ReactNode;
+}) {
   const value = useMemo<I18nValue>(
     () => ({ locale, assistantName, t: (key, vars) => translate(locale, key, vars, assistantName) }),
     [locale, assistantName],
