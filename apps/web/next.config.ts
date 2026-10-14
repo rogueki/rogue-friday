@@ -14,6 +14,8 @@ const standaloneMock = process.env.NEXT_PUBLIC_JARVIS_MSW === "1";
 
 const config: NextConfig = {
   output: "export",
+  // Separate build dirs let several dev servers run side by side (e.g. parallel QA sessions); default ".next".
+  ...(process.env.JARVIS_NEXT_DIST_DIR ? { distDir: process.env.JARVIS_NEXT_DIST_DIR } : {}),
   // Workspace libraries ship TypeScript source (conventions §1).
   transpilePackages: WORKSPACE_PACKAGES,
   images: { unoptimized: true },
