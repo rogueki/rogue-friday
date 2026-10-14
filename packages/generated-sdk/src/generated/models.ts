@@ -2464,6 +2464,10 @@ export interface OverviewResponse {
 }
 export interface ProfileSettings {
   displayName: string;
+  /**
+   * Visible brand name of the assistant (UI, orb labels, voice copy). Optional; clients fall back to "F.R.I.D.A.Y.".
+   */
+  assistantName?: string;
   locale: "de" | "en";
   timeZone: string;
   dateFormat: "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy";

@@ -4021,6 +4021,11 @@ export interface components {
         Priority: "P0" | "P1" | "P2" | "P3" | "P4";
         /** ProfileSettings */
         ProfileSettings: {
+            /**
+             * @description Visible brand name of the assistant (UI, orb labels, voice copy). Optional; clients fall back to "F.R.I.D.A.Y.".
+             * @default F.R.I.D.A.Y.
+             */
+            assistantName: string;
             /** @enum {string} */
             dateFormat: "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy";
             displayName: string;
