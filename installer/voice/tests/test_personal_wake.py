@@ -5,7 +5,7 @@ Ausfuehren (Linux/Windows, nur numpy noetig; Modelltraining zusaetzlich scikit-l
   python3 -m pytest installer/voice/tests          oder          python3 installer/voice/tests/test_personal_wake.py
 """
 import collections
-import importlib
+import importlib.util
 import json
 import os
 import queue
@@ -25,11 +25,7 @@ for path in (VOICE, COMMON):
 import persona  # noqa: E402
 import personal_wake as pw  # noqa: E402
 
-try:
-    import sklearn  # noqa: F401
-    HAVE_SKLEARN = True
-except ImportError:
-    HAVE_SKLEARN = False
+HAVE_SKLEARN = importlib.util.find_spec("sklearn") is not None
 
 
 # ------------------------------------------------------------------------------------------------ Name & Slug

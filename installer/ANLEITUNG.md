@@ -16,8 +16,9 @@ komplett ein. Den **Namen kannst du selbst wählen** (Standard: *Friday*, z. B. 
 1. **Windows 11** (Windows 10 geht eingeschränkt), alle Updates installiert.
 2. **NVIDIA-Grafiktreiber** aktuell (GeForce Experience / NVIDIA App). Ohne NVIDIA läuft der Assistent auch, nur langsamer.
 3. Dein Windows-Benutzer muss **Administrator** sein.
-4. **Kimi Code** einrichten: `install-kira.bat` ausführen (die Datei bekommst du separat). Der Installer erkennt den
-   Kimi-Schlüssel dann automatisch. Alternativ fragt er dich danach.
+4. **Kimi-API-Schlüssel** bereithalten. Hat eine frühere Kimi-Code-Einrichtung auf diesem PC die Umgebungsvariable
+   `KIMI_API_KEY` gesetzt, findet der Installer sie und fragt in Schritt 10 zur Bestätigung (*„Verwenden? (j/n)“*).
+   Sonst (oder bei *n*) fragt er nach dem Schlüssel (Eingabe bleibt unsichtbar).
 5. **Mikrofon und Lautsprecher** angeschlossen, ruhiger Raum für die Stimmaufnahme.
 6. Mindestens **40 GB frei** auf C:, stabile Internetverbindung (ca. 10 GB Downloads).
 7. Das **komplette Paket** entpacken (nicht nur den Ordner `installer`): für das Command Center müssen die Ordner `apps`,
@@ -35,7 +36,7 @@ komplett ein. Den **Namen kannst du selbst wählen** (Standard: *Friday*, z. B. 
    - dem **Charakter** (Butler / freundlich / sachlich) und wie ausführlich er antwortet
    - optional ein paar Infos über dich (Beruf, Interessen …)
    - einem **Linux-Benutzernamen und Passwort** (gut merken!)
-   - deinem **Kimi-Schlüssel** (falls nicht automatisch gefunden)
+   - deinem **Kimi-Schlüssel** (Bestätigung eines gefundenen Schlüssels oder Eingabe)
    - ganz am Ende (Schritt 15) einem **Passwort für das Command Center** (mindestens 12 Zeichen, zweimal eingeben). Benutzername
      beim Login ist `owner`. Gespeichert wird nur ein Hash, nie das Passwort selbst.
 4. **Neustart:** Falls WSL noch fehlt, startet Windows einmal neu. Danach geht es **automatisch weiter**.
@@ -81,7 +82,10 @@ starten** – erledigte Schritte werden übersprungen.
 **Persönlichkeit neu einstellen:** In `C:\Jarvis\config\install-state.json` die Einträge `"persona"`, `"hermes"` und
 `"voicepython"` aus der Liste `done` löschen und `install-jarvis.bat` erneut starten.
 **Stimme / Wake Word neu einlernen (gleicher Name):** Ordner `C:\Jarvis\voice\profiles\owner` löschen, die Einträge
-`"enroll"` und `"voiceservice"` aus `done` entfernen, `install-jarvis.bat` erneut starten (der alte Sprachdienst wird dabei beendet).
+`"enroll"` und `"voiceservice"` aus `done` entfernen, `install-jarvis.bat` erneut starten (der alte Sprachdienst samt Neustartschleife wird dabei beendet).
+**Sprachdienst stoppen:** Nicht nur die Aufgabe `JARVIS_Voice` beenden – eine Neustartschleife läuft getrennt weiter und startet Python nach 10 s neu.
+Der Installer beendet beides; manuell: in der Aufgabenverwaltung den `powershell`-Prozess mit `start-jarvis-voice.ps1` und `python.exe` mit `jarvis_voice.py` beenden.
+**Update des Sprachdienstes:** Neues Paket entpacken und `install-jarvis.bat` starten – geänderte Sprachdateien werden bei jedem Start nach `C:\Jarvis\voice` kopiert (Profile und Modelle bleiben) und der laufende Sprachdienst wird neu gestartet.
 
 ## Command Center aktualisieren
 
