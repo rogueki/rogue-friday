@@ -269,7 +269,9 @@ function resolveAdapters(
   for (const category of ADAPTER_CATEGORIES) {
     const entry = configured[category] as Tree | undefined;
     const mock = mockProviderId(category);
-    const defaults = { timeoutMs: 5000, retry: { maxAttempts: 3, baseDelayMs: 200, maxDelayMs: 5000, jitter: 0.2 }, circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 } };
+    // Registry-level retry is opt-in (1 attempt): the adapters' HTTP clients already retry transport errors, and
+    // stacking both multiplies attempts and timeouts during an outage.
+    const defaults = { timeoutMs: 5000, retry: { maxAttempts: 1, baseDelayMs: 200, maxDelayMs: 5000, jitter: 0.2 }, circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 } };
 
     if (!entry) {
       out[category] =

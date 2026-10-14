@@ -59,7 +59,7 @@
           "additionalProperties": false,
           "default": {},
           "properties": {
-            "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 10, "default": 3 },
+            "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 10, "default": 1 },
             "baseDelayMs": { "type": "integer", "minimum": 0, "maximum": 60000, "default": 200 },
             "maxDelayMs": { "type": "integer", "minimum": 0, "maximum": 600000, "default": 5000 },
             "jitter": {
