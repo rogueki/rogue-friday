@@ -13,13 +13,15 @@ test-results/
 data/
 logs/
 backups/
-# lokale Agent-/KI-Metadaten
+# lokale Agent-/KI-Metadaten (CLAUDE.md, .claude/settings.json und .claude/agents/ sind für Cloud-Sessions bewusst versioniert)
 AGENTS.md
-CLAUDE.md
 MEMORY.md
 SCOPE.md
 PROMPT.md
 .learnings/
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/agents/
+.claude/settings.local.json
 .kimi/
 .openclaw/

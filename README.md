@@ -1,7 +1,13 @@
-# JARVIS Command Center
+# rogue-friday — F.R.I.D.A.Y. Command Center
 
-Adapterbasiertes, Contract-First Dashboard für Jarvis: Next.js-Frontend, NestJS/Fastify Control API, austauschbare
-Adapter, vollständiger Mock-Betrieb.
+Next-generation autonomous agentic assistant. Built as the modern evolution of J.A.R.V.I.S. for intelligent task
+orchestration, reasoning, and multi-tool execution.
+
+Dieses Repository enthält das **Command Center** von F.R.I.D.A.Y.: ein adapterbasiertes, Contract-First Dashboard mit
+Next.js-Frontend, NestJS/Fastify Control API, austauschbaren Adaptern, vollständigem Mock-Betrieb und einem goldenen,
+animierten Hologramm-Orb als AI-Core.
+
+- **Aktueller Stand und nächste Schritte:** [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md)
 
 - Spezifikation: [`docs/PLAN.md`](docs/PLAN.md)
 - Verbindliche technische Entscheidungen: [`docs/IMPLEMENTATION_CONVENTIONS.md`](docs/IMPLEMENTATION_CONVENTIONS.md)

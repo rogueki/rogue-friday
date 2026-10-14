@@ -91,6 +91,16 @@ hash + mock + loopback silently switches to dev auth — production must set `au
 
 ## Remaining work (in order)
 
+0. **Branding F.R.I.D.A.Y.** (owner decision 2026-10-14: the product is F.R.I.D.A.Y., successor of J.A.R.V.I.S.;
+   repo `rogueki/rogue-friday`). Change all **user-visible** branding to F.R.I.D.A.Y. — brand block/logo text in
+   `@jarvis/ui` (`BrandMark`, "JARVIS COMMAND CENTER" → "F.R.I.D.A.Y. COMMAND CENTER"), AI-core caption, orb labels
+   and aria sentences (`packages/orb/src/labels.ts`, e.g. "JARVIS WIRD INITIALISIERT" → "F.R.I.D.A.Y. WIRD
+   INITIALISIERT", "JARVIS SPRICHT" → "F.R.I.D.A.Y. SPRICHT"), web i18n (`apps/web/src/i18n`), bottom bar
+   ("MIT F.R.I.D.A.Y. SPRECHEN"), page titles, mock-data texts, docs. Make the display name a setting
+   (`settings.profile`/branding, default "F.R.I.D.A.Y.") so it is changeable without rebuild (PLAN §25.2) — this is a
+   contract change: start in `packages/contracts`. **Keep internal identifiers stable** (`@jarvis/*` packages,
+   `jarvis.*` event types, `/api/v1`) to avoid a breaking contract change; a full internal rename is a separate,
+   explicit decision. Design language (navy/cyan HUD, golden orb) stays as specified.
 1. Finish/verify **apps/web foundation** and **control-api + adapters/mock + mock-console** (see hand-offs).
 2. **Module pages** (PLAN §28–42), three parallel agents with disjoint routes:
    - A: Tasks (Kanban/List/Timeline/Meine Entscheidungen, DnD capability-gated, detail tabs), Live Activity
@@ -129,6 +139,17 @@ From the mock-platform report:
 From the adapter-core report:
 - Conformance fault injection is HTTP-only; non-HTTP adapters run static checks + world fault switches.
 - Hermes endpoints for tasks/activity/agents are unverified assumptions (`docs/MAPPING/hermes.md`).
+
+## Cloud sessions (claude.ai/code)
+
+- Repo: `github.com/rogueki/rogue-friday` (private). The Claude GitHub App must be installed on it (or `/web-setup`).
+- `CLAUDE.md` (project rules) and `.claude/settings.json` (SessionStart hook → `scripts/cloud-setup.sh`: Node ≥ 22.13
+  check, `pnpm install --frozen-lockfile` with lockfile-hash skip, Playwright Chromium best-effort) are versioned for
+  cloud sessions. Subagents: `.claude/agents/implementer.md` (Sonnet), `.claude/agents/doc-writer.md` (Haiku).
+- Cloud usage counts toward the same plan limits as local usage (per Anthropic docs); parallel sessions consume
+  limits proportionally.
+- Recommended cloud environment: network access "Trusted" (npm registry is allowlisted). If Playwright's browser
+  download is blocked, add its download hosts or use the preinstalled Chrome (`channel: "chrome"`).
 
 ## Environment notes
 
