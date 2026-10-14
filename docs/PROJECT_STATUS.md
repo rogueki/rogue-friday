@@ -117,7 +117,21 @@ Integration tasks (installer ↔ dashboard), to schedule after the dashboard is 
 
 Decisions: contract version stays `1.0.0` (additive, unreleased). Open owner decisions are collected at the end of this file.
 
-In progress: A.1 Control API, A.2 web open items, B.3 adapters (`adapters/hermes`, `adapters/voice-http`, `adapters/system-local`).
+| RogueKI removed (operator/account RogueKI) | `1ed02eb` | `grep -ri RogueKI` → 0 hits in files (git history still has author name, see owner decisions) |
+| B.3 adapters `voice-http` (VoicePort over 43694, read-only, prefers reported `wake_phrase`, default "Hey Friday") and `system-local` (real host metrics, probes Qwen/Hermes/voice/WSL/Control API, models) | `6aba15f` | typecheck/eslint, 154 tests, adapted conformance suites against fake upstreams |
+| Docs narrative: F.R.I.D.A.Y. as successor generation, "Namen und Bezeichner" section | `14d120d` | lead review |
+| A.1 Control API complete (usr_ ids, 107-op contract test + 130 API tests, mock conformance 15 categories, mock-console CLI, tsup build, command intents, several bug fixes) | `6f484cb` | lead: typecheck/eslint, 480 tests in scope, build, live REST + WebSocket + scenario CLI against `dist/main.js` |
+| A.2 web: orb ~90 % panel height, text input in command bar, no mock code in prod build, typecheck shim removed (Next type check on), orb audio ref without 12 Hz cap, chips explain missing sources | `1903958` | lead: 181 tests, prod build grep (no mockServiceWorker/mock code), screenshots `apps/web/screenshots/a2/` reviewed |
+| Contract: `X-Approval-Token` request/response headers declared | `7f8b5f8` | contracts:check, API contract + approval tests |
+
+Web status items 1–7 and 9 are done; item 8 (location/weather) stays a contract gap, chips now explain it.
+
+In progress: A.3 module pages (4 agents: A tasks/activity/approvals/agents, B memory/alerts/mail/calendar/automations,
+C research/files/voice/system/audit, D settings + /dev/scenarios; separate i18n fragments `apps/web/src/i18n/modules/*`,
+separate dev servers via `JARVIS_NEXT_DIST_DIR`), contract/platform gaps (metrics/telemetry, hub sequence, adapter
+settings version, release orb, layout JSON, HealthMonitor capabilities, audit head anchor), Hermes adapter
+(`adapters/hermes`), personalized wake word in the installer (default "Hey Friday", name chosen before recordings;
+Jarvis keeps the pretrained openWakeWord model, other names use few-shot templates + Whisper confirmation).
 
 ## Remaining work (in order)
 
@@ -205,5 +219,7 @@ pnpm test:e2e
 
 ## Open owner decisions (collected, not decided by agents)
 
-1. Wake word "Hey Jarvis" → "Hey Friday" (requires new voice enrollment per user).
+1. ~~Wake word~~ decided by owner 2026-10-14: default "Hey Friday", name personalizable at install time.
 2. Rename internal identifiers `@jarvis/*`, `jarvis.*` events, `JARVIS_*` env (breaking contract change).
+3. Git history still shows the old author name in 3 commits; removing it needs a history rewrite + force-push of `main`.
+4. Paths/file names `C:\Jarvis`, `install-jarvis.bat`, scheduled task names `JARVIS_*` stay (renaming breaks existing installs).
