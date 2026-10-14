@@ -17,14 +17,18 @@ export const queryKeys = {
   session: ["auth", "session"] as const,
   health: ["health"] as const,
   capabilities: ["capabilities"] as const,
-  adapters: domain("adapters"),
+  adapters: { ...domain("adapters"), health: (id: string) => ["adapters", "health", id] as const },
   overview: ["overview"] as const,
   status: ["status"] as const,
   orb: ["orb", "status"] as const,
   tasks: domain("tasks"),
   activity: domain("activity"),
   agents: domain("agents"),
-  approvals: domain("approvals"),
+  approvals: {
+    ...domain("approvals"),
+    /** Approval token issued by GET /approvals/{id} (`X-Approval-Token`); kept apart from the detail entry. */
+    token: (id: string) => ["approvals", "token", id] as const,
+  },
   notifications: domain("notifications"),
   memory: {
     ...domain("memory"),
@@ -44,9 +48,14 @@ export const queryKeys = {
     ...domain("automations"),
     runs: (id: string) => ["automations", "runs", id] as const,
   },
-  files: domain("files"),
+  files: { ...domain("files"), preview: (id: string) => ["files", "preview", id] as const },
   audit: domain("audit"),
-  research: domain("research"),
+  research: {
+    ...domain("research"),
+    sources: (id: string) => ["research", "sources", id] as const,
+    findings: (id: string) => ["research", "findings", id] as const,
+    artifacts: (id: string) => ["research", "artifacts", id] as const,
+  },
   system: {
     metrics: ["system", "metrics"] as const,
     services: ["system", "services"] as const,
@@ -67,6 +76,10 @@ export const queryKeys = {
   },
   commands: {
     history: ["commands", "history"] as const,
+  },
+  dev: {
+    scenarios: ["dev", "scenarios"] as const,
+    state: ["dev", "scenarios", "state"] as const,
   },
 } as const;
 

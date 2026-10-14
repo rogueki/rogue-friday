@@ -1,0 +1,55 @@
+/* Live Activity module (apps/web/src/features/activity). */
+
+.ac-page { height: 100%; min-height: 0; }
+.ac-panel__body { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.ac-page .jv-panel__body { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.ac-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; flex: none; }
+.ac-toolbar__count { margin-left: auto; font-family: var(--jv-font-mono); font-size: var(--jv-fs-xs); color: var(--jarvis-muted); }
+.ac-filters { flex: none; }
+.ac-filters .jv-filterbar__row { flex-wrap: wrap; }
+.ac-filters .jv-filterbar__select { min-width: 172px; flex: 1 1 172px; }
+.ac-filters .jv-filterbar__search { flex: 2 1 260px; min-width: 220px; }
+
+.ac-vlist { flex: 1; min-height: 280px; overflow: auto; position: relative; scrollbar-width: thin; outline: none; }
+.ac-vlist:focus-visible { outline: 1px solid var(--jarvis-focus); outline-offset: 2px; }
+.ac-vlist__slot { min-width: 0; }
+.ac-row { display: flex; align-items: center; gap: 4px; height: 100%; min-width: 0; }
+.ac-row__main { flex: 1; min-width: 0; height: 100%; }
+.ac-row .jv-row { height: 100%; }
+.ac-row__toggle { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; color: var(--jarvis-muted); background: none; border: 1px solid transparent; border-radius: var(--jv-radius-sm); cursor: pointer; }
+.ac-row__toggle:hover { color: var(--jarvis-text); border-color: var(--jv-line-soft); }
+.ac-row__toggle:focus-visible { outline: 1px solid var(--jarvis-focus); outline-offset: 1px; }
+.ac-row__toggle--leaf { cursor: default; border: 0; }
+.ac-row__hidden { flex: none; font-size: var(--jv-fs-2xs); color: var(--jarvis-muted); white-space: nowrap; }
+.ac-side { display: inline-flex; align-items: center; gap: 8px; }
+.ac-side__status { font-size: var(--jv-fs-xs); font-weight: 500; color: var(--tone); white-space: nowrap; }
+.ac-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 36px 12px; text-align: center; color: var(--jarvis-muted); flex: 1; }
+.ac-more { display: flex; align-items: center; justify-content: center; gap: 12px; flex: none; }
+.ac-more__error { font-size: var(--jv-fs-xs); }
+
+.ac-detail { display: flex; flex-direction: column; gap: 14px; }
+.ac-detail__tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.ac-detail__text { margin: 0; font-size: var(--jv-fs-md); line-height: 1.55; color: var(--jarvis-text); overflow-wrap: anywhere; white-space: pre-wrap; }
+.ac-detail__block { display: flex; flex-direction: column; gap: 6px; }
+.ac-detail__h { margin: 0; font-family: var(--jv-font-display); font-size: var(--jv-fs-xs); font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--jarvis-muted); }
+.ac-detail__corr { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ac-detail__corr code { overflow-wrap: anywhere; }
+.ac-detail__error { padding: 8px 10px; border: 1px solid var(--jarvis-tint-red-border); background: var(--jarvis-tint-red-bg); border-radius: var(--jv-radius-md); }
+.ac-detail__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ac-detail__children { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 0; padding: 0; list-style: none; }
+.ac-detail__child { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 8px; font: inherit; font-size: var(--jv-fs-sm); text-align: left; color: var(--jarvis-text); background: var(--jv-row-bg); border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm); cursor: pointer; }
+.ac-detail__child:hover { border-color: var(--jarvis-border); }
+.ac-detail__child:focus-visible { outline: 1px solid var(--jarvis-focus); outline-offset: 1px; }
+.ac-detail__rawhead { display: flex; align-items: center; gap: 8px; }
+.ac-detail__rawhead .ac-detail__h { flex: 1; }
+.ac-detail__raw { margin: 0; max-height: 360px; overflow: auto; padding: 10px; font-family: var(--jv-font-mono); font-size: var(--jv-fs-xs); line-height: 1.5; color: var(--jarvis-text); background: var(--jarvis-bg-0); border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-md); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+@media (max-width: 1099px) {
+  .ac-page { height: auto; }
+  .ac-vlist { min-height: 480px; }
+  .ac-toolbar__count { margin-left: 0; }
+}
+@media (max-width: 699px) {
+  .ac-vlist { min-height: 420px; }
+  .ac-side { flex-direction: column; align-items: flex-end; gap: 2px; }
+}

@@ -1,7 +1,7 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { AlertsPage } from "@/features/alerts/AlertsPage";
 
 export default function Page() {
-  return <ModulePlaceholder page="alerts" />;
+  return <AlertsPage />;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { CommunicationPage } from "@/features/communication/CommunicationPage";
 
 export default function Page() {
-  return <ModulePlaceholder page="communication" />;
+  return <CommunicationPage />;
 }

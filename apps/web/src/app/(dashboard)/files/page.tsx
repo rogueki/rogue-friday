@@ -1,7 +1,7 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { FilesPage } from "@/features/files/FilesPage";
 
 export default function Page() {
-  return <ModulePlaceholder page="files" />;
+  return <FilesPage />;
 }

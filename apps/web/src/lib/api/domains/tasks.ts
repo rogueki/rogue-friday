@@ -1,12 +1,22 @@
 "use client";
 
-import type { Priority, Task, TaskCreateRequest, TaskListResponse, TaskResponse, TaskStatus, TaskUpdateRequest } from "@jarvis/sdk";
+import type {
+  AuditEventListResponse,
+  Priority,
+  Task,
+  TaskCreateRequest,
+  TaskListResponse,
+  TaskResponse,
+  TaskStatus,
+  TaskUpdateRequest,
+} from "@jarvis/sdk";
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
 import { patchQueries, useApiMutation, type IntentVars } from "../mutation";
 import { queryKeys } from "../queryKeys";
 import { staleTimes } from "../staleTimes";
+import { useCursorPages } from "./cursorPages";
 
 export interface TaskFilters {
   status?: TaskStatus[];
@@ -35,7 +45,29 @@ export const taskQueries = {
     }),
 };
 
+/** Audit trail of one task (tab "Audit"); same key family as the audit module so live audit events patch it. */
+export const taskAuditQuery = (taskId: string) =>
+  queryOptions({
+    queryKey: queryKeys.audit.list({ taskId, limit: 50 }),
+    queryFn: (): Promise<AuditEventListResponse> =>
+      call(getApiClient().GET("/api/v1/audit/events", { params: { query: { taskId, limit: 50 } } })),
+    staleTime: staleTimes.tasks,
+  });
+
+export const useTaskAudit = (taskId: string | null | undefined) => useQuery({ ...taskAuditQuery(taskId ?? ""), enabled: Boolean(taskId) });
+
 export const useTasks = (filters?: TaskFilters) => useQuery({ ...taskQueries.list(filters), placeholderData: keepPreviousData });
+/** Board/list data: first page live-patched by realtime, further pages by cursor ("Mehr laden"). */
+export function useTaskPages(filters: TaskFilters = {}) {
+  const first = useTasks(filters);
+  const pages = useCursorPages<Task, TaskListResponse, ReturnType<typeof queryKeys.tasks.list>>(
+    first.data,
+    (cursor) => taskQueries.list({ ...filters, cursor }),
+    JSON.stringify(filters),
+  );
+  return { first, ...pages };
+}
+
 export const useTask = (id: string | null | undefined) => useQuery({ ...taskQueries.detail(id ?? ""), enabled: Boolean(id) });
 
 const invalidateTasks = [queryKeys.tasks.all, queryKeys.overview] as const;

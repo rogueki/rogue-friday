@@ -1,7 +1,7 @@
 "use client";
 
 import type { AgentListResponse, AgentResponse, AgentStatus } from "@jarvis/sdk";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
 import { useApiMutation, type IntentVars } from "../mutation";
@@ -30,7 +30,8 @@ export const agentQueries = {
     }),
 };
 
-export const useAgents = (filters?: AgentFilters) => useQuery(agentQueries.list(filters));
+/** Keeps the previous list while a changed filter or search loads, so the search field never loses focus. */
+export const useAgents = (filters?: AgentFilters) => useQuery({ ...agentQueries.list(filters), placeholderData: keepPreviousData });
 export const useAgent = (id: string | null | undefined) => useQuery({ ...agentQueries.detail(id ?? ""), enabled: Boolean(id) });
 
 type AgentAction = "pause" | "resume" | "stop";

@@ -1,0 +1,20 @@
+/* Audit page (class prefix au-). */
+.au-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 12px; align-items: end; }
+.au-filters__reset { display: flex; align-items: flex-end; }
+.au-bar { min-height: 32px; }
+.au-bar__label { font-size: var(--jv-fs-xs); font-family: var(--jv-font-display); letter-spacing: 0.12em; text-transform: uppercase; }
+.au-more { display: flex; justify-content: center; }
+.au-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.au-action { margin: 0; font-size: var(--jv-fs-sm); color: var(--jarvis-text-strong); overflow-wrap: anywhere; }
+.au-child { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 4px 8px; border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm); list-style: none; font-size: var(--jv-fs-sm); }
+.au-diff { display: flex; flex-direction: column; gap: 4px; font-size: var(--jv-fs-xs); }
+.au-diff__row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; padding: 6px 8px; border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm); overflow-wrap: anywhere; }
+.au-diff__row--head { font-family: var(--jv-font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--jarvis-muted); border-color: transparent; }
+.au-diff__row--added { background: var(--jarvis-tint-green-bg); border-color: var(--jarvis-tint-green-border); }
+.au-diff__row--removed { background: var(--jarvis-tint-red-bg); border-color: var(--jarvis-tint-red-border); }
+.au-diff__row--changed { background: var(--jarvis-tint-amber-bg); border-color: var(--jarvis-tint-amber-border); }
+.au-diff__kind { display: inline-block; margin-left: 4px; font-family: var(--jv-font-display); font-size: var(--jv-fs-2xs); letter-spacing: 0.1em; text-transform: uppercase; color: var(--jarvis-muted); }
+.au-diff__before { color: var(--jarvis-tone-red); }
+.au-diff__after { color: var(--jarvis-tone-green); }
+@media (max-width: 600px) { .au-diff__row { grid-template-columns: minmax(0, 1fr); } .au-diff__row--head { display: none; } }
+.au-copy { display: inline-flex; align-items: center; gap: 4px; flex-wrap: nowrap; min-width: 0; overflow-wrap: anywhere; }

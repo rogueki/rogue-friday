@@ -1,7 +1,12 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { Suspense } from "react";
+import { ApprovalsPage } from "@/features/approvals/ApprovalsPage";
 
 export default function Page() {
-  return <ModulePlaceholder page="approvals" />;
+  return (
+    <Suspense fallback={null}>
+      <ApprovalsPage />
+    </Suspense>
+  );
 }

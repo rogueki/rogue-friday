@@ -1,0 +1,99 @@
+/* Shared by the group-B module pages (memory, alerts, communication, calendar, automations). Layout only; look comes from @jarvis/ui. */
+
+.mk-page { display: flex; flex-direction: column; gap: 10px; min-height: 100%; min-width: 0; }
+.mk-page > .jv-panel { min-width: 0; }
+.mk-badges { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mk-capnote { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mk-stack { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mk-stack--tight { gap: 5px; }
+.mk-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.mk-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; }
+@media (max-width: 640px) { .mk-grid-2, .mk-grid-3 { grid-template-columns: minmax(0, 1fr); } }
+
+/* Long German words and identifiers wrap instead of stretching the layout. */
+.mk-wrap { min-width: 0; overflow-wrap: anywhere; hyphens: auto; }
+.mk-mono { font-family: var(--jv-font-mono); font-size: var(--jv-fs-xs); color: var(--jarvis-muted); overflow-wrap: anywhere; }
+.mk-muted { color: var(--jarvis-muted); }
+.mk-strong { color: var(--jarvis-text-strong); }
+
+.mk-section-title { margin: 0 0 6px; font-family: var(--jv-font-display); font-size: var(--jv-fs-2xs); font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--jarvis-muted); }
+.mk-block { padding: 10px 12px; background: var(--jv-row-bg); border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-md); min-width: 0; }
+.mk-block--amber { border-color: var(--jarvis-tint-amber-border); background: var(--jarvis-tint-amber-bg); }
+.mk-block--red { border-color: var(--jarvis-tint-red-border); background: var(--jarvis-tint-red-bg); }
+.mk-block--green { border-color: var(--jarvis-tint-green-border); background: var(--jarvis-tint-green-bg); }
+.mk-block p { margin: 0; line-height: 1.5; font-size: var(--jv-fs-md); overflow-wrap: anywhere; }
+.mk-block p + p { margin-top: 6px; }
+
+.mk-dl { display: grid; grid-template-columns: minmax(96px, auto) minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: var(--jv-fs-sm); }
+.mk-dl dt { color: var(--jarvis-muted); }
+.mk-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; color: var(--jarvis-text); }
+
+.mk-tags { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+
+.mk-textarea__input { height: auto; min-height: 90px; padding: 9px 12px; line-height: 1.5; resize: vertical; font-family: var(--jv-font-body); }
+
+.mk-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; min-width: 0; }
+
+/* Interactive list row used by memory, alerts, communication and automations. */
+.mk-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--jv-row-bg);
+  border: 1px solid var(--jv-line-soft);
+  border-radius: var(--jv-radius-md);
+  transition: border-color var(--jv-dur-fast), background var(--jv-dur-fast);
+}
+button.mk-row { cursor: pointer; }
+button.mk-row:hover { background: var(--jv-row-bg-hover); border-color: var(--jarvis-border); }
+button.mk-row:focus-visible { outline: 2px solid var(--jarvis-focus); outline-offset: 1px; }
+.mk-row--selected { border-color: var(--jarvis-border-active); background: var(--jv-row-bg-hover); }
+.mk-row__main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mk-row__title { font-size: var(--jv-fs-md); font-weight: 500; line-height: 1.3; color: var(--jarvis-text-strong); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.mk-row__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--jv-fs-xs); color: var(--jarvis-muted); min-width: 0; }
+.mk-row__text { margin: 0; font-size: var(--jv-fs-sm); line-height: 1.4; color: var(--jarvis-text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.mk-row__side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 0; font-size: var(--jv-fs-xs); color: var(--jarvis-muted); }
+@media (max-width: 640px) { .mk-row { grid-template-columns: auto minmax(0, 1fr); } .mk-row__side { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; } }
+
+.mk-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.mk-more { display: flex; justify-content: center; padding: 6px 0 2px; }
+.mk-form { display: flex; flex-direction: column; gap: 12px; }
+.mk-form__error { margin: 0; font-size: var(--jv-fs-sm); color: var(--jarvis-error); }
+.mk-note { margin: 0; font-size: var(--jv-fs-sm); line-height: 1.5; color: var(--jarvis-muted); }
+.mk-link { padding: 0; font: inherit; color: var(--jarvis-cyan); background: none; border: 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+.mk-link:hover { color: var(--jarvis-cyan-bright); text-decoration: underline; }
+.mk-link:focus-visible { outline: 2px solid var(--jarvis-focus); outline-offset: 2px; }
+
+/* Compact states of the library are a single row; in narrow side panels the action must wrap below the text instead of clipping. */
+.mk-narrow .jv-state--compact { flex-direction: column; align-items: flex-start; }
+.mk-narrow .jv-state--compact .jv-state__actions { margin-left: 0; justify-content: flex-start; }
+
+/* Page headers carry badges and buttons as actions; below tablet width they wrap under the title instead of overlapping it. */
+@media (max-width: 900px) {
+  .mk-page .jv-panel-header { flex-wrap: wrap; row-gap: 6px; }
+  .mk-page .jv-panel-header__text { flex-wrap: wrap; row-gap: 2px; flex-basis: calc(100% - 40px); }
+  .mk-page .jv-panel-header__subtitle { white-space: normal; }
+  .mk-page .jv-panel-header__actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; }
+}
+
+/* Plain elements (li, article, fieldset) default to content-box; every block of the group-B pages sizes like the library's controls. */
+[class^="mk-"],
+[class*=" mk-"],
+[class^="mem-"],
+[class*=" mem-"],
+[class^="alr-"],
+[class*=" alr-"],
+[class^="com-"],
+[class*=" com-"],
+[class^="cal-"],
+[class*=" cal-"],
+[class^="aut-"],
+[class*=" aut-"] { box-sizing: border-box; }

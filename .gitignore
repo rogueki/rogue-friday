@@ -27,3 +27,4 @@ PROMPT.md
 .openclaw/
 __pycache__/
 *.pyc
+apps/web/screenshots/**/*.png

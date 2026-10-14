@@ -1,0 +1,269 @@
+import { configure, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useAssistantName } from "@/features/branding/useAssistantName";
+import { setApiClient } from "@/lib/api/client";
+import { AppSettingsProvider } from "@/lib/settings";
+import { capabilitiesOf, renderWithProviders } from "@/test/render";
+import { SettingsPage } from "./SettingsPage";
+import { createFakeApi, makeSettings, type FakeApiOptions } from "./testApi";
+
+// The pages load several resources through the fake API; slow CI machines need more than the 1 s default.
+configure({ asyncUtilTimeout: 6000 });
+vi.setConfig({ testTimeout: 20_000 });
+
+const nav = vi.hoisted(() => ({ search: "area=profile", replace: vi.fn(), push: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: nav.push, replace: nav.replace }),
+  usePathname: () => "/settings",
+  useSearchParams: () => new URLSearchParams(nav.search),
+}));
+
+function BrandProbe() {
+  return <output data-testid="brand">{useAssistantName()}</output>;
+}
+
+function setup(options: FakeApiOptions & { area?: string } = {}) {
+  nav.search = options.area ?? "area=profile";
+  const api = createFakeApi(options);
+  const view = renderWithProviders(
+    <AppSettingsProvider enabled>
+      <BrandProbe />
+      <SettingsPage />
+    </AppSettingsProvider>,
+    { fetchImpl: api.fetchImpl, capabilities: capabilitiesOf({ system: { read: true } }) },
+  );
+  return { api, ...view };
+}
+
+const saveButton = () => screen.getByRole("button", { name: "Speichern" });
+
+beforeEach(() => {
+  nav.replace.mockClear();
+  nav.push.mockClear();
+});
+afterEach(() => setApiClient(null));
+
+describe("profile and assistant name", () => {
+  it("renames the assistant live: the brand reads the saved name without a reload, PATCH carries If-Match", async () => {
+    const user = userEvent.setup();
+    const { api } = setup();
+    expect(await screen.findByLabelText("Name des Assistenten")).toHaveValue("F.R.I.D.A.Y.");
+    expect(screen.getByTestId("brand")).toHaveTextContent("F.R.I.D.A.Y.");
+
+    await user.clear(screen.getByLabelText("Name des Assistenten"));
+    await user.type(screen.getByLabelText("Name des Assistenten"), "Jarvis");
+    expect(await screen.findByText("Ungespeicherte Änderungen")).toBeInTheDocument();
+    // nothing is applied before saving
+    expect(screen.getByTestId("brand")).toHaveTextContent("F.R.I.D.A.Y.");
+
+    await user.click(saveButton());
+    await waitFor(() => expect(screen.getByTestId("brand")).toHaveTextContent("Jarvis"));
+    const patch = api.find("PATCH", "/settings")[0];
+    expect(patch?.ifMatch).toBe("3");
+    expect(patch?.body).toMatchObject({ profile: { assistantName: "Jarvis", displayName: "Erik Brandt" } });
+    expect(await screen.findByText(/Alle Änderungen gespeichert/)).toBeInTheDocument();
+  });
+
+  it("an empty name removes the optional field so clients fall back to the default", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ settings: makeSettings({ profile: { ...makeSettings().profile, assistantName: "Jarvis" } }) });
+    await user.clear(await screen.findByLabelText("Name des Assistenten"));
+    await user.click(saveButton());
+    await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
+    const body = api.find("PATCH", "/settings")[0]?.body as { profile: Record<string, unknown> };
+    expect("assistantName" in body.profile).toBe(false);
+    await waitFor(() => expect(screen.getByTestId("brand")).toHaveTextContent("F.R.I.D.A.Y."));
+  });
+
+  it("shows the unsaved indicator and discards the draft", async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.type(await screen.findByLabelText("Anzeigename"), "X");
+    expect(screen.getByRole("img", { name: "Ungespeicherte Änderungen" })).toBeInTheDocument();
+    expect(saveButton()).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Alle verwerfen" }));
+    expect(screen.queryByRole("img", { name: "Ungespeicherte Änderungen" })).toBeNull();
+    expect(screen.getByLabelText("Anzeigename")).toHaveValue("Erik Brandt");
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it("explains a 409 conflict and saves after the reload", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ conflictOnce: true });
+    await user.type(await screen.findByLabelText("Anzeigename"), "X");
+    await user.click(saveButton());
+    expect(await screen.findAllByText(/zwischenzeitlich geändert/)).not.toHaveLength(0);
+    await user.click(saveButton());
+    await waitFor(() => expect(screen.getByText(/Alle Änderungen gespeichert/)).toBeInTheDocument());
+    expect(api.find("PATCH", "/settings")).toHaveLength(2);
+  });
+});
+
+describe("role gating", () => {
+  it("is read-only for a viewer: no input is editable and nothing can be saved", async () => {
+    setup({ role: "viewer" });
+    expect(await screen.findByText(/Nur lesend: Mit der Rolle „Betrachter“/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Anzeigename")).toBeDisabled();
+    expect(screen.getByLabelText("Name des Assistenten")).toBeDisabled();
+    expect(saveButton()).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Einstellungen importieren" })).toBeDisabled();
+  });
+});
+
+describe("navigation settings", () => {
+  it("reorders menus with the keyboard-accessible buttons, hides one and saves the whole area", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ area: "area=navigation" });
+    await user.click(await screen.findByRole("button", { name: "Aufgaben nach oben" }));
+    const rows = screen.getAllByRole("listitem").filter((li) => li.classList.contains("st-nav__row"));
+    expect(rows[0]).toHaveTextContent("Aufgaben");
+    expect(rows[1]).toHaveTextContent("Übersicht");
+
+    await user.click(screen.getByRole("switch", { name: "Gedächtnis im Menü anzeigen" }));
+    await user.click(saveButton());
+    await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
+    const navigation = (api.find("PATCH", "/settings")[0]?.body as { navigation: { order: string[]; hidden: string[]; defaultPage: string } }).navigation;
+    expect(navigation.order.slice(0, 3)).toEqual(["tasks", "overview", "activity"]);
+    expect(navigation.order).toHaveLength(16);
+    expect(navigation.hidden).toEqual(["memory"]);
+  });
+
+  it("keeps Einstellungen reachable: its visibility switch is locked", async () => {
+    setup({ area: "area=navigation" });
+    expect(await screen.findByRole("switch", { name: "Einstellungen im Menü anzeigen" })).toBeDisabled();
+  });
+});
+
+describe("adapters (schema-generated form)", () => {
+  it("masks secrets, sends them only write-only and clears the input after saving", async () => {
+    const user = userEvent.setup();
+    const { api, container } = setup({ area: "area=adapters&adapter=mock-communication" });
+    const form = await waitFor(() => {
+      const element = container.querySelector('[data-adapter-form="mock-communication"]');
+      if (!element) throw new Error("form missing");
+      return element as HTMLElement;
+    });
+    expect(within(form).getByText("gesetzt")).toBeInTheDocument();
+    const secret = within(form).getByLabelText("Neuer Wert für IMAP-Passwort") as HTMLInputElement;
+    expect(secret.type).toBe("password");
+    expect(secret.value).toBe("");
+
+    await user.type(secret, "neues-passwort");
+    await user.clear(within(form).getByLabelText(/IMAP-Server/));
+    await user.type(within(form).getByLabelText(/IMAP-Server/), "imap.neu.example");
+    await user.click(within(form).getByRole("button", { name: "Konfiguration speichern" }));
+
+    await waitFor(() => expect(api.find("PATCH", "/settings/adapters/mock-communication")).toHaveLength(1));
+    const call = api.find("PATCH", "/settings/adapters/mock-communication")[0];
+    expect(call?.ifMatch).toBe("3");
+    expect(call?.body).toMatchObject({ enabled: true, config: { imapHost: "imap.neu.example", latencyMs: 0 }, secrets: { imapPassword: "neues-passwort" } });
+    // the secret must never travel inside `config`
+    expect(JSON.stringify((call?.body as { config: unknown }).config)).not.toContain("neues-passwort");
+    await waitFor(() => expect(secret.value).toBe(""));
+    expect(container.innerHTML).not.toContain("neues-passwort");
+  });
+
+  it("blocks saving a form that violates the schema", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ area: "area=adapters&adapter=mock-communication" });
+    const host = await screen.findByLabelText(/IMAP-Server/);
+    await user.clear(host);
+    expect(await screen.findByText("Pflichtfeld")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Konfiguration speichern" })).toBeDisabled();
+    expect(api.find("PATCH", "/settings/adapters/mock-communication")).toHaveLength(0);
+  });
+
+  it("tests the connection of the stored configuration through POST /settings/adapters/{id}/test", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ area: "area=adapters&adapter=mock-communication" });
+    await user.click(await screen.findByRole("button", { name: "Verbindung testen" }));
+    expect(await screen.findByText("Erfolgreich")).toBeInTheDocument();
+    expect(screen.getByText("Verbindung erfolgreich getestet.")).toBeInTheDocument();
+    expect(api.find("POST", "/settings/adapters/mock-communication/test")).toHaveLength(1);
+  });
+
+  it("is owner-only: a viewer sees an explanation instead of credentials", async () => {
+    const { api } = setup({ area: "area=adapters", role: "viewer" });
+    expect(await screen.findByText("Nur für Eigentümer")).toBeInTheDocument();
+    expect(api.find("GET", "/settings/adapters")).toHaveLength(0);
+  });
+});
+
+describe("theme editor", () => {
+  it("rejects a corrupted theme before anything is sent and keeps the default theme", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ area: "area=theme" });
+    const field = await screen.findByLabelText("Theme-JSON");
+    await user.click(field);
+    await user.paste('{ "id": "kaputt", "name": "Kaputt", "tokens": { "color.primary": "rot" }, "orb": {}, "panels": {} }');
+    await user.click(screen.getByRole("button", { name: "Prüfen und importieren" }));
+    expect(await screen.findByText("Theme ungültig, nichts wurde importiert:")).toBeInTheDocument();
+    expect(screen.getByText("Das bisherige beziehungsweise das Standard-Theme bleibt aktiv.")).toBeInTheDocument();
+    expect(api.find("POST", "/settings/themes/import")).toHaveLength(0);
+  });
+
+  it("imports a valid theme and activates it", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ area: "area=theme" });
+    const field = await screen.findByLabelText("Theme-JSON");
+    await user.click(field);
+    await user.paste(
+      JSON.stringify({
+        id: "mein-theme",
+        name: "Mein Theme",
+        tokens: { "color.primary": "#22d3ee", "color.background": "#050b14" },
+        orb: { preset: "gold", particleDensity: 0.7, fragmentDensity: 0.8, glowIntensity: 0.8, motionSpeed: 1, mouseParallax: true },
+        panels: { cornerStyle: "technical-cut", borderIntensity: 0.5, backgroundOpacity: 0.8 },
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Prüfen und importieren" }));
+    await waitFor(() => expect(api.find("POST", "/settings/themes/import")).toHaveLength(1));
+    expect(api.find("POST", "/settings/themes/import")[0]?.body).toMatchObject({ activate: true, theme: { id: "mein-theme", builtIn: false } });
+    expect(await screen.findByText("Theme „Mein Theme“ importiert")).toBeInTheDocument();
+  });
+
+  it("edits sliders into the draft and stores them with one PATCH", async () => {
+    const user = userEvent.setup();
+    const { api } = setup({ area: "area=theme" });
+    const slider = (await screen.findByLabelText("Cyan-Intensität")) as HTMLInputElement;
+    fireEvent.change(slider, { target: { value: "0.6" } });
+    expect(await screen.findByText("Ungespeicherte Änderungen")).toBeInTheDocument();
+    await user.click(saveButton());
+    await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
+    const theme = (api.find("PATCH", "/settings")[0]?.body as { theme: { cyanIntensity: number; activeThemeId: string } }).theme;
+    expect(theme.cyanIntensity).toBeCloseTo(0.6);
+    expect(theme.activeThemeId).toBe("jarvis-navy-cyan");
+  });
+});
+
+describe("settings export and import", () => {
+  it("validates an imported file against the schema before the confirmation", async () => {
+    const user = userEvent.setup();
+    const { api } = setup();
+    const input = await screen.findByLabelText("Einstellungsdatei auswählen");
+    const invalid = new File(['{ "settings": 1 }'], "x.json", { type: "application/json" });
+    await user.upload(input, invalid);
+    expect(await screen.findByText("Datei ungültig")).toBeInTheDocument();
+    expect(api.find("POST", "/settings/import")).toHaveLength(0);
+  });
+
+  it("imports a valid export after confirmation", async () => {
+    const user = userEvent.setup();
+    const { api } = setup();
+    const input = await screen.findByLabelText("Einstellungsdatei auswählen");
+    const document = {
+      contractVersion: "1.0.0",
+      exportedAt: "2026-10-14T08:00:00Z",
+      settings: { approvals: makeSettings().approvals },
+      themes: [],
+      layouts: [],
+    };
+    await user.upload(input, new File([JSON.stringify(document)], "settings.json", { type: "application/json" }));
+    expect(await screen.findByText("Einstellungen importieren?")).toBeInTheDocument();
+    expect(screen.getByText("1 Einstellungsbereiche")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Importieren" }));
+    await waitFor(() => expect(api.find("POST", "/settings/import")).toHaveLength(1));
+    expect(api.find("POST", "/settings/import")[0]?.body).toMatchObject({ settings: { approvals: { defaultExpiryMinutes: 60 } } });
+  });
+});

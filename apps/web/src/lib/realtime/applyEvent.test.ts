@@ -217,3 +217,20 @@ describe("applyEvent: agents, system, resync", () => {
     expect(overviewCalls()).toBe(1);
   });
 });
+
+describe("applyEvent: files (group C)", () => {
+  const FILE_ID = "file_01JAAAAAAAAAAAAAAAAAAAAAAA";
+  const file = (version: number) => ({ id: FILE_ID, version, name: "Bericht.md" });
+
+  it("drops the cached preview when a file gets a new version", () => {
+    client.setQueryData(queryKeys.files.preview(FILE_ID), { data: { text: "alt" } });
+    applyEvent(client, envelope("jarvis.file.updated", file(2)));
+    expect(client.getQueryState(queryKeys.files.preview(FILE_ID))?.isInvalidated).toBe(true);
+  });
+
+  it("removes the cached preview when the file is deleted", () => {
+    client.setQueryData(queryKeys.files.preview(FILE_ID), { data: { text: "alt" } });
+    applyEvent(client, envelope("jarvis.file.deleted", { id: FILE_ID }));
+    expect(client.getQueryData(queryKeys.files.preview(FILE_ID))).toBeUndefined();
+  });
+});

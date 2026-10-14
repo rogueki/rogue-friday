@@ -405,10 +405,13 @@ export function applyEvent(queryClient: QueryClient, event: JarvisEvent): void {
     case "jarvis.file.created":
     case "jarvis.file.updated": {
       upsertResource(queryClient, fileKeys, event.data, { insert: event.type === "jarvis.file.created", refetchFiltered: true });
+      // A new version changes the content: the cached preview of this file must not outlive it.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.files.preview(event.data.id), refetchType: "active" });
       return;
     }
     case "jarvis.file.deleted": {
       removeResource(queryClient, fileKeys, event.data.id);
+      queryClient.removeQueries({ queryKey: queryKeys.files.preview(event.data.id) });
       return;
     }
     default: {

@@ -1,10 +1,18 @@
 "use client";
 
-import type { CalendarBriefingListResponse, CalendarConflictListResponse, CalendarEventListResponse, CalendarEventResponse } from "@jarvis/sdk";
+import type {
+  CalendarBriefingListResponse,
+  CalendarConflictListResponse,
+  CalendarEventListResponse,
+  CalendarEventResponse,
+  CalendarProposalRequest,
+  CalendarProposalResponse,
+} from "@jarvis/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
 import { queryKeys } from "../queryKeys";
+import { useApiMutation, type IntentVars } from "../mutation";
 import { staleTimes } from "../staleTimes";
 
 export interface CalendarEventFilters {
@@ -45,3 +53,17 @@ export const calendarQueries = {
 export const useCalendarEvents = (filters?: CalendarEventFilters) => useQuery(calendarQueries.events(filters));
 export const useCalendarEvent = (id: string | null | undefined) => useQuery({ ...calendarQueries.event(id ?? ""), enabled: Boolean(id) });
 export const useCalendarConflicts = () => useQuery(calendarQueries.conflicts());
+export const useCalendarBriefings = () => useQuery(calendarQueries.briefings());
+
+/**
+ * Every calendar write is a proposal that goes through approval (PLAN §34.3): the server answers with the proposal and,
+ * for write types, an `approvalId` that is decided on the approvals page.
+ */
+export function useCreateCalendarProposal() {
+  return useApiMutation<CalendarProposalResponse, CalendarProposalRequest & IntentVars>({
+    label: "Terminvorschlag erstellen",
+    mutationFn: ({ idempotencyKey, ...body }) =>
+      call(getApiClient().POST("/api/v1/calendar/proposals", { body, params: { header: { "Idempotency-Key": idempotencyKey } } })),
+    invalidate: [queryKeys.approvals.all, queryKeys.calendar.events.all, queryKeys.calendar.conflicts],
+  });
+}

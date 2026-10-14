@@ -1,7 +1,12 @@
 "use client";
 
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { Suspense } from "react";
+import { ActivityPage } from "@/features/activity/ActivityPage";
 
 export default function Page() {
-  return <ModulePlaceholder page="activity" />;
+  return (
+    <Suspense fallback={null}>
+      <ActivityPage />
+    </Suspense>
+  );
 }
