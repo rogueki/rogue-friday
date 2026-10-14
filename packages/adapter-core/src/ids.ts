@@ -23,6 +23,20 @@ export const ID_PREFIXES = [
   "evt",
   "corr",
   "cmd",
+  // Added later (all additive): every other prefix the contract schemas pattern-match.
+  "vol",
+  "mdl",
+  "vdev",
+  "vprof",
+  "usr",
+  "art",
+  "brief",
+  "chan",
+  "conf",
+  "draft",
+  "prop",
+  "step",
+  "tcall",
 ] as const;
 export type IdPrefix = (typeof ID_PREFIXES)[number];
 

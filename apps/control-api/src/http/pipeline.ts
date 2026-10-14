@@ -204,12 +204,17 @@ export class ApiPipeline {
         details: { idempotencyKey: key },
       });
     }
+    // Cache accounting (PLAN §50.3): a repeated Idempotency-Key is served from the store (hit), a new one executes (miss).
+    this.runtime.metrics.recordCache(lookup.kind === "replay");
     if (lookup.kind === "replay") return this.replayed(lookup.response);
 
     // A double click arrives while the first request is still running: wait for it instead of executing twice.
     const flightKey = IdempotencyStore.keyHash(spec.method, requestPath(ctx), key, actor);
     const pending = this.inFlight.get(flightKey);
-    if (pending) return this.replayed(await pending);
+    if (pending) {
+      this.runtime.metrics.recordCache(true);
+      return this.replayed(await pending);
+    }
 
     const execution = (async (): Promise<StoredResponse> => {
       const outcome = await this.execute(ctx, spec);

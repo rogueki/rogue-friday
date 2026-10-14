@@ -57,7 +57,7 @@ import { SystemService } from "./services/system";
 import { TaskService } from "./services/tasks";
 import { VoiceService } from "./services/voice";
 import { WorldEventBus } from "./event-bus";
-import { computeHealth, deriveOrbSnapshot } from "./orb";
+import { computeHealth, DEFAULT_ASSISTANT_NAME, deriveOrbSnapshot } from "./orb";
 import type { AdapterMode, ProfileName, WorldState } from "./state";
 import type { EmitOptions, OpContext } from "./types";
 
@@ -71,6 +71,19 @@ export interface MockWorldOptions {
   startTime?: string;
   /** Follow the wall clock (dev). Tests keep this off and drive `world.clock.advance`. */
   realTime?: boolean;
+  /**
+   * Supplies the sequence number of the next event (and of the next `ActivityEvent`), so the world can share the global
+   * sequence of an event hub: `ActivityEvent.sequence`, the envelope sequence and `listActivity?sinceSequence=` then use
+   * one counter. Receives `floor`, the highest sequence already contained in the seeded state, and must return an
+   * integer above it. The provider is asked once per emitted event and must not consume the number itself: the hub that
+   * publishes the event assigns it. Without a provider the world counts on its own (the default).
+   */
+  nextSequence?: (floor: number) => number;
+  /**
+   * The assistant's current name for generated texts (orb status line, status label). A host that owns the settings
+   * (the Control API) passes its own value; without it the world uses `state.settings.profile.assistantName`.
+   */
+  assistantName?: () => string;
 }
 
 export interface WorldSnapshot {
@@ -136,6 +149,8 @@ export class MockWorld {
   private errorRng: Rng;
   private latencyRng: Rng;
   private highWater = 0;
+  private readonly sequenceProvider: ((floor: number) => number) | undefined;
+  private readonly assistantNameProvider: (() => string) | undefined;
   private baseline: WorldSnapshot | null = null;
   private refreshing = false;
   private transientTimer: TimerHandle | null = null;
@@ -165,6 +180,8 @@ export class MockWorld {
     this.profile = options.profile ?? "default";
     this.seed = options.seed ?? DEFAULT_SEED;
     this.startTime = options.startTime ?? DEFAULT_START_TIME;
+    this.sequenceProvider = options.nextSequence;
+    this.assistantNameProvider = options.assistantName;
     this.clock = new MockClock(this.startTime);
     this.idFactory = new IdFactory(this.seed, ID_EPOCH_MS);
     this.runtimeRng = new Rng(this.seed ^ 0xa11ce);
@@ -314,13 +331,33 @@ export class MockWorld {
   }
 
   private nextSequence(): number {
+    if (this.sequenceProvider) {
+      const value = this.providedSequence();
+      this.highWater = Math.max(this.highWater, value);
+      return value;
+    }
     this.highWater = Math.max(this.highWater, this.state.sequence) + 1;
     this.state.sequence = this.highWater;
     return this.highWater;
   }
 
+  /** Name of the assistant in generated, user-visible texts (never a hard-coded brand). */
+  assistantName(): string {
+    return this.assistantNameProvider?.() ?? this.state.settings.profile.assistantName ?? DEFAULT_ASSISTANT_NAME;
+  }
+
+  /** The sequence the next event will carry (not consumed). */
   peekSequence(): number {
-    return Math.max(this.highWater, this.state.sequence) + 1;
+    return this.sequenceProvider ? this.providedSequence() : Math.max(this.highWater, this.state.sequence) + 1;
+  }
+
+  private providedSequence(): number {
+    const floor = this.state.sequence;
+    const value = (this.sequenceProvider as (floor: number) => number)(floor);
+    if (!Number.isInteger(value) || value <= floor) {
+      throw new Error(`nextSequence lieferte ${String(value)}, erwartet eine ganze Zahl über ${floor}.`);
+    }
+    return value;
   }
 
   actorOf(ctx?: OpContext): Actor {
@@ -779,7 +816,7 @@ export class MockWorld {
       else summary.degraded++;
     }
     const orbMode = this.state.orb.mode;
-    const assistant = this.state.settings.profile.assistantName ?? "F.R.I.D.A.Y.";
+    const assistant = this.assistantName();
     return {
       status: health,
       label: `${assistant} ${health === "online" ? "online" : health === "degraded" ? "eingeschränkt" : "offline"}`,

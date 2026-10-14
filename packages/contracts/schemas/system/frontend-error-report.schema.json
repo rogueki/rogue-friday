@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/system/frontend-error-report.schema.json",
+  "title": "FrontendErrorReport",
+  "description": "One aggregated browser error (PLAN §50.3). Contains no user data: no stack traces, no URLs with query strings, no identifiers. The server additionally redacts the message.",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["js_error", "unhandled_rejection", "render_error", "network_error", "webgl_context_lost", "resource_error"]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "Short technical message (for example the error class and the failing module)."
+    },
+    "route": {
+      "type": "string",
+      "pattern": "^/[A-Za-z0-9/_-]{0,127}$",
+      "description": "Dashboard route path without query or fragment."
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000,
+      "description": "Occurrences of this error since the last batch (1 when absent)."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": ["kind", "message"],
+  "additionalProperties": false
+}

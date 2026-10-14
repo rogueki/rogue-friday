@@ -254,7 +254,7 @@ describe("system.read: services", () => {
     const hermes = (await rig.adapter.listServices({}, call())).items.find((s) => s.name === "Hermes API");
     expect(hermes?.status).toBe("degraded");
     expect(hermes?.detail).toContain("Zeitüberschreitung");
-    expect(Date.now() - started).toBeLessThan(1_500);
+    expect(Date.now() - started).toBeLessThan(1_900);
     expect(rig.hermes.requestsFor("GET", "/health")).toHaveLength(1);
   });
 

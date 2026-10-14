@@ -6,18 +6,22 @@ import type { WorldState } from "./state";
 export interface OrbSource {
   state: WorldState;
   clock: { now(): number };
+  /** The assistant's configured name; defaults to the profile setting of the world's state. */
+  assistantName?(): string;
 }
 
-/** Default German status line per mode (PLAN §19). */
-export const ORB_TEXT: Readonly<Record<OrbMode, string>> = {
-  booting: "F.R.I.D.A.Y. WIRD INITIALISIERT",
+export const DEFAULT_ASSISTANT_NAME = "F.R.I.D.A.Y.";
+
+/** Status line templates per mode (PLAN §19); `{ASSISTANT}` is replaced by the upper-cased assistant name. */
+const ORB_TEXT_TEMPLATE: Readonly<Record<OrbMode, string>> = {
+  booting: "{ASSISTANT} WIRD INITIALISIERT",
   idle: "BEREIT",
   listening: "ICH HÖRE ZU",
   transcribing: "SPRACHE WIRD VERARBEITET",
   thinking: "ANALYSE",
   syncing: "SYNCHRONISIERUNG LÄUFT",
   working: "ARBEIT LÄUFT",
-  speaking: "F.R.I.D.A.Y. SPRICHT",
+  speaking: "{ASSISTANT} SPRICHT",
   waiting_approval: "FREIGABE ERFORDERLICH",
   success: "ABGESCHLOSSEN",
   warning: "EINGESCHRÄNKTER BETRIEB",
@@ -25,6 +29,16 @@ export const ORB_TEXT: Readonly<Record<OrbMode, string>> = {
   offline: "OFFLINE",
   paused: "PAUSIERT",
 };
+
+/** German status line of an orb mode for the given assistant name (all caps, like every orb label). */
+export function orbText(mode: OrbMode, assistantName: string = DEFAULT_ASSISTANT_NAME): string {
+  return ORB_TEXT_TEMPLATE[mode].replace("{ASSISTANT}", assistantName.toUpperCase());
+}
+
+/** Default German status line per mode with the default assistant name (kept for existing importers). */
+export const ORB_TEXT: Readonly<Record<OrbMode, string>> = Object.fromEntries(
+  (Object.keys(ORB_TEXT_TEMPLATE) as OrbMode[]).map((mode) => [mode, orbText(mode)]),
+) as Record<OrbMode, string>;
 
 const SYNC_TEXT: Record<string, string> = {
   mail: "MAILS WERDEN AKTUALISIERT",
@@ -76,6 +90,7 @@ function layersForForced(mode: OrbMode, health: OrbHealth, activeAgentIds: strin
  */
 export function deriveOrbSnapshot(source: OrbSource, since?: string): OrbSnapshot {
   const { state } = source;
+  const assistantName = source.assistantName?.() ?? state.settings.profile.assistantName ?? DEFAULT_ASSISTANT_NAME;
   const now = source.clock.now();
   const nowIso = new Date(now).toISOString();
   const health = computeHealth(state);
@@ -144,7 +159,7 @@ export function deriveOrbSnapshot(source: OrbSource, since?: string): OrbSnapsho
     return {
       status: status({
         mode: forced.mode,
-        activityText: forced.activityText ?? ORB_TEXT[forced.mode],
+        activityText: forced.activityText ?? orbText(forced.mode, assistantName),
         detailText: "Dev-Override aktiv",
         progress,
         progressMode: progress === null ? (forced.mode === "working" || forced.mode === "syncing" ? "indeterminate" : "none") : "determinate",
@@ -158,7 +173,7 @@ export function deriveOrbSnapshot(source: OrbSource, since?: string): OrbSnapsho
   const done = (mode: OrbMode, extra: Partial<OrbStatus> = {}): OrbSnapshot => ({
     status: status({
       mode,
-      activityText: ORB_TEXT[mode],
+      activityText: orbText(mode, assistantName),
       progress: null,
       progressMode: "none",
       urgency: "none",

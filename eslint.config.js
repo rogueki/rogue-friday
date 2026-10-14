@@ -79,6 +79,7 @@ export default defineConfig([
     "**/dist/**",
     "**/out/**",
     "**/.next/**",
+    "**/.next-*/**",
     "**/storybook-static/**",
     "**/coverage/**",
     "**/playwright-report/**",

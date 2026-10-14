@@ -189,7 +189,7 @@ export class ApprovalService {
         : /warum|grund|wieso/.test(lower)
           ? `Begründung: ${approval.rationale.split("\n\n")[0]}`
           : "Ich habe Entwurf, Quellen und Kalender nochmals geprüft; es gibt keine Abweichungen zur ursprünglichen Einschätzung.";
-      approval.rationale = `${approval.rationale}\n\nRückfrage: ${question}\nAntwort von ${agent?.name ?? "F.R.I.D.A.Y."}: ${answer}`;
+      approval.rationale = `${approval.rationale}\n\nRückfrage: ${question}\nAntwort von ${agent?.name ?? this.w.assistantName()}: ${answer}`;
       this.w.bump(approval);
       // The contract has no approval.updated event; re-announcing keeps cached approvals current.
       this.w.emitFor("approvals", "jarvis.approval.requested", approval, `approval/${approval.id}`, approval.correlationId);

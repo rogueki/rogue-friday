@@ -42,7 +42,7 @@ export function buildVoice(ctx: SeedContext): VoiceSeed {
     source: ctx.src("voice"),
     mode: "idle",
     microphone: { state: "idle", active: false, deviceId: input.id, inputLevel: 0.02 },
-    wakeWord: { enabled: true, state: "armed", phrase: "Hey Jarvis" },
+    wakeWord: { enabled: true, state: "armed", phrase: "Hey Friday" },
     speakerVerification: { enabled: true, state: "idle", recognizedSpeaker: "Erik Brandt", confidence: 0.97 },
     trustedSession: { active: true, expiresAt: ctx.at(25 * MIN) },
     stt: { engine: "faster-whisper large-v3 (lokal)", state: "ready", latencyMs: 420 },

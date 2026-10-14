@@ -57,8 +57,8 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   getScenarioState: "dev.scenarios",
 };
 
-/** Operations that change state although they are not (or not only) plain writes; every call lands in the audit log. */
-export const NON_AUDITED_POSTS = new Set<OperationId>(["searchMemory"]);
+/** POST operations that are read-only or pure telemetry and therefore stay out of the audit log (otherwise every browser batch would add a hash-chain entry). */
+export const NON_AUDITED_POSTS = new Set<OperationId>(["searchMemory", "submitFrontendTelemetry"]);
 
 export const AUDIT_CATEGORY_BY_TAG: Readonly<Record<string, "user_action" | "approval" | "system" | "security">> = {
   approvals: "approval",

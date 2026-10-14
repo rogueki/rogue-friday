@@ -16,6 +16,8 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     const { settings, changed } = ctx.runtime.settings.patch(ctx.body as SettingsPatch, ctx.mutation.ifMatchVersion);
     ctx.audit.action = "settings.updated";
     ctx.audit.after = { areas: changed, version: settings.version };
+    // The mock world words its orb/status texts with the assistant name; re-derive them so a rename shows up at once.
+    if (changed.includes("profile")) ctx.runtime.world?.refresh();
     return { status: 200, body: single(settings) };
   },
 
@@ -29,12 +31,12 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
 
   async updateAdapterSettings(ctx) {
     const id = ctx.pathParams.id as string;
-    const { settings, changed } = await ctx.runtime.adapterSettings.patch(id, ctx.body as AdapterConfigPatch);
+    const { settings, changed } = await ctx.runtime.adapterSettings.patch(id, ctx.body as AdapterConfigPatch, ctx.mutation.ifMatchVersion);
     ctx.audit.action = "settings.adapter_updated";
     ctx.audit.severity = "warning";
     ctx.audit.adapterId = id;
     // Names only: configuration values and secrets never enter the audit trail.
-    ctx.audit.after = { changed };
+    ctx.audit.after = { changed, version: settings.version };
     return { status: 200, body: single(settings) };
   },
 

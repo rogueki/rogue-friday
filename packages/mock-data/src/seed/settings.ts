@@ -32,9 +32,10 @@ export function defaultOrbSettings(): OrbSettings {
   return {
     preset: "gold-reference",
     size: 1,
-    intensity: 1,
+    // 0..100 like the contract and @jarvis/orb's defaults (1 would render the orb at 1 % intensity).
+    intensity: 70,
     speed: 1,
-    particleDensity: 1,
+    particleDensity: 60,
     audioReactive: true,
     mouseParallax: true,
     bloom: true,
@@ -134,7 +135,7 @@ export function buildSettings(ctx: SeedContext): Settings {
     },
     voice: {
       wakeWordEnabled: true,
-      wakeWord: "Hey Jarvis",
+      wakeWord: "Hey Friday",
       pushToTalkKey: "Ctrl+Space",
       speakerVerificationRequired: true,
       storeRawRecordings: false,

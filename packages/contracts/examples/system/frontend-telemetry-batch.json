@@ -1,0 +1,26 @@
+{
+  "$schema": "https://jarvis.local/schemas/system/frontend-telemetry-batch.schema.json",
+  "errors": [
+    {
+      "kind": "render_error",
+      "message": "TypeError in OrbScene: Cannot read properties of undefined",
+      "route": "/overview",
+      "count": 2,
+      "occurredAt": "2026-10-14T08:14:41Z"
+    }
+  ],
+  "orbSamples": [
+    {
+      "fps": 58.6,
+      "frameTimeMs": 17.1,
+      "webglMemoryBytes": 83886080,
+      "occurredAt": "2026-10-14T08:14:55Z"
+    },
+    {
+      "fps": 60,
+      "frameTimeMs": 16.7,
+      "webglMemoryBytes": 83886080,
+      "occurredAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

@@ -81,6 +81,13 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    id: 2,
+    name: "adapter-override-version",
+    sql: `
+      ALTER TABLE adapter_overrides ADD COLUMN version INTEGER NOT NULL DEFAULT 1;
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

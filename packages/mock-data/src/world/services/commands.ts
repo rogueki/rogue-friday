@@ -36,7 +36,7 @@ const ROUTES: [RegExp, string][] = [
 ];
 
 interface Intent {
-  kind: "stop" | "pause" | "resume" | "navigate" | "memory_search" | "send_message" | "task" | "money" | "forbidden" | "ask";
+  kind: "stop" | "pause" | "resume" | "navigate" | "memory_search" | "send_message" | "task" | "money" | "forbidden" | "ask" | "voice_start" | "focus_toggle";
   route?: string;
   recipient?: string;
   title?: string;
@@ -46,8 +46,19 @@ interface Intent {
 
 const translit = (value: string): string => value.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
 
+/** Text the web client sends for its built-in voice intents (apps/web `useVoiceUi`), plus a few spoken variants. */
+export const VOICE_START_COMMAND = "Sprachaufnahme starten";
+export const FOCUS_MODE_COMMAND = "Fokus-Modus umschalten";
+
+const words = (value: string): string => translit(value).replace(/[^a-z0-9]+/g, " ").trim();
+const VOICE_START_TEXTS = new Set([words(VOICE_START_COMMAND), "starte sprachaufnahme", "sprachaufnahme beginnen"]);
+const FOCUS_TOGGLE_TEXTS = new Set([words(FOCUS_MODE_COMMAND), "fokusmodus umschalten", "schalte den fokus modus um"]);
+
 function classify(text: string): Intent {
   const normalized = translit(text).trim();
+  const plain = words(text);
+  if (VOICE_START_TEXTS.has(plain)) return { kind: "voice_start" };
+  if (FOCUS_TOGGLE_TEXTS.has(plain)) return { kind: "focus_toggle" };
   if (/^(loesch|formatier).*(alles|alle daten|festplatte|laufwerk)/.test(normalized) || /rm -rf|drop database/.test(normalized)) return { kind: "forbidden" };
   if (/^(stopp|stop|halt)\b/.test(normalized)) return { kind: "stop" };
   if (/^(pausier|pause)/.test(normalized)) return { kind: "pause" };
@@ -125,6 +136,18 @@ export class CommandService {
         case "resume": {
           const outcome = this[intent.kind === "stop" ? "stop" : intent.kind === "pause" ? "pause" : "resume"]({ scope: "all", reason: text }, { ...ctx, correlationId });
           return finish(this.w.id("cmd"), { status: "executed", requiresConfirmation: false, previewText: null, riskTier: 1, approvalId: null, result: { message: outcome.message ?? "Erledigt." } });
+        }
+        case "voice_start": {
+          if (this.w.state.voice.status.focusMode) {
+            return finish(this.w.id("cmd"), { status: "rejected", requiresConfirmation: false, previewText: null, riskTier: 1, approvalId: null, result: { message: "Der Fokus-Modus ist aktiv. Bitte zuerst den Fokus-Modus beenden." } });
+          }
+          this.w.voice.setMode("listening");
+          return finish(this.w.id("cmd"), { status: "executed", requiresConfirmation: false, previewText: null, riskTier: 1, approvalId: null, result: { message: "Sprachaufnahme gestartet.", targetRoute: "/voice" } });
+        }
+        case "focus_toggle": {
+          const enable = !this.w.state.voice.status.focusMode;
+          this.control(enable ? "pause" : "resume", { scope: "voice", reason: enable ? "Fokus-Modus" : "Fokus-Modus beendet" }, { ...ctx, correlationId });
+          return finish(this.w.id("cmd"), { status: "executed", requiresConfirmation: false, previewText: null, riskTier: 1, approvalId: null, result: { message: enable ? "Fokus-Modus aktiviert." : "Fokus-Modus beendet." } });
         }
         case "ask": {
           const task = this.createAskTask(text, correlationId, ctx);

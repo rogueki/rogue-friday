@@ -132,6 +132,43 @@
     },
     {
       "type": "object",
+      "title": "ScenarioReleaseOrbState",
+      "description": "Releases a forced orb state (force_orb_state) so the orb follows the derived state again.",
+      "properties": {
+        "action": {
+          "const": "release_orb_state"
+        }
+      },
+      "required": ["action"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "ScenarioPlayEvent",
+      "description": "Plays one event of the AsyncAPI event list on the event stream. The optional payload (data) is validated against the payload schema of the event type (AsyncAPI). Without a payload the mock derives one from its current state for event types that mirror state (orb, overall status, system metrics, voice state); every other type needs a payload (422).",
+      "properties": {
+        "action": {
+          "const": "play_event"
+        },
+        "eventType": {
+          "type": "string",
+          "pattern": "^jarvis\\.[a-z_]+(\\.[a-z_]+)+$"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": ["action", "eventType"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
       "title": "ScenarioReset",
       "properties": {
         "action": {

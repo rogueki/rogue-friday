@@ -245,6 +245,38 @@ export class ScenarioEngine {
     return this.getState();
   }
 
+  /**
+   * Plays one event of the AsyncAPI list on the event stream. The payload is validated against the event's schema; without a
+   * payload, event types that mirror world state (orb, overall status, system metrics, voice state, resync) use the current
+   * state, every other type needs an explicit payload.
+   */
+  playEvent(eventType: string, payload?: unknown, subject?: string): ScenarioState {
+    const data = payload !== undefined ? payload : this.stateSample(eventType);
+    if (data === undefined) {
+      throw validationFailed(`Für ${eventType} ist ein Payload erforderlich.`, [{ path: "payload", message: "erforderlich" }]);
+    }
+    this.emitEvent({ type: eventType, data, ...(subject ? { subject } : {}) });
+    return this.getState();
+  }
+
+  private stateSample(eventType: string): unknown {
+    const w = this.world;
+    switch (eventType) {
+      case "jarvis.orb.status_changed":
+        return w.orbSnapshot();
+      case "jarvis.status.changed":
+        return w.jarvisStatus();
+      case "jarvis.system.metrics":
+        return w.currentMetrics();
+      case "jarvis.voice.state_changed":
+        return clone(w.state.voice.status);
+      case "jarvis.status.resync_required":
+        return { reason: "unknown", requestedSince: null, oldestAvailableSequence: null, latestSequence: Math.max(0, w.peekSequence() - 1) };
+      default:
+        return undefined;
+    }
+  }
+
   /** Applies a contract `ScenarioControlRequest` (POST /dev/scenarios/control). */
   control(request: ScenarioControlRequest): ScenarioState {
     switch (request.action) {
@@ -264,6 +296,10 @@ export class ScenarioEngine {
           ...(request.audioLevel !== undefined ? { audioLevel: request.audioLevel } : {}),
           ...(request.progress !== undefined ? { progress: request.progress } : {}),
         });
+      case "release_orb_state":
+        return this.forceOrbState(null);
+      case "play_event":
+        return this.playEvent(request.eventType, request.payload, request.subject);
       case "reset":
         return this.reset();
       default:

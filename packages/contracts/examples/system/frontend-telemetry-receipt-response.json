@@ -1,0 +1,12 @@
+{
+  "$schema": "https://jarvis.local/schemas/system/frontend-telemetry-receipt-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "acceptedErrors": 1,
+    "acceptedOrbSamples": 2
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

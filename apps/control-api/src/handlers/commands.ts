@@ -20,7 +20,7 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
     let status = "failed";
     try {
       const intent = request.confirm ? null : matchBuiltinIntent(request.text);
-      const result = intent ? { status: 200, body: await executeBuiltinIntent(ctx, intent) } : await executeBase(ctx);
+      const result = intent ? await executeBuiltinIntent(ctx, intent, () => executeBase(ctx)) : await executeBase(ctx);
       const response = result.body as CommandResponse;
       status = response.status;
       ctx.audit.context = {

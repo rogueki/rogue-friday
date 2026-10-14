@@ -12,6 +12,7 @@ import type { AuthService } from "../security/auth-service";
 import type { AdapterSettingsService } from "../services/adapter-settings";
 import type { OrbService, OverviewService, StatusService } from "../services/core-views";
 import type { SettingsService } from "../services/settings";
+import type { FrontendTelemetryService } from "../services/telemetry";
 import type { AdapterWiring } from "./adapter-wiring";
 
 export type ResponseValidationMode = "off" | "log" | "throw";
@@ -49,6 +50,7 @@ export interface Runtime {
   status: StatusService;
   orb: OrbService;
   overview: OverviewService;
+  telemetry: FrontendTelemetryService;
   audit: AuditRecorder;
   buildVersion: string;
   startedAt: Date;
@@ -57,6 +59,8 @@ export interface Runtime {
   refreshAdapters(): Promise<void>;
   /** Current time in epoch ms on the clock the data lives on (the mock world's clock in mock mode, wall time otherwise). */
   nowMs(): number;
+  /** Prometheus text exposition of all metrics; refreshes the adapter-health and derived gauges first. */
+  renderMetrics(): string;
   capabilities(): Capabilities;
   /** True when the capability (`tasks.create`) is currently offered; capability strings outside the document are allowed. */
   capabilityEnabled(capability: string): boolean;

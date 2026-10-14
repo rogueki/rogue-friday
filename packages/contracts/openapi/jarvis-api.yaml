@@ -54,6 +54,8 @@ tags:
     description: Global command bar
   - name: dev
     description: Development/QA scenario console (mock mode only)
+  - name: observability
+    description: Prometheus metrics and frontend telemetry (PLAN §50.3)
 security:
   - cookieAuth: []
 paths:
@@ -578,6 +580,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
             Location:
               description: URL of the created resource
               schema:
@@ -703,6 +707,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -749,6 +755,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -795,6 +803,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -841,6 +851,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -1106,6 +1118,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
             Location:
               description: URL of the created resource
               schema:
@@ -1378,6 +1392,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -1415,6 +1431,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -1452,6 +1470,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -1602,6 +1622,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -1648,6 +1670,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -1693,6 +1717,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -1879,6 +1905,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
             Location:
               description: URL of the created resource
               schema:
@@ -1972,6 +2000,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -2185,6 +2215,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
             Location:
               description: URL of the created resource
               schema:
@@ -2274,6 +2306,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
             Location:
               description: URL of the created resource
               schema:
@@ -2810,6 +2844,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -2819,6 +2855,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -3096,6 +3134,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -3197,6 +3237,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -3288,6 +3330,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -4135,6 +4179,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -4177,6 +4223,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -4219,6 +4267,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -4261,6 +4311,8 @@ paths:
           headers:
             X-Correlation-Id:
               $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:
@@ -4313,6 +4365,82 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: commands.history
       x-required-role: viewer
+  /api/v1/metrics:
+    get:
+      operationId: getMetrics
+      tags:
+        - observability
+      summary: Prometheus metrics of the control API (text exposition format 0.0.4)
+      description: Request latency, error rate, WebSocket connections, events per second, adapter health, cache hits and the frontend telemetry gauges (orb FPS, frame time, WebGL memory, frontend errors). Contains no personal data.
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                # HELP jarvis_http_requests_total HTTP requests handled
+                # TYPE jarvis_http_requests_total counter
+                jarvis_http_requests_total{method="GET",route="/api/v1/health",status="200"} 12
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-required-role: owner
+  /api/v1/telemetry/frontend:
+    post:
+      operationId: submitFrontendTelemetry
+      tags:
+        - observability
+      summary: Report frontend errors and orb performance samples (size- and rate-limited, no personal data)
+      description: Body limit 32 KiB, at most 20 errors and 60 orb samples per request, 30 requests per minute per session. Messages are redacted server-side; only aggregated metrics and a redacted log line are kept.
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FrontendTelemetryBatch"
+      responses:
+        "202":
+          description: Accepted
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FrontendTelemetryReceiptResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-required-role: operator
+      x-max-body-bytes: 32768
   /api/v1/dev/scenarios:
     get:
       operationId: listScenarios
@@ -4524,6 +4652,12 @@ components:
       description: Correlation id of this request
       schema:
         type: string
+    IdempotentReplayed:
+      description: Set to "true" when the response was replayed from the idempotency store for a repeated Idempotency-Key instead of executing the operation again.
+      schema:
+        type: string
+        enum:
+          - "true"
     ApprovalToken:
       description: Short-lived, single-use token bound to this approval, user and the approve action; send it back as X-Approval-Token on POST /approvals/{id}/approve. Only present for pending approvals the caller may decide.
       schema:
@@ -4581,6 +4715,15 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     UnprocessableEntity:
       description: Validation failed (VALIDATION_FAILED)
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    PayloadTooLarge:
+      description: Request body exceeds the size limit of the operation (VALIDATION_FAILED)
       headers:
         X-Correlation-Id:
           $ref: "#/components/headers/CorrelationId"
@@ -4831,6 +4974,16 @@ components:
       $ref: ../schemas/system/healthcheck-result.schema.json
     HealthcheckResultResponse:
       $ref: ../schemas/system/healthcheck-result-response.schema.json
+    OrbPerformanceSample:
+      $ref: ../schemas/system/orb-performance-sample.schema.json
+    FrontendTelemetryReceiptResponse:
+      $ref: ../schemas/system/frontend-telemetry-receipt-response.schema.json
+    FrontendTelemetryReceipt:
+      $ref: ../schemas/system/frontend-telemetry-receipt.schema.json
+    FrontendTelemetryBatch:
+      $ref: ../schemas/system/frontend-telemetry-batch.schema.json
+    FrontendErrorReport:
+      $ref: ../schemas/system/frontend-error-report.schema.json
     HealthStatus:
       $ref: ../schemas/common/health-status.schema.json
     JarvisStatus:

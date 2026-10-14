@@ -20,6 +20,11 @@
     "enabled": {
       "type": "boolean"
     },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Optimistic-concurrency token of this configuration; send it as If-Match on PATCH /settings/adapters/{id}. Increases with every change."
+    },
     "config": {
       "type": "object",
       "additionalProperties": true

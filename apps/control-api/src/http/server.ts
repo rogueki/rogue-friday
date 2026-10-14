@@ -83,6 +83,7 @@ export function configureHttp(fastify: FastifyInstance, runtime: Runtime, pipeli
         api.route({
           method: spec.method,
           url: toFastifyPath(spec.path),
+          ...(spec.maxBodyBytes !== null ? { bodyLimit: spec.maxBodyBytes } : {}),
           handler: (request, reply) => pipeline.handle(spec, request, reply),
         });
       }

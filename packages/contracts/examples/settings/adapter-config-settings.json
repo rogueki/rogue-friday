@@ -4,6 +4,7 @@
   "category": "tasks",
   "provider": "hermes-tasks",
   "enabled": true,
+  "version": 3,
   "config": {
     "baseUrl": "http://127.0.0.1:8642",
     "timeoutMs": 3000
