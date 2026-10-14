@@ -22,7 +22,8 @@ const HERMES_TASK_TITLES = [
   "Backup-Skript dokumentieren",
 ];
 
-test.describe.configure({ mode: "serial" });
+// Scenarios are independent: no serial mode (a failure must not skip the rest) and every outage scenario restores its
+// service in `finally`, so a failed assertion cannot leak a stopped service into the next test.
 
 let context: BrowserContext;
 let page: Page;
@@ -41,6 +42,10 @@ async function shot(name: string): Promise<void> {
   await page.waitForTimeout(600); // let the last transition and the orb settle
   await page.screenshot({ path: join(evidenceDir, `${name}.png`) });
 }
+
+/** Outage wording (PLAN §9.3): "Offline – <Adapter> nicht erreichbar seit …". "Nicht verbunden" means "not configured" and must never show up. */
+const OUTAGE_TEXT = /offline[\s\S]*nicht erreichbar seit/i; // innerText reflects CSS uppercase, hence case-insensitive
+const NOT_CONFIGURED_TEXT = /nicht verbunden/i;
 
 async function mainText(): Promise<string> {
   return page.locator("main").innerText();
@@ -151,75 +156,85 @@ test("system: services online, real host metrics, models", async () => {
   await shot("05-system");
 });
 
-test("outage: stopping the voice service marks exactly the voice module offline", async () => {
+test("outage and recovery: stopping the voice service marks exactly the voice module offline", async () => {
   await control("/services/voice/stop");
+  try {
+    const voice = await openUntil("/voice", OUTAGE_TEXT);
+    expect(voice).toMatch(/Jarvis Voice[^\n]*nicht erreichbar seit/);
+    expect(voice).not.toMatch(NOT_CONFIGURED_TEXT); // an outage is not "not configured"
+    expect(voice).not.toContain("„Hey Friday“");
+    await expect(page.getByText("Sprachdienst offline").first()).toBeVisible(); // nav widget
+    await shot("06-voice-offline");
 
-  const voice = await openUntil("/voice", /nicht verbunden/i);
-  expect(voice).not.toContain("„Hey Friday“");
-  await shot("06-voice-offline");
+    const system = await openUntil("/system", /Voice-Dienst[\s\S]*Offline/);
+    expect(system).toMatch(/14 online/);
+    expect(system).toMatch(/1 offline/);
+    expect(system).toMatch(/Hermes API[^|]*[\s\S]{0,200}Online/);
+    const adapters = (await api("/adapters")).body.items as Array<{ manifest: { id: string }; health: { status: string } }>;
+    expect(adapters.filter((adapter) => adapter.health.status !== "online").map((adapter) => adapter.manifest.id)).toEqual(["jarvis-voice-http"]);
+    await shot("07-system-voice-offline");
 
-  const system = await openUntil("/system", /Voice-Dienst[\s\S]*Offline/);
-  expect(system).toMatch(/14 online/);
-  expect(system).toMatch(/1 offline/);
-  expect(system).toMatch(/Hermes API[^|]*[\s\S]{0,200}Online/);
-  const adapters = (await api("/adapters")).body.items as Array<{ manifest: { id: string }; health: { status: string } }>;
-  expect(adapters.filter((adapter) => adapter.health.status !== "online").map((adapter) => adapter.manifest.id)).toEqual(["jarvis-voice-http"]);
-  await shot("07-system-voice-offline");
+    // everything else keeps working
+    expect((await api("/voice/status")).status).toBe(503);
+    await page.goto("/tasks");
+    await expect(page.getByText("7 Treffer")).toBeVisible();
+    await shot("08-tasks-voice-offline");
+    await page.goto("/agents");
+    await expect(page.getByText("3 Treffer")).toBeVisible();
+    expect((await api("/tasks")).status).toBe(200);
+    expect((await api("/memory")).status).toBe(200);
+    await page.goto("/");
+    await expect(page.locator("main")).toContainText("Rückfrage zur Lieferzeit klären");
+    const overview = await mainText();
+    expect(overview).toMatch(/Sprache\s*\n?\s*Offline/i);
+    expect(overview).not.toMatch(/Sprache\s*\n?\s*Nicht verbunden/);
+    await shot("09-overview-voice-offline");
+  } finally {
+    await control("/services/voice/start");
+  }
 
-  // everything else keeps working
-  expect((await api("/voice/status")).status).toBe(503);
-  await page.goto("/tasks");
-  await expect(page.getByText("7 Treffer")).toBeVisible();
-  await shot("08-tasks-voice-offline");
-  await page.goto("/agents");
-  await expect(page.getByText("3 Treffer")).toBeVisible();
-  expect((await api("/tasks")).status).toBe(200);
-  expect((await api("/memory")).status).toBe(200);
-  await page.goto("/");
-  await expect(page.locator("main")).toContainText("Rückfrage zur Lieferzeit klären");
-  expect(await mainText()).toMatch(/Sprache\s*\n?\s*Nicht verbunden/);
-  await shot("09-overview-voice-offline");
-});
-
-test("recovery: restarting the voice service brings the module back", async () => {
-  await control("/services/voice/start");
   const voice = await openUntil("/voice", /„Hey Friday“/, 90_000);
-  expect(voice).not.toMatch(/nicht verbunden/i);
+  expect(voice).not.toMatch(NOT_CONFIGURED_TEXT);
+  expect(voice).not.toMatch(OUTAGE_TEXT);
   await shot("10-voice-recovered");
   const system = await openUntil("/system", /15 online/);
   expect(system).toMatch(/0 offline/);
   await shot("11-system-recovered");
 });
 
-test("outage: stopping Hermes marks tasks, activity and agents offline while voice and system keep working", async () => {
+test("outage and recovery: stopping Hermes marks tasks, activity and agents offline while voice and system keep working", async () => {
   await control("/services/hermes/stop");
+  try {
+    const tasks = await openUntil("/tasks", OUTAGE_TEXT);
+    expect(tasks).toMatch(/Hermes Aufgaben nicht erreichbar seit/);
+    expect(tasks).not.toMatch(NOT_CONFIGURED_TEXT);
+    expect(tasks).not.toContain("Angebot Nr. 2041 prüfen");
+    await shot("12-tasks-hermes-offline");
+    const agents = await openUntil("/agents", OUTAGE_TEXT);
+    expect(agents).not.toMatch(NOT_CONFIGURED_TEXT);
+    await shot("13-agents-hermes-offline");
 
-  const tasks = await openUntil("/tasks", /nicht verbunden|nicht erreichbar|nicht verfügbar/i);
-  expect(tasks).not.toContain("Angebot Nr. 2041 prüfen");
-  await shot("12-tasks-hermes-offline");
-  await openUntil("/agents", /nicht verbunden|nicht erreichbar|nicht verfügbar/i);
-  await shot("13-agents-hermes-offline");
+    const system = await openUntil("/system", /Hermes API[\s\S]*Offline/);
+    expect(system).toMatch(/3 offline/);
+    expect(system).toMatch(/Qwen lokal \(llama-server\)[\s\S]{0,200}Online/);
+    const adapters = (await api("/adapters")).body.items as Array<{ manifest: { id: string }; health: { status: string } }>;
+    expect(adapters.filter((adapter) => adapter.health.status !== "online").map((adapter) => adapter.manifest.id).sort()).toEqual(["hermes-activity", "hermes-agents", "hermes-tasks"]);
+    await shot("14-system-hermes-offline");
 
-  const system = await openUntil("/system", /Hermes API[\s\S]*Offline/);
-  expect(system).toMatch(/3 offline/);
-  expect(system).toMatch(/Qwen lokal \(llama-server\)[\s\S]{0,200}Online/);
-  const adapters = (await api("/adapters")).body.items as Array<{ manifest: { id: string }; health: { status: string } }>;
-  expect(adapters.filter((adapter) => adapter.health.status !== "online").map((adapter) => adapter.manifest.id).sort()).toEqual(["hermes-activity", "hermes-agents", "hermes-tasks"]);
-  await shot("14-system-hermes-offline");
+    expect((await api("/voice/status")).status).toBe(200);
+    expect((await api("/system/services")).status).toBe(200);
+    expect((await api("/memory")).status).toBe(200);
+    expect((await api("/tasks")).status).toBe(503);
+    await page.goto("/voice");
+    await expect(page.getByText("„Hey Friday“").first()).toBeVisible();
+    await shot("15-voice-while-hermes-offline");
+  } finally {
+    await control("/services/hermes/start");
+  }
 
-  expect((await api("/voice/status")).status).toBe(200);
-  expect((await api("/system/services")).status).toBe(200);
-  expect((await api("/memory")).status).toBe(200);
-  expect((await api("/tasks")).status).toBe(503);
-  await page.goto("/voice");
-  await expect(page.getByText("„Hey Friday“").first()).toBeVisible();
-  await shot("15-voice-while-hermes-offline");
-});
-
-test("recovery: restarting Hermes brings tasks and agents back", async () => {
-  await control("/services/hermes/start");
   const tasks = await openUntil("/tasks", /7 Treffer/, 90_000);
   expect(tasks).toContain("Angebot Nr. 2041 prüfen");
+  expect(tasks).not.toMatch(OUTAGE_TEXT);
   await shot("16-tasks-recovered");
   await openUntil("/agents", /3 Treffer/);
   const system = await openUntil("/system", /15 online/);
