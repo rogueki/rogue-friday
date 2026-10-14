@@ -1,5 +1,14 @@
+import { deA } from "./modules/a.de";
+import { deB } from "./modules/b.de";
+import { deC } from "./modules/c.de";
+import { deD } from "./modules/d.de";
+
 /** German dictionary (default locale). Keys are the contract for `en.ts`: a missing English key is a compile error. */
 export const de = {
+  ...deA,
+  ...deB,
+  ...deC,
+  ...deD,
   // common
   "common.all": "Alle",
   "common.cancel": "Abbrechen",
@@ -22,7 +31,8 @@ export const de = {
   "boot.failed": "{assistant} konnte nicht gestartet werden",
   "boot.loading": "Verbindung zur Control API …",
   "boot.unreachable.title": "Control API nicht erreichbar",
-  "boot.unreachable.description": "{assistant} kann den lokalen Dienst nicht erreichen. Läuft die Control API auf Port 3100?",
+  "boot.unreachable.description":
+    "{assistant} kann den lokalen Dienst nicht erreichen. Läuft die Control API auf Port 3100?",
   "error.title": "Diese Ansicht konnte nicht angezeigt werden",
   "notFound.title": "Seite nicht gefunden",
   "notFound.description": "Diese Adresse gehört zu keinem Modul des Command Centers.",
@@ -69,7 +79,8 @@ export const de = {
 
   // module placeholders
   "module.loading": "Modul wird geladen",
-  "module.loading.description": "Dieses Modul wird gerade aufgebaut und erscheint hier, sobald es verfügbar ist.",
+  "module.loading.description":
+    "Dieses Modul wird gerade aufgebaut und erscheint hier, sobald es verfügbar ist.",
   "page.tasks.description": "Aufgaben, Kanban und Details",
   "page.activity.description": "Was {assistant} gerade tut: Aktivitätsbaum und Verlauf",
   "page.memory.description": "Gespeichertes Wissen, Quellen und Konflikte",
@@ -246,7 +257,8 @@ export const de = {
   "panel.stale": "Diese Daten sind möglicherweise nicht mehr aktuell.",
   "panel.degraded.title": "Eingeschränkter Betrieb",
   "panel.offline.title": "Nicht verbunden",
-  "panel.offline.description": "Der zugehörige Adapter ist nicht erreichbar. Der Rest der Ansicht funktioniert weiter.",
+  "panel.offline.description":
+    "Der zugehörige Adapter ist nicht erreichbar. Der Rest der Ansicht funktioniert weiter.",
   "panel.configureAdapter": "Adapter konfigurieren",
 
   // overview
@@ -256,7 +268,8 @@ export const de = {
   "overview.orb.noAgent": "Kein aktiver Agent",
   "overview.orb.progress": "Fortschritt",
   "overview.orb.fallback2d": "2D-Darstellung aktiv",
-  "overview.orb.fallback2dHint": "WebGL ist nicht verfügbar oder deaktiviert; der Orb wird als 2D-Variante gezeichnet.",
+  "overview.orb.fallback2dHint":
+    "WebGL ist nicht verfügbar oder deaktiviert; der Orb wird als 2D-Variante gezeichnet.",
   "overview.orb.updated": "Aktualisiert {time}",
   "overview.attention.title": "Live-Intelligenz",
   "overview.attention.label": "Aufmerksamkeit und Live-Aktivität",

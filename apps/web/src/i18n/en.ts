@@ -1,7 +1,15 @@
 import type { de } from "./de";
+import { enA } from "./modules/a.en";
+import { enB } from "./modules/b.en";
+import { enC } from "./modules/c.en";
+import { enD } from "./modules/d.en";
 
 /** English dictionary; must contain exactly the German keys. */
 export const en: Record<keyof typeof de, string> = {
+  ...enA,
+  ...enB,
+  ...enC,
+  ...enD,
   "common.all": "All",
   "common.cancel": "Cancel",
   "common.close": "Close",
@@ -22,7 +30,8 @@ export const en: Record<keyof typeof de, string> = {
   "boot.failed": "{assistant} could not be started",
   "boot.loading": "Connecting to the Control API …",
   "boot.unreachable.title": "Control API not reachable",
-  "boot.unreachable.description": "{assistant} cannot reach the local service. Is the Control API running on port 3100?",
+  "boot.unreachable.description":
+    "{assistant} cannot reach the local service. Is the Control API running on port 3100?",
   "error.title": "This view could not be displayed",
   "notFound.title": "Page not found",
   "notFound.description": "This address does not belong to any module of the Command Center.",
