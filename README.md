@@ -1,17 +1,25 @@
-# rogue-friday — F.R.I.D.A.Y. Command Center
+# F.R.I.D.A.Y. Command Center
 
-Next-generation autonomous agentic assistant. Built as the modern evolution of J.A.R.V.I.S. for intelligent task
-orchestration, reasoning, and multi-tool execution.
-
-Dieses Repository enthält das **Command Center** von F.R.I.D.A.Y.: ein adapterbasiertes, Contract-First Dashboard mit
+F.R.I.D.A.Y. übernimmt dort, wo J.A.R.V.I.S. aufgehört hat – die nächste Generation, von Grund auf neu gebaut:
+contract-first, adapterbasiert und transparent in allem, was sie tut. Dieses Repository enthält das **Command Center**: ein Dashboard mit
 Next.js-Frontend, NestJS/Fastify Control API, austauschbaren Adaptern, vollständigem Mock-Betrieb und einem goldenen,
-animierten Hologramm-Orb als AI-Core.
+prozedural gerenderten Orb als AI-Core.
 
 - **Aktueller Stand und nächste Schritte:** [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md)
-
 - Spezifikation: [`docs/PLAN.md`](docs/PLAN.md)
 - Verbindliche technische Entscheidungen: [`docs/IMPLEMENTATION_CONVENTIONS.md`](docs/IMPLEMENTATION_CONVENTIONS.md)
 - Verträge und Codegenerierung: [`docs/CONTRACT_FIRST.md`](docs/CONTRACT_FIRST.md)
+
+## Namen und Bezeichner
+
+- Der sichtbare Produktname ist **F.R.I.D.A.Y.** (im Fließtext „Friday“). Der Assistentenname ist konfigurierbar
+  (`settings.profile.assistantName`, Standard „F.R.I.D.A.Y.“).
+- Das Standard-Aktivierungswort ist „Hey Friday“. Bei der Installation lässt sich ein eigener Name festlegen, etwa
+  Jarvis oder James. Die Umsetzung im Installer ist noch offen (siehe [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md)).
+- Technische Bezeichner aus der Vorgängergeneration bleiben bewusst unverändert, weil sie Teil des Vertrags und des
+  Build-Setups sind: Paketnamen `@jarvis/*`, Event-Typen `jarvis.*`, API-Pfad `/api/v1`, Umgebungsvariablen `JARVIS_*`,
+  CSS-Variablen `--jarvis-*`, Komponenten wie `JarvisOrb` sowie Pfade wie `installer/install-jarvis.bat` und `C:\Jarvis`.
+  Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), Abschnitt „Namen und Bezeichner“.
 
 ## Paketinhalt
 

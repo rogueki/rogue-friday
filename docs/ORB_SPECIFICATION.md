@@ -169,7 +169,7 @@ never at `ultra`. `AdaptiveQuality` feeds on wall-clock frame times: p95 > 20 ms
   motion and `renderer: "auto"` the scene renders in this calm mode.
 - **Interaction**: transparent button over the sphere (focus ring), click/Enter → `onActivate(target)` (approval → approvalId, error → error detail, working →
   task, idle → command bar, others → live activity), Space → `onVoiceToggle`, hover/focus tooltip (state, action, runtime, agent, task id, source).
-  `aria-live="polite"` sentence, e.g. *"Jarvis arbeitet. Aufgabe Wettbewerbsanalyse. Drei Agenten aktiv. Fortschritt 62 Prozent."* (mode changes announce
+  `aria-live="polite"` sentence, e.g. *"F.R.I.D.A.Y. arbeitet. Aufgabe Wettbewerbsanalyse. Drei Agenten aktiv. Fortschritt 62 Prozent."* (mode changes announce
   immediately, progress/agents at most every 3 s). Mic glyph only while the voice layer is `listening`; pause and approval glyphs next to the label.
   Status is never colour-only (labels + glyphs).
 

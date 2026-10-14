@@ -23,8 +23,8 @@ Open the reference image and keep comparing. Goal: same visual family, not a pix
 6. **Memory insights**: small constellation graph (dots + thin lines), stats column on the right.
 7. **Provider/Model grid**: 3×N small cards, icon tile + name + status word coloured (Connected green /
    Not linked muted).
-8. **Left nav**: brand block at top (round logo mark with concentric rings + "JARVIS" wide-tracked +
-   "COMMAND CENTER" small), items 40 px high with 18 px line icons and text; active item = cyan-bordered
+8. **Left nav**: brand block at top (round logo mark with concentric rings + "F.R.I.D.A.Y." wide-tracked +
+   "COMMAND CENTER" small; the reference image still shows the predecessor name "JARVIS"), items 40 px high with 18 px line icons and text; active item = cyan-bordered
    box with subtle inner glow and brighter text; right-aligned **count badges** (small rounded pill,
    dark fill, cyan border). Lower part: "VOICE STATUS" panel with waveform, "Listening…" text and a large
    **circular mic button** with 2–3 concentric glowing rings; below it a "Focus Mode" button.
@@ -33,14 +33,14 @@ Open the reference image and keep comparing. Goal: same visual family, not a pix
    icon + shortcut hint, square icon buttons (layout, bell with badge, settings) each in a thin bordered
    box, and an operator chip (name + role + round avatar outline).
 10. **Bottom command bar**: full width, ~64 px; left small context chips (Location, Weather, Network) each
-    icon + label + value; centre a **glowing capsule button** "MIT JARVIS SPRECHEN" / status line under it
+    icon + label + value; centre a **glowing capsule button** "MIT F.R.I.D.A.Y. SPRECHEN" / status line under it
     ("Ich höre zu…"), flanked by live waveforms and dotted HUD lines that extend left and right; right a
     bordered "Executive Briefing" quick action. Stop/Pause controls live next to the capsule.
 11. **Typography**: Oxanium for headings/labels/clock (uppercase, tracked), Inter for content,
     JetBrains Mono for numbers, IDs, tags. Body 13–14 px; dense but every row ≥ 32 px high.
 12. **Colour discipline**: 80–85 % navy, 10–15 % cyan lines/interaction, 2–5 % semantic accents.
     Gold/amber appears **only** in and around the AI-core orb panel (and the orb-related voice capsule
-    when Jarvis speaks). The reference's blue wireframe globe is **replaced** by the golden orb.
+    when F.R.I.D.A.Y. speaks). The reference's blue wireframe globe is **replaced** by the golden orb.
 
 ## Motion
 

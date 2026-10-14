@@ -75,7 +75,7 @@ Alles online, keine Alerts, keine Freigaben, der Orb ruht.
 **UI-Erwartungen**
 
 - Orb im Zustand BEREIT, ruhige Atmung, kein Cyan-Farbumschlag
-- Topbar zeigt „Jarvis online“, Attention-Zone zeigt den Leerzustand
+- Topbar zeigt „F.R.I.D.A.Y. online“, Attention-Zone zeigt den Leerzustand
 - Alle Adapter und Dienste grün
 
 ### 45.2 `listening` – Listening
@@ -124,7 +124,7 @@ Listening → Transcribing → Thinking → Speaking → Idle mit Partial- und F
 
 - Orb wechselt fließend zwischen den fünf Zuständen mit deutschem Statustext
 - Transkript-Zeile zeigt Partial-Text kursiv, Final-Text fest
-- Stop-Schaltfläche (Barge-In) ist während JARVIS SPRICHT sichtbar
+- Stop-Schaltfläche (Barge-In) ist während F.R.I.D.A.Y. SPRICHT sichtbar
 
 ### 45.4 `multi-agent-working` – Multi-Agent Working
 
