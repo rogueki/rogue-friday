@@ -43,7 +43,7 @@
 .jv-nav--collapsed .jv-nav__brand { flex-direction: column; padding: 14px 6px 10px; gap: 8px; }
 .jv-brandmark { flex: none; filter: drop-shadow(0 0 6px var(--jarvis-tint-cyan-glow)); }
 .jv-nav__brandtext { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 3px; }
-.jv-nav__title { font-family: var(--jv-font-display); font-size: var(--jv-fs-2xl); font-weight: 600; line-height: 1; letter-spacing: var(--jv-tracking-brand); color: var(--jarvis-text-strong); }
+.jv-nav__title { font-family: var(--jv-font-display); font-size: var(--jv-fs-xl); font-weight: 600; line-height: 1; letter-spacing: 0.16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--jarvis-text-strong); }
 .jv-nav__subtitle { font-family: var(--jv-font-display); font-size: 9px; font-weight: 500; letter-spacing: 0.34em; color: var(--jarvis-cyan); opacity: 0.9; }
 .jv-nav__toggle { display: inline-flex; align-self: flex-start; padding: 4px; color: var(--jarvis-muted); background: none; border: 1px solid transparent; border-radius: var(--jv-radius-sm); cursor: pointer; }
 .jv-nav__toggle:hover { color: var(--jarvis-cyan-bright); border-color: var(--jv-line-soft); }

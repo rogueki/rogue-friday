@@ -11,8 +11,7 @@
       "description": "Visible brand name of the assistant (UI, orb labels, voice copy). Optional; clients fall back to \"F.R.I.D.A.Y.\".",
       "type": "string",
       "minLength": 1,
-      "maxLength": 40,
-      "default": "F.R.I.D.A.Y."
+      "maxLength": 40
     },
     "locale": {
       "type": "string",

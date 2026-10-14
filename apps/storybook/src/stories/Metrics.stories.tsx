@@ -62,9 +62,9 @@ export const Constellation: Story = {
       </div>
       <div style={{ width: 360, height: 180, border: '1px solid var(--jv-line-soft)' }}>
         <ConstellationGraph
-          summary="Projekt Jarvis mit drei verbundenen Personen"
+          summary="Projekt F.R.I.D.A.Y. mit drei verbundenen Personen"
           nodes={[
-            { id: 'p', x: 0.5, y: 0.5, weight: 1, label: 'Jarvis' },
+            { id: 'p', x: 0.5, y: 0.5, weight: 1, label: 'F.R.I.D.A.Y.' },
             { id: 'a', x: 0.2, y: 0.3, weight: 0.5 },
             { id: 'b', x: 0.8, y: 0.3, weight: 0.5 },
             { id: 'c', x: 0.5, y: 0.85, weight: 0.4, tone: 'amber' },

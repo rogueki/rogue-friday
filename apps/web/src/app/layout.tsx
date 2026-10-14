@@ -6,8 +6,8 @@ import "./responsive.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Jarvis Command Center",
-  description: "Lokales Kontrollzentrum für Jarvis",
+  title: "F.R.I.D.A.Y. Command Center",
+  description: "Lokales Kontrollzentrum für F.R.I.D.A.Y.",
   icons: { icon: "/icon.svg" },
 };
 

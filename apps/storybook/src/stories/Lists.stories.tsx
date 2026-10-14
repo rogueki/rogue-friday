@@ -60,7 +60,7 @@ export const FeedEmpty: Story = {
   name: 'ActivityFeed – leer',
   render: () => (
     <div style={{ padding: 28, maxWidth: 520 }}>
-      <ActivityFeed items={[]} label="Live-Aktivität" height={240} empty={<EmptyState compact title="Keine Aktivität" description="Sobald Jarvis arbeitet, erscheinen hier Ereignisse." />} />
+      <ActivityFeed items={[]} label="Live-Aktivität" height={240} empty={<EmptyState compact title="Keine Aktivität" description="Sobald F.R.I.D.A.Y. arbeitet, erscheinen hier Ereignisse." />} />
     </div>
   ),
 };

@@ -111,6 +111,7 @@ export function buildSettings(ctx: SeedContext): Settings {
     updatedAt: ctx.at(-2 * 86_400_000),
     profile: {
       displayName: "Erik Brandt",
+      assistantName: "F.R.I.D.A.Y.",
       locale: "de",
       timeZone: "Europe/Berlin",
       dateFormat: "dd.MM.yyyy",
@@ -199,7 +200,7 @@ export function buildThemes(): Theme[] {
   return [
     theme(
       "jarvis-navy-cyan",
-      "Jarvis Navy & Cyan",
+      "F.R.I.D.A.Y. Navy & Cyan",
       "Standardthema: tiefes Navy, Cyan-HUD-Linien, goldener Orb.",
       {
         "color.background": "#050B14",
@@ -217,7 +218,7 @@ export function buildThemes(): Theme[] {
     ),
     theme(
       "jarvis-deep-night",
-      "Jarvis Tiefe Nacht",
+      "F.R.I.D.A.Y. Tiefe Nacht",
       "Dunklere Variante mit reduziertem Cyan und kräftigerem Gold.",
       {
         "color.background": "#02060C",
@@ -236,6 +237,7 @@ export function buildThemes(): Theme[] {
   ];
 }
 
+/** Widget ids are the canonical ones from config/layouts/jarvis-command-overview.json (the overview page resolves them by id). */
 export function buildLayouts(): Layout[] {
   return [
     {
@@ -243,15 +245,15 @@ export function buildLayouts(): Layout[] {
       name: "Standard",
       columns: 12,
       widgets: [
-        { id: "orb", x: 3, y: 0, w: 6, h: 8, visible: true },
-        { id: "attention", x: 9, y: 0, w: 3, h: 8, visible: true },
-        { id: "agents", x: 0, y: 0, w: 3, h: 4, visible: true },
-        { id: "tasks", x: 0, y: 4, w: 3, h: 4, visible: true },
-        { id: "timeline", x: 0, y: 8, w: 4, h: 4, visible: true },
-        { id: "calendar", x: 4, y: 8, w: 4, h: 4, visible: true },
-        { id: "system", x: 8, y: 8, w: 4, h: 4, visible: true },
-        { id: "memory", x: 0, y: 12, w: 6, h: 3, visible: true },
-        { id: "models", x: 6, y: 12, w: 6, h: 3, visible: false },
+        { id: "core-overview", x: 0, y: 0, w: 3, h: 7, visible: true },
+        { id: "ai-core-orb", x: 3, y: 0, w: 6, h: 7, visible: true },
+        { id: "attention-feed", x: 9, y: 0, w: 3, h: 7, visible: true },
+        { id: "active-agents", x: 0, y: 7, w: 5, h: 4, visible: true },
+        { id: "mission-timeline", x: 5, y: 7, w: 4, h: 4, visible: true },
+        { id: "quick-commands", x: 9, y: 7, w: 3, h: 4, visible: true },
+        { id: "system-monitor", x: 0, y: 11, w: 4, h: 4, visible: true },
+        { id: "memory-insights", x: 4, y: 11, w: 3, h: 4, visible: true },
+        { id: "models-services", x: 7, y: 11, w: 5, h: 4, visible: true },
       ],
     },
     {
@@ -259,10 +261,10 @@ export function buildLayouts(): Layout[] {
       name: "Kompakt",
       columns: 12,
       widgets: [
-        { id: "orb", x: 0, y: 0, w: 8, h: 8, visible: true },
-        { id: "attention", x: 8, y: 0, w: 4, h: 8, visible: true },
-        { id: "tasks", x: 0, y: 8, w: 6, h: 4, visible: true },
-        { id: "calendar", x: 6, y: 8, w: 6, h: 4, visible: true },
+        { id: "ai-core-orb", x: 0, y: 0, w: 8, h: 8, visible: true },
+        { id: "attention-feed", x: 8, y: 0, w: 4, h: 8, visible: true },
+        { id: "active-agents", x: 0, y: 8, w: 6, h: 4, visible: true },
+        { id: "mission-timeline", x: 6, y: 8, w: 6, h: 4, visible: true },
       ],
     },
   ];

@@ -109,7 +109,7 @@ describe('defaults', () => {
       ownerPasswordHash: { ref: 'env:JARVIS_OWNER_PASSWORD_HASH', configured: false },
     });
     expect(config.realtime).toEqual({ ringBufferSize: 5000, heartbeatSeconds: 15 });
-    expect(config.ui).toEqual({ locale: 'de-DE', timezone: 'Europe/Berlin', theme: 'jarvis-command-midnight', layout: 'jarvis-command-overview' });
+    expect(config.ui).toEqual({ locale: 'de-DE', timezone: 'Europe/Berlin', assistantName: 'F.R.I.D.A.Y.', theme: 'jarvis-command-midnight', layout: 'jarvis-command-overview' });
     expect(config.dev).toEqual({ scenarioConsole: true, responseValidation: true });
     expect(config.files).toEqual({ dashboard: null, adapters: null });
     expect(config.warnings.some((w) => w.includes('dashboard.yaml not found'))).toBe(true);
@@ -208,6 +208,8 @@ describe('validation errors', () => {
   });
 
   it('validates locale and time zone semantics', () => {
+    expect(load({ dashboard: 'ui:\n  assistantName: Nova\n' }).ui.assistantName).toBe('Nova');
+    expect(loadError({ dashboard: "ui:\n  assistantName: ''\n" }).message).toContain('ui.assistantName');
     const error = loadError({ dashboard: 'ui:\n  timezone: Mars/Olympus\n' });
     expect(error.message).toContain('ui.timezone');
   });

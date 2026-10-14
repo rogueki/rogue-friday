@@ -35,6 +35,9 @@ export type JarvisOrbProps = {
   settings?: Partial<OrbSettings>;
   onActivate?: (target: OrbActivationTarget) => void;
   onVoiceToggle?: () => void;
+  /** Display name interpolated into the default labels (default "F.R.I.D.A.Y."). */
+  assistantName?: string;
+  locale?: "de" | "en";
   className?: string;
   style?: CSSProperties;
   showPerf?: boolean;

@@ -119,13 +119,13 @@ export function OverviewDemo({ voice = 'listening', navCollapsed, fixedNow = tru
               <span>ORB SLOT</span>
             </div>
             <div className="ov-orb__brand">
-              <span className="ov-orb__name">JARVIS</span>
+              <span className="ov-orb__name">F.R.I.D.A.Y.</span>
               <span className="ov-orb__sub">AI CORE</span>
               <span className="ov-orb__ver">v1.0 · Mock-Modus</span>
             </div>
             <div className="ov-orb__status" role="status">
               <StatusChip tone="gold" pulse>
-                Jarvis hört zu
+                F.R.I.D.A.Y. hört zu
               </StatusChip>
               <span>Aktiver Agent: Coding-Agent · „Panel-Rahmen für Storybook“</span>
             </div>

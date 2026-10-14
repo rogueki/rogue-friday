@@ -34,7 +34,7 @@ const ORB_STATUS_KEYS: Record<OrbMode, MessageKey> = {
   paused: "orb.status.paused",
 };
 
-/** Status line derived from the orb mode ("Bereit", "Ich höre zu …", "Jarvis arbeitet …", "Jarvis spricht …"). */
+/** Status line derived from the orb mode ("Bereit", "Ich höre zu …", "F.R.I.D.A.Y. arbeitet …", "F.R.I.D.A.Y. spricht …"). */
 export function orbStatusKey(mode: OrbMode | undefined): MessageKey {
   return mode ? ORB_STATUS_KEYS[mode] : "orb.status.idle";
 }

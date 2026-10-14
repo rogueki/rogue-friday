@@ -31,7 +31,7 @@ export const DialogStory: Story = {
           open={open}
           onOpenChange={setOpen}
           title="Neue Aufgabe"
-          description="Beschreibe, was Jarvis erledigen soll. Fokus bleibt im Dialog, Esc schließt."
+          description="Beschreibe, was F.R.I.D.A.Y. erledigen soll. Fokus bleibt im Dialog, Esc schließt."
           icon={<Plus size={16} />}
           footer={
             <>
@@ -97,7 +97,7 @@ export const DrawerStory: Story = {
 };
 
 const paletteItems: CommandItem[] = [
-  { id: 'ask', group: 'Jarvis', label: 'Jarvis fragen', description: 'Freitext-Anfrage an Jarvis', icon: <Mic size={15} />, shortcut: '/' },
+  { id: 'ask', group: 'F.R.I.D.A.Y.', label: 'F.R.I.D.A.Y. fragen', description: 'Freitext-Anfrage an F.R.I.D.A.Y.', icon: <Mic size={15} />, shortcut: '/' },
   { id: 'task', group: 'Erstellen', label: 'Aufgabe anlegen', description: 'Neue Aufgabe mit Priorität', icon: <Plus size={15} />, keywords: ['todo', 'task'] },
   { id: 'mail', group: 'Erstellen', label: 'E-Mail an Max senden', icon: <Mail size={15} />, critical: true, preview: { title: 'E-Mail an Max Mustermann senden', lines: ['Betreff: Angebot Rechenzentrum', 'Anhang: angebot.pdf (1,2 MB)'], warning: 'Die Mail verlässt das lokale System.' } },
   { id: 'search', group: 'Navigation', label: 'Gedächtnis durchsuchen', icon: <Search size={15} />, keywords: ['memory'] },
@@ -115,7 +115,7 @@ export const CommandPaletteStory: Story = {
       <div style={{ padding: 28 }}>
         <Button onClick={() => setOpen(true)}>Palette öffnen (Ctrl+K)</Button>
         <p style={{ color: 'var(--jarvis-muted)' }}>Zuletzt ausgeführt: {last || '–'}</p>
-        <CommandPalette open={open} onOpenChange={setOpen} items={paletteItems} onSelect={(i) => setLast(i.label)} groupOrder={['Jarvis', 'Erstellen', 'Navigation', 'Automationen']} />
+        <CommandPalette open={open} onOpenChange={setOpen} items={paletteItems} onSelect={(i) => setLast(i.label)} groupOrder={['F.R.I.D.A.Y.', 'Erstellen', 'Navigation', 'Automationen']} />
       </div>
     );
   },

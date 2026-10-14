@@ -2,7 +2,7 @@
   "name": "@jarvis/web",
   "version": "1.0.0",
   "private": true,
-  "description": "Jarvis Command Center Frontend",
+  "description": "F.R.I.D.A.Y. Command Center Frontend",
   "type": "module",
   "scripts": {
     "dev": "node scripts/run-next.mjs dev --port 3000",

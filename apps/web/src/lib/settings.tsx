@@ -12,7 +12,7 @@ import type { Settings, Theme } from "@jarvis/sdk";
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { useSettings, useThemes } from "./api/domains/settings";
 import { useMeta } from "./api/domains/core";
-import { I18nProvider, type Locale } from "@/i18n";
+import { I18nProvider, resolveAssistantName, translate, type Locale } from "@/i18n";
 
 export interface AppSettingsValue {
   settings: Settings | undefined;
@@ -85,6 +85,11 @@ export function AppSettingsProvider({ enabled, children }: { enabled: boolean; c
     document.documentElement.lang = locale;
   }, [locale]);
 
+  const assistantName = resolveAssistantName(settings?.profile.assistantName);
+  useEffect(() => {
+    document.title = translate(locale, "app.title", undefined, assistantName);
+  }, [locale, assistantName]);
+
   const value = useMemo<AppSettingsValue>(
     () => ({
       settings,
@@ -98,7 +103,7 @@ export function AppSettingsProvider({ enabled, children }: { enabled: boolean; c
 
   return (
     <AppSettingsContext.Provider value={value}>
-      <I18nProvider locale={locale}>{children}</I18nProvider>
+      <I18nProvider locale={locale} assistantName={assistantName}>{children}</I18nProvider>
     </AppSettingsContext.Provider>
   );
 }

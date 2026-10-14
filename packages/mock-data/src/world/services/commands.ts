@@ -208,7 +208,7 @@ export class CommandService {
     }
   }
 
-  /** "Jarvis fragen": creates a running task for the task agent and lets the orb think briefly. */
+  /** "F.R.I.D.A.Y. fragen": creates a running task for the task agent and lets the orb think briefly. */
   private createAskTask(text: string, correlationId: string, ctx?: OpContext) {
     const agent = this.w.state.agents.find((candidate) => candidate.role.toLowerCase().includes("planung")) ?? this.w.state.agents[0];
     const task = this.w.tasks.spawn({

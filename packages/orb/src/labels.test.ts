@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ORB_LABELS_EN, activationTarget, buildAriaSentence, formatRuntime } from "./labels";
+import { ORB_LABELS_DE, ORB_LABELS_EN, activationTarget, createOrbLabels, resolveLabels, buildAriaSentence, formatRuntime } from "./labels";
 
 const base = { since: "2026-06-15T10:00:00Z" };
 
@@ -9,22 +9,43 @@ describe("buildAriaSentence", () => {
       { mode: "working", activityText: "Wettbewerbsanalyse", progress: 0.62, progressMode: "determinate", activeAgentCount: 3, ...base },
       undefined,
     );
-    expect(s).toBe("Jarvis arbeitet. Aufgabe Wettbewerbsanalyse. Drei Agenten aktiv. Fortschritt 62 Prozent.");
+    expect(s).toBe("F.R.I.D.A.Y. arbeitet. Aufgabe Wettbewerbsanalyse. Drei Agenten aktiv. Fortschritt 62 Prozent.");
   });
 
   it("never announces progress for indeterminate work", () => {
     const s = buildAriaSentence({ mode: "working", progressMode: "indeterminate", ...base }, undefined);
-    expect(s).toBe("Jarvis arbeitet.");
+    expect(s).toBe("F.R.I.D.A.Y. arbeitet.");
   });
 
   it("supports english labels and percent progress", () => {
     const s = buildAriaSentence({ mode: "working", progress: 62, progressMode: "determinate", activeAgentCount: 1, ...base }, undefined, ORB_LABELS_EN);
-    expect(s).toBe("Jarvis is working. 1 agent active. Progress 62 percent.");
+    expect(s).toBe("F.R.I.D.A.Y. is working. 1 agent active. Progress 62 percent.");
   });
 
   it("describes idle and error", () => {
-    expect(buildAriaSentence({ mode: "idle", ...base }, undefined)).toBe("Jarvis ist bereit.");
+    expect(buildAriaSentence({ mode: "idle", ...base }, undefined)).toBe("F.R.I.D.A.Y. ist bereit.");
     expect(buildAriaSentence({ mode: "error", activityText: "Adapter nicht erreichbar", ...base }, undefined)).toBe("Fehler aufgetreten. Adapter nicht erreichbar.");
+  });
+});
+
+describe("assistant name", () => {
+  it("defaults to F.R.I.D.A.Y. in state labels", () => {
+    expect(ORB_LABELS_DE.states.booting).toBe("F.R.I.D.A.Y. WIRD INITIALISIERT");
+    expect(ORB_LABELS_DE.states.speaking).toBe("F.R.I.D.A.Y. SPRICHT");
+    expect(ORB_LABELS_EN.states.speaking).toBe("F.R.I.D.A.Y. SPEAKING");
+  });
+
+  it("interpolates a configured name into labels and aria sentences", () => {
+    const labels = createOrbLabels({ assistantName: "Nova", locale: "de" });
+    expect(labels.states.speaking).toBe("NOVA SPRICHT");
+    expect(buildAriaSentence({ mode: "idle", ...base }, undefined, labels)).toBe("Nova ist bereit.");
+    expect(createOrbLabels({ assistantName: "  ", locale: "en" }).aria.modes.idle).toBe("F.R.I.D.A.Y. is ready.");
+  });
+
+  it("resolveLabels keeps overrides on top of the named defaults", () => {
+    const labels = resolveLabels({ hitTarget: "X" }, { assistantName: "Nova" });
+    expect(labels.hitTarget).toBe("X");
+    expect(labels.states.booting).toBe("NOVA WIRD INITIALISIERT");
   });
 });
 

@@ -122,7 +122,7 @@ export interface OfflineStateProps extends Omit<HTMLAttributes<HTMLDivElement>, 
   compact?: boolean;
 }
 
-export function OfflineState({ title = 'Keine Verbindung', description = 'Jarvis ist nicht erreichbar. Es werden nur zwischengespeicherte Daten angezeigt.', lastSync, now, onRetry, retryLabel = 'Verbindung prüfen', compact, ...rest }: OfflineStateProps) {
+export function OfflineState({ title = 'Keine Verbindung', description = 'Der lokale Dienst ist nicht erreichbar. Es werden nur zwischengespeicherte Daten angezeigt.', lastSync, now, onRetry, retryLabel = 'Verbindung prüfen', compact, ...rest }: OfflineStateProps) {
   return (
     <StateShell icon={<WifiOff size={compact ? 16 : 22} strokeWidth={1.5} />} tone="blue" title={title} description={description} compact={compact} {...rest}>
       {lastSync ? <FreshnessBadge state="offline-cache" asOf={lastSync} now={now} /> : null}

@@ -17,7 +17,7 @@ import { VoiceNavPanel } from "./VoiceNavPanel";
 
 /** Dashboard frame: left navigation, top status bar, persistent command bar and the global overlays. */
 export function AppShell({ children }: { children: ReactNode }) {
-  const { t } = useT();
+  const { t, assistantName } = useT();
   const router = useRouter();
   const { settings } = useAppSettings();
   const { items, activeId } = useNavItems();
@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             navLabel={t("shell.nav")}
             collapseLabel={t("shell.nav.collapse")}
             expandLabel={t("shell.nav.expand")}
-            brand={{ title: "JARVIS", subtitle: "COMMAND CENTER" }}
+            brand={{ title: assistantName, subtitle: t("brand.subtitle") }}
             footer={<VoiceNavPanel />}
           />
         }
