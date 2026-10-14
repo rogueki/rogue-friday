@@ -69,3 +69,6 @@ export {
 
 export { AdaptiveQuality } from "./scene/adaptiveQuality";
 export type { OrbDebugProbe } from "./scene/OrbScene";
+
+export { resolveAudioLevel, toAudioLevelReader } from "./audio/audioSource";
+export type { OrbAudioLevelReader, OrbAudioSourceRef } from "./audio/audioSource";

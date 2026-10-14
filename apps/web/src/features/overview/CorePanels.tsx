@@ -4,7 +4,7 @@ import type { HealthStatus, Overview } from "@jarvis/sdk";
 import { ActivityFeed, ActivityRow, HudPanel, PanelLink, StatusChip, type ActivityItem, type Tone } from "@jarvis/ui";
 import { Bot, Brain, CheckCircle2, Database, Mic, ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { OrbSlot } from "@/features/orb/OrbSlot";
 import { useOrbSnapshot } from "@/features/orb/useOrbSnapshot";
@@ -106,10 +106,14 @@ export function CoreOverviewPanel({ className, style }: { className?: string; st
 
 /* ── AI Core / orb panel (center) ─────────────────────────────────────── */
 
+/** The globe fills the stage like in the reference (PLAN §27.3); see `OrbSlotProps.sizeBoost`. */
+const ORB_PANEL_SIZE_BOOST = 1.25;
+
 export function OrbPanel({ className, style }: { className?: string; style?: React.CSSProperties }) {
   const { t, locale, assistantName } = useT();
   const { timeZone, hour12 } = useAppSettings();
   const { overview } = useOverviewPanel([]);
+  const [renderer, setRenderer] = useState<"3d" | "2d">("3d");
   const orb = useOrbSnapshot().snapshot ?? overview?.orb;
   const status = orb?.status;
   const mode = status?.mode;
@@ -124,7 +128,7 @@ export function OrbPanel({ className, style }: { className?: string; style?: Rea
     <HudPanel className={className} style={style} tone="gold" glow cut="all" cutSize="lg" brackets={["tl", "tr", "bl", "br"]} padding="none" aria-label={t("overview.orb.label")}>
       <div className="ov-orb">
         <div className="ov-orb__stage">
-          <OrbSlot />
+          <OrbSlot sizeBoost={ORB_PANEL_SIZE_BOOST} onRendererChange={setRenderer} />
         </div>
         <div className="ov-orb__brand">
           <span className="ov-orb__name">{assistantName}</span>
@@ -149,6 +153,11 @@ export function OrbPanel({ className, style }: { className?: string; style?: Rea
             </span>
           ) : null}
         </div>
+        {renderer === "2d" ? (
+          <span className="ov-orb__notice" role="note" title={t("overview.orb.fallback2dHint")}>
+            {t("overview.orb.fallback2d")}
+          </span>
+        ) : null}
         {overview ? (
           <span className="ov-orb__updated">{t("overview.orb.updated", { time: formatClockTime(overview.lastUpdatedAt, { locale, timeZone, hour12 }) })}</span>
         ) : null}

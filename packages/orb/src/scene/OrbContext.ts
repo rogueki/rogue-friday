@@ -1,4 +1,5 @@
 import { createContext, useContext, type MutableRefObject } from "react";
+import type { OrbAudioSourceRef } from "../audio/audioSource";
 import type { OrbSettings, QualityProfile } from "../settings";
 import type { VisualTargets } from "../visual/deriveVisualTargets";
 import type { LiveParams } from "./liveParams";
@@ -12,6 +13,8 @@ export interface OrbSceneContextValue {
   settings: OrbSettings;
   /** True when the scene runs on the deterministic test clock. */
   fixedClock: boolean;
+  /** Live audio level reader polled every frame (falls back to `targets.audioLevel` when absent). */
+  audioSource?: OrbAudioSourceRef;
 }
 
 export const OrbSceneContext = createContext<OrbSceneContextValue | null>(null);

@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react';
-import { forwardRef, useId, type ButtonHTMLAttributes, type ElementType, type HTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, useId, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
 import { cx } from '../cx';
 import type { Corner, PanelCut, PanelCutSize, PanelLevel, PanelTone } from '../types';
 
@@ -64,7 +64,8 @@ export function HudPanelHeader({
   className,
   ...rest
 }: HudPanelHeaderProps) {
-  const Heading = `h${headingLevel}` as ElementType;
+  // Intrinsic tag names only: `ElementType` collapses to `never` once react-three-fiber augments the global JSX namespace.
+  const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4';
   return (
     <div className={cx('jv-panel-header', className)} {...rest}>
       {icon ? (
@@ -169,7 +170,8 @@ export const HudPanel = forwardRef<HTMLElement, HudPanelProps>(function HudPanel
   },
   ref,
 ) {
-  const Tag = as as ElementType;
+  // Narrowed to one intrinsic element type so props/ref (HTMLElement) type-check; the runtime tag is whatever `as` says.
+  const Tag = as as 'section';
   const titleId = useId();
   const bracketCorners = brackets === true ? defaultBrackets[cut] : brackets === false ? [] : brackets;
   const glowOn = glow ?? level >= 2;

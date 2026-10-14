@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from "react";
+import { toAudioLevelReader, type OrbAudioLevelReader, type OrbAudioSourceRef } from "./audio/audioSource";
 import type { OrbLayers, OrbSnapshot, OrbStatus } from "./contract-types";
 import { OrbPerfOverlay } from "./debug/OrbPerfOverlay";
 import { OrbFallback2D } from "./fallback/OrbFallback2D";
@@ -33,6 +34,14 @@ interface JarvisOrbBaseProps {
   showPerf?: boolean;
   /** Called when the effective renderer changes (3d <-> 2d). */
   onRendererChange?: (renderer: "3d" | "2d") => void;
+  /**
+   * Live audio level (0..1), called once per rendered frame inside the animation loop. Use it (or `audioLevelRef`)
+   * instead of `status.audioLevel` for audio reactivity beyond React's update rate; it never causes a re-render.
+   * Only read while the voice layer is listening/speaking and `settings.audioReactive` is on.
+   */
+  getAudioLevel?: OrbAudioLevelReader;
+  /** Same as `getAudioLevel`, for a ref the caller writes to (e.g. from an audio analyser callback). */
+  audioLevelRef?: { readonly current: number | null };
 }
 
 /**
@@ -137,6 +146,8 @@ export function JarvisOrb({
   style,
   showPerf = false,
   onRendererChange,
+  getAudioLevel,
+  audioLevelRef,
 }: JarvisOrbProps) {
   const status = (snapshot?.status ?? statusProp) as OrbStatus;
   const layers = snapshot?.layers ?? layersProp;
@@ -155,6 +166,12 @@ export function JarvisOrb({
   useLayoutEffect(() => {
     targetsRef.current = targets;
   }, [targets]);
+
+  // The renderers poll this holder every frame; props can change without touching the scene.
+  const audioSourceRef = useRef<OrbAudioLevelReader | undefined>(undefined) as OrbAudioSourceRef;
+  useLayoutEffect(() => {
+    audioSourceRef.current = toAudioLevelReader(getAudioLevel, audioLevelRef);
+  }, [getAudioLevel, audioLevelRef, audioSourceRef]);
 
   // Renderer selection: WebGL availability is probed after mount (SSR-safe), context loss swaps in the 2D fallback.
   const [webgl, setWebgl] = useState<"unknown" | "yes" | "no">("unknown");
@@ -247,6 +264,7 @@ export function JarvisOrb({
           <OrbCanvas
             key={canvasKey}
             targetsRef={targetsRef}
+            audioSourceRef={audioSourceRef}
             settings={settings}
             quality={quality}
             adaptive={adaptive}
@@ -258,7 +276,7 @@ export function JarvisOrb({
           />
         </div>
       ) : null}
-      {showFallback ? <OrbFallback2D status={status} layers={effectiveLayers} settings={settings} reducedMotion={osReduced} active={active} /> : null}
+      {showFallback ? <OrbFallback2D status={status} layers={effectiveLayers} settings={settings} reducedMotion={osReduced} active={active} audioSourceRef={audioSourceRef} /> : null}
       <OrbOverlay status={status} layers={effectiveLayers} labels={labels} />
       <button
         type="button"

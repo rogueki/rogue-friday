@@ -1,6 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "paths": { "@/*": ["./src/*"], "@jarvis/orb": ["./src/shims/jarvis-orb.d.ts"] }
-  }
-}

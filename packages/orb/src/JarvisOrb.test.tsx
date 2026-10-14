@@ -83,3 +83,26 @@ describe("<JarvisOrb> without WebGL (2D fallback path)", () => {
     expect(screen.getByTestId("orb-state-label")).toHaveTextContent("FREIGABE ERFORDERLICH");
   });
 });
+
+describe("<JarvisOrb> audio input", () => {
+  it("polls getAudioLevel from the 2D animation loop (no React update needed)", async () => {
+    // jsdom has no canvas: a recording context lets the fallback loop run so the poll can be observed.
+    const noop = (): unknown => new Proxy(() => undefined, { get: (_t, key) => (key === "addColorStop" ? noop : undefined), apply: () => noop() });
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(new Proxy({}, { get: () => noop(), set: () => true }) as unknown as CanvasRenderingContext2D);
+    vi.stubGlobal("ResizeObserver", class { observe(): void {} disconnect(): void {} unobserve(): void {} });
+    let level = 0.1;
+    const reader = vi.fn(() => level);
+    const snapshot: OrbSnapshot = {
+      status: status({ mode: "listening" }),
+      layers: { voice: "listening", work: "idle", attention: "none", health: "online", activeAgentIds: [] },
+    };
+    render(<JarvisOrb snapshot={snapshot} settings={{ renderer: "2d", audioReactive: true }} getAudioLevel={reader} />);
+    await screen.findByTestId("orb-fallback-2d");
+    await vi.waitFor(() => expect(reader).toHaveBeenCalled());
+    const before = reader.mock.calls.length;
+    level = 0.8;
+    await vi.waitFor(() => expect(reader.mock.calls.length).toBeGreaterThan(before + 1), { timeout: 2000 });
+    expect(reader.mock.results.at(-1)?.value).toBe(0.8);
+    vi.unstubAllGlobals();
+  });
+});

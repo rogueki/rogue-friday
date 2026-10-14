@@ -21,15 +21,16 @@ const config: NextConfig = {
   reactStrictMode: true,
   // The dev indicator would sit on top of the persistent command bar (bottom left).
   devIndicators: false,
-  // Type checking is its own step (`pnpm typecheck`, run by `pnpm build`): Next's built-in check would use the orb's real
-  // types, whose react-three-fiber JSX augmentation breaks @jarvis/ui's polymorphic HudPanel (see src/shims/jarvis-orb.d.ts).
-  typescript: { ignoreBuildErrors: true },
   // Libraries live outside apps/web; Turbopack needs the monorepo root to follow the symlinked packages.
   turbopack: {
     root: resolve(import.meta.dirname, "../.."),
     // @jarvis/mock-data's barrel also contains the Node test setup (`msw/node`), which msw excludes for the browser
     // condition. The browser never calls it, so an empty module satisfies the resolver.
-    resolveAlias: { "msw/node": { browser: "./src/lib/mock/empty.ts" } },
+    resolveAlias: {
+      "msw/node": { browser: "./src/lib/mock/empty.ts" },
+      // Normal builds must not contain the mock platform: the starter resolves to an empty module (see its docs).
+      ...(standaloneMock ? {} : { "@/lib/mock/MockStarter": "./src/lib/mock/MockStarter.disabled.tsx" }),
+    },
   },
   // Next 16 would otherwise write an AGENTS.md into the app; local agent metadata is not part of the deployable app.
   agentRules: false,
