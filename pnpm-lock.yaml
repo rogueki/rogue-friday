@@ -92,6 +92,19 @@ importers:
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
 
+  adapters/hermes:
+    dependencies:
+      '@jarvis/adapter-core':
+        specifier: workspace:*
+        version: link:../../packages/adapter-core
+      '@jarvis/sdk':
+        specifier: workspace:*
+        version: link:../../packages/generated-sdk
+    devDependencies:
+      '@jarvis/adapter-testkit':
+        specifier: workspace:*
+        version: link:../../packages/adapter-testkit
+
   adapters/hermes-placeholder:
     dependencies:
       '@jarvis/adapter-core':
@@ -134,6 +147,22 @@ importers:
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
 
+  adapters/system-local:
+    dependencies:
+      '@jarvis/adapter-core':
+        specifier: workspace:*
+        version: link:../../packages/adapter-core
+      '@jarvis/sdk':
+        specifier: workspace:*
+        version: link:../../packages/generated-sdk
+    devDependencies:
+      '@jarvis/adapter-testkit':
+        specifier: workspace:*
+        version: link:../../packages/adapter-testkit
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+
   adapters/system-placeholder:
     dependencies:
       '@jarvis/adapter-core':
@@ -146,6 +175,22 @@ importers:
       '@jarvis/adapter-testkit':
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
+
+  adapters/voice-http:
+    dependencies:
+      '@jarvis/adapter-core':
+        specifier: workspace:*
+        version: link:../../packages/adapter-core
+      '@jarvis/sdk':
+        specifier: workspace:*
+        version: link:../../packages/generated-sdk
+    devDependencies:
+      '@jarvis/adapter-testkit':
+        specifier: workspace:*
+        version: link:../../packages/adapter-testkit
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
 
   adapters/voice-placeholder:
     dependencies:
