@@ -1,0 +1,16 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/adapter-test-result-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "adapterId": "hermes-tasks",
+    "success": true,
+    "latencyMs": 41,
+    "message": "Verbindung erfolgreich.",
+    "testedAt": "2026-10-14T08:15:00Z",
+    "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00006"
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

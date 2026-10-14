@@ -1,0 +1,128 @@
+# JARVIS Command Center - Adapter-Registry (PLAN 10.9 / 10.10)
+# Kopieren nach config/adapters.yaml. Der effektive Betriebsmodus kommt aus dashboard.yaml (dataMode).
+#
+# Modus-Presets:
+#   mock   - jede Kategorie nutzt ihren mock-* Provider (andere Provider werden ignoriert)
+#   hybrid - hier genannte Kategorien nutzen ihren Provider, fehlende fallen auf mock-* zurueck
+#   live   - fehlende Kategorien sind deaktiviert (nicht gemockt)
+#
+# Geheimnisse gehoeren NIE als Klartext hierher. Credential-Felder (token, apiKey, password, ...) nutzen
+# Referenzen: env:NAME oder wincred:ZIELNAME. ${VAR}/${VAR:-default} ist nur fuer unkritische Werte (URLs).
+
+# Provider-ID -> npm-Paket. Die Registry laedt ausschliesslich Pakete aus dieser Liste.
+# Die mock-* Provider (@jarvis/adapter-mock) sind eingebaut und muessen nicht aufgefuehrt werden.
+allowlist: {}
+#  hermes-tasks: "@jarvis/adapter-hermes-placeholder"
+#  hermes-activity: "@jarvis/adapter-hermes-placeholder"
+#  gmx-mail: "@jarvis/adapter-mail-placeholder"
+#  caldav-calendar: "@jarvis/adapter-calendar-placeholder"
+#  jarvis-voice-http: "@jarvis/adapter-voice-placeholder"
+#  windows-wsl-system: "@jarvis/adapter-system-placeholder"
+
+# Gemeinsame Optionen je Kategorie (alle optional, hier die Standardwerte):
+#   enabled: true
+#   timeoutMs: 5000
+#   retry:           { maxAttempts: 3, baseDelayMs: 200, maxDelayMs: 5000, jitter: 0.2 }
+#   circuitBreaker:  { failureThreshold: 5, resetAfterMs: 30000 }
+
+adapters:
+  tasks:
+    provider: mock-tasks
+    enabled: true
+  activity:
+    provider: mock-activity
+    enabled: true
+  memory:
+    provider: mock-memory
+    enabled: true
+  agents:
+    provider: mock-agents
+    enabled: true
+  approvals:
+    provider: mock-approvals
+    enabled: true
+  communication:
+    provider: mock-communication
+    enabled: true
+  calendar:
+    provider: mock-calendar
+    enabled: true
+  automations:
+    provider: mock-automations
+    enabled: true
+  research:
+    provider: mock-research
+    enabled: true
+  files:
+    provider: mock-files
+    enabled: true
+  voice:
+    provider: mock-voice
+    enabled: true
+  notifications:
+    provider: mock-notifications
+    enabled: true
+  system:
+    provider: mock-system
+    enabled: true
+  audit:
+    provider: mock-audit
+    enabled: true
+  commands:
+    provider: mock-commands
+    enabled: true
+
+# ---------------------------------------------------------------------------------------------
+# Beispiel HYBRID (dataMode: hybrid): Tasks/Aktivitaet live ueber Hermes, Rest bleibt mock.
+# Die Provider muessen oben unter "allowlist" stehen.
+#
+# adapters:
+#   tasks:
+#     provider: hermes-tasks
+#     enabled: true
+#     timeoutMs: 8000
+#     config:
+#       baseUrl: ${HERMES_BASE_URL}
+#       apiToken: env:HERMES_API_TOKEN
+#   activity:
+#     provider: hermes-activity
+#     enabled: true
+#     config:
+#       baseUrl: ${HERMES_BASE_URL}
+#       apiToken: env:HERMES_API_TOKEN
+#   communication:
+#     provider: mock-communication   # (PLAN-Beispiel "mail": hier Kategorie communication)
+#   system:
+#     provider: windows-wsl-system
+#     enabled: true
+#     config:
+#       distro: ${WSL_DISTRO:-Ubuntu}
+#
+# ---------------------------------------------------------------------------------------------
+# Beispiel LIVE (dataMode: live): nur gelistete Kategorien sind aktiv, alle anderen deaktiviert.
+#
+# adapters:
+#   tasks:
+#     provider: hermes-tasks
+#     config:
+#       baseUrl: ${HERMES_BASE_URL}
+#       apiToken: env:HERMES_API_TOKEN
+#     retry: { maxAttempts: 3, baseDelayMs: 250, maxDelayMs: 4000, jitter: 0.2 }
+#     circuitBreaker: { failureThreshold: 5, resetAfterMs: 30000 }
+#   voice:
+#     provider: jarvis-voice-http
+#     config:
+#       baseUrl: ${VOICE_BASE_URL}
+#       apiToken: wincred:jarvis-voice
+#   communication:
+#     provider: gmx-mail
+#     config:
+#       imapHost: ${GMX_IMAP_HOST:-imap.gmx.net}
+#       username: ${GMX_USERNAME}
+#       password: env:GMX_PASSWORD
+#   calendar:
+#     provider: caldav-calendar
+#     config:
+#       url: ${CALDAV_URL}
+#       username: ${CALDAV_USERNAME}
+#       password: wincred:jarvis-caldav

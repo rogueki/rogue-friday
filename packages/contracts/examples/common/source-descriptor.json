@@ -1,0 +1,7 @@
+{
+  "$schema": "https://jarvis.local/schemas/common/source-descriptor.schema.json",
+  "adapterId": "hermes-tasks",
+  "system": "hermes",
+  "externalId": "hm-4711",
+  "lastSyncedAt": "2026-10-14T08:15:00Z"
+}

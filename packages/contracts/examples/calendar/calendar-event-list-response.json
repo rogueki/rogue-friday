@@ -1,0 +1,76 @@
+{
+  "$schema": "https://jarvis.local/schemas/calendar/calendar-event-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "id": "cal_01JCW5E9R2Q7T4M8N3B6V00001",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-calendar",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "title": "Projektbesprechung Außenanlage",
+      "description": "Abstimmung mit Frau Becker zur Außenanlage Königstraße.",
+      "start": "2026-10-21T10:00:00Z",
+      "end": "2026-10-21T11:00:00Z",
+      "allDay": false,
+      "timeZone": "Europe/Berlin",
+      "location": "Königstraße 12, Hannover",
+      "attendees": [
+        {
+          "name": "Katharina Becker",
+          "email": "k.becker@example.de",
+          "response": "needs_action"
+        }
+      ],
+      "status": "tentative",
+      "reminderMinutes": [15, 60],
+      "linkedTaskIds": ["task_01JCW5E9R2Q7T4M8N3B6V00002"],
+      "linkedThreadIds": ["thr_01JCW5E9R2Q7T4M8N3B6V00001"],
+      "conflictIds": ["conf_01JCW5E9R2Q7T4M8N3B6V00001"],
+      "briefingId": "brief_01JCW5E9R2Q7T4M8N3B6V00001"
+    },
+    {
+      "id": "cal_01JCW5E9R2Q7T4M8N3B6V00002",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-calendar",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "title": "Zahnarzt",
+      "start": "2026-10-21T09:30:00Z",
+      "end": "2026-10-21T10:30:00Z",
+      "allDay": false,
+      "timeZone": "Europe/Berlin",
+      "attendees": [],
+      "status": "confirmed",
+      "reminderMinutes": [30],
+      "linkedTaskIds": [],
+      "linkedThreadIds": [],
+      "conflictIds": ["conf_01JCW5E9R2Q7T4M8N3B6V00001"],
+      "briefingId": null
+    }
+  ],
+  "pageInfo": {
+    "nextCursor": null,
+    "hasNextPage": false,
+    "totalCount": 2
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "mock-calendar",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

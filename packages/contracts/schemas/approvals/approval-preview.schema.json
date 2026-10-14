@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/approvals/approval-preview.schema.json",
+  "title": "ApprovalPreview",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["email", "message", "calendar", "file", "order", "payment", "contract", "command", "text"]
+    },
+    "title": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": ["label", "value"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["kind", "title", "body"],
+  "additionalProperties": false
+}

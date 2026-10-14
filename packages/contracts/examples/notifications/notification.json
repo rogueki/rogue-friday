@@ -1,0 +1,54 @@
+{
+  "$schema": "https://jarvis.local/schemas/notifications/notification.schema.json",
+  "id": "ntf_01JCW5E9R2Q7T4M8N3B6V00001",
+  "version": 3,
+  "createdAt": "2026-10-14T06:30:00Z",
+  "updatedAt": "2026-10-14T08:10:00Z",
+  "source": {
+    "adapterId": "mock-notifications",
+    "system": "mock",
+    "lastSyncedAt": "2026-10-14T08:15:00Z"
+  },
+  "priority": "P1",
+  "category": "mail",
+  "title": "Wichtige E-Mail von Frau Becker",
+  "body": "Terminbestätigung für den 21.10. benötigt Antwort bis 12:00 Uhr.",
+  "status": "open",
+  "acknowledged": false,
+  "acknowledgedAt": null,
+  "snoozedUntil": null,
+  "resolved": false,
+  "resolvedAt": null,
+  "escalation": [
+    {
+      "step": 1,
+      "channel": "dashboard",
+      "state": "sent",
+      "scheduledAt": "2026-10-14T07:49:00Z",
+      "sentAt": "2026-10-14T07:49:00Z",
+      "acknowledgedAt": null
+    },
+    {
+      "step": 2,
+      "channel": "telegram",
+      "state": "sent",
+      "scheduledAt": "2026-10-14T07:49:00Z",
+      "sentAt": "2026-10-14T07:50:00Z",
+      "acknowledgedAt": null
+    },
+    {
+      "step": 3,
+      "channel": "phone",
+      "state": "pending",
+      "scheduledAt": "2026-10-14T07:59:00Z",
+      "sentAt": null,
+      "acknowledgedAt": null
+    }
+  ],
+  "sourceRef": {
+    "type": "thread",
+    "id": "thr_01JCW5E9R2Q7T4M8N3B6V00001",
+    "label": "Terminbestätigung"
+  },
+  "targetRoute": "/communication?thread=thr_01JCW5E9R2Q7T4M8N3B6V00001"
+}

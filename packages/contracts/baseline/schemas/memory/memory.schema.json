@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/memory/memory.schema.json",
+  "title": "Memory",
+  "description": "Stored knowledge item (PLAN §30). Nothing is hidden: provenance, usage and history are visible.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^mem_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "type": {
+      "$ref": "../memory/memory-type.schema.json"
+    },
+    "title": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string",
+      "minLength": 1
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "confirmedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "ttlSeconds": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "$ref": "../memory/memory-entity.schema.json"
+      }
+    },
+    "locked": {
+      "type": "boolean"
+    },
+    "pinned": {
+      "type": "boolean"
+    },
+    "sensitivity": {
+      "$ref": "../memory/memory-sensitivity.schema.json"
+    },
+    "provenance": {
+      "$ref": "../memory/memory-provenance.schema.json"
+    },
+    "usageCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "lastUsedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "$ref": "../memory/memory-conflict.schema.json"
+      }
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "$ref": "../memory/memory-history-entry.schema.json"
+      }
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "type",
+    "content",
+    "confidence",
+    "confirmedAt",
+    "expiresAt",
+    "tags",
+    "entities",
+    "locked",
+    "pinned",
+    "sensitivity",
+    "provenance",
+    "usageCount",
+    "lastUsedAt",
+    "conflicts",
+    "history"
+  ],
+  "additionalProperties": false
+}

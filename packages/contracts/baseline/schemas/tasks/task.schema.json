@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/tasks/task.schema.json",
+  "title": "Task",
+  "description": "Unit of work processed by an agent (PLAN §28.3).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^task_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "$ref": "../tasks/task-status.schema.json"
+    },
+    "priority": {
+      "$ref": "../common/priority.schema.json"
+    },
+    "agentId": {
+      "type": ["string", "null"],
+      "pattern": "^agent_[0-9A-Za-z]{26}$"
+    },
+    "agentName": {
+      "type": "string"
+    },
+    "model": {
+      "type": ["string", "null"]
+    },
+    "progress": {
+      "$ref": "../common/progress.schema.json"
+    },
+    "startedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "runtimeMs": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "dueAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "estimatedCompletionAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "$ref": "../tasks/task-blocker.schema.json"
+      }
+    },
+    "lastActivityAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "artifactCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "../tasks/artifact-ref.schema.json"
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "$ref": "../tasks/task-step.schema.json"
+      }
+    },
+    "toolCalls": {
+      "type": "array",
+      "items": {
+        "$ref": "../tasks/task-tool-call.schema.json"
+      }
+    },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "../common/entity-ref.schema.json"
+      }
+    },
+    "approvalIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^appr_[0-9A-Za-z]{26}$"
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "$ref": "../common/error-detail.schema.json"
+      }
+    },
+    "createdBy": {
+      "$ref": "../common/actor.schema.json"
+    },
+    "parentTaskId": {
+      "type": ["string", "null"],
+      "pattern": "^task_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "title",
+    "status",
+    "priority",
+    "agentId",
+    "model",
+    "progress",
+    "startedAt",
+    "runtimeMs",
+    "dueAt",
+    "estimatedCompletionAt",
+    "blockers",
+    "lastActivityAt",
+    "artifactCount",
+    "artifacts",
+    "steps",
+    "toolCalls",
+    "sourceRefs",
+    "approvalIds",
+    "errors",
+    "createdBy"
+  ],
+  "additionalProperties": false
+}

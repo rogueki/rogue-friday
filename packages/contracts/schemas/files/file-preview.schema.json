@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/files/file-preview.schema.json",
+  "title": "FilePreview",
+  "type": "object",
+  "properties": {
+    "fileId": {
+      "type": "string",
+      "pattern": "^file_[0-9A-Za-z]{26}$"
+    },
+    "kind": {
+      "$ref": "../files/preview-kind.schema.json"
+    },
+    "contentType": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string",
+      "description": "Same-origin sandboxed preview URL."
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "sandboxed": {
+      "type": "boolean"
+    }
+  },
+  "required": ["fileId", "kind", "contentType", "truncated", "sandboxed"],
+  "additionalProperties": false
+}

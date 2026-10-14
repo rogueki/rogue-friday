@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/design/theme.schema.json",
+  "title": "JarvisTheme",
+  "type": "object",
+  "required": ["id", "name", "tokens"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "version": { "type": "integer", "minimum": 1 },
+    "tokens": {
+      "type": "object",
+      "description": "Dotted token keys (e.g. color.primary) mapped to CSS colour values (hex, rgb[a], hsl[a]).",
+      "propertyNames": { "pattern": "^[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)+$" },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(#[0-9a-fA-F]{3,8}|(rgb|rgba|hsl|hsla)\\([0-9.,%\\s/deg-]+\\))$"
+      }
+    },
+    "orb": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "preset": { "type": "string" },
+        "particleDensity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "fragmentDensity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "glowIntensity": { "type": "number", "minimum": 0, "maximum": 1.5 },
+        "motionSpeed": { "type": "number", "minimum": 0, "maximum": 3 },
+        "mouseParallax": { "type": "boolean" }
+      }
+    },
+    "panels": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cornerStyle": { "enum": ["technical-cut", "soft-cut", "square"] },
+        "borderIntensity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "backgroundOpacity": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gridVisibility": { "type": "number", "minimum": 0, "maximum": 1 },
+        "cyanIntensity": { "type": "number", "minimum": 0.3, "maximum": 1.5 }
+      }
+    }
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/voice/voice-profile.schema.json",
+  "title": "VoiceProfile",
+  "description": "Voice enrollment profile (PLAN §38.3).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^vprof_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "boolean"
+    },
+    "sampleCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "quality": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "calibratedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "threshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "lastTestAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "lastTestResult": {
+      "type": "string",
+      "enum": ["pass", "fail", "unknown"]
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "displayName",
+    "owner",
+    "sampleCount",
+    "quality",
+    "calibratedAt",
+    "threshold",
+    "lastTestAt",
+    "lastTestResult"
+  ],
+  "additionalProperties": false
+}

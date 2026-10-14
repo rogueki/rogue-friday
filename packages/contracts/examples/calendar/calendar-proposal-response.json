@@ -1,0 +1,28 @@
+{
+  "$schema": "https://jarvis.local/schemas/calendar/calendar-proposal-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "id": "prop_01JCW5E9R2Q7T4M8N3B6V00001",
+    "version": 3,
+    "createdAt": "2026-10-14T06:30:00Z",
+    "updatedAt": "2026-10-14T08:10:00Z",
+    "source": {
+      "adapterId": "mock-calendar",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    },
+    "type": "reschedule",
+    "eventId": "cal_01JCW5E9R2Q7T4M8N3B6V00001",
+    "title": "Projektbesprechung Außenanlage",
+    "proposedStart": "2026-10-21T11:00:00Z",
+    "proposedEnd": "2026-10-21T12:00:00Z",
+    "attendees": [],
+    "reason": "Terminüberschneidung mit Zahnarzt auflösen.",
+    "status": "pending_approval",
+    "approvalId": "appr_01JCW5E9R2Q7T4M8N3B6V00002"
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

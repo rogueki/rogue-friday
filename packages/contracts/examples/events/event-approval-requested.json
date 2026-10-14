@@ -1,0 +1,65 @@
+{
+  "$schema": "https://jarvis.local/schemas/events/event-envelope.schema.json",
+  "specversion": "1.0",
+  "id": "evt_01JCW5E9R2Q7T4M8N3B6V01844",
+  "type": "jarvis.approval.requested",
+  "source": "adapter://mock-approvals",
+  "subject": "approval/appr_01JCW5E9R2Q7T4M8N3B6V00001",
+  "time": "2026-10-14T08:15:00Z",
+  "sequence": 1844,
+  "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00001",
+  "causationId": "evt_01JCW5E9R2Q7T4M8N3B6V01843",
+  "contractVersion": "1.0.0",
+  "data": {
+    "id": "appr_01JCW5E9R2Q7T4M8N3B6V00001",
+    "version": 3,
+    "createdAt": "2026-10-14T06:30:00Z",
+    "updatedAt": "2026-10-14T08:10:00Z",
+    "source": {
+      "adapterId": "mock-approvals",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    },
+    "type": "send_email",
+    "action": "E-Mail an Frau Becker senden",
+    "riskTier": 2,
+    "agentId": "agent_01JCW5E9R2Q7T4M8N3B6V00001",
+    "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00002",
+    "rationale": "Frau Becker hat um eine Terminbestätigung gebeten; der Entwurf liegt vor.",
+    "impacts": [
+      {
+        "kind": "communication",
+        "description": "Externe Person erhält eine verbindliche Terminzusage.",
+        "severity": "warning"
+      }
+    ],
+    "preview": {
+      "kind": "email",
+      "title": "Terminbestätigung 21.10.",
+      "body": "Sehr geehrte Frau Becker,\n\ngerne bestätige ich unseren Termin am 21.10.2026 um 10:00 Uhr.\n\nMit freundlichen Grüßen\nErik Brandt",
+      "fields": [
+        {
+          "label": "An",
+          "value": "k.becker@example.de"
+        },
+        {
+          "label": "Betreff",
+          "value": "Terminbestätigung 21.10."
+        }
+      ]
+    },
+    "expiresAt": "2026-10-14T09:15:00Z",
+    "requiredAuth": "confirm",
+    "status": "pending",
+    "decidedAt": null,
+    "decidedBy": null,
+    "decisionComment": null,
+    "sourceRef": {
+      "type": "draft",
+      "id": "draft_01JCW5E9R2Q7T4M8N3B6V00001",
+      "label": "Entwurf Terminbestätigung"
+    },
+    "editable": true,
+    "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00002"
+  }
+}

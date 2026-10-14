@@ -1,0 +1,8 @@
+{
+  "$schema": "https://jarvis.local/schemas/calendar/calendar-proposal-request.schema.json",
+  "type": "reschedule",
+  "eventId": "cal_01JCW5E9R2Q7T4M8N3B6V00001",
+  "start": "2026-10-21T11:00:00Z",
+  "end": "2026-10-21T12:00:00Z",
+  "reason": "Terminüberschneidung auflösen."
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/communication/draft-create-request.schema.json",
+  "title": "DraftCreateRequest",
+  "type": "object",
+  "properties": {
+    "channelId": {
+      "type": "string",
+      "pattern": "^chan_[0-9A-Za-z]{26}$"
+    },
+    "threadId": {
+      "type": ["string", "null"],
+      "pattern": "^thr_[0-9A-Za-z]{26}$"
+    },
+    "to": {
+      "type": "array",
+      "items": {
+        "$ref": "../communication/participant.schema.json"
+      },
+      "minItems": 1
+    },
+    "cc": {
+      "type": "array",
+      "items": {
+        "$ref": "../communication/participant.schema.json"
+      }
+    },
+    "subject": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "replyToMessageId": {
+      "type": ["string", "null"],
+      "pattern": "^msg_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": ["channelId", "to", "subject", "body"],
+  "additionalProperties": false
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/settings-schema-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "schema": {
+      "type": "object"
+    },
+    "areas": ["profile"]
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

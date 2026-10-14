@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/adapter-config-settings.schema.json",
+  "title": "AdapterConfigSettings",
+  "description": "Per-adapter configuration. The UI renders the form from configSchema; secrets are write-only.",
+  "type": "object",
+  "properties": {
+    "adapterId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "category": {
+      "$ref": "../meta/adapter-category.schema.json"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "configSchema": {
+      "$ref": "../common/json-schema-object.schema.json"
+    },
+    "secretFields": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "../common/secret-status.schema.json"
+      }
+    },
+    "lastTestAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "lastTestResult": {
+      "type": "string",
+      "enum": ["success", "failure"]
+    }
+  },
+  "required": ["adapterId", "category", "provider", "enabled", "config", "configSchema", "secretFields"],
+  "additionalProperties": false
+}

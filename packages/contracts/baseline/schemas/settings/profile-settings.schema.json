@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/profile-settings.schema.json",
+  "title": "ProfileSettings",
+  "type": "object",
+  "properties": {
+    "displayName": {
+      "type": "string"
+    },
+    "locale": {
+      "type": "string",
+      "enum": ["de", "en"]
+    },
+    "timeZone": {
+      "type": "string"
+    },
+    "dateFormat": {
+      "type": "string",
+      "enum": ["dd.MM.yyyy", "yyyy-MM-dd", "MM/dd/yyyy"]
+    },
+    "timeFormat": {
+      "type": "string",
+      "enum": ["24h", "12h"]
+    },
+    "firstDayOfWeek": {
+      "type": "string",
+      "enum": ["monday", "sunday"]
+    }
+  },
+  "required": ["displayName", "locale", "timeZone", "dateFormat", "timeFormat", "firstDayOfWeek"],
+  "additionalProperties": false
+}

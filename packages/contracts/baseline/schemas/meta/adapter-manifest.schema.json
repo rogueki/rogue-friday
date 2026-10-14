@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/meta/adapter-manifest.schema.json",
+  "title": "AdapterManifest",
+  "description": "Static description of an adapter package (PLAN §10.4).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "name": {
+      "type": "string"
+    },
+    "adapterVersion": {
+      "type": "string"
+    },
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "apiVersion": {
+      "type": "string",
+      "pattern": "^v\\d+$"
+    },
+    "category": {
+      "$ref": "../meta/adapter-category.schema.json"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "configSchemaRef": {
+      "type": "string"
+    },
+    "secretFields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "adapterVersion",
+    "contractVersion",
+    "apiVersion",
+    "category",
+    "capabilities",
+    "configSchemaRef",
+    "secretFields"
+  ],
+  "additionalProperties": false
+}

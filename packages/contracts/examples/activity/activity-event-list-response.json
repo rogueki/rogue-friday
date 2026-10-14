@@ -1,0 +1,79 @@
+{
+  "$schema": "https://jarvis.local/schemas/activity/activity-event-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "id": "act_01JCW5E9R2Q7T4M8N3B6V00001",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-activity",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "sequence": 1840,
+      "kind": "tool_call",
+      "severity": "info",
+      "title": "Preisliste von büro-nord.example.de abgerufen",
+      "summary": "web.fetch lieferte 200 OK, 18 Positionen extrahiert",
+      "status": "succeeded",
+      "parentId": "act_01JCW5E9R2Q7T4M8N3B6V00002",
+      "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00001",
+      "agentId": "agent_01JCW5E9R2Q7T4M8N3B6V00002",
+      "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00001",
+      "tool": "web.fetch",
+      "adapterId": "mock-research",
+      "model": "Kimi K3",
+      "occurredAt": "2026-10-14T08:02:00Z",
+      "endedAt": "2026-10-14T08:02:00Z",
+      "durationMs": 1840,
+      "result": "18 Positionen",
+      "actor": {
+        "type": "agent",
+        "id": "agent_01JCW5E9R2Q7T4M8N3B6V00002",
+        "name": "Recherche-Agent"
+      },
+      "details": {
+        "httpStatus": 200
+      }
+    },
+    {
+      "id": "act_01JCW5E9R2Q7T4M8N3B6V00002",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-activity",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "sequence": 1838,
+      "kind": "task",
+      "severity": "info",
+      "title": "Aufgabe gestartet: Angebote für Büromöbel",
+      "status": "running",
+      "parentId": null,
+      "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00001",
+      "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00001",
+      "occurredAt": "2026-10-14T07:55:00Z",
+      "durationMs": null
+    }
+  ],
+  "pageInfo": {
+    "nextCursor": null,
+    "hasNextPage": false,
+    "totalCount": 2
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "mock-activity",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

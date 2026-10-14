@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/backups-settings.schema.json",
+  "title": "BackupSettings",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean"
+    },
+    "schedule": {
+      "type": "string",
+      "description": "Cron expression."
+    },
+    "targetPath": {
+      "type": "string"
+    },
+    "retentionCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "lastBackupAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "lastBackupStatus": {
+      "type": "string",
+      "enum": ["success", "failed", "never"]
+    }
+  },
+  "required": ["enabled", "schedule", "targetPath", "retentionCount", "lastBackupAt", "lastBackupStatus"],
+  "additionalProperties": false
+}

@@ -1,0 +1,3 @@
+pnpm-lock.yaml
+packages/generated-sdk/src/generated/
+docs/PLAN.md

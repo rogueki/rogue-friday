@@ -1,0 +1,70 @@
+import type { Action } from "@jarvis/auth";
+import type { OperationId } from "../http/route-types";
+
+/**
+ * Maps every mutating or privileged operation to the permission-matrix action of `@jarvis/auth` (SECURITY.md §2).
+ * Operations that are not listed are plain reads: any authenticated role may call them (`read:*`), the contract's
+ * `x-required-role` still applies on top.
+ */
+export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
+  createTask: "tasks.create",
+  updateTask: "tasks.update",
+  cancelTask: "tasks.cancel",
+  retryTask: "tasks.retry",
+  pauseTask: "tasks.pause",
+  resumeTask: "tasks.resume",
+  createMemory: "memory.write",
+  updateMemory: "memory.write",
+  deleteMemory: "memory.delete",
+  pauseAgent: "agents.pause",
+  resumeAgent: "agents.resume",
+  stopAgent: "agents.stop",
+  approveApproval: "approvals.approve",
+  rejectApproval: "approvals.reject",
+  requestApprovalContext: "approvals.requestContext",
+  createDraft: "communication.draft",
+  updateDraft: "communication.draft",
+  requestDraftSend: "communication.requestSend",
+  createCalendarProposal: "calendar.propose",
+  createAutomation: "automations.create",
+  updateAutomation: "automations.update",
+  testAutomation: "automations.test",
+  enableAutomation: "automations.enable",
+  disableAutomation: "automations.disable",
+  deleteFile: "files.delete",
+  runVoiceTest: "voice.test",
+  stopVoice: "voice.stop",
+  acknowledgeNotification: "notifications.ack",
+  snoozeNotification: "notifications.snooze",
+  resolveNotification: "notifications.resolve",
+  runServiceHealthcheck: "system.healthcheck",
+  exportAudit: "audit.export",
+  updateSettings: "settings.update",
+  importTheme: "settings.update",
+  importLayout: "settings.update",
+  importSettings: "settings.import",
+  exportSettings: "settings.export",
+  listAdapterSettings: "adapters.configure",
+  updateAdapterSettings: "adapters.configure",
+  testAdapterSettings: "adapters.configure",
+  executeCommand: "commands.run",
+  stopCommand: "commands.stop",
+  pauseCommand: "commands.pause",
+  resumeCommand: "commands.resume",
+  listScenarios: "dev.scenarios",
+  playScenario: "dev.scenarios",
+  controlScenario: "dev.scenarios",
+  getScenarioState: "dev.scenarios",
+};
+
+/** Operations that change state although they are not (or not only) plain writes; every call lands in the audit log. */
+export const NON_AUDITED_POSTS = new Set<OperationId>(["searchMemory"]);
+
+export const AUDIT_CATEGORY_BY_TAG: Readonly<Record<string, "user_action" | "approval" | "system" | "security">> = {
+  approvals: "approval",
+  auth: "security",
+  settings: "system",
+  system: "system",
+  dev: "system",
+  audit: "security",
+};

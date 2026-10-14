@@ -1,0 +1,18 @@
+{
+  "$schema": "https://jarvis.local/schemas/dev/scenario-state.schema.json",
+  "activeScenarioId": "voice-pipeline",
+  "running": true,
+  "stepIndex": 2,
+  "seed": 42,
+  "simulatedTime": "2026-10-14T08:15:00Z",
+  "clockOffsetMs": 0,
+  "adapterOverrides": [
+    {
+      "adapterId": "mock-calendar",
+      "offline": false,
+      "latencyMs": 250
+    }
+  ],
+  "capabilityOverrides": [],
+  "forcedOrbMode": null
+}

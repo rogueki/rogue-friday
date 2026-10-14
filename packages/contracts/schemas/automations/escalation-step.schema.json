@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/automations/escalation-step.schema.json",
+  "title": "EscalationStep",
+  "type": "object",
+  "properties": {
+    "afterSeconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "channel": {
+      "type": "string",
+      "enum": ["dashboard", "telegram", "whatsapp", "sms", "phone", "email"]
+    },
+    "description": {
+      "type": "string"
+    },
+    "stopOnAcknowledge": {
+      "type": "boolean"
+    }
+  },
+  "required": ["afterSeconds", "channel", "description"],
+  "additionalProperties": false
+}

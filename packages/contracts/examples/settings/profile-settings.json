@@ -1,0 +1,9 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/profile-settings.schema.json",
+  "displayName": "Erik",
+  "locale": "de",
+  "timeZone": "Europe/Berlin",
+  "dateFormat": "dd.MM.yyyy",
+  "timeFormat": "24h",
+  "firstDayOfWeek": "monday"
+}

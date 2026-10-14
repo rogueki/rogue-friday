@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/orb-settings.schema.json",
+  "title": "OrbSettings",
+  "description": "User-tunable orb behaviour (PLAN §23.2, §42.3). Never contains shader parameters of the backend.",
+  "type": "object",
+  "properties": {
+    "preset": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "size": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 2
+    },
+    "intensity": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "speed": {
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 3
+    },
+    "particleDensity": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "audioReactive": {
+      "type": "boolean"
+    },
+    "mouseParallax": {
+      "type": "boolean"
+    },
+    "bloom": {
+      "type": "boolean"
+    },
+    "animations": {
+      "type": "string",
+      "enum": ["full", "reduced", "off"]
+    },
+    "quality": {
+      "type": "string",
+      "enum": ["auto", "low", "medium", "high", "ultra"]
+    },
+    "renderMode": {
+      "type": "string",
+      "enum": ["auto", "2d", "3d"]
+    },
+    "statusColors": {
+      "type": "object",
+      "description": "Secondary accent color per orb mode; the gold core is invariant.",
+      "propertyNames": {
+        "$ref": "../orb/orb-mode.schema.json"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^#[0-9a-fA-F]{6}$"
+      }
+    }
+  },
+  "required": [
+    "preset",
+    "size",
+    "intensity",
+    "speed",
+    "particleDensity",
+    "audioReactive",
+    "mouseParallax",
+    "bloom",
+    "animations",
+    "quality",
+    "renderMode",
+    "statusColors"
+  ],
+  "additionalProperties": false
+}

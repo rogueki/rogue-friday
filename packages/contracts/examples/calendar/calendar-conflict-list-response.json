@@ -1,0 +1,39 @@
+{
+  "$schema": "https://jarvis.local/schemas/calendar/calendar-conflict-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "id": "conf_01JCW5E9R2Q7T4M8N3B6V00001",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-calendar",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "eventIds": ["cal_01JCW5E9R2Q7T4M8N3B6V00001", "cal_01JCW5E9R2Q7T4M8N3B6V00002"],
+      "kind": "overlap",
+      "severity": "warning",
+      "description": "„Zahnarzt“ (09:30–10:30) überschneidet sich mit „Projektbesprechung Außenanlage“ (10:00–11:00).",
+      "detectedAt": "2026-10-14T08:00:00Z",
+      "suggestedResolution": "Projektbesprechung auf 11:00 Uhr verschieben."
+    }
+  ],
+  "pageInfo": {
+    "nextCursor": null,
+    "hasNextPage": false,
+    "totalCount": 1
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "mock-calendar",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

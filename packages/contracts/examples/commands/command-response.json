@@ -1,0 +1,13 @@
+{
+  "$schema": "https://jarvis.local/schemas/commands/command-response.schema.json",
+  "contractVersion": "1.0.0",
+  "commandId": "cmd_01JCW5E9R2Q7T4M8N3B6V00001",
+  "status": "requires_confirmation",
+  "requiresConfirmation": true,
+  "previewText": "Du bist dabei, eine E-Mail an Katharina Becker (k.becker@example.de) zu senden.",
+  "previewId": "prv_01",
+  "riskTier": 2,
+  "approvalId": null,
+  "result": null,
+  "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00010"
+}

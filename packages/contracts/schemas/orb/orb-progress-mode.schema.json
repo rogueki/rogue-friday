@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/orb/orb-progress-mode.schema.json",
+  "title": "OrbProgressMode",
+  "type": "string",
+  "enum": ["determinate", "indeterminate", "none"]
+}

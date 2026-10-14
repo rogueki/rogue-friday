@@ -1,0 +1,9 @@
+{
+  "$schema": "https://jarvis.local/schemas/automations/automation-test-request.schema.json",
+  "dryRun": true,
+  "sampleData": {
+    "thread": {
+      "priority": "P1"
+    }
+  }
+}

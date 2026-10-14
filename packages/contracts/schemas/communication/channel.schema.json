@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/communication/channel.schema.json",
+  "title": "Channel",
+  "description": "Communication channel (PLAN §33.1). Address is an account hint, never a credential.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^chan_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "kind": {
+      "$ref": "../communication/channel-kind.schema.json"
+    },
+    "name": {
+      "type": "string"
+    },
+    "status": {
+      "$ref": "../communication/channel-status.schema.json"
+    },
+    "address": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "draft": {
+          "type": "boolean"
+        },
+        "send": {
+          "type": "boolean"
+        }
+      },
+      "required": ["read", "draft", "send"],
+      "additionalProperties": false
+    },
+    "unreadCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "lastSyncAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "kind",
+    "name",
+    "status",
+    "capabilities",
+    "unreadCount",
+    "lastSyncAt"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/approvals/approval-impact.schema.json",
+  "title": "ApprovalImpact",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["data", "money", "communication", "schedule", "system", "legal", "other"]
+    },
+    "description": {
+      "type": "string"
+    },
+    "severity": {
+      "$ref": "../common/severity.schema.json"
+    }
+  },
+  "required": ["kind", "description"],
+  "additionalProperties": false
+}

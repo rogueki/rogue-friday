@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/memory/memory-type.schema.json",
+  "title": "MemoryType",
+  "type": "string",
+  "enum": [
+    "profile",
+    "preference",
+    "fact",
+    "person",
+    "company",
+    "project",
+    "relationship",
+    "instruction",
+    "episode",
+    "decision"
+  ]
+}

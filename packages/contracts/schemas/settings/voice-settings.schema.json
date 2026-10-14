@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/voice-settings.schema.json",
+  "title": "VoiceSettings",
+  "type": "object",
+  "properties": {
+    "wakeWordEnabled": {
+      "type": "boolean"
+    },
+    "wakeWord": {
+      "type": "string"
+    },
+    "pushToTalkKey": {
+      "type": "string"
+    },
+    "speakerVerificationRequired": {
+      "type": "boolean"
+    },
+    "storeRawRecordings": {
+      "type": "boolean",
+      "default": false
+    },
+    "voiceHistoryEnabled": {
+      "type": "boolean"
+    },
+    "ttsVoice": {
+      "type": "string"
+    },
+    "ttsRate": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 2
+    },
+    "inputDeviceId": {
+      "type": ["string", "null"]
+    },
+    "outputDeviceId": {
+      "type": ["string", "null"]
+    }
+  },
+  "required": [
+    "wakeWordEnabled",
+    "wakeWord",
+    "pushToTalkKey",
+    "speakerVerificationRequired",
+    "storeRawRecordings",
+    "voiceHistoryEnabled",
+    "ttsVoice",
+    "ttsRate",
+    "inputDeviceId",
+    "outputDeviceId"
+  ],
+  "additionalProperties": false
+}

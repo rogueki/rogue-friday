@@ -1,0 +1,27 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/layout-import-request.schema.json",
+  "layout": {
+    "layoutId": "jarvis-command-overview",
+    "name": "Command Overview",
+    "columns": 12,
+    "widgets": [
+      {
+        "id": "ai-core-orb",
+        "x": 3,
+        "y": 0,
+        "w": 6,
+        "h": 7,
+        "visible": true
+      },
+      {
+        "id": "attention-feed",
+        "x": 9,
+        "y": 0,
+        "w": 3,
+        "h": 7,
+        "visible": true
+      }
+    ]
+  },
+  "activate": true
+}

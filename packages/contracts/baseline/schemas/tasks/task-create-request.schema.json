@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/tasks/task-create-request.schema.json",
+  "title": "TaskCreateRequest",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "description": {
+      "type": "string"
+    },
+    "priority": {
+      "$ref": "../common/priority.schema.json"
+    },
+    "agentId": {
+      "type": ["string", "null"],
+      "pattern": "^agent_[0-9A-Za-z]{26}$"
+    },
+    "model": {
+      "type": ["string", "null"]
+    },
+    "dueAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["title"],
+  "additionalProperties": false
+}

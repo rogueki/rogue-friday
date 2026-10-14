@@ -1,0 +1,13 @@
+{
+  "renderer": "SwiftShader (software)",
+  "dsf": 2,
+  "frames": 30,
+  "avgFrameMs": 233.35185185185185,
+  "p95FrameMs": 17.900000005960464,
+  "draws": 48,
+  "triangles": 23989,
+  "geometries": 33,
+  "textures": 13,
+  "segments": 9625,
+  "quality": "high"
+}

@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/automations/automation-run.schema.json",
+  "title": "AutomationRun",
+  "description": "Execution record; answers why it fired, which conditions held, what ran and the result (PLAN §35.4).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^run_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "automationId": {
+      "type": "string",
+      "pattern": "^auto_[0-9A-Za-z]{26}$"
+    },
+    "automationVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["running", "succeeded", "failed", "skipped", "dry_run"]
+    },
+    "dryRun": {
+      "type": "boolean"
+    },
+    "triggeredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finishedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "triggerReason": {
+      "type": "string"
+    },
+    "conditionsEvaluated": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "conditionId": {
+            "type": "string"
+          },
+          "met": {
+            "type": "boolean"
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": ["conditionId", "met", "detail"],
+        "additionalProperties": false
+      }
+    },
+    "actionsExecuted": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "actionId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["succeeded", "failed", "skipped", "simulated"]
+          },
+          "executedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resultSummary": {
+            "type": "string"
+          }
+        },
+        "required": ["actionId", "status", "executedAt", "resultSummary"],
+        "additionalProperties": false
+      }
+    },
+    "result": {
+      "type": "string"
+    },
+    "error": {
+      "$ref": "../common/error-detail.schema.json"
+    },
+    "correlationId": {
+      "type": "string",
+      "pattern": "^corr_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "automationId",
+    "automationVersion",
+    "status",
+    "dryRun",
+    "triggeredAt",
+    "finishedAt",
+    "triggerReason",
+    "conditionsEvaluated",
+    "actionsExecuted",
+    "result",
+    "correlationId"
+  ],
+  "additionalProperties": false
+}

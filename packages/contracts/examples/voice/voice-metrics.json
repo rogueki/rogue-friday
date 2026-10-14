@@ -1,0 +1,45 @@
+{
+  "$schema": "https://jarvis.local/schemas/voice/voice-metrics.schema.json",
+  "sampledAt": "2026-10-14T08:15:00Z",
+  "source": {
+    "adapterId": "mock-voice",
+    "system": "mock",
+    "lastSyncedAt": "2026-10-14T08:15:00Z"
+  },
+  "wakeWordLatency": {
+    "currentMs": 85,
+    "avgMs": 92,
+    "p95Ms": 140,
+    "sampleCount": 120
+  },
+  "speakerVerificationLatency": {
+    "currentMs": 210,
+    "avgMs": 230,
+    "p95Ms": 320,
+    "sampleCount": 120
+  },
+  "sttLatency": {
+    "currentMs": 410,
+    "avgMs": 450,
+    "p95Ms": 690,
+    "sampleCount": 120
+  },
+  "routerLatency": {
+    "currentMs": 60,
+    "avgMs": 75,
+    "p95Ms": 120,
+    "sampleCount": 120
+  },
+  "firstToken": {
+    "currentMs": 520,
+    "avgMs": 610,
+    "p95Ms": 980,
+    "sampleCount": 120
+  },
+  "ttsFirstAudio": {
+    "currentMs": 180,
+    "avgMs": 200,
+    "p95Ms": 310,
+    "sampleCount": 120
+  }
+}

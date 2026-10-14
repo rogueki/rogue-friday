@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/events/event-envelope.schema.json",
+  "title": "EventEnvelope",
+  "description": "CloudEvents-inspired envelope (PLAN §12.3). sequence is global and strictly increasing.",
+  "type": "object",
+  "properties": {
+    "specversion": {
+      "const": "1.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^evt_[0-9A-Za-z]{26}$"
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^jarvis\\.[a-z_]+\\.[a-z_]+$"
+    },
+    "source": {
+      "type": "string",
+      "pattern": "^(adapter|control-api)://[a-z0-9-]+$",
+      "description": "e.g. adapter://mock-tasks or control-api://core."
+    },
+    "subject": {
+      "type": "string",
+      "description": "e.g. task/task_01J..."
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "correlationId": {
+      "type": "string",
+      "pattern": "^corr_[0-9A-Za-z]{26}$"
+    },
+    "causationId": {
+      "type": "string",
+      "pattern": "^evt_[0-9A-Za-z]{26}$"
+    },
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Typed per event type; see the AsyncAPI document."
+    }
+  },
+  "required": [
+    "specversion",
+    "id",
+    "type",
+    "source",
+    "subject",
+    "time",
+    "sequence",
+    "correlationId",
+    "contractVersion",
+    "data"
+  ],
+  "additionalProperties": false
+}

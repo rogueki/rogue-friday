@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/action-result.schema.json",
+  "title": "ActionResult",
+  "description": "Result of an action that returns no resource (delete, stop, ...).",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "accepted": {
+      "type": "boolean"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "queued", "rejected"]
+    },
+    "correlationId": {
+      "type": "string",
+      "pattern": "^corr_[0-9A-Za-z]{26}$"
+    },
+    "message": {
+      "type": "string"
+    },
+    "resourceId": {
+      "type": "string"
+    },
+    "auditEventId": {
+      "type": "string",
+      "pattern": "^aud_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": ["contractVersion", "accepted", "status", "correlationId"],
+  "additionalProperties": false
+}

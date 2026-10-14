@@ -1,0 +1,14 @@
+{
+  "$schema": "https://jarvis.local/schemas/meta/meta.schema.json",
+  "contractVersion": "1.0.0",
+  "apiVersion": "v1",
+  "dataMode": "mock",
+  "eventsPath": "/api/v1/events",
+  "buildVersion": "1.0.0+local",
+  "features": {
+    "devScenarios": true,
+    "rawJsonView": false
+  },
+  "serverTime": "2026-10-14T08:15:00Z",
+  "defaultLocale": "de"
+}

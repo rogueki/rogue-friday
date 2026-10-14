@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/orb/orb-status.schema.json",
+  "title": "OrbStatus",
+  "description": "Semantic orb state (PLAN §17). Backends emit semantics only, never shader parameters.",
+  "type": "object",
+  "properties": {
+    "mode": {
+      "$ref": "../orb/orb-mode.schema.json"
+    },
+    "activityText": {
+      "type": "string"
+    },
+    "detailText": {
+      "type": "string"
+    },
+    "progress": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "progressMode": {
+      "$ref": "../orb/orb-progress-mode.schema.json"
+    },
+    "audioLevel": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "urgency": {
+      "$ref": "../orb/orb-urgency.schema.json"
+    },
+    "health": {
+      "$ref": "../orb/orb-health.schema.json"
+    },
+    "activeAgentCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "currentAgentId": {
+      "type": "string",
+      "pattern": "^agent_[0-9A-Za-z]{26}$"
+    },
+    "taskId": {
+      "type": "string",
+      "pattern": "^task_[0-9A-Za-z]{26}$"
+    },
+    "approvalId": {
+      "type": "string",
+      "pattern": "^appr_[0-9A-Za-z]{26}$"
+    },
+    "since": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceEventId": {
+      "type": "string",
+      "pattern": "^evt_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": ["mode", "since"],
+  "additionalProperties": false
+}

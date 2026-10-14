@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/files/file-item-list-response.schema.json",
+  "title": "FileItemListResponse",
+  "description": "Cursor-paginated list envelope for FileItem.",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "../files/file-item.schema.json"
+      }
+    },
+    "pageInfo": {
+      "$ref": "../common/page-info.schema.json"
+    },
+    "freshness": {
+      "$ref": "../common/freshness.schema.json"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "../common/source-descriptor.schema.json"
+      }
+    }
+  },
+  "required": ["contractVersion", "items", "pageInfo", "freshness", "sources"],
+  "additionalProperties": false
+}

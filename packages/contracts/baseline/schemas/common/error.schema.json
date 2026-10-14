@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/error.schema.json",
+  "title": "ErrorResponse",
+  "description": "Error envelope returned for every non-2xx REST response.",
+  "type": "object",
+  "properties": {
+    "error": {
+      "$ref": "../common/error-detail.schema.json"
+    }
+  },
+  "required": ["error"],
+  "additionalProperties": false
+}

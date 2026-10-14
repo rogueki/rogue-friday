@@ -1,0 +1,4 @@
+{
+  "$schema": "https://jarvis.local/schemas/auth/reauth-request.schema.json",
+  "password": "beispiel-passwort-nur-test"
+}

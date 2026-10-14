@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/voice/voice-device.schema.json",
+  "title": "VoiceDevice",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^vdev_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["input", "output"]
+    },
+    "isDefault": {
+      "type": "boolean"
+    },
+    "status": {
+      "$ref": "../common/health-status.schema.json"
+    },
+    "channels": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "sampleRateHz": {
+      "type": "integer",
+      "minimum": 8000
+    }
+  },
+  "required": ["id", "version", "createdAt", "updatedAt", "source", "name", "kind", "isDefault", "status"],
+  "additionalProperties": false
+}

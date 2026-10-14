@@ -1,0 +1,20 @@
+{
+  "$schema": "https://jarvis.local/schemas/meta/health.schema.json",
+  "contractVersion": "1.0.0",
+  "status": "online",
+  "checkedAt": "2026-10-14T08:15:00Z",
+  "components": [
+    {
+      "id": "control-api",
+      "name": "Control API",
+      "status": "online",
+      "latencyMs": 2
+    },
+    {
+      "id": "event-stream",
+      "name": "Event Stream",
+      "status": "online",
+      "latencyMs": 28
+    }
+  ]
+}

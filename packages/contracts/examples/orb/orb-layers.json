@@ -1,0 +1,12 @@
+{
+  "$schema": "https://jarvis.local/schemas/orb/orb-layers.schema.json",
+  "voice": "idle",
+  "work": "working",
+  "attention": "none",
+  "health": "online",
+  "activeAgentIds": [
+    "agent_01JCW5E9R2Q7T4M8N3B6V00001",
+    "agent_01JCW5E9R2Q7T4M8N3B6V00002",
+    "agent_01JCW5E9R2Q7T4M8N3B6V00003"
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/calendar/calendar-proposal.schema.json",
+  "title": "CalendarProposal",
+  "description": "Write actions on the calendar are proposals that go through approval.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^prop_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "type": {
+      "$ref": "../calendar/proposal-type.schema.json"
+    },
+    "eventId": {
+      "type": ["string", "null"],
+      "pattern": "^cal_[0-9A-Za-z]{26}$"
+    },
+    "title": {
+      "type": ["string", "null"]
+    },
+    "proposedStart": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "proposedEnd": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "attendees": {
+      "type": "array",
+      "items": {
+        "$ref": "../calendar/attendee.schema.json"
+      }
+    },
+    "reason": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending_approval", "approved", "rejected", "applied", "failed"]
+    },
+    "approvalId": {
+      "type": ["string", "null"],
+      "pattern": "^appr_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "type",
+    "eventId",
+    "title",
+    "proposedStart",
+    "proposedEnd",
+    "attendees",
+    "reason",
+    "status",
+    "approvalId"
+  ],
+  "additionalProperties": false
+}

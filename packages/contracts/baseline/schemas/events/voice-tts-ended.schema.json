@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/events/voice-tts-ended.schema.json",
+  "title": "VoiceTtsEnded",
+  "type": "object",
+  "properties": {
+    "utteranceId": {
+      "type": "string"
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "interrupted": {
+      "type": "boolean"
+    }
+  },
+  "required": ["utteranceId", "durationMs", "interrupted"],
+  "additionalProperties": false
+}

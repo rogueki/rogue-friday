@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/files/file-version.schema.json",
+  "title": "FileVersion",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sizeBytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "createdBy": {
+      "$ref": "../common/actor.schema.json"
+    },
+    "checksum": {
+      "type": "string"
+    }
+  },
+  "required": ["version", "createdAt", "sizeBytes", "createdBy"],
+  "additionalProperties": false
+}

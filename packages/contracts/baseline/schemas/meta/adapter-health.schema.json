@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/meta/adapter-health.schema.json",
+  "title": "AdapterHealth",
+  "description": "Runtime health of an adapter (PLAN §10.7) including circuit breaker state.",
+  "type": "object",
+  "properties": {
+    "adapterId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "status": {
+      "$ref": "../common/health-status.schema.json"
+    },
+    "lifecycle": {
+      "$ref": "../meta/adapter-lifecycle.schema.json"
+    },
+    "latencyMs": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "lastSuccessAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "lastError": {
+      "type": ["object", "null"],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": ["code", "message"],
+      "additionalProperties": false
+    },
+    "checkedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "consecutiveFailures": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "circuit": {
+      "type": "string",
+      "enum": ["closed", "open", "half_open"]
+    }
+  },
+  "required": [
+    "adapterId",
+    "status",
+    "lifecycle",
+    "latencyMs",
+    "lastSuccessAt",
+    "lastError",
+    "checkedAt",
+    "consecutiveFailures",
+    "circuit"
+  ],
+  "additionalProperties": false
+}

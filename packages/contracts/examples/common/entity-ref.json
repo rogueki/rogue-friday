@@ -1,0 +1,6 @@
+{
+  "$schema": "https://jarvis.local/schemas/common/entity-ref.schema.json",
+  "type": "task",
+  "id": "task_01JCW5E9R2Q7T4M8N3B6V00001",
+  "label": "Angebote für Büromöbel"
+}

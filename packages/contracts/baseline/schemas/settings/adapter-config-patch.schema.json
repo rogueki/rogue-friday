@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/adapter-config-patch.schema.json",
+  "title": "AdapterConfigPatch",
+  "type": "object",
+  "properties": {
+    "provider": {
+      "type": "string"
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "secrets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Write-only secret values by field name."
+    }
+  },
+  "additionalProperties": false,
+  "minProperties": 1
+}

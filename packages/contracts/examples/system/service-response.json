@@ -1,0 +1,26 @@
+{
+  "$schema": "https://jarvis.local/schemas/system/service-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "id": "svc_01JCW5E9R2Q7T4M8N3B6V00001",
+    "version": "0.9.4",
+    "createdAt": "2026-10-14T06:30:00Z",
+    "updatedAt": "2026-10-14T08:10:00Z",
+    "source": {
+      "adapterId": "mock-system",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    },
+    "name": "Hermes",
+    "kind": "hermes",
+    "status": "online",
+    "latencyMs": 34,
+    "lastCheckAt": "2026-10-14T08:15:00Z",
+    "lastSuccessAt": "2026-10-14T08:15:00Z",
+    "detail": "Gateway antwortet"
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

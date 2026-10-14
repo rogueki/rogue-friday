@@ -1,0 +1,27 @@
+{
+  "$schema": "https://jarvis.local/schemas/research/research-project.schema.json",
+  "id": "rsp_01JCW5E9R2Q7T4M8N3B6V00001",
+  "version": 3,
+  "createdAt": "2026-10-14T06:30:00Z",
+  "updatedAt": "2026-10-14T08:10:00Z",
+  "source": {
+    "adapterId": "mock-research",
+    "system": "mock",
+    "lastSyncedAt": "2026-10-14T08:15:00Z"
+  },
+  "topic": "Büromöbel-Anbieter Region Hannover",
+  "mission": "Drei Anbieter vergleichen: Preis, Lieferzeit, Garantie.",
+  "status": "running",
+  "agentIds": ["agent_01JCW5E9R2Q7T4M8N3B6V00002"],
+  "progress": {
+    "mode": "determinate",
+    "value": 0.62
+  },
+  "sourceCount": 3,
+  "findingCount": 2,
+  "contradictionCount": 1,
+  "artifactCount": 1,
+  "resultSummary": null,
+  "runtimeMs": 1200000,
+  "costEur": 0.42
+}

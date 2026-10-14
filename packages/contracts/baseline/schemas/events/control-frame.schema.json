@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/events/control-frame.schema.json",
+  "title": "ControlFrame",
+  "description": "Heartbeat frames (conventions §4). Not an envelope, no sequence.",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["ping", "pong"]
+    },
+    "ts": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Sender clock, epoch milliseconds."
+    }
+  },
+  "required": ["kind", "ts"],
+  "additionalProperties": false
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/theme.schema.json",
+  "title": "Theme",
+  "description": "Theme file (PLAN §25.3). Switchable at runtime without rebuild.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "builtIn": {
+      "type": "boolean"
+    },
+    "tokens": {
+      "type": "object",
+      "description": "Design tokens as dotted keys, e.g. color.primary.",
+      "propertyNames": {
+        "pattern": "^[a-z][A-Za-z0-9.]*$"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "orb": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "particleDensity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "fragmentDensity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "glowIntensity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "motionSpeed": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "mouseParallax": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "preset",
+        "particleDensity",
+        "fragmentDensity",
+        "glowIntensity",
+        "motionSpeed",
+        "mouseParallax"
+      ],
+      "additionalProperties": false
+    },
+    "panels": {
+      "type": "object",
+      "properties": {
+        "cornerStyle": {
+          "type": "string",
+          "enum": ["technical-cut", "rounded", "square"]
+        },
+        "borderIntensity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "backgroundOpacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": ["cornerStyle", "borderIntensity", "backgroundOpacity"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["id", "name", "builtIn", "tokens", "orb", "panels"],
+  "additionalProperties": false
+}

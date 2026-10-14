@@ -1,0 +1,11 @@
+{
+  "$schema": "https://jarvis.local/schemas/meta/quick-command.schema.json",
+  "id": "qc_new_task",
+  "label": "Neue Aufgabe",
+  "icon": "plus",
+  "commandText": null,
+  "targetRoute": "/tasks?new=1",
+  "enabled": true,
+  "requiredCapability": "tasks.create",
+  "requiresConfirmation": false
+}

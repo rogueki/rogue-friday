@@ -1,0 +1,33 @@
+{
+  "$schema": "https://jarvis.local/schemas/communication/draft-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "id": "draft_01JCW5E9R2Q7T4M8N3B6V00001",
+    "version": 3,
+    "createdAt": "2026-10-14T06:30:00Z",
+    "updatedAt": "2026-10-14T08:10:00Z",
+    "source": {
+      "adapterId": "mock-mail",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    },
+    "channelId": "chan_01JCW5E9R2Q7T4M8N3B6V00001",
+    "threadId": "thr_01JCW5E9R2Q7T4M8N3B6V00001",
+    "to": [
+      {
+        "name": "Katharina Becker",
+        "address": "k.becker@example.de"
+      }
+    ],
+    "subject": "Terminbestätigung 21.10.",
+    "body": "Sehr geehrte Frau Becker,\n\ngerne bestätige ich unseren Termin am 21.10.2026 um 10:00 Uhr.",
+    "status": "pending_approval",
+    "approvalId": "appr_01JCW5E9R2Q7T4M8N3B6V00001",
+    "generatedByAgentId": "agent_01JCW5E9R2Q7T4M8N3B6V00001",
+    "replyToMessageId": "msg_01JCW5E9R2Q7T4M8N3B6V00001"
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

@@ -1,0 +1,63 @@
+import type { AdapterRegistry } from "@jarvis/adapter-core";
+import type { ApprovalTokenService } from "@jarvis/auth";
+import type { JarvisConfig } from "@jarvis/config";
+import type { MockWorld, ScenarioEngine } from "@jarvis/mock-data";
+import type { JarvisMetrics, Logger } from "@jarvis/observability";
+import type { Capabilities, SchemaValidator } from "@jarvis/sdk";
+import type { AuditStore, AuditDraft, AuditVerification } from "../db/audit-store";
+import type { Db } from "../db/database";
+import type { AdapterOverrideStore, CommandHistoryStore, IdempotencyStore, LibraryStore } from "../db/stores";
+import type { EventHub } from "../realtime/hub";
+import type { AuthService } from "../security/auth-service";
+import type { AdapterSettingsService } from "../services/adapter-settings";
+import type { OrbService, OverviewService, StatusService } from "../services/core-views";
+import type { SettingsService } from "../services/settings";
+import type { AdapterWiring } from "./adapter-wiring";
+
+export type ResponseValidationMode = "off" | "log" | "throw";
+
+/** Appends to the hash-chained audit log and announces the entry on the event stream. */
+export interface AuditRecorder {
+  record(draft: AuditDraft): void;
+  verification(): AuditVerification;
+  verifyNow(): AuditVerification;
+}
+
+export interface Runtime {
+  config: JarvisConfig;
+  env: NodeJS.ProcessEnv;
+  logger: Logger;
+  metrics: JarvisMetrics;
+  db: Db;
+  validator: SchemaValidator;
+  hub: EventHub;
+  wiring: AdapterWiring;
+  registry: AdapterRegistry;
+  world: MockWorld | undefined;
+  engine: ScenarioEngine | undefined;
+  stores: {
+    audit: AuditStore;
+    idempotency: IdempotencyStore;
+    commands: CommandHistoryStore;
+    library: LibraryStore;
+    adapterOverrides: AdapterOverrideStore;
+  };
+  auth: AuthService;
+  approvalTokens: ApprovalTokenService;
+  settings: SettingsService;
+  adapterSettings: AdapterSettingsService;
+  status: StatusService;
+  orb: OrbService;
+  overview: OverviewService;
+  audit: AuditRecorder;
+  buildVersion: string;
+  startedAt: Date;
+  responseValidation: ResponseValidationMode;
+  /** Forces an immediate health check of every adapter (after dev controls, settings changes, capability toggles). */
+  refreshAdapters(): Promise<void>;
+  capabilities(): Capabilities;
+  /** True when the capability (`tasks.create`) is currently offered; capability strings outside the document are allowed. */
+  capabilityEnabled(capability: string): boolean;
+  start(): Promise<void>;
+  close(): Promise<void>;
+}

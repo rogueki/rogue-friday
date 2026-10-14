@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/settings-export.schema.json",
+  "title": "SettingsExport",
+  "description": "Portable export. Secrets are never included.",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "settings": {
+      "$ref": "../settings/settings-patch.schema.json"
+    },
+    "themes": {
+      "type": "array",
+      "items": {
+        "$ref": "../settings/theme.schema.json"
+      }
+    },
+    "layouts": {
+      "type": "array",
+      "items": {
+        "$ref": "../settings/layout.schema.json"
+      }
+    }
+  },
+  "required": ["contractVersion", "exportedAt", "settings", "themes", "layouts"],
+  "additionalProperties": false
+}

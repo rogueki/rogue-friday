@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/security-settings.schema.json",
+  "title": "SecuritySettings",
+  "type": "object",
+  "properties": {
+    "sessionTimeoutMinutes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "reauthWindowMinutes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "allowRemoteAccess": {
+      "type": "boolean",
+      "default": false
+    },
+    "auditHashChain": {
+      "type": "boolean"
+    },
+    "trustedOrigins": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "sessionTimeoutMinutes",
+    "reauthWindowMinutes",
+    "allowRemoteAccess",
+    "auditHashChain",
+    "trustedOrigins"
+  ],
+  "additionalProperties": false
+}

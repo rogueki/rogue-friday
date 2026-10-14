@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/research/research-artifact.schema.json",
+  "title": "ResearchArtifact",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^art_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^rsp_[0-9A-Za-z]{26}$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "format": {
+      "type": "string",
+      "enum": ["markdown", "json", "pdf", "docx", "pptx"]
+    },
+    "fileId": {
+      "type": ["string", "null"],
+      "pattern": "^file_[0-9A-Za-z]{26}$"
+    },
+    "sizeBytes": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "projectId",
+    "name",
+    "format",
+    "fileId",
+    "sizeBytes"
+  ],
+  "additionalProperties": false
+}

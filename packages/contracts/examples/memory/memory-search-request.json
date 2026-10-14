@@ -1,0 +1,7 @@
+{
+  "$schema": "https://jarvis.local/schemas/memory/memory-search-request.schema.json",
+  "query": "Anrede in E-Mails",
+  "types": ["preference", "instruction"],
+  "semantic": true,
+  "limit": 10
+}

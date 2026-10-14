@@ -1,0 +1,23 @@
+/* @jarvis/ui — single stylesheet entry. Import once in the app: `import '@jarvis/ui/styles.css'`. */
+
+@import '@fontsource/oxanium/400.css';
+@import '@fontsource/oxanium/500.css';
+@import '@fontsource/oxanium/600.css';
+@import '@fontsource/oxanium/700.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/600.css';
+@import '@fontsource/jetbrains-mono/700.css';
+
+@import '@jarvis/design-tokens/tokens.css';
+
+@import './styles/base.css';
+@import './styles/panel.css';
+@import './styles/content.css';
+@import './styles/controls.css';
+@import './styles/shell.css';
+@import './styles/overlays.css';

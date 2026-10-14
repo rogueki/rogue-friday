@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/memory/memory-update-request.schema.json",
+  "title": "MemoryUpdateRequest",
+  "type": "object",
+  "properties": {
+    "type": {
+      "$ref": "../memory/memory-type.schema.json"
+    },
+    "content": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "confirm": {
+      "type": "boolean",
+      "description": "Marks the memory as confirmed now."
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "$ref": "../memory/memory-entity.schema.json"
+      }
+    },
+    "sensitivity": {
+      "$ref": "../memory/memory-sensitivity.schema.json"
+    },
+    "locked": {
+      "type": "boolean"
+    },
+    "pinned": {
+      "type": "boolean"
+    },
+    "expiresAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false,
+  "minProperties": 1
+}

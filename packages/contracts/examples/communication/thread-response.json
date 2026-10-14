@@ -1,0 +1,57 @@
+{
+  "$schema": "https://jarvis.local/schemas/communication/thread-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "id": "thr_01JCW5E9R2Q7T4M8N3B6V00001",
+    "version": 3,
+    "createdAt": "2026-10-14T06:30:00Z",
+    "updatedAt": "2026-10-14T08:10:00Z",
+    "source": {
+      "adapterId": "mock-mail",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    },
+    "channelId": "chan_01JCW5E9R2Q7T4M8N3B6V00001",
+    "channelKind": "email",
+    "subject": "Terminbestätigung für den 21. Oktober – Projektbesprechung Außenanlage Königstraße",
+    "participants": [
+      {
+        "name": "Katharina Becker",
+        "address": "k.becker@example.de"
+      },
+      {
+        "name": "Erik Brandt",
+        "address": "erik@example.de"
+      }
+    ],
+    "priority": "P1",
+    "summary": "Frau Becker bittet um Bestätigung des Termins am 21.10., 10:00 Uhr.",
+    "needsReply": true,
+    "deadline": "2026-10-14T12:00:00Z",
+    "status": "open",
+    "linkedTaskId": "task_01JCW5E9R2Q7T4M8N3B6V00002",
+    "lastMessageAt": "2026-10-14T07:48:00Z",
+    "messageCount": 1,
+    "unreadCount": 1,
+    "hasDraft": true,
+    "draftIds": ["draft_01JCW5E9R2Q7T4M8N3B6V00001"],
+    "extractedEvents": [
+      {
+        "title": "Projektbesprechung",
+        "start": "2026-10-21T10:00:00Z",
+        "end": "2026-10-21T11:00:00Z"
+      }
+    ],
+    "extractedTasks": [
+      {
+        "title": "Agenda.pdf prüfen",
+        "dueAt": null
+      }
+    ],
+    "suggestedReply": "Gerne bestätige ich den Termin am 21.10. um 10:00 Uhr."
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

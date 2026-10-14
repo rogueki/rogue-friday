@@ -1,0 +1,19 @@
+{
+  "$schema": "https://jarvis.local/schemas/system/model-provider.schema.json",
+  "id": "mdl_01JCW5E9R2Q7T4M8N3B6V00001",
+  "version": 3,
+  "createdAt": "2026-10-14T06:30:00Z",
+  "updatedAt": "2026-10-14T08:10:00Z",
+  "source": {
+    "adapterId": "mock-system",
+    "system": "mock",
+    "lastSyncedAt": "2026-10-14T08:15:00Z"
+  },
+  "name": "Kimi K3",
+  "providerKind": "cloud",
+  "status": "online",
+  "models": ["kimi-k3"],
+  "latencyMs": 640,
+  "activeRequests": 2,
+  "contextWindow": 262144
+}

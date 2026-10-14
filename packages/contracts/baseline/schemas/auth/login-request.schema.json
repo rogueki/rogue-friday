@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/auth/login-request.schema.json",
+  "title": "LoginRequest",
+  "type": "object",
+  "properties": {
+    "username": {
+      "type": "string",
+      "minLength": 1
+    },
+    "password": {
+      "type": "string",
+      "minLength": 1,
+      "writeOnly": true
+    }
+  },
+  "required": ["username", "password"],
+  "additionalProperties": false
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/error-code.schema.json",
+  "title": "ErrorCode",
+  "type": "string",
+  "enum": [
+    "ADAPTER_UNAVAILABLE",
+    "ADAPTER_TIMEOUT",
+    "CAPABILITY_MISSING",
+    "VALIDATION_FAILED",
+    "NOT_FOUND",
+    "CONFLICT",
+    "UNAUTHENTICATED",
+    "FORBIDDEN",
+    "CSRF_INVALID",
+    "APPROVAL_REQUIRED",
+    "IDEMPOTENCY_CONFLICT",
+    "RATE_LIMITED",
+    "REAUTH_REQUIRED",
+    "INTERNAL"
+  ]
+}

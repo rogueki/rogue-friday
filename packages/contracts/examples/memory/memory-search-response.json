@@ -1,0 +1,85 @@
+{
+  "$schema": "https://jarvis.local/schemas/memory/memory-search-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "memory": {
+        "id": "mem_01JCW5E9R2Q7T4M8N3B6V00001",
+        "version": 3,
+        "createdAt": "2026-10-14T06:30:00Z",
+        "updatedAt": "2026-10-14T08:10:00Z",
+        "source": {
+          "adapterId": "mock-memory",
+          "system": "mock",
+          "lastSyncedAt": "2026-10-14T08:15:00Z"
+        },
+        "type": "preference",
+        "title": "Bevorzugte Anrede",
+        "content": "Erik wird in E-Mails mit „Hallo Erik“ angesprochen; Geschäftspartner werden gesiezt.",
+        "confidence": 0.93,
+        "confirmedAt": "2026-10-01T09:00:00Z",
+        "expiresAt": null,
+        "tags": ["kommunikation", "stil"],
+        "entities": [
+          {
+            "kind": "person",
+            "id": "person_erik",
+            "label": "Erik"
+          }
+        ],
+        "locked": false,
+        "pinned": true,
+        "sensitivity": "normal",
+        "provenance": {
+          "kind": "conversation",
+          "referenceId": "act_01JCW5E9R2Q7T4M8N3B6V00091",
+          "description": "Aus Gespräch am 01.10.2026"
+        },
+        "usageCount": 14,
+        "lastUsedAt": "2026-10-14T07:30:00Z",
+        "conflicts": [],
+        "history": [
+          {
+            "version": 1,
+            "changedAt": "2026-10-01T09:00:00Z",
+            "actor": {
+              "type": "user",
+              "id": "usr_owner",
+              "name": "Erik"
+            },
+            "change": "created",
+            "summary": "Erstellt",
+            "before": null,
+            "after": "Erik wird mit „Hallo Erik“ angesprochen."
+          },
+          {
+            "version": 3,
+            "changedAt": "2026-10-01T09:05:00Z",
+            "actor": {
+              "type": "user",
+              "id": "usr_owner",
+              "name": "Erik"
+            },
+            "change": "updated",
+            "summary": "Gesiezt-Regel ergänzt",
+            "before": "Erik wird mit „Hallo Erik“ angesprochen.",
+            "after": "Erik wird in E-Mails mit „Hallo Erik“ angesprochen; Geschäftspartner werden gesiezt."
+          }
+        ]
+      },
+      "score": 0.88,
+      "highlights": ["Hallo Erik"]
+    }
+  ],
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "mock-memory",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

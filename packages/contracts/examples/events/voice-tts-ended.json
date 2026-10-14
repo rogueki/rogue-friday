@@ -1,0 +1,6 @@
+{
+  "$schema": "https://jarvis.local/schemas/events/voice-tts-ended.schema.json",
+  "utteranceId": "utt_1",
+  "durationMs": 3100,
+  "interrupted": false
+}

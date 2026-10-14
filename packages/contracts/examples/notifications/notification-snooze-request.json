@@ -1,0 +1,4 @@
+{
+  "$schema": "https://jarvis.local/schemas/notifications/notification-snooze-request.schema.json",
+  "durationMinutes": 30
+}

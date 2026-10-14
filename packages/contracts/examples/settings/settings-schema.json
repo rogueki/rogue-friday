@@ -1,0 +1,26 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/settings-schema.schema.json",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "profile": {
+        "type": "object"
+      }
+    }
+  },
+  "areas": [
+    "profile",
+    "dashboard",
+    "theme",
+    "orb",
+    "navigation",
+    "modelsRouting",
+    "voice",
+    "notifications",
+    "security",
+    "approvals",
+    "dataRetention",
+    "backups",
+    "developer"
+  ]
+}

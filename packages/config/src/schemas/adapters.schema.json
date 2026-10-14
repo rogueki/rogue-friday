@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/config/adapters.schema.json",
+  "title": "adapters.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "mode": {
+      "description": "Informational (PLAN §10.10 example). The effective mode is dataMode from dashboard.yaml / JARVIS_DATA_MODE.",
+      "enum": ["mock", "hybrid", "live"]
+    },
+    "allowlist": {
+      "description": "Provider id -> npm package name. The registry loads nothing that is not listed here (PLAN §10.9). Merged over the built-in mock allowlist.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+      "additionalProperties": { "$ref": "#/$defs/packageName" },
+      "default": {}
+    },
+    "adapters": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "tasks": { "$ref": "#/$defs/adapter" },
+        "activity": { "$ref": "#/$defs/adapter" },
+        "memory": { "$ref": "#/$defs/adapter" },
+        "agents": { "$ref": "#/$defs/adapter" },
+        "approvals": { "$ref": "#/$defs/adapter" },
+        "communication": { "$ref": "#/$defs/adapter" },
+        "calendar": { "$ref": "#/$defs/adapter" },
+        "automations": { "$ref": "#/$defs/adapter" },
+        "research": { "$ref": "#/$defs/adapter" },
+        "files": { "$ref": "#/$defs/adapter" },
+        "voice": { "$ref": "#/$defs/adapter" },
+        "notifications": { "$ref": "#/$defs/adapter" },
+        "system": { "$ref": "#/$defs/adapter" },
+        "audit": { "$ref": "#/$defs/adapter" },
+        "commands": { "$ref": "#/$defs/adapter" }
+      }
+    }
+  },
+  "$defs": {
+    "packageName": {
+      "type": "string",
+      "maxLength": 214,
+      "pattern": "^(@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+    },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider"],
+      "properties": {
+        "provider": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+        "enabled": { "type": "boolean", "default": true },
+        "config": { "type": "object", "default": {} },
+        "timeoutMs": { "type": "integer", "minimum": 100, "maximum": 300000, "default": 5000 },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "properties": {
+            "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 10, "default": 3 },
+            "baseDelayMs": { "type": "integer", "minimum": 0, "maximum": 60000, "default": 200 },
+            "maxDelayMs": { "type": "integer", "minimum": 0, "maximum": 600000, "default": 5000 },
+            "jitter": {
+              "description": "Fraction (0..1) of the delay randomised to avoid thundering herds.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 0.2
+            }
+          }
+        },
+        "circuitBreaker": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "properties": {
+            "failureThreshold": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 5 },
+            "resetAfterMs": { "type": "integer", "minimum": 100, "maximum": 3600000, "default": 30000 }
+          }
+        }
+      }
+    }
+  }
+}

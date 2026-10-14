@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/progress.schema.json",
+  "title": "Progress",
+  "description": "Unknown progress is indeterminate; never fake a percentage. value is a fraction 0..1.",
+  "type": "object",
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": ["determinate", "indeterminate", "none"]
+    },
+    "value": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "required": ["mode", "value"],
+  "additionalProperties": false
+}

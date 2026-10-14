@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/automations/automation-action.schema.json",
+  "title": "AutomationAction",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["notify", "create_task", "draft_message", "call", "run_agent", "set_priority", "webhook"]
+    },
+    "channel": {
+      "type": "string",
+      "enum": ["dashboard", "telegram", "whatsapp", "sms", "phone", "email"]
+    },
+    "params": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "requiresApproval": {
+      "type": "boolean"
+    },
+    "description": {
+      "type": "string"
+    }
+  },
+  "required": ["id", "type", "requiresApproval", "description"],
+  "additionalProperties": false
+}

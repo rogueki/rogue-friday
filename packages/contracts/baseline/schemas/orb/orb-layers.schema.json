@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/orb/orb-layers.schema.json",
+  "title": "OrbLayers",
+  "description": "Parallel activity layers (PLAN §18.2): the orb can speak while agents work and health is shown on the telemetry ring.",
+  "type": "object",
+  "properties": {
+    "voice": {
+      "type": "string",
+      "enum": ["idle", "listening", "transcribing", "speaking"]
+    },
+    "work": {
+      "type": "string",
+      "enum": ["idle", "thinking", "working", "syncing", "paused"]
+    },
+    "attention": {
+      "type": "string",
+      "enum": ["none", "waiting_approval", "success", "warning", "error"]
+    },
+    "health": {
+      "$ref": "../orb/orb-health.schema.json"
+    },
+    "activeAgentIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^agent_[0-9A-Za-z]{26}$"
+      }
+    }
+  },
+  "required": ["voice", "work", "attention", "health", "activeAgentIds"],
+  "additionalProperties": false
+}

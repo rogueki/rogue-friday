@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/voice/voice-metrics.schema.json",
+  "title": "VoiceMetrics",
+  "description": "Pipeline latencies (PLAN §38.2).",
+  "type": "object",
+  "properties": {
+    "sampledAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "wakeWordLatency": {
+      "$ref": "../voice/latency-stat.schema.json"
+    },
+    "speakerVerificationLatency": {
+      "$ref": "../voice/latency-stat.schema.json"
+    },
+    "sttLatency": {
+      "$ref": "../voice/latency-stat.schema.json"
+    },
+    "routerLatency": {
+      "$ref": "../voice/latency-stat.schema.json"
+    },
+    "firstToken": {
+      "$ref": "../voice/latency-stat.schema.json"
+    },
+    "ttsFirstAudio": {
+      "$ref": "../voice/latency-stat.schema.json"
+    }
+  },
+  "required": [
+    "sampledAt",
+    "source",
+    "wakeWordLatency",
+    "speakerVerificationLatency",
+    "sttLatency",
+    "routerLatency",
+    "firstToken",
+    "ttsFirstAudio"
+  ],
+  "additionalProperties": false
+}

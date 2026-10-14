@@ -1,0 +1,20 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/orb-settings.schema.json",
+  "preset": "gold-fragment-core",
+  "size": 1,
+  "intensity": 78,
+  "speed": 1,
+  "particleDensity": 72,
+  "audioReactive": true,
+  "mouseParallax": true,
+  "bloom": true,
+  "animations": "full",
+  "quality": "auto",
+  "renderMode": "auto",
+  "statusColors": {
+    "error": "#ff4d5a",
+    "warning": "#ffb52e",
+    "waiting_approval": "#ffd166",
+    "success": "#3ddc97"
+  }
+}

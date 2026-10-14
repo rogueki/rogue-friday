@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/events/agent-heartbeat.schema.json",
+  "title": "AgentHeartbeat",
+  "type": "object",
+  "properties": {
+    "agentId": {
+      "type": "string",
+      "pattern": "^agent_[0-9A-Za-z]{26}$"
+    },
+    "heartbeatAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "$ref": "../agents/agent-status.schema.json"
+    },
+    "currentTaskId": {
+      "type": ["string", "null"],
+      "pattern": "^task_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": ["agentId", "heartbeatAt", "status", "currentTaskId"],
+  "additionalProperties": false
+}

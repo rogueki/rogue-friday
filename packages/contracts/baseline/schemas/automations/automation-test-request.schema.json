@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/automations/automation-test-request.schema.json",
+  "title": "AutomationTestRequest",
+  "type": "object",
+  "properties": {
+    "dryRun": {
+      "type": "boolean",
+      "default": true
+    },
+    "sampleData": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Mock input to evaluate the trigger against."
+    }
+  },
+  "additionalProperties": false
+}

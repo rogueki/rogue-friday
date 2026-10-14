@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/tasks/task-step.schema.json",
+  "title": "TaskStep",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^step_[0-9A-Za-z]{26}$"
+    },
+    "index": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "title": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "running", "done", "failed", "skipped"]
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finishedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "detail": {
+      "type": "string"
+    }
+  },
+  "required": ["id", "index", "title", "status"],
+  "additionalProperties": false
+}

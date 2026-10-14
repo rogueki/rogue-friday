@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/memory/memory-entity.schema.json",
+  "title": "MemoryEntity",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["person", "company", "project", "place", "other"]
+    },
+    "id": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string"
+    }
+  },
+  "required": ["kind", "id", "label"],
+  "additionalProperties": false
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/source-descriptor.schema.json",
+  "title": "SourceDescriptor",
+  "description": "Provenance of a canonical resource: which adapter delivered it.",
+  "type": "object",
+  "properties": {
+    "adapterId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "system": {
+      "type": "string",
+      "description": "Backing system family, e.g. mock, hermes, gmx."
+    },
+    "externalId": {
+      "type": "string",
+      "description": "Opaque id in the backing system. Never interpreted by the UI."
+    },
+    "lastSyncedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": ["adapterId", "system", "lastSyncedAt"],
+  "additionalProperties": false
+}

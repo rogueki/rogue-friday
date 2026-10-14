@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/communication/draft-update-request.schema.json",
+  "title": "DraftUpdateRequest",
+  "type": "object",
+  "properties": {
+    "to": {
+      "type": "array",
+      "items": {
+        "$ref": "../communication/participant.schema.json"
+      },
+      "minItems": 1
+    },
+    "cc": {
+      "type": "array",
+      "items": {
+        "$ref": "../communication/participant.schema.json"
+      }
+    },
+    "subject": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "discarded"]
+    }
+  },
+  "additionalProperties": false,
+  "minProperties": 1
+}

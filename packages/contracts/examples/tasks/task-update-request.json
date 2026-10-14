@@ -1,0 +1,5 @@
+{
+  "$schema": "https://jarvis.local/schemas/tasks/task-update-request.schema.json",
+  "status": "review",
+  "priority": "P2"
+}

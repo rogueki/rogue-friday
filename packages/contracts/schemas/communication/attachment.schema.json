@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/communication/attachment.schema.json",
+  "title": "Attachment",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "mimeType": {
+      "type": "string"
+    },
+    "sizeBytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "fileId": {
+      "type": "string",
+      "pattern": "^file_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": ["id", "name", "mimeType", "sizeBytes"],
+  "additionalProperties": false
+}

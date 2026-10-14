@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/notifications/notification.schema.json",
+  "title": "Notification",
+  "description": "Alert with escalation chain (PLAN §39).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^ntf_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "priority": {
+      "$ref": "../common/priority.schema.json"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["system", "task", "approval", "mail", "calendar", "automation", "security", "voice", "adapter"]
+    },
+    "title": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "acknowledged", "snoozed", "resolved"]
+    },
+    "acknowledged": {
+      "type": "boolean"
+    },
+    "acknowledgedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "snoozedUntil": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "resolved": {
+      "type": "boolean"
+    },
+    "resolvedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "escalation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "channel": {
+            "type": "string",
+            "enum": ["dashboard", "telegram", "whatsapp", "sms", "phone", "email"]
+          },
+          "state": {
+            "type": "string",
+            "enum": ["pending", "sent", "acknowledged", "failed", "skipped"]
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sentAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "acknowledgedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        },
+        "required": ["step", "channel", "state", "scheduledAt", "sentAt", "acknowledgedAt"],
+        "additionalProperties": false
+      }
+    },
+    "sourceRef": {
+      "anyOf": [
+        {
+          "$ref": "../common/entity-ref.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "targetRoute": {
+      "type": ["string", "null"],
+      "description": "Dashboard route for \"Open source\", e.g. /approvals?approval=appr_..."
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "priority",
+    "category",
+    "title",
+    "body",
+    "status",
+    "acknowledged",
+    "snoozedUntil",
+    "resolved",
+    "escalation",
+    "sourceRef",
+    "targetRoute"
+  ],
+  "additionalProperties": false
+}

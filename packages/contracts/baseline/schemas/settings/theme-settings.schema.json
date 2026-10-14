@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/theme-settings.schema.json",
+  "title": "ThemeSettings",
+  "type": "object",
+  "properties": {
+    "activeThemeId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "cyanIntensity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "panelOpacity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "goldIntensity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "overrides": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["activeThemeId", "cyanIntensity", "panelOpacity", "goldIntensity"],
+  "additionalProperties": false
+}

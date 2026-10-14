@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/research/research-finding.schema.json",
+  "title": "ResearchFinding",
+  "description": "A statement together with the sources that support it and known contradictions.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^fnd_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^rsp_[0-9A-Za-z]{26}$"
+    },
+    "statement": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "supportingSourceIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^src_[0-9A-Za-z]{26}$"
+      },
+      "minItems": 1
+    },
+    "contradictions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sourceId": {
+            "type": ["string", "null"],
+            "pattern": "^src_[0-9A-Za-z]{26}$"
+          },
+          "findingId": {
+            "type": ["string", "null"],
+            "pattern": "^fnd_[0-9A-Za-z]{26}$"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": ["sourceId", "findingId", "description"],
+        "additionalProperties": false
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "verified", "disputed", "rejected"]
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "projectId",
+    "statement",
+    "confidence",
+    "supportingSourceIds",
+    "contradictions",
+    "status"
+  ],
+  "additionalProperties": false
+}

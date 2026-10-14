@@ -1,0 +1,41 @@
+{
+  "$schema": "https://jarvis.local/schemas/voice/voice-profile-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "id": "vprof_01JCW5E9R2Q7T4M8N3B6V00001",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-voice",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "displayName": "Erik (Owner)",
+      "owner": true,
+      "sampleCount": 24,
+      "quality": 0.91,
+      "calibratedAt": "2026-09-20T10:00:00Z",
+      "threshold": 0.78,
+      "lastTestAt": "2026-10-12T18:30:00Z",
+      "lastTestResult": "pass"
+    }
+  ],
+  "pageInfo": {
+    "nextCursor": null,
+    "hasNextPage": false,
+    "totalCount": 1
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "mock-voice",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

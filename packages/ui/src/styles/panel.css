@@ -1,0 +1,236 @@
+/*
+ * HudPanel — cut corners with a 1 px border that FOLLOWS the cut.
+ *
+ * Technique: the frame is clipped to an 8-point polygon (outer shape). The border is a separate
+ * pseudo-layer clipped to a ring: one polygon(evenodd, <outer loop>, <inner loop>) where the inner loop is
+ * the outer shape inset by `--o2`. Chamfers are offset by 0.414·o so the diagonal stroke has the same
+ * 1 px weight as the straight edges. A second, fainter ring (inset 4–5 px) forms the inner hairline.
+ * Glow is applied with filter:drop-shadow on the *wrapper* (a clip-path on the same element would cut it).
+ */
+
+.jv-panel {
+  --cut: var(--jv-cut-md);
+  --cut-a: 0px; /* top-left */
+  --cut-b: 0px; /* top-right */
+  --cut-c: 0px; /* bottom-right */
+  --cut-d: 0px; /* bottom-left */
+  --panel-bg: var(--jarvis-panel-1);
+  --panel-line: var(--jarvis-border);
+  --panel-hair: color-mix(in srgb, var(--jarvis-cyan) 11%, transparent);
+  --panel-glow: transparent;
+  --panel-bracket: var(--jarvis-cyan-bright);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  z-index: var(--jv-z-level-1);
+}
+
+.jv-panel[data-cut-size='sm'] { --cut: var(--jv-cut-sm); }
+.jv-panel[data-cut-size='lg'] { --cut: var(--jv-cut-lg); }
+
+.jv-panel[data-cut='tl-br'] { --cut-a: var(--cut); --cut-c: calc(var(--cut) * 0.8); }
+.jv-panel[data-cut='tr-bl'] { --cut-b: var(--cut); --cut-d: calc(var(--cut) * 0.8); }
+.jv-panel[data-cut='all'] { --cut-a: var(--cut); --cut-b: var(--cut); --cut-c: var(--cut); --cut-d: var(--cut); }
+.jv-panel[data-cut='tl'] { --cut-a: var(--cut); }
+.jv-panel[data-cut='br'] { --cut-c: var(--cut); }
+
+/* Hierarchy §24.5 */
+.jv-panel[data-level='2'] {
+  --panel-bg: var(--jarvis-panel-active);
+  --panel-line: var(--jarvis-border-active);
+  --panel-hair: color-mix(in srgb, var(--jarvis-cyan) 18%, transparent);
+  --panel-glow: color-mix(in srgb, var(--jarvis-cyan) 26%, transparent);
+  z-index: var(--jv-z-level-2);
+}
+.jv-panel[data-level='3'] {
+  --panel-bg: color-mix(in srgb, var(--panel-tone, var(--jarvis-warning)) 7%, var(--jarvis-panel-0));
+  --panel-line: color-mix(in srgb, var(--panel-tone, var(--jarvis-warning)) 78%, transparent);
+  --panel-hair: color-mix(in srgb, var(--panel-tone, var(--jarvis-warning)) 22%, transparent);
+  --panel-glow: color-mix(in srgb, var(--panel-tone, var(--jarvis-warning)) 32%, transparent);
+  --panel-bracket: var(--panel-tone, var(--jarvis-warning));
+  z-index: var(--jv-z-level-3);
+}
+
+/* Tone families (gold is reserved for the AI core context) */
+.jv-panel[data-tone='gold'] {
+  --panel-tone: var(--jarvis-orb-gold);
+  --panel-line: color-mix(in srgb, var(--jarvis-orb-gold) 52%, transparent);
+  --panel-hair: color-mix(in srgb, var(--jarvis-orb-gold) 14%, transparent);
+  --panel-glow: color-mix(in srgb, var(--jarvis-orb-gold) calc(30% * var(--jv-orb-intensity)), transparent);
+  --panel-bracket: var(--jarvis-orb-gold);
+}
+.jv-panel[data-tone='amber'] { --panel-tone: var(--jarvis-warning); }
+.jv-panel[data-tone='red'] { --panel-tone: var(--jarvis-error); }
+.jv-panel[data-tone='amber'][data-level='1'],
+.jv-panel[data-tone='red'][data-level='1'] {
+  --panel-line: color-mix(in srgb, var(--panel-tone) 55%, transparent);
+  --panel-bracket: var(--panel-tone);
+}
+
+.jv-panel[data-glow='true'] { filter: drop-shadow(0 0 9px var(--panel-glow)); }
+
+.jv-panel__frame {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--jarvis-cyan) 7.5%, transparent) 0%, transparent 38%),
+    radial-gradient(ellipse 90% 60% at 50% 115%, color-mix(in srgb, var(--panel-tone, var(--jarvis-cyan)) 8%, transparent), transparent 70%),
+    var(--panel-bg);
+  clip-path: polygon(
+    0 var(--cut-a),
+    var(--cut-a) 0,
+    calc(100% - var(--cut-b)) 0,
+    100% var(--cut-b),
+    100% calc(100% - var(--cut-c)),
+    calc(100% - var(--cut-c)) 100%,
+    var(--cut-d) 100%,
+    0 calc(100% - var(--cut-d))
+  );
+}
+
+.jv-panel__ring,
+.jv-panel__hair {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  /* chamfer size at offset o: max(o, cut + 0.414·o) keeps the diagonal stroke 1 px thick */
+  --fa1: max(var(--o1), calc(var(--cut-a) + var(--o1) * 0.414));
+  --fb1: max(var(--o1), calc(var(--cut-b) + var(--o1) * 0.414));
+  --fc1: max(var(--o1), calc(var(--cut-c) + var(--o1) * 0.414));
+  --fd1: max(var(--o1), calc(var(--cut-d) + var(--o1) * 0.414));
+  --fa2: max(var(--o2), calc(var(--cut-a) + var(--o2) * 0.414));
+  --fb2: max(var(--o2), calc(var(--cut-b) + var(--o2) * 0.414));
+  --fc2: max(var(--o2), calc(var(--cut-c) + var(--o2) * 0.414));
+  --fd2: max(var(--o2), calc(var(--cut-d) + var(--o2) * 0.414));
+  clip-path: polygon(
+    evenodd,
+    var(--o1) var(--fa1),
+    var(--fa1) var(--o1),
+    calc(100% - var(--fb1)) var(--o1),
+    calc(100% - var(--o1)) var(--fb1),
+    calc(100% - var(--o1)) calc(100% - var(--fc1)),
+    calc(100% - var(--fc1)) calc(100% - var(--o1)),
+    var(--fd1) calc(100% - var(--o1)),
+    var(--o1) calc(100% - var(--fd1)),
+    var(--o1) var(--fa1),
+    var(--o2) var(--fa2),
+    var(--fa2) var(--o2),
+    calc(100% - var(--fb2)) var(--o2),
+    calc(100% - var(--o2)) var(--fb2),
+    calc(100% - var(--o2)) calc(100% - var(--fc2)),
+    calc(100% - var(--fc2)) calc(100% - var(--o2)),
+    var(--fd2) calc(100% - var(--o2)),
+    var(--o2) calc(100% - var(--fd2)),
+    var(--o2) var(--fa2)
+  );
+}
+
+.jv-panel__ring {
+  --o1: 0px;
+  --o2: 1px;
+  background: var(--panel-line);
+}
+
+/* inner hairline, visible mainly on the cut corners (technical look) */
+.jv-panel__hair {
+  --o1: 4px;
+  --o2: 5px;
+  background: var(--panel-hair);
+  -webkit-mask-image: linear-gradient(135deg, #000 0%, transparent 30%, transparent 62%, #000 100%);
+  mask-image: linear-gradient(135deg, #000 0%, transparent 30%, transparent 62%, #000 100%);
+}
+
+/* Corner brackets */
+.jv-brackets { position: absolute; inset: 0; z-index: 3; pointer-events: none; --jv-bracket: 9px; }
+.jv-brackets__c { position: absolute; width: var(--jv-bracket); height: var(--jv-bracket); border: 0 solid var(--panel-bracket, var(--jarvis-cyan-bright)); filter: drop-shadow(0 0 3px color-mix(in srgb, var(--panel-bracket, var(--jarvis-cyan-bright)) 55%, transparent)); }
+.jv-brackets--gold .jv-brackets__c { --panel-bracket: var(--jarvis-orb-gold); }
+.jv-brackets--amber .jv-brackets__c { --panel-bracket: var(--jarvis-warning); }
+.jv-brackets--red .jv-brackets__c { --panel-bracket: var(--jarvis-error); }
+.jv-brackets__c--tl { top: 0; left: 0; border-top-width: 2px; border-left-width: 2px; }
+.jv-brackets__c--tr { top: 0; right: 0; border-top-width: 2px; border-right-width: 2px; }
+.jv-brackets__c--br { bottom: 0; right: 0; border-bottom-width: 2px; border-right-width: 2px; }
+.jv-brackets__c--bl { bottom: 0; left: 0; border-bottom-width: 2px; border-left-width: 2px; }
+
+.jv-panel--interactive { cursor: pointer; }
+.jv-panel--interactive:hover { --panel-line: var(--jarvis-border-active); }
+.jv-panel--interactive:focus-visible { outline: 2px solid var(--jarvis-focus); outline-offset: 3px; }
+
+/* Header */
+.jv-panel-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 12px 16px 4px;
+}
+.jv-panel-header__icon { display: inline-flex; color: var(--jarvis-cyan); }
+.jv-panel-header__icon svg { width: 15px; height: 15px; stroke-width: 1.5; }
+.jv-panel-header__text { display: flex; flex: 1; min-width: 0; align-items: baseline; gap: 10px; }
+.jv-panel-header__title {
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--jv-font-display);
+  font-size: var(--jv-fs-xs);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: var(--jv-tracking-label);
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--jarvis-text);
+}
+.jv-panel-header__subtitle { font-size: var(--jv-fs-xs); color: var(--jarvis-muted); white-space: nowrap; }
+.jv-panel-header__actions { display: flex; flex: none; align-items: center; gap: 10px; }
+
+.jv-panel-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 0;
+  font-family: var(--jv-font-body);
+  font-size: var(--jv-fs-xs);
+  color: var(--jarvis-cyan);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: color var(--jv-dur-fast);
+}
+.jv-panel-link:hover { color: var(--jarvis-cyan-bright); }
+
+.jv-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 17px;
+  padding: 0 7px;
+  font-family: var(--jv-font-mono);
+  font-size: var(--jv-fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--jarvis-success);
+  background: var(--jarvis-tint-green-bg);
+  border: 1px solid var(--jarvis-tint-green-border);
+  border-radius: var(--jv-radius-pill);
+}
+.jv-live-pill__dot { width: 5px; height: 5px; border-radius: 50%; background: var(--jarvis-success); animation: jv-live-dot 1.8s ease-in-out infinite; }
+
+/* Body */
+.jv-panel__body { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; min-width: 0; }
+.jv-panel__body--none { padding: 0; }
+.jv-panel__body--sm { padding: 6px 10px 10px; }
+.jv-panel__body--md { padding: 6px 14px 14px; }
+.jv-panel__body--lg { padding: 14px 20px 20px; }
+.jv-panel__body--scroll { overflow: auto; }
+.jv-panel__footer { position: relative; z-index: 1; padding: 0 14px 10px; display: flex; justify-content: center; }
+.jv-panel:not(:has(.jv-panel-header)) .jv-panel__body--md,
+.jv-panel:not(:has(.jv-panel-header)) .jv-panel__body--sm { padding-top: 12px; }

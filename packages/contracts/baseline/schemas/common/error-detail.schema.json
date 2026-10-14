@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/error-detail.schema.json",
+  "title": "ErrorDetail",
+  "description": "Normalized error. Provider-specific errors are mapped to this shape by adapters.",
+  "type": "object",
+  "properties": {
+    "code": {
+      "$ref": "../common/error-code.schema.json"
+    },
+    "message": {
+      "type": "string"
+    },
+    "severity": {
+      "$ref": "../common/severity.schema.json"
+    },
+    "retryable": {
+      "type": "boolean"
+    },
+    "correlationId": {
+      "type": "string",
+      "pattern": "^corr_[0-9A-Za-z]{26}$"
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Structured context, e.g. { fieldErrors: [...] }. May be empty."
+    }
+  },
+  "required": ["code", "message", "severity", "retryable", "correlationId", "details"],
+  "additionalProperties": false
+}

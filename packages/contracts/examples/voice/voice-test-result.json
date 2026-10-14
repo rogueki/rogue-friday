@@ -1,0 +1,29 @@
+{
+  "$schema": "https://jarvis.local/schemas/voice/voice-test-result.schema.json",
+  "kind": "full_pipeline",
+  "success": true,
+  "startedAt": "2026-10-14T08:15:00Z",
+  "durationMs": 1830,
+  "stages": [
+    {
+      "name": "wake_word",
+      "ok": true,
+      "latencyMs": 85,
+      "detail": null
+    },
+    {
+      "name": "stt",
+      "ok": true,
+      "latencyMs": 410,
+      "detail": "Erkannt: „Wie ist das Wetter morgen in Hannover?“"
+    },
+    {
+      "name": "tts",
+      "ok": true,
+      "latencyMs": 180,
+      "detail": null
+    }
+  ],
+  "message": "Alle Stufen erfolgreich.",
+  "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00004"
+}

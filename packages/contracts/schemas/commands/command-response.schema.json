@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/commands/command-response.schema.json",
+  "title": "CommandResponse",
+  "description": "Write/critical actions first return a preview (PLAN §43.4); only a confirmed repeat executes.",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "commandId": {
+      "type": "string",
+      "pattern": "^cmd_[0-9A-Za-z]{26}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["executed", "accepted", "requires_confirmation", "requires_approval", "rejected", "failed"]
+    },
+    "requiresConfirmation": {
+      "type": "boolean"
+    },
+    "previewText": {
+      "type": ["string", "null"],
+      "description": "e.g. \"Du bist dabei, eine E-Mail an Frau Becker zu senden.\""
+    },
+    "previewId": {
+      "type": "string"
+    },
+    "riskTier": {
+      "anyOf": [
+        {
+          "$ref": "../approvals/risk-tier.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "approvalId": {
+      "type": ["string", "null"],
+      "pattern": "^appr_[0-9A-Za-z]{26}$"
+    },
+    "result": {
+      "type": ["object", "null"],
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^task_[0-9A-Za-z]{26}$"
+        },
+        "targetRoute": {
+          "type": "string"
+        }
+      },
+      "required": ["message"],
+      "additionalProperties": false
+    },
+    "correlationId": {
+      "type": "string",
+      "pattern": "^corr_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": [
+    "contractVersion",
+    "commandId",
+    "status",
+    "requiresConfirmation",
+    "previewText",
+    "riskTier",
+    "approvalId",
+    "result",
+    "correlationId"
+  ],
+  "additionalProperties": false
+}

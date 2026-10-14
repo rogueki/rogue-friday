@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/calendar/calendar-event-list-response.schema.json",
+  "title": "CalendarEventListResponse",
+  "description": "Cursor-paginated list envelope for CalendarEvent.",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "../calendar/calendar-event.schema.json"
+      }
+    },
+    "pageInfo": {
+      "$ref": "../common/page-info.schema.json"
+    },
+    "freshness": {
+      "$ref": "../common/freshness.schema.json"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "../common/source-descriptor.schema.json"
+      }
+    }
+  },
+  "required": ["contractVersion", "items", "pageInfo", "freshness", "sources"],
+  "additionalProperties": false
+}

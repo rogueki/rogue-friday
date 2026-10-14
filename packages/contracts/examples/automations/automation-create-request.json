@@ -1,0 +1,22 @@
+{
+  "$schema": "https://jarvis.local/schemas/automations/automation-create-request.schema.json",
+  "name": "Morgenbriefing",
+  "trigger": {
+    "type": "schedule",
+    "schedule": "0 7 * * 1-5",
+    "timeZone": "Europe/Berlin",
+    "description": "Werktags um 07:00 Uhr"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "id": "act_1",
+      "type": "run_agent",
+      "params": {
+        "agent": "briefing"
+      },
+      "requiresApproval": false,
+      "description": "Executive Briefing erzeugen"
+    }
+  ]
+}

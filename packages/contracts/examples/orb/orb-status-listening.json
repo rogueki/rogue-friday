@@ -1,0 +1,10 @@
+{
+  "$schema": "https://jarvis.local/schemas/orb/orb-status.schema.json",
+  "mode": "listening",
+  "activityText": "Ich höre zu",
+  "audioLevel": 0.42,
+  "progressMode": "none",
+  "urgency": "none",
+  "health": "online",
+  "since": "2026-10-14T08:15:00Z"
+}

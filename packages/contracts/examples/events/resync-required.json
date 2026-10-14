@@ -1,0 +1,7 @@
+{
+  "$schema": "https://jarvis.local/schemas/events/resync-required.schema.json",
+  "reason": "buffer_overflow",
+  "requestedSince": null,
+  "oldestAvailableSequence": 1200,
+  "latestSequence": 6200
+}

@@ -1,0 +1,5 @@
+{
+  "$schema": "https://jarvis.local/schemas/common/freshness.schema.json",
+  "state": "stale",
+  "asOf": "2026-10-14T07:42:00Z"
+}

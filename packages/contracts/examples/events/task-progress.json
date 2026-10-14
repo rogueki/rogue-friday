@@ -1,0 +1,11 @@
+{
+  "$schema": "https://jarvis.local/schemas/events/task-progress.schema.json",
+  "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00001",
+  "progress": {
+    "mode": "determinate",
+    "value": 0.7
+  },
+  "currentStep": "Preise und Lieferzeiten auslesen",
+  "message": "Quelle 3 von 3",
+  "agentId": "agent_01JCW5E9R2Q7T4M8N3B6V00002"
+}

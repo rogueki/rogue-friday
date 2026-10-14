@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/activity/activity-kind.schema.json",
+  "title": "ActivityKind",
+  "type": "string",
+  "enum": [
+    "user_request",
+    "task",
+    "agent",
+    "tool_call",
+    "source_read",
+    "result",
+    "artifact",
+    "adapter",
+    "system"
+  ]
+}

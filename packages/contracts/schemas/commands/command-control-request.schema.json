@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/commands/command-control-request.schema.json",
+  "title": "CommandControlRequest",
+  "description": "Body of stop/pause/resume.",
+  "type": "object",
+  "properties": {
+    "scope": {
+      "type": "string",
+      "enum": ["all", "task", "agent", "voice", "automations"]
+    },
+    "targetId": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": ["scope"],
+  "additionalProperties": false
+}

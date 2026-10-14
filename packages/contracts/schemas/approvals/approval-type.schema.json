@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/approvals/approval-type.schema.json",
+  "title": "ApprovalType",
+  "type": "string",
+  "enum": [
+    "send_email",
+    "change_event",
+    "send_message",
+    "delete_file",
+    "order",
+    "payment",
+    "contract",
+    "system_change"
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://jarvis.local/schemas/audit/audit-event-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "id": "aud_01JCW5E9R2Q7T4M8N3B6V00001",
+    "version": 3,
+    "createdAt": "2026-10-14T06:30:00Z",
+    "updatedAt": "2026-10-14T08:10:00Z",
+    "source": {
+      "adapterId": "mock-audit",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    },
+    "sequence": 5120,
+    "occurredAt": "2026-10-14T08:14:00Z",
+    "actor": {
+      "type": "agent",
+      "id": "agent_01JCW5E9R2Q7T4M8N3B6V00001",
+      "name": "Kommunikations-Agent"
+    },
+    "category": "approval",
+    "action": "approval.requested",
+    "severity": "info",
+    "result": "pending",
+    "agentId": "agent_01JCW5E9R2Q7T4M8N3B6V00001",
+    "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00002",
+    "tool": "mail.draft",
+    "adapterId": "mock-mail",
+    "model": "Qwen Local",
+    "reasoningLevel": "medium",
+    "approvalId": "appr_01JCW5E9R2Q7T4M8N3B6V00001",
+    "durationMs": 12,
+    "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00002",
+    "context": {
+      "riskTier": 2
+    },
+    "before": null,
+    "after": {
+      "status": "pending"
+    },
+    "artifactIds": [],
+    "childEventIds": [],
+    "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "prevHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

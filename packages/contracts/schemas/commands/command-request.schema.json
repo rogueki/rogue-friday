@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/commands/command-request.schema.json",
+  "title": "CommandRequest",
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "source": {
+      "type": "string",
+      "enum": ["text", "voice", "palette", "quick_command"]
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "route": {
+          "type": "string"
+        },
+        "selectedIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["route"],
+      "additionalProperties": false
+    },
+    "confirm": {
+      "type": "boolean",
+      "description": "Set after the user saw previewText of a previous requires_confirmation response."
+    },
+    "previewId": {
+      "type": "string",
+      "description": "Echo of CommandResponse.previewId to bind confirmation to the preview."
+    }
+  },
+  "required": ["text", "source"],
+  "additionalProperties": false
+}

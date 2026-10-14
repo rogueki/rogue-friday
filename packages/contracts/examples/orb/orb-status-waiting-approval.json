@@ -1,0 +1,11 @@
+{
+  "$schema": "https://jarvis.local/schemas/orb/orb-status.schema.json",
+  "mode": "waiting_approval",
+  "activityText": "Freigabe erforderlich",
+  "detailText": "E-Mail an Frau Becker wartet auf Versandfreigabe",
+  "approvalId": "appr_01JCW5E9R2Q7T4M8N3B6V00001",
+  "urgency": "warning",
+  "health": "online",
+  "activeAgentCount": 1,
+  "since": "2026-10-14T08:14:00Z"
+}

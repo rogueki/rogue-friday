@@ -1,0 +1,12 @@
+html,
+body {
+  margin: 0;
+  background: #01060c;
+  color: #e8fbff;
+}
+.sb-stage {
+  box-sizing: border-box;
+}
+.docs-story .sb-stage {
+  min-height: 0 !important;
+}

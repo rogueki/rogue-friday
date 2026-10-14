@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/system/storage-volume.schema.json",
+  "title": "StorageVolume",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^vol_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "mount": {
+      "type": "string",
+      "description": "Drive or mount, e.g. D:\\."
+    },
+    "label": {
+      "type": "string"
+    },
+    "fileSystem": {
+      "type": "string"
+    },
+    "totalBytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "usedBytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "freeBytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "usagePercent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "mount",
+    "label",
+    "totalBytes",
+    "usedBytes",
+    "freeBytes",
+    "usagePercent"
+  ],
+  "additionalProperties": false
+}

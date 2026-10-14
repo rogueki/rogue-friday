@@ -1,0 +1,9327 @@
+// GENERATED — do not edit. Source of truth: packages/contracts (run `pnpm contracts:generate`).
+/* eslint-disable */
+export interface paths {
+    "/api/v1/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List activity events; use sinceSequence to backfill after a reconnect */
+        get: operations["listActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activity/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one activity event */
+        get: operations["getActivityEvent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/adapters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List registered adapters with manifest and health */
+        get: operations["listAdapters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/adapters/{id}/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health of one adapter */
+        get: operations["getAdapterHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List agents */
+        get: operations["listAgents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one agent */
+        get: operations["getAgent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pause an agent */
+        post: operations["pauseAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume an agent */
+        post: operations["resumeAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop an agent */
+        post: operations["stopAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List approvals */
+        get: operations["listApprovals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/approvals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one approval */
+        get: operations["getApproval"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/approvals/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve (optionally with edited preview). Tier 3 requires re-authentication. */
+        post: operations["approveApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/approvals/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject an approval */
+        post: operations["rejectApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/approvals/{id}/request-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask the agent for more context before deciding */
+        post: operations["requestApprovalContext"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List audit events */
+        get: operations["listAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one audit event with before/after and child events */
+        get: operations["getAuditEvent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export audit events */
+        get: operations["exportAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign in and receive the session cookie */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End the current session */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End all sessions of the current user */
+        post: operations["logoutAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/reauth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-authenticate for Tier-3 actions and receive a short-lived token */
+        post: operations["reauth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current session, role and CSRF token */
+        get: operations["getSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List automations */
+        get: operations["listAutomations"];
+        put?: never;
+        /** Create an automation */
+        post: operations["createAutomation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one automation */
+        get: operations["getAutomation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update an automation (increments version) */
+        patch: operations["updateAutomation"];
+        trace?: never;
+    };
+    "/api/v1/automations/{id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable an automation */
+        post: operations["disableAutomation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/{id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enable an automation */
+        post: operations["enableAutomation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run history with trigger reason, conditions and results */
+        get: operations["listAutomationRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dry run / test with mock data */
+        post: operations["testAutomation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/briefings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List meeting briefings */
+        get: operations["listCalendarBriefings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/conflicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List detected conflicts */
+        get: operations["listCalendarConflicts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List calendar events in a time range */
+        get: operations["listCalendarEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one calendar event */
+        get: operations["getCalendarEvent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose a calendar change; goes through approval */
+        post: operations["createCalendarProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Capability discovery for all modules */
+        get: operations["getCapabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute a command; write actions first return a preview */
+        post: operations["executeCommand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/commands/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent commands (sensitive ones redacted) */
+        get: operations["listCommandHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/commands/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pause work (agents, automations, voice) */
+        post: operations["pauseCommand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/commands/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume paused work */
+        post: operations["resumeCommand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/commands/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop current work */
+        post: operations["stopCommand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/communication/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List channels with status and capabilities */
+        get: operations["listChannels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/communication/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a draft */
+        post: operations["createDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/communication/drafts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edit a draft */
+        patch: operations["updateDraft"];
+        trace?: never;
+    };
+    "/api/v1/communication/drafts/{id}/request-send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request sending; creates an approval, never sends directly */
+        post: operations["requestDraftSend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/communication/threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Unified inbox */
+        get: operations["listThreads"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/communication/threads/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a thread with messages */
+        get: operations["getThread"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dev/scenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List mock scenarios (development/QA only) */
+        get: operations["listScenarios"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dev/scenarios/{id}/play": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Play a scenario */
+        post: operations["playScenario"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dev/scenarios/control": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Clock, adapter outage, latency, error rate, capability and orb overrides */
+        post: operations["controlScenario"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dev/scenarios/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current mock engine state */
+        get: operations["getScenarioState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List files */
+        get: operations["listFiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get file metadata, versions and lineage */
+        get: operations["getFile"];
+        put?: never;
+        post?: never;
+        /** Delete a file; may respond 202 with an approval */
+        delete: operations["deleteFile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download file content */
+        get: operations["downloadFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sandboxed preview of a file */
+        get: operations["getFilePreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liveness and component health of the control API */
+        get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/memory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List memories */
+        get: operations["listMemory"];
+        put?: never;
+        /** Create a memory */
+        post: operations["createMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/memory/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a memory with history and provenance */
+        get: operations["getMemory"];
+        put?: never;
+        post?: never;
+        /** Forget a memory (audited) */
+        delete: operations["deleteMemory"];
+        options?: never;
+        head?: never;
+        /** Edit, lock or confirm a memory */
+        patch: operations["updateMemory"];
+        trace?: never;
+    };
+    "/api/v1/memory/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Semantic search over memories */
+        post: operations["searchMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bootstrap information (contract version, data mode, event stream location) */
+        get: operations["getMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List notifications */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Acknowledge (stops escalation) */
+        post: operations["acknowledgeNotification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve a notification */
+        post: operations["resolveNotification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{id}/snooze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Snooze a notification */
+        post: operations["snoozeNotification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orb/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current semantic orb state with parallel layers */
+        get: operations["getOrbStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Aggregated home payload */
+        get: operations["getOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/research/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List research projects */
+        get: operations["listResearchProjects"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/research/projects/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one research project */
+        get: operations["getResearchProject"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/research/projects/{id}/artifacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Artifacts of a project */
+        get: operations["listResearchArtifacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/research/projects/{id}/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Findings with supporting sources and contradictions */
+        get: operations["listResearchFindings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/research/projects/{id}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sources of a project */
+        get: operations["listResearchSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get all settings areas */
+        get: operations["getSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Replace the supplied settings areas */
+        patch: operations["updateSettings"];
+        trace?: never;
+    };
+    "/api/v1/settings/adapters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Adapter configuration (secrets masked) */
+        get: operations["listAdapterSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/adapters/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update adapter configuration; secrets are write-only */
+        patch: operations["updateAdapterSettings"];
+        trace?: never;
+    };
+    "/api/v1/settings/adapters/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test the connection of an adapter configuration */
+        post: operations["testAdapterSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export settings, themes and layouts (never secrets) */
+        get: operations["exportSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import a settings export (schema-validated) */
+        post: operations["importSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/layouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Available overview layouts */
+        get: operations["listLayouts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/layouts/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import a layout (schema-validated) */
+        post: operations["importLayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** JSON Schema of the settings document */
+        get: operations["getSettingsSchema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/themes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Available themes */
+        get: operations["listThemes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/themes/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import a theme (schema-validated) */
+        post: operations["importTheme"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Compact overall Jarvis status */
+        get: operations["getStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hardware metrics */
+        get: operations["getSystemMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Model providers */
+        get: operations["listModelProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Monitored services */
+        get: operations["listServices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/services/{id}/healthcheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trigger a healthcheck of a service */
+        post: operations["runServiceHealthcheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Storage volumes (D:\ and others) */
+        get: operations["listStorageVolumes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tasks */
+        get: operations["listTasks"];
+        put?: never;
+        /** Create a task */
+        post: operations["createTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a task with steps, tool calls and artifacts */
+        get: operations["getTask"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a task (also used for Kanban moves) */
+        patch: operations["updateTask"];
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel a task */
+        post: operations["cancelTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pause a task */
+        post: operations["pauseTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume a task */
+        post: operations["resumeTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry a task */
+        post: operations["retryTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Audio devices */
+        get: operations["listVoiceDevices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Voice pipeline latencies */
+        get: operations["getVoiceMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Enrolled voice profiles */
+        get: operations["listVoiceProfiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Voice pipeline status */
+        get: operations["getVoiceStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop listening / speaking immediately */
+        post: operations["stopVoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run a voice pipeline test */
+        post: operations["runVoiceTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+}
+export type webhooks = Record<string, never>;
+export interface components {
+    schemas: {
+        /**
+         * ActionResult
+         * @description Result of an action that returns no resource (delete, stop, ...).
+         */
+        ActionResult: {
+            accepted: boolean;
+            auditEventId?: string;
+            contractVersion: components["schemas"]["ContractVersion"];
+            correlationId: string;
+            message?: string;
+            resourceId?: string;
+            /** @enum {string} */
+            status: "completed" | "queued" | "rejected";
+        };
+        /** ActivityCapability */
+        ActivityCapability: {
+            backfill: boolean;
+            read: boolean;
+            sources: string[];
+            stream: boolean;
+        };
+        /**
+         * ActivityEvent
+         * @description Immutable event in the activity tree (PLAN §29). parentId links children to their parent.
+         */
+        ActivityEvent: {
+            actor?: components["schemas"]["Actor"];
+            adapterId?: string | null;
+            agentId?: string | null;
+            correlationId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Redacted structured context; raw payloads only in debug/admin views. */
+            details?: {
+                [key: string]: unknown;
+            };
+            durationMs: number | null;
+            /** Format: date-time */
+            endedAt?: string | null;
+            error?: components["schemas"]["ErrorDetail"];
+            id: string;
+            kind: components["schemas"]["ActivityKind"];
+            labels?: string[];
+            model?: string | null;
+            /** Format: date-time */
+            occurredAt: string;
+            parentId: string | null;
+            result?: string | null;
+            /** @description Global monotonic event sequence; backfill via GET /activity?sinceSequence=. */
+            sequence: number;
+            severity: components["schemas"]["Severity"];
+            source: components["schemas"]["SourceDescriptor"];
+            /** @enum {string} */
+            status: "started" | "running" | "succeeded" | "failed" | "cancelled" | "info";
+            summary?: string;
+            taskId?: string | null;
+            title: string;
+            tool?: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * ActivityEventListResponse
+         * @description Cursor-paginated list envelope for ActivityEvent.
+         */
+        ActivityEventListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["ActivityEvent"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * ActivityEventResponse
+         * @description Single-resource envelope for ActivityEvent.
+         */
+        ActivityEventResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["ActivityEvent"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * ActivityKind
+         * @enum {string}
+         */
+        ActivityKind: "user_request" | "task" | "agent" | "tool_call" | "source_read" | "result" | "artifact" | "adapter" | "system";
+        /** Actor */
+        Actor: {
+            id: string;
+            name?: string;
+            /** @enum {string} */
+            type: "user" | "agent" | "system" | "adapter";
+        };
+        /**
+         * AdapterCategory
+         * @enum {string}
+         */
+        AdapterCategory: "tasks" | "activity" | "memory" | "agents" | "approvals" | "communication" | "calendar" | "automations" | "research" | "files" | "voice" | "notifications" | "system" | "audit" | "commands";
+        /** AdapterConfigPatch */
+        AdapterConfigPatch: {
+            config?: {
+                [key: string]: unknown;
+            };
+            enabled?: boolean;
+            provider?: string;
+            /** @description Write-only secret values by field name. */
+            secrets?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * AdapterConfigSettings
+         * @description Per-adapter configuration. The UI renders the form from configSchema; secrets are write-only.
+         */
+        AdapterConfigSettings: {
+            adapterId: string;
+            category: components["schemas"]["AdapterCategory"];
+            config: {
+                [key: string]: unknown;
+            };
+            configSchema: components["schemas"]["JsonSchemaObject"];
+            enabled: boolean;
+            /** Format: date-time */
+            lastTestAt?: string | null;
+            /** @enum {string} */
+            lastTestResult?: "success" | "failure";
+            provider: string;
+            secretFields: {
+                [key: string]: components["schemas"]["SecretStatus"];
+            };
+        };
+        /**
+         * AdapterConfigSettingsListResponse
+         * @description Cursor-paginated list envelope for AdapterConfigSettings.
+         */
+        AdapterConfigSettingsListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["AdapterConfigSettings"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * AdapterConfigSettingsResponse
+         * @description Single-resource envelope for AdapterConfigSettings.
+         */
+        AdapterConfigSettingsResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["AdapterConfigSettings"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * AdapterHealth
+         * @description Runtime health of an adapter (PLAN §10.7) including circuit breaker state.
+         */
+        AdapterHealth: {
+            adapterId: string;
+            /** Format: date-time */
+            checkedAt: string;
+            /** @enum {string} */
+            circuit: "closed" | "open" | "half_open";
+            consecutiveFailures: number;
+            lastError: {
+                code: string;
+                message: string;
+            } | null;
+            /** Format: date-time */
+            lastSuccessAt: string | null;
+            latencyMs: number | null;
+            lifecycle: components["schemas"]["AdapterLifecycle"];
+            status: components["schemas"]["HealthStatus"];
+        };
+        /**
+         * AdapterHealthResponse
+         * @description Single-resource envelope for AdapterHealth.
+         */
+        AdapterHealthResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["AdapterHealth"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** AdapterInfo */
+        AdapterInfo: {
+            enabled: boolean;
+            health: components["schemas"]["AdapterHealth"];
+            manifest: components["schemas"]["AdapterManifest"];
+            /** @enum {string} */
+            mode: "mock" | "live";
+            provider: string;
+        };
+        /**
+         * AdapterInfoListResponse
+         * @description Cursor-paginated list envelope for AdapterInfo.
+         */
+        AdapterInfoListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["AdapterInfo"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * AdapterLifecycle
+         * @description Adapter lifecycle (PLAN 10.6). RECOVERING = health checks are succeeding again after OFFLINE but the adapter is not yet confirmed ONLINE (PLAN 45.9).
+         * @enum {string}
+         */
+        AdapterLifecycle: "UNREGISTERED" | "INITIALIZING" | "ONLINE" | "DEGRADED" | "OFFLINE" | "RECOVERING" | "STOPPING" | "STOPPED";
+        /**
+         * AdapterManifest
+         * @description Static description of an adapter package (PLAN §10.4).
+         */
+        AdapterManifest: {
+            adapterVersion: string;
+            apiVersion: string;
+            capabilities: string[];
+            category: components["schemas"]["AdapterCategory"];
+            configSchemaRef: string;
+            contractVersion: components["schemas"]["ContractVersion"];
+            id: string;
+            name: string;
+            secretFields: string[];
+        };
+        /** AdapterTestResult */
+        AdapterTestResult: {
+            adapterId: string;
+            correlationId: string;
+            latencyMs: number | null;
+            message: string;
+            success: boolean;
+            /** Format: date-time */
+            testedAt: string;
+        };
+        /**
+         * AdapterTestResultResponse
+         * @description Single-resource envelope for AdapterTestResult.
+         */
+        AdapterTestResultResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["AdapterTestResult"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * Agent
+         * @description Worker agent (PLAN §31).
+         */
+        Agent: {
+            /** @description Icon accent color for the agent card. */
+            accent?: string;
+            activeTools: string[];
+            capabilities: string[];
+            /** @description Redacted, read-only agent configuration for the Configuration tab. */
+            configuration?: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            currentTaskId: string | null;
+            description?: string;
+            /** Format: date-time */
+            heartbeatAt: string | null;
+            id: string;
+            labels?: string[];
+            /** Format: date-time */
+            lastActivityAt: string | null;
+            lastError: components["schemas"]["ErrorDetail"] | null;
+            model: string | null;
+            name: string;
+            performance: components["schemas"]["AgentPerformance"];
+            reasoningLevel: components["schemas"]["ReasoningLevel"];
+            role: string;
+            runtimeMs: number | null;
+            source: components["schemas"]["SourceDescriptor"];
+            /** Format: date-time */
+            startedAt: string | null;
+            status: components["schemas"]["AgentStatus"];
+            successRate: number | null;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /** AgentHeartbeat */
+        AgentHeartbeat: {
+            agentId: string;
+            currentTaskId: string | null;
+            /** Format: date-time */
+            heartbeatAt: string;
+            status: components["schemas"]["AgentStatus"];
+        };
+        /**
+         * AgentListResponse
+         * @description Cursor-paginated list envelope for Agent.
+         */
+        AgentListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Agent"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /** AgentPerformance */
+        AgentPerformance: {
+            avgTaskDurationMs: number | null;
+            costEur?: number;
+            tasksCompleted: number;
+            tasksFailed: number;
+            tokensUsed?: number;
+        };
+        /**
+         * AgentResponse
+         * @description Single-resource envelope for Agent.
+         */
+        AgentResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Agent"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** AgentsCapability */
+        AgentsCapability: {
+            assignTask: boolean;
+            pause: boolean;
+            read: boolean;
+            resume: boolean;
+            sources: string[];
+            stop: boolean;
+        };
+        /**
+         * AgentStatus
+         * @enum {string}
+         */
+        AgentStatus: "idle" | "starting" | "working" | "waiting" | "paused" | "error" | "offline";
+        /**
+         * Approval
+         * @description Human approval gate (PLAN §32). Decisions are checked again server-side before execution.
+         */
+        Approval: {
+            /** @description Short imperative description, e.g. "E-Mail an Frau Becker senden". */
+            action: string;
+            agentId: string | null;
+            correlationId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            decidedAt?: string | null;
+            decidedBy?: components["schemas"]["Actor"] | null;
+            decisionComment?: string | null;
+            editable: boolean;
+            executionResult?: string | null;
+            /** Format: date-time */
+            expiresAt: string | null;
+            id: string;
+            impacts: components["schemas"]["ApprovalImpact"][];
+            labels?: string[];
+            preview: components["schemas"]["ApprovalPreview"];
+            rationale: string;
+            requiredAuth: components["schemas"]["RequiredAuth"];
+            riskTier: components["schemas"]["RiskTier"];
+            source: components["schemas"]["SourceDescriptor"];
+            sourceRef: components["schemas"]["EntityRef"] | null;
+            status: components["schemas"]["ApprovalStatus"];
+            taskId: string | null;
+            type: components["schemas"]["ApprovalType"];
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /** ApprovalContextRequest */
+        ApprovalContextRequest: {
+            question: string;
+        };
+        /** ApprovalDecisionRequest */
+        ApprovalDecisionRequest: {
+            comment?: string;
+            editedPreview?: components["schemas"]["ApprovalPreview"];
+            /** @enum {string} */
+            inputChannel?: "dashboard" | "voice" | "api";
+            /** @description Short-lived token from POST /auth/reauth; required when requiredAuth is reauth. */
+            reauthToken?: string;
+        };
+        /** ApprovalImpact */
+        ApprovalImpact: {
+            description: string;
+            /** @enum {string} */
+            kind: "data" | "money" | "communication" | "schedule" | "system" | "legal" | "other";
+            severity?: components["schemas"]["Severity"];
+        };
+        /**
+         * ApprovalListResponse
+         * @description Cursor-paginated list envelope for Approval.
+         */
+        ApprovalListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Approval"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /** ApprovalPreview */
+        ApprovalPreview: {
+            body: string;
+            fields?: {
+                label: string;
+                value: string;
+            }[];
+            /** @enum {string} */
+            kind: "email" | "message" | "calendar" | "file" | "order" | "payment" | "contract" | "command" | "text";
+            title: string;
+        };
+        /**
+         * ApprovalResponse
+         * @description Single-resource envelope for Approval.
+         */
+        ApprovalResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Approval"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** ApprovalsCapability */
+        ApprovalsCapability: {
+            decide: boolean;
+            editBeforeApprove: boolean;
+            read: boolean;
+            requestContext: boolean;
+            sources: string[];
+        };
+        /** ApprovalSettings */
+        ApprovalSettings: {
+            confirmTier2: boolean;
+            defaultExpiryMinutes: number;
+            /** @default true */
+            draftOnlyByDefault: boolean;
+            notifyOnRequest: boolean;
+            /** @default true */
+            reauthTier3: boolean;
+        };
+        /**
+         * ApprovalStatus
+         * @enum {string}
+         */
+        ApprovalStatus: "pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed";
+        /**
+         * ApprovalType
+         * @enum {string}
+         */
+        ApprovalType: "send_email" | "change_event" | "send_message" | "delete_file" | "order" | "payment" | "contract" | "system_change";
+        /** ArtifactRef */
+        ArtifactRef: {
+            fileId?: string;
+            id: string;
+            /** @enum {string} */
+            kind: "file" | "report" | "presentation" | "dataset" | "link" | "other";
+            name: string;
+            sizeBytes?: number;
+        };
+        /** Attachment */
+        Attachment: {
+            fileId?: string;
+            id: string;
+            mimeType: string;
+            name: string;
+            sizeBytes: number;
+        };
+        /** Attendee */
+        Attendee: {
+            /** Format: email */
+            email?: string;
+            name: string;
+            /** @enum {string} */
+            response: "accepted" | "declined" | "tentative" | "needs_action";
+        };
+        /** AttentionItem */
+        AttentionItem: {
+            id: string;
+            /** @enum {string} */
+            kind: "alert" | "approval" | "mail" | "blocked_task" | "overdue_task" | "system";
+            /** Format: date-time */
+            occurredAt: string;
+            ref: components["schemas"]["EntityRef"] | null;
+            severity: components["schemas"]["Severity"];
+            summary: string;
+            targetRoute: string;
+            title: string;
+        };
+        /** AuditCapability */
+        AuditCapability: {
+            export: boolean;
+            hashChain: boolean;
+            read: boolean;
+            sources: string[];
+        };
+        /**
+         * AuditEvent
+         * @description Append-only audit record with hash chain (PLAN §41).
+         */
+        AuditEvent: {
+            /** @description Dotted action name, e.g. approval.approved. */
+            action: string;
+            actor: components["schemas"]["Actor"];
+            adapterId?: string | null;
+            after: {
+                [key: string]: unknown;
+            } | null;
+            agentId?: string | null;
+            approvalId?: string | null;
+            artifactIds: string[];
+            before: {
+                [key: string]: unknown;
+            } | null;
+            /** @enum {string} */
+            category: "user_action" | "agent_action" | "tool_call" | "approval" | "system" | "security";
+            childEventIds: string[];
+            /** @description Redacted context. */
+            context?: {
+                [key: string]: unknown;
+            };
+            correlationId: string;
+            /** Format: date-time */
+            createdAt: string;
+            durationMs: number | null;
+            errorCode?: components["schemas"]["ErrorCode"] | null;
+            hash: string;
+            id: string;
+            labels?: string[];
+            model?: string | null;
+            /** Format: date-time */
+            occurredAt: string;
+            prevHash: string | null;
+            reasoningLevel?: components["schemas"]["ReasoningLevel"] | null;
+            /** @enum {string} */
+            result: "success" | "failure" | "denied" | "pending";
+            sequence: number;
+            severity: components["schemas"]["Severity"];
+            source: components["schemas"]["SourceDescriptor"];
+            taskId?: string | null;
+            tool?: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * AuditEventListResponse
+         * @description Cursor-paginated list envelope for AuditEvent.
+         */
+        AuditEventListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["AuditEvent"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * AuditEventResponse
+         * @description Single-resource envelope for AuditEvent.
+         */
+        AuditEventResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["AuditEvent"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * Automation
+         * @description Rule: trigger, conditions, actions, escalation (PLAN §35). version increments on every definition change.
+         */
+        Automation: {
+            actions: components["schemas"]["AutomationAction"][];
+            conditions: components["schemas"]["AutomationCondition"][];
+            /** Format: date-time */
+            createdAt: string;
+            description?: string;
+            enabled: boolean;
+            escalation: components["schemas"]["EscalationStep"][];
+            id: string;
+            labels?: string[];
+            lastError: {
+                /** Format: date-time */
+                at: string;
+                message: string;
+                runId: string;
+            } | null;
+            /** Format: date-time */
+            lastRunAt: string | null;
+            lastSuccess: {
+                /** Format: date-time */
+                at: string;
+                runId: string;
+            } | null;
+            name: string;
+            /** Format: date-time */
+            nextRunAt: string | null;
+            paused: boolean;
+            runCount: number;
+            source: components["schemas"]["SourceDescriptor"];
+            trigger: components["schemas"]["AutomationTrigger"];
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /** AutomationAction */
+        AutomationAction: {
+            /** @enum {string} */
+            channel?: "dashboard" | "telegram" | "whatsapp" | "sms" | "phone" | "email";
+            description: string;
+            id: string;
+            params?: {
+                [key: string]: unknown;
+            };
+            requiresApproval: boolean;
+            /** @enum {string} */
+            type: "notify" | "create_task" | "draft_message" | "call" | "run_agent" | "set_priority" | "webhook";
+        };
+        /** AutomationCondition */
+        AutomationCondition: {
+            description: string;
+            field: string;
+            id: string;
+            /** @enum {string} */
+            operator: "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "contains" | "in" | "matches";
+            /** @description Comparison value (any JSON). */
+            value: unknown;
+        };
+        /** AutomationCreateRequest */
+        AutomationCreateRequest: {
+            actions: components["schemas"]["AutomationAction"][];
+            conditions: components["schemas"]["AutomationCondition"][];
+            description?: string;
+            enabled?: boolean;
+            escalation?: components["schemas"]["EscalationStep"][];
+            name: string;
+            trigger: components["schemas"]["AutomationTrigger"];
+        };
+        /**
+         * AutomationListResponse
+         * @description Cursor-paginated list envelope for Automation.
+         */
+        AutomationListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Automation"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * AutomationResponse
+         * @description Single-resource envelope for Automation.
+         */
+        AutomationResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Automation"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * AutomationRun
+         * @description Execution record; answers why it fired, which conditions held, what ran and the result (PLAN §35.4).
+         */
+        AutomationRun: {
+            actionsExecuted: {
+                actionId: string;
+                /** Format: date-time */
+                executedAt: string;
+                resultSummary: string;
+                /** @enum {string} */
+                status: "succeeded" | "failed" | "skipped" | "simulated";
+            }[];
+            automationId: string;
+            automationVersion: number;
+            conditionsEvaluated: {
+                conditionId: string;
+                detail: string;
+                met: boolean;
+            }[];
+            correlationId: string;
+            /** Format: date-time */
+            createdAt: string;
+            dryRun: boolean;
+            error?: components["schemas"]["ErrorDetail"];
+            /** Format: date-time */
+            finishedAt: string | null;
+            id: string;
+            labels?: string[];
+            result: string;
+            source: components["schemas"]["SourceDescriptor"];
+            /** @enum {string} */
+            status: "running" | "succeeded" | "failed" | "skipped" | "dry_run";
+            /** Format: date-time */
+            triggeredAt: string;
+            triggerReason: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * AutomationRunListResponse
+         * @description Cursor-paginated list envelope for AutomationRun.
+         */
+        AutomationRunListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["AutomationRun"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * AutomationRunResponse
+         * @description Single-resource envelope for AutomationRun.
+         */
+        AutomationRunResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["AutomationRun"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** AutomationsCapability */
+        AutomationsCapability: {
+            create: boolean;
+            disable: boolean;
+            enable: boolean;
+            pauseAll: boolean;
+            read: boolean;
+            sources: string[];
+            test: boolean;
+            update: boolean;
+        };
+        /** AutomationTestRequest */
+        AutomationTestRequest: {
+            /** @default true */
+            dryRun: boolean;
+            /** @description Mock input to evaluate the trigger against. */
+            sampleData?: {
+                [key: string]: unknown;
+            };
+        };
+        /** AutomationTrigger */
+        AutomationTrigger: {
+            description: string;
+            /** @description Event type, e.g. jarvis.communication.thread_updated. */
+            event?: string;
+            /** @description Cron expression. */
+            schedule?: string;
+            timeZone?: string;
+            /** @enum {string} */
+            type: "event" | "schedule" | "manual" | "condition";
+        };
+        /** AutomationUpdateRequest */
+        AutomationUpdateRequest: {
+            actions?: components["schemas"]["AutomationAction"][];
+            conditions?: components["schemas"]["AutomationCondition"][];
+            description?: string;
+            enabled?: boolean;
+            escalation?: components["schemas"]["EscalationStep"][];
+            name?: string;
+            paused?: boolean;
+            trigger?: components["schemas"]["AutomationTrigger"];
+        };
+        /** BackupSettings */
+        BackupSettings: {
+            enabled: boolean;
+            /** Format: date-time */
+            lastBackupAt: string | null;
+            /** @enum {string} */
+            lastBackupStatus: "success" | "failed" | "never";
+            retentionCount: number;
+            /** @description Cron expression. */
+            schedule: string;
+            targetPath: string;
+        };
+        /** CalendarBriefing */
+        CalendarBriefing: {
+            attendeeContext: {
+                name: string;
+                notes: string;
+            }[];
+            /** Format: date-time */
+            createdAt: string;
+            eventId: string;
+            /** Format: date-time */
+            generatedAt: string;
+            id: string;
+            labels?: string[];
+            linkedThreadIds: string[];
+            source: components["schemas"]["SourceDescriptor"];
+            summary: string;
+            talkingPoints: string[];
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * CalendarBriefingListResponse
+         * @description Cursor-paginated list envelope for CalendarBriefing.
+         */
+        CalendarBriefingListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["CalendarBriefing"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * CalendarBriefingResponse
+         * @description Single-resource envelope for CalendarBriefing.
+         */
+        CalendarBriefingResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["CalendarBriefing"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** CalendarCapability */
+        CalendarCapability: {
+            cancel: boolean;
+            create: boolean;
+            invite: boolean;
+            propose: boolean;
+            read: boolean;
+            reschedule: boolean;
+            respond: boolean;
+            sources: string[];
+        };
+        /** CalendarConflict */
+        CalendarConflict: {
+            /** Format: date-time */
+            createdAt: string;
+            description: string;
+            /** Format: date-time */
+            detectedAt: string;
+            eventIds: string[];
+            id: string;
+            /** @enum {string} */
+            kind: "overlap" | "double_booking" | "travel_time" | "no_focus_time";
+            labels?: string[];
+            severity: components["schemas"]["Severity"];
+            source: components["schemas"]["SourceDescriptor"];
+            suggestedResolution?: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * CalendarConflictListResponse
+         * @description Cursor-paginated list envelope for CalendarConflict.
+         */
+        CalendarConflictListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["CalendarConflict"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * CalendarConflictResponse
+         * @description Single-resource envelope for CalendarConflict.
+         */
+        CalendarConflictResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["CalendarConflict"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * CalendarEvent
+         * @description Calendar entry (PLAN §34). All times UTC; timeZone is the display zone of the event.
+         */
+        CalendarEvent: {
+            allDay: boolean;
+            attendees: components["schemas"]["Attendee"][];
+            briefingId: string | null;
+            conflictIds: string[];
+            /** Format: date-time */
+            createdAt: string;
+            description?: string;
+            /** Format: date-time */
+            end: string;
+            id: string;
+            labels?: string[];
+            linkedTaskIds: string[];
+            linkedThreadIds: string[];
+            location?: string;
+            reminderMinutes: number[];
+            source: components["schemas"]["SourceDescriptor"];
+            /** Format: date-time */
+            start: string;
+            /** @enum {string} */
+            status: "confirmed" | "tentative" | "cancelled";
+            /** @description IANA zone, e.g. Europe/Berlin. */
+            timeZone: string;
+            title: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * CalendarEventListResponse
+         * @description Cursor-paginated list envelope for CalendarEvent.
+         */
+        CalendarEventListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["CalendarEvent"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * CalendarEventResponse
+         * @description Single-resource envelope for CalendarEvent.
+         */
+        CalendarEventResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["CalendarEvent"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * CalendarProposal
+         * @description Write actions on the calendar are proposals that go through approval.
+         */
+        CalendarProposal: {
+            approvalId: string | null;
+            attendees: components["schemas"]["Attendee"][];
+            /** Format: date-time */
+            createdAt: string;
+            eventId: string | null;
+            id: string;
+            labels?: string[];
+            /** Format: date-time */
+            proposedEnd: string | null;
+            /** Format: date-time */
+            proposedStart: string | null;
+            reason: string;
+            source: components["schemas"]["SourceDescriptor"];
+            /** @enum {string} */
+            status: "pending_approval" | "approved" | "rejected" | "applied" | "failed";
+            title: string | null;
+            type: components["schemas"]["CalendarProposalType"];
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /** CalendarProposalRequest */
+        CalendarProposalRequest: {
+            attendees?: components["schemas"]["Attendee"][];
+            /** Format: date-time */
+            end?: string;
+            eventId?: string | null;
+            reason: string;
+            /** Format: date-time */
+            start?: string;
+            title?: string;
+            type: components["schemas"]["CalendarProposalType"];
+        };
+        /**
+         * CalendarProposalResponse
+         * @description Single-resource envelope for CalendarProposal.
+         */
+        CalendarProposalResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["CalendarProposal"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * CalendarProposalType
+         * @enum {string}
+         */
+        CalendarProposalType: "create" | "reschedule" | "cancel" | "invite" | "respond";
+        /**
+         * CanonicalResource
+         * @description Base fields every canonical resource carries (inlined into each resource schema).
+         */
+        CanonicalResource: {
+            /** Format: date-time */
+            createdAt: string;
+            id: string;
+            labels?: string[];
+            source: components["schemas"]["SourceDescriptor"];
+            /** Format: date-time */
+            updatedAt: string;
+            version: number;
+        };
+        /**
+         * Capabilities
+         * @description Per-module capability flags (PLAN §9). The UI derives enabled/disabled actions from this document.
+         */
+        Capabilities: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            modules: {
+                activity: components["schemas"]["ActivityCapability"];
+                agents: components["schemas"]["AgentsCapability"];
+                approvals: components["schemas"]["ApprovalsCapability"];
+                audit: components["schemas"]["AuditCapability"];
+                automations: components["schemas"]["AutomationsCapability"];
+                calendar: components["schemas"]["CalendarCapability"];
+                commands: components["schemas"]["CommandsCapability"];
+                communication: components["schemas"]["CommunicationCapability"];
+                files: components["schemas"]["FilesCapability"];
+                mail: components["schemas"]["MailCapability"];
+                memory: components["schemas"]["MemoryCapability"];
+                notifications: components["schemas"]["NotificationsCapability"];
+                research: components["schemas"]["ResearchCapability"];
+                system: components["schemas"]["SystemCapability"];
+                tasks: components["schemas"]["TasksCapability"];
+                telephony: components["schemas"]["TelephonyCapability"];
+                voice: components["schemas"]["VoiceCapability"];
+            };
+            $defs: {
+                /** TasksCapability */
+                TasksCapability: {
+                    cancel: boolean;
+                    create: boolean;
+                    pause: boolean;
+                    read: boolean;
+                    resume: boolean;
+                    retry: boolean;
+                    sources: string[];
+                    stream: boolean;
+                    update: boolean;
+                };
+                /** ActivityCapability */
+                ActivityCapability: {
+                    backfill: boolean;
+                    read: boolean;
+                    sources: string[];
+                    stream: boolean;
+                };
+                /** MemoryCapability */
+                MemoryCapability: {
+                    delete: boolean;
+                    lock: boolean;
+                    read: boolean;
+                    search: boolean;
+                    sources: string[];
+                    write: boolean;
+                };
+                /** AgentsCapability */
+                AgentsCapability: {
+                    assignTask: boolean;
+                    pause: boolean;
+                    read: boolean;
+                    resume: boolean;
+                    sources: string[];
+                    stop: boolean;
+                };
+                /** ApprovalsCapability */
+                ApprovalsCapability: {
+                    decide: boolean;
+                    editBeforeApprove: boolean;
+                    read: boolean;
+                    requestContext: boolean;
+                    sources: string[];
+                };
+                /** MailCapability */
+                MailCapability: {
+                    draft: boolean;
+                    read: boolean;
+                    send: boolean;
+                    sources: string[];
+                };
+                /** CommunicationCapability */
+                CommunicationCapability: {
+                    draft: boolean;
+                    multiChannel: boolean;
+                    read: boolean;
+                    send: boolean;
+                    sources: string[];
+                };
+                /** CalendarCapability */
+                CalendarCapability: {
+                    cancel: boolean;
+                    create: boolean;
+                    invite: boolean;
+                    propose: boolean;
+                    read: boolean;
+                    reschedule: boolean;
+                    respond: boolean;
+                    sources: string[];
+                };
+                /** AutomationsCapability */
+                AutomationsCapability: {
+                    create: boolean;
+                    disable: boolean;
+                    enable: boolean;
+                    pauseAll: boolean;
+                    read: boolean;
+                    sources: string[];
+                    test: boolean;
+                    update: boolean;
+                };
+                /** ResearchCapability */
+                ResearchCapability: {
+                    create: boolean;
+                    export: boolean;
+                    read: boolean;
+                    sources: string[];
+                };
+                /** FilesCapability */
+                FilesCapability: {
+                    delete: boolean;
+                    download: boolean;
+                    preview: boolean;
+                    read: boolean;
+                    sources: string[];
+                    upload: boolean;
+                };
+                /** VoiceCapability */
+                VoiceCapability: {
+                    enroll: boolean;
+                    read: boolean;
+                    sources: string[];
+                    stop: boolean;
+                    test: boolean;
+                };
+                /** NotificationsCapability */
+                NotificationsCapability: {
+                    acknowledge: boolean;
+                    read: boolean;
+                    resolve: boolean;
+                    snooze: boolean;
+                    sources: string[];
+                };
+                /** SystemCapability */
+                SystemCapability: {
+                    healthcheck: boolean;
+                    openLogs: boolean;
+                    read: boolean;
+                    restartAdapter: boolean;
+                    sources: string[];
+                };
+                /** AuditCapability */
+                AuditCapability: {
+                    export: boolean;
+                    hashChain: boolean;
+                    read: boolean;
+                    sources: string[];
+                };
+                /** CommandsCapability */
+                CommandsCapability: {
+                    execute: boolean;
+                    history: boolean;
+                    pause: boolean;
+                    resume: boolean;
+                    sources: string[];
+                    stop: boolean;
+                };
+                /** TelephonyCapability */
+                TelephonyCapability: {
+                    call: boolean;
+                    read: boolean;
+                    sources: string[];
+                };
+            };
+        };
+        /**
+         * Channel
+         * @description Communication channel (PLAN §33.1). Address is an account hint, never a credential.
+         */
+        Channel: {
+            address?: string;
+            capabilities: {
+                draft: boolean;
+                read: boolean;
+                send: boolean;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            id: string;
+            kind: components["schemas"]["ChannelKind"];
+            labels?: string[];
+            /** Format: date-time */
+            lastSyncAt: string | null;
+            name: string;
+            source: components["schemas"]["SourceDescriptor"];
+            status: components["schemas"]["ChannelStatus"];
+            unreadCount: number;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * ChannelKind
+         * @enum {string}
+         */
+        ChannelKind: "email" | "telegram" | "whatsapp" | "sms" | "phone" | "other";
+        /**
+         * ChannelListResponse
+         * @description Cursor-paginated list envelope for Channel.
+         */
+        ChannelListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Channel"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * ChannelResponse
+         * @description Single-resource envelope for Channel.
+         */
+        ChannelResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Channel"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * ChannelStatus
+         * @enum {string}
+         */
+        ChannelStatus: "online" | "degraded" | "offline" | "read_only" | "not_configured";
+        /**
+         * CommandControlRequest
+         * @description Body of stop/pause/resume.
+         */
+        CommandControlRequest: {
+            reason?: string;
+            /** @enum {string} */
+            scope: "all" | "task" | "agent" | "voice" | "automations";
+            targetId?: string;
+        };
+        /**
+         * CommandHistoryEntry
+         * @description Sensitive commands are stored redacted.
+         */
+        CommandHistoryEntry: {
+            correlationId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            executedAt: string;
+            id: string;
+            labels?: string[];
+            /** @enum {string} */
+            origin: "text" | "voice" | "palette" | "quick_command";
+            redacted: boolean;
+            repeatable: boolean;
+            riskTier: components["schemas"]["RiskTier"] | null;
+            source: components["schemas"]["SourceDescriptor"];
+            /** @enum {string} */
+            status: "executed" | "accepted" | "requires_confirmation" | "requires_approval" | "rejected" | "failed";
+            text: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * CommandHistoryEntryListResponse
+         * @description Cursor-paginated list envelope for CommandHistoryEntry.
+         */
+        CommandHistoryEntryListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["CommandHistoryEntry"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /** CommandRequest */
+        CommandRequest: {
+            /** @description Set after the user saw previewText of a previous requires_confirmation response. */
+            confirm?: boolean;
+            context?: {
+                route: string;
+                selectedIds?: string[];
+            };
+            /** @description Echo of CommandResponse.previewId to bind confirmation to the preview. */
+            previewId?: string;
+            /** @enum {string} */
+            source: "text" | "voice" | "palette" | "quick_command";
+            text: string;
+        };
+        /**
+         * CommandResponse
+         * @description Write/critical actions first return a preview (PLAN §43.4); only a confirmed repeat executes.
+         */
+        CommandResponse: {
+            approvalId: string | null;
+            commandId: string;
+            contractVersion: components["schemas"]["ContractVersion"];
+            correlationId: string;
+            previewId?: string;
+            /** @description e.g. "Du bist dabei, eine E-Mail an Frau Becker zu senden." */
+            previewText: string | null;
+            requiresConfirmation: boolean;
+            result: {
+                message: string;
+                targetRoute?: string;
+                taskId?: string;
+            } | null;
+            riskTier: components["schemas"]["RiskTier"] | null;
+            /** @enum {string} */
+            status: "executed" | "accepted" | "requires_confirmation" | "requires_approval" | "rejected" | "failed";
+        };
+        /** CommandsCapability */
+        CommandsCapability: {
+            execute: boolean;
+            history: boolean;
+            pause: boolean;
+            resume: boolean;
+            sources: string[];
+            stop: boolean;
+        };
+        /** CommunicationCapability */
+        CommunicationCapability: {
+            draft: boolean;
+            multiChannel: boolean;
+            read: boolean;
+            send: boolean;
+            sources: string[];
+        };
+        /**
+         * ContractVersion
+         * @description Semantic version of the wire contract, e.g. 1.0.0.
+         */
+        ContractVersion: string;
+        /**
+         * ControlFrame
+         * @description Heartbeat frames (conventions §4). Not an envelope, no sequence.
+         */
+        ControlFrame: {
+            /** @enum {string} */
+            kind: "ping" | "pong";
+            /** @description Sender clock, epoch milliseconds. */
+            ts: number;
+        };
+        /** DashboardSettings */
+        DashboardSettings: {
+            activeLayoutId: string;
+            autoRefreshSeconds: number;
+            backgroundGrid: boolean;
+            compact: boolean;
+            fontScale: number;
+            soundEffects: boolean;
+        };
+        /** DataRetentionSettings */
+        DataRetentionSettings: {
+            activityDays: number;
+            auditDays: number;
+            memoryDefaultTtlDays: number | null;
+            notificationDays: number;
+            temporaryFileDays: number;
+            voiceHistoryDays: number;
+        };
+        /** DeveloperSettings */
+        DeveloperSettings: {
+            debugMode: boolean;
+            /** @enum {string} */
+            logLevel: "error" | "warn" | "info" | "debug";
+            orbPerfOverlay: boolean;
+            scenarioConsole: boolean;
+            showRawJson: boolean;
+        };
+        /**
+         * Draft
+         * @description Drafts are created automatically; sending always requires approval (PLAN §33.5).
+         */
+        Draft: {
+            approvalId: string | null;
+            body: string;
+            cc?: components["schemas"]["Participant"][];
+            channelId: string;
+            /** Format: date-time */
+            createdAt: string;
+            generatedByAgentId: string | null;
+            id: string;
+            labels?: string[];
+            replyToMessageId?: string | null;
+            source: components["schemas"]["SourceDescriptor"];
+            status: components["schemas"]["DraftStatus"];
+            subject: string;
+            threadId: string | null;
+            to: components["schemas"]["Participant"][];
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /** DraftCreateRequest */
+        DraftCreateRequest: {
+            body: string;
+            cc?: components["schemas"]["Participant"][];
+            channelId: string;
+            replyToMessageId?: string | null;
+            subject: string;
+            threadId?: string | null;
+            to: components["schemas"]["Participant"][];
+        };
+        /**
+         * DraftListResponse
+         * @description Cursor-paginated list envelope for Draft.
+         */
+        DraftListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Draft"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * DraftResponse
+         * @description Single-resource envelope for Draft.
+         */
+        DraftResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Draft"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** DraftSendRequest */
+        DraftSendRequest: {
+            comment?: string;
+        };
+        /**
+         * DraftStatus
+         * @enum {string}
+         */
+        DraftStatus: "draft" | "pending_approval" | "approved" | "sent" | "failed" | "discarded";
+        /** DraftUpdateRequest */
+        DraftUpdateRequest: {
+            body?: string;
+            cc?: components["schemas"]["Participant"][];
+            /** @enum {string} */
+            status?: "draft" | "discarded";
+            subject?: string;
+            to?: components["schemas"]["Participant"][];
+        };
+        /**
+         * EntityRef
+         * @description Typed link to another resource, used for navigation ("jump to task").
+         */
+        EntityRef: {
+            id: string;
+            label?: string;
+            /** @enum {string} */
+            type: "task" | "agent" | "approval" | "memory" | "thread" | "message" | "draft" | "calendar_event" | "automation" | "automation_run" | "research_project" | "file" | "notification" | "service" | "adapter" | "audit_event" | "activity_event";
+        };
+        /**
+         * ErrorCode
+         * @enum {string}
+         */
+        ErrorCode: "ADAPTER_UNAVAILABLE" | "ADAPTER_TIMEOUT" | "CAPABILITY_MISSING" | "VALIDATION_FAILED" | "NOT_FOUND" | "CONFLICT" | "UNAUTHENTICATED" | "FORBIDDEN" | "CSRF_INVALID" | "APPROVAL_REQUIRED" | "IDEMPOTENCY_CONFLICT" | "RATE_LIMITED" | "REAUTH_REQUIRED" | "INTERNAL";
+        /**
+         * ErrorDetail
+         * @description Normalized error. Provider-specific errors are mapped to this shape by adapters.
+         */
+        ErrorDetail: {
+            code: components["schemas"]["ErrorCode"];
+            correlationId: string;
+            /** @description Structured context, e.g. { fieldErrors: [...] }. May be empty. */
+            details: {
+                [key: string]: unknown;
+            };
+            message: string;
+            retryable: boolean;
+            severity: components["schemas"]["Severity"];
+        };
+        /**
+         * ErrorResponse
+         * @description Error envelope returned for every non-2xx REST response.
+         */
+        ErrorResponse: {
+            error: components["schemas"]["ErrorDetail"];
+        };
+        /** EscalationStep */
+        EscalationStep: {
+            afterSeconds: number;
+            /** @enum {string} */
+            channel: "dashboard" | "telegram" | "whatsapp" | "sms" | "phone" | "email";
+            description: string;
+            stopOnAcknowledge?: boolean;
+        };
+        /**
+         * EventEnvelope
+         * @description CloudEvents-inspired envelope (PLAN §12.3). sequence is global and strictly increasing.
+         */
+        EventEnvelope: {
+            causationId?: string;
+            contractVersion: components["schemas"]["ContractVersion"];
+            correlationId: string;
+            /** @description Typed per event type; see the AsyncAPI document. */
+            data: {
+                [key: string]: unknown;
+            };
+            id: string;
+            sequence: number;
+            /** @description e.g. adapter://mock-tasks or control-api://core. */
+            source: string;
+            /** @constant */
+            specversion: "1.0";
+            /** @description e.g. task/task_01J... */
+            subject: string;
+            /** Format: date-time */
+            time: string;
+            type: string;
+        };
+        /**
+         * FileCategory
+         * @enum {string}
+         */
+        FileCategory: "generated" | "uploaded" | "reports" | "presentations" | "invoices" | "research" | "exports" | "temporary";
+        /**
+         * FileItem
+         * @description Generated or uploaded document (PLAN §37). Untrusted content is only previewed in a sandbox.
+         */
+        FileItem: {
+            category: components["schemas"]["FileCategory"];
+            checksum: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["Actor"];
+            currentVersion: number;
+            id: string;
+            labels?: string[];
+            lineage: components["schemas"]["FileLineageEntry"][];
+            /** @description Logical location, e.g. D:\Jarvis\Dateien\Berichte. */
+            location: string;
+            mimeType: string;
+            name: string;
+            previewKind: components["schemas"]["FilePreviewKind"];
+            sizeBytes: number;
+            source: components["schemas"]["SourceDescriptor"];
+            tags: string[];
+            taskId: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+            versions: components["schemas"]["FileVersion"][];
+        };
+        /**
+         * FileItemListResponse
+         * @description Cursor-paginated list envelope for FileItem.
+         */
+        FileItemListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["FileItem"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * FileItemResponse
+         * @description Single-resource envelope for FileItem.
+         */
+        FileItemResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["FileItem"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** FileLineageEntry */
+        FileLineageEntry: {
+            description: string;
+            fileId?: string;
+            /** @enum {string} */
+            relation: "derived_from" | "input_of" | "output_of" | "replaces";
+            taskId?: string;
+        };
+        /** FilePreview */
+        FilePreview: {
+            contentType: string;
+            fileId: string;
+            kind: components["schemas"]["FilePreviewKind"];
+            sandboxed: boolean;
+            text?: string;
+            truncated: boolean;
+            /** @description Same-origin sandboxed preview URL. */
+            url?: string;
+        };
+        /**
+         * FilePreviewKind
+         * @enum {string}
+         */
+        FilePreviewKind: "none" | "text" | "markdown" | "image" | "pdf" | "html";
+        /**
+         * FilePreviewResponse
+         * @description Single-resource envelope for FilePreview.
+         */
+        FilePreviewResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["FilePreview"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** FilesCapability */
+        FilesCapability: {
+            delete: boolean;
+            download: boolean;
+            preview: boolean;
+            read: boolean;
+            sources: string[];
+            upload: boolean;
+        };
+        /** FileVersion */
+        FileVersion: {
+            checksum?: string;
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["Actor"];
+            sizeBytes: number;
+            version: number;
+        };
+        /**
+         * Freshness
+         * @description Data age marker; stale data must never be rendered as live.
+         */
+        Freshness: {
+            /** Format: date-time */
+            asOf: string | null;
+            state: components["schemas"]["FreshnessState"];
+        };
+        /**
+         * FreshnessState
+         * @enum {string}
+         */
+        FreshnessState: "fresh" | "stale" | "unknown" | "offline-cache";
+        /**
+         * Health
+         * @description Liveness/readiness summary of the control API and its components.
+         */
+        Health: {
+            /** Format: date-time */
+            checkedAt: string;
+            components: {
+                id: string;
+                latencyMs: number | null;
+                name: string;
+                status: components["schemas"]["HealthStatus"];
+            }[];
+            contractVersion: components["schemas"]["ContractVersion"];
+            status: components["schemas"]["HealthStatus"];
+        };
+        /** HealthcheckResult */
+        HealthcheckResult: {
+            /** Format: date-time */
+            checkedAt: string;
+            correlationId: string;
+            latencyMs: number | null;
+            message: string;
+            serviceId: string;
+            status: components["schemas"]["HealthStatus"];
+        };
+        /**
+         * HealthcheckResultResponse
+         * @description Single-resource envelope for HealthcheckResult.
+         */
+        HealthcheckResultResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["HealthcheckResult"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * HealthStatus
+         * @enum {string}
+         */
+        HealthStatus: "online" | "degraded" | "offline" | "unknown" | "paused";
+        /**
+         * JarvisStatus
+         * @description Compact overall status (top bar).
+         */
+        JarvisStatus: {
+            adapterSummary: {
+                degraded: number;
+                offline: number;
+                online: number;
+            };
+            /** @enum {string} */
+            dataMode: "mock" | "hybrid" | "live";
+            eventStream: {
+                /** Format: date-time */
+                lastEventAt: string | null;
+                roundtripMs: number | null;
+                /** @enum {string} */
+                state: "online" | "degraded" | "offline" | "connecting";
+            };
+            label: string;
+            mode: components["schemas"]["OrbMode"];
+            /** Format: date-time */
+            since: string;
+            status: components["schemas"]["HealthStatus"];
+            uptimeSeconds: number;
+            version: string;
+        };
+        /**
+         * JarvisStatusResponse
+         * @description Single-resource envelope for JarvisStatus.
+         */
+        JarvisStatusResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["JarvisStatus"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * JsonSchemaObject
+         * @description An embedded JSON Schema document (e.g. an adapter configSchema).
+         */
+        JsonSchemaObject: {
+            [key: string]: unknown;
+        };
+        /** LatencyStat */
+        LatencyStat: {
+            avgMs: number | null;
+            currentMs: number | null;
+            p95Ms: number | null;
+            sampleCount: number;
+        };
+        /**
+         * Layout
+         * @description Overview layout file (PLAN §25.4) on a 12-column grid.
+         */
+        Layout: {
+            columns?: number;
+            layoutId: string;
+            name?: string;
+            widgets: components["schemas"]["LayoutWidget"][];
+        };
+        /** LayoutImportRequest */
+        LayoutImportRequest: {
+            activate?: boolean;
+            layout: components["schemas"]["Layout"];
+        };
+        /**
+         * LayoutListResponse
+         * @description Cursor-paginated list envelope for Layout.
+         */
+        LayoutListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Layout"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * LayoutResponse
+         * @description Single-resource envelope for Layout.
+         */
+        LayoutResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Layout"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** LayoutWidget */
+        LayoutWidget: {
+            h: number;
+            id: string;
+            visible: boolean;
+            w: number;
+            x: number;
+            y: number;
+        };
+        /**
+         * ListEnvelope
+         * @description Generic cursor-paginated list envelope.
+         */
+        ListEnvelope: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: unknown[];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /** LoginRequest */
+        LoginRequest: {
+            password: string;
+            username: string;
+        };
+        /** MailCapability */
+        MailCapability: {
+            draft: boolean;
+            read: boolean;
+            send: boolean;
+            sources: string[];
+        };
+        /**
+         * Memory
+         * @description Stored knowledge item (PLAN §30). Nothing is hidden: provenance, usage and history are visible.
+         */
+        Memory: {
+            confidence: number;
+            /** Format: date-time */
+            confirmedAt: string | null;
+            conflicts: components["schemas"]["MemoryConflict"][];
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            entities: components["schemas"]["MemoryEntity"][];
+            /** Format: date-time */
+            expiresAt: string | null;
+            history: components["schemas"]["MemoryHistoryEntry"][];
+            id: string;
+            labels?: string[];
+            /** Format: date-time */
+            lastUsedAt: string | null;
+            locked: boolean;
+            pinned: boolean;
+            provenance: components["schemas"]["MemoryProvenance"];
+            sensitivity: components["schemas"]["MemorySensitivity"];
+            source: components["schemas"]["SourceDescriptor"];
+            tags: string[];
+            title?: string;
+            ttlSeconds?: number | null;
+            type: components["schemas"]["MemoryType"];
+            /** Format: date-time */
+            updatedAt: string;
+            usageCount: number;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /** MemoryCapability */
+        MemoryCapability: {
+            delete: boolean;
+            lock: boolean;
+            read: boolean;
+            search: boolean;
+            sources: string[];
+            write: boolean;
+        };
+        /** MemoryConflict */
+        MemoryConflict: {
+            /** Format: date-time */
+            detectedAt: string;
+            memoryId: string;
+            reason: string;
+            /** @enum {string} */
+            resolution: "pending" | "keep_both" | "replaced" | "dismissed";
+        };
+        /** MemoryCreateRequest */
+        MemoryCreateRequest: {
+            confidence?: number;
+            content: string;
+            entities?: components["schemas"]["MemoryEntity"][];
+            /** Format: date-time */
+            expiresAt?: string | null;
+            pinned?: boolean;
+            sensitivity?: components["schemas"]["MemorySensitivity"];
+            tags?: string[];
+            title?: string;
+            type: components["schemas"]["MemoryType"];
+        };
+        /** MemoryEntity */
+        MemoryEntity: {
+            id: string;
+            /** @enum {string} */
+            kind: "person" | "company" | "project" | "place" | "other";
+            label: string;
+        };
+        /** MemoryHistoryEntry */
+        MemoryHistoryEntry: {
+            actor: components["schemas"]["Actor"];
+            after: string | null;
+            before: string | null;
+            /** @enum {string} */
+            change: "created" | "updated" | "confirmed" | "locked" | "unlocked" | "pinned" | "deleted" | "expired";
+            /** Format: date-time */
+            changedAt: string;
+            summary: string;
+            version: number;
+        };
+        /**
+         * MemoryListResponse
+         * @description Cursor-paginated list envelope for Memory.
+         */
+        MemoryListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Memory"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /** MemoryProvenance */
+        MemoryProvenance: {
+            description?: string;
+            /** @enum {string} */
+            kind: "conversation" | "import" | "manual" | "inference" | "sync";
+            referenceId?: string;
+        };
+        /**
+         * MemoryResponse
+         * @description Single-resource envelope for Memory.
+         */
+        MemoryResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Memory"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MemorySearchHit */
+        MemorySearchHit: {
+            highlights?: string[];
+            memory: components["schemas"]["Memory"];
+            score: number;
+        };
+        /** MemorySearchRequest */
+        MemorySearchRequest: {
+            includeExpired?: boolean;
+            limit?: number;
+            minConfidence?: number;
+            query: string;
+            semantic?: boolean;
+            sensitivity?: components["schemas"]["MemorySensitivity"][];
+            tags?: string[];
+            types?: components["schemas"]["MemoryType"][];
+        };
+        /** MemorySearchResponse */
+        MemorySearchResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["MemorySearchHit"][];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * MemorySensitivity
+         * @enum {string}
+         */
+        MemorySensitivity: "normal" | "sensitive" | "restricted";
+        /**
+         * MemoryType
+         * @enum {string}
+         */
+        MemoryType: "profile" | "preference" | "fact" | "person" | "company" | "project" | "relationship" | "instruction" | "episode" | "decision";
+        /** MemoryUpdateRequest */
+        MemoryUpdateRequest: {
+            confidence?: number;
+            /** @description Marks the memory as confirmed now. */
+            confirm?: boolean;
+            content?: string;
+            entities?: components["schemas"]["MemoryEntity"][];
+            /** Format: date-time */
+            expiresAt?: string | null;
+            locked?: boolean;
+            pinned?: boolean;
+            sensitivity?: components["schemas"]["MemorySensitivity"];
+            tags?: string[];
+            title?: string;
+            type?: components["schemas"]["MemoryType"];
+        };
+        /** Message */
+        Message: {
+            aiSummary: string | null;
+            attachments: components["schemas"]["Attachment"][];
+            bodyText: string;
+            cc?: components["schemas"]["Participant"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            direction: "inbound" | "outbound";
+            from: components["schemas"]["Participant"];
+            id: string;
+            labels?: string[];
+            /** @description Opaque reference to the original in the source system. */
+            originalRef?: string;
+            /** Format: date-time */
+            sentAt: string;
+            source: components["schemas"]["SourceDescriptor"];
+            threadId: string;
+            to: components["schemas"]["Participant"][];
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * MessageListResponse
+         * @description Cursor-paginated list envelope for Message.
+         */
+        MessageListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Message"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * MessageResponse
+         * @description Single-resource envelope for Message.
+         */
+        MessageResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Message"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * Meta
+         * @description Bootstrap document: tells the client how to reach the event stream and which mode the server runs in.
+         */
+        Meta: {
+            apiVersion: string;
+            buildVersion: string;
+            contractVersion: components["schemas"]["ContractVersion"];
+            /** @enum {string} */
+            dataMode: "mock" | "hybrid" | "live";
+            /** @enum {string} */
+            defaultLocale?: "de" | "en";
+            /**
+             * Format: uri
+             * @description Overrides the origin of the WebSocket (dev setups).
+             */
+            eventsOrigin?: string;
+            /** @description WebSocket path, relative to the API origin. */
+            eventsPath: string;
+            /** @description Boolean feature flags, e.g. devScenarios. */
+            features: {
+                [key: string]: boolean;
+            };
+            /** Format: date-time */
+            serverTime?: string;
+        };
+        /**
+         * ModelProvider
+         * @description LLM provider shown under Models & Services.
+         */
+        ModelProvider: {
+            activeRequests: number;
+            contextWindow?: number;
+            /** Format: date-time */
+            createdAt: string;
+            id: string;
+            labels?: string[];
+            latencyMs: number | null;
+            models: string[];
+            name: string;
+            /** @enum {string} */
+            providerKind: "local" | "cloud";
+            source: components["schemas"]["SourceDescriptor"];
+            status: components["schemas"]["HealthStatus"];
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * ModelProviderListResponse
+         * @description Cursor-paginated list envelope for ModelProvider.
+         */
+        ModelProviderListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["ModelProvider"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /** ModelsRoutingSettings */
+        ModelsRoutingSettings: {
+            defaultModel: string;
+            localFirst: boolean;
+            monthlyBudgetEur: number | null;
+            routes: {
+                fallbackModel: string | null;
+                model: string;
+                reasoningLevel: components["schemas"]["ReasoningLevel"];
+                taskKind: string;
+            }[];
+        };
+        /** NavigationSettings */
+        NavigationSettings: {
+            defaultPage: string;
+            hidden: string[];
+            /** @enum {string} */
+            mode: "compact" | "expanded";
+            order: string[];
+        };
+        /**
+         * Notification
+         * @description Alert with escalation chain (PLAN §39).
+         */
+        Notification: {
+            acknowledged: boolean;
+            /** Format: date-time */
+            acknowledgedAt?: string | null;
+            body: string;
+            /** @enum {string} */
+            category: "system" | "task" | "approval" | "mail" | "calendar" | "automation" | "security" | "voice" | "adapter";
+            /** Format: date-time */
+            createdAt: string;
+            escalation: {
+                /** Format: date-time */
+                acknowledgedAt: string | null;
+                /** @enum {string} */
+                channel: "dashboard" | "telegram" | "whatsapp" | "sms" | "phone" | "email";
+                /** Format: date-time */
+                scheduledAt: string;
+                /** Format: date-time */
+                sentAt: string | null;
+                /** @enum {string} */
+                state: "pending" | "sent" | "acknowledged" | "failed" | "skipped";
+                step: number;
+            }[];
+            id: string;
+            labels?: string[];
+            priority: components["schemas"]["Priority"];
+            resolved: boolean;
+            /** Format: date-time */
+            resolvedAt?: string | null;
+            /** Format: date-time */
+            snoozedUntil: string | null;
+            source: components["schemas"]["SourceDescriptor"];
+            sourceRef: components["schemas"]["EntityRef"] | null;
+            /** @enum {string} */
+            status: "open" | "acknowledged" | "snoozed" | "resolved";
+            /** @description Dashboard route for "Open source", e.g. /approvals?approval=appr_... */
+            targetRoute: string | null;
+            title: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /** NotificationActionRequest */
+        NotificationActionRequest: {
+            comment?: string;
+        };
+        /**
+         * NotificationListResponse
+         * @description Cursor-paginated list envelope for Notification.
+         */
+        NotificationListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Notification"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * NotificationResponse
+         * @description Single-resource envelope for Notification.
+         */
+        NotificationResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Notification"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** NotificationsCapability */
+        NotificationsCapability: {
+            acknowledge: boolean;
+            read: boolean;
+            resolve: boolean;
+            snooze: boolean;
+            sources: string[];
+        };
+        /** NotificationSettings */
+        NotificationSettings: {
+            channels: {
+                enabled: boolean;
+                /** @enum {string} */
+                kind: "dashboard" | "telegram" | "whatsapp" | "sms" | "phone" | "email";
+                minPriority: components["schemas"]["Priority"];
+            }[];
+            defaultEscalation: components["schemas"]["EscalationStep"][];
+            quietHours: {
+                enabled: boolean;
+                from: string;
+                to: string;
+            };
+            snoozeDefaultMinutes: number;
+        };
+        /** NotificationSnoozeRequest */
+        NotificationSnoozeRequest: {
+            durationMinutes?: number;
+            /** Format: date-time */
+            until?: string;
+        };
+        /**
+         * OrbHealth
+         * @enum {string}
+         */
+        OrbHealth: "online" | "degraded" | "offline";
+        /**
+         * OrbLayers
+         * @description Parallel activity layers (PLAN §18.2): the orb can speak while agents work and health is shown on the telemetry ring.
+         */
+        OrbLayers: {
+            activeAgentIds: string[];
+            /** @enum {string} */
+            attention: "none" | "waiting_approval" | "success" | "warning" | "error";
+            health: components["schemas"]["OrbHealth"];
+            /** @enum {string} */
+            voice: "idle" | "listening" | "transcribing" | "speaking";
+            /** @enum {string} */
+            work: "idle" | "thinking" | "working" | "syncing" | "paused";
+        };
+        /**
+         * OrbMode
+         * @enum {string}
+         */
+        OrbMode: "booting" | "idle" | "listening" | "transcribing" | "thinking" | "syncing" | "working" | "speaking" | "waiting_approval" | "success" | "warning" | "error" | "offline" | "paused";
+        /**
+         * OrbProgressMode
+         * @enum {string}
+         */
+        OrbProgressMode: "determinate" | "indeterminate" | "none";
+        /**
+         * OrbSettings
+         * @description User-tunable orb behaviour (PLAN §23.2, §42.3). Never contains shader parameters of the backend.
+         */
+        OrbSettings: {
+            /** @enum {string} */
+            animations: "full" | "reduced" | "off";
+            audioReactive: boolean;
+            bloom: boolean;
+            intensity: number;
+            mouseParallax: boolean;
+            particleDensity: number;
+            preset: string;
+            /** @enum {string} */
+            quality: "auto" | "low" | "medium" | "high" | "ultra";
+            /** @enum {string} */
+            renderMode: "auto" | "2d" | "3d";
+            size: number;
+            speed: number;
+            /** @description Secondary accent color per orb mode; the gold core is invariant. */
+            statusColors: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * OrbSnapshot
+         * @description Dominant orb status plus the parallel layers. Payload of GET /orb/status and jarvis.orb.status_changed.
+         */
+        OrbSnapshot: {
+            layers: components["schemas"]["OrbLayers"];
+            status: components["schemas"]["OrbStatus"];
+        };
+        /**
+         * OrbSnapshotResponse
+         * @description Single-resource envelope for OrbSnapshot.
+         */
+        OrbSnapshotResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["OrbSnapshot"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * OrbStatus
+         * @description Semantic orb state (PLAN §17). Backends emit semantics only, never shader parameters.
+         */
+        OrbStatus: {
+            activeAgentCount?: number;
+            activityText?: string;
+            approvalId?: string;
+            audioLevel?: number;
+            currentAgentId?: string;
+            detailText?: string;
+            health?: components["schemas"]["OrbHealth"];
+            mode: components["schemas"]["OrbMode"];
+            progress?: number | null;
+            progressMode?: components["schemas"]["OrbProgressMode"];
+            /** Format: date-time */
+            since: string;
+            sourceEventId?: string;
+            taskId?: string;
+            urgency?: components["schemas"]["OrbUrgency"];
+        };
+        /**
+         * OrbUrgency
+         * @enum {string}
+         */
+        OrbUrgency: "none" | "info" | "warning" | "critical";
+        /**
+         * Overview
+         * @description Aggregated home payload (PLAN §27.14). Sections of failed adapters are listed in degradedSections instead of failing the call.
+         */
+        Overview: {
+            activeAgents: components["schemas"]["Agent"][];
+            attention: components["schemas"]["AttentionItem"][];
+            counters: {
+                alerts: number;
+                approvals: number;
+                mail: number;
+                tasks: number;
+            };
+            criticalAlerts: components["schemas"]["Notification"][];
+            currentActivity: {
+                agentId: string | null;
+                /** Format: date-time */
+                since: string;
+                taskId: string | null;
+                text: string;
+            } | null;
+            degradedSections: {
+                adapterId: string;
+                reason: string;
+                section: string;
+                status: components["schemas"]["HealthStatus"];
+            }[];
+            importantMailCount: number;
+            jarvis: components["schemas"]["JarvisStatus"];
+            /** Format: date-time */
+            lastUpdatedAt: string;
+            memoryInsights: {
+                /** Format: date-time */
+                lastUpdatedAt: string | null;
+                newToday: number;
+                total: number;
+            } | null;
+            models: components["schemas"]["ModelProvider"][];
+            nextEvents: components["schemas"]["CalendarEvent"][];
+            openApprovals: components["schemas"]["Approval"][];
+            orb: components["schemas"]["OrbSnapshot"];
+            quickCommands: components["schemas"]["QuickCommand"][];
+            runningTasks: components["schemas"]["Task"][];
+            systemSummary: {
+                cpuPercent: number | null;
+                gpuPercent: number | null;
+                ramPercent: number | null;
+                services: {
+                    id: string;
+                    name: string;
+                    status: components["schemas"]["HealthStatus"];
+                }[];
+                storageUsedPercent: number | null;
+                vramPercent: number | null;
+            };
+            voice: components["schemas"]["VoiceStatus"] | null;
+        };
+        /**
+         * OverviewResponse
+         * @description Single-resource envelope for Overview.
+         */
+        OverviewResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Overview"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** PageInfo */
+        PageInfo: {
+            hasNextPage: boolean;
+            nextCursor: string | null;
+            totalCount?: number;
+        };
+        /** Participant */
+        Participant: {
+            address: string;
+            name: string;
+            role?: string;
+        };
+        /**
+         * Priority
+         * @description P0 critical, P1 urgent, P2 important, P3 normal, P4 informational.
+         * @enum {string}
+         */
+        Priority: "P0" | "P1" | "P2" | "P3" | "P4";
+        /** ProfileSettings */
+        ProfileSettings: {
+            /** @enum {string} */
+            dateFormat: "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy";
+            displayName: string;
+            /** @enum {string} */
+            firstDayOfWeek: "monday" | "sunday";
+            /** @enum {string} */
+            locale: "de" | "en";
+            /** @enum {string} */
+            timeFormat: "24h" | "12h";
+            timeZone: string;
+        };
+        /**
+         * Progress
+         * @description Unknown progress is indeterminate; never fake a percentage. value is a fraction 0..1.
+         */
+        Progress: {
+            /** @enum {string} */
+            mode: "determinate" | "indeterminate" | "none";
+            value: number | null;
+        };
+        /**
+         * QuickCommand
+         * @description Capability-aware quick action shown on the overview (PLAN §27.8).
+         */
+        QuickCommand: {
+            commandText: string | null;
+            disabledReason?: string;
+            enabled: boolean;
+            icon: string;
+            id: string;
+            label: string;
+            /** @description Capability path such as tasks.create. */
+            requiredCapability: string;
+            requiresConfirmation: boolean;
+            targetRoute: string | null;
+        };
+        /**
+         * ReasoningLevel
+         * @enum {string}
+         */
+        ReasoningLevel: "none" | "low" | "medium" | "high" | "max";
+        /** ReauthRequest */
+        ReauthRequest: {
+            password: string;
+        };
+        /** ReauthResponse */
+        ReauthResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            /** Format: date-time */
+            expiresAt: string;
+            reauthToken: string;
+        };
+        /**
+         * RequiredAuth
+         * @enum {string}
+         */
+        RequiredAuth: "none" | "confirm" | "reauth";
+        /** ResearchArtifact */
+        ResearchArtifact: {
+            /** Format: date-time */
+            createdAt: string;
+            fileId: string | null;
+            /** @enum {string} */
+            format: "markdown" | "json" | "pdf" | "docx" | "pptx";
+            id: string;
+            labels?: string[];
+            name: string;
+            projectId: string;
+            sizeBytes: number | null;
+            source: components["schemas"]["SourceDescriptor"];
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * ResearchArtifactListResponse
+         * @description Cursor-paginated list envelope for ResearchArtifact.
+         */
+        ResearchArtifactListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["ResearchArtifact"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * ResearchArtifactResponse
+         * @description Single-resource envelope for ResearchArtifact.
+         */
+        ResearchArtifactResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["ResearchArtifact"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** ResearchCapability */
+        ResearchCapability: {
+            create: boolean;
+            export: boolean;
+            read: boolean;
+            sources: string[];
+        };
+        /**
+         * ResearchFinding
+         * @description A statement together with the sources that support it and known contradictions.
+         */
+        ResearchFinding: {
+            confidence: number;
+            contradictions: {
+                description: string;
+                findingId: string | null;
+                sourceId: string | null;
+            }[];
+            /** Format: date-time */
+            createdAt: string;
+            id: string;
+            labels?: string[];
+            projectId: string;
+            source: components["schemas"]["SourceDescriptor"];
+            statement: string;
+            /** @enum {string} */
+            status: "draft" | "verified" | "disputed" | "rejected";
+            supportingSourceIds: string[];
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * ResearchFindingListResponse
+         * @description Cursor-paginated list envelope for ResearchFinding.
+         */
+        ResearchFindingListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["ResearchFinding"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * ResearchFindingResponse
+         * @description Single-resource envelope for ResearchFinding.
+         */
+        ResearchFindingResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["ResearchFinding"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * ResearchProject
+         * @description Research mission with sources, findings and artifacts (PLAN §36).
+         */
+        ResearchProject: {
+            agentIds: string[];
+            artifactCount: number;
+            contradictionCount: number;
+            costEur?: number | null;
+            /** Format: date-time */
+            createdAt: string;
+            findingCount: number;
+            id: string;
+            labels?: string[];
+            mission: string;
+            progress: components["schemas"]["Progress"];
+            resultSummary?: string | null;
+            runtimeMs: number | null;
+            source: components["schemas"]["SourceDescriptor"];
+            sourceCount: number;
+            /** @enum {string} */
+            status: "planning" | "running" | "review" | "done" | "failed" | "cancelled";
+            topic: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * ResearchProjectListResponse
+         * @description Cursor-paginated list envelope for ResearchProject.
+         */
+        ResearchProjectListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["ResearchProject"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * ResearchProjectResponse
+         * @description Single-resource envelope for ResearchProject.
+         */
+        ResearchProjectResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["ResearchProject"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** ResearchSource */
+        ResearchSource: {
+            /** Format: date-time */
+            createdAt: string;
+            domain: string;
+            excerpt: string | null;
+            id: string;
+            labels?: string[];
+            projectId: string;
+            relevance: number;
+            reliability: number;
+            /** Format: date-time */
+            retrievedAt: string | null;
+            source: components["schemas"]["SourceDescriptor"];
+            /** @enum {string} */
+            status: "queued" | "retrieved" | "failed" | "excluded";
+            supportsStatement: string | null;
+            title: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uri */
+            url?: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * ResearchSourceListResponse
+         * @description Cursor-paginated list envelope for ResearchSource.
+         */
+        ResearchSourceListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["ResearchSource"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * ResearchSourceResponse
+         * @description Single-resource envelope for ResearchSource.
+         */
+        ResearchSourceResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["ResearchSource"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** ResourceDeleted */
+        ResourceDeleted: {
+            /** Format: date-time */
+            deletedAt: string;
+            deletedBy?: components["schemas"]["Actor"];
+            id: string;
+        };
+        /** ResyncRequired */
+        ResyncRequired: {
+            latestSequence: number;
+            oldestAvailableSequence: number | null;
+            /** @enum {string} */
+            reason: "sequence_too_old" | "buffer_overflow" | "server_restart" | "unknown";
+            requestedSince: number | null;
+        };
+        /**
+         * RiskTier
+         * @description Tier 1 low, Tier 2 confirm, Tier 3 re-authentication; Tier 3 is never approvable by voice alone.
+         * @enum {integer}
+         */
+        RiskTier: 1 | 2 | 3;
+        /**
+         * Role
+         * @enum {string}
+         */
+        Role: "owner" | "operator" | "viewer";
+        /**
+         * Scenario
+         * @description Deterministic mock scenario (PLAN §45).
+         */
+        Scenario: {
+            description: string;
+            id: string;
+            name: string;
+            steps: {
+                delayMs: number;
+                description?: string;
+                index: number;
+                label: string;
+                orbMode?: components["schemas"]["OrbMode"];
+            }[];
+        };
+        /**
+         * ScenarioControlRequest
+         * @description Mock control actions of the scenario console (PLAN §44.6). Discriminated by action.
+         */
+        ScenarioControlRequest: {
+            /** @constant */
+            action: "clock_advance";
+            ms: number;
+        } | {
+            /** @constant */
+            action: "adapter_offline";
+            adapterId: string;
+            offline: boolean;
+        } | {
+            /** @constant */
+            action: "latency";
+            adapterId?: string;
+            ms: number;
+        } | {
+            /** @constant */
+            action: "error_rate";
+            adapterId?: string;
+            rate: number;
+        } | {
+            /** @constant */
+            action: "capability_toggle";
+            capability: string;
+            enabled: boolean;
+            module: string;
+        } | {
+            /** @constant */
+            action: "force_orb_state";
+            activityText?: string;
+            audioLevel?: number;
+            mode: components["schemas"]["OrbMode"];
+            progress?: number | null;
+        } | {
+            /** @constant */
+            action: "reset";
+        };
+        /**
+         * ScenarioListResponse
+         * @description Cursor-paginated list envelope for Scenario.
+         */
+        ScenarioListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Scenario"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * ScenarioResponse
+         * @description Single-resource envelope for Scenario.
+         */
+        ScenarioResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Scenario"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** ScenarioState */
+        ScenarioState: {
+            activeScenarioId: string | null;
+            adapterOverrides: {
+                adapterId: string;
+                errorRate?: number;
+                latencyMs?: number;
+                offline: boolean;
+            }[];
+            capabilityOverrides: {
+                capability: string;
+                enabled: boolean;
+                module: string;
+            }[];
+            clockOffsetMs: number;
+            forcedOrbMode: components["schemas"]["OrbMode"] | null;
+            running: boolean;
+            seed: number;
+            /** Format: date-time */
+            simulatedTime: string;
+            stepIndex: number;
+        };
+        /**
+         * ScenarioStateResponse
+         * @description Single-resource envelope for ScenarioState.
+         */
+        ScenarioStateResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["ScenarioState"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * SecretStatus
+         * @description Secrets never leave the server; the browser only learns whether one is configured.
+         */
+        SecretStatus: {
+            configured: boolean;
+            maskedHint?: string;
+        };
+        /** SecuritySettings */
+        SecuritySettings: {
+            /** @default false */
+            allowRemoteAccess: boolean;
+            auditHashChain: boolean;
+            reauthWindowMinutes: number;
+            sessionTimeoutMinutes: number;
+            trustedOrigins: string[];
+        };
+        /**
+         * Service
+         * @description Monitored system component (PLAN §40.2): Hermes, Kimi API, Local Qwen, Voice, WSL, ...
+         */
+        Service: {
+            /** Format: date-time */
+            createdAt: string;
+            detail?: string;
+            id: string;
+            /** @enum {string} */
+            kind: "hermes" | "llm" | "voice" | "wsl" | "api" | "stream" | "adapter" | "worker" | "other";
+            labels?: string[];
+            /** Format: date-time */
+            lastCheckAt: string | null;
+            /** Format: date-time */
+            lastSuccessAt: string | null;
+            latencyMs: number | null;
+            name: string;
+            source: components["schemas"]["SourceDescriptor"];
+            status: components["schemas"]["HealthStatus"];
+            /** Format: date-time */
+            updatedAt: string;
+            version: string;
+        };
+        /**
+         * ServiceListResponse
+         * @description Cursor-paginated list envelope for Service.
+         */
+        ServiceListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Service"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * ServiceResponse
+         * @description Single-resource envelope for Service.
+         */
+        ServiceResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Service"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * Session
+         * @description Current session. csrfToken must be echoed in X-CSRF-Token on mutating requests.
+         */
+        Session: {
+            authenticated: boolean;
+            csrfToken: string | null;
+            /** Format: date-time */
+            expiresAt: string | null;
+            /** Format: date-time */
+            reauthUntil: string | null;
+            role: components["schemas"]["Role"] | null;
+            user: components["schemas"]["User"] | null;
+        };
+        /**
+         * SessionResponse
+         * @description Single-resource envelope for Session.
+         */
+        SessionResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Session"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * Settings
+         * @description All 14 settings areas (PLAN §42.1). adapters lists configuration state; secrets only as { configured }.
+         */
+        Settings: {
+            adapters: components["schemas"]["AdapterConfigSettings"][];
+            approvals: components["schemas"]["ApprovalSettings"];
+            backups: components["schemas"]["BackupSettings"];
+            dashboard: components["schemas"]["DashboardSettings"];
+            dataRetention: components["schemas"]["DataRetentionSettings"];
+            developer: components["schemas"]["DeveloperSettings"];
+            modelsRouting: components["schemas"]["ModelsRoutingSettings"];
+            navigation: components["schemas"]["NavigationSettings"];
+            notifications: components["schemas"]["NotificationSettings"];
+            orb: components["schemas"]["OrbSettings"];
+            profile: components["schemas"]["ProfileSettings"];
+            security: components["schemas"]["SecuritySettings"];
+            theme: components["schemas"]["ThemeSettings"];
+            /** Format: date-time */
+            updatedAt: string;
+            version: number;
+            voice: components["schemas"]["VoiceSettings"];
+        };
+        /**
+         * SettingsExport
+         * @description Portable export. Secrets are never included.
+         */
+        SettingsExport: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            /** Format: date-time */
+            exportedAt: string;
+            layouts: components["schemas"]["Layout"][];
+            settings: components["schemas"]["SettingsPatch"];
+            themes: components["schemas"]["Theme"][];
+        };
+        /**
+         * SettingsPatch
+         * @description PATCH body: every supplied area replaces the stored area as a whole. Adapters are patched via /settings/adapters/{id}.
+         */
+        SettingsPatch: {
+            approvals?: components["schemas"]["ApprovalSettings"];
+            backups?: components["schemas"]["BackupSettings"];
+            dashboard?: components["schemas"]["DashboardSettings"];
+            dataRetention?: components["schemas"]["DataRetentionSettings"];
+            developer?: components["schemas"]["DeveloperSettings"];
+            modelsRouting?: components["schemas"]["ModelsRoutingSettings"];
+            navigation?: components["schemas"]["NavigationSettings"];
+            notifications?: components["schemas"]["NotificationSettings"];
+            orb?: components["schemas"]["OrbSettings"];
+            profile?: components["schemas"]["ProfileSettings"];
+            security?: components["schemas"]["SecuritySettings"];
+            theme?: components["schemas"]["ThemeSettings"];
+            voice?: components["schemas"]["VoiceSettings"];
+        };
+        /**
+         * SettingsResponse
+         * @description Single-resource envelope for Settings.
+         */
+        SettingsResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Settings"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** SettingsSchema */
+        SettingsSchema: {
+            areas: string[];
+            schema: components["schemas"]["JsonSchemaObject"];
+        };
+        /**
+         * SettingsSchemaResponse
+         * @description Single-resource envelope for SettingsSchema.
+         */
+        SettingsSchemaResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["SettingsSchema"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * Severity
+         * @enum {string}
+         */
+        Severity: "info" | "warning" | "error" | "critical";
+        /**
+         * SingleEnvelope
+         * @description Generic single-resource envelope.
+         */
+        SingleEnvelope: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: unknown;
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * SourceDescriptor
+         * @description Provenance of a canonical resource: which adapter delivered it.
+         */
+        SourceDescriptor: {
+            adapterId: string;
+            /** @description Opaque id in the backing system. Never interpreted by the UI. */
+            externalId?: string;
+            /** Format: date-time */
+            lastSyncedAt: string;
+            /** @description Backing system family, e.g. mock, hermes, gmx. */
+            system: string;
+        };
+        /** StorageVolume */
+        StorageVolume: {
+            /** Format: date-time */
+            createdAt: string;
+            fileSystem?: string;
+            freeBytes: number;
+            id: string;
+            label: string;
+            labels?: string[];
+            /** @description Drive or mount, e.g. D:\. */
+            mount: string;
+            source: components["schemas"]["SourceDescriptor"];
+            totalBytes: number;
+            /** Format: date-time */
+            updatedAt: string;
+            usagePercent: number;
+            usedBytes: number;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * StorageVolumeListResponse
+         * @description Cursor-paginated list envelope for StorageVolume.
+         */
+        StorageVolumeListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["StorageVolume"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /** SystemCapability */
+        SystemCapability: {
+            healthcheck: boolean;
+            openLogs: boolean;
+            read: boolean;
+            restartAdapter: boolean;
+            sources: string[];
+        };
+        /**
+         * SystemMetrics
+         * @description Hardware snapshot (PLAN §40.1). Optional sensors are null when unavailable.
+         */
+        SystemMetrics: {
+            cpu: {
+                cores: number;
+                temperatureC?: number | null;
+                usagePercent: number;
+            };
+            gpu: {
+                name: string;
+                temperatureC?: number | null;
+                usagePercent: number;
+            } | null;
+            network: {
+                latencyMs?: number | null;
+                rxBytesPerSec: number;
+                txBytesPerSec: number;
+            };
+            ram: {
+                totalBytes: number;
+                usagePercent: number;
+                usedBytes: number;
+            };
+            /** Format: date-time */
+            sampledAt: string;
+            source: components["schemas"]["SourceDescriptor"];
+            storage: components["schemas"]["StorageVolume"][];
+            temperatures?: {
+                celsius: number;
+                sensor: string;
+            }[];
+            vram: {
+                totalBytes: number;
+                usagePercent: number;
+                usedBytes: number;
+            } | null;
+        };
+        /**
+         * SystemMetricsResponse
+         * @description Single-resource envelope for SystemMetrics.
+         */
+        SystemMetricsResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["SystemMetrics"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * Task
+         * @description Unit of work processed by an agent (PLAN §28.3).
+         */
+        Task: {
+            agentId: string | null;
+            agentName?: string;
+            approvalIds: string[];
+            artifactCount: number;
+            artifacts: components["schemas"]["ArtifactRef"][];
+            blockers: components["schemas"]["TaskBlocker"][];
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["Actor"];
+            description?: string;
+            /** Format: date-time */
+            dueAt: string | null;
+            errors: components["schemas"]["ErrorDetail"][];
+            /** Format: date-time */
+            estimatedCompletionAt: string | null;
+            id: string;
+            labels?: string[];
+            /** Format: date-time */
+            lastActivityAt: string | null;
+            model: string | null;
+            parentTaskId?: string | null;
+            priority: components["schemas"]["Priority"];
+            progress: components["schemas"]["Progress"];
+            runtimeMs: number | null;
+            source: components["schemas"]["SourceDescriptor"];
+            sourceRefs: components["schemas"]["EntityRef"][];
+            /** Format: date-time */
+            startedAt: string | null;
+            status: components["schemas"]["TaskStatus"];
+            steps: components["schemas"]["TaskStep"][];
+            title: string;
+            toolCalls: components["schemas"]["TaskToolCall"][];
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * TaskActionRequest
+         * @description Optional body for cancel/retry/pause/resume.
+         */
+        TaskActionRequest: {
+            confirm?: boolean;
+            reason?: string;
+        };
+        /** TaskBlocker */
+        TaskBlocker: {
+            description: string;
+            id: string;
+            /** @enum {string} */
+            kind: "approval" | "dependency" | "input_needed" | "adapter_unavailable" | "other";
+            refId?: string;
+            /** Format: date-time */
+            since?: string;
+        };
+        /** TaskCreateRequest */
+        TaskCreateRequest: {
+            agentId?: string | null;
+            description?: string;
+            /** Format: date-time */
+            dueAt?: string | null;
+            labels?: string[];
+            model?: string | null;
+            priority?: components["schemas"]["Priority"];
+            title: string;
+        };
+        /**
+         * TaskListResponse
+         * @description Cursor-paginated list envelope for Task.
+         */
+        TaskListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Task"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /** TaskProgressEvent */
+        TaskProgressEvent: {
+            agentId?: string | null;
+            currentStep?: string | null;
+            message?: string;
+            progress: components["schemas"]["Progress"];
+            taskId: string;
+        };
+        /**
+         * TaskResponse
+         * @description Single-resource envelope for Task.
+         */
+        TaskResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Task"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** TasksCapability */
+        TasksCapability: {
+            cancel: boolean;
+            create: boolean;
+            pause: boolean;
+            read: boolean;
+            resume: boolean;
+            retry: boolean;
+            sources: string[];
+            stream: boolean;
+            update: boolean;
+        };
+        /**
+         * TaskStatus
+         * @enum {string}
+         */
+        TaskStatus: "triage" | "todo" | "ready" | "running" | "waiting" | "review" | "done" | "failed" | "cancelled";
+        /** TaskStep */
+        TaskStep: {
+            detail?: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            id: string;
+            index: number;
+            /** Format: date-time */
+            startedAt?: string;
+            /** @enum {string} */
+            status: "pending" | "running" | "done" | "failed" | "skipped";
+            title: string;
+        };
+        /** TaskToolCall */
+        TaskToolCall: {
+            adapterId?: string;
+            durationMs?: number;
+            error?: components["schemas"]["ErrorDetail"];
+            id: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** @enum {string} */
+            status: "running" | "succeeded" | "failed";
+            summary?: string;
+            tool: string;
+        };
+        /**
+         * TaskUpdateRequest
+         * @description Partial update (also used for Kanban moves via status). Requires If-Match.
+         */
+        TaskUpdateRequest: {
+            agentId?: string | null;
+            description?: string;
+            /** Format: date-time */
+            dueAt?: string | null;
+            labels?: string[];
+            priority?: components["schemas"]["Priority"];
+            status?: components["schemas"]["TaskStatus"];
+            title?: string;
+        };
+        /** TelephonyCapability */
+        TelephonyCapability: {
+            call: boolean;
+            read: boolean;
+            sources: string[];
+        };
+        /**
+         * Theme
+         * @description Theme file (PLAN §25.3). Switchable at runtime without rebuild.
+         */
+        Theme: {
+            builtIn: boolean;
+            description?: string;
+            id: string;
+            name: string;
+            orb: {
+                fragmentDensity: number;
+                glowIntensity: number;
+                motionSpeed: number;
+                mouseParallax: boolean;
+                particleDensity: number;
+                preset: string;
+            };
+            panels: {
+                backgroundOpacity: number;
+                borderIntensity: number;
+                /** @enum {string} */
+                cornerStyle: "technical-cut" | "rounded" | "square";
+            };
+            /** @description Design tokens as dotted keys, e.g. color.primary. */
+            tokens: {
+                [key: string]: string;
+            };
+        };
+        /** ThemeImportRequest */
+        ThemeImportRequest: {
+            activate?: boolean;
+            theme: components["schemas"]["Theme"];
+        };
+        /**
+         * ThemeListResponse
+         * @description Cursor-paginated list envelope for Theme.
+         */
+        ThemeListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Theme"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * ThemeResponse
+         * @description Single-resource envelope for Theme.
+         */
+        ThemeResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Theme"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** ThemeSettings */
+        ThemeSettings: {
+            activeThemeId: string;
+            cyanIntensity: number;
+            goldIntensity: number;
+            overrides?: {
+                [key: string]: string;
+            };
+            panelOpacity: number;
+        };
+        /**
+         * Thread
+         * @description Unified inbox thread (PLAN §33.2). messages is populated in the detail view only.
+         */
+        Thread: {
+            channelId: string;
+            channelKind: components["schemas"]["ChannelKind"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deadline: string | null;
+            draftIds: string[];
+            extractedEvents: {
+                /** Format: date-time */
+                end?: string;
+                /** Format: date-time */
+                start: string;
+                title: string;
+            }[];
+            extractedTasks: {
+                /** Format: date-time */
+                dueAt: string | null;
+                title: string;
+            }[];
+            hasDraft: boolean;
+            id: string;
+            labels?: string[];
+            /** Format: date-time */
+            lastMessageAt: string;
+            linkedTaskId: string | null;
+            messageCount: number;
+            messages?: components["schemas"]["Message"][];
+            needsReply: boolean;
+            participants: components["schemas"]["Participant"][];
+            priority: components["schemas"]["Priority"];
+            source: components["schemas"]["SourceDescriptor"];
+            /** @enum {string} */
+            status: "open" | "waiting" | "replied" | "archived";
+            subject: string;
+            suggestedReply: string | null;
+            summary: string | null;
+            unreadCount: number;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * ThreadListResponse
+         * @description Cursor-paginated list envelope for Thread.
+         */
+        ThreadListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["Thread"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * ThreadResponse
+         * @description Single-resource envelope for Thread.
+         */
+        ThreadResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["Thread"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** User */
+        User: {
+            displayName: string;
+            id: string;
+            role: components["schemas"]["Role"];
+        };
+        /** VoiceAudioLevel */
+        VoiceAudioLevel: {
+            /** Format: date-time */
+            at: string;
+            /** @enum {string} */
+            direction: "input" | "output";
+            level: number;
+            peak?: number;
+        };
+        /** VoiceCapability */
+        VoiceCapability: {
+            enroll: boolean;
+            read: boolean;
+            sources: string[];
+            stop: boolean;
+            test: boolean;
+        };
+        /** VoiceDevice */
+        VoiceDevice: {
+            channels?: number;
+            /** Format: date-time */
+            createdAt: string;
+            id: string;
+            isDefault: boolean;
+            /** @enum {string} */
+            kind: "input" | "output";
+            labels?: string[];
+            name: string;
+            sampleRateHz?: number;
+            source: components["schemas"]["SourceDescriptor"];
+            status: components["schemas"]["HealthStatus"];
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * VoiceDeviceListResponse
+         * @description Cursor-paginated list envelope for VoiceDevice.
+         */
+        VoiceDeviceListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["VoiceDevice"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /**
+         * VoiceMetrics
+         * @description Pipeline latencies (PLAN §38.2).
+         */
+        VoiceMetrics: {
+            firstToken: components["schemas"]["LatencyStat"];
+            routerLatency: components["schemas"]["LatencyStat"];
+            /** Format: date-time */
+            sampledAt: string;
+            source: components["schemas"]["SourceDescriptor"];
+            speakerVerificationLatency: components["schemas"]["LatencyStat"];
+            sttLatency: components["schemas"]["LatencyStat"];
+            ttsFirstAudio: components["schemas"]["LatencyStat"];
+            wakeWordLatency: components["schemas"]["LatencyStat"];
+        };
+        /**
+         * VoiceMetricsResponse
+         * @description Single-resource envelope for VoiceMetrics.
+         */
+        VoiceMetricsResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["VoiceMetrics"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * VoiceProfile
+         * @description Voice enrollment profile (PLAN §38.3).
+         */
+        VoiceProfile: {
+            /** Format: date-time */
+            calibratedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            displayName: string;
+            id: string;
+            labels?: string[];
+            /** Format: date-time */
+            lastTestAt: string | null;
+            /** @enum {string} */
+            lastTestResult: "pass" | "fail" | "unknown";
+            owner: boolean;
+            quality: number;
+            sampleCount: number;
+            source: components["schemas"]["SourceDescriptor"];
+            threshold: number;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Monotonic revision used for optimistic concurrency (If-Match). */
+            version: number;
+        };
+        /**
+         * VoiceProfileListResponse
+         * @description Cursor-paginated list envelope for VoiceProfile.
+         */
+        VoiceProfileListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            freshness: components["schemas"]["Freshness"];
+            items: components["schemas"]["VoiceProfile"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /** VoiceSettings */
+        VoiceSettings: {
+            inputDeviceId: string | null;
+            outputDeviceId: string | null;
+            pushToTalkKey: string;
+            speakerVerificationRequired: boolean;
+            /** @default false */
+            storeRawRecordings: boolean;
+            ttsRate: number;
+            ttsVoice: string;
+            voiceHistoryEnabled: boolean;
+            wakeWord: string;
+            wakeWordEnabled: boolean;
+        };
+        /**
+         * VoiceStatus
+         * @description Live voice pipeline status (PLAN §38.1). Microphone activity is always visible.
+         */
+        VoiceStatus: {
+            audioInputDeviceId: string | null;
+            audioOutputDeviceId: string | null;
+            focusMode: boolean;
+            localModel: {
+                latencyMs: number | null;
+                name: string | null;
+                /** @enum {string} */
+                state: "ready" | "busy" | "error" | "offline";
+            };
+            microphone: {
+                active: boolean;
+                deviceId: string | null;
+                inputLevel: number;
+                /** @enum {string} */
+                state: "off" | "muted" | "idle" | "listening";
+            };
+            /** @enum {string} */
+            mode: "idle" | "listening" | "transcribing" | "thinking" | "speaking" | "error";
+            pushToTalk: {
+                active: boolean;
+                enabled: boolean;
+            };
+            rawRecordingEnabled: boolean;
+            source: components["schemas"]["SourceDescriptor"];
+            speakerVerification: {
+                confidence: number | null;
+                enabled: boolean;
+                recognizedSpeaker: string | null;
+                /** @enum {string} */
+                state: "disabled" | "idle" | "verifying" | "verified" | "rejected";
+            };
+            stt: {
+                engine: string;
+                latencyMs: number | null;
+                /** @enum {string} */
+                state: "ready" | "busy" | "error" | "offline";
+            };
+            trustedSession: {
+                active: boolean;
+                /** Format: date-time */
+                expiresAt: string | null;
+            };
+            tts: {
+                engine: string;
+                latencyMs: number | null;
+                /** @enum {string} */
+                state: "ready" | "busy" | "error" | "offline";
+            };
+            /** Format: date-time */
+            updatedAt: string;
+            voiceHistoryEnabled: boolean;
+            wakeWord: {
+                enabled: boolean;
+                phrase: string;
+                /** @enum {string} */
+                state: "disabled" | "armed" | "triggered" | "error";
+            };
+        };
+        /**
+         * VoiceStatusResponse
+         * @description Single-resource envelope for VoiceStatus.
+         */
+        VoiceStatusResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["VoiceStatus"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
+         * VoiceTestKind
+         * @enum {string}
+         */
+        VoiceTestKind: "wake_word" | "speaker" | "stt" | "tts" | "full_pipeline";
+        /** VoiceTestRequest */
+        VoiceTestRequest: {
+            durationMs?: number;
+            kind: components["schemas"]["VoiceTestKind"];
+            text?: string;
+        };
+        /** VoiceTestResult */
+        VoiceTestResult: {
+            correlationId: string;
+            durationMs: number;
+            kind: components["schemas"]["VoiceTestKind"];
+            message: string;
+            stages: {
+                detail: string | null;
+                latencyMs: number | null;
+                name: string;
+                ok: boolean;
+            }[];
+            /** Format: date-time */
+            startedAt: string;
+            success: boolean;
+        };
+        /**
+         * VoiceTestResultResponse
+         * @description Single-resource envelope for VoiceTestResult.
+         */
+        VoiceTestResultResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["VoiceTestResult"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** VoiceTranscript */
+        VoiceTranscript: {
+            confidence?: number | null;
+            final: boolean;
+            language: string;
+            speaker?: string | null;
+            /** Format: date-time */
+            startedAt: string;
+            text: string;
+            utteranceId: string;
+        };
+        /** VoiceTtsEnded */
+        VoiceTtsEnded: {
+            durationMs: number;
+            interrupted: boolean;
+            utteranceId: string;
+        };
+        /** VoiceTtsStarted */
+        VoiceTtsStarted: {
+            engine: string;
+            text?: string;
+            utteranceId: string;
+            voice?: string;
+        };
+    };
+    responses: {
+        /** @description Malformed request */
+        BadRequest: {
+            headers: {
+                "X-Correlation-Id": components["headers"]["CorrelationId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Version conflict or idempotency key reuse (CONFLICT, IDEMPOTENCY_CONFLICT) */
+        Conflict: {
+            headers: {
+                "X-Correlation-Id": components["headers"]["CorrelationId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Not allowed (FORBIDDEN, CSRF_INVALID, CAPABILITY_MISSING, APPROVAL_REQUIRED) */
+        Forbidden: {
+            headers: {
+                "X-Correlation-Id": components["headers"]["CorrelationId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Resource not found (NOT_FOUND) */
+        NotFound: {
+            headers: {
+                "X-Correlation-Id": components["headers"]["CorrelationId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Adapter unavailable or timed out (ADAPTER_UNAVAILABLE, ADAPTER_TIMEOUT, INTERNAL) */
+        ServiceUnavailable: {
+            headers: {
+                "X-Correlation-Id": components["headers"]["CorrelationId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Rate limited (RATE_LIMITED) */
+        TooManyRequests: {
+            headers: {
+                "X-Correlation-Id": components["headers"]["CorrelationId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Not authenticated (UNAUTHENTICATED, REAUTH_REQUIRED) */
+        Unauthorized: {
+            headers: {
+                "X-Correlation-Id": components["headers"]["CorrelationId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Validation failed (VALIDATION_FAILED) */
+        UnprocessableEntity: {
+            headers: {
+                "X-Correlation-Id": components["headers"]["CorrelationId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+    };
+    parameters: {
+        /** @description Generated by the server when absent; echoed in the response. */
+        CorrelationId: string;
+        /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+        CsrfToken: string;
+        /** @description Opaque cursor from pageInfo.nextCursor */
+        Cursor: string;
+        /** @description Repeated keys replay the stored response instead of executing again. */
+        IdempotencyKey: string;
+        /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+        IfMatch: string;
+        /** @description Page size */
+        Limit: number;
+        /** @description Opaque resource id (prefix identifies the type) */
+        PathId: string;
+    };
+    requestBodies: never;
+    headers: {
+        /** @description Correlation id of this request */
+        CorrelationId: string;
+    };
+    pathItems: never;
+}
+export type $defs = Record<string, never>;
+export interface operations {
+    listActivity: {
+        parameters: {
+            query?: {
+                /** @description Filter by adapter */
+                adapterId?: string;
+                /** @description Filter by agent */
+                agentId?: string;
+                /** @description Filter by correlation id */
+                correlationId?: string;
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Start of time range */
+                from?: string;
+                /** @description Filter by kind */
+                kind?: components["schemas"]["ActivityKind"][];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Filter by model */
+                model?: string;
+                /** @description Only children of this event */
+                parentId?: string;
+                /** @description Filter by severity */
+                severity?: components["schemas"]["Severity"][];
+                /** @description Return events with sequence greater than this value, ascending */
+                sinceSequence?: number;
+                /** @description Filter by status */
+                status?: string;
+                /** @description Filter by task */
+                taskId?: string;
+                /** @description End of time range */
+                to?: string;
+                /** @description Filter by tool */
+                tool?: string;
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityEventListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getActivityEvent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityEventResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listAdapters: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdapterInfoListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getAdapterHealth: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdapterHealthResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listAgents: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Name or role query */
+                q?: string;
+                /** @description Filter by status */
+                status?: components["schemas"]["AgentStatus"][];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getAgent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    pauseAgent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    resumeAgent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    stopAgent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listApprovals: {
+        parameters: {
+            query?: {
+                /** @description Filter by agent */
+                agentId?: string;
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Filter by risk tier */
+                riskTier?: components["schemas"]["RiskTier"][];
+                /** @description Filter by status */
+                status?: components["schemas"]["ApprovalStatus"][];
+                /** @description Filter by task */
+                taskId?: string;
+                /** @description Filter by type */
+                type?: components["schemas"]["ApprovalType"][];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getApproval: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    approveApproval: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ApprovalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    rejectApproval: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ApprovalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    requestApprovalContext: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalContextRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listAuditEvents: {
+        parameters: {
+            query?: {
+                /** @description Action name prefix */
+                action?: string;
+                /** @description Actor id */
+                actor?: string;
+                /** @description Adapter */
+                adapterId?: string;
+                /** @description Agent */
+                agentId?: string;
+                /** @description Filter by category */
+                category?: ("user_action" | "agent_action" | "tool_call" | "approval" | "system" | "security")[];
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Start of time range */
+                from?: string;
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Filter by result */
+                result?: ("success" | "failure" | "denied" | "pending")[];
+                /** @description Filter by severity */
+                severity?: components["schemas"]["Severity"][];
+                /** @description Task */
+                taskId?: string;
+                /** @description End of time range */
+                to?: string;
+                /** @description Tool */
+                tool?: string;
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEventListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getAuditEvent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEventResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    exportAudit: {
+        parameters: {
+            query?: {
+                /** @description Export format */
+                format?: "json" | "ndjson" | "csv";
+                /** @description Start of time range */
+                from?: string;
+                /** @description End of time range */
+                to?: string;
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit export */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEventListResponse"];
+                    "application/x-ndjson": string;
+                    "text/csv": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description HttpOnly, SameSite=Strict session cookie */
+                    "Set-Cookie"?: string;
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    logoutAll: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    reauth: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReauthRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReauthResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSession: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listAutomations: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Filter by enabled flag */
+                enabled?: boolean;
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Name query */
+                q?: string;
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createAutomation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    /** @description URL of the created resource */
+                    Location?: string;
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getAutomation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    updateAutomation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    disableAutomation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    enableAutomation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listAutomationRuns: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRunListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    testAutomation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AutomationTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRunResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listCalendarBriefings: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Briefing for one event */
+                eventId?: string;
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarBriefingListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listCalendarConflicts: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Start of range */
+                from?: string;
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description End of range */
+                to?: string;
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarConflictListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listCalendarEvents: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Start of range (inclusive) */
+                from?: string;
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Title query */
+                q?: string;
+                /** @description End of range (exclusive) */
+                to?: string;
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarEventListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarEventResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createCalendarProposal: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarProposalRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    /** @description URL of the created resource */
+                    Location?: string;
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarProposalResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getCapabilities: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Capabilities"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    executeCommand: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listCommandHistory: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandHistoryEntryListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    pauseCommand: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CommandControlRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    resumeCommand: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CommandControlRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    stopCommand: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CommandControlRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listChannels: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createDraft: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    /** @description URL of the created resource */
+                    Location?: string;
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    updateDraft: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    requestDraftSend: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DraftSendRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted (approval required) */
+            202: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listThreads: {
+        parameters: {
+            query?: {
+                /** @description Filter by channel */
+                channelId?: string;
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Only threads with a draft */
+                hasDraft?: boolean;
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Only threads that need a reply */
+                needsReply?: boolean;
+                /** @description Filter by priority */
+                priority?: components["schemas"]["Priority"][];
+                /** @description Full-text query */
+                q?: string;
+                /** @description Filter by thread status */
+                status?: ("open" | "waiting" | "replied" | "archived")[];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getThread: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listScenarios: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScenarioListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    playScenario: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScenarioStateResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    controlScenario: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScenarioControlRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScenarioStateResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getScenarioState: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScenarioStateResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listFiles: {
+        parameters: {
+            query?: {
+                /** @description Filter by category */
+                category?: components["schemas"]["FileCategory"][];
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Name query */
+                q?: string;
+                /** @description Filter by tag */
+                tag?: string;
+                /** @description Filter by originating task */
+                taskId?: string;
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileItemListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getFile: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileItemResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    deleteFile: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            /** @description Approval required before execution */
+            202: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    downloadFile: {
+        parameters: {
+            query?: {
+                /** @description File version, default current */
+                version?: number;
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description File content */
+            200: {
+                headers: {
+                    /** @description Attachment file name */
+                    "Content-Disposition"?: string;
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getFilePreview: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilePreviewResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getHealth: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Health"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listMemory: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Only locked memories */
+                locked?: boolean;
+                /** @description Only pinned memories */
+                pinned?: boolean;
+                /** @description Keyword query */
+                q?: string;
+                /** @description Filter by sensitivity */
+                sensitivity?: components["schemas"]["MemorySensitivity"][];
+                /** @description Filter by tag */
+                tag?: string;
+                /** @description Filter by type */
+                type?: components["schemas"]["MemoryType"][];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createMemory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoryCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    /** @description URL of the created resource */
+                    Location?: string;
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getMemory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    deleteMemory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    updateMemory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoryUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    searchMemory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemorySearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemorySearchResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getMeta: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Meta"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                /** @description Filter by category */
+                category?: string;
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Filter by priority */
+                priority?: components["schemas"]["Priority"][];
+                /** @description Filter by status */
+                status?: ("open" | "acknowledged" | "snoozed" | "resolved")[];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    acknowledgeNotification: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["NotificationActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    resolveNotification: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["NotificationActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    snoozeNotification: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationSnoozeRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getOrbStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrbSnapshotResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getOverview: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listResearchProjects: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Topic query */
+                q?: string;
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchProjectListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getResearchProject: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchProjectResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listResearchArtifacts: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchArtifactListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listResearchFindings: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchFindingListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listResearchSources: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchSourceListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    updateSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listAdapterSettings: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdapterConfigSettingsListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    updateAdapterSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdapterConfigPatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdapterConfigSettingsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    testAdapterSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdapterTestResultResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    exportSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsExport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    importSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsExport"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listLayouts: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    importLayout: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LayoutImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    /** @description URL of the created resource */
+                    Location?: string;
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSettingsSchema: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsSchemaResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listThemes: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThemeListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    importTheme: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ThemeImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    /** @description URL of the created resource */
+                    Location?: string;
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThemeResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JarvisStatusResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSystemMetrics: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemMetricsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listModelProviders: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelProviderListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listServices: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    runServiceHealthcheck: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthcheckResultResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listStorageVolumes: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageVolumeListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listTasks: {
+        parameters: {
+            query?: {
+                /** @description Filter by assigned agent */
+                agentId?: string;
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Only tasks due before this instant */
+                dueBefore?: string;
+                /** @description Filter by label */
+                label?: string;
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+                /** @description Filter by priority */
+                priority?: components["schemas"]["Priority"][];
+                /** @description Full-text query */
+                q?: string;
+                /** @description Sort order */
+                sort?: "-updatedAt" | "updatedAt" | "priority" | "dueAt";
+                /** @description Filter by status */
+                status?: components["schemas"]["TaskStatus"][];
+                /** @description Only tasks updated after this instant */
+                updatedSince?: string;
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    /** @description URL of the created resource */
+                    Location?: string;
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    updateTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    cancelTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["TaskActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    pauseTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["TaskActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    resumeTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["TaskActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    retryTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["TaskActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listVoiceDevices: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceDeviceListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getVoiceMetrics: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceMetricsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listVoiceProfiles: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from pageInfo.nextCursor */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Page size */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceProfileListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getVoiceStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceStatusResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    stopVoice: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    runVoiceTest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceTestResultResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+}

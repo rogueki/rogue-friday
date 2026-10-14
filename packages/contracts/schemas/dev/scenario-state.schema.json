@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/dev/scenario-state.schema.json",
+  "title": "ScenarioState",
+  "type": "object",
+  "properties": {
+    "activeScenarioId": {
+      "type": ["string", "null"],
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "running": {
+      "type": "boolean"
+    },
+    "stepIndex": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "simulatedTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "clockOffsetMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "adapterOverrides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "adapterId": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "offline": {
+            "type": "boolean"
+          },
+          "latencyMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "errorRate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": ["adapterId", "offline"],
+        "additionalProperties": false
+      }
+    },
+    "capabilityOverrides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "module": {
+            "type": "string"
+          },
+          "capability": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": ["module", "capability", "enabled"],
+        "additionalProperties": false
+      }
+    },
+    "forcedOrbMode": {
+      "anyOf": [
+        {
+          "$ref": "../orb/orb-mode.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "activeScenarioId",
+    "running",
+    "stepIndex",
+    "seed",
+    "simulatedTime",
+    "clockOffsetMs",
+    "adapterOverrides",
+    "capabilityOverrides",
+    "forcedOrbMode"
+  ],
+  "additionalProperties": false
+}

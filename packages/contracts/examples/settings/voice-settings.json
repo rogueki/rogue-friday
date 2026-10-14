@@ -1,0 +1,13 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/voice-settings.schema.json",
+  "wakeWordEnabled": true,
+  "wakeWord": "Hey Jarvis",
+  "pushToTalkKey": "F13",
+  "speakerVerificationRequired": true,
+  "storeRawRecordings": false,
+  "voiceHistoryEnabled": false,
+  "ttsVoice": "de_DE-thorsten",
+  "ttsRate": 1,
+  "inputDeviceId": null,
+  "outputDeviceId": null
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/system/healthcheck-result.schema.json",
+  "title": "HealthcheckResult",
+  "type": "object",
+  "properties": {
+    "serviceId": {
+      "type": "string",
+      "pattern": "^svc_[0-9A-Za-z]{26}$"
+    },
+    "status": {
+      "$ref": "../common/health-status.schema.json"
+    },
+    "latencyMs": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "checkedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "message": {
+      "type": "string"
+    },
+    "correlationId": {
+      "type": "string",
+      "pattern": "^corr_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": ["serviceId", "status", "latencyMs", "checkedAt", "message", "correlationId"],
+  "additionalProperties": false
+}

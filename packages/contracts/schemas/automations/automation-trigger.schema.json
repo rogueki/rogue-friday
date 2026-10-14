@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/automations/automation-trigger.schema.json",
+  "title": "AutomationTrigger",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["event", "schedule", "manual", "condition"]
+    },
+    "event": {
+      "type": "string",
+      "description": "Event type, e.g. jarvis.communication.thread_updated."
+    },
+    "schedule": {
+      "type": "string",
+      "description": "Cron expression."
+    },
+    "timeZone": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    }
+  },
+  "required": ["type", "description"],
+  "additionalProperties": false
+}

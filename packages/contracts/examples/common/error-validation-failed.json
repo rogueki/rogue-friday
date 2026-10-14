@@ -1,0 +1,18 @@
+{
+  "$schema": "https://jarvis.local/schemas/common/error.schema.json",
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Die Anfrage enthält ungültige Felder.",
+    "severity": "error",
+    "retryable": false,
+    "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00008",
+    "details": {
+      "fieldErrors": [
+        {
+          "path": "/title",
+          "message": "Der Titel darf nicht leer sein."
+        }
+      ]
+    }
+  }
+}

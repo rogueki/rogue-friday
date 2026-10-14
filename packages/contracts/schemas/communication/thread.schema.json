@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/communication/thread.schema.json",
+  "title": "Thread",
+  "description": "Unified inbox thread (PLAN §33.2). messages is populated in the detail view only.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^thr_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "channelId": {
+      "type": "string",
+      "pattern": "^chan_[0-9A-Za-z]{26}$"
+    },
+    "channelKind": {
+      "$ref": "../communication/channel-kind.schema.json"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "participants": {
+      "type": "array",
+      "items": {
+        "$ref": "../communication/participant.schema.json"
+      }
+    },
+    "priority": {
+      "$ref": "../common/priority.schema.json"
+    },
+    "summary": {
+      "type": ["string", "null"]
+    },
+    "needsReply": {
+      "type": "boolean"
+    },
+    "deadline": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "waiting", "replied", "archived"]
+    },
+    "linkedTaskId": {
+      "type": ["string", "null"],
+      "pattern": "^task_[0-9A-Za-z]{26}$"
+    },
+    "lastMessageAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "messageCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "unreadCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "hasDraft": {
+      "type": "boolean"
+    },
+    "draftIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^draft_[0-9A-Za-z]{26}$"
+      }
+    },
+    "extractedEvents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["title", "start"],
+        "additionalProperties": false
+      }
+    },
+    "extractedTasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "dueAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        },
+        "required": ["title", "dueAt"],
+        "additionalProperties": false
+      }
+    },
+    "suggestedReply": {
+      "type": ["string", "null"]
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "$ref": "../communication/message.schema.json"
+      }
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "channelId",
+    "channelKind",
+    "subject",
+    "participants",
+    "priority",
+    "summary",
+    "needsReply",
+    "deadline",
+    "status",
+    "linkedTaskId",
+    "lastMessageAt",
+    "messageCount",
+    "unreadCount",
+    "hasDraft",
+    "draftIds",
+    "extractedEvents",
+    "extractedTasks",
+    "suggestedReply"
+  ],
+  "additionalProperties": false
+}

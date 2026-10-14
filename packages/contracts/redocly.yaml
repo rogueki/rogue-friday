@@ -1,0 +1,17 @@
+# Lint ruleset for the Jarvis contract. Start from the recommended set and only relax what is justified below.
+extends:
+  - recommended
+
+rules:
+  # components.schemas contains an alias for every JSON Schema file so that generated names are stable
+  # (Task instead of task.schema); many aliases are only referenced indirectly by other schemas.
+  no-unused-components: off
+  operation-4xx-response: error
+  operation-operationId-unique: error
+  operation-operationId-url-safe: error
+  operation-summary: error
+  tag-description: error
+  no-ambiguous-paths: error
+  no-path-trailing-slash: error
+  path-parameters-defined: error
+  security-defined: error

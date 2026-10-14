@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/dev/scenario.schema.json",
+  "title": "Scenario",
+  "description": "Deterministic mock scenario (PLAN §45).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "label": {
+            "type": "string"
+          },
+          "delayMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "orbMode": {
+            "$ref": "../orb/orb-mode.schema.json"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": ["index", "label", "delayMs"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["id", "name", "description", "steps"],
+  "additionalProperties": false
+}

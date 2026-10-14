@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/communication/draft.schema.json",
+  "title": "Draft",
+  "description": "Drafts are created automatically; sending always requires approval (PLAN §33.5).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^draft_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "channelId": {
+      "type": "string",
+      "pattern": "^chan_[0-9A-Za-z]{26}$"
+    },
+    "threadId": {
+      "type": ["string", "null"],
+      "pattern": "^thr_[0-9A-Za-z]{26}$"
+    },
+    "to": {
+      "type": "array",
+      "items": {
+        "$ref": "../communication/participant.schema.json"
+      }
+    },
+    "cc": {
+      "type": "array",
+      "items": {
+        "$ref": "../communication/participant.schema.json"
+      }
+    },
+    "subject": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "status": {
+      "$ref": "../communication/draft-status.schema.json"
+    },
+    "approvalId": {
+      "type": ["string", "null"],
+      "pattern": "^appr_[0-9A-Za-z]{26}$"
+    },
+    "generatedByAgentId": {
+      "type": ["string", "null"],
+      "pattern": "^agent_[0-9A-Za-z]{26}$"
+    },
+    "replyToMessageId": {
+      "type": ["string", "null"],
+      "pattern": "^msg_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "channelId",
+    "threadId",
+    "to",
+    "subject",
+    "body",
+    "status",
+    "approvalId",
+    "generatedByAgentId"
+  ],
+  "additionalProperties": false
+}

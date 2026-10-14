@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/agents/agent-status.schema.json",
+  "title": "AgentStatus",
+  "type": "string",
+  "enum": ["idle", "starting", "working", "waiting", "paused", "error", "offline"]
+}

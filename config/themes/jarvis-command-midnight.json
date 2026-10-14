@@ -1,0 +1,51 @@
+{
+  "id": "jarvis-command-midnight",
+  "name": "Jarvis Command / Midnight",
+  "version": 1,
+  "tokens": {
+    "color.background": "#00030a",
+    "color.background1": "#020b16",
+    "color.background2": "#04121f",
+    "panel.fill0": "rgba(2, 10, 20, 0.94)",
+    "panel.fill1": "rgba(4, 17, 30, 0.86)",
+    "panel.fillActive": "rgba(5, 27, 42, 0.92)",
+    "line.dim": "rgba(36, 140, 176, 0.18)",
+    "line.default": "rgba(52, 176, 210, 0.34)",
+    "line.active": "rgba(96, 204, 228, 0.70)",
+    "color.primary": "#2fb8d6",
+    "color.primaryBright": "#8fdcec",
+    "color.teal": "#2bbfb2",
+    "color.blue": "#2a78d8",
+    "color.orb": "#ffb52e",
+    "color.orbOrange": "#ff7a00",
+    "color.orbHot": "#fff2ba",
+    "color.orbDeep": "#a94c00",
+    "color.success": "#4ad9a4",
+    "color.warning": "#f2c25f",
+    "color.error": "#f2545b",
+    "color.violet": "#8f7be8",
+    "text.default": "#dcecf2",
+    "text.strong": "#ffffff",
+    "text.muted": "#7897a6",
+    "text.disabled": "#3d5663",
+    "grid.color": "rgba(47, 184, 214, 0.045)",
+    "focus.color": "#8fdcec"
+  },
+  "orb": {
+    "preset": "gold-fragment-core",
+    "particleDensity": 0.6,
+    "fragmentDensity": 0.7,
+    "glowIntensity": 0.66,
+    "motionSpeed": 0.85,
+    "mouseParallax": false
+  },
+  "panels": {
+    "cornerStyle": "soft-cut",
+    "borderIntensity": 0.5,
+    "backgroundOpacity": 0.9
+  },
+  "effects": {
+    "gridVisibility": 0.8,
+    "cyanIntensity": 0.85
+  }
+}

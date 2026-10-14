@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/events/task-progress.schema.json",
+  "title": "TaskProgressEvent",
+  "type": "object",
+  "properties": {
+    "taskId": {
+      "type": "string",
+      "pattern": "^task_[0-9A-Za-z]{26}$"
+    },
+    "progress": {
+      "$ref": "../common/progress.schema.json"
+    },
+    "currentStep": {
+      "type": ["string", "null"]
+    },
+    "message": {
+      "type": "string"
+    },
+    "agentId": {
+      "type": ["string", "null"],
+      "pattern": "^agent_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": ["taskId", "progress"],
+  "additionalProperties": false
+}

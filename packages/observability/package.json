@@ -1,0 +1,14 @@
+{
+  "name": "@jarvis/observability",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Strukturierte Logs, Korrelation, Redaction, Metriken",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  }
+}

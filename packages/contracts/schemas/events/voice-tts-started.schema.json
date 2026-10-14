@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/events/voice-tts-started.schema.json",
+  "title": "VoiceTtsStarted",
+  "type": "object",
+  "properties": {
+    "utteranceId": {
+      "type": "string"
+    },
+    "engine": {
+      "type": "string"
+    },
+    "voice": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": ["utteranceId", "engine"],
+  "additionalProperties": false
+}

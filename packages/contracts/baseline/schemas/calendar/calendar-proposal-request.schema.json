@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/calendar/calendar-proposal-request.schema.json",
+  "title": "CalendarProposalRequest",
+  "type": "object",
+  "properties": {
+    "type": {
+      "$ref": "../calendar/proposal-type.schema.json"
+    },
+    "eventId": {
+      "type": ["string", "null"],
+      "pattern": "^cal_[0-9A-Za-z]{26}$"
+    },
+    "title": {
+      "type": "string"
+    },
+    "start": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "end": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "attendees": {
+      "type": "array",
+      "items": {
+        "$ref": "../calendar/attendee.schema.json"
+      }
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": ["type", "reason"],
+  "additionalProperties": false
+}

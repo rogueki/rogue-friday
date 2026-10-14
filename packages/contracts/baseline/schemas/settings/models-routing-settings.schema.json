@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/models-routing-settings.schema.json",
+  "title": "ModelsRoutingSettings",
+  "type": "object",
+  "properties": {
+    "defaultModel": {
+      "type": "string"
+    },
+    "localFirst": {
+      "type": "boolean"
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "taskKind": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "reasoningLevel": {
+            "$ref": "../agents/reasoning-level.schema.json"
+          },
+          "fallbackModel": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": ["taskKind", "model", "reasoningLevel", "fallbackModel"],
+        "additionalProperties": false
+      }
+    },
+    "monthlyBudgetEur": {
+      "type": ["number", "null"],
+      "minimum": 0
+    }
+  },
+  "required": ["defaultModel", "localFirst", "routes", "monthlyBudgetEur"],
+  "additionalProperties": false
+}

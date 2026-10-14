@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/notifications/notification-action-request.schema.json",
+  "title": "NotificationActionRequest",
+  "type": "object",
+  "properties": {
+    "comment": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

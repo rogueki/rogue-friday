@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/tasks/task-action-request.schema.json",
+  "title": "TaskActionRequest",
+  "description": "Optional body for cancel/retry/pause/resume.",
+  "type": "object",
+  "properties": {
+    "reason": {
+      "type": "string"
+    },
+    "confirm": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}

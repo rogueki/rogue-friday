@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/system/model-provider.schema.json",
+  "title": "ModelProvider",
+  "description": "LLM provider shown under Models & Services.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^mdl_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "name": {
+      "type": "string"
+    },
+    "providerKind": {
+      "type": "string",
+      "enum": ["local", "cloud"]
+    },
+    "status": {
+      "$ref": "../common/health-status.schema.json"
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "latencyMs": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "activeRequests": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "contextWindow": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "name",
+    "providerKind",
+    "status",
+    "models",
+    "latencyMs",
+    "activeRequests"
+  ],
+  "additionalProperties": false
+}

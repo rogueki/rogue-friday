@@ -1,0 +1,32 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/theme-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "id": "jarvis-command-gold-core",
+    "name": "Jarvis Command / Gold Core",
+    "builtIn": true,
+    "tokens": {
+      "color.primary": "#27dcff",
+      "color.background": "#01060c",
+      "color.orb": "#ffb52e",
+      "color.orbHot": "#fff2ba"
+    },
+    "orb": {
+      "preset": "gold-fragment-core",
+      "particleDensity": 0.72,
+      "fragmentDensity": 0.82,
+      "glowIntensity": 0.78,
+      "motionSpeed": 1,
+      "mouseParallax": true
+    },
+    "panels": {
+      "cornerStyle": "technical-cut",
+      "borderIntensity": 0.55,
+      "backgroundOpacity": 0.88
+    }
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/events/resync-required.schema.json",
+  "title": "ResyncRequired",
+  "type": "object",
+  "properties": {
+    "reason": {
+      "type": "string",
+      "enum": ["sequence_too_old", "buffer_overflow", "server_restart", "unknown"]
+    },
+    "requestedSince": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "oldestAvailableSequence": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "latestSequence": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": ["reason", "requestedSince", "oldestAvailableSequence", "latestSequence"],
+  "additionalProperties": false
+}
