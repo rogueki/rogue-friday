@@ -26,6 +26,7 @@ import {
   MicroParticleHalo,
   ScanPlane,
 } from "./components/signals";
+import { resolveAudioLevel, type OrbAudioSourceRef } from "../audio/audioSource";
 import { createLiveParams, stepLiveParams, type LiveParams } from "./liveParams";
 import { createSharedUniforms, syncSharedUniforms } from "./materials";
 import { OrbSceneContext, useOrb, type OrbSceneContextValue } from "./OrbContext";
@@ -53,6 +54,8 @@ declare global {
 
 export interface OrbSceneProps {
   targetsRef: MutableRefObject<VisualTargets>;
+  /** Live audio level reader, polled inside `useFrame` (optional). */
+  audioSourceRef?: OrbAudioSourceRef;
   settings: OrbSettings;
   quality: OrbQualityLevel;
   /** Auto quality: adapt by measured frame time and report level changes. */
@@ -103,7 +106,7 @@ function FrameDriver({ adaptive, onQualityChange, quality }: { adaptive: boolean
       time = clock.current;
     }
     const t = targets.current;
-    const rawAudio = t.audioGain > 0 ? (settings.audioFixture ? audioFixtureLevel(settings.audioFixture, time) : t.audioLevel) : 0;
+    const rawAudio = t.audioGain > 0 ? (settings.audioFixture ? audioFixtureLevel(settings.audioFixture, time) : resolveAudioLevel(ctx.audioSource, t.audioLevel)) : 0;
     stepLiveParams(live.current, t, {
       dt,
       time,
@@ -161,15 +164,15 @@ function BloomPass({ liveRef, profile }: { liveRef: MutableRefObject<LiveParams>
 }
 
 /** The complete orb scene. Mounted once; state changes only move numbers inside `live`. */
-export function OrbScene({ targetsRef, settings, quality, adaptive, onQualityChange }: OrbSceneProps) {
+export function OrbScene({ targetsRef, audioSourceRef, settings, quality, adaptive, onQualityChange }: OrbSceneProps) {
   const profile = useMemo(() => getQualityProfile(quality, settings.particleDensity), [quality, settings.particleDensity]);
   const shared = useMemo(() => createSharedUniforms(), []);
   const live = useRef<LiveParams>(null as unknown as LiveParams);
   if (live.current === null) live.current = createLiveParams(targetsRef.current);
 
   const ctx = useMemo<OrbSceneContextValue>(
-    () => ({ live, targets: targetsRef, shared, profile, settings, fixedClock: settings.testClock?.fixedTime !== undefined }),
-    [targetsRef, shared, profile, settings],
+    () => ({ live, targets: targetsRef, shared, profile, settings, fixedClock: settings.testClock?.fixedTime !== undefined, audioSource: audioSourceRef }),
+    [targetsRef, audioSourceRef, shared, profile, settings],
   );
   const plates = usePlateSetsWith(ctx);
   const useBloom = profile.bloom && settings.bloom;

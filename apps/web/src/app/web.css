@@ -89,21 +89,24 @@ body { min-height: 100dvh; }
     radial-gradient(ellipse 90% 80% at 50% 55%, color-mix(in srgb, var(--jarvis-blue) 10%, transparent), transparent 70%),
     var(--jarvis-panel-0);
 }
-.ov-orb { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; min-height: 0; padding: 4px 24px 12px; text-align: center; }
-/* The orb reserves room for its own caption below the sphere; that caption is hidden, so the stage reaches into it. */
-.ov-orb__stage { position: relative; flex: 1 1 0; min-height: 0; width: 100%; margin-bottom: -30px; }
-/* The state label is part of the page (status line below); the orb's own caption would duplicate it. */
+/* AI core panel: the orb stage fills the panel above a thin status strip; the brand caption is a small corner label, never
+   a headline over the sphere (PLAN §27.3). */
+.ov-orb { --ov-orb-strip: 42px; position: relative; height: 100%; min-height: 0; overflow: hidden; text-align: center; }
+.ov-orb__stage { position: absolute; inset: 0 0 var(--ov-orb-strip) 0; min-height: 0; }
+/* The state label is part of the page (status strip below); the orb's own caption would duplicate it. */
 .ov-orb__stage .jarvis-orb__label { display: none; }
-.ov-orb__brand { position: relative; z-index: 1; display: flex; flex: none; flex-direction: column; align-items: center; line-height: 1; }
-.ov-orb__name { font-family: var(--jv-font-display); font-size: var(--jv-fs-hero); font-weight: 600; letter-spacing: 0.42em; padding-left: 0.42em; color: var(--jarvis-text-strong); }
-.ov-orb__sub { margin-top: 6px; font-family: var(--jv-font-display); font-size: var(--jv-fs-lg); letter-spacing: 0.5em; padding-left: 0.5em; color: var(--jarvis-orb-gold); }
-.ov-orb__ver { margin-top: 6px; min-height: 1em; font-family: var(--jv-font-mono); font-size: var(--jv-fs-xs); color: var(--jarvis-muted); }
-.ov-orb__status { display: flex; flex: none; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; max-width: 100%; font-size: var(--jv-fs-sm); color: var(--jarvis-text); }
-.ov-orb__activity { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-orb__brand { position: absolute; z-index: 1; top: 12px; left: 18px; display: grid; grid-template-columns: auto auto; justify-content: start; align-items: baseline; column-gap: 8px; row-gap: 3px; max-width: 46%; text-align: left; line-height: 1; pointer-events: none; }
+.ov-orb__name { font-family: var(--jv-font-display); font-size: var(--jv-fs-lg); font-weight: 600; letter-spacing: 0.28em; color: var(--jarvis-text-strong); white-space: nowrap; }
+.ov-orb__sub { font-family: var(--jv-font-display); font-size: var(--jv-fs-2xs); letter-spacing: 0.32em; color: var(--jarvis-orb-gold); white-space: nowrap; }
+.ov-orb__ver { grid-column: 1 / -1; min-height: 1em; font-family: var(--jv-font-mono); font-size: var(--jv-fs-2xs); color: var(--jarvis-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-orb__status { position: absolute; z-index: 1; inset: auto 0 0 0; height: var(--ov-orb-strip); display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 12px; padding: 0 20px; font-size: var(--jv-fs-sm); color: var(--jarvis-text); background: linear-gradient(to top, color-mix(in srgb, var(--jarvis-panel-0) 88%, transparent), transparent); }
+.ov-orb__status > * { flex: none; }
+.ov-orb__activity { flex: 0 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-orb__notice { position: absolute; z-index: 1; top: 34px; right: 18px; font-family: var(--jv-font-mono); font-size: var(--jv-fs-2xs); color: var(--jarvis-orb-gold); opacity: 0.85; }
 .ov-orb__progress { position: relative; display: inline-block; width: 120px; height: 14px; overflow: hidden; border: 1px solid var(--jarvis-tint-gold-border); border-radius: 2px; background: var(--jarvis-tint-gold-bg); }
 .ov-orb__progress > span:first-child { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--jarvis-orb-gold) 55%, transparent); }
 .ov-orb__progress-text { position: relative; display: block; font-family: var(--jv-font-mono); font-size: 10px; line-height: 12px; color: var(--jarvis-text-strong); }
-.ov-orb__updated { position: absolute; right: 18px; bottom: 6px; font-family: var(--jv-font-mono); font-size: 10px; color: var(--jarvis-muted); }
+.ov-orb__updated { position: absolute; z-index: 1; top: 12px; right: 18px; font-family: var(--jv-font-mono); font-size: 10px; color: var(--jarvis-muted); }
 
 .ov-agents { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px; flex: 1; min-height: 0; }
 .ov-agents .jv-agent { min-height: 0; padding: 8px 10px; }
@@ -157,7 +160,6 @@ body { min-height: 100dvh; }
   .ov-providers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ov-memory { grid-template-columns: minmax(0, 1fr); }
   .ov-memory__graph { min-height: 120px; }
-  .ov-orb__name { font-size: 30px; }
   .ov-orb__updated { display: none; }
 }
 

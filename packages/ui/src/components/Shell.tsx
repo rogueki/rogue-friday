@@ -1,10 +1,12 @@
-import { Menu, PanelLeftClose, PanelLeftOpen, Pause, Play, Search, Square, Wifi, WifiOff, Zap, Bell, Settings, LayoutGrid, Focus, Mic } from 'lucide-react';
+import { Menu, PanelLeftClose, SendHorizontal, TerminalSquare, PanelLeftOpen, Pause, Play, Search, Square, Wifi, WifiOff, Zap, Bell, Settings, LayoutGrid, Focus, Mic } from 'lucide-react';
 import {
   createContext,
   forwardRef,
   useCallback,
   useContext,
   useMemo,
+  useRef,
+  useState,
   type HTMLAttributes,
   type ReactNode,
 } from 'react';
@@ -509,6 +511,120 @@ export interface ContextChip {
   icon: ReactNode;
   label: string;
   value: string;
+  /** Why there is no real value ("keine Datenquelle"): shown as tooltip and read by screen readers instead of a bare dash. */
+  hint?: string;
+}
+
+const TEXT_HISTORY_LIMIT = 30;
+
+export interface CommandTextInputProps {
+  label: string;
+  placeholder?: string;
+  submitLabel?: string;
+  disabled?: boolean;
+  /** Return `false` (or reject) when the command failed so the typed text is kept for a retry. */
+  onSubmit: (text: string) => void | boolean | Promise<void | boolean>;
+  className?: string;
+}
+
+/**
+ * Single-line command input of the bottom bar (PLAN §27.13 "Text-/Voice-Eingabe"). Enter submits, Escape clears (a second
+ * Escape leaves the field), ArrowUp/ArrowDown walk through the commands typed in this session.
+ */
+export function CommandTextInput({ label, placeholder, submitLabel = 'Senden', disabled = false, onSubmit, className }: CommandTextInputProps) {
+  const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
+  const history = useRef<string[]>([]);
+  const cursor = useRef(-1);
+  const draft = useRef('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const submit = useCallback(async () => {
+    const text = value.trim();
+    if (!text || busy || disabled) return;
+    setBusy(true);
+    let keep: boolean;
+    try {
+      keep = (await onSubmit(text)) === false;
+    } catch {
+      // The caller reports failures (toast); the text stays so the person can retry.
+      keep = true;
+    } finally {
+      setBusy(false);
+    }
+    if (keep) return;
+    history.current = [text, ...history.current.filter((entry) => entry !== text)].slice(0, TEXT_HISTORY_LIMIT);
+    cursor.current = -1;
+    draft.current = '';
+    setValue('');
+    inputRef.current?.focus();
+  }, [value, busy, disabled, onSubmit]);
+
+  const step = (direction: 1 | -1): void => {
+    const entries = history.current;
+    if (entries.length === 0) return;
+    if (cursor.current === -1) draft.current = value;
+    const next = cursor.current + direction;
+    if (next < -1 || next >= entries.length) return;
+    cursor.current = next;
+    setValue(next === -1 ? draft.current : (entries[next] ?? ''));
+  };
+
+  return (
+    <form
+      className={cx('jv-bottombar__text', busy && 'jv-bottombar__text--busy', className)}
+      role="group"
+      aria-label={label}
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submit();
+      }}
+    >
+      <span className="jv-bottombar__text-icon" aria-hidden="true">
+        <TerminalSquare size={15} strokeWidth={1.5} />
+      </span>
+      <input
+        ref={inputRef}
+        type="text"
+        className="jv-bottombar__input"
+        value={value}
+        placeholder={placeholder}
+        aria-label={label}
+        aria-busy={busy || undefined}
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
+        enterKeyHint="send"
+        maxLength={2000}
+        disabled={disabled}
+        readOnly={busy}
+        onChange={(event) => {
+          cursor.current = -1;
+          setValue(event.target.value);
+        }}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing) return;
+          if (event.key === 'Escape') {
+            if (value) {
+              event.preventDefault();
+              event.stopPropagation();
+              cursor.current = -1;
+              setValue('');
+            } else {
+              event.currentTarget.blur();
+            }
+          } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            step(1);
+          } else if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            step(-1);
+          }
+        }}
+      />
+      <IconButton label={submitLabel} icon={<SendHorizontal size={14} strokeWidth={1.75} />} type="submit" size="sm" variant="ghost" disabled={disabled || busy || value.trim() === ''} />
+    </form>
+  );
 }
 
 export interface BottomCommandBarProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
@@ -525,6 +641,12 @@ export interface BottomCommandBarProps extends Omit<HTMLAttributes<HTMLElement>,
   quickAction?: { label: string; icon?: ReactNode; onClick?: () => void; disabled?: boolean };
   /** Compact variant for detail pages. */
   compact?: boolean;
+  /** Enables the text-command input (left of the voice capsule); typed commands go through this callback on Enter. */
+  onSubmitText?: CommandTextInputProps['onSubmit'];
+  textLabel?: string;
+  textPlaceholder?: string;
+  textSubmitLabel?: string;
+  textDisabled?: boolean;
   stopLabel?: string;
   pauseLabel?: string;
   resumeLabel?: string;
@@ -543,6 +665,11 @@ export const BottomCommandBar = forwardRef<HTMLElement, BottomCommandBarProps>(f
     levels,
     quickAction,
     compact = false,
+    onSubmitText,
+    textLabel = 'Befehl eingeben',
+    textPlaceholder = 'Befehl eingeben …',
+    textSubmitLabel = 'Senden',
+    textDisabled = false,
     stopLabel = 'Stopp',
     pauseLabel = 'Pause',
     resumeLabel = 'Fortsetzen',
@@ -570,25 +697,44 @@ export const BottomCommandBar = forwardRef<HTMLElement, BottomCommandBarProps>(f
     >
       {!compact && chips && chips.length > 0 ? (
         <ul className="jv-bottombar__chips" aria-label="Kontext">
-          {chips.map((chip) => (
-            <li key={chip.id} className="jv-ctxchip">
-              <span className="jv-ctxchip__icon" aria-hidden="true">
-                {chip.icon}
-              </span>
-              <span className="jv-ctxchip__text">
-                <span className="jv-ctxchip__label">{chip.label}</span>
-                <span className="jv-ctxchip__value" title={chip.value}>
-                  {chip.value}
+          {chips.map((chip) => {
+            const body = (
+              <>
+                <span className="jv-ctxchip__icon" aria-hidden="true">
+                  {chip.icon}
                 </span>
-              </span>
-            </li>
-          ))}
+                <span className="jv-ctxchip__text">
+                  <span className="jv-ctxchip__label">{chip.label}</span>
+                  <span className="jv-ctxchip__value" title={chip.hint ? undefined : chip.value}>
+                    {chip.value}
+                  </span>
+                </span>
+              </>
+            );
+            return (
+              <li key={chip.id} className={cx('jv-ctxchip', chip.hint && 'jv-ctxchip--unavailable')}>
+                {chip.hint ? (
+                  <Tooltip content={chip.hint}>
+                    <span className="jv-ctxchip__inner" role="group" tabIndex={0} aria-label={`${chip.label}: ${chip.hint}`}>
+                      {body}
+                    </span>
+                  </Tooltip>
+                ) : (
+                  body
+                )}
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <span />
       )}
 
-      <div className="jv-bottombar__dots jv-bottombar__dots--left" aria-hidden="true" />
+      {onSubmitText ? (
+        <CommandTextInput label={textLabel} placeholder={textPlaceholder} submitLabel={textSubmitLabel} disabled={textDisabled} onSubmit={onSubmitText} />
+      ) : (
+        <div className="jv-bottombar__dots jv-bottombar__dots--left" aria-hidden="true" />
+      )}
 
       <div className="jv-bottombar__center">
         <button

@@ -9,7 +9,7 @@
     "dev:mock": "node scripts/run-next.mjs dev --mock --port 3000",
     "build": "pnpm typecheck && node scripts/run-next.mjs build",
     "build:mock": "pnpm typecheck && node scripts/run-next.mjs build --mock",
-    "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "screenshots": "node scripts/screenshot.mjs"
   },
@@ -40,7 +40,7 @@
   },
   "msw": {
     "workerDirectory": [
-      "public"
+      "mock-worker"
     ]
   }
 }

@@ -202,6 +202,10 @@ describe("applyEvent: agents, system, resync", () => {
     expect(keys).toContain(JSON.stringify(queryKeys.overview));
     expect(keys).toContain(JSON.stringify(queryKeys.tasks.all));
     expect(keys).toContain(JSON.stringify(queryKeys.orb));
+    // Module data too: after a profile switch (empty installation) a stale memory graph would contradict the counters.
+    expect(keys).toContain(JSON.stringify(queryKeys.memory.all));
+    expect(keys).toContain(JSON.stringify(queryKeys.calendar.events.all));
+    expect(keys).toContain(JSON.stringify(queryKeys.communication.channels));
   });
 
   it("debounces the derived overview refresh into one refetch per burst", () => {

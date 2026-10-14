@@ -58,6 +58,14 @@ export function readAudioSample(now: number = Date.now()): AudioSample {
 }
 
 /**
+ * Cheap per-frame read for the orb (`getAudioLevel`): no allocation, decays to 0 when events stop. Called from the orb's
+ * animation loop, so the level reaches the scene at display rate without any React update.
+ */
+export function readAudioLevel(now: number = Date.now()): number {
+  return state.updatedAt === 0 || now - state.updatedAt > STALE_AFTER_MS ? 0 : state.level;
+}
+
+/**
  * Samples the store at most `maxHz` times per second while `active`. State is only set when the store changed (or just
  * went silent), so an idle stream causes no renders at all.
  */

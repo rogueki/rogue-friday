@@ -113,6 +113,11 @@ export const de = {
   "context.location": "Standort",
   "context.weather": "Wetter",
   "context.network": "Netzwerk",
+  "bottom.text.label": "Befehl eingeben",
+  "bottom.text.placeholder": "Befehl eingeben, z. B. „Tagesbriefing“ …",
+  "bottom.text.submit": "Befehl senden",
+  "context.noSource": "Keine Datenquelle angebunden",
+  "context.noMeasurement": "Noch keine Messwerte vom System",
 
   // orb status line
   "orb.loading": "Orb wird geladen …",
@@ -250,6 +255,8 @@ export const de = {
   "overview.orb.agent": "Aktiver Agent: {agent} · „{activity}“",
   "overview.orb.noAgent": "Kein aktiver Agent",
   "overview.orb.progress": "Fortschritt",
+  "overview.orb.fallback2d": "2D-Darstellung aktiv",
+  "overview.orb.fallback2dHint": "WebGL ist nicht verfügbar oder deaktiviert; der Orb wird als 2D-Variante gezeichnet.",
   "overview.orb.updated": "Aktualisiert {time}",
   "overview.attention.title": "Live-Intelligenz",
   "overview.attention.label": "Aufmerksamkeit und Live-Aktivität",
@@ -278,6 +285,7 @@ export const de = {
   "overview.memory.newToday": "Neu heute",
   "overview.memory.linked": "Verknüpft",
   "overview.memory.updated": "Aktualisiert",
+  "overview.memory.neverUpdated": "Noch nie",
   "overview.memory.graph": "Netzwerkvorschau: {count} Gedächtniseinträge mit Verbindungen",
   "overview.memory.noGraph": "Noch keine Einträge",
   "overview.models.title": "Modelle & Dienste",

@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { useT } from "@/i18n";
 import { useMeta } from "@/lib/api/domains/core";
 import { useAppSettings } from "@/lib/settings";
-import { useAudioSamples } from "./audioStore";
+import { readAudioLevel } from "./audioStore";
 import { useOrbActions } from "./useOrbActions";
 import { useOrbSnapshot } from "./useOrbSnapshot";
 
@@ -17,13 +17,20 @@ const offlineSnapshot = (): OrbSnapshot => ({
 
 export interface OrbSlotProps {
   className?: string;
+  /**
+   * Multiplier on `settings.orb.size` for panels that give the sphere the whole stage (AI-core panel). The orb's camera
+   * fits its outer rings into the shorter canvas side; the globe itself then only fills ~60 % of it.
+   */
+  sizeBoost?: number;
+  /** Reports the effective renderer (3d, or 2d when WebGL is unavailable/disabled) so the panel can say so. */
+  onRendererChange?: (renderer: "3d" | "2d") => void;
 }
 
 /**
  * The single place where the app mounts `@jarvis/orb`: wires the snapshot (query cache + realtime), `settings.orb`, the
  * audio level feed and the click/Space routing (PLAN §21).
  */
-export function OrbSlotInner({ className }: OrbSlotProps) {
+export function OrbSlotInner({ className, sizeBoost = 1, onRendererChange }: OrbSlotProps) {
   const { snapshot: live, isError } = useOrbSnapshot();
   const { settings } = useAppSettings();
   const { locale, assistantName } = useT();
@@ -32,20 +39,15 @@ export function OrbSlotInner({ className }: OrbSlotProps) {
 
   // Scenario hint (PLAN §45.14 "WebGL Failure"): the server may force the 2D fallback through a meta feature flag.
   const forceFallback2D = Boolean(features?.["forceOrbFallback2D"] ?? features?.["uiHints.forceOrbFallback2D"]);
-  const voiceActive = live?.layers.voice === "listening" || live?.layers.voice === "speaking";
-  // Bounded-rate sampling: the audio feed never re-renders anything above this component.
-  const audio = useAudioSamples(voiceActive, 12);
-
-  const snapshot = useMemo<OrbSnapshot | undefined>(() => {
-    if (!live) return isError ? offlineSnapshot() : undefined;
-    return voiceActive && audio.level > 0 ? { ...live, status: { ...live.status, audioLevel: audio.level } } : live;
-  }, [live, isError, voiceActive, audio.level]);
+  // The audio feed is pulled by the orb inside its animation loop (display rate, no React state, no re-render).
+  const snapshot = useMemo<OrbSnapshot | undefined>(() => live ?? (isError ? offlineSnapshot() : undefined), [live, isError]);
 
   const orbSettings = useMemo<JarvisOrbProps["settings"]>(() => {
     const base = settings?.orb ? orbSettingsFromWire(settings.orb) : {};
-    return forceFallback2D ? { ...base, renderer: "2d" as const } : base;
-  }, [settings?.orb, forceFallback2D]);
+    const size = Math.min(1.5, (base.size ?? 1) * sizeBoost); // the orb clamps to 0.5..1.5 as well
+    return { ...base, size, ...(forceFallback2D ? { renderer: "2d" as const } : {}) };
+  }, [settings?.orb, forceFallback2D, sizeBoost]);
 
   if (!snapshot) return null;
-  return <JarvisOrb snapshot={snapshot} settings={orbSettings} onActivate={onActivate} onVoiceToggle={onVoiceToggle} assistantName={assistantName} locale={locale} className={className} />;
+  return <JarvisOrb snapshot={snapshot} settings={orbSettings} onActivate={onActivate} onVoiceToggle={onVoiceToggle} assistantName={assistantName} getAudioLevel={readAudioLevel} onRendererChange={onRendererChange} locale={locale} className={className} />;
 }

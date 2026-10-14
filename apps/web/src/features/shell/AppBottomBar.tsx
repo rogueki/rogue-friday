@@ -1,9 +1,9 @@
 "use client";
 
-import { BottomCommandBar, Tooltip, useToast, type ContextChip } from "@jarvis/ui";
+import { BottomCommandBar, useToast, type ContextChip } from "@jarvis/ui";
 import { Cloud, MapPin, Wifi, Zap } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { EXECUTIVE_BRIEFING_COMMAND, useVoiceUi } from "@/features/voice/useVoiceUi";
 import { useRunCommand } from "@/features/palette/commandRunner";
 import { useOrbSnapshot } from "@/features/orb/useOrbSnapshot";
@@ -13,17 +13,6 @@ import { useSystemMetrics } from "@/lib/api/domains/system";
 import { useCapability } from "@/lib/capabilities";
 
 const CHIP_ICON = { size: 16, strokeWidth: 1.5 } as const;
-
-/** A context chip whose data source does not exist yet: shows "—" and explains why instead of inventing a value. */
-function unavailableIcon(icon: React.ReactNode, reason: string): React.ReactNode {
-  return (
-    <Tooltip content={reason}>
-      <span tabIndex={0} aria-label={reason} style={{ display: "inline-flex" }}>
-        {icon}
-      </span>
-    </Tooltip>
-  );
-}
 
 export function AppBottomBar() {
   const { t, assistantName } = useT();
@@ -43,26 +32,46 @@ export function AppBottomBar() {
   const paused = orb?.status.mode === "paused";
   const compact = pathname !== "/";
 
+  // PLAN §58: a missing value is never a bare dash; the chip carries the reason (tooltip + accessible name).
   const chips = useMemo<ContextChip[]>(() => {
-    const na = t("common.unavailable");
+    const noSource = t("context.noSource");
     const latency = metrics?.network.latencyMs;
     return [
-      { id: "location", icon: unavailableIcon(<MapPin {...CHIP_ICON} />, na), label: t("context.location"), value: "—" },
-      { id: "weather", icon: unavailableIcon(<Cloud {...CHIP_ICON} />, na), label: t("context.weather"), value: "—" },
+      { id: "location", icon: <MapPin {...CHIP_ICON} />, label: t("context.location"), value: "—", hint: noSource },
+      { id: "weather", icon: <Cloud {...CHIP_ICON} />, label: t("context.weather"), value: "—", hint: noSource },
       latency !== null && latency !== undefined
         ? { id: "network", icon: <Wifi {...CHIP_ICON} />, label: t("context.network"), value: `${Math.round(latency)} ms` }
-        : { id: "network", icon: unavailableIcon(<Wifi {...CHIP_ICON} />, na), label: t("context.network"), value: "—" },
+        : { id: "network", icon: <Wifi {...CHIP_ICON} />, label: t("context.network"), value: "—", hint: t("context.noMeasurement") },
     ];
   }, [metrics?.network.latencyMs, t]);
 
-  const unavailable = (): void => {
+  const unavailableToast = useCallback((): void => {
     toast({ title: t("command.capabilityMissing"), tone: "amber" });
-  };
+  }, [toast, t]);
+
+  const submitText = useCallback(
+    async (text: string): Promise<boolean> => {
+      if (!canExecute) {
+        unavailableToast();
+        return false;
+      }
+      // Same flow as the palette: write/critical commands answer with a server preview that needs confirmation.
+      return (await run({ text, source: "text" })) !== null;
+    },
+    [canExecute, run, unavailableToast],
+  );
+
+  const unavailable = unavailableToast;
 
   return (
     <BottomCommandBar
       chips={chips}
       compact={compact}
+      onSubmitText={submitText}
+      textLabel={t("bottom.text.label")}
+      textPlaceholder={t("bottom.text.placeholder")}
+      textSubmitLabel={t("bottom.text.submit")}
+      textDisabled={!canExecute}
       state={voice.state}
       statusText={voice.statusText}
       levels={voice.audio.level > 0 ? voice.audio.levels : undefined}

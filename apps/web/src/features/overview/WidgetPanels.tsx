@@ -354,7 +354,7 @@ export function MemoryInsightsPanel({ className, style }: PanelProps) {
           </div>
           <div>
             <dt>{t("overview.memory.updated")}</dt>
-            <dd>{formatClockTime(insights?.lastUpdatedAt, { locale, timeZone, hour12 })}</dd>
+            <dd>{insights && !insights.lastUpdatedAt ? t("overview.memory.neverUpdated") : formatClockTime(insights?.lastUpdatedAt, { locale, timeZone, hour12 })}</dd>
           </div>
         </dl>
       </div>

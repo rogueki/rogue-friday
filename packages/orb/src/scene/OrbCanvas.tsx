@@ -1,5 +1,6 @@
 import { Canvas } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useRef, type MutableRefObject } from "react";
+import type { OrbAudioSourceRef } from "../audio/audioSource";
 import type { OrbQualityLevel, OrbSettings } from "../settings";
 import { getQualityProfile } from "../settings";
 import type { VisualTargets } from "../visual/deriveVisualTargets";
@@ -7,6 +8,7 @@ import { OrbScene } from "./OrbScene";
 
 export interface OrbCanvasProps {
   targetsRef: MutableRefObject<VisualTargets>;
+  audioSourceRef?: OrbAudioSourceRef;
   settings: OrbSettings;
   quality: OrbQualityLevel;
   adaptive: boolean;
@@ -20,7 +22,7 @@ export interface OrbCanvasProps {
 }
 
 /** Transparent R3F canvas filling its container. Mounted once; state changes never remount the scene. */
-export function OrbCanvas({ targetsRef, settings, quality, adaptive, active, onQualityChange, onContextLost, onContextRestored, onReady }: OrbCanvasProps) {
+export function OrbCanvas({ targetsRef, audioSourceRef, settings, quality, adaptive, active, onQualityChange, onContextLost, onContextRestored, onReady }: OrbCanvasProps) {
   const lost = useRef(onContextLost);
   const restored = useRef(onContextRestored);
   const ready = useRef(onReady);
@@ -61,7 +63,7 @@ export function OrbCanvas({ targetsRef, settings, quality, adaptive, active, onQ
         ready.current?.();
       }}
     >
-      <OrbScene targetsRef={targetsRef} settings={settings} quality={quality} adaptive={adaptive} onQualityChange={onQualityChange} />
+      <OrbScene targetsRef={targetsRef} audioSourceRef={audioSourceRef} settings={settings} quality={quality} adaptive={adaptive} onQualityChange={onQualityChange} />
     </Canvas>
   );
 }
