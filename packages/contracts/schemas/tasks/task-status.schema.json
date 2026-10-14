@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/tasks/task-status.schema.json",
+  "title": "TaskStatus",
+  "type": "string",
+  "enum": ["triage", "todo", "ready", "running", "waiting", "review", "done", "failed", "cancelled"]
+}

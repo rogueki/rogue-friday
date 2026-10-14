@@ -1,0 +1,19 @@
+{
+  "$schema": "https://jarvis.local/schemas/system/storage-volume.schema.json",
+  "id": "vol_01JCW5E9R2Q7T4M8N3B6V00001",
+  "version": 3,
+  "createdAt": "2026-10-14T06:30:00Z",
+  "updatedAt": "2026-10-14T08:10:00Z",
+  "source": {
+    "adapterId": "mock-system",
+    "system": "mock",
+    "lastSyncedAt": "2026-10-14T08:15:00Z"
+  },
+  "mount": "D:\\",
+  "label": "Daten",
+  "fileSystem": "NTFS",
+  "totalBytes": 2000398934016,
+  "usedBytes": 812000000000,
+  "freeBytes": 1188398934016,
+  "usagePercent": 40.6
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/communication/participant.schema.json",
+  "title": "Participant",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    }
+  },
+  "required": ["name", "address"],
+  "additionalProperties": false
+}

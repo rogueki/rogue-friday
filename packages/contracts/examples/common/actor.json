@@ -1,0 +1,6 @@
+{
+  "$schema": "https://jarvis.local/schemas/common/actor.schema.json",
+  "type": "user",
+  "id": "usr_owner",
+  "name": "Erik"
+}

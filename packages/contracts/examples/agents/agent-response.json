@@ -1,0 +1,46 @@
+{
+  "$schema": "https://jarvis.local/schemas/agents/agent-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "id": "agent_01JCW5E9R2Q7T4M8N3B6V00002",
+    "version": 3,
+    "createdAt": "2026-10-14T06:30:00Z",
+    "updatedAt": "2026-10-14T08:10:00Z",
+    "source": {
+      "adapterId": "mock-agents",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    },
+    "name": "Recherche-Agent",
+    "role": "Web- und Dokumentenrecherche",
+    "description": "Sammelt Quellen, bewertet sie und erstellt Berichte.",
+    "status": "working",
+    "currentTaskId": "task_01JCW5E9R2Q7T4M8N3B6V00001",
+    "model": "Kimi K3",
+    "reasoningLevel": "high",
+    "capabilities": ["web.search", "web.fetch", "summarize", "report.write"],
+    "activeTools": ["web.fetch"],
+    "startedAt": "2026-10-14T07:55:00Z",
+    "runtimeMs": 1200000,
+    "heartbeatAt": "2026-10-14T08:15:00Z",
+    "successRate": 0.94,
+    "performance": {
+      "avgTaskDurationMs": 840000,
+      "tasksCompleted": 47,
+      "tasksFailed": 3,
+      "tokensUsed": 1284000,
+      "costEur": 3.82
+    },
+    "lastActivityAt": "2026-10-14T08:14:00Z",
+    "lastError": null,
+    "accent": "#27dcff",
+    "configuration": {
+      "maxParallelTools": 2,
+      "defaultLanguage": "de"
+    }
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

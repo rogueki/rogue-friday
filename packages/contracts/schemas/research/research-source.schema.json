@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/research/research-source.schema.json",
+  "title": "ResearchSource",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^src_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^rsp_[0-9A-Za-z]{26}$"
+    },
+    "title": {
+      "type": "string"
+    },
+    "domain": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "retrievedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "relevance": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "reliability": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "supportsStatement": {
+      "type": ["string", "null"]
+    },
+    "excerpt": {
+      "type": ["string", "null"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["queued", "retrieved", "failed", "excluded"]
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "projectId",
+    "title",
+    "domain",
+    "retrievedAt",
+    "relevance",
+    "reliability",
+    "supportsStatement",
+    "excerpt",
+    "status"
+  ],
+  "additionalProperties": false
+}

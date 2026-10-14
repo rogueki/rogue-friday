@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/json-schema-object.schema.json",
+  "title": "JsonSchemaObject",
+  "type": "object",
+  "additionalProperties": true,
+  "description": "An embedded JSON Schema document (e.g. an adapter configSchema)."
+}

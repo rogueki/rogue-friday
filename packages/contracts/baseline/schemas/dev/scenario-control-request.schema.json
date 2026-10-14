@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/dev/scenario-control-request.schema.json",
+  "title": "ScenarioControlRequest",
+  "description": "Mock control actions of the scenario console (PLAN §44.6). Discriminated by action.",
+  "oneOf": [
+    {
+      "type": "object",
+      "title": "ScenarioClockAdvance",
+      "properties": {
+        "action": {
+          "const": "clock_advance"
+        },
+        "ms": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": ["action", "ms"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "ScenarioAdapterOffline",
+      "properties": {
+        "action": {
+          "const": "adapter_offline"
+        },
+        "adapterId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "offline": {
+          "type": "boolean"
+        }
+      },
+      "required": ["action", "adapterId", "offline"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "ScenarioLatency",
+      "properties": {
+        "action": {
+          "const": "latency"
+        },
+        "adapterId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        }
+      },
+      "required": ["action", "ms"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "ScenarioErrorRate",
+      "properties": {
+        "action": {
+          "const": "error_rate"
+        },
+        "adapterId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": ["action", "rate"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "ScenarioCapabilityToggle",
+      "properties": {
+        "action": {
+          "const": "capability_toggle"
+        },
+        "module": {
+          "type": "string"
+        },
+        "capability": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": ["action", "module", "capability", "enabled"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "ScenarioForceOrbState",
+      "properties": {
+        "action": {
+          "const": "force_orb_state"
+        },
+        "mode": {
+          "$ref": "../orb/orb-mode.schema.json"
+        },
+        "activityText": {
+          "type": "string"
+        },
+        "audioLevel": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "progress": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": ["action", "mode"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "ScenarioReset",
+      "properties": {
+        "action": {
+          "const": "reset"
+        }
+      },
+      "required": ["action"],
+      "additionalProperties": false
+    }
+  ]
+}

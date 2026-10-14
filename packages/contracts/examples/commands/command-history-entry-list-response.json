@@ -1,0 +1,41 @@
+{
+  "$schema": "https://jarvis.local/schemas/commands/command-history-entry-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "id": "cmd_01JCW5E9R2Q7T4M8N3B6V00001",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-commands",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "text": "Neue Aufgabe: Steuerunterlagen zusammenstellen",
+      "redacted": false,
+      "origin": "palette",
+      "status": "executed",
+      "riskTier": 1,
+      "executedAt": "2026-10-14T07:40:00Z",
+      "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00011",
+      "repeatable": true
+    }
+  ],
+  "pageInfo": {
+    "nextCursor": null,
+    "hasNextPage": false,
+    "totalCount": 1
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "mock-commands",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

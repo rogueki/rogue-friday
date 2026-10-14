@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/calendar/proposal-type.schema.json",
+  "title": "CalendarProposalType",
+  "type": "string",
+  "enum": ["create", "reschedule", "cancel", "invite", "respond"]
+}

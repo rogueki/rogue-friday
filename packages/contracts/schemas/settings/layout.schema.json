@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/layout.schema.json",
+  "title": "Layout",
+  "description": "Overview layout file (PLAN §25.4) on a 12-column grid.",
+  "type": "object",
+  "properties": {
+    "layoutId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "name": {
+      "type": "string"
+    },
+    "columns": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 24
+    },
+    "widgets": {
+      "type": "array",
+      "items": {
+        "$ref": "../settings/layout-widget.schema.json"
+      }
+    }
+  },
+  "required": ["layoutId", "widgets"],
+  "additionalProperties": false
+}

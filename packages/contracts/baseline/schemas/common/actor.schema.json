@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/actor.schema.json",
+  "title": "Actor",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["user", "agent", "system", "adapter"]
+    },
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": ["type", "id"],
+  "additionalProperties": false
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/canonical-resource.schema.json",
+  "title": "CanonicalResource",
+  "description": "Base fields every canonical resource carries (inlined into each resource schema).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z]+_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    }
+  },
+  "required": ["id", "version", "createdAt", "updatedAt", "source"],
+  "additionalProperties": false
+}

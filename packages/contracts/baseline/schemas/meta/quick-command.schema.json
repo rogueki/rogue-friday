@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/meta/quick-command.schema.json",
+  "title": "QuickCommand",
+  "description": "Capability-aware quick action shown on the overview (PLAN §27.8).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string"
+    },
+    "icon": {
+      "type": "string"
+    },
+    "commandText": {
+      "type": ["string", "null"]
+    },
+    "targetRoute": {
+      "type": ["string", "null"]
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "disabledReason": {
+      "type": "string"
+    },
+    "requiredCapability": {
+      "type": "string",
+      "description": "Capability path such as tasks.create."
+    },
+    "requiresConfirmation": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "label",
+    "icon",
+    "commandText",
+    "targetRoute",
+    "enabled",
+    "requiredCapability",
+    "requiresConfirmation"
+  ],
+  "additionalProperties": false
+}

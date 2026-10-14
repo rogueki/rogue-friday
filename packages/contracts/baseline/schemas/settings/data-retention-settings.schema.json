@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/data-retention-settings.schema.json",
+  "title": "DataRetentionSettings",
+  "type": "object",
+  "properties": {
+    "activityDays": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "auditDays": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "voiceHistoryDays": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "notificationDays": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "temporaryFileDays": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "memoryDefaultTtlDays": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    }
+  },
+  "required": [
+    "activityDays",
+    "auditDays",
+    "voiceHistoryDays",
+    "notificationDays",
+    "temporaryFileDays",
+    "memoryDefaultTtlDays"
+  ],
+  "additionalProperties": false
+}

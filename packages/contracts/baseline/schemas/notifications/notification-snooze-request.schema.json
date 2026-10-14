@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/notifications/notification-snooze-request.schema.json",
+  "title": "NotificationSnoozeRequest",
+  "type": "object",
+  "properties": {
+    "until": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "durationMinutes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10080
+    }
+  },
+  "additionalProperties": false,
+  "minProperties": 1
+}

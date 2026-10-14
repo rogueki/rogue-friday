@@ -1,0 +1,5092 @@
+openapi: 3.1.1
+info:
+  title: JARVIS Control API
+  version: 1.0.0
+  summary: Contract of the Jarvis Command Center control API
+  description: Single source of truth for all REST interactions between the dashboard and the Jarvis Control API. The dashboard never talks to adapters or backing systems directly. Real-time events are described in the AsyncAPI document (`asyncapi/jarvis-events.yaml`). Models live in `schemas/` (JSON Schema 2020-12). Breaking changes require a major version bump.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+  - url: http://127.0.0.1:3100
+    description: Local control API (default)
+tags:
+  - name: meta
+    description: Meta, capabilities and adapter health
+  - name: overview
+    description: Aggregated home data and overall status
+  - name: orb
+    description: Semantic orb state
+  - name: auth
+    description: Session, CSRF and re-authentication
+  - name: tasks
+    description: Tasks and Kanban
+  - name: activity
+    description: Live activity and event backfill
+  - name: memory
+    description: Memory
+  - name: agents
+    description: Agents
+  - name: approvals
+    description: Human approvals
+  - name: communication
+    description: Unified inbox, drafts
+  - name: calendar
+    description: Calendar, conflicts, briefings, proposals
+  - name: automations
+    description: Automations and run history
+  - name: research
+    description: Research projects
+  - name: files
+    description: Files and documents
+  - name: voice
+    description: Voice pipeline
+  - name: notifications
+    description: Notifications and alerts
+  - name: system
+    description: Hardware, services, models
+  - name: audit
+    description: Audit trail
+  - name: settings
+    description: Settings, themes, layouts, adapter configuration
+  - name: commands
+    description: Global command bar
+  - name: dev
+    description: Development/QA scenario console (mock mode only)
+security:
+  - cookieAuth: []
+paths:
+  /api/v1/meta:
+    get:
+      operationId: getMeta
+      tags:
+        - meta
+      summary: Bootstrap information (contract version, data mode, event stream location)
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      security: []
+      x-capability: meta.read
+      x-required-role: viewer
+  /api/v1/health:
+    get:
+      operationId: getHealth
+      tags:
+        - meta
+      summary: Liveness and component health of the control API
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      security: []
+      x-capability: meta.read
+      x-required-role: viewer
+  /api/v1/capabilities:
+    get:
+      operationId: getCapabilities
+      tags:
+        - meta
+      summary: Capability discovery for all modules
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Capabilities"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: viewer
+  /api/v1/adapters:
+    get:
+      operationId: listAdapters
+      tags:
+        - meta
+      summary: List registered adapters with manifest and health
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdapterInfoListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: system.read
+      x-required-role: viewer
+  /api/v1/adapters/{id}/health:
+    get:
+      operationId: getAdapterHealth
+      tags:
+        - meta
+      summary: Health of one adapter
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdapterHealthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: system.read
+      x-required-role: viewer
+  /api/v1/overview:
+    get:
+      operationId: getOverview
+      tags:
+        - overview
+      summary: Aggregated home payload
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverviewResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: viewer
+  /api/v1/status:
+    get:
+      operationId: getStatus
+      tags:
+        - overview
+      summary: Compact overall Jarvis status
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JarvisStatusResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: viewer
+  /api/v1/orb/status:
+    get:
+      operationId: getOrbStatus
+      tags:
+        - orb
+      summary: Current semantic orb state with parallel layers
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrbSnapshotResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: viewer
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      tags:
+        - auth
+      summary: Sign in and receive the session cookie
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Set-Cookie:
+              description: HttpOnly, SameSite=Strict session cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      security: []
+      x-required-role: none
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      tags:
+        - auth
+      summary: End the current session
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-required-role: viewer
+  /api/v1/auth/logout-all:
+    post:
+      operationId: logoutAll
+      tags:
+        - auth
+      summary: End all sessions of the current user
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-required-role: viewer
+  /api/v1/auth/session:
+    get:
+      operationId: getSession
+      tags:
+        - auth
+      summary: Current session, role and CSRF token
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      security: []
+      x-required-role: viewer
+  /api/v1/auth/reauth:
+    post:
+      operationId: reauth
+      tags:
+        - auth
+      summary: Re-authenticate for Tier-3 actions and receive a short-lived token
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReauthRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReauthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-required-role: operator
+  /api/v1/tasks:
+    get:
+      operationId: listTasks
+      tags:
+        - tasks
+      summary: List tasks
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filter by status
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/TaskStatus"
+        - name: priority
+          in: query
+          required: false
+          description: Filter by priority
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/Priority"
+        - name: agentId
+          in: query
+          required: false
+          description: Filter by assigned agent
+          schema:
+            type: string
+        - name: label
+          in: query
+          required: false
+          description: Filter by label
+          schema:
+            type: string
+        - name: q
+          in: query
+          required: false
+          description: Full-text query
+          schema:
+            type: string
+        - name: dueBefore
+          in: query
+          required: false
+          description: Only tasks due before this instant
+          schema:
+            type: string
+            format: date-time
+        - name: updatedSince
+          in: query
+          required: false
+          description: Only tasks updated after this instant
+          schema:
+            type: string
+            format: date-time
+        - name: sort
+          in: query
+          required: false
+          description: Sort order
+          schema:
+            type: string
+            enum:
+              - -updatedAt
+              - updatedAt
+              - priority
+              - dueAt
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: tasks.read
+      x-required-role: viewer
+    post:
+      operationId: createTask
+      tags:
+        - tasks
+      summary: Create a task
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskCreateRequest"
+      responses:
+        "201":
+          description: Created
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Location:
+              description: URL of the created resource
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: tasks.create
+      x-required-role: operator
+  /api/v1/tasks/{id}:
+    get:
+      operationId: getTask
+      tags:
+        - tasks
+      summary: Get a task with steps, tool calls and artifacts
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: tasks.read
+      x-required-role: viewer
+    patch:
+      operationId: updateTask
+      tags:
+        - tasks
+      summary: Update a task (also used for Kanban moves)
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskUpdateRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: tasks.update
+      x-required-role: operator
+  /api/v1/tasks/{id}/cancel:
+    post:
+      operationId: cancelTask
+      tags:
+        - tasks
+      summary: Cancel a task
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskActionRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: tasks.cancel
+      x-required-role: operator
+  /api/v1/tasks/{id}/retry:
+    post:
+      operationId: retryTask
+      tags:
+        - tasks
+      summary: Retry a task
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskActionRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: tasks.retry
+      x-required-role: operator
+  /api/v1/tasks/{id}/pause:
+    post:
+      operationId: pauseTask
+      tags:
+        - tasks
+      summary: Pause a task
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskActionRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: tasks.pause
+      x-required-role: operator
+  /api/v1/tasks/{id}/resume:
+    post:
+      operationId: resumeTask
+      tags:
+        - tasks
+      summary: Resume a task
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskActionRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: tasks.resume
+      x-required-role: operator
+  /api/v1/activity:
+    get:
+      operationId: listActivity
+      tags:
+        - activity
+      summary: List activity events; use sinceSequence to backfill after a reconnect
+      parameters:
+        - name: sinceSequence
+          in: query
+          required: false
+          description: Return events with sequence greater than this value, ascending
+          schema:
+            type: integer
+            minimum: 0
+        - name: kind
+          in: query
+          required: false
+          description: Filter by kind
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/ActivityKind"
+        - name: severity
+          in: query
+          required: false
+          description: Filter by severity
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/Severity"
+        - name: agentId
+          in: query
+          required: false
+          description: Filter by agent
+          schema:
+            type: string
+        - name: taskId
+          in: query
+          required: false
+          description: Filter by task
+          schema:
+            type: string
+        - name: tool
+          in: query
+          required: false
+          description: Filter by tool
+          schema:
+            type: string
+        - name: adapterId
+          in: query
+          required: false
+          description: Filter by adapter
+          schema:
+            type: string
+        - name: model
+          in: query
+          required: false
+          description: Filter by model
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Filter by status
+          schema:
+            type: string
+        - name: correlationId
+          in: query
+          required: false
+          description: Filter by correlation id
+          schema:
+            type: string
+        - name: parentId
+          in: query
+          required: false
+          description: Only children of this event
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          description: Start of time range
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          description: End of time range
+          schema:
+            type: string
+            format: date-time
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityEventListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: activity.read
+      x-required-role: viewer
+  /api/v1/activity/{id}:
+    get:
+      operationId: getActivityEvent
+      tags:
+        - activity
+      summary: Get one activity event
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityEventResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: activity.read
+      x-required-role: viewer
+  /api/v1/memory:
+    get:
+      operationId: listMemory
+      tags:
+        - memory
+      summary: List memories
+      parameters:
+        - name: type
+          in: query
+          required: false
+          description: Filter by type
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/MemoryType"
+        - name: sensitivity
+          in: query
+          required: false
+          description: Filter by sensitivity
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/MemorySensitivity"
+        - name: tag
+          in: query
+          required: false
+          description: Filter by tag
+          schema:
+            type: string
+        - name: q
+          in: query
+          required: false
+          description: Keyword query
+          schema:
+            type: string
+        - name: locked
+          in: query
+          required: false
+          description: Only locked memories
+          schema:
+            type: boolean
+        - name: pinned
+          in: query
+          required: false
+          description: Only pinned memories
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: memory.read
+      x-required-role: viewer
+    post:
+      operationId: createMemory
+      tags:
+        - memory
+      summary: Create a memory
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryCreateRequest"
+      responses:
+        "201":
+          description: Created
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Location:
+              description: URL of the created resource
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: memory.write
+      x-required-role: operator
+  /api/v1/memory/{id}:
+    get:
+      operationId: getMemory
+      tags:
+        - memory
+      summary: Get a memory with history and provenance
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: memory.read
+      x-required-role: viewer
+    patch:
+      operationId: updateMemory
+      tags:
+        - memory
+      summary: Edit, lock or confirm a memory
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryUpdateRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: memory.write
+      x-required-role: operator
+    delete:
+      operationId: deleteMemory
+      tags:
+        - memory
+      summary: Forget a memory (audited)
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: memory.delete
+      x-required-role: operator
+  /api/v1/memory/search:
+    post:
+      operationId: searchMemory
+      tags:
+        - memory
+      summary: Semantic search over memories
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemorySearchRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemorySearchResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: memory.search
+      x-required-role: viewer
+  /api/v1/agents:
+    get:
+      operationId: listAgents
+      tags:
+        - agents
+      summary: List agents
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filter by status
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/AgentStatus"
+        - name: q
+          in: query
+          required: false
+          description: Name or role query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: agents.read
+      x-required-role: viewer
+  /api/v1/agents/{id}:
+    get:
+      operationId: getAgent
+      tags:
+        - agents
+      summary: Get one agent
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: agents.read
+      x-required-role: viewer
+  /api/v1/agents/{id}/pause:
+    post:
+      operationId: pauseAgent
+      tags:
+        - agents
+      summary: Pause an agent
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: agents.pause
+      x-required-role: operator
+  /api/v1/agents/{id}/resume:
+    post:
+      operationId: resumeAgent
+      tags:
+        - agents
+      summary: Resume an agent
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: agents.resume
+      x-required-role: operator
+  /api/v1/agents/{id}/stop:
+    post:
+      operationId: stopAgent
+      tags:
+        - agents
+      summary: Stop an agent
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: agents.stop
+      x-required-role: operator
+  /api/v1/approvals:
+    get:
+      operationId: listApprovals
+      tags:
+        - approvals
+      summary: List approvals
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filter by status
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/ApprovalStatus"
+        - name: type
+          in: query
+          required: false
+          description: Filter by type
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/ApprovalType"
+        - name: riskTier
+          in: query
+          required: false
+          description: Filter by risk tier
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/RiskTier"
+        - name: agentId
+          in: query
+          required: false
+          description: Filter by agent
+          schema:
+            type: string
+        - name: taskId
+          in: query
+          required: false
+          description: Filter by task
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: approvals.read
+      x-required-role: viewer
+  /api/v1/approvals/{id}:
+    get:
+      operationId: getApproval
+      tags:
+        - approvals
+      summary: Get one approval
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: approvals.read
+      x-required-role: viewer
+  /api/v1/approvals/{id}/approve:
+    post:
+      operationId: approveApproval
+      tags:
+        - approvals
+      summary: Approve (optionally with edited preview). Tier 3 requires re-authentication.
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalDecisionRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: approvals.decide
+      x-required-role: operator
+  /api/v1/approvals/{id}/reject:
+    post:
+      operationId: rejectApproval
+      tags:
+        - approvals
+      summary: Reject an approval
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalDecisionRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: approvals.decide
+      x-required-role: operator
+  /api/v1/approvals/{id}/request-context:
+    post:
+      operationId: requestApprovalContext
+      tags:
+        - approvals
+      summary: Ask the agent for more context before deciding
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalContextRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: approvals.requestContext
+      x-required-role: operator
+  /api/v1/communication/channels:
+    get:
+      operationId: listChannels
+      tags:
+        - communication
+      summary: List channels with status and capabilities
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: communication.read
+      x-required-role: viewer
+  /api/v1/communication/threads:
+    get:
+      operationId: listThreads
+      tags:
+        - communication
+      summary: Unified inbox
+      parameters:
+        - name: channelId
+          in: query
+          required: false
+          description: Filter by channel
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Filter by thread status
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - open
+                - waiting
+                - replied
+                - archived
+        - name: priority
+          in: query
+          required: false
+          description: Filter by priority
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/Priority"
+        - name: needsReply
+          in: query
+          required: false
+          description: Only threads that need a reply
+          schema:
+            type: boolean
+        - name: hasDraft
+          in: query
+          required: false
+          description: Only threads with a draft
+          schema:
+            type: boolean
+        - name: q
+          in: query
+          required: false
+          description: Full-text query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreadListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: communication.read
+      x-required-role: viewer
+  /api/v1/communication/threads/{id}:
+    get:
+      operationId: getThread
+      tags:
+        - communication
+      summary: Get a thread with messages
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreadResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: communication.read
+      x-required-role: viewer
+  /api/v1/communication/drafts:
+    post:
+      operationId: createDraft
+      tags:
+        - communication
+      summary: Create a draft
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DraftCreateRequest"
+      responses:
+        "201":
+          description: Created
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Location:
+              description: URL of the created resource
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DraftResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: communication.draft
+      x-required-role: operator
+  /api/v1/communication/drafts/{id}:
+    patch:
+      operationId: updateDraft
+      tags:
+        - communication
+      summary: Edit a draft
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DraftUpdateRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DraftResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: communication.draft
+      x-required-role: operator
+  /api/v1/communication/drafts/{id}/request-send:
+    post:
+      operationId: requestDraftSend
+      tags:
+        - communication
+      summary: Request sending; creates an approval, never sends directly
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DraftSendRequest"
+      responses:
+        "202":
+          description: Accepted (approval required)
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: communication.send
+      x-required-role: operator
+  /api/v1/calendar/events:
+    get:
+      operationId: listCalendarEvents
+      tags:
+        - calendar
+      summary: List calendar events in a time range
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: Start of range (inclusive)
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          description: End of range (exclusive)
+          schema:
+            type: string
+            format: date-time
+        - name: q
+          in: query
+          required: false
+          description: Title query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarEventListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: calendar.read
+      x-required-role: viewer
+  /api/v1/calendar/events/{id}:
+    get:
+      operationId: getCalendarEvent
+      tags:
+        - calendar
+      summary: Get one calendar event
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarEventResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: calendar.read
+      x-required-role: viewer
+  /api/v1/calendar/conflicts:
+    get:
+      operationId: listCalendarConflicts
+      tags:
+        - calendar
+      summary: List detected conflicts
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: Start of range
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          description: End of range
+          schema:
+            type: string
+            format: date-time
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarConflictListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: calendar.read
+      x-required-role: viewer
+  /api/v1/calendar/briefings:
+    get:
+      operationId: listCalendarBriefings
+      tags:
+        - calendar
+      summary: List meeting briefings
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          description: Briefing for one event
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarBriefingListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: calendar.read
+      x-required-role: viewer
+  /api/v1/calendar/proposals:
+    post:
+      operationId: createCalendarProposal
+      tags:
+        - calendar
+      summary: Propose a calendar change; goes through approval
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalendarProposalRequest"
+      responses:
+        "201":
+          description: Created
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Location:
+              description: URL of the created resource
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarProposalResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: calendar.propose
+      x-required-role: operator
+  /api/v1/automations:
+    get:
+      operationId: listAutomations
+      tags:
+        - automations
+      summary: List automations
+      parameters:
+        - name: enabled
+          in: query
+          required: false
+          description: Filter by enabled flag
+          schema:
+            type: boolean
+        - name: q
+          in: query
+          required: false
+          description: Name query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: automations.read
+      x-required-role: viewer
+    post:
+      operationId: createAutomation
+      tags:
+        - automations
+      summary: Create an automation
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationCreateRequest"
+      responses:
+        "201":
+          description: Created
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Location:
+              description: URL of the created resource
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: automations.create
+      x-required-role: operator
+  /api/v1/automations/{id}:
+    get:
+      operationId: getAutomation
+      tags:
+        - automations
+      summary: Get one automation
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: automations.read
+      x-required-role: viewer
+    patch:
+      operationId: updateAutomation
+      tags:
+        - automations
+      summary: Update an automation (increments version)
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationUpdateRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: automations.update
+      x-required-role: operator
+  /api/v1/automations/{id}/test:
+    post:
+      operationId: testAutomation
+      tags:
+        - automations
+      summary: Dry run / test with mock data
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationTestRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRunResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: automations.test
+      x-required-role: operator
+  /api/v1/automations/{id}/enable:
+    post:
+      operationId: enableAutomation
+      tags:
+        - automations
+      summary: Enable an automation
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: automations.enable
+      x-required-role: operator
+  /api/v1/automations/{id}/disable:
+    post:
+      operationId: disableAutomation
+      tags:
+        - automations
+      summary: Disable an automation
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: automations.disable
+      x-required-role: operator
+  /api/v1/automations/{id}/runs:
+    get:
+      operationId: listAutomationRuns
+      tags:
+        - automations
+      summary: Run history with trigger reason, conditions and results
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRunListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: automations.read
+      x-required-role: viewer
+  /api/v1/research/projects:
+    get:
+      operationId: listResearchProjects
+      tags:
+        - research
+      summary: List research projects
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Topic query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchProjectListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: research.read
+      x-required-role: viewer
+  /api/v1/research/projects/{id}:
+    get:
+      operationId: getResearchProject
+      tags:
+        - research
+      summary: Get one research project
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchProjectResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: research.read
+      x-required-role: viewer
+  /api/v1/research/projects/{id}/sources:
+    get:
+      operationId: listResearchSources
+      tags:
+        - research
+      summary: Sources of a project
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchSourceListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: research.read
+      x-required-role: viewer
+  /api/v1/research/projects/{id}/findings:
+    get:
+      operationId: listResearchFindings
+      tags:
+        - research
+      summary: Findings with supporting sources and contradictions
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchFindingListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: research.read
+      x-required-role: viewer
+  /api/v1/research/projects/{id}/artifacts:
+    get:
+      operationId: listResearchArtifacts
+      tags:
+        - research
+      summary: Artifacts of a project
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchArtifactListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: research.read
+      x-required-role: viewer
+  /api/v1/files:
+    get:
+      operationId: listFiles
+      tags:
+        - files
+      summary: List files
+      parameters:
+        - name: category
+          in: query
+          required: false
+          description: Filter by category
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/FileCategory"
+        - name: taskId
+          in: query
+          required: false
+          description: Filter by originating task
+          schema:
+            type: string
+        - name: tag
+          in: query
+          required: false
+          description: Filter by tag
+          schema:
+            type: string
+        - name: q
+          in: query
+          required: false
+          description: Name query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileItemListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: files.read
+      x-required-role: viewer
+  /api/v1/files/{id}:
+    get:
+      operationId: getFile
+      tags:
+        - files
+      summary: Get file metadata, versions and lineage
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileItemResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: files.read
+      x-required-role: viewer
+    delete:
+      operationId: deleteFile
+      tags:
+        - files
+      summary: Delete a file; may respond 202 with an approval
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "202":
+          description: Approval required before execution
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: files.delete
+      x-required-role: operator
+  /api/v1/files/{id}/preview:
+    get:
+      operationId: getFilePreview
+      tags:
+        - files
+      summary: Sandboxed preview of a file
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilePreviewResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: files.preview
+      x-required-role: viewer
+  /api/v1/files/{id}/download:
+    get:
+      operationId: downloadFile
+      tags:
+        - files
+      summary: Download file content
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - name: version
+          in: query
+          required: false
+          description: File version, default current
+          schema:
+            type: integer
+            minimum: 1
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: File content
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Content-Disposition:
+              description: Attachment file name
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                contentMediaType: application/octet-stream
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: files.download
+      x-required-role: viewer
+  /api/v1/voice/status:
+    get:
+      operationId: getVoiceStatus
+      tags:
+        - voice
+      summary: Voice pipeline status
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceStatusResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: voice.read
+      x-required-role: viewer
+  /api/v1/voice/devices:
+    get:
+      operationId: listVoiceDevices
+      tags:
+        - voice
+      summary: Audio devices
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceDeviceListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: voice.read
+      x-required-role: viewer
+  /api/v1/voice/metrics:
+    get:
+      operationId: getVoiceMetrics
+      tags:
+        - voice
+      summary: Voice pipeline latencies
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceMetricsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: voice.read
+      x-required-role: viewer
+  /api/v1/voice/profiles:
+    get:
+      operationId: listVoiceProfiles
+      tags:
+        - voice
+      summary: Enrolled voice profiles
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceProfileListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: voice.read
+      x-required-role: viewer
+  /api/v1/voice/test:
+    post:
+      operationId: runVoiceTest
+      tags:
+        - voice
+      summary: Run a voice pipeline test
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceTestRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceTestResultResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: voice.test
+      x-required-role: operator
+  /api/v1/voice/stop:
+    post:
+      operationId: stopVoice
+      tags:
+        - voice
+      summary: Stop listening / speaking immediately
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: voice.stop
+      x-required-role: operator
+  /api/v1/notifications:
+    get:
+      operationId: listNotifications
+      tags:
+        - notifications
+      summary: List notifications
+      parameters:
+        - name: priority
+          in: query
+          required: false
+          description: Filter by priority
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/Priority"
+        - name: status
+          in: query
+          required: false
+          description: Filter by status
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - open
+                - acknowledged
+                - snoozed
+                - resolved
+        - name: category
+          in: query
+          required: false
+          description: Filter by category
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: notifications.read
+      x-required-role: viewer
+  /api/v1/notifications/{id}/acknowledge:
+    post:
+      operationId: acknowledgeNotification
+      tags:
+        - notifications
+      summary: Acknowledge (stops escalation)
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationActionRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: notifications.acknowledge
+      x-required-role: operator
+  /api/v1/notifications/{id}/snooze:
+    post:
+      operationId: snoozeNotification
+      tags:
+        - notifications
+      summary: Snooze a notification
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationSnoozeRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: notifications.snooze
+      x-required-role: operator
+  /api/v1/notifications/{id}/resolve:
+    post:
+      operationId: resolveNotification
+      tags:
+        - notifications
+      summary: Resolve a notification
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationActionRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: notifications.resolve
+      x-required-role: operator
+  /api/v1/system/metrics:
+    get:
+      operationId: getSystemMetrics
+      tags:
+        - system
+      summary: Hardware metrics
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemMetricsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: system.read
+      x-required-role: viewer
+  /api/v1/system/services:
+    get:
+      operationId: listServices
+      tags:
+        - system
+      summary: Monitored services
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: system.read
+      x-required-role: viewer
+  /api/v1/system/storage:
+    get:
+      operationId: listStorageVolumes
+      tags:
+        - system
+      summary: Storage volumes (D:\ and others)
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageVolumeListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: system.read
+      x-required-role: viewer
+  /api/v1/system/models:
+    get:
+      operationId: listModelProviders
+      tags:
+        - system
+      summary: Model providers
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelProviderListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: system.read
+      x-required-role: viewer
+  /api/v1/system/services/{id}/healthcheck:
+    post:
+      operationId: runServiceHealthcheck
+      tags:
+        - system
+      summary: Trigger a healthcheck of a service
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthcheckResultResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: system.healthcheck
+      x-required-role: operator
+  /api/v1/audit/events:
+    get:
+      operationId: listAuditEvents
+      tags:
+        - audit
+      summary: List audit events
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: Start of time range
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          description: End of time range
+          schema:
+            type: string
+            format: date-time
+        - name: actor
+          in: query
+          required: false
+          description: Actor id
+          schema:
+            type: string
+        - name: agentId
+          in: query
+          required: false
+          description: Agent
+          schema:
+            type: string
+        - name: taskId
+          in: query
+          required: false
+          description: Task
+          schema:
+            type: string
+        - name: tool
+          in: query
+          required: false
+          description: Tool
+          schema:
+            type: string
+        - name: adapterId
+          in: query
+          required: false
+          description: Adapter
+          schema:
+            type: string
+        - name: action
+          in: query
+          required: false
+          description: Action name prefix
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          description: Filter by category
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - user_action
+                - agent_action
+                - tool_call
+                - approval
+                - system
+                - security
+        - name: severity
+          in: query
+          required: false
+          description: Filter by severity
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/Severity"
+        - name: result
+          in: query
+          required: false
+          description: Filter by result
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - success
+                - failure
+                - denied
+                - pending
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEventListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: audit.read
+      x-required-role: viewer
+  /api/v1/audit/events/{id}:
+    get:
+      operationId: getAuditEvent
+      tags:
+        - audit
+      summary: Get one audit event with before/after and child events
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEventResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: audit.read
+      x-required-role: viewer
+  /api/v1/audit/export:
+    get:
+      operationId: exportAudit
+      tags:
+        - audit
+      summary: Export audit events
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: Start of time range
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          description: End of time range
+          schema:
+            type: string
+            format: date-time
+        - name: format
+          in: query
+          required: false
+          description: Export format
+          schema:
+            type: string
+            enum:
+              - json
+              - ndjson
+              - csv
+            default: ndjson
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Audit export
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEventListResponse"
+            application/x-ndjson:
+              schema:
+                type: string
+            text/csv:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: audit.export
+      x-required-role: owner
+  /api/v1/settings:
+    get:
+      operationId: getSettings
+      tags:
+        - settings
+      summary: Get all settings areas
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: viewer
+    patch:
+      operationId: updateSettings
+      tags:
+        - settings
+      summary: Replace the supplied settings areas
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsPatch"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/schema:
+    get:
+      operationId: getSettingsSchema
+      tags:
+        - settings
+      summary: JSON Schema of the settings document
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsSchemaResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: viewer
+  /api/v1/settings/adapters:
+    get:
+      operationId: listAdapterSettings
+      tags:
+        - settings
+      summary: Adapter configuration (secrets masked)
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdapterConfigSettingsListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: system.read
+      x-required-role: owner
+  /api/v1/settings/adapters/{id}:
+    patch:
+      operationId: updateAdapterSettings
+      tags:
+        - settings
+      summary: Update adapter configuration; secrets are write-only
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdapterConfigPatch"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdapterConfigSettingsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: system.read
+      x-required-role: owner
+  /api/v1/settings/adapters/{id}/test:
+    post:
+      operationId: testAdapterSettings
+      tags:
+        - settings
+      summary: Test the connection of an adapter configuration
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdapterTestResultResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: system.read
+      x-required-role: owner
+  /api/v1/settings/themes:
+    get:
+      operationId: listThemes
+      tags:
+        - settings
+      summary: Available themes
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThemeListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: viewer
+  /api/v1/settings/themes/import:
+    post:
+      operationId: importTheme
+      tags:
+        - settings
+      summary: Import a theme (schema-validated)
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThemeImportRequest"
+      responses:
+        "201":
+          description: Created
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Location:
+              description: URL of the created resource
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThemeResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/layouts:
+    get:
+      operationId: listLayouts
+      tags:
+        - settings
+      summary: Available overview layouts
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LayoutListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: viewer
+  /api/v1/settings/layouts/import:
+    post:
+      operationId: importLayout
+      tags:
+        - settings
+      summary: Import a layout (schema-validated)
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LayoutImportRequest"
+      responses:
+        "201":
+          description: Created
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Location:
+              description: URL of the created resource
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LayoutResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/export:
+    get:
+      operationId: exportSettings
+      tags:
+        - settings
+      summary: Export settings, themes and layouts (never secrets)
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsExport"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/import:
+    post:
+      operationId: importSettings
+      tags:
+        - settings
+      summary: Import a settings export (schema-validated)
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsExport"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/commands:
+    post:
+      operationId: executeCommand
+      tags:
+        - commands
+      summary: Execute a command; write actions first return a preview
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommandRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: commands.execute
+      x-required-role: operator
+  /api/v1/commands/stop:
+    post:
+      operationId: stopCommand
+      tags:
+        - commands
+      summary: Stop current work
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommandControlRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: commands.stop
+      x-required-role: operator
+  /api/v1/commands/pause:
+    post:
+      operationId: pauseCommand
+      tags:
+        - commands
+      summary: Pause work (agents, automations, voice)
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommandControlRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: commands.pause
+      x-required-role: operator
+  /api/v1/commands/resume:
+    post:
+      operationId: resumeCommand
+      tags:
+        - commands
+      summary: Resume paused work
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommandControlRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: commands.resume
+      x-required-role: operator
+  /api/v1/commands/history:
+    get:
+      operationId: listCommandHistory
+      tags:
+        - commands
+      summary: Recent commands (sensitive ones redacted)
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandHistoryEntryListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: commands.history
+      x-required-role: viewer
+  /api/v1/dev/scenarios:
+    get:
+      operationId: listScenarios
+      tags:
+        - dev
+      summary: List mock scenarios (development/QA only)
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-required-role: owner
+      x-dev-only: true
+  /api/v1/dev/scenarios/{id}/play:
+    post:
+      operationId: playScenario
+      tags:
+        - dev
+      summary: Play a scenario
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioStateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-required-role: owner
+      x-dev-only: true
+  /api/v1/dev/scenarios/control:
+    post:
+      operationId: controlScenario
+      tags:
+        - dev
+      summary: Clock, adapter outage, latency, error rate, capability and orb overrides
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScenarioControlRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioStateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-required-role: owner
+      x-dev-only: true
+  /api/v1/dev/scenarios/state:
+    get:
+      operationId: getScenarioState
+      tags:
+        - dev
+      summary: Current mock engine state
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioStateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-required-role: owner
+      x-dev-only: true
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: jarvis_session
+      description: HttpOnly, SameSite=Strict session cookie. Mutating requests additionally need X-CSRF-Token.
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from pageInfo.nextCursor
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Page size
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    PathId:
+      name: id
+      in: path
+      required: true
+      description: Opaque resource id (prefix identifies the type)
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers.
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Repeated keys replay the stored response instead of executing again.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      description: Generated by the server when absent; echoed in the response.
+      schema:
+        type: string
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: false
+      description: CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests.
+      schema:
+        type: string
+  headers:
+    CorrelationId:
+      description: Correlation id of this request
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: Malformed request
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Not authenticated (UNAUTHENTICATED, REAUTH_REQUIRED)
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Not allowed (FORBIDDEN, CSRF_INVALID, CAPABILITY_MISSING, APPROVAL_REQUIRED)
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found (NOT_FOUND)
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Version conflict or idempotency key reuse (CONFLICT, IDEMPOTENCY_CONFLICT)
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnprocessableEntity:
+      description: Validation failed (VALIDATION_FAILED)
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    TooManyRequests:
+      description: Rate limited (RATE_LIMITED)
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: Adapter unavailable or timed out (ADAPTER_UNAVAILABLE, ADAPTER_TIMEOUT, INTERNAL)
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    ActionResult:
+      $ref: ../schemas/common/action-result.schema.json
+    ActivityEvent:
+      $ref: ../schemas/activity/activity-event.schema.json
+    ActivityEventListResponse:
+      $ref: ../schemas/activity/activity-event-list-response.schema.json
+    ActivityEventResponse:
+      $ref: ../schemas/activity/activity-event-response.schema.json
+    ActivityKind:
+      $ref: ../schemas/activity/activity-kind.schema.json
+    Actor:
+      $ref: ../schemas/common/actor.schema.json
+    AdapterCategory:
+      $ref: ../schemas/meta/adapter-category.schema.json
+    AdapterConfigPatch:
+      $ref: ../schemas/settings/adapter-config-patch.schema.json
+    AdapterConfigSettings:
+      $ref: ../schemas/settings/adapter-config-settings.schema.json
+    AdapterConfigSettingsListResponse:
+      $ref: ../schemas/settings/adapter-config-settings-list-response.schema.json
+    AdapterConfigSettingsResponse:
+      $ref: ../schemas/settings/adapter-config-settings-response.schema.json
+    AdapterHealth:
+      $ref: ../schemas/meta/adapter-health.schema.json
+    AdapterHealthResponse:
+      $ref: ../schemas/meta/adapter-health-response.schema.json
+    AdapterInfo:
+      $ref: ../schemas/meta/adapter-info.schema.json
+    AdapterInfoListResponse:
+      $ref: ../schemas/meta/adapter-info-list-response.schema.json
+    AdapterLifecycle:
+      $ref: ../schemas/meta/adapter-lifecycle.schema.json
+    AdapterManifest:
+      $ref: ../schemas/meta/adapter-manifest.schema.json
+    AdapterTestResult:
+      $ref: ../schemas/settings/adapter-test-result.schema.json
+    AdapterTestResultResponse:
+      $ref: ../schemas/settings/adapter-test-result-response.schema.json
+    Agent:
+      $ref: ../schemas/agents/agent.schema.json
+    AgentHeartbeat:
+      $ref: ../schemas/events/agent-heartbeat.schema.json
+    AgentListResponse:
+      $ref: ../schemas/agents/agent-list-response.schema.json
+    AgentPerformance:
+      $ref: ../schemas/agents/agent-performance.schema.json
+    AgentResponse:
+      $ref: ../schemas/agents/agent-response.schema.json
+    AgentStatus:
+      $ref: ../schemas/agents/agent-status.schema.json
+    Approval:
+      $ref: ../schemas/approvals/approval.schema.json
+    ApprovalContextRequest:
+      $ref: ../schemas/approvals/approval-context-request.schema.json
+    ApprovalDecisionRequest:
+      $ref: ../schemas/approvals/approval-decision-request.schema.json
+    ApprovalImpact:
+      $ref: ../schemas/approvals/approval-impact.schema.json
+    ApprovalListResponse:
+      $ref: ../schemas/approvals/approval-list-response.schema.json
+    ApprovalPreview:
+      $ref: ../schemas/approvals/approval-preview.schema.json
+    ApprovalResponse:
+      $ref: ../schemas/approvals/approval-response.schema.json
+    ApprovalSettings:
+      $ref: ../schemas/settings/approvals-settings.schema.json
+    ApprovalStatus:
+      $ref: ../schemas/approvals/approval-status.schema.json
+    ApprovalType:
+      $ref: ../schemas/approvals/approval-type.schema.json
+    ArtifactRef:
+      $ref: ../schemas/tasks/artifact-ref.schema.json
+    Attachment:
+      $ref: ../schemas/communication/attachment.schema.json
+    Attendee:
+      $ref: ../schemas/calendar/attendee.schema.json
+    AttentionItem:
+      $ref: ../schemas/meta/attention-item.schema.json
+    AuditEvent:
+      $ref: ../schemas/audit/audit-event.schema.json
+    AuditEventListResponse:
+      $ref: ../schemas/audit/audit-event-list-response.schema.json
+    AuditEventResponse:
+      $ref: ../schemas/audit/audit-event-response.schema.json
+    Automation:
+      $ref: ../schemas/automations/automation.schema.json
+    AutomationAction:
+      $ref: ../schemas/automations/automation-action.schema.json
+    AutomationCondition:
+      $ref: ../schemas/automations/automation-condition.schema.json
+    AutomationCreateRequest:
+      $ref: ../schemas/automations/automation-create-request.schema.json
+    AutomationListResponse:
+      $ref: ../schemas/automations/automation-list-response.schema.json
+    AutomationResponse:
+      $ref: ../schemas/automations/automation-response.schema.json
+    AutomationRun:
+      $ref: ../schemas/automations/automation-run.schema.json
+    AutomationRunListResponse:
+      $ref: ../schemas/automations/automation-run-list-response.schema.json
+    AutomationRunResponse:
+      $ref: ../schemas/automations/automation-run-response.schema.json
+    AutomationTestRequest:
+      $ref: ../schemas/automations/automation-test-request.schema.json
+    AutomationTrigger:
+      $ref: ../schemas/automations/automation-trigger.schema.json
+    AutomationUpdateRequest:
+      $ref: ../schemas/automations/automation-update-request.schema.json
+    BackupSettings:
+      $ref: ../schemas/settings/backups-settings.schema.json
+    CalendarBriefing:
+      $ref: ../schemas/calendar/calendar-briefing.schema.json
+    CalendarBriefingListResponse:
+      $ref: ../schemas/calendar/calendar-briefing-list-response.schema.json
+    CalendarBriefingResponse:
+      $ref: ../schemas/calendar/calendar-briefing-response.schema.json
+    CalendarConflict:
+      $ref: ../schemas/calendar/calendar-conflict.schema.json
+    CalendarConflictListResponse:
+      $ref: ../schemas/calendar/calendar-conflict-list-response.schema.json
+    CalendarConflictResponse:
+      $ref: ../schemas/calendar/calendar-conflict-response.schema.json
+    CalendarEvent:
+      $ref: ../schemas/calendar/calendar-event.schema.json
+    CalendarEventListResponse:
+      $ref: ../schemas/calendar/calendar-event-list-response.schema.json
+    CalendarEventResponse:
+      $ref: ../schemas/calendar/calendar-event-response.schema.json
+    CalendarProposal:
+      $ref: ../schemas/calendar/calendar-proposal.schema.json
+    CalendarProposalRequest:
+      $ref: ../schemas/calendar/calendar-proposal-request.schema.json
+    CalendarProposalResponse:
+      $ref: ../schemas/calendar/calendar-proposal-response.schema.json
+    CalendarProposalType:
+      $ref: ../schemas/calendar/proposal-type.schema.json
+    CanonicalResource:
+      $ref: ../schemas/common/canonical-resource.schema.json
+    Capabilities:
+      $ref: ../schemas/meta/capabilities.schema.json
+    Channel:
+      $ref: ../schemas/communication/channel.schema.json
+    ChannelKind:
+      $ref: ../schemas/communication/channel-kind.schema.json
+    ChannelListResponse:
+      $ref: ../schemas/communication/channel-list-response.schema.json
+    ChannelResponse:
+      $ref: ../schemas/communication/channel-response.schema.json
+    ChannelStatus:
+      $ref: ../schemas/communication/channel-status.schema.json
+    CommandControlRequest:
+      $ref: ../schemas/commands/command-control-request.schema.json
+    CommandHistoryEntry:
+      $ref: ../schemas/commands/command-history-entry.schema.json
+    CommandHistoryEntryListResponse:
+      $ref: ../schemas/commands/command-history-entry-list-response.schema.json
+    CommandRequest:
+      $ref: ../schemas/commands/command-request.schema.json
+    CommandResponse:
+      $ref: ../schemas/commands/command-response.schema.json
+    ContractVersion:
+      $ref: ../schemas/common/contract-version.schema.json
+    ControlFrame:
+      $ref: ../schemas/events/control-frame.schema.json
+    DashboardSettings:
+      $ref: ../schemas/settings/dashboard-settings.schema.json
+    DataRetentionSettings:
+      $ref: ../schemas/settings/data-retention-settings.schema.json
+    DeveloperSettings:
+      $ref: ../schemas/settings/developer-settings.schema.json
+    Draft:
+      $ref: ../schemas/communication/draft.schema.json
+    DraftCreateRequest:
+      $ref: ../schemas/communication/draft-create-request.schema.json
+    DraftListResponse:
+      $ref: ../schemas/communication/draft-list-response.schema.json
+    DraftResponse:
+      $ref: ../schemas/communication/draft-response.schema.json
+    DraftSendRequest:
+      $ref: ../schemas/communication/draft-send-request.schema.json
+    DraftStatus:
+      $ref: ../schemas/communication/draft-status.schema.json
+    DraftUpdateRequest:
+      $ref: ../schemas/communication/draft-update-request.schema.json
+    EntityRef:
+      $ref: ../schemas/common/entity-ref.schema.json
+    ErrorCode:
+      $ref: ../schemas/common/error-code.schema.json
+    ErrorDetail:
+      $ref: ../schemas/common/error-detail.schema.json
+    ErrorResponse:
+      $ref: ../schemas/common/error.schema.json
+    EscalationStep:
+      $ref: ../schemas/automations/escalation-step.schema.json
+    EventEnvelope:
+      $ref: ../schemas/events/event-envelope.schema.json
+    FileCategory:
+      $ref: ../schemas/files/file-category.schema.json
+    FileItem:
+      $ref: ../schemas/files/file-item.schema.json
+    FileItemListResponse:
+      $ref: ../schemas/files/file-item-list-response.schema.json
+    FileItemResponse:
+      $ref: ../schemas/files/file-item-response.schema.json
+    FileLineageEntry:
+      $ref: ../schemas/files/file-lineage-entry.schema.json
+    FilePreview:
+      $ref: ../schemas/files/file-preview.schema.json
+    FilePreviewKind:
+      $ref: ../schemas/files/preview-kind.schema.json
+    FilePreviewResponse:
+      $ref: ../schemas/files/file-preview-response.schema.json
+    FileVersion:
+      $ref: ../schemas/files/file-version.schema.json
+    Freshness:
+      $ref: ../schemas/common/freshness.schema.json
+    FreshnessState:
+      $ref: ../schemas/common/freshness-state.schema.json
+    Health:
+      $ref: ../schemas/meta/health.schema.json
+    HealthcheckResult:
+      $ref: ../schemas/system/healthcheck-result.schema.json
+    HealthcheckResultResponse:
+      $ref: ../schemas/system/healthcheck-result-response.schema.json
+    HealthStatus:
+      $ref: ../schemas/common/health-status.schema.json
+    JarvisStatus:
+      $ref: ../schemas/meta/jarvis-status.schema.json
+    JarvisStatusResponse:
+      $ref: ../schemas/meta/jarvis-status-response.schema.json
+    JsonSchemaObject:
+      $ref: ../schemas/common/json-schema-object.schema.json
+    LatencyStat:
+      $ref: ../schemas/voice/latency-stat.schema.json
+    Layout:
+      $ref: ../schemas/settings/layout.schema.json
+    LayoutImportRequest:
+      $ref: ../schemas/settings/layout-import-request.schema.json
+    LayoutListResponse:
+      $ref: ../schemas/settings/layout-list-response.schema.json
+    LayoutResponse:
+      $ref: ../schemas/settings/layout-response.schema.json
+    LayoutWidget:
+      $ref: ../schemas/settings/layout-widget.schema.json
+    ListEnvelope:
+      $ref: ../schemas/common/list-envelope.schema.json
+    LoginRequest:
+      $ref: ../schemas/auth/login-request.schema.json
+    Memory:
+      $ref: ../schemas/memory/memory.schema.json
+    MemoryConflict:
+      $ref: ../schemas/memory/memory-conflict.schema.json
+    MemoryCreateRequest:
+      $ref: ../schemas/memory/memory-create-request.schema.json
+    MemoryEntity:
+      $ref: ../schemas/memory/memory-entity.schema.json
+    MemoryHistoryEntry:
+      $ref: ../schemas/memory/memory-history-entry.schema.json
+    MemoryListResponse:
+      $ref: ../schemas/memory/memory-list-response.schema.json
+    MemoryProvenance:
+      $ref: ../schemas/memory/memory-provenance.schema.json
+    MemoryResponse:
+      $ref: ../schemas/memory/memory-response.schema.json
+    MemorySearchHit:
+      $ref: ../schemas/memory/memory-search-hit.schema.json
+    MemorySearchRequest:
+      $ref: ../schemas/memory/memory-search-request.schema.json
+    MemorySearchResponse:
+      $ref: ../schemas/memory/memory-search-response.schema.json
+    MemorySensitivity:
+      $ref: ../schemas/memory/memory-sensitivity.schema.json
+    MemoryType:
+      $ref: ../schemas/memory/memory-type.schema.json
+    MemoryUpdateRequest:
+      $ref: ../schemas/memory/memory-update-request.schema.json
+    Message:
+      $ref: ../schemas/communication/message.schema.json
+    MessageListResponse:
+      $ref: ../schemas/communication/message-list-response.schema.json
+    MessageResponse:
+      $ref: ../schemas/communication/message-response.schema.json
+    Meta:
+      $ref: ../schemas/meta/meta.schema.json
+    ModelProvider:
+      $ref: ../schemas/system/model-provider.schema.json
+    ModelProviderListResponse:
+      $ref: ../schemas/system/model-provider-list-response.schema.json
+    ModelsRoutingSettings:
+      $ref: ../schemas/settings/models-routing-settings.schema.json
+    NavigationSettings:
+      $ref: ../schemas/settings/navigation-settings.schema.json
+    Notification:
+      $ref: ../schemas/notifications/notification.schema.json
+    NotificationActionRequest:
+      $ref: ../schemas/notifications/notification-action-request.schema.json
+    NotificationListResponse:
+      $ref: ../schemas/notifications/notification-list-response.schema.json
+    NotificationResponse:
+      $ref: ../schemas/notifications/notification-response.schema.json
+    NotificationSettings:
+      $ref: ../schemas/settings/notifications-settings.schema.json
+    NotificationSnoozeRequest:
+      $ref: ../schemas/notifications/notification-snooze-request.schema.json
+    OrbHealth:
+      $ref: ../schemas/orb/orb-health.schema.json
+    OrbLayers:
+      $ref: ../schemas/orb/orb-layers.schema.json
+    OrbMode:
+      $ref: ../schemas/orb/orb-mode.schema.json
+    OrbProgressMode:
+      $ref: ../schemas/orb/orb-progress-mode.schema.json
+    OrbSettings:
+      $ref: ../schemas/settings/orb-settings.schema.json
+    OrbSnapshot:
+      $ref: ../schemas/orb/orb-snapshot.schema.json
+    OrbSnapshotResponse:
+      $ref: ../schemas/orb/orb-snapshot-response.schema.json
+    OrbStatus:
+      $ref: ../schemas/orb/orb-status.schema.json
+    OrbUrgency:
+      $ref: ../schemas/orb/orb-urgency.schema.json
+    Overview:
+      $ref: ../schemas/meta/overview.schema.json
+    OverviewResponse:
+      $ref: ../schemas/meta/overview-response.schema.json
+    PageInfo:
+      $ref: ../schemas/common/page-info.schema.json
+    Participant:
+      $ref: ../schemas/communication/participant.schema.json
+    Priority:
+      $ref: ../schemas/common/priority.schema.json
+    ProfileSettings:
+      $ref: ../schemas/settings/profile-settings.schema.json
+    Progress:
+      $ref: ../schemas/common/progress.schema.json
+    QuickCommand:
+      $ref: ../schemas/meta/quick-command.schema.json
+    ReasoningLevel:
+      $ref: ../schemas/agents/reasoning-level.schema.json
+    ReauthRequest:
+      $ref: ../schemas/auth/reauth-request.schema.json
+    ReauthResponse:
+      $ref: ../schemas/auth/reauth-response.schema.json
+    RequiredAuth:
+      $ref: ../schemas/approvals/required-auth.schema.json
+    ResearchArtifact:
+      $ref: ../schemas/research/research-artifact.schema.json
+    ResearchArtifactListResponse:
+      $ref: ../schemas/research/research-artifact-list-response.schema.json
+    ResearchArtifactResponse:
+      $ref: ../schemas/research/research-artifact-response.schema.json
+    ResearchFinding:
+      $ref: ../schemas/research/research-finding.schema.json
+    ResearchFindingListResponse:
+      $ref: ../schemas/research/research-finding-list-response.schema.json
+    ResearchFindingResponse:
+      $ref: ../schemas/research/research-finding-response.schema.json
+    ResearchProject:
+      $ref: ../schemas/research/research-project.schema.json
+    ResearchProjectListResponse:
+      $ref: ../schemas/research/research-project-list-response.schema.json
+    ResearchProjectResponse:
+      $ref: ../schemas/research/research-project-response.schema.json
+    ResearchSource:
+      $ref: ../schemas/research/research-source.schema.json
+    ResearchSourceListResponse:
+      $ref: ../schemas/research/research-source-list-response.schema.json
+    ResearchSourceResponse:
+      $ref: ../schemas/research/research-source-response.schema.json
+    ResourceDeleted:
+      $ref: ../schemas/common/resource-deleted.schema.json
+    ResyncRequired:
+      $ref: ../schemas/events/resync-required.schema.json
+    RiskTier:
+      $ref: ../schemas/approvals/risk-tier.schema.json
+    Role:
+      $ref: ../schemas/auth/role.schema.json
+    Scenario:
+      $ref: ../schemas/dev/scenario.schema.json
+    ScenarioControlRequest:
+      $ref: ../schemas/dev/scenario-control-request.schema.json
+    ScenarioListResponse:
+      $ref: ../schemas/dev/scenario-list-response.schema.json
+    ScenarioResponse:
+      $ref: ../schemas/dev/scenario-response.schema.json
+    ScenarioState:
+      $ref: ../schemas/dev/scenario-state.schema.json
+    ScenarioStateResponse:
+      $ref: ../schemas/dev/scenario-state-response.schema.json
+    SecretStatus:
+      $ref: ../schemas/common/secret-status.schema.json
+    SecuritySettings:
+      $ref: ../schemas/settings/security-settings.schema.json
+    Service:
+      $ref: ../schemas/system/service.schema.json
+    ServiceListResponse:
+      $ref: ../schemas/system/service-list-response.schema.json
+    ServiceResponse:
+      $ref: ../schemas/system/service-response.schema.json
+    Session:
+      $ref: ../schemas/auth/session.schema.json
+    SessionResponse:
+      $ref: ../schemas/auth/session-response.schema.json
+    Settings:
+      $ref: ../schemas/settings/settings.schema.json
+    SettingsExport:
+      $ref: ../schemas/settings/settings-export.schema.json
+    SettingsPatch:
+      $ref: ../schemas/settings/settings-patch.schema.json
+    SettingsResponse:
+      $ref: ../schemas/settings/settings-response.schema.json
+    SettingsSchema:
+      $ref: ../schemas/settings/settings-schema.schema.json
+    SettingsSchemaResponse:
+      $ref: ../schemas/settings/settings-schema-response.schema.json
+    Severity:
+      $ref: ../schemas/common/severity.schema.json
+    SingleEnvelope:
+      $ref: ../schemas/common/single-envelope.schema.json
+    SourceDescriptor:
+      $ref: ../schemas/common/source-descriptor.schema.json
+    StorageVolume:
+      $ref: ../schemas/system/storage-volume.schema.json
+    StorageVolumeListResponse:
+      $ref: ../schemas/system/storage-volume-list-response.schema.json
+    SystemMetrics:
+      $ref: ../schemas/system/system-metrics.schema.json
+    SystemMetricsResponse:
+      $ref: ../schemas/system/system-metrics-response.schema.json
+    Task:
+      $ref: ../schemas/tasks/task.schema.json
+    TaskActionRequest:
+      $ref: ../schemas/tasks/task-action-request.schema.json
+    TaskBlocker:
+      $ref: ../schemas/tasks/task-blocker.schema.json
+    TaskCreateRequest:
+      $ref: ../schemas/tasks/task-create-request.schema.json
+    TaskListResponse:
+      $ref: ../schemas/tasks/task-list-response.schema.json
+    TaskProgressEvent:
+      $ref: ../schemas/events/task-progress.schema.json
+    TaskResponse:
+      $ref: ../schemas/tasks/task-response.schema.json
+    TaskStatus:
+      $ref: ../schemas/tasks/task-status.schema.json
+    TaskStep:
+      $ref: ../schemas/tasks/task-step.schema.json
+    TaskToolCall:
+      $ref: ../schemas/tasks/task-tool-call.schema.json
+    TaskUpdateRequest:
+      $ref: ../schemas/tasks/task-update-request.schema.json
+    Theme:
+      $ref: ../schemas/settings/theme.schema.json
+    ThemeImportRequest:
+      $ref: ../schemas/settings/theme-import-request.schema.json
+    ThemeListResponse:
+      $ref: ../schemas/settings/theme-list-response.schema.json
+    ThemeResponse:
+      $ref: ../schemas/settings/theme-response.schema.json
+    ThemeSettings:
+      $ref: ../schemas/settings/theme-settings.schema.json
+    Thread:
+      $ref: ../schemas/communication/thread.schema.json
+    ThreadListResponse:
+      $ref: ../schemas/communication/thread-list-response.schema.json
+    ThreadResponse:
+      $ref: ../schemas/communication/thread-response.schema.json
+    User:
+      $ref: ../schemas/auth/user.schema.json
+    VoiceAudioLevel:
+      $ref: ../schemas/events/voice-audio-level.schema.json
+    VoiceDevice:
+      $ref: ../schemas/voice/voice-device.schema.json
+    VoiceDeviceListResponse:
+      $ref: ../schemas/voice/voice-device-list-response.schema.json
+    VoiceMetrics:
+      $ref: ../schemas/voice/voice-metrics.schema.json
+    VoiceMetricsResponse:
+      $ref: ../schemas/voice/voice-metrics-response.schema.json
+    VoiceProfile:
+      $ref: ../schemas/voice/voice-profile.schema.json
+    VoiceProfileListResponse:
+      $ref: ../schemas/voice/voice-profile-list-response.schema.json
+    VoiceSettings:
+      $ref: ../schemas/settings/voice-settings.schema.json
+    VoiceStatus:
+      $ref: ../schemas/voice/voice-status.schema.json
+    VoiceStatusResponse:
+      $ref: ../schemas/voice/voice-status-response.schema.json
+    VoiceTestKind:
+      $ref: ../schemas/voice/voice-test-kind.schema.json
+    VoiceTestRequest:
+      $ref: ../schemas/voice/voice-test-request.schema.json
+    VoiceTestResult:
+      $ref: ../schemas/voice/voice-test-result.schema.json
+    VoiceTestResultResponse:
+      $ref: ../schemas/voice/voice-test-result-response.schema.json
+    VoiceTranscript:
+      $ref: ../schemas/events/voice-transcript.schema.json
+    VoiceTtsEnded:
+      $ref: ../schemas/events/voice-tts-ended.schema.json
+    VoiceTtsStarted:
+      $ref: ../schemas/events/voice-tts-started.schema.json

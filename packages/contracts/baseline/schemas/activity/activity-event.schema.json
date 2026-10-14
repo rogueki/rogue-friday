@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/activity/activity-event.schema.json",
+  "title": "ActivityEvent",
+  "description": "Immutable event in the activity tree (PLAN §29). parentId links children to their parent.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^act_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Global monotonic event sequence; backfill via GET /activity?sinceSequence=."
+    },
+    "kind": {
+      "$ref": "../activity/activity-kind.schema.json"
+    },
+    "severity": {
+      "$ref": "../common/severity.schema.json"
+    },
+    "title": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["started", "running", "succeeded", "failed", "cancelled", "info"]
+    },
+    "parentId": {
+      "type": ["string", "null"],
+      "pattern": "^act_[0-9A-Za-z]{26}$"
+    },
+    "correlationId": {
+      "type": "string",
+      "pattern": "^corr_[0-9A-Za-z]{26}$"
+    },
+    "agentId": {
+      "type": ["string", "null"],
+      "pattern": "^agent_[0-9A-Za-z]{26}$"
+    },
+    "taskId": {
+      "type": ["string", "null"],
+      "pattern": "^task_[0-9A-Za-z]{26}$"
+    },
+    "tool": {
+      "type": ["string", "null"]
+    },
+    "adapterId": {
+      "type": ["string", "null"],
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "model": {
+      "type": ["string", "null"]
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "endedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "durationMs": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "result": {
+      "type": ["string", "null"]
+    },
+    "error": {
+      "$ref": "../common/error-detail.schema.json"
+    },
+    "actor": {
+      "$ref": "../common/actor.schema.json"
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Redacted structured context; raw payloads only in debug/admin views."
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "sequence",
+    "kind",
+    "severity",
+    "title",
+    "status",
+    "parentId",
+    "correlationId",
+    "occurredAt",
+    "durationMs"
+  ],
+  "additionalProperties": false
+}

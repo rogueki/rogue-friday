@@ -1,0 +1,19 @@
+{
+  "$schema": "https://jarvis.local/schemas/events/event-envelope.schema.json",
+  "specversion": "1.0",
+  "id": "evt_01JCW5E9R2Q7T4M8N3B6V01845",
+  "type": "jarvis.status.resync_required",
+  "source": "control-api://core",
+  "subject": "stream/events",
+  "time": "2026-10-14T08:15:00Z",
+  "sequence": 1845,
+  "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00001",
+  "causationId": "evt_01JCW5E9R2Q7T4M8N3B6V01844",
+  "contractVersion": "1.0.0",
+  "data": {
+    "reason": "sequence_too_old",
+    "requestedSince": 12,
+    "oldestAvailableSequence": 1200,
+    "latestSequence": 6200
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/page-info.schema.json",
+  "title": "PageInfo",
+  "type": "object",
+  "properties": {
+    "nextCursor": {
+      "type": ["string", "null"]
+    },
+    "hasNextPage": {
+      "type": "boolean"
+    },
+    "totalCount": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": ["nextCursor", "hasNextPage"],
+  "additionalProperties": false
+}

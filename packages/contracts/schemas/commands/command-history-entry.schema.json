@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/commands/command-history-entry.schema.json",
+  "title": "CommandHistoryEntry",
+  "description": "Sensitive commands are stored redacted.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^cmd_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "text": {
+      "type": "string"
+    },
+    "redacted": {
+      "type": "boolean"
+    },
+    "origin": {
+      "type": "string",
+      "enum": ["text", "voice", "palette", "quick_command"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["executed", "accepted", "requires_confirmation", "requires_approval", "rejected", "failed"]
+    },
+    "riskTier": {
+      "anyOf": [
+        {
+          "$ref": "../approvals/risk-tier.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "executedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlationId": {
+      "type": "string",
+      "pattern": "^corr_[0-9A-Za-z]{26}$"
+    },
+    "repeatable": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "text",
+    "redacted",
+    "origin",
+    "status",
+    "riskTier",
+    "executedAt",
+    "correlationId",
+    "repeatable"
+  ],
+  "additionalProperties": false
+}

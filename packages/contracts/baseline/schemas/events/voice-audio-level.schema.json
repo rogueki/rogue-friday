@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/events/voice-audio-level.schema.json",
+  "title": "VoiceAudioLevel",
+  "type": "object",
+  "properties": {
+    "direction": {
+      "type": "string",
+      "enum": ["input", "output"]
+    },
+    "level": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "peak": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": ["direction", "level", "at"],
+  "additionalProperties": false
+}

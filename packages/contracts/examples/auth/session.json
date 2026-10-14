@@ -1,0 +1,13 @@
+{
+  "$schema": "https://jarvis.local/schemas/auth/session.schema.json",
+  "authenticated": true,
+  "user": {
+    "id": "usr_01JCW5E9R2Q7T4M8N3B6V00001",
+    "displayName": "Erik",
+    "role": "owner"
+  },
+  "role": "owner",
+  "csrfToken": "csrf_7f3a9c1e5b2d4a6f8c0e1d3b5a7c9e2f",
+  "expiresAt": "2026-10-14T16:00:00Z",
+  "reauthUntil": null
+}

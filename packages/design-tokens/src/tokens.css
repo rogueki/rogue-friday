@@ -1,0 +1,272 @@
+/*
+ * @jarvis/design-tokens — tokens.css
+ * §24.15 tokens are the binding base (--jarvis-*). Everything prefixed --jv-* is derived
+ * from them or is a structural token (spacing, cut sizes, type, z-index, motion).
+ * All values are themeable at runtime via applyTheme() (no rebuild).
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* ── §24.15 binding tokens ─────────────────────────────────────────── */
+  --jarvis-bg-0: #01060c;
+  --jarvis-bg-1: #03111d;
+  --jarvis-bg-2: #061a2a;
+
+  --jarvis-panel-0: rgba(3, 15, 27, 0.92);
+  --jarvis-panel-1: rgba(5, 24, 39, 0.84);
+  --jarvis-panel-active: rgba(6, 36, 54, 0.92);
+
+  --jarvis-border-dim: rgba(30, 178, 218, 0.2);
+  --jarvis-border: rgba(38, 215, 255, 0.42);
+  --jarvis-border-active: rgba(79, 232, 255, 0.82);
+
+  --jarvis-cyan: #27dcff;
+  --jarvis-cyan-bright: #7af3ff;
+  --jarvis-teal: #20e0d0;
+  --jarvis-blue: #168cff;
+
+  --jarvis-orb-gold: #ffb52e;
+  --jarvis-orb-orange: #ff7a00;
+  --jarvis-orb-hot: #fff2ba;
+  --jarvis-orb-deep: #a94c00;
+
+  --jarvis-success: #42efb0;
+  --jarvis-warning: #ffc857;
+  --jarvis-error: #ff4d54;
+  --jarvis-violet: #9b7bff;
+
+  --jarvis-text: #e8fbff;
+  --jarvis-text-strong: #ffffff;
+  --jarvis-muted: #7fa6b8;
+  --jarvis-disabled: #405d6b;
+
+  --jarvis-grid: rgba(39, 220, 255, 0.055);
+  --jarvis-focus: #7af3ff;
+
+  /* ── Semantic tones (icon tiles, chips, tags) ──────────────────────── */
+  /* Tint = background, border = 1px line, glow = restrained halo. Derived via color-mix so
+     a theme that changes the base colour re-tints everything. */
+  --jarvis-tone-cyan: var(--jarvis-cyan);
+  --jarvis-tone-green: var(--jarvis-success);
+  --jarvis-tone-violet: var(--jarvis-violet);
+  --jarvis-tone-amber: var(--jarvis-warning);
+  --jarvis-tone-red: var(--jarvis-error);
+  --jarvis-tone-teal: var(--jarvis-teal);
+  --jarvis-tone-blue: var(--jarvis-blue);
+  --jarvis-tone-gold: var(--jarvis-orb-gold);
+  --jarvis-tone-muted: var(--jarvis-muted);
+
+  --jarvis-tint-cyan-bg: color-mix(in srgb, var(--jarvis-tone-cyan) 13%, transparent);
+  --jarvis-tint-cyan-border: color-mix(in srgb, var(--jarvis-tone-cyan) 46%, transparent);
+  --jarvis-tint-cyan-glow: color-mix(in srgb, var(--jarvis-tone-cyan) 34%, transparent);
+  --jarvis-tint-green-bg: color-mix(in srgb, var(--jarvis-tone-green) 12%, transparent);
+  --jarvis-tint-green-border: color-mix(in srgb, var(--jarvis-tone-green) 44%, transparent);
+  --jarvis-tint-green-glow: color-mix(in srgb, var(--jarvis-tone-green) 32%, transparent);
+  --jarvis-tint-violet-bg: color-mix(in srgb, var(--jarvis-tone-violet) 14%, transparent);
+  --jarvis-tint-violet-border: color-mix(in srgb, var(--jarvis-tone-violet) 48%, transparent);
+  --jarvis-tint-violet-glow: color-mix(in srgb, var(--jarvis-tone-violet) 34%, transparent);
+  --jarvis-tint-amber-bg: color-mix(in srgb, var(--jarvis-tone-amber) 12%, transparent);
+  --jarvis-tint-amber-border: color-mix(in srgb, var(--jarvis-tone-amber) 46%, transparent);
+  --jarvis-tint-amber-glow: color-mix(in srgb, var(--jarvis-tone-amber) 32%, transparent);
+  --jarvis-tint-red-bg: color-mix(in srgb, var(--jarvis-tone-red) 13%, transparent);
+  --jarvis-tint-red-border: color-mix(in srgb, var(--jarvis-tone-red) 50%, transparent);
+  --jarvis-tint-red-glow: color-mix(in srgb, var(--jarvis-tone-red) 36%, transparent);
+  --jarvis-tint-teal-bg: color-mix(in srgb, var(--jarvis-tone-teal) 12%, transparent);
+  --jarvis-tint-teal-border: color-mix(in srgb, var(--jarvis-tone-teal) 44%, transparent);
+  --jarvis-tint-teal-glow: color-mix(in srgb, var(--jarvis-tone-teal) 32%, transparent);
+  --jarvis-tint-blue-bg: color-mix(in srgb, var(--jarvis-tone-blue) 16%, transparent);
+  --jarvis-tint-blue-border: color-mix(in srgb, var(--jarvis-tone-blue) 52%, transparent);
+  --jarvis-tint-blue-glow: color-mix(in srgb, var(--jarvis-tone-blue) 34%, transparent);
+  --jarvis-tint-gold-bg: color-mix(in srgb, var(--jarvis-tone-gold) 13%, transparent);
+  --jarvis-tint-gold-border: color-mix(in srgb, var(--jarvis-tone-gold) 50%, transparent);
+  --jarvis-tint-gold-glow: color-mix(in srgb, var(--jarvis-tone-gold) 38%, transparent);
+  --jarvis-tint-muted-bg: color-mix(in srgb, var(--jarvis-tone-muted) 10%, transparent);
+  --jarvis-tint-muted-border: color-mix(in srgb, var(--jarvis-tone-muted) 32%, transparent);
+  --jarvis-tint-muted-glow: transparent;
+
+  /* ── Spacing scale (4 px base) ─────────────────────────────────────── */
+  --jv-space-0: 0;
+  --jv-space-1: 2px;
+  --jv-space-2: 4px;
+  --jv-space-3: 6px;
+  --jv-space-4: 8px;
+  --jv-space-5: 10px;
+  --jv-space-6: 12px;
+  --jv-space-7: 16px;
+  --jv-space-8: 20px;
+  --jv-space-9: 24px;
+  --jv-space-10: 32px;
+  --jv-space-11: 40px;
+  --jv-space-12: 56px;
+
+  /* ── Radii / technical cut sizes ───────────────────────────────────── */
+  --jv-cut-scale: 1; /* 1 technical-cut, 0.6 soft-cut, 0 square (theme.panels.cornerStyle) */
+  --jv-cut-xs: calc(4px * var(--jv-cut-scale));
+  --jv-cut-sm: calc(6px * var(--jv-cut-scale));
+  --jv-cut-md: calc(10px * var(--jv-cut-scale));
+  --jv-cut-lg: calc(14px * var(--jv-cut-scale));
+  --jv-radius-xs: 2px;
+  --jv-radius-sm: 3px;
+  --jv-radius-md: 4px;
+  --jv-radius-pill: 999px;
+  --jv-radius-round: 50%;
+
+  /* ── Typography ────────────────────────────────────────────────────── */
+  --jv-font-scale: 1;
+  --jv-font-display: 'Oxanium', 'Rajdhani', 'Segoe UI', system-ui, sans-serif;
+  --jv-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --jv-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  --jv-fs-2xs: calc(10px * var(--jv-font-scale));
+  --jv-fs-xs: calc(11px * var(--jv-font-scale));
+  --jv-fs-sm: calc(12px * var(--jv-font-scale));
+  --jv-fs-md: calc(13px * var(--jv-font-scale));
+  --jv-fs-lg: calc(14px * var(--jv-font-scale));
+  --jv-fs-xl: calc(16px * var(--jv-font-scale));
+  --jv-fs-2xl: calc(20px * var(--jv-font-scale));
+  --jv-fs-3xl: calc(26px * var(--jv-font-scale));
+  --jv-fs-clock: calc(30px * var(--jv-font-scale));
+  --jv-fs-hero: calc(40px * var(--jv-font-scale));
+
+  --jv-tracking-tight: 0.02em;
+  --jv-tracking-label: 0.14em;
+  --jv-tracking-wide: 0.2em;
+  --jv-tracking-brand: 0.42em;
+  --jv-lh-tight: 1.2;
+  --jv-lh-body: 1.45;
+
+  /* ── Panel hierarchy (§24.5) ───────────────────────────────────────── */
+  --jv-z-level-0: 0; /* page background */
+  --jv-z-level-1: 1; /* normal modules */
+  --jv-z-level-2: 2; /* active / selected modules */
+  --jv-z-level-3: 3; /* attention / approval / critical */
+  --jv-z-level-4: 1000; /* dialog / drawer / command overlay */
+  --jv-z-popover: 1100;
+  --jv-z-toast: 1200;
+  --jv-z-tooltip: 1300;
+
+  /* ── Lines and glow ────────────────────────────────────────────────── */
+  --jv-line-hair: color-mix(in srgb, var(--jarvis-cyan) 9%, transparent);
+  --jv-line-soft: color-mix(in srgb, var(--jarvis-cyan) 19%, transparent);
+  --jv-row-bg: color-mix(in srgb, var(--jarvis-cyan) 5%, rgba(3, 15, 27, 0.55));
+  --jv-row-bg-hover: color-mix(in srgb, var(--jarvis-cyan) 8%, rgba(3, 15, 27, 0.7));
+  --jv-glow-cyan: 0 0 14px color-mix(in srgb, var(--jarvis-cyan) 30%, transparent);
+  --jv-glow-cyan-strong: 0 0 22px color-mix(in srgb, var(--jarvis-cyan) 46%, transparent);
+  --jv-glow-gold: 0 0 26px color-mix(in srgb, var(--jarvis-orb-gold) calc(34% * var(--jv-orb-intensity)), transparent);
+  --jv-orb-intensity: 1;
+  --jv-shadow-overlay: 0 24px 80px rgba(0, 0, 0, 0.7);
+  --jv-scrim: rgba(0, 4, 9, 0.72);
+
+  /* ── Motion ────────────────────────────────────────────────────────── */
+  --jv-dur-instant: 90ms;
+  --jv-dur-fast: 140ms;
+  --jv-dur-base: 200ms;
+  --jv-dur-panel: 240ms;
+  --jv-dur-drawer: 260ms;
+  --jv-dur-slow: 480ms;
+  --jv-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --jv-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --jv-ease-linear: linear;
+  --jv-motion-scale: 1; /* 1 full, 0 reduced/off — read by JS helpers */
+
+  /* ── Layout ────────────────────────────────────────────────────────── */
+  --jv-nav-width: 264px;
+  --jv-nav-width-collapsed: 68px;
+  --jv-topbar-height: 72px;
+  --jv-bottombar-height: 76px;
+  --jv-bottombar-height-compact: 52px;
+  --jv-gap: 12px;
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────── */
+/* OS preference wins unless the user explicitly picked "Voll" in the app. */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) {
+    --jv-motion-scale: 0;
+    --jv-dur-fast: 0.01ms;
+    --jv-dur-base: 0.01ms;
+    --jv-dur-panel: 0.01ms;
+    --jv-dur-drawer: 0.01ms;
+    --jv-dur-slow: 0.01ms;
+  }
+
+  :root:not([data-motion='full']) *,
+  :root:not([data-motion='full']) *::before,
+  :root:not([data-motion='full']) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root[data-motion='reduced'],
+:root[data-motion='off'] {
+  --jv-motion-scale: 0;
+  --jv-dur-fast: 0.01ms;
+  --jv-dur-base: 0.01ms;
+  --jv-dur-panel: 0.01ms;
+  --jv-dur-drawer: 0.01ms;
+  --jv-dur-slow: 0.01ms;
+}
+
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after,
+:root[data-motion='off'] *,
+:root[data-motion='off'] *::before,
+:root[data-motion='off'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0ms !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ── Background utilities (§24.3) ────────────────────────────────────── */
+/* Fine dot grid, ~24 px pitch. Hidden with [data-grid="off"] on <html>. */
+.jv-bg-grid {
+  background-image: radial-gradient(circle at 1px 1px, var(--jarvis-grid) 1.1px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+:root[data-grid='off'] .jv-bg-grid {
+  background-image: none;
+}
+
+/* Near-black navy with a soft radial lift (behind the AI core). */
+.jv-bg-radial {
+  background:
+    radial-gradient(
+      ellipse 52% 46% at 50% 34%,
+      color-mix(in srgb, var(--jarvis-blue) 16%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(ellipse 80% 60% at 50% 110%, color-mix(in srgb, var(--jarvis-cyan) 6%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--jarvis-bg-1) 0%, var(--jarvis-bg-0) 100%);
+}
+
+/* Page stage = radial + grid combined. */
+.jv-bg-stage {
+  background-color: var(--jarvis-bg-0);
+  background-image:
+    radial-gradient(circle at 1px 1px, var(--jarvis-grid) 1.1px, transparent 1.5px),
+    radial-gradient(ellipse 52% 46% at 50% 34%, color-mix(in srgb, var(--jarvis-blue) 16%, transparent), transparent 72%),
+    radial-gradient(ellipse 80% 60% at 50% 110%, color-mix(in srgb, var(--jarvis-cyan) 6%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--jarvis-bg-1) 0%, var(--jarvis-bg-0) 100%);
+  background-size:
+    24px 24px,
+    auto,
+    auto,
+    auto;
+}
+
+:root[data-grid='off'] .jv-bg-stage {
+  background-image:
+    radial-gradient(ellipse 52% 46% at 50% 34%, color-mix(in srgb, var(--jarvis-blue) 16%, transparent), transparent 72%),
+    radial-gradient(ellipse 80% 60% at 50% 110%, color-mix(in srgb, var(--jarvis-cyan) 6%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--jarvis-bg-1) 0%, var(--jarvis-bg-0) 100%);
+  background-size: auto;
+}

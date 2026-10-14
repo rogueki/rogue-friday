@@ -1,0 +1,60 @@
+{
+  "$schema": "https://jarvis.local/schemas/system/system-metrics.schema.json",
+  "sampledAt": "2026-10-14T08:15:00Z",
+  "source": {
+    "adapterId": "mock-system",
+    "system": "mock",
+    "lastSyncedAt": "2026-10-14T08:15:00Z"
+  },
+  "cpu": {
+    "usagePercent": 27.4,
+    "cores": 16,
+    "temperatureC": 58
+  },
+  "ram": {
+    "usedBytes": 21474836480,
+    "totalBytes": 68719476736,
+    "usagePercent": 31.3
+  },
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 4090",
+    "usagePercent": 41,
+    "temperatureC": 52
+  },
+  "vram": {
+    "usedBytes": 9663676416,
+    "totalBytes": 25769803776,
+    "usagePercent": 37.5
+  },
+  "temperatures": [
+    {
+      "sensor": "CPU Package",
+      "celsius": 58
+    }
+  ],
+  "storage": [
+    {
+      "id": "vol_01JCW5E9R2Q7T4M8N3B6V00001",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-system",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "mount": "D:\\",
+      "label": "Daten",
+      "fileSystem": "NTFS",
+      "totalBytes": 2000398934016,
+      "usedBytes": 812000000000,
+      "freeBytes": 1188398934016,
+      "usagePercent": 40.6
+    }
+  ],
+  "network": {
+    "rxBytesPerSec": 182000,
+    "txBytesPerSec": 64000,
+    "latencyMs": 12
+  }
+}

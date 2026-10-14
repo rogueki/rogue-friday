@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/agents/agent-performance.schema.json",
+  "title": "AgentPerformance",
+  "type": "object",
+  "properties": {
+    "avgTaskDurationMs": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "tasksCompleted": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tasksFailed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tokensUsed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "costEur": {
+      "type": "number",
+      "minimum": 0
+    }
+  },
+  "required": ["avgTaskDurationMs", "tasksCompleted", "tasksFailed"],
+  "additionalProperties": false
+}

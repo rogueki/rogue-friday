@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/settings-patch.schema.json",
+  "title": "SettingsPatch",
+  "description": "PATCH body: every supplied area replaces the stored area as a whole. Adapters are patched via /settings/adapters/{id}.",
+  "type": "object",
+  "properties": {
+    "profile": {
+      "$ref": "../settings/profile-settings.schema.json"
+    },
+    "dashboard": {
+      "$ref": "../settings/dashboard-settings.schema.json"
+    },
+    "theme": {
+      "$ref": "../settings/theme-settings.schema.json"
+    },
+    "orb": {
+      "$ref": "../settings/orb-settings.schema.json"
+    },
+    "navigation": {
+      "$ref": "../settings/navigation-settings.schema.json"
+    },
+    "modelsRouting": {
+      "$ref": "../settings/models-routing-settings.schema.json"
+    },
+    "voice": {
+      "$ref": "../settings/voice-settings.schema.json"
+    },
+    "notifications": {
+      "$ref": "../settings/notifications-settings.schema.json"
+    },
+    "security": {
+      "$ref": "../settings/security-settings.schema.json"
+    },
+    "approvals": {
+      "$ref": "../settings/approvals-settings.schema.json"
+    },
+    "dataRetention": {
+      "$ref": "../settings/data-retention-settings.schema.json"
+    },
+    "backups": {
+      "$ref": "../settings/backups-settings.schema.json"
+    },
+    "developer": {
+      "$ref": "../settings/developer-settings.schema.json"
+    }
+  },
+  "additionalProperties": false,
+  "minProperties": 1
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/resource-deleted.schema.json",
+  "title": "ResourceDeleted",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "deletedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "deletedBy": {
+      "$ref": "../common/actor.schema.json"
+    }
+  },
+  "required": ["id", "deletedAt"],
+  "additionalProperties": false
+}

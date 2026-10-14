@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/auth/reauth-response.schema.json",
+  "title": "ReauthResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "reauthToken": {
+      "type": "string"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": ["contractVersion", "reauthToken", "expiresAt"],
+  "additionalProperties": false
+}

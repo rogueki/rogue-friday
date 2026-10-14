@@ -1,0 +1,16 @@
+{
+  "$schema": "https://jarvis.local/schemas/orb/orb-status.schema.json",
+  "mode": "working",
+  "activityText": "Jarvis recherchiert Angebote",
+  "detailText": "Agent „Recherche“ liest 3 Quellen",
+  "progress": 0.62,
+  "progressMode": "determinate",
+  "audioLevel": 0,
+  "urgency": "none",
+  "health": "online",
+  "activeAgentCount": 3,
+  "currentAgentId": "agent_01JCW5E9R2Q7T4M8N3B6V00002",
+  "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00001",
+  "since": "2026-10-14T08:12:00Z",
+  "sourceEventId": "evt_01JCW5E9R2Q7T4M8N3B6V01842"
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/system/service.schema.json",
+  "title": "Service",
+  "description": "Monitored system component (PLAN §40.2): Hermes, Kimi API, Local Qwen, Voice, WSL, ...",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^svc_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["hermes", "llm", "voice", "wsl", "api", "stream", "adapter", "worker", "other"]
+    },
+    "status": {
+      "$ref": "../common/health-status.schema.json"
+    },
+    "latencyMs": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "lastCheckAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "lastSuccessAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "detail": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "name",
+    "kind",
+    "status",
+    "latencyMs",
+    "lastCheckAt",
+    "lastSuccessAt"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,61 @@
+/* Responsive behaviour of the shell parts of @jarvis/ui (the library ships no breakpoints for them; PLAN §27.15 / §53). */
+
+.jv-operator__name,
+.jv-operator__role { white-space: nowrap; }
+.ov-fit { flex: 1 1 0; min-height: 0; overflow: hidden; }
+.ov-orb__updated { top: 8px; bottom: auto; }
+
+/* ── Laptop (1100-1599 px): compact top bar, two-column agent and provider grids ─────────────── */
+@media (min-width: 1100px) and (max-width: 1599px) {
+  .ov-agents { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ov-orb { padding-inline: 14px; }
+  .ov-orb__name { font-size: 34px; }
+  .jv-topbar { gap: 10px; }
+  .jv-topbar__search { width: 220px; }
+}
+
+/* ── Below 1280 px the top bar loses text, not function ─────────────────────────────────────── */
+@media (max-width: 1279px) {
+  .jv-topbar { gap: 8px; }
+  .jv-topbar__search { width: 38px; min-width: 38px; padding: 0; justify-content: center; }
+  .jv-topbar__search-label,
+  .jv-topbar__search .jv-kbd { display: none; }
+  .jv-operator__text { display: none; }
+}
+
+/* ── Tablet and below: nav is a drawer; the top bar becomes left | clock | right ─────────────── */
+@media (max-width: 1099px) {
+  .jv-topbar { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .jv-topbar__clock { font-size: 22px; }
+  .jv-topbar__status-label { display: none; }
+  .jv-bottombar__chips,
+  .jv-bottombar__dots,
+  .jv-bottombar .jv-panel__body > span:empty { display: none; }
+  .jv-bottombar .jv-panel__body { display: flex; justify-content: center; gap: 10px; }
+  .jv-bottombar__center { min-width: 0; }
+  .jv-capsule { min-width: 0; width: min(400px, 52vw); }
+  .jv-bottombar__quick .jv-btn__label { display: none; }
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 699px) {
+  .jv-shell { padding: 6px; gap: 6px; }
+  .jv-topbar { gap: 6px; padding: 0; }
+  .jv-topbar__left { gap: 6px; }
+  .jv-topbar__date { display: none; }
+  .jv-topbar__clock { margin-top: 0; font-size: 18px; }
+  .jv-topbar__status-body { height: 34px; padding: 0 10px; gap: 6px; }
+  .jv-topbar__conn { display: none; }
+  .jv-topbar__search { display: none; }
+  .jv-capsule { min-width: 0; width: 100%; padding: 0 14px; }
+  .jv-capsule__wave { display: none; }
+  .jv-capsule__title { font-size: var(--jv-fs-md); letter-spacing: 0.1em; }
+  .jv-bottombar__center { flex: 1; }
+  .jv-bottombar .jv-panel__body { padding: 0 10px; }
+  .jv-bottombar__quick { display: none; }
+}
+
+/* Short laptop screens: agent cards keep name, status and trace; the task line would be clipped. */
+@media (min-width: 1100px) and (max-height: 960px) {
+  .ov-agents .jv-agent__task { display: none; }
+}

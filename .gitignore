@@ -1,0 +1,25 @@
+node_modules/
+dist/
+out/
+.next/
+coverage/
+storybook-static/
+playwright-report/
+test-results/
+*.log
+.env
+.env.*
+!.env.example
+data/
+logs/
+backups/
+# lokale Agent-/KI-Metadaten
+AGENTS.md
+CLAUDE.md
+MEMORY.md
+SCOPE.md
+PROMPT.md
+.learnings/
+.claude/
+.kimi/
+.openclaw/

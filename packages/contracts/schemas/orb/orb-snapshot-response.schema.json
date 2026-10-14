@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/orb/orb-snapshot-response.schema.json",
+  "title": "OrbSnapshotResponse",
+  "description": "Single-resource envelope for OrbSnapshot.",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "data": {
+      "$ref": "../orb/orb-snapshot.schema.json"
+    },
+    "freshness": {
+      "$ref": "../common/freshness.schema.json"
+    }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/entity-ref.schema.json",
+  "title": "EntityRef",
+  "description": "Typed link to another resource, used for navigation (\"jump to task\").",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "task",
+        "agent",
+        "approval",
+        "memory",
+        "thread",
+        "message",
+        "draft",
+        "calendar_event",
+        "automation",
+        "automation_run",
+        "research_project",
+        "file",
+        "notification",
+        "service",
+        "adapter",
+        "audit_event",
+        "activity_event"
+      ]
+    },
+    "id": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string"
+    }
+  },
+  "required": ["type", "id"],
+  "additionalProperties": false
+}

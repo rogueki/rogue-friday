@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/memory/memory-search-hit.schema.json",
+  "title": "MemorySearchHit",
+  "type": "object",
+  "properties": {
+    "memory": {
+      "$ref": "../memory/memory.schema.json"
+    },
+    "score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "highlights": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["memory", "score"],
+  "additionalProperties": false
+}

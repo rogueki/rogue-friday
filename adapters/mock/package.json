@@ -1,0 +1,22 @@
+{
+  "name": "@jarvis/adapter-mock",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Contract-konforme Mock-Adapter für alle Ports",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@jarvis/adapter-core": "workspace:*",
+    "@jarvis/mock-data": "workspace:*",
+    "@jarvis/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@jarvis/adapter-testkit": "workspace:*"
+  }
+}

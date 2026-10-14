@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/tasks/artifact-ref.schema.json",
+  "title": "ArtifactRef",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^art_[0-9A-Za-z]{26}$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["file", "report", "presentation", "dataset", "link", "other"]
+    },
+    "fileId": {
+      "type": "string",
+      "pattern": "^file_[0-9A-Za-z]{26}$"
+    },
+    "sizeBytes": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": ["id", "name", "kind"],
+  "additionalProperties": false
+}

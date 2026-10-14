@@ -1,0 +1,194 @@
+[
+  {
+    "name": "idle",
+    "ms": 9420,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "BEREIT"
+  },
+  {
+    "name": "booting",
+    "ms": 8846,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "JARVIS WIRD INITIALISIERT"
+  },
+  {
+    "name": "listening-low",
+    "ms": 8924,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "ICH HÖRE ZU"
+  },
+  {
+    "name": "listening-high",
+    "ms": 8955,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "ICH HÖRE ZU"
+  },
+  {
+    "name": "transcribing",
+    "ms": 10178,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "SPRACHE WIRD VERARBEITET"
+  },
+  {
+    "name": "thinking",
+    "ms": 9548,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "ANALYSE"
+  },
+  {
+    "name": "syncing",
+    "ms": 10441,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "SYNCHRONISIERUNG"
+  },
+  {
+    "name": "working-indeterminate",
+    "ms": 10441,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "ARBEIT LÄUFT"
+  },
+  {
+    "name": "working-62-3agents",
+    "ms": 8791,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "ARBEIT LÄUFT"
+  },
+  {
+    "name": "speaking",
+    "ms": 10394,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "JARVIS SPRICHT"
+  },
+  {
+    "name": "speaking-3agents-working",
+    "ms": 10733,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "JARVIS SPRICHT"
+  },
+  {
+    "name": "waiting-approval",
+    "ms": 15494,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "FREIGABE ERFORDERLICH"
+  },
+  {
+    "name": "success",
+    "ms": 9547,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "ERLEDIGT"
+  },
+  {
+    "name": "warning",
+    "ms": 11544,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "EINGESCHRÄNKTER BETRIEB"
+  },
+  {
+    "name": "error",
+    "ms": 19143,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "FEHLER"
+  },
+  {
+    "name": "offline",
+    "ms": 9769,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "OFFLINE"
+  },
+  {
+    "name": "paused",
+    "ms": 10527,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "PAUSIERT"
+  },
+  {
+    "name": "reduced-motion",
+    "ms": 13609,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "ARBEIT LÄUFT"
+  },
+  {
+    "name": "low-quality",
+    "ms": 5204,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "low",
+    "label": "ARBEIT LÄUFT"
+  },
+  {
+    "name": "fallback-2d",
+    "ms": 3892,
+    "errors": [],
+    "renderer": "2d",
+    "quality": "high",
+    "label": "ARBEIT LÄUFT"
+  },
+  {
+    "name": "idle-large",
+    "ms": 21424,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "BEREIT"
+  },
+  {
+    "name": "listening-high-large",
+    "ms": 23633,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "ICH HÖRE ZU"
+  },
+  {
+    "name": "speaking-large",
+    "ms": 18497,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "JARVIS SPRICHT"
+  },
+  {
+    "name": "working-large",
+    "ms": 19401,
+    "errors": [],
+    "renderer": "3d",
+    "quality": "high",
+    "label": "ARBEIT LÄUFT"
+  }
+]

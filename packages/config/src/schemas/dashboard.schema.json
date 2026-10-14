@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/config/dashboard.schema.json",
+  "title": "dashboard.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "dataMode": {
+      "description": "mock: everything simulated; hybrid: listed adapters live, rest mock; live: only configured adapters, missing ones disabled.",
+      "enum": ["mock", "hybrid", "live"],
+      "default": "mock"
+    },
+    "server": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "host": { "type": "string", "minLength": 1, "default": "127.0.0.1" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535, "default": 3100 },
+        "allowRemote": {
+          "description": "Permit a non-loopback host. Requires TLS or VPN/zero-trust in front (PLAN §49.7).",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "paths": {
+      "description": "Relative paths are resolved against the config directory.",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "dataDir": { "type": "string", "minLength": 1, "default": "../data" },
+        "logDir": { "type": "string", "minLength": 1, "default": "../logs" },
+        "backupDir": { "type": "string", "minLength": 1, "default": "../backups" },
+        "webRoot": { "type": "string", "minLength": 1, "default": "../apps/web/out" }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "mode": {
+          "description": "local: password login; dev: fixed dev session (mock data + loopback only).",
+          "enum": ["local", "dev"],
+          "default": "local"
+        },
+        "ownerUsername": { "type": "string", "minLength": 1, "maxLength": 64, "default": "owner" },
+        "ownerPasswordHash": {
+          "description": "Secret reference to the owner's scrypt hash (env:NAME or wincred:TARGET). The value itself is never loaded into the config object.",
+          "type": "string",
+          "pattern": "^(env|wincred):.+$",
+          "default": "env:JARVIS_OWNER_PASSWORD_HASH"
+        },
+        "sessionTtlMinutes": { "type": "integer", "minimum": 5, "maximum": 10080, "default": 720 },
+        "reauthWindowMinutes": { "type": "integer", "minimum": 1, "maximum": 60, "default": 5 },
+        "idleTimeoutMinutes": { "type": "integer", "minimum": 1, "maximum": 1440, "default": 30 },
+        "secureCookies": {
+          "description": "Set the Secure cookie attribute. Enable whenever TLS terminates in front of the API.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "realtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "ringBufferSize": { "type": "integer", "minimum": 100, "maximum": 1000000, "default": 5000 },
+        "heartbeatSeconds": { "type": "integer", "minimum": 1, "maximum": 300, "default": 15 }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "locale": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$", "default": "de-DE" },
+        "timezone": { "type": "string", "minLength": 1, "default": "Europe/Berlin" },
+        "theme": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$", "default": "jarvis-command-midnight" },
+        "layout": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$", "default": "jarvis-command-overview" }
+      }
+    },
+    "dev": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "scenarioConsole": {
+          "description": "Expose the scenario console. Default: true in mock mode, false otherwise.",
+          "type": "boolean"
+        },
+        "responseValidation": {
+          "description": "Validate API responses against the contract schemas. Default: true in mock/hybrid, false in live.",
+          "type": "boolean"
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "level": { "enum": ["trace", "debug", "info", "warn", "error", "fatal"], "default": "info" },
+        "redactEmails": { "type": "boolean", "default": false },
+        "file": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "maxBytes": { "type": "integer", "minimum": 10240, "default": 10485760 },
+            "maxFiles": { "type": "integer", "minimum": 1, "maximum": 100, "default": 5 }
+          }
+        }
+      }
+    }
+  }
+}

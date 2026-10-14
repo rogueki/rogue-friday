@@ -1,0 +1,36 @@
+{
+  "$schema": "https://jarvis.local/schemas/orb/orb-snapshot-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "status": {
+      "mode": "working",
+      "activityText": "Jarvis recherchiert Angebote",
+      "detailText": "Agent „Recherche“ liest 3 Quellen",
+      "progress": 0.62,
+      "progressMode": "determinate",
+      "audioLevel": 0,
+      "urgency": "none",
+      "health": "online",
+      "activeAgentCount": 3,
+      "currentAgentId": "agent_01JCW5E9R2Q7T4M8N3B6V00002",
+      "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00001",
+      "since": "2026-10-14T08:12:00Z",
+      "sourceEventId": "evt_01JCW5E9R2Q7T4M8N3B6V01842"
+    },
+    "layers": {
+      "voice": "idle",
+      "work": "working",
+      "attention": "none",
+      "health": "online",
+      "activeAgentIds": [
+        "agent_01JCW5E9R2Q7T4M8N3B6V00001",
+        "agent_01JCW5E9R2Q7T4M8N3B6V00002",
+        "agent_01JCW5E9R2Q7T4M8N3B6V00003"
+      ]
+    }
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

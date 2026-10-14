@@ -1,0 +1,78 @@
+{
+  "$schema": "https://jarvis.local/schemas/files/file-item-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "id": "file_01JCW5E9R2Q7T4M8N3B6V00001",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-files",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "name": "Angebotsvergleich Büromöbel.md",
+      "mimeType": "text/markdown",
+      "sizeBytes": 18432,
+      "category": "research",
+      "currentVersion": 2,
+      "versions": [
+        {
+          "version": 1,
+          "createdAt": "2026-10-14T08:05:00Z",
+          "sizeBytes": 9120,
+          "createdBy": {
+            "type": "agent",
+            "id": "agent_01JCW5E9R2Q7T4M8N3B6V00002",
+            "name": "Recherche-Agent"
+          }
+        },
+        {
+          "version": 2,
+          "createdAt": "2026-10-14T08:14:00Z",
+          "sizeBytes": 18432,
+          "createdBy": {
+            "type": "agent",
+            "id": "agent_01JCW5E9R2Q7T4M8N3B6V00002",
+            "name": "Recherche-Agent"
+          },
+          "checksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "createdBy": {
+        "type": "agent",
+        "id": "agent_01JCW5E9R2Q7T4M8N3B6V00002",
+        "name": "Recherche-Agent"
+      },
+      "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00001",
+      "location": "D:\\Jarvis\\Dateien\\Recherche",
+      "tags": ["büromöbel", "vergleich"],
+      "previewKind": "markdown",
+      "lineage": [
+        {
+          "relation": "output_of",
+          "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00001",
+          "description": "Ergebnis der Recherche-Aufgabe"
+        }
+      ],
+      "checksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "pageInfo": {
+    "nextCursor": null,
+    "hasNextPage": false,
+    "totalCount": 1
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "mock-files",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

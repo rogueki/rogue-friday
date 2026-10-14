@@ -1,0 +1,133 @@
+{
+  "$schema": "https://jarvis.local/schemas/meta/capabilities.schema.json",
+  "contractVersion": "1.0.0",
+  "modules": {
+    "tasks": {
+      "read": true,
+      "create": true,
+      "update": true,
+      "cancel": true,
+      "retry": true,
+      "pause": true,
+      "resume": true,
+      "stream": true,
+      "sources": ["mock-tasks"]
+    },
+    "activity": {
+      "read": true,
+      "stream": true,
+      "backfill": true,
+      "sources": ["mock-activity"]
+    },
+    "memory": {
+      "read": true,
+      "search": true,
+      "write": false,
+      "delete": false,
+      "lock": true,
+      "sources": ["mock-memory"]
+    },
+    "agents": {
+      "read": true,
+      "pause": true,
+      "resume": true,
+      "stop": true,
+      "assignTask": true,
+      "sources": ["mock-agents"]
+    },
+    "approvals": {
+      "read": true,
+      "decide": true,
+      "requestContext": true,
+      "editBeforeApprove": true,
+      "sources": ["mock-approvals"]
+    },
+    "mail": {
+      "read": true,
+      "draft": true,
+      "send": false,
+      "sources": ["mock-mail"]
+    },
+    "communication": {
+      "read": true,
+      "draft": true,
+      "multiChannel": true,
+      "send": false,
+      "sources": ["mock-mail"]
+    },
+    "calendar": {
+      "read": true,
+      "propose": true,
+      "reschedule": true,
+      "create": true,
+      "cancel": true,
+      "invite": false,
+      "respond": false,
+      "sources": ["mock-calendar"]
+    },
+    "automations": {
+      "read": true,
+      "create": true,
+      "update": true,
+      "test": true,
+      "enable": true,
+      "disable": true,
+      "pauseAll": true,
+      "sources": ["mock-automations"]
+    },
+    "research": {
+      "read": true,
+      "export": true,
+      "create": true,
+      "sources": ["mock-research"]
+    },
+    "files": {
+      "read": true,
+      "preview": true,
+      "download": true,
+      "delete": true,
+      "upload": false,
+      "sources": ["mock-files"]
+    },
+    "voice": {
+      "read": true,
+      "test": true,
+      "stop": true,
+      "enroll": false,
+      "sources": ["mock-voice"]
+    },
+    "notifications": {
+      "read": true,
+      "acknowledge": true,
+      "snooze": true,
+      "resolve": true,
+      "sources": ["mock-notifications"]
+    },
+    "system": {
+      "read": true,
+      "healthcheck": true,
+      "openLogs": true,
+      "restartAdapter": false,
+      "sources": ["mock-system"]
+    },
+    "audit": {
+      "read": true,
+      "export": true,
+      "hashChain": true,
+      "sources": ["mock-audit"]
+    },
+    "commands": {
+      "execute": true,
+      "stop": true,
+      "pause": true,
+      "resume": true,
+      "history": true,
+      "sources": ["mock-commands"]
+    },
+    "telephony": {
+      "read": false,
+      "call": false,
+      "sources": []
+    }
+  }
+}

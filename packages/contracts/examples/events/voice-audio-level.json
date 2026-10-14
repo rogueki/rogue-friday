@@ -1,0 +1,7 @@
+{
+  "$schema": "https://jarvis.local/schemas/events/voice-audio-level.schema.json",
+  "direction": "input",
+  "level": 0.42,
+  "peak": 0.61,
+  "at": "2026-10-14T08:15:00Z"
+}

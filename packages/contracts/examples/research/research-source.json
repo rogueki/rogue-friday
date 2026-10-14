@@ -1,0 +1,22 @@
+{
+  "$schema": "https://jarvis.local/schemas/research/research-source.schema.json",
+  "id": "src_01JCW5E9R2Q7T4M8N3B6V00001",
+  "version": 3,
+  "createdAt": "2026-10-14T06:30:00Z",
+  "updatedAt": "2026-10-14T08:10:00Z",
+  "source": {
+    "adapterId": "mock-research",
+    "system": "mock",
+    "lastSyncedAt": "2026-10-14T08:15:00Z"
+  },
+  "projectId": "rsp_01JCW5E9R2Q7T4M8N3B6V00001",
+  "title": "Preisliste Büro Nord 2026",
+  "domain": "buero-nord.example.de",
+  "url": "https://buero-nord.example.de/preisliste",
+  "retrievedAt": "2026-10-14T08:02:00Z",
+  "relevance": 0.91,
+  "reliability": 0.78,
+  "supportsStatement": "Lieferzeit beträgt 5 Werktage.",
+  "excerpt": "Lieferung innerhalb von 5 Werktagen nach Zahlungseingang.",
+  "status": "retrieved"
+}

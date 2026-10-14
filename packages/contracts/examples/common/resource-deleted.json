@@ -1,0 +1,10 @@
+{
+  "$schema": "https://jarvis.local/schemas/common/resource-deleted.schema.json",
+  "id": "mem_01JCW5E9R2Q7T4M8N3B6V00004",
+  "deletedAt": "2026-10-14T08:15:00Z",
+  "deletedBy": {
+    "type": "user",
+    "id": "usr_owner",
+    "name": "Erik"
+  }
+}

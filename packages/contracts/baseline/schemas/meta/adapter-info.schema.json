@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/meta/adapter-info.schema.json",
+  "title": "AdapterInfo",
+  "type": "object",
+  "properties": {
+    "manifest": {
+      "$ref": "../meta/adapter-manifest.schema.json"
+    },
+    "health": {
+      "$ref": "../meta/adapter-health.schema.json"
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["mock", "live"]
+    }
+  },
+  "required": ["manifest", "health", "enabled", "provider", "mode"],
+  "additionalProperties": false
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@jarvis/mock-console",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CLI zur Szenario-Steuerung",
+  "type": "module",
+  "bin": {
+    "scenario": "./src/cli.ts"
+  },
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@jarvis/sdk": "workspace:*",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2"
+  }
+}

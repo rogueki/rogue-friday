@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/auth/user.schema.json",
+  "title": "User",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^usr_[0-9A-Za-z]{26}$"
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "role": {
+      "$ref": "../auth/role.schema.json"
+    }
+  },
+  "required": ["id", "displayName", "role"],
+  "additionalProperties": false
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/approvals/approval-status.schema.json",
+  "title": "ApprovalStatus",
+  "type": "string",
+  "enum": ["pending", "approved", "rejected", "expired", "cancelled", "executed", "failed"]
+}

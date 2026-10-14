@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/memory/memory-response.schema.json",
+  "title": "MemoryResponse",
+  "description": "Single-resource envelope for Memory.",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "data": {
+      "$ref": "../memory/memory.schema.json"
+    },
+    "freshness": {
+      "$ref": "../common/freshness.schema.json"
+    }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

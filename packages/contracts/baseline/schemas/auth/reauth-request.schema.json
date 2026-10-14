@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/auth/reauth-request.schema.json",
+  "title": "ReauthRequest",
+  "type": "object",
+  "properties": {
+    "password": {
+      "type": "string",
+      "minLength": 1,
+      "writeOnly": true
+    }
+  },
+  "required": ["password"],
+  "additionalProperties": false
+}

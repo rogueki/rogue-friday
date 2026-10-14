@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+
+jobs:
+  verify:
+    name: Contracts, typecheck, lint, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # PLAN §7.4: OpenAPI/AsyncAPI valid, schemas + examples valid, generated SDK up to date, no breaking change.
+      - name: Contracts check
+        run: pnpm contracts:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Unit and component tests
+        run: pnpm test
+
+      - name: Adapter conformance
+        run: pnpm test:conformance
+
+      - name: Build
+        run: pnpm build
+
+      - name: Upload web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-out
+          path: apps/web/out
+          if-no-files-found: error
+          retention-days: 3
+
+  e2e:
+    name: End-to-end (Playwright)
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build
+        run: pnpm build
+
+      - name: E2E tests
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

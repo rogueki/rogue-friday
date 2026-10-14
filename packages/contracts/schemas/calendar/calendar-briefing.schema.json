@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/calendar/calendar-briefing.schema.json",
+  "title": "CalendarBriefing",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^brief_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "eventId": {
+      "type": "string",
+      "pattern": "^cal_[0-9A-Za-z]{26}$"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "attendeeContext": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": ["name", "notes"],
+        "additionalProperties": false
+      }
+    },
+    "linkedThreadIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^thr_[0-9A-Za-z]{26}$"
+      }
+    },
+    "talkingPoints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "eventId",
+    "summary",
+    "attendeeContext",
+    "linkedThreadIds",
+    "talkingPoints",
+    "generatedAt"
+  ],
+  "additionalProperties": false
+}

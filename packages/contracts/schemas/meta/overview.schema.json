@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/meta/overview.schema.json",
+  "title": "Overview",
+  "description": "Aggregated home payload (PLAN §27.14). Sections of failed adapters are listed in degradedSections instead of failing the call.",
+  "type": "object",
+  "properties": {
+    "jarvis": {
+      "$ref": "../meta/jarvis-status.schema.json"
+    },
+    "orb": {
+      "$ref": "../orb/orb-snapshot.schema.json"
+    },
+    "currentActivity": {
+      "type": ["object", "null"],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "agentId": {
+          "type": ["string", "null"],
+          "pattern": "^agent_[0-9A-Za-z]{26}$"
+        },
+        "taskId": {
+          "type": ["string", "null"],
+          "pattern": "^task_[0-9A-Za-z]{26}$"
+        },
+        "since": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["text", "agentId", "taskId", "since"],
+      "additionalProperties": false
+    },
+    "activeAgents": {
+      "type": "array",
+      "items": {
+        "$ref": "../agents/agent.schema.json"
+      }
+    },
+    "runningTasks": {
+      "type": "array",
+      "items": {
+        "$ref": "../tasks/task.schema.json"
+      }
+    },
+    "openApprovals": {
+      "type": "array",
+      "items": {
+        "$ref": "../approvals/approval.schema.json"
+      }
+    },
+    "criticalAlerts": {
+      "type": "array",
+      "items": {
+        "$ref": "../notifications/notification.schema.json"
+      }
+    },
+    "attention": {
+      "type": "array",
+      "items": {
+        "$ref": "../meta/attention-item.schema.json"
+      }
+    },
+    "importantMailCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "nextEvents": {
+      "type": "array",
+      "items": {
+        "$ref": "../calendar/calendar-event.schema.json"
+      }
+    },
+    "systemSummary": {
+      "type": "object",
+      "properties": {
+        "cpuPercent": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "ramPercent": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "gpuPercent": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "vramPercent": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "storageUsedPercent": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^svc_[0-9A-Za-z]{26}$"
+              },
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "$ref": "../common/health-status.schema.json"
+              }
+            },
+            "required": ["id", "name", "status"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["cpuPercent", "ramPercent", "gpuPercent", "vramPercent", "storageUsedPercent", "services"],
+      "additionalProperties": false
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "$ref": "../system/model-provider.schema.json"
+      }
+    },
+    "voice": {
+      "anyOf": [
+        {
+          "$ref": "../voice/voice-status.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "memoryInsights": {
+      "type": ["object", "null"],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "newToday": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lastUpdatedAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
+      },
+      "required": ["total", "newToday", "lastUpdatedAt"],
+      "additionalProperties": false
+    },
+    "counters": {
+      "type": "object",
+      "properties": {
+        "tasks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "approvals": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mail": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "alerts": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["tasks", "approvals", "mail", "alerts"],
+      "additionalProperties": false
+    },
+    "quickCommands": {
+      "type": "array",
+      "items": {
+        "$ref": "../meta/quick-command.schema.json"
+      }
+    },
+    "degradedSections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "section": {
+            "type": "string"
+          },
+          "adapterId": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "status": {
+            "$ref": "../common/health-status.schema.json"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": ["section", "adapterId", "status", "reason"],
+        "additionalProperties": false
+      }
+    },
+    "lastUpdatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "jarvis",
+    "orb",
+    "currentActivity",
+    "activeAgents",
+    "runningTasks",
+    "openApprovals",
+    "criticalAlerts",
+    "attention",
+    "importantMailCount",
+    "nextEvents",
+    "systemSummary",
+    "models",
+    "voice",
+    "memoryInsights",
+    "counters",
+    "quickCommands",
+    "degradedSections",
+    "lastUpdatedAt"
+  ],
+  "additionalProperties": false
+}

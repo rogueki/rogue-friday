@@ -1,0 +1,14 @@
+{
+  "$schema": "https://jarvis.local/schemas/common/error.schema.json",
+  "error": {
+    "code": "ADAPTER_UNAVAILABLE",
+    "message": "Der Kalender-Adapter ist derzeit nicht erreichbar.",
+    "severity": "warning",
+    "retryable": true,
+    "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00007",
+    "details": {
+      "adapterId": "mock-calendar",
+      "retryAfterSeconds": 15
+    }
+  }
+}

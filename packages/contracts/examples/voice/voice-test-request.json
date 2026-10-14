@@ -1,0 +1,5 @@
+{
+  "$schema": "https://jarvis.local/schemas/voice/voice-test-request.schema.json",
+  "kind": "full_pipeline",
+  "text": "Wie ist das Wetter morgen in Hannover?"
+}

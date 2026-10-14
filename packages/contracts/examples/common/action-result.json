@@ -1,0 +1,10 @@
+{
+  "$schema": "https://jarvis.local/schemas/common/action-result.schema.json",
+  "contractVersion": "1.0.0",
+  "accepted": true,
+  "status": "completed",
+  "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00009",
+  "message": "Der Eintrag wurde gelöscht.",
+  "resourceId": "mem_01JCW5E9R2Q7T4M8N3B6V00004",
+  "auditEventId": "aud_01JCW5E9R2Q7T4M8N3B6V00012"
+}

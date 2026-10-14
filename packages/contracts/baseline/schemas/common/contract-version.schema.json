@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/contract-version.schema.json",
+  "title": "ContractVersion",
+  "type": "string",
+  "pattern": "^\\d+\\.\\d+\\.\\d+$",
+  "description": "Semantic version of the wire contract, e.g. 1.0.0."
+}

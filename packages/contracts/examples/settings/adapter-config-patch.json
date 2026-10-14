@@ -1,0 +1,10 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/adapter-config-patch.schema.json",
+  "enabled": true,
+  "config": {
+    "timeoutMs": 5000
+  },
+  "secrets": {
+    "apiToken": "wird-nur-serverseitig-gespeichert"
+  }
+}

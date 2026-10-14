@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JARVIS Orb Demo</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { margin: 0; background: #01060c; color: #bfe9f7; font: 13px/1.4 Inter, "Segoe UI", system-ui, sans-serif; }
+      body { min-height: 100vh; }
+      #root { padding: 18px; }
+      .demo-grid { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+      .panel {
+        position: relative; background: radial-gradient(ellipse at 50% 45%, #06233a 0%, #03111d 55%, #020a12 100%);
+        border: 1px solid rgba(40, 190, 230, .45);
+        clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px);
+        box-shadow: inset 0 0 40px rgba(20, 120, 170, .12);
+      }
+      .panel.small { width: 560px; height: 380px; }
+      .panel.large { width: 900px; height: 700px; }
+      .panel__title { position: absolute; top: 10px; left: 16px; z-index: 2; letter-spacing: .22em; font: 600 11px "Segoe UI", sans-serif; color: #7fd9f0; text-transform: uppercase; }
+      .controls { display: flex; flex-direction: column; gap: 10px; min-width: 300px; max-width: 360px; }
+      .controls fieldset { border: 1px solid rgba(40, 190, 230, .3); margin: 0; padding: 8px 10px; }
+      .controls legend { color: #7fd9f0; letter-spacing: .14em; font-size: 10px; text-transform: uppercase; }
+      .modes { display: flex; flex-wrap: wrap; gap: 5px; }
+      button.mode { background: #04182a; color: #bfe9f7; border: 1px solid rgba(40, 190, 230, .4); padding: 3px 8px; cursor: pointer; font: inherit; font-size: 11px; }
+      button.mode[aria-pressed="true"] { background: #0c3d57; border-color: #5fe3ff; color: #fff; }
+      label.row { display: grid; grid-template-columns: 96px 1fr 44px; gap: 8px; align-items: center; margin: 3px 0; }
+      select, input[type="range"] { width: 100%; }
+      .log { font: 11px ui-monospace, Consolas, monospace; color: #8fb9c8; white-space: pre; }
+      body.shot #root { padding: 0; }
+      body.shot .controls, body.shot .panel__title { display: none; }
+      body.shot .panel { clip-path: none; border: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

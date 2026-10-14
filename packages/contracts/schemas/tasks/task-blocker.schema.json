@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/tasks/task-blocker.schema.json",
+  "title": "TaskBlocker",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["approval", "dependency", "input_needed", "adapter_unavailable", "other"]
+    },
+    "description": {
+      "type": "string"
+    },
+    "since": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "refId": {
+      "type": "string"
+    }
+  },
+  "required": ["id", "kind", "description"],
+  "additionalProperties": false
+}

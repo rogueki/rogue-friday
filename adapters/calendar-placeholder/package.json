@@ -1,0 +1,21 @@
+{
+  "name": "@jarvis/adapter-calendar-placeholder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Platzhalter Kalender",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@jarvis/sdk": "workspace:*",
+    "@jarvis/adapter-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@jarvis/adapter-testkit": "workspace:*"
+  }
+}

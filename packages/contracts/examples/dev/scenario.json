@@ -1,0 +1,38 @@
+{
+  "$schema": "https://jarvis.local/schemas/dev/scenario.schema.json",
+  "id": "voice-pipeline",
+  "name": "Voice-Pipeline",
+  "description": "Listening → Transcribing → Thinking → Speaking → Idle",
+  "steps": [
+    {
+      "index": 0,
+      "label": "Zuhören",
+      "delayMs": 0,
+      "orbMode": "listening"
+    },
+    {
+      "index": 1,
+      "label": "Transkribieren",
+      "delayMs": 1500,
+      "orbMode": "transcribing"
+    },
+    {
+      "index": 2,
+      "label": "Nachdenken",
+      "delayMs": 1500,
+      "orbMode": "thinking"
+    },
+    {
+      "index": 3,
+      "label": "Sprechen",
+      "delayMs": 2000,
+      "orbMode": "speaking"
+    },
+    {
+      "index": 4,
+      "label": "Bereit",
+      "delayMs": 3000,
+      "orbMode": "idle"
+    }
+  ]
+}

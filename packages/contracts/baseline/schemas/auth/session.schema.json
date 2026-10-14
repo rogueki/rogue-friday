@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/auth/session.schema.json",
+  "title": "Session",
+  "description": "Current session. csrfToken must be echoed in X-CSRF-Token on mutating requests.",
+  "type": "object",
+  "properties": {
+    "authenticated": {
+      "type": "boolean"
+    },
+    "user": {
+      "anyOf": [
+        {
+          "$ref": "../auth/user.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "role": {
+      "anyOf": [
+        {
+          "$ref": "../auth/role.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "csrfToken": {
+      "type": ["string", "null"]
+    },
+    "expiresAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "reauthUntil": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  },
+  "required": ["authenticated", "user", "role", "csrfToken", "expiresAt", "reauthUntil"],
+  "additionalProperties": false
+}

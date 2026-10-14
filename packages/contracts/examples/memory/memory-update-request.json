@@ -1,0 +1,5 @@
+{
+  "$schema": "https://jarvis.local/schemas/memory/memory-update-request.schema.json",
+  "locked": true,
+  "confirm": true
+}

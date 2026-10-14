@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/agents/agent.schema.json",
+  "title": "Agent",
+  "description": "Worker agent (PLAN §31).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^agent_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "name": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "$ref": "../agents/agent-status.schema.json"
+    },
+    "currentTaskId": {
+      "type": ["string", "null"],
+      "pattern": "^task_[0-9A-Za-z]{26}$"
+    },
+    "model": {
+      "type": ["string", "null"]
+    },
+    "reasoningLevel": {
+      "$ref": "../agents/reasoning-level.schema.json"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "activeTools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "startedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "runtimeMs": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "heartbeatAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "successRate": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "performance": {
+      "$ref": "../agents/agent-performance.schema.json"
+    },
+    "lastActivityAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "lastError": {
+      "anyOf": [
+        {
+          "$ref": "../common/error-detail.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "accent": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "Icon accent color for the agent card."
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Redacted, read-only agent configuration for the Configuration tab."
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "name",
+    "role",
+    "status",
+    "currentTaskId",
+    "model",
+    "reasoningLevel",
+    "capabilities",
+    "activeTools",
+    "startedAt",
+    "runtimeMs",
+    "heartbeatAt",
+    "successRate",
+    "performance",
+    "lastActivityAt",
+    "lastError"
+  ],
+  "additionalProperties": false
+}

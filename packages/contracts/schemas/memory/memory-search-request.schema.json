@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/memory/memory-search-request.schema.json",
+  "title": "MemorySearchRequest",
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "minLength": 1
+    },
+    "types": {
+      "type": "array",
+      "items": {
+        "$ref": "../memory/memory-type.schema.json"
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sensitivity": {
+      "type": "array",
+      "items": {
+        "$ref": "../memory/memory-sensitivity.schema.json"
+      }
+    },
+    "minConfidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "semantic": {
+      "type": "boolean"
+    },
+    "includeExpired": {
+      "type": "boolean"
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    }
+  },
+  "required": ["query"],
+  "additionalProperties": false
+}

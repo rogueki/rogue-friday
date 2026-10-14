@@ -1,0 +1,44 @@
+{
+  "$schema": "https://jarvis.local/schemas/calendar/calendar-briefing-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "id": "brief_01JCW5E9R2Q7T4M8N3B6V00001",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-calendar",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "eventId": "cal_01JCW5E9R2Q7T4M8N3B6V00001",
+      "summary": "Besprechung mit Frau Becker zur Außenanlage; offene Punkte: Budget und Zeitplan.",
+      "attendeeContext": [
+        {
+          "name": "Katharina Becker",
+          "notes": "Letzte Mail am 14.10.; bevorzugt kurze Zusammenfassungen."
+        }
+      ],
+      "linkedThreadIds": ["thr_01JCW5E9R2Q7T4M8N3B6V00001"],
+      "talkingPoints": ["Budgetrahmen klären", "Zeitplan Bepflanzung", "Agenda.pdf besprechen"],
+      "generatedAt": "2026-10-14T08:00:00Z"
+    }
+  ],
+  "pageInfo": {
+    "nextCursor": null,
+    "hasNextPage": false,
+    "totalCount": 1
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "mock-calendar",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

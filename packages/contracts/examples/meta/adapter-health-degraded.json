@@ -1,0 +1,15 @@
+{
+  "$schema": "https://jarvis.local/schemas/meta/adapter-health.schema.json",
+  "adapterId": "hermes-tasks",
+  "status": "degraded",
+  "lifecycle": "DEGRADED",
+  "latencyMs": 342,
+  "lastSuccessAt": "2026-10-14T08:10:00Z",
+  "lastError": {
+    "code": "ADAPTER_TIMEOUT",
+    "message": "Zeitüberschreitung nach 300 ms"
+  },
+  "checkedAt": "2026-10-14T08:15:00Z",
+  "consecutiveFailures": 2,
+  "circuit": "half_open"
+}

@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/audit/audit-event.schema.json",
+  "title": "AuditEvent",
+  "description": "Append-only audit record with hash chain (PLAN §41).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^aud_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actor": {
+      "$ref": "../common/actor.schema.json"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["user_action", "agent_action", "tool_call", "approval", "system", "security"]
+    },
+    "action": {
+      "type": "string",
+      "description": "Dotted action name, e.g. approval.approved."
+    },
+    "severity": {
+      "$ref": "../common/severity.schema.json"
+    },
+    "result": {
+      "type": "string",
+      "enum": ["success", "failure", "denied", "pending"]
+    },
+    "errorCode": {
+      "anyOf": [
+        {
+          "$ref": "../common/error-code.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "agentId": {
+      "type": ["string", "null"],
+      "pattern": "^agent_[0-9A-Za-z]{26}$"
+    },
+    "taskId": {
+      "type": ["string", "null"],
+      "pattern": "^task_[0-9A-Za-z]{26}$"
+    },
+    "tool": {
+      "type": ["string", "null"]
+    },
+    "adapterId": {
+      "type": ["string", "null"],
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "model": {
+      "type": ["string", "null"]
+    },
+    "reasoningLevel": {
+      "anyOf": [
+        {
+          "$ref": "../agents/reasoning-level.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "approvalId": {
+      "type": ["string", "null"],
+      "pattern": "^appr_[0-9A-Za-z]{26}$"
+    },
+    "durationMs": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "correlationId": {
+      "type": "string",
+      "pattern": "^corr_[0-9A-Za-z]{26}$"
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Redacted context."
+    },
+    "before": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    },
+    "after": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    },
+    "artifactIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^art_[0-9A-Za-z]{26}$"
+      }
+    },
+    "childEventIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^aud_[0-9A-Za-z]{26}$"
+      }
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "prevHash": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "sequence",
+    "occurredAt",
+    "actor",
+    "category",
+    "action",
+    "severity",
+    "result",
+    "durationMs",
+    "correlationId",
+    "before",
+    "after",
+    "artifactIds",
+    "childEventIds",
+    "hash",
+    "prevHash"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/settings-patch.schema.json",
+  "theme": {
+    "activeThemeId": "jarvis-command-gold-core",
+    "cyanIntensity": 0.8,
+    "panelOpacity": 0.88,
+    "goldIntensity": 0.78
+  },
+  "dashboard": {
+    "activeLayoutId": "jarvis-command-overview",
+    "fontScale": 1,
+    "backgroundGrid": true,
+    "soundEffects": false,
+    "autoRefreshSeconds": 30,
+    "compact": false
+  }
+}

@@ -1,0 +1,1049 @@
+asyncapi: 3.1.0
+info:
+  title: JARVIS Realtime Events
+  version: 1.0.0
+  description: "WebSocket event stream of the Jarvis Control API. Every event is a CloudEvents-inspired envelope with a global, strictly increasing `sequence`. Reconnect with `?since=<last sequence>`; if the sequence is no longer buffered the server sends `jarvis.status.resync_required` and the client reloads snapshots. Heartbeat: ping/pong control frames (not envelopes)."
+defaultContentType: application/json
+servers:
+  local:
+    host: 127.0.0.1:3100
+    protocol: ws
+    description: Local control API (same origin as the REST API; eventsOrigin in /meta may override).
+channels:
+  events:
+    address: /api/v1/events
+    title: Event stream
+    description: "Single multiplexed event stream. Event groups: status, orb, task, activity, memory, agent, approval, communication, calendar, automation, research, file, voice, notification, system, audit, adapter."
+    bindings:
+      ws:
+        method: GET
+        query:
+          type: object
+          properties:
+            since:
+              type: integer
+              minimum: 0
+              description: Replay events with a greater sequence.
+          additionalProperties: false
+        bindingVersion: 0.1.0
+    messages:
+      statusChanged:
+        $ref: "#/components/messages/statusChanged"
+      statusResyncRequired:
+        $ref: "#/components/messages/statusResyncRequired"
+      orbStatusChanged:
+        $ref: "#/components/messages/orbStatusChanged"
+      taskCreated:
+        $ref: "#/components/messages/taskCreated"
+      taskUpdated:
+        $ref: "#/components/messages/taskUpdated"
+      taskProgress:
+        $ref: "#/components/messages/taskProgress"
+      taskCompleted:
+        $ref: "#/components/messages/taskCompleted"
+      taskFailed:
+        $ref: "#/components/messages/taskFailed"
+      taskCancelled:
+        $ref: "#/components/messages/taskCancelled"
+      activityAppended:
+        $ref: "#/components/messages/activityAppended"
+      memoryCreated:
+        $ref: "#/components/messages/memoryCreated"
+      memoryUpdated:
+        $ref: "#/components/messages/memoryUpdated"
+      memoryDeleted:
+        $ref: "#/components/messages/memoryDeleted"
+      agentStatusChanged:
+        $ref: "#/components/messages/agentStatusChanged"
+      agentHeartbeat:
+        $ref: "#/components/messages/agentHeartbeat"
+      approvalRequested:
+        $ref: "#/components/messages/approvalRequested"
+      approvalResolved:
+        $ref: "#/components/messages/approvalResolved"
+      approvalExpired:
+        $ref: "#/components/messages/approvalExpired"
+      communicationThreadUpdated:
+        $ref: "#/components/messages/communicationThreadUpdated"
+      communicationDraftUpdated:
+        $ref: "#/components/messages/communicationDraftUpdated"
+      calendarEventUpdated:
+        $ref: "#/components/messages/calendarEventUpdated"
+      calendarConflictDetected:
+        $ref: "#/components/messages/calendarConflictDetected"
+      automationRunStarted:
+        $ref: "#/components/messages/automationRunStarted"
+      automationRunFinished:
+        $ref: "#/components/messages/automationRunFinished"
+      automationUpdated:
+        $ref: "#/components/messages/automationUpdated"
+      researchUpdated:
+        $ref: "#/components/messages/researchUpdated"
+      researchSourceAdded:
+        $ref: "#/components/messages/researchSourceAdded"
+      researchFindingAdded:
+        $ref: "#/components/messages/researchFindingAdded"
+      fileCreated:
+        $ref: "#/components/messages/fileCreated"
+      fileUpdated:
+        $ref: "#/components/messages/fileUpdated"
+      fileDeleted:
+        $ref: "#/components/messages/fileDeleted"
+      voiceStateChanged:
+        $ref: "#/components/messages/voiceStateChanged"
+      voiceAudioLevel:
+        $ref: "#/components/messages/voiceAudioLevel"
+      voiceTranscriptPartial:
+        $ref: "#/components/messages/voiceTranscriptPartial"
+      voiceTranscriptFinal:
+        $ref: "#/components/messages/voiceTranscriptFinal"
+      voiceTtsStarted:
+        $ref: "#/components/messages/voiceTtsStarted"
+      voiceTtsEnded:
+        $ref: "#/components/messages/voiceTtsEnded"
+      notificationCreated:
+        $ref: "#/components/messages/notificationCreated"
+      notificationUpdated:
+        $ref: "#/components/messages/notificationUpdated"
+      systemMetrics:
+        $ref: "#/components/messages/systemMetrics"
+      systemServiceStatusChanged:
+        $ref: "#/components/messages/systemServiceStatusChanged"
+      auditAppended:
+        $ref: "#/components/messages/auditAppended"
+      adapterHealthChanged:
+        $ref: "#/components/messages/adapterHealthChanged"
+      adapterCapabilitiesChanged:
+        $ref: "#/components/messages/adapterCapabilitiesChanged"
+      ping:
+        $ref: "#/components/messages/ping"
+      pong:
+        $ref: "#/components/messages/pong"
+operations:
+  publishEvents:
+    action: send
+    title: Server sends events and control frames
+    channel:
+      $ref: "#/channels/events"
+    messages:
+      - $ref: "#/channels/events/messages/statusChanged"
+      - $ref: "#/channels/events/messages/statusResyncRequired"
+      - $ref: "#/channels/events/messages/orbStatusChanged"
+      - $ref: "#/channels/events/messages/taskCreated"
+      - $ref: "#/channels/events/messages/taskUpdated"
+      - $ref: "#/channels/events/messages/taskProgress"
+      - $ref: "#/channels/events/messages/taskCompleted"
+      - $ref: "#/channels/events/messages/taskFailed"
+      - $ref: "#/channels/events/messages/taskCancelled"
+      - $ref: "#/channels/events/messages/activityAppended"
+      - $ref: "#/channels/events/messages/memoryCreated"
+      - $ref: "#/channels/events/messages/memoryUpdated"
+      - $ref: "#/channels/events/messages/memoryDeleted"
+      - $ref: "#/channels/events/messages/agentStatusChanged"
+      - $ref: "#/channels/events/messages/agentHeartbeat"
+      - $ref: "#/channels/events/messages/approvalRequested"
+      - $ref: "#/channels/events/messages/approvalResolved"
+      - $ref: "#/channels/events/messages/approvalExpired"
+      - $ref: "#/channels/events/messages/communicationThreadUpdated"
+      - $ref: "#/channels/events/messages/communicationDraftUpdated"
+      - $ref: "#/channels/events/messages/calendarEventUpdated"
+      - $ref: "#/channels/events/messages/calendarConflictDetected"
+      - $ref: "#/channels/events/messages/automationRunStarted"
+      - $ref: "#/channels/events/messages/automationRunFinished"
+      - $ref: "#/channels/events/messages/automationUpdated"
+      - $ref: "#/channels/events/messages/researchUpdated"
+      - $ref: "#/channels/events/messages/researchSourceAdded"
+      - $ref: "#/channels/events/messages/researchFindingAdded"
+      - $ref: "#/channels/events/messages/fileCreated"
+      - $ref: "#/channels/events/messages/fileUpdated"
+      - $ref: "#/channels/events/messages/fileDeleted"
+      - $ref: "#/channels/events/messages/voiceStateChanged"
+      - $ref: "#/channels/events/messages/voiceAudioLevel"
+      - $ref: "#/channels/events/messages/voiceTranscriptPartial"
+      - $ref: "#/channels/events/messages/voiceTranscriptFinal"
+      - $ref: "#/channels/events/messages/voiceTtsStarted"
+      - $ref: "#/channels/events/messages/voiceTtsEnded"
+      - $ref: "#/channels/events/messages/notificationCreated"
+      - $ref: "#/channels/events/messages/notificationUpdated"
+      - $ref: "#/channels/events/messages/systemMetrics"
+      - $ref: "#/channels/events/messages/systemServiceStatusChanged"
+      - $ref: "#/channels/events/messages/auditAppended"
+      - $ref: "#/channels/events/messages/adapterHealthChanged"
+      - $ref: "#/channels/events/messages/adapterCapabilitiesChanged"
+      - $ref: "#/channels/events/messages/ping"
+      - $ref: "#/channels/events/messages/pong"
+  receiveControlFrames:
+    action: receive
+    title: Client sends control frames
+    description: Clients answer pings and may ping to measure roundtrip time.
+    channel:
+      $ref: "#/channels/events"
+    messages:
+      - $ref: "#/channels/events/messages/ping"
+      - $ref: "#/channels/events/messages/pong"
+components:
+  correlationIds:
+    envelopeCorrelationId:
+      description: Correlation id of the user action that caused the event.
+      location: $message.payload#/correlationId
+  messages:
+    statusChanged:
+      name: jarvis.status.changed
+      title: Overall Jarvis status changed
+      summary: Overall Jarvis status changed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.status.changed
+              data:
+                $ref: ../schemas/meta/jarvis-status.schema.json
+            required:
+              - type
+              - data
+    statusResyncRequired:
+      name: jarvis.status.resync_required
+      title: "Client must reload snapshots: the requested sequence is no longer buffered"
+      summary: "Client must reload snapshots: the requested sequence is no longer buffered"
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.status.resync_required
+              data:
+                $ref: ../schemas/events/resync-required.schema.json
+            required:
+              - type
+              - data
+    orbStatusChanged:
+      name: jarvis.orb.status_changed
+      title: Semantic orb state or parallel layers changed
+      summary: Semantic orb state or parallel layers changed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.orb.status_changed
+              data:
+                $ref: ../schemas/orb/orb-snapshot.schema.json
+            required:
+              - type
+              - data
+    taskCreated:
+      name: jarvis.task.created
+      title: Task created
+      summary: Task created
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.task.created
+              data:
+                $ref: ../schemas/tasks/task.schema.json
+            required:
+              - type
+              - data
+    taskUpdated:
+      name: jarvis.task.updated
+      title: Task changed (status, assignee, fields)
+      summary: Task changed (status, assignee, fields)
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.task.updated
+              data:
+                $ref: ../schemas/tasks/task.schema.json
+            required:
+              - type
+              - data
+    taskProgress:
+      name: jarvis.task.progress
+      title: Task progress or current step changed
+      summary: Task progress or current step changed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.task.progress
+              data:
+                $ref: ../schemas/events/task-progress.schema.json
+            required:
+              - type
+              - data
+    taskCompleted:
+      name: jarvis.task.completed
+      title: Task finished successfully
+      summary: Task finished successfully
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.task.completed
+              data:
+                $ref: ../schemas/tasks/task.schema.json
+            required:
+              - type
+              - data
+    taskFailed:
+      name: jarvis.task.failed
+      title: Task failed
+      summary: Task failed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.task.failed
+              data:
+                $ref: ../schemas/tasks/task.schema.json
+            required:
+              - type
+              - data
+    taskCancelled:
+      name: jarvis.task.cancelled
+      title: Task cancelled
+      summary: Task cancelled
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.task.cancelled
+              data:
+                $ref: ../schemas/tasks/task.schema.json
+            required:
+              - type
+              - data
+    activityAppended:
+      name: jarvis.activity.appended
+      title: New activity event appended to the activity tree
+      summary: New activity event appended to the activity tree
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.activity.appended
+              data:
+                $ref: ../schemas/activity/activity-event.schema.json
+            required:
+              - type
+              - data
+    memoryCreated:
+      name: jarvis.memory.created
+      title: Memory created
+      summary: Memory created
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.memory.created
+              data:
+                $ref: ../schemas/memory/memory.schema.json
+            required:
+              - type
+              - data
+    memoryUpdated:
+      name: jarvis.memory.updated
+      title: Memory changed (edit, lock, confirm)
+      summary: Memory changed (edit, lock, confirm)
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.memory.updated
+              data:
+                $ref: ../schemas/memory/memory.schema.json
+            required:
+              - type
+              - data
+    memoryDeleted:
+      name: jarvis.memory.deleted
+      title: Memory forgotten
+      summary: Memory forgotten
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.memory.deleted
+              data:
+                $ref: ../schemas/common/resource-deleted.schema.json
+            required:
+              - type
+              - data
+    agentStatusChanged:
+      name: jarvis.agent.status_changed
+      title: Agent status or assignment changed
+      summary: Agent status or assignment changed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.agent.status_changed
+              data:
+                $ref: ../schemas/agents/agent.schema.json
+            required:
+              - type
+              - data
+    agentHeartbeat:
+      name: jarvis.agent.heartbeat
+      title: Agent heartbeat
+      summary: Agent heartbeat
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.agent.heartbeat
+              data:
+                $ref: ../schemas/events/agent-heartbeat.schema.json
+            required:
+              - type
+              - data
+    approvalRequested:
+      name: jarvis.approval.requested
+      title: Approval requested
+      summary: Approval requested
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.approval.requested
+              data:
+                $ref: ../schemas/approvals/approval.schema.json
+            required:
+              - type
+              - data
+    approvalResolved:
+      name: jarvis.approval.resolved
+      title: Approval approved, rejected, executed or failed
+      summary: Approval approved, rejected, executed or failed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.approval.resolved
+              data:
+                $ref: ../schemas/approvals/approval.schema.json
+            required:
+              - type
+              - data
+    approvalExpired:
+      name: jarvis.approval.expired
+      title: Approval expired
+      summary: Approval expired
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.approval.expired
+              data:
+                $ref: ../schemas/approvals/approval.schema.json
+            required:
+              - type
+              - data
+    communicationThreadUpdated:
+      name: jarvis.communication.thread_updated
+      title: Thread created or changed
+      summary: Thread created or changed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.communication.thread_updated
+              data:
+                $ref: ../schemas/communication/thread.schema.json
+            required:
+              - type
+              - data
+    communicationDraftUpdated:
+      name: jarvis.communication.draft_updated
+      title: Draft created or changed
+      summary: Draft created or changed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.communication.draft_updated
+              data:
+                $ref: ../schemas/communication/draft.schema.json
+            required:
+              - type
+              - data
+    calendarEventUpdated:
+      name: jarvis.calendar.event_updated
+      title: Calendar event created or changed
+      summary: Calendar event created or changed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.calendar.event_updated
+              data:
+                $ref: ../schemas/calendar/calendar-event.schema.json
+            required:
+              - type
+              - data
+    calendarConflictDetected:
+      name: jarvis.calendar.conflict_detected
+      title: Calendar conflict detected
+      summary: Calendar conflict detected
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.calendar.conflict_detected
+              data:
+                $ref: ../schemas/calendar/calendar-conflict.schema.json
+            required:
+              - type
+              - data
+    automationRunStarted:
+      name: jarvis.automation.run_started
+      title: Automation run started
+      summary: Automation run started
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.automation.run_started
+              data:
+                $ref: ../schemas/automations/automation-run.schema.json
+            required:
+              - type
+              - data
+    automationRunFinished:
+      name: jarvis.automation.run_finished
+      title: Automation run finished
+      summary: Automation run finished
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.automation.run_finished
+              data:
+                $ref: ../schemas/automations/automation-run.schema.json
+            required:
+              - type
+              - data
+    automationUpdated:
+      name: jarvis.automation.updated
+      title: Automation definition or state changed
+      summary: Automation definition or state changed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.automation.updated
+              data:
+                $ref: ../schemas/automations/automation.schema.json
+            required:
+              - type
+              - data
+    researchUpdated:
+      name: jarvis.research.updated
+      title: Research project changed
+      summary: Research project changed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.research.updated
+              data:
+                $ref: ../schemas/research/research-project.schema.json
+            required:
+              - type
+              - data
+    researchSourceAdded:
+      name: jarvis.research.source_added
+      title: Source added to a research project
+      summary: Source added to a research project
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.research.source_added
+              data:
+                $ref: ../schemas/research/research-source.schema.json
+            required:
+              - type
+              - data
+    researchFindingAdded:
+      name: jarvis.research.finding_added
+      title: Finding added to a research project
+      summary: Finding added to a research project
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.research.finding_added
+              data:
+                $ref: ../schemas/research/research-finding.schema.json
+            required:
+              - type
+              - data
+    fileCreated:
+      name: jarvis.file.created
+      title: File created
+      summary: File created
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.file.created
+              data:
+                $ref: ../schemas/files/file-item.schema.json
+            required:
+              - type
+              - data
+    fileUpdated:
+      name: jarvis.file.updated
+      title: File changed (new version, rename, tags)
+      summary: File changed (new version, rename, tags)
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.file.updated
+              data:
+                $ref: ../schemas/files/file-item.schema.json
+            required:
+              - type
+              - data
+    fileDeleted:
+      name: jarvis.file.deleted
+      title: File deleted
+      summary: File deleted
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.file.deleted
+              data:
+                $ref: ../schemas/common/resource-deleted.schema.json
+            required:
+              - type
+              - data
+    voiceStateChanged:
+      name: jarvis.voice.state_changed
+      title: Voice pipeline state changed
+      summary: Voice pipeline state changed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.voice.state_changed
+              data:
+                $ref: ../schemas/voice/voice-status.schema.json
+            required:
+              - type
+              - data
+    voiceAudioLevel:
+      name: jarvis.voice.audio_level
+      title: Live audio level (throttled)
+      summary: Live audio level (throttled)
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.voice.audio_level
+              data:
+                $ref: ../schemas/events/voice-audio-level.schema.json
+            required:
+              - type
+              - data
+    voiceTranscriptPartial:
+      name: jarvis.voice.transcript_partial
+      title: Partial transcript while the user is speaking
+      summary: Partial transcript while the user is speaking
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.voice.transcript_partial
+              data:
+                $ref: ../schemas/events/voice-transcript.schema.json
+            required:
+              - type
+              - data
+    voiceTranscriptFinal:
+      name: jarvis.voice.transcript_final
+      title: Final transcript of an utterance
+      summary: Final transcript of an utterance
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.voice.transcript_final
+              data:
+                $ref: ../schemas/events/voice-transcript.schema.json
+            required:
+              - type
+              - data
+    voiceTtsStarted:
+      name: jarvis.voice.tts_started
+      title: Speech output started
+      summary: Speech output started
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.voice.tts_started
+              data:
+                $ref: ../schemas/events/voice-tts-started.schema.json
+            required:
+              - type
+              - data
+    voiceTtsEnded:
+      name: jarvis.voice.tts_ended
+      title: Speech output ended
+      summary: Speech output ended
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.voice.tts_ended
+              data:
+                $ref: ../schemas/events/voice-tts-ended.schema.json
+            required:
+              - type
+              - data
+    notificationCreated:
+      name: jarvis.notification.created
+      title: Notification raised
+      summary: Notification raised
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.notification.created
+              data:
+                $ref: ../schemas/notifications/notification.schema.json
+            required:
+              - type
+              - data
+    notificationUpdated:
+      name: jarvis.notification.updated
+      title: Notification acknowledged, snoozed, escalated or resolved
+      summary: Notification acknowledged, snoozed, escalated or resolved
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.notification.updated
+              data:
+                $ref: ../schemas/notifications/notification.schema.json
+            required:
+              - type
+              - data
+    systemMetrics:
+      name: jarvis.system.metrics
+      title: Hardware metrics sample
+      summary: Hardware metrics sample
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.system.metrics
+              data:
+                $ref: ../schemas/system/system-metrics.schema.json
+            required:
+              - type
+              - data
+    systemServiceStatusChanged:
+      name: jarvis.system.service_status_changed
+      title: Monitored service changed status
+      summary: Monitored service changed status
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.system.service_status_changed
+              data:
+                $ref: ../schemas/system/service.schema.json
+            required:
+              - type
+              - data
+    auditAppended:
+      name: jarvis.audit.appended
+      title: Audit event appended
+      summary: Audit event appended
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.audit.appended
+              data:
+                $ref: ../schemas/audit/audit-event.schema.json
+            required:
+              - type
+              - data
+    adapterHealthChanged:
+      name: jarvis.adapter.health_changed
+      title: Adapter health or lifecycle changed
+      summary: Adapter health or lifecycle changed
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.adapter.health_changed
+              data:
+                $ref: ../schemas/meta/adapter-health.schema.json
+            required:
+              - type
+              - data
+    adapterCapabilitiesChanged:
+      name: jarvis.adapter.capabilities_changed
+      title: Capability set changed (adapter swapped or toggled)
+      summary: Capability set changed (adapter swapped or toggled)
+      contentType: application/json
+      correlationId:
+        $ref: "#/components/correlationIds/envelopeCorrelationId"
+      payload:
+        allOf:
+          - $ref: ../schemas/events/event-envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: jarvis.adapter.capabilities_changed
+              data:
+                $ref: ../schemas/meta/capabilities.schema.json
+            required:
+              - type
+              - data
+    ping:
+      name: ping
+      title: Heartbeat ping
+      summary: Control frame; the server sends one every 15 s, clients may ping to measure roundtrip. Not an envelope, no sequence.
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ../schemas/events/control-frame.schema.json
+          - type: object
+            properties:
+              kind:
+                const: ping
+    pong:
+      name: pong
+      title: Heartbeat pong
+      summary: Control frame answering a ping. Not an envelope, no sequence.
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ../schemas/events/control-frame.schema.json
+          - type: object
+            properties:
+              kind:
+                const: pong

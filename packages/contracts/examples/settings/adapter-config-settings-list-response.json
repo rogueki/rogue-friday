@@ -1,0 +1,55 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/adapter-config-settings-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "adapterId": "hermes-tasks",
+      "category": "tasks",
+      "provider": "hermes-tasks",
+      "enabled": true,
+      "config": {
+        "baseUrl": "http://127.0.0.1:8642",
+        "timeoutMs": 3000
+      },
+      "configSchema": {
+        "type": "object",
+        "properties": {
+          "baseUrl": {
+            "type": "string",
+            "format": "uri",
+            "title": "Basis-URL"
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 100,
+            "title": "Timeout (ms)"
+          }
+        },
+        "required": ["baseUrl"]
+      },
+      "secretFields": {
+        "apiToken": {
+          "configured": true,
+          "maskedHint": "••••c41d"
+        }
+      },
+      "lastTestAt": "2026-10-14T08:00:00Z",
+      "lastTestResult": "success"
+    }
+  ],
+  "pageInfo": {
+    "nextCursor": null,
+    "hasNextPage": false
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "control-api",
+      "system": "jarvis",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

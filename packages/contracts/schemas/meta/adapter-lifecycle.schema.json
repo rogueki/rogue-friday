@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/meta/adapter-lifecycle.schema.json",
+  "title": "AdapterLifecycle",
+  "type": "string",
+  "enum": [
+    "UNREGISTERED",
+    "INITIALIZING",
+    "ONLINE",
+    "DEGRADED",
+    "OFFLINE",
+    "RECOVERING",
+    "STOPPING",
+    "STOPPED"
+  ],
+  "description": "Adapter lifecycle (PLAN 10.6). RECOVERING = health checks are succeeding again after OFFLINE but the adapter is not yet confirmed ONLINE (PLAN 45.9)."
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/calendar/attendee.schema.json",
+  "title": "Attendee",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string",
+      "format": "email"
+    },
+    "response": {
+      "type": "string",
+      "enum": ["accepted", "declined", "tentative", "needs_action"]
+    }
+  },
+  "required": ["name", "response"],
+  "additionalProperties": false
+}

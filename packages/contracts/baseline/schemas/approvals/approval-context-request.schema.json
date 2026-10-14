@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/approvals/approval-context-request.schema.json",
+  "title": "ApprovalContextRequest",
+  "type": "object",
+  "properties": {
+    "question": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": ["question"],
+  "additionalProperties": false
+}

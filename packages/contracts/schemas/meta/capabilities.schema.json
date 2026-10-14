@@ -1,0 +1,609 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/meta/capabilities.schema.json",
+  "title": "Capabilities",
+  "description": "Per-module capability flags (PLAN §9). The UI derives enabled/disabled actions from this document.",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "modules": {
+      "type": "object",
+      "properties": {
+        "tasks": {
+          "$ref": "#/$defs/TasksCapability"
+        },
+        "activity": {
+          "$ref": "#/$defs/ActivityCapability"
+        },
+        "memory": {
+          "$ref": "#/$defs/MemoryCapability"
+        },
+        "agents": {
+          "$ref": "#/$defs/AgentsCapability"
+        },
+        "approvals": {
+          "$ref": "#/$defs/ApprovalsCapability"
+        },
+        "mail": {
+          "$ref": "#/$defs/MailCapability"
+        },
+        "communication": {
+          "$ref": "#/$defs/CommunicationCapability"
+        },
+        "calendar": {
+          "$ref": "#/$defs/CalendarCapability"
+        },
+        "automations": {
+          "$ref": "#/$defs/AutomationsCapability"
+        },
+        "research": {
+          "$ref": "#/$defs/ResearchCapability"
+        },
+        "files": {
+          "$ref": "#/$defs/FilesCapability"
+        },
+        "voice": {
+          "$ref": "#/$defs/VoiceCapability"
+        },
+        "notifications": {
+          "$ref": "#/$defs/NotificationsCapability"
+        },
+        "system": {
+          "$ref": "#/$defs/SystemCapability"
+        },
+        "audit": {
+          "$ref": "#/$defs/AuditCapability"
+        },
+        "commands": {
+          "$ref": "#/$defs/CommandsCapability"
+        },
+        "telephony": {
+          "$ref": "#/$defs/TelephonyCapability"
+        }
+      },
+      "required": [
+        "tasks",
+        "activity",
+        "memory",
+        "agents",
+        "approvals",
+        "mail",
+        "communication",
+        "calendar",
+        "automations",
+        "research",
+        "files",
+        "voice",
+        "notifications",
+        "system",
+        "audit",
+        "commands",
+        "telephony"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": ["contractVersion", "modules"],
+  "additionalProperties": false,
+  "$defs": {
+    "TasksCapability": {
+      "type": "object",
+      "title": "TasksCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "create": {
+          "type": "boolean"
+        },
+        "update": {
+          "type": "boolean"
+        },
+        "cancel": {
+          "type": "boolean"
+        },
+        "retry": {
+          "type": "boolean"
+        },
+        "pause": {
+          "type": "boolean"
+        },
+        "resume": {
+          "type": "boolean"
+        },
+        "stream": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "create", "update", "cancel", "retry", "pause", "resume", "stream", "sources"],
+      "additionalProperties": false
+    },
+    "ActivityCapability": {
+      "type": "object",
+      "title": "ActivityCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "stream": {
+          "type": "boolean"
+        },
+        "backfill": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "stream", "backfill", "sources"],
+      "additionalProperties": false
+    },
+    "MemoryCapability": {
+      "type": "object",
+      "title": "MemoryCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "write": {
+          "type": "boolean"
+        },
+        "delete": {
+          "type": "boolean"
+        },
+        "search": {
+          "type": "boolean"
+        },
+        "lock": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "write", "delete", "search", "lock", "sources"],
+      "additionalProperties": false
+    },
+    "AgentsCapability": {
+      "type": "object",
+      "title": "AgentsCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "pause": {
+          "type": "boolean"
+        },
+        "resume": {
+          "type": "boolean"
+        },
+        "stop": {
+          "type": "boolean"
+        },
+        "assignTask": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "pause", "resume", "stop", "assignTask", "sources"],
+      "additionalProperties": false
+    },
+    "ApprovalsCapability": {
+      "type": "object",
+      "title": "ApprovalsCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "decide": {
+          "type": "boolean"
+        },
+        "requestContext": {
+          "type": "boolean"
+        },
+        "editBeforeApprove": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "decide", "requestContext", "editBeforeApprove", "sources"],
+      "additionalProperties": false
+    },
+    "MailCapability": {
+      "type": "object",
+      "title": "MailCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "draft": {
+          "type": "boolean"
+        },
+        "send": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "draft", "send", "sources"],
+      "additionalProperties": false
+    },
+    "CommunicationCapability": {
+      "type": "object",
+      "title": "CommunicationCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "draft": {
+          "type": "boolean"
+        },
+        "send": {
+          "type": "boolean"
+        },
+        "multiChannel": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "draft", "send", "multiChannel", "sources"],
+      "additionalProperties": false
+    },
+    "CalendarCapability": {
+      "type": "object",
+      "title": "CalendarCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "create": {
+          "type": "boolean"
+        },
+        "reschedule": {
+          "type": "boolean"
+        },
+        "cancel": {
+          "type": "boolean"
+        },
+        "invite": {
+          "type": "boolean"
+        },
+        "respond": {
+          "type": "boolean"
+        },
+        "propose": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "create", "reschedule", "cancel", "invite", "respond", "propose", "sources"],
+      "additionalProperties": false
+    },
+    "AutomationsCapability": {
+      "type": "object",
+      "title": "AutomationsCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "create": {
+          "type": "boolean"
+        },
+        "update": {
+          "type": "boolean"
+        },
+        "test": {
+          "type": "boolean"
+        },
+        "enable": {
+          "type": "boolean"
+        },
+        "disable": {
+          "type": "boolean"
+        },
+        "pauseAll": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "create", "update", "test", "enable", "disable", "pauseAll", "sources"],
+      "additionalProperties": false
+    },
+    "ResearchCapability": {
+      "type": "object",
+      "title": "ResearchCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "create": {
+          "type": "boolean"
+        },
+        "export": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "create", "export", "sources"],
+      "additionalProperties": false
+    },
+    "FilesCapability": {
+      "type": "object",
+      "title": "FilesCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "preview": {
+          "type": "boolean"
+        },
+        "download": {
+          "type": "boolean"
+        },
+        "delete": {
+          "type": "boolean"
+        },
+        "upload": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "preview", "download", "delete", "upload", "sources"],
+      "additionalProperties": false
+    },
+    "VoiceCapability": {
+      "type": "object",
+      "title": "VoiceCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "test": {
+          "type": "boolean"
+        },
+        "stop": {
+          "type": "boolean"
+        },
+        "enroll": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "test", "stop", "enroll", "sources"],
+      "additionalProperties": false
+    },
+    "NotificationsCapability": {
+      "type": "object",
+      "title": "NotificationsCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "acknowledge": {
+          "type": "boolean"
+        },
+        "snooze": {
+          "type": "boolean"
+        },
+        "resolve": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "acknowledge", "snooze", "resolve", "sources"],
+      "additionalProperties": false
+    },
+    "SystemCapability": {
+      "type": "object",
+      "title": "SystemCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "healthcheck": {
+          "type": "boolean"
+        },
+        "restartAdapter": {
+          "type": "boolean"
+        },
+        "openLogs": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "healthcheck", "restartAdapter", "openLogs", "sources"],
+      "additionalProperties": false
+    },
+    "AuditCapability": {
+      "type": "object",
+      "title": "AuditCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "export": {
+          "type": "boolean"
+        },
+        "hashChain": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "export", "hashChain", "sources"],
+      "additionalProperties": false
+    },
+    "CommandsCapability": {
+      "type": "object",
+      "title": "CommandsCapability",
+      "properties": {
+        "execute": {
+          "type": "boolean"
+        },
+        "stop": {
+          "type": "boolean"
+        },
+        "pause": {
+          "type": "boolean"
+        },
+        "resume": {
+          "type": "boolean"
+        },
+        "history": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["execute", "stop", "pause", "resume", "history", "sources"],
+      "additionalProperties": false
+    },
+    "TelephonyCapability": {
+      "type": "object",
+      "title": "TelephonyCapability",
+      "properties": {
+        "read": {
+          "type": "boolean"
+        },
+        "call": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": ["read", "call", "sources"],
+      "additionalProperties": false
+    }
+  }
+}

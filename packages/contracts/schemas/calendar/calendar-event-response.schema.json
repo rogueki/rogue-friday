@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/calendar/calendar-event-response.schema.json",
+  "title": "CalendarEventResponse",
+  "description": "Single-resource envelope for CalendarEvent.",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "data": {
+      "$ref": "../calendar/calendar-event.schema.json"
+    },
+    "freshness": {
+      "$ref": "../common/freshness.schema.json"
+    }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

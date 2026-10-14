@@ -1,0 +1,162 @@
+{
+  "$schema": "https://jarvis.local/schemas/tasks/task-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "id": "task_01JCW5E9R2Q7T4M8N3B6V00001",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-tasks",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "title": "Angebote für Büromöbel recherchieren und vergleichen",
+      "description": "Drei Anbieter aus der Region Hannover vergleichen, Lieferzeiten und Gesamtkosten gegenüberstellen.",
+      "status": "running",
+      "priority": "P2",
+      "agentId": "agent_01JCW5E9R2Q7T4M8N3B6V00002",
+      "agentName": "Recherche-Agent",
+      "model": "Kimi K3",
+      "progress": {
+        "mode": "determinate",
+        "value": 0.62
+      },
+      "startedAt": "2026-10-14T07:55:00Z",
+      "runtimeMs": 1200000,
+      "dueAt": "2026-10-14T15:00:00Z",
+      "estimatedCompletionAt": "2026-10-14T08:40:00Z",
+      "blockers": [],
+      "lastActivityAt": "2026-10-14T08:14:00Z",
+      "artifactCount": 1,
+      "artifacts": [
+        {
+          "id": "art_01JCW5E9R2Q7T4M8N3B6V00001",
+          "name": "Angebotsvergleich Büromöbel.md",
+          "kind": "report",
+          "fileId": "file_01JCW5E9R2Q7T4M8N3B6V00001",
+          "sizeBytes": 18432
+        }
+      ],
+      "steps": [
+        {
+          "id": "step_01JCW5E9R2Q7T4M8N3B6V00001",
+          "index": 0,
+          "title": "Anbieter identifizieren",
+          "status": "done",
+          "startedAt": "2026-10-14T07:55:00Z",
+          "finishedAt": "2026-10-14T08:01:00Z"
+        },
+        {
+          "id": "step_01JCW5E9R2Q7T4M8N3B6V00002",
+          "index": 1,
+          "title": "Preise und Lieferzeiten auslesen",
+          "status": "running",
+          "startedAt": "2026-10-14T08:01:00Z",
+          "detail": "Quelle 2 von 3"
+        },
+        {
+          "id": "step_01JCW5E9R2Q7T4M8N3B6V00003",
+          "index": 2,
+          "title": "Vergleichsbericht erstellen",
+          "status": "pending"
+        }
+      ],
+      "toolCalls": [
+        {
+          "id": "tcall_01JCW5E9R2Q7T4M8N3B6V00001",
+          "tool": "web.fetch",
+          "status": "succeeded",
+          "startedAt": "2026-10-14T08:02:00Z",
+          "durationMs": 1840,
+          "summary": "Preisliste von büro-nord.example.de",
+          "adapterId": "mock-research"
+        },
+        {
+          "id": "tcall_01JCW5E9R2Q7T4M8N3B6V00002",
+          "tool": "web.fetch",
+          "status": "running",
+          "startedAt": "2026-10-14T08:14:00Z"
+        }
+      ],
+      "sourceRefs": [
+        {
+          "type": "file",
+          "id": "file_01JCW5E9R2Q7T4M8N3B6V00001",
+          "label": "Angebotsvergleich Büromöbel.md"
+        }
+      ],
+      "approvalIds": [],
+      "errors": [],
+      "createdBy": {
+        "type": "user",
+        "id": "usr_owner",
+        "name": "Erik"
+      },
+      "parentTaskId": null
+    },
+    {
+      "id": "task_01JCW5E9R2Q7T4M8N3B6V00002",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-tasks",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "title": "Rückruf von Herrn Müller vorbereiten",
+      "status": "waiting",
+      "priority": "P1",
+      "agentId": "agent_01JCW5E9R2Q7T4M8N3B6V00001",
+      "model": "Qwen Local",
+      "progress": {
+        "mode": "indeterminate",
+        "value": null
+      },
+      "startedAt": "2026-10-14T08:05:00Z",
+      "runtimeMs": 600000,
+      "dueAt": null,
+      "estimatedCompletionAt": null,
+      "blockers": [
+        {
+          "id": "blk_1",
+          "kind": "approval",
+          "description": "Wartet auf Freigabe des Entwurfs",
+          "since": "2026-10-14T08:14:00Z",
+          "refId": "appr_01JCW5E9R2Q7T4M8N3B6V00001"
+        }
+      ],
+      "lastActivityAt": "2026-10-14T08:14:00Z",
+      "artifactCount": 0,
+      "artifacts": [],
+      "steps": [],
+      "toolCalls": [],
+      "sourceRefs": [],
+      "approvalIds": ["appr_01JCW5E9R2Q7T4M8N3B6V00001"],
+      "errors": [],
+      "createdBy": {
+        "type": "agent",
+        "id": "agent_01JCW5E9R2Q7T4M8N3B6V00001",
+        "name": "Jarvis Core"
+      }
+    }
+  ],
+  "pageInfo": {
+    "nextCursor": null,
+    "hasNextPage": false,
+    "totalCount": 2
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "mock-tasks",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/meta/adapter-lifecycle.schema.json",
+  "title": "AdapterLifecycle",
+  "type": "string",
+  "enum": ["UNREGISTERED", "INITIALIZING", "ONLINE", "DEGRADED", "OFFLINE", "STOPPING", "STOPPED"]
+}

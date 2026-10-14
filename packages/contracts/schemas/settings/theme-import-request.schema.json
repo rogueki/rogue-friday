@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/theme-import-request.schema.json",
+  "title": "ThemeImportRequest",
+  "type": "object",
+  "properties": {
+    "theme": {
+      "$ref": "../settings/theme.schema.json"
+    },
+    "activate": {
+      "type": "boolean"
+    }
+  },
+  "required": ["theme"],
+  "additionalProperties": false
+}

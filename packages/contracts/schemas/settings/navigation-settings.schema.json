@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/navigation-settings.schema.json",
+  "title": "NavigationSettings",
+  "type": "object",
+  "properties": {
+    "order": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$",
+        "minLength": 1,
+        "maxLength": 64
+      }
+    },
+    "hidden": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$",
+        "minLength": 1,
+        "maxLength": 64
+      }
+    },
+    "defaultPage": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["compact", "expanded"]
+    }
+  },
+  "required": ["order", "hidden", "defaultPage", "mode"],
+  "additionalProperties": false
+}

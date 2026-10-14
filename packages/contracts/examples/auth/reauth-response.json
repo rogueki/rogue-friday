@@ -1,0 +1,6 @@
+{
+  "$schema": "https://jarvis.local/schemas/auth/reauth-response.schema.json",
+  "contractVersion": "1.0.0",
+  "reauthToken": "rea_3c9e1a7f5b2d4e6a",
+  "expiresAt": "2026-10-14T08:20:00Z"
+}

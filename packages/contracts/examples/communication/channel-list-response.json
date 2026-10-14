@@ -1,0 +1,44 @@
+{
+  "$schema": "https://jarvis.local/schemas/communication/channel-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "id": "chan_01JCW5E9R2Q7T4M8N3B6V00001",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-mail",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "kind": "email",
+      "name": "Geschäftliches Postfach",
+      "status": "online",
+      "address": "erik@example.de",
+      "capabilities": {
+        "read": true,
+        "draft": true,
+        "send": false
+      },
+      "unreadCount": 4,
+      "lastSyncAt": "2026-10-14T08:14:00Z"
+    }
+  ],
+  "pageInfo": {
+    "nextCursor": null,
+    "hasNextPage": false,
+    "totalCount": 1
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "mock-mail",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

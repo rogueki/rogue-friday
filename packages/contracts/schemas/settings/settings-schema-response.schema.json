@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/settings-schema-response.schema.json",
+  "title": "SettingsSchemaResponse",
+  "description": "Single-resource envelope for SettingsSchema.",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "data": {
+      "$ref": "../settings/settings-schema.schema.json"
+    },
+    "freshness": {
+      "$ref": "../common/freshness.schema.json"
+    }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/research/research-project.schema.json",
+  "title": "ResearchProject",
+  "description": "Research mission with sources, findings and artifacts (PLAN §36).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^rsp_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "topic": {
+      "type": "string"
+    },
+    "mission": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["planning", "running", "review", "done", "failed", "cancelled"]
+    },
+    "agentIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^agent_[0-9A-Za-z]{26}$"
+      }
+    },
+    "progress": {
+      "$ref": "../common/progress.schema.json"
+    },
+    "sourceCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "findingCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "contradictionCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "artifactCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "resultSummary": {
+      "type": ["string", "null"]
+    },
+    "runtimeMs": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "costEur": {
+      "type": ["number", "null"],
+      "minimum": 0
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "topic",
+    "mission",
+    "status",
+    "agentIds",
+    "progress",
+    "sourceCount",
+    "findingCount",
+    "contradictionCount",
+    "artifactCount",
+    "runtimeMs"
+  ],
+  "additionalProperties": false
+}

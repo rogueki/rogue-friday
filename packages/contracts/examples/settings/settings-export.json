@@ -1,0 +1,212 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/settings-export.schema.json",
+  "contractVersion": "1.0.0",
+  "exportedAt": "2026-10-14T08:15:00Z",
+  "settings": {
+    "profile": {
+      "displayName": "Erik",
+      "locale": "de",
+      "timeZone": "Europe/Berlin",
+      "dateFormat": "dd.MM.yyyy",
+      "timeFormat": "24h",
+      "firstDayOfWeek": "monday"
+    },
+    "dashboard": {
+      "activeLayoutId": "jarvis-command-overview",
+      "fontScale": 1,
+      "backgroundGrid": true,
+      "soundEffects": false,
+      "autoRefreshSeconds": 30,
+      "compact": false
+    },
+    "theme": {
+      "activeThemeId": "jarvis-command-gold-core",
+      "cyanIntensity": 0.8,
+      "panelOpacity": 0.88,
+      "goldIntensity": 0.78
+    },
+    "navigation": {
+      "order": [
+        "overview",
+        "tasks",
+        "activity",
+        "memory",
+        "agents",
+        "approvals",
+        "communication",
+        "calendar",
+        "automations",
+        "research",
+        "files",
+        "voice",
+        "notifications",
+        "system",
+        "audit",
+        "settings"
+      ],
+      "hidden": [],
+      "defaultPage": "overview",
+      "mode": "expanded"
+    },
+    "modelsRouting": {
+      "defaultModel": "Kimi K3",
+      "localFirst": false,
+      "routes": [
+        {
+          "taskKind": "chat",
+          "model": "Qwen Local",
+          "reasoningLevel": "low",
+          "fallbackModel": "Kimi K3"
+        }
+      ],
+      "monthlyBudgetEur": 50
+    },
+    "voice": {
+      "wakeWordEnabled": true,
+      "wakeWord": "Hey Jarvis",
+      "pushToTalkKey": "F13",
+      "speakerVerificationRequired": true,
+      "storeRawRecordings": false,
+      "voiceHistoryEnabled": false,
+      "ttsVoice": "de_DE-thorsten",
+      "ttsRate": 1,
+      "inputDeviceId": null,
+      "outputDeviceId": null
+    },
+    "notifications": {
+      "channels": [
+        {
+          "kind": "dashboard",
+          "enabled": true,
+          "minPriority": "P4"
+        },
+        {
+          "kind": "telegram",
+          "enabled": true,
+          "minPriority": "P1"
+        }
+      ],
+      "quietHours": {
+        "enabled": true,
+        "from": "22:00",
+        "to": "07:00"
+      },
+      "defaultEscalation": [
+        {
+          "afterSeconds": 600,
+          "channel": "phone",
+          "description": "Anruf nach 10 Minuten",
+          "stopOnAcknowledge": true
+        }
+      ],
+      "snoozeDefaultMinutes": 30
+    },
+    "security": {
+      "sessionTimeoutMinutes": 480,
+      "reauthWindowMinutes": 5,
+      "allowRemoteAccess": false,
+      "auditHashChain": true,
+      "trustedOrigins": []
+    },
+    "approvals": {
+      "defaultExpiryMinutes": 60,
+      "draftOnlyByDefault": true,
+      "confirmTier2": true,
+      "reauthTier3": true,
+      "notifyOnRequest": true
+    },
+    "dataRetention": {
+      "activityDays": 90,
+      "auditDays": 730,
+      "voiceHistoryDays": 0,
+      "notificationDays": 180,
+      "temporaryFileDays": 14,
+      "memoryDefaultTtlDays": null
+    },
+    "backups": {
+      "enabled": true,
+      "schedule": "0 3 * * *",
+      "targetPath": "D:\\Jarvis\\Backups",
+      "retentionCount": 14,
+      "lastBackupAt": "2026-10-14T03:00:00Z",
+      "lastBackupStatus": "success"
+    },
+    "developer": {
+      "debugMode": false,
+      "showRawJson": false,
+      "scenarioConsole": true,
+      "orbPerfOverlay": false,
+      "logLevel": "info"
+    },
+    "orb": {
+      "preset": "gold-fragment-core",
+      "size": 1,
+      "intensity": 78,
+      "speed": 1,
+      "particleDensity": 72,
+      "audioReactive": true,
+      "mouseParallax": true,
+      "bloom": true,
+      "animations": "full",
+      "quality": "auto",
+      "renderMode": "auto",
+      "statusColors": {
+        "error": "#ff4d5a",
+        "warning": "#ffb52e",
+        "waiting_approval": "#ffd166",
+        "success": "#3ddc97"
+      }
+    }
+  },
+  "themes": [
+    {
+      "id": "jarvis-command-gold-core",
+      "name": "Jarvis Command / Gold Core",
+      "builtIn": true,
+      "tokens": {
+        "color.primary": "#27dcff",
+        "color.background": "#01060c",
+        "color.orb": "#ffb52e",
+        "color.orbHot": "#fff2ba"
+      },
+      "orb": {
+        "preset": "gold-fragment-core",
+        "particleDensity": 0.72,
+        "fragmentDensity": 0.82,
+        "glowIntensity": 0.78,
+        "motionSpeed": 1,
+        "mouseParallax": true
+      },
+      "panels": {
+        "cornerStyle": "technical-cut",
+        "borderIntensity": 0.55,
+        "backgroundOpacity": 0.88
+      }
+    }
+  ],
+  "layouts": [
+    {
+      "layoutId": "jarvis-command-overview",
+      "name": "Command Overview",
+      "columns": 12,
+      "widgets": [
+        {
+          "id": "ai-core-orb",
+          "x": 3,
+          "y": 0,
+          "w": 6,
+          "h": 7,
+          "visible": true
+        },
+        {
+          "id": "attention-feed",
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 7,
+          "visible": true
+        }
+      ]
+    }
+  ]
+}

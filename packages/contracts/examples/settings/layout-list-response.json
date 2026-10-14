@@ -1,0 +1,44 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/layout-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "layoutId": "jarvis-command-overview",
+      "name": "Command Overview",
+      "columns": 12,
+      "widgets": [
+        {
+          "id": "ai-core-orb",
+          "x": 3,
+          "y": 0,
+          "w": 6,
+          "h": 7,
+          "visible": true
+        },
+        {
+          "id": "attention-feed",
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 7,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "pageInfo": {
+    "nextCursor": null,
+    "hasNextPage": false
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "control-api",
+      "system": "jarvis",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

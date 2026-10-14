@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/files/file-lineage-entry.schema.json",
+  "title": "FileLineageEntry",
+  "type": "object",
+  "properties": {
+    "relation": {
+      "type": "string",
+      "enum": ["derived_from", "input_of", "output_of", "replaces"]
+    },
+    "fileId": {
+      "type": "string",
+      "pattern": "^file_[0-9A-Za-z]{26}$"
+    },
+    "taskId": {
+      "type": "string",
+      "pattern": "^task_[0-9A-Za-z]{26}$"
+    },
+    "description": {
+      "type": "string"
+    }
+  },
+  "required": ["relation", "description"],
+  "additionalProperties": false
+}

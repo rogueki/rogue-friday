@@ -1,0 +1,6 @@
+{
+  "$schema": "https://jarvis.local/schemas/dev/scenario-control-request.schema.json",
+  "action": "force_orb_state",
+  "mode": "error",
+  "activityText": "Verbindung zum Kalender verloren"
+}

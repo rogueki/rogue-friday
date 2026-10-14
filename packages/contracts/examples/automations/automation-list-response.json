@@ -1,0 +1,76 @@
+{
+  "$schema": "https://jarvis.local/schemas/automations/automation-list-response.schema.json",
+  "contractVersion": "1.0.0",
+  "items": [
+    {
+      "id": "auto_01JCW5E9R2Q7T4M8N3B6V00001",
+      "version": 3,
+      "createdAt": "2026-10-14T06:30:00Z",
+      "updatedAt": "2026-10-14T08:10:00Z",
+      "source": {
+        "adapterId": "mock-automations",
+        "system": "mock",
+        "lastSyncedAt": "2026-10-14T08:15:00Z"
+      },
+      "name": "Wichtige Mail eskalieren",
+      "description": "Neue P1-Mail → Telegram, nach 10 Minuten ohne Bestätigung Anruf.",
+      "enabled": true,
+      "paused": false,
+      "trigger": {
+        "type": "event",
+        "event": "jarvis.communication.thread_updated",
+        "description": "Neuer Thread mit Priorität P1"
+      },
+      "conditions": [
+        {
+          "id": "cond_1",
+          "field": "thread.priority",
+          "operator": "eq",
+          "value": "P1",
+          "description": "Priorität ist P1"
+        }
+      ],
+      "actions": [
+        {
+          "id": "act_1",
+          "type": "notify",
+          "channel": "telegram",
+          "requiresApproval": false,
+          "description": "Telegram-Nachricht senden"
+        }
+      ],
+      "escalation": [
+        {
+          "afterSeconds": 600,
+          "channel": "phone",
+          "description": "Anruf nach 10 Minuten ohne Bestätigung",
+          "stopOnAcknowledge": true
+        }
+      ],
+      "nextRunAt": null,
+      "lastRunAt": "2026-10-14T07:49:00Z",
+      "lastSuccess": {
+        "at": "2026-10-14T07:49:00Z",
+        "runId": "run_01JCW5E9R2Q7T4M8N3B6V00001"
+      },
+      "lastError": null,
+      "runCount": 23
+    }
+  ],
+  "pageInfo": {
+    "nextCursor": null,
+    "hasNextPage": false,
+    "totalCount": 1
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  },
+  "sources": [
+    {
+      "adapterId": "mock-automations",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    }
+  ]
+}

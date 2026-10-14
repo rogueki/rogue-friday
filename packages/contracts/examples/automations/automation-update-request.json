@@ -1,0 +1,4 @@
+{
+  "$schema": "https://jarvis.local/schemas/automations/automation-update-request.schema.json",
+  "enabled": false
+}

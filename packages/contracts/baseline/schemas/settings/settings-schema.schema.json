@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/settings-schema.schema.json",
+  "title": "SettingsSchema",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "$ref": "../common/json-schema-object.schema.json"
+    },
+    "areas": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["schema", "areas"],
+  "additionalProperties": false
+}

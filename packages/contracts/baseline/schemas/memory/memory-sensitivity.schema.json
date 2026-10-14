@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/memory/memory-sensitivity.schema.json",
+  "title": "MemorySensitivity",
+  "type": "string",
+  "enum": ["normal", "sensitive", "restricted"]
+}

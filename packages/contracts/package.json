@@ -1,0 +1,31 @@
+{
+  "name": "@jarvis/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vertragsquelle: JSON Schema, OpenAPI, AsyncAPI, Beispiele",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "node scripts/lint.mjs",
+    "validate": "node scripts/validate.mjs",
+    "bundle": "node scripts/bundle.mjs",
+    "generate": "node scripts/generate.mjs",
+    "check-generated": "node scripts/check-generated.mjs",
+    "breaking": "node scripts/breaking.mjs",
+    "baseline:update": "node scripts/baseline-update.mjs",
+    "check": "node scripts/check.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@asyncapi/parser": "^3.6.4",
+    "@redocly/cli": "^2.63.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "json-schema-to-typescript": "^16.0.0",
+    "openapi-typescript": "^7.13.0",
+    "yaml": "^2.9.1"
+  }
+}

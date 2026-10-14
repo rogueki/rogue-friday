@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/communication/message.schema.json",
+  "title": "Message",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^msg_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "threadId": {
+      "type": "string",
+      "pattern": "^thr_[0-9A-Za-z]{26}$"
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["inbound", "outbound"]
+    },
+    "from": {
+      "$ref": "../communication/participant.schema.json"
+    },
+    "to": {
+      "type": "array",
+      "items": {
+        "$ref": "../communication/participant.schema.json"
+      }
+    },
+    "cc": {
+      "type": "array",
+      "items": {
+        "$ref": "../communication/participant.schema.json"
+      }
+    },
+    "sentAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "bodyText": {
+      "type": "string"
+    },
+    "aiSummary": {
+      "type": ["string", "null"]
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "$ref": "../communication/attachment.schema.json"
+      }
+    },
+    "originalRef": {
+      "type": "string",
+      "description": "Opaque reference to the original in the source system."
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "threadId",
+    "direction",
+    "from",
+    "to",
+    "sentAt",
+    "bodyText",
+    "aiSummary",
+    "attachments"
+  ],
+  "additionalProperties": false
+}

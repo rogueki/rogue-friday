@@ -1,0 +1,12 @@
+{
+  "$schema": "https://jarvis.local/schemas/meta/adapter-health.schema.json",
+  "adapterId": "mock-tasks",
+  "status": "online",
+  "lifecycle": "ONLINE",
+  "latencyMs": 4,
+  "lastSuccessAt": "2026-10-14T08:15:00Z",
+  "lastError": null,
+  "checkedAt": "2026-10-14T08:15:00Z",
+  "consecutiveFailures": 0,
+  "circuit": "closed"
+}

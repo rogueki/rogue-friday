@@ -1,0 +1,43 @@
+{
+  "$schema": "https://jarvis.local/schemas/automations/automation-run-response.schema.json",
+  "contractVersion": "1.0.0",
+  "data": {
+    "id": "run_01JCW5E9R2Q7T4M8N3B6V00001",
+    "version": 3,
+    "createdAt": "2026-10-14T06:30:00Z",
+    "updatedAt": "2026-10-14T08:10:00Z",
+    "source": {
+      "adapterId": "mock-automations",
+      "system": "mock",
+      "lastSyncedAt": "2026-10-14T08:15:00Z"
+    },
+    "automationId": "auto_01JCW5E9R2Q7T4M8N3B6V00001",
+    "automationVersion": 3,
+    "status": "succeeded",
+    "dryRun": false,
+    "triggeredAt": "2026-10-14T07:49:00Z",
+    "finishedAt": "2026-10-14T07:49:00Z",
+    "triggerReason": "Neue Mail von Katharina Becker mit Priorität P1 eingegangen.",
+    "conditionsEvaluated": [
+      {
+        "conditionId": "cond_1",
+        "met": true,
+        "detail": "thread.priority = P1"
+      }
+    ],
+    "actionsExecuted": [
+      {
+        "actionId": "act_1",
+        "status": "succeeded",
+        "executedAt": "2026-10-14T07:49:00Z",
+        "resultSummary": "Telegram-Nachricht zugestellt"
+      }
+    ],
+    "result": "Benachrichtigung gesendet, Eskalation in 10 Minuten geplant.",
+    "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00003"
+  },
+  "freshness": {
+    "state": "fresh",
+    "asOf": "2026-10-14T08:15:00Z"
+  }
+}

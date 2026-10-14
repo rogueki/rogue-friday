@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/files/file-item.schema.json",
+  "title": "FileItem",
+  "description": "Generated or uploaded document (PLAN §37). Untrusted content is only previewed in a sandbox.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^file_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "name": {
+      "type": "string"
+    },
+    "mimeType": {
+      "type": "string"
+    },
+    "sizeBytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "category": {
+      "$ref": "../files/file-category.schema.json"
+    },
+    "currentVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "versions": {
+      "type": "array",
+      "items": {
+        "$ref": "../files/file-version.schema.json"
+      }
+    },
+    "createdBy": {
+      "$ref": "../common/actor.schema.json"
+    },
+    "taskId": {
+      "type": ["string", "null"],
+      "pattern": "^task_[0-9A-Za-z]{26}$"
+    },
+    "location": {
+      "type": "string",
+      "description": "Logical location, e.g. D:\\Jarvis\\Dateien\\Berichte."
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "previewKind": {
+      "$ref": "../files/preview-kind.schema.json"
+    },
+    "lineage": {
+      "type": "array",
+      "items": {
+        "$ref": "../files/file-lineage-entry.schema.json"
+      }
+    },
+    "checksum": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "name",
+    "mimeType",
+    "sizeBytes",
+    "category",
+    "currentVersion",
+    "versions",
+    "createdBy",
+    "taskId",
+    "location",
+    "tags",
+    "previewKind",
+    "lineage",
+    "checksum"
+  ],
+  "additionalProperties": false
+}

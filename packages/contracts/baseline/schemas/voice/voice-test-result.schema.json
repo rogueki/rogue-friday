@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/voice/voice-test-result.schema.json",
+  "title": "VoiceTestResult",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "$ref": "../voice/voice-test-kind.schema.json"
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "latencyMs": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "detail": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": ["name", "ok", "latencyMs", "detail"],
+        "additionalProperties": false
+      }
+    },
+    "message": {
+      "type": "string"
+    },
+    "correlationId": {
+      "type": "string",
+      "pattern": "^corr_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": ["kind", "success", "startedAt", "durationMs", "stages", "message", "correlationId"],
+  "additionalProperties": false
+}

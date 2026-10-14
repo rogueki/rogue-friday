@@ -1,0 +1,29 @@
+{
+  "$schema": "https://jarvis.local/schemas/settings/notifications-settings.schema.json",
+  "channels": [
+    {
+      "kind": "dashboard",
+      "enabled": true,
+      "minPriority": "P4"
+    },
+    {
+      "kind": "telegram",
+      "enabled": true,
+      "minPriority": "P1"
+    }
+  ],
+  "quietHours": {
+    "enabled": true,
+    "from": "22:00",
+    "to": "07:00"
+  },
+  "defaultEscalation": [
+    {
+      "afterSeconds": 600,
+      "channel": "phone",
+      "description": "Anruf nach 10 Minuten",
+      "stopOnAcknowledge": true
+    }
+  ],
+  "snoozeDefaultMinutes": 30
+}

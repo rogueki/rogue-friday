@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/voice/voice-test-request.schema.json",
+  "title": "VoiceTestRequest",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "$ref": "../voice/voice-test-kind.schema.json"
+    },
+    "text": {
+      "type": "string"
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 60000
+    }
+  },
+  "required": ["kind"],
+  "additionalProperties": false
+}

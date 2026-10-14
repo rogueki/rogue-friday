@@ -1,0 +1,5 @@
+{
+  "$schema": "https://jarvis.local/schemas/events/control-frame.schema.json",
+  "kind": "ping",
+  "ts": 1792000000000
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://jarvis.local/schemas/voice/voice-status.schema.json",
+  "updatedAt": "2026-10-14T08:15:00Z",
+  "source": {
+    "adapterId": "mock-voice",
+    "system": "mock",
+    "lastSyncedAt": "2026-10-14T08:15:00Z"
+  },
+  "mode": "idle",
+  "microphone": {
+    "state": "idle",
+    "active": false,
+    "deviceId": "mic_default",
+    "inputLevel": 0.04
+  },
+  "wakeWord": {
+    "enabled": true,
+    "state": "armed",
+    "phrase": "Hey Jarvis"
+  },
+  "speakerVerification": {
+    "enabled": true,
+    "state": "verified",
+    "recognizedSpeaker": "Erik",
+    "confidence": 0.96
+  },
+  "trustedSession": {
+    "active": true,
+    "expiresAt": "2026-10-14T08:45:00Z"
+  },
+  "stt": {
+    "engine": "faster-whisper large-v3",
+    "state": "ready",
+    "latencyMs": 410
+  },
+  "tts": {
+    "engine": "Piper de_DE-thorsten",
+    "state": "ready",
+    "latencyMs": 180
+  },
+  "localModel": {
+    "name": "Qwen3 30B (lokal)",
+    "state": "ready",
+    "latencyMs": 620
+  },
+  "audioInputDeviceId": "mic_default",
+  "audioOutputDeviceId": "spk_default",
+  "pushToTalk": {
+    "enabled": true,
+    "active": false
+  },
+  "focusMode": false,
+  "rawRecordingEnabled": false,
+  "voiceHistoryEnabled": false
+}

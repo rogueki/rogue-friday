@@ -1,0 +1,18 @@
+{
+  "name": "@jarvis/mock-data",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Deterministische Mock-Daten, Szenarien und MSW-Handler",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@jarvis/sdk": "workspace:*",
+    "msw": "^3.0.3"
+  }
+}

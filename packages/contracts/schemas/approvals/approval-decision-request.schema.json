@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/approvals/approval-decision-request.schema.json",
+  "title": "ApprovalDecisionRequest",
+  "type": "object",
+  "properties": {
+    "comment": {
+      "type": "string"
+    },
+    "reauthToken": {
+      "type": "string",
+      "description": "Short-lived token from POST /auth/reauth; required when requiredAuth is reauth."
+    },
+    "editedPreview": {
+      "$ref": "../approvals/approval-preview.schema.json"
+    },
+    "inputChannel": {
+      "type": "string",
+      "enum": ["dashboard", "voice", "api"]
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/meta/meta.schema.json",
+  "title": "Meta",
+  "description": "Bootstrap document: tells the client how to reach the event stream and which mode the server runs in.",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "apiVersion": {
+      "type": "string",
+      "pattern": "^v\\d+$"
+    },
+    "dataMode": {
+      "type": "string",
+      "enum": ["mock", "hybrid", "live"]
+    },
+    "eventsPath": {
+      "type": "string",
+      "description": "WebSocket path, relative to the API origin."
+    },
+    "eventsOrigin": {
+      "type": "string",
+      "format": "uri",
+      "description": "Overrides the origin of the WebSocket (dev setups)."
+    },
+    "buildVersion": {
+      "type": "string"
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "description": "Boolean feature flags, e.g. devScenarios."
+    },
+    "serverTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "defaultLocale": {
+      "type": "string",
+      "enum": ["de", "en"]
+    }
+  },
+  "required": ["contractVersion", "apiVersion", "dataMode", "eventsPath", "buildVersion", "features"],
+  "additionalProperties": false
+}

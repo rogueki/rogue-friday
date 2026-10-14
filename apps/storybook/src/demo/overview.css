@@ -1,0 +1,68 @@
+/* Demo layout for the OverviewComposition story (the app will own its own page CSS). */
+
+.ov-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(15, minmax(0, 1fr));
+  gap: 10px;
+  height: 100%;
+  min-height: 640px;
+}
+.ov-cell { min-height: 0; }
+.ov-cell .jv-panel__body { display: flex; flex-direction: column; }
+.ov-stack { display: flex; flex-direction: column; gap: 6px; }
+.ov-stack--tight { gap: 5px; }
+.ov-stack--fill { flex: 1; min-height: 0; }
+.ov-stack--fill > .jv-row { flex: 1 1 0; min-height: 36px; }
+.ov-quick { padding-block: 4px; }
+
+.ov-core .jv-panel__frame {
+  background:
+    radial-gradient(ellipse 60% 70% at 50% 42%, color-mix(in srgb, var(--jarvis-orb-deep) 26%, transparent), transparent 72%),
+    radial-gradient(ellipse 90% 80% at 50% 55%, color-mix(in srgb, var(--jarvis-blue) 10%, transparent), transparent 70%),
+    var(--jarvis-panel-0);
+}
+.ov-orb { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 100%; min-height: 0; padding: 18px 24px 16px; text-align: center; }
+.ov-orb__slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-height: 0;
+  max-width: 100%;
+  aspect-ratio: 1;
+  font-family: var(--jv-font-display);
+  font-size: var(--jv-fs-xl);
+  letter-spacing: 0.4em;
+  color: color-mix(in srgb, var(--jarvis-orb-hot) 82%, transparent);
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--jarvis-orb-gold) 34%, transparent), transparent 58%),
+    repeating-linear-gradient(45deg, color-mix(in srgb, var(--jarvis-orb-gold) 6%, transparent) 0 8px, transparent 8px 16px);
+  border: 1px dashed color-mix(in srgb, var(--jarvis-orb-gold) 56%, transparent);
+  border-radius: 50%;
+}
+.ov-orb__brand { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.ov-orb__name { font-family: var(--jv-font-display); font-size: var(--jv-fs-hero); font-weight: 600; letter-spacing: 0.42em; padding-left: 0.42em; color: var(--jarvis-text-strong); }
+.ov-orb__sub { margin-top: 6px; font-family: var(--jv-font-display); font-size: var(--jv-fs-lg); letter-spacing: 0.5em; padding-left: 0.5em; color: var(--jarvis-orb-gold); }
+.ov-orb__ver { margin-top: 6px; font-family: var(--jv-font-mono); font-size: var(--jv-fs-xs); color: var(--jarvis-muted); }
+.ov-orb__status { display: flex; align-items: center; gap: 12px; font-size: var(--jv-fs-sm); color: var(--jarvis-text); }
+
+.ov-agents { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px; flex: 1; min-height: 0; }
+.ov-agents .jv-agent { min-height: 0; padding: 8px 10px; }
+.ov-today { display: inline-flex; align-items: center; gap: 3px; padding: 0; font: inherit; font-size: var(--jv-fs-xs); color: var(--jarvis-text); background: none; border: 0; cursor: pointer; }
+
+.ov-monitor { display: flex; flex-direction: column; justify-content: space-between; gap: 10px; flex: 1; min-height: 0; }
+.ov-gauges { display: flex; align-items: center; justify-content: space-around; gap: 8px; flex: 1; }
+.ov-services { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ov-services__state { color: var(--jarvis-muted); margin-left: 3px; }
+
+.ov-memory { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; flex: 1; min-height: 0; }
+.ov-memory__graph { align-self: stretch; }
+.ov-memory__stats { display: grid; grid-template-columns: 1fr; gap: 6px; margin: 0; align-content: center; }
+.ov-memory__stats div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ov-memory__stats dt { font-size: var(--jv-fs-xs); color: var(--jarvis-muted); }
+.ov-memory__stats dd { margin: 0; font-family: var(--jv-font-mono); font-size: var(--jv-fs-lg); font-weight: 600; color: var(--jarvis-text-strong); }
+
+.ov-providers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px; flex: 1; min-height: 0; }
+.ov-providers .jv-provider { min-height: 0; }
+.ov-count { font-size: var(--jv-fs-xs); font-weight: 500; color: var(--jarvis-success); }

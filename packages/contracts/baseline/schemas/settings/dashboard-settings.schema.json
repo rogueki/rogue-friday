@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/settings/dashboard-settings.schema.json",
+  "title": "DashboardSettings",
+  "type": "object",
+  "properties": {
+    "activeLayoutId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "fontScale": {
+      "type": "number",
+      "minimum": 0.8,
+      "maximum": 1.4
+    },
+    "backgroundGrid": {
+      "type": "boolean"
+    },
+    "soundEffects": {
+      "type": "boolean"
+    },
+    "autoRefreshSeconds": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 3600
+    },
+    "compact": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "activeLayoutId",
+    "fontScale",
+    "backgroundGrid",
+    "soundEffects",
+    "autoRefreshSeconds",
+    "compact"
+  ],
+  "additionalProperties": false
+}

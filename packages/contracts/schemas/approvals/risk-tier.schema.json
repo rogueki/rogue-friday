@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/approvals/risk-tier.schema.json",
+  "title": "RiskTier",
+  "type": "integer",
+  "enum": [1, 2, 3],
+  "description": "Tier 1 low, Tier 2 confirm, Tier 3 re-authentication; Tier 3 is never approvable by voice alone."
+}

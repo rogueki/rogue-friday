@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/approvals/approval.schema.json",
+  "title": "Approval",
+  "description": "Human approval gate (PLAN §32). Decisions are checked again server-side before execution.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^appr_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision used for optimistic concurrency (If-Match)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    },
+    "type": {
+      "$ref": "../approvals/approval-type.schema.json"
+    },
+    "action": {
+      "type": "string",
+      "description": "Short imperative description, e.g. \"E-Mail an Frau Becker senden\"."
+    },
+    "riskTier": {
+      "$ref": "../approvals/risk-tier.schema.json"
+    },
+    "agentId": {
+      "type": ["string", "null"],
+      "pattern": "^agent_[0-9A-Za-z]{26}$"
+    },
+    "taskId": {
+      "type": ["string", "null"],
+      "pattern": "^task_[0-9A-Za-z]{26}$"
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "impacts": {
+      "type": "array",
+      "items": {
+        "$ref": "../approvals/approval-impact.schema.json"
+      }
+    },
+    "preview": {
+      "$ref": "../approvals/approval-preview.schema.json"
+    },
+    "expiresAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "requiredAuth": {
+      "$ref": "../approvals/required-auth.schema.json"
+    },
+    "status": {
+      "$ref": "../approvals/approval-status.schema.json"
+    },
+    "decidedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "decidedBy": {
+      "anyOf": [
+        {
+          "$ref": "../common/actor.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "decisionComment": {
+      "type": ["string", "null"]
+    },
+    "sourceRef": {
+      "anyOf": [
+        {
+          "$ref": "../common/entity-ref.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "editable": {
+      "type": "boolean"
+    },
+    "executionResult": {
+      "type": ["string", "null"]
+    },
+    "correlationId": {
+      "type": "string",
+      "pattern": "^corr_[0-9A-Za-z]{26}$"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "createdAt",
+    "updatedAt",
+    "source",
+    "type",
+    "action",
+    "riskTier",
+    "agentId",
+    "taskId",
+    "rationale",
+    "impacts",
+    "preview",
+    "expiresAt",
+    "requiredAuth",
+    "status",
+    "sourceRef",
+    "editable",
+    "correlationId"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/meta/attention-item.schema.json",
+  "title": "AttentionItem",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["alert", "approval", "mail", "blocked_task", "overdue_task", "system"]
+    },
+    "title": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "severity": {
+      "$ref": "../common/severity.schema.json"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "targetRoute": {
+      "type": "string"
+    },
+    "ref": {
+      "anyOf": [
+        {
+          "$ref": "../common/entity-ref.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": ["id", "kind", "title", "summary", "severity", "occurredAt", "targetRoute", "ref"],
+  "additionalProperties": false
+}

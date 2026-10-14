@@ -1,0 +1,6 @@
+{
+  "$schema": "https://jarvis.local/schemas/auth/user.schema.json",
+  "id": "usr_01JCW5E9R2Q7T4M8N3B6V00001",
+  "displayName": "Erik",
+  "role": "owner"
+}

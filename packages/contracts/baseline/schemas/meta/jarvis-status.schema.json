@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/meta/jarvis-status.schema.json",
+  "title": "JarvisStatus",
+  "description": "Compact overall status (top bar).",
+  "type": "object",
+  "properties": {
+    "status": {
+      "$ref": "../common/health-status.schema.json"
+    },
+    "label": {
+      "type": "string"
+    },
+    "mode": {
+      "$ref": "../orb/orb-mode.schema.json"
+    },
+    "dataMode": {
+      "type": "string",
+      "enum": ["mock", "hybrid", "live"]
+    },
+    "uptimeSeconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "since": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "version": {
+      "type": "string"
+    },
+    "eventStream": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["online", "degraded", "offline", "connecting"]
+        },
+        "roundtripMs": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "lastEventAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
+      },
+      "required": ["state", "roundtripMs", "lastEventAt"],
+      "additionalProperties": false
+    },
+    "adapterSummary": {
+      "type": "object",
+      "properties": {
+        "online": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "degraded": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "offline": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["online", "degraded", "offline"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "status",
+    "label",
+    "mode",
+    "dataMode",
+    "uptimeSeconds",
+    "since",
+    "version",
+    "eventStream",
+    "adapterSummary"
+  ],
+  "additionalProperties": false
+}

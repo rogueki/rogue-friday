@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/common/freshness-state.schema.json",
+  "title": "FreshnessState",
+  "type": "string",
+  "enum": ["fresh", "stale", "unknown", "offline-cache"]
+}

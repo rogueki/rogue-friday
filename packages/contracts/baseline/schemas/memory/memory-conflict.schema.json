@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/memory/memory-conflict.schema.json",
+  "title": "MemoryConflict",
+  "type": "object",
+  "properties": {
+    "memoryId": {
+      "type": "string",
+      "pattern": "^mem_[0-9A-Za-z]{26}$"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "detectedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "resolution": {
+      "type": "string",
+      "enum": ["pending", "keep_both", "replaced", "dismissed"]
+    }
+  },
+  "required": ["memoryId", "reason", "detectedAt", "resolution"],
+  "additionalProperties": false
+}

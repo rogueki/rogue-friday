@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/meta/adapter-category.schema.json",
+  "title": "AdapterCategory",
+  "type": "string",
+  "enum": [
+    "tasks",
+    "activity",
+    "memory",
+    "agents",
+    "approvals",
+    "communication",
+    "calendar",
+    "automations",
+    "research",
+    "files",
+    "voice",
+    "notifications",
+    "system",
+    "audit",
+    "commands"
+  ]
+}

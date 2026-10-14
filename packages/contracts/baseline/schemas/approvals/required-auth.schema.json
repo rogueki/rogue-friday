@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jarvis.local/schemas/approvals/required-auth.schema.json",
+  "title": "RequiredAuth",
+  "type": "string",
+  "enum": ["none", "confirm", "reauth"]
+}
