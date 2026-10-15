@@ -55,6 +55,9 @@ export function stableUserId(label: string): string {
 }
 
 const OWNER_USER_ID = stableUserId("owner");
+/** Documented password of the dev auth mode; required for re-authentication (login accepts any non-empty password). */
+export const DEV_PASSWORD = "dev";
+
 const DEV_USER_IDS: Record<Role, string> = {
   owner: stableUserId("dev-owner"),
   operator: stableUserId("dev-operator"),
@@ -210,7 +213,9 @@ export class AuthService {
         throw new ApiError({ code: "UNAUTHENTICATED", message: "Das Passwort ist nicht korrekt." });
       }
       this.deps.limiter.recordSuccess(principal.userId, ip);
-    } else if (password.length === 0) {
+    } else if (password !== DEV_PASSWORD) {
+      // Dev login accepts any non-empty password (convenience), but re-auth checks the documented dev password so the
+      // wrong-password path stays testable without hash auth.
       throw new ApiError({ code: "UNAUTHENTICATED", message: "Das Passwort ist nicht korrekt." });
     }
     this.deps.sessions.markReauth(principal.sessionId);

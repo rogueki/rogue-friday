@@ -93,3 +93,47 @@ describe("scenario console: release_orb_state and play_event", () => {
     });
   });
 });
+
+describe("GET /meta carries the mock world's UI hints", () => {
+  let api: TestApi;
+  let owner: ApiClient;
+
+  beforeAll(async () => {
+    api = await startTestApi();
+    owner = api.client();
+    await owner.loginDev("owner");
+  });
+  afterAll(async () => {
+    await api.close();
+  });
+
+  const features = async (): Promise<Record<string, boolean>> => (await owner.get("/api/v1/meta")).json().features;
+
+  it("passes forceOrbFallback2D and reducedMotion through while a scenario sets them and clears them on reset", async () => {
+    const before = await features();
+    expect(before.forceOrbFallback2D).toBeFalsy();
+    expect(before.reducedMotion).toBeFalsy();
+
+    expect((await owner.post("/api/v1/dev/scenarios/webgl-failure/play?speed=10")).statusCode).toBe(200);
+    const webgl = await features();
+    expect(webgl.forceOrbFallback2D).toBe(true);
+    expect(webgl.reducedMotion).toBeFalsy();
+
+    expect((await owner.post("/api/v1/dev/scenarios/reduced-motion/play?speed=10")).statusCode).toBe(200);
+    const reduced = await features();
+    expect(reduced.reducedMotion).toBe(true);
+    expect(reduced.forceOrbFallback2D).toBeFalsy();
+
+    await owner.post(CONTROL, { action: "reset" });
+    const after = await features();
+    expect(after.reducedMotion).toBeFalsy();
+    expect(after.forceOrbFallback2D).toBeFalsy();
+  });
+
+  it("never lets a UI hint shadow a core feature flag", async () => {
+    const flags = await features();
+    expect(flags.devScenarios).toBe(true);
+    expect(flags.mockData).toBe(true);
+    expect(flags.devAuth).toBe(true);
+  });
+});

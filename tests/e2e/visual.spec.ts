@@ -2,6 +2,12 @@ import { test, expect, open, orbRoot, expectOrbMode, freezeDate, patchSettings, 
 import type { ApiClient } from "./support/api";
 import type { Page } from "@playwright/test";
 
+declare global {
+  interface Window {
+    __ORB_DEBUG__?: { testClock: string; frames: number; quality: string; segments: number; plates: number; nodes: number; points: number; draws: number };
+  }
+}
+
 /**
  * PLAN §51.4 Visual regression, §52 orb testability.
  *
@@ -10,9 +16,9 @@ import type { Page } from "@playwright/test";
  *  - the browser `Date` is frozen (`freezeDate`), so the top-bar clock and every relative time ("vor 11 Std.") are constant;
  *  - the orb runs with `animations: "off"`. That is a product mode (PLAN §25/§45.13): the 3D scene switches to the static
  *    2D renderer, which is a pure function of the orb state - byte-identical across runs (verified). A live 3D WebGL
- *    frame is a function of wall-clock time (the web app does not expose the orb test clock `fixedTime`/`animationProgress`
- *    of PLAN §52.1, see tests/e2e/README.md "Gaps"), so 3D pixels cannot be baselined; 3D is covered by smoke checks
- *    (non-blank canvas, mode attributes) in orb-3d-smoke below.
+ *    frame is a function of wall-clock time, so the 3D baselines further down use the orb test clock
+ *    (`fixedTime`/`animationProgress`/`audioFixture`, PLAN §52.1), which the web app exposes in dev-scenario builds.
+ *    The "3D smoke" test keeps checking the live (unfrozen) canvas.
  *  - the only live value left, the event-stream latency chip, is masked.
  */
 /** Wall-clock / live-metric spots that are not part of the design: stream latency, "Aktualisiert hh:mm" (server wall clock), host metrics. */
@@ -112,6 +118,116 @@ test.describe("orb states (static 2D render, 14 modes)", () => {
     }, shot3d.toString("base64"));
     expect(lit.bright, "orb area is not black").toBeGreaterThan(0.01);
     expect(lit.golden, "gold/amber identity present").toBeGreaterThan(0.003);
+  });
+});
+
+/**
+ * Orb in WebGL with the deterministic test clock (PLAN §52.1-§52.3). The web app honours `window.__JARVIS_ORB_TEST__`
+ * (`fixedTime`, `animationProgress`, `audioFixture`) only while the server reports `features.devScenarios`; the frozen
+ * clock removes the wall clock and the damping from the scene, so a frame is a pure function of (mode, time, progress,
+ * audio fixture). Quality is pinned to `medium` because `auto` depends on the host's core count. The same frame was
+ * rendered in three separate page loads and was byte-identical each time (see tests/e2e/README.md).
+ */
+interface OrbClock {
+  fixedTime: number;
+  animationProgress?: number;
+  audioFixture?: "silence" | "normal" | "loud" | "tts" | "spike";
+}
+
+async function prepare3d(page: Page, api: ApiClient): Promise<void> {
+  const settings = (await api.get("/settings")).body.data;
+  await patchSettings(api, { orb: { ...settings.orb, animations: "full", renderMode: "3d", quality: "medium", mouseParallax: false } });
+  await freezeDate(page);
+}
+
+async function setOrbClock(page: Page, clock: OrbClock): Promise<void> {
+  const key = `${clock.fixedTime}|${clock.animationProgress ?? ""}|${clock.audioFixture ?? ""}`;
+  await page.evaluate((value) => {
+    (window as unknown as { __JARVIS_ORB_TEST__: OrbClock }).__JARVIS_ORB_TEST__ = value;
+    window.dispatchEvent(new Event("jarvis-orb-test"));
+  }, clock);
+  // the frame loop reports the clock it renders with; then a few frames on that clock must have been drawn (swiftshader is slow)
+  await expect.poll(() => page.evaluate(() => window.__ORB_DEBUG__?.testClock ?? ""), { timeout: 60_000 }).toBe(key);
+  const applied = await page.evaluate(() => window.__ORB_DEBUG__?.frames ?? 0);
+  await expect.poll(() => page.evaluate(() => window.__ORB_DEBUG__?.frames ?? 0), { timeout: 60_000 }).toBeGreaterThan(applied + 4);
+}
+
+async function orbShot(page: Page, name: string): Promise<void> {
+  await expect(orbRoot(page)).toHaveScreenshot(`${name}.png`, { mask: [page.getByText(/^Aktualisiert \d/)], timeout: 90_000 });
+}
+
+test.describe("orb 3D with the test clock (entry / mid / stable / exit)", () => {
+  const STAGES = [["entry", 0], ["mid", 0.5], ["stable", 1]] as const;
+  for (const mode of ["booting", "error", "success"] as const) {
+    test(`${mode}`, async ({ page, api }) => {
+      test.setTimeout(240_000);
+      await prepare3d(page, api);
+      await api.forceOrb(mode);
+      await open(page, "/");
+      await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
+      await expectOrbMode(page, mode);
+      for (const [stage, progress] of STAGES) {
+        await setOrbClock(page, { fixedTime: 4, animationProgress: progress });
+        await orbShot(page, `orb3d-${mode}-${stage}`);
+      }
+      await api.forceOrb("idle"); // exit: the state is left and the orb settles in idle
+      await expectOrbMode(page, "idle");
+      await setOrbClock(page, { fixedTime: 4, animationProgress: 1 });
+      await orbShot(page, `orb3d-${mode}-exit`);
+    });
+  }
+
+  test("speaking with every audio fixture", async ({ page, api }) => {
+    test.setTimeout(240_000);
+    await prepare3d(page, api);
+    await api.forceOrb("speaking");
+    await open(page, "/");
+    await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
+    await expectOrbMode(page, "speaking");
+    // t = 2.54 s sits on the peak of the "spike" fixture's transient
+    for (const fixture of ["silence", "normal", "loud", "tts", "spike"] as const) {
+      await setOrbClock(page, { fixedTime: fixture === "spike" ? 2.54 : 3.1, animationProgress: 1, audioFixture: fixture });
+      await orbShot(page, `orb3d-speaking-audio-${fixture}`);
+    }
+  });
+
+  test("a frozen clock gives identical frames, a different time a different one", async ({ page, api }) => {
+    await prepare3d(page, api);
+    await api.forceOrb("working");
+    await open(page, "/");
+    await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
+    const grab = async (clock: OrbClock): Promise<string> => {
+      await setOrbClock(page, clock);
+      return (await orbRoot(page).screenshot({ animations: "allow", timeout: 60_000 })).toString("base64");
+    };
+    const a = await grab({ fixedTime: 5 });
+    await page.waitForTimeout(1500);
+    const b = await grab({ fixedTime: 5 });
+    const c = await grab({ fixedTime: 9 });
+    expect(b, "same fixed time, same pixels").toBe(a);
+    expect(c, "another fixed time, other pixels").not.toBe(a);
+  });
+
+  test("the test clock is ignored unless the server enables the dev scenario features", async ({ page, api }) => {
+    await prepare3d(page, api);
+    await page.addInitScript(() => {
+      (window as unknown as { __JARVIS_ORB_TEST__: unknown }).__JARVIS_ORB_TEST__ = { fixedTime: 5 };
+    });
+    // GET /meta without devScenarios, as a production configuration reports it
+    await page.route("**/api/v1/meta", async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as { features: Record<string, boolean> };
+      await route.fulfill({ response, json: { ...body, features: { ...body.features, devScenarios: false } } });
+    });
+    await open(page, "/");
+    await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
+    const frames = async (): Promise<number> => page.evaluate(() => window.__ORB_DEBUG__?.frames ?? 0);
+    await page.waitForTimeout(1000);
+    const first = (await orbRoot(page).screenshot({ animations: "allow", timeout: 60_000 })).toString("base64");
+    await page.waitForTimeout(2500);
+    expect(await frames()).toBeGreaterThan(5);
+    const second = (await orbRoot(page).screenshot({ animations: "allow", timeout: 60_000 })).toString("base64");
+    expect(second, "live clock keeps moving: the frozen-clock override was not applied").not.toBe(first);
   });
 });
 

@@ -8,7 +8,7 @@ Command Center: Control API (`apps/control-api/dist/main.js`) im Mock-Modus mit 
 
 ```bash
 pnpm build:app                 # nur nötig, wenn apps/web/out oder apps/control-api/dist fehlen/veraltet sind
-pnpm test:e2e                  # komplette Suite (serieller Lauf, ca. 27 Minuten, 122 Tests)
+pnpm test:e2e                  # komplette Suite (serieller Lauf, siehe Laufzeit in der Ausgabe)
 pnpm test:e2e -- tests/e2e/tasks.spec.ts          # einzelne Spec
 pnpm test:e2e:update           # Visual-Baselines neu erzeugen (nach jeder UI-Änderung!)
 E2E_SOAK=1 pnpm test:e2e -- tests/e2e/performance.spec.ts -g soak   # 30-Minuten-Orb-Soak (Standard: 2 Minuten)
@@ -22,6 +22,8 @@ E2E_SOAK=1 pnpm test:e2e -- tests/e2e/performance.spec.ts -g soak   # 30-Minuten
 - Port `JARVIS_E2E_PORT` (Standard 3200), Datenverzeichnis `JARVIS_E2E_DIR` (Standard `<tmp>/jarvis-e2e`), Chromium
   `JARVIS_CHROMIUM` (Standard in der Cloud: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`). Chromium startet mit
   `--use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist` (WebGL in Software).
+
+- Dev-Auth: Login akzeptiert jedes nicht leere Passwort, die erneute Authentifizierung (Stufe-3-Freigabe) verlangt das dokumentierte Dev-Passwort `dev`.
 
 ## Aufbau
 
@@ -40,18 +42,25 @@ E2E_SOAK=1 pnpm test:e2e -- tests/e2e/performance.spec.ts -g soak   # 30-Minuten
 Seed 42 und simulierte Uhr 08:15 (Reset vor jedem Test), eingefrorenes `Date` im Browser (Uhr in der Kopfzeile und alle
 relativen Zeiten sind konstant), CSS-Animationen deaktiviert, Orb mit Einstellung `animations: "off"`. Dieser Modus
 ist ein Produktmodus: die 3D-Szene schaltet auf den statischen 2D-Renderer, dessen Ausgabe eine reine Funktion des Zustands
-ist (zweimal byte-identisch geprüft). Ein 3D-WebGL-Frame hängt von der Wanduhr ab; die Web-App reicht den Orb-Testtakt
-(`fixedTime`/`animationProgress`, PLAN §52.1) nicht durch. Deshalb gibt es für 3D nur einen Smoke-Test (Canvas nicht leer, Gold-Anteil),
-keine Pixel-Baseline. Maskiert wird nur der Latenz-Chip des Event-Streams.
+ist (zweimal byte-identisch geprüft).
+
+**Orb in 3D (PLAN §52):** Die Web-App reicht den Orb-Testtakt durch, aber nur wenn `GET /meta` `features.devScenarios`
+meldet (Produktion: aus, die Parameter werden dann ignoriert). Zugang: `window.__JARVIS_ORB_TEST__ = { fixedTime,
+animationProgress, audioFixture, frameMs }` plus `window.dispatchEvent(new Event("jarvis-orb-test"))`, oder URL-Parameter
+`?orbTime=4&orbProgress=0.5&orbAudio=loud&orbFrameMs=40`. Mit `fixedTime` ist ein Frame eine reine Funktion aus
+(Modus, Zeit, Fortschritt, Audio-Fixture): keine Wanduhr, keine Dämpfung, keine Parallaxe. Die Baselines `orb3d-*`
+(booting/error/success: entry, mid, stable, exit; speaking mit allen fünf Audio-Fixtures) sind in drei getrennten
+Läufen byte-identisch (SHA-256 der PNGs) erzeugt worden. Qualität ist auf `medium` gepinnt (`auto` hängt von der
+Kernzahl des Hosts ab). Der Frame-Loop meldet den angewendeten Takt in `window.__ORB_DEBUG__.testClock`; die Tests warten darauf.
+`frameMs` ersetzt die gemessene Frame-Zeit des Auto-Qualitätsreglers (GPU-Last-Simulation, §51.6). Eine 3D-Baseline
+bleibt linux-/SwiftShader-spezifisch; ein 3D-Test dauert dort ca. 2 Minuten pro Zustand.
+Maskiert wird nur der Latenz-Chip des Event-Streams (und "Aktualisiert hh:mm", Host-Metriken).
 
 **Baselines müssen neu erzeugt werden, sobald sich die UI ändert** (`pnpm test:e2e:update`, danach Bilder ansehen und committen).
 
 ## Bekannte Lücken (von der Suite als erwarteter Fehlschlag oder Allowlist geführt)
 
-- `fallback-2d.spec.ts` Szenario `webgl-failure` (`test.fail`): `GET /meta` der Control API übernimmt die `uiHints` der Mock-Welt nicht.
-- `a11y.spec.ts`: `prefers-reduced-motion` stoppt ~22 unendliche CSS-Animationen nicht (`test.fail`); Allowlist `KNOWN_ISSUES`
-  (Kontrast blaues Tag in der Freigabe-Vorschau 4.12:1, icon-only Button ohne Namen bei 1024 px).
-- Orb-Testtakt (`fixedTime`/`animationProgress`, PLAN §52.1) ist in der Web-App nicht erreichbar: keine entry/mid/stable/exit-Frames in 3D.
-- Dev-Auth akzeptiert jedes nicht leere Passwort für Re-Auth; "falsches Passwort" ist nur mit Hash-Auth testbar (Control-API-Tests).
+Keine `test.fail` und kein Eintrag in `KNOWN_ISSUES` (`a11y.spec.ts`, Mechanismus bleibt für künftige Lücken).
+
 - Seed-Zeiten liegen am 14.10.2026, die UI rechnet mit der echten Serverzeit: Tests pinnen `Date` und `/meta.serverTime` (`freezeDate`).
 - Der Stack muss unberührt starten (Fixture prüft das); bei `JARVIS_E2E_REUSE=1` den Stack zwischen Läufen neu starten.

@@ -35,6 +35,12 @@ export interface OrbSettings {
   statusAccentColors: Partial<Record<OrbMode, string>>;
   testClock?: OrbTestClock;
   audioFixture?: AudioFixtureName;
+  /**
+   * Test hook (PLAN §51.6 GPU quality scaling): replaces the measured wall-clock frame time that feeds the adaptive quality
+   * controller with this synthetic value in milliseconds, so a slow (or fast) GPU can be simulated deterministically.
+   * Only the quality controller sees it; rendering itself is untouched. Never set by the product, only by test builds.
+   */
+  testFrameMs?: number;
 }
 
 export const DEFAULT_ORB_SETTINGS: OrbSettings = {

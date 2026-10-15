@@ -44,6 +44,12 @@ export interface OrbDebugProbe {
   geometries: number;
   textures: number;
   segments: number;
+  /** Draw-size counters of the layers (what the current quality level asks the GPU to draw). */
+  plates: number;
+  nodes: number;
+  points: number;
+  /** Test clock currently applied by the frame loop (`fixedTime|animationProgress|audioFixture`), empty on the live clock. */
+  testClock: string;
 }
 
 declare global {
@@ -79,7 +85,7 @@ function FrameDriver({ adaptive, onQualityChange, quality }: { adaptive: boolean
 
   useEffect(() => {
     window.__ORB_DEBUG__ = {
-      frames: 0, frameTimes: [], avgFrameMs: 0, p95FrameMs: 0, quality, draws: 0, triangles: 0, geometries: 0, textures: 0, segments: 0,
+      frames: 0, frameTimes: [], avgFrameMs: 0, p95FrameMs: 0, quality, draws: 0, triangles: 0, geometries: 0, textures: 0, segments: 0, plates: 0, nodes: 0, points: 0, testClock: "",
     };
     return () => {
       delete window.__ORB_DEBUG__;
@@ -117,6 +123,7 @@ function FrameDriver({ adaptive, onQualityChange, quality }: { adaptive: boolean
 
     const probe = window.__ORB_DEBUG__;
     if (probe) {
+      probe.testClock = fixedTime === undefined ? "" : `${fixedTime}|${settings.testClock?.animationProgress ?? ""}|${settings.audioFixture ?? ""}`;
       probe.frames += 1;
       if (probe.frames > 3) {
         probe.frameTimes.push(wallMs);
@@ -131,11 +138,14 @@ function FrameDriver({ adaptive, onQualityChange, quality }: { adaptive: boolean
         probe.geometries = gl.info.memory.geometries;
         probe.textures = gl.info.memory.textures;
         probe.segments = sceneStats.segments;
+        probe.plates = sceneStats.plates;
+        probe.nodes = sceneStats.nodes;
+        probe.points = sceneStats.points;
       }
     }
 
     if (adaptive && scaler.current && probe && probe.frames > 30) {
-      const next = scaler.current.push(wallMs, now / 1000);
+      const next = scaler.current.push(ctx.settings.testFrameMs ?? wallMs, now / 1000);
       if (next) onQualityChange?.(next);
     }
   }, -1);

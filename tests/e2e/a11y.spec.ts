@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { test, expect, open } from "./support/fixtures";
+import { test, expect, open, patchSettings } from "./support/fixtures";
 
 /**
  * PLAN §51.7 Accessibility: axe-core (WCAG 2.0/2.1 A + AA) on every page and every overlay, keyboard-only
@@ -15,18 +15,7 @@ interface KnownIssue {
   surface?: string;
   reason: string;
 }
-const KNOWN_ISSUES: KnownIssue[] = [
-  {
-    rule: "button-name",
-    surface: "1024x768",
-    reason: "at tablet width an icon-only .jv-btn on the overview has no accessible name (critical); needs aria-label in the shell/overview, open",
-  },
-  {
-    rule: "color-contrast",
-    surface: "overlay appro",
-    reason: "blue tag (.ap-preview__head .jv-tone-blue, #2a78d8 on #07162b, 10px) has 4.12:1 instead of 4.5:1; token fix in @jarvis/ui blue tone, open",
-  },
-];
+const KNOWN_ISSUES: KnownIssue[] = []; // empty on purpose: add `{ rule, surface?, reason }` only for a reported, dated gap
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
@@ -233,9 +222,6 @@ test.describe("keyboard", () => {
 
 test.describe("reduced motion and non-colour cues", () => {
   test("prefers-reduced-motion stops infinite CSS animations", async ({ page }) => {
-    // KNOWN GAP: the app honours only its own setting (data-motion) and the orb; ~22 decorative CSS animations keep
-    // running under the OS preference. Flips to "expected to fail but passed" once the CSS adds a reduced-motion block.
-    test.fail(true, "infinite CSS animations ignore prefers-reduced-motion");
     await open(page, "/");
     await page.waitForTimeout(1500);
     const infinite = (): Promise<number> =>
@@ -247,6 +233,20 @@ test.describe("reduced motion and non-colour cues", () => {
     test.info().annotations.push({ type: "info", description: `infinite animations: ${normal} -> ${reduced} with prefers-reduced-motion` });
     expect(reduced, "no infinitely running animation under prefers-reduced-motion").toBe(0);
   });
+
+  for (const mode of ["reduced", "off"] as const) {
+    test(`the app setting 'Animationen: ${mode}' leaves no infinitely running CSS animation`, async ({ page, api }) => {
+      const orb = (await api.get("/settings")).body.data.orb;
+      await patchSettings(api, { orb: { ...orb, animations: mode } });
+      await open(page, "/");
+      await expect(page.locator("html")).toHaveAttribute("data-motion", mode);
+      await page.waitForTimeout(1500);
+      const running = await page.evaluate(() =>
+        document.getAnimations().filter((animation) => animation.playState === "running" && (animation.effect?.getTiming().iterations ?? 1) === Infinity).length,
+      );
+      expect(running, "infinite animations with the app motion setting").toBe(0);
+    });
+  }
 
   test("the app setting 'Animationen: Aus' sets data-motion=off", async ({ page, api }) => {
     const orb = (await api.get("/settings")).body.data.orb;

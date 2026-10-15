@@ -1,4 +1,4 @@
-import { test, expect, open, orbRoot, eventStreamChip } from "./support/fixtures";
+import { test, expect, open, orbRoot, eventStreamChip, patchSettings } from "./support/fixtures";
 import { domNodes, drawCalls, heapUsed, installDrawCounter, measureFrames, setTabHidden, wheelScroll } from "./support/perf";
 import type { WebSocketRoute } from "@playwright/test";
 
@@ -127,6 +127,71 @@ test.describe("orb render loop", () => {
     expect(visibleRate, "the orb renders while visible").toBeGreaterThan(5);
     expect(hiddenRate, "hidden tab: render loop stopped (<= 5 % of visible)").toBeLessThan(visibleRate * 0.05);
     expect(resumedRate, "resumes after becoming visible").toBeGreaterThan(visibleRate / 3);
+  });
+});
+
+/**
+ * GPU quality scaling (PLAN §51.6, §22.1). The orb's `auto` mode steps down when the frame time stays high. A software
+ * renderer's real frame times say nothing about a GPU, so the test feeds the controller a synthetic frame time through the
+ * test hook (`window.__JARVIS_ORB_TEST__.frameMs`, only honoured while `features.devScenarios` is on) and reads the result
+ * from `data-orb-quality` and the render probe `window.__ORB_DEBUG__`.
+ */
+interface OrbProbe { frames: number; quality: string; segments: number; plates: number; nodes: number; points: number; draws: number }
+const probe = (page: import("@playwright/test").Page): Promise<OrbProbe | null> =>
+  page.evaluate(() => (window as unknown as { __ORB_DEBUG__?: OrbProbe }).__ORB_DEBUG__ ?? null);
+const qualityOf = async (page: import("@playwright/test").Page): Promise<string> => (await orbRoot(page).getAttribute("data-orb-quality")) ?? "";
+
+test.describe("GPU quality scaling", () => {
+  test("auto mode keeps its level at a healthy frame time and steps down to low when frames stay slow", async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.addInitScript(() => {
+      (window as unknown as { __JARVIS_ORB_TEST__: unknown }).__JARVIS_ORB_TEST__ = { frameMs: 6 };
+    });
+    await open(page, "/");
+    await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
+    const initial = await qualityOf(page);
+    expect(["medium", "high"], "auto never starts at ultra and not at low").toContain(initial);
+    await expect.poll(async () => (await probe(page))?.frames ?? 0, { timeout: 60_000 }).toBeGreaterThan(40);
+    await page.waitForTimeout(6000);
+    const rank = (level: string): number => ["low", "medium", "high", "ultra"].indexOf(level);
+    expect(rank(await qualityOf(page)), "healthy frame time: no downgrade (a step up is allowed)").toBeGreaterThanOrEqual(rank(initial));
+
+    // GPU load: the controller now sees 45 ms frames (p95 > 20 ms for 3 s) and walks down one level at a time
+    const seen = new Set<string>([await qualityOf(page)]);
+    await page.evaluate(() => {
+      (window as unknown as { __JARVIS_ORB_TEST__: unknown }).__JARVIS_ORB_TEST__ = { frameMs: 45 };
+      window.dispatchEvent(new Event("jarvis-orb-test"));
+    });
+    await expect
+      .poll(async () => {
+        seen.add(await qualityOf(page));
+        return qualityOf(page);
+      }, { timeout: 120_000, intervals: [500] })
+      .toBe("low");
+    note(`auto quality under 45 ms frames: ${[...seen].join(" -> ")}`);
+    const low = await probe(page);
+    expect(low?.quality).toBe("low");
+  });
+
+  test("low, medium, high and ultra change the number of drawn fragments and particles", async ({ page, api }) => {
+    test.setTimeout(300_000);
+    const orb = (await api.get("/settings")).body.data.orb;
+    const counts: Record<string, OrbProbe> = {};
+    for (const level of ["low", "medium", "high", "ultra"] as const) {
+      await patchSettings(api, { orb: { ...orb, quality: level, animations: "full", renderMode: "3d" } });
+      await open(page, "/");
+      await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
+      await expect(orbRoot(page)).toHaveAttribute("data-orb-quality", level);
+      // the probe publishes the layer counters every 15th frame
+      await expect.poll(async () => (await probe(page))?.segments ?? 0, { timeout: 90_000, intervals: [500] }).toBeGreaterThan(0);
+      counts[level] = (await probe(page)) as OrbProbe;
+    }
+    note(`segments/plates/points: ${Object.entries(counts).map(([level, c]) => `${level} ${c.segments}/${c.plates}/${c.points}`).join(", ")}`);
+    const order = ["low", "medium", "high", "ultra"];
+    for (const key of ["segments", "plates", "points"] as const) {
+      const values = order.map((level) => counts[level]![key]);
+      for (let i = 1; i < values.length; i += 1) expect(values[i], `${key}: ${order[i]} draws more than ${order[i - 1]}`).toBeGreaterThan(values[i - 1]!);
+    }
   });
 });
 

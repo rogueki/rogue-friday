@@ -133,7 +133,8 @@ describe('Dialog', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     await user.keyboard('{Escape}');
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(trigger).toHaveFocus();
+    // The focus trap restores focus in its effect cleanup, which runs after the layer left the DOM (exit animation).
+    await vi.waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it('ConfirmDialog is an alertdialog and focuses the cancel button first', () => {

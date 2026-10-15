@@ -180,3 +180,21 @@ describe("empty profile", () => {
     expect(linked).toBe(0);
   });
 });
+
+describe("command classifier: searches and reads are not payments", () => {
+  it.each(["Suche Rechnung Becker Zahlungsziel", "suche nach Zahlungsziel", "Finde die Bestellung von gestern", "Zeige mir alle Zahlungen", "Wann ist die Zahlung fällig?"])(
+    "%s executes read-only without confirmation or approval",
+    (text) => {
+      const world = new MockWorld();
+      const response = world.commands.execute({ text, source: "text" });
+      expect(response.requiresConfirmation, text).toBe(false);
+      expect(response.approvalId).toBeNull();
+      expect(response.riskTier === null || response.riskTier < 3, text).toBe(true);
+    },
+  );
+
+  it.each(["Überweise 250 Euro an Erik Brandt", "Bezahle die Rechnung 2026-1142", "Bestelle Toner für das Büro"])("%s still needs a tier-3 confirmation", (text) => {
+    const world = new MockWorld();
+    expect(world.commands.execute({ text, source: "text" })).toMatchObject({ status: "requires_confirmation", riskTier: 3 });
+  });
+});

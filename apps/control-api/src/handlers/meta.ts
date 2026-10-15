@@ -43,6 +43,8 @@ export const metaHandlers: Partial<Record<OperationId, Handler>> = {
       eventsPath: EVENTS_PATH,
       buildVersion: ctx.runtime.buildVersion,
       features: {
+        // Scenario-driven UI hints of the mock world (forceOrbFallback2D, reducedMotion) first, so they can never shadow a core flag.
+        ...(ctx.runtime.world?.state.uiHints ?? {}),
         devScenarios,
         mockData: config.dataMode !== "live",
         eventReplay: true,

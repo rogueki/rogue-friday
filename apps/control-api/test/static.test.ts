@@ -20,6 +20,7 @@ describe("static web export", () => {
     mkdirSync(join(web, "tasks"), { recursive: true });
     writeFileSync(join(web, "index.html"), INDEX);
     writeFileSync(join(web, "tasks", "index.html"), "<html><body>Aufgaben</body></html>");
+    writeFileSync(join(web, "404.html"), "<html><body>Seite nicht gefunden</body></html>");
     writeFileSync(join(web, "settings.html"), "<html><body>Einstellungen</body></html>");
     writeFileSync(join(web, "_next", "static", "app.js"), "console.log('app');");
     writeFileSync(join(web, "logo.svg"), "<svg xmlns='http://www.w3.org/2000/svg'/>");
@@ -53,7 +54,19 @@ describe("static web export", () => {
   it("resolves page routes (file.html, dir/index.html) and falls back to the SPA shell for unknown routes", async () => {
     expect((await get("/settings")).body).toContain("Einstellungen");
     expect((await get("/tasks")).body).toContain("Aufgaben");
-    expect((await get("/some/deep/client/route")).body).toContain("Shell");
+    expect((await get("/tasks?task=task_01")).statusCode).toBe(200); // detail views are query params on a known route
+    expect((await get("/tasks/")).body).toContain("Aufgaben");
+  });
+
+  it("answers unknown page routes with the exported 404 page and status 404 (not the overview)", async () => {
+    for (const path of ["/some/deep/client/route", "/does-not-exist", "/tasks/unknown-child"]) {
+      const response = await get(path);
+      expect(response.statusCode, path).toBe(404);
+      expect(response.headers["content-type"]).toBe("text/html; charset=utf-8");
+      expect(response.body, path).toContain("Seite nicht gefunden");
+      expect(response.body, path).not.toContain("Shell");
+      expect(response.headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+    }
   });
 
   it("serves assets with the right type and long-lived caching for hashed build output", async () => {

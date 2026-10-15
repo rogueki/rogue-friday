@@ -63,7 +63,9 @@ function classify(text: string): Intent {
   if (/^(stopp|stop|halt)\b/.test(normalized)) return { kind: "stop" };
   if (/^(pausier|pause)/.test(normalized)) return { kind: "pause" };
   if (/^(setze .*fort|fortsetzen|weiter\b|setz .*fort)/.test(normalized)) return { kind: "resume" };
-  if (/(ueberweis|bezahl|zahle |zahlung|bestell|kaufe)/.test(normalized)) {
+  // Searches and reads mention payment words ("Suche ... Zahlungsziel") without triggering one: only commands may be money.
+  const readOnly = /^(suche|such|finde|zeige|zeig|lies|lese|was|wie|wann|wer|wo|welche[rsmn]?|wieviel|ist|sind|hat|gibt)\b/.test(normalized);
+  if (!readOnly && /(ueberweis|bezahl|zahle |zahlung|bestell|kaufe)/.test(normalized)) {
     const amount = /(\d[\d.,]*)\s*(euro|eur|€)/i.exec(text);
     return { kind: "money", title: text.trim(), ...(amount?.[1] ? { amountHint: amount[1] } : {}) };
   }
@@ -71,7 +73,7 @@ function classify(text: string): Intent {
     const recipient = /\ban\s+((?:herrn?|frau|dr\.?)?\s*[\p{L}][\p{L}. -]*?)(?:\s+(?:eine?|dass|und|wegen|zum|zur)\b|[.,!?]|$)/iu.exec(text);
     return { kind: "send_message", recipient: recipient?.[1]?.trim() ?? "den Empfänger" };
   }
-  if (/(suche|finde).*(gedaecht|memory|erinnerung)/.test(normalized)) {
+  if (/(suche|finde).*(gedaecht|memory|erinnerung)/.test(normalized) || /^(suche|such|finde)\b/.test(normalized)) {
     const query = /(?:nach|zu)\s+(.+)$/i.exec(text)?.[1]?.trim() ?? text;
     return { kind: "memory_search", query };
   }
