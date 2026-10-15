@@ -227,7 +227,7 @@ calls `setupBrowserMocks()` from `@friday/mock-data` (msw service worker, in moc
 
 `pnpm --filter @friday/web typecheck` runs `tsc -p tsconfig.json --noEmit` against the real workspace packages. Next's own type
 check is active (no `ignoreBuildErrors` in `next.config.ts`), and `pnpm --filter @friday/web build` runs the typecheck before the
-export. The former compiler shim (`src/shims/friday-orb.d.ts` and `tsconfig.typecheck.json`) was removed in commit `1903958`.
+export. The former compiler shim (`src/shims/friday-orb.d.ts` and `tsconfig.typecheck.json`) was removed in commit `21becdf`.
 
 ## Commands
 

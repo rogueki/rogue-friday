@@ -14,7 +14,7 @@ Die Cloud-VM ist Linux. Der Installer lief dort **nicht**. Jede Aussage ist desh
 Kürzel: `PS` = `installer/install-friday.ps1`, `SR` = `installer/wsl/setup_root.sh`, `SH` = `installer/wsl/setup_hermes.sh`,
 `SQ` = `installer/scripts/start-qwen-server.ps1`, `SV` = `installer/scripts/start-friday-voice.ps1`, `SD` = `installer/scripts/start-dashboard.ps1`,
 `JV` = `installer/voice/friday_voice.py`, `VS` = `installer/voice/voice_setup.py`. Zeilenangaben beziehen sich auf den Stand dieses
-Dokuments (nach dem Dashboard-Schritt 15, Commit `89b3b6c`) und gelten für die Dateien **vor** der Umbenennung vom 2026-10-15: die Dateinamen
+Dokuments (nach dem Dashboard-Schritt 15, Commit `550d035`) und gelten für die Dateien **vor** der Umbenennung vom 2026-10-15: die Dateinamen
 und Pfade in diesem Dokument sind auf die neuen Namen umgestellt (`install-friday.ps1`, `C:\Friday`, `FRIDAY_*`), die Zeilennummern sind es nicht
 (der Installer ist um die Migration und die Wake-Phrase-Abfrage gewachsen). Der Entwurf vom 2026-10-14 hatte teils veraltete Zeilen.
 
@@ -79,14 +79,14 @@ Prüfwerkzeuge in dieser Session:
 | ID | Bereich | Datei:Zeile (aktuell) | Befund | Bewertung | Fix / Commit |
 | --- | --- | --- | --- | --- | --- |
 | I-01 | Elevation | `install-friday.bat:10`, `PS:32-41` | Admin-Prüfung und Neustart per `-Verb RunAs`. Falls ein **anderes** Admin-Konto bestätigt wird, gelten Aufgaben und ACLs für dieses Konto, nicht für den angemeldeten Nutzer | PASS (Hinweis) | – (ANLEITUNG verlangt Administrator-Konto) |
-| I-02 | robocopy Schritt 2 | `PS:257-258` | Exitcode >= 8 wurde ignoriert | PASS (behoben) | `c3ede6d`: `LASTEXITCODE -ge 8` -> `Stop-Install` |
-| I-03 | Dateisync bei Neustart | `PS:254-262` | Schritt 2 lief nur einmal; neue Dateien erreichten bestehende Installationen nicht | PASS (behoben für `C:\Friday\installer`) | `c3ede6d`: Sync bei jedem Start, solange `$PSScriptRoot -ne $Inst`. **Restlücke: I-31** |
-| I-04 | nvidia-smi | `PS:229-242` | Fehlertext älterer Treiber (ohne `compute_cap`) wurde als GPU-Zeile geparst | PASS (behoben) | `c3ede6d`: Zeilenvalidierung, Zweitabfrage, `cc = 0` -> CUDA-12.4 |
-| I-05 | Python-Launcher | `PS:474-483` | `$LASTEXITCODE` ohne `py.exe` veraltet, `winget` wurde übersprungen | PASS (behoben) | `c3ede6d`: `Get-Command py.exe` vor dem Aufruf |
-| I-06 | llama.cpp-ZIP | `PS:446-447` | Defektes ZIP blieb im Cache, `curl -C -` setzte darauf auf | PASS (behoben) | `c3ede6d`: `Remove-Item` vor `Stop-Install`. **Hinweis:** Die Prüfsumme wird nur verglichen, wenn die GitHub-API ein `digest` liefert (`if ($a.digest -and …)`). Sonst keine Prüfung (siehe I-22) |
-| I-07 | ACL `hermes_api.key` | `PS:407-415` | ACL nur bei Neuanlage, Exitcode nicht geprüft | PASS (behoben) | `c3ede6d`: leere Datei anlegen, ACL setzen (Exitcode geprüft), erst dann Schlüssel schreiben |
-| I-08 | Linux-Passwort | `SR:6` | `read -r PW` entfernte führende/abschließende Leerzeichen | PASS (behoben) | `c3ede6d`: `IFS= read -r PW` |
-| I-09 | Hermes-Prüfung | `SH:32`, `SH:101`, `SH:106` | Unter `set -e` brach `curl -w` bei „Verbindung abgelehnt“ ohne FAIL-Zeile ab; `mkdir -p ~/.hermes` fehlte | PASS (behoben) | `c3ede6d`: `\|\| true`, `mkdir -p "$H"`, `if/else`. ShellCheck 0 |
+| I-02 | robocopy Schritt 2 | `PS:257-258` | Exitcode >= 8 wurde ignoriert | PASS (behoben) | `aeb4ebd`: `LASTEXITCODE -ge 8` -> `Stop-Install` |
+| I-03 | Dateisync bei Neustart | `PS:254-262` | Schritt 2 lief nur einmal; neue Dateien erreichten bestehende Installationen nicht | PASS (behoben für `C:\Friday\installer`) | `aeb4ebd`: Sync bei jedem Start, solange `$PSScriptRoot -ne $Inst`. **Restlücke: I-31** |
+| I-04 | nvidia-smi | `PS:229-242` | Fehlertext älterer Treiber (ohne `compute_cap`) wurde als GPU-Zeile geparst | PASS (behoben) | `aeb4ebd`: Zeilenvalidierung, Zweitabfrage, `cc = 0` -> CUDA-12.4 |
+| I-05 | Python-Launcher | `PS:474-483` | `$LASTEXITCODE` ohne `py.exe` veraltet, `winget` wurde übersprungen | PASS (behoben) | `aeb4ebd`: `Get-Command py.exe` vor dem Aufruf |
+| I-06 | llama.cpp-ZIP | `PS:446-447` | Defektes ZIP blieb im Cache, `curl -C -` setzte darauf auf | PASS (behoben) | `aeb4ebd`: `Remove-Item` vor `Stop-Install`. **Hinweis:** Die Prüfsumme wird nur verglichen, wenn die GitHub-API ein `digest` liefert (`if ($a.digest -and …)`). Sonst keine Prüfung (siehe I-22) |
+| I-07 | ACL `hermes_api.key` | `PS:407-415` | ACL nur bei Neuanlage, Exitcode nicht geprüft | PASS (behoben) | `aeb4ebd`: leere Datei anlegen, ACL setzen (Exitcode geprüft), erst dann Schlüssel schreiben |
+| I-08 | Linux-Passwort | `SR:6` | `read -r PW` entfernte führende/abschließende Leerzeichen | PASS (behoben) | `aeb4ebd`: `IFS= read -r PW` |
+| I-09 | Hermes-Prüfung | `SH:32`, `SH:101`, `SH:106` | Unter `set -e` brach `curl -w` bei „Verbindung abgelehnt“ ohne FAIL-Zeile ab; `mkdir -p ~/.hermes` fehlte | PASS (behoben) | `aeb4ebd`: `\|\| true`, `mkdir -p "$H"`, `if/else`. ShellCheck 0 |
 | I-10 | Resume-Zustand | `PS:110-115` (`Save-State` `PS:113`) | `install-state.json` wird mit `Set-Content` direkt überschrieben, nicht atomar. Eine abgeschnittene Datei lässt `ConvertFrom-Json` fehlschlagen, der Lauf beginnt leer und überschreibt sie | FAIL (niedrig, offen) | Vorgeschlagen: in `.tmp` schreiben, `Move-Item -Force`; Ladefehler abfangen und Datei als `.corrupt` sichern |
 | I-11 | Reboot bei fehlendem WSL | `PS:273-291`, `PS:149-151` | `wsl --install --no-distribution`, Task `FRIDAY_Installation_fortsetzen` (RunLevel Highest), Neustart nach Rückfrage. Der Task wird beim nächsten Start gelöscht. Das Verhalten von `wsl --status` bei teilweise aktivierten Features ist statisch nicht prüfbar | BLOCKED | – (Test auf Windows 11 mit und ohne WSL) |
 | I-12 | Fehlerbehandlung | `PS:14`, `Stop-Install` `PS:54-58` | `ErrorActionPreference = 'Continue'` mit expliziten Prüfungen. Kritische Pfade prüfen ihr Ergebnis | PASS | – |
@@ -107,7 +107,7 @@ Prüfwerkzeuge in dieser Session:
 | I-27 | Energieoptionen | `PS:294-302` | Ändern den aktiven Plan dauerhaft; in `ANLEITUNG.md` dokumentiert, keine Wiederherstellung bei Deinstallation | PASS | – (Deinstallation ergänzen) |
 | I-28 | Voice-Code, Sichtprüfung | `JV:1-6`, `JV:138` | Der Entwurfsbefund „Docstring nennt Qwen3-8B“ ist **nicht mehr zutreffend** (Docstring geändert, kein 8B im Installer). Verbleibend: `JV:138` nennt einen Qwen3-TTS-Server, der mit `tts_url: null` (`VS`) nie aktiv ist | PASS | – |
 | I-29 | Hermes-Modellname | `JV:437` (Code-Default `kira`), `PS`/`VS:126` (`hermes_model`), `SH:59` | Der Entwurf nannte `docs/MAPPING/hermes.md`. Die Drift steht korrekt in `docs/MAPPING/voice.md` §0.2. Wirkung: keine, solange `voice.json` gesetzt ist | PASS (behoben 2026-10-15) | Code-Default in `friday_voice.py` jetzt `friday`; `hermes_model` und `API_SERVER_MODEL_NAME` heißen überall `friday` (I-43) |
-| I-30 | Deinstallation und Autostart | `ANLEITUNG.md:153`, `PS:1005` | Vier Aufgaben (`FRIDAY_Voice`, `FRIDAY_Qwen`, `FRIDAY_WSL_Keepalive`, `FRIDAY_Dashboard`; seit I-42 fünf mit `FRIDAY_Watchdog`) in ANLEITUNG und Abschlussbericht, `DEPLOYMENT.md` §4 | PASS (aktualisiert) | `89b3b6c` |
+| I-30 | Deinstallation und Autostart | `ANLEITUNG.md:153`, `PS:1005` | Vier Aufgaben (`FRIDAY_Voice`, `FRIDAY_Qwen`, `FRIDAY_WSL_Keepalive`, `FRIDAY_Dashboard`; seit I-42 fünf mit `FRIDAY_Watchdog`) in ANLEITUNG und Abschlussbericht, `DEPLOYMENT.md` §4 | PASS (aktualisiert) | `550d035` |
 | I-31 | Update des Sprachdienstes | `PS:484` (`Copy-Item "$Inst\voice\*" "$Root\voice\"`, nur in Schritt 12, Aufruf `voice_setup.py` in `PS:496`) | `C:\Friday\voice` (von `SV:4-5` ausgeführt) wird **nur in Schritt 12** aktualisiert. Ein neues Paket mit geändertem `friday_voice.py` erreicht eine bestehende Installation nicht, solange `voicepython` in `done` steht. `update-dashboard.bat` deckt das nicht ab. I-03 hat nur `C:\Friday\installer` synchronisiert | behoben: `Sync-VoiceFiles` vergleicht bei jedem Start die SHA256 je Datei von `installer\voice` und `C:\Friday\voice`, kopiert Geändertes (ohne `profiles`, `models`, `.venv`) und startet den Sprachdienst neu, falls er lief. Nur unter Windows prüfbar | Vorgeschlagen: Voice-Dateien bei jedem Start synchronisieren (ohne `profiles`, `models`, `.venv`), oder `ANLEITUNG` um „`voicepython` aus `done` entfernen“ ergänzen |
 | I-32 | Stop/Neustart des Sprachdienstes | `PS:542-547`, `scripts/hidden.vbs:3` | `hidden.vbs` startet PowerShell mit `Run(…, 0, False)`. `wscript` endet daher sofort, und die Neustartschleife von `SV` läuft als eigenständiger Prozess weiter. `Stop-ScheduledTask 'FRIDAY_Voice'` (`PS:544`) beendet sie voraussichtlich nicht. `PS:545-546` beendet nur `python.exe`; die Schleife startet Python nach 10 s neu. `PS:547` startet dann eine zweite Schleife, wenn der Port in dieser Zeit frei ist. Der Dashboard-Launcher hat dafür `Stop-DashboardService` (`PS:716-724`), Voice nicht. Dasselbe gilt für den Testablauf „Sprachdienst-Task stoppen“ in ANLEITUNG und in Abschnitt 5 | behoben: Launcher halten einen benannten Mutex (Einzelinstanz) und prüfen eine Stop-Flag-Datei `C:\Friday\run\<Skript>.stop`; `Stop-LauncherService` (Schritt 14, `Sync-VoiceFiles`, `Stop-DashboardService`) setzt das Flag, beendet Schleife (powershell) und Kindprozess per CommandLine. Qwen-Launcher prüft zusätzlich `llama-server.exe` auf Port 43692. Nur unter Windows prüfbar | Vorgeschlagen: `SV`-Prozess per CommandLine stoppen (wie `SD`), dann Python; Testanleitung entsprechend ändern |
 | I-33 | Abbruch in Schritt 15 | `PS:57` (`exit 1`), `PS:911`, `PS:913`, `PS:938`, `PS:940`, `PS:944`, `PS:945`, `PS:890` (Aufrufe von `Stop-Install` innerhalb `Install-Dashboard`) | `Stop-Install` beendet den **gesamten** Installer. Der Kommentar `PS:562` verspricht „ein Fehler hier lässt Sprache/Hermes/Qwen unangetastet“. Das stimmt für laufende Dienste, aber der Abschlussbericht `INSTALL_STATE.md` (`PS:1008`) und die Schlussmeldung (`PS:1010`) entfallen, und der Benutzer sieht „Enter zum Beenden“ statt „FERTIG“ | behoben: Fehler in Schritt 15 lösen `Stop-Dashboard` (Ausnahme) aus, die der Aufrufer fängt: Fehlerblock, Logpfad, `dashboard` bleibt offen, Rerun-Hinweis (`update-dashboard.bat` / `install-friday.bat -Resume`); Abschlussbericht und Schlussmeldung erscheinen, der Bericht nennt das Command Center als nicht eingerichtet | Vorgeschlagen: in `Install-Dashboard` `return` statt `Stop-Install` (wie `PS:963`, `PS:974`), oder Bericht vor Schritt 15 schreiben |
@@ -144,10 +144,10 @@ Quelle der Wahrheit: `docs/MAPPING/hermes.md`. Die Tabelle fasst den Stand zusam
 | --- | --- | --- | --- |
 | A-01 | `pnpm test:conformance` (in dieser Session ausgeführt) | 10 von 10 Testdateien bestanden, **422 Tests bestanden, 60 übersprungen, 0 fehlgeschlagen** (Adapter: `hermes`, `voice-http`, `system-local`, `mock`, Platzhalter, `example-http`) | PASS |
 | A-02 | `pnpm test:integration` (Playwright, Fake-Upstreams auf Installer-Ports, gebaute Control API im Hybrid-Modus, in dieser Session ausgeführt) | **7 von 7 bestanden, zweimal hintereinander (3,5 und 3,3 min).** Die frühere Fassung (9 Tests im Serial-Modus) brach nach dem veralteten Test 6 ab, weil Playwright im Serial-Modus alle Folgetests überspringt. Jetzt ist jedes Ausfall-Szenario ein eigenständiger Test (Ausfall + Wiederherstellung, Neustart im `finally`), und die Assertions prüfen die neue Semantik: Ausfall = „Offline – … nicht erreichbar seit …“, nie „Nicht verbunden“ | PASS (2026-10-14) |
-| I-41 | Integrationstest „Ausfall Voice“ (`tests/integration/hybrid.spec.ts:154-182`, Nachweis `docs/evidence/integration/README.md` Zeile 6) | Test und Nachweis erwarten „Nicht verbunden“ (Stand vor `cfd68b7`). Das Produkt zeigt jetzt bei einem Ausfall „Sprachdienst offline“ bzw. „Offline – … nicht erreichbar“ (`apps/web/src/i18n/modules/e.de.ts:22`); „Nicht verbunden“ bleibt dem Fall „nicht konfiguriert“ vorbehalten (`e.de.ts:4`). Tests 7 bis 9 sind ungeprüft. Playwright-Artefakte liegen im gitignorierten `test-results/` | PASS (behoben 2026-10-14: Assertions auf Ausfalltext umgestellt, Tests unabhängig; 7 von 7 in zwei Läufen, Nachweis aktualisiert) |
+| I-41 | Integrationstest „Ausfall Voice“ (`tests/integration/hybrid.spec.ts:154-182`, Nachweis `docs/evidence/integration/README.md` Zeile 6) | Test und Nachweis erwarten „Nicht verbunden“ (Stand vor `bc0b413`). Das Produkt zeigt jetzt bei einem Ausfall „Sprachdienst offline“ bzw. „Offline – … nicht erreichbar“ (`apps/web/src/i18n/modules/e.de.ts:22`); „Nicht verbunden“ bleibt dem Fall „nicht konfiguriert“ vorbehalten (`e.de.ts:4`). Tests 7 bis 9 sind ungeprüft. Playwright-Artefakte liegen im gitignorierten `test-results/` | PASS (behoben 2026-10-14: Assertions auf Ausfalltext umgestellt, Tests unabhängig; 7 von 7 in zwei Läufen, Nachweis aktualisiert) |
 | A-03 | Grenzen des Integrationsnachweises | Fakes, keine echten Hermes/Voice/Qwen-Dienste. Windows/WSL-Portweiterleitung, `wsl.exe`-Pfade, Dienststart nicht abgedeckt. Der Circuit Breaker im Lauf auf 3 Fehler / 5 s gekürzt | BLOCKED (echte Dienste) |
 | A-04 | Hybrid-Beispielkonfiguration | `config/adapters.hybrid.example.yaml` und `dashboard.hybrid.example.yaml` stimmen mit dem Installer-Ergebnis überein, bis auf: Der Installer schreibt `ownerPasswordHash: file:…`, die Vorlage `env:FRIDAY_OWNER_PASSWORD_HASH`. Beides wird unterstützt (`packages/config/src/secrets.ts`, `apps/control-api/src/security/auth-service.ts:179`) | PASS (Doku-Hinweis) |
-| A-05 | Retry-Stapelung (Commit `84460a7`) | Registry-Default `maxAttempts: 1` (`packages/config/src/load.ts:274`, `packages/adapter-core/src/registry.ts:350`). Adapter-HTTP-Clients retryen weiter für Transportfehler | PASS (behoben) |
+| A-05 | Retry-Stapelung (Commit `4c11f7c`) | Registry-Default `maxAttempts: 1` (`packages/config/src/load.ts:274`, `packages/adapter-core/src/registry.ts:350`). Adapter-HTTP-Clients retryen weiter für Transportfehler | PASS (behoben) |
 
 ### 2.4 Dashboard-Schritt 15 (`PS:559-987`)
 
@@ -168,7 +168,7 @@ Quelle der Wahrheit: `docs/MAPPING/hermes.md`. Die Tabelle fasst den Stand zusam
 | ID | Prüfung | Ergebnis | Bewertung |
 | --- | --- | --- | --- |
 | W-01 | Unit-Tests `installer/voice/tests/test_personal_wake.py` (Python 3.13, pytest) | 2026-10-14: 12 von 12. **2026-10-15: alle bestanden** (zusätzlich zu den bisherigen: Phrasen-Validierung = persona.py, Engine-Wahl nur bei exakt „Hey Jarvis“, Slug/Kurzform/Aufnahmeblöcke, `resolve_wake_phrase`, freie Phrase in `persona.json`, harte Negative aus den Phrasenwörtern, Negativtexte ohne Phrasenwörter, Phrasenabgleich Stufe 2 für Standard-/Mehrwort-/Einwort-Phrasen und Umlaute, abgeleitete Sperrwörter, Fenstermodell ohne Kurzform, Dienst-Stufe-2 mit ganzer Phrase) | PASS |
-| W-02 | Synthetische Auswertung `installer/voice/tests/eval_synthetic_wake.py` | **Nicht ausführbar**: Die Piper-Stimmen liegen auf Hugging Face, das in der Cloud nicht erreichbar ist (HTTP 000). **Im Repo stehen keine Messwerte**. `voice.md` §0.4 verweist auf einen „Übergabebericht“, der nicht im Repo liegt. `PROJECT_STATUS.md` (Commit `1ca7cdb`) nennt die Ergebnisse „gemischt“. Das Ziel „ca. 9 von 10 Aufrufen“ (`ANLEITUNG.md:110`) ist eine Zielangabe, keine Messung | BLOCKED (keine Zahlen verfügbar) |
+| W-02 | Synthetische Auswertung `installer/voice/tests/eval_synthetic_wake.py` | **Nicht ausführbar**: Die Piper-Stimmen liegen auf Hugging Face, das in der Cloud nicht erreichbar ist (HTTP 000). **Im Repo stehen keine Messwerte**. `voice.md` §0.4 verweist auf einen „Übergabebericht“, der nicht im Repo liegt. `PROJECT_STATUS.md` (Commit `83873f8`) nennt die Ergebnisse „gemischt“. Das Ziel „ca. 9 von 10 Aufrufen“ (`ANLEITUNG.md:110`) ist eine Zielangabe, keine Messung | BLOCKED (keine Zahlen verfügbar) |
 | W-03 | Stufe 2 (faster-whisper Phrasencheck: ganze Phrase bzw. Kurzform) | Modell-Download von Hugging Face nicht möglich. Getestet nur mit einem Fake (`FakeWhisper` in den Tests) | BLOCKED |
 | W-04 | Echte Stimme, Mikrofon, Lautsprecher | Nicht prüfbar (Cloud) | BLOCKED |
 | W-05 | Kalibrierungsausgabe und Warnung | `WAKE_QUALITY=gut/mittel/schwach` (`build_personal_wake.py:103`) und Warnhinweis bei `schwach` (`PS:530-533`). Der Installer greppt `Wake` case-insensitiv, daher erscheint die Zeile in der Konsole | PASS (statisch) |
@@ -180,12 +180,12 @@ Für die Wake Phrase „Hey Jarvis“ (nur diese, nicht der Name) gilt ein ander
 
 | Fix | Commit | Bewertung |
 | --- | --- | --- |
-| Statische Installer-Fixes I-02 bis I-09 | `c3ede6d` | PASS |
-| Name vor den Aufnahmen, Standard Friday / „Hey Friday“, persönliches Wake Word, `change-assistant-name.bat` | `1ca7cdb` | PASS (statisch); Qualität BLOCKED (W-02 bis W-06) |
-| Dashboard-Schritt 15, `update-dashboard.bat`, `SD` | `89b3b6c` | PASS (statisch); Windows BLOCKED |
-| Retry-Stapelung (Registry-Default 1 Versuch) | `84460a7` | PASS (A-05) |
-| Orb-Defaults `intensity`/`particleDensity` 70/60 (vorher 1 %) | `6963206` | PASS (`packages/orb/src/settings.ts:43,45`) |
-| Branding F.R.I.D.A.Y., Anzeigename konfigurierbar | `717f898` | PASS; **Ausnahme I-35** |
+| Statische Installer-Fixes I-02 bis I-09 | `aeb4ebd` | PASS |
+| Name vor den Aufnahmen, Standard Friday / „Hey Friday“, persönliches Wake Word, `change-assistant-name.bat` | `83873f8` | PASS (statisch); Qualität BLOCKED (W-02 bis W-06) |
+| Dashboard-Schritt 15, `update-dashboard.bat`, `SD` | `550d035` | PASS (statisch); Windows BLOCKED |
+| Retry-Stapelung (Registry-Default 1 Versuch) | `4c11f7c` | PASS (A-05) |
+| Orb-Defaults `intensity`/`particleDensity` 70/60 (vorher 1 %) | `6d07d96` | PASS (`packages/orb/src/settings.ts:43,45`) |
+| Branding F.R.I.D.A.Y., Anzeigename konfigurierbar | `fa2a442` | PASS; **Ausnahme I-35** |
 
 ### 2.7 Eigentümer-Entscheidungen 2026-10-15: Umbenennung, Migration, freies Wake Word (Installer)
 
@@ -209,11 +209,11 @@ Behoben und in den Commits enthalten:
 
 | Commit | Inhalt |
 | --- | --- |
-| `c3ede6d` | I-02 bis I-09: robocopy-Exitcode und Neusynchronisation, nvidia-smi-Fallback, `py.exe`-Prüfung, Entfernen defekter ZIPs, ACL vor Schreiben des Schlüssels, `IFS= read`, `set -e`-FAIL-Pfad, ShellCheck |
-| `84460a7` | Registry-Retry-Default 1 (Stapelung von Versuchen bei Ausfall beseitigt) |
-| `6963206` | Orb-Defaults 70/60 statt 1 (Orb wurde mit 1 % gerendert) |
-| `1ca7cdb` | Namensabfrage vor Stimmaufnahme, persönliches Wake Word, `change-assistant-name.bat` |
-| `89b3b6c` | Schritt 15: Command Center nach `C:\Friday\dashboard`, `update-dashboard.bat`, `SD`, `DEPLOYMENT.md` |
+| `aeb4ebd` | I-02 bis I-09: robocopy-Exitcode und Neusynchronisation, nvidia-smi-Fallback, `py.exe`-Prüfung, Entfernen defekter ZIPs, ACL vor Schreiben des Schlüssels, `IFS= read`, `set -e`-FAIL-Pfad, ShellCheck |
+| `4c11f7c` | Registry-Retry-Default 1 (Stapelung von Versuchen bei Ausfall beseitigt) |
+| `6d07d96` | Orb-Defaults 70/60 statt 1 (Orb wurde mit 1 % gerendert) |
+| `83873f8` | Namensabfrage vor Stimmaufnahme, persönliches Wake Word, `change-assistant-name.bat` |
+| `550d035` | Schritt 15: Command Center nach `C:\Friday\dashboard`, `update-dashboard.bat`, `SD`, `DEPLOYMENT.md` |
 
 Am 2026-10-15 wurde im Installer die Umbenennung, die Migration und das freie Wake Word umgesetzt (2.7, noch nicht committet, Windows-Lauf offen).
 In der **Review**-Session vom 2026-10-14 wurde kein Code geändert und nichts committet. Dieses Dokument ist die einzige Änderung. Ein unabhängiger
