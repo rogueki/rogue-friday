@@ -19,7 +19,8 @@ SR = 16000
 
 import personal_wake  # noqa: E402
 
-SLUG = personal_wake.slugify(personal_wake.resolve_assistant_name(os.path.join(ROOT, "..", "config")))
+PHRASE = personal_wake.resolve_wake_phrase(os.path.join(ROOT, "..", "config"))
+WAKE_BLOCKS = [block for block, _, _ in personal_wake.enrollment_blocks(PHRASE)]
 
 enc = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
                                      savedir=os.path.join(ROOT, "..", "models", "ecapa"))
@@ -68,8 +69,8 @@ for i, p in enumerate(paths):
 cv = np.array(cv)
 print(f"Kreuzvalidierung 1,5-s-Fenster: n={len(cv)} min={cv.min():.3f} p10={np.percentile(cv, 10):.3f} median={np.median(cv):.3f}")
 
-# Wake-Blocks heissen wake_hey_<slug> / wake_<slug> (Jarvis: wake_hey_jarvis / wake_jarvis).
-for block in (f"wake_hey_{SLUG}", f"wake_{SLUG}", "negatives"):
+# Wake-Blocks heissen wake_<slug der Phrase> (+ wake_<slug der Kurzform>), z. B. wake_hey_friday / wake_friday.
+for block in (*WAKE_BLOCKS, "negatives"):
     scores = []
     for path in sorted(glob.glob(os.path.join(OWNER, "raw", block, "*.wav"))):
         audio, _ = sf.read(path, dtype="float32")

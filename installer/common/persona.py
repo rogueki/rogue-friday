@@ -1,8 +1,9 @@
 """Persoenlichkeit des Assistenten aus den Antworten des Installations-Fragebogens (config/persona.json).
 
 Wird unter Windows (Voice-Service-Konfiguration) und in WSL (Hermes SOUL.md) verwendet - nur Standardbibliothek.
-persona.json: {"assistant_name": "Friday", "owner_name": "...", "address": "sir|sie|du",
+persona.json: {"assistant_name": "Friday", "wake_phrase": "Hey Friday", "owner_name": "...", "address": "sir|sie|du",
                "character": "butler|freundlich|sachlich", "length": "kurz|normal", "about": "..."}
+wake_phrase ist frei waehlbar (1-4 Woerter, Standard "Hey <Name>"); fehlt sie, gilt "Hey <Name>".
 Standardname ist Friday (F.R.I.D.A.Y., Nachfolger von J.A.R.V.I.S.); der Nutzer kann im Installer jeden Namen waehlen.
 """
 import json
@@ -61,12 +62,34 @@ def slugify(name: str) -> str:
 
 
 def wake_phrase(name: str) -> str:
+    """Standard-Wake-Phrase zu einem Namen: "Hey <Name>"."""
     return f"Hey {display_name(name)}"
 
 
-def wake_engine(name: str) -> str:
-    """Nur "Jarvis" hat ein vortrainiertes openWakeWord-Modell; jeder andere Name nutzt das persoenliche Wake Word."""
-    return "openwakeword" if slugify(name) == "jarvis" else "personal"
+_PHRASE_WORD = re.compile(r"[^\W\d_]+(?:-[^\W\d_]+)*")
+
+
+def normalize_phrase(phrase: str) -> str:
+    return re.sub(r"\s+", " ", (phrase or "").strip())
+
+
+def valid_phrase(phrase: str) -> bool:
+    """1-4 Woerter aus Buchstaben (inkl. Umlaute) mit optionalem Bindestrich, durch Leerzeichen getrennt, 3-30 Zeichen
+    (identisch zu voice/personal_wake.py:valid_phrase und der Abfrage im Installer)."""
+    text = normalize_phrase(phrase)
+    if not 3 <= len(text) <= 30:
+        return False
+    words = text.split(" ")
+    return len(words) <= 4 and all(_PHRASE_WORD.fullmatch(w) for w in words)
+
+
+def display_phrase(phrase: str) -> str:
+    return " ".join(w[:1].upper() + w[1:] for w in normalize_phrase(phrase).split(" "))
+
+
+def wake_engine(phrase: str) -> str:
+    """Nur die Phrase "Hey Jarvis" hat ein vortrainiertes openWakeWord-Modell; jede andere nutzt das persoenliche Wake Word."""
+    return "openwakeword" if re.sub(r"[\s-]+", " ", (phrase or "").strip().lower()) == "hey jarvis" else "personal"
 
 
 def successor_note(name: str) -> str:
@@ -81,6 +104,8 @@ def load(path: str) -> dict:
     p = json.load(open(path, encoding="utf-8-sig"))
     p["assistant_name"] = display_name(p.get("assistant_name") or "") if valid_name(
         (p.get("assistant_name") or "").strip()) else DEFAULT_NAME
+    p["wake_phrase"] = display_phrase(p["wake_phrase"]) if valid_phrase(p.get("wake_phrase") or "") \
+        else wake_phrase(p["assistant_name"])
     p.setdefault("address", "sir")
     p.setdefault("character", "butler")
     p.setdefault("length", "kurz")
@@ -95,7 +120,7 @@ def voice_settings(p: dict) -> dict:
     assistant = p["assistant_name"]
     persona = (f"Du bist {assistant}, der persoenliche KI-Assistent von {name}: {CHARACTER[p['character']]}. "
                f"{a['rule'].format(name=name)} {successor_note(assistant)}").strip()
-    return {"assistant_name": assistant, "wake_phrase": wake_phrase(assistant), "wake_engine": wake_engine(assistant),
+    return {"assistant_name": assistant, "wake_phrase": p["wake_phrase"], "wake_engine": wake_engine(p["wake_phrase"]),
             "persona": persona, "smalltalk_example": a["smalltalk"].format(name=name), "ack_wait": a["wait"],
             "ack_background": a["background"]}
 
@@ -121,7 +146,7 @@ def soul_md(p: dict) -> str:
 
 ## Laufzeitumgebung
 - Du laeufst in WSL2 (Ubuntu) auf einem Windows-PC. Windows-Laufwerke liegen unter `/mnt/c/...`
-  (`C:\\Jarvis` == `/mnt/c/Jarvis`). Austauschordner fuer Dateien: `/mnt/c/Jarvis/exchange`.
+  (`C:\\Friday` == `/mnt/c/Friday`). Austauschordner fuer Dateien: `/mnt/c/Friday/exchange`.
 - Windows-Programme per Interop mit voller `.exe`-Endung starten (z. B. `explorer.exe`, `powershell.exe`).
 - Lokales Schnellmodell (Sprach-Router): Qwen3-4B unter http://127.0.0.1:43692/v1. Dashboard: http://127.0.0.1:43691
 - Kanban (Boards business, personal, home, research, finance): per Terminal `hermes kanban boards list`,

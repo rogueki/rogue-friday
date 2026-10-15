@@ -80,7 +80,7 @@ def run(args):
     speech = [embed(say(owner, t, place=False), False, REAL_WEIGHT) for t in ENROLL_PASSAGES]
     extra = ([], [], [])
     if helper:
-        extra = pw.synthetic_clips(helper, embedder, name, negative_texts.SENTENCES_DE, rng)
+        extra = pw.synthetic_clips(helper, embedder, pw.wake_phrase(name), negative_texts.sentences_for(pw.wake_phrase(name)), rng)
 
     t = time.time()
     cal = pw.cross_validate(hey, bare, words, speech, extra=extra)

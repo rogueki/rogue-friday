@@ -1,9 +1,9 @@
 ﻿# Startet den F.R.I.D.A.Y.-Sprachdienst und startet ihn bei Absturz neu (Status: http://127.0.0.1:43694).
-# Einzelinstanz per benanntem Mutex; Stop: Datei C:\Jarvis\run\start-jarvis-voice.ps1.stop (siehe Stop-LauncherService im Installer).
+# Einzelinstanz per benanntem Mutex; Stop: Datei C:\Friday\run\start-friday-voice.ps1.stop (siehe Stop-LauncherService im Installer).
 param([switch]$Visible)
-$root   = 'C:\Jarvis'
+$root   = 'C:\Friday'
 $python = "$root\voice\.venv\Scripts\python.exe"
-$script = "$root\voice\jarvis_voice.py"
+$script = "$root\voice\friday_voice.py"
 $log    = "$root\logs\voice-service.log"
 $env:PYTHONUNBUFFERED = '1'
 $env:PYTHONIOENCODING = 'utf-8'
@@ -11,7 +11,7 @@ $env:PYTHONIOENCODING = 'utf-8'
 $created = $false
 $mutex = New-Object System.Threading.Mutex($true, 'Local\FRIDAY_VoiceLauncher', [ref]$created)
 if (-not $created) { exit 0 }
-$stopFlag = "$root\run\start-jarvis-voice.ps1.stop"
+$stopFlag = "$root\run\start-friday-voice.ps1.stop"
 New-Item -ItemType Directory -Force "$root\run" | Out-Null
 Remove-Item $stopFlag -Force -ErrorAction SilentlyContinue
 

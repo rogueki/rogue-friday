@@ -1,14 +1,14 @@
-﻿# F.R.I.D.A.Y. Service-Watchdog: prueft einmal pro Aufruf (Aufgabe JARVIS_Watchdog, alle 5 Minuten, unsichtbar ueber hidden.vbs),
+﻿# F.R.I.D.A.Y. Service-Watchdog: prueft einmal pro Aufruf (Aufgabe FRIDAY_Watchdog, alle 5 Minuten, unsichtbar ueber hidden.vbs),
 # ob die installierten Dienste (Sprachdienst 43694, Qwen 43692, Command Center aus dashboard.yaml/3100) antworten, und startet
 # einen abgestuerzten Dienst ueber seine Aufgabe (Start-ScheduledTask) neu. Es wird nie ein Prozess beendet.
 # Neustart nur, wenn ALLES zutrifft: Port/Health antwortet nicht, kein Launcher-/Dienstprozess laeuft (Modellladen haelt den Port
-# geschlossen, der Prozess existiert aber), kein Stop-Flag C:\Jarvis\run\<launcher>.stop (gewollter Stopp), der Installer laeuft nicht
-# (C:\Jarvis\run\installer.active), nicht innerhalb der Anmelde-Schonfrist und Backoff (10 min Abstand, max. 3 Neustarts/Stunde).
-# Log: C:\Jarvis\logs\watchdog.log (Rotation bei 1 MB), Zustand: C:\Jarvis\run\watchdog-state.json.
+# geschlossen, der Prozess existiert aber), kein Stop-Flag C:\Friday\run\<launcher>.stop (gewollter Stopp), der Installer laeuft nicht
+# (C:\Friday\run\installer.active), nicht innerhalb der Anmelde-Schonfrist und Backoff (10 min Abstand, max. 3 Neustarts/Stunde).
+# Log: C:\Friday\logs\watchdog.log (Rotation bei 1 MB), Zustand: C:\Friday\run\watchdog-state.json.
 # -LibraryOnly: nur die Funktionen laden (Unit-Tests der Entscheidungslogik per Dot-Sourcing).
 param([switch]$LibraryOnly)
 
-$root = 'C:\Jarvis'
+$root = 'C:\Friday'
 $script:LogFile   = "$root\logs\watchdog.log"
 $script:StateFile = "$root\run\watchdog-state.json"
 $MinIntervalMinutes = 10
@@ -82,7 +82,7 @@ function Get-ConfiguredPort([string]$yamlFile, [int]$default) {
     return $default
 }
 function Test-InstallerActive {
-    # Der Installer legt C:\Jarvis\run\installer.active (Inhalt: PID) an und entfernt sie am Ende. Verwaiste Markierungen
+    # Der Installer legt C:\Friday\run\installer.active (Inhalt: PID) an und entfernt sie am Ende. Verwaiste Markierungen
     # (Absturz, Neustart mitten in der Installation) zaehlen nicht: Prozess muss leben und ein PowerShell sein, Alter < 12 h.
     $f = "$root\run\installer.active"
     if (-not (Test-Path $f)) { return $false }
@@ -140,9 +140,9 @@ try {
     catch { Write-WatchdogLog 'ERROR' "install-state.json nicht lesbar: $($_.Exception.Message)"; exit 0 }
     $dashPort = Get-ConfiguredPort "$root\dashboard\config\dashboard.yaml" 3100
     $services = @(
-        @{ Key = 'voice';     Name = 'Sprachdienst';   Step = 'voiceservice'; Task = 'JARVIS_Voice';     Launcher = 'start-jarvis-voice.ps1'; Child = '*jarvis_voice.py*';           Port = 43694;    Http = $null }
-        @{ Key = 'qwen';      Name = 'Qwen';           Step = 'qwen';         Task = 'JARVIS_Qwen';      Launcher = 'start-qwen-server.ps1';  Child = '*llama-server*--port 43692*'; Port = 43692;    Http = $null }
-        @{ Key = 'dashboard'; Name = 'Command Center'; Step = 'dashboard';    Task = 'JARVIS_Dashboard'; Launcher = 'start-dashboard.ps1';    Child = '*control-api*dist*main.js*';  Port = $dashPort; Http = "http://127.0.0.1:$dashPort/api/v1/health" }
+        @{ Key = 'voice';     Name = 'Sprachdienst';   Step = 'voiceservice'; Task = 'FRIDAY_Voice';     Launcher = 'start-friday-voice.ps1'; Child = '*friday_voice.py*';           Port = 43694;    Http = $null }
+        @{ Key = 'qwen';      Name = 'Qwen';           Step = 'qwen';         Task = 'FRIDAY_Qwen';      Launcher = 'start-qwen-server.ps1';  Child = '*llama-server*--port 43692*'; Port = 43692;    Http = $null }
+        @{ Key = 'dashboard'; Name = 'Command Center'; Step = 'dashboard';    Task = 'FRIDAY_Dashboard'; Launcher = 'start-dashboard.ps1';    Child = '*control-api*dist*main.js*';  Port = $dashPort; Http = "http://127.0.0.1:$dashPort/api/v1/health" }
     ) | Where-Object { $done -contains $_.Step }
     if (@($services).Count -eq 0) { exit 0 }
 

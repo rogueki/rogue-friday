@@ -1,5 +1,5 @@
 #!/bin/bash
-# JARVIS-Installer, WSL-Teil 2 (als Linux-Benutzer): Hermes Agent + Kimi K3 + Persoenlichkeit + Kanban +
+# F.R.I.D.A.Y.-Installer, WSL-Teil 2 (als Linux-Benutzer): Hermes Agent + Kimi K3 + Persoenlichkeit + Kanban +
 # API-Server (fuer die Sprachsteuerung) + Dashboard + Gateway als systemd-Dienste.
 # stdin: Zeile 1 = Kimi-API-Key. Ports per Umgebung ueberschreibbar (Tests).
 set -euo pipefail
@@ -13,10 +13,10 @@ KEY="$(printf '%s' "$KEY" | tr -d '\r\n ')"
 export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 XDG_RUNTIME_DIR="/run/user/$(id -u)"
 export XDG_RUNTIME_DIR
-INST="${JARVIS_INSTALLER:-/mnt/c/Jarvis/installer}"
-CFG="${JARVIS_CONFIG:-/mnt/c/Jarvis/config}"
-DASH_PORT="${JARVIS_DASH_PORT:-43691}"
-API_PORT="${JARVIS_API_PORT:-43693}"
+INST="${FRIDAY_INSTALLER:-/mnt/c/Friday/installer}"
+CFG="${FRIDAY_CONFIG:-/mnt/c/Friday/config}"
+DASH_PORT="${FRIDAY_DASH_PORT:-43691}"
+API_PORT="${FRIDAY_API_PORT:-43693}"
 H="$HOME/.hermes"
 step() { printf '\n==> %s\n' "$*"; }
 
@@ -43,20 +43,20 @@ else
 fi
 hermes config set agent.reasoning_effort low
 hermes config set stt.language de
-hermes config set terminal.cwd /mnt/c/Jarvis/exchange
+hermes config set terminal.cwd /mnt/c/Friday/exchange
 
 step "Kimi K3 testen"
 OUT="$(timeout 240 hermes -z "Antworte exakt mit: KIMI_K3_OK" </dev/null 2>&1 | tail -5 || true)"
 if printf '%s' "$OUT" | grep -q "KIMI_K3_OK"; then echo "KIMI_OK"; else echo "WARN Kimi-Test fehlgeschlagen: $OUT"; fi
 
 step "Persoenlichkeit (SOUL.md)"
-[ -f "$H/SOUL.md" ] && cp "$H/SOUL.md" "$HOME/jarvis/backups/SOUL.md.bak-$(date +%Y%m%d-%H%M%S)"
+[ -f "$H/SOUL.md" ] && cp "$H/SOUL.md" "$HOME/friday/backups/SOUL.md.bak-$(date +%Y%m%d-%H%M%S)"
 python3 "$INST/common/persona.py" "$CFG/persona.json" "$H/SOUL.md"
 
 step "API-Server fuer die Sprachsteuerung (nur 127.0.0.1:$API_PORT)"
 API_KEY="$(tr -d '\r\n' < "$CFG/hermes_api.key")"
 sed -i '/^API_SERVER_\(ENABLED\|HOST\|PORT\|KEY\|MODEL_NAME\)=/d' "$H/.env"
-printf 'API_SERVER_ENABLED=true\nAPI_SERVER_HOST=127.0.0.1\nAPI_SERVER_PORT=%s\nAPI_SERVER_KEY=%s\nAPI_SERVER_MODEL_NAME=jarvis\n' \
+printf 'API_SERVER_ENABLED=true\nAPI_SERVER_HOST=127.0.0.1\nAPI_SERVER_PORT=%s\nAPI_SERVER_KEY=%s\nAPI_SERVER_MODEL_NAME=friday\n' \
     "$API_PORT" "$API_KEY" >> "$H/.env"
 
 step "Kanban"
@@ -75,7 +75,7 @@ step "Dashboard als Dienst (127.0.0.1:$DASH_PORT)"
 mkdir -p "$HOME/.config/systemd/user"
 cat > "$HOME/.config/systemd/user/hermes-dashboard.service" <<UNIT
 [Unit]
-Description=Hermes Dashboard (JARVIS, 127.0.0.1:$DASH_PORT)
+Description=Hermes Dashboard (F.R.I.D.A.Y., 127.0.0.1:$DASH_PORT)
 After=network-online.target hermes-gateway.service
 
 [Service]

@@ -1,6 +1,6 @@
-﻿# Startet den lokalen Qwen3-4B-Router (llama.cpp) auf 127.0.0.1:43692. Parameter: C:\Jarvis\config\qwen.json
+﻿# Startet den lokalen Qwen3-4B-Router (llama.cpp) auf 127.0.0.1:43692. Parameter: C:\Friday\config\qwen.json
 $ErrorActionPreference = 'Stop'
-$root = 'C:\Jarvis'
+$root = 'C:\Friday'
 $cfg  = Get-Content "$root\config\qwen.json" -Raw | ConvertFrom-Json
 $log  = "$root\logs\qwen-server.log"
 if (Get-NetTCPConnection -LocalPort 43692 -State Listen -ErrorAction SilentlyContinue) { exit 0 }

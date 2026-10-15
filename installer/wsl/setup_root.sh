@@ -1,5 +1,5 @@
 #!/bin/bash
-# JARVIS-Installer, WSL-Teil 1 (als root): Pakete, Linux-Benutzer, systemd, Standardbenutzer.
+# F.R.I.D.A.Y.-Installer, WSL-Teil 1 (als root): Pakete, Linux-Benutzer, systemd, Standardbenutzer.
 # stdin: Zeile 1 = Benutzername, Zeile 2 = Passwort (kommt vom Windows-Installer, landet nirgends auf Platte).
 set -euo pipefail
 read -r U
@@ -37,5 +37,5 @@ CONF
 
 # Benutzer-systemd ohne offene Sitzung starten (Hermes-Gateway/Dashboard laufen als User-Services).
 mkdir -p /var/lib/systemd/linger && touch "/var/lib/systemd/linger/$U"
-su - "$U" -c 'mkdir -p ~/jarvis/{config,logs,scripts,services,integrations,skills,backups,tests}'
+su - "$U" -c 'mkdir -p ~/friday/{config,logs,scripts,services,integrations,skills,backups,tests}'
 echo "ROOT_SETUP_DONE"

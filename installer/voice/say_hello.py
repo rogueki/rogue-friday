@@ -5,7 +5,7 @@ import json
 import os
 import sys
 
-ROOT = sys.argv[1] if len(sys.argv) > 1 else r"C:\Jarvis"
+ROOT = sys.argv[1] if len(sys.argv) > 1 else r"C:\Friday"
 sys.path.insert(0, os.path.join(ROOT, "voice"))
 import numpy as np  # noqa: E402
 import sounddevice as sd  # noqa: E402

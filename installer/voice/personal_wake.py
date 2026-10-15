@@ -1,17 +1,19 @@
 """Persoenliches Wake Word fuer beliebige Assistentennamen (Engine "personal").
 
-openWakeWord liefert nur fuer "hey_jarvis" ein vortrainiertes Modell. Fuer jeden anderen Namen (Standard: Friday)
-arbeitet die Erkennung zweistufig und rein lokal:
+openWakeWord liefert nur fuer "hey_jarvis" ein vortrainiertes Modell. Fuer jedes andere Wake Word (Standard: "Hey
+Friday"; frei waehlbares Wort oder Satz mit 1-4 Woertern) arbeitet die Erkennung zweistufig und rein lokal:
 
   Stufe 1  Few-Shot-Erkennung auf den openWakeWord-Embedding-Features (AudioFeatures, 96 Dimensionen je 80 ms),
-           trainiert auf den eigenen Enrollment-Aufnahmen von "Hey <Name>" und "<Name>" gegen die aufgenommenen
+           trainiert auf den eigenen Enrollment-Aufnahmen der Phrase ("Hey Friday") und ihrer Kurzform ("Friday",
+           nur wenn die Phrase mit einem Grusswort wie "Hey" beginnt) gegen die aufgenommenen
            harten Negativen, Lesetexte und Zwischenraeume. Gleitendes Fenster (3 Zeitstreckungen), je Gruppe ein
            linearer Klassifikator (nur numpy zur Laufzeit); die Schwelle wird per Kreuzvalidierung auf ungesehenen
            Clips kalibriert. Reine Kosinus-Templates waren auf synthetischen Daten deutlich schlechter (siehe
            docs/MAPPING/voice.md).
-  Stufe 2  Bestaetigung per faster-whisper auf dem ~2-s-Fenster (nur wenn Stufe 1 ausloest): `name_matches` prueft
-           unscharf (Umlaute/Gross-Klein, kleine Editierdistanz auf einer phonetischen Normalform, Aliase,
-           Sperrliste aehnlicher Woerter).
+  Stufe 2  Bestaetigung per faster-whisper auf dem ~2-s-Fenster (nur wenn Stufe 1 ausloest): `phrase_matches` prueft
+           die gesamte Phrase (oder ihre Kurzform) unscharf: Wort fuer Wort in Reihenfolge, Umlaute/Gross-Klein,
+           kleine Editierdistanz auf einer phonetischen Normalform, getrennt/zusammen geschriebene Woerter, Aliase,
+           Sperrliste aehnlicher Woerter.
   Danach folgt wie bisher die ECAPA-Sprecherpruefung des Dienstes.
 
 Das Modul importiert openWakeWord nur lazy und enthaelt keine Windows-Abhaengigkeiten (testbar unter Linux).
@@ -67,6 +69,59 @@ def wake_phrase(name: str) -> str:
     return f"Hey {display_name(name)}"
 
 
+# ---- Wake Phrase (frei waehlbar): 1-4 Woerter, Buchstaben/Umlaute/Bindestrich, 3-30 Zeichen ----------------------------
+PHRASE_MIN_CHARS, PHRASE_MAX_CHARS, PHRASE_MAX_WORDS = 3, 30, 4
+GREETINGS = ("hey", "hi", "hallo", "ok", "okay", "hej")   # Grusswoerter, die eine Kurzform der Phrase erlauben
+PRETRAINED_PHRASE = "hey jarvis"                          # einzige Phrase mit vortrainiertem openWakeWord-Modell
+_PHRASE_WORD = re.compile(r"[^\W\d_]+(?:-[^\W\d_]+)*")
+
+
+def normalize_phrase(phrase: str) -> str:
+    """Whitespace zusammengefasst und getrimmt ("  hey   friday " -> "hey friday")."""
+    return re.sub(r"\s+", " ", (phrase or "").strip())
+
+
+def valid_phrase(phrase: str) -> bool:
+    """1-4 Woerter aus Buchstaben (inkl. Umlaute) mit optionalem Bindestrich, getrennt durch Leerzeichen, 3-30 Zeichen."""
+    text = normalize_phrase(phrase)
+    if not PHRASE_MIN_CHARS <= len(text) <= PHRASE_MAX_CHARS:
+        return False
+    words = text.split(" ")
+    return len(words) <= PHRASE_MAX_WORDS and all(_PHRASE_WORD.fullmatch(w) for w in words)
+
+
+def display_phrase(phrase: str) -> str:
+    """Anzeigeform: jedes Wort mit grossem Anfangsbuchstaben ("hey friday" -> "Hey Friday")."""
+    return " ".join(w[:1].upper() + w[1:] for w in normalize_phrase(phrase).split(" "))
+
+
+def phrase_key(phrase: str) -> str:
+    """Vergleichsform: Kleinbuchstaben, Leerzeichen und Bindestriche als einzelnes Leerzeichen."""
+    return re.sub(r"[\s-]+", " ", (phrase or "").strip().lower())
+
+
+def is_pretrained_phrase(phrase: str) -> bool:
+    """Nur exakt "Hey Jarvis" (Gross-/Kleinschreibung und Leerraum egal) nutzt das vortrainierte openWakeWord-Modell."""
+    return phrase_key(phrase) == PRETRAINED_PHRASE
+
+
+def wake_engine(phrase: str) -> str:
+    return "openwakeword" if is_pretrained_phrase(phrase) else "personal"
+
+
+def phrase_slug(phrase: str) -> str:
+    """Ordnername der Aufnahmen: wake_<slug> ("Hey Friday" -> "hey_friday")."""
+    return slugify(phrase)
+
+
+def short_form(phrase: str) -> str | None:
+    """Kurzform ohne fuehrendes Grusswort ("Hey Friday" -> "Friday"); None, wenn die Phrase nicht so beginnt."""
+    words = normalize_phrase(phrase).split(" ")
+    if len(words) >= 2 and fold(words[0]) in GREETINGS:
+        return display_phrase(" ".join(words[1:]))
+    return None
+
+
 _PHON_RULES = [("sch", "S"), ("ch", "X"), ("ph", "f"), ("ck", "k"), ("qu", "kv"), ("tz", "ts"), ("dt", "t"),
                ("th", "t"), ("ie", "i"), ("ei", "ai"), ("ey", "ai"), ("ay", "ai"), ("eu", "oi"), ("v", "f"),
                ("w", "v"), ("z", "ts"), ("c", "k"), ("y", "i"), ("x", "ks")]
@@ -115,48 +170,149 @@ COMMON_NAMES = ["Peter", "Martin", "Julia", "Sandra", "Thomas", "Nina", "Daniel"
 REJECT_WORDS = {"friday": ["Freitag", "Frieda", "Frida", "Feierabend", "Fridolin", "Friedrich", "Freddy"]}
 
 
-def hard_negatives(name: str, count: int = 15) -> list[str]:
-    """Aehnlich klingende Gegenbeispiele: Tabelle fuer bekannte Namen, sonst die klangnaechsten Vornamen."""
-    slug = slugify(name)
-    if slug in HARD_NEGATIVES:
-        return HARD_NEGATIVES[slug][:count]
-    key = phonetic_key(name)
-    ranked = sorted((n for n in COMMON_NAMES if phonetic_key(n) != key and fold(n) != fold(name)),
-                    key=lambda n: (levenshtein(phonetic_key(n), key), n))
-    words = [f"Hey {n}" if i % 2 == 0 else n for i, n in enumerate(ranked[:count - len(GENERIC_NEGATIVES)])]
-    return (words + GENERIC_NEGATIVES)[:count]
+def _nearest_names(word: str, n: int) -> list[str]:
+    """Die n klangnaechsten Vornamen zu einem Wort (phonetische Editierdistanz)."""
+    key = phonetic_key(word)
+    ranked = sorted((c for c in COMMON_NAMES if phonetic_key(c) != key and fold(c) != fold(word)),
+                    key=lambda c: (levenshtein(phonetic_key(c), key), c))
+    return ranked[:n]
 
 
-def default_aliases(name: str) -> list[str]:
-    return list(DEFAULT_ALIASES.get(slugify(name), []))
+def _content_words(core: str) -> list[str]:
+    return [w for w in core.split(" ") if len(fold(w)) >= 3]
 
 
-def default_reject_words(name: str) -> list[str]:
-    return list(REJECT_WORDS.get(slugify(name), []))
+def hard_negatives(phrase: str, count: int = 15) -> list[str]:
+    """Aehnlich klingende Gegenbeispiele, abgeleitet aus den Woertern der Phrase (auch ein einzelner Name geht).
+
+    Bekannte Kernwoerter (Friday, Jarvis): feste Tabelle. Einwort-Kern: die klangnaechsten Vornamen. Mehrwort-Phrase:
+    jedes Wort einzeln, Teilphrasen und die Phrase mit je einem Wort durch einen klangnahen Vornamen ersetzt - alles,
+    was die Phrase fast, aber nicht ganz ist."""
+    text = normalize_phrase(phrase)
+    short = short_form(text)
+    core = short or display_phrase(text)
+    table = HARD_NEGATIVES.get(slugify(core))
+    if table:
+        return table[:count]
+    greeting = display_phrase(text).split(" ")[0] if short else "Hey"
+    positives = {fold(display_phrase(text)), fold(core)}
+    out: list[str] = []
+    cwords = core.split(" ")
+    if len(cwords) == 1:
+        near = _nearest_names(core, count - len(GENERIC_NEGATIVES))
+        out = [f"{greeting} {n}" if i % 2 == 0 else n for i, n in enumerate(near)]
+    else:
+        out += [w for w in cwords if len(fold(w)) >= 3]
+        if len(cwords) >= 3:
+            out += [" ".join(cwords[:-1]), " ".join(cwords[1:])]
+        for i, w in enumerate(cwords):
+            if len(fold(w)) < 3:
+                continue
+            for n in _nearest_names(w, 2):
+                replaced = " ".join(cwords[:i] + [n] + cwords[i + 1:])
+                out.append(f"{greeting} {replaced}" if short else replaced)
+    seen, result = set(), []
+    for item in out:
+        key = fold(item)
+        if key and key not in positives and key not in seen:
+            seen.add(key)
+            result.append(item)
+    return (result[:count - len(GENERIC_NEGATIVES)] + GENERIC_NEGATIVES)[:count]
+
+
+def default_aliases(phrase: str) -> list[str]:
+    text = normalize_phrase(phrase)
+    return list(DEFAULT_ALIASES.get(slugify(short_form(text) or text), []))
+
+
+def default_reject_words(phrase: str) -> list[str]:
+    """Aehnliche, aber falsche Woerter, die Stufe 2 nie als Treffer zaehlt: feste Tabelle (Friday) oder die Vornamen, die
+    der unscharfe Vergleich sonst fuer ein Wort der Phrase akzeptieren wuerde."""
+    text = normalize_phrase(phrase)
+    core = short_form(text) or text
+    table = REJECT_WORDS.get(slugify(core))
+    if table:
+        return list(table)
+    out: list[str] = []
+    for word in _content_words(core):
+        key = phonetic_key(word)
+        limit = allowed_distance(len(key))
+        out += [n for n in COMMON_NAMES if phonetic_key(n) != key and fold(n) != fold(word)
+                and levenshtein(phonetic_key(n), key) <= limit]
+    return list(dict.fromkeys(out))
+
+
+def _word_options(tokens: list[str], i: int, target_key: str, limit: int, reject_keys: set[str]) -> list[tuple[int, int]]:
+    """(verbrauchte Tokens, Distanz) fuer ein Zielwort ab Token i; 1-3 Tokens werden zusammengezogen ("fri day")."""
+    options = []
+    for span in (1, 2, 3):
+        if i + span > len(tokens):
+            break
+        key = phonetic_key("".join(tokens[i:i + span]))
+        if not key or key in reject_keys:
+            continue
+        dist = levenshtein(key, target_key)
+        if dist <= limit:
+            options.append((span, dist))
+    return options
+
+
+def _align(tokens, i, keys, limits, reject_keys, skips, first=True):
+    """Kleinste Gesamtdistanz (und Ende), mit der die Zielwoerter `keys` ab Token i lueckenlos hintereinander stehen.
+    Das erste Zielwort darf fehlen (Whisper verschluckt oft den Anfang), solange `skips` > 0 ist (Distanz +1); die
+    folgenden nie. None, wenn es keine Zuordnung gibt."""
+    if not keys:
+        return 0, i
+    best = None
+    for span, dist in _word_options(tokens, i, keys[0], limits[0], reject_keys):
+        rest = _align(tokens, i + span, keys[1:], limits[1:], reject_keys, skips, first=False)
+        if rest is not None and (best is None or dist + rest[0] < best[0]):
+            best = (dist + rest[0], rest[1])
+    if first and skips > 0:
+        rest = _align(tokens, i, keys[1:], limits[1:], reject_keys, skips - 1)
+        if rest is not None and (best is None or rest[0] + 1 < best[0]):
+            best = (rest[0] + 1, rest[1])
+    return best
+
+
+def phrase_matches(transcript: str, phrase: str, aliases=(), reject=(), max_dist: int | None = None):
+    """Stufe 2: steht die Wake Phrase (oder ihre Kurzform bzw. ein Alias) im Transkript?
+
+    Rueckgabe (treffer, text, distanz). Die Woerter der Phrase muessen der Reihe nach unmittelbar hintereinander
+    vorkommen; je Wort gilt eine kleine Editierdistanz auf der phonetischen Normalform (`allowed_distance`, oder
+    `max_dist`), so dass kleine Transkriptionsfehler ("Hay Fraidei") nichts ausmachen. Bei Phrasen mit mindestens drei
+    Woertern darf das erste Wort fehlen, das letzte nie. `reject`: aehnliche, aber falsche Woerter (z. B. "Freitag"), die nie zaehlen.
+    Eine Phrase mit Grusswort gilt auch ohne es ("Friday" statt "Hey Friday"): Stufe 1 hat auch die Kurzform gelernt."""
+    text = normalize_phrase(phrase)
+    targets = [text.split(" ")]
+    short = short_form(text)
+    if short:
+        targets.append(short.split(" "))
+    for alias in aliases:
+        words = normalize_phrase(alias).split(" ") if fold(alias) else []
+        if words:
+            targets.append(words)
+    all_keys = {phonetic_key(w) for t in targets for w in t}
+    reject_keys = {phonetic_key(r) for r in reject if fold(r)} - all_keys
+    tokens = [fold(w) for w in re.findall(r"[^\W\d_]+", (transcript or "").lower())]
+    tokens = [t for t in tokens if t]
+    best = (False, "", 99)
+    for words in targets:
+        keys = [phonetic_key(w) for w in words]
+        if not all(keys):
+            continue
+        limits = [allowed_distance(len(k)) if max_dist is None else max_dist for k in keys]
+        skips = 1 if len(keys) >= 3 else 0
+        for i in range(len(tokens)):
+            found = _align(tokens, i, keys, limits, reject_keys, skips)
+            if found is not None and found[0] < best[2]:
+                best = (True, " ".join(tokens[i:found[1]]), found[0])
+    return best
 
 
 def name_matches(transcript: str, name: str, aliases=(), reject=(), max_dist: int | None = None):
-    """Stufe 2: kommt der Name (bzw. eine phonetische Variante) im Transkript vor?
-
-    Rueckgabe (treffer, token, distanz). `reject`: aehnliche, aber falsche Woerter (z. B. "Freitag"), die nie
-    zaehlen. `max_dist=None`: Distanz nach Namenslaenge (`allowed_distance`).
-    """
-    targets = {phonetic_key(t) for t in (name, *aliases) if fold(t)}
-    reject_keys = {phonetic_key(r) for r in reject if fold(r)} - targets
-    words = [fold(w) for w in re.findall(r"[^\W\d_]+", transcript.lower())]
-    words = [w for w in words if w]
-    cands = words + [a + b for a, b in zip(words, words[1:])] + [a + b + c for a, b, c in zip(words, words[1:], words[2:])]
-    best = (False, "", 99)
-    for cand in cands:
-        key = phonetic_key(cand)
-        if not key or key in reject_keys:
-            continue
-        for target in targets:
-            limit = allowed_distance(len(target)) if max_dist is None else max_dist
-            dist = levenshtein(key, target)
-            if dist <= limit and dist < best[2]:
-                best = (True, cand, dist)
-    return best
+    """Wie `phrase_matches`, fuer ein einzelnes Wort bzw. einen Namen als Phrase (Kompatibilitaet)."""
+    return phrase_matches(transcript, name, aliases, reject, max_dist)
 
 
 # ------------------------------------------------------------------------------------------------ Audio-Helfer
@@ -433,20 +589,41 @@ class PiperSynth:
         return (resample_poly(audio, SR, sr) if sr != SR else audio).astype(np.float32)
 
 
-def synthetic_clips(synth: PiperSynth, embedder: "ClipEmbedder", name: str, sentences: list[str],
+def synthetic_clips(synth: PiperSynth, embedder: "ClipEmbedder", phrase: str, sentences: list[str],
                     rng: np.random.Generator, n_hey: int = 40, n_bare: int = 30) -> tuple[list, list, list]:
-    """Zusatzbeispiele aus der Piper-Stimme: Positive "Hey <Name>"/"<Name>", Negative (aehnliche Woerter + Saetze).
-    Gewicht 1 (eigene Aufnahmen zaehlen dreifach). Rueckgabe (hey, bare, negs) als Clip-Listen."""
+    """Zusatzbeispiele aus der Piper-Stimme: Positive (Phrase und, falls vorhanden, Kurzform), Negative (aehnliche
+    Woerter + Saetze). Gewicht 1 (eigene Aufnahmen zaehlen dreifach). Rueckgabe (hey, bare, negs) als Clip-Listen.
+    Ohne Kurzform (Phrase ohne Grusswort) entstehen alle Positive aus der Phrase."""
     def embed(audio, positive):
         rows, start = embedder.embed(audio, rng)
         bounds = voiced_bounds(audio) if positive else None
         return Clip(rows, start, bounds, weight=1.0) if (bounds or not positive) else None
 
-    hey = [embed(augment(synth.say(wake_phrase(name), rng), rng), True) for _ in range(n_hey)]
-    bare = [embed(augment(synth.say(display_name(name), rng), rng), True) for _ in range(n_bare)]
-    negs = [embed(augment(synth.say(w, rng), rng), False) for w in hard_negatives(name) * 3]
+    full, short = display_phrase(phrase), short_form(phrase)
+    if not short:
+        n_hey, n_bare = n_hey + n_bare, 0
+    hey = [embed(augment(synth.say(full, rng), rng), True) for _ in range(n_hey)]
+    bare = [embed(augment(synth.say(short, rng), rng), True) for _ in range(n_bare)]
+    negs = [embed(augment(synth.say(w, rng), rng), False) for w in hard_negatives(phrase) * 3]
     negs += [embed(augment(synth.say(t, rng), rng, place=False), False) for t in sentences]
     return [c for c in hey if c], [c for c in bare if c], negs
+
+
+def enrollment_blocks(phrase: str) -> list[tuple[str, str, list[tuple[str, int]]]]:
+    """Aufnahmeplan der Wake-Word-Samples: (Ordnername, Text, [(Variante, Anzahl)]). Block `wake_<slug der Phrase>`; mit
+    Kurzform zusaetzlich `wake_<slug der Kurzform>` (26 + 18 Aufnahmen), ohne Kurzform bekommt die Phrase alle Aufnahmen."""
+    text, short = display_phrase(phrase), short_form(phrase)
+    full_phases = [("normal, ca. 50 cm vom Laptop", 8), ("leise", 4), ("laut / bestimmt", 4),
+                   ("ca. 1-2 m entfernt (aufstehen oder zuruecklehnen)", 6), ("schnell/beilaeufig, wie im Alltag", 4)]
+    if not short:
+        extra = [("normal, aus dem Alltag heraus", 8), ("leise oder aus 1-2 m", 6),
+                 (f"fragend, z. B. '{text}?'", 4)]
+        return [(f"wake_{phrase_slug(text)}", text, full_phases + extra)]
+    return [
+        (f"wake_{phrase_slug(text)}", text, full_phases),
+        (f"wake_{phrase_slug(short)}", short, [("normal", 8), ("leise oder aus 1-2 m", 6),
+                                                (f"fragend, z. B. '{short}?'", 4)]),
+    ]
 
 
 # ------------------------------------------------------------------------------------------------ Embeddings & Live
@@ -497,17 +674,30 @@ class PersonalWakeDetector:
         return self.model.score_live(self.features.feature_buffer[-valid:])
 
 
-def resolve_assistant_name(config_dir: str, default: str = "Friday") -> str:
-    """assistant_name aus config/voice.json bzw. persona.json (gleiche Quelle wie der Installer), sonst Standard."""
+def _config_value(config_dir: str, key: str, valid) -> str | None:
+    """Erster gueltiger Wert von `key` aus voice.json, dann persona.json (gleiche Quellen wie der Installer)."""
     for fname in ("voice.json", "persona.json"):
         try:
             with open(os.path.join(config_dir, fname), encoding="utf-8-sig") as f:
-                name = (json.load(f).get("assistant_name") or "").strip()
-        except (OSError, ValueError):
+                value = (json.load(f).get(key) or "").strip()
+        except (OSError, ValueError, AttributeError):
             continue
-        if valid_name(name):
-            return display_name(name)
-    return default
+        if valid(value):
+            return value
+    return None
+
+
+def resolve_assistant_name(config_dir: str, default: str = "Friday") -> str:
+    """assistant_name aus config/voice.json bzw. persona.json (gleiche Quelle wie der Installer), sonst Standard."""
+    value = _config_value(config_dir, "assistant_name", valid_name)
+    return display_name(value) if value else default
+
+
+def resolve_wake_phrase(config_dir: str, default_name: str = "Friday") -> str:
+    """wake_phrase aus config/voice.json bzw. persona.json; fehlt sie (Installation vor der freien Wake Phrase), gilt
+    "Hey <Name>"."""
+    value = _config_value(config_dir, "wake_phrase", valid_phrase)
+    return display_phrase(value) if value else wake_phrase(resolve_assistant_name(config_dir, default_name))
 
 
 def load_meta(json_path: str) -> dict:

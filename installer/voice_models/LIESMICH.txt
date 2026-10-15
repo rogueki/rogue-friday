@@ -1,4 +1,4 @@
 Hier kann spaeter die trainierte JARVIS-Stimme abgelegt werden:
   jarvis_de.onnx und jarvis_de.onnx.json
 Der Installer verwendet sie dann automatisch statt der Standardstimme (Thorsten + Filmfilter).
-Nachtraeglich: Dateien hierher kopieren, in C:\Jarvis\config\install-state.json den Eintrag "voicepython" aus "done" entfernen und install-jarvis.bat erneut starten.
+Nachtraeglich: Dateien hierher kopieren, in C:\Friday\config\install-state.json den Eintrag "voicepython" aus "done" entfernen und install-friday.bat erneut starten.
