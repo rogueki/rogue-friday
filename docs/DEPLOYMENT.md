@@ -124,6 +124,33 @@ $env:JARVIS_CONFIG_DIR = 'C:\Jarvis\dashboard\config'
 node C:\Jarvis\dashboard\apps\control-api\dist\main.js
 ```
 
+**Service-Watchdog (`JARVIS_Watchdog`)**
+
+`installer/scripts/friday-watchdog.ps1` (nach `C:\Jarvis\installer\scripts`) macht pro Aufruf genau einen Durchlauf und beendet sich.
+Die Aufgabe `JARVIS_Watchdog` (Installer-Abschnitt „Zusatz – Service-Watchdog“, Schritt-Name `watchdog`, bei jedem Lauf neu registriert,
+Fehler nur als Warnung) startet ihn bei der Anmeldung (120 s Verzögerung) und alle 5 Minuten (Wiederholung ohne Ende), Aktion
+`wscript.exe //B //Nologo hidden.vbs friday-watchdog.ps1`, `MultipleInstances IgnoreNew`, Laufzeitgrenze 2 Minuten, Benutzerkontext
+wie die anderen Aufgaben. **Wichtig:** immer über `hidden.vbs` starten. `powershell.exe -WindowStyle Hidden` direkt als Aufgabenaktion
+blitzt bei jedem Lauf ein Konsolenfenster auf, weil das Flag erst wirkt, wenn die Konsole schon existiert.
+
+Geprüft werden nur Dienste, deren Schritt in `install-state.json` erledigt ist (`voiceservice`, `qwen`, `dashboard`). Neustart
+(`Start-ScheduledTask` der Dienstaufgabe) nur, wenn alles zutrifft:
+
+| Bedingung | Prüfung |
+|---|---|
+| Port antwortet nicht | TCP-Connect auf 43694 / 43692; Command Center zusätzlich `GET /api/v1/health` (jede HTTP-Antwort zählt als „läuft“) |
+| Kein Prozess läuft | Launcher (`start-jarvis-voice.ps1`, `start-dashboard.ps1`) oder Kindprozess (`*jarvis_voice.py*`, `llama-server.exe … --port 43692`, `*control-api*dist*main.js*`) per `Win32_Process`-CommandLine. Modellladen hält den Port geschlossen, der Prozess existiert aber: dann nie ein Neustart (nach 20 min nur Warnung „hängt vermutlich“) |
+| Kein Stop-Flag | `C:\Jarvis\run\<Launcher>.stop` fehlt (gewollter Stopp bleibt gestoppt) |
+| Installer läuft nicht | `C:\Jarvis\run\installer.active` (PID des Installers) fehlt oder ist verwaist. Der Installer setzt sie beim Start und löscht sie am Ende, damit Updates (`-UpdateDashboard`, `-ChangeName`), in denen Dienste länger ohne Stop-Flag gestoppt sind, nicht durchkreuzt werden |
+| Nicht in der Anmelde-Schonfrist | die ersten 3 Minuten der Sitzung (die Dienstaufgaben starten selbst, 45/60 s Verzögerung) |
+| Backoff | seit dem letzten Neustart dieses Dienstes ≥ 10 min, höchstens 3 Neustarts je Stunde (danach Warnung im Log) |
+
+Zustand: `C:\Jarvis\run\watchdog-state.json`; Einzelinstanz per Mutex `Local\FRIDAY_Watchdog`. Log: `C:\Jarvis\logs\watchdog.log`
+(eine Zeile je Neustart/Warnung/Statuswechsel, stündlich `Heartbeat`, Rotation bei 1 MB auf `.1`). Der Watchdog beendet nie einen Prozess und
+fasst keine andere Aufgabe an. Eine ältere Aufgabe `JARVIS_Voice_Watchdog` (früherer Installer) bleibt bestehen; bei Nichtgebrauch
+`schtasks /delete /tn JARVIS_Voice_Watchdog /f`. Zum absichtlichen Stoppen eines Dienstes den Watchdog vorher deaktivieren
+(`schtasks /change /tn JARVIS_Watchdog /disable`) oder das Stop-Flag setzen.
+
 **Aktualisieren**
 
 Neues, vollständiges Paket entpacken und `update-dashboard.bat` doppelklicken (= `install-jarvis.ps1 -UpdateDashboard`: nur Schritt 15,
@@ -136,6 +163,7 @@ Datenbank bewusst aus einer Sicherung wiederherstellt, löscht vorher `data\audi
 **Deinstallieren**
 
 ```powershell
+Unregister-ScheduledTask -TaskName JARVIS_Watchdog -Confirm:$false -ErrorAction SilentlyContinue   # zuerst, sonst startet er das Command Center neu
 Stop-ScheduledTask -TaskName JARVIS_Dashboard -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName JARVIS_Dashboard -Confirm:$false
 Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*start-dashboard.ps1*' -or $_.CommandLine -like '*control-api*dist*main.js*' } |
@@ -212,6 +240,7 @@ wird per stdin an die Hash-CLI übergeben. Passwort vergessen: Eintrag `dashboar
 | Log | Inhalt |
 |---|---|
 | `C:\Jarvis\logs\dashboard-install.log` | Schritt 15: winget, corepack, `pnpm install`, `pnpm build:app` (vollständig) |
+| `C:\Jarvis\logs\watchdog.log` | Service-Watchdog: Neustarts, Warnungen, stündlich `Heartbeat` (rotiert bei 1 MB auf `.1`) |
 | `C:\Jarvis\logs\dashboard-service.log` | Start/Ende des Servers, stdout/stderr, Neustarts (rotiert bei 10 MB auf `.1`) |
 | `C:\Jarvis\logs\dashboard\` | JSON-Zeilen der Anwendung (`logging.*` in `dashboard.yaml`, Rotation nach `maxBytes`/`maxFiles`), Secrets werden maskiert |
 | `C:\Jarvis\logs\install-<Zeitstempel>.log` | Transkript des gesamten Installers |
@@ -228,6 +257,7 @@ wird per stdin an die Hash-CLI übergeben. Passwort vergessen: Eintrag `dashboar
 | `pnpm install` scheitert | Internet/Proxy; Eintrag `ERR_PNPM_*` im `dashboard-install.log`; Lockfile unverändert lassen (`--frozen-lockfile`) |
 | `node` nicht gefunden | Neue PowerShell öffnen (PATH); `where.exe node`; Node.js ≥ 22.13 (`node --version`) |
 | Nach Update veraltete Oberfläche | `apps\web\out` neu gebaut? `update-dashboard.bat`; Browser-Cache leeren |
+| Dienst fällt wiederholt aus | `C:\Jarvis\logs\watchdog.log` (Neustarts, Limit-Warnung), danach das Log des Dienstes; `Get-ScheduledTask JARVIS_Watchdog`; blitzt ein Fenster auf, ist die Aktion nicht `wscript.exe … hidden.vbs …` |
 | Dienst startet nicht nach Anmeldung | Aufgabe hat 60 s Verzögerung; sonst Aufgabenplanung → Verlauf; Launcher-Pfad `C:\Jarvis\installer\scripts\start-dashboard.ps1` vorhanden? |
 
 ## 11. Offene Punkte

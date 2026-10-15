@@ -8,6 +8,7 @@
   C:\Jarvis\dashboard installiert; -UpdateDashboard (update-dashboard.bat) spielt nur dieses Update ein.
   Start per Doppelklick auf install-jarvis.bat. Kann jederzeit erneut gestartet werden: erledigte Schritte
   werden übersprungen (Fortschritt: C:\Jarvis\config\install-state.json).
+  Am Ende richtet ein Zusatzschritt den Service-Watchdog ein (Aufgabe JARVIS_Watchdog, alle 5 Minuten, unsichtbar).
 #>
 param([switch]$Resume, [switch]$ChangeName, [switch]$UpdateDashboard)
 
@@ -44,6 +45,12 @@ $Host.UI.RawUI.WindowTitle = 'F.R.I.D.A.Y. Installation'
 foreach ($d in 'config','exchange','logs','models','scripts','voice','windows-worker','backups','cache','installer') {
     New-Item -ItemType Directory -Force "$Root\$d" | Out-Null
 }
+# Markierung "Installer laeuft" (Inhalt: PID): der Service-Watchdog (JARVIS_Watchdog) startet waehrenddessen nichts neu, denn
+# Stop-LauncherService/Neuinstallation halten Dienste absichtlich lange gestoppt. Entfernt am Ende und beim Beenden der Sitzung
+# (auch bei Stop-Install/Neustart-Exit); eine verwaiste Datei ignoriert der Watchdog (Prozess tot oder aelter als 12 h).
+New-Item -ItemType Directory -Force "$Root\run" | Out-Null
+Set-Content -Path "$Root\run\installer.active" -Value "$PID" -Encoding Ascii
+Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action { Remove-Item 'C:\Jarvis\run\installer.active' -Force -ErrorAction SilentlyContinue } | Out-Null
 Start-Transcript -Path "$Root\logs\install-$(Get-Date -Format yyyyMMdd-HHmmss).log" -Append | Out-Null
 
 # ---------------------------------------------------------------- Ausgabe & Eingabe
@@ -130,14 +137,23 @@ function Wait-Http($url, $seconds, $headers = @{}) {
     }
     return $false
 }
-function Register-UserTask($name, $vbsArgs, $description, $delaySeconds = 0) {
+function Register-UserTask($name, $vbsArgs, $description, $delaySeconds = 0, $repeatMinutes = 0, $timeLimitMinutes = 0) {
+    # repeatMinutes > 0: zusaetzlich zur Anmeldung wiederholt die Aufgabe sich endlos in diesem Abstand (ueberlebt Neustarts).
+    # timeLimitMinutes > 0: Laufzeitgrenze (Standard: unbegrenzt, fuer die Dienst-Launcher mit Neustartschleife).
+    $user    = "$env:USERDOMAIN\$env:USERNAME"
     $action  = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument "//B //Nologo $vbsArgs"
-    $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
     if ($delaySeconds) { $trigger.Delay = "PT$($delaySeconds)S" }
+    $triggers = @($trigger)
+    if ($repeatMinutes -gt 0) {
+        # 9999 Tage statt [TimeSpan]::MaxValue: aeltere Windows-Versionen lehnen MaxValue ab.
+        $triggers += New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes $repeatMinutes) -RepetitionDuration (New-TimeSpan -Days 9999)
+    }
+    $limit = if ($timeLimitMinutes -gt 0) { New-TimeSpan -Minutes $timeLimitMinutes } else { [TimeSpan]::Zero }
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-        -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
-    $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
-    Register-ScheduledTask -TaskName $name -Description $description -Action $action -Trigger $trigger `
+        -ExecutionTimeLimit $limit -MultipleInstances IgnoreNew
+    $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
+    Register-ScheduledTask -TaskName $name -Description $description -Action $action -Trigger $triggers `
         -Settings $settings -Principal $principal -Force | Out-Null
 }
 # Dienst-Launcher (hidden.vbs startet powershell mit Neustartschleife entkoppelt): Stop-ScheduledTask beendet die Schleife nicht.
@@ -1049,6 +1065,27 @@ if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
     }
 }
 
+# ================================================================ Zusatz: Service-Watchdog (JARVIS_Watchdog)
+# Prueft alle 5 Minuten, ob Sprachdienst, Qwen und Command Center antworten, und startet abgestuerzte Dienste ueber ihre Aufgabe neu
+# (Regeln: scripts\friday-watchdog.ps1). Laeuft unsichtbar ueber hidden.vbs (wscript), wie die uebrigen JARVIS-Aufgaben - ein direkter
+# powershell.exe-Start mit -WindowStyle Hidden blitzt sonst alle 5 Minuten ein Konsolenfenster auf. Idempotent: wird bei jedem Lauf
+# neu registriert. Ein Fehler hier laesst die Installation unberuehrt (nur Warnung). Andere Aufgaben (z. B. ein altes
+# JARVIS_Voice_Watchdog frueherer Installer) werden nicht angefasst.
+Title 'Zusatz – Service-Watchdog einrichten'
+$eapBefore = $ErrorActionPreference
+$ErrorActionPreference = 'Stop'
+try {
+    $wd = "$Inst\scripts\friday-watchdog.ps1"
+    if (-not (Test-Path $wd)) { throw "$wd fehlt (Installationsdateien unvollständig)." }
+    Register-UserTask 'JARVIS_Watchdog' "`"$Inst\scripts\hidden.vbs`" `"$wd`"" 'F.R.I.D.A.Y. Service-Watchdog: startet abgestürzte Dienste neu (alle 5 Minuten, unsichtbar)' 120 5 2
+    if (-not (Get-ScheduledTask -TaskName 'JARVIS_Watchdog')) { throw 'Aufgabe JARVIS_Watchdog nach der Registrierung nicht auffindbar.' }
+    Ok 'Aufgabe JARVIS_Watchdog eingerichtet (alle 5 Minuten und bei Anmeldung, unsichtbar). Log: C:\Jarvis\logs\watchdog.log'
+    MarkDone 'watchdog'
+} catch {
+    Warn "Service-Watchdog nicht eingerichtet: $($_.Exception.Message)"
+    Warn 'Die Dienste laufen trotzdem; ohne Watchdog werden abgestürzte Dienste nur durch die eigenen Neustartschleifen bzw. bei der nächsten Anmeldung wieder gestartet. Erneut versuchen: install-jarvis.bat starten.'
+} finally { $ErrorActionPreference = $eapBefore }
+
 $DashProbe = Test-DashboardHealth 3
 $p = Get-Content "$Root\config\persona.json" -Raw | ConvertFrom-Json
 $dashNote = if (IsDone 'dashboard') { '' } else { "ACHTUNG: Command Center nicht eingerichtet - update-dashboard.bat oder install-jarvis.bat -Resume starten. Log: $DashInstallLog" }
@@ -1066,11 +1103,12 @@ Installiert am $(Get-Date -Format 'dd.MM.yyyy HH:mm') für $($p.owner_name). Ass
 | Sprachdienst-Status | http://127.0.0.1:$($Ports.Voice) |
 
 Grafikkarte: $($State.gpu.name) ($($State.gpu.vram_mb) MB) · Linux-Benutzer: $($State.linux_user)
-Autostart: JARVIS_WSL_Keepalive, JARVIS_Qwen, JARVIS_Voice, JARVIS_Dashboard (Aufgabenplanung). Hermes-Dienste: systemd in Ubuntu.
+Autostart: JARVIS_WSL_Keepalive, JARVIS_Qwen, JARVIS_Voice, JARVIS_Dashboard (Aufgabenplanung). Watchdog: JARVIS_Watchdog (alle 5 Minuten, Log C:\Jarvis\logs\watchdog.log). Hermes-Dienste: systemd in Ubuntu.
 $dashNote
 Erledigte Schritte: $(@($State.done) -join ', ')
 "@
 [IO.File]::WriteAllText("$Root\INSTALL_STATE.md", $report, (New-Object Text.UTF8Encoding $false))
+Remove-Item "$Root\run\installer.active" -Force -ErrorAction SilentlyContinue   # Installer fertig: der Watchdog darf wieder eingreifen
 
 Title "FERTIG – $AN ist einsatzbereit"
 Info "Sag:  ""$WP""  … kurzer Piepton … dann deine Frage, z. B. ""Wie spät ist es?"""
