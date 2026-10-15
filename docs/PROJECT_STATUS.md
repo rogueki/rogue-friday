@@ -147,13 +147,16 @@ pnpm build
 pnpm test:e2e
 ```
 
-## Open owner decisions (collected, not decided by agents)
+## Owner decisions (2026-10-15)
 
-1. ~~Wake word~~ decided by owner 2026-10-14: default "Hey Friday", name personalizable at install time.
-2. ~~Rename internal identifiers~~ decided and done by owner 2026-10-15: `@jarvis/*` → `@friday/*`, `jarvis.*` → `friday.*` events, `JARVIS_*` → `FRIDAY_*` env (legacy env still read with a deprecation warning), contract 2.0.0, baseline reset.
-3. Git history still shows the old author name in 3 commits; removing it needs a history rewrite + force-push of `main`.
-4. ~~Paths/file names~~ decided and done 2026-10-15: `C:\Jarvis` → `C:\Friday`, `install-jarvis.bat` → `install-friday.bat`, tasks `FRIDAY_Qwen/Voice/Dashboard/Watchdog`, Hermes model name `friday` (existing installs must be reinstalled).
-5. TTS voice for F.R.I.D.A.Y. (female voice?) and the "J.A.R.V.I.S. film filter" on the TTS output.
-6. Pin the Hermes Agent version in the installer (currently clones `main`).
-7. If the personal wake word is not good enough with a real voice: train a dedicated openWakeWord model for the chosen name.
-8. Gold usage outside the orb context (warning badges, approval hints) — design review per PLAN §24.2.
+1. Wake word: always asked at install time as a free phrase (1–4 words, default "Hey <Name>"); the personal wake
+   word trains on it; the pretrained openWakeWord model only for exactly "Hey Jarvis".
+2. Internal identifiers renamed jarvis → friday (`@friday/*`, `friday.*`, `FRIDAY_*`, `--friday-*`; contract 2.0.0).
+3. Git history rewritten: the old operator name replaced by RogueKI in authors, messages and file contents;
+   `main` and the feature branch force-pushed. Local clones must be re-cloned or hard-reset to `origin/main`.
+4. Paths, files and tasks renamed: `C:\Friday`, `installer/install-friday.bat`, tasks `FRIDAY_*`; the installer
+   migrates an existing `C:\Jarvis` install (backup kept, foreign tasks disabled only after confirmation).
+5. TTS voice stays as is (no trained F.R.I.D.A.Y. voice yet; the original film voice cannot be used — rights of a
+   real actress). A free female Piper voice remains an option.
+6. Hermes Agent stays unpinned (always the current version).
+7. Warning badges and approval hints use a subtle orb gold (relaxes PLAN §24.2; see `docs/DESIGN_SYSTEM.md`).
