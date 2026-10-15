@@ -1,4 +1,4 @@
-import type { AdapterCategory, ApprovalType, JarvisEventType, OrbMode, Priority, Task } from "@jarvis/sdk";
+import type { AdapterCategory, ApprovalType, FridayEventType, OrbMode, Priority, Task } from "@friday/sdk";
 import type { ProfileName, AdapterMode } from "../world/state";
 import type { AudioFixture } from "./fixtures";
 import type { VoiceMode } from "../world/services/voice";
@@ -29,7 +29,7 @@ export type ScenarioAction =
   | { kind: "activity.log"; title: string; activityKind?: "adapter" | "system" | "tool_call" | "source_read"; adapterId?: string; severity?: "info" | "warning" | "error" }
   | { kind: "activity.burst"; count: number; intervalMs: number; title: string }
   | { kind: "system.metrics" }
-  | { kind: "event.emit"; type: JarvisEventType; subject?: string; data: unknown };
+  | { kind: "event.emit"; type: FridayEventType; subject?: string; data: unknown };
 
 export interface ScenarioStepDef {
   /** Offset in ms from the start of the scenario on the mock clock. */

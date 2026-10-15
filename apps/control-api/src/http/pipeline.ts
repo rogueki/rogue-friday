@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { authorize } from "@jarvis/auth";
-import { CONTRACT_VERSION, type Actor, type ErrorDetail } from "@jarvis/sdk";
-import { runWithCorrelation } from "@jarvis/observability";
+import { authorize } from "@friday/auth";
+import { CONTRACT_VERSION, type Actor, type ErrorDetail } from "@friday/sdk";
+import { runWithCorrelation } from "@friday/observability";
 import type { AuditDraft } from "../db/audit-store";
 import { IdempotencyStore, type StoredResponse } from "../db/stores";
 import { buildHandlers } from "../handlers";

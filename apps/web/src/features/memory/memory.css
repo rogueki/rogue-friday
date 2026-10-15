@@ -1,15 +1,15 @@
 .mem-row { align-items: start; }
 .mem-row .jv-icon-tile { margin-top: 2px; }
-.mem-tag { font-family: var(--jv-font-mono); color: var(--jarvis-cyan); opacity: 0.85; overflow-wrap: anywhere; }
-.mem-flags { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; color: var(--jarvis-cyan); }
+.mem-tag { font-family: var(--jv-font-mono); color: var(--friday-cyan); opacity: 0.85; overflow-wrap: anywhere; }
+.mem-flags { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; color: var(--friday-cyan); }
 .mem-stats { display: flex; flex-wrap: wrap; gap: 6px; }
 .mem-semantic { margin-left: auto; }
 .mem-content { white-space: pre-wrap; }
 .mem-confidence { display: inline-flex; align-items: center; gap: 8px; }
 .mem-confidence__bar { display: inline-block; width: 120px; height: 6px; border-radius: 3px; background: var(--jv-line-soft); overflow: hidden; }
-.mem-confidence__bar > span { display: block; height: 100%; background: var(--jarvis-cyan); }
+.mem-confidence__bar > span { display: block; height: 100%; background: var(--friday-cyan); }
 .mem-history { gap: 8px; }
 .mem-diff { display: flex; flex-direction: column; gap: 3px; font-family: var(--jv-font-mono); font-size: var(--jv-fs-xs); }
-.mem-diff__before { color: var(--jarvis-error); }
-.mem-diff__after { color: var(--jarvis-success); }
+.mem-diff__before { color: var(--friday-error); }
+.mem-diff__after { color: var(--friday-success); }
 .mem-list-panel { flex: 1; min-height: 240px; }

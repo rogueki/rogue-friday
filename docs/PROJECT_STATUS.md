@@ -5,11 +5,11 @@ Last updated: 2026-10-15 (cloud session; Phase A and B complete in the cloud, Wi
 
 ## Goal
 
-F.R.I.D.A.Y. Command Center (successor of J.A.R.V.I.S.; internal names `@jarvis/*` stay) — adapter-based, contract-first dashboard per `docs/PLAN.md` (binding spec, German).
+F.R.I.D.A.Y. Command Center (successor of J.A.R.V.I.S.; internal identifiers renamed jarvis → friday on 2026-10-15, contract 2.0.0) — adapter-based, contract-first dashboard per `docs/PLAN.md` (binding spec, German).
 Owner priorities: (1) the golden holographic orb (`design-references/jarvis_orb_reference.webp`), (2) the
 command-center design language of `design-references/jarvis_dashboard_reference.webp`, (3) contract-first +
 adapters + full mock mode, (4) transparency of what F.R.I.D.A.Y. does. **Nothing from the plan may be left out.**
-The dashboard is for a friend who will install it from GitHub on Windows via `installer/install-jarvis.bat` (target `C:\Jarvis\dashboard`, decision in `docs/DEPLOYMENT.md`).
+The dashboard is for a friend who will install it from GitHub on Windows via `installer/install-friday.bat` (target `C:\Friday\dashboard`, decision in `docs/DEPLOYMENT.md`).
 
 ## Working mode
 
@@ -24,7 +24,7 @@ The dashboard is for a friend who will install it from GitHub on Windows via `in
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | Monorepo, tooling, CI                                                                                                                                                                        | root, `.github/workflows/ci.yml`                                  | —                                                                                                           |
 | Contracts (252 JSON Schemas, OpenAPI 3.1.1 with 122 operations (2026-10-14, was 107), AsyncAPI 3.1.0 with 44 events, 195 examples, codegen, breaking-change gate)                            | `packages/contracts`                                              | `pnpm contracts:check` green                                                                                |
-| Generated SDK (types, openapi-fetch client, validator, event map)                                                                                                                            | `packages/generated-sdk` (`@jarvis/sdk`)                          | typecheck + tests green                                                                                     |
+| Generated SDK (types, openapi-fetch client, validator, event map)                                                                                                                            | `packages/generated-sdk` (`@friday/sdk`)                          | typecheck + tests green                                                                                     |
 | Config / Auth / Observability                                                                                                                                                                | `packages/config`, `packages/auth`, `packages/observability`      | 119 tests green                                                                                             |
 | Design tokens, themes, HUD UI library (all PLAN §24.16 components), Storybook (81 stories, overview composition)                                                                             | `packages/design-tokens`, `packages/ui`, `apps/storybook`         | 36 tests, storybook build, screenshots in `apps/storybook/screenshots/` accepted by lead                    |
 | Adapter SDK (15 ports, registry, resilience, health/lifecycle incl. RECOVERING), conformance suite, ExampleTasks HTTP adapter, Hermes/Voice/Mail/Calendar/System placeholders + mapping docs | `packages/adapter-core`, `packages/adapter-testkit`, `adapters/*` | 171 tests + 70 conformance green                                                                            |
@@ -35,7 +35,7 @@ The dashboard is for a friend who will install it from GitHub on Windows via `in
 
 - `installer/` — the original Windows one-click installer (WSL2 + Hermes Agent + Kimi + local Qwen + voice service
   with speaker verification), added unchanged except for a neutral default persona text in
-  `installer/voice/jarvis_voice.py`. Installs to `C:\Jarvis`; services on 127.0.0.1:43691–43694.
+  `installer/voice/friday_voice.py`. Installs to `C:\Friday`; services on 127.0.0.1:43691–43694.
 - root pnpm monorepo — F.R.I.D.A.Y. Command Center (`apps/`, `packages/`, `adapters/`, `config/`, `docs/`).
 - `skills/` — reserved for separate skills (conventions in `skills/README.md`).
 - `tests/e2e`, `tests/integration` — Playwright suites; `scripts/fake-upstreams` — fake Hermes/voice/Qwen.
@@ -60,21 +60,22 @@ The dashboard is for a friend who will install it from GitHub on Windows via `in
 | Installer: assistant name asked before recordings (default Friday / "Hey Friday"), personal wake word for non-Jarvis names, `change-assistant-name.bat` | `1ca7cdb` | PS parser 0 errors, CRLF/BOM, py_compile, 12 tests; detection quality only synthetic (mixed), Whisper stage BLOCKED in cloud |
 | A.3 module pages: all 16 menus + `/dev/scenarios` | `609e82a` | typecheck/eslint clean, 354 web tests, static export all routes, screenshots `apps/web/screenshots/modules-*` (WebP) |
 | B.5 integration: real adapters wired (allowlist), `file:` secret refs, hybrid/live example configs, fake upstreams, Playwright proof | `5fde094`, `25a7d56` | `pnpm test:integration` 7/7 (outage + recovery for voice and Hermes) |
-| B.4 installer step 15: Command Center deploy (Node LTS, pnpm, `build:app`, hybrid config, owner hash as `file:` secret, task `JARVIS_Dashboard`, health check) | `89b3b6c` | PS parser 0 errors, CRLF/BOM; Windows run open |
+| B.4 installer step 15: Command Center deploy (Node LTS, pnpm, `build:app`, hybrid config, owner hash as `file:` secret, task `FRIDAY_Dashboard`, health check) | `89b3b6c` | PS parser 0 errors, CRLF/BOM; Windows run open |
 | Contract completion: 107 → 122 operations (files rename, adapter restart/logs, memory export/conflicts, automation versions, pause-all, drafts list, voice enroll/history delete, task assign/input), MSW approval token | `394dfa7` | contracts:check, control-api contract test covers all operations |
 | Storybook domain stories (15 modules × 10 states, 254 stories, axe audit) + ui a11y polish | `e0971c8` | storybook build, axe over all stories |
 | Web: outage vs. not configured vs. missing capability; core tiles per adapter; a11y follow-ups | `cfd68b7` | 415 web tests, screenshots `apps/web/screenshots/followup` |
 | Fix: stacked registry/adapter retries (registry retry default 1) | `84460a7` | config/control-api tests |
-| Installer: findings I-31..I-38 (voice sync, launcher stop/mutex, step 15 failure path, log rotation, greeting name), watchdog `JARVIS_Watchdog` via hidden.vbs (no console window) | `82384e1`, `7a89c9a` | PS parser, CRLF/BOM, watchdog decision tests under pwsh |
+| Installer: findings I-31..I-38 (voice sync, launcher stop/mutex, step 15 failure path, log rotation, greeting name), watchdog `FRIDAY_Watchdog` via hidden.vbs (no console window) | `82384e1`, `7a89c9a` | PS parser, CRLF/BOM, watchdog decision tests under pwsh |
 | Docs: HANDOFF, ARCHITECTURE (Control API, adapters), DEPLOYMENT, TESTING, INSTALLER_INTEGRATION_REVIEW, ACCEPTANCE | `84460a7`, `8d5efb3`, `c3e1874`, `904074f` | lead review |
 | Playwright suite (E2E, visual incl. deterministic 3D orb frames, axe, performance) + fixes of every gap it found (/meta UI hints, reduced motion, 404 page, orb test clock §52.1, GPU quality scaling, contrast/button names) | `e4d1a61`, `17129af` | 137 → 164 e2e tests green |
 | Acceptance gaps: persistent offline cache, mobile 390 px, security checklist §9 with evidence, real mic level voice service → orb | `342c18c` | 2462 unit tests, new e2e specs; 30-min orb soak passed (heap +0.06 MB/min) |
 | Fix: voice outage briefly shown as "Nicht verbunden" (section status) | `f4b281e` | integration 7/7 ×4 |
 | Phase 7 e2e flows: Live Activity, Agents, Memory, Alerts; memory delete race fixed | `7af0469` | e2e 204/204, unit 2469 |
+| Rename jarvis → friday (owner decision 2026-10-15): `@friday/*`, `friday.*` events, `FRIDAY_*` env (legacy `JARVIS_*` still read + deprecation warning), `--friday-*`, `FridayOrb` etc., cookies/metrics/theme+layout ids, `C:\Friday` defaults, Hermes model `friday`; contract 2.0.0 + baseline reset | uncommitted | contracts:check, typecheck, lint, test 2473, conformance 422, build, e2e 204/204 (no visual baseline changed), integration 7/7 |
 
-Decisions: contract version stays `1.0.0` (all changes additive, unreleased). Target path `C:\Jarvis\dashboard`
+Decisions: contract version was `1.0.0` (all changes additive, unreleased) until the rename of 2026-10-15 raised it to `2.0.0`. Target path `C:\Friday\dashboard`
 (installer-consistent, deviates from PLAN §54 `D:\`). Wake word default "Hey Friday", name chosen at install time
-(Jarvis keeps the pretrained openWakeWord model, other names use the personal wake word). `main` is fast-forwarded only
+(the name Jarvis keeps the pretrained openWakeWord model, other names use the personal wake word). `main` is fast-forwarded only
 with all gates green.
 
 ## Current state and remaining work
@@ -85,8 +86,8 @@ All gates green on the feature branch and `main` (2026-10-15): `contracts:check`
 
 Remaining (cannot be done in the cloud):
 
-1. **Real test on a fresh Windows 11 PC** with `installer/install-jarvis.bat` — step-by-step checklist in
-   `docs/INSTALLER_INTEGRATION_REVIEW.md` §5 (what each step must show, URLs, logs under `C:\Jarvis\logs`).
+1. **Real test on a fresh Windows 11 PC** with `installer/install-friday.bat` — step-by-step checklist in
+   `docs/INSTALLER_INTEGRATION_REVIEW.md` §5 (what each step must show, URLs, logs under `C:\Friday\logs`).
 2. **Real services**: Hermes with a real Kimi key, real voice service + microphone (wake word quality for "Hey Friday",
    audio-level reactivity), local Qwen — adapters are verified against fakes that reproduce the documented behaviour.
 3. Owner decisions below.
@@ -100,7 +101,7 @@ From the mock-platform report:
 3. ~~Releasing a forced orb~~ closed: scenario action `release_orb_state` (`6963206`).
 4. `POST /dev/scenarios/{id}/play` has no `speed` parameter (mock accepts `?speed=`).
 5. UI hints (`forceOrbFallback2D`/`reducedMotion`) travel in `Meta.features`; the Control API passes them through (`17129af`).
-6. No `jarvis.approval.updated` event (request-context re-emits `requested`).
+6. No `friday.approval.updated` event (request-context re-emits `requested`).
 7. Task has no `paused` status (modelled as `waiting` + blocker "Vom Benutzer pausiert").
 8. No 504 in OpenAPI; ADAPTER_TIMEOUT/INTERNAL map to 503.
 9. Voice enroll and file rename now have endpoints (`394dfa7`); research create and file upload still have none.
@@ -149,10 +150,10 @@ pnpm test:e2e
 ## Open owner decisions (collected, not decided by agents)
 
 1. ~~Wake word~~ decided by owner 2026-10-14: default "Hey Friday", name personalizable at install time.
-2. Rename internal identifiers `@jarvis/*`, `jarvis.*` events, `JARVIS_*` env (breaking contract change).
+2. ~~Rename internal identifiers~~ decided and done by owner 2026-10-15: `@jarvis/*` → `@friday/*`, `jarvis.*` → `friday.*` events, `JARVIS_*` → `FRIDAY_*` env (legacy env still read with a deprecation warning), contract 2.0.0, baseline reset.
 3. Git history still shows the old author name in 3 commits; removing it needs a history rewrite + force-push of `main`.
-4. Paths/file names `C:\Jarvis`, `install-jarvis.bat`, scheduled task names `JARVIS_*` stay (renaming breaks existing installs).
-5. TTS voice for F.R.I.D.A.Y. (female voice?) and the "JARVIS film filter" on the TTS output.
+4. ~~Paths/file names~~ decided and done 2026-10-15: `C:\Jarvis` → `C:\Friday`, `install-jarvis.bat` → `install-friday.bat`, tasks `FRIDAY_Qwen/Voice/Dashboard/Watchdog`, Hermes model name `friday` (existing installs must be reinstalled).
+5. TTS voice for F.R.I.D.A.Y. (female voice?) and the "J.A.R.V.I.S. film filter" on the TTS output.
 6. Pin the Hermes Agent version in the installer (currently clones `main`).
 7. If the personal wake word is not good enough with a real voice: train a dedicated openWakeWord model for the chosen name.
 8. Gold usage outside the orb context (warning badges, approval hints) — design review per PLAN §24.2.

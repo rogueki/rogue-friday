@@ -22,6 +22,6 @@ describe("assistant name interpolation", () => {
 
   it("keeps no hardcoded legacy brand in the dictionaries", () => {
     for (const dictionary of [de, en])
-      for (const value of Object.values(dictionary)) expect(value).not.toMatch(/jarvis/i);
+      for (const value of Object.values(dictionary)) expect(value).not.toMatch(/friday/i);
   });
 });

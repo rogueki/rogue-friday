@@ -8,7 +8,7 @@ import type {
   TaskInputRequest,
   TaskStatus,
   TaskUpdateRequest,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { conflict, notFound, validationFailed } from "../../core/errors";
 import { asIso, asList, clone, compareAsc, compareDesc, matchesQuery, priorityRank, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
@@ -110,7 +110,7 @@ export class TaskService {
         actor: this.w.actorOf(ctx),
       });
       this.w.logActivity({ kind: "task", title: `Aufgabe angelegt: ${task.title}`, correlationId, taskId: task.id, parentId: request.id, adapterId: "mock-tasks" });
-      const event = this.w.emitFor("tasks", "jarvis.task.created", task, `task/${task.id}`, correlationId);
+      const event = this.w.emitFor("tasks", "friday.task.created", task, `task/${task.id}`, correlationId);
       this.w.recordAudit(
         { category: "user_action", action: "task.created", correlationId, taskId: task.id, adapterId: "mock-tasks", actor: this.w.actorOf(ctx), after: { status: task.status, priority: task.priority }, context: { causedBy: event.id } },
       );
@@ -141,7 +141,7 @@ export class TaskService {
       if (body.labels !== undefined) task.labels = body.labels;
       const statusChanged = body.status !== undefined && body.status !== task.status;
       if (statusChanged) this.applyStatus(task, body.status as TaskStatus);
-      this.finishMutation(task, ctx, "task.updated", before, statusChanged ? undefined : "jarvis.task.updated");
+      this.finishMutation(task, ctx, "task.updated", before, statusChanged ? undefined : "friday.task.updated");
       return clone(task);
     });
   }
@@ -172,7 +172,7 @@ export class TaskService {
       });
       task.blockers = [];
       this.applyStatus(task, task.agentId ? "running" : "ready");
-      this.finishMutation(task, ctx, "task.retried", before, "jarvis.task.updated", body.reason);
+      this.finishMutation(task, ctx, "task.retried", before, "friday.task.updated", body.reason);
       return clone(task);
     });
   }
@@ -187,7 +187,7 @@ export class TaskService {
       this.applyStatus(task, "waiting");
       task.blockers = [{ id: this.w.id("blk"), kind: "other", description: PAUSE_BLOCKER, since: this.w.nowIso() }];
       this.w.agents.setStatusForTask(task, "paused");
-      this.finishMutation(task, ctx, "task.paused", before, "jarvis.task.updated", body.reason);
+      this.finishMutation(task, ctx, "task.paused", before, "friday.task.updated", body.reason);
       return clone(task);
     });
   }
@@ -203,7 +203,7 @@ export class TaskService {
       const before = { status: task.status };
       task.blockers = task.blockers.filter((blocker) => blocker.description !== PAUSE_BLOCKER);
       this.applyStatus(task, "running");
-      this.finishMutation(task, ctx, "task.resumed", before, "jarvis.task.updated", body.reason);
+      this.finishMutation(task, ctx, "task.resumed", before, "friday.task.updated", body.reason);
       return clone(task);
     });
   }
@@ -230,7 +230,7 @@ export class TaskService {
           delete task.agentName;
         }
       }
-      this.finishMutation(task, ctx, "task.assigned", before, "jarvis.task.updated", body.reason);
+      this.finishMutation(task, ctx, "task.assigned", before, "friday.task.updated", body.reason);
       return clone(task);
     });
   }
@@ -248,7 +248,7 @@ export class TaskService {
       if (task.status === "waiting" && task.blockers.length === 0) this.applyStatus(task, task.agentId ? "running" : "ready");
       const correlationId = this.w.correlationId(ctx);
       // The answer itself stays out of audit and events (it may contain personal data); the activity feed gets its length.
-      this.finishMutation(task, ctx, "task.input_provided", before, "jarvis.task.updated", `Eingabe (${body.input.length} Zeichen) für „${blocker.description}“`);
+      this.finishMutation(task, ctx, "task.input_provided", before, "friday.task.updated", `Eingabe (${body.input.length} Zeichen) für „${blocker.description}“`);
       this.w.logActivity({ kind: "user_request", title: `Eingabe für Aufgabe: ${task.title}`, correlationId, taskId: task.id, agentId: task.agentId, adapterId: "mock-tasks", actor: this.w.actorOf(ctx) });
       return clone(task);
     });
@@ -310,12 +310,12 @@ export class TaskService {
     };
     this.w.state.tasks.push(task);
     if (agent && status === "running") this.w.agents.attach(agent.id, task.id);
-    this.w.emitFor("tasks", "jarvis.task.created", task, `task/${task.id}`, input.correlationId);
+    this.w.emitFor("tasks", "friday.task.created", task, `task/${task.id}`, input.correlationId);
     this.w.refresh();
     return task;
   }
 
-  /** Sets real progress (fraction) or indeterminate when `value` is null; emits `jarvis.task.progress`. */
+  /** Sets real progress (fraction) or indeterminate when `value` is null; emits `friday.task.progress`. */
   setProgress(id: string, value: number | null, message?: string): Task {
     const task = this.find(id);
     task.progress = value === null ? { mode: "indeterminate", value: null } : { mode: "determinate", value: Math.max(0, Math.min(1, Math.round(value * 100) / 100)) };
@@ -324,7 +324,7 @@ export class TaskService {
     const runningStep = task.steps.find((step) => step.status === "running");
     this.w.emitFor(
       "tasks",
-      "jarvis.task.progress",
+      "friday.task.progress",
       { taskId: task.id, progress: task.progress, currentStep: runningStep?.title ?? null, ...(message ? { message } : {}), agentId: task.agentId },
       `task/${task.id}`,
     );
@@ -403,7 +403,7 @@ export class TaskService {
     ctx: OpContext | undefined,
     action: string,
     before: Record<string, unknown>,
-    forceType?: "jarvis.task.updated",
+    forceType?: "friday.task.updated",
     reason?: string,
   ): void {
     task.lastActivityAt = this.w.nowIso();
@@ -411,7 +411,7 @@ export class TaskService {
     const correlationId = this.w.correlationId(ctx);
     const type =
       forceType ??
-      (task.status === "done" ? "jarvis.task.completed" : task.status === "failed" ? "jarvis.task.failed" : task.status === "cancelled" ? "jarvis.task.cancelled" : "jarvis.task.updated");
+      (task.status === "done" ? "friday.task.completed" : task.status === "failed" ? "friday.task.failed" : task.status === "cancelled" ? "friday.task.cancelled" : "friday.task.updated");
     const event = this.w.emitFor("tasks", type, task, `task/${task.id}`, correlationId);
     this.w.logActivity({
       kind: "task",

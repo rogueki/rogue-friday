@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/system/frontend-telemetry-receipt-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/system/frontend-telemetry-receipt-response.schema.json",
+  "contractVersion": "2.0.0",
   "data": {
     "acceptedErrors": 1,
     "acceptedOrbSamples": 2

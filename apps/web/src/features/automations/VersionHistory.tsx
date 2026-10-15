@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, EmptyState, ErrorState, Skeleton, TagPill } from "@jarvis/ui";
+import { Button, EmptyState, ErrorState, Skeleton, TagPill } from "@friday/ui";
 import { useState } from "react";
 import { DataBadges } from "@/features/memory/kit/Badges";
 import { useFormat } from "@/features/memory/kit/hooks";

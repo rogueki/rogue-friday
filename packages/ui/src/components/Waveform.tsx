@@ -1,5 +1,5 @@
 import { useEffect, useRef, type CanvasHTMLAttributes } from 'react';
-import { toneColors } from '@jarvis/design-tokens';
+import { toneColors } from '@friday/design-tokens';
 import { cx } from '../cx';
 import { useMotionMode } from '../hooks';
 import type { Tone } from '../types';
@@ -45,7 +45,7 @@ function mulberry32(seed: number): () => number {
 
 /** Resolves `var(--x)` / tone to a concrete colour string usable by canvas. */
 function resolveColor(el: HTMLElement, tone: Tone | undefined, color: string | undefined): string {
-  const raw = color ?? `var(--jarvis-tone-${tone ?? 'cyan'})`;
+  const raw = color ?? `var(--friday-tone-${tone ?? 'cyan'})`;
   const match = /^var\((--[\w-]+)(?:,\s*(.+))?\)$/.exec(raw.trim());
   if (!match) return raw;
   const value = getComputedStyle(el).getPropertyValue(match[1] as string).trim();

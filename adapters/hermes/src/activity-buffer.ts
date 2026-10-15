@@ -1,5 +1,5 @@
-import type { ActivityEvent } from "@jarvis/sdk";
-import { AdapterError, defineMapper, type ListActivityParams, type MapContext } from "@jarvis/adapter-core";
+import type { ActivityEvent } from "@friday/sdk";
+import { AdapterError, defineMapper, type ListActivityParams, type MapContext } from "@friday/adapter-core";
 import type { ActivityDraft } from "./activity-mapping";
 
 const validator = defineMapper<ActivityEvent, ActivityEvent>({

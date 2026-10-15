@@ -5,7 +5,7 @@ import type {
   OrbSettings,
   Settings,
   Theme,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { ADAPTER_CATEGORIES, CATEGORY_LABEL, adapterIdFor } from "../core/constants";
 import type { SeedContext } from "./context";
 
@@ -32,7 +32,7 @@ export function defaultOrbSettings(): OrbSettings {
   return {
     preset: "gold-reference",
     size: 1,
-    // 0..100 like the contract and @jarvis/orb's defaults (1 would render the orb at 1 % intensity).
+    // 0..100 like the contract and @friday/orb's defaults (1 would render the orb at 1 % intensity).
     intensity: 70,
     speed: 1,
     particleDensity: 60,
@@ -120,7 +120,7 @@ export function buildSettings(ctx: SeedContext): Settings {
       firstDayOfWeek: "monday",
     },
     dashboard: { activeLayoutId: "default", fontScale: 1, backgroundGrid: true, soundEffects: false, autoRefreshSeconds: 30, compact: false },
-    theme: { activeThemeId: "jarvis-navy-cyan", cyanIntensity: 1, panelOpacity: 0.72, goldIntensity: 1 },
+    theme: { activeThemeId: "friday-navy-cyan", cyanIntensity: 1, panelOpacity: 0.72, goldIntensity: 1 },
     orb: defaultOrbSettings(),
     navigation: { order: NAVIGATION_ORDER, hidden: [], defaultPage: "overview", mode: "expanded" },
     modelsRouting: {
@@ -175,7 +175,7 @@ export function buildSettings(ctx: SeedContext): Settings {
     backups: {
       enabled: true,
       schedule: "0 3 * * *",
-      targetPath: "D:\\Jarvis\\Backups",
+      targetPath: "D:\\Friday\\Backups",
       retentionCount: 14,
       lastBackupAt: ctx.at(-5 * 3_600_000 - 15 * 60_000),
       lastBackupStatus: "success",
@@ -200,7 +200,7 @@ function theme(id: string, name: string, description: string, tokens: Record<str
 export function buildThemes(): Theme[] {
   return [
     theme(
-      "jarvis-navy-cyan",
+      "friday-navy-cyan",
       "F.R.I.D.A.Y. Navy & Cyan",
       "Standardthema: tiefes Navy, Cyan-HUD-Linien, goldener Orb.",
       {
@@ -218,7 +218,7 @@ export function buildThemes(): Theme[] {
       1,
     ),
     theme(
-      "jarvis-deep-night",
+      "friday-deep-night",
       "F.R.I.D.A.Y. Tiefe Nacht",
       "Dunklere Variante mit reduziertem Cyan und kräftigerem Gold.",
       {
@@ -238,7 +238,7 @@ export function buildThemes(): Theme[] {
   ];
 }
 
-/** Widget ids are the canonical ones from config/layouts/jarvis-command-overview.json (the overview page resolves them by id). */
+/** Widget ids are the canonical ones from config/layouts/friday-command-overview.json (the overview page resolves them by id). */
 export function buildLayouts(): Layout[] {
   return [
     {

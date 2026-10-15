@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/theme.schema.json",
+  "$id": "https://friday.local/schemas/settings/theme.schema.json",
   "title": "Theme",
   "description": "Theme file (PLAN §25.3). Switchable at runtime without rebuild.",
   "type": "object",

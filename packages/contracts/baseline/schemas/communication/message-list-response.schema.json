@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/communication/message-list-response.schema.json",
+  "$id": "https://friday.local/schemas/communication/message-list-response.schema.json",
   "title": "MessageListResponse",
   "description": "Cursor-paginated list envelope for Message.",
   "type": "object",

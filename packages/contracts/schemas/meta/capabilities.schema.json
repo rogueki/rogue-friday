@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/meta/capabilities.schema.json",
+  "$id": "https://friday.local/schemas/meta/capabilities.schema.json",
   "title": "Capabilities",
   "description": "Per-module capability flags (PLAN §9). The UI derives enabled/disabled actions from this document.",
   "type": "object",

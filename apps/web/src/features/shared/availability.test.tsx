@@ -1,4 +1,4 @@
-import { JarvisApiError } from "@jarvis/sdk";
+import { FridayApiError } from "@friday/sdk";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -80,7 +80,7 @@ describe("classifyAvailability: not configured vs. outage vs. missing capability
   });
 
   it("a failing call with ADAPTER_UNAVAILABLE is an outage even when the adapter list says online or is unreadable", () => {
-    const failure = new JarvisApiError({ code: "ADAPTER_UNAVAILABLE", message: "weg", severity: "error", retryable: true, correlationId: "corr_1", details: {} }, 503);
+    const failure = new FridayApiError({ code: "ADAPTER_UNAVAILABLE", message: "weg", severity: "error", retryable: true, correlationId: "corr_1", details: {} }, 503);
     const online = adapterInfoOf({ id: "voice-http", category: "voice" });
     expect(classifyAvailability({ ...base, adapters: [online], capabilities: voiceCaps, error: failure }).kind).toBe("outage");
     expect(classifyAvailability({ ...base, adapters: undefined, capabilities: voiceCaps, error: failure }).kind).toBe("outage");
@@ -155,7 +155,7 @@ describe("Tasks page: the three situations look different", () => {
 });
 
 describe("Voice: outage is not 'Capability fehlt' and is shown in the sidebar widget", () => {
-  const voiceOffline = adapterInfoOf({ id: "jarvis-voice-http", category: "voice", name: "Jarvis Voice HTTP", health: OFFLINE_HEALTH });
+  const voiceOffline = adapterInfoOf({ id: "friday-voice-http", category: "voice", name: "Friday Voice HTTP", health: OFFLINE_HEALTH });
 
   it("the page shows the outage, the mic banner names the service and the test panel does not claim a missing capability", async () => {
     const api = routerFetch({
@@ -166,7 +166,7 @@ describe("Voice: outage is not 'Capability fehlt' and is shown in the sidebar wi
     });
     renderWithProviders(<VoicePage />, { capabilities: capabilitiesOf({ tasks: { read: true } }), adapters: [voiceOffline], fetchImpl: api.fetch });
     expect((await screen.findAllByText("Offline")).length).toBeGreaterThan(2);
-    expect(screen.getAllByText(/Jarvis Voice HTTP nicht erreichbar/).length).toBeGreaterThan(2);
+    expect(screen.getAllByText(/Friday Voice HTTP nicht erreichbar/).length).toBeGreaterThan(2);
     expect(screen.getByTestId("mic-activity")).toHaveTextContent("Sprachdienst offline");
     expect(screen.queryByText(/Capability fehlt/)).toBeNull();
     expect(screen.queryByTestId("test-unavailable")).toBeNull();
@@ -180,10 +180,10 @@ describe("Voice: outage is not 'Capability fehlt' and is shown in the sidebar wi
   });
 
   it("the sidebar flags are StatusFlag markers (text alternative, no aria-label on a role-less span)", async () => {
-    const online = adapterInfoOf({ id: "jarvis-voice-http", category: "voice" });
+    const online = adapterInfoOf({ id: "friday-voice-http", category: "voice" });
     const status = {
       updatedAt: "2026-10-14T08:15:00Z",
-      source: { adapterId: "jarvis-voice-http", system: "voice", lastSyncedAt: "2026-10-14T08:15:00Z" },
+      source: { adapterId: "friday-voice-http", system: "voice", lastSyncedAt: "2026-10-14T08:15:00Z" },
       mode: "idle",
       microphone: { state: "idle", active: false, deviceId: null, inputLevel: 0 },
       wakeWord: { enabled: true, state: "armed", phrase: "Hey Friday" },
@@ -212,15 +212,15 @@ describe("Voice: outage is not 'Capability fehlt' and is shown in the sidebar wi
 describe("Overview: tiles and panels", () => {
   const withSections = (degradedSections: ReturnType<typeof makeOverview>["degradedSections"], extra: Partial<ReturnType<typeof makeOverview>> = {}) =>
     overviewResponse(makeOverview({ degradedSections, ...extra }));
-  const voiceOffline = adapterInfoOf({ id: "jarvis-voice-http", category: "voice", name: "Jarvis Voice HTTP", health: OFFLINE_HEALTH });
+  const voiceOffline = adapterInfoOf({ id: "friday-voice-http", category: "voice", name: "Friday Voice HTTP", health: OFFLINE_HEALTH });
 
   it("the 'System' tile stays 'Optimal' when only the voice adapter is down; the voice tile reads 'Offline'", () => {
     const overview = makeOverview({
       voice: null,
-      degradedSections: [{ section: "Sprache", adapterId: "jarvis-voice-http", status: "offline", reason: "Voice-Dienst antwortet nicht" }],
+      degradedSections: [{ section: "Sprache", adapterId: "friday-voice-http", status: "offline", reason: "Voice-Dienst antwortet nicht" }],
       systemSummary: { cpuPercent: 20, ramPercent: 40, gpuPercent: null, vramPercent: null, storageUsedPercent: 30, services: [{ id: "svc_01JAAAAAAAAAAAAAAAAAAAAAAA", name: "Voice-Dienst", status: "offline" }] },
     });
-    overview.jarvis.adapterSummary = { online: 14, degraded: 0, offline: 1 };
+    overview.friday.adapterSummary = { online: 14, degraded: 0, offline: 1 };
     renderWithProviders(<CoreOverviewPanel />, { overview: overviewResponse(overview), adapters: [voiceOffline] });
     const row = (title: string) => screen.getByText(title).closest(".jv-row") as HTMLElement;
     expect(row("Sprache")).toHaveTextContent("Offline");

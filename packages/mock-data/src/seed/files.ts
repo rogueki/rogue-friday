@@ -1,4 +1,4 @@
-import type { Actor, FileCategory, FileItem, FileLineageEntry, FilePreviewKind } from "@jarvis/sdk";
+import type { Actor, FileCategory, FileItem, FileLineageEntry, FilePreviewKind } from "@friday/sdk";
 import { sha256Hex } from "../core/sha256";
 import { DAY, HOUR, MIN, type SeedContext } from "./context";
 import type { AgentKey, FileKey, Story, TaskKey } from "./story";
@@ -21,7 +21,7 @@ export interface FileSpec {
   lineage?: { relation: FileLineageEntry["relation"]; file?: FileKey; task?: TaskKey; description: string }[];
 }
 
-const REPORT_DIR = "D:\\Jarvis\\Dateien\\Berichte";
+const REPORT_DIR = "D:\\Friday\\Dateien\\Berichte";
 
 export const FILE_SPECS: FileSpec[] = [
   {
@@ -73,7 +73,7 @@ export const FILE_SPECS: FileSpec[] = [
     sizeBytes: 3_284_990,
     category: "presentations",
     previewKind: "none",
-    location: "D:\\Jarvis\\Dateien\\Präsentationen",
+    location: "D:\\Friday\\Dateien\\Präsentationen",
     tags: ["quartal", "präsentation"],
     task: "quartalsbericht",
     agent: "task",
@@ -89,14 +89,14 @@ export const FILE_SPECS: FileSpec[] = [
     sizeBytes: 9120,
     category: "generated",
     previewKind: "text",
-    location: "D:\\Jarvis\\Dateien\\Protokolle",
+    location: "D:\\Friday\\Dateien\\Protokolle",
     tags: ["backup", "log"],
     task: "backup",
     agent: "system",
     versions: 1,
     createdAgoMs: 14 * HOUR,
     content: [
-      "[2026-10-13 22:00:04] Starte Verifikation von D:\\Jarvis\\Backups",
+      "[2026-10-13 22:00:04] Starte Verifikation von D:\\Friday\\Backups",
       "[2026-10-13 22:03:41] 1 482 Dateien geprüft, Prüfsummen stimmen überein",
       "[2026-10-13 22:03:41] Letzte Sicherung: 2026-10-13 03:00 (12,4 GB)",
       "[2026-10-13 22:03:42] Ergebnis: OK",
@@ -110,7 +110,7 @@ export const FILE_SPECS: FileSpec[] = [
     sizeBytes: 1_932_735_283,
     category: "temporary",
     previewKind: "none",
-    location: "D:\\Jarvis\\Backups\\alt",
+    location: "D:\\Friday\\Backups\\alt",
     tags: ["backup", "archiv"],
     agent: "system",
     versions: 1,
@@ -124,7 +124,7 @@ export const FILE_SPECS: FileSpec[] = [
     sizeBytes: 74_512,
     category: "uploaded",
     previewKind: "none",
-    location: "D:\\Jarvis\\Dateien\\Hochgeladen",
+    location: "D:\\Friday\\Dateien\\Hochgeladen",
     tags: ["steuer", "belege", "2025"],
     task: "steuer",
     user: true,
@@ -139,7 +139,7 @@ export const FILE_SPECS: FileSpec[] = [
     sizeBytes: 96_211,
     category: "invoices",
     previewKind: "pdf",
-    location: "D:\\Jarvis\\Dateien\\Rechnungen",
+    location: "D:\\Friday\\Dateien\\Rechnungen",
     tags: ["rechnung", "nordlicht", "it"],
     task: "rechnung",
     agent: "kommunikation",
@@ -155,7 +155,7 @@ export const FILE_SPECS: FileSpec[] = [
     sizeBytes: 22_870,
     category: "research",
     previewKind: "markdown",
-    location: "D:\\Jarvis\\Dateien\\Recherche",
+    location: "D:\\Friday\\Dateien\\Recherche",
     tags: ["photovoltaik", "förderung", "recherche"],
     agent: "recherche",
     versions: 4,
@@ -177,7 +177,7 @@ export const FILE_SPECS: FileSpec[] = [
     sizeBytes: 311_904,
     category: "exports",
     previewKind: "text",
-    location: "D:\\Jarvis\\Dateien\\Exporte",
+    location: "D:\\Friday\\Dateien\\Exporte",
     tags: ["audit", "export"],
     agent: "system",
     versions: 1,
@@ -191,7 +191,7 @@ export const FILE_SPECS: FileSpec[] = [
     sizeBytes: 88_330,
     category: "exports",
     previewKind: "text",
-    location: "D:\\Jarvis\\Dateien\\Exporte",
+    location: "D:\\Friday\\Dateien\\Exporte",
     tags: ["memory", "export"],
     agent: "memory",
     versions: 1,
@@ -205,7 +205,7 @@ export const FILE_SPECS: FileSpec[] = [
     sizeBytes: 1_204_550,
     category: "uploaded",
     previewKind: "image",
-    location: "D:\\Jarvis\\Dateien\\Hochgeladen",
+    location: "D:\\Friday\\Dateien\\Hochgeladen",
     tags: ["umzug", "grundriss"],
     user: true,
     versions: 1,
@@ -219,7 +219,7 @@ export const FILE_SPECS: FileSpec[] = [
     sizeBytes: 5_402,
     category: "temporary",
     previewKind: "text",
-    location: "D:\\Jarvis\\Temp",
+    location: "D:\\Friday\\Temp",
     tags: ["temp"],
     agent: "coding",
     versions: 1,
@@ -233,7 +233,7 @@ export const FILE_SPECS: FileSpec[] = [
     sizeBytes: 14_660,
     category: "generated",
     previewKind: "html",
-    location: "D:\\Jarvis\\Dateien\\Entwürfe",
+    location: "D:\\Friday\\Dateien\\Entwürfe",
     tags: ["newsletter", "entwurf"],
     task: "newsletter",
     agent: "kommunikation",
@@ -315,14 +315,14 @@ export function buildFiles(ctx: SeedContext, story: Story, agentNames: Record<st
 }
 
 const BULK_NAMES: { stem: string; ext: string; mime: string; category: FileCategory; preview: FilePreviewKind; location: string }[] = [
-  { stem: "Recherche-Notizen", ext: "md", mime: "text/markdown", category: "research", preview: "markdown", location: "D:\\Jarvis\\Dateien\\Recherche" },
-  { stem: "Bericht", ext: "pdf", mime: "application/pdf", category: "reports", preview: "pdf", location: "D:\\Jarvis\\Dateien\\Berichte" },
-  { stem: "Präsentation", ext: "pptx", mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation", category: "presentations", preview: "none", location: "D:\\Jarvis\\Dateien\\Präsentationen" },
-  { stem: "Rechnung", ext: "pdf", mime: "application/pdf", category: "invoices", preview: "pdf", location: "D:\\Jarvis\\Dateien\\Rechnungen" },
-  { stem: "Export", ext: "json", mime: "application/json", category: "exports", preview: "text", location: "D:\\Jarvis\\Dateien\\Exporte" },
-  { stem: "Zwischenstand", ext: "csv", mime: "text/csv", category: "temporary", preview: "text", location: "D:\\Jarvis\\Temp" },
-  { stem: "Scan", ext: "png", mime: "image/png", category: "uploaded", preview: "image", location: "D:\\Jarvis\\Dateien\\Hochgeladen" },
-  { stem: "Entwurf", ext: "md", mime: "text/markdown", category: "generated", preview: "markdown", location: "D:\\Jarvis\\Dateien\\Entwürfe" },
+  { stem: "Recherche-Notizen", ext: "md", mime: "text/markdown", category: "research", preview: "markdown", location: "D:\\Friday\\Dateien\\Recherche" },
+  { stem: "Bericht", ext: "pdf", mime: "application/pdf", category: "reports", preview: "pdf", location: "D:\\Friday\\Dateien\\Berichte" },
+  { stem: "Präsentation", ext: "pptx", mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation", category: "presentations", preview: "none", location: "D:\\Friday\\Dateien\\Präsentationen" },
+  { stem: "Rechnung", ext: "pdf", mime: "application/pdf", category: "invoices", preview: "pdf", location: "D:\\Friday\\Dateien\\Rechnungen" },
+  { stem: "Export", ext: "json", mime: "application/json", category: "exports", preview: "text", location: "D:\\Friday\\Dateien\\Exporte" },
+  { stem: "Zwischenstand", ext: "csv", mime: "text/csv", category: "temporary", preview: "text", location: "D:\\Friday\\Temp" },
+  { stem: "Scan", ext: "png", mime: "image/png", category: "uploaded", preview: "image", location: "D:\\Friday\\Dateien\\Hochgeladen" },
+  { stem: "Entwurf", ext: "md", mime: "text/markdown", category: "generated", preview: "markdown", location: "D:\\Friday\\Dateien\\Entwürfe" },
 ];
 
 const BULK_SUBJECTS = [

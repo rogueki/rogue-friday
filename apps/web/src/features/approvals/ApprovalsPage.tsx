@@ -1,7 +1,7 @@
 "use client";
 
-import type { ApprovalStatus, ApprovalType, RiskTier } from "@jarvis/sdk";
-import { Button, FilterBar, type FilterChip, type FilterDef } from "@jarvis/ui";
+import type { ApprovalStatus, ApprovalType, RiskTier } from "@friday/sdk";
+import { Button, FilterBar, type FilterChip, type FilterDef } from "@friday/ui";
 import { useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { DataOrigin, DateFormatterProvider, ReadOnlyNotice, resolvePanelState, useModuleAccess, useModuleSection, useQueryParams } from "@/features/tasks/moduleKit";

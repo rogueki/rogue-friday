@@ -133,7 +133,7 @@ test.describe("orb render loop", () => {
 /**
  * GPU quality scaling (PLAN §51.6, §22.1). The orb's `auto` mode steps down when the frame time stays high. A software
  * renderer's real frame times say nothing about a GPU, so the test feeds the controller a synthetic frame time through the
- * test hook (`window.__JARVIS_ORB_TEST__.frameMs`, only honoured while `features.devScenarios` is on) and reads the result
+ * test hook (`window.__FRIDAY_ORB_TEST__.frameMs`, only honoured while `features.devScenarios` is on) and reads the result
  * from `data-orb-quality` and the render probe `window.__ORB_DEBUG__`.
  */
 interface OrbProbe { frames: number; quality: string; segments: number; plates: number; nodes: number; points: number; draws: number }
@@ -145,7 +145,7 @@ test.describe("GPU quality scaling", () => {
   test("auto mode keeps its level at a healthy frame time and steps down to low when frames stay slow", async ({ page }) => {
     test.setTimeout(180_000);
     await page.addInitScript(() => {
-      (window as unknown as { __JARVIS_ORB_TEST__: unknown }).__JARVIS_ORB_TEST__ = { frameMs: 6 };
+      (window as unknown as { __FRIDAY_ORB_TEST__: unknown }).__FRIDAY_ORB_TEST__ = { frameMs: 6 };
     });
     await open(page, "/");
     await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
@@ -159,8 +159,8 @@ test.describe("GPU quality scaling", () => {
     // GPU load: the controller now sees 45 ms frames (p95 > 20 ms for 3 s) and walks down one level at a time
     const seen = new Set<string>([await qualityOf(page)]);
     await page.evaluate(() => {
-      (window as unknown as { __JARVIS_ORB_TEST__: unknown }).__JARVIS_ORB_TEST__ = { frameMs: 45 };
-      window.dispatchEvent(new Event("jarvis-orb-test"));
+      (window as unknown as { __FRIDAY_ORB_TEST__: unknown }).__FRIDAY_ORB_TEST__ = { frameMs: 45 };
+      window.dispatchEvent(new Event("friday-orb-test"));
     });
     await expect
       .poll(async () => {

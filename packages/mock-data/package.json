@@ -1,5 +1,5 @@
 {
-  "name": "@jarvis/mock-data",
+  "name": "@friday/mock-data",
   "version": "1.0.0",
   "private": true,
   "description": "Deterministische Mock-Daten, Szenarien und MSW-Handler",
@@ -12,7 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@jarvis/sdk": "workspace:*",
+    "@friday/sdk": "workspace:*",
     "msw": "^3.0.3"
   }
 }

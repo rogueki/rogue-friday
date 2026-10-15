@@ -1,4 +1,4 @@
 {
-  "$schema": "https://jarvis.local/schemas/approvals/approval-context-request.schema.json",
+  "$schema": "https://friday.local/schemas/approvals/approval-context-request.schema.json",
   "question": "Welche Termine überschneiden sich am 21.10.?"
 }

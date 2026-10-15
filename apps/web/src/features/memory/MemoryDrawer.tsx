@@ -1,7 +1,7 @@
 "use client";
 
-import type { Memory, MemoryConflict, MemoryConflictResolveRequest, MemoryHistoryEntry } from "@jarvis/sdk";
-import { Button, ConfirmDialog, Drawer, TagPill, Tabs, useToast } from "@jarvis/ui";
+import type { Memory, MemoryConflict, MemoryConflictResolveRequest, MemoryHistoryEntry } from "@friday/sdk";
+import { Button, ConfirmDialog, Drawer, TagPill, Tabs, useToast } from "@friday/ui";
 import { BadgeCheck, Download, GitMerge, Lock, LockOpen, Pencil, Pin, PinOff, Trash2, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

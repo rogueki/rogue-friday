@@ -1499,7 +1499,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Compact overall Jarvis status */
+        /** Compact overall Friday status */
         get: operations["getStatus"];
         put?: never;
         post?: never;
@@ -2713,7 +2713,7 @@ export interface components {
         /** AutomationTrigger */
         AutomationTrigger: {
             description: string;
-            /** @description Event type, e.g. jarvis.communication.thread_updated. */
+            /** @description Event type, e.g. friday.communication.thread_updated. */
             event?: string;
             /** @description Cron expression. */
             schedule?: string;
@@ -3539,7 +3539,7 @@ export interface components {
             id: string;
             labels?: string[];
             lineage: components["schemas"]["FileLineageEntry"][];
-            /** @description Logical location, e.g. D:\Jarvis\Dateien\Berichte. */
+            /** @description Logical location, e.g. D:\Friday\Dateien\Berichte. */
             location: string;
             mimeType: string;
             name: string;
@@ -3650,6 +3650,42 @@ export interface components {
          */
         FreshnessState: "fresh" | "stale" | "unknown" | "offline-cache";
         /**
+         * FridayStatus
+         * @description Compact overall status (top bar).
+         */
+        FridayStatus: {
+            adapterSummary: {
+                degraded: number;
+                offline: number;
+                online: number;
+            };
+            /** @enum {string} */
+            dataMode: "mock" | "hybrid" | "live";
+            eventStream: {
+                /** Format: date-time */
+                lastEventAt: string | null;
+                roundtripMs: number | null;
+                /** @enum {string} */
+                state: "online" | "degraded" | "offline" | "connecting";
+            };
+            label: string;
+            mode: components["schemas"]["OrbMode"];
+            /** Format: date-time */
+            since: string;
+            status: components["schemas"]["HealthStatus"];
+            uptimeSeconds: number;
+            version: string;
+        };
+        /**
+         * FridayStatusResponse
+         * @description Single-resource envelope for FridayStatus.
+         */
+        FridayStatusResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["FridayStatus"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
          * FrontendErrorReport
          * @description One aggregated browser error (PLAN §50.3). Contains no user data: no stack traces, no URLs with query strings, no identifiers. The server additionally redacts the message.
          */
@@ -3730,42 +3766,6 @@ export interface components {
          * @enum {string}
          */
         HealthStatus: "online" | "degraded" | "offline" | "unknown" | "paused";
-        /**
-         * JarvisStatus
-         * @description Compact overall status (top bar).
-         */
-        JarvisStatus: {
-            adapterSummary: {
-                degraded: number;
-                offline: number;
-                online: number;
-            };
-            /** @enum {string} */
-            dataMode: "mock" | "hybrid" | "live";
-            eventStream: {
-                /** Format: date-time */
-                lastEventAt: string | null;
-                roundtripMs: number | null;
-                /** @enum {string} */
-                state: "online" | "degraded" | "offline" | "connecting";
-            };
-            label: string;
-            mode: components["schemas"]["OrbMode"];
-            /** Format: date-time */
-            since: string;
-            status: components["schemas"]["HealthStatus"];
-            uptimeSeconds: number;
-            version: string;
-        };
-        /**
-         * JarvisStatusResponse
-         * @description Single-resource envelope for JarvisStatus.
-         */
-        JarvisStatusResponse: {
-            contractVersion: components["schemas"]["ContractVersion"];
-            data: components["schemas"]["JarvisStatus"];
-            freshness: components["schemas"]["Freshness"];
-        };
         /**
          * JsonSchemaObject
          * @description An embedded JSON Schema document (e.g. an adapter configSchema).
@@ -4330,7 +4330,7 @@ export interface components {
         };
         /**
          * OrbSnapshot
-         * @description Dominant orb status plus the parallel layers. Payload of GET /orb/status and jarvis.orb.status_changed.
+         * @description Dominant orb status plus the parallel layers. Payload of GET /orb/status and friday.orb.status_changed.
          */
         OrbSnapshot: {
             layers: components["schemas"]["OrbLayers"];
@@ -4398,8 +4398,8 @@ export interface components {
                 section: string;
                 status: components["schemas"]["HealthStatus"];
             }[];
+            friday: components["schemas"]["FridayStatus"];
             importantMailCount: number;
-            jarvis: components["schemas"]["JarvisStatus"];
             /** Format: date-time */
             lastUpdatedAt: string;
             memoryInsights: {
@@ -8640,9 +8640,9 @@ export interface operations {
                 };
                 content: {
                     /**
-                     * @example # HELP jarvis_http_requests_total HTTP requests handled
-                     *     # TYPE jarvis_http_requests_total counter
-                     *     jarvis_http_requests_total{method="GET",route="/api/v1/health",status="200"} 12
+                     * @example # HELP friday_http_requests_total HTTP requests handled
+                     *     # TYPE friday_http_requests_total counter
+                     *     friday_http_requests_total{method="GET",route="/api/v1/health",status="200"} 12
                      */
                     "text/plain": string;
                 };
@@ -9507,7 +9507,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JarvisStatusResponse"];
+                    "application/json": components["schemas"]["FridayStatusResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

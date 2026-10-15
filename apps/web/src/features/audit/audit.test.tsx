@@ -1,4 +1,4 @@
-import type { AuditEvent } from "@jarvis/sdk";
+import type { AuditEvent } from "@friday/sdk";
 import { screen, waitFor, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

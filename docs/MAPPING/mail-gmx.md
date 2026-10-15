@@ -43,8 +43,8 @@ Implementierung nach Dependency-Policy gewählt; sie ist hier bewusst nicht inst
 
 ## Ereignisse
 
-`IDLE`/Polling (`syncIntervalSeconds`) -> `jarvis.communication.thread_updated` bei neuen/geänderten Threads;
-Entwurfsänderungen -> `jarvis.communication.draft_updated`. Neue Nachrichten, die Antwort brauchen, zusätzlich `jarvis.notification.created`.
+`IDLE`/Polling (`syncIntervalSeconds`) -> `friday.communication.thread_updated` bei neuen/geänderten Threads;
+Entwurfsänderungen -> `friday.communication.draft_updated`. Neue Nachrichten, die Antwort brauchen, zusätzlich `friday.notification.created`.
 Reconnect: IMAP `UIDVALIDITY` + letzte `UID` merken; bei geänderter `UIDVALIDITY` Vollabgleich.
 
 ## Fehler

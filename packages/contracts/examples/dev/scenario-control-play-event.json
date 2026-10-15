@@ -1,7 +1,7 @@
 {
-  "$schema": "https://jarvis.local/schemas/dev/scenario-control-request.schema.json",
+  "$schema": "https://friday.local/schemas/dev/scenario-control-request.schema.json",
   "action": "play_event",
-  "eventType": "jarvis.voice.transcript_partial",
+  "eventType": "friday.voice.transcript_partial",
   "subject": "voice/utterance",
   "payload": {
     "utteranceId": "utt_demo_0001",

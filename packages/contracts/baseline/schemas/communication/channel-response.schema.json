@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/communication/channel-response.schema.json",
+  "$id": "https://friday.local/schemas/communication/channel-response.schema.json",
   "title": "ChannelResponse",
   "description": "Single-resource envelope for Channel.",
   "type": "object",

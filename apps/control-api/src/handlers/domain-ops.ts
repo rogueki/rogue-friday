@@ -1,6 +1,6 @@
-import { PORT_SPEC } from "@jarvis/adapter-core";
-import { redact } from "@jarvis/observability";
-import type { MemoryConflictResolveRequest, MemoryExport, TaskAssignRequest, FileRenameRequest, VoiceEnrollRequest, AutomationPauseAllRequest } from "@jarvis/sdk";
+import { PORT_SPEC } from "@friday/adapter-core";
+import { redact } from "@friday/observability";
+import type { MemoryConflictResolveRequest, MemoryExport, TaskAssignRequest, FileRenameRequest, VoiceEnrollRequest, AutomationPauseAllRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { validationFailed } from "../util/errors";

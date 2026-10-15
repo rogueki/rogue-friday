@@ -15,12 +15,12 @@ E2E_SOAK=1 pnpm test:e2e tests/e2e/performance.spec.ts -g soak   # 30-Minuten-Or
 ```
 
 - `playwright.config.ts` startet den Stack selbst (`webServer` -> `tests/e2e/stack.ts`). Fehlt der Build, läuft `pnpm build:app`
-  automatisch; `JARVIS_E2E_BUILD=1` erzwingt einen Neubau. Der Stack arbeitet auf einer **Kopie** von `apps/web/out`
+  automatisch; `FRIDAY_E2E_BUILD=1` erzwingt einen Neubau. Der Stack arbeitet auf einer **Kopie** von `apps/web/out`
   (Temp-Verzeichnis), ein paralleler Rebuild verändert den Lauf also nicht.
 - Entwicklung einer Spec: Stack einmal von Hand starten (`pnpm exec tsx tests/e2e/stack.ts`) und die Specs mit
-  `JARVIS_E2E_REUSE=1 pnpm test:e2e <spec>` dagegen laufen lassen.
-- Port `JARVIS_E2E_PORT` (Standard 3200), Datenverzeichnis `JARVIS_E2E_DIR` (Standard `<tmp>/jarvis-e2e`), Chromium
-  `JARVIS_CHROMIUM` (Standard in der Cloud: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`). Chromium startet mit
+  `FRIDAY_E2E_REUSE=1 pnpm test:e2e <spec>` dagegen laufen lassen.
+- Port `FRIDAY_E2E_PORT` (Standard 3200), Datenverzeichnis `FRIDAY_E2E_DIR` (Standard `<tmp>/friday-e2e`), Chromium
+  `FRIDAY_CHROMIUM` (Standard in der Cloud: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`). Chromium startet mit
   `--use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist` (WebGL in Software).
 
 - Dev-Auth: Login akzeptiert jedes nicht leere Passwort, die erneute Authentifizierung (Stufe-3-Freigabe) verlangt das dokumentierte Dev-Passwort `dev`.
@@ -29,7 +29,7 @@ E2E_SOAK=1 pnpm test:e2e tests/e2e/performance.spec.ts -g soak   # 30-Minuten-Or
 
 | Datei                                                                                                                                     | Inhalt                                                                                                                                                         |
 | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stack.ts`                                                                                                                                | Startet die gebaute Control API (Mock, Seed 42, Dev-Login, Temp-`JARVIS_DATA_DIR`)                                                                             |
+| `stack.ts`                                                                                                                                | Startet die gebaute Control API (Mock, Seed 42, Dev-Login, Temp-`FRIDAY_DATA_DIR`)                                                                             |
 | `support/fixtures.ts`                                                                                                                     | Auto-Fixtures: vor **jedem** Test Welt-Reset (`dev/scenarios/control reset`) und Wiederherstellung der Einstellungen; Fehler bei unbehandelten Page-Exceptions |
 | `support/api.ts`                                                                                                                          | Kleiner API-Client (Cookies, CSRF, Idempotency-Key) für Setup und Gegenprobe der UI-Aktionen am Server                                                         |
 | `navigation`, `scenarios`, `tasks`, `approvals`, `outage`, `orb-states`, `command-bar`, `settings`, `reconnect`, `fallback-2d` `.spec.ts` | E2E (§51.5)                                                                                                                                                    |
@@ -68,8 +68,8 @@ ist ein Produktmodus: die 3D-Szene schaltet auf den statischen 2D-Renderer, dess
 ist (zweimal byte-identisch geprüft).
 
 **Orb in 3D (PLAN §52):** Die Web-App reicht den Orb-Testtakt durch, aber nur wenn `GET /meta` `features.devScenarios`
-meldet (Produktion: aus, die Parameter werden dann ignoriert). Zugang: `window.__JARVIS_ORB_TEST__ = { fixedTime,
-animationProgress, audioFixture, frameMs }` plus `window.dispatchEvent(new Event("jarvis-orb-test"))`, oder URL-Parameter
+meldet (Produktion: aus, die Parameter werden dann ignoriert). Zugang: `window.__FRIDAY_ORB_TEST__ = { fixedTime,
+animationProgress, audioFixture, frameMs }` plus `window.dispatchEvent(new Event("friday-orb-test"))`, oder URL-Parameter
 `?orbTime=4&orbProgress=0.5&orbAudio=loud&orbFrameMs=40`. Mit `fixedTime` ist ein Frame eine reine Funktion aus
 (Modus, Zeit, Fortschritt, Audio-Fixture): keine Wanduhr, keine Dämpfung, keine Parallaxe. Die Baselines `orb3d-*`
 (booting/error/success: entry, mid, stable, exit; speaking mit allen fünf Audio-Fixtures) sind in drei getrennten
@@ -86,4 +86,4 @@ Maskiert wird nur der Latenz-Chip des Event-Streams (und "Aktualisiert hh:mm", H
 Keine `test.fail` und kein Eintrag in `KNOWN_ISSUES` (`a11y.spec.ts`, Mechanismus bleibt für künftige Lücken).
 
 - Seed-Zeiten liegen am 14.10.2026, die UI rechnet mit der echten Serverzeit: Tests pinnen `Date` und `/meta.serverTime` (`freezeDate`).
-- Der Stack muss unberührt starten (Fixture prüft das); bei `JARVIS_E2E_REUSE=1` den Stack zwischen Läufen neu starten.
+- Der Stack muss unberührt starten (Fixture prüft das); bei `FRIDAY_E2E_REUSE=1` den Stack zwischen Läufen neu starten.

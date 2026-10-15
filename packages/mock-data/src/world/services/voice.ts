@@ -9,7 +9,7 @@ import {
   type VoiceStatus,
   type VoiceTestRequest,
   type VoiceTestResult,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { conflict, notFound, validationFailed } from "../../core/errors";
 import { clamp, clone, round, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
@@ -291,9 +291,9 @@ export class VoiceService {
       this.utteranceStartedAt = this.w.nowIso();
     }
     if (mode === "idle" || mode === "error") this.w.state.audioLevel = 0;
-    this.w.emitFor("voice", "jarvis.voice.state_changed", status, "voice/status");
+    this.w.emitFor("voice", "friday.voice.state_changed", status, "voice/status");
     if (mode === "speaking" && previous !== "speaking") {
-      this.w.emitFor("voice", "jarvis.voice.tts_started", {
+      this.w.emitFor("voice", "friday.voice.tts_started", {
         utteranceId: this.utteranceId ?? this.w.id("utt"),
         engine: status.tts.engine,
         voice: this.w.state.settings.voice.ttsVoice,
@@ -301,7 +301,7 @@ export class VoiceService {
       }, "voice/tts");
     }
     if (previous === "speaking" && mode !== "speaking") {
-      this.w.emitFor("voice", "jarvis.voice.tts_ended", { utteranceId: this.utteranceId ?? "utt_unknown", durationMs: 2400, interrupted: options.interrupted ?? false }, "voice/tts");
+      this.w.emitFor("voice", "friday.voice.tts_ended", { utteranceId: this.utteranceId ?? "utt_unknown", durationMs: 2400, interrupted: options.interrupted ?? false }, "voice/tts");
     }
     this.w.refresh();
     return status;
@@ -316,7 +316,7 @@ export class VoiceService {
     status.tts = { ...status.tts, state: "ready" };
     status.localModel = { ...status.localModel, state: "ready" };
     this.w.state.audioLevel = 0;
-    if (emit) this.w.emitFor("voice", "jarvis.voice.state_changed", status, "voice/status");
+    if (emit) this.w.emitFor("voice", "friday.voice.state_changed", status, "voice/status");
   }
 
   /** Publishes one audio level sample (0..1). Input while listening, output while speaking. */
@@ -324,13 +324,13 @@ export class VoiceService {
     const value = Math.round(clamp(level, 0, 1) * 1000) / 1000;
     this.w.state.audioLevel = value;
     if (direction === "input") this.w.state.voice.status.microphone.inputLevel = value;
-    this.w.emitFor("voice", "jarvis.voice.audio_level", { direction, level: value, ...(peak !== undefined ? { peak: Math.round(clamp(peak, 0, 1) * 1000) / 1000 } : {}), at: this.w.nowIso() }, "voice/audio");
+    this.w.emitFor("voice", "friday.voice.audio_level", { direction, level: value, ...(peak !== undefined ? { peak: Math.round(clamp(peak, 0, 1) * 1000) / 1000 } : {}), at: this.w.nowIso() }, "voice/audio");
   }
 
   emitTranscript(text: string, final: boolean, confidence?: number): void {
     this.w.emitFor(
       "voice",
-      final ? "jarvis.voice.transcript_final" : "jarvis.voice.transcript_partial",
+      final ? "friday.voice.transcript_final" : "friday.voice.transcript_partial",
       {
         utteranceId: this.utteranceId ?? this.w.id("utt"),
         text,

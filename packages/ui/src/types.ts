@@ -1,4 +1,4 @@
-import type { Tone } from '@jarvis/design-tokens';
+import type { Tone } from '@friday/design-tokens';
 
 export type { Tone };
 

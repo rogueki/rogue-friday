@@ -20,7 +20,7 @@ describe("hub sequence = activity sequence (mock mode)", () => {
     await api.close();
   });
 
-  const activityEnvelopes = (): any[] => probe.events().filter((event) => event.type === "jarvis.activity.appended");
+  const activityEnvelopes = (): any[] => probe.events().filter((event) => event.type === "friday.activity.appended");
 
   it("keeps seeded activity below every live event", async () => {
     const seeded = (await owner.get("/api/v1/activity", { query: { limit: "200" } })).json().items as any[];
@@ -33,7 +33,7 @@ describe("hub sequence = activity sequence (mock mode)", () => {
     expect(activityEnvelopes()[0].sequence).toBeGreaterThan(maxSeeded);
   });
 
-  it("gives the envelope of jarvis.activity.appended the sequence of its ActivityEvent", async () => {
+  it("gives the envelope of friday.activity.appended the sequence of its ActivityEvent", async () => {
     await owner.post("/api/v1/tasks", { title: "Zweite Aufgabe" });
     await owner.post("/api/v1/memory", { type: "fact", content: "Sequenz-Gleichheit" });
     await probe.waitFor(() => activityEnvelopes().length >= 3, 3_000, "mehrere activity.appended");

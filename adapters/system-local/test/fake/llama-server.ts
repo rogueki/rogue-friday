@@ -1,4 +1,4 @@
-import type { FakeUpstream } from "@jarvis/adapter-testkit";
+import type { FakeUpstream } from "@friday/adapter-testkit";
 
 /**
  * llama-server as started by installer/scripts/start-qwen-server.ps1 (`--alias qwen3-router`, no `--api-key`).

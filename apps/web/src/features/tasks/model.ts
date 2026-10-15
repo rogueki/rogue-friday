@@ -1,5 +1,5 @@
-import type { EntityRef, Priority, Task, TaskStatus } from "@jarvis/sdk";
-import type { Tone } from "@jarvis/ui";
+import type { EntityRef, Priority, Task, TaskStatus } from "@friday/sdk";
+import type { Tone } from "@friday/ui";
 
 /** Board columns in the order of PLAN §28.2. */
 export const BOARD_STATUSES = ["triage", "todo", "ready", "running", "waiting", "review", "done"] as const satisfies readonly TaskStatus[];

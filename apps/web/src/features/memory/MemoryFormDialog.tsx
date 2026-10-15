@@ -1,7 +1,7 @@
 "use client";
 
-import type { Memory, MemoryCreateRequest, MemorySensitivity, MemoryType, MemoryUpdateRequest } from "@jarvis/sdk";
-import { Button, Dialog, Select, Switch, TextField } from "@jarvis/ui";
+import type { Memory, MemoryCreateRequest, MemorySensitivity, MemoryType, MemoryUpdateRequest } from "@friday/sdk";
+import { Button, Dialog, Select, Switch, TextField } from "@friday/ui";
 import { useState, type FormEvent } from "react";
 import { useT } from "@/i18n";
 import { TextArea } from "./kit/fields";

@@ -1,4 +1,4 @@
-import type { AuditEvent, SourceDescriptor } from "@jarvis/sdk";
+import type { AuditEvent, SourceDescriptor } from "@friday/sdk";
 import { sha256Hex } from "./sha256";
 import { canonicalJson } from "./util";
 

@@ -1,4 +1,4 @@
-import { JARVIS_EVENT_TYPES, isControlFrame, isJarvisEvent, type JarvisEvent } from "@jarvis/sdk";
+import { FRIDAY_EVENT_TYPES, isControlFrame, isFridayEvent, type FridayEvent } from "@friday/sdk";
 import { describe, expect, it } from "vitest";
 import { MockEventHub, MockWorld, ScenarioEngine, SCENARIO_DEFINITIONS, createMockEventSource, scenarioDuration } from "../src";
 import { eventProblems, record, validator } from "./support";
@@ -13,14 +13,14 @@ describe("event hub", () => {
     expect(hub.bufferedCount).toBe(5);
     const oldest = hub.oldestSequence as number;
 
-    const replayed: JarvisEvent[] = [];
+    const replayed: FridayEvent[] = [];
     hub.subscribe((event) => replayed.push(event), { since: hub.latestSequence - 2 });
     expect(replayed.map((event) => event.sequence)).toEqual([hub.latestSequence - 1, hub.latestSequence]);
 
-    const stale: JarvisEvent[] = [];
+    const stale: FridayEvent[] = [];
     hub.subscribe((event) => stale.push(event), { since: oldest - 10 });
     expect(stale).toHaveLength(1);
-    expect(stale[0]?.type).toBe("jarvis.status.resync_required");
+    expect(stale[0]?.type).toBe("friday.status.resync_required");
     expect(stale[0]?.data).toMatchObject({ reason: "sequence_too_old", requestedSince: oldest - 10 });
     expect(validator.validate("EventEnvelope", stale[0]).errors).toEqual([]);
   });
@@ -34,7 +34,7 @@ describe("event hub", () => {
     hub.subscribe((event) => live.push(event.type));
     world.reset();
     expect(hub.bufferedCount).toBe(0);
-    expect(live).toContain("jarvis.status.resync_required");
+    expect(live).toContain("friday.status.resync_required");
   });
 });
 
@@ -56,7 +56,7 @@ describe("mock event socket", () => {
     world.tasks.create({ title: "Live" });
     world.clock.advance(15_000);
     world.clock.advance(15_000);
-    const events = frames.filter(isJarvisEvent);
+    const events = frames.filter(isFridayEvent);
     const pings = frames.filter(isControlFrame);
     expect(events.length).toBeGreaterThan(3);
     expect(pings.map((frame) => frame.kind)).toEqual(["ping", "ping"]);
@@ -80,24 +80,24 @@ describe("mock event socket", () => {
     world.tasks.create({ title: "A" });
     const cursor = source.hub.latestSequence;
     world.tasks.create({ title: "B" });
-    const frames: JarvisEvent[] = [];
+    const frames: FridayEvent[] = [];
     const socket = source.connect(`ws://localhost/api/v1/events?since=${cursor}`);
     socket.onmessage = (message) => {
       const parsed = JSON.parse((message as { data: string }).data);
-      if (isJarvisEvent(parsed)) frames.push(parsed);
+      if (isFridayEvent(parsed)) frames.push(parsed);
     };
     await tick();
     expect(frames.length).toBeGreaterThan(0);
     expect(frames.every((event) => event.sequence > cursor)).toBe(true);
-    expect(frames.some((event) => event.type === "jarvis.task.created")).toBe(true);
+    expect(frames.some((event) => event.type === "friday.task.created")).toBe(true);
     socket.close();
 
-    const future: JarvisEvent[] = [];
+    const future: FridayEvent[] = [];
     const socket2 = source.connect(`ws://localhost/api/v1/events?since=${source.hub.latestSequence + 1000}`);
     socket2.onmessage = (message) => future.push(JSON.parse((message as { data: string }).data));
     await tick();
     socket2.close();
-    expect(future.length === 0 || future[0]?.type === "jarvis.status.resync_required").toBe(true);
+    expect(future.length === 0 || future[0]?.type === "friday.status.resync_required").toBe(true);
   });
 
   it("install() swaps the global WebSocket for event URLs only", async () => {
@@ -165,7 +165,7 @@ describe("event contract coverage", () => {
     world.clock.advance(20_000);
 
     const seen = new Set(recorder.events.map((event) => event.type));
-    const missing = JARVIS_EVENT_TYPES.filter((type) => !seen.has(type));
+    const missing = FRIDAY_EVENT_TYPES.filter((type) => !seen.has(type));
     expect(missing).toEqual([]);
     expect(eventProblems(recorder.events)).toEqual([]);
   });

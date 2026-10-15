@@ -9,7 +9,7 @@ import {
   TagPill,
   type DataTableColumn,
   type Tone,
-} from '@jarvis/ui';
+} from '@friday/ui';
 import { seeded } from '../demo/data';
 import { longGerman } from './_helpers';
 
@@ -122,7 +122,7 @@ export const Huge10000: Story = {
     const rows = useMemo(() => makeRows(10_000), []);
     return (
       <div style={page}>
-        <p style={{ marginTop: 0, fontFamily: 'var(--jv-font-mono)', fontSize: 12, color: 'var(--jarvis-muted)' }}>Tastatur: Pfeile, Bild auf/ab, Pos1/Ende, Enter. Sortierung nach Spaltenkopf.</p>
+        <p style={{ marginTop: 0, fontFamily: 'var(--jv-font-mono)', fontSize: 12, color: 'var(--friday-muted)' }}>Tastatur: Pfeile, Bild auf/ab, Pos1/Ende, Enter. Sortierung nach Spaltenkopf.</p>
         <DataTable columns={columns} rows={rows} getRowId={(r) => r.id} label="Alle Aufgaben" height={520} totalCount={10_000} />
       </div>
     );
@@ -142,7 +142,7 @@ export const ReadOnly: Story = {
   name: 'Read-only (no row action)',
   render: () => (
     <div style={page}>
-      <p style={{ marginTop: 0, fontSize: 12, color: 'var(--jarvis-muted)' }}>Lesender Zugriff: keine Zeilenaktion, nur Sortierung und Navigation.</p>
+      <p style={{ marginTop: 0, fontSize: 12, color: 'var(--friday-muted)' }}>Lesender Zugriff: keine Zeilenaktion, nur Sortierung und Navigation.</p>
       <DataTable columns={columns} rows={makeRows(12)} getRowId={(r) => r.id} label="Aufgaben (nur lesen)" height={380} />
     </div>
   ),

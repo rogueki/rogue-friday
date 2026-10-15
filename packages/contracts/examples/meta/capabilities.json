@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/meta/capabilities.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/meta/capabilities.schema.json",
+  "contractVersion": "2.0.0",
   "modules": {
     "tasks": {
       "read": true,

@@ -122,9 +122,9 @@ describe("tasks", () => {
     expect(updated.version).toBe(2);
     expect(Date.parse(updated.updatedAt)).toBeGreaterThan(Date.parse(created.updatedAt));
     const types = recorder.events.map((event) => event.type);
-    expect(types).toContain("jarvis.task.created");
-    expect(types).toContain("jarvis.task.updated");
-    expect(types).toContain("jarvis.audit.appended");
+    expect(types).toContain("friday.task.created");
+    expect(types).toContain("friday.task.updated");
+    expect(types).toContain("friday.audit.appended");
     expect(world.state.audit.at(-1)?.action).toBe("task.updated");
     expect(eventProblems(recorder.events)).toEqual([]);
   });
@@ -236,8 +236,8 @@ describe("approvals and drafts", () => {
     expect(approved.executionResult).toContain("gesendet");
     expect(world.state.drafts.find((candidate) => candidate.id === draft.id)?.status).toBe("sent");
     const types = recorder.events.map((event) => event.type);
-    expect(types.filter((type) => type === "jarvis.approval.resolved").length).toBe(2);
-    expect(types).toContain("jarvis.communication.draft_updated");
+    expect(types.filter((type) => type === "friday.approval.resolved").length).toBe(2);
+    expect(types).toContain("friday.communication.draft_updated");
     expect(expectApiError(() => world.approvals.approve(approval.id)).code).toBe("CONFLICT");
     expect(eventProblems(recorder.events)).toEqual([]);
   });
@@ -254,7 +254,7 @@ describe("approvals and drafts", () => {
     world.events.subscribe((event) => types.push(event.type));
     world.clock.advance(61_000);
     expect(world.approvals.get(expiring.id).status).toBe("expired");
-    expect(types).toContain("jarvis.approval.expired");
+    expect(types).toContain("friday.approval.expired");
   });
 
   it("Tier 3 needs re-authentication and is never approvable by voice alone", () => {
@@ -473,7 +473,7 @@ describe("availability, latency, errors and capabilities", () => {
     expect(world.meta.getCapabilities().modules.tasks.create).toBe(false);
     const error = expectApiError(() => world.tasks.create({ title: "Verboten" }));
     expect(error).toEqual({ code: "CAPABILITY_MISSING", status: 403 });
-    expect(recorder.events.some((event) => event.type === "jarvis.adapter.capabilities_changed")).toBe(true);
+    expect(recorder.events.some((event) => event.type === "friday.adapter.capabilities_changed")).toBe(true);
     world.setCapability("mail", "send", false);
     expect(world.meta.getCapabilities().modules.communication.send).toBe(false);
     const draft = world.state.drafts.find((candidate) => candidate.status === "draft") as NonNullable<MockWorld["state"]["drafts"][number]>;
@@ -523,7 +523,7 @@ describe("availability, latency, errors and capabilities", () => {
     world.reset();
     expect(world.state.tasks).toHaveLength(baselineTasks);
     expect(world.nowIso()).toBe("2026-10-14T08:15:00.000Z");
-    expect(recorder.events.at(-1)?.type).toBe("jarvis.status.resync_required");
+    expect(recorder.events.at(-1)?.type).toBe("friday.status.resync_required");
     world.tasks.create({ title: "Danach" });
     const sequences = recorder.events.map((event) => event.sequence);
     expect(sequences).toEqual([...sequences].sort((a, b) => a - b));
@@ -544,7 +544,7 @@ describe("orb derivation", () => {
     expect(world.orbSnapshot().status.mode).toBe("error");
     expect(world.orbSnapshot().status.detailText).toContain("Kritisch");
     expect(world.orbSnapshot().layers).toMatchObject({ voice: "listening", attention: "error" });
-    const modes = recorder.events.filter((event) => event.type === "jarvis.orb.status_changed").map((event) => (event.data as { status: { mode: string } }).status.mode);
+    const modes = recorder.events.filter((event) => event.type === "friday.orb.status_changed").map((event) => (event.data as { status: { mode: string } }).status.mode);
     expect(modes).toEqual(["listening", "waiting_approval", "error"]);
     expect(eventProblems(recorder.events)).toEqual([]);
   });
@@ -568,9 +568,9 @@ describe("orb derivation", () => {
 
   it("raw dev events are validated against the event schemas", () => {
     const world = createWorld();
-    expect(expectApiError(() => world.emitRaw({ type: "jarvis.nope.nope", data: {} })).code).toBe("VALIDATION_FAILED");
-    expect(expectApiError(() => world.emitRaw({ type: "jarvis.voice.audio_level", data: { level: 5 } })).code).toBe("VALIDATION_FAILED");
-    const event = world.emitRaw({ type: "jarvis.voice.audio_level", data: { direction: "input", level: 0.4, at: world.nowIso() } });
-    expect(event.type).toBe("jarvis.voice.audio_level");
+    expect(expectApiError(() => world.emitRaw({ type: "friday.nope.nope", data: {} })).code).toBe("VALIDATION_FAILED");
+    expect(expectApiError(() => world.emitRaw({ type: "friday.voice.audio_level", data: { level: 5 } })).code).toBe("VALIDATION_FAILED");
+    const event = world.emitRaw({ type: "friday.voice.audio_level", data: { direction: "input", level: 0.4, at: world.nowIso() } });
+    expect(event.type).toBe("friday.voice.audio_level");
   });
 });

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/system/frontend-error-report.schema.json",
+  "$id": "https://friday.local/schemas/system/frontend-error-report.schema.json",
   "title": "FrontendErrorReport",
   "description": "One aggregated browser error (PLAN §50.3). Contains no user data: no stack traces, no URLs with query strings, no identifiers. The server additionally redacts the message.",
   "type": "object",

@@ -1,7 +1,7 @@
 "use client";
 
-import { isJarvisApiError } from "@jarvis/sdk";
-import { DegradedState, EmptyState, ErrorState, OfflineState, Skeleton, StaleBanner } from "@jarvis/ui";
+import { isFridayApiError } from "@friday/sdk";
+import { DegradedState, EmptyState, ErrorState, OfflineState, Skeleton, StaleBanner } from "@friday/ui";
 import type { ReactNode } from "react";
 import type { PanelState } from "@/components/PanelFrame";
 import type { OutageInfo } from "@/features/shared/availability";
@@ -63,7 +63,7 @@ export function PanelStateBody({ state, children, skeleton, skeletonRows = 3 }: 
         </div>
       );
     case "error": {
-      const api = isJarvisApiError(state.error) ? state.error : null;
+      const api = isFridayApiError(state.error) ? state.error : null;
       return (
         <ErrorState
           compact

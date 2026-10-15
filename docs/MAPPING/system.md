@@ -28,13 +28,13 @@ es gibt keine freie Shell. `system.restartAdapter`/`system.openLogs` bleiben bis
 | Laufwerke                      | `StorageVolume`                                                                                       | `mount`, `label`, `fileSystem`, `totalBytes`, `usedBytes`, `freeBytes`, `usagePercent`                                                                             |
 | Netzwerk                       | `SystemMetrics.network`                                                                               | `rxBytesPerSec`, `txBytesPerSec`, `latencyMs`                                                                                                                      |
 | Modell-Server                  | `ModelProvider`                                                                                       | `providerKind`: lokal (`qwen3-router`, `faster-whisper`, Piper/Qwen3-TTS) vs. `cloud` (Kimi); `models[]`, `latencyMs`, `activeRequests`                            |
-| Spiel läuft (`game_processes`) | `Service` `kira-tts` = `paused`                                                                       | `jarvis.system.service_status_changed`                                                                                                                             |
+| Spiel läuft (`game_processes`) | `Service` `kira-tts` = `paused`                                                                       | `friday.system.service_status_changed`                                                                                                                             |
 
 `SystemMetrics.source` ist ein `SourceDescriptor` (`system = "windows-wsl"`); `sampledAt` ist der Messzeitpunkt (kein Cache als live ausgeben).
 
 ## Ereignisse
 
-Metrik-Takt (`sampleIntervalSeconds`) -> `jarvis.system.metrics`; Statusänderung eines Dienstes -> `jarvis.system.service_status_changed`.
+Metrik-Takt (`sampleIntervalSeconds`) -> `friday.system.metrics`; Statusänderung eines Dienstes -> `friday.system.service_status_changed`.
 `runServiceHealthcheck` (Capability `system.healthcheck`) führt genau eine Prüfung des konfigurierten Dienstes aus und liefert `HealthcheckResult`.
 
 ## Fehler

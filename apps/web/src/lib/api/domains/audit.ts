@@ -1,6 +1,6 @@
 "use client";
 
-import type { AuditEventListResponse, AuditEventResponse, Severity } from "@jarvis/sdk";
+import type { AuditEventListResponse, AuditEventResponse, Severity } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";

@@ -1,4 +1,4 @@
-import type { SchemaName, SourceDescriptor } from "@jarvis/sdk";
+import type { SchemaName, SourceDescriptor } from "@friday/sdk";
 import { toIso, type Clock } from "./clock";
 import { assertContract, checkContract } from "./contract";
 import { AdapterError, normalizeError } from "./errors";

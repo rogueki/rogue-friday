@@ -1,5 +1,5 @@
-import { runConformanceSuite, type ConformanceFixtures, type FakeUpstream } from "@jarvis/adapter-testkit";
-import type { JarvisAdapter } from "@jarvis/adapter-core";
+import { runConformanceSuite, type ConformanceFixtures, type FakeUpstream } from "@friday/adapter-testkit";
+import type { FridayAdapter } from "@friday/adapter-core";
 import {
   HermesActivityAdapter,
   HermesAgentsAdapter,
@@ -17,7 +17,7 @@ const stateOf = (upstream: FakeUpstream): HermesState | undefined => states.get(
 
 const EVENTS_ROUTE = { method: "GET", path: "/api/plugins/kanban/events" };
 
-const create: Record<HermesCategory, (options: HermesAdapterOptions) => JarvisAdapter> = {
+const create: Record<HermesCategory, (options: HermesAdapterOptions) => FridayAdapter> = {
   tasks: (options) => new HermesTasksAdapter(options),
   activity: (options) => new HermesActivityAdapter(options),
   agents: (options) => new HermesAgentsAdapter(options),
@@ -77,10 +77,10 @@ const fixtures: Record<HermesCategory, ConformanceFixtures> = {
       route: EVENTS_ROUTE,
       publish: (upstream, count) => stateOf(upstream)?.publishTaskLifecycle(count),
       expectedTypes: [
-        "jarvis.task.created",
-        "jarvis.task.updated",
-        "jarvis.task.updated",
-        "jarvis.task.completed",
+        "friday.task.created",
+        "friday.task.updated",
+        "friday.task.updated",
+        "friday.task.completed",
       ],
     },
   },
@@ -117,7 +117,7 @@ const fixtures: Record<HermesCategory, ConformanceFixtures> = {
     events: {
       route: { method: "GET", path: "/api/sessions" },
       publish: (upstream, count) => stateOf(upstream)?.publishSessionMessages(count),
-      expectedTypes: ["jarvis.activity.appended", "jarvis.activity.appended", "jarvis.activity.appended"],
+      expectedTypes: ["friday.activity.appended", "friday.activity.appended", "friday.activity.appended"],
     },
   },
   agents: {
@@ -161,9 +161,9 @@ const fixtures: Record<HermesCategory, ConformanceFixtures> = {
       route: EVENTS_ROUTE,
       publish: (upstream, count) => stateOf(upstream)?.publishAgentEvents(count),
       expectedTypes: [
-        "jarvis.agent.status_changed",
-        "jarvis.agent.status_changed",
-        "jarvis.agent.status_changed",
+        "friday.agent.status_changed",
+        "friday.agent.status_changed",
+        "friday.agent.status_changed",
       ],
     },
   },

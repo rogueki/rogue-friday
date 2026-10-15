@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/files/file-category.schema.json",
+  "$id": "https://friday.local/schemas/files/file-category.schema.json",
   "title": "FileCategory",
   "type": "string",
   "enum": [

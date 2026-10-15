@@ -2,9 +2,9 @@ import type {
   AdapterCategory,
   AdapterManifest,
   HealthStatus,
-  JarvisEventMap,
-  JarvisEventType,
-} from "@jarvis/sdk";
+  FridayEventMap,
+  FridayEventType,
+} from "@friday/sdk";
 import type { Clock } from "./clock";
 import type { Logger } from "./logger";
 import type { PortCategory, PortMap } from "./ports";
@@ -16,15 +16,15 @@ export type DataMode = "mock" | "hybrid" | "live";
  * `contractVersion`; `source` is `adapter://<adapterId>`.
  */
 export type AdapterEventInput = {
-  [K in JarvisEventType]: {
+  [K in FridayEventType]: {
     type: K;
     /** Resource address, e.g. `task/task_01J...`. */
     subject: string;
-    data: JarvisEventMap[K];
+    data: FridayEventMap[K];
     correlationId?: string;
     causationId?: string;
   };
-}[JarvisEventType];
+}[FridayEventType];
 
 export interface AdapterContext {
   readonly adapterId: string;
@@ -61,7 +61,7 @@ export interface CapabilitySet {
 }
 
 /** PLAN §10.3. */
-export interface JarvisAdapter {
+export interface FridayAdapter {
   readonly manifest: AdapterManifest;
   initialize(context: AdapterContext): Promise<void>;
   /** Must never throw: an unreachable upstream is reported as `status: "offline"`. */
@@ -77,7 +77,7 @@ export interface JarvisAdapter {
 }
 
 /** An adapter of a port category: lifecycle plus the category's port. */
-export type PortAdapter<C extends PortCategory = PortCategory> = JarvisAdapter &
+export type PortAdapter<C extends PortCategory = PortCategory> = FridayAdapter &
   (C extends PortCategory ? PortMap[C] : never);
 
 /** Factory registered under a provider id in the registry allowlist. */
@@ -89,7 +89,7 @@ export interface AdapterFactory<C extends AdapterCategory = AdapterCategory> {
   readonly configSchema: Readonly<Record<string, unknown>>;
   /** Data modes in which the factory may be used (mock adapters: ["mock"]). Default: all. */
   readonly modes?: readonly DataMode[];
-  create(): JarvisAdapter;
+  create(): FridayAdapter;
 }
 
 export type { AdapterCategory, AdapterManifest };

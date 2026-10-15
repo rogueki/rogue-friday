@@ -1,4 +1,4 @@
-import type { HealthcheckResult, ModelProvider, Service, StorageVolume, SystemMetrics } from "@jarvis/sdk";
+import type { HealthcheckResult, ModelProvider, Service, StorageVolume, SystemMetrics } from "@friday/sdk";
 import {
   AdapterError,
   createHttpClient,
@@ -13,14 +13,14 @@ import {
   type CapabilitySet,
   type HttpClient,
   type IdParam,
-  type JarvisAdapter,
+  type FridayAdapter,
   type MapContext,
   type MutationContext,
   type Page,
   type PageParams,
   type Single,
   type SystemPort,
-} from "@jarvis/adapter-core";
+} from "@friday/adapter-core";
 import { nodeHost, type HostApi } from "./host";
 import { DEFAULT_URLS, PROVIDER_SYSTEM, manifest } from "./manifest";
 import {
@@ -89,7 +89,7 @@ function readSettings(config: Readonly<Record<string, unknown>>, host: HostApi):
       typeof config.hermesApiKeyFile === "string" && config.hermesApiKeyFile
         ? config.hermesApiKeyFile
         : undefined,
-    // Windows installs live on C:\ (C:\Jarvis); everything else has one root.
+    // Windows installs live on C:\ (C:\Friday); everything else has one root.
     storagePaths: paths.length > 0 ? paths : [host.platform === "win32" ? "C:\\" : "/"],
     enableGpuProbe: boolOr(config.enableGpuProbe, true),
     nvidiaSmiPath: stringOr(config.nvidiaSmiPath, "nvidia-smi"),
@@ -140,7 +140,7 @@ const unavailable = (): AdapterError =>
  * health by probing the installer's loopback ports, model lists from llama-server and Hermes. Read-only; the only
  * action is `system.healthcheck` (re-probe of one service).
  */
-export class LocalSystemAdapter implements SystemPort, JarvisAdapter {
+export class LocalSystemAdapter implements SystemPort, FridayAdapter {
   readonly manifest = manifest;
 
   private context: AdapterContext | undefined;

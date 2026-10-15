@@ -1,5 +1,5 @@
 {
-  "name": "@jarvis/adapter-things-http",
+  "name": "@friday/adapter-things-http",
   "version": "0.1.0",
   "private": true,
   "description": "Adapter-Vorlage: Things (HTTP)",
@@ -12,10 +12,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@jarvis/adapter-core": "workspace:*",
-    "@jarvis/sdk": "workspace:*"
+    "@friday/adapter-core": "workspace:*",
+    "@friday/sdk": "workspace:*"
   },
   "devDependencies": {
-    "@jarvis/adapter-testkit": "workspace:*"
+    "@friday/adapter-testkit": "workspace:*"
   }
 }

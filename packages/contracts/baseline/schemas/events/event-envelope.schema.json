@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/events/event-envelope.schema.json",
+  "$id": "https://friday.local/schemas/events/event-envelope.schema.json",
   "title": "EventEnvelope",
   "description": "CloudEvents-inspired envelope (PLAN §12.3). sequence is global and strictly increasing.",
   "type": "object",
@@ -14,7 +14,7 @@
     },
     "type": {
       "type": "string",
-      "pattern": "^jarvis\\.[a-z_]+\\.[a-z_]+$"
+      "pattern": "^friday\\.[a-z_]+\\.[a-z_]+$"
     },
     "source": {
       "type": "string",

@@ -1,7 +1,7 @@
 "use client";
 
-import type { Channel } from "@jarvis/sdk";
-import { Button, Dialog, Select, TextField, useToast } from "@jarvis/ui";
+import type { Channel } from "@friday/sdk";
+import { Button, Dialog, Select, TextField, useToast } from "@friday/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { useT } from "@/i18n";

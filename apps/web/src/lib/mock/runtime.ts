@@ -1,7 +1,7 @@
 import type { TransportFactory } from "../realtime/transport";
 
-/** True when the build/dev server was started for the standalone mock mode (`NEXT_PUBLIC_JARVIS_MSW=1`). */
-export const isStandaloneMock = (): boolean => process.env.NEXT_PUBLIC_JARVIS_MSW === "1";
+/** True when the build/dev server was started for the standalone mock mode (`NEXT_PUBLIC_FRIDAY_MSW=1`). */
+export const isStandaloneMock = (): boolean => process.env.NEXT_PUBLIC_FRIDAY_MSW === "1";
 
 interface MockRuntime {
   transportFactory: TransportFactory;

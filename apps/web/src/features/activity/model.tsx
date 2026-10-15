@@ -1,5 +1,5 @@
-import type { ActivityEvent, ActivityKind, Severity } from "@jarvis/sdk";
-import type { Tone } from "@jarvis/ui";
+import type { ActivityEvent, ActivityKind, Severity } from "@friday/sdk";
+import type { Tone } from "@friday/ui";
 import { Activity, Bot, Check, FileText, Globe, ListChecks, MessageSquare, Plug, Terminal, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ActivityFilters } from "@/lib/api/domains/activity";

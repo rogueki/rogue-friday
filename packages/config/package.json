@@ -1,5 +1,5 @@
 {
-  "name": "@jarvis/config",
+  "name": "@friday/config",
   "version": "1.0.0",
   "private": true,
   "description": "Konfigurationslader und -schemas",

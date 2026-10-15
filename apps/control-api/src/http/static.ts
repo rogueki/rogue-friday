@@ -101,7 +101,7 @@ export class StaticWeb {
     const resolved = this.resolveFile(path);
     if (!resolved) {
       reply.status(404).header("Content-Type", "text/plain; charset=utf-8");
-      reply.send(this.available ? "Nicht gefunden." : "Die Web-Oberfläche ist nicht gebaut (pnpm --filter @jarvis/web build).");
+      reply.send(this.available ? "Nicht gefunden." : "Die Web-Oberfläche ist nicht gebaut (pnpm --filter @friday/web build).");
       return;
     }
     const { file, status } = resolved;

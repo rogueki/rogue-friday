@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/system/model-provider-list-response.schema.json",
+  "$id": "https://friday.local/schemas/system/model-provider-list-response.schema.json",
   "title": "ModelProviderListResponse",
   "description": "Cursor-paginated list envelope for ModelProvider.",
   "type": "object",

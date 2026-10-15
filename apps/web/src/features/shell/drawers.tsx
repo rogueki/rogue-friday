@@ -1,8 +1,8 @@
 "use client";
 
-import type { ActivityEvent, ActivityKind } from "@jarvis/sdk";
-import { ActivityRow, Button, Drawer, EmptyState, ErrorState, IconButton, PanelLink, Skeleton } from "@jarvis/ui";
-import { isJarvisApiError } from "@jarvis/sdk";
+import type { ActivityEvent, ActivityKind } from "@friday/sdk";
+import { ActivityRow, Button, Drawer, EmptyState, ErrorState, IconButton, PanelLink, Skeleton } from "@friday/ui";
+import { isFridayApiError } from "@friday/sdk";
 import { Activity as ActivityIcon, Bot, Check, FileText, Globe, ListChecks, MessageSquare, Plug, Terminal, Wrench } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -87,7 +87,7 @@ export function LiveActivityDrawer() {
       {query.isPending ? (
         <Skeleton variant="row" height={48} label={t("common.loading")} />
       ) : query.isError ? (
-        <ErrorState compact title={t("common.loadError")} description={isJarvisApiError(query.error) ? query.error.message : undefined} code={isJarvisApiError(query.error) ? query.error.code : undefined} correlationId={isJarvisApiError(query.error) ? query.error.correlationId : undefined} onRetry={() => void query.refetch()} retryLabel={t("common.retry")} />
+        <ErrorState compact title={t("common.loadError")} description={isFridayApiError(query.error) ? query.error.message : undefined} code={isFridayApiError(query.error) ? query.error.code : undefined} correlationId={isFridayApiError(query.error) ? query.error.correlationId : undefined} onRetry={() => void query.refetch()} retryLabel={t("common.retry")} />
       ) : query.data.items.length === 0 ? (
         <EmptyState compact title={t("drawer.activity.empty")} />
       ) : (

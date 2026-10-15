@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/notifications/notification-list-response.schema.json",
+  "$id": "https://friday.local/schemas/notifications/notification-list-response.schema.json",
   "title": "NotificationListResponse",
   "description": "Cursor-paginated list envelope for Notification.",
   "type": "object",

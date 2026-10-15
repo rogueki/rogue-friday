@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/tasks/task.schema.json",
+  "$id": "https://friday.local/schemas/tasks/task.schema.json",
   "title": "Task",
   "description": "Unit of work processed by an agent (PLAN §28.3).",
   "type": "object",

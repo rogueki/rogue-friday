@@ -1,8 +1,8 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/theme-import-request.schema.json",
+  "$schema": "https://friday.local/schemas/settings/theme-import-request.schema.json",
   "theme": {
-    "id": "jarvis-command-gold-core",
-    "name": "Jarvis Command / Gold Core",
+    "id": "friday-command-gold-core",
+    "name": "Friday Command / Gold Core",
     "builtIn": true,
     "tokens": {
       "color.primary": "#27dcff",

@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type AdapterManifest } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type AdapterManifest } from "@friday/sdk";
 
 /** Hermes spans three port categories; there is ONE adapter per category (see README). */
 export type HermesCategory = "tasks" | "activity" | "agents";
@@ -8,7 +8,7 @@ export const HERMES_CATEGORIES: readonly HermesCategory[] = ["tasks", "activity"
 
 export const adapterIdFor = (category: HermesCategory): string => `hermes-${category}`;
 export const configSchemaIdFor = (category: HermesCategory): string =>
-  `urn:jarvis:adapter:${adapterIdFor(category)}:config`;
+  `urn:friday:adapter:${adapterIdFor(category)}:config`;
 
 const NAMES: Readonly<Record<HermesCategory, string>> = {
   tasks: "Hermes Aufgaben",
@@ -73,7 +73,7 @@ export function configSchemaFor(category: HermesCategory) {
         type: "string",
         minLength: 1,
         description:
-          "Alternative zu apiKey: Pfad der Schlüsseldatei, z. B. C:\\Jarvis\\config\\hermes_api.key. Der Inhalt wird nur serverseitig gelesen.",
+          "Alternative zu apiKey: Pfad der Schlüsseldatei, z. B. C:\\Friday\\config\\hermes_api.key. Der Inhalt wird nur serverseitig gelesen.",
       },
       dashboardBaseUrl: {
         type: "string",

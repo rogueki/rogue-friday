@@ -1,4 +1,4 @@
-import type { ActivityEvent } from "@jarvis/sdk";
+import type { ActivityEvent } from "@friday/sdk";
 import {
   AdapterError,
   assertCanonicalEvent,
@@ -13,7 +13,7 @@ import {
   type MapContext,
   type Page,
   type Single,
-} from "@jarvis/adapter-core";
+} from "@friday/adapter-core";
 import { ActivityBuffer } from "./activity-buffer";
 import { kanbanEventToDraft, sessionMessagesToDrafts, type ActivityDraft } from "./activity-mapping";
 import { HermesAdapterBase, healthMessage, type HealthProbeResult } from "./base";
@@ -44,7 +44,7 @@ interface PendingDraft {
 /**
  * Activity on Hermes. There is no activity feed in Hermes: the adapter assembles one from the API server's session
  * messages (user requests, assistant answers, tool calls) and the Kanban `task_events` stream, keeps it in an
- * in-memory ring buffer and emits `jarvis.activity.appended` for everything that is new.
+ * in-memory ring buffer and emits `friday.activity.appended` for everything that is new.
  */
 export class HermesActivityAdapter extends HermesAdapterBase implements ActivityPort {
   readonly manifest = manifestFor("activity");
@@ -286,7 +286,7 @@ export class HermesActivityAdapter extends HermesAdapterBase implements Activity
 
   private toEvent(event: ActivityEvent): AdapterEventInput {
     return {
-      type: "jarvis.activity.appended",
+      type: "friday.activity.appended",
       subject: `activity/${event.id}`,
       data: event,
       correlationId: event.correlationId,

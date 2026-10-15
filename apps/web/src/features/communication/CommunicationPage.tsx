@@ -1,7 +1,7 @@
 "use client";
 
-import type { Channel, Priority } from "@jarvis/sdk";
-import { Button, Drawer, EmptyState, FilterBar, HudPanel, useMediaQuery } from "@jarvis/ui";
+import type { Channel, Priority } from "@friday/sdk";
+import { Button, Drawer, EmptyState, FilterBar, HudPanel, useMediaQuery } from "@friday/ui";
 import { MailPlus, MailSearch, MessagesSquare } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 import { PanelFrame, type PanelState } from "@/components/PanelFrame";

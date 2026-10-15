@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/config/dashboard.schema.json",
+  "$id": "https://friday.local/schemas/config/dashboard.schema.json",
   "title": "dashboard.yaml",
   "type": "object",
   "additionalProperties": false,
@@ -51,7 +51,7 @@
           "description": "Secret reference to the owner's scrypt hash (env:NAME, file:ABSOLUTE_PATH or wincred:TARGET). The value itself is never loaded into the config object.",
           "type": "string",
           "pattern": "^(env|wincred|file):.+$",
-          "default": "env:JARVIS_OWNER_PASSWORD_HASH"
+          "default": "env:FRIDAY_OWNER_PASSWORD_HASH"
         },
         "sessionTtlMinutes": { "type": "integer", "minimum": 5, "maximum": 10080, "default": 720 },
         "reauthWindowMinutes": { "type": "integer", "minimum": 1, "maximum": 60, "default": 5 },
@@ -86,8 +86,8 @@
           "maxLength": 40,
           "default": "F.R.I.D.A.Y."
         },
-        "theme": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$", "default": "jarvis-command-midnight" },
-        "layout": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$", "default": "jarvis-command-overview" }
+        "theme": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$", "default": "friday-command-midnight" },
+        "layout": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$", "default": "friday-command-overview" }
       }
     },
     "dev": {

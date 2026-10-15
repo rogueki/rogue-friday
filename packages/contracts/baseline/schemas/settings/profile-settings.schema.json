@@ -1,11 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/profile-settings.schema.json",
+  "$id": "https://friday.local/schemas/settings/profile-settings.schema.json",
   "title": "ProfileSettings",
   "type": "object",
   "properties": {
     "displayName": {
       "type": "string"
+    },
+    "assistantName": {
+      "description": "Visible brand name of the assistant (UI, orb labels, voice copy). Optional; clients fall back to \"F.R.I.D.A.Y.\".",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
     },
     "locale": {
       "type": "string",

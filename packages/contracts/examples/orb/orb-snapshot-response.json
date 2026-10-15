@@ -1,10 +1,10 @@
 {
-  "$schema": "https://jarvis.local/schemas/orb/orb-snapshot-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/orb/orb-snapshot-response.schema.json",
+  "contractVersion": "2.0.0",
   "data": {
     "status": {
       "mode": "working",
-      "activityText": "Jarvis recherchiert Angebote",
+      "activityText": "F.R.I.D.A.Y. recherchiert Angebote",
       "detailText": "Agent „Recherche“ liest 3 Quellen",
       "progress": 0.62,
       "progressMode": "determinate",

@@ -1,4 +1,4 @@
-import type { AdapterConfigSettings, Layout, Role, Settings, Theme } from "@jarvis/sdk";
+import type { AdapterConfigSettings, Layout, Role, Settings, Theme } from "@friday/sdk";
 import { jsonResponse } from "@/test/render";
 
 /** Fake Control API for the settings and scenario console component tests: routes by method and path, records every call. */
@@ -17,7 +17,7 @@ export function makeSettings(partial: Partial<Settings> = {}): Settings {
     updatedAt: "2026-10-14T08:00:00Z",
     profile: { displayName: "Erik Brandt", assistantName: "F.R.I.D.A.Y.", locale: "de", timeZone: "Europe/Berlin", dateFormat: "dd.MM.yyyy", timeFormat: "24h", firstDayOfWeek: "monday" },
     dashboard: { activeLayoutId: "default", fontScale: 1, backgroundGrid: true, soundEffects: false, autoRefreshSeconds: 30, compact: false },
-    theme: { activeThemeId: "jarvis-navy-cyan", cyanIntensity: 1, panelOpacity: 0.72, goldIntensity: 1 },
+    theme: { activeThemeId: "friday-navy-cyan", cyanIntensity: 1, panelOpacity: 0.72, goldIntensity: 1 },
     orb: {
       preset: "gold",
       size: 1,
@@ -39,7 +39,7 @@ export function makeSettings(partial: Partial<Settings> = {}): Settings {
     security: { sessionTimeoutMinutes: 480, reauthWindowMinutes: 10, allowRemoteAccess: false, auditHashChain: true, trustedOrigins: ["http://127.0.0.1:3100"] },
     approvals: { defaultExpiryMinutes: 60, draftOnlyByDefault: true, confirmTier2: true, reauthTier3: true, notifyOnRequest: true },
     dataRetention: { activityDays: 90, auditDays: 365, voiceHistoryDays: 30, notificationDays: 60, temporaryFileDays: 7, memoryDefaultTtlDays: null },
-    backups: { enabled: true, schedule: "0 3 * * *", targetPath: "D:\\Jarvis\\backups", retentionCount: 7, lastBackupAt: null, lastBackupStatus: "never" },
+    backups: { enabled: true, schedule: "0 3 * * *", targetPath: "D:\\Friday\\backups", retentionCount: 7, lastBackupAt: null, lastBackupStatus: "never" },
     developer: { debugMode: false, showRawJson: false, scenarioConsole: true, orbPerfOverlay: false, logLevel: "info" },
     adapters: [],
     ...partial,
@@ -48,7 +48,7 @@ export function makeSettings(partial: Partial<Settings> = {}): Settings {
 
 export const THEMES: Theme[] = [
   {
-    id: "jarvis-navy-cyan",
+    id: "friday-navy-cyan",
     name: "F.R.I.D.A.Y. Navy & Cyan",
     description: "Standardthema",
     builtIn: true,
@@ -102,9 +102,9 @@ export const ADAPTERS: AdapterConfigSettings[] = [
 ];
 
 const FRESH = () => ({ state: "fresh" as const, asOf: "2026-10-14T08:00:00Z" });
-const single = (data: unknown): Response => jsonResponse({ contractVersion: "1.0.0", data, freshness: FRESH() });
+const single = (data: unknown): Response => jsonResponse({ contractVersion: "2.0.0", data, freshness: FRESH() });
 const list = (items: unknown[]): Response =>
-  jsonResponse({ contractVersion: "1.0.0", items, pageInfo: { nextCursor: null, hasNextPage: false }, freshness: FRESH(), sources: [] });
+  jsonResponse({ contractVersion: "2.0.0", items, pageInfo: { nextCursor: null, hasNextPage: false }, freshness: FRESH(), sources: [] });
 const apiError = (status: number, code: string, message: string): Response =>
   jsonResponse({ error: { code, message, severity: "warning", retryable: false, correlationId: "corr_01JAAAAAAAAAAAAAAAAAAAAAAA", details: {} } }, status);
 
@@ -154,7 +154,7 @@ export function createFakeApi(options: FakeApiOptions = {}) {
       return single({ authenticated: true, user: { id: "usr_01JAAAAAAAAAAAAAAAAAAAAAAA", username: "erik", displayName: "Erik Brandt", role }, role, csrfToken: "csrf", expiresAt: "2026-10-14T18:00:00Z", reauthUntil: null });
     }
     if (method === "GET" && path === "/meta") {
-      return jsonResponse({ contractVersion: "1.0.0", apiVersion: "v1", dataMode: "mock", eventsPath: "/api/v1/events", buildVersion: "test", features: { devScenarios: options.devScenarios ?? true }, defaultLocale: "de" });
+      return jsonResponse({ contractVersion: "2.0.0", apiVersion: "v1", dataMode: "mock", eventsPath: "/api/v1/events", buildVersion: "test", features: { devScenarios: options.devScenarios ?? true }, defaultLocale: "de" });
     }
     if (method === "GET" && path === "/settings") return single(state.settings);
     if (method === "PATCH" && path === "/settings") {
@@ -167,7 +167,7 @@ export function createFakeApi(options: FakeApiOptions = {}) {
     }
     if (method === "GET" && path === "/settings/export") {
       const { adapters: _adapters, version: _version, updatedAt: _updatedAt, ...areas } = state.settings;
-      return jsonResponse({ contractVersion: "1.0.0", exportedAt: "2026-10-14T08:00:00Z", settings: areas, themes: THEMES, layouts: state.layouts });
+      return jsonResponse({ contractVersion: "2.0.0", exportedAt: "2026-10-14T08:00:00Z", settings: areas, themes: THEMES, layouts: state.layouts });
     }
     if (method === "POST" && path === "/settings/import") return single(state.settings);
     if (method === "POST" && path === "/settings/themes/import") return single((body as { theme: Theme }).theme);
@@ -185,7 +185,7 @@ export function createFakeApi(options: FakeApiOptions = {}) {
       return single({ adapterId: "mock-communication", success: true, latencyMs: 12, message: "Verbindung erfolgreich getestet.", testedAt: "2026-10-14T08:00:00Z", correlationId: "corr_01JAAAAAAAAAAAAAAAAAAAAAAA" });
     }
     if (method === "GET" && path === "/capabilities") {
-      return jsonResponse({ contractVersion: "1.0.0", modules: { tasks: { read: true, create: true }, mail: { read: true, send: true }, system: { read: true } } });
+      return jsonResponse({ contractVersion: "2.0.0", modules: { tasks: { read: true, create: true }, mail: { read: true, send: true }, system: { read: true } } });
     }
     if (method === "GET" && path === "/voice/devices") return list([]);
     if (method === "GET" && path === "/system/models") return list([]);

@@ -1,7 +1,7 @@
 "use client";
 
-import type { AgentStatus } from "@jarvis/sdk";
-import { Button, FilterBar, StatusDot, type FilterChip, type FilterDef } from "@jarvis/ui";
+import type { AgentStatus } from "@friday/sdk";
+import { Button, FilterBar, StatusDot, type FilterChip, type FilterDef } from "@friday/ui";
 import { useEffect, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { DataOrigin, DateFormatterProvider, ReadOnlyNotice, resolvePanelState, useModuleAccess, useModuleSection, useQueryParams } from "@/features/tasks/moduleKit";

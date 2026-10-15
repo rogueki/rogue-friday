@@ -1,9 +1,9 @@
 openapi: 3.1.1
 info:
-  title: JARVIS Control API
-  version: 1.0.0
-  summary: Contract of the Jarvis Command Center control API
-  description: Single source of truth for all REST interactions between the dashboard and the Jarvis Control API. The dashboard never talks to adapters or backing systems directly. Real-time events are described in the AsyncAPI document (`asyncapi/jarvis-events.yaml`). Models live in `schemas/` (JSON Schema 2020-12). Breaking changes require a major version bump.
+  title: FRIDAY Control API
+  version: 2.0.0
+  summary: Contract of the Friday Command Center control API
+  description: Single source of truth for all REST interactions between the dashboard and the Friday Control API. The dashboard never talks to adapters or backing systems directly. Real-time events are described in the AsyncAPI document (`asyncapi/friday-events.yaml`). Models live in `schemas/` (JSON Schema 2020-12). Breaking changes require a major version bump.
   license:
     name: Proprietary
     identifier: LicenseRef-Proprietary
@@ -334,7 +334,7 @@ paths:
       operationId: getStatus
       tags:
         - overview
-      summary: Compact overall Jarvis status
+      summary: Compact overall Friday status
       parameters:
         - $ref: "#/components/parameters/CorrelationId"
       responses:
@@ -346,7 +346,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/JarvisStatusResponse"
+                $ref: "#/components/schemas/FridayStatusResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -4963,9 +4963,9 @@ paths:
               schema:
                 type: string
               example: |
-                # HELP jarvis_http_requests_total HTTP requests handled
-                # TYPE jarvis_http_requests_total counter
-                jarvis_http_requests_total{method="GET",route="/api/v1/health",status="200"} 12
+                # HELP friday_http_requests_total HTTP requests handled
+                # TYPE friday_http_requests_total counter
+                friday_http_requests_total{method="GET",route="/api/v1/health",status="200"} 12
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -5159,7 +5159,7 @@ components:
     cookieAuth:
       type: apiKey
       in: cookie
-      name: jarvis_session
+      name: friday_session
       description: HttpOnly, SameSite=Strict session cookie. Mutating requests additionally need X-CSRF-Token.
   parameters:
     Cursor:
@@ -5584,10 +5584,10 @@ components:
       $ref: ../schemas/system/frontend-error-report.schema.json
     HealthStatus:
       $ref: ../schemas/common/health-status.schema.json
-    JarvisStatus:
-      $ref: ../schemas/meta/jarvis-status.schema.json
-    JarvisStatusResponse:
-      $ref: ../schemas/meta/jarvis-status-response.schema.json
+    FridayStatus:
+      $ref: ../schemas/meta/friday-status.schema.json
+    FridayStatusResponse:
+      $ref: ../schemas/meta/friday-status-response.schema.json
     JsonSchemaObject:
       $ref: ../schemas/common/json-schema-object.schema.json
     LatencyStat:

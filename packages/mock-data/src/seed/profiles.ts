@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type Agent, type Approval, type Task } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type Agent, type Approval, type Task } from "@friday/sdk";
 import { defaultCapabilities } from "../core/constants";
 import type { IdFactory } from "../core/ids";
 import { Rng } from "../core/prng";

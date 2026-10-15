@@ -1,4 +1,4 @@
-import type { Actor, Agent, Approval, AuditEvent, Task } from "@jarvis/sdk";
+import type { Actor, Agent, Approval, AuditEvent, Task } from "@friday/sdk";
 import { createAuditEvent, type AuditDraft } from "../core/audit-chain";
 import { DAY, HOUR, MIN, type SeedContext } from "./context";
 

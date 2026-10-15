@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   AUDIO_FIXTURE_NAMES,
-  JarvisOrb,
+  FridayOrb,
   layersFromStatus,
   type AudioFixtureName,
   type OrbAnimations,
@@ -132,7 +132,7 @@ function Demo() {
   const panel = (
     <div className={`panel ${s.size}`} data-testid="orb-panel">
       <div className="panel__title">AI Core</div>
-      <JarvisOrb
+      <FridayOrb
         status={status}
         layers={layers}
         settings={settings}

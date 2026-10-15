@@ -1,4 +1,4 @@
-# Lint ruleset for the Jarvis contract. Start from the recommended set and only relax what is justified below.
+# Lint ruleset for the Friday contract. Start from the recommended set and only relax what is justified below.
 extends:
   - recommended
 

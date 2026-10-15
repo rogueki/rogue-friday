@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/memory/memory.schema.json",
+  "$id": "https://friday.local/schemas/memory/memory.schema.json",
   "title": "Memory",
   "description": "Stored knowledge item (PLAN §30). Nothing is hidden: provenance, usage and history are visible.",
   "type": "object",

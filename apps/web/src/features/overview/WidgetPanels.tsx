@@ -1,6 +1,6 @@
 "use client";
 
-import type { CalendarEvent, ModelProvider, Overview, Task } from "@jarvis/sdk";
+import type { CalendarEvent, ModelProvider, Overview, Task } from "@friday/sdk";
 import {
   ActivityRow,
   AgentCard,
@@ -16,7 +16,7 @@ import {
   type ProviderStatus,
   type Tone,
   type TimelineItem,
-} from "@jarvis/ui";
+} from "@friday/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, Bot, CalendarDays, ChevronDown, Cpu, FileText, Mail, Mic, Pause, Plus, Server, Sparkles, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";

@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/settings-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/settings/settings-response.schema.json",
+  "contractVersion": "2.0.0",
   "data": {
     "version": 5,
     "updatedAt": "2026-10-14T08:00:00Z",
@@ -14,7 +14,7 @@
       "firstDayOfWeek": "monday"
     },
     "dashboard": {
-      "activeLayoutId": "jarvis-command-overview",
+      "activeLayoutId": "friday-command-overview",
       "fontScale": 1,
       "backgroundGrid": true,
       "soundEffects": false,
@@ -22,7 +22,7 @@
       "compact": false
     },
     "theme": {
-      "activeThemeId": "jarvis-command-gold-core",
+      "activeThemeId": "friday-command-gold-core",
       "cyanIntensity": 0.8,
       "panelOpacity": 0.88,
       "goldIntensity": 0.78
@@ -147,7 +147,7 @@
     "backups": {
       "enabled": true,
       "schedule": "0 3 * * *",
-      "targetPath": "D:\\Jarvis\\Backups",
+      "targetPath": "D:\\Friday\\Backups",
       "retentionCount": 14,
       "lastBackupAt": "2026-10-14T03:00:00Z",
       "lastBackupStatus": "success"

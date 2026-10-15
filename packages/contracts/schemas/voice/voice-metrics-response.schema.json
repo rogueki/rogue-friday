@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/voice/voice-metrics-response.schema.json",
+  "$id": "https://friday.local/schemas/voice/voice-metrics-response.schema.json",
   "title": "VoiceMetricsResponse",
   "description": "Single-resource envelope for VoiceMetrics.",
   "type": "object",

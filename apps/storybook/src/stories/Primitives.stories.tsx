@@ -16,7 +16,7 @@ import {
   VisuallyHidden,
   type FreshnessState,
   type HealthState,
-} from '@jarvis/ui';
+} from '@friday/ui';
 import { Row, Section } from './_helpers';
 
 const meta = { title: 'Components/Primitives', parameters: { layout: 'fullscreen' } } satisfies Meta;
@@ -141,7 +141,7 @@ export const Buttons: Story = {
         <Button variant="ghost">Ghost</Button>
         <Button variant="subtle">Subtle</Button>
         <Button variant="danger" icon={<Trash2 />}>Gefahr</Button>
-        <Button variant="jarvis">F.R.I.D.A.Y. (Gold)</Button>
+        <Button variant="friday">F.R.I.D.A.Y. (Gold)</Button>
       </Row>
       <Row>
         <Button size="sm">Klein</Button>

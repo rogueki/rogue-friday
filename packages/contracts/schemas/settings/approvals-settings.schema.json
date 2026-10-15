@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/approvals-settings.schema.json",
+  "$id": "https://friday.local/schemas/settings/approvals-settings.schema.json",
   "title": "ApprovalSettings",
   "type": "object",
   "properties": {

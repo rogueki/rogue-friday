@@ -1,6 +1,6 @@
 "use client";
 
-import type { ActivityEvent, ActivityEventListResponse, ActivityEventResponse, ActivityKind, Severity } from "@jarvis/sdk";
+import type { ActivityEvent, ActivityEventListResponse, ActivityEventResponse, ActivityKind, Severity } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";

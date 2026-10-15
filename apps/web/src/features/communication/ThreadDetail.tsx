@@ -1,7 +1,7 @@
 "use client";
 
-import type { Channel, Message, Thread } from "@jarvis/sdk";
-import { Button, IconTile, Skeleton, StatusChip, TagPill, useToast } from "@jarvis/ui";
+import type { Channel, Message, Thread } from "@friday/sdk";
+import { Button, IconTile, Skeleton, StatusChip, TagPill, useToast } from "@friday/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, FileText, ListChecks, Paperclip, Reply, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";

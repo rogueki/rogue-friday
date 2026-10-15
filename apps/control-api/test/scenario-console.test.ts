@@ -49,34 +49,34 @@ describe("scenario console: release_orb_state and play_event", () => {
     it("publishes the event with its payload on the event stream", async () => {
       probe.frames.length = 0;
       const payload = { utteranceId: "utt_demo_0001", text: "Wie ist der Stand", final: false, confidence: 0.8, language: "de", startedAt: "2026-10-14T08:15:00Z" };
-      const response = await control({ action: "play_event", eventType: "jarvis.voice.transcript_partial", subject: "voice/utterance", payload });
+      const response = await control({ action: "play_event", eventType: "friday.voice.transcript_partial", subject: "voice/utterance", payload });
       expect(response.statusCode, response.body).toBe(200);
-      await probe.waitFor(() => probe.events().some((event) => event.type === "jarvis.voice.transcript_partial"), 3_000, "abgespieltes Ereignis");
-      const event = probe.events().find((candidate) => candidate.type === "jarvis.voice.transcript_partial");
+      await probe.waitFor(() => probe.events().some((event) => event.type === "friday.voice.transcript_partial"), 3_000, "abgespieltes Ereignis");
+      const event = probe.events().find((candidate) => candidate.type === "friday.voice.transcript_partial");
       expect(event.data).toEqual(payload);
       expect(event.subject).toBe("voice/utterance");
     });
 
     it("derives the payload from the current state for state-mirroring event types", async () => {
       probe.frames.length = 0;
-      for (const eventType of ["jarvis.orb.status_changed", "jarvis.status.changed", "jarvis.system.metrics", "jarvis.voice.state_changed"]) {
+      for (const eventType of ["friday.orb.status_changed", "friday.status.changed", "friday.system.metrics", "friday.voice.state_changed"]) {
         const response = await control({ action: "play_event", eventType });
         expect(response.statusCode, `${eventType}: ${response.body}`).toBe(200);
       }
-      const wanted = ["jarvis.orb.status_changed", "jarvis.status.changed", "jarvis.system.metrics", "jarvis.voice.state_changed"];
+      const wanted = ["friday.orb.status_changed", "friday.status.changed", "friday.system.metrics", "friday.voice.state_changed"];
       await probe.waitFor(() => wanted.every((type) => probe.events().some((event) => event.type === type)), 3_000, "vier abgespielte Ereignisse");
     });
 
     it("rejects an unknown event type, a missing payload and a payload that violates the event schema", async () => {
-      const unknown = await control({ action: "play_event", eventType: "jarvis.nothing.happened", payload: {} });
+      const unknown = await control({ action: "play_event", eventType: "friday.nothing.happened", payload: {} });
       expect(unknown.statusCode).toBe(422);
       expect(unknown.json().error.code).toBe("VALIDATION_FAILED");
 
-      const missing = await control({ action: "play_event", eventType: "jarvis.task.created" });
+      const missing = await control({ action: "play_event", eventType: "friday.task.created" });
       expect(missing.statusCode).toBe(422);
       expect(missing.json().error.details.fieldErrors).toEqual([{ path: "payload", message: "erforderlich" }]);
 
-      const invalid = await control({ action: "play_event", eventType: "jarvis.voice.transcript_partial", payload: { text: 5 } });
+      const invalid = await control({ action: "play_event", eventType: "friday.voice.transcript_partial", payload: { text: 5 } });
       expect(invalid.statusCode).toBe(422);
       expect(invalid.json().error.details.fieldErrors.length).toBeGreaterThan(0);
 
@@ -86,10 +86,10 @@ describe("scenario console: release_orb_state and play_event", () => {
 
     it("does not publish anything for rejected events", async () => {
       probe.frames.length = 0;
-      const rejected = await control({ action: "play_event", eventType: "jarvis.task.created", payload: { id: "kaputt" } });
+      const rejected = await control({ action: "play_event", eventType: "friday.task.created", payload: { id: "kaputt" } });
       expect(rejected.statusCode).toBe(422);
       await new Promise((resolve) => setTimeout(resolve, 150));
-      expect(probe.events().some((event) => event.type === "jarvis.task.created")).toBe(false);
+      expect(probe.events().some((event) => event.type === "friday.task.created")).toBe(false);
     });
   });
 });

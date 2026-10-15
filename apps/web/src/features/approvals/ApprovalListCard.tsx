@@ -1,7 +1,7 @@
 "use client";
 
-import type { Approval } from "@jarvis/sdk";
-import { Button, IconTile, StatusDot, TagPill, cx } from "@jarvis/ui";
+import type { Approval } from "@friday/sdk";
+import { Button, IconTile, StatusDot, TagPill, cx } from "@friday/ui";
 import { Bot, Clock3, KeyRound, ListChecks, ShieldAlert } from "lucide-react";
 import { useT, type MessageKey } from "@/i18n";
 import { useDateFormatter } from "@/features/tasks/moduleKit";

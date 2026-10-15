@@ -1,7 +1,7 @@
 "use client";
 
-import type { Settings } from "@jarvis/sdk";
-import { Button, ConfirmDialog, Select, Slider, StatusChip, Switch, TextField } from "@jarvis/ui";
+import type { Settings } from "@friday/sdk";
+import { Button, ConfirmDialog, Select, Slider, StatusChip, Switch, TextField } from "@friday/ui";
 import { LogOut, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";

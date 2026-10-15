@@ -21,7 +21,7 @@ export type AdapterCategory = (typeof ADAPTER_CATEGORIES)[number];
 export const DATA_MODES = ['mock', 'hybrid', 'live'] as const;
 export type DataMode = (typeof DATA_MODES)[number];
 
-export const MOCK_ADAPTER_PACKAGE = '@jarvis/adapter-mock';
+export const MOCK_ADAPTER_PACKAGE = '@friday/adapter-mock';
 
 export function mockProviderId(category: AdapterCategory): string {
   return `mock-${category}`;

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/research/research-finding.schema.json",
+  "$id": "https://friday.local/schemas/research/research-finding.schema.json",
   "title": "ResearchFinding",
   "description": "A statement together with the sources that support it and known contradictions.",
   "type": "object",

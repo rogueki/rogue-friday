@@ -6,8 +6,8 @@ import { detectBreaking } from "./lib/breaking.mjs";
 import { loadSchemas, paths, readYaml } from "./lib/contract.mjs";
 
 const baselinePaths = {
-  openapi: path.join(paths.baseline, "openapi", "jarvis-api.yaml"),
-  asyncapi: path.join(paths.baseline, "asyncapi", "jarvis-events.yaml"),
+  openapi: path.join(paths.baseline, "openapi", "friday-api.yaml"),
+  asyncapi: path.join(paths.baseline, "asyncapi", "friday-events.yaml"),
   schemas: path.join(paths.baseline, "schemas"),
 };
 
@@ -17,7 +17,7 @@ export function runBreakingCheck() {
   if (!fs.existsSync(baselinePaths.openapi)) {
     return {
       ok: false,
-      error: "baseline/ is missing; create it once with `pnpm --filter @jarvis/contracts baseline:update`.",
+      error: "baseline/ is missing; create it once with `pnpm --filter @friday/contracts baseline:update`.",
       changes: [],
     };
   }

@@ -1,4 +1,4 @@
-import type { ActivityEvent, ActivityKind, Actor, Agent, Severity, Task, TaskToolCall } from "@jarvis/sdk";
+import type { ActivityEvent, ActivityKind, Actor, Agent, Severity, Task, TaskToolCall } from "@friday/sdk";
 import { MIN, type SeedContext } from "./context";
 
 type ActivityStatus = ActivityEvent["status"];

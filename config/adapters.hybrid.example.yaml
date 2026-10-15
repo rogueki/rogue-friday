@@ -3,22 +3,22 @@
 #
 # Hybrid: Aufgaben, Aktivitaet und Agenten kommen live von Hermes, Sprache vom Voice-Dienst, Systemdaten vom lokalen
 # Rechner. Alle anderen Kategorien (Speicher, Freigaben, Kommunikation, Kalender, ...) bleiben mock-* und sind in der
-# Oberflaeche als Simulation erkennbar. Aus dem Installer (C:\Jarvis) stammen die Ports und der Hermes-Schluessel:
+# Oberflaeche als Simulation erkennbar. Aus dem Installer (C:\Friday) stammen die Ports und der Hermes-Schluessel:
 #   43691 Hermes-Dashboard   43692 Qwen (llama-server)   43693 Hermes-API-Server   43694 Voice-Statusserver
 #
 # Geheimnisse stehen nie im Klartext in dieser Datei: file:<absoluter Pfad> liest den Schluessel nur serverseitig aus der
-# Datei (C:\Jarvis\config\hermes_api.key), env:NAME aus der Umgebung, wincred:ZIEL aus dem Windows-Credential-Manager.
+# Datei (C:\Friday\config\hermes_api.key), env:NAME aus der Umgebung, wincred:ZIEL aus dem Windows-Credential-Manager.
 # ${VAR:-Standard} ist nur fuer unkritische Werte wie Pfade und URLs gedacht.
 
-# Provider-ID -> npm-Paket (nur diese Pakete laedt die Registry). Die Ids hermes-* und jarvis-voice-http gibt es auch als
-# Platzhalter-Paket (@jarvis/adapter-*-placeholder); zeigt die Allowlist noch auf einen Platzhalter, nimmt die Control API
+# Provider-ID -> npm-Paket (nur diese Pakete laedt die Registry). Die Ids hermes-* und friday-voice-http gibt es auch als
+# Platzhalter-Paket (@friday/adapter-*-placeholder); zeigt die Allowlist noch auf einen Platzhalter, nimmt die Control API
 # trotzdem den echten Adapter und schreibt eine Warnung ins Log.
 allowlist:
-  hermes-tasks: "@jarvis/adapter-hermes"
-  hermes-activity: "@jarvis/adapter-hermes"
-  hermes-agents: "@jarvis/adapter-hermes"
-  jarvis-voice-http: "@jarvis/adapter-voice-http"
-  local-system: "@jarvis/adapter-system-local"
+  hermes-tasks: "@friday/adapter-hermes"
+  hermes-activity: "@friday/adapter-hermes"
+  hermes-agents: "@friday/adapter-hermes"
+  friday-voice-http: "@friday/adapter-voice-http"
+  local-system: "@friday/adapter-system-local"
 
 adapters:
   tasks:
@@ -35,7 +35,7 @@ adapters:
     timeoutMs: 10000
     config:
       apiBaseUrl: http://127.0.0.1:43693
-      apiKey: "file:${HERMES_API_KEY_FILE:-C:/Jarvis/config/hermes_api.key}"
+      apiKey: "file:${HERMES_API_KEY_FILE:-C:/Friday/config/hermes_api.key}"
       dashboardBaseUrl: http://127.0.0.1:43691
       boards: [default]
   agents:
@@ -44,11 +44,11 @@ adapters:
     timeoutMs: 10000
     config:
       apiBaseUrl: http://127.0.0.1:43693
-      apiKey: "file:${HERMES_API_KEY_FILE:-C:/Jarvis/config/hermes_api.key}"
+      apiKey: "file:${HERMES_API_KEY_FILE:-C:/Friday/config/hermes_api.key}"
       dashboardBaseUrl: http://127.0.0.1:43691
       boards: [default]
   voice:
-    provider: jarvis-voice-http
+    provider: friday-voice-http
     enabled: true
     timeoutMs: 3000
     config:
@@ -64,8 +64,8 @@ adapters:
       hermesApiUrl: http://127.0.0.1:43693
       hermesDashboardUrl: http://127.0.0.1:43691
       voiceUrl: http://127.0.0.1:43694
-      hermesApiKey: "file:${HERMES_API_KEY_FILE:-C:/Jarvis/config/hermes_api.key}"
-      storagePaths: ["${JARVIS_STORAGE_PATH:-C:/}"]
+      hermesApiKey: "file:${HERMES_API_KEY_FILE:-C:/Friday/config/hermes_api.key}"
+      storagePaths: ["${FRIDAY_STORAGE_PATH:-C:/}"]
       wslDistro: Ubuntu
 
   # Nicht genannte Kategorien (memory, approvals, communication, calendar, automations, research, files, notifications,

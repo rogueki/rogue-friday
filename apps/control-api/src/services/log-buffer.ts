@@ -1,5 +1,5 @@
-import { createRedactor, getCorrelationContext, type LogLevel, type Logger } from "@jarvis/observability";
-import type { AdapterLogEntry } from "@jarvis/sdk";
+import { createRedactor, getCorrelationContext, type LogLevel, type Logger } from "@friday/observability";
+import type { AdapterLogEntry } from "@friday/sdk";
 
 type Level = AdapterLogEntry["level"];
 type Context = AdapterLogEntry["context"];

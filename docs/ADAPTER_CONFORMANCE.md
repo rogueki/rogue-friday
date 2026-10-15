@@ -1,7 +1,7 @@
 # Adapter Conformance Suite
 
 Jeder Adapter muss dieselben Tests bestehen (PLAN §11). Sie sichern die "Goldene Regel": ein produktiver Adapter ist ohne Frontendänderung
-gegen den Mock austauschbar. Die Suite liegt in `@jarvis/adapter-testkit` (`packages/adapter-testkit`) und läuft auf Vitest.
+gegen den Mock austauschbar. Die Suite liegt in `@friday/adapter-testkit` (`packages/adapter-testkit`) und läuft auf Vitest.
 
 ## Ausführen
 
@@ -17,7 +17,7 @@ pnpm exec vitest run adapters/example-http   # ein Adapter
 ## Test einbinden
 
 ```ts
-import { runConformanceSuite } from "@jarvis/adapter-testkit";
+import { runConformanceSuite } from "@friday/adapter-testkit";
 
 runConformanceSuite({
   name: "example-http (ExampleTasks)",
@@ -86,7 +86,7 @@ Testnamen beginnen mit dem Prüfpunkt. Die Fehlermeldungen nennen die verletzte 
 | 14  | schema mapping                                           | Liste, Einzelabruf und Mutationsergebnis validieren mit `validatePortResult` gegen das SDK-Schema (wie in der Registry)                                                                                   | falsche Enum-Werte, fehlende Pflichtfelder, ID ohne Präfix                                 |
 | 15  | error normalization                                      | HTTP 400/401/403/404/409/422/429/500/502/503/504, Verbindungsabbruch, kaputtes JSON, ECONNREFUSED, 404 am Einzelabruf -> kanonische Codes mit korrektem `retryable`                                       | Tabelle in ADAPTER_SDK §3                                                                  |
 | 16  | auth error / permission error                            | 401 -> `UNAUTHENTICATED`, 403 -> `FORBIDDEN`, je genau 1 Request; Health meldet bei 401 nicht `online`                                                                                                    | 401 wird als `INTERNAL` oder `ADAPTER_UNAVAILABLE` gemeldet                                |
-| 17  | event mapping                                            | `pollEvents()` liefert genau die erwarteten kanonischen Typen in Reihenfolge, jede Payload gültig gegen `JARVIS_EVENT_DATA_SCHEMA_IDS`, keine Fremdfelder                                                 | falscher Event-Typ, Payload verletzt Schema                                                |
+| 17  | event mapping                                            | `pollEvents()` liefert genau die erwarteten kanonischen Typen in Reihenfolge, jede Payload gültig gegen `FRIDAY_EVENT_DATA_SCHEMA_IDS`, keine Fremdfelder                                                 | falscher Event-Typ, Payload verletzt Schema                                                |
 | 18  | reconnect                                                | Abbruch des Eventstroms (alle Versuche) -> `ADAPTER_UNAVAILABLE`, nichts verloren; nächster Poll liefert die Events genau einmal, weiterer Poll 0, neue Events folgen                                     | Cursor wird vor dem Emit weitergeschoben (Verlust) oder gar nicht (Duplikate)              |
 | 19  | idempotency                                              | gleicher Key zweimal -> ein Seiteneffekt, gleiche ID; Key kommt als `Idempotency-Key` beim Fremdsystem an; neuer Key -> zweiter Seiteneffekt                                                              | Key nicht weitergereicht                                                                   |
 | 20  | mutations are not retried without an idempotency key     | 503 bei Mutation ohne Key -> genau 1 Request                                                                                                                                                              | Retry auf POST ohne Key (doppelte Ausführung)                                              |

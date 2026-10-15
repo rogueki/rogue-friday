@@ -6,7 +6,7 @@ import type {
   ResearchProjectListResponse,
   ResearchProjectResponse,
   ResearchSourceListResponse,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";

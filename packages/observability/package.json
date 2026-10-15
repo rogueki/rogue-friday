@@ -1,5 +1,5 @@
 {
-  "name": "@jarvis/observability",
+  "name": "@friday/observability",
   "version": "1.0.0",
   "private": true,
   "description": "Strukturierte Logs, Korrelation, Redaction, Metriken",

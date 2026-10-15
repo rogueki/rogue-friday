@@ -1,7 +1,7 @@
 "use client";
 
-import type { Agent } from "@jarvis/sdk";
-import { useToast } from "@jarvis/ui";
+import type { Agent } from "@friday/sdk";
+import { useToast } from "@friday/ui";
 import { useCallback, useMemo } from "react";
 import { useT } from "@/i18n";
 import { useAgentAction } from "@/lib/api/domains/agents";

@@ -1,2 +1,2 @@
-// `msw/node` is only imported lazily by @jarvis/mock-data's Node test setup, which Storybook never calls.
+// `msw/node` is only imported lazily by @friday/mock-data's Node test setup, which Storybook never calls.
 export {};

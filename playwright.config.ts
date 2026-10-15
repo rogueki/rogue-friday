@@ -31,8 +31,8 @@ export default defineConfig({
   webServer: {
     command: "pnpm exec tsx tests/e2e/stack.ts",
     url: `${API_ORIGIN}/api/v1/health`,
-    // JARVIS_E2E_REUSE=1: attach to an already running `pnpm exec tsx tests/e2e/stack.ts` (faster spec development).
-    reuseExistingServer: process.env.JARVIS_E2E_REUSE === "1",
+    // FRIDAY_E2E_REUSE=1: attach to an already running `pnpm exec tsx tests/e2e/stack.ts` (faster spec development).
+    reuseExistingServer: process.env.FRIDAY_E2E_REUSE === "1",
     timeout: 600_000, // includes `pnpm build:app` when the build is missing
     stdout: "pipe",
     stderr: "pipe",

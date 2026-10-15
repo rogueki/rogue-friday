@@ -14,9 +14,9 @@ import {
   type SchemaValidator,
   type Theme,
   type ThemeImportRequest,
-} from "@jarvis/sdk";
-import type { JarvisConfig } from "@jarvis/config";
-import type { Logger } from "@jarvis/observability";
+} from "@friday/sdk";
+import type { FridayConfig } from "@friday/config";
+import type { Logger } from "@friday/observability";
 import { kvGet, kvSet, type Db } from "../db/database";
 import type { LibraryStore } from "../db/stores";
 import { ApiError, conflict, validationFailed } from "../util/errors";
@@ -58,10 +58,10 @@ const NAVIGATION_ORDER = [
   "settings",
 ];
 
-export const FALLBACK_THEME_ID = "jarvis-command-midnight";
-export const FALLBACK_LAYOUT_ID = "jarvis-command-overview";
+export const FALLBACK_THEME_ID = "friday-command-midnight";
+export const FALLBACK_LAYOUT_ID = "friday-command-overview";
 
-export function defaultSettingsAreas(config: JarvisConfig): SettingsAreas {
+export function defaultSettingsAreas(config: FridayConfig): SettingsAreas {
   const locale = config.ui.locale.toLowerCase().startsWith("en") ? "en" : "de";
   return {
     profile: {
@@ -78,7 +78,7 @@ export function defaultSettingsAreas(config: JarvisConfig): SettingsAreas {
     orb: {
       preset: "gold-reference",
       size: 1,
-      // 0..100 like the contract and @jarvis/orb's defaults (1 would render the orb at 1 % intensity).
+      // 0..100 like the contract and @friday/orb's defaults (1 would render the orb at 1 % intensity).
       intensity: 70,
       speed: 1,
       particleDensity: 60,
@@ -275,7 +275,7 @@ const FALLBACK_LAYOUT: Layout = {
 };
 
 /** (Re)seeds the built-in themes/layouts from `config/themes` and `config/layouts`; corrupt files are skipped, not fatal. */
-export function seedLibrary(library: LibraryStore, config: JarvisConfig, validator: SchemaValidator, logger: Logger): void {
+export function seedLibrary(library: LibraryStore, config: FridayConfig, validator: SchemaValidator, logger: Logger): void {
   const themes: Array<{ id: string; value: Theme }> = [];
   for (const { file, value } of readJsonFiles(join(config.configDir, "themes"), logger)) {
     const theme = normalizeTheme(value, validator);
@@ -310,7 +310,7 @@ export class SettingsService {
 
   constructor(
     private readonly db: Db,
-    private readonly config: JarvisConfig,
+    private readonly config: FridayConfig,
     private readonly validator: SchemaValidator,
     private readonly library: LibraryStore,
     private readonly adapters: () => AdapterConfigSettings[],

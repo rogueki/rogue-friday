@@ -1,6 +1,6 @@
 import Ajv2020, { type ValidateFunction } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import { SCHEMAS, SCHEMA_IDS } from "@jarvis/sdk";
+import { SCHEMAS, SCHEMA_IDS } from "@friday/sdk";
 import type { QueryParamSpec, RouteSpec } from "./route-types";
 import { ApiError } from "../util/errors";
 

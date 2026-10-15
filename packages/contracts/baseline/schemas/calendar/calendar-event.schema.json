@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/calendar/calendar-event.schema.json",
+  "$id": "https://friday.local/schemas/calendar/calendar-event.schema.json",
   "title": "CalendarEvent",
   "description": "Calendar entry (PLAN §34). All times UTC; timeZone is the display zone of the event.",
   "type": "object",

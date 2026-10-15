@@ -1,20 +1,20 @@
 # Adapter SDK
 
-Der Adapter SDK (`@jarvis/adapter-core`) ist die einzige Brücke zwischen der F.R.I.D.A.Y. Control API und einem Fremdsystem
+Der Adapter SDK (`@friday/adapter-core`) ist die einzige Brücke zwischen der F.R.I.D.A.Y. Control API und einem Fremdsystem
 (PLAN §10). Das Frontend spricht nie mit Hermes, GMX, Voice, Kalender oder dem Betriebssystem, sondern nur mit der Control API; diese
 arbeitet ausschließlich über **Ports** und austauschbare **Adapter**. Ein produktiver Adapter lässt sich gegen den Mock-Adapter
 austauschen, ohne Frontend, Routen, UI-Typen oder Komponenten zu ändern (PLAN §11.2 "Goldene Regel").
 
 | Paket                                                  | Inhalt                                                                                                |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `@jarvis/adapter-core` (`packages/adapter-core`)       | Interfaces, Ports, Fehler, Resilienz, Health, Registry, Mapping-Helfer, HTTP-Client                   |
-| `@jarvis/adapter-testkit` (`packages/adapter-testkit`) | Conformance-Suite, Fake-Upstream (siehe [ADAPTER_CONFORMANCE.md](ADAPTER_CONFORMANCE.md))             |
+| `@friday/adapter-core` (`packages/adapter-core`)       | Interfaces, Ports, Fehler, Resilienz, Health, Registry, Mapping-Helfer, HTTP-Client                   |
+| `@friday/adapter-testkit` (`packages/adapter-testkit`) | Conformance-Suite, Fake-Upstream (siehe [ADAPTER_CONFORMANCE.md](ADAPTER_CONFORMANCE.md))             |
 | `adapters/example-http`                                | vollständiger Referenzadapter (Kategorie `tasks`) gegen eine fiktive REST-API                         |
 | `adapters/*-placeholder`                               | geplante Anbindungen (Hermes, Voice, GMX, Kalender, System): "Nicht konfiguriert", keine Capabilities |
 | `packages/adapter-core/template`                       | kopierbare Vorlage für einen neuen Adapter                                                            |
 | `docs/MAPPING/*.md`                                    | Feldtabellen je Fremdsystem                                                                           |
 
-Typen kommen ausschließlich aus `@jarvis/sdk` (generiert aus `packages/contracts`). **Es werden keine DTO-Typen von Hand gepflegt.**
+Typen kommen ausschließlich aus `@friday/sdk` (generiert aus `packages/contracts`). **Es werden keine DTO-Typen von Hand gepflegt.**
 
 ## 1. Konzepte
 
@@ -24,7 +24,7 @@ Fremdsystem ──► Adapter (Mapper, validiert) ──► Registry (Timeout, R
 
 - **Port**: schmales Interface je Domäne (`TaskPort`, `MemoryPort`, ...). Jede Methode entspricht genau einer OpenAPI-Operation
   (gleicher Name wie die `operationId`).
-- **Adapter**: implementiert `JarvisAdapter` (Lebenszyklus) plus den Port seiner Kategorie. Er übersetzt Fremdobjekte in kanonische Modelle.
+- **Adapter**: implementiert `FridayAdapter` (Lebenszyklus) plus den Port seiner Kategorie. Er übersetzt Fremdobjekte in kanonische Modelle.
 - **Capability**: `<modul>.<flag>`, z. B. `tasks.create`. Die Control API schaltet Aktionen im UI danach frei (`GET /capabilities`).
 - **Registry**: lädt nur allowlistete Adapter, isoliert Fehler, erzwingt Resilienz und prüft jedes Ergebnis gegen den Vertrag.
 - **Source-Descriptor**: jede Ressource trägt `source {adapterId, system, externalId?, lastSyncedAt}`.
@@ -32,11 +32,11 @@ Fremdsystem ──► Adapter (Mapper, validiert) ──► Registry (Timeout, R
 
 ## 2. Schnittstellen
 
-### 2.1 `JarvisAdapter` (PLAN §10.3)
+### 2.1 `FridayAdapter` (PLAN §10.3)
 
 ```ts
-interface JarvisAdapter {
-  readonly manifest: AdapterManifest; // aus @jarvis/sdk
+interface FridayAdapter {
+  readonly manifest: AdapterManifest; // aus @friday/sdk
   initialize(context: AdapterContext): Promise<void>; // leicht; kein Netzwerkzwang
   healthCheck(): Promise<AdapterHealthReport>; // wirft nie
   getCapabilities(): Promise<CapabilitySet>; // Teilmenge von manifest.capabilities
@@ -54,7 +54,7 @@ interface JarvisAdapter {
 | `clock`             | **statt** `Date.now()`/`setTimeout`: `clock.now()`, `clock.setTimeout(cb, ms)` -> Cancel-Funktion; macht Mocks und Tests deterministisch (`createManualClock()`)                                             |
 | `config`            | gegen das Config-Schema validiert, Defaults angewendet; **ohne** Secret-Felder                                                                                                                               |
 | `getSecret(field)`  | einziger Zugriff auf Secrets (nur Felder aus `manifest.secretFields`)                                                                                                                                        |
-| `emit(event)`       | kanonisches Ereignis `{type, subject, data, correlationId?, causationId?}` ohne Envelope; Hub vergibt `id`, `time`, `sequence`; Payload wird gegen `JARVIS_EVENT_DATA_SCHEMA_IDS` validiert, Verstöße werfen |
+| `emit(event)`       | kanonisches Ereignis `{type, subject, data, correlationId?, causationId?}` ohne Envelope; Hub vergibt `id`, `time`, `sequence`; Payload wird gegen `FRIDAY_EVENT_DATA_SCHEMA_IDS` validiert, Verstöße werfen |
 | `signal`            | `AbortSignal`, bei Shutdown abgebrochen                                                                                                                                                                      |
 | `correlationId()`   | Korrelations-ID des laufenden Port-Aufrufs (AsyncLocalStorage), sonst eine frische                                                                                                                           |
 
@@ -308,7 +308,7 @@ ONLINE|DEGRADED|OFFLINE|RECOVERING|INITIALIZING -> STOPPING -> STOPPED   (STOPPE
 
 - erster Fehler im Betrieb -> `DEGRADED`; ab 3 Fehlern in Folge -> `OFFLINE`; erste Prüfung/Wiederanlauf mit Fehler -> sofort `OFFLINE`;
 - `online`-Meldung über 3 s Latenz -> `DEGRADED`; Erfolg nach `OFFLINE` -> `RECOVERING` -> `ONLINE`;
-- `jarvis.adapter.health_changed` nur bei echter Änderung; nach Recovery wird `getCapabilities()` neu gelesen.
+- `friday.adapter.health_changed` nur bei echter Änderung; nach Recovery wird `getCapabilities()` neu gelesen.
 
 Ein Adapter, der nicht serviert (`OFFLINE`, `STOPPED`), trägt nichts zu `GET /capabilities` bei: das UI zeigt "Nicht verbunden".
 
@@ -355,7 +355,7 @@ Verhalten:
   **Verstoß -> `VALIDATION_FAILED`, Log, nichts wird weitergegeben.** Fehler tragen die `correlationId` des Aufrufs.
 - **Retry von Mutationen:** nur mit `idempotencyKey`.
 - **Capabilities:** `communication.*` füllt zusätzlich das Modul `mail`; `sources` enthält die Adapter-IDs, die das Modul tatsächlich bedienen.
-  Änderungen lösen `jarvis.adapter.capabilities_changed` aus.
+  Änderungen lösen `friday.adapter.capabilities_changed` aus.
 
 ## 7. Mapping-Helfer
 
@@ -366,7 +366,7 @@ Verhalten:
 | `sourceDescriptor(adapterId, system, externalId, lastSyncedAt)` / `createMapContext` | `source`-Feld, einheitlicher `lastSyncedAt` je Antwort                                                                                |
 | `createId(prefix, seed?)`                                                            | deterministische (mit Seed) oder zufällige ID `<prefix>_<26 Zeichen>`                                                                 |
 | `createIdCodec(prefix)`                                                              | Fremd-ID <-> Vertrags-ID; reversibel bis 15 Byte, sonst Hash mit Merktabelle; `require(id)` -> `NOT_FOUND`                            |
-| `defineEventMapper({name, toCanonical})`                                             | Fremdereignis -> `{type, subject, data}`; prüft Typ, Subject und `data` gegen `JARVIS_EVENT_DATA_SCHEMA_IDS`; `null` verwirft bewusst |
+| `defineEventMapper({name, toCanonical})`                                             | Fremdereignis -> `{type, subject, data}`; prüft Typ, Subject und `data` gegen `FRIDAY_EVENT_DATA_SCHEMA_IDS`; `null` verwirft bewusst |
 | `validatePortResult(spec, result, {what})`                                           | dieselbe Ergebnisprüfung wie die Registry (für Tests)                                                                                 |
 | `createPlaceholderAdapter(...)`                                                      | "Nicht konfiguriert"-Adapter ohne Capabilities                                                                                        |
 
@@ -374,7 +374,7 @@ Verhalten:
 
 Beispiel: neues System "Things" für die Kategorie `tasks`. Alle zehn Schritte; **keine Frontendänderung**.
 
-1. **Template kopieren.** `packages/adapter-core/template` nach `adapters/things-http` kopieren; `package.json`-Name `@jarvis/adapter-things-http`, `pnpm install`.
+1. **Template kopieren.** `packages/adapter-core/template` nach `adapters/things-http` kopieren; `package.json`-Name `@friday/adapter-things-http`, `pnpm install`.
    (Vorlage prüfen: Kopie in `adapters/` anlegen und `pnpm test:conformance` ausführen.)
 2. **Manifest anpassen** (`id` in `^[a-z0-9][a-z0-9-]*$`, `category`, `contractVersion` aus `CONTRACT_VERSION`, `secretFields`).
 3. **Config-Schema definieren** (JSON Schema 2020-12 mit `$id` = `manifest.configSchemaRef`; Secrets `writeOnly: true`; Defaults im Schema).
@@ -392,7 +392,7 @@ Beispiel: neues System "Things" für die Kategorie `tasks`. Alle zehn Schritte; 
 
 ### Die Regel "keine Frontendänderung"
 
-Wenn ein Schritt eine Änderung in `apps/web`, `@jarvis/ui` oder den Routen verlangt, ist die Abbildung falsch: das Frontend kennt nur kanonische Modelle und
+Wenn ein Schritt eine Änderung in `apps/web`, `@friday/ui` oder den Routen verlangt, ist die Abbildung falsch: das Frontend kennt nur kanonische Modelle und
 Capabilities. Fehlt dem Modell ein Feld, beginnt die Änderung im Vertrag (`packages/contracts`, PLAN §7), nicht im Adapter. Provider-Namen, Ports
 und URLs stehen nie im Frontend.
 

@@ -1,7 +1,7 @@
 "use client";
 
-import type { CalendarBriefing, CalendarConflict, CalendarEvent } from "@jarvis/sdk";
-import { Button, StatusChip } from "@jarvis/ui";
+import type { CalendarBriefing, CalendarConflict, CalendarEvent } from "@friday/sdk";
+import { Button, StatusChip } from "@friday/ui";
 import { AlertTriangle, CalendarPlus, FileText } from "lucide-react";
 import { useMemo } from "react";
 import { PanelFrame } from "@/components/PanelFrame";

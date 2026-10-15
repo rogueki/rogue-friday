@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createCorrelationId } from "@jarvis/sdk";
+import { createCorrelationId } from "@friday/sdk";
 import { configSchema } from "../src";
 import {
   assertCapabilitiesMatchMethods,

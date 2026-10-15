@@ -1,6 +1,6 @@
-import { PORT_CATEGORIES, type PortCategory } from "@jarvis/adapter-core";
-import { runConformanceSuite, type FakeUpstream } from "@jarvis/adapter-testkit";
-import { MockWorld, type WorldState } from "@jarvis/mock-data";
+import { PORT_CATEGORIES, type PortCategory } from "@friday/adapter-core";
+import { runConformanceSuite, type FakeUpstream } from "@friday/adapter-testkit";
+import { MockWorld, type WorldState } from "@friday/mock-data";
 import { MockAdapterBase, createMockAdapterFactory, httpTransport, mockConfigSchema, mockSecretFields } from "../src";
 
 /**

@@ -1,4 +1,4 @@
-import type { OrbMode, ScenarioControlRequest } from "@jarvis/sdk";
+import type { OrbMode, ScenarioControlRequest } from "@friday/sdk";
 
 /** Mock events of PLAN §44.5 and the orb mode each one forces (same mapping as the `pnpm scenario` CLI). */
 export const EVENT_MODES = {

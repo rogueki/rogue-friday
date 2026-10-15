@@ -1,6 +1,6 @@
 "use client";
 
-import type { AdapterInfo, HealthStatus, ModelProvider, Service, StorageVolume, SystemMetrics } from "@jarvis/sdk";
+import type { AdapterInfo, HealthStatus, ModelProvider, Service, StorageVolume, SystemMetrics } from "@friday/sdk";
 import {
   Button,
   CircularMetric,
@@ -18,7 +18,7 @@ import {
   type DataTableColumn,
   type ProviderStatus,
   type Tone,
-} from "@jarvis/ui";
+} from "@friday/ui";
 import { Activity, Cpu, FileText, HardDrive, Network, PlugZap, RefreshCw, RotateCcw, Server, ShieldCheck, Sparkles, Thermometer, Waypoints } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useMemo, useState, type ReactNode } from "react";
@@ -205,7 +205,7 @@ export function StoragePanel() {
     emptyIcon: <HardDrive {...ICON} />,
     freshness: query.data?.freshness,
   });
-  // The jarvis data drive (D:\) comes first; everything else keeps the server order.
+  // The friday data drive (D:\) comes first; everything else keeps the server order.
   const sorted = useMemo(() => [...volumes].sort((a, b) => Number(/^D:/i.test(b.mount)) - Number(/^D:/i.test(a.mount))), [volumes]);
   return (
     <PanelFrame

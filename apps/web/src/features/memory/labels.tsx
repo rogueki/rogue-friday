@@ -1,5 +1,5 @@
-import type { Memory, MemorySensitivity, MemoryType } from "@jarvis/sdk";
-import type { Tone } from "@jarvis/ui";
+import type { Memory, MemorySensitivity, MemoryType } from "@friday/sdk";
+import type { Tone } from "@friday/ui";
 import { BookOpen, Building2, FolderKanban, Gavel, History, Link2, ListChecks, SlidersHorizontal, UserRound, type LucideIcon } from "lucide-react";
 import type { MessageKey } from "@/i18n";
 

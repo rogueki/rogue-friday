@@ -277,7 +277,7 @@ export function SourceBadge({ source, mode, prefix = 'Quelle', modeLabels, class
 
 /* ── Button / IconButton ────────────────────────────────────────────────── */
 
-export type ButtonVariant = 'primary' | 'ghost' | 'danger' | 'jarvis' | 'subtle';
+export type ButtonVariant = 'primary' | 'ghost' | 'danger' | 'friday' | 'subtle';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;

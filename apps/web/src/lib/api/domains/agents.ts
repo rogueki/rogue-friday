@@ -1,6 +1,6 @@
 "use client";
 
-import type { AgentListResponse, AgentResponse, AgentStatus } from "@jarvis/sdk";
+import type { AgentListResponse, AgentResponse, AgentStatus } from "@friday/sdk";
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";

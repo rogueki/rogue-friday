@@ -1,7 +1,7 @@
 "use client";
 
-import type { Channel, ChannelStatus, EscalationStep } from "@jarvis/sdk";
-import { Button, IconTile, StatusChip } from "@jarvis/ui";
+import type { Channel, ChannelStatus, EscalationStep } from "@friday/sdk";
+import { Button, IconTile, StatusChip } from "@friday/ui";
 import { Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";

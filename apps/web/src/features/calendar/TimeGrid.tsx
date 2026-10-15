@@ -1,6 +1,6 @@
 "use client";
 
-import type { CalendarEvent } from "@jarvis/sdk";
+import type { CalendarEvent } from "@friday/sdk";
 import { AlertTriangle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/i18n";

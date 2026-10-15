@@ -1,7 +1,7 @@
 {
-  "$schema": "https://jarvis.local/schemas/orb/orb-status.schema.json",
+  "$schema": "https://friday.local/schemas/orb/orb-status.schema.json",
   "mode": "working",
-  "activityText": "Jarvis recherchiert Angebote",
+  "activityText": "F.R.I.D.A.Y. recherchiert Angebote",
   "detailText": "Agent „Recherche“ liest 3 Quellen",
   "progress": 0.62,
   "progressMode": "determinate",

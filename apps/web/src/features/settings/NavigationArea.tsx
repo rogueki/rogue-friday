@@ -2,14 +2,14 @@
 
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Select, StatusChip, Switch } from "@jarvis/ui";
+import { Select, StatusChip, Switch } from "@friday/ui";
 import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
 import { useT } from "@/i18n";
 import { NAV_PAGES, type NavPageId } from "@/features/shell/navModel";
 import { FieldGrid, Section } from "./controls";
 import { useAreaDraft } from "./SettingsDrafts";
 import { moveItem, normalizeNavOrder } from "./settingsLogic";
-import type { Settings } from "@jarvis/sdk";
+import type { Settings } from "@friday/sdk";
 
 interface RowProps {
   id: NavPageId;

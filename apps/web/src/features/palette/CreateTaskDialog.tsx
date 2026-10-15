@@ -1,7 +1,7 @@
 "use client";
 
-import type { Priority } from "@jarvis/sdk";
-import { Button, Dialog, Select, TextField, useToast } from "@jarvis/ui";
+import type { Priority } from "@friday/sdk";
+import { Button, Dialog, Select, TextField, useToast } from "@friday/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";

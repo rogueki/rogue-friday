@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type AdapterInfo, type Freshness, type Health, type HealthStatus, type Meta, type PageInfo } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type AdapterInfo, type Freshness, type Health, type HealthStatus, type Meta, type PageInfo } from "@friday/sdk";
 import { EVENTS_PATH } from "../realtime/hub";
 import type { Handler, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";

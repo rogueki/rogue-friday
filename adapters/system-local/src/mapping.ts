@@ -1,5 +1,5 @@
-import type { HealthcheckResult, ModelProvider, Service, StorageVolume, SystemMetrics } from "@jarvis/sdk";
-import { defineMapper } from "@jarvis/adapter-core";
+import type { HealthcheckResult, ModelProvider, Service, StorageVolume, SystemMetrics } from "@friday/sdk";
+import { defineMapper } from "@friday/adapter-core";
 import { contractId } from "./ids";
 import type { FsStats } from "./host";
 import { clampPercent, round1, type GpuReading } from "./parsers";

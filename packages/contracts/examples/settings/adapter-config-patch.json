@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/adapter-config-patch.schema.json",
+  "$schema": "https://friday.local/schemas/settings/adapter-config-patch.schema.json",
   "enabled": true,
   "config": {
     "timeoutMs": 5000

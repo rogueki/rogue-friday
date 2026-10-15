@@ -1,4 +1,4 @@
-import type { ControlFrame, JarvisEvent } from "@jarvis/sdk";
+import type { ControlFrame, FridayEvent } from "@friday/sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POLL_INTERVAL_MS, RECONNECT_MAX_MS, RECONNECT_MIN_MS, reconnectDelay } from "./backoff";
 import { RealtimeClient, type RealtimeSnapshot } from "./client";
@@ -30,7 +30,7 @@ class FakeTransport implements RealtimeTransport {
   }
 }
 
-function event(sequence: number, type: JarvisEvent["type"] = "jarvis.task.updated", data: unknown = {}): unknown {
+function event(sequence: number, type: FridayEvent["type"] = "friday.task.updated", data: unknown = {}): unknown {
   return {
     specversion: "1.0",
     id: `evt_${sequence}`,
@@ -40,7 +40,7 @@ function event(sequence: number, type: JarvisEvent["type"] = "jarvis.task.update
     time: "2026-10-14T08:00:00Z",
     sequence,
     correlationId: "corr_x",
-    contractVersion: "1.0.0",
+    contractVersion: "2.0.0",
     data,
   };
 }
@@ -169,7 +169,7 @@ describe("RealtimeClient events", () => {
     transport.open();
     transport.message(event(41));
     transport.message(event(42));
-    expect(first.storage.map.get("jarvis.realtime.sequence")).toBe("42");
+    expect(first.storage.map.get("friday.realtime.sequence")).toBe("42");
 
     const reloaded = createHarness({ storage: Object.fromEntries(first.storage.map) });
     reloaded.client.start();
@@ -190,7 +190,7 @@ describe("RealtimeClient events", () => {
     transport.open();
     transport.message(event(5));
     transport.message(
-      event(50, "jarvis.status.resync_required", { reason: "sequence_too_old", requestedSince: 5, oldestAvailableSequence: 40, latestSequence: 50 }),
+      event(50, "friday.status.resync_required", { reason: "sequence_too_old", requestedSince: 5, oldestAvailableSequence: 40, latestSequence: 50 }),
     );
     expect(h.resyncs).toHaveLength(1);
     expect(h.client.getSequence()).toBe(50);
@@ -321,7 +321,7 @@ describe("RealtimeClient reconnect and polling", () => {
 describe("buildEventsUrl", () => {
   it("derives ws/wss from the page and appends since", () => {
     expect(buildEventsUrl({ eventsPath: "/api/v1/events" }, null, { protocol: "http:", host: "127.0.0.1:3100" })).toBe("ws://127.0.0.1:3100/api/v1/events");
-    expect(buildEventsUrl({ eventsPath: "/api/v1/events" }, 12, { protocol: "https:", host: "jarvis.local" })).toBe("wss://jarvis.local/api/v1/events?since=12");
+    expect(buildEventsUrl({ eventsPath: "/api/v1/events" }, 12, { protocol: "https:", host: "friday.local" })).toBe("wss://friday.local/api/v1/events?since=12");
   });
 
   it("prefers eventsOrigin and converts http to ws", () => {

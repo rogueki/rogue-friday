@@ -1,8 +1,8 @@
-import { runConformanceSuite } from "@jarvis/adapter-testkit";
+import { runConformanceSuite } from "@friday/adapter-testkit";
 import { voiceFactory } from "../src";
 
 runConformanceSuite({
-  name: "jarvis-voice-http (placeholder)",
+  name: "friday-voice-http (placeholder)",
   category: "voice",
   profile: "placeholder",
   createAdapter: () => ({

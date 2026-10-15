@@ -3,7 +3,7 @@ import type { MutableRefObject } from "react";
 /** Pull-based audio level (0..1), read once per rendered frame inside the animation loop (never through React state). */
 export type OrbAudioLevelReader = () => number;
 
-/** Holder the renderers read every frame; `JarvisOrb` keeps it in sync with its `getAudioLevel` / `audioLevelRef` props. */
+/** Holder the renderers read every frame; `FridayOrb` keeps it in sync with its `getAudioLevel` / `audioLevelRef` props. */
 export type OrbAudioSourceRef = MutableRefObject<OrbAudioLevelReader | undefined>;
 
 const clamp01 = (value: number): number => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0);

@@ -1,4 +1,4 @@
-import type { Priority, Task, TaskCreateRequest, TaskStatus, TaskUpdateRequest } from "@jarvis/sdk";
+import type { Priority, Task, TaskCreateRequest, TaskStatus, TaskUpdateRequest } from "@friday/sdk";
 import {
   createIdCodec,
   defineEventMapper,
@@ -6,7 +6,7 @@ import {
   type AdapterEventInput,
   type IdCodec,
   type MapContext,
-} from "@jarvis/adapter-core";
+} from "@friday/adapter-core";
 import type { RawClosedReason, RawEvent, RawItem, RawItemWrite, RawState } from "./provider-types";
 
 // Field tables: see docs/MAPPING/example-tasks.md
@@ -118,18 +118,18 @@ export function createTaskMapping(nowMs: () => number): TaskMapping {
   });
 
   const eventMapper = defineEventMapper<RawEvent>({
-    name: "ExampleTasks event -> jarvis.task.*",
+    name: "ExampleTasks event -> friday.task.*",
     toCanonical: (raw, context) => {
       const task = taskMapper.map(raw.item, context);
       const subject = `task/${task.id}`;
       switch (raw.kind) {
         case "item.created":
-          return { type: "jarvis.task.created", subject, data: task };
+          return { type: "friday.task.created", subject, data: task };
         case "item.updated":
-          return { type: "jarvis.task.updated", subject, data: task };
+          return { type: "friday.task.updated", subject, data: task };
         case "item.progress":
           return {
-            type: "jarvis.task.progress",
+            type: "friday.task.progress",
             subject,
             data: {
               taskId: task.id,
@@ -142,10 +142,10 @@ export function createTaskMapping(nowMs: () => number): TaskMapping {
           return {
             type:
               task.status === "cancelled"
-                ? "jarvis.task.cancelled"
+                ? "friday.task.cancelled"
                 : task.status === "failed"
-                  ? "jarvis.task.failed"
-                  : "jarvis.task.completed",
+                  ? "friday.task.failed"
+                  : "friday.task.completed",
             subject,
             data: task,
           };

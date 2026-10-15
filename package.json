@@ -1,5 +1,5 @@
 {
-  "name": "jarvis-command-center",
+  "name": "friday-command-center",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -8,14 +8,14 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "contracts:check": "pnpm --filter @jarvis/contracts check",
-    "contracts:generate": "pnpm --filter @jarvis/contracts generate",
-    "dev": "pnpm --parallel --filter @jarvis/control-api --filter @jarvis/web dev",
-    "dev:api": "pnpm --filter @jarvis/control-api dev",
-    "dev:web": "pnpm --filter @jarvis/web dev",
+    "contracts:check": "pnpm --filter @friday/contracts check",
+    "contracts:generate": "pnpm --filter @friday/contracts generate",
+    "dev": "pnpm --parallel --filter @friday/control-api --filter @friday/web dev",
+    "dev:api": "pnpm --filter @friday/control-api dev",
+    "dev:web": "pnpm --filter @friday/web dev",
     "build": "pnpm -r --workspace-concurrency=1 build",
-    "build:app": "pnpm -r --workspace-concurrency=1 --filter @jarvis/web --filter @jarvis/control-api build",
-    "start": "pnpm --filter @jarvis/control-api start",
+    "build:app": "pnpm -r --workspace-concurrency=1 --filter @friday/web --filter @friday/control-api build",
+    "start": "pnpm --filter @friday/control-api start",
     "start:hybrid": "node scripts/start-hybrid.mjs",
     "fake:upstreams": "tsx scripts/fake-upstreams/cli.ts",
     "typecheck": "pnpm -r typecheck",
@@ -23,12 +23,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:conformance": "pnpm --filter @jarvis/adapter-testkit test:conformance",
+    "test:conformance": "pnpm --filter @friday/adapter-testkit test:conformance",
     "test:e2e": "playwright test",
     "test:e2e:update": "playwright test --update-snapshots",
     "test:integration": "playwright test --config playwright.integration.config.ts",
-    "storybook": "pnpm --filter @jarvis/storybook dev",
-    "scenario": "pnpm --filter @jarvis/mock-console start --"
+    "storybook": "pnpm --filter @friday/storybook dev",
+    "scenario": "pnpm --filter @friday/mock-console start --"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

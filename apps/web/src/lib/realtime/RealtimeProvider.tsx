@@ -1,6 +1,6 @@
 "use client";
 
-import type { ActivityEvent } from "@jarvis/sdk";
+import type { ActivityEvent } from "@friday/sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, type ReactNode } from "react";
 import { pushAudioLevel, resetAudioLevels } from "@/features/orb/audioStore";
@@ -40,7 +40,7 @@ export function RealtimeProvider({ enabled, children }: { enabled: boolean; chil
       transportFactory: mockFactory ?? webSocketTransportFactory,
       callbacks: {
         onEvent: (event) => {
-          if (event.type === "jarvis.voice.audio_level") {
+          if (event.type === "friday.voice.audio_level") {
             pushAudioLevel(event.data.direction, event.data.level);
             return;
           }

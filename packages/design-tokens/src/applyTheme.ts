@@ -1,10 +1,10 @@
-import goldCore from './themes/jarvis-command-gold-core.json';
-import midnight from './themes/jarvis-command-midnight.json';
+import goldCore from './themes/friday-command-gold-core.json';
+import midnight from './themes/friday-command-midnight.json';
 import { THEME_TOKEN_MAP, type ThemeTokenKey } from './tokens';
 
 export type CornerStyle = 'technical-cut' | 'soft-cut' | 'square';
 
-export interface JarvisTheme {
+export interface FridayTheme {
   id: string;
   name: string;
   version?: number;
@@ -62,11 +62,11 @@ const SETTING_RANGES: Record<keyof ThemeSettings, readonly [number, number]> = {
 export const REFERENCE_BORDER_INTENSITY = 0.55;
 export const REFERENCE_BACKGROUND_OPACITY = 0.88;
 
-export const defaultTheme = goldCore as JarvisTheme;
-export const midnightTheme = midnight as JarvisTheme;
-export const themes: readonly JarvisTheme[] = [defaultTheme, midnightTheme];
+export const defaultTheme = goldCore as FridayTheme;
+export const midnightTheme = midnight as FridayTheme;
+export const themes: readonly FridayTheme[] = [defaultTheme, midnightTheme];
 
-export function getTheme(id: string): JarvisTheme | undefined {
+export function getTheme(id: string): FridayTheme | undefined {
   return themes.find((t) => t.id === id);
 }
 
@@ -80,7 +80,7 @@ const CORNER_STYLES: readonly string[] = ['technical-cut', 'soft-cut', 'square']
 export interface ThemeValidation {
   ok: boolean;
   errors: string[];
-  theme?: JarvisTheme;
+  theme?: FridayTheme;
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -146,7 +146,7 @@ export function validateTheme(input: unknown): ThemeValidation {
     }
   }
 
-  return errors.length === 0 ? { ok: true, errors, theme: input as unknown as JarvisTheme } : { ok: false, errors };
+  return errors.length === 0 ? { ok: true, errors, theme: input as unknown as FridayTheme } : { ok: false, errors };
 }
 
 // ── colour helpers ────────────────────────────────────────────────────────
@@ -194,7 +194,7 @@ const clamp = (v: number, [min, max]: readonly [number, number]): number =>
 // ── apply ─────────────────────────────────────────────────────────────────
 
 interface TargetState {
-  theme: JarvisTheme;
+  theme: FridayTheme;
   settings: ThemeSettings;
   written: Set<string>;
 }
@@ -322,13 +322,13 @@ export function getThemeSettings(target?: HTMLElement): ThemeSettings {
   return { ...((el && states.get(el)?.settings) || DEFAULT_THEME_SETTINGS) };
 }
 
-export function getActiveTheme(target?: HTMLElement): JarvisTheme {
+export function getActiveTheme(target?: HTMLElement): FridayTheme {
   const el = resolveTarget(target);
   return (el && states.get(el)?.theme) || defaultTheme;
 }
 
 /** Serialises a theme for export (§25.5). Contains no secrets by construction. */
-export function exportTheme(theme: JarvisTheme = defaultTheme): string {
+export function exportTheme(theme: FridayTheme = defaultTheme): string {
   return JSON.stringify(theme, null, 2);
 }
 

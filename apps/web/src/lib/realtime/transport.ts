@@ -1,4 +1,4 @@
-import type { ControlFrame } from "@jarvis/sdk";
+import type { ControlFrame } from "@friday/sdk";
 
 export interface TransportCloseInfo {
   code?: number;
@@ -16,7 +16,7 @@ export interface TransportHandlers {
 
 /**
  * Event transport behind the realtime client. The WebSocket is one implementation, the standalone mock mode
- * (`NEXT_PUBLIC_JARVIS_MSW=1`) plugs in an in-memory one; the client does not know the difference.
+ * (`NEXT_PUBLIC_FRIDAY_MSW=1`) plugs in an in-memory one; the client does not know the difference.
  */
 export interface RealtimeTransport {
   connect(handlers: TransportHandlers): void;
@@ -35,7 +35,7 @@ export type TransportFactory = (request: TransportRequest) => RealtimeTransport;
 const OPEN_STATE = 1;
 const CONNECTING_STATE = 0;
 
-/** Creates the socket; the standalone mock mode passes the in-memory WebSocket of `@jarvis/mock-data`. */
+/** Creates the socket; the standalone mock mode passes the in-memory WebSocket of `@friday/mock-data`. */
 export type SocketFactory = (url: string) => WebSocket;
 
 export class WebSocketTransport implements RealtimeTransport {

@@ -1,4 +1,4 @@
-import type { CalendarEvent } from "@jarvis/sdk";
+import type { CalendarEvent } from "@friday/sdk";
 import { addDays, civilKey, instantOf, parseCivilKey, type Civil } from "./dates";
 
 export const WORK_START_MIN = 8 * 60;

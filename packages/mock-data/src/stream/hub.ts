@@ -1,5 +1,5 @@
-import type { JarvisEvent } from "@jarvis/sdk";
-import { CONTRACT_VERSION } from "@jarvis/sdk";
+import type { FridayEvent } from "@friday/sdk";
+import { CONTRACT_VERSION } from "@friday/sdk";
 import type { MockWorld } from "../world/world";
 
 export interface HubOptions {
@@ -12,14 +12,14 @@ export interface HubSubscribeOptions {
   since?: number;
 }
 
-export type HubListener = (event: JarvisEvent) => void;
+export type HubListener = (event: FridayEvent) => void;
 
 /**
  * Ring buffer and fan-out over a world's event bus. Events already carry id, sequence and time; the hub adds replay
  * (`?since=`), the `resync_required` fallback for too-old cursors and heartbeat frames.
  */
 export class MockEventHub {
-  private buffer: JarvisEvent[] = [];
+  private buffer: FridayEvent[] = [];
   private readonly listeners = new Set<HubListener>();
   private readonly size: number;
   private unsubscribe: (() => void) | null;
@@ -45,7 +45,7 @@ export class MockEventHub {
   }
 
   /** Events after `since`, or `null` when the cursor is older than the buffer (resync needed). */
-  replay(since: number): JarvisEvent[] | null {
+  replay(since: number): FridayEvent[] | null {
     const oldest = this.oldestSequence;
     if (oldest === null) return since > this.latestSequence ? null : [];
     if (since < oldest - 1) return null;
@@ -75,8 +75,8 @@ export class MockEventHub {
     this.listeners.clear();
   }
 
-  private ingest(event: JarvisEvent): void {
-    if (event.type === "jarvis.status.resync_required") {
+  private ingest(event: FridayEvent): void {
+    if (event.type === "friday.status.resync_required") {
       // State was replaced wholesale: older events would mislead replaying clients.
       this.buffer = [];
     } else {
@@ -92,11 +92,11 @@ export class MockEventHub {
     }
   }
 
-  private resyncEvent(requestedSince: number): JarvisEvent {
+  private resyncEvent(requestedSince: number): FridayEvent {
     return {
       specversion: "1.0",
       id: this.world.id("evt"),
-      type: "jarvis.status.resync_required",
+      type: "friday.status.resync_required",
       source: "control-api://core",
       subject: "status/resync",
       time: this.world.nowIso(),
@@ -104,6 +104,6 @@ export class MockEventHub {
       correlationId: this.world.id("corr"),
       contractVersion: CONTRACT_VERSION,
       data: { reason: "sequence_too_old", requestedSince, oldestAvailableSequence: this.oldestSequence, latestSequence: this.latestSequence },
-    } as JarvisEvent;
+    } as FridayEvent;
   }
 }

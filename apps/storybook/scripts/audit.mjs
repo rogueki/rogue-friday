@@ -48,7 +48,7 @@ function serveStatic(dir) {
 }
 
 const dir = join(root, 'storybook-static');
-if (!existsSync(join(dir, 'iframe.html'))) throw new Error('storybook-static missing: run `pnpm --filter @jarvis/storybook build` first');
+if (!existsSync(join(dir, 'iframe.html'))) throw new Error('storybook-static missing: run `pnpm --filter @friday/storybook build` first');
 const server = await serveStatic(dir);
 const base = `http://127.0.0.1:${server.address().port}`;
 

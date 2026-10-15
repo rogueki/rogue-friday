@@ -1,7 +1,7 @@
 "use client";
 
-import type { Channel, Thread } from "@jarvis/sdk";
-import { Badge, IconTile, StatusChip, TagPill } from "@jarvis/ui";
+import type { Channel, Thread } from "@friday/sdk";
+import { Badge, IconTile, StatusChip, TagPill } from "@friday/ui";
 import { CalendarClock, FilePenLine, Link2, MessageSquare } from "lucide-react";
 import { useT } from "@/i18n";
 import { PRIORITY_TONE } from "../alerts/labels";

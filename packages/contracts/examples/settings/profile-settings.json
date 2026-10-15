@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/profile-settings.schema.json",
+  "$schema": "https://friday.local/schemas/settings/profile-settings.schema.json",
   "displayName": "Erik",
   "assistantName": "F.R.I.D.A.Y.",
   "locale": "de",

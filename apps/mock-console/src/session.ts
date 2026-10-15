@@ -1,9 +1,9 @@
-import { createJarvisClient, type JarvisClient } from "@jarvis/sdk";
+import { createFridayClient, type FridayClient } from "@friday/sdk";
 
 export type DevRole = "owner" | "operator" | "viewer";
 
 export interface ConsoleSession {
-  client: JarvisClient;
+  client: FridayClient;
   baseUrl: string;
   role: DevRole;
   /** `Cookie` header value for follow-up requests (the WebSocket handshake reuses it). */
@@ -46,7 +46,7 @@ export async function openSession(options: SessionOptions): Promise<ConsoleSessi
   const inner = options.fetch ?? globalThis.fetch;
   let csrf: string | null = null;
 
-  const client = createJarvisClient({
+  const client = createFridayClient({
     baseUrl,
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init);

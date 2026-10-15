@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/research/research-finding-list-response.schema.json",
+  "$id": "https://friday.local/schemas/research/research-finding-list-response.schema.json",
   "title": "ResearchFindingListResponse",
   "description": "Cursor-paginated list envelope for ResearchFinding.",
   "type": "object",

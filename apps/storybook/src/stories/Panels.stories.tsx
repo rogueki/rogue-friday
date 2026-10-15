@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Activity, Cpu, Settings } from 'lucide-react';
-import { Button, CornerBrackets, HudPanel, HudPanelHeader, PanelLink, type PanelCut } from '@jarvis/ui';
+import { Button, CornerBrackets, HudPanel, HudPanelHeader, PanelLink, type PanelCut } from '@friday/ui';
 import { Grid, Row, Section, longGerman } from './_helpers';
 
 const meta = {

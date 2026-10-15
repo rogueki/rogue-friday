@@ -3,7 +3,7 @@ import type {
   ResearchFinding,
   ResearchProject,
   ResearchSource,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { notFound } from "../../core/errors";
 import { clone, compareDesc, matchesQuery, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
@@ -83,8 +83,8 @@ export class ResearchService {
     this.w.state.researchSources.push(source);
     project.sourceCount += 1;
     this.w.bump(project);
-    this.w.emitFor("research", "jarvis.research.source_added", source, `research/${projectId}`);
-    this.w.emitFor("research", "jarvis.research.updated", project, `research/${projectId}`);
+    this.w.emitFor("research", "friday.research.source_added", source, `research/${projectId}`);
+    this.w.emitFor("research", "friday.research.updated", project, `research/${projectId}`);
     return source;
   }
 
@@ -107,8 +107,8 @@ export class ResearchService {
     this.w.state.researchFindings.push(finding);
     project.findingCount += 1;
     this.w.bump(project);
-    this.w.emitFor("research", "jarvis.research.finding_added", finding, `research/${projectId}`);
-    this.w.emitFor("research", "jarvis.research.updated", project, `research/${projectId}`);
+    this.w.emitFor("research", "friday.research.finding_added", finding, `research/${projectId}`);
+    this.w.emitFor("research", "friday.research.updated", project, `research/${projectId}`);
     return finding;
   }
 }

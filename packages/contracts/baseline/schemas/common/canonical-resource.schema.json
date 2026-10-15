@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/common/canonical-resource.schema.json",
+  "$id": "https://friday.local/schemas/common/canonical-resource.schema.json",
   "title": "CanonicalResource",
   "description": "Base fields every canonical resource carries (inlined into each resource schema).",
   "type": "object",

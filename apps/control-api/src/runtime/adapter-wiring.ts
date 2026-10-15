@@ -6,27 +6,27 @@ import {
   type Logger as AdapterLogger,
   type RegistryConfig,
   type SecretRequest,
-} from "@jarvis/adapter-core";
-import { calendarFactory } from "@jarvis/adapter-calendar-placeholder";
-import { exampleTasksFactory } from "@jarvis/adapter-example-http";
-import { hermesFactories as hermesLiveFactories } from "@jarvis/adapter-hermes";
-import { hermesFactories as hermesPlaceholderFactories } from "@jarvis/adapter-hermes-placeholder";
-import { mailFactory } from "@jarvis/adapter-mail-placeholder";
-import { createMockFactories } from "@jarvis/adapter-mock";
-import { localSystemFactory } from "@jarvis/adapter-system-local";
-import { systemFactory } from "@jarvis/adapter-system-placeholder";
-import { voiceHttpFactory } from "@jarvis/adapter-voice-http";
-import { voiceFactory } from "@jarvis/adapter-voice-placeholder";
+} from "@friday/adapter-core";
+import { calendarFactory } from "@friday/adapter-calendar-placeholder";
+import { exampleTasksFactory } from "@friday/adapter-example-http";
+import { hermesFactories as hermesLiveFactories } from "@friday/adapter-hermes";
+import { hermesFactories as hermesPlaceholderFactories } from "@friday/adapter-hermes-placeholder";
+import { mailFactory } from "@friday/adapter-mail-placeholder";
+import { createMockFactories } from "@friday/adapter-mock";
+import { localSystemFactory } from "@friday/adapter-system-local";
+import { systemFactory } from "@friday/adapter-system-placeholder";
+import { voiceHttpFactory } from "@friday/adapter-voice-http";
+import { voiceFactory } from "@friday/adapter-voice-placeholder";
 import {
   isSecretRefState,
   resolveSecret,
   type AdapterCategory,
-  type JarvisConfig,
+  type FridayConfig,
   type ResolvedAdapterConfig,
   type SecretRefState,
-} from "@jarvis/config";
-import type { Logger } from "@jarvis/observability";
-import { MockWorld } from "@jarvis/mock-data";
+} from "@friday/config";
+import type { Logger } from "@friday/observability";
+import { MockWorld } from "@friday/mock-data";
 import type { AdapterOverrideStore } from "../db/stores";
 import type { EventHub } from "../realtime/hub";
 
@@ -49,34 +49,34 @@ export function createRuntimeSecrets(): RuntimeSecrets {
 
 /**
  * Placeholder packages that a real adapter package supersedes. The real packages deliberately reuse the placeholder
- * provider ids (`hermes-tasks`, `hermes-activity`, `hermes-agents`, `jarvis-voice-http`), so an existing
+ * provider ids (`hermes-tasks`, `hermes-activity`, `hermes-agents`, `friday-voice-http`), so an existing
  * `allowlist` entry that still points to the placeholder package keeps working and silently gets the real adapter
  * (a warning is logged). `windows-wsl-system` has no successor under the same id: the real system adapter is
- * `local-system` (`@jarvis/adapter-system-local`), the placeholder stays selectable.
+ * `local-system` (`@friday/adapter-system-local`), the placeholder stays selectable.
  */
 const SUPERSEDED_BY: Readonly<Record<string, string>> = {
-  "@jarvis/adapter-hermes-placeholder": "@jarvis/adapter-hermes",
-  "@jarvis/adapter-voice-placeholder": "@jarvis/adapter-voice-http",
+  "@friday/adapter-hermes-placeholder": "@friday/adapter-hermes",
+  "@friday/adapter-voice-placeholder": "@friday/adapter-voice-http",
 };
 
 /** Factories of every package the allowlist can point to. The API bundles them statically (no dynamic import). */
 function packageFactories(world: MockWorld | undefined): Record<string, AdapterFactory[]> {
   return {
-    "@jarvis/adapter-mock": world ? createMockFactories({ world }) : [],
-    "@jarvis/adapter-example-http": [exampleTasksFactory],
-    "@jarvis/adapter-mail-placeholder": [mailFactory],
-    "@jarvis/adapter-calendar-placeholder": [calendarFactory],
-    "@jarvis/adapter-voice-placeholder": [voiceFactory],
-    "@jarvis/adapter-system-placeholder": [systemFactory],
-    "@jarvis/adapter-hermes-placeholder": [...hermesPlaceholderFactories],
-    "@jarvis/adapter-hermes": [...hermesLiveFactories],
-    "@jarvis/adapter-voice-http": [voiceHttpFactory],
-    "@jarvis/adapter-system-local": [localSystemFactory],
+    "@friday/adapter-mock": world ? createMockFactories({ world }) : [],
+    "@friday/adapter-example-http": [exampleTasksFactory],
+    "@friday/adapter-mail-placeholder": [mailFactory],
+    "@friday/adapter-calendar-placeholder": [calendarFactory],
+    "@friday/adapter-voice-placeholder": [voiceFactory],
+    "@friday/adapter-system-placeholder": [systemFactory],
+    "@friday/adapter-hermes-placeholder": [...hermesPlaceholderFactories],
+    "@friday/adapter-hermes": [...hermesLiveFactories],
+    "@friday/adapter-voice-http": [voiceHttpFactory],
+    "@friday/adapter-system-local": [localSystemFactory],
   };
 }
 
 export interface AdapterWiringOptions {
-  config: JarvisConfig;
+  config: FridayConfig;
   logger: Logger;
   hub: EventHub;
   world: MockWorld | undefined;
@@ -201,7 +201,7 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
 }
 
 export function createWorld(
-  config: JarvisConfig,
+  config: FridayConfig,
   options: { realTime: boolean; seed?: number; profile?: string; nextSequence?: (floor: number) => number; assistantName?: () => string },
 ): MockWorld | undefined {
   if (config.dataMode === "live") return undefined;

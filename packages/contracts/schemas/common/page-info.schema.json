@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/common/page-info.schema.json",
+  "$id": "https://friday.local/schemas/common/page-info.schema.json",
   "title": "PageInfo",
   "type": "object",
   "properties": {

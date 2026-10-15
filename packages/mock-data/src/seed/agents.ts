@@ -1,4 +1,4 @@
-import type { Agent, AgentStatus, ReasoningLevel } from "@jarvis/sdk";
+import type { Agent, AgentStatus, ReasoningLevel } from "@friday/sdk";
 import { DAY, HOUR, MIN, type SeedContext } from "./context";
 import type { AgentKey, Story } from "./story";
 
@@ -100,7 +100,7 @@ const PERSONAS: Persona[] = [
     avgMs: 9 * MIN,
     tokens: 2_040_000,
     cost: 14.2,
-    config: { profile: "isoliert", downloadsDir: "D:\\Jarvis\\Downloads", allowLogin: false },
+    config: { profile: "isoliert", downloadsDir: "D:\\Friday\\Downloads", allowLogin: false },
   },
   {
     key: "task",

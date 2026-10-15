@@ -1,4 +1,4 @@
-# JARVIS Command Center - Adapter-Registry (PLAN 10.9 / 10.10)
+# F.R.I.D.A.Y. Command Center - Adapter-Registry (PLAN 10.9 / 10.10)
 # Kopieren nach config/adapters.yaml. Der effektive Betriebsmodus kommt aus dashboard.yaml (dataMode).
 #
 # Modus-Presets:
@@ -10,14 +10,14 @@
 # Referenzen: env:NAME oder wincred:ZIELNAME. ${VAR}/${VAR:-default} ist nur fuer unkritische Werte (URLs).
 
 # Provider-ID -> npm-Paket. Die Registry laedt ausschliesslich Pakete aus dieser Liste.
-# Die mock-* Provider (@jarvis/adapter-mock) sind eingebaut und muessen nicht aufgefuehrt werden.
+# Die mock-* Provider (@friday/adapter-mock) sind eingebaut und muessen nicht aufgefuehrt werden.
 allowlist: {}
-#  hermes-tasks: "@jarvis/adapter-hermes-placeholder"
-#  hermes-activity: "@jarvis/adapter-hermes-placeholder"
-#  gmx-mail: "@jarvis/adapter-mail-placeholder"
-#  caldav-calendar: "@jarvis/adapter-calendar-placeholder"
-#  jarvis-voice-http: "@jarvis/adapter-voice-placeholder"
-#  windows-wsl-system: "@jarvis/adapter-system-placeholder"
+#  hermes-tasks: "@friday/adapter-hermes-placeholder"
+#  hermes-activity: "@friday/adapter-hermes-placeholder"
+#  gmx-mail: "@friday/adapter-mail-placeholder"
+#  caldav-calendar: "@friday/adapter-calendar-placeholder"
+#  friday-voice-http: "@friday/adapter-voice-placeholder"
+#  windows-wsl-system: "@friday/adapter-system-placeholder"
 
 # Gemeinsame Optionen je Kategorie (alle optional, hier die Standardwerte):
 #   enabled: true

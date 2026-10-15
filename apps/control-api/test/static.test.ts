@@ -14,7 +14,7 @@ describe("static web export", () => {
   let dir: string;
 
   beforeAll(async () => {
-    dir = mkdtempSync(join(tmpdir(), "jarvis-static-"));
+    dir = mkdtempSync(join(tmpdir(), "friday-static-"));
     const web = join(dir, "web");
     mkdirSync(join(web, "_next", "static"), { recursive: true });
     mkdirSync(join(web, "tasks"), { recursive: true });

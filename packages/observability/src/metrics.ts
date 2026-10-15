@@ -350,33 +350,33 @@ export interface DashboardSummary {
   frontend: { orbFps: number | null; webglMemoryBytes: number | null; errorsTotal: number };
 }
 
-/** Pre-defined JARVIS metrics (PLAN §50.3) on top of a registry. */
-export function createJarvisMetrics(registry: MetricsRegistry = new MetricsRegistry(), now: () => number = Date.now) {
-  const httpRequests = registry.counter('jarvis_http_requests_total', 'HTTP requests handled', ['method', 'route', 'status']);
-  const httpErrors = registry.counter('jarvis_http_errors_total', 'HTTP responses with status >= 500', ['method', 'route']);
-  const httpLatency = registry.histogram('jarvis_http_request_duration_seconds', 'HTTP request latency', ['method', 'route']);
-  const wsConnections = registry.gauge('jarvis_ws_connections', 'Open WebSocket connections');
-  const events = registry.counter('jarvis_events_total', 'Realtime events published', ['type']);
+/** Pre-defined FRIDAY metrics (PLAN §50.3) on top of a registry. */
+export function createFridayMetrics(registry: MetricsRegistry = new MetricsRegistry(), now: () => number = Date.now) {
+  const httpRequests = registry.counter('friday_http_requests_total', 'HTTP requests handled', ['method', 'route', 'status']);
+  const httpErrors = registry.counter('friday_http_errors_total', 'HTTP responses with status >= 500', ['method', 'route']);
+  const httpLatency = registry.histogram('friday_http_request_duration_seconds', 'HTTP request latency', ['method', 'route']);
+  const wsConnections = registry.gauge('friday_ws_connections', 'Open WebSocket connections');
+  const events = registry.counter('friday_events_total', 'Realtime events published', ['type']);
   const adapterHealth = registry.gauge(
-    'jarvis_adapter_health',
+    'friday_adapter_health',
     'Adapter health: 1 healthy, 0.5 degraded, 0 down, -1 unknown',
     ['adapter'],
   );
-  const cache = registry.counter('jarvis_cache_requests_total', 'Cache lookups', ['result']);
-  const orbFps = registry.gauge('jarvis_frontend_orb_fps', 'Orb frames per second reported by the browser');
-  const orbFrameTime = registry.gauge('jarvis_frontend_orb_frame_time_ms', 'Orb frame time in milliseconds reported by the browser (last sample)');
+  const cache = registry.counter('friday_cache_requests_total', 'Cache lookups', ['result']);
+  const orbFps = registry.gauge('friday_frontend_orb_fps', 'Orb frames per second reported by the browser');
+  const orbFrameTime = registry.gauge('friday_frontend_orb_frame_time_ms', 'Orb frame time in milliseconds reported by the browser (last sample)');
   const orbFrameTimeHistogram = registry.histogram(
-    'jarvis_frontend_orb_frame_time_seconds',
+    'friday_frontend_orb_frame_time_seconds',
     'Distribution of orb frame times reported by the browser',
     [],
     FRAME_TIME_BUCKETS_SECONDS,
   );
-  const webglMemory = registry.gauge('jarvis_frontend_webgl_memory_bytes', 'WebGL memory reported by the browser');
-  const frontendErrors = registry.counter('jarvis_frontend_errors_total', 'Errors reported by the browser', ['kind']);
+  const webglMemory = registry.gauge('friday_frontend_webgl_memory_bytes', 'WebGL memory reported by the browser');
+  const frontendErrors = registry.counter('friday_frontend_errors_total', 'Errors reported by the browser', ['kind']);
   const eventRate = new RateMeter(10_000, now);
-  const errorRatio = registry.gauge('jarvis_http_error_ratio', 'Share of HTTP responses with status >= 500 since start');
-  const eventsPerSecond = registry.gauge('jarvis_events_per_second', 'Realtime events per second (10 s window)');
-  const cacheHitRatio = registry.gauge('jarvis_cache_hit_ratio', 'Share of cache lookups that were hits (absent until the first lookup)');
+  const errorRatio = registry.gauge('friday_http_error_ratio', 'Share of HTTP responses with status >= 500 since start');
+  const eventsPerSecond = registry.gauge('friday_events_per_second', 'Realtime events per second (10 s window)');
+  const cacheHitRatio = registry.gauge('friday_cache_hit_ratio', 'Share of cache lookups that were hits (absent until the first lookup)');
 
   return {
     registry,
@@ -467,7 +467,7 @@ export function createJarvisMetrics(registry: MetricsRegistry = new MetricsRegis
     },
   };
 }
-export type JarvisMetrics = ReturnType<typeof createJarvisMetrics>;
+export type FridayMetrics = ReturnType<typeof createFridayMetrics>;
 
 /** Quantile over all label combinations of a histogram (merges bucket counts). */
 function aggregateQuantile(histogram: Histogram, q: number): number | undefined {

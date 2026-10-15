@@ -134,10 +134,10 @@ const baseAsyncapi = () => ({
   components: {
     messages: {
       taskUpdated: {
-        name: "jarvis.task.updated",
+        name: "friday.task.updated",
         payload: { allOf: [{ properties: { data: { $ref: "../schemas/tasks/task.schema.json" } } }] },
       },
-      taskCreated: { name: "jarvis.task.created", payload: {} },
+      taskCreated: { name: "friday.task.created", payload: {} },
     } as Record<string, any>,
   },
 });
@@ -204,7 +204,7 @@ describe("detectBreaking (OpenAPI, AsyncAPI, schema files)", () => {
 
   it("flags removed schema files", () => {
     const before = contract(undefined, undefined, {
-      "https://jarvis.local/schemas/tasks/task.schema.json": { type: "object" },
+      "https://friday.local/schemas/tasks/task.schema.json": { type: "object" },
     });
     expect(kinds(detectBreaking(before, contract()).changes as Change[])).toEqual(["schema-removed"]);
   });

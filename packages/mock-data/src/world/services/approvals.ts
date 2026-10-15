@@ -10,7 +10,7 @@ import type {
   EntityRef,
   RequiredAuth,
   RiskTier,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import type { TimerHandle } from "../../core/clock";
 import { conflict, MockApiError, notFound, validationFailed } from "../../core/errors";
 import { asList, clone, compareAsc, compareDesc, type Page } from "../../core/util";
@@ -122,7 +122,7 @@ export class ApprovalService {
       approval.decidedBy = actor;
       approval.decisionComment = body.comment ?? null;
       this.w.bump(approval);
-      const decided = this.w.emitFor("approvals", "jarvis.approval.resolved", approval, `approval/${approval.id}`, correlationId);
+      const decided = this.w.emitFor("approvals", "friday.approval.resolved", approval, `approval/${approval.id}`, correlationId);
       this.w.recordAudit({
         category: "approval",
         action: "approval.approved",
@@ -154,7 +154,7 @@ export class ApprovalService {
       approval.decidedBy = actor;
       approval.decisionComment = body.comment ?? null;
       this.w.bump(approval);
-      this.w.emitFor("approvals", "jarvis.approval.resolved", approval, `approval/${approval.id}`, approval.correlationId);
+      this.w.emitFor("approvals", "friday.approval.resolved", approval, `approval/${approval.id}`, approval.correlationId);
       this.w.recordAudit({
         category: "approval",
         action: "approval.rejected",
@@ -192,7 +192,7 @@ export class ApprovalService {
       approval.rationale = `${approval.rationale}\n\nRückfrage: ${question}\nAntwort von ${agent?.name ?? this.w.assistantName()}: ${answer}`;
       this.w.bump(approval);
       // The contract has no approval.updated event; re-announcing keeps cached approvals current.
-      this.w.emitFor("approvals", "jarvis.approval.requested", approval, `approval/${approval.id}`, approval.correlationId);
+      this.w.emitFor("approvals", "friday.approval.requested", approval, `approval/${approval.id}`, approval.correlationId);
       this.w.logActivity({ kind: "agent", title: `Rückfrage zur Freigabe beantwortet: ${approval.action}`, correlationId: approval.correlationId, agentId: approval.agentId, taskId: approval.taskId, adapterId: "mock-approvals", actor: this.w.actorOf(ctx) });
       this.w.recordAudit({
         category: "approval",
@@ -251,9 +251,9 @@ export class ApprovalService {
         this.w.agents.release(task.id, "waiting");
       }
       this.w.bump(task);
-      this.w.emitFor("tasks", "jarvis.task.updated", task, `task/${task.id}`, correlationId);
+      this.w.emitFor("tasks", "friday.task.updated", task, `task/${task.id}`, correlationId);
     }
-    const event = this.w.emitFor("approvals", "jarvis.approval.requested", approval, `approval/${approval.id}`, correlationId);
+    const event = this.w.emitFor("approvals", "friday.approval.requested", approval, `approval/${approval.id}`, correlationId);
     this.w.logActivity({ kind: "agent", title: `Freigabe angefordert: ${approval.action}`, correlationId, agentId: approval.agentId, taskId: approval.taskId, adapterId: "mock-approvals", status: "info", summary: `Risikostufe ${approval.riskTier}` });
     this.w.recordAudit({
       category: "approval",
@@ -291,7 +291,7 @@ export class ApprovalService {
       approval.status = "cancelled";
       this.w.bump(approval);
       this.cancelTimer(approval.id);
-      this.w.emitFor("approvals", "jarvis.approval.resolved", approval, `approval/${approval.id}`, approval.correlationId);
+      this.w.emitFor("approvals", "friday.approval.resolved", approval, `approval/${approval.id}`, approval.correlationId);
       this.w.communication.onApprovalClosed(approval, "cancelled");
       this.w.calendar.onApprovalClosed(approval, "cancelled");
       this.w.notifications.resolveForRef(approval.id);
@@ -304,7 +304,7 @@ export class ApprovalService {
     approval.status = "expired";
     this.w.bump(approval);
     this.timers.delete(id);
-    this.w.emitFor("approvals", "jarvis.approval.expired", approval, `approval/${approval.id}`, approval.correlationId);
+    this.w.emitFor("approvals", "friday.approval.expired", approval, `approval/${approval.id}`, approval.correlationId);
     this.w.recordAudit({
       category: "approval",
       action: "approval.expired",
@@ -375,7 +375,7 @@ export class ApprovalService {
     approval.status = success ? "executed" : "failed";
     approval.executionResult = result;
     this.w.bump(approval);
-    this.w.emitFor("approvals", "jarvis.approval.resolved", approval, `approval/${approval.id}`, correlationId, causationId);
+    this.w.emitFor("approvals", "friday.approval.resolved", approval, `approval/${approval.id}`, correlationId, causationId);
     this.w.recordAudit({
       category: "system",
       action: success ? "approval.executed" : "approval.execution_failed",
@@ -431,6 +431,6 @@ export class ApprovalService {
       });
     }
     this.w.bump(task);
-    this.w.emitFor("tasks", "jarvis.task.updated", task, `task/${task.id}`, approval.correlationId);
+    this.w.emitFor("tasks", "friday.task.updated", task, `task/${task.id}`, approval.correlationId);
   }
 }

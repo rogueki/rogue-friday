@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { AdapterError, PORT_SPEC, validatePortResult } from "@jarvis/adapter-core";
+import { AdapterError, PORT_SPEC, validatePortResult } from "@friday/adapter-core";
 import { HermesAgentsAdapter, createTaskIds } from "../src";
 import { createHermesFake, type HermesFake } from "./fake/server";
 import { start, type Harness } from "./helpers";
@@ -173,7 +173,7 @@ describe("agents: events", () => {
 
     expect(await h.adapter.pollEvents?.()).toBe(3);
 
-    expect(h.emitted.map((event) => event.type)).toEqual(Array(3).fill("jarvis.agent.status_changed"));
+    expect(h.emitted.map((event) => event.type)).toEqual(Array(3).fill("friday.agent.status_changed"));
     expect((h.emitted[0]?.data as { name: string }).name).toBe("Kira");
     expect(await h.adapter.pollEvents?.()).toBe(0);
   });
@@ -184,7 +184,7 @@ describe("agents: events", () => {
     const h = await open({ eventsStartCursor: "tail" });
 
     expect(await h.adapter.pollEvents?.()).toBe(1);
-    expect(h.emitted[0]).toMatchObject({ type: "jarvis.agent.heartbeat" });
+    expect(h.emitted[0]).toMatchObject({ type: "friday.agent.heartbeat" });
     expect(h.emitted[0]?.data as { status: string; currentTaskId: string }).toMatchObject({
       status: "working",
       currentTaskId: createTaskIds().encode({ board: "default", taskId: task.id }),

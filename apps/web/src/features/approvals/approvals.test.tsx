@@ -1,4 +1,4 @@
-import { JarvisApiError, type ErrorCode } from "@jarvis/sdk";
+import { FridayApiError, type ErrorCode } from "@friday/sdk";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -51,7 +51,7 @@ describe("approval model", () => {
   });
 
   it("classifies the errors of the approve flow", () => {
-    const api = (code: ErrorCode, details = {}) => new JarvisApiError({ code, message: "m", severity: "error", retryable: false, correlationId: "corr_x", details }, 403);
+    const api = (code: ErrorCode, details = {}) => new FridayApiError({ code, message: "m", severity: "error", retryable: false, correlationId: "corr_x", details }, 403);
     expect(classifyDecisionError(api("APPROVAL_REQUIRED", { reason: "expired" }), "approve").kind).toBe("token-expired");
     expect(classifyDecisionError(api("APPROVAL_REQUIRED", { reason: "missing_approval_token" }), "approve").kind).toBe("token-missing");
     expect(classifyDecisionError(api("APPROVAL_REQUIRED", { reason: "invalid" }), "approve").kind).toBe("token-invalid");
@@ -239,7 +239,7 @@ describe("approve flow (PLAN §32.5)", () => {
       "GET /approvals/:id": tokenRoute(approval, ["tok_T"]),
       "POST /auth/reauth": () => {
         order.push("reauth");
-        return { contractVersion: "1.0.0", reauthToken: "reauth_1", expiresAt: IN_ONE_MINUTE() };
+        return { contractVersion: "2.0.0", reauthToken: "reauth_1", expiresAt: IN_ONE_MINUTE() };
       },
       "POST /approvals/:id/approve": () => {
         order.push("approve");

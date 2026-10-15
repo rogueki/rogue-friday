@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/files/file-preview-response.schema.json",
+  "$id": "https://friday.local/schemas/files/file-preview-response.schema.json",
   "title": "FilePreviewResponse",
   "description": "Single-resource envelope for FilePreview.",
   "type": "object",

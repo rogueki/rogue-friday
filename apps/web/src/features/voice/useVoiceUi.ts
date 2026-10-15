@@ -1,8 +1,8 @@
 "use client";
 
-import type { OrbMode, OrbSnapshot, VoiceStatus } from "@jarvis/sdk";
-import type { VoiceState } from "@jarvis/ui";
-import { useToast } from "@jarvis/ui";
+import type { OrbMode, OrbSnapshot, VoiceStatus } from "@friday/sdk";
+import type { VoiceState } from "@friday/ui";
+import { useToast } from "@friday/ui";
 import { useCallback, useMemo } from "react";
 import { useAudioSamples, type AudioSample } from "@/features/orb/audioStore";
 import { useOrbSnapshot } from "@/features/orb/useOrbSnapshot";

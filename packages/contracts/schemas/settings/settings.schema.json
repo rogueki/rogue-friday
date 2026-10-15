@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/settings.schema.json",
+  "$id": "https://friday.local/schemas/settings/settings.schema.json",
   "title": "Settings",
   "description": "All 14 settings areas (PLAN §42.1). adapters lists configuration state; secrets only as { configured }.",
   "type": "object",

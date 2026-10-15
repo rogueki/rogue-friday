@@ -1,7 +1,7 @@
 "use client";
 
-import type { FileItem, FilePreview } from "@jarvis/sdk";
-import { EmptyState, Skeleton } from "@jarvis/ui";
+import type { FileItem, FilePreview } from "@friday/sdk";
+import { EmptyState, Skeleton } from "@friday/ui";
 import { FileQuestion, ShieldAlert } from "lucide-react";
 import { useT } from "@/i18n";
 import { useFilePreview } from "@/lib/api/domains/files";

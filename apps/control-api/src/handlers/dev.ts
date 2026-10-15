@@ -1,5 +1,5 @@
-import { CONTRACT_VERSION, type Freshness, type ScenarioControlRequest } from "@jarvis/sdk";
-import { isMockApiError, type ScenarioEngine } from "@jarvis/mock-data";
+import { CONTRACT_VERSION, type Freshness, type ScenarioControlRequest } from "@friday/sdk";
+import { isMockApiError, type ScenarioEngine } from "@friday/mock-data";
 import type { Handler, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { ApiError, notFound } from "../util/errors";

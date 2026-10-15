@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/system/system-metrics-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/system/system-metrics-response.schema.json",
+  "contractVersion": "2.0.0",
   "data": {
     "sampledAt": "2026-10-14T08:15:00Z",
     "source": {

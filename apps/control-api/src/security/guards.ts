@@ -1,5 +1,5 @@
 import type { IncomingHttpHeaders } from "node:http";
-import { isLoopbackHost } from "@jarvis/auth";
+import { isLoopbackHost } from "@friday/auth";
 import type { Runtime } from "../runtime/types";
 
 /** CSP exactly as specified in docs/SECURITY.md §4. Hashes of inline bootstrap scripts are added per HTML file. */

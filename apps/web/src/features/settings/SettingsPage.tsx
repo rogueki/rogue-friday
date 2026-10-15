@@ -1,7 +1,7 @@
 "use client";
 
-import { Button, EmptyState, ErrorState, HudPanel, Skeleton, StatusChip } from "@jarvis/ui";
-import { isJarvisApiError } from "@jarvis/sdk";
+import { Button, EmptyState, ErrorState, HudPanel, Skeleton, StatusChip } from "@friday/ui";
+import { isFridayApiError } from "@friday/sdk";
 import {
   BadgeCheck,
   Bell,
@@ -193,7 +193,7 @@ function SettingsBody() {
       </div>
     );
   } else if (drafts.isError || !drafts.settings) {
-    const api = isJarvisApiError(drafts.error) ? drafts.error : null;
+    const api = isFridayApiError(drafts.error) ? drafts.error : null;
     content = (
       <ErrorState
         compact

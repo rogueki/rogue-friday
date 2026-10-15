@@ -3,9 +3,9 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { deriveKey, loadOrCreateServerKey } from "@jarvis/auth";
-import { GENESIS_HASH } from "@jarvis/observability";
-import { createSchemaValidator, type AuditEvent, type JarvisEvent } from "@jarvis/sdk";
+import { deriveKey, loadOrCreateServerKey } from "@friday/auth";
+import { GENESIS_HASH } from "@friday/observability";
+import { createSchemaValidator, type AuditEvent, type FridayEvent } from "@friday/sdk";
 import { AuditAnchor } from "../src/db/audit-anchor";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 
@@ -93,9 +93,9 @@ describe("control-plane audit trail", () => {
       expect(JSON.stringify(rows())).not.toContain("hunter2-geheim");
     });
 
-    it("publishes each audit event on the stream as jarvis.audit.appended with the stored hash", async () => {
-      const seen: JarvisEvent[] = [];
-      const off = api.runtime.hub.subscribe((event) => event.type === "jarvis.audit.appended" && event.source === "control-api://core" && seen.push(event));
+    it("publishes each audit event on the stream as friday.audit.appended with the stored hash", async () => {
+      const seen: FridayEvent[] = [];
+      const off = api.runtime.hub.subscribe((event) => event.type === "friday.audit.appended" && event.source === "control-api://core" && seen.push(event));
       await owner.post("/api/v1/tasks", { title: "Stream" });
       off();
       expect(seen).toHaveLength(1);
@@ -154,7 +154,7 @@ describe("control-plane audit trail", () => {
     });
 
     it("reports a tampered trail in /health after a restart and keeps serving", async () => {
-      const dir = mkdtempSync(join(tmpdir(), "jarvis-audit-"));
+      const dir = mkdtempSync(join(tmpdir(), "friday-audit-"));
       try {
         const first = await startTestApi({ dir });
         const client = first.client();
@@ -184,7 +184,7 @@ describe("control-plane audit trail", () => {
     });
 
     it("keeps the chain valid across restarts (head hash is re-read from the database)", async () => {
-      const dir = mkdtempSync(join(tmpdir(), "jarvis-audit-"));
+      const dir = mkdtempSync(join(tmpdir(), "friday-audit-"));
       try {
         const first = await startTestApi({ dir });
         const client = first.client();
@@ -284,7 +284,7 @@ describe("control-plane audit trail", () => {
     });
 
     it("reports a truncated trail in /health after a restart and keeps serving", async () => {
-      const dir = mkdtempSync(join(tmpdir(), "jarvis-audit-"));
+      const dir = mkdtempSync(join(tmpdir(), "friday-audit-"));
       try {
         const first = await startTestApi({ dir });
         const client = first.client();

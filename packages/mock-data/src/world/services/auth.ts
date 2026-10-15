@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type ActionResult, type LoginRequest, type ReauthRequest, type ReauthResponse, type Role, type Session } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type ActionResult, type LoginRequest, type ReauthRequest, type ReauthResponse, type Role, type Session } from "@friday/sdk";
 import { MockApiError } from "../../core/errors";
 import { clone } from "../../core/util";
 import type { MockWorld } from "../world";

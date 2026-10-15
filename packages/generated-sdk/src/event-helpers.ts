@@ -1,22 +1,22 @@
-import { JARVIS_EVENT_TYPES, type JarvisEvent, type JarvisEventType } from "./generated/events";
+import { FRIDAY_EVENT_TYPES, type FridayEvent, type FridayEventType } from "./generated/events";
 import type { ControlFrame } from "./generated/models";
 
-const EVENT_TYPE_SET: ReadonlySet<string> = new Set(JARVIS_EVENT_TYPES);
+const EVENT_TYPE_SET: ReadonlySet<string> = new Set(FRIDAY_EVENT_TYPES);
 
-export const isJarvisEventType = (value: unknown): value is JarvisEventType =>
+export const isFridayEventType = (value: unknown): value is FridayEventType =>
   typeof value === "string" && EVENT_TYPE_SET.has(value);
 
 /**
- * Structural check for a Jarvis event envelope (CloudEvents-inspired). Does not validate `data`;
- * use `createSchemaValidator().validate(JARVIS_EVENT_DATA_SCHEMA_IDS[type], event.data)` for that.
+ * Structural check for a Friday event envelope (CloudEvents-inspired). Does not validate `data`;
+ * use `createSchemaValidator().validate(FRIDAY_EVENT_DATA_SCHEMA_IDS[type], event.data)` for that.
  */
-export function isJarvisEvent(value: unknown): value is JarvisEvent {
+export function isFridayEvent(value: unknown): value is FridayEvent {
   if (typeof value !== "object" || value === null) return false;
   const event = value as Record<string, unknown>;
   return (
     event.specversion === "1.0" &&
     typeof event.id === "string" &&
-    isJarvisEventType(event.type) &&
+    isFridayEventType(event.type) &&
     typeof event.source === "string" &&
     typeof event.time === "string" &&
     typeof event.sequence === "number" &&
@@ -28,10 +28,10 @@ export function isJarvisEvent(value: unknown): value is JarvisEvent {
 }
 
 /** Narrows an event to a specific type. */
-export const isEventOfType = <K extends JarvisEventType>(
-  event: JarvisEvent,
+export const isEventOfType = <K extends FridayEventType>(
+  event: FridayEvent,
   type: K,
-): event is Extract<JarvisEvent, { type: K }> => event.type === type;
+): event is Extract<FridayEvent, { type: K }> => event.type === type;
 
 export function isControlFrame(value: unknown): value is ControlFrame {
   if (typeof value !== "object" || value === null) return false;

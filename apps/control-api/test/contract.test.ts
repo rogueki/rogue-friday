@@ -310,7 +310,7 @@ describe("contract: all operations", () => {
     it("serves Prometheus metrics and accepts frontend telemetry", async () => {
       const metrics = await call("getMetrics");
       expect(metrics.response.headers["content-type"]).toContain("text/plain");
-      expect(metrics.response.body).toContain("# TYPE jarvis_http_requests_total counter");
+      expect(metrics.response.body).toContain("# TYPE friday_http_requests_total counter");
       const receipt = await call("submitFrontendTelemetry", {
         body: { errors: [{ kind: "js_error", message: "ReferenceError in OrbScene" }], orbSamples: [{ fps: 59.4, frameTimeMs: 16.8, webglMemoryBytes: 52428800 }] },
         expect: 202,

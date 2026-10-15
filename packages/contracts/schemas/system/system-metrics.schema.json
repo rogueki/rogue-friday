@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/system/system-metrics.schema.json",
+  "$id": "https://friday.local/schemas/system/system-metrics.schema.json",
   "title": "SystemMetrics",
   "description": "Hardware snapshot (PLAN §40.1). Optional sensors are null when unavailable.",
   "type": "object",

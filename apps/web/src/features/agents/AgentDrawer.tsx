@@ -1,8 +1,8 @@
 "use client";
 
-import type { Agent } from "@jarvis/sdk";
-import { isJarvisApiError } from "@jarvis/sdk";
-import { ActivityRow, Button, CircularMetric, ConfirmDialog, Drawer, EmptyState, ErrorState, MetricCard, Skeleton, TagPill, Tabs, cx, type TabItem } from "@jarvis/ui";
+import type { Agent } from "@friday/sdk";
+import { isFridayApiError } from "@friday/sdk";
+import { ActivityRow, Button, CircularMetric, ConfirmDialog, Drawer, EmptyState, ErrorState, MetricCard, Skeleton, TagPill, Tabs, cx, type TabItem } from "@friday/ui";
 import { Activity, ExternalLink, Pause, Play, Square, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
@@ -325,7 +325,7 @@ export function AgentDrawer({ agentId, tab, onTabChange, onClose }: AgentDrawerP
   if (agentId && query.isPending) body = <Skeleton variant="block" height={220} label={t("common.loading")} />;
   else if (query.isError) {
     body =
-      isJarvisApiError(query.error) && query.error.code === "NOT_FOUND" ? (
+      isFridayApiError(query.error) && query.error.code === "NOT_FOUND" ? (
         <EmptyState compact title={t("agents.drawer.notFound")} description={t("agents.drawer.notFoundHint")} />
       ) : (
         <ErrorState compact title={t("common.loadError")} description={query.error instanceof Error ? query.error.message : undefined} onRetry={() => void query.refetch()} retryLabel={t("common.retry")} />

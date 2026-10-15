@@ -4,7 +4,7 @@ import type {
   Service,
   StorageVolume,
   SystemMetrics,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { notFound } from "../../core/errors";
 import { compareAsc, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
@@ -52,7 +52,7 @@ export class SystemService {
       service.latencyMs = latencyMs;
       if (status === "online" || status === "degraded") service.lastSuccessAt = now;
       service.updatedAt = now;
-      this.w.emitFor("system", "jarvis.system.service_status_changed", service, `service/${service.id}`, correlationId);
+      this.w.emitFor("system", "friday.system.service_status_changed", service, `service/${service.id}`, correlationId);
       this.w.recordAudit({
         category: "user_action",
         action: "service.healthcheck",
@@ -79,11 +79,11 @@ export class SystemService {
     });
   }
 
-  /** Publishes the current metrics as `jarvis.system.metrics` (used by telemetry). */
+  /** Publishes the current metrics as `friday.system.metrics` (used by telemetry). */
   publishMetrics(): void {
     const metrics = this.w.currentMetrics();
     this.w.state.system.metrics = metrics;
-    this.w.emitFor("system", "jarvis.system.metrics", metrics, "system/metrics");
+    this.w.emitFor("system", "friday.system.metrics", metrics, "system/metrics");
   }
 
   /** Simulation hook: changes the status of a monitored service and publishes the change. */
@@ -96,7 +96,7 @@ export class SystemService {
     service.updatedAt = this.w.nowIso();
     service.lastCheckAt = service.updatedAt;
     if (status === "online") service.lastSuccessAt = service.updatedAt;
-    this.w.emitFor("system", "jarvis.system.service_status_changed", service, `service/${service.id}`);
+    this.w.emitFor("system", "friday.system.service_status_changed", service, `service/${service.id}`);
     this.w.refresh();
     return service;
   }

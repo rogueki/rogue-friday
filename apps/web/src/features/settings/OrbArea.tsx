@@ -1,7 +1,7 @@
 "use client";
 
-import type { OrbMode, Settings } from "@jarvis/sdk";
-import { Button, Select, Slider, StatusChip, Switch } from "@jarvis/ui";
+import type { OrbMode, Settings } from "@friday/sdk";
+import { Button, Select, Slider, StatusChip, Switch } from "@friday/ui";
 import { RotateCcw } from "lucide-react";
 import { useT, type MessageKey } from "@/i18n";
 import { FieldGrid, Section } from "./controls";

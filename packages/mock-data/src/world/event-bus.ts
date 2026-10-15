@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type JarvisEvent, type JarvisEventMap, type JarvisEventType } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type FridayEvent, type FridayEventMap, type FridayEventType } from "@friday/sdk";
 import type { EmitOptions, WorldEventListener } from "./types";
 
 export interface EventBusDeps {
@@ -38,7 +38,7 @@ export class WorldEventBus {
     return this.lastEventId;
   }
 
-  emit<K extends JarvisEventType>(type: K, data: JarvisEventMap[K], options: EmitOptions): JarvisEvent<K> {
+  emit<K extends FridayEventType>(type: K, data: FridayEventMap[K], options: EmitOptions): FridayEvent<K> {
     const event = {
       specversion: "1.0" as const,
       id: this.deps.nextId(),
@@ -51,15 +51,15 @@ export class WorldEventBus {
       ...(options.causationId ? { causationId: options.causationId } : {}),
       contractVersion: CONTRACT_VERSION,
       data,
-    } as unknown as JarvisEvent<K>;
+    } as unknown as FridayEvent<K>;
     this.lastEventAt = event.time;
     this.lastEventId = event.id;
-    this.dispatch(event as unknown as JarvisEvent);
+    this.dispatch(event as unknown as FridayEvent);
     return event;
   }
 
   /** Re-publishes an already built envelope (used for raw dev events); the sequence is still assigned here. */
-  private dispatch(event: JarvisEvent): void {
+  private dispatch(event: FridayEvent): void {
     for (const listener of [...this.listeners]) {
       try {
         listener(event);

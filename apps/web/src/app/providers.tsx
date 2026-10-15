@@ -1,6 +1,6 @@
 "use client";
 
-import { ToastProvider, useToast } from "@jarvis/ui";
+import { ToastProvider, useToast } from "@friday/ui";
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -46,7 +46,7 @@ function AuthenticatedProviders({ children }: { children: ReactNode }) {
 }
 
 // The env check sits directly in front of the import so the bundler removes the whole mock stack from normal builds.
-const MockStarter = process.env.NEXT_PUBLIC_JARVIS_MSW === "1" ? dynamic(() => import("@/lib/mock/MockStarter"), { ssr: false }) : null;
+const MockStarter = process.env.NEXT_PUBLIC_FRIDAY_MSW === "1" ? dynamic(() => import("@/lib/mock/MockStarter"), { ssr: false }) : null;
 
 /** Starts MSW (standalone mock mode) before the first request leaves the app. */
 function MockGate({ children }: { children: ReactNode }) {

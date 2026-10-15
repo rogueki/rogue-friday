@@ -1,6 +1,6 @@
 import type { Readable } from "node:stream";
-import type { CallContext, MutationContext } from "@jarvis/adapter-core";
-import type { Actor, AuditEvent } from "@jarvis/sdk";
+import type { CallContext, MutationContext } from "@friday/adapter-core";
+import type { Actor, AuditEvent } from "@friday/sdk";
 import type { Principal } from "../security/auth-service";
 import type { Runtime } from "../runtime/types";
 import type { RouteSpec } from "./route-types";

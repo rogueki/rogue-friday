@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, TextField, type TextFieldProps } from "@jarvis/ui";
+import { Button, TextField, type TextFieldProps } from "@friday/ui";
 import { Plus, X } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { useT } from "@/i18n";

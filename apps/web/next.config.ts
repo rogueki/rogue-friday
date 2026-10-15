@@ -2,20 +2,20 @@ import { resolve } from "node:path";
 import type { NextConfig } from "next";
 
 const WORKSPACE_PACKAGES = [
-  "@jarvis/sdk",
-  "@jarvis/ui",
-  "@jarvis/design-tokens",
-  "@jarvis/orb",
-  "@jarvis/mock-data",
+  "@friday/sdk",
+  "@friday/ui",
+  "@friday/design-tokens",
+  "@friday/orb",
+  "@friday/mock-data",
 ];
 
-const apiOrigin = process.env.JARVIS_API_ORIGIN ?? "http://127.0.0.1:3100";
-const standaloneMock = process.env.NEXT_PUBLIC_JARVIS_MSW === "1";
+const apiOrigin = process.env.FRIDAY_API_ORIGIN ?? "http://127.0.0.1:3100";
+const standaloneMock = process.env.NEXT_PUBLIC_FRIDAY_MSW === "1";
 
 const config: NextConfig = {
   output: "export",
   // Separate build dirs let several dev servers run side by side (e.g. parallel QA sessions); default ".next".
-  ...(process.env.JARVIS_NEXT_DIST_DIR ? { distDir: process.env.JARVIS_NEXT_DIST_DIR } : {}),
+  ...(process.env.FRIDAY_NEXT_DIST_DIR ? { distDir: process.env.FRIDAY_NEXT_DIST_DIR } : {}),
   // Workspace libraries ship TypeScript source (conventions §1).
   transpilePackages: WORKSPACE_PACKAGES,
   images: { unoptimized: true },
@@ -26,7 +26,7 @@ const config: NextConfig = {
   // Libraries live outside apps/web; Turbopack needs the monorepo root to follow the symlinked packages.
   turbopack: {
     root: resolve(import.meta.dirname, "../.."),
-    // @jarvis/mock-data's barrel also contains the Node test setup (`msw/node`), which msw excludes for the browser
+    // @friday/mock-data's barrel also contains the Node test setup (`msw/node`), which msw excludes for the browser
     // condition. The browser never calls it, so an empty module satisfies the resolver.
     resolveAlias: {
       "msw/node": { browser: "./src/lib/mock/empty.ts" },

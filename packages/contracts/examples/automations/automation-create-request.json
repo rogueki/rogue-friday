@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/automations/automation-create-request.schema.json",
+  "$schema": "https://friday.local/schemas/automations/automation-create-request.schema.json",
   "name": "Morgenbriefing",
   "trigger": {
     "type": "schedule",

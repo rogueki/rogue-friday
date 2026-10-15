@@ -1,4 +1,4 @@
-import { runConformanceSuite } from "@jarvis/adapter-testkit";
+import { runConformanceSuite } from "@friday/adapter-testkit";
 import { ExampleTasksAdapter, configSchema } from "../src";
 import { installExampleTasks, type ExampleTasksState } from "./fake-example-tasks";
 
@@ -67,10 +67,10 @@ runConformanceSuite({
       route: { method: "GET", path: "/events" },
       publish: (upstream, count) => states.get(upstream)?.publishEvents(count),
       expectedTypes: [
-        "jarvis.task.created",
-        "jarvis.task.updated",
-        "jarvis.task.progress",
-        "jarvis.task.completed",
+        "friday.task.created",
+        "friday.task.updated",
+        "friday.task.progress",
+        "friday.task.completed",
       ],
     },
   },

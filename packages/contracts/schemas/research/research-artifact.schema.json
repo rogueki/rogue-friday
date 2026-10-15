@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/research/research-artifact.schema.json",
+  "$id": "https://friday.local/schemas/research/research-artifact.schema.json",
   "title": "ResearchArtifact",
   "type": "object",
   "properties": {

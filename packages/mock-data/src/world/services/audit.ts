@@ -1,4 +1,4 @@
-import type { AuditEvent } from "@jarvis/sdk";
+import type { AuditEvent } from "@friday/sdk";
 import { notFound } from "../../core/errors";
 import { asIso, asList, clone, type Page } from "../../core/util";
 import type { MockWorld } from "../world";

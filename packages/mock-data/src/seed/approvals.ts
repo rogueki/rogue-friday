@@ -7,7 +7,7 @@ import type {
   EntityRef,
   RequiredAuth,
   RiskTier,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { DAY, HOUR, MIN, type SeedContext } from "./context";
 import type { AgentKey, ApprovalKey, Story, TaskKey } from "./story";
 
@@ -97,9 +97,9 @@ const SPECS: ApprovalSpec[] = [
     preview: {
       kind: "file",
       title: "dashboard-backup-2026-08.zip",
-      body: "Pfad: D:\\Jarvis\\Backups\\alt\\dashboard-backup-2026-08.zip\nGröße: 1,8 GB\nErstellt: 15.08.2026",
+      body: "Pfad: D:\\Friday\\Backups\\alt\\dashboard-backup-2026-08.zip\nGröße: 1,8 GB\nErstellt: 15.08.2026",
       fields: [
-        { label: "Speicherort", value: "D:\\Jarvis\\Backups\\alt" },
+        { label: "Speicherort", value: "D:\\Friday\\Backups\\alt" },
         { label: "Freigegebener Speicher", value: "1,8 GB" },
       ],
     },

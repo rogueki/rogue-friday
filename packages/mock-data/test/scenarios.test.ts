@@ -1,4 +1,4 @@
-import type { JarvisEvent } from "@jarvis/sdk";
+import type { FridayEvent } from "@friday/sdk";
 import { describe, expect, it } from "vitest";
 import { MockWorld, SCENARIO_DEFINITIONS, ScenarioEngine, scenarioDuration } from "../src";
 import { eventProblems, record, validator } from "./support";
@@ -69,7 +69,7 @@ describe.each(ids)("scenario %s", (id) => {
       const world = new MockWorld();
       const engine = ScenarioEngine.for(world);
       const types: string[] = [];
-      world.events.subscribe((event: JarvisEvent) => types.push(`${event.sequence}:${event.id}:${event.type}:${event.time}`));
+      world.events.subscribe((event: FridayEvent) => types.push(`${event.sequence}:${event.id}:${event.type}:${event.time}`));
       engine.play(id);
       engine.runToCompletion(scenarioDuration(engine.getDefinition(id)) + 5_000);
       return types;
@@ -84,7 +84,7 @@ describe("scenario details", () => {
     const engine = ScenarioEngine.for(world);
     const levels: { level: number; at: string }[] = [];
     world.events.subscribe((event) => {
-      if (event.type === "jarvis.voice.audio_level") levels.push({ level: event.data.level, at: event.data.at });
+      if (event.type === "friday.voice.audio_level") levels.push({ level: event.data.level, at: event.data.at });
     });
     engine.play("listening");
     engine.runToCompletion(20_000);
@@ -102,10 +102,10 @@ describe("scenario details", () => {
     world.events.subscribe((event) => types.push(event.type));
     engine.play("voice-pipeline");
     engine.runToCompletion(20_000);
-    expect(types).toContain("jarvis.voice.transcript_partial");
-    expect(types).toContain("jarvis.voice.transcript_final");
-    expect(types).toContain("jarvis.voice.tts_started");
-    expect(types).toContain("jarvis.voice.tts_ended");
+    expect(types).toContain("friday.voice.transcript_partial");
+    expect(types).toContain("friday.voice.transcript_final");
+    expect(types).toContain("friday.voice.tts_started");
+    expect(types).toContain("friday.voice.tts_ended");
   });
 
   it("multi-agent-working shows 3 agents, 2 tasks, one determinate and one indeterminate progress", () => {
@@ -172,7 +172,7 @@ describe("scenario details", () => {
     const lifecycles: string[] = [];
     const errors: (string | undefined)[] = [];
     world.events.subscribe((event) => {
-      if (event.type === "jarvis.adapter.health_changed" && event.data.adapterId === "mock-calendar") {
+      if (event.type === "friday.adapter.health_changed" && event.data.adapterId === "mock-calendar") {
         lifecycles.push(`${event.data.status}/${event.data.lifecycle}`);
         errors.push(event.data.lastError?.code);
       }
@@ -229,7 +229,7 @@ describe("scenario details", () => {
     engine.play("webgl-failure");
     world.clock.advance(10);
     expect(world.meta.getMeta().features.forceOrbFallback2D).toBe(true);
-    expect(types).toContain("jarvis.status.resync_required");
+    expect(types).toContain("friday.status.resync_required");
   });
 
   it("control(): clock, latency, errors, adapters, capabilities, forced orb and reset", () => {

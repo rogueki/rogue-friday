@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/common/action-result.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/common/action-result.schema.json",
+  "contractVersion": "2.0.0",
   "accepted": true,
   "status": "completed",
   "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00009",

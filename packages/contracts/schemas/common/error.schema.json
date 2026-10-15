@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/common/error.schema.json",
+  "$id": "https://friday.local/schemas/common/error.schema.json",
   "title": "ErrorResponse",
   "description": "Error envelope returned for every non-2xx REST response.",
   "type": "object",

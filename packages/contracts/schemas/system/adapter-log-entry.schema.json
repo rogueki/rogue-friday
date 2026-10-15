@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/system/adapter-log-entry.schema.json",
+  "$id": "https://friday.local/schemas/system/adapter-log-entry.schema.json",
   "title": "AdapterLogEntry",
   "description": "One redacted log line of an adapter from the Control API's log buffer (PLAN §40.4 Open Logs). Secrets, tokens and personal data never appear.",
   "type": "object",

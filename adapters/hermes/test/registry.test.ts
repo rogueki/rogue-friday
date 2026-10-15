@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { AdapterRegistry } from "@jarvis/adapter-core";
-import { createCorrelationId } from "@jarvis/sdk";
+import { AdapterRegistry } from "@friday/adapter-core";
+import { createCorrelationId } from "@friday/sdk";
 import { hermesFactories } from "../src";
 import { createHermesFake, type HermesFake } from "./fake/server";
 

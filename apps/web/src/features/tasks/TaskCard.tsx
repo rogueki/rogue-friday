@@ -1,7 +1,7 @@
 "use client";
 
-import type { Freshness, Task, TaskStatus } from "@jarvis/sdk";
-import { FreshnessBadge, Select, StatusDot, TagPill, cx } from "@jarvis/ui";
+import type { Freshness, Task, TaskStatus } from "@friday/sdk";
+import { FreshnessBadge, Select, StatusDot, TagPill, cx } from "@friday/ui";
 import { useDraggable } from "@dnd-kit/core";
 import { AlertTriangle, Bot, Clock3, Database, Lock, Paperclip, Timer } from "lucide-react";
 import type { KeyboardEvent } from "react";

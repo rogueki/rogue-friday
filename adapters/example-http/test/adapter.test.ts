@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { AdapterRegistry, createMapContext, systemClock, type RegistryEvent } from "@jarvis/adapter-core";
-import { createFakeUpstream, type FakeUpstream } from "@jarvis/adapter-testkit";
+import { AdapterRegistry, createMapContext, systemClock, type RegistryEvent } from "@friday/adapter-core";
+import { createFakeUpstream, type FakeUpstream } from "@friday/adapter-testkit";
 import { PROVIDER_ID, createTaskMapping, exampleTasksFactory, toRawState, toTaskStatus } from "../src";
 import { installExampleTasks, makeRawItem } from "./fake-example-tasks";
 
@@ -156,17 +156,17 @@ describe("ExampleTasksAdapter behind the registry", () => {
     const { state, events } = await boot(20);
     state.publishEvents(4);
     await expect
-      .poll(() => events.filter((e) => e.event.type.startsWith("jarvis.task.")).length, { timeout: 2_000 })
+      .poll(() => events.filter((e) => e.event.type.startsWith("friday.task.")).length, { timeout: 2_000 })
       .toBe(4);
     expect(
       events
-        .filter((e) => e.adapterId === "example-tasks-http" && e.event.type.startsWith("jarvis.task."))
+        .filter((e) => e.adapterId === "example-tasks-http" && e.event.type.startsWith("friday.task."))
         .map((e) => e.event.type),
     ).toEqual([
-      "jarvis.task.created",
-      "jarvis.task.updated",
-      "jarvis.task.progress",
-      "jarvis.task.completed",
+      "friday.task.created",
+      "friday.task.updated",
+      "friday.task.progress",
+      "friday.task.completed",
     ]);
   });
 

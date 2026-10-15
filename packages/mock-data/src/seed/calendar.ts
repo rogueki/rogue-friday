@@ -4,7 +4,7 @@ import type {
   CalendarConflict,
   CalendarEvent,
   CalendarProposal,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { HOUR, MIN, type SeedContext } from "./context";
 import type { EventKey, Story, TaskKey, ThreadKey } from "./story";
 

@@ -1,7 +1,7 @@
 "use client";
 
-import type { CalendarEvent } from "@jarvis/sdk";
-import { StatusChip } from "@jarvis/ui";
+import type { CalendarEvent } from "@friday/sdk";
+import { StatusChip } from "@friday/ui";
 import { AlertTriangle, FileText, MapPin, Users } from "lucide-react";
 import { useT } from "@/i18n";
 import { useFormat } from "../memory/kit/hooks";

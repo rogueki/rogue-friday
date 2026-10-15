@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { CONTRACT_VERSION, type ScenarioState } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type ScenarioState } from "@friday/sdk";
 import { EVENT_MODES, ORB_MODES, parseDuration, run, UsageError } from "../src/commands";
 import { eventsUrl } from "../src/watch";
 
@@ -48,7 +48,7 @@ function fakeApi(handlers: Record<string, (request: Recorded) => unknown> = {}) 
     const key = `${request.method} ${url.pathname}`;
     if (key === "POST /api/v1/auth/login") {
       const headers = new Headers({ "content-type": "application/json" });
-      headers.append("set-cookie", "jarvis_session=sess123; Path=/; HttpOnly");
+      headers.append("set-cookie", "friday_session=sess123; Path=/; HttpOnly");
       return new Response(JSON.stringify({ contractVersion: CONTRACT_VERSION, data: { csrfToken: CSRF } }), { status: 200, headers });
     }
     const handler = handlers[key];
@@ -106,7 +106,7 @@ describe("scenario CLI", () => {
     expect(login?.body).toEqual({ username: "dev-owner", password: "dev" });
     const control = lastControl(h.calls);
     expect(control?.csrf).toBe(CSRF);
-    expect(control?.cookie).toContain("jarvis_session=sess123");
+    expect(control?.cookie).toContain("friday_session=sess123");
     expect(control?.body).toEqual({ action: "reset" });
   });
 
@@ -154,10 +154,10 @@ describe("scenario CLI", () => {
     [["event", "approval"], { action: "force_orb_state", mode: "waiting_approval" }],
     [["reset"], { action: "reset" }],
     [["release-orb"], { action: "release_orb_state" }],
-    [["play-event", "jarvis.orb.status_changed"], { action: "play_event", eventType: "jarvis.orb.status_changed" }],
+    [["play-event", "friday.orb.status_changed"], { action: "play_event", eventType: "friday.orb.status_changed" }],
     [
-      ["play-event", "jarvis.voice.transcript_partial", "--subject", "voice/utterance", "--payload", '{"text":"Hallo"}'],
-      { action: "play_event", eventType: "jarvis.voice.transcript_partial", subject: "voice/utterance", payload: { text: "Hallo" } },
+      ["play-event", "friday.voice.transcript_partial", "--subject", "voice/utterance", "--payload", '{"text":"Hallo"}'],
+      { action: "play_event", eventType: "friday.voice.transcript_partial", subject: "voice/utterance", payload: { text: "Hallo" } },
     ],
   ] as const)("maps %j to the control request", async (argv, expected) => {
     const h = harness(controlHandler);
@@ -196,9 +196,9 @@ describe("scenario CLI", () => {
     [["play"], "Szenario-ID"],
     [["play-event"], "Ereignistyp"],
     [["play-event", "orb-status"], "Ereignistyp"],
-    [["play-event", "jarvis.orb.status_changed", "--payload", "{kaputt"], "kein gültiges JSON"],
-    [["play-event", "jarvis.orb.status_changed", "--payload", "[1]"], "JSON-Objekt"],
-    [["play-event", "jarvis.orb.status_changed", "--payload", "@/gibt/es/nicht.json"], "nicht lesbar"],
+    [["play-event", "friday.orb.status_changed", "--payload", "{kaputt"], "kein gültiges JSON"],
+    [["play-event", "friday.orb.status_changed", "--payload", "[1]"], "JSON-Objekt"],
+    [["play-event", "friday.orb.status_changed", "--payload", "@/gibt/es/nicht.json"], "nicht lesbar"],
   ] as const)("rejects bad input %j with exit code 2", async (argv, message) => {
     const h = harness(controlHandler);
     expect(await h.exec(...argv)).toBe(2);
@@ -207,13 +207,13 @@ describe("scenario CLI", () => {
   });
 
   it("reads the play-event payload from a file", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "jarvis-console-"));
+    const dir = mkdtempSync(join(tmpdir(), "friday-console-"));
     const file = join(dir, "payload.json");
     writeFileSync(file, JSON.stringify({ text: "Aus Datei" }));
     try {
       const h = harness(controlHandler);
-      expect(await h.exec("play-event", "jarvis.voice.transcript_partial", "--payload", `@${file}`)).toBe(0);
-      expect(lastControl(h.calls)?.body).toEqual({ action: "play_event", eventType: "jarvis.voice.transcript_partial", payload: { text: "Aus Datei" } });
+      expect(await h.exec("play-event", "friday.voice.transcript_partial", "--payload", `@${file}`)).toBe(0);
+      expect(lastControl(h.calls)?.body).toEqual({ action: "play_event", eventType: "friday.voice.transcript_partial", payload: { text: "Aus Datei" } });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

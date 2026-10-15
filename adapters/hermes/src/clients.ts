@@ -9,7 +9,7 @@ import {
   type HttpClient,
   type HttpRequest,
   type HttpResponse,
-} from "@jarvis/adapter-core";
+} from "@friday/adapter-core";
 import type { HermesSettings } from "./config";
 
 /**
@@ -39,7 +39,7 @@ export function secretCredential(read: () => string | undefined, label: string):
   };
 }
 
-/** Value stored in a key file (e.g. `C:\Jarvis\config\hermes_api.key`); re-read on refresh. */
+/** Value stored in a key file (e.g. `C:\Friday\config\hermes_api.key`); re-read on refresh. */
 export function fileCredential(path: string, label: string): CredentialSource {
   let cached: string | undefined;
   const load = async (): Promise<string> => {

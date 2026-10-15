@@ -1,4 +1,4 @@
-import type { Capabilities, Freshness, SourceDescriptor } from "@jarvis/sdk";
+import type { Capabilities, Freshness, SourceDescriptor } from "@friday/sdk";
 
 /** Fixtures and a routed fake `fetch` for the group-B module tests (never imported by production code). */
 
@@ -10,7 +10,7 @@ export const resource = (id: string, version = 1) => ({ id, version, createdAt: 
 
 export function listOf<T>(items: T[], extra: { freshness?: Freshness; hasNextPage?: boolean; totalCount?: number } = {}) {
   return {
-    contractVersion: "1.0.0",
+    contractVersion: "2.0.0",
     items,
     pageInfo: { nextCursor: null, hasNextPage: extra.hasNextPage ?? false, ...(extra.totalCount === undefined ? {} : { totalCount: extra.totalCount }) },
     freshness: extra.freshness ?? FRESH,
@@ -18,7 +18,7 @@ export function listOf<T>(items: T[], extra: { freshness?: Freshness; hasNextPag
   };
 }
 
-export const single = <T>(data: T, freshness: Freshness = FRESH) => ({ contractVersion: "1.0.0", data, freshness });
+export const single = <T>(data: T, freshness: Freshness = FRESH) => ({ contractVersion: "2.0.0", data, freshness });
 
 export function errorResponse(code: string, message: string, status: number): Response {
   return new Response(JSON.stringify({ error: { code, message, severity: "error", retryable: false, correlationId: "corr_01JTESTTESTTESTTESTTESTTES", details: {} } }), {
@@ -60,7 +60,7 @@ export function routedFetch(routes: Record<string, RouteHandler | unknown>): Rou
 
 /** Capability document with every flag of the given modules set from `flags` (unlisted flags false). */
 export function modules(flags: Record<string, Record<string, boolean>>): Capabilities {
-  return { contractVersion: "1.0.0", modules: flags } as unknown as Capabilities;
+  return { contractVersion: "2.0.0", modules: flags } as unknown as Capabilities;
 }
 
 export const FULL = {

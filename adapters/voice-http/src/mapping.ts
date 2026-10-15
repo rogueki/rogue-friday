@@ -1,5 +1,5 @@
-import type { VoiceMetrics, VoiceStatus } from "@jarvis/sdk";
-import { AdapterError, defineMapper, type MapContext } from "@jarvis/adapter-core";
+import type { VoiceMetrics, VoiceStatus } from "@friday/sdk";
+import { AdapterError, defineMapper, type MapContext } from "@friday/adapter-core";
 import { RAW_VOICE_STATES, type RawVoiceState, type RawVoiceStatus } from "./provider-types";
 
 /** Operator-visible settings that the status server does not deliver (see README, "Annahme (unbelegt)"). */
@@ -86,7 +86,7 @@ export function toVoiceMode(raw: RawVoiceStatus): VoiceStatus["mode"] {
 }
 
 export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
-  name: "Jarvis Voice status -> VoiceStatus",
+  name: "Friday Voice status -> VoiceStatus",
   schema: "VoiceStatus",
   toCanonical({ raw, settings, localModel }, context: MapContext) {
     const starting = raw.state === "starting";
@@ -144,7 +144,7 @@ const NO_DATA = { currentMs: null, avgMs: null, p95Ms: null, sampleCount: 0 } as
 
 /** The status server delivers no latencies; `sampleCount: 0` marks "keine Datenquelle". */
 export const emptyVoiceMetricsMapper = defineMapper<null, VoiceMetrics>({
-  name: "Jarvis Voice -> VoiceMetrics (keine Datenquelle)",
+  name: "Friday Voice -> VoiceMetrics (keine Datenquelle)",
   schema: "VoiceMetrics",
   toCanonical: (_none, context) => ({
     sampledAt: context.syncedAt,

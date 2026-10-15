@@ -1,4 +1,4 @@
 {
-  "$schema": "https://jarvis.local/schemas/notifications/notification-snooze-request.schema.json",
+  "$schema": "https://friday.local/schemas/notifications/notification-snooze-request.schema.json",
   "durationMinutes": 30
 }

@@ -78,7 +78,7 @@ describe("adapter settings: version and If-Match", () => {
   });
 
   it("keeps the version across a restart", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "jarvis-adapter-version-"));
+    const dir = mkdtempSync(join(tmpdir(), "friday-adapter-version-"));
     try {
       const first = await startTestApi({ dir });
       const client = first.client();

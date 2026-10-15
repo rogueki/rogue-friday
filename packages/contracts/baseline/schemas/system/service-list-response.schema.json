@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/system/service-list-response.schema.json",
+  "$id": "https://friday.local/schemas/system/service-list-response.schema.json",
   "title": "ServiceListResponse",
   "description": "Cursor-paginated list envelope for Service.",
   "type": "object",

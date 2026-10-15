@@ -7,14 +7,14 @@ import {
   type AdapterHealthReport,
   type CallContext,
   type CapabilitySet,
-  type JarvisAdapter,
+  type FridayAdapter,
   type MutationContext,
   type Page,
   type PortCategory,
   type Single,
-} from "@jarvis/adapter-core";
-import { CONTRACT_VERSION, type AdapterManifest, type JarvisEvent } from "@jarvis/sdk";
-import { CATEGORY_LABEL, MODULE_CATEGORY, adapterIdFor, type MockWorld, type OpContext } from "@jarvis/mock-data";
+} from "@friday/adapter-core";
+import { CONTRACT_VERSION, type AdapterManifest, type FridayEvent } from "@friday/sdk";
+import { CATEGORY_LABEL, MODULE_CATEGORY, adapterIdFor, type MockWorld, type OpContext } from "@friday/mock-data";
 import type { MockTransport } from "./transport";
 import { worldTransport } from "./transport";
 
@@ -28,7 +28,7 @@ export interface MockAdapterOptions {
   transport?: MockTransport;
 }
 
-export const MOCK_CONFIG_SCHEMA_ID = (category: PortCategory): string => `urn:jarvis:adapter:${adapterIdFor(category)}:config`;
+export const MOCK_CONFIG_SCHEMA_ID = (category: PortCategory): string => `urn:friday:adapter:${adapterIdFor(category)}:config`;
 
 const SECRET_FIELDS: Partial<Record<PortCategory, string[]>> = {
   communication: ["imapPassword", "smtpPassword"],
@@ -108,7 +108,7 @@ const ORB_AND_CORE_SOURCES = /^control-api:\/\//;
  * Common lifecycle of the mock adapters: wraps one category of the shared `MockWorld`, forwards that category's
  * events, derives health and capabilities from the world's adapter state and routes every call through the transport.
  */
-export abstract class MockAdapterBase implements JarvisAdapter {
+export abstract class MockAdapterBase implements FridayAdapter {
   readonly manifest: AdapterManifest;
   protected readonly world: MockWorld;
   private readonly transport: MockTransport;
@@ -261,7 +261,7 @@ export abstract class MockAdapterBase implements JarvisAdapter {
     return { data, freshness: this.world.freshness(this.category as never) };
   }
 
-  private forward(event: JarvisEvent): void {
+  private forward(event: FridayEvent): void {
     // Only this category's own events leave the adapter. Core events (orb, overall status, resync) belong to the hub,
     // and adapter-health / capability changes are re-derived from health checks by the registry.
     if (ORB_AND_CORE_SOURCES.test(event.source)) return;

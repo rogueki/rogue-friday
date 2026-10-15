@@ -1,5 +1,5 @@
 {
-  "name": "@jarvis/mock-console",
+  "name": "@friday/mock-console",
   "version": "1.0.0",
   "private": true,
   "description": "CLI zur Szenario-Steuerung",
@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@jarvis/sdk": "workspace:*",
+    "@friday/sdk": "workspace:*",
     "ws": "^8.22.0"
   },
   "devDependencies": {

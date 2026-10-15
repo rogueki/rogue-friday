@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/events/voice-audio-level.schema.json",
+  "$id": "https://friday.local/schemas/events/voice-audio-level.schema.json",
   "title": "VoiceAudioLevel",
   "type": "object",
   "properties": {

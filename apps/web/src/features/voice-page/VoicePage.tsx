@@ -1,6 +1,6 @@
 "use client";
 
-import type { LatencyStat, VoiceDevice, VoiceProfile, VoiceStatus, VoiceTestKind, VoiceTestResult } from "@jarvis/sdk";
+import type { LatencyStat, VoiceDevice, VoiceProfile, VoiceStatus, VoiceTestKind, VoiceTestResult } from "@friday/sdk";
 import {
   Button,
   ConfirmDialog,
@@ -12,7 +12,7 @@ import {
   TextField,
   useToast,
   type Tone,
-} from "@jarvis/ui";
+} from "@friday/ui";
 import {
   AudioLines,
   BrainCircuit,

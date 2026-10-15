@@ -1,7 +1,7 @@
 "use client";
 
-import type { Memory } from "@jarvis/sdk";
-import { IconTile, TagPill } from "@jarvis/ui";
+import type { Memory } from "@friday/sdk";
+import { IconTile, TagPill } from "@friday/ui";
 import { AlertTriangle, Lock, Pin, ShieldAlert } from "lucide-react";
 import { useT } from "@/i18n";
 import { useFormat } from "./kit/hooks";

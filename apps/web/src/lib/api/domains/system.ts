@@ -12,7 +12,7 @@ import type {
   ServiceListResponse,
   StorageVolumeListResponse,
   SystemMetricsResponse,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";

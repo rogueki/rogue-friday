@@ -52,22 +52,22 @@ describe("profile and assistant name", () => {
     expect(screen.getByTestId("brand")).toHaveTextContent("F.R.I.D.A.Y.");
 
     await user.clear(screen.getByLabelText("Name des Assistenten"));
-    await user.type(screen.getByLabelText("Name des Assistenten"), "Jarvis");
+    await user.type(screen.getByLabelText("Name des Assistenten"), "Friday");
     expect(await screen.findByText("Ungespeicherte Änderungen")).toBeInTheDocument();
     // nothing is applied before saving
     expect(screen.getByTestId("brand")).toHaveTextContent("F.R.I.D.A.Y.");
 
     await user.click(saveButton());
-    await waitFor(() => expect(screen.getByTestId("brand")).toHaveTextContent("Jarvis"));
+    await waitFor(() => expect(screen.getByTestId("brand")).toHaveTextContent("Friday"));
     const patch = api.find("PATCH", "/settings")[0];
     expect(patch?.ifMatch).toBe("3");
-    expect(patch?.body).toMatchObject({ profile: { assistantName: "Jarvis", displayName: "Erik Brandt" } });
+    expect(patch?.body).toMatchObject({ profile: { assistantName: "Friday", displayName: "Erik Brandt" } });
     expect(await screen.findByText(/Alle Änderungen gespeichert/)).toBeInTheDocument();
   });
 
   it("an empty name removes the optional field so clients fall back to the default", async () => {
     const user = userEvent.setup();
-    const { api } = setup({ settings: makeSettings({ profile: { ...makeSettings().profile, assistantName: "Jarvis" } }) });
+    const { api } = setup({ settings: makeSettings({ profile: { ...makeSettings().profile, assistantName: "Friday" } }) });
     await user.clear(await screen.findByLabelText("Name des Assistenten"));
     await user.click(saveButton());
     await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
@@ -233,7 +233,7 @@ describe("theme editor", () => {
     await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
     const theme = (api.find("PATCH", "/settings")[0]?.body as { theme: { cyanIntensity: number; activeThemeId: string } }).theme;
     expect(theme.cyanIntensity).toBeCloseTo(0.6);
-    expect(theme.activeThemeId).toBe("jarvis-navy-cyan");
+    expect(theme.activeThemeId).toBe("friday-navy-cyan");
   });
 });
 
@@ -253,7 +253,7 @@ describe("settings export and import", () => {
     const { api } = setup();
     const input = await screen.findByLabelText("Einstellungsdatei auswählen");
     const document = {
-      contractVersion: "1.0.0",
+      contractVersion: "2.0.0",
       exportedAt: "2026-10-14T08:00:00Z",
       settings: { approvals: makeSettings().approvals },
       themes: [],

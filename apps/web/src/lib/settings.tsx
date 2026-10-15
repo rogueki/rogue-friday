@@ -5,10 +5,10 @@ import {
   defaultTheme,
   getTheme,
   setMotionMode,
-  type JarvisTheme,
+  type FridayTheme,
   type ThemeSettings as RuntimeThemeSettings,
-} from "@jarvis/design-tokens";
-import type { Settings, Theme } from "@jarvis/sdk";
+} from "@friday/design-tokens";
+import type { Settings, Theme } from "@friday/sdk";
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { useSettings, useThemes } from "./api/domains/settings";
 import { useMeta } from "./api/domains/core";
@@ -31,7 +31,7 @@ const AppSettingsContext = createContext<AppSettingsValue>({
 });
 
 /** Server theme (wire shape) -> design-tokens theme. Invalid results fall back to the default theme inside applyTheme. */
-function fromWireTheme(theme: Theme): JarvisTheme {
+function fromWireTheme(theme: Theme): FridayTheme {
   return {
     id: theme.id,
     name: theme.name,
@@ -40,7 +40,7 @@ function fromWireTheme(theme: Theme): JarvisTheme {
     orb: theme.orb,
     panels: { ...theme.panels, cornerStyle: theme.panels.cornerStyle === "rounded" ? "soft-cut" : theme.panels.cornerStyle },
     effects: { gridVisibility: 1, cyanIntensity: 1 },
-  } as unknown as JarvisTheme;
+  } as unknown as FridayTheme;
 }
 
 export function runtimeThemeSettings(settings: Settings): Partial<RuntimeThemeSettings> {

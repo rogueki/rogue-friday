@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/voice/voice-status-response.schema.json",
+  "$id": "https://friday.local/schemas/voice/voice-status-response.schema.json",
   "title": "VoiceStatusResponse",
   "description": "Single-resource envelope for VoiceStatus.",
   "type": "object",

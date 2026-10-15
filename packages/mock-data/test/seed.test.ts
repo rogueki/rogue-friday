@@ -1,4 +1,4 @@
-import { createSchemaValidator, type SchemaName } from "@jarvis/sdk";
+import { createSchemaValidator, type SchemaName } from "@friday/sdk";
 import { describe, expect, it } from "vitest";
 import { IdFactory } from "../src/core/ids";
 import { buildWorldState, createContextFor, ID_EPOCH_MS } from "../src/seed/profiles";

@@ -1,5 +1,5 @@
-import type { Agent, AgentHeartbeat, ErrorDetail } from "@jarvis/sdk";
-import { defineMapper, type MapContext } from "@jarvis/adapter-core";
+import type { Agent, AgentHeartbeat, ErrorDetail } from "@friday/sdk";
+import { defineMapper, type MapContext } from "@friday/adapter-core";
 import { correlationFor, type AgentIds, type TaskIds } from "./ids";
 import { toAgentStatus } from "./status";
 import { isoFromSeconds, lastChangeSeconds, truncate } from "./task-mapping";

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/tasks/task-blocker.schema.json",
+  "$id": "https://friday.local/schemas/tasks/task-blocker.schema.json",
   "title": "TaskBlocker",
   "type": "object",
   "properties": {

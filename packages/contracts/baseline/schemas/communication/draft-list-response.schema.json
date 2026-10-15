@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/communication/draft-list-response.schema.json",
+  "$id": "https://friday.local/schemas/communication/draft-list-response.schema.json",
   "title": "DraftListResponse",
   "description": "Cursor-paginated list envelope for Draft.",
   "type": "object",

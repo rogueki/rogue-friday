@@ -1,4 +1,4 @@
 {
-  "$schema": "https://jarvis.local/schemas/files/file-rename-request.schema.json",
+  "$schema": "https://friday.local/schemas/files/file-rename-request.schema.json",
   "name": "Angebotsvergleich Büromöbel (final).md"
 }

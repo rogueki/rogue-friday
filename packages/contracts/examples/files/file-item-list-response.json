@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/files/file-item-list-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/files/file-item-list-response.schema.json",
+  "contractVersion": "2.0.0",
   "items": [
     {
       "id": "file_01JCW5E9R2Q7T4M8N3B6V00001",
@@ -46,7 +46,7 @@
         "name": "Recherche-Agent"
       },
       "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00001",
-      "location": "D:\\Jarvis\\Dateien\\Recherche",
+      "location": "D:\\Friday\\Dateien\\Recherche",
       "tags": ["büromöbel", "vergleich"],
       "previewKind": "markdown",
       "lineage": [

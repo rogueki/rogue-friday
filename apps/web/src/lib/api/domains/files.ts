@@ -1,6 +1,6 @@
 "use client";
 
-import type { ActionResult, ApprovalResponse, FileCategory, FileItemListResponse, FileItemResponse, FilePreviewResponse } from "@jarvis/sdk";
+import type { ActionResult, ApprovalResponse, FileCategory, FileItemListResponse, FileItemResponse, FilePreviewResponse } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";

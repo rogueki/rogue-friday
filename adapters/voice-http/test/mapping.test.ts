@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdapterError, createMapContext, findForbiddenKeys, systemClock } from "@jarvis/adapter-core";
+import { AdapterError, createMapContext, findForbiddenKeys, systemClock } from "@friday/adapter-core";
 import {
   PROVIDER_SYSTEM,
   RAW_VOICE_STATES,

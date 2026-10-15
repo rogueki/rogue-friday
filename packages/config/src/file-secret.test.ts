@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 function tempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'jarvis-file-secret-'));
+  const dir = mkdtempSync(join(tmpdir(), 'friday-file-secret-'));
   tempDirs.push(dir);
   return dir;
 }
@@ -18,8 +18,8 @@ function tempDir(): string {
 describe('file: secret references', () => {
   it('parses absolute POSIX and Windows paths and rejects relative or empty ones', () => {
     expect(looksLikeSecretRef('file:/etc/key')).toBe(true);
-    expect(parseSecretRef('file:C:/Jarvis/config/hermes_api.key')).toEqual({ scheme: 'file', name: 'C:/Jarvis/config/hermes_api.key' });
-    expect(parseSecretRef('file:C:\\Jarvis\\config\\hermes_api.key')).toEqual({ scheme: 'file', name: 'C:\\Jarvis\\config\\hermes_api.key' });
+    expect(parseSecretRef('file:C:/Friday/config/hermes_api.key')).toEqual({ scheme: 'file', name: 'C:/Friday/config/hermes_api.key' });
+    expect(parseSecretRef('file:C:\\Friday\\config\\hermes_api.key')).toEqual({ scheme: 'file', name: 'C:\\Friday\\config\\hermes_api.key' });
     expect(parseSecretRef('file:/home/user/hermes_api.key')).toMatchObject({ scheme: 'file' });
     expect(parseSecretRef('file:')).toBeNull();
     expect(parseSecretRef('file:relative/key')).toBeNull();
@@ -75,7 +75,7 @@ describe('file: secret references', () => {
       join(dir, 'adapters.yaml'),
       [
         'allowlist:',
-        '  hermes-activity: "@jarvis/adapter-hermes"',
+        '  hermes-activity: "@friday/adapter-hermes"',
         'adapters:',
         '  activity:',
         '    provider: hermes-activity',
@@ -98,7 +98,7 @@ describe('file: secret references', () => {
     writeFileSync(join(dir, 'dashboard.yaml'), 'dataMode: hybrid\n');
     writeFileSync(
       join(dir, 'adapters.yaml'),
-      ['allowlist:', '  hermes-activity: "@jarvis/adapter-hermes"', 'adapters:', '  activity:', '    provider: hermes-activity', '    enabled: true', '    config:', '      apiKey: "file:keys/hermes.key"', ''].join('\n'),
+      ['allowlist:', '  hermes-activity: "@friday/adapter-hermes"', 'adapters:', '  activity:', '    provider: hermes-activity', '    enabled: true', '    config:', '      apiKey: "file:keys/hermes.key"', ''].join('\n'),
     );
     expect(() => loadConfig({ configDir: dir, env: {}, cwd: dir })).toThrow(ConfigError);
   });

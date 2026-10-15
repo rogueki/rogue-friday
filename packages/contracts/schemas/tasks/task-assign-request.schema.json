@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/tasks/task-assign-request.schema.json",
+  "$id": "https://friday.local/schemas/tasks/task-assign-request.schema.json",
   "title": "TaskAssignRequest",
   "description": "Assigns a task to an agent or releases it (agentId null).",
   "type": "object",

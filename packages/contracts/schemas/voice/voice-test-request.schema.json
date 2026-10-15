@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/voice/voice-test-request.schema.json",
+  "$id": "https://friday.local/schemas/voice/voice-test-request.schema.json",
   "title": "VoiceTestRequest",
   "type": "object",
   "properties": {

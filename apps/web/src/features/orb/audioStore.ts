@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 /**
  * Audio level feed for the orb, the voice panel and the command bar.
- * `jarvis.voice.audio_level` events arrive at 20-60 Hz; they are written here WITHOUT touching React state. Consumers
+ * `friday.voice.audio_level` events arrive at 20-60 Hz; they are written here WITHOUT touching React state. Consumers
  * sample the store at a bounded rate (`useAudioSamples`), so only the small waveform/orb subtree re-renders and the
  * page never re-renders per event.
  */

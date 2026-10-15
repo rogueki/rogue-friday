@@ -1,9 +1,9 @@
-import { CONTRACT_VERSION, type AdapterManifest } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type AdapterManifest } from "@friday/sdk";
 
-export const ADAPTER_ID = "jarvis-voice-http";
-export const PROVIDER_ID = "jarvis-voice-http";
-export const PROVIDER_SYSTEM = "jarvis-voice";
-export const CONFIG_SCHEMA_ID = "urn:jarvis:adapter:jarvis-voice-http:config";
+export const ADAPTER_ID = "friday-voice-http";
+export const PROVIDER_ID = "friday-voice-http";
+export const PROVIDER_SYSTEM = "friday-voice";
+export const CONFIG_SCHEMA_ID = "urn:friday:adapter:friday-voice-http:config";
 
 /** Installer defaults (docs/MAPPING/voice.md §0.3): status server `health_port` 43694, Qwen router 43692. */
 export const DEFAULT_BASE_URL = "http://127.0.0.1:43694";
@@ -11,12 +11,12 @@ export const DEFAULT_LOCAL_MODEL_URL = "http://127.0.0.1:43692";
 
 /**
  * JSON Schema (draft 2020-12) of the adapter's `config`. The voice status endpoint has no authentication
- * (installer/voice/jarvis_voice.py, `do_GET`), so the adapter has no secret fields.
+ * (installer/voice/friday_voice.py, `do_GET`), so the adapter has no secret fields.
  */
 export const configSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: CONFIG_SCHEMA_ID,
-  title: "Jarvis Voice (Status-Endpunkt)",
+  title: "Friday Voice (Status-Endpunkt)",
   type: "object",
   properties: {
     baseUrl: {
@@ -81,7 +81,7 @@ export const configSchema = {
       maximum: 5000,
       default: 250,
       description:
-        "Abfrageintervall (ms) für Audio-Pegel-Ereignisse (jarvis.voice.audio_level), solange der Dienst aufnimmt oder spricht. 0 schaltet die Pegel-Ereignisse ab. Es wird nur eine Pegelzahl übertragen, nie Audio.",
+        "Abfrageintervall (ms) für Audio-Pegel-Ereignisse (friday.voice.audio_level), solange der Dienst aufnimmt oder spricht. 0 schaltet die Pegel-Ereignisse ab. Es wird nur eine Pegelzahl übertragen, nie Audio.",
     },
     idlePollIntervalMs: {
       type: "integer",
@@ -97,7 +97,7 @@ export const configSchema = {
 
 export const manifest: AdapterManifest = {
   id: ADAPTER_ID,
-  name: "Jarvis Voice (Status-Endpunkt)",
+  name: "Friday Voice (Status-Endpunkt)",
   adapterVersion: "1.0.0",
   contractVersion: CONTRACT_VERSION,
   apiVersion: "v1",

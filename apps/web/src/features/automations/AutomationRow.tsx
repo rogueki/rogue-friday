@@ -1,7 +1,7 @@
 "use client";
 
 import type { AutomationDto as Automation } from "@/lib/api/domains/automations";
-import { IconTile, StatusChip, Switch } from "@jarvis/ui";
+import { IconTile, StatusChip, Switch } from "@friday/ui";
 import { AlertTriangle, CalendarClock, CheckCircle2 } from "lucide-react";
 import { useT } from "@/i18n";
 import { useFormat } from "../memory/kit/hooks";

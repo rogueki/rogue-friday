@@ -1,4 +1,4 @@
-import { AdapterError, normalizeError } from "@jarvis/adapter-core";
+import { AdapterError, normalizeError } from "@friday/adapter-core";
 import type { AuthedClient } from "./clients";
 import { parseBoard, parseEventBatch, type WireEvent } from "./wire";
 

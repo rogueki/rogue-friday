@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/automations/automation.schema.json",
+  "$id": "https://friday.local/schemas/automations/automation.schema.json",
   "title": "Automation",
   "description": "Rule: trigger, conditions, actions, escalation (PLAN §35). version increments on every definition change.",
   "type": "object",

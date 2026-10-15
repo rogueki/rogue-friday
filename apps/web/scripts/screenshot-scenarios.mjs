@@ -1,4 +1,4 @@
-// Scenario screenshots of the overview in standalone mock mode (start `pnpm --filter @jarvis/web dev:mock` first).
+// Scenario screenshots of the overview in standalone mock mode (start `pnpm --filter @friday/web dev:mock` first).
 //   node scripts/screenshot-scenarios.mjs [--base http://localhost:3000] [--out screenshots/a2] [--only <name-substring>]
 // Chromium: PW_CHROMIUM=<path to chrome binary> overrides the Playwright default (the cloud image ships /opt/pw-browsers).
 import { chromium } from "@playwright/test";
@@ -57,10 +57,10 @@ for (const shot of shots) {
     if (message.type() === "error") problems.push(`console: ${message.text()}`);
   });
   await page.goto(base, { waitUntil: "networkidle" });
-  await page.waitForFunction(() => Boolean(window.__jarvisMock), null, { timeout: 30000 });
+  await page.waitForFunction(() => Boolean(window.__fridayMock), null, { timeout: 30000 });
   if (shot.play) {
     await page.evaluate(async (id) => {
-      await window.__jarvisMock.engine.play(id);
+      await window.__fridayMock.engine.play(id);
     }, shot.play);
   }
   await page.waitForTimeout(shot.settle ?? 3500);

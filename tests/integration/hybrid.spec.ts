@@ -7,9 +7,9 @@ import { API_ORIGIN, CONTROL_ORIGIN, OWNER_PASSWORD, OWNER_USERNAME } from "./co
 /**
  * Proof that the real adapters (Hermes, voice-http, system-local) work end to end behind the built Control API in hybrid
  * mode: fake upstreams -> adapters -> Control API -> web UI. Outages are simulated by closing the fake service ports.
- * Screenshots go to JARVIS_EVIDENCE_DIR (PNG; docs/evidence/integration/ keeps WebP copies, see its README).
+ * Screenshots go to FRIDAY_EVIDENCE_DIR (PNG; docs/evidence/integration/ keeps WebP copies, see its README).
  */
-const evidenceDir = resolve(process.env.JARVIS_EVIDENCE_DIR ?? join("test-results", "integration", "evidence"));
+const evidenceDir = resolve(process.env.FRIDAY_EVIDENCE_DIR ?? join("test-results", "integration", "evidence"));
 mkdirSync(evidenceDir, { recursive: true });
 
 const HERMES_TASK_TITLES = [
@@ -100,10 +100,10 @@ test("overview: Hermes work items, real host metrics and voice status", async ()
   expect(text).toMatch(/Modelle\s*\n?\s*2 verbunden/);
 
   const overview = (await api("/overview")).body.data;
-  expect(overview.jarvis.dataMode).toBe("hybrid");
+  expect(overview.friday.dataMode).toBe("hybrid");
   expect(overview.runningTasks[0].source).toMatchObject({ adapterId: "hermes-tasks", system: "hermes" });
   expect(overview.activeAgents[0].source).toMatchObject({ adapterId: "hermes-agents", system: "hermes" });
-  expect(overview.voice.source.adapterId).toBe("jarvis-voice-http");
+  expect(overview.voice.source.adapterId).toBe("friday-voice-http");
   expect(overview.voice.wakeWord.phrase).toBe("Hey Friday");
   expect(overview.systemSummary.cpuPercent).toBeGreaterThanOrEqual(0);
   expect(overview.systemSummary.ramPercent).toBeGreaterThan(0);
@@ -153,7 +153,7 @@ test("system: services online, real host metrics, models", async () => {
   const services = (await api("/system/services")).body.items as Array<{ name: string; status: string }>;
   expect(services.filter((service) => service.name !== "Control API").map((service) => service.status)).toEqual(["online", "online", "online", "online"]);
   const providers = (await api("/system/models")).body.items as Array<{ models: string[] }>;
-  expect(providers.flatMap((provider) => provider.models).sort()).toEqual(["jarvis", "qwen3-router"]);
+  expect(providers.flatMap((provider) => provider.models).sort()).toEqual(["friday", "qwen3-router"]);
   const metrics = (await api("/system/metrics")).body.data;
   expect(Math.abs(metrics.ram.totalBytes - totalmem()) / totalmem()).toBeLessThan(0.02); // the host's real memory, not a mock number
   expect(metrics.cpu.cores).toBeGreaterThan(0);
@@ -164,7 +164,7 @@ test("outage and recovery: stopping the voice service marks exactly the voice mo
   await control("/services/voice/stop");
   try {
     const voice = await openUntil("/voice", OUTAGE_TEXT);
-    expect(voice).toMatch(/Jarvis Voice[^\n]*nicht erreichbar seit/);
+    expect(voice).toMatch(/Friday Voice[^\n]*nicht erreichbar seit/);
     expect(voice).not.toMatch(NOT_CONFIGURED_TEXT); // an outage is not "not configured"
     // Last known data may stay visible during an outage (offline cache, PLAN §8.9) - but never as live data.
     expect(voice).toMatch(/Mikrofonstatus unbekannt/);
@@ -180,7 +180,7 @@ test("outage and recovery: stopping the voice service marks exactly the voice mo
     expect(system).toMatch(/1 offline/);
     expect(system).toMatch(/Hermes API[^|]*[\s\S]{0,200}Online/);
     const adapters = (await api("/adapters")).body.items as Array<{ manifest: { id: string }; health: { status: string } }>;
-    expect(adapters.filter((adapter) => adapter.health.status !== "online").map((adapter) => adapter.manifest.id)).toEqual(["jarvis-voice-http"]);
+    expect(adapters.filter((adapter) => adapter.health.status !== "online").map((adapter) => adapter.manifest.id)).toEqual(["friday-voice-http"]);
     await shot("07-system-voice-offline");
 
     // everything else keeps working

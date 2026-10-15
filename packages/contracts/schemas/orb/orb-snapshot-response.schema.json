@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/orb/orb-snapshot-response.schema.json",
+  "$id": "https://friday.local/schemas/orb/orb-snapshot-response.schema.json",
   "title": "OrbSnapshotResponse",
   "description": "Single-resource envelope for OrbSnapshot.",
   "type": "object",

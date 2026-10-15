@@ -1,7 +1,7 @@
 "use client";
 
-import type { Layout, LayoutWidget } from "@jarvis/sdk";
-import { Button, EmptyState, Select, StatusChip, Switch, TextField } from "@jarvis/ui";
+import type { Layout, LayoutWidget } from "@friday/sdk";
+import { Button, EmptyState, Select, StatusChip, Switch, TextField } from "@friday/ui";
 import { Copy, Download, Eye, EyeOff, FileUp, LayoutGrid, Plus, RotateCcw, Save, Undo2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { PanelFrame, type PanelState } from "@/components/PanelFrame";

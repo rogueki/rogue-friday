@@ -1,7 +1,7 @@
 "use client";
 
-import { Button, Select, StatusChip, Switch, TextField } from "@jarvis/ui";
-import type { SecretStatus } from "@jarvis/sdk";
+import { Button, Select, StatusChip, Switch, TextField } from "@friday/ui";
+import type { SecretStatus } from "@friday/sdk";
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useT } from "@/i18n";

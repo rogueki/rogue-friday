@@ -1,6 +1,6 @@
 import type { StoryObj } from '@storybook/react-vite';
 import type { ComponentType } from 'react';
-import type { AdapterCategory, Capabilities } from '@jarvis/sdk';
+import type { AdapterCategory, Capabilities } from '@friday/sdk';
 import { DomainStage, type DomainState, type DomainStageProps } from './DomainStage';
 
 export interface DomainConfig {

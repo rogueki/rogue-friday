@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/automations/automation-test-request.schema.json",
+  "$schema": "https://friday.local/schemas/automations/automation-test-request.schema.json",
   "dryRun": true,
   "sampleData": {
     "thread": {

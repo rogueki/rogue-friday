@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/tasks/task-response.schema.json",
+  "$id": "https://friday.local/schemas/tasks/task-response.schema.json",
   "title": "TaskResponse",
   "description": "Single-resource envelope for Task.",
   "type": "object",

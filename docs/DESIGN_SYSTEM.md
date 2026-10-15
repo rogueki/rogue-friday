@@ -1,4 +1,4 @@
-# Design System (`@jarvis/design-tokens`, `@jarvis/ui`, Storybook)
+# Design System (`@friday/design-tokens`, `@friday/ui`, Storybook)
 
 Binding sources: `docs/PLAN.md` §14, §23–27, §46.2, §51.7 and `docs/briefs/DASHBOARD_DESIGN_BRIEF.md`.
 The reference image is a briefing only; nothing in this system copies its texts or assets.
@@ -7,11 +7,11 @@ The reference image is a briefing only; nothing in this system copies its texts 
 
 | Package | Path | Content |
 |---|---|---|
-| `@jarvis/design-tokens` | `packages/design-tokens` | `tokens.css`, TS token mirror, themes, `applyTheme()` |
-| `@jarvis/ui` | `packages/ui` | all components, hooks, `styles.css` (single stylesheet entry) |
-| `@jarvis/storybook` | `apps/storybook` | Storybook 10 catalogue, `OverviewComposition`, screenshot script |
+| `@friday/design-tokens` | `packages/design-tokens` | `tokens.css`, TS token mirror, themes, `applyTheme()` |
+| `@friday/ui` | `packages/ui` | all components, hooks, `styles.css` (single stylesheet entry) |
+| `@friday/storybook` | `apps/storybook` | Storybook 10 catalogue, `OverviewComposition`, screenshot script |
 
-Usage in an app: `import '@jarvis/ui/styles.css'` once (imports Oxanium / Inter / JetBrains Mono weights 400–700 from
+Usage in an app: `import '@friday/ui/styles.css'` once (imports Oxanium / Inter / JetBrains Mono weights 400–700 from
 `@fontsource`, then `tokens.css`, then component CSS). No Tailwind, no CSS-in-JS. Components use plain CSS with `jv-` prefixed
 BEM-ish class names, so Next.js and Vite need no special loader.
 
@@ -19,9 +19,9 @@ BEM-ish class names, so Next.js and Vite need no special loader.
 
 `packages/design-tokens/src/tokens.css` contains
 
-* all §24.15 tokens, verbatim, as `--jarvis-*` custom properties (a unit test checks each against its TS mirror);
+* all §24.15 tokens, verbatim, as `--friday-*` custom properties (a unit test checks each against its TS mirror);
 * semantic tone tokens for `cyan | green | violet | amber | red | teal | blue | gold | muted`:
-  `--jarvis-tone-<t>`, `--jarvis-tint-<t>-bg|border|glow` (derived with `color-mix`, so a theme change re-tints everything);
+  `--friday-tone-<t>`, `--friday-tint-<t>-bg|border|glow` (derived with `color-mix`, so a theme change re-tints everything);
 * spacing scale `--jv-space-1…12`, cut sizes `--jv-cut-xs…lg` (scaled by `--jv-cut-scale`), radii, font families
   (`--jv-font-display|body|mono`), font sizes `--jv-fs-2xs…hero` (scaled by `--jv-font-scale`), tracking;
 * panel hierarchy z-index `--jv-z-level-0…4` (+ popover/toast/tooltip), line/row tokens, glow tokens;
@@ -29,12 +29,12 @@ BEM-ish class names, so Next.js and Vite need no special loader.
 * layout constants (nav width, top/bottom bar height);
 * utility classes `.jv-bg-grid` (24 px dot grid), `.jv-bg-radial`, `.jv-bg-stage` (both).
 
-TypeScript mirror (`import { … } from '@jarvis/design-tokens'`):
+TypeScript mirror (`import { … } from '@friday/design-tokens'`):
 
 | Export | Purpose |
 |---|---|
-| `jarvisTokens`, `colors`, `JarvisTokenKey` | name + default value of every binding token |
-| `cssVar(key, fallback?)`, `toneVar(tone)`, `readCssVar(key)` | `var(--jarvis-…)` references / live computed value |
+| `fridayTokens`, `colors`, `FridayTokenKey` | name + default value of every binding token |
+| `cssVar(key, fallback?)`, `toneVar(tone)`, `readCssVar(key)` | `var(--friday-…)` references / live computed value |
 | `toneColors`, `TONES`, `Tone` | default-theme colours per tone (canvas/SVG), tone list |
 | `THEME_TOKEN_MAP` | dotted theme key (`color.primary`) → CSS property |
 | `zLevels`, `motionTokens`, `spacing`, `fontFamilies` | structural constants |
@@ -43,7 +43,7 @@ TypeScript mirror (`import { … } from '@jarvis/design-tokens'`):
 
 80–85 % navy surfaces · 10–15 % cyan (lines, interaction, focus) · 2–5 % semantic accents (green/amber/red/violet) ·
 **gold only in the AI-core context**: `HudPanel tone="gold"`, the orb slot, the voice capsule while F.R.I.D.A.Y. speaks
-(`state="speaking"`), `Button variant="jarvis"`. Never use gold for normal panels, rows or status. Glow is reserved for level 2/3
+(`state="speaking"`), `Button variant="friday"`. Never use gold for normal panels, rows or status. Glow is reserved for level 2/3
 panels, active tiles and the capsule; text never glows (the clock has a soft halo as the single exception).
 States are never colour-only: status chips carry a dot **and** a word, `HealthBadge`/`FreshnessBadge` carry an icon **and** text,
 tasks/agents show the status word.
@@ -52,7 +52,7 @@ tasks/agents show the status word.
 
 | Level | Use | Component |
 |---|---|---|
-| 0 | page background | `.jv-bg-stage` (`JarvisShell` applies it) |
+| 0 | page background | `.jv-bg-stage` (`FridayShell` applies it) |
 | 1 | normal modules | `HudPanel level={1}` |
 | 2 | active / selected, cyan glow | `HudPanel level={2}` |
 | 3 | attention / approval / critical (`tone` amber or red, glow) | `HudPanel level={3} tone="amber\|red"` |
@@ -67,16 +67,16 @@ unclipped wrapper. Variants: `cut` (`tl-br | tr-bl | all | tl | br | none`), `cu
 ## Components
 
 Everything is typed, forwards refs where useful, accepts `className`, fetches no data, takes German default labels as props,
-and has `:focus-visible` outlines in `--jarvis-focus`.
+and has `:focus-visible` outlines in `--friday-focus`.
 
-* **Shell**: `JarvisShell` (grid nav/top/main/bottom, collapsible nav, nav becomes a drawer < 1024 px, skip link, context
-  `useJarvisShell`), `LeftCommandNav` (brand block with SVG `BrandMark`, items, count badges, collapsed icon-only mode with tooltips,
+* **Shell**: `FridayShell` (grid nav/top/main/bottom, collapsible nav, nav becomes a drawer < 1024 px, skip link, context
+  `useFridayShell`), `LeftCommandNav` (brand block with SVG `BrandMark`, items, count badges, collapsed icon-only mode with tooltips,
   scrollable, footer slot), `VoiceStatusPanel` (nav footer + focus-mode button), `TopStatusBar` (system status frame, centred
   date and `Intl` clock by `locale`/`timeZone`/`hour12`, Ctrl+K search trigger, action buttons with badges, operator chip,
   connection status), `BottomCommandBar` (context chips, glowing capsule, waveforms, dotted lines, Stop/Pause, quick action, `compact`).
 * **Panels**: `HudPanel`, `HudPanelHeader`, `PanelLink`, `LivePill`, `CornerBrackets`.
 * **Status/primitives**: `IconTile`, `TagPill`, `Badge`, `StatusChip`, `StatusDot`, `HealthBadge`, `SourceBadge`, `FreshnessBadge`,
-  `Button` (primary, ghost, subtle, danger, jarvis), `IconButton`, `Skeleton`, `VisuallyHidden`, `Tooltip` (portal, never clipped).
+  `Button` (primary, ghost, subtle, danger, friday), `IconButton`, `Skeleton`, `VisuallyHidden`, `Tooltip` (portal, never clipped).
 * **Data display**: `CircularMetric` (`null` renders "—" with reason tooltip and `data-missing`, never a fake 0), `MetricCard`,
   `ConstellationGraph`, `Waveform` (canvas; static when `levels` given or motion is reduced; pauses when hidden/offscreen),
   `Timeline`, `ActivityRow`, `ActivityFeed` (virtualized), `DataTable` (virtualized, sortable, keyboard-navigable grid, card mode),
@@ -93,7 +93,7 @@ and has `:focus-visible` outlines in `--jarvis-focus`.
 ## Theming API (§25)
 
 Theme files live in `packages/design-tokens/src/themes/*.json` (copied to `config/themes/`); the schema is
-`theme.schema.json`. Shape (default theme `jarvis-command-gold-core`, alternative `jarvis-command-midnight`):
+`theme.schema.json`. Shape (default theme `friday-command-gold-core`, alternative `friday-command-midnight`):
 
 ```json
 { "id": "…", "name": "…", "version": 1,
@@ -116,7 +116,7 @@ setMotionMode('full' | 'reduced' | 'off')                                       
 theme, and sets `data-theme`, `data-corners`, `data-grid`. Runtime settings rescale alpha channels
 (`cyanIntensity`, `panelTransparency`, `gridVisibility`), `--jv-orb-intensity` (gold glow, also read by the orb package) and
 `--jv-font-scale`. Token alphas correspond to the default theme's `borderIntensity 0.55` / `backgroundOpacity 0.88`; other values
-scale relative to those. The layout file `config/layouts/jarvis-command-overview.json` (12 columns, all §27 widgets) drives the
+scale relative to those. The layout file `config/layouts/friday-command-overview.json` (12 columns, all §27 widgets) drives the
 grid placement in the `OverviewComposition` story.
 
 ## Motion rules
@@ -138,11 +138,11 @@ dialogs/drawers trap focus, close on Esc, restore focus; icon buttons require `l
 
 ## Storybook
 
-`pnpm --filter @jarvis/storybook dev` (port 6006) / `build`. Toolbar: **Animationen** (Voll / Reduziert / Aus) and **Theme**.
+`pnpm --filter @friday/storybook dev` (port 6006) / `build`. Toolbar: **Animationen** (Voll / Reduziert / Aus) and **Theme**.
 Stories live in `apps/storybook/src/stories` (+ any `packages/*/src/**/*.stories.tsx`, e.g. the orb). Every component has stories with
 the §46.2 states where applicable (empty, loading, error, offline, stale, normal, long German text, 10 000 rows, read-only,
 missing capability). `msw-storybook-addon` is wired with an empty handler list (`.storybook/handlers.ts`).
-Visual check: `pnpm --filter @jarvis/storybook build && pnpm --filter @jarvis/storybook screenshots` writes 1920×1080 PNGs to
+Visual check: `pnpm --filter @friday/storybook build && pnpm --filter @friday/storybook screenshots` writes 1920×1080 PNGs to
 `apps/storybook/screenshots/` (use `--base http://localhost:6006` against a running dev server).
 
 ## Tests

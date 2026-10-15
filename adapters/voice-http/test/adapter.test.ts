@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createCorrelationId } from "@jarvis/sdk";
-import { AdapterError, assertCanonicalEvent } from "@jarvis/adapter-core";
+import { createCorrelationId } from "@friday/sdk";
+import { AdapterError, assertCanonicalEvent } from "@friday/adapter-core";
 import { configSchema, manifest } from "../src";
 import { makeVoiceStatus } from "./fake/voice-status-server";
 import { assertValidResult, expectCode } from "./support/conformance-kit";
@@ -13,7 +13,7 @@ afterEach(async () => {
   rig = undefined;
 });
 
-describe("JarvisVoiceHttpAdapter against the wire-level fake of jarvis_voice.py", () => {
+describe("FridayVoiceHttpAdapter against the wire-level fake of friday_voice.py", () => {
   it("declares only voice.read and implements neither test, stop nor enroll", async () => {
     rig = await createRig();
     expect(manifest.capabilities).toEqual(["voice.read"]);
@@ -186,10 +186,10 @@ describe("JarvisVoiceHttpAdapter against the wire-level fake of jarvis_voice.py"
     });
   });
 
-  describe("audio level (jarvis.voice.audio_level)", () => {
+  describe("audio level (friday.voice.audio_level)", () => {
     const LEVELS = { levelPollIntervalMs: 20, idlePollIntervalMs: 20 } as const;
     const levelEvents = (r: Rig) =>
-      r.session.emitted.filter((event) => event.type === "jarvis.voice.audio_level");
+      r.session.emitted.filter((event) => event.type === "friday.voice.audio_level");
     const waitFor = async (check: () => boolean, ms = 2_000): Promise<void> => {
       const end = Date.now() + ms;
       while (!check()) {

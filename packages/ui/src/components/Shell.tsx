@@ -27,17 +27,17 @@ export function BrandMark({ size = 44, className }: { size?: number; className?:
     <svg className={cx('jv-brandmark', className)} width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" focusable="false">
       <defs>
         <radialGradient id="jv-brand-core" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="var(--jarvis-text-strong)" />
-          <stop offset="45%" stopColor="var(--jarvis-cyan-bright)" />
-          <stop offset="100%" stopColor="var(--jarvis-cyan)" stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--friday-text-strong)" />
+          <stop offset="45%" stopColor="var(--friday-cyan-bright)" />
+          <stop offset="100%" stopColor="var(--friday-cyan)" stopOpacity="0" />
         </radialGradient>
       </defs>
-      <circle cx="24" cy="24" r="22" fill="none" stroke="var(--jarvis-cyan)" strokeOpacity="0.55" strokeWidth="1" />
-      <circle cx="24" cy="24" r="18" fill="none" stroke="var(--jarvis-cyan)" strokeOpacity="0.9" strokeWidth="1.5" strokeDasharray="22 6 3 6" strokeLinecap="round" transform="rotate(-30 24 24)" />
-      <circle cx="24" cy="24" r="13" fill="none" stroke="var(--jarvis-cyan-bright)" strokeOpacity="0.85" strokeWidth="1.25" strokeDasharray="30 9" transform="rotate(100 24 24)" />
-      <circle cx="24" cy="24" r="8" fill="color-mix(in srgb, var(--jarvis-cyan) 14%, transparent)" stroke="var(--jarvis-cyan)" strokeWidth="1" />
+      <circle cx="24" cy="24" r="22" fill="none" stroke="var(--friday-cyan)" strokeOpacity="0.55" strokeWidth="1" />
+      <circle cx="24" cy="24" r="18" fill="none" stroke="var(--friday-cyan)" strokeOpacity="0.9" strokeWidth="1.5" strokeDasharray="22 6 3 6" strokeLinecap="round" transform="rotate(-30 24 24)" />
+      <circle cx="24" cy="24" r="13" fill="none" stroke="var(--friday-cyan-bright)" strokeOpacity="0.85" strokeWidth="1.25" strokeDasharray="30 9" transform="rotate(100 24 24)" />
+      <circle cx="24" cy="24" r="8" fill="color-mix(in srgb, var(--friday-cyan) 14%, transparent)" stroke="var(--friday-cyan)" strokeWidth="1" />
       <circle cx="24" cy="24" r="5" fill="url(#jv-brand-core)" />
-      <circle cx="24" cy="24" r="2" fill="var(--jarvis-text-strong)" />
+      <circle cx="24" cy="24" r="2" fill="var(--friday-text-strong)" />
     </svg>
   );
 }
@@ -54,13 +54,13 @@ interface ShellContextValue {
 
 const ShellContext = createContext<ShellContextValue | null>(null);
 
-export function useJarvisShell(): ShellContextValue | null {
+export function useFridayShell(): ShellContextValue | null {
   return useContext(ShellContext);
 }
 
-/* ── JarvisShell ────────────────────────────────────────────────────────── */
+/* ── FridayShell ────────────────────────────────────────────────────────── */
 
-export interface JarvisShellProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
+export interface FridayShellProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   nav: ReactNode;
   topBar: ReactNode;
   bottomBar?: ReactNode;
@@ -81,7 +81,7 @@ export interface JarvisShellProps extends Omit<HTMLAttributes<HTMLDivElement>, '
   plainBackground?: boolean;
 }
 
-export const JarvisShell = forwardRef<HTMLDivElement, JarvisShellProps>(function JarvisShell(
+export const FridayShell = forwardRef<HTMLDivElement, FridayShellProps>(function FridayShell(
   {
     nav,
     topBar,
@@ -190,7 +190,7 @@ export const LeftCommandNav = forwardRef<HTMLElement, LeftCommandNavProps>(funct
   },
   ref,
 ) {
-  const shell = useJarvisShell();
+  const shell = useFridayShell();
   const drawer = shell?.drawerMode ?? false;
   const collapsed = drawer ? false : (collapsedProp ?? shell?.navCollapsed ?? false);
   const toggle = onToggleCollapsed ?? (() => shell?.setNavCollapsed(!collapsed));
@@ -315,7 +315,7 @@ export function VoiceStatusPanel({
   className,
   ...rest
 }: VoiceStatusPanelProps) {
-  const shell = useJarvisShell();
+  const shell = useFridayShell();
   const collapsed = collapsedProp ?? (shell && !shell.drawerMode ? shell.navCollapsed : false);
   const active = state === 'listening' || state === 'speaking';
   if (collapsed) {
@@ -429,7 +429,7 @@ export const TopStatusBar = forwardRef<HTMLElement, TopStatusBarProps>(function 
   },
   ref,
 ) {
-  const shell = useJarvisShell();
+  const shell = useFridayShell();
   const now = useNow(1000, nowProp);
   const date = useMemo(
     () => new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone }).format(now),

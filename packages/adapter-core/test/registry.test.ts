@@ -180,7 +180,7 @@ describe("AdapterRegistry capabilities", () => {
     const { registry } = setup();
     await registry.initialize(config());
     const document = registry.aggregateCapabilities();
-    expect(document.contractVersion).toBe("1.0.0");
+    expect(document.contractVersion).toBe("2.0.0");
     expect(document.modules.tasks).toEqual({
       read: true,
       create: true,
@@ -244,8 +244,8 @@ describe("AdapterRegistry capabilities", () => {
     expect(registry.getHealth("test-tasks").lifecycle).toBe("OFFLINE");
     expect(registry.aggregateCapabilities().modules.tasks.read).toBe(false);
     const types = events.map((e) => e.event.type);
-    expect(types).toContain("jarvis.adapter.health_changed");
-    expect(types).toContain("jarvis.adapter.capabilities_changed");
+    expect(types).toContain("friday.adapter.health_changed");
+    expect(types).toContain("friday.adapter.capabilities_changed");
   });
 });
 
@@ -382,11 +382,11 @@ describe("AdapterRegistry events, restart and shutdown", () => {
     await registry.initialize(config());
     events.length = 0;
     const task = makeTask(1);
-    control.context?.emit({ type: "jarvis.task.created", subject: `task/${task.id}`, data: task });
-    expect(events.map((e) => e.event.type)).toEqual(["jarvis.task.created"]);
+    control.context?.emit({ type: "friday.task.created", subject: `task/${task.id}`, data: task });
+    expect(events.map((e) => e.event.type)).toEqual(["friday.task.created"]);
     expect(() =>
       control.context?.emit({
-        type: "jarvis.task.created",
+        type: "friday.task.created",
         subject: "task/x",
         data: { ...task, status: "open" } as never,
       }),
@@ -443,7 +443,7 @@ describe("control-plane capabilities", () => {
     const system = registry.aggregateCapabilities().modules.system;
     expect(system).toMatchObject({ restartAdapter: true, openLogs: true, healthcheck: false });
     expect(system.sources).toEqual([]);
-    const changed = events.find((entry) => entry.event.type === "jarvis.adapter.capabilities_changed");
+    const changed = events.find((entry) => entry.event.type === "friday.adapter.capabilities_changed");
     expect((changed?.event.data as { modules: { system: { restartAdapter: boolean } } }).modules.system.restartAdapter).toBe(true);
     registry.provideControlPlaneCapabilities([]);
     expect(registry.aggregateCapabilities().modules.system.restartAdapter).toBe(false);

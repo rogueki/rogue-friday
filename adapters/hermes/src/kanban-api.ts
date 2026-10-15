@@ -1,4 +1,4 @@
-import type { CallContext, HttpRequest } from "@jarvis/adapter-core";
+import type { CallContext, HttpRequest } from "@friday/adapter-core";
 import type { AuthedClient } from "./clients";
 import type { TaskRef } from "./ids";
 import {

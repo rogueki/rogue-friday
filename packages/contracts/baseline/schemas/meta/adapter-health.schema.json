@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/meta/adapter-health.schema.json",
+  "$id": "https://friday.local/schemas/meta/adapter-health.schema.json",
   "title": "AdapterHealth",
   "description": "Runtime health of an adapter (PLAN §10.7) including circuit breaker state.",
   "type": "object",

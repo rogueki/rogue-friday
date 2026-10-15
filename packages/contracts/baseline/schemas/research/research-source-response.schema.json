@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/research/research-source-response.schema.json",
+  "$id": "https://friday.local/schemas/research/research-source-response.schema.json",
   "title": "ResearchSourceResponse",
   "description": "Single-resource envelope for ResearchSource.",
   "type": "object",

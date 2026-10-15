@@ -1,4 +1,4 @@
-import type { AdapterFactory } from "@jarvis/adapter-core";
+import type { AdapterFactory } from "@friday/adapter-core";
 import { LocalSystemAdapter } from "./adapter";
 import { PROVIDER_ID, configSchema } from "./manifest";
 

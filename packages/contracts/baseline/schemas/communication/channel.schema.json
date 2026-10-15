@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/communication/channel.schema.json",
+  "$id": "https://friday.local/schemas/communication/channel.schema.json",
   "title": "Channel",
   "description": "Communication channel (PLAN §33.1). Address is an account hint, never a credential.",
   "type": "object",

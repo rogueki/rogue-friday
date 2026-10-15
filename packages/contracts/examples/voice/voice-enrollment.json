@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/voice/voice-enrollment.schema.json",
+  "$schema": "https://friday.local/schemas/voice/voice-enrollment.schema.json",
   "id": "venr_01JCW5E9R2Q7T4M8N3B6V00001",
   "profileId": "vprof_01JCW5E9R2Q7T4M8N3B6V00001",
   "status": "capturing",

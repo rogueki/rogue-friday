@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/commands/command-request.schema.json",
+  "$schema": "https://friday.local/schemas/commands/command-request.schema.json",
   "text": "Sende Frau Becker die Terminbestätigung",
   "source": "palette",
   "context": {

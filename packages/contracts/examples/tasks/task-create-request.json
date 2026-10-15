@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/tasks/task-create-request.schema.json",
+  "$schema": "https://friday.local/schemas/tasks/task-create-request.schema.json",
   "title": "Steuerunterlagen 2025 zusammenstellen",
   "priority": "P3",
   "dueAt": "2026-10-31T12:00:00Z",

@@ -121,7 +121,7 @@ describe("event contract", () => {
   const asyncapi = readYaml(paths.asyncapi) as { components: { messages: Record<string, { name: string }> } };
   const types = Object.values(asyncapi.components.messages)
     .map((m) => m.name)
-    .filter((name) => name.startsWith("jarvis."));
+    .filter((name) => name.startsWith("friday."));
 
   it("covers every event group of PLAN §12.4", () => {
     const groups = new Set(types.map((t) => t.split(".")[1]));

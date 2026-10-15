@@ -1,4 +1,4 @@
-import { isJarvisApiError, type AdapterCategory, type AdapterInfo, type Capabilities, type HealthStatus, type Overview } from "@jarvis/sdk";
+import { isFridayApiError, type AdapterCategory, type AdapterInfo, type Capabilities, type HealthStatus, type Overview } from "@friday/sdk";
 import { capabilityState } from "@/lib/capabilities";
 
 /**
@@ -180,7 +180,7 @@ const OUTAGE_ERROR_CODES: ReadonlySet<string> = new Set(["ADAPTER_UNAVAILABLE", 
 
 /** Error codes that mean "the backing adapter cannot serve this" (outage or not configured), never "bad request". */
 export function isAdapterOutage(error: unknown): boolean {
-  return isJarvisApiError(error) && (OUTAGE_ERROR_CODES.has(error.code) || error.code === "CAPABILITY_MISSING");
+  return isFridayApiError(error) && (OUTAGE_ERROR_CODES.has(error.code) || error.code === "CAPABILITY_MISSING");
 }
 
 /** Pure decision; see the file comment. `since` resolves the outage start from the client's first observation. */
@@ -190,7 +190,7 @@ export function classifyAvailability(input: AvailabilityInput, since: (adapterId
   const action = input.action ?? "read";
   const capMissing = input.capabilities !== undefined && capabilityState(input.capabilities, input.module, action) === "missing";
   const adapter = input.adapters?.find((candidate) => candidate.manifest.category === category);
-  const error = isJarvisApiError(input.error) ? input.error : null;
+  const error = isFridayApiError(input.error) ? input.error : null;
 
   if (input.adapters) {
     if (adapter && adapterNotConfigured(adapter)) return { kind: "not-configured", category, adapterId: adapter.manifest.id };

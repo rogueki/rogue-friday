@@ -1,4 +1,4 @@
-import type { LatencyStat, VoiceDevice, VoiceMetrics, VoiceProfile, VoiceStatus } from "@jarvis/sdk";
+import type { LatencyStat, VoiceDevice, VoiceMetrics, VoiceProfile, VoiceStatus } from "@friday/sdk";
 import { DAY, MIN, type SeedContext } from "./context";
 
 export interface VoiceSeed {

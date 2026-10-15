@@ -1,9 +1,9 @@
 {
-  "$schema": "https://jarvis.local/schemas/meta/jarvis-status-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/meta/friday-status-response.schema.json",
+  "contractVersion": "2.0.0",
   "data": {
     "status": "online",
-    "label": "Jarvis online",
+    "label": "F.R.I.D.A.Y. online",
     "mode": "working",
     "dataMode": "mock",
     "uptimeSeconds": 28800,

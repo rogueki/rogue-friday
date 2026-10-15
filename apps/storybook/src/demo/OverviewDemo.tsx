@@ -9,7 +9,7 @@ import {
   ConstellationGraph,
   defaultTopBarActions,
   HudPanel,
-  JarvisShell,
+  FridayShell,
   LeftCommandNav,
   PanelLink,
   ProviderCard,
@@ -18,8 +18,8 @@ import {
   TopStatusBar,
   VoiceStatusPanel,
   type VoiceState,
-} from '@jarvis/ui';
-import layout from '../../../../config/layouts/jarvis-command-overview.json';
+} from '@friday/ui';
+import layout from '../../../../config/layouts/friday-command-overview.json';
 import {
   agents,
   attentionItems,
@@ -36,7 +36,7 @@ import './overview.css';
 
 type WidgetId = (typeof layout.widgets)[number]['id'];
 
-/** Placement of a widget from config/layouts/jarvis-command-overview.json (12-column grid). */
+/** Placement of a widget from config/layouts/friday-command-overview.json (12-column grid). */
 function place(id: WidgetId): CSSProperties {
   const w = layout.widgets.find((x) => x.id === id);
   if (!w || !w.visible) return { display: 'none' };
@@ -55,7 +55,7 @@ export function OverviewDemo({ voice = 'listening', navCollapsed, fixedNow = tru
   const [focus, setFocus] = useState(false);
 
   return (
-    <JarvisShell
+    <FridayShell
       defaultNavCollapsed={navCollapsed}
       nav={
         <LeftCommandNav
@@ -242,7 +242,7 @@ export function OverviewDemo({ voice = 'listening', navCollapsed, fixedNow = tru
           </div>
         </HudPanel>
       </div>
-    </JarvisShell>
+    </FridayShell>
   );
 }
 

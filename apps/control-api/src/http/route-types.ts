@@ -1,4 +1,4 @@
-import type { operations } from "@jarvis/sdk";
+import type { operations } from "@friday/sdk";
 
 export type OperationId = keyof operations;
 export type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";

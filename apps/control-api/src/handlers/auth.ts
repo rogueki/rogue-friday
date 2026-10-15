@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type ActionResult, type LoginRequest, type ReauthRequest } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type ActionResult, type LoginRequest, type ReauthRequest } from "@friday/sdk";
 import type { Handler, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import type { Principal } from "../security/auth-service";

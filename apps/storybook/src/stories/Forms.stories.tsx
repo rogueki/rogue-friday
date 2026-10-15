@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Activity, Bot, Settings } from 'lucide-react';
 import { useState } from 'react';
-import { SearchField, Select, Slider, Switch, Tabs, TextArea, TextField } from '@jarvis/ui';
+import { SearchField, Select, Slider, Switch, Tabs, TextArea, TextField } from '@friday/ui';
 import { Section } from './_helpers';
 
 const meta = { title: 'Components/Forms', parameters: { layout: 'fullscreen' } } satisfies Meta;

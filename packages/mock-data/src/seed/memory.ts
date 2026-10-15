@@ -6,7 +6,7 @@ import type {
   MemoryProvenance,
   MemorySensitivity,
   MemoryType,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { DAY, HOUR, MIN, type SeedContext } from "./context";
 import type { Story } from "./story";
 
@@ -80,7 +80,7 @@ const SPECS: MemorySpec[] = [
   {
     type: "preference",
     title: "Dateiablage",
-    content: "Alle erzeugten Dateien werden unter D:\\Jarvis\\Dateien nach Kategorie abgelegt (Berichte, Präsentationen, Rechnungen, Recherche).",
+    content: "Alle erzeugten Dateien werden unter D:\\Friday\\Dateien nach Kategorie abgelegt (Berichte, Präsentationen, Rechnungen, Recherche).",
     confidence: 0.99,
     tags: ["dateien", "ablage"],
     provenance: { kind: "manual" },
@@ -103,7 +103,7 @@ const SPECS: MemorySpec[] = [
   {
     type: "fact",
     title: "Backup-Rhythmus",
-    content: "Tägliche Sicherung um 03:00 Uhr nach D:\\Jarvis\\Backups, Verifikation um 22:00 Uhr. Aufbewahrung der letzten 14 Sicherungen.",
+    content: "Tägliche Sicherung um 03:00 Uhr nach D:\\Friday\\Backups, Verifikation um 22:00 Uhr. Aufbewahrung der letzten 14 Sicherungen.",
     confidence: 0.98,
     tags: ["backup", "system"],
     provenance: { kind: "sync", referenceId: "mock-system", description: "Aus Systemkonfiguration" },

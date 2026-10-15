@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/common/entity-ref.schema.json",
+  "$id": "https://friday.local/schemas/common/entity-ref.schema.json",
   "title": "EntityRef",
   "description": "Typed link to another resource, used for navigation (\"jump to task\").",
   "type": "object",

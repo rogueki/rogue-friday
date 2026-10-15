@@ -1,7 +1,7 @@
 "use client";
 
-import type { Notification } from "@jarvis/sdk";
-import { IconTile, StatusChip } from "@jarvis/ui";
+import type { Notification } from "@friday/sdk";
+import { IconTile, StatusChip } from "@friday/ui";
 import { Check, ChevronRight, CircleDashed, Clock3, SkipForward, TriangleAlert, type LucideIcon } from "lucide-react";
 import { Fragment } from "react";
 import { useT } from "@/i18n";

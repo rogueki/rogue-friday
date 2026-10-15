@@ -11,7 +11,7 @@ Before writing code read `docs/PROJECT_STATUS.md`, `docs/IMPLEMENTATION_CONVENTI
 in parallel on other paths.
 
 Rules:
-- Contract-first: models come from `@jarvis/sdk`; contract changes only in `packages/contracts`, then
+- Contract-first: models come from `@friday/sdk`; contract changes only in `packages/contracts`, then
   `pnpm contracts:generate`. Never hand-write DTOs.
 - Match the existing code style; no placeholder TODOs; no swallowed errors; German UI copy.
 - No secrets and no real personal data in code, mocks or screenshots.

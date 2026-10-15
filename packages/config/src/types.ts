@@ -39,7 +39,7 @@ export interface ResolvedAdapterConfig {
   circuitBreaker: CircuitBreakerConfig;
 }
 
-export interface JarvisConfig {
+export interface FridayConfig {
   /** Absolute config directory the files were read from. */
   configDir: string;
   files: { dashboard: string | null; adapters: string | null };

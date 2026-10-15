@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/system/orb-performance-sample.schema.json",
+  "title": "OrbPerformanceSample",
+  "description": "One orb render performance sample of the browser (PLAN §50.3): frames per second, frame time and WebGL memory.",
+  "type": "object",
+  "properties": {
+    "fps": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "frameTimeMs": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000,
+      "description": "Mean frame time of the sampling window."
+    },
+    "webglMemoryBytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1099511627776,
+      "description": "Estimated GPU memory held by the orb scene (textures plus geometries)."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": ["fps", "frameTimeMs"],
+  "additionalProperties": false
+}

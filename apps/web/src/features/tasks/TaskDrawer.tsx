@@ -1,8 +1,8 @@
 "use client";
 
-import type { ActivityEvent, ArtifactRef, ErrorDetail, Task } from "@jarvis/sdk";
-import { ActivityRow, Button, ConfirmDialog, Drawer, EmptyState, ErrorState, Select, Skeleton, TagPill, Tabs, cx, type TabItem } from "@jarvis/ui";
-import { isJarvisApiError } from "@jarvis/sdk";
+import type { ActivityEvent, ArtifactRef, ErrorDetail, Task } from "@friday/sdk";
+import { ActivityRow, Button, ConfirmDialog, Drawer, EmptyState, ErrorState, Select, Skeleton, TagPill, Tabs, cx, type TabItem } from "@friday/ui";
+import { isFridayApiError } from "@friday/sdk";
 import { Ban, Check, CircleCheck, CircleDashed, CircleX, ExternalLink, Pause, Play, RotateCcw, ShieldCheck, SkipForward, Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
@@ -391,7 +391,7 @@ export function TaskDrawer({ taskId, tab, onTabChange, onClose }: TaskDrawerProp
   let body: ReactNode;
   if (query.isPending && taskId) body = <Skeleton variant="block" height={220} label={t("common.loading")} />;
   else if (query.isError) {
-    const notFound = isJarvisApiError(query.error) && query.error.code === "NOT_FOUND";
+    const notFound = isFridayApiError(query.error) && query.error.code === "NOT_FOUND";
     body = notFound ? (
       <EmptyState compact title={t("tasks.drawer.notFound")} description={t("tasks.drawer.notFoundHint")} />
     ) : (

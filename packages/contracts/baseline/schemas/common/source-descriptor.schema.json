@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/common/source-descriptor.schema.json",
+  "$id": "https://friday.local/schemas/common/source-descriptor.schema.json",
   "title": "SourceDescriptor",
   "description": "Provenance of a canonical resource: which adapter delivered it.",
   "type": "object",

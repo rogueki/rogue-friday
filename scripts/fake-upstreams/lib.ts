@@ -19,7 +19,7 @@ export interface FakeUpstreamOptions {
   host?: string;
   /** `0` picks a free port (tests); the installer ports are the default. */
   ports?: Partial<Record<keyof typeof DEFAULT_PORTS, number>>;
-  /** Written with the fake `API_SERVER_KEY`, like the installer's `C:\Jarvis\config\hermes_api.key`. */
+  /** Written with the fake `API_SERVER_KEY`, like the installer's `C:\Friday\config\hermes_api.key`. */
   keyFile?: string;
   /** Overrides the generated API key (tests that must know it). */
   apiKey?: string;

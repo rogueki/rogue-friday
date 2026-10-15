@@ -4,9 +4,9 @@ export { CONTRACT_VERSION, SCHEMAS, SCHEMA_IDS } from "./generated/schemas";
 export type { JsonSchemaDocument, SchemaId, SchemaName } from "./generated/schemas";
 export type { paths, components, operations } from "./generated/openapi";
 
-export { createCorrelationId, createIdempotencyKey, createJarvisClient } from "./client";
-export type { JarvisClient, JarvisClientOptions } from "./client";
-export { JarvisApiError, isJarvisApiError } from "./errors";
+export { createCorrelationId, createIdempotencyKey, createFridayClient } from "./client";
+export type { FridayClient, FridayClientOptions } from "./client";
+export { FridayApiError, isFridayApiError } from "./errors";
 export { createSchemaValidator } from "./validator";
 export type { SchemaValidator, ValidationIssue, ValidationResult } from "./validator";
-export { isControlFrame, isEventOfType, isJarvisEvent, isJarvisEventType } from "./event-helpers";
+export { isControlFrame, isEventOfType, isFridayEvent, isFridayEventType } from "./event-helpers";

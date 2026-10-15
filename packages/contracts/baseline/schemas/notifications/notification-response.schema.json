@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/notifications/notification-response.schema.json",
+  "$id": "https://friday.local/schemas/notifications/notification-response.schema.json",
   "title": "NotificationResponse",
   "description": "Single-resource envelope for Notification.",
   "type": "object",

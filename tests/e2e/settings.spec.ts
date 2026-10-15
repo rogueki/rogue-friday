@@ -66,7 +66,7 @@ test("theme switch: picking a theme applies live without a reload, saving persis
   await page.getByRole("button", { name: "Theme", exact: true }).click();
   const html = page.locator("html");
   const before = { id: await html.getAttribute("data-theme"), style: await html.getAttribute("style") };
-  expect(before.id).toBe("jarvis-command-midnight");
+  expect(before.id).toBe("friday-command-midnight");
 
   await page.getByRole("radio", { name: /Gold Core/ }).click();
   await expect(html).not.toHaveAttribute("data-theme", before.id!); // live preview

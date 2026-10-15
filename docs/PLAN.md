@@ -1,3 +1,5 @@
+> Hinweis (2026-10-15): Produkt heißt F.R.I.D.A.Y.; alle internen Bezeichner jarvis→friday umbenannt, Pfade C:\Jarvis→C:\Friday; siehe docs/PROJECT_STATUS.md
+
 # JARVIS COMMAND CENTER
 ## Vollständiger Fertigstellungsplan für ein adapterbasiertes, Contract-First Dashboard
 

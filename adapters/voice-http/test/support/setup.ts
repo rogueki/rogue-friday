@@ -1,5 +1,5 @@
-import { createFakeUpstream, type FakeUpstream } from "@jarvis/adapter-testkit";
-import { JarvisVoiceHttpAdapter } from "../../src";
+import { createFakeUpstream, type FakeUpstream } from "@friday/adapter-testkit";
+import { FridayVoiceHttpAdapter } from "../../src";
 import { createFakeVoiceService, type FakeVoiceService } from "../fake/voice-status-server";
 import { installLlamaServer } from "../fake/llama-server";
 import { openSession, closeSession, type Session } from "./conformance-kit";
@@ -11,7 +11,7 @@ export interface Rig {
   voice: FakeVoiceService;
   llama: FakeUpstream;
   session: Session;
-  adapter: JarvisVoiceHttpAdapter;
+  adapter: FridayVoiceHttpAdapter;
   config: Record<string, unknown>;
   close(): Promise<void>;
 }
@@ -23,7 +23,7 @@ export async function createRig(
   const voice = await createFakeVoiceService();
   const llama = await createFakeUpstream();
   installLlamaServer(llama);
-  const adapter = new JarvisVoiceHttpAdapter();
+  const adapter = new FridayVoiceHttpAdapter();
   // Level polling is off by default so request counting tests stay exact; level tests switch it on.
   const config = { baseUrl: voice.url, localModelUrl: llama.url, ...FAST, levelPollIntervalMs: 0, ...overrides };
   const session = await openSession(adapter, config, options);

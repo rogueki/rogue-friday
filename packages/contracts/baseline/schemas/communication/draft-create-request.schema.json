@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/communication/draft-create-request.schema.json",
+  "$id": "https://friday.local/schemas/communication/draft-create-request.schema.json",
   "title": "DraftCreateRequest",
   "type": "object",
   "properties": {

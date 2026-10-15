@@ -1,4 +1,4 @@
-import type { AdapterCategory, Capabilities } from "@jarvis/sdk";
+import type { AdapterCategory, Capabilities } from "@friday/sdk";
 
 export const ADAPTER_CATEGORIES: readonly AdapterCategory[] = [
   "tasks",

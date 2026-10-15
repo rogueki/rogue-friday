@@ -1,6 +1,6 @@
 "use client";
 
-import type { AdapterInfo, Freshness, Overview } from "@jarvis/sdk";
+import type { AdapterInfo, Freshness, Overview } from "@friday/sdk";
 import type { ReactNode } from "react";
 import type { PanelState } from "@/components/PanelFrame";
 import {

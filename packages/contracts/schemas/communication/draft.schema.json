@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/communication/draft.schema.json",
+  "$id": "https://friday.local/schemas/communication/draft.schema.json",
   "title": "Draft",
   "description": "Drafts are created automatically; sending always requires approval (PLAN §33.5).",
   "type": "object",

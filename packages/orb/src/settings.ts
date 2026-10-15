@@ -1,4 +1,4 @@
-import type { OrbSettings as WireOrbSettings } from "@jarvis/sdk";
+import type { OrbSettings as WireOrbSettings } from "@friday/sdk";
 import type { OrbMode } from "./contract-types";
 
 export type OrbPreset = "gold" | "amber" | "calm" | "dense";
@@ -58,7 +58,7 @@ export const DEFAULT_ORB_SETTINGS: OrbSettings = {
   statusAccentColors: {},
 };
 
-/** Maps the persisted wire settings (`@jarvis/sdk` OrbSettings, PLAN §42.3) onto the visual props of this package. */
+/** Maps the persisted wire settings (`@friday/sdk` OrbSettings, PLAN §42.3) onto the visual props of this package. */
 export function orbSettingsFromWire(w: WireOrbSettings): Partial<OrbSettings> {
   const presets: readonly OrbPreset[] = ["gold", "amber", "calm", "dense"];
   return {

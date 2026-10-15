@@ -16,7 +16,7 @@ describe("files.rename", () => {
     const { version, name, location } = file;
     const renamed = world.files.rename(file.id, { name: "Quartalsbericht neu.md" }, { ifMatch: version });
     expect(renamed).toMatchObject({ id: file.id, name: "Quartalsbericht neu.md", version: version + 1, location });
-    expect(recorder.events.some((event) => event.type === "jarvis.file.updated")).toBe(true);
+    expect(recorder.events.some((event) => event.type === "friday.file.updated")).toBe(true);
     expect(world.state.audit.at(-1)).toMatchObject({ action: "file.renamed", before: { name } });
     expect(world.verifyAudit().valid).toBe(true);
     expect(eventProblems(recorder.events)).toEqual([]);
@@ -114,7 +114,7 @@ describe("memory export and conflict resolution", () => {
     const resolved = world.memory.resolveConflict(memory.id, entry.memoryId, { resolution: "replace" });
     expect(resolved.conflicts.find((candidate) => candidate.memoryId === other.id)?.resolution).toBe("replaced");
     expect(world.state.memory.some((candidate) => candidate.id === other.id)).toBe(false);
-    expect(recorder.events.some((event) => event.type === "jarvis.memory.deleted")).toBe(true);
+    expect(recorder.events.some((event) => event.type === "friday.memory.deleted")).toBe(true);
     expect(world.state.audit.at(-1)).toMatchObject({ action: "memory.conflict_resolved", severity: "warning" });
     expect(eventProblems(recorder.events)).toEqual([]);
   });
@@ -157,7 +157,7 @@ describe("automation versions and Pause All", () => {
     expect(world.state.automations.filter((automation) => automation.enabled).every((automation) => automation.paused && automation.nextRunAt === null)).toBe(true);
     const paused = first(result.results, (entry) => entry.outcome === "paused");
     expect(world.automations.listVersions(paused.automationId).items[0]?.summary).toContain("Urlaub");
-    expect(recorder.events.filter((event) => event.type === "jarvis.automation.updated")).toHaveLength(enabled);
+    expect(recorder.events.filter((event) => event.type === "friday.automation.updated")).toHaveLength(enabled);
     expect(world.state.audit.at(-1)).toMatchObject({ action: "automation.paused_all" });
     const again = world.automations.pauseAll();
     expect(again).toMatchObject({ pausedCount: 0, failedCount: 0 });

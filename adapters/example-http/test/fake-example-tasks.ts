@@ -1,4 +1,4 @@
-import type { FakeUpstream, UpstreamRequest } from "@jarvis/adapter-testkit";
+import type { FakeUpstream, UpstreamRequest } from "@friday/adapter-testkit";
 import type { RawEvent, RawEventKind, RawItem, RawItemWrite } from "../src/provider-types";
 
 const AT = "2026-10-13T20:00:00.000Z";

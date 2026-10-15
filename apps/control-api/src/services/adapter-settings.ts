@@ -1,7 +1,7 @@
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import type { AdapterInfo, AdapterConfigPatch, AdapterConfigSettings, AdapterTestResult, SecretStatus } from "@jarvis/sdk";
-import type { AdapterCategory } from "@jarvis/config";
+import type { AdapterInfo, AdapterConfigPatch, AdapterConfigSettings, AdapterTestResult, SecretStatus } from "@friday/sdk";
+import type { AdapterCategory } from "@friday/config";
 import type { AdapterOverrideStore } from "../db/stores";
 import type { AdapterWiring, RuntimeSecrets } from "../runtime/adapter-wiring";
 import { ApiError, conflict, notFound, validationFailed } from "../util/errors";

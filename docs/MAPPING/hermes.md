@@ -28,7 +28,7 @@ Methode und Grenzen der Verifikation:
   (Permalink-Schema `https://github.com/NousResearch/hermes-agent/blob/0e427d788d253630d38a3a51cd76849e73cd6925/<Datei>#L<Zeile>`).
 - Live: Installation in der Cloud-VM (`uv venv --python 3.14`, `uv pip install -e ".[all]"`, `HERMES_HOME` im Scratch-Verzeichnis), Gateway mit
   den **Installer-Variablen** (`API_SERVER_ENABLED=true`, `API_SERVER_HOST=127.0.0.1`, `API_SERVER_PORT=43693`, `API_SERVER_KEY=<Dummy, 64 Hex>`,
-  `API_SERVER_MODEL_NAME=jarvis`) und Dashboard mit dem Installer-Aufruf (`hermes dashboard --host 127.0.0.1 --port 43691 --no-open --skip-build`).
+  `API_SERVER_MODEL_NAME=friday`) und Dashboard mit dem Installer-Aufruf (`hermes dashboard --host 127.0.0.1 --port 43691 --no-open --skip-build`).
   Als LLM diente ein lokaler Fake-OpenAI-Server (`model.provider=custom`), kein echter Kimi-Key.
 - **BLOCKED (nur Ausnahmen):** `https://hermes-agent.nousresearch.com/` (install.sh und Docs-Seite) ist über den Cloud-Proxy mit 403 gesperrt.
   Die dokumentierte Kanban-Seite (<https://hermes-agent.nousresearch.com/docs/user-guide/features/kanban>, in `hermes kanban --help` genannt)
@@ -43,7 +43,7 @@ alten Dokument.
 
 | Zugang | Adresse (Installer) | Auth | Liefert |
 | --- | --- | --- | --- |
-| **API-Server** (Gateway-Plattform `api_server`, aiohttp) | `127.0.0.1:43693` | `Authorization: Bearer <API_SERVER_KEY>` (= Inhalt von `C:\Jarvis\config\hermes_api.key`) | Chat (OpenAI-kompatibel), Runs mit SSE, Sessions + Nachrichten (inkl. Tool-Calls), Health |
+| **API-Server** (Gateway-Plattform `api_server`, aiohttp) | `127.0.0.1:43693` | `Authorization: Bearer <API_SERVER_KEY>` (= Inhalt von `C:\Friday\config\hermes_api.key`) | Chat (OpenAI-kompatibel), Runs mit SSE, Sessions + Nachrichten (inkl. Tool-Calls), Health |
 | **Dashboard** (FastAPI/uvicorn) | `127.0.0.1:43691` | Header `X-Hermes-Session-Token: <Token>`; Token steht **pro Prozessstart zufällig** im HTML von `GET /` | Kanban-REST (Plugin), Sessions, Analytics, Profile, Cron, Logs, Status |
 | **CLI** `hermes kanban ...` | im WSL-Linux-Benutzer | lokales Dateisystem (`HERMES_HOME`) | Kanban mit `--json` |
 
@@ -58,7 +58,7 @@ Kanban-Daten gibt es nur über Dashboard-REST (43691) oder CLI.
 | --- | --- | --- |
 | Start | Kein eigener Befehl: die Plattform `api_server` startet **im Gateway** (`hermes gateway run`, vom Installer als systemd-Dienst `hermes-gateway`), sobald `API_SERVER_ENABLED=true`. | Live: `hermes gateway run` -> Log „API server listening", `gateway/platforms/api_server.py:4569` |
 | Host/Port | `API_SERVER_HOST` (Default `127.0.0.1`), `API_SERVER_PORT` (Default `8642`). **43693 setzt der Installer** über `~/.hermes/.env`. | `api_server.py:216-230`; `setup_hermes.sh` Zeile „API-Server" |
-| Modellname | `API_SERVER_MODEL_NAME=jarvis` -> `GET /v1/models` liefert genau `jarvis`. | Live |
+| Modellname | `API_SERVER_MODEL_NAME=friday` -> `GET /v1/models` liefert genau `friday`. | Live |
 | Auth | **Nur** `Authorization: Bearer <key>`; Vergleich konstantzeitig. `X-API-Key` o. ä. wird **nicht** akzeptiert (401). Ohne/falscher Key: HTTP 401, Body `{"error":{"message":"Invalid gateway API key (API_SERVER_KEY)","type":"gateway_auth_error","code":"gateway_auth_failed"}}`. | `api_server.py:1559-1581`; Live |
 | Schlüsselstärke | Server startet nicht, wenn der Key fehlt oder < 16 Zeichen/Platzhalter ist. Der Installer erzeugt Zufalls-Hex (`hermes_api.key`), erfüllt das. | `api_server.py:4421-4450` |
 | Ohne Auth erreichbar | nur `GET /health` und `GET /v1/health` | Live |
@@ -75,9 +75,9 @@ Legende Beleg: **L** = live getestet in dieser Session, **Q** = nur aus Quelltex
 | --- | --- | --- | --- | --- | --- |
 | `/health`, `/v1/health` | GET | keine | - | 200 `{"status":"ok","platform":"hermes-agent","version":"unknown"}` (**version ist hier nicht brauchbar**, `unknown`) | L |
 | `/health/detailed` | GET | Bearer | - | 200 `{status, readiness:{status, checks:{state_db,session_store,config,model,disk{used_percent,free_bytes},gateway{state,connected_platforms,platforms},background_queues{active_api_runs,process_completions,active_delegations}}}, platform, version, gateway_state, platforms{api_server{state,error_code,error_message,updated_at,listener_base,metrics{host,port,active_runs,stored_runs,last_request_at,last_heartbeat,metrics_today{day,requests,messages,tokens,latency_p95_ms}}}}, active_agents, gateway_busy, gateway_drainable, exit_reason, updated_at, pid, last_heartbeat}` | L |
-| `/v1/models` | GET | Bearer | - | 200 `{"object":"list","data":[{"id":"jarvis","object":"model","created":<unix>,"owned_by":"hermes","permission":[],"root":"jarvis","parent":null}]}` (das **Installer-Healthcheck-Ziel**) | L |
+| `/v1/models` | GET | Bearer | - | 200 `{"object":"list","data":[{"id":"friday","object":"model","created":<unix>,"owned_by":"hermes","permission":[],"root":"friday","parent":null}]}` (das **Installer-Healthcheck-Ziel**) | L |
 | `/v1/capabilities` | GET | Bearer | - | 200 `{"object":"hermes.api_server.capabilities","platform","model","auth":{"type":"bearer","required":true},"runtime":{...},"features":{chat_completions, responses_api, run_submission, run_events_sse, run_stop, run_steer, run_approval_response, tool_progress_events, approval_events, session_resources, session_chat, jobs_admin:false, admin_config_rw:false, memory_write_api:false, skills_api:true, session_continuity_header:"X-Hermes-Session-Id", ...},"endpoints":{<name>:{method,path}}}` - **Feature-Detection nutzen** | L |
-| `/v1/chat/completions` | POST | Bearer | OpenAI-Format `{model, messages[], stream?}`; Header `X-Hermes-Session-Id` setzt die Konversation fort | 200 `{id:"chatcmpl-...",object:"chat.completion",created,model:"jarvis",choices:[{index,message:{role,content},finish_reason}],usage:{prompt_tokens,completion_tokens,total_tokens}}`; mit `stream:true` SSE `data: {chat.completion.chunk}` ... `data: [DONE]` und zusätzliche Events `event: hermes.tool.progress` mit `data: {"tool","emoji","label","toolCallId","status":"running"\|"completed"}` | L |
+| `/v1/chat/completions` | POST | Bearer | OpenAI-Format `{model, messages[], stream?}`; Header `X-Hermes-Session-Id` setzt die Konversation fort | 200 `{id:"chatcmpl-...",object:"chat.completion",created,model:"friday",choices:[{index,message:{role,content},finish_reason}],usage:{prompt_tokens,completion_tokens,total_tokens}}`; mit `stream:true` SSE `data: {chat.completion.chunk}` ... `data: [DONE]` und zusätzliche Events `event: hermes.tool.progress` mit `data: {"tool","emoji","label","toolCallId","status":"running"\|"completed"}` | L |
 | `/v1/responses`, `/v1/responses/{id}` (GET/DELETE) | POST/GET/DELETE | Bearer | OpenAI Responses | OpenAI-Responses-Format | Q |
 | `/v1/runs` | POST | Bearer | `{input, session_id?, model?, instructions?, conversation_history?, previous_response_id?}`; Header `X-Hermes-Session-Key` optional | **202** `{"run_id":"run_<32hex>","status":"started","replayed":false}` | L |
 | `/v1/runs/{run_id}` | GET | Bearer | - | 200 `{"object":"hermes.run","run_id","status":"queued\|running\|completed\|failed\|interrupted\|stopping","updated_at","created_at","session_id","model","last_event","output","usage{input_tokens,output_tokens,total_tokens,cache_read_tokens,cache_write_tokens}","runtime{provider,model,route_source}","completed","partial","interrupted","error"}`; unbekannt: 404 `{"error":{"message":"Run not found: <id>","type":"invalid_request_error","code":"run_not_found"}}`. **Es gibt keine Run-Liste.** | L |
@@ -103,7 +103,7 @@ Message-Objekt: `id` (Integer, aufsteigend, geeignet als Cursor), `session_id`, 
 `tool_calls` (`[{id,call_id,response_item_id,type:"function",function:{name,arguments}}]` bei Assistant-Nachrichten), `tool_name`, `timestamp` (Float),
 `token_count`, `finish_reason`, `reasoning`, `reasoning_content`, `display_kind`.
 
-**Sprachaufrufe sind sichtbar:** ein `POST /v1/chat/completions` (so ruft `jarvis_voice.py` Hermes) erzeugt eine Session mit `source:"api_server"` (live beobachtet, ID `api-<16hex>`),
+**Sprachaufrufe sind sichtbar:** ein `POST /v1/chat/completions` (so ruft `friday_voice.py` Hermes) erzeugt eine Session mit `source:"api_server"` (live beobachtet, ID `api-<16hex>`),
 samt Nachrichten und Tool-Calls. Der Aktivitätsadapter kann damit Voice-Aktivität ohne eigenen Run lesen.
 
 ### 3.3 Run-Ereignisse (SSE `/v1/runs/{id}/events`)
@@ -351,13 +351,13 @@ Auth: `Authorization: Bearer <fake-key>`; sonst 401 mit dem Body aus 3.1. `/heal
 | --- | --- |
 | `GET /health` | `{"status":"ok","platform":"hermes-agent","version":"unknown"}` |
 | `GET /health/detailed` | `{"status":"ok","readiness":{"status":"ok","checks":{"state_db":{"status":"ok"},"session_store":{"status":"ok"},"config":{"status":"ok"},"model":{"status":"ok"},"disk":{"status":"ok","used_percent":4.7,"free_bytes":29229363200},"gateway":{"status":"ok","state":"running","connected_platforms":1,"platforms":1},"background_queues":{"status":"ok","active_api_runs":0,"process_completions":0,"active_delegations":0}}},"platform":"hermes-agent","version":"unknown","gateway_state":"running","active_agents":0,"gateway_busy":false,"last_heartbeat":"2026-10-14T14:29:31.151724+00:00","pid":5065}` |
-| `GET /v1/models` | `{"object":"list","data":[{"id":"jarvis","object":"model","created":1791988171,"owned_by":"hermes","permission":[],"root":"jarvis","parent":null}]}` |
+| `GET /v1/models` | `{"object":"list","data":[{"id":"friday","object":"model","created":1791988171,"owned_by":"hermes","permission":[],"root":"friday","parent":null}]}` |
 | `GET /v1/capabilities` | Objekt wie in 3.2 (mindestens `object`, `platform`, `model`, `auth`, `features`, `endpoints`) |
 | `GET /api/sessions?limit=&offset=` | `{"object":"list","data":[{"id":"sess-demo-1","source":"api_server","user_id":null,"model":"fake-model","title":"Sag hallo","started_at":1791988318.9,"ended_at":null,"end_reason":null,"message_count":4,"tool_call_count":1,"input_tokens":20,"output_tokens":10,"cache_read_tokens":0,"cache_write_tokens":0,"reasoning_tokens":0,"estimated_cost_usd":0.0,"actual_cost_usd":null,"api_call_count":2,"parent_session_id":null,"last_active":1791988319.157,"preview":"Sag hallo","pinned":false,"archived":false,"hidden":false,"has_system_prompt":true,"has_model_config":true,"is_internal_child":false}],"limit":50,"offset":0,"has_more":false}` |
 | `GET /api/sessions/{id}` | `{"object":"hermes.session","session":{<wie oben ohne last_active/preview>}}`; unbekannt 404 (Form nicht erfasst) |
 | `GET /api/sessions/{id}/messages` | `{"object":"list","session_id":"sess-demo-1","data":[{"id":5,"session_id":"sess-demo-1","role":"user","content":"Sag hallo","tool_call_id":null,"tool_calls":null,"tool_name":null,"timestamp":1791988318.87,"token_count":null,"finish_reason":null,"reasoning":null,"reasoning_content":null,"display_kind":null},{"id":6,"role":"assistant","content":"","tool_calls":[{"id":"call_1","call_id":"call_1","response_item_id":"fc_1","type":"function","function":{"name":"skills_list","arguments":"{}"}}],"finish_reason":"tool_calls","timestamp":1791988318.95},{"id":7,"role":"tool","tool_call_id":"call_1","tool_name":"skills_list","content":"{\"success\": true}","timestamp":1791988319.0},{"id":8,"role":"assistant","content":"Hallo, das ist die Fake-Antwort.","finish_reason":"stop","timestamp":1791988319.15}]}` (fehlende Felder je Eintrag wie im ersten Objekt mit `null`) |
 | `POST /api/sessions` | 201 `{"object":"hermes.session","session":{...}}` |
-| `POST /v1/chat/completions` | nicht-streamend: `{"id":"chatcmpl-abc","object":"chat.completion","created":1791988324,"model":"jarvis","choices":[{"index":0,"message":{"role":"assistant","content":"Hallo, das ist die Fake-Antwort."},"finish_reason":"stop"}],"usage":{"prompt_tokens":20,"completion_tokens":10,"total_tokens":30}}`; streamend: Chunks wie in 3.2 |
+| `POST /v1/chat/completions` | nicht-streamend: `{"id":"chatcmpl-abc","object":"chat.completion","created":1791988324,"model":"friday","choices":[{"index":0,"message":{"role":"assistant","content":"Hallo, das ist die Fake-Antwort."},"finish_reason":"stop"}],"usage":{"prompt_tokens":20,"completion_tokens":10,"total_tokens":30}}`; streamend: Chunks wie in 3.2 |
 | `POST /v1/runs` | 202 `{"run_id":"run_<32hex>","status":"started","replayed":false}` |
 | `GET /v1/runs/{id}` | wie 3.2; unbekannt 404 `{"error":{"message":"Run not found: x","type":"invalid_request_error","param":null,"code":"run_not_found"}}` |
 | `GET /v1/runs/{id}/events` | SSE exakt wie in 3.3, auch der Fehlerfall `run.failed` |
@@ -377,7 +377,7 @@ Routen und Beispiele:
 {"ok":true,"version":"unknown","displayVersion":"git.0e427d7","commit":"0e427d788d253630d38a3a51cd76849e73cd6925","auth_required":false}
 
 // GET /api/plugins/kanban/boards
-{"boards":[{"slug":"default","name":"Default","description":"","icon":"","color":"","default_workdir":null,"project_id":null,"created_at":null,"archived":false,"db_path":"/home/jarvis/.hermes/kanban.db","is_current":true,"counts":{},"total":0,"default_workspace_kind":"scratch","project_name":null},{"slug":"business","name":"Business","description":"","icon":"","color":"","default_workdir":null,"project_id":null,"created_at":1791988093,"archived":false,"db_path":"/home/jarvis/.hermes/kanban/boards/business/kanban.db","is_current":false,"counts":{"done":1,"triage":1},"total":2,"default_workspace_kind":"scratch","project_name":null}],"current":"default"}
+{"boards":[{"slug":"default","name":"Default","description":"","icon":"","color":"","default_workdir":null,"project_id":null,"created_at":null,"archived":false,"db_path":"/home/friday/.hermes/kanban.db","is_current":true,"counts":{},"total":0,"default_workspace_kind":"scratch","project_name":null},{"slug":"business","name":"Business","description":"","icon":"","color":"","default_workdir":null,"project_id":null,"created_at":1791988093,"archived":false,"db_path":"/home/friday/.hermes/kanban/boards/business/kanban.db","is_current":false,"counts":{"done":1,"triage":1},"total":2,"default_workspace_kind":"scratch","project_name":null}],"current":"default"}
 
 // GET /api/plugins/kanban/board?board=business   (Spalten immer in dieser Reihenfolge, auch leere)
 {"columns":[{"name":"triage","tasks":[{"id":"t_b21c53e3","title":"Zweite Aufgabe","body":null,"assignee":null,"status":"triage","priority":0,"created_by":"user","created_at":1791988097,"started_at":null,"completed_at":null,"workspace_kind":"scratch","workspace_path":null,"claim_lock":null,"claim_expires":null,"tenant":null,"branch_name":null,"project_id":null,"result":null,"idempotency_key":null,"consecutive_failures":0,"worker_pid":null,"last_failure_error":null,"max_runtime_seconds":null,"last_heartbeat_at":null,"current_run_id":null,"workflow_template_id":null,"current_step_key":null,"skills":null,"model_override":null,"provider_override":null,"reasoning_effort":null,"max_retries":null,"goal_mode":false,"goal_max_turns":null,"session_id":null,"block_kind":null,"block_recurrences":0,"completion_contract":"local-only","age":{"created_age_seconds":177,"started_age_seconds":null,"time_to_complete_seconds":null},"latest_summary":null,"current_run_started_at":null,"link_counts":{"parents":0,"children":0},"comment_count":0,"progress":null}]},{"name":"todo","tasks":[]},{"name":"scheduled","tasks":[]},{"name":"ready","tasks":[]},{"name":"running","tasks":[]},{"name":"blocked","tasks":[]},{"name":"review","tasks":[]},{"name":"done","tasks":[]}],"tenants":[],"assignees":["default","kira"],"latest_event_id":7,"now":1791988274}
@@ -415,10 +415,10 @@ Nichts hiervon darf ohne weitere Prüfung als Tatsache in Code oder UI-Text steh
 7. **Progress bei Kind-Tasks:** Form von `progress` wurde nur als `null` gesehen.
 8. **Echtes Kimi/`kimi-coding`:** ungetestet. Ohne Key scheiterte der Provider im Test mit „The 'anthropic' package is required for the Anthropic provider ... restart Hermes to activate it" (Umgebungseffekt der Nachinstallation, kein Beleg für das WSL-Setup). Modellname `k3` und Provider stammen aus dem Installer, nicht aus eigener Prüfung.
 9. **Installer-Risiken (nicht geändert, nur vermerkt):** (a) `--skip-build` löst ohne vorgebautes `web_dist` einen npm-Recovery-Build aus; (b) das Dashboard-Token rotiert (4.2); (c) die `install.sh` der Webseite ist nicht mit der im Repo verglichen; (d) kein Pinning der Version.
-10. **Tier-2/3-Verhalten („nur Entwurf + Bestätigung"), Router-Stufen `K1/K2/K3`, `BG=1`:** stammen aus `jarvis_voice.py`/Persona, sind Hermes-seitig nicht nachgewiesen und haben im Kanban keine Felder.
+10. **Tier-2/3-Verhalten („nur Entwurf + Bestätigung"), Router-Stufen `K1/K2/K3`, `BG=1`:** stammen aus `friday_voice.py`/Persona, sind Hermes-seitig nicht nachgewiesen und haben im Kanban keine Felder.
 11. **Gateway-Neustart nach `.env`-Änderung:** der Installer schreibt `API_SERVER_*` vor `hermes gateway install` und startet den Dienst neu - plausibel, im Test wurde das Gateway nur einmal gestartet.
 12. **`/api/sessions/{id}` bei unbekannter ID** (Fehlerform) und Pagination-Verhalten über 200 Einträge nicht erfasst.
-13. **Modellfeld im Chat-Request:** wir sendeten `jarvis`; ob ein anderer Wert (`kira`, wie in `jarvis_voice.py`) abgelehnt oder ignoriert wird, ist nicht getestet (Run-Status zeigt `model:"jarvis"`).
+13. **Modellfeld im Chat-Request:** wir sendeten `friday`; ob ein anderer Wert (`kira`, wie in `friday_voice.py`) abgelehnt oder ignoriert wird, ist nicht getestet (Run-Status zeigt `model:"friday"`).
 14. **Windows/WSL-Erreichbarkeit** der Ports vom Windows-Host (localhost-Forwarding) ist nicht Teil dieser Cloud-Verifikation.
 
 ### Prüfung der Aussagen des alten Dokuments
@@ -427,7 +427,7 @@ Nichts hiervon darf ohne weitere Prüfung als Tatsache in Code oder UI-Text steh
 | --- | --- | --- |
 | Hermes bietet OpenAI-kompatible Chat-Schnittstelle, Body `{model,messages}`, Antwort `choices[0].message.content` | **bestätigt** | Live `POST /v1/chat/completions` 200 |
 | `Authorization: Bearer <hermes_key_file>` | **bestätigt** | Live 200 mit Key, 401 ohne/falsch; nur Bearer |
-| Modell heißt standardmäßig `kira` | **falsch für den Installer** (`API_SERVER_MODEL_NAME=jarvis`); `kira` stammt aus dem Voice-Skript. Ob `kira` akzeptiert wird: unbelegt (9.13) | `GET /v1/models` -> `jarvis` |
+| Modell heißt standardmäßig `kira` | **falsch für den Installer** (`API_SERVER_MODEL_NAME=friday`); `kira` stammt aus dem Voice-Skript. Ob `kira` akzeptiert wird: unbelegt (9.13) | `GET /v1/models` -> `friday` |
 | Router-Stufen `K1/K2/K3`, `BG`, Tier-2/3-Entwurf | **nicht prüfbar** | nicht Teil von Hermes-Schnittstellen |
 | „Endpunkte für Aufgabenliste, Aktivität, Agentenstatus nicht verifiziert" | **jetzt aufgelöst** | Aufgaben: Dashboard-REST/CLI; Aktivität: Sessions + Kanban-Events; Agenten: Profile/Worker (Abschnitte 4-6) |
 | Quellenreihenfolge „HTTP-API -> CLI -> Eventstrom/Logdatei" | **angepasst** | HTTP gibt es, aber auf zwei Ports mit zwei Auth-Verfahren; Logdatei (`/api/logs`) liefert Rohtext und ist ungeeignet |
@@ -440,7 +440,7 @@ Nichts hiervon darf ohne weitere Prüfung als Tatsache in Code oder UI-Text steh
 | `approvalIds`/`blockers[kind=approval]` | **teilweise** | `blocked` + `block_kind=needs_input`; Run-Approvals nur für Runs |
 | `createdBy = {user, owner}` | **unbelegt** | `created_by` ist Freitext (`user`, `dashboard`, Agent) |
 | `correlationId` aus `task_id` | **bestätigt, mit Einschränkung** | Task-IDs sind pro Board eindeutig |
-| Heartbeats `jarvis.agent.heartbeat` aus Hermes | **teilweise** | nur `workers/active[].last_heartbeat_at` und Gateway-Heartbeat; Agenten-Heartbeat pro Profil nicht vorhanden |
+| Heartbeats `friday.agent.heartbeat` aus Hermes | **teilweise** | nur `workers/active[].last_heartbeat_at` und Gateway-Heartbeat; Agenten-Heartbeat pro Profil nicht vorhanden |
 | SSE/Polling an `eventsPath`, Reconnect mit Cursor | **teilweise** | WebSocket (nicht SSE) mit `since=<event_id>`; Run-SSE nur pro Run |
 | Dashboard 43691 zeigt „Kanban-Boards, Einstellungen, Verlauf" (Anleitung) | **bestätigt** | SPA + REST, Kanban-Plugin, Sessions |
 

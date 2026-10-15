@@ -1,4 +1,4 @@
-import type { RouteResponse, UpstreamRequest } from "@jarvis/adapter-testkit";
+import type { RouteResponse, UpstreamRequest } from "@friday/adapter-testkit";
 import { COLUMNS, HttpFail, HermesState, type FakeBoard, type FakeSession, type FakeTask } from "./state";
 
 export interface RouteDef {
@@ -530,12 +530,12 @@ export function apiRoutes(state: HermesState): RouteDef[] {
           object: "list",
           data: [
             {
-              id: "jarvis",
+              id: "friday",
               object: "model",
               created: 1791988171,
               owned_by: "hermes",
               permission: [],
-              root: "jarvis",
+              root: "friday",
               parent: null,
             },
           ],
@@ -549,7 +549,7 @@ export function apiRoutes(state: HermesState): RouteDef[] {
         json({
           object: "hermes.api_server.capabilities",
           platform: "hermes-agent",
-          model: "jarvis",
+          model: "friday",
           auth: { type: "bearer", required: true },
           features: {
             chat_completions: true,
@@ -656,7 +656,7 @@ export function apiRoutes(state: HermesState): RouteDef[] {
           id: "chatcmpl-abc",
           object: "chat.completion",
           created: 1791988324,
-          model: "jarvis",
+          model: "friday",
           choices: [
             {
               index: 0,

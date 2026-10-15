@@ -1,7 +1,7 @@
 "use client";
 
-import type { Task } from "@jarvis/sdk";
-import { Button, Dialog, TextArea, useToast } from "@jarvis/ui";
+import type { Task } from "@friday/sdk";
+import { Button, Dialog, TextArea, useToast } from "@friday/ui";
 import { MessageSquareReply } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { useT } from "@/i18n";

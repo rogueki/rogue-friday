@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/adapter-config-settings.schema.json",
+  "$id": "https://friday.local/schemas/settings/adapter-config-settings.schema.json",
   "title": "AdapterConfigSettings",
   "description": "Per-adapter configuration. The UI renders the form from configSchema; secrets are write-only.",
   "type": "object",
@@ -19,6 +19,11 @@
     },
     "enabled": {
       "type": "boolean"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Optimistic-concurrency token of this configuration; send it as If-Match on PATCH /settings/adapters/{id}. Increases with every change."
     },
     "config": {
       "type": "object",

@@ -1,4 +1,4 @@
-import type { AdapterContext } from "@jarvis/adapter-core";
+import type { AdapterContext } from "@friday/adapter-core";
 
 export interface TransportCall {
   /** Port method name, e.g. `listTasks`. */

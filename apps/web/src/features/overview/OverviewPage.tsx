@@ -1,6 +1,6 @@
 "use client";
 
-import { StaleBanner } from "@jarvis/ui";
+import { StaleBanner } from "@friday/ui";
 import { useMemo, type ComponentType, type CSSProperties } from "react";
 import { useT } from "@/i18n";
 import { useOverview } from "@/lib/api/domains/core";

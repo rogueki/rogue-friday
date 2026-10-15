@@ -1,4 +1,4 @@
-import type { AuditEvent } from "@jarvis/sdk";
+import type { AuditEvent } from "@friday/sdk";
 
 /* ── Before/after diff (PLAN §41.3) ───────────────────────────────────── */
 

@@ -1,4 +1,4 @@
-import type { Memory } from "@jarvis/sdk";
+import type { Memory } from "@friday/sdk";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -124,7 +124,7 @@ describe("memory page: search, detail and forgetting", () => {
     const user = userEvent.setup();
     const fake = routedFetch({
       ...baseRoutes(),
-      "POST /api/v1/memory/search": () => ({ contractVersion: "1.0.0", items: [{ memory: makeMemory(), score: 0.87, highlights: ["doppelten Espresso"] }], freshness: FRESH, sources: [] }),
+      "POST /api/v1/memory/search": () => ({ contractVersion: "2.0.0", items: [{ memory: makeMemory(), score: 0.87, highlights: ["doppelten Espresso"] }], freshness: FRESH, sources: [] }),
     });
     renderWithProviders(<MemoryPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     await screen.findByText("Kaffeesorte");
@@ -166,7 +166,7 @@ describe("memory page: search, detail and forgetting", () => {
     const user = userEvent.setup();
     const fake = routedFetch({
       ...baseRoutes(),
-      [`DELETE /api/v1/memory/${ID}`]: { contractVersion: "1.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES" },
+      [`DELETE /api/v1/memory/${ID}`]: { contractVersion: "2.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES" },
     });
     renderWithProviders(<MemoryPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     await user.click((await screen.findByText("Kaffeesorte")).closest("button") as HTMLElement);
@@ -186,9 +186,9 @@ describe("memory page: search, detail and forgetting", () => {
     const fake = routedFetch({
       "GET /api/v1/memory": () => listOf(deleted ? [] : [makeMemory()]),
       [`GET /api/v1/memory/${ID}`]: () => (deleted ? errorResponse("NOT_FOUND", "Eintrag nicht gefunden", 404) : single(makeMemory())),
-      [`DELETE /api/v1/memory/${ID}`]: { contractVersion: "1.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES" },
+      [`DELETE /api/v1/memory/${ID}`]: { contractVersion: "2.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES" },
     });
-    // The server publishes `jarvis.memory.deleted` before it answers: applyEvent drops the detail query (unmounting the
+    // The server publishes `friday.memory.deleted` before it answers: applyEvent drops the detail query (unmounting the
     // drawer content) while the DELETE response is still in flight.
     const rendered = renderWithProviders(<MemoryPage />, {
       fetchImpl: ((input: Request | string | URL, init?: RequestInit) => {
@@ -242,7 +242,7 @@ describe("memory page: search, detail and forgetting", () => {
 });
 
 describe("memory: server export", () => {
-  const exportDoc = (count: number, omittedRestricted: number) => ({ contractVersion: "1.0.0", exportedAt: "2026-10-14T08:20:00Z", count, omittedRestricted, items: [] });
+  const exportDoc = (count: number, omittedRestricted: number) => ({ contractVersion: "2.0.0", exportedAt: "2026-10-14T08:20:00Z", count, omittedRestricted, items: [] });
   const click = vi.fn();
   let created: string[] = [];
 

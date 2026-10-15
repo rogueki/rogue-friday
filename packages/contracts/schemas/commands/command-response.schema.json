@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/commands/command-response.schema.json",
+  "$id": "https://friday.local/schemas/commands/command-response.schema.json",
   "title": "CommandResponse",
   "description": "Write/critical actions first return a preview (PLAN §43.4); only a confirmed repeat executes.",
   "type": "object",

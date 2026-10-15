@@ -1,6 +1,6 @@
 "use client";
 
-import { isJarvisApiError, type Settings, type SettingsPatch } from "@jarvis/sdk";
+import { isFridayApiError, type Settings, type SettingsPatch } from "@friday/sdk";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSettings, useUpdateSettings } from "@/lib/api/domains/settings";
 import { useSession } from "@/lib/session";
@@ -145,9 +145,9 @@ export function SettingsDraftsProvider({ children }: { children: ReactNode }) {
       return true;
     } catch (error) {
       setSaveError(
-        isJarvisApiError(error) && error.code === "CONFLICT"
+        isFridayApiError(error) && error.code === "CONFLICT"
           ? t("settings.save.conflict")
-          : isJarvisApiError(error)
+          : isFridayApiError(error)
             ? `${error.message} (${error.correlationId})`
             : t("settings.save.failed"),
       );

@@ -1,9 +1,9 @@
-import { CONTRACT_VERSION, type AdapterManifest } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type AdapterManifest } from "@friday/sdk";
 
 export const ADAPTER_ID = "example-tasks-http";
 export const PROVIDER_ID = "example-tasks-http";
 export const PROVIDER_SYSTEM = "example-tasks";
-export const CONFIG_SCHEMA_ID = "urn:jarvis:adapter:example-tasks-http:config";
+export const CONFIG_SCHEMA_ID = "urn:friday:adapter:example-tasks-http:config";
 
 /** JSON Schema (draft 2020-12) of the adapter's `config`. `apiToken` is a secret: it is resolved via `getSecret`, never stored in config. */
 export const configSchema = {

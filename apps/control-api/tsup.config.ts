@@ -11,9 +11,9 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   splitting: false,
-  // ajv is bundled too: `@jarvis/sdk` imports "ajv/dist/2020" without extension, which Node's ESM resolver rejects.
-  noExternal: [/^@jarvis\//, /^ajv(-formats)?(\/.*)?$/],
-  // `msw/browser` is imported dynamically by the browser-only MSW setup of @jarvis/mock-data and never runs on the server.
+  // ajv is bundled too: `@friday/sdk` imports "ajv/dist/2020" without extension, which Node's ESM resolver rejects.
+  noExternal: [/^@friday\//, /^ajv(-formats)?(\/.*)?$/],
+  // `msw/browser` is imported dynamically by the browser-only MSW setup of @friday/mock-data and never runs on the server.
   external: ["node:sqlite", "msw/browser"],
   // esbuild drops the `node:` prefix of imports it cannot map to a known builtin; `node:sqlite` only exists prefixed.
   onSuccess: async () => {

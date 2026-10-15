@@ -1,7 +1,7 @@
 "use client";
 
-import type { ActivityEvent } from "@jarvis/sdk";
-import { ActivityRow, Button, FilterBar, LivePill, Switch, TagPill, type FilterChip, type FilterDef } from "@jarvis/ui";
+import type { ActivityEvent } from "@friday/sdk";
+import { ActivityRow, Button, FilterBar, LivePill, Switch, TagPill, type FilterChip, type FilterDef } from "@friday/ui";
 import { ChevronDown, ChevronRight, ListTree, Pause, Play, Rows3 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";

@@ -122,7 +122,7 @@ test.describe("orb states (static 2D render, 14 modes)", () => {
 });
 
 /**
- * Orb in WebGL with the deterministic test clock (PLAN §52.1-§52.3). The web app honours `window.__JARVIS_ORB_TEST__`
+ * Orb in WebGL with the deterministic test clock (PLAN §52.1-§52.3). The web app honours `window.__FRIDAY_ORB_TEST__`
  * (`fixedTime`, `animationProgress`, `audioFixture`) only while the server reports `features.devScenarios`; the frozen
  * clock removes the wall clock and the damping from the scene, so a frame is a pure function of (mode, time, progress,
  * audio fixture). Quality is pinned to `medium` because `auto` depends on the host's core count. The same frame was
@@ -143,8 +143,8 @@ async function prepare3d(page: Page, api: ApiClient): Promise<void> {
 async function setOrbClock(page: Page, clock: OrbClock): Promise<void> {
   const key = `${clock.fixedTime}|${clock.animationProgress ?? ""}|${clock.audioFixture ?? ""}`;
   await page.evaluate((value) => {
-    (window as unknown as { __JARVIS_ORB_TEST__: OrbClock }).__JARVIS_ORB_TEST__ = value;
-    window.dispatchEvent(new Event("jarvis-orb-test"));
+    (window as unknown as { __FRIDAY_ORB_TEST__: OrbClock }).__FRIDAY_ORB_TEST__ = value;
+    window.dispatchEvent(new Event("friday-orb-test"));
   }, clock);
   // the frame loop reports the clock it renders with; then a few frames on that clock must have been drawn (swiftshader is slow)
   await expect.poll(() => page.evaluate(() => window.__ORB_DEBUG__?.testClock ?? ""), { timeout: 60_000 }).toBe(key);
@@ -211,7 +211,7 @@ test.describe("orb 3D with the test clock (entry / mid / stable / exit)", () => 
   test("the test clock is ignored unless the server enables the dev scenario features", async ({ page, api }) => {
     await prepare3d(page, api);
     await page.addInitScript(() => {
-      (window as unknown as { __JARVIS_ORB_TEST__: unknown }).__JARVIS_ORB_TEST__ = { fixedTime: 5 };
+      (window as unknown as { __FRIDAY_ORB_TEST__: unknown }).__FRIDAY_ORB_TEST__ = { fixedTime: 5 };
     });
     // GET /meta without devScenarios, as a production configuration reports it
     await page.route("**/api/v1/meta", async (route) => {

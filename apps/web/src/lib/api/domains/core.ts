@@ -1,6 +1,6 @@
 "use client";
 
-import type { Capabilities, Health, JarvisStatusResponse, Meta, OrbSnapshotResponse, OverviewResponse, SessionResponse } from "@jarvis/sdk";
+import type { Capabilities, Health, FridayStatusResponse, Meta, OrbSnapshotResponse, OverviewResponse, SessionResponse } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
@@ -50,7 +50,7 @@ export const coreQueries = {
   status: () =>
     queryOptions({
       queryKey: queryKeys.status,
-      queryFn: (): Promise<JarvisStatusResponse> => call(getApiClient().GET("/api/v1/status")),
+      queryFn: (): Promise<FridayStatusResponse> => call(getApiClient().GET("/api/v1/status")),
       staleTime: staleTimes.status,
     }),
   orb: () =>
@@ -64,5 +64,5 @@ export const coreQueries = {
 export const useMeta = () => useQuery(coreQueries.meta());
 export const useHealth = () => useQuery(coreQueries.health());
 export const useOverview = () => useQuery(coreQueries.overview());
-export const useJarvisStatus = () => useQuery(coreQueries.status());
+export const useFridayStatus = () => useQuery(coreQueries.status());
 export const useOrbStatusQuery = () => useQuery(coreQueries.orb());

@@ -9,7 +9,7 @@ const shims = resolve(import.meta.dirname, 'shims');
 const config: StorybookConfig = {
   stories: [
     '../src/**/*.stories.@(ts|tsx)',
-    // ui stories live in this app; other packages (e.g. @jarvis/orb) may ship colocated stories
+    // ui stories live in this app; other packages (e.g. @friday/orb) may ship colocated stories
     '../../../packages/*/src/**/*.stories.@(ts|tsx)',
   ],
   addons: ['@storybook/addon-a11y', '@storybook/addon-docs'],
@@ -27,7 +27,7 @@ const config: StorybookConfig = {
           { find: /^@\//, replacement: `${webSrc}/` },
           { find: /^next\/navigation$/, replacement: resolve(shims, 'next-navigation.ts') },
           { find: /^next\/dynamic$/, replacement: resolve(shims, 'next-dynamic.tsx') },
-          // The Node-only test setup of @jarvis/mock-data imports msw/node lazily; the browser never calls it.
+          // The Node-only test setup of @friday/mock-data imports msw/node lazily; the browser never calls it.
           { find: /^msw\/node$/, replacement: resolve(shims, 'empty.ts') },
         ],
       },

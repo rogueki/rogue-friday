@@ -28,7 +28,7 @@ export interface CreateSessionInput {
 }
 
 export interface CreatedSession {
-  /** Raw id for the `jarvis_session` cookie. Returned exactly once. */
+  /** Raw id for the `friday_session` cookie. Returned exactly once. */
   sessionId: string;
   session: Session;
 }

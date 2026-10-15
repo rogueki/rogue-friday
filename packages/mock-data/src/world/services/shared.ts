@@ -1,4 +1,4 @@
-import type { operations } from "@jarvis/sdk";
+import type { operations } from "@friday/sdk";
 import { validationFailed } from "../../core/errors";
 import { paginate, clone, type Page, type PageQuery } from "../../core/util";
 

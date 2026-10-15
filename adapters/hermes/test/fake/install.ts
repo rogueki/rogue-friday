@@ -1,4 +1,4 @@
-import type { FakeUpstream } from "@jarvis/adapter-testkit";
+import type { FakeUpstream } from "@friday/adapter-testkit";
 import { apiRoutes, dashboardRoutes } from "./routes";
 import { HermesState } from "./state";
 

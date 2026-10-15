@@ -19,9 +19,9 @@ import {
   type Role,
   type Session,
   type SessionStore,
-} from "@jarvis/auth";
-import { resolveSecret, type JarvisConfig } from "@jarvis/config";
-import { CONTRACT_VERSION, type ReauthResponse, type SessionResponse } from "@jarvis/sdk";
+} from "@friday/auth";
+import { resolveSecret, type FridayConfig } from "@friday/config";
+import { CONTRACT_VERSION, type ReauthResponse, type SessionResponse } from "@friday/sdk";
 import { ApiError } from "../util/errors";
 
 export interface Principal {
@@ -39,7 +39,7 @@ export interface CookieSet {
 }
 
 export interface AuthServiceDeps {
-  config: JarvisConfig;
+  config: FridayConfig;
   sessions: SessionStore;
   csrfKey: Buffer;
   approvalTokens: ApprovalTokenService;
@@ -51,7 +51,7 @@ export interface AuthServiceDeps {
 
 /** Deterministic `usr_` ids (contract: `^usr_[0-9A-Za-z]{26}$`) derived from a stable label. */
 export function stableUserId(label: string): string {
-  return `usr_${createHash("sha256").update(`jarvis-user:${label}`).digest("hex").slice(0, 26).toUpperCase()}`;
+  return `usr_${createHash("sha256").update(`friday-user:${label}`).digest("hex").slice(0, 26).toUpperCase()}`;
 }
 
 const OWNER_USER_ID = stableUserId("owner");
@@ -72,7 +72,7 @@ const DEV_USERS: Record<string, Role> = {
   viewer: "viewer",
 };
 
-/** Sessions, CSRF, login throttling and re-authentication on top of `@jarvis/auth` (SECURITY.md §3). */
+/** Sessions, CSRF, login throttling and re-authentication on top of `@friday/auth` (SECURITY.md §3). */
 export class AuthService {
   private readonly now: () => number;
 

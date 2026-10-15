@@ -24,7 +24,7 @@ describe("wizard validation", () => {
   it("requires a name and the trigger's own field", () => {
     const draft = emptyDraft();
     expect(validateStep("trigger", draft)).toMatchObject({ name: "automations.error.name", "trigger.event": "automations.error.event" });
-    expect(validateStep("trigger", { ...draft, name: "Test", event: "jarvis.task.updated" })).toEqual({});
+    expect(validateStep("trigger", { ...draft, name: "Test", event: "friday.task.updated" })).toEqual({});
     expect(validateStep("trigger", { ...draft, name: "Test", triggerType: "schedule", schedule: "nope" })).toMatchObject({ "trigger.schedule": "automations.error.cron" });
     expect(validateStep("trigger", { ...draft, name: "Test", triggerType: "manual" })).toEqual({});
   });
@@ -58,8 +58,8 @@ describe("wizard validation", () => {
 
   it("finds the first invalid step", () => {
     expect(firstInvalidStep(emptyDraft())).toBe("trigger");
-    expect(firstInvalidStep({ ...emptyDraft(), name: "Test", event: "jarvis.task.updated" })).toBe("actions");
-    expect(firstInvalidStep({ ...emptyDraft(), name: "Test", event: "jarvis.task.updated", actions: [newAction("notify")] })).toBeNull();
+    expect(firstInvalidStep({ ...emptyDraft(), name: "Test", event: "friday.task.updated" })).toBe("actions");
+    expect(firstInvalidStep({ ...emptyDraft(), name: "Test", event: "friday.task.updated", actions: [newAction("notify")] })).toBeNull();
   });
 });
 
@@ -76,7 +76,7 @@ describe("request building", () => {
     const draft = {
       ...emptyDraft(),
       name: " Mail eskalieren ",
-      event: "jarvis.communication.thread_updated",
+      event: "friday.communication.thread_updated",
       conditions: [{ ...newCondition(), field: "thread.priority", value: "P1" }],
       actions: [{ ...newAction("notify"), channel: "telegram" as const }],
       escalation: [{ ...newEscalation(), afterMinutes: "10", channel: "phone" as const }],
@@ -85,7 +85,7 @@ describe("request building", () => {
     expect(request).toMatchObject({
       name: "Mail eskalieren",
       enabled: true,
-      trigger: { type: "event", event: "jarvis.communication.thread_updated", description: "Trigger" },
+      trigger: { type: "event", event: "friday.communication.thread_updated", description: "Trigger" },
       conditions: [{ id: "cond_1", field: "thread.priority", operator: "eq", value: "P1", description: "thread.priority eq" }],
       actions: [{ id: "act_1", type: "notify", channel: "telegram", requiresApproval: false }],
       escalation: [{ afterSeconds: 600, channel: "phone", stopOnAcknowledge: true, description: "nach 10 Min." }],

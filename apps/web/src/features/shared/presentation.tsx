@@ -1,5 +1,5 @@
-import type { AgentStatus as WireAgentStatus, AttentionItem, HealthStatus, Notification, Priority, Severity as WireSeverity } from "@jarvis/sdk";
-import type { AgentStatus, HealthState, Severity, Tone } from "@jarvis/ui";
+import type { AgentStatus as WireAgentStatus, AttentionItem, HealthStatus, Notification, Priority, Severity as WireSeverity } from "@friday/sdk";
+import type { AgentStatus, HealthState, Severity, Tone } from "@friday/ui";
 import { AlertTriangle, Bell, Bot, CalendarDays, Clock, Code2, Cpu, Database, FlaskConical, Globe, ListChecks, Mail, ShieldCheck, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 

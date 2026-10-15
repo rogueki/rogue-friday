@@ -1,5 +1,5 @@
 // Screenshots the overview at the four reference viewports with Playwright (chromium) into apps/web/screenshots/.
-//   node scripts/screenshot.mjs                       -> http://localhost:3000 (start `pnpm --filter @jarvis/web dev:mock` first)
+//   node scripts/screenshot.mjs                       -> http://localhost:3000 (start `pnpm --filter @friday/web dev:mock` first)
 //   node scripts/screenshot.mjs --base http://127.0.0.1:3100 --path / --only desktop
 //   options: --motion reduced|full|off (default reduced), --wait <ms> (settle time, default 2500), --scenario <id>
 import { chromium } from "@playwright/test";
@@ -49,7 +49,7 @@ for (const viewport of viewports) {
   });
   await page.addInitScript((mode) => {
     try {
-      localStorage.setItem("jarvis.motion", mode);
+      localStorage.setItem("friday.motion", mode);
     } catch {
       // storage unavailable: the app does not depend on it
     }
@@ -58,7 +58,7 @@ for (const viewport of viewports) {
   if (motion !== "full") await page.evaluate((mode) => document.documentElement.setAttribute("data-motion", mode), motion);
   if (scenario) {
     await page.evaluate(async (id) => {
-      await window.__jarvisMock?.engine?.play?.(id);
+      await window.__fridayMock?.engine?.play?.(id);
     }, scenario);
   }
   await page.waitForTimeout(settle);

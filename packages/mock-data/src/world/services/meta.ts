@@ -9,13 +9,13 @@ import {
   type Capabilities,
   type CalendarEvent,
   type Health,
-  type JarvisStatus,
+  type FridayStatus,
   type Meta,
   type OrbSnapshot,
   type Overview,
   type Severity,
   type Task,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { CATEGORY_LABEL, MODULE_CATEGORY, isCapabilityModule } from "../../core/constants";
 import { notFound, validationFailed } from "../../core/errors";
 import { clone, compareAsc, priorityRank, type Page } from "../../core/util";
@@ -47,7 +47,7 @@ export class MetaService {
   }
 
   getHealth(): Health {
-    const status = this.w.jarvisStatus().status;
+    const status = this.w.fridayStatus().status;
     return {
       contractVersion: CONTRACT_VERSION,
       status,
@@ -129,9 +129,9 @@ export class MetaService {
     return adapter;
   }
 
-  getStatus(): JarvisStatus {
+  getStatus(): FridayStatus {
     this.w.refresh();
-    return this.w.jarvisStatus();
+    return this.w.fridayStatus();
   }
 
   getOrb(): OrbSnapshot {
@@ -214,7 +214,7 @@ export class MetaService {
     const activeMode = ["working", "syncing", "thinking", "transcribing", "speaking", "listening"].includes(orb.status.mode);
 
     return {
-      jarvis: w.jarvisStatus(),
+      friday: w.fridayStatus(),
       orb,
       currentActivity: activeMode
         ? { text: orb.status.activityText ?? "", agentId: orb.status.currentAgentId ?? null, taskId: orb.status.taskId ?? null, since: orb.status.since }

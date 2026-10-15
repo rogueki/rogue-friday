@@ -1,7 +1,7 @@
 "use client";
 
-import type { Approval, ApprovalPreview } from "@jarvis/sdk";
-import { Button, Dialog, TagPill, TextField, useToast } from "@jarvis/ui";
+import type { Approval, ApprovalPreview } from "@friday/sdk";
+import { Button, Dialog, TagPill, TextField, useToast } from "@friday/ui";
 import { Check, KeyRound, MessageSquareQuote, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useT, type MessageKey } from "@/i18n";

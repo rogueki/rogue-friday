@@ -47,8 +47,8 @@ export {
 } from "./visual/deriveVisualTargets";
 export type { DeriveInput, TransitionTimes, VisualTargets } from "./visual/deriveVisualTargets";
 
-export { JarvisOrb, detectWebGL } from "./JarvisOrb";
-export type { JarvisOrbProps } from "./JarvisOrb";
+export { FridayOrb, detectWebGL } from "./FridayOrb";
+export type { FridayOrbProps } from "./FridayOrb";
 export { OrbFallback2D } from "./fallback/OrbFallback2D";
 export type { OrbFallback2DProps } from "./fallback/OrbFallback2D";
 export { OrbPerfOverlay, readPerfSnapshot } from "./debug/OrbPerfOverlay";

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/meta/quick-command.schema.json",
+  "$id": "https://friday.local/schemas/meta/quick-command.schema.json",
   "title": "QuickCommand",
   "description": "Capability-aware quick action shown on the overview (PLAN §27.8).",
   "type": "object",

@@ -1,4 +1,4 @@
-import type { ActivityEvent } from "@jarvis/sdk";
+import type { ActivityEvent } from "@friday/sdk";
 import { notFound, validationFailed } from "../../core/errors";
 import { asIso, asList, clone, type Page } from "../../core/util";
 import type { MockWorld } from "../world";

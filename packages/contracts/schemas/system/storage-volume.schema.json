@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/system/storage-volume.schema.json",
+  "$id": "https://friday.local/schemas/system/storage-volume.schema.json",
   "title": "StorageVolume",
   "type": "object",
   "properties": {

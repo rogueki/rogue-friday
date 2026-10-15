@@ -1,8 +1,8 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/layout-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/settings/layout-response.schema.json",
+  "contractVersion": "2.0.0",
   "data": {
-    "layoutId": "jarvis-command-overview",
+    "layoutId": "friday-command-overview",
     "name": "Command Overview",
     "columns": 12,
     "widgets": [

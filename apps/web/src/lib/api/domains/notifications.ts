@@ -1,6 +1,6 @@
 "use client";
 
-import type { NotificationListResponse, NotificationResponse, Priority } from "@jarvis/sdk";
+import type { NotificationListResponse, NotificationResponse, Priority } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";

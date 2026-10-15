@@ -1,7 +1,7 @@
-# @jarvis/adapter-voice-http
+# @friday/adapter-voice-http
 
-Voice-Adapter (Kategorie `voice`, Provider-ID `jarvis-voice-http`) über den Status-Endpunkt des installierten Voice-Dienstes
-(`installer/voice/jarvis_voice.py`, Port **43694**). Er ersetzt `adapters/voice-placeholder` (gleiche Provider-ID und Config-Schema-ID,
+Voice-Adapter (Kategorie `voice`, Provider-ID `friday-voice-http`) über den Status-Endpunkt des installierten Voice-Dienstes
+(`installer/voice/friday_voice.py`, Port **43694**). Er ersetzt `adapters/voice-placeholder` (gleiche Provider-ID und Config-Schema-ID,
 in der Allowlist wird nur eines der beiden Pakete eingetragen). Das Dashboard spricht nie mit dem Dienst; der Adapter übersetzt.
 
 Der Dienst hat **genau einen** HTTP-Handler (`do_GET`, der Pfad wird ignoriert, keine Authentifizierung, HTTP/1.0 ohne `Content-Length`).
@@ -9,7 +9,7 @@ Alles, was er nicht liefert, bleibt leer oder ist nicht deklariert. Es werden ke
 
 ## Konfiguration
 
-JSON Schema: `configSchema` in `src/manifest.ts` (`$id` `urn:jarvis:adapter:jarvis-voice-http:config`, PLAN §42.2). Der Adapter hat **keine Secrets**.
+JSON Schema: `configSchema` in `src/manifest.ts` (`$id` `urn:friday:adapter:friday-voice-http:config`, PLAN §42.2). Der Adapter hat **keine Secrets**.
 
 | Feld               | Standard                 | Bedeutung                                                                                              |
 | ------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------ |
@@ -22,10 +22,10 @@ JSON Schema: `configSchema` in `src/manifest.ts` (`$id` `urn:jarvis:adapter:jarv
 | `timeoutMs`        | `2000`                   | je Versuch (der Installer wartet ebenfalls 2 s)                                                        |
 | `maxAttempts`      | `2`                      | nur Lesezugriffe; die Health-Prüfung macht immer genau einen Versuch                                   |
 | `retryBaseDelayMs` | `200`                    | Backoff-Basis                                                                                          |
-| `levelPollIntervalMs` | `250`                 | Abfrage für `jarvis.voice.audio_level`, solange der Dienst aufnimmt oder spricht (4 Hz). `0` = keine Pegel-Ereignisse |
+| `levelPollIntervalMs` | `250`                 | Abfrage für `friday.voice.audio_level`, solange der Dienst aufnimmt oder spricht (4 Hz). `0` = keine Pegel-Ereignisse |
 | `idlePollIntervalMs` | `1000`                 | Abfrage in allen anderen Zuständen (sendet nichts, erkennt nur den Wechsel)                            |
 
-Registry-Eintrag (Beispiel): `adapters.voice: { provider: jarvis-voice-http, enabled: true, config: {} }`, Factory `voiceHttpFactory`.
+Registry-Eintrag (Beispiel): `adapters.voice: { provider: friday-voice-http, enabled: true, config: {} }`, Factory `voiceHttpFactory`.
 
 ## Capability-Matrix
 
@@ -57,7 +57,7 @@ Ein fehlender oder falsch typisierter Schlüssel, ein unbekannter `state` oder k
 `speaking: true` setzt `mode = speaking` und `tts.state = busy`. `trusted: true` -> `trustedSession.active` und `speakerVerification.state = verified`.
 `game_mode` (String) -> `focusMode = true` und `tts.engine = piper`. `mode` ist der orb-relevante semantische Zustand (PLAN §17/§21); `OrbPort` wird hier nicht bedient.
 
-### Verifiziert (gegen `jarvis_voice.py`, statische Prüfung, Dienst nicht ausgeführt)
+### Verifiziert (gegen `friday_voice.py`, statische Prüfung, Dienst nicht ausgeführt)
 
 - Adresse, ein Handler, kein Auth, HTTP/1.0, JSON-Form und Schlüssel (`JV:576-592`, `docs/MAPPING/voice.md` §0.1). Die Test-Fake-Implementierung (`test/fake/voice-status-server.ts`) schreibt dieselbe Rohantwort wie Pythons `http.server`.
 - Port ist **geschlossen**, solange die Modelle laden (`JV:468` nach `JV:285-297`, bis ca. 3 min). `state: "starting"` ist im JSON nur für Millisekunden sichtbar.
@@ -91,18 +91,18 @@ Nutzerinhalte (Transkripte) fließen nie durch den Adapter: der Status enthält 
 ## Tests
 
 ```bash
-pnpm --filter @jarvis/adapter-voice-http typecheck
+pnpm --filter @friday/adapter-voice-http typecheck
 pnpm exec vitest run adapters/voice-http
 pnpm test:conformance
 ```
 
 - `test/mapping.test.ts`: Parser und Mapper (alle Zustände, Zustandsmatrix, keine Fremdfelder).
-- `test/adapter.test.ts`: gegen den byte-genauen Fake von `jarvis_voice.py` (`test/fake/voice-status-server.ts`: `offline`, `silent` = Timeout, `invalid-json`, `invalid-shape`, `http-500`, `drop`, Fehlerfolgen) und gegen einen llama-server-Fake (`test/fake/llama-server.ts`).
+- `test/adapter.test.ts`: gegen den byte-genauen Fake von `friday_voice.py` (`test/fake/voice-status-server.ts`: `offline`, `silent` = Timeout, `invalid-json`, `invalid-shape`, `http-500`, `drop`, Fehlerfolgen) und gegen einen llama-server-Fake (`test/fake/llama-server.ts`).
 - `test/conformance.test.ts`: die Prüfpunkte aus PLAN §11.1 mit den Namen der Conformance-Suite.
 
 ### Conformance: Abweichung von `runConformanceSuite`
 
-`runConformanceSuite` aus `@jarvis/adapter-testkit` (Profil `full`) setzt N paginierte Listenelemente im Fremdsystem voraus (`seed`) und erwartet, dass der
+`runConformanceSuite` aus `@friday/adapter-testkit` (Profil `full`) setzt N paginierte Listenelemente im Fremdsystem voraus (`seed`) und erwartet, dass der
 Listenaufruf bei Ausfall `ADAPTER_UNAVAILABLE` wirft. Der Voice-Dienst liefert ein einzelnes Statusdokument und keine Geräte/Profile; `listVoiceDevices`/`listVoiceProfiles`
 sind ehrlich leer, daher scheitern "pagination", "schema mapping" (Items > 0) und "no provider-specific fields" der Standard-Suite zwangsläufig.
 `test/conformance.test.ts` führt deshalb dieselben Prüfungen mit denselben Namen für den Ein-Dokument-Fall aus (Hilfen in `test/support/conformance-kit.ts`). Eine

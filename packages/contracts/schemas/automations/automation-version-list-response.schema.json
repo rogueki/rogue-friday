@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/automations/automation-version-list-response.schema.json",
+  "$id": "https://friday.local/schemas/automations/automation-version-list-response.schema.json",
   "title": "AutomationVersionListResponse",
   "description": "Cursor-paginated list envelope for AutomationVersion.",
   "type": "object",

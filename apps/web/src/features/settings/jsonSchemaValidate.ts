@@ -1,9 +1,9 @@
-import { SCHEMAS, SCHEMA_IDS, type SchemaName } from "@jarvis/sdk";
+import { SCHEMAS, SCHEMA_IDS, type SchemaName } from "@friday/sdk";
 
 /**
  * Interpreting JSON Schema validator (draft 2020-12 subset used by the contract) for imports in the browser.
  * Ajv would be the obvious choice, but it compiles schemas with `new Function`, which the Control API's strict CSP
- * (`script-src 'self'`, no eval) forbids. This validator only walks the schema data from the `@jarvis/sdk` registry.
+ * (`script-src 'self'`, no eval) forbids. This validator only walks the schema data from the `@friday/sdk` registry.
  */
 
 export interface SchemaIssue {
@@ -182,7 +182,7 @@ export function validateContract(name: SchemaName, value: unknown): SchemaValida
 export function validateAgainstSchema(schema: unknown, value: unknown): SchemaValidation {
   const errors: SchemaIssue[] = [];
   const root = isRecord(schema) ? schema : {};
-  walk(root, value, { baseId: "https://jarvis.local/schemas/adapter/config.schema.json", root }, "", errors);
+  walk(root, value, { baseId: "https://friday.local/schemas/adapter/config.schema.json", root }, "", errors);
   return { valid: errors.length === 0, errors };
 }
 

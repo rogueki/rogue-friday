@@ -1,5 +1,5 @@
-import type { HealthStatus } from "@jarvis/sdk";
-import { normalizeError, type AdapterError, type Clock, type HttpClient } from "@jarvis/adapter-core";
+import type { HealthStatus } from "@friday/sdk";
+import { normalizeError, type AdapterError, type Clock, type HttpClient } from "@friday/adapter-core";
 import type { HostApi } from "./host";
 import { decodeCommandOutput, parseModelIds, parseWslList } from "./parsers";
 
@@ -110,7 +110,7 @@ export async function probeQwen(env: ProbeEnv): Promise<ProbeResult> {
   }
   const base = classifyFailure(
     models,
-    "Port 43692 geschlossen: llama-server läuft nicht (Aufgabe JARVIS_Qwen)",
+    "Port 43692 geschlossen: llama-server läuft nicht (Aufgabe FRIDAY_Qwen)",
   );
   if (models.httpStatus !== undefined && models.httpStatus >= 500) {
     const health = await get(env.qwen, env.clock, "/health", { operation: "probeQwenHealth" });
@@ -134,7 +134,7 @@ export async function probeHermesApi(env: ProbeEnv): Promise<ProbeResult> {
     : { status: "degraded", latencyMs: health.latencyMs, detail: "Gateway meldet keinen ok-Zustand" };
 }
 
-/** Model list of the Hermes API server; needs the Bearer key (`GET /v1/models`, expected id `jarvis`). */
+/** Model list of the Hermes API server; needs the Bearer key (`GET /v1/models`, expected id `friday`). */
 export async function probeHermesModels(env: ProbeEnv): Promise<ProbeResult> {
   const key = await env.hermesKey();
   if (!key) {

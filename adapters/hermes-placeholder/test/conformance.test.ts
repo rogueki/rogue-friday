@@ -1,4 +1,4 @@
-import { runConformanceSuite } from "@jarvis/adapter-testkit";
+import { runConformanceSuite } from "@friday/adapter-testkit";
 import { hermesFactories } from "../src";
 
 // One adapter per Hermes category; every one of them must pass the reduced "not configured" profile.

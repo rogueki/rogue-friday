@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/automations/automation-run.schema.json",
+  "$id": "https://friday.local/schemas/automations/automation-run.schema.json",
   "title": "AutomationRun",
   "description": "Execution record; answers why it fired, which conditions held, what ran and the result (PLAN §35.4).",
   "type": "object",

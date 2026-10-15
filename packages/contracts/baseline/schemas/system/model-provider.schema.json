@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/system/model-provider.schema.json",
+  "$id": "https://friday.local/schemas/system/model-provider.schema.json",
   "title": "ModelProvider",
   "description": "LLM provider shown under Models & Services.",
   "type": "object",

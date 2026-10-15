@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/common/progress.schema.json",
+  "$id": "https://friday.local/schemas/common/progress.schema.json",
   "title": "Progress",
   "description": "Unknown progress is indeterminate; never fake a percentage. value is a fraction 0..1.",
   "type": "object",

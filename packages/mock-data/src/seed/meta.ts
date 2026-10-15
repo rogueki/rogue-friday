@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type AdapterLogEntry, type AdapterManifest, type CommandHistoryEntry, type QuickCommand } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type AdapterLogEntry, type AdapterManifest, type CommandHistoryEntry, type QuickCommand } from "@friday/sdk";
 import { ADAPTER_CATEGORIES, CATEGORY_LABEL, adapterIdFor, defaultCapabilities } from "../core/constants";
 import { DAY, HOUR, MIN, type SeedContext } from "./context";
 import { adapterSecretFields } from "./settings";

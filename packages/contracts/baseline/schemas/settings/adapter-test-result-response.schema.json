@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/adapter-test-result-response.schema.json",
+  "$id": "https://friday.local/schemas/settings/adapter-test-result-response.schema.json",
   "title": "AdapterTestResultResponse",
   "description": "Single-resource envelope for AdapterTestResult.",
   "type": "object",

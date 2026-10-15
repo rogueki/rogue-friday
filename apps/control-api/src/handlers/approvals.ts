@@ -1,11 +1,11 @@
-import { authorize, type ApprovalChannel, type DenyReason } from "@jarvis/auth";
-import { CONTRACT_VERSION, type Approval, type ApprovalDecisionRequest } from "@jarvis/sdk";
+import { authorize, type ApprovalChannel, type DenyReason } from "@friday/auth";
+import { CONTRACT_VERSION, type Approval, type ApprovalDecisionRequest } from "@friday/sdk";
 import type { Handler, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import type { Principal } from "../security/auth-service";
 import { ApiError, conflict } from "../util/errors";
 import { portHandler } from "./ports";
-import { PORT_SPEC } from "@jarvis/adapter-core";
+import { PORT_SPEC } from "@friday/adapter-core";
 
 export const APPROVAL_TOKEN_HEADER = "x-approval-token";
 export const APPROVAL_TOKEN_EXPIRES_HEADER = "X-Approval-Token-Expires";

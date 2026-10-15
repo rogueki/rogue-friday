@@ -1,7 +1,7 @@
 "use client";
 
-import type { Notification } from "@jarvis/sdk";
-import { Button, IconTile, StatusChip, TagPill } from "@jarvis/ui";
+import type { Notification } from "@friday/sdk";
+import { Button, IconTile, StatusChip, TagPill } from "@friday/ui";
 import { Check, ExternalLink, Moon, PanelRightOpen, Undo2 } from "lucide-react";
 import { useT } from "@/i18n";
 import { useFormat } from "../memory/kit/hooks";

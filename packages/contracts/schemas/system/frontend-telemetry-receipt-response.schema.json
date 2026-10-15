@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/system/frontend-telemetry-receipt-response.schema.json",
+  "$id": "https://friday.local/schemas/system/frontend-telemetry-receipt-response.schema.json",
   "title": "FrontendTelemetryReceiptResponse",
   "description": "Single-resource envelope for FrontendTelemetryReceipt.",
   "type": "object",

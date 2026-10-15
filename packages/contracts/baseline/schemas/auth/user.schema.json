@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/auth/user.schema.json",
+  "$id": "https://friday.local/schemas/auth/user.schema.json",
   "title": "User",
   "type": "object",
   "properties": {

@@ -9,7 +9,7 @@ const normalize = (text) => text.replace(/\r\n/g, "\n");
 
 /** @returns {Promise<string[]>} names of stale or missing generated files */
 export async function checkGenerated() {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-generated-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "friday-generated-"));
   try {
     const files = await generateAll(tmp);
     const stale = [];

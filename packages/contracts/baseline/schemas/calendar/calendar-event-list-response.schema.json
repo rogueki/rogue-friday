@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/calendar/calendar-event-list-response.schema.json",
+  "$id": "https://friday.local/schemas/calendar/calendar-event-list-response.schema.json",
   "title": "CalendarEventListResponse",
   "description": "Cursor-paginated list envelope for CalendarEvent.",
   "type": "object",

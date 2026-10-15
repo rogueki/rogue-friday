@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/meta/meta.schema.json",
+  "$id": "https://friday.local/schemas/meta/meta.schema.json",
   "title": "Meta",
   "description": "Bootstrap document: tells the client how to reach the event stream and which mode the server runs in.",
   "type": "object",

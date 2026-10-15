@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type SourceDescriptor } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type SourceDescriptor } from "@friday/sdk";
 import { assertContract, getContractValidator } from "./contract";
 import { AdapterError } from "./errors";
 import type { MethodSpec } from "./port-spec";

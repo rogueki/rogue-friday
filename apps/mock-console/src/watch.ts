@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { isControlFrame, isJarvisEvent, type JarvisEvent } from "@jarvis/sdk";
+import { isControlFrame, isFridayEvent, type FridayEvent } from "@friday/sdk";
 import type { ConsoleSession } from "./session";
 
 export interface WatchOptions {
@@ -10,7 +10,7 @@ export interface WatchOptions {
   since?: number;
   /** Only events whose type starts with this prefix. */
   prefix?: string;
-  onEvent(event: JarvisEvent): void;
+  onEvent(event: FridayEvent): void;
 }
 
 export function eventsUrl(baseUrl: string, eventsPath: string, since?: number): string {
@@ -54,7 +54,7 @@ export async function watchEvents(session: ConsoleSession, options: WatchOptions
         if (frame.kind === "ping") socket.send(JSON.stringify({ kind: "pong", ts: frame.ts }));
         return;
       }
-      if (!isJarvisEvent(frame)) return;
+      if (!isFridayEvent(frame)) return;
       if (options.prefix && !frame.type.startsWith(options.prefix)) return;
       seen += 1;
       options.onEvent(frame);

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/events/voice-transcript.schema.json",
+  "$schema": "https://friday.local/schemas/events/voice-transcript.schema.json",
   "utteranceId": "utt_1",
   "text": "Wie ist das Wetter morgen in Hannover?",
   "final": true,

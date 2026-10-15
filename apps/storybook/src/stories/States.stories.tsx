@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Inbox } from 'lucide-react';
 import { useState } from 'react';
-import { Button, DegradedState, EmptyState, ErrorState, HudPanel, OfflineState, Skeleton, StaleBanner } from '@jarvis/ui';
+import { Button, DegradedState, EmptyState, ErrorState, HudPanel, OfflineState, Skeleton, StaleBanner } from '@friday/ui';
 import { Grid, Section } from './_helpers';
 
 const meta = { title: 'Components/States', parameters: { layout: 'fullscreen' } } satisfies Meta;

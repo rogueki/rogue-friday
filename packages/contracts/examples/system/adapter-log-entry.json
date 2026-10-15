@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/system/adapter-log-entry.schema.json",
+  "$schema": "https://friday.local/schemas/system/adapter-log-entry.schema.json",
   "timestamp": "2026-10-14T08:14:58Z",
   "level": "warn",
   "message": "Healthcheck langsam",

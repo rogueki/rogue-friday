@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/meta/health.schema.json",
+  "$id": "https://friday.local/schemas/meta/health.schema.json",
   "title": "Health",
   "description": "Liveness/readiness summary of the control API and its components.",
   "type": "object",

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { expect } from "vitest";
 import Ajv2020 from "ajv/dist/2020.js";
-import { CONTRACT_VERSION, createCorrelationId } from "@jarvis/sdk";
+import { CONTRACT_VERSION, createCorrelationId } from "@friday/sdk";
 import {
   AdapterError,
   allowedCapabilities,
@@ -14,21 +14,21 @@ import {
   type AdapterContext,
   type AdapterEventInput,
   type CallContext,
-  type JarvisAdapter,
+  type FridayAdapter,
   type LogRecord,
   type PortCategory,
-} from "@jarvis/adapter-core";
+} from "@friday/adapter-core";
 
 /**
  * Checks of the adapter conformance suite (PLAN §11.1, docs/ADAPTER_CONFORMANCE.md) for adapters whose primary read is a
  * single resource or a probe result and not a cursor-paged list of upstream items. `runConformanceSuite` of
- * `@jarvis/adapter-testkit` seeds N list items in the foreign system and expects list calls to fail when it is down;
+ * `@friday/adapter-testkit` seeds N list items in the foreign system and expects list calls to fail when it is down;
  * that does not fit "status endpoint" and "probe" adapters (see README, "Conformance"). These helpers keep the same
  * check names and rules; the scenarios live in `conformance.test.ts`.
  */
 
 export interface Session {
-  adapter: JarvisAdapter;
+  adapter: FridayAdapter;
   context: AdapterContext;
   emitted: AdapterEventInput[];
   logs: LogRecord[];
@@ -63,7 +63,7 @@ export function describeError(error: unknown): Record<string, unknown> {
 }
 
 export async function openSession(
-  adapter: JarvisAdapter,
+  adapter: FridayAdapter,
   config: Record<string, unknown>,
   options: { initialize?: boolean } = {},
 ): Promise<Session> {
@@ -143,7 +143,7 @@ export async function expectCode(
 // ---- static checks (suite checks 1-3) -----------------------------------------------------------------------------------
 
 export function assertManifestValid(
-  adapter: JarvisAdapter,
+  adapter: FridayAdapter,
   category: PortCategory,
   configSchema: Readonly<Record<string, unknown>>,
 ): void {
@@ -165,13 +165,13 @@ export function assertManifestValid(
   }
 }
 
-export function assertContractVersionCompatible(adapter: JarvisAdapter): void {
+export function assertContractVersionCompatible(adapter: FridayAdapter): void {
   const major = (version: string) => Number.parseInt(version.split(".")[0] ?? "", 10);
   expect(major(adapter.manifest.contractVersion)).toBe(major(CONTRACT_VERSION));
 }
 
 export async function assertCapabilitiesMatchMethods(
-  adapter: JarvisAdapter,
+  adapter: FridayAdapter,
   category: PortCategory,
 ): Promise<void> {
   const declared = new Set(adapter.manifest.capabilities);

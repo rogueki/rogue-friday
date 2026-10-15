@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/commands/command-control-request.schema.json",
+  "$schema": "https://friday.local/schemas/commands/command-control-request.schema.json",
   "scope": "all",
   "reason": "Nutzer hat Stopp gedrückt"
 }

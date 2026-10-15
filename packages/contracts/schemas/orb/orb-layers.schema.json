@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/orb/orb-layers.schema.json",
+  "$id": "https://friday.local/schemas/orb/orb-layers.schema.json",
   "title": "OrbLayers",
   "description": "Parallel activity layers (PLAN §18.2): the orb can speak while agents work and health is shown on the telemetry ring.",
   "type": "object",

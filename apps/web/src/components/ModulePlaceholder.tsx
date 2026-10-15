@@ -1,6 +1,6 @@
 "use client";
 
-import { EmptyState, HudPanel } from "@jarvis/ui";
+import { EmptyState, HudPanel } from "@friday/ui";
 import { NAV_PAGES, type NavPageId } from "@/features/shell/navModel";
 import { useT, type MessageKey } from "@/i18n";
 

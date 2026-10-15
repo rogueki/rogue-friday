@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/orb/orb-status.schema.json",
+  "$id": "https://friday.local/schemas/orb/orb-status.schema.json",
   "title": "OrbStatus",
   "description": "Semantic orb state (PLAN §17). Backends emit semantics only, never shader parameters.",
   "type": "object",

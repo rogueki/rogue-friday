@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/audit/audit-event.schema.json",
+  "$id": "https://friday.local/schemas/audit/audit-event.schema.json",
   "title": "AuditEvent",
   "description": "Append-only audit record with hash chain (PLAN §41).",
   "type": "object",

@@ -12,12 +12,13 @@ import {
 } from './categories';
 import { ConfigError, type ConfigProblem } from './errors';
 import { interpolateTree, type InterpolationMiss } from './interpolate';
+import { legacyEnvWarning, normalizeLegacyEnv } from './legacy-env';
 import { describeSecretRef, looksLikeSecretRef, parseSecretRef, type ResolveSecretOptions } from './secrets';
-import type { JarvisConfig, ResolvedAdapterConfig } from './types';
+import type { FridayConfig, ResolvedAdapterConfig } from './types';
 import { validateDocument } from './validate';
 
 export interface LoadConfigOptions {
-  /** Directory with dashboard.yaml / adapters.yaml. Falls back to `env.JARVIS_CONFIG_DIR`, then `<cwd>/config`. */
+  /** Directory with dashboard.yaml / adapters.yaml. Falls back to `env.FRIDAY_CONFIG_DIR`, then `<cwd>/config`. */
   configDir?: string;
   env?: NodeJS.ProcessEnv;
   /** Base for relative env path overrides. Defaults to `process.cwd()`. */
@@ -36,13 +37,14 @@ const SECRET_KEY = /(password|passwd|passphrase|secret|token|api[-_]?key|authori
 /** `tokenUrl`, `secretPath`, ... describe where a secret lives, not the secret itself. */
 const SECRET_KEY_EXEMPT_SUFFIX = /(url|uri|path|file|header|name|field|type|endpoint|ttl|count|length|ref)$/i;
 
-export function loadConfig(options: LoadConfigOptions = {}): JarvisConfig {
-  const env = options.env ?? process.env;
+export function loadConfig(options: LoadConfigOptions = {}): FridayConfig {
+  const { env, legacy } = normalizeLegacyEnv(options.env ?? process.env);
   const cwd = options.cwd ?? process.cwd();
   const problems: ConfigProblem[] = [];
   const warnings: string[] = [];
+  if (legacy.length > 0) warnings.push(legacyEnvWarning(legacy));
 
-  const configDir = resolve(cwd, options.configDir ?? env.JARVIS_CONFIG_DIR ?? 'config');
+  const configDir = resolve(cwd, options.configDir ?? env.FRIDAY_CONFIG_DIR ?? 'config');
 
   const dashboardRead = readYaml(join(configDir, DASHBOARD_FILE), DASHBOARD_FILE, problems);
   const adaptersRead = readYaml(join(configDir, ADAPTERS_FILE), ADAPTERS_FILE, problems);
@@ -71,14 +73,14 @@ export function loadConfig(options: LoadConfigOptions = {}): JarvisConfig {
   }
 
   const dataMode = dashboard.dataMode as DataMode;
-  const server = dashboard.server as JarvisConfig['server'];
+  const server = dashboard.server as FridayConfig['server'];
   const authSection = dashboard.auth as Tree;
 
   validateSemantics(dashboard, problems, warnings);
 
   const allowlist = mergeAllowlist(adaptersRaw.allowlist as Record<string, string>, problems);
   if (adaptersRaw.mode !== undefined && adaptersRaw.mode !== dataMode) {
-    warnings.push(`${ADAPTERS_FILE}: mode "${String(adaptersRaw.mode)}" ignored; effective data mode is "${dataMode}" (dashboard.yaml / JARVIS_DATA_MODE)`);
+    warnings.push(`${ADAPTERS_FILE}: mode "${String(adaptersRaw.mode)}" ignored; effective data mode is "${dataMode}" (dashboard.yaml / FRIDAY_DATA_MODE)`);
   }
   const adapters = resolveAdapters(dataMode, adaptersRaw.adapters as Tree, allowlist, options.secrets ?? { env }, problems, warnings);
 
@@ -97,7 +99,7 @@ export function loadConfig(options: LoadConfigOptions = {}): JarvisConfig {
   const dev = dashboard.dev as { scenarioConsole?: boolean; responseValidation?: boolean };
   const secretOptions = options.secrets ?? { env };
 
-  const config: JarvisConfig = {
+  const config: FridayConfig = {
     configDir,
     files: {
       dashboard: dashboardRead.found ? join(configDir, DASHBOARD_FILE) : null,
@@ -121,13 +123,13 @@ export function loadConfig(options: LoadConfigOptions = {}): JarvisConfig {
       idleTimeoutMinutes: authSection.idleTimeoutMinutes,
       secureCookies: authSection.secureCookies,
     },
-    realtime: dashboard.realtime as JarvisConfig['realtime'],
-    ui: dashboard.ui as JarvisConfig['ui'],
+    realtime: dashboard.realtime as FridayConfig['realtime'],
+    ui: dashboard.ui as FridayConfig['ui'],
     dev: {
       scenarioConsole: dev.scenarioConsole ?? dataMode === 'mock',
       responseValidation: dev.responseValidation ?? dataMode !== 'live',
     },
-    logging: dashboard.logging as JarvisConfig['logging'],
+    logging: dashboard.logging as FridayConfig['logging'],
     adapters,
     allowlist,
     warnings,
@@ -193,28 +195,28 @@ function applyEnvOverrides(dashboard: Tree, env: NodeJS.ProcessEnv, cwd: string,
     if (typeof target !== 'object' || target === null) return; // schema validation reports the wrong type
     target[key] = value;
   };
-  if (env.JARVIS_DATA_MODE) {
-    if (!(DATA_MODES as readonly string[]).includes(env.JARVIS_DATA_MODE)) {
-      problems.push({ source: 'env', path: 'JARVIS_DATA_MODE', message: `must be one of: ${DATA_MODES.join(', ')} (got ${JSON.stringify(env.JARVIS_DATA_MODE)})` });
+  if (env.FRIDAY_DATA_MODE) {
+    if (!(DATA_MODES as readonly string[]).includes(env.FRIDAY_DATA_MODE)) {
+      problems.push({ source: 'env', path: 'FRIDAY_DATA_MODE', message: `must be one of: ${DATA_MODES.join(', ')} (got ${JSON.stringify(env.FRIDAY_DATA_MODE)})` });
     } else {
-      dashboard.dataMode = env.JARVIS_DATA_MODE;
+      dashboard.dataMode = env.FRIDAY_DATA_MODE;
     }
   }
-  if (env.JARVIS_HOST) set('server', 'host', env.JARVIS_HOST);
-  if (env.JARVIS_PORT) {
-    const port = Number(env.JARVIS_PORT);
-    if (!/^\d+$/.test(env.JARVIS_PORT) || port < 1 || port > 65535) {
-      problems.push({ source: 'env', path: 'JARVIS_PORT', message: `must be an integer between 1 and 65535 (got ${JSON.stringify(env.JARVIS_PORT)})` });
+  if (env.FRIDAY_HOST) set('server', 'host', env.FRIDAY_HOST);
+  if (env.FRIDAY_PORT) {
+    const port = Number(env.FRIDAY_PORT);
+    if (!/^\d+$/.test(env.FRIDAY_PORT) || port < 1 || port > 65535) {
+      problems.push({ source: 'env', path: 'FRIDAY_PORT', message: `must be an integer between 1 and 65535 (got ${JSON.stringify(env.FRIDAY_PORT)})` });
     } else {
       set('server', 'port', port);
     }
   }
-  if (env.JARVIS_DATA_DIR) set('paths', 'dataDir', resolve(cwd, env.JARVIS_DATA_DIR));
-  if (env.JARVIS_LOG_DIR) set('paths', 'logDir', resolve(cwd, env.JARVIS_LOG_DIR));
+  if (env.FRIDAY_DATA_DIR) set('paths', 'dataDir', resolve(cwd, env.FRIDAY_DATA_DIR));
+  if (env.FRIDAY_LOG_DIR) set('paths', 'logDir', resolve(cwd, env.FRIDAY_LOG_DIR));
 }
 
 function validateSemantics(dashboard: Tree, problems: ConfigProblem[], warnings: string[]): void {
-  const server = dashboard.server as JarvisConfig['server'];
+  const server = dashboard.server as FridayConfig['server'];
   if (!isLoopback(server.host) && !server.allowRemote) {
     problems.push({
       source: 'dashboard.yaml',

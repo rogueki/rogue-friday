@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { AdapterRegistry } from "@jarvis/adapter-core";
+import { AdapterRegistry } from "@friday/adapter-core";
 import { hermesFactories } from "../src";
 
 const registries: AdapterRegistry[] = [];

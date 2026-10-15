@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/common/progress.schema.json",
+  "$schema": "https://friday.local/schemas/common/progress.schema.json",
   "mode": "indeterminate",
   "value": null
 }

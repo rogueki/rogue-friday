@@ -1,5 +1,5 @@
-import { applyTheme, defaultTheme, getTheme, type JarvisTheme, validateTheme } from "@jarvis/design-tokens";
-import type { Layout, LayoutWidget, OrbMode, Settings, SettingsExport, Theme } from "@jarvis/sdk";
+import { applyTheme, defaultTheme, getTheme, type FridayTheme, validateTheme } from "@friday/design-tokens";
+import type { Layout, LayoutWidget, OrbMode, Settings, SettingsExport, Theme } from "@friday/sdk";
 import { runtimeThemeSettings } from "@/lib/settings";
 import { DEFAULT_OVERVIEW_LAYOUT, WIDGET_IDS } from "@/features/overview/layout";
 import { validateContract, formatIssues } from "./jsonSchemaValidate";
@@ -201,7 +201,7 @@ function parseJson(text: string): { ok: true; value: unknown } | { ok: false; er
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** Wire theme (`Theme`) -> design-tokens theme. */
-export function toRuntimeTheme(theme: Theme): JarvisTheme {
+export function toRuntimeTheme(theme: Theme): FridayTheme {
   return {
     id: theme.id,
     name: theme.name,
@@ -210,7 +210,7 @@ export function toRuntimeTheme(theme: Theme): JarvisTheme {
     orb: theme.orb,
     panels: { ...theme.panels, cornerStyle: theme.panels.cornerStyle === "rounded" ? "soft-cut" : theme.panels.cornerStyle },
     effects: { gridVisibility: 1, cyanIntensity: 1 },
-  } as unknown as JarvisTheme;
+  } as unknown as FridayTheme;
 }
 
 /**
@@ -257,7 +257,7 @@ export function parseSettingsImport(text: string): ImportResult<SettingsExport> 
 /* ── live theme preview ───────────────────────────────────────────────── */
 
 /** Resolves the theme exactly like `AppSettingsProvider`: built-in token themes first, then the server library, then the default. */
-export function resolveRuntimeTheme(themeId: string, overrides: Record<string, string> | undefined, library: readonly Theme[] | undefined): JarvisTheme {
+export function resolveRuntimeTheme(themeId: string, overrides: Record<string, string> | undefined, library: readonly Theme[] | undefined): FridayTheme {
   const base = getTheme(themeId) ?? library?.map(toRuntimeTheme).find((candidate) => candidate.id === themeId) ?? defaultTheme;
   return overrides ? { ...base, tokens: { ...base.tokens, ...overrides } } : base;
 }

@@ -10,7 +10,7 @@ export interface TextAreaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaE
   rows?: number;
 }
 
-/** Multi-line field in the look of `@jarvis/ui`'s `TextField` (the library has no textarea yet). */
+/** Multi-line field in the look of `@friday/ui`'s `TextField` (the library has no textarea yet). */
 export function TextArea({ label, hint, error, rows = 5, className, id, required, disabled, ...rest }: TextAreaProps) {
   const autoId = useStableIdLike("mk-textarea");
   const fieldId = id ?? autoId;

@@ -1,7 +1,7 @@
 "use client";
 
-import type { Memory, MemoryListResponse, MemorySearchRequest, MemorySearchResponse, MemorySensitivity, MemoryType } from "@jarvis/sdk";
-import { Button, FilterBar, HudPanel, StatusChip, Switch, useToast } from "@jarvis/ui";
+import type { Memory, MemoryListResponse, MemorySearchRequest, MemorySearchResponse, MemorySensitivity, MemoryType } from "@friday/sdk";
+import { Button, FilterBar, HudPanel, StatusChip, Switch, useToast } from "@friday/ui";
 import { Brain, Download, Plus } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- test code reads untyped JSON bodies and frames that the contract validators check */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import type { JarvisEvent } from "@jarvis/sdk";
+import type { FridayEvent } from "@friday/sdk";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 
 const errorOf = (response: { json(): unknown }) => (response.json() as { error: { code: string; retryable: boolean; details: Record<string, any> } }).error;
@@ -13,7 +13,7 @@ async function control(client: ApiClient, request: Record<string, unknown>): Pro
 describe("partial outage (adapter offline)", () => {
   let api: TestApi;
   let owner: ApiClient;
-  const events: JarvisEvent[] = [];
+  const events: FridayEvent[] = [];
   let unsubscribe: () => void;
 
   beforeEach(async () => {
@@ -77,7 +77,7 @@ describe("partial outage (adapter offline)", () => {
 
   it("publishes health-change events and recovers when the adapter returns", async () => {
     await control(owner, { action: "adapter_offline", adapterId: "mock-communication", offline: true });
-    const changes = events.filter((event) => event.type === "jarvis.adapter.health_changed" && (event.data as { adapterId: string }).adapterId === "mock-communication");
+    const changes = events.filter((event) => event.type === "friday.adapter.health_changed" && (event.data as { adapterId: string }).adapterId === "mock-communication");
     expect(changes.length, "health_changed events for the offline adapter").toBeGreaterThan(0);
     expect((changes.at(-1)?.data as { status: string }).status).toBe("offline");
 
@@ -85,7 +85,7 @@ describe("partial outage (adapter offline)", () => {
     expect((await owner.get("/api/v1/communication/threads")).statusCode).toBe(200);
     expect((await owner.get("/api/v1/health")).json().status).toBe("online");
     expect((await owner.get("/api/v1/capabilities")).json().modules.communication.read).toBe(true);
-    const states = events.filter((event) => event.type === "jarvis.adapter.health_changed").map((event) => (event.data as { status: string }).status);
+    const states = events.filter((event) => event.type === "friday.adapter.health_changed").map((event) => (event.data as { status: string }).status);
     expect(states.at(-1)).toBe("online");
   });
 
@@ -146,7 +146,7 @@ describe("partial outage with an unconfigured live adapter (hybrid)", () => {
       authMode: "local",
       ownerPassword: PASSWORD,
       adaptersYaml: `allowlist:
-  gmx-mail: "@jarvis/adapter-mail-placeholder"
+  gmx-mail: "@friday/adapter-mail-placeholder"
 adapters:
   communication:
     provider: gmx-mail
@@ -178,7 +178,7 @@ describe("capability missing", () => {
   let api: TestApi;
   let owner: ApiClient;
   let operator: ApiClient;
-  const events: JarvisEvent[] = [];
+  const events: FridayEvent[] = [];
 
   beforeEach(async () => {
     api = await startTestApi();
@@ -205,7 +205,7 @@ describe("capability missing", () => {
     const capabilities = (await operator.get("/api/v1/capabilities")).json();
     expect(capabilities.modules.tasks.create).toBe(false);
     expect(capabilities.modules.tasks.read).toBe(true);
-    expect(events.some((event) => event.type === "jarvis.adapter.capabilities_changed")).toBe(true);
+    expect(events.some((event) => event.type === "friday.adapter.capabilities_changed")).toBe(true);
   });
 
   it("restores the operation when the capability returns", async () => {

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/orb-settings.schema.json",
+  "$schema": "https://friday.local/schemas/settings/orb-settings.schema.json",
   "preset": "gold-fragment-core",
   "size": 1,
   "intensity": 78,

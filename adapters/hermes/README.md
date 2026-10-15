@@ -1,7 +1,7 @@
-# @jarvis/adapter-hermes
+# @friday/adapter-hermes
 
 Echter Adapter für **Hermes Agent** (Nous Research): Aufgaben/Kanban, Aktivität und Agenten.
-Er ersetzt `@jarvis/adapter-hermes-placeholder` (gleiche Provider-IDs `hermes-tasks`, `hermes-activity`, `hermes-agents`).
+Er ersetzt `@friday/adapter-hermes-placeholder` (gleiche Provider-IDs `hermes-tasks`, `hermes-activity`, `hermes-agents`).
 
 Grundlage ist ausschließlich `docs/MAPPING/hermes.md` (verifiziert gegen Hermes-Quellcode `0e427d7` und eine laufende
 Instanz). Was dort nicht belegt ist, steht unten unter „Annahme (unbelegt)“ und ist **nicht** als Capability freigeschaltet.
@@ -22,15 +22,15 @@ Es gibt keinen direkten Zugriff auf `state.db`/`kanban.db` (PLAN §1.1 Nr. 17) u
 Registrierung (macht die Control API, nicht dieses Paket):
 
 ```ts
-import { hermesFactories } from "@jarvis/adapter-hermes";
+import { hermesFactories } from "@friday/adapter-hermes";
 for (const factory of hermesFactories) registry.registerFactory(factory.providerId, factory);
 ```
 
-`config/adapters.yaml`: `allowlist: { hermes-tasks: "@jarvis/adapter-hermes", hermes-activity: "@jarvis/adapter-hermes", hermes-agents: "@jarvis/adapter-hermes" }`.
+`config/adapters.yaml`: `allowlist: { hermes-tasks: "@friday/adapter-hermes", hermes-activity: "@friday/adapter-hermes", hermes-agents: "@friday/adapter-hermes" }`.
 
 ## Konfiguration
 
-JSON Schema je Adapter: `configSchemaFor("tasks" | "activity" | "agents")` (`$id` = `urn:jarvis:adapter:hermes-<kategorie>:config`).
+JSON Schema je Adapter: `configSchemaFor("tasks" | "activity" | "agents")` (`$id` = `urn:friday:adapter:hermes-<kategorie>:config`).
 Alle drei Adapter nehmen dieselben Felder; jeder liest nur, was er braucht.
 
 ```yaml
@@ -46,7 +46,7 @@ adapters:
     config:
       apiBaseUrl: http://127.0.0.1:43693
       apiKey: env:HERMES_API_KEY # Secret-Referenz (env: oder wincred:), nie Klartext
-      # apiKeyFile: C:\Jarvis\config\hermes_api.key   # Alternative, siehe unten
+      # apiKeyFile: C:\Friday\config\hermes_api.key   # Alternative, siehe unten
       dashboardBaseUrl: http://127.0.0.1:43691
   agents:
     provider: hermes-agents
@@ -107,8 +107,8 @@ Genau das, was umgesetzt **und** belegt ist. Die Control API schaltet daran die 
 | `agents.pause` / `resume` / `stop` / `assignTask`      |      –       |        –        |   **nein**    | keine belegte Schnittstelle (Run-Stop existiert nur je `run_id`); Zuweisen geht über `tasks.update` (`agentId`) |
 
 Nicht angebotene Port-Methoden sind nicht implementiert (die Conformance-Suite prüft das).
-Events werden zusätzlich zu `*.stream` so geliefert: `jarvis.task.*` (tasks), `jarvis.activity.appended` (activity),
-`jarvis.agent.status_changed` und `jarvis.agent.heartbeat` (agents; eine Capability dafür gibt es im Vertrag nicht).
+Events werden zusätzlich zu `*.stream` so geliefert: `friday.task.*` (tasks), `friday.activity.appended` (activity),
+`friday.agent.status_changed` und `friday.agent.heartbeat` (agents; eine Capability dafür gibt es im Vertrag nicht).
 
 ## Abbildung (Kurzfassung, Details in `docs/MAPPING/hermes.md` §6)
 
@@ -140,7 +140,7 @@ Events werden zusätzlich zu `*.stream` so geliefert: `jarvis.task.*` (tasks), `
 
 `tail` (Standard) liest beim ersten Zyklus den aktuellen Stand (`latest_event_id` bzw. höchste Nachrichten-ID) und liefert nur Neues; die Aktivität
 puffert zusätzlich die letzten 100 Kanban-Ereignisse und die zuletzt aktiven Sitzungen als Historie (ohne Emit). Unbekannte Ereignis-`kind`-Werte
-werden als `jarvis.task.updated` bzw. generisches `task`-Ereignis behandelt. Listenaufrufe der Aktivität lesen die Sitzungen ebenfalls und
+werden als `friday.task.updated` bzw. generisches `task`-Ereignis behandelt. Listenaufrufe der Aktivität lesen die Sitzungen ebenfalls und
 senden Neues, sodass der Strom auch ohne Hintergrund-Polling lückenlos bleibt (Kanban-Ereignisse brauchen `pollIntervalMs > 0`).
 
 ## Verifiziert vs. Annahme (unbelegt)
@@ -171,7 +171,7 @@ Dashboard-Token im HTML und 401-Verhalten, WebSocket mit `since`, API-Server-Aut
 2. Nur-Lese-Rauchtest (legt nichts an):
 
    ```bash
-   HERMES_API_KEY_FILE=/pfad/zu/hermes_api.key HERMES_BOARDS=default,business pnpm --filter @jarvis/adapter-hermes smoke
+   HERMES_API_KEY_FILE=/pfad/zu/hermes_api.key HERMES_BOARDS=default,business pnpm --filter @friday/adapter-hermes smoke
    ```
 
    Ausgabe je Adapter: Health, Capabilities, die ersten Einträge. `HERMES_DASHBOARD_TOKEN` setzt `dashboardAuth: secret`.
@@ -183,7 +183,7 @@ Dashboard-Token im HTML und 401-Verhalten, WebSocket mit `since`, API-Server-Aut
 ## Tests
 
 ```bash
-pnpm --filter @jarvis/adapter-hermes typecheck
+pnpm --filter @friday/adapter-hermes typecheck
 pnpm exec vitest run adapters/hermes          # Unit, Adapter-Tests (echter WebSocket), Registry, Conformance
 pnpm test:conformance                          # alle Adapter, darunter adapters/hermes/test/conformance.test.ts
 ```
@@ -192,7 +192,7 @@ pnpm test:conformance                          # alle Adapter, darunter adapters
   `{"detail":…}`-Fehler, Kanban-REST, WebSocket mit `since`-Cursor). `createHermesFake()` startet beide Listener; Schalter: `setOffline`, `setLatency`,
   `forceStatus` (401/…), `state.rotateToken()`, `state.invalidData`, `state.gatewayRunning`, `wsCloseWith` (1008). `installHermes()` hängt dieselben Routen an den
   HTTP-Fake des Testkits.
-- `test/conformance.test.ts` – `@jarvis/adapter-testkit` (alle Pflichtprüfungen aus PLAN §11.1) für alle drei Kategorien. Der Testkit-Fake spricht nur HTTP;
+- `test/conformance.test.ts` – `@friday/adapter-testkit` (alle Pflichtprüfungen aus PLAN §11.1) für alle drei Kategorien. Der Testkit-Fake spricht nur HTTP;
   deshalb liest der Adapter dort den Ereignisstrom über einen injizierten Transport (`HttpPollKanbanTransport`, HTTP-Zwilling der WebSocket-Nachricht). Den echten
   WebSocket-Pfad (Handshake, Token, Cursor, Abbruch, Rotation) prüfen `tasks.test.ts` und `agents.test.ts` gegen den eigenen Fake.
   Übersprungen werden die Mutationsprüfungen von Aktivität und Agenten (keine Mutationen vorhanden).
@@ -200,7 +200,7 @@ pnpm test:conformance                          # alle Adapter, darunter adapters
 
 ## Offene Punkte / Vertragslücken
 
-- **Secret-Referenz `file:`**: `packages/config` unterstützt inzwischen `file:<absoluter Pfad>` (z. B. `apiKey: file:C:/Jarvis/config/hermes_api.key`). `apiKeyFile`/`dashboardTokenFile` bleiben als gleichwertige Alternative erhalten.
+- **Secret-Referenz `file:`**: `packages/config` unterstützt inzwischen `file:<absoluter Pfad>` (z. B. `apiKey: file:C:/Friday/config/hermes_api.key`). `apiKeyFile`/`dashboardTokenFile` bleiben als gleichwertige Alternative erhalten.
   (als gewöhnlicher Pfad, nicht als Secret-Feld).
 - **`ActivityEvent.sequence`** ist Pflicht; der Adapter vergibt eine lokale Folge je Prozess. Der Hub nummeriert eigene Ereignisse getrennt (`activity.backfill` über `sinceSequence`
   bezieht sich auf die Adapter-Folge).

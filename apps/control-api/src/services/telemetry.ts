@@ -1,5 +1,5 @@
-import { redactString, type JarvisMetrics, type Logger } from "@jarvis/observability";
-import type { FrontendTelemetryBatch, FrontendTelemetryReceipt } from "@jarvis/sdk";
+import { redactString, type FridayMetrics, type Logger } from "@friday/observability";
+import type { FrontendTelemetryBatch, FrontendTelemetryReceipt } from "@friday/sdk";
 import { ApiError } from "../util/errors";
 
 export interface TelemetryLimits {
@@ -28,7 +28,7 @@ export class FrontendTelemetryService {
   private readonly windows = new Map<string, number[]>();
 
   constructor(
-    private readonly metrics: JarvisMetrics,
+    private readonly metrics: FridayMetrics,
     private readonly logger: Logger,
     private readonly limits: TelemetryLimits = DEFAULT_TELEMETRY_LIMITS,
     private readonly now: () => number = Date.now,

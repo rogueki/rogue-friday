@@ -1,4 +1,4 @@
-import { createHttpClient, normalizeError, type HttpClient } from "@jarvis/adapter-core";
+import { createHttpClient, normalizeError, type HttpClient } from "@friday/adapter-core";
 import { parseEventBatch } from "../../src/wire";
 import type { KanbanDrainRequest, KanbanDrainResult, KanbanEventTransport } from "../../src/kanban-feed";
 

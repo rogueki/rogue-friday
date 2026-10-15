@@ -1,4 +1,4 @@
-import { createId, type IdPrefix } from "@jarvis/adapter-core";
+import { createId, type IdPrefix } from "@friday/adapter-core";
 
 /**
  * Deterministic contract ids (`<prefix>_<26 chars>`) for resources that have no id in the foreign system.

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AdapterError, PORT_SPEC, validatePortResult } from "@jarvis/adapter-core";
+import { AdapterError, PORT_SPEC, validatePortResult } from "@friday/adapter-core";
 import { HermesActivityAdapter, createTaskIds } from "../src";
 import { createHermesFake, type HermesFake } from "./fake/server";
 import { start, type Harness } from "./helpers";
@@ -160,7 +160,7 @@ describe("activity: sessions", () => {
     });
     expect(await h.adapter.pollEvents?.()).toBe(2);
     expect(await h.adapter.pollEvents?.()).toBe(0);
-    expect(h.emitted.every((event) => event.type === "jarvis.activity.appended")).toBe(true);
+    expect(h.emitted.every((event) => event.type === "friday.activity.appended")).toBe(true);
     expect((await h.adapter.listActivity({}, h.call())).items).toHaveLength(5);
   });
 

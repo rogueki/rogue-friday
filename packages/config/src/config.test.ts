@@ -10,10 +10,12 @@ import {
   interpolateString,
   interpolateTree,
   isLoopback,
+  legacyEnvWarning,
   loadConfig,
+  normalizeLegacyEnv,
   parseSecretRef,
   resolveSecret,
-  type JarvisConfig,
+  type FridayConfig,
   type SpawnFn,
 } from './index';
 
@@ -23,14 +25,14 @@ afterEach(() => {
 });
 
 function setup(files: { dashboard?: string; adapters?: string } = {}): string {
-  const dir = mkdtempSync(join(tmpdir(), 'jarvis-config-'));
+  const dir = mkdtempSync(join(tmpdir(), 'friday-config-'));
   tempDirs.push(dir);
   if (files.dashboard !== undefined) writeFileSync(join(dir, 'dashboard.yaml'), files.dashboard);
   if (files.adapters !== undefined) writeFileSync(join(dir, 'adapters.yaml'), files.adapters);
   return dir;
 }
 
-function load(files: { dashboard?: string; adapters?: string }, env: NodeJS.ProcessEnv = {}): JarvisConfig {
+function load(files: { dashboard?: string; adapters?: string }, env: NodeJS.ProcessEnv = {}): FridayConfig {
   return loadConfig({ configDir: setup(files), env, cwd: tmpdir() });
 }
 
@@ -86,8 +88,8 @@ describe('interpolation', () => {
 
   it('tolerates unset variables inside disabled adapters', () => {
     const config = load(
-      { adapters: 'adapters:\n  tasks:\n    provider: hermes-tasks\n    enabled: false\n    config:\n      baseUrl: ${HERMES_BASE_URL}\nallowlist:\n  hermes-tasks: "@jarvis/adapter-hermes-placeholder"\n' },
-      { JARVIS_DATA_MODE: 'hybrid' },
+      { adapters: 'adapters:\n  tasks:\n    provider: hermes-tasks\n    enabled: false\n    config:\n      baseUrl: ${HERMES_BASE_URL}\nallowlist:\n  hermes-tasks: "@friday/adapter-hermes-placeholder"\n' },
+      { FRIDAY_DATA_MODE: 'hybrid' },
     );
     expect(config.adapters.tasks.enabled).toBe(false);
     expect(config.adapters.tasks.provider).toBe('hermes-tasks');
@@ -106,10 +108,10 @@ describe('defaults', () => {
       reauthWindowMinutes: 5,
       idleTimeoutMinutes: 30,
       secureCookies: false,
-      ownerPasswordHash: { ref: 'env:JARVIS_OWNER_PASSWORD_HASH', configured: false },
+      ownerPasswordHash: { ref: 'env:FRIDAY_OWNER_PASSWORD_HASH', configured: false },
     });
     expect(config.realtime).toEqual({ ringBufferSize: 5000, heartbeatSeconds: 15 });
-    expect(config.ui).toEqual({ locale: 'de-DE', timezone: 'Europe/Berlin', assistantName: 'F.R.I.D.A.Y.', theme: 'jarvis-command-midnight', layout: 'jarvis-command-overview' });
+    expect(config.ui).toEqual({ locale: 'de-DE', timezone: 'Europe/Berlin', assistantName: 'F.R.I.D.A.Y.', theme: 'friday-command-midnight', layout: 'friday-command-overview' });
     expect(config.dev).toEqual({ scenarioConsole: true, responseValidation: true });
     expect(config.files).toEqual({ dashboard: null, adapters: null });
     expect(config.warnings.some((w) => w.includes('dashboard.yaml not found'))).toBe(true);
@@ -143,13 +145,13 @@ describe('defaults', () => {
 });
 
 describe('environment overrides', () => {
-  it('JARVIS_* override YAML values', () => {
+  it('FRIDAY_* override YAML values', () => {
     const dir = setup({ dashboard: 'dataMode: mock\nserver:\n  port: 3100\n' });
     const cwd = resolve(tmpdir(), 'cwd-base');
     const config = loadConfig({
       configDir: dir,
       cwd,
-      env: { JARVIS_DATA_MODE: 'hybrid', JARVIS_HOST: 'localhost', JARVIS_PORT: '4200', JARVIS_DATA_DIR: 'rel-data', JARVIS_LOG_DIR: resolve(tmpdir(), 'abs-logs') },
+      env: { FRIDAY_DATA_MODE: 'hybrid', FRIDAY_HOST: 'localhost', FRIDAY_PORT: '4200', FRIDAY_DATA_DIR: 'rel-data', FRIDAY_LOG_DIR: resolve(tmpdir(), 'abs-logs') },
     });
     expect(config.dataMode).toBe('hybrid');
     expect(config.server).toMatchObject({ host: 'localhost', port: 4200 });
@@ -157,15 +159,48 @@ describe('environment overrides', () => {
     expect(config.paths.logDir).toBe(resolve(tmpdir(), 'abs-logs'));
   });
 
-  it('JARVIS_CONFIG_DIR selects the config directory', () => {
+  it('FRIDAY_CONFIG_DIR selects the config directory', () => {
     const dir = setup({ dashboard: 'server:\n  port: 5005\n' });
-    expect(loadConfig({ env: { JARVIS_CONFIG_DIR: dir } }).server.port).toBe(5005);
+    expect(loadConfig({ env: { FRIDAY_CONFIG_DIR: dir } }).server.port).toBe(5005);
   });
 
   it('rejects invalid override values', () => {
-    const error = loadError({}, { JARVIS_DATA_MODE: 'turbo', JARVIS_PORT: '99999' });
-    expect(error.problems.map((p) => p.path)).toEqual(['JARVIS_DATA_MODE', 'JARVIS_PORT']);
-    expect(loadError({}, { JARVIS_PORT: '80abc' }).message).toContain('JARVIS_PORT');
+    const error = loadError({}, { FRIDAY_DATA_MODE: 'turbo', FRIDAY_PORT: '99999' });
+    expect(error.problems.map((p) => p.path)).toEqual(['FRIDAY_DATA_MODE', 'FRIDAY_PORT']);
+    expect(loadError({}, { FRIDAY_PORT: '80abc' }).message).toContain('FRIDAY_PORT');
+  });
+});
+
+describe('legacy JARVIS_* environment variables', () => {
+  it('reads a legacy variable when the FRIDAY_* one is unset and reports it once in the warnings', () => {
+    const config = load({}, { JARVIS_DATA_MODE: 'hybrid', JARVIS_PORT: '4300' });
+    expect(config.dataMode).toBe('hybrid');
+    expect(config.server.port).toBe(4300);
+    const deprecations = config.warnings.filter((w) => w.includes('Veraltete Umgebungsvariablen'));
+    expect(deprecations).toHaveLength(1);
+    expect(deprecations[0]).toContain('JARVIS_DATA_MODE');
+    expect(deprecations[0]).toContain('JARVIS_PORT');
+  });
+
+  it('prefers the FRIDAY_* variable and stays silent when no legacy variable is applied', () => {
+    const config = load({}, { FRIDAY_PORT: '4400', JARVIS_PORT: '4500' });
+    expect(config.server.port).toBe(4400);
+    expect(config.warnings.some((w) => w.includes('Veraltete Umgebungsvariablen'))).toBe(false);
+  });
+
+  it('resolves ${env:FRIDAY_X} references from a legacy JARVIS_X value', () => {
+    const config = load({ dashboard: 'server:\n  host: ${env:FRIDAY_HOST}\n' }, { JARVIS_HOST: 'localhost' });
+    expect(config.server.host).toBe('localhost');
+  });
+
+  it('normalizeLegacyEnv never mutates its input and ignores unrelated variables', () => {
+    const source = { JARVIS_LOG_DIR: 'logs', PATH: '/bin' };
+    const result = normalizeLegacyEnv(source);
+    expect(result.env.FRIDAY_LOG_DIR).toBe('logs');
+    expect(source).toEqual({ JARVIS_LOG_DIR: 'logs', PATH: '/bin' });
+    expect(result.legacy).toEqual(['JARVIS_LOG_DIR']);
+    expect(normalizeLegacyEnv({ PATH: '/bin' })).toEqual({ env: { PATH: '/bin' }, legacy: [] });
+    expect(legacyEnvWarning(result.legacy)).toContain('FRIDAY_*');
   });
 });
 
@@ -218,14 +253,14 @@ describe('validation errors', () => {
 describe('loopback guard', () => {
   it('classifies hosts', () => {
     for (const h of ['127.0.0.1', '127.5.5.5', 'localhost', '::1', '[::1]']) expect(isLoopback(h), h).toBe(true);
-    for (const h of ['0.0.0.0', '::', '192.168.0.2', 'jarvis.example.com', '127.0.0.1.nip.io']) expect(isLoopback(h), h).toBe(false);
+    for (const h of ['0.0.0.0', '::', '192.168.0.2', 'friday.example.com', '127.0.0.1.nip.io']) expect(isLoopback(h), h).toBe(false);
   });
 
   it('refuses a non-loopback host unless allowRemote is true', () => {
     const error = loadError({ dashboard: 'server:\n  host: 0.0.0.0\n' });
     expect(error.message).toContain('server.host');
     expect(error.message).toContain('allowRemote');
-    expect(loadError({}, { JARVIS_HOST: '192.168.1.10' }).message).toContain('server.host');
+    expect(loadError({}, { FRIDAY_HOST: '192.168.1.10' }).message).toContain('server.host');
   });
 
   it('accepts remote hosts with allowRemote and records the TLS/VPN requirement', () => {
@@ -241,12 +276,12 @@ describe('loopback guard', () => {
     expect(load({ dashboard: 'auth:\n  mode: dev\n' }).auth.mode).toBe('dev');
     expect(loadError({ dashboard: 'dataMode: hybrid\nauth:\n  mode: dev\n' }).message).toContain('dev auth is only allowed');
     expect(loadError({ dashboard: 'server:\n  host: 0.0.0.0\n  allowRemote: true\nauth:\n  mode: dev\n' }).message).toContain('dev auth is only allowed');
-    expect(loadError({ dashboard: 'auth:\n  mode: dev\n' }, { JARVIS_DATA_MODE: 'live' }).message).toContain('dev auth is only allowed');
+    expect(loadError({ dashboard: 'auth:\n  mode: dev\n' }, { FRIDAY_DATA_MODE: 'live' }).message).toContain('dev auth is only allowed');
   });
 });
 
 describe('mode presets', () => {
-  const hermes = '@jarvis/adapter-hermes-placeholder';
+  const hermes = '@friday/adapter-hermes-placeholder';
   const adapters = [
     'allowlist:',
     `  hermes-tasks: "${hermes}"`,
@@ -265,7 +300,7 @@ describe('mode presets', () => {
     for (const category of ADAPTER_CATEGORIES) {
       expect(config.adapters[category].provider, category).toBe(`mock-${category}`);
       expect(config.adapters[category].enabled).toBe(true);
-      expect(config.adapters[category].packageName).toBe('@jarvis/adapter-mock');
+      expect(config.adapters[category].packageName).toBe('@friday/adapter-mock');
     }
     expect(config.adapters.tasks.origin).toBe('mock-forced');
     expect(config.adapters.tasks.config).toEqual({});
@@ -293,7 +328,7 @@ describe('mode presets', () => {
   it('applies adapter resilience defaults and overrides', () => {
     const config = load({
       dashboard: 'dataMode: hybrid\n',
-      adapters: 'allowlist:\n  hermes-tasks: "@jarvis/adapter-hermes-placeholder"\nadapters:\n  tasks:\n    provider: hermes-tasks\n    timeoutMs: 9000\n    retry:\n      maxAttempts: 5\n      jitter: 0.5\n',
+      adapters: 'allowlist:\n  hermes-tasks: "@friday/adapter-hermes-placeholder"\nadapters:\n  tasks:\n    provider: hermes-tasks\n    timeoutMs: 9000\n    retry:\n      maxAttempts: 5\n      jitter: 0.5\n',
     });
     expect(config.adapters.tasks.timeoutMs).toBe(9000);
     expect(config.adapters.tasks.retry).toEqual({ maxAttempts: 5, baseDelayMs: 200, maxDelayMs: 5000, jitter: 0.5 });
@@ -314,7 +349,7 @@ describe('mode presets', () => {
 });
 
 describe('secrets', () => {
-  const adapters = (body: string) => `allowlist:\n  hermes-tasks: "@jarvis/adapter-hermes-placeholder"\nadapters:\n  tasks:\n    provider: hermes-tasks\n    config:\n${body}`;
+  const adapters = (body: string) => `allowlist:\n  hermes-tasks: "@friday/adapter-hermes-placeholder"\nadapters:\n  tasks:\n    provider: hermes-tasks\n    config:\n${body}`;
 
   it('replaces secret references by { ref, configured } and never loads the value', () => {
     const secret = 's3cr3t-token-value-12345';
@@ -333,8 +368,8 @@ describe('secrets', () => {
 
   it('exposes the owner password hash only as a reference state', () => {
     const hash = 'scrypt$32768$8$1$AAAA$BBBB';
-    const config = load({}, { JARVIS_OWNER_PASSWORD_HASH: hash });
-    expect(config.auth.ownerPasswordHash).toEqual({ ref: 'env:JARVIS_OWNER_PASSWORD_HASH', configured: true });
+    const config = load({}, { FRIDAY_OWNER_PASSWORD_HASH: hash });
+    expect(config.auth.ownerPasswordHash).toEqual({ ref: 'env:FRIDAY_OWNER_PASSWORD_HASH', configured: true });
     expect(JSON.stringify(config)).not.toContain(hash);
   });
 
@@ -379,7 +414,7 @@ describe('secrets', () => {
 
   it('parses reference grammar', () => {
     expect(parseSecretRef('env:A_B1')).toEqual({ scheme: 'env', name: 'A_B1' });
-    expect(parseSecretRef('wincred:jarvis voice/api')).toEqual({ scheme: 'wincred', name: 'jarvis voice/api' });
+    expect(parseSecretRef('wincred:friday voice/api')).toEqual({ scheme: 'wincred', name: 'friday voice/api' });
     expect(parseSecretRef("wincred:a'; Remove-Item *")).toBeNull();
     expect(parseSecretRef('wincred:')).toBeNull();
   });
@@ -388,7 +423,7 @@ describe('secrets', () => {
     const fakeSpawn = (status: number | null, stdout = '', error?: Error): SpawnFn => (command, args, options) => {
       expect(command).toBe('powershell.exe');
       expect(args.join(' ')).not.toContain('my-target'); // target is passed via env, not interpolated
-      expect(options.env.JARVIS_WINCRED_TARGET).toBe('my-target');
+      expect(options.env.FRIDAY_WINCRED_TARGET).toBe('my-target');
       return { status, stdout, stderr: '', error };
     };
 
@@ -447,7 +482,7 @@ describe('example files', () => {
   it('hybrid and live example files load with the real adapter providers', () => {
     const hybrid = load({ dashboard: 'dataMode: hybrid\n', adapters: fixture('adapters.hybrid.example.yaml') }, {});
     expect(hybrid.adapters.tasks).toMatchObject({ provider: 'hermes-tasks', enabled: true });
-    expect(hybrid.adapters.voice.provider).toBe('jarvis-voice-http');
+    expect(hybrid.adapters.voice.provider).toBe('friday-voice-http');
     expect(hybrid.adapters.system.provider).toBe('local-system');
     expect(hybrid.adapters.memory.provider).toBe('mock-memory');
     // Registry-level retry stays opt-in: one attempt unless a category configures more.

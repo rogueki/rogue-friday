@@ -1,7 +1,7 @@
 "use client";
 
-import type { Channel } from "@jarvis/sdk";
-import { Badge, Button, IconTile, StatusChip } from "@jarvis/ui";
+import type { Channel } from "@friday/sdk";
+import { Badge, Button, IconTile, StatusChip } from "@friday/ui";
 import { Check, Inbox, Minus, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PanelFrame, type PanelState } from "@/components/PanelFrame";

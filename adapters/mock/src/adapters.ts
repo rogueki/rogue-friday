@@ -22,8 +22,8 @@ import type {
   Page,
   PageParams,
   Single,
-} from "@jarvis/adapter-core";
-import type { ActionResult, CommandResponse } from "@jarvis/sdk";
+} from "@friday/adapter-core";
+import type { ActionResult, CommandResponse } from "@friday/sdk";
 import { MockAdapterBase, type MockAdapterOptions } from "./base";
 
 const outcome = (result: ActionResult): ActionOutcome => {

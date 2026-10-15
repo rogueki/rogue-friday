@@ -1,7 +1,7 @@
 "use client";
 
-import { JARVIS_EVENT_TYPES } from "@jarvis/sdk";
-import { Button, Dialog, IconButton, Select, StatusChip, Switch, TextField } from "@jarvis/ui";
+import { FRIDAY_EVENT_TYPES } from "@friday/sdk";
+import { Button, Dialog, IconButton, Select, StatusChip, Switch, TextField } from "@friday/ui";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useT, type MessageKey } from "@/i18n";
@@ -212,7 +212,7 @@ function TriggerStep({ draft, patch, err }: StepProps) {
         <>
           <TextField label={t("automations.field.event")} list="aut-events" value={draft.event} onChange={(event) => patch({ event: event.target.value })} error={err("trigger.event")} required spellCheck={false} hint={t("automations.field.eventHint")} />
           <datalist id="aut-events">
-            {JARVIS_EVENT_TYPES.map((type) => (
+            {FRIDAY_EVENT_TYPES.map((type) => (
               <option key={type} value={type} />
             ))}
           </datalist>

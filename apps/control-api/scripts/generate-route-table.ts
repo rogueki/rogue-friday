@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { buildRouteTable, renderRouteTableModule } from "../src/http/route-table-builder";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const source = resolve(here, "../../../packages/contracts/dist/jarvis-api.bundled.yaml");
+const source = resolve(here, "../../../packages/contracts/dist/friday-api.bundled.yaml");
 const target = join(here, "../src/http/route-table.generated.ts");
 
 if (!existsSync(source)) {

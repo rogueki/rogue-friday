@@ -1,5 +1,5 @@
-import { appendToChain, GENESIS_HASH, verifyChain } from "@jarvis/observability";
-import type { Actor, AuditEvent } from "@jarvis/sdk";
+import { appendToChain, GENESIS_HASH, verifyChain } from "@friday/observability";
+import type { Actor, AuditEvent } from "@friday/sdk";
 import type { AuditAnchor, AnchorRead, AnchorRecord } from "./audit-anchor";
 import type { Db } from "./database";
 import { newAuditId } from "../util/ids";
@@ -72,7 +72,7 @@ export class AuditStore {
     this.length = this.count();
   }
 
-  /** Appends one event and returns the complete, hash-sealed AuditEvent (shape of `jarvis.audit.appended`). */
+  /** Appends one event and returns the complete, hash-sealed AuditEvent (shape of `friday.audit.appended`). */
   append(draft: AuditDraft): AuditEvent {
     const occurredAt = draft.occurredAt ?? this.now().toISOString();
     const prevHash = this.head ?? GENESIS_HASH;

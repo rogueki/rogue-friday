@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import type { OrbLayers, OrbMode, OrbSnapshot, OrbStatus } from "../contract-types";
-import { JarvisOrb } from "../JarvisOrb";
+import { FridayOrb } from "../FridayOrb";
 import { layersFromStatus } from "../machine/orbMachine";
 import type { OrbSettings } from "../settings";
 
@@ -38,7 +38,7 @@ function snap(mode: OrbMode, extra: Partial<OrbStatus> = {}, layers?: Partial<Or
 }
 
 const meta: Meta<OrbStoryArgs> = {
-  title: "Orb/JarvisOrb",
+  title: "Orb/FridayOrb",
   parameters: {
     layout: "centered",
     backgrounds: { default: "orb", values: [{ name: "orb", value: "#01060c" }] },
@@ -64,7 +64,7 @@ function render({ snapshot, settings, width, height, showPerf }: OrbStoryArgs): 
         border: "1px solid rgba(40,190,230,.4)",
       }}
     >
-      <JarvisOrb
+      <FridayOrb
         snapshot={snapshot}
         settings={settings}
         showPerf={showPerf}

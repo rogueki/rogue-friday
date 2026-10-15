@@ -1,8 +1,8 @@
 "use client";
 
-import type { AutomationRun } from "@jarvis/sdk";
+import type { AutomationRun } from "@friday/sdk";
 import type { AutomationDto as Automation } from "@/lib/api/domains/automations";
-import { EmptyState, StatusChip, TagPill } from "@jarvis/ui";
+import { EmptyState, StatusChip, TagPill } from "@friday/ui";
 import { Check, ChevronDown, ChevronRight, X } from "lucide-react";
 import { useState } from "react";
 import { useT } from "@/i18n";

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/calendar/attendee.schema.json",
+  "$id": "https://friday.local/schemas/calendar/attendee.schema.json",
   "title": "Attendee",
   "type": "object",
   "properties": {

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/meta/overview-response.schema.json",
+  "$id": "https://friday.local/schemas/meta/overview-response.schema.json",
   "title": "OverviewResponse",
   "description": "Single-resource envelope for Overview.",
   "type": "object",

@@ -1,4 +1,4 @@
-import type { FileItem, FilePreview } from "@jarvis/sdk";
+import type { FileItem, FilePreview } from "@friday/sdk";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -40,7 +40,7 @@ function file(partial: Partial<FileItem> = {}): FileItem {
     ],
     createdBy: { type: "agent", id: "agent_1", name: "Recherche-Agent" },
     taskId: "task_01JAAAAAAAAAAAAAAAAAAAAAAA",
-    location: "D:\\Jarvis\\Dateien\\Berichte",
+    location: "D:\\Friday\\Dateien\\Berichte",
     tags: ["büro"],
     previewKind: "markdown",
     lineage: [{ relation: "output_of", taskId: "task_01JAAAAAAAAAAAAAAAAAAAAAAA", description: "Ergebnis der Angebotsrecherche" }],
@@ -146,7 +146,7 @@ describe("files page", () => {
     const card = await screen.findByRole("button", { name: /Bericht\.md/, pressed: true });
     expect(within(card).getByText(/Version 2/)).toBeInTheDocument();
     expect(within(card).getByText(/Recherche-Agent/)).toBeInTheDocument();
-    expect(within(card).getByText("D:\\Jarvis\\Dateien\\Berichte")).toBeInTheDocument();
+    expect(within(card).getByText("D:\\Friday\\Dateien\\Berichte")).toBeInTheDocument();
     expect(within(card).getByText("#büro")).toBeInTheDocument();
     expect(await screen.findByTestId("preview-markdown")).toHaveTextContent("Überschrift");
     expect(container.querySelector("script")).toBeNull();

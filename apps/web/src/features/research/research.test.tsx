@@ -1,4 +1,4 @@
-import type { ResearchArtifact, ResearchFinding, ResearchProject, ResearchSource } from "@jarvis/sdk";
+import type { ResearchArtifact, ResearchFinding, ResearchProject, ResearchSource } from "@friday/sdk";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

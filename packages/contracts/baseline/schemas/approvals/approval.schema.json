@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/approvals/approval.schema.json",
+  "$id": "https://friday.local/schemas/approvals/approval.schema.json",
   "title": "Approval",
   "description": "Human approval gate (PLAN §32). Decisions are checked again server-side before execution.",
   "type": "object",

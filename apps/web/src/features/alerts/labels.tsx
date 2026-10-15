@@ -1,5 +1,5 @@
-import type { Notification, Priority } from "@jarvis/sdk";
-import type { Tone } from "@jarvis/ui";
+import type { Notification, Priority } from "@friday/sdk";
+import type { Tone } from "@friday/ui";
 import { AlertOctagon, AlertTriangle, Bell, CalendarDays, Cpu, Info, Mail, Mic, Plug, ShieldAlert, ShieldCheck, Workflow, type LucideIcon } from "lucide-react";
 import type { MessageKey } from "@/i18n";
 

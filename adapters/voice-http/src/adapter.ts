@@ -1,4 +1,4 @@
-import type { VoiceDevice, VoiceMetrics, VoiceProfile, VoiceStatus } from "@jarvis/sdk";
+import type { VoiceDevice, VoiceMetrics, VoiceProfile, VoiceStatus } from "@friday/sdk";
 import {
   AdapterError,
   createHttpClient,
@@ -10,12 +10,12 @@ import {
   type CallContext,
   type CapabilitySet,
   type HttpClient,
-  type JarvisAdapter,
+  type FridayAdapter,
   type Page,
   type PageParams,
   type Single,
   type VoicePort,
-} from "@jarvis/adapter-core";
+} from "@friday/adapter-core";
 import { DEFAULT_BASE_URL, DEFAULT_LOCAL_MODEL_URL, PROVIDER_SYSTEM, manifest } from "./manifest";
 import {
   emptyVoiceMetricsMapper,
@@ -67,16 +67,16 @@ function readSettings(config: Readonly<Record<string, unknown>>): AdapterSetting
 
 /**
  * Why the port is closed is not knowable from outside: the service opens it only after all models are loaded
- * (jarvis_voice.py `run()` after `__init__`, up to ~3 min), and it is also closed when the service is stopped.
+ * (friday_voice.py `run()` after `__init__`, up to ~3 min), and it is also closed when the service is stopped.
  */
 const UNREACHABLE_MESSAGE =
   "Voice-Dienst nicht erreichbar (lädt noch Modelle, bis ca. 3 Minuten, oder gestoppt)";
 
 /**
- * Voice adapter over the status endpoint of the installed Jarvis voice service. Read-only: the service has exactly one
+ * Voice adapter over the status endpoint of the installed Friday voice service. Read-only: the service has exactly one
  * HTTP handler (`do_GET`, path ignored, no auth) and no control interface, so only `voice.read` is declared.
  */
-export class JarvisVoiceHttpAdapter implements VoicePort, JarvisAdapter {
+export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
   readonly manifest = manifest;
 
   private context: AdapterContext | undefined;
@@ -240,7 +240,7 @@ export class JarvisVoiceHttpAdapter implements VoicePort, JarvisAdapter {
     };
   }
 
-  // ---- events (audio level, `jarvis.voice.audio_level`) -----------------------------------------------------------
+  // ---- events (audio level, `friday.voice.audio_level`) -----------------------------------------------------------
 
   /**
    * One poll cycle: reads the status and emits the current level while the service is in an active state, i.e.
@@ -262,7 +262,7 @@ export class JarvisVoiceHttpAdapter implements VoicePort, JarvisAdapter {
     let emitted = 0;
     const emit = (direction: LevelDirection, level: number): void => {
       context.emit({
-        type: "jarvis.voice.audio_level",
+        type: "friday.voice.audio_level",
         subject: AUDIO_LEVEL_SUBJECT,
         data: { direction, level, at: now },
       });

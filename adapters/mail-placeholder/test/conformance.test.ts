@@ -1,4 +1,4 @@
-import { runConformanceSuite } from "@jarvis/adapter-testkit";
+import { runConformanceSuite } from "@friday/adapter-testkit";
 import { mailFactory } from "../src";
 
 runConformanceSuite({

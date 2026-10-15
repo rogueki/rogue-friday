@@ -13,7 +13,7 @@ import {
   type SettingsSchema,
   type Theme,
   type ThemeImportRequest,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { MockApiError, notFound, validationFailed } from "../../core/errors";
 import { clone, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
@@ -106,7 +106,7 @@ export class SettingsService {
       entry.enabled = patch.enabled;
       const adapter = this.w.adapter(entry.category);
       adapter.enabled = patch.enabled;
-      this.w.emit("jarvis.adapter.health_changed", this.w.adapterHealth(entry.category), { source: "control-api://core", subject: `adapter/${id}` });
+      this.w.emit("friday.adapter.health_changed", this.w.adapterHealth(entry.category), { source: "control-api://core", subject: `adapter/${id}` });
     }
     this.w.state.settings.version += 1;
     this.w.state.settings.updatedAt = this.w.nowIso();

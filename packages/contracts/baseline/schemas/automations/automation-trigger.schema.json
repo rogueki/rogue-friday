@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/automations/automation-trigger.schema.json",
+  "$id": "https://friday.local/schemas/automations/automation-trigger.schema.json",
   "title": "AutomationTrigger",
   "type": "object",
   "properties": {
@@ -10,7 +10,7 @@
     },
     "event": {
       "type": "string",
-      "description": "Event type, e.g. jarvis.communication.thread_updated."
+      "description": "Event type, e.g. friday.communication.thread_updated."
     },
     "schedule": {
       "type": "string",

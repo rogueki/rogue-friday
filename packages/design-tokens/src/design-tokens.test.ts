@@ -13,7 +13,7 @@ import {
   defaultTheme,
   getActiveTheme,
   importTheme,
-  jarvisTokens,
+  fridayTokens,
   midnightTheme,
   parseColor,
   themes,
@@ -34,7 +34,7 @@ function varOf(name: string, el: HTMLElement = document.documentElement): string
 
 describe('tokens', () => {
   it('declares every binding §24.15 token in tokens.css with the exact default value', () => {
-    for (const { name, value } of Object.values(jarvisTokens)) {
+    for (const { name, value } of Object.values(fridayTokens)) {
       const re = new RegExp(`${name}:\\s*([^;]+);`);
       const match = re.exec(tokensCss);
       expect(match, `${name} missing in tokens.css`).not.toBeNull();
@@ -49,8 +49,8 @@ describe('tokens', () => {
   });
 
   it('cssVar builds var() references', () => {
-    expect(cssVar('cyan')).toBe('var(--jarvis-cyan)');
-    expect(cssVar('bg0', '#000')).toBe('var(--jarvis-bg-0, #000)');
+    expect(cssVar('cyan')).toBe('var(--friday-cyan)');
+    expect(cssVar('bg0', '#000')).toBe('var(--friday-bg-0, #000)');
   });
 
   it('maps every theme token key to a declared CSS custom property', () => {
@@ -60,7 +60,7 @@ describe('tokens', () => {
 
 describe('themes', () => {
   it('ships a default theme in the §25.3 shape covering every token', () => {
-    expect(defaultTheme.id).toBe('jarvis-command-gold-core');
+    expect(defaultTheme.id).toBe('friday-command-gold-core');
     expect(defaultTheme.tokens['color.primary']).toBe('#27dcff');
     expect(defaultTheme.tokens['color.background']).toBe('#01060c');
     expect(defaultTheme.tokens['color.orb']).toBe('#ffb52e');
@@ -76,7 +76,7 @@ describe('themes', () => {
   });
 
   it('config/themes copies are identical to the package themes', () => {
-    for (const id of ['jarvis-command-gold-core', 'jarvis-command-midnight']) {
+    for (const id of ['friday-command-gold-core', 'friday-command-midnight']) {
       const pkg = readFileSync(resolve(here, 'themes', `${id}.json`), 'utf8');
       const cfg = readFileSync(resolve(here, '../../../config/themes', `${id}.json`), 'utf8');
       expect(JSON.parse(cfg)).toEqual(JSON.parse(pkg));
@@ -109,46 +109,46 @@ describe('applyTheme', () => {
 
   it('applies the default theme at runtime', () => {
     const result = applyTheme(defaultTheme, { target: el });
-    expect(result).toEqual({ themeId: 'jarvis-command-gold-core', fallback: false, errors: [] });
-    expect(varOf('--jarvis-cyan', el)).toBe('#27dcff');
-    expect(varOf('--jarvis-bg-0', el)).toBe('#01060c');
-    expect(el.getAttribute('data-theme')).toBe('jarvis-command-gold-core');
+    expect(result).toEqual({ themeId: 'friday-command-gold-core', fallback: false, errors: [] });
+    expect(varOf('--friday-cyan', el)).toBe('#27dcff');
+    expect(varOf('--friday-bg-0', el)).toBe('#01060c');
+    expect(el.getAttribute('data-theme')).toBe('friday-command-gold-core');
     expect(varOf('--jv-cut-scale', el)).toBe('1');
   });
 
   it('switches themes without leaking values', () => {
     applyTheme(defaultTheme, { target: el });
     applyTheme(midnightTheme, { target: el });
-    expect(varOf('--jarvis-cyan', el)).toBe('#2fb8d6');
-    expect(el.getAttribute('data-theme')).toBe('jarvis-command-midnight');
+    expect(varOf('--friday-cyan', el)).toBe('#2fb8d6');
+    expect(el.getAttribute('data-theme')).toBe('friday-command-midnight');
     expect(varOf('--jv-cut-scale', el)).toBe('0.6');
-    expect(getActiveTheme(el).id).toBe('jarvis-command-midnight');
+    expect(getActiveTheme(el).id).toBe('friday-command-midnight');
   });
 
   it('falls back to the default theme on corrupt input (§25.5)', () => {
     const result = applyTheme({ id: 'broken', name: 'x', tokens: { 'color.primary': 'javascript:evil' } }, { target: el });
     expect(result.fallback).toBe(true);
-    expect(result.themeId).toBe('jarvis-command-gold-core');
+    expect(result.themeId).toBe('friday-command-gold-core');
     expect(result.errors.length).toBeGreaterThan(0);
-    expect(varOf('--jarvis-cyan', el)).toBe('#27dcff');
+    expect(varOf('--friday-cyan', el)).toBe('#27dcff');
     expect(applyTheme('not a theme', { target: el }).fallback).toBe(true);
     expect(applyThemeById('does-not-exist', { target: el }).fallback).toBe(true);
   });
 
   it('adjusts cyan intensity, panel transparency, grid, gold and font scale at runtime', () => {
     applyTheme(defaultTheme, { target: el });
-    const base = parseColor(varOf('--jarvis-border', el));
+    const base = parseColor(varOf('--friday-border', el));
     expect(base?.a).toBeCloseTo(0.42, 2);
 
     applyThemeSettings({ cyanIntensity: 0.5 }, el);
-    expect(parseColor(varOf('--jarvis-border', el))?.a).toBeCloseTo(0.21, 2);
+    expect(parseColor(varOf('--friday-border', el))?.a).toBeCloseTo(0.21, 2);
 
     applyThemeSettings({ panelTransparency: 1 }, el);
-    expect(parseColor(varOf('--jarvis-panel-1', el))?.a).toBeCloseTo(0.84 * 0.25, 2);
+    expect(parseColor(varOf('--friday-panel-1', el))?.a).toBeCloseTo(0.84 * 0.25, 2);
 
     applyThemeSettings({ gridVisibility: 0 }, el);
     expect(el.getAttribute('data-grid')).toBe('off');
-    expect(parseColor(varOf('--jarvis-grid', el))?.a).toBe(0);
+    expect(parseColor(varOf('--friday-grid', el))?.a).toBe(0);
 
     applyThemeSettings({ orbGoldIntensity: 1.5, fontScale: 1.2 }, el);
     expect(varOf('--jv-orb-intensity', el)).toBe('1.5');

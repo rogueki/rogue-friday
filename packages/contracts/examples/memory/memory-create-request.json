@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/memory/memory-create-request.schema.json",
+  "$schema": "https://friday.local/schemas/memory/memory-create-request.schema.json",
   "type": "fact",
   "content": "Das Büro befindet sich in der Königstraße 12 in Hannover.",
   "tags": ["adresse"],

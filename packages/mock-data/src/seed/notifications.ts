@@ -1,4 +1,4 @@
-import type { EntityRef, Notification, Priority } from "@jarvis/sdk";
+import type { EntityRef, Notification, Priority } from "@friday/sdk";
 import { DAY, HOUR, MIN, type SeedContext } from "./context";
 import type { Story } from "./story";
 

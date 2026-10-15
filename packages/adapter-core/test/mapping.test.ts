@@ -15,7 +15,7 @@ import {
   sourceDescriptor,
 } from "../src";
 import { makeTask } from "./helpers";
-import type { Task } from "@jarvis/sdk";
+import type { Task } from "@friday/sdk";
 
 interface RawItem {
   item_id: string;
@@ -120,7 +120,7 @@ describe("defineEventMapper", () => {
       if (raw.kind === "ignore") return null;
       const task = taskMapper.map(raw.item, ctx);
       return {
-        type: raw.kind === "created" ? "jarvis.task.created" : "jarvis.task.updated",
+        type: raw.kind === "created" ? "friday.task.created" : "friday.task.updated",
         subject: `task/${task.id}`,
         data: task,
       };
@@ -137,14 +137,14 @@ describe("defineEventMapper", () => {
       ],
       context,
     );
-    expect(events.map((e) => e.type)).toEqual(["jarvis.task.created", "jarvis.task.updated"]);
+    expect(events.map((e) => e.type)).toEqual(["friday.task.created", "friday.task.updated"]);
   });
 
   it("rejects events whose payload violates the event schema or that lack a subject", () => {
     const broken = defineEventMapper<unknown>({
       name: "broken",
       toCanonical: () => ({
-        type: "jarvis.task.created",
+        type: "friday.task.created",
         subject: "task/x",
         data: { ...makeTask(1), unknown_field: 1 } as never,
       }),
@@ -154,7 +154,7 @@ describe("defineEventMapper", () => {
     );
     const noSubject = defineEventMapper<unknown>({
       name: "nosubject",
-      toCanonical: () => ({ type: "jarvis.task.created", subject: "", data: makeTask(1) }),
+      toCanonical: () => ({ type: "friday.task.created", subject: "", data: makeTask(1) }),
     });
     expect(() => noSubject.map({}, context)).toThrowError(/subject/);
   });

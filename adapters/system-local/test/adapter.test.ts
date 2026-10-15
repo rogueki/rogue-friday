@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createCorrelationId } from "@jarvis/sdk";
-import type { CallContext, MutationContext } from "@jarvis/adapter-core";
+import { createCorrelationId } from "@friday/sdk";
+import type { CallContext, MutationContext } from "@friday/adapter-core";
 import { LocalSystemAdapter, configSchema, manifest } from "../src";
 import { installHermesApi } from "./fake/hermes-server";
 import { makeVoiceStatus } from "./fake/voice-status-server";
@@ -327,7 +327,7 @@ describe("system.read: services", () => {
     });
   });
 
-  describe("voice service (exact jarvis_voice.py wire format)", () => {
+  describe("voice service (exact friday_voice.py wire format)", () => {
     const voice = async (r: Rig) =>
       (await r.adapter.listServices({}, call())).items.find((s) => s.name === "Voice-Dienst")!;
 
@@ -474,7 +474,7 @@ describe("system.read: model providers", () => {
     const page = await rig.adapter.listModelProviders({}, call());
     expect(page.items.map((p) => [p.name, p.providerKind, p.status, p.models])).toEqual([
       ["Qwen (lokal, llama.cpp)", "local", "online", ["qwen3-router"]],
-      ["Hermes (API-Server)", "local", "online", ["jarvis"]],
+      ["Hermes (API-Server)", "local", "online", ["friday"]],
     ]);
     expect(rig.hermesState.acceptedKeys).toEqual([rig.hermesKey]);
     for (const provider of page.items) {
@@ -516,7 +516,7 @@ describe("system.read: model providers", () => {
     const { adapter, logger } = await startWithoutSecrets(rig, { hermesApiKeyFile: "/srv/hermes_api.key" });
 
     const page = await adapter.listModelProviders({}, call());
-    expect(page.items[1]?.models).toEqual(["jarvis"]);
+    expect(page.items[1]?.models).toEqual(["friday"]);
     expect(fileState.acceptedKeys).toEqual([fileKey]);
     expect(JSON.stringify([page, logger.records])).not.toContain(fileKey);
 

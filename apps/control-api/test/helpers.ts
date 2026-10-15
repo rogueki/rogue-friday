@@ -2,9 +2,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LightMyRequestResponse } from "fastify";
-import { hashPassword } from "@jarvis/auth";
-import { loadConfig, type JarvisConfig } from "@jarvis/config";
-import { createLogger } from "@jarvis/observability";
+import { hashPassword } from "@friday/auth";
+import { loadConfig, type FridayConfig } from "@friday/config";
+import { createLogger } from "@friday/observability";
 import { createControlApi, type ControlApi } from "../src/app";
 import type { ResponseValidationMode } from "../src/runtime/types";
 
@@ -34,7 +34,7 @@ export interface TestApiOptions {
 
 export interface TestApi extends ControlApi {
   dir: string;
-  config: JarvisConfig;
+  config: FridayConfig;
   port: number;
   origin: string;
   env: NodeJS.ProcessEnv;
@@ -43,7 +43,7 @@ export interface TestApi extends ControlApi {
 }
 
 export async function startTestApi(options: TestApiOptions = {}): Promise<TestApi> {
-  const dir = options.dir ?? mkdtempSync(join(tmpdir(), "jarvis-api-"));
+  const dir = options.dir ?? mkdtempSync(join(tmpdir(), "friday-api-"));
   const configDir = join(dir, "config");
   mkdirSync(configDir, { recursive: true });
   const authMode = options.authMode ?? "dev";
@@ -61,7 +61,7 @@ paths:
 auth:
   mode: ${authMode}
   ownerUsername: owner
-  ownerPasswordHash: env:JARVIS_OWNER_PASSWORD_HASH
+  ownerPasswordHash: env:FRIDAY_OWNER_PASSWORD_HASH
   secureCookies: ${options.secureCookies ?? false}
 realtime:
   ringBufferSize: ${options.ringBufferSize ?? 5000}
@@ -78,7 +78,7 @@ ${options.yamlExtra ?? ""}
   );
   if (options.adaptersYaml) writeFileSync(join(configDir, "adapters.yaml"), options.adaptersYaml);
   const env: NodeJS.ProcessEnv = { ...options.env };
-  if (options.ownerPassword) env.JARVIS_OWNER_PASSWORD_HASH = await hashPassword(options.ownerPassword);
+  if (options.ownerPassword) env.FRIDAY_OWNER_PASSWORD_HASH = await hashPassword(options.ownerPassword);
   const config = loadConfig({ configDir, cwd: dir, env });
 
   const logger = options.logs
