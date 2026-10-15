@@ -1,6 +1,6 @@
 # Integrationsnachweis Phase B.5: echte Adapter hinter der Control API (Hybrid-Modus)
 
-Stand: 2026-10-14, Commit `8d5efb3` plus lokale Testanpassung (ungecommittet). Beweist die Kette **Fake-Upstream -> echter Adapter -> gebaute Control API (hybrid) -> Web-UI** in der Cloud-VM.
+Stand: 2026-10-14, Commit `25a7d56`. Beweist die Kette **Fake-Upstream -> echter Adapter -> gebaute Control API (hybrid) -> Web-UI** in der Cloud-VM.
 Die Upstreams sind Fakes nach `docs/MAPPING/{hermes,voice,qwen}.md` (Quelle der Wahrheit: die Test-Fakes der Adapter).
 Es lief **kein** echtes Hermes, kein echter Voice-Dienst und kein echtes Qwen.
 
