@@ -1,5 +1,5 @@
-import type { ActivityEvent, ActivityKind, Severity } from "@jarvis/sdk";
-import { createId, type MapContext } from "@jarvis/adapter-core";
+import type { ActivityEvent, ActivityKind, Severity } from "@friday/sdk";
+import { createId, type MapContext } from "@friday/adapter-core";
 import { correlationFor, type AgentIds, type TaskIds } from "./ids";
 import { isoFromSeconds, truncate } from "./task-mapping";
 import type { WireEvent, WireMessage, WireSession } from "./wire";

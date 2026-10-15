@@ -1,4 +1,4 @@
-import type { AudioFixtureName, OrbSettings } from "@jarvis/orb";
+import type { AudioFixtureName, OrbSettings } from "@friday/orb";
 
 /**
  * Deterministic orb test clock (PLAN §52.1) for the 3D scene, reachable from the browser in test builds only.
@@ -7,8 +7,8 @@ import type { AudioFixtureName, OrbSettings } from "@jarvis/orb";
  * configs), so a production dashboard ignores every parameter below.
  *
  * - URL query: `?orbTime=3.2&orbProgress=0.5&orbAudio=loud&orbFrameMs=40`
- * - Window hook: `window.__JARVIS_ORB_TEST__ = { fixedTime, animationProgress, audioFixture, frameMs }` followed by
- *   `window.dispatchEvent(new Event("jarvis-orb-test"))` to change it without a reload.
+ * - Window hook: `window.__FRIDAY_ORB_TEST__ = { fixedTime, animationProgress, audioFixture, frameMs }` followed by
+ *   `window.dispatchEvent(new Event("friday-orb-test"))` to change it without a reload.
  */
 export interface OrbTestOverrides {
   /** Seconds since scene start; freezes the scene (no wall clock, no damping). */
@@ -21,11 +21,11 @@ export interface OrbTestOverrides {
   frameMs?: number;
 }
 
-export const ORB_TEST_EVENT = "jarvis-orb-test";
+export const ORB_TEST_EVENT = "friday-orb-test";
 
 declare global {
   interface Window {
-    __JARVIS_ORB_TEST__?: OrbTestOverrides;
+    __FRIDAY_ORB_TEST__?: OrbTestOverrides;
   }
 }
 
@@ -40,7 +40,7 @@ function finite(value: unknown): number | undefined {
 export function readOrbTestOverrides(): OrbTestOverrides | undefined {
   if (typeof window === "undefined") return undefined;
   const query = new URLSearchParams(window.location.search);
-  const hook = window.__JARVIS_ORB_TEST__ ?? {};
+  const hook = window.__FRIDAY_ORB_TEST__ ?? {};
   const fixedTime = finite(hook.fixedTime ?? query.get("orbTime"));
   const progress = finite(hook.animationProgress ?? query.get("orbProgress"));
   const audio = hook.audioFixture ?? query.get("orbAudio");

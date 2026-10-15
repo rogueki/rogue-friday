@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/agents/agent-response.schema.json",
+  "$id": "https://friday.local/schemas/agents/agent-response.schema.json",
   "title": "AgentResponse",
   "description": "Single-resource envelope for Agent.",
   "type": "object",

@@ -11,7 +11,7 @@ import type {
   VoiceStatusResponse,
   VoiceTestRequest,
   VoiceTestResultResponse,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";

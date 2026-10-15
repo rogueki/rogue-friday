@@ -52,7 +52,7 @@ describe("HealthMonitor", () => {
       circuit: "closed",
     });
     expect(health.lastSuccessAt).toBe(new Date(clock.now()).toISOString());
-    expect(events.map((e) => e.type)).toEqual(["jarvis.adapter.health_changed"]);
+    expect(events.map((e) => e.type)).toEqual(["friday.adapter.health_changed"]);
   });
 
   it("goes ONLINE -> DEGRADED on the first failure and OFFLINE at the failure threshold", async () => {

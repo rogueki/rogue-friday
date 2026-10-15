@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/commands/command-history-entry-list-response.schema.json",
+  "$id": "https://friday.local/schemas/commands/command-history-entry-list-response.schema.json",
   "title": "CommandHistoryEntryListResponse",
   "description": "Cursor-paginated list envelope for CommandHistoryEntry.",
   "type": "object",

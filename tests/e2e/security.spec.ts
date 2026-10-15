@@ -7,16 +7,16 @@ const ROUTES = ["/", "/activity", "/tasks", "/approvals", "/agents", "/memory", 
 test("session cookie is HttpOnly + SameSite=Strict + Path=/ and invisible to scripts; the CSRF cookie is readable", async ({ page }) => {
   await open(page, "/");
   const cookies = await page.context().cookies();
-  const session = cookies.find((cookie) => cookie.name === "jarvis_session");
-  const csrf = cookies.find((cookie) => cookie.name === "jarvis_csrf");
+  const session = cookies.find((cookie) => cookie.name === "friday_session");
+  const csrf = cookies.find((cookie) => cookie.name === "friday_csrf");
   expect(session, "session cookie").toBeDefined();
   expect(session).toMatchObject({ httpOnly: true, sameSite: "Strict", path: "/" });
   // Plain http on loopback: the Secure flag is only set behind TLS (auth.secureCookies), see apps/control-api/test/security-gate.test.ts
   expect(session?.secure).toBe(false);
   expect(csrf).toMatchObject({ httpOnly: false, sameSite: "Strict", path: "/" });
   const visible = await page.evaluate(() => document.cookie);
-  expect(visible).not.toContain("jarvis_session");
-  expect(visible).toContain("jarvis_csrf");
+  expect(visible).not.toContain("friday_session");
+  expect(visible).toContain("friday_csrf");
   // host-only: no Domain attribute, so the cookie is not sent to sibling hosts
   expect(session?.domain).toBe("127.0.0.1");
 });

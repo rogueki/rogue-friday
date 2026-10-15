@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/system/healthcheck-result-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/system/healthcheck-result-response.schema.json",
+  "contractVersion": "2.0.0",
   "data": {
     "serviceId": "svc_01JCW5E9R2Q7T4M8N3B6V00001",
     "status": "online",

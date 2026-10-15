@@ -1,7 +1,7 @@
 "use client";
 
-import type { Agent } from "@jarvis/sdk";
-import { IconTile, StatusDot, TagPill, Waveform, cx } from "@jarvis/ui";
+import type { Agent } from "@friday/sdk";
+import { IconTile, StatusDot, TagPill, Waveform, cx } from "@friday/ui";
 import { AlertTriangle, Activity, Gauge, HeartPulse, ListChecks, Timer } from "lucide-react";
 import { agentIconFor, agentTone } from "@/features/shared/presentation";
 import { useDateFormatter } from "@/features/tasks/moduleKit";

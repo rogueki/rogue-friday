@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import { VoiceControl, VoiceStatusPanel, type VoiceState } from '@jarvis/ui';
+import { VoiceControl, VoiceStatusPanel, type VoiceState } from '@friday/ui';
 import { Row, Section } from './_helpers';
 
 const meta = { title: 'Components/Voice', parameters: { layout: 'fullscreen' } } satisfies Meta;
@@ -16,7 +16,7 @@ export const VoiceControlStates: Story = {
         <Row gap={36} style={{ alignItems: 'flex-start' }}>
           {states.map((s) => (
             <div key={s} style={{ width: 150, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-              <code style={{ fontFamily: 'var(--jv-font-mono)', fontSize: 11, color: 'var(--jarvis-muted)' }}>{s}</code>
+              <code style={{ fontFamily: 'var(--jv-font-mono)', fontSize: 11, color: 'var(--friday-muted)' }}>{s}</code>
               <VoiceControl state={s} size={84} hint={s === 'idle' ? 'Zum Sprechen tippen' : undefined} />
             </div>
           ))}

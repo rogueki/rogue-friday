@@ -2,7 +2,7 @@ import { createServer, type Server, type Socket } from "node:net";
 import type { RawVoiceStatus } from "../../src/provider-types";
 
 /**
- * Wire-level replica of the status server in installer/voice/jarvis_voice.py (`_start_health`, JV:576-592):
+ * Wire-level replica of the status server in installer/voice/friday_voice.py (`_start_health`, JV:576-592):
  * - exactly one handler: every GET path returns the same JSON, other methods get Python's `501 Unsupported method`;
  * - HTTP/1.0, `Content-Type: application/json`, no `Content-Length`, connection closed after the body;
  * - key order of the JSON as written by `json.dumps({**status, "speaking": ..., "trusted": ..., "input_level": ..., "output_level": ...})`

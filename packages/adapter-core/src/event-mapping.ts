@@ -1,4 +1,4 @@
-import { JARVIS_EVENT_DATA_SCHEMA_IDS, isJarvisEventType, type JarvisEventType } from "@jarvis/sdk";
+import { FRIDAY_EVENT_DATA_SCHEMA_IDS, isFridayEventType, type FridayEventType } from "@friday/sdk";
 import { assertContract } from "./contract";
 import { AdapterError, normalizeError } from "./errors";
 import type { MapContext } from "./mapping";
@@ -19,9 +19,9 @@ export interface EventMapper<RawEvent> {
   mapMany(raws: readonly RawEvent[], context: MapContext): AdapterEventInput[];
 }
 
-/** Validates the event type, subject and payload (`data`) against `JARVIS_EVENT_DATA_SCHEMA_IDS`. */
+/** Validates the event type, subject and payload (`data`) against `FRIDAY_EVENT_DATA_SCHEMA_IDS`. */
 export function assertCanonicalEvent(event: AdapterEventInput, what = "event"): void {
-  if (!isJarvisEventType(event.type)) {
+  if (!isFridayEventType(event.type)) {
     throw new AdapterError({
       code: "VALIDATION_FAILED",
       message: `${what}: unbekannter Event-Typ.`,
@@ -35,7 +35,7 @@ export function assertCanonicalEvent(event: AdapterEventInput, what = "event"): 
       retryable: false,
     });
   }
-  const schemaId = JARVIS_EVENT_DATA_SCHEMA_IDS[event.type as JarvisEventType];
+  const schemaId = FRIDAY_EVENT_DATA_SCHEMA_IDS[event.type as FridayEventType];
   assertContract(schemaId, event.data, `${what} ${event.type}`);
 }
 

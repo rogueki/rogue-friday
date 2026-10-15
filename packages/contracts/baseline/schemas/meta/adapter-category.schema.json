@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/meta/adapter-category.schema.json",
+  "$id": "https://friday.local/schemas/meta/adapter-category.schema.json",
   "title": "AdapterCategory",
   "type": "string",
   "enum": [

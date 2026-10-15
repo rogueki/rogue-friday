@@ -45,32 +45,32 @@ describe("metrics and frontend telemetry (PLAN §50.3)", () => {
       const response = await owner.get("/api/v1/metrics");
       expect(response.headers["content-type"]).toBe("text/plain; version=0.0.4; charset=utf-8");
       const text = response.body;
-      expect(text).toMatch(/# TYPE jarvis_http_request_duration_seconds histogram/);
-      expect(text).toMatch(/jarvis_http_request_duration_seconds_bucket\{method="GET",route="\/api\/v1\/tasks",le="\+Inf"\} 1/);
-      expect(text).toMatch(/jarvis_http_requests_total\{method="GET",route="\/api\/v1\/tasks",status="200"\} 1/);
-      expect(text).toContain("# TYPE jarvis_http_error_ratio gauge");
-      expect(text).toContain("# TYPE jarvis_ws_connections gauge");
-      expect(text).toContain("# TYPE jarvis_events_per_second gauge");
-      expect(text).toMatch(/jarvis_events_total\{type="jarvis\.task\.created"\} [1-9]/);
-      expect(text).toMatch(/jarvis_adapter_health\{adapter="mock-tasks"\} 1\n/);
+      expect(text).toMatch(/# TYPE friday_http_request_duration_seconds histogram/);
+      expect(text).toMatch(/friday_http_request_duration_seconds_bucket\{method="GET",route="\/api\/v1\/tasks",le="\+Inf"\} 1/);
+      expect(text).toMatch(/friday_http_requests_total\{method="GET",route="\/api\/v1\/tasks",status="200"\} 1/);
+      expect(text).toContain("# TYPE friday_http_error_ratio gauge");
+      expect(text).toContain("# TYPE friday_ws_connections gauge");
+      expect(text).toContain("# TYPE friday_events_per_second gauge");
+      expect(text).toMatch(/friday_events_total\{type="friday\.task\.created"\} [1-9]/);
+      expect(text).toMatch(/friday_adapter_health\{adapter="mock-tasks"\} 1\n/);
       // one miss (first idempotent POST) and one hit (replay)
-      expect(metricValue(text, 'jarvis_cache_requests_total{result="hit"}')).toBe(1);
-      expect(metricValue(text, 'jarvis_cache_requests_total{result="miss"}')).toBe(1);
-      expect(metricValue(text, "jarvis_cache_hit_ratio")).toBe(0.5);
+      expect(metricValue(text, 'friday_cache_requests_total{result="hit"}')).toBe(1);
+      expect(metricValue(text, 'friday_cache_requests_total{result="miss"}')).toBe(1);
+      expect(metricValue(text, "friday_cache_hit_ratio")).toBe(0.5);
     });
 
     it("shows an adapter that goes offline as down", async () => {
       const control = await owner.post("/api/v1/dev/scenarios/control", { action: "adapter_offline", adapterId: "mock-calendar", offline: true });
       expect(control.statusCode, control.body).toBe(200);
       const text = (await owner.get("/api/v1/metrics")).body;
-      expect(text).toMatch(/jarvis_adapter_health\{adapter="mock-calendar"\} 0\n/);
+      expect(text).toMatch(/friday_adapter_health\{adapter="mock-calendar"\} 0\n/);
       await owner.post("/api/v1/dev/scenarios/control", { action: "adapter_offline", adapterId: "mock-calendar", offline: false });
     });
 
     it("contains no personal data or secrets", async () => {
       const text = (await owner.get("/api/v1/metrics")).body;
       expect(text).not.toMatch(/@[a-z0-9-]+\.[a-z]{2,}/i);
-      expect(text).not.toMatch(/jarvis_session|csrf/i);
+      expect(text).not.toMatch(/friday_session|csrf/i);
     });
   });
 
@@ -88,11 +88,11 @@ describe("metrics and frontend telemetry (PLAN §50.3)", () => {
 
     it("turns the batch into orb gauges, frame-time histogram and error counters", async () => {
       const text = (await owner.get("/api/v1/metrics")).body;
-      expect(metricValue(text, "jarvis_frontend_orb_fps")).toBe(57.5);
-      expect(metricValue(text, "jarvis_frontend_orb_frame_time_ms")).toBe(17.4);
-      expect(metricValue(text, "jarvis_frontend_webgl_memory_bytes")).toBe(41943040);
-      expect(metricValue(text, "jarvis_frontend_orb_frame_time_seconds_count")).toBe(1);
-      expect(metricValue(text, 'jarvis_frontend_errors_total{kind="js_error"}')).toBe(3);
+      expect(metricValue(text, "friday_frontend_orb_fps")).toBe(57.5);
+      expect(metricValue(text, "friday_frontend_orb_frame_time_ms")).toBe(17.4);
+      expect(metricValue(text, "friday_frontend_webgl_memory_bytes")).toBe(41943040);
+      expect(metricValue(text, "friday_frontend_orb_frame_time_seconds_count")).toBe(1);
+      expect(metricValue(text, 'friday_frontend_errors_total{kind="js_error"}')).toBe(3);
     });
 
     it("rejects invalid batches with VALIDATION_FAILED", async () => {

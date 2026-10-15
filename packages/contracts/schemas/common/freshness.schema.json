@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/common/freshness.schema.json",
+  "$id": "https://friday.local/schemas/common/freshness.schema.json",
   "title": "Freshness",
   "description": "Data age marker; stale data must never be rendered as live.",
   "type": "object",

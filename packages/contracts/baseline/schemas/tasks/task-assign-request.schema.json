@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/tasks/task-assign-request.schema.json",
+  "title": "TaskAssignRequest",
+  "description": "Assigns a task to an agent or releases it (agentId null).",
+  "type": "object",
+  "properties": {
+    "agentId": {
+      "type": ["string", "null"],
+      "pattern": "^agent_[0-9A-Za-z]{26}$"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 500
+    }
+  },
+  "required": ["agentId"],
+  "additionalProperties": false
+}

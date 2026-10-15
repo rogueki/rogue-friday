@@ -8,7 +8,7 @@ server:
   port: 3100
   allowRemote: false
 
-# Produktiv (PLAN 54): D:\Jarvis\dashboard\data, ...\logs, ...\backups; relativ zu diesem Config-Verzeichnis.
+# Produktiv (PLAN 54): D:\Friday\dashboard\data, ...\logs, ...\backups; relativ zu diesem Config-Verzeichnis.
 paths:
   dataDir: ../data
   logDir: ../logs
@@ -18,8 +18,8 @@ paths:
 auth:
   mode: local # der Dev-Account ist nur im Mock-Modus erlaubt
   ownerUsername: owner
-  # scrypt-Hash: pnpm --filter @jarvis/auth hash-password ; Verweis env:NAME, file:<absoluter Pfad> oder wincred:ZIEL
-  ownerPasswordHash: env:JARVIS_OWNER_PASSWORD_HASH
+  # scrypt-Hash: pnpm --filter @friday/auth hash-password ; Verweis env:NAME, file:<absoluter Pfad> oder wincred:ZIEL
+  ownerPasswordHash: env:FRIDAY_OWNER_PASSWORD_HASH
   sessionTtlMinutes: 720
   reauthWindowMinutes: 5
   idleTimeoutMinutes: 30
@@ -33,8 +33,8 @@ ui:
   locale: de-DE
   timezone: Europe/Berlin
   assistantName: F.R.I.D.A.Y.
-  theme: jarvis-command-midnight
-  layout: jarvis-command-overview
+  theme: friday-command-midnight
+  layout: friday-command-overview
 
 dev:
   scenarioConsole: false # die Szenario-Konsole steuert nur Mock-Daten

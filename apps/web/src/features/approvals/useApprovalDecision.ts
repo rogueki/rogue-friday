@@ -1,6 +1,6 @@
 "use client";
 
-import { createIdempotencyKey, type Approval, type ApprovalPreview } from "@jarvis/sdk";
+import { createIdempotencyKey, type Approval, type ApprovalPreview } from "@friday/sdk";
 import { useCallback, useRef } from "react";
 import { useDecideApproval, useEnsureApprovalToken, useReauth, useRefreshApprovalToken } from "@/lib/api/domains/approvals";
 import { classifyDecisionError, needsReauth, type DecisionFailure } from "./model";

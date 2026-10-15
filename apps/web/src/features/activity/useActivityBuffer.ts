@@ -1,6 +1,6 @@
 "use client";
 
-import type { ActivityEvent, Freshness, SourceDescriptor } from "@jarvis/sdk";
+import type { ActivityEvent, Freshness, SourceDescriptor } from "@friday/sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { activityHeadKey, useActivityStream } from "@/lib/api/domains/activity";

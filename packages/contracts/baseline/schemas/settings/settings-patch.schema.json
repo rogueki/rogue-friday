@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/settings-patch.schema.json",
+  "$id": "https://friday.local/schemas/settings/settings-patch.schema.json",
   "title": "SettingsPatch",
   "description": "PATCH body: every supplied area replaces the stored area as a whole. Adapters are patched via /settings/adapters/{id}.",
   "type": "object",

@@ -1,7 +1,7 @@
 "use client";
 
-import type { Channel, Draft } from "@jarvis/sdk";
-import { Button, ConfirmDialog, StatusChip, TextField, useToast } from "@jarvis/ui";
+import type { Channel, Draft } from "@friday/sdk";
+import { Button, ConfirmDialog, StatusChip, TextField, useToast } from "@friday/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Save, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";

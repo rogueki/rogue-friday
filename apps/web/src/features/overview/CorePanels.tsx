@@ -1,7 +1,7 @@
 "use client";
 
-import type { AdapterInfo, HealthStatus, Overview } from "@jarvis/sdk";
-import { ActivityFeed, ActivityRow, HudPanel, PanelLink, StatusChip, type ActivityItem, type Tone } from "@jarvis/ui";
+import type { AdapterInfo, HealthStatus, Overview } from "@friday/sdk";
+import { ActivityFeed, ActivityRow, HudPanel, PanelLink, StatusChip, type ActivityItem, type Tone } from "@friday/ui";
 import { Bot, Brain, CheckCircle2, Database, Mic, ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
@@ -61,7 +61,7 @@ function systemHealth(overview: Overview, adapters: readonly AdapterInfo[] | und
 const PRESSURE_PERCENT = 90;
 
 function coreRows(overview: Overview, adapters: readonly AdapterInfo[] | undefined, t: (key: MessageKey, vars?: Record<string, string | number>) => string, locale: string): CoreRow[] {
-  const { jarvis, voice, memoryInsights, activeAgents, models } = overview;
+  const { friday, voice, memoryInsights, activeAgents, models } = overview;
   const statusWord = (status: HealthStatus): string => t(`health.${status}` as MessageKey);
   const connectedModels = models.filter((m) => m.status === "online").length;
   const working = activeAgents.filter((a) => a.status === "working" || a.status === "starting").length;
@@ -81,7 +81,7 @@ function coreRows(overview: Overview, adapters: readonly AdapterInfo[] | undefin
   const systemDown = unavailable("system");
   const host = systemHealth(overview, adapters);
   return [
-    { id: "core", icon: <Brain {...ICON} />, tone: toneFromHealth(jarvis.status), title: t("core.aiCore"), meta: statusWord(jarvis.status), route: "/system" },
+    { id: "core", icon: <Brain {...ICON} />, tone: toneFromHealth(friday.status), title: t("core.aiCore"), meta: statusWord(friday.status), route: "/system" },
     {
       id: "memory",
       icon: <Database {...ICON} />,
@@ -159,8 +159,8 @@ export function OrbPanel({ className, style }: { className?: string; style?: Rea
   const mode = status?.mode;
   const agent = overview?.activeAgents.find((a) => a.id === (overview.currentActivity?.agentId ?? status?.currentAgentId));
   const activity = overview?.currentActivity?.text ?? status?.activityText;
-  const dataMode = overview?.jarvis.dataMode;
-  const version = overview?.jarvis.version;
+  const dataMode = overview?.friday.dataMode;
+  const version = overview?.friday.version;
   const progress = status?.progressMode === "determinate" && typeof status.progress === "number" ? Math.round(Math.min(1, Math.max(0, status.progress)) * 100) : null;
   const tone: Tone = mode === "error" ? "red" : mode === "offline" ? "muted" : mode === "waiting_approval" || mode === "warning" ? "amber" : "gold";
 

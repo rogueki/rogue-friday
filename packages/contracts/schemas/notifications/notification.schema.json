@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/notifications/notification.schema.json",
+  "$id": "https://friday.local/schemas/notifications/notification.schema.json",
   "title": "Notification",
   "description": "Alert with escalation chain (PLAN §39).",
   "type": "object",

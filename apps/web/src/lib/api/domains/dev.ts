@@ -1,6 +1,6 @@
 "use client";
 
-import type { ScenarioControlRequest, ScenarioListResponse, ScenarioState, ScenarioStateResponse } from "@jarvis/sdk";
+import type { ScenarioControlRequest, ScenarioListResponse, ScenarioState, ScenarioStateResponse } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";

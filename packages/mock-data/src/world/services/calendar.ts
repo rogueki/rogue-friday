@@ -5,7 +5,7 @@ import type {
   CalendarEvent,
   CalendarProposal,
   CalendarProposalRequest,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { MockApiError, notFound, validationFailed } from "../../core/errors";
 import { asIso, clone, compareAsc, compareDesc, matchesQuery, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
@@ -182,7 +182,7 @@ export class CalendarService {
         briefingId: null,
       };
       this.w.state.calendarEvents.push(event);
-      this.w.emitFor("calendar", "jarvis.calendar.event_updated", event, `calendar/${event.id}`, approval.correlationId);
+      this.w.emitFor("calendar", "friday.calendar.event_updated", event, `calendar/${event.id}`, approval.correlationId);
       this.recomputeConflicts(event.id);
       message = `Termin „${event.title}“ wurde angelegt.`;
     } else {
@@ -202,7 +202,7 @@ export class CalendarService {
         message = `Antwort auf „${event.title}“ wurde gesendet.`;
       }
       this.w.bump(event);
-      this.w.emitFor("calendar", "jarvis.calendar.event_updated", event, `calendar/${event.id}`, approval.correlationId);
+      this.w.emitFor("calendar", "friday.calendar.event_updated", event, `calendar/${event.id}`, approval.correlationId);
       this.recomputeConflicts(event.id);
     }
     proposal.status = "applied";
@@ -236,7 +236,7 @@ export class CalendarService {
           other.conflictIds = other.conflictIds.filter((conflictId) => conflictId !== existing.id);
           if (other.id !== eventId) {
             this.w.bump(other);
-            this.w.emitFor("calendar", "jarvis.calendar.event_updated", other, `calendar/${other.id}`);
+            this.w.emitFor("calendar", "friday.calendar.event_updated", other, `calendar/${other.id}`);
           }
         }
       }
@@ -263,8 +263,8 @@ export class CalendarService {
       event.conflictIds.push(created.id);
       other.conflictIds.push(created.id);
       this.w.bump(other);
-      this.w.emitFor("calendar", "jarvis.calendar.event_updated", other, `calendar/${other.id}`);
-      this.w.emitFor("calendar", "jarvis.calendar.conflict_detected", created, `calendar/${created.id}`);
+      this.w.emitFor("calendar", "friday.calendar.event_updated", other, `calendar/${other.id}`);
+      this.w.emitFor("calendar", "friday.calendar.conflict_detected", created, `calendar/${created.id}`);
     }
   }
 

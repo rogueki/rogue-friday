@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/calendar/calendar-proposal.schema.json",
+  "$id": "https://friday.local/schemas/calendar/calendar-proposal.schema.json",
   "title": "CalendarProposal",
   "description": "Write actions on the calendar are proposals that go through approval.",
   "type": "object",

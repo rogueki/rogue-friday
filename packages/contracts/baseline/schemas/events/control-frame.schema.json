@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/events/control-frame.schema.json",
+  "$id": "https://friday.local/schemas/events/control-frame.schema.json",
   "title": "ControlFrame",
   "description": "Heartbeat frames (conventions §4). Not an envelope, no sequence.",
   "type": "object",

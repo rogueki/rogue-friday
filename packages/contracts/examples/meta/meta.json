@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/meta/meta.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/meta/meta.schema.json",
+  "contractVersion": "2.0.0",
   "apiVersion": "v1",
   "dataMode": "mock",
   "eventsPath": "/api/v1/events",

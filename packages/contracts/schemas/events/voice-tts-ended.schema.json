@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/events/voice-tts-ended.schema.json",
+  "$id": "https://friday.local/schemas/events/voice-tts-ended.schema.json",
   "title": "VoiceTtsEnded",
   "type": "object",
   "properties": {

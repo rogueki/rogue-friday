@@ -1,4 +1,4 @@
-/* Responsive behaviour of the shell parts of @jarvis/ui (the library ships no breakpoints for them; PLAN §27.15 / §53). */
+/* Responsive behaviour of the shell parts of @friday/ui (the library ships no breakpoints for them; PLAN §27.15 / §53). */
 
 .jv-operator__name,
 .jv-operator__role { white-space: nowrap; }

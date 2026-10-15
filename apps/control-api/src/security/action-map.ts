@@ -1,8 +1,8 @@
-import type { Action } from "@jarvis/auth";
+import type { Action } from "@friday/auth";
 import type { OperationId } from "../http/route-types";
 
 /**
- * Maps every mutating or privileged operation to the permission-matrix action of `@jarvis/auth` (SECURITY.md §2).
+ * Maps every mutating or privileged operation to the permission-matrix action of `@friday/auth` (SECURITY.md §2).
  * Operations that are not listed are plain reads: any authenticated role may call them (`read:*`), the contract's
  * `x-required-role` still applies on top.
  */

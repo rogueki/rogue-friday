@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/agents/reasoning-level.schema.json",
+  "$id": "https://friday.local/schemas/agents/reasoning-level.schema.json",
   "title": "ReasoningLevel",
   "type": "string",
   "enum": ["none", "low", "medium", "high", "max"]

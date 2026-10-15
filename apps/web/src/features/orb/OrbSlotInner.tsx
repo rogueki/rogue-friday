@@ -1,7 +1,7 @@
 "use client";
 
-import { JarvisOrb, orbSettingsFromWire, type JarvisOrbProps } from "@jarvis/orb";
-import type { OrbSnapshot } from "@jarvis/sdk";
+import { FridayOrb, orbSettingsFromWire, type FridayOrbProps } from "@friday/orb";
+import type { OrbSnapshot } from "@friday/sdk";
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/i18n";
 import { useMeta } from "@/lib/api/domains/core";
@@ -44,7 +44,7 @@ export interface OrbSlotProps {
 }
 
 /**
- * The single place where the app mounts `@jarvis/orb`: wires the snapshot (query cache + realtime), `settings.orb`, the
+ * The single place where the app mounts `@friday/orb`: wires the snapshot (query cache + realtime), `settings.orb`, the
  * audio level feed and the click/Space routing (PLAN §21).
  */
 export function OrbSlotInner({ className, sizeBoost = 1, onRendererChange }: OrbSlotProps) {
@@ -60,12 +60,12 @@ export function OrbSlotInner({ className, sizeBoost = 1, onRendererChange }: Orb
   // The audio feed is pulled by the orb inside its animation loop (display rate, no React state, no re-render).
   const snapshot = useMemo<OrbSnapshot | undefined>(() => live ?? (isError ? offlineSnapshot() : undefined), [live, isError]);
 
-  const orbSettings = useMemo<JarvisOrbProps["settings"]>(() => {
+  const orbSettings = useMemo<FridayOrbProps["settings"]>(() => {
     const base = settings?.orb ? orbSettingsFromWire(settings.orb) : {};
     const size = Math.min(1.5, (base.size ?? 1) * sizeBoost); // the orb clamps to 0.5..1.5 as well
     return { ...base, size, ...(forceFallback2D ? { renderer: "2d" as const } : {}), ...orbSettingsFromTestOverrides(testOverrides) };
   }, [settings?.orb, forceFallback2D, sizeBoost, testOverrides]);
 
   if (!snapshot) return null;
-  return <JarvisOrb snapshot={snapshot} settings={orbSettings} onActivate={onActivate} onVoiceToggle={onVoiceToggle} assistantName={assistantName} getAudioLevel={readAudioLevel} onRendererChange={onRendererChange} locale={locale} className={className} />;
+  return <FridayOrb snapshot={snapshot} settings={orbSettings} onActivate={onActivate} onVoiceToggle={onVoiceToggle} assistantName={assistantName} getAudioLevel={readAudioLevel} onRendererChange={onRendererChange} locale={locale} className={className} />;
 }

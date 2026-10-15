@@ -1,4 +1,4 @@
-import type { CalendarEvent } from "@jarvis/sdk";
+import type { CalendarEvent } from "@friday/sdk";
 import { describe, expect, it } from "vitest";
 import { NOW, resource } from "../memory/kit/testSupport";
 import { allDayCovers, clipToDay, eventsOnDay, freeSlots, layoutDay } from "./layout";

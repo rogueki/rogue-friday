@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type FrontendTelemetryBatch, type Freshness } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type FrontendTelemetryBatch, type Freshness } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/orb/orb-layers.schema.json",
+  "$schema": "https://friday.local/schemas/orb/orb-layers.schema.json",
   "voice": "idle",
   "work": "working",
   "attention": "none",

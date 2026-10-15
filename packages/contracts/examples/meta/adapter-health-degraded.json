@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/meta/adapter-health.schema.json",
+  "$schema": "https://friday.local/schemas/meta/adapter-health.schema.json",
   "adapterId": "hermes-tasks",
   "status": "degraded",
   "lifecycle": "DEGRADED",

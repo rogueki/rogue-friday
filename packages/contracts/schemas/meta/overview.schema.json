@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/meta/overview.schema.json",
+  "$id": "https://friday.local/schemas/meta/overview.schema.json",
   "title": "Overview",
   "description": "Aggregated home payload (PLAN §27.14). Sections of failed adapters are listed in degradedSections instead of failing the call.",
   "type": "object",
   "properties": {
-    "jarvis": {
-      "$ref": "../meta/jarvis-status.schema.json"
+    "friday": {
+      "$ref": "../meta/friday-status.schema.json"
     },
     "orb": {
       "$ref": "../orb/orb-snapshot.schema.json"
@@ -220,7 +220,7 @@
     }
   },
   "required": [
-    "jarvis",
+    "friday",
     "orb",
     "currentActivity",
     "activeAgents",

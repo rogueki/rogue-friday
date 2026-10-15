@@ -1,4 +1,4 @@
-import type { Notification } from "@jarvis/sdk";
+import type { Notification } from "@friday/sdk";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -41,7 +41,7 @@ function makeNotification(partial: Partial<Notification> = {}): Notification {
 const info = makeNotification({ id: P3, version: 1, priority: "P3", category: "system", title: "Backup abgeschlossen", body: "Alles gesichert.", escalation: [], targetRoute: null, sourceRef: null });
 
 const channels = {
-  contractVersion: "1.0.0",
+  contractVersion: "2.0.0",
   items: [
     { ...resource("chan_01JAAAAAAAAAAAAAAAAAAAAAAA"), kind: "telegram", name: "Telegram", status: "online", capabilities: { read: true, draft: true, send: true }, unreadCount: 0, lastSyncAt: NOW },
     { ...resource("chan_01JBBBBBBBBBBBBBBBBBBBBBBB"), kind: "whatsapp", name: "WhatsApp", status: "read_only", capabilities: { read: true, draft: false, send: false }, unreadCount: 0, lastSyncAt: NOW },
@@ -52,7 +52,7 @@ const channels = {
   sources: [],
 };
 
-const settings = { contractVersion: "1.0.0", data: { notifications: { channels: [{ kind: "telegram", enabled: true, minPriority: "P2" }, { kind: "whatsapp", enabled: false, minPriority: "P1" }], quietHours: { enabled: false, from: "22:00", to: "07:00" }, defaultEscalation: [], snoozeDefaultMinutes: 60 } }, freshness: { state: "fresh", asOf: NOW } };
+const settings = { contractVersion: "2.0.0", data: { notifications: { channels: [{ kind: "telegram", enabled: true, minPriority: "P2" }, { kind: "whatsapp", enabled: false, minPriority: "P1" }], quietHours: { enabled: false, from: "22:00", to: "07:00" }, defaultEscalation: [], snoozeDefaultMinutes: 60 } }, freshness: { state: "fresh", asOf: NOW } };
 
 const routes = (items: Notification[] = [makeNotification(), info]) => ({
   "GET /api/v1/notifications": (url: URL) => listOf(url.searchParams.getAll("status").includes("resolved") ? [makeNotification({ id: "ntf_01JDDDDDDDDDDDDDDDDDDDDDDD", status: "resolved", resolved: true, title: "Alter Alarm" })] : items),

@@ -1,4 +1,4 @@
-import { AdapterError } from "@jarvis/adapter-core";
+import { AdapterError } from "@friday/adapter-core";
 
 /**
  * Hermes wire shapes (docs/MAPPING/hermes.md §3, §4) and their defensive parsers. Hermes is not pinned by the

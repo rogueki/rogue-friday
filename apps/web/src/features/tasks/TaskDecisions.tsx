@@ -1,7 +1,7 @@
 "use client";
 
-import type { Task } from "@jarvis/sdk";
-import { Button, TagPill } from "@jarvis/ui";
+import type { Task } from "@friday/sdk";
+import { Button, TagPill } from "@friday/ui";
 import { Check, ExternalLink, Eye, MessageSquareReply } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";

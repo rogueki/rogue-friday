@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/voice/voice-status.schema.json",
+  "$id": "https://friday.local/schemas/voice/voice-status.schema.json",
   "title": "VoiceStatus",
   "description": "Live voice pipeline status (PLAN §38.1). Microphone activity is always visible.",
   "type": "object",

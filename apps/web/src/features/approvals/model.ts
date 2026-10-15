@@ -1,6 +1,6 @@
-import type { Approval, ApprovalImpact, ApprovalStatus, ApprovalType, RequiredAuth, RiskTier } from "@jarvis/sdk";
-import { isJarvisApiError } from "@jarvis/sdk";
-import type { Tone } from "@jarvis/ui";
+import type { Approval, ApprovalImpact, ApprovalStatus, ApprovalType, RequiredAuth, RiskTier } from "@friday/sdk";
+import { isFridayApiError } from "@friday/sdk";
+import type { Tone } from "@friday/ui";
 
 export const APPROVAL_TYPES: readonly ApprovalType[] = ["send_email", "change_event", "send_message", "delete_file", "order", "payment", "contract", "system_change"];
 export const APPROVAL_STATUSES: readonly ApprovalStatus[] = ["pending", "approved", "executed", "rejected", "expired", "cancelled", "failed"];
@@ -52,7 +52,7 @@ export type DecisionFailure =
 
 /** Classifies an error of the approve flow so the UI can answer in plain German and refetch where that helps. */
 export function classifyDecisionError(error: unknown, phase: "reauth" | "approve"): DecisionFailure {
-  if (!isJarvisApiError(error)) return { kind: "other", message: error instanceof Error ? error.message : String(error) };
+  if (!isFridayApiError(error)) return { kind: "other", message: error instanceof Error ? error.message : String(error) };
   const reason = typeof error.details.reason === "string" ? error.details.reason : undefined;
   switch (error.code) {
     case "APPROVAL_REQUIRED":

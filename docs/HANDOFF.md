@@ -13,12 +13,12 @@ Betrieb [`DEPLOYMENT.md`](DEPLOYMENT.md), für Tests [`TESTING.md`](TESTING.md).
 | #   | Bestandteil                         | Pfad im Repository                                                                                                                         | Hinweis                                                                                                |
 | --- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
 | 1   | Lauffähiges Dashboard im Mock-Modus | `apps/web` (Next.js, statischer Export nach `apps/web/out`), ausgeliefert von `apps/control-api`; Vorlage `config/dashboard.example.yaml`  | Standard ist `dataMode: mock`. Start: `pnpm dev` (Entwicklung) oder `pnpm build:app` und `pnpm start`. |
-| 2   | Jarvis Control API                  | `apps/control-api` (Quellcode in `src/`, Bundle `dist/main.js` über `tsup`)                                                                | 122 Operationen, Routentabelle generiert nach `src/http/route-table.generated.ts`.                     |
-| 3   | OpenAPI Contract                    | `packages/contracts/openapi/jarvis-api.yaml` (OpenAPI 3.1.1), gebündelt nach `packages/contracts/dist/jarvis-api.bundled.yaml`             | Quelle der Wahrheit für REST. Schemas unter `packages/contracts/schemas/`.                             |
-| 4   | AsyncAPI Contract                   | `packages/contracts/asyncapi/jarvis-events.yaml` (AsyncAPI 3.1.0)                                                                          | 44 Ereignistypen (`jarvis.*`), WebSocket `/api/v1/events`.                                             |
-| 5   | Generated SDK                       | `packages/generated-sdk` (`@jarvis/sdk`), generiert nach `src/generated/`                                                                  | Nie von Hand ändern. Neu erzeugen: `pnpm contracts:generate`.                                          |
-| 6   | Adapter SDK                         | `packages/adapter-core` (`@jarvis/adapter-core`)                                                                                           | Ports, Registry, Timeout/Retry/Breaker, Health, Mapping-Helfer. Doku: `docs/ADAPTER_SDK.md`.           |
-| 7   | Conformance Tests                   | `packages/adapter-testkit` (`@jarvis/adapter-testkit`), Runner `packages/adapter-testkit/scripts/run-conformance.mjs`                      | Ausführen: `pnpm test:conformance`. Doku: `docs/ADAPTER_CONFORMANCE.md`.                               |
+| 2   | Friday Control API                  | `apps/control-api` (Quellcode in `src/`, Bundle `dist/main.js` über `tsup`)                                                                | 122 Operationen, Routentabelle generiert nach `src/http/route-table.generated.ts`.                     |
+| 3   | OpenAPI Contract                    | `packages/contracts/openapi/friday-api.yaml` (OpenAPI 3.1.1), gebündelt nach `packages/contracts/dist/friday-api.bundled.yaml`             | Quelle der Wahrheit für REST. Schemas unter `packages/contracts/schemas/`.                             |
+| 4   | AsyncAPI Contract                   | `packages/contracts/asyncapi/friday-events.yaml` (AsyncAPI 3.1.0)                                                                          | 44 Ereignistypen (`friday.*`), WebSocket `/api/v1/events`.                                             |
+| 5   | Generated SDK                       | `packages/generated-sdk` (`@friday/sdk`), generiert nach `src/generated/`                                                                  | Nie von Hand ändern. Neu erzeugen: `pnpm contracts:generate`.                                          |
+| 6   | Adapter SDK                         | `packages/adapter-core` (`@friday/adapter-core`)                                                                                           | Ports, Registry, Timeout/Retry/Breaker, Health, Mapping-Helfer. Doku: `docs/ADAPTER_SDK.md`.           |
+| 7   | Conformance Tests                   | `packages/adapter-testkit` (`@friday/adapter-testkit`), Runner `packages/adapter-testkit/scripts/run-conformance.mjs`                      | Ausführen: `pnpm test:conformance`. Doku: `docs/ADAPTER_CONFORMANCE.md`.                               |
 | 8   | Beispieladapter                     | `adapters/example-http` (Kategorie `tasks`, fiktive REST-API), Vorlage `packages/adapter-core/template`                                    | Referenz mit Polling, Mutationen und Idempotenz; Vorlage mit nummerierten Schritten.                   |
 | 9   | Adapter-Konfigurationsschema        | `packages/config/src/schemas/adapters.schema.json` und `dashboard.schema.json`; je Adapter ein JSON Schema in `adapters/*/src/manifest.ts` | Die Konfiguration wird beim Start gegen die Schemas geprüft.                                           |
 | 10  | Mock-Szenario-Konsole               | CLI `apps/mock-console` (`pnpm scenario -- …`), Web-Seite `apps/web/src/app/(dashboard)/dev/scenarios`, API `/api/v1/dev/*`                | Nur mit `dataMode: mock` und `dev.scenarioConsole: true`.                                              |
@@ -40,7 +40,7 @@ cp -r packages/adapter-core/template adapters/things-http          # POSIX
 # PowerShell: Copy-Item -Recurse packages/adapter-core/template adapters/things-http
 ```
 
-In `adapters/things-http/package.json` den Namen auf `@jarvis/adapter-things-http` setzen (steht schon so in der Vorlage), dann
+In `adapters/things-http/package.json` den Namen auf `@friday/adapter-things-http` setzen (steht schon so in der Vorlage), dann
 im Root `pnpm install`. Die Vorlage liegt außerhalb des Workspace-Musters (`adapters/*`), wird also erst nach dem Kopieren gebaut
 und getestet. Für Polling, Events und Mutationen zusätzlich `adapters/example-http/src/adapter.ts` lesen.
 
@@ -50,7 +50,7 @@ Datei: `adapters/things-http/src/index.ts` (Vorlage) oder `src/manifest.ts` (Mus
 
 - `id`: Muster `^[a-z0-9][a-z0-9-]*$`, identisch mit dem Provider-Schlüssel in der Allowlist (Schritt 9).
 - `category`: eine der Kategorien aus `packages/config` (`tasks`, `activity`, `memory`, `agents`, `voice`, `system`, ...).
-- `contractVersion: CONTRACT_VERSION` (aus `@jarvis/sdk`), `apiVersion: "v1"`.
+- `contractVersion: CONTRACT_VERSION` (aus `@friday/sdk`), `apiVersion: "v1"`.
 - `capabilities`: nur, was umgesetzt ist. Zuerst `<modul>.read`.
 - `configSchemaRef` muss gleich der `$id` des Config-Schemas sein.
 - `secretFields`: Namen der Secret-Felder (Beispiel: `["apiToken"]`).
@@ -83,12 +83,12 @@ prüft beide Richtungen (Prüfpunkt 3).
 - Port-Methoden über `createHttpClient` (Timeout, Fehlercodes nach ADAPTER_SDK §3, Redaktion). Mutationen weiterhin nur mit
   Idempotency-Key wiederholen; `Idempotency-Key` und `If-Match` an das Fremdsystem durchreichen (Muster `example-http`).
 
-Typen kommen ausschließlich aus `@jarvis/sdk` (`Task`, `TaskResponse`, ...). Keine eigenen DTOs.
+Typen kommen ausschließlich aus `@friday/sdk` (`Task`, `TaskResponse`, ...). Keine eigenen DTOs.
 
 ### Schritt 7: Events mappen (PLAN 7)
 
 - Fremdereignisse mit `defineEventMapper({ name, toCanonical })` in `{ type, subject, data }` übersetzen. Typ und `data` werden gegen
-  die AsyncAPI-Ereignisse geprüft (`JARVIS_EVENT_DATA_SCHEMA_IDS`). `null` verwirft ein Ereignis bewusst.
+  die AsyncAPI-Ereignisse geprüft (`FRIDAY_EVENT_DATA_SCHEMA_IDS`). `null` verwirft ein Ereignis bewusst.
 - Bei Polling den Cursor erst nach erfolgreichem `emit` weiterschieben. Sonst gehen Ereignisse verloren oder entstehen Dubletten
   (Prüfpunkt 18). Muster: `pollEvents()` in `adapters/example-http/src/adapter.ts`.
 - Eine `*.stream`-Capability nur deklarieren, wenn `pollEvents()` implementiert ist.
@@ -114,19 +114,19 @@ Drei Stellen, alle im Backend:
 
    ```yaml
    allowlist:
-     things-http: "@jarvis/adapter-things-http"
+     things-http: "@friday/adapter-things-http"
    ```
 
    Provider, die nicht in der Allowlist stehen, werden beim Start abgelehnt
    (`"<provider>" is not in the adapter allowlist`).
 
-2. **Paket einbinden**: `"@jarvis/adapter-things-http": "workspace:*"` in `apps/control-api/package.json`, danach `pnpm install`.
+2. **Paket einbinden**: `"@friday/adapter-things-http": "workspace:*"` in `apps/control-api/package.json`, danach `pnpm install`.
 
 3. **Factory registrieren**: In `apps/control-api/src/runtime/adapter-wiring.ts` das Factory-Objekt importieren und in
    `packageFactories()` unter dem Paketnamen eintragen:
 
    ```ts
-   "@jarvis/adapter-things-http": [thingsFactory],
+   "@friday/adapter-things-http": [thingsFactory],
    ```
 
    Die Control API bündelt die Factories statisch (kein dynamischer Import). Ein Paket, das in der Allowlist steht, aber hier fehlt,
@@ -174,7 +174,7 @@ oder ausdrücklich als Annahme markiert.
 | `hermes-tasks`      | `tasks`    | `adapters/hermes`       | `tasks.read`, `tasks.create`, `tasks.update`, `tasks.stream` | `tasks.cancel`, `tasks.retry`, `tasks.pause`, `tasks.resume`: Abbrechen nur aus dem Quelltext (`PATCH status=archived`), Wiederholen nur teilweise, Pausieren hat kein Hermes-Konzept; nichts davon live getestet                       | Verifiziert gegen Quellcode `0e427d7` und eine laufende Instanz (Kanban-REST, WebSocket mit `since`, 401-Verhalten). Annahme: Prioritätsabbildung, `failed`-Ableitung, Ereignis-Typen über Versionen.             |
 | `hermes-activity`   | `activity` | `adapters/hermes`       | `activity.read`, `activity.stream`, `activity.backfill`      | keine Mutationen                                                                                                                                                                                                                        | Sitzungen und Nachrichten belegt. Inhalte und Tool-Argumente werden bewusst nicht übernommen.                                                                                                                     |
 | `hermes-agents`     | `agents`   | `adapters/hermes`       | `agents.read`                                                | `agents.pause`, `agents.resume`, `agents.stop`, `agents.assignTask`: keine belegte Schnittstelle. Zuweisen läuft über `tasks.update` mit `agentId`.                                                                                     | Profile, Assignees und Worker belegt. `starting`, `paused`, `error` und der Reasoning-Level sind nicht ableitbar.                                                                                                 |
-| `jarvis-voice-http` | `voice`    | `adapters/voice-http`   | `voice.read`                                                 | `voice.test`, `voice.stop`: der Dienst hat keine Steuerschnittstelle (kein POST). `voice.enroll`: läuft in `voice_setup.py`, nicht über HTTP. Geräte, Profile und Metriken: keine Datenquelle, leere Antworten mit Freshness `unknown`. | Status-JSON (ein Handler, Pfad egal) statisch gegen `jarvis_voice.py` geprüft; Dienst selbst nicht ausgeführt. Annahme: Wake Phrase, Engine-Namen, Erreichbarkeit des llama-servers (503 beim Laden), Inputpegel. |
+| `friday-voice-http` | `voice`    | `adapters/voice-http`   | `voice.read`                                                 | `voice.test`, `voice.stop`: der Dienst hat keine Steuerschnittstelle (kein POST). `voice.enroll`: läuft in `voice_setup.py`, nicht über HTTP. Geräte, Profile und Metriken: keine Datenquelle, leere Antworten mit Freshness `unknown`. | Status-JSON (ein Handler, Pfad egal) statisch gegen `friday_voice.py` geprüft; Dienst selbst nicht ausgeführt. Annahme: Wake Phrase, Engine-Namen, Erreichbarkeit des llama-servers (503 beim Laden), Inputpegel. |
 | `local-system`      | `system`   | `adapters/system-local` | `system.read`, `system.healthcheck`                          | `system.restartAdapter`, `system.openLogs`: deklariert der Adapter nicht. Die Control API stellt beide selbst bereit (nur `owner`).                                                                                                     | Host-Metriken (CPU, RAM, Speicher), Dienstprobes, Modelllisten. Annahme: Qwen-`/health`, Hermes-Dashboard-`/api/health` mit Auth, lokalisierte `wsl.exe`-Ausgaben, `netstat -e` außerhalb Englisch/Deutsch.       |
 | `mock-*`            | alle       | `adapters/mock`         | alle Port-Methoden                                           | –                                                                                                                                                                                                                                       | Vollständig, Standard in `mock`.                                                                                                                                                                                  |
 
@@ -193,9 +193,9 @@ Der Installer richtet die Dienste auf Loopback-Ports ein. Das Command Center ver
 | ----- | ------------------------------------------------- | ------------------------------------------------------------- |
 | 3100  | Command Center (Control API und Web, eine Origin) | Browser                                                       |
 | 43691 | Hermes-Dashboard (Kanban, Profile, Status)        | `hermes-tasks`, `hermes-activity`, `hermes-agents`            |
-| 43692 | Qwen3 (llama-server, Router-Alias `qwen3-router`) | `jarvis-voice-http`, `local-system`                           |
+| 43692 | Qwen3 (llama-server, Router-Alias `qwen3-router`) | `friday-voice-http`, `local-system`                           |
 | 43693 | Hermes-API-Server (Bearer-Key)                    | `hermes-activity`, `hermes-agents` (optional), `local-system` |
-| 43694 | Voice-Statusserver                                | `jarvis-voice-http`, `local-system`                           |
+| 43694 | Voice-Statusserver                                | `friday-voice-http`, `local-system`                           |
 
 Port 43699 gehört nur dem Fake-Steuerendpunkt aus Abschnitt 5, nicht dem Produktivbetrieb.
 
@@ -206,7 +206,7 @@ cp config/dashboard.hybrid.example.yaml config/dashboard.yaml   # PowerShell: co
 cp config/adapters.hybrid.example.yaml config/adapters.yaml
 ```
 
-Pfade in `dashboard.yaml` sind relativ zum Config-Verzeichnis (`JARVIS_CONFIG_DIR`, Standard `<Projektwurzel>/config`).
+Pfade in `dashboard.yaml` sind relativ zum Config-Verzeichnis (`FRIDAY_CONFIG_DIR`, Standard `<Projektwurzel>/config`).
 Für den Vollbetrieb gibt es zusätzlich `config/adapters.live.example.yaml` und `config/dashboard.live.example.yaml` (nur konfigurierte
 Kategorien aktiv). Fehlt `config/adapters.yaml`, läuft im Modus `hybrid` jede Kategorie als `mock-*`; im Modus `live` ist sie dann deaktiviert.
 
@@ -214,24 +214,24 @@ Kategorien aktiv). Fehlt `config/adapters.yaml`, läuft im Modus `hybrid` jede K
 
 | Schema                  | Beispiel                                         | Verhalten                                                                                                                                                                                   |
 | ----------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `file:<absoluter Pfad>` | `apiKey: "file:C:/Jarvis/config/hermes_api.key"` | Wird bei jedem Zugriff serverseitig gelesen (Schlüsseltausch wirkt sofort). BOM und umgebende Leerzeichen werden entfernt. Der Inhalt wird nie ausgegeben. Relative Pfade werden abgelehnt. |
+| `file:<absoluter Pfad>` | `apiKey: "file:C:/Friday/config/hermes_api.key"` | Wird bei jedem Zugriff serverseitig gelesen (Schlüsseltausch wirkt sofort). BOM und umgebende Leerzeichen werden entfernt. Der Inhalt wird nie ausgegeben. Relative Pfade werden abgelehnt. |
 | `env:NAME`              | `apiToken: env:THINGS_API_TOKEN`                 | Aus der Umgebung (auch aus `.env` im Projektwurzelverzeichnis, geladen über `process.loadEnvFile`).                                                                                         |
-| `wincred:ZIEL`          | `password: wincred:jarvis-caldav`                | Windows Credential Manager über das PowerShell-Modul `CredentialManager`. Nur Windows.                                                                                                      |
+| `wincred:ZIEL`          | `password: wincred:friday-caldav`                | Windows Credential Manager über das PowerShell-Modul `CredentialManager`. Nur Windows.                                                                                                      |
 
 Ein Klartextwert in einem Feld mit Credential-Namen (`token`, `apiKey`, `password` ...) wird beim Laden abgelehnt. Die Hermes-Vorlage
-nutzt `HERMES_API_KEY_FILE` als Override für den Pfad der Schlüsseldatei (`${HERMES_API_KEY_FILE:-C:/Jarvis/config/hermes_api.key}`).
+nutzt `HERMES_API_KEY_FILE` als Override für den Pfad der Schlüsseldatei (`${HERMES_API_KEY_FILE:-C:/Friday/config/hermes_api.key}`).
 
 **Owner-Passwort.** Ohne auflösbaren Owner-Hash schlägt jede Anmeldung fehl. Den Dev-Login (`dev-owner`, Passwort `dev`) gibt es nur im
 Mock-Modus auf Loopback. Hash erzeugen (interaktive Eingabe, mindestens 12 Zeichen):
 
 ```bash
-pnpm --filter @jarvis/auth hash-password
+pnpm --filter @friday/auth hash-password
 ```
 
 Das Ergebnis in `.env` eintragen (in Single Quotes, der Hash enthält `$`):
 
 ```text
-JARVIS_OWNER_PASSWORD_HASH='...'
+FRIDAY_OWNER_PASSWORD_HASH='...'
 ```
 
 **Starten.**
@@ -239,7 +239,7 @@ JARVIS_OWNER_PASSWORD_HASH='...'
 ```bash
 pnpm install
 pnpm build:app          # baut apps/web (statischer Export) und apps/control-api (dist/main.js)
-pnpm start:hybrid       # setzt JARVIS_DATA_MODE=hybrid und startet dist/main.js
+pnpm start:hybrid       # setzt FRIDAY_DATA_MODE=hybrid und startet dist/main.js
 ```
 
 `pnpm start` startet ohne Modus-Override und nimmt `dataMode` aus `dashboard.yaml`. Der Server bindet nur an `127.0.0.1`
@@ -285,23 +285,23 @@ pnpm test:integration          # Playwright, playwright.integration.config.ts
 Der Lauf startet `tests/integration/stack.ts`: Fake-Upstreams, Konfiguration aus den Hybrid-Vorlagen, dann die gebaute Control API
 im Hybrid-Modus auf 127.0.0.1:3100. Die Spezifikation `tests/integration/hybrid.spec.ts` umfasst 9 Tests: Übersicht, Aufgaben, Agenten,
 Sprache, System sowie Ausfall und Wiederanlauf von Voice und Hermes (jeweils nur das betroffene Modul ist offline).
-Umgebungsvariablen: `JARVIS_INTEGRATION_DIR`, `JARVIS_EVIDENCE_DIR`, `JARVIS_CHROMIUM` (Browserpfad). Ergebnis und Screenshots:
+Umgebungsvariablen: `FRIDAY_INTEGRATION_DIR`, `FRIDAY_EVIDENCE_DIR`, `FRIDAY_CHROMIUM` (Browserpfad). Ergebnis und Screenshots:
 [`docs/evidence/integration/README.md`](evidence/integration/README.md).
 
 Zusätzlich prüfen Unit-Tests ohne Browser die Registrierung, Mock-Fallbacks, `file:`-Secrets und das Schwärzen der Logs:
 
 ```bash
-pnpm --filter @jarvis/control-api test          # u. a. test/real-adapters.test.ts
+pnpm --filter @friday/control-api test          # u. a. test/real-adapters.test.ts
 ```
 
 ## 6. Fehlersuche
 
 | Symptom                                                                              | Ursache                                                                                                                                      | Lösung                                                                                                                                          |
 | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `"<provider>" is not in the adapter allowlist` beim Start                            | Provider fehlt unter `allowlist` in `config/adapters.yaml`                                                                                   | Eintrag `<provider>: "@jarvis/<paket>"` ergänzen.                                                                                               |
+| `"<provider>" is not in the adapter allowlist` beim Start                            | Provider fehlt unter `allowlist` in `config/adapters.yaml`                                                                                   | Eintrag `<provider>: "@friday/<paket>"` ergänzen.                                                                                               |
 | Warnung „Provider ist in der Allowlist, aber nicht im Build enthalten“               | Factory fehlt in `packageFactories()` (`apps/control-api/src/runtime/adapter-wiring.ts`) oder Paket fehlt in `apps/control-api/package.json` | Schritt 9.2 und 9.3 aus Abschnitt 2 nachholen, `pnpm install`, neu bauen.                                                                       |
 | Warnung `adapters.<cat>.provider "…" ignored: data mode is "mock"`                   | Provider wird im Modus `mock` ignoriert                                                                                                      | `dataMode: hybrid` oder `live` in `config/dashboard.yaml` setzen.                                                                               |
-| `invalid secret reference (expected env:NAME, file:ABSOLUTE_PATH or wincred:TARGET)` | Tippfehler, relativer `file:`-Pfad oder fehlender Präfix                                                                                     | Absoluten Pfad mit Schrägstrichen verwenden, z. B. `file:C:/Jarvis/config/hermes_api.key`.                                                      |
+| `invalid secret reference (expected env:NAME, file:ABSOLUTE_PATH or wincred:TARGET)` | Tippfehler, relativer `file:`-Pfad oder fehlender Präfix                                                                                     | Absoluten Pfad mit Schrägstrichen verwenden, z. B. `file:C:/Friday/config/hermes_api.key`.                                                      |
 | `credential-looking field must be a secret reference`                                | Klartextwert in einem Feld wie `apiKey` oder `password`                                                                                      | Durch `file:`, `env:` oder `wincred:` ersetzen.                                                                                                 |
 | Modul zeigt „Nicht verbunden“, Health `offline`, `ECONNREFUSED`                      | Dienst gestoppt oder Port falsch                                                                                                             | Port prüfen (`curl` aus Abschnitt 4). Hermes: `http://127.0.0.1:43693/health`. Voice: `http://127.0.0.1:43694/`.                                |
 | Voice-Port 43694 bleibt zu, kurz nach dem Start                                      | Dienst lädt die Modelle (bis ca. 3 Minuten). Der Status-Server öffnet den Port erst danach.                                                  | Warten. Der Adapter meldet „lädt noch Modelle oder gestoppt“, weil beides von außen nicht zu unterscheiden ist.                                 |
@@ -310,15 +310,15 @@ pnpm --filter @jarvis/control-api test          # u. a. test/real-adapters.test.
 | Hermes-Aufrufe `UNAUTHENTICATED` (401)                                               | API-Schlüssel falsch oder rotiert                                                                                                            | Inhalt der Schlüsseldatei prüfen. `file:` wird je Aufruf gelesen, ein Neustart ist nicht nötig.                                                 |
 | `VALIDATION_FAILED` bei Aufgaben oder Agenten                                        | Unbekannter Hermes-Status oder abweichende Hermes-Version                                                                                    | Log prüfen, Abbildung in `docs/MAPPING/hermes.md` gegenprüfen. Die Liste schlägt bewusst fehl, statt falsch einzusortieren.                     |
 | `409 CONFLICT` bei `PATCH` einer Aufgabe                                             | `If-Match` veraltet (Hermes kennt keine Revision, Version = letzter Zeitstempel)                                                             | Aufgabe neu laden und erneut ändern.                                                                                                            |
-| `403 CSRF_INVALID`                                                                   | `X-CSRF-Token` fehlt oder passt nicht zur Sitzung                                                                                            | Token aus dem Cookie `jarvis_csrf` in den Header `X-CSRF-Token` übernehmen.                                                                     |
+| `403 CSRF_INVALID`                                                                   | `X-CSRF-Token` fehlt oder passt nicht zur Sitzung                                                                                            | Token aus dem Cookie `friday_csrf` in den Header `X-CSRF-Token` übernehmen.                                                                     |
 | `403` mit `host_not_allowed`                                                         | Host-Header ist nicht `localhost`, `127.0.0.1`, `[::1]` oder der konfigurierte Host                                                          | Über `http://127.0.0.1:3100` aufrufen.                                                                                                          |
 | `403` mit `origin_not_allowed`                                                       | Schreibende Anfrage von fremder Origin                                                                                                       | Aus der eigenen Oberfläche aufrufen. Anfragen ohne `Origin`-Header (z. B. `curl`) sind erlaubt.                                                 |
-| Anmeldung schlägt immer fehl (401)                                                   | `JARVIS_OWNER_PASSWORD_HASH` fehlt oder der Verweis ist nicht auflösbar                                                                      | Hash erzeugen (Abschnitt 4), in `.env` eintragen, Server neu starten.                                                                           |
+| Anmeldung schlägt immer fehl (401)                                                   | `FRIDAY_OWNER_PASSWORD_HASH` fehlt oder der Verweis ist nicht auflösbar                                                                      | Hash erzeugen (Abschnitt 4), in `.env` eintragen, Server neu starten.                                                                           |
 | `429 RATE_LIMITED` beim Anmelden                                                     | 5 Fehlversuche je Benutzer und IP oder 20 je IP im Fenster von 15 Minuten                                                                    | `Retry-After` abwarten.                                                                                                                         |
 | `/health` meldet `audit-chain` als `offline`                                         | Audit-Kette gebrochen (`truncated`, `head_mismatch` oder `anchor_tampered`)                                                                  | Ursache prüfen. Nach bewusster Wiederherstellung aus einem Backup `audit-head.json` vor dem Start löschen (siehe `apps/control-api/README.md`). |
 | Mehrfache Wiederholungen bei Ausfällen (Last am Dienst)                              | Behoben: Registry-Retry ist standardmäßig 1 Versuch (`retry.maxAttempts: 1`), nur der Adapter-HTTP-Client wiederholt                         | Bei Bedarf `retry: { maxAttempts: N }` pro Kategorie setzen; Adapter-Clients haben eigene `maxAttempts`                                         |
 | `Control API (pnpm build:app) fehlt` beim Integrationstest                           | Build fehlt                                                                                                                                  | `pnpm build:app` vor `pnpm test:integration` ausführen.                                                                                         |
-| Playwright findet keinen Browser                                                     | Chromium nicht installiert                                                                                                                   | `pnpm exec playwright install chromium` oder `JARVIS_CHROMIUM` auf eine vorhandene Chrome-Binary setzen.                                        |
+| Playwright findet keinen Browser                                                     | Chromium nicht installiert                                                                                                                   | `pnpm exec playwright install chromium` oder `FRIDAY_CHROMIUM` auf eine vorhandene Chrome-Binary setzen.                                        |
 | Orb nicht sichtbar, leere Fläche in Headless-Browsern                                | WebGL ohne Software-Renderer                                                                                                                 | Flags `--use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist`. Ohne WebGL zeigt die Oberfläche den 2D-Fallback.            |
 | `pnpm`-Befehle auf Windows: „Der Befehl node … konnte nicht gefunden werden“         | Anführungszeichen im PATH (nur auf dem Entwicklungsrechner)                                                                                  | `$env:Path = $env:Path.Replace('"','')` in PowerShell vor dem Befehl.                                                                           |
 
@@ -326,8 +326,8 @@ pnpm --filter @jarvis/control-api test          # u. a. test/real-adapters.test.
 
 - Die echten Dienste (Hermes, Voice, Qwen) sind in dieser Übergabe nicht live gestartet. Belegt ist die Verdrahtung gegen Fakes und
   der Stand laut `docs/PROJECT_STATUS.md`.
-- Der Windows-Lauf (PowerShell, WSL-Portweiterleitung, Dienststart) ist offen. Ziel ist `C:\Jarvis` (Installer) bzw.
-  `D:\Jarvis\dashboard` (Planpfad), siehe `docs/DEPLOYMENT.md` §1.
+- Der Windows-Lauf (PowerShell, WSL-Portweiterleitung, Dienststart) ist offen. Ziel ist `C:\Friday` (Installer) bzw.
+  `D:\Friday\dashboard` (Planpfad), siehe `docs/DEPLOYMENT.md` §1.
 - Die Adapter-Factories sind statisch in der Control API eingetragen. Ein neuer Adapter braucht deshalb einen Eintrag im Backend,
   nicht nur die Allowlist.
 - Mehrfachwiederholungen (Adapter-HTTP-Client und Registry) sind nicht aufeinander abgestimmt (siehe Fehlersuche).

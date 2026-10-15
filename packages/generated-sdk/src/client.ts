@@ -1,5 +1,5 @@
 import createClient, { type Middleware } from "openapi-fetch";
-import { errorFromResponse, isJarvisApiError, networkError } from "./errors";
+import { errorFromResponse, isFridayApiError, networkError } from "./errors";
 import type { paths } from "./generated/openapi";
 
 const MUTATING_METHODS: ReadonlySet<string> = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -19,7 +19,7 @@ export const createCorrelationId = (): string => `corr_${randomSuffix(26)}`;
 /** Key for the Idempotency-Key header of critical POSTs (one key per user intent, reused on retries). */
 export const createIdempotencyKey = (): string => `idem_${randomSuffix(26)}`;
 
-export interface JarvisClientOptions {
+export interface FridayClientOptions {
   /** API origin; empty string = same origin (Next rewrite in dev, static hosting in production). */
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
@@ -29,7 +29,7 @@ export interface JarvisClientOptions {
   getCorrelationId?: () => string;
 }
 
-export function createJarvisClient(options: JarvisClientOptions = {}) {
+export function createFridayClient(options: FridayClientOptions = {}) {
   const { baseUrl = "", fetch: customFetch, getCsrfToken, getCorrelationId } = options;
   // Node-based fetch implementations (tests, SSR, jsdom) cannot build a Request from a relative URL.
   const effectiveBaseUrl =
@@ -53,7 +53,7 @@ export function createJarvisClient(options: JarvisClientOptions = {}) {
       throw await errorFromResponse(response, correlationIds.get(request) ?? createCorrelationId());
     },
     onError({ request, error }) {
-      if (isJarvisApiError(error)) return error;
+      if (isFridayApiError(error)) return error;
       return networkError(error, correlationIds.get(request) ?? createCorrelationId());
     },
   };
@@ -67,4 +67,4 @@ export function createJarvisClient(options: JarvisClientOptions = {}) {
   return client;
 }
 
-export type JarvisClient = ReturnType<typeof createJarvisClient>;
+export type FridayClient = ReturnType<typeof createFridayClient>;

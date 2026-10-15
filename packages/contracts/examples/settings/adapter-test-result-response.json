@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/adapter-test-result-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/settings/adapter-test-result-response.schema.json",
+  "contractVersion": "2.0.0",
   "data": {
     "adapterId": "hermes-tasks",
     "success": true,

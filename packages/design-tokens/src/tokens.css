@@ -1,6 +1,6 @@
 /*
- * @jarvis/design-tokens — tokens.css
- * §24.15 tokens are the binding base (--jarvis-*). Everything prefixed --jv-* is derived
+ * @friday/design-tokens — tokens.css
+ * §24.15 tokens are the binding base (--friday-*). Everything prefixed --jv-* is derived
  * from them or is a structural token (spacing, cut sizes, type, z-index, motion).
  * All values are themeable at runtime via applyTheme() (no rebuild).
  */
@@ -9,81 +9,81 @@
   color-scheme: dark;
 
   /* ── §24.15 binding tokens ─────────────────────────────────────────── */
-  --jarvis-bg-0: #01060c;
-  --jarvis-bg-1: #03111d;
-  --jarvis-bg-2: #061a2a;
+  --friday-bg-0: #01060c;
+  --friday-bg-1: #03111d;
+  --friday-bg-2: #061a2a;
 
-  --jarvis-panel-0: rgba(3, 15, 27, 0.92);
-  --jarvis-panel-1: rgba(5, 24, 39, 0.84);
-  --jarvis-panel-active: rgba(6, 36, 54, 0.92);
+  --friday-panel-0: rgba(3, 15, 27, 0.92);
+  --friday-panel-1: rgba(5, 24, 39, 0.84);
+  --friday-panel-active: rgba(6, 36, 54, 0.92);
 
-  --jarvis-border-dim: rgba(30, 178, 218, 0.2);
-  --jarvis-border: rgba(38, 215, 255, 0.42);
-  --jarvis-border-active: rgba(79, 232, 255, 0.82);
+  --friday-border-dim: rgba(30, 178, 218, 0.2);
+  --friday-border: rgba(38, 215, 255, 0.42);
+  --friday-border-active: rgba(79, 232, 255, 0.82);
 
-  --jarvis-cyan: #27dcff;
-  --jarvis-cyan-bright: #7af3ff;
-  --jarvis-teal: #20e0d0;
-  --jarvis-blue: #168cff;
+  --friday-cyan: #27dcff;
+  --friday-cyan-bright: #7af3ff;
+  --friday-teal: #20e0d0;
+  --friday-blue: #168cff;
 
-  --jarvis-orb-gold: #ffb52e;
-  --jarvis-orb-orange: #ff7a00;
-  --jarvis-orb-hot: #fff2ba;
-  --jarvis-orb-deep: #a94c00;
+  --friday-orb-gold: #ffb52e;
+  --friday-orb-orange: #ff7a00;
+  --friday-orb-hot: #fff2ba;
+  --friday-orb-deep: #a94c00;
 
-  --jarvis-success: #42efb0;
-  --jarvis-warning: #ffc857;
-  --jarvis-error: #ff4d54;
-  --jarvis-violet: #9b7bff;
+  --friday-success: #42efb0;
+  --friday-warning: #ffc857;
+  --friday-error: #ff4d54;
+  --friday-violet: #9b7bff;
 
-  --jarvis-text: #e8fbff;
-  --jarvis-text-strong: #ffffff;
-  --jarvis-muted: #7fa6b8;
-  --jarvis-disabled: #405d6b;
+  --friday-text: #e8fbff;
+  --friday-text-strong: #ffffff;
+  --friday-muted: #7fa6b8;
+  --friday-disabled: #405d6b;
 
-  --jarvis-grid: rgba(39, 220, 255, 0.055);
-  --jarvis-focus: #7af3ff;
+  --friday-grid: rgba(39, 220, 255, 0.055);
+  --friday-focus: #7af3ff;
 
   /* ── Semantic tones (icon tiles, chips, tags) ──────────────────────── */
   /* Tint = background, border = 1px line, glow = restrained halo. Derived via color-mix so
      a theme that changes the base colour re-tints everything. */
-  --jarvis-tone-cyan: var(--jarvis-cyan);
-  --jarvis-tone-green: var(--jarvis-success);
-  --jarvis-tone-violet: var(--jarvis-violet);
-  --jarvis-tone-amber: var(--jarvis-warning);
-  --jarvis-tone-red: var(--jarvis-error);
-  --jarvis-tone-teal: var(--jarvis-teal);
-  --jarvis-tone-blue: var(--jarvis-blue);
-  --jarvis-tone-gold: var(--jarvis-orb-gold);
-  --jarvis-tone-muted: var(--jarvis-muted);
+  --friday-tone-cyan: var(--friday-cyan);
+  --friday-tone-green: var(--friday-success);
+  --friday-tone-violet: var(--friday-violet);
+  --friday-tone-amber: var(--friday-warning);
+  --friday-tone-red: var(--friday-error);
+  --friday-tone-teal: var(--friday-teal);
+  --friday-tone-blue: var(--friday-blue);
+  --friday-tone-gold: var(--friday-orb-gold);
+  --friday-tone-muted: var(--friday-muted);
 
-  --jarvis-tint-cyan-bg: color-mix(in srgb, var(--jarvis-tone-cyan) 13%, transparent);
-  --jarvis-tint-cyan-border: color-mix(in srgb, var(--jarvis-tone-cyan) 46%, transparent);
-  --jarvis-tint-cyan-glow: color-mix(in srgb, var(--jarvis-tone-cyan) 34%, transparent);
-  --jarvis-tint-green-bg: color-mix(in srgb, var(--jarvis-tone-green) 12%, transparent);
-  --jarvis-tint-green-border: color-mix(in srgb, var(--jarvis-tone-green) 44%, transparent);
-  --jarvis-tint-green-glow: color-mix(in srgb, var(--jarvis-tone-green) 32%, transparent);
-  --jarvis-tint-violet-bg: color-mix(in srgb, var(--jarvis-tone-violet) 14%, transparent);
-  --jarvis-tint-violet-border: color-mix(in srgb, var(--jarvis-tone-violet) 48%, transparent);
-  --jarvis-tint-violet-glow: color-mix(in srgb, var(--jarvis-tone-violet) 34%, transparent);
-  --jarvis-tint-amber-bg: color-mix(in srgb, var(--jarvis-tone-amber) 12%, transparent);
-  --jarvis-tint-amber-border: color-mix(in srgb, var(--jarvis-tone-amber) 46%, transparent);
-  --jarvis-tint-amber-glow: color-mix(in srgb, var(--jarvis-tone-amber) 32%, transparent);
-  --jarvis-tint-red-bg: color-mix(in srgb, var(--jarvis-tone-red) 13%, transparent);
-  --jarvis-tint-red-border: color-mix(in srgb, var(--jarvis-tone-red) 50%, transparent);
-  --jarvis-tint-red-glow: color-mix(in srgb, var(--jarvis-tone-red) 36%, transparent);
-  --jarvis-tint-teal-bg: color-mix(in srgb, var(--jarvis-tone-teal) 12%, transparent);
-  --jarvis-tint-teal-border: color-mix(in srgb, var(--jarvis-tone-teal) 44%, transparent);
-  --jarvis-tint-teal-glow: color-mix(in srgb, var(--jarvis-tone-teal) 32%, transparent);
-  --jarvis-tint-blue-bg: color-mix(in srgb, var(--jarvis-tone-blue) 16%, transparent);
-  --jarvis-tint-blue-border: color-mix(in srgb, var(--jarvis-tone-blue) 52%, transparent);
-  --jarvis-tint-blue-glow: color-mix(in srgb, var(--jarvis-tone-blue) 34%, transparent);
-  --jarvis-tint-gold-bg: color-mix(in srgb, var(--jarvis-tone-gold) 13%, transparent);
-  --jarvis-tint-gold-border: color-mix(in srgb, var(--jarvis-tone-gold) 50%, transparent);
-  --jarvis-tint-gold-glow: color-mix(in srgb, var(--jarvis-tone-gold) 38%, transparent);
-  --jarvis-tint-muted-bg: color-mix(in srgb, var(--jarvis-tone-muted) 10%, transparent);
-  --jarvis-tint-muted-border: color-mix(in srgb, var(--jarvis-tone-muted) 32%, transparent);
-  --jarvis-tint-muted-glow: transparent;
+  --friday-tint-cyan-bg: color-mix(in srgb, var(--friday-tone-cyan) 13%, transparent);
+  --friday-tint-cyan-border: color-mix(in srgb, var(--friday-tone-cyan) 46%, transparent);
+  --friday-tint-cyan-glow: color-mix(in srgb, var(--friday-tone-cyan) 34%, transparent);
+  --friday-tint-green-bg: color-mix(in srgb, var(--friday-tone-green) 12%, transparent);
+  --friday-tint-green-border: color-mix(in srgb, var(--friday-tone-green) 44%, transparent);
+  --friday-tint-green-glow: color-mix(in srgb, var(--friday-tone-green) 32%, transparent);
+  --friday-tint-violet-bg: color-mix(in srgb, var(--friday-tone-violet) 14%, transparent);
+  --friday-tint-violet-border: color-mix(in srgb, var(--friday-tone-violet) 48%, transparent);
+  --friday-tint-violet-glow: color-mix(in srgb, var(--friday-tone-violet) 34%, transparent);
+  --friday-tint-amber-bg: color-mix(in srgb, var(--friday-tone-amber) 12%, transparent);
+  --friday-tint-amber-border: color-mix(in srgb, var(--friday-tone-amber) 46%, transparent);
+  --friday-tint-amber-glow: color-mix(in srgb, var(--friday-tone-amber) 32%, transparent);
+  --friday-tint-red-bg: color-mix(in srgb, var(--friday-tone-red) 13%, transparent);
+  --friday-tint-red-border: color-mix(in srgb, var(--friday-tone-red) 50%, transparent);
+  --friday-tint-red-glow: color-mix(in srgb, var(--friday-tone-red) 36%, transparent);
+  --friday-tint-teal-bg: color-mix(in srgb, var(--friday-tone-teal) 12%, transparent);
+  --friday-tint-teal-border: color-mix(in srgb, var(--friday-tone-teal) 44%, transparent);
+  --friday-tint-teal-glow: color-mix(in srgb, var(--friday-tone-teal) 32%, transparent);
+  --friday-tint-blue-bg: color-mix(in srgb, var(--friday-tone-blue) 16%, transparent);
+  --friday-tint-blue-border: color-mix(in srgb, var(--friday-tone-blue) 52%, transparent);
+  --friday-tint-blue-glow: color-mix(in srgb, var(--friday-tone-blue) 34%, transparent);
+  --friday-tint-gold-bg: color-mix(in srgb, var(--friday-tone-gold) 13%, transparent);
+  --friday-tint-gold-border: color-mix(in srgb, var(--friday-tone-gold) 50%, transparent);
+  --friday-tint-gold-glow: color-mix(in srgb, var(--friday-tone-gold) 38%, transparent);
+  --friday-tint-muted-bg: color-mix(in srgb, var(--friday-tone-muted) 10%, transparent);
+  --friday-tint-muted-border: color-mix(in srgb, var(--friday-tone-muted) 32%, transparent);
+  --friday-tint-muted-glow: transparent;
 
   /* ── Spacing scale (4 px base) ─────────────────────────────────────── */
   --jv-space-0: 0;
@@ -147,13 +147,13 @@
   --jv-z-tooltip: 1300;
 
   /* ── Lines and glow ────────────────────────────────────────────────── */
-  --jv-line-hair: color-mix(in srgb, var(--jarvis-cyan) 9%, transparent);
-  --jv-line-soft: color-mix(in srgb, var(--jarvis-cyan) 19%, transparent);
-  --jv-row-bg: color-mix(in srgb, var(--jarvis-cyan) 5%, rgba(3, 15, 27, 0.55));
-  --jv-row-bg-hover: color-mix(in srgb, var(--jarvis-cyan) 8%, rgba(3, 15, 27, 0.7));
-  --jv-glow-cyan: 0 0 14px color-mix(in srgb, var(--jarvis-cyan) 30%, transparent);
-  --jv-glow-cyan-strong: 0 0 22px color-mix(in srgb, var(--jarvis-cyan) 46%, transparent);
-  --jv-glow-gold: 0 0 26px color-mix(in srgb, var(--jarvis-orb-gold) calc(34% * var(--jv-orb-intensity)), transparent);
+  --jv-line-hair: color-mix(in srgb, var(--friday-cyan) 9%, transparent);
+  --jv-line-soft: color-mix(in srgb, var(--friday-cyan) 19%, transparent);
+  --jv-row-bg: color-mix(in srgb, var(--friday-cyan) 5%, rgba(3, 15, 27, 0.55));
+  --jv-row-bg-hover: color-mix(in srgb, var(--friday-cyan) 8%, rgba(3, 15, 27, 0.7));
+  --jv-glow-cyan: 0 0 14px color-mix(in srgb, var(--friday-cyan) 30%, transparent);
+  --jv-glow-cyan-strong: 0 0 22px color-mix(in srgb, var(--friday-cyan) 46%, transparent);
+  --jv-glow-gold: 0 0 26px color-mix(in srgb, var(--friday-orb-gold) calc(34% * var(--jv-orb-intensity)), transparent);
   --jv-orb-intensity: 1;
   --jv-shadow-overlay: 0 24px 80px rgba(0, 0, 0, 0.7);
   --jv-scrim: rgba(0, 4, 9, 0.72);
@@ -229,7 +229,7 @@
 /* ── Background utilities (§24.3) ────────────────────────────────────── */
 /* Fine dot grid, ~24 px pitch. Hidden with [data-grid="off"] on <html>. */
 .jv-bg-grid {
-  background-image: radial-gradient(circle at 1px 1px, var(--jarvis-grid) 1.1px, transparent 1.5px);
+  background-image: radial-gradient(circle at 1px 1px, var(--friday-grid) 1.1px, transparent 1.5px);
   background-size: 24px 24px;
 }
 
@@ -242,21 +242,21 @@
   background:
     radial-gradient(
       ellipse 52% 46% at 50% 34%,
-      color-mix(in srgb, var(--jarvis-blue) 16%, transparent),
+      color-mix(in srgb, var(--friday-blue) 16%, transparent),
       transparent 72%
     ),
-    radial-gradient(ellipse 80% 60% at 50% 110%, color-mix(in srgb, var(--jarvis-cyan) 6%, transparent), transparent 70%),
-    linear-gradient(180deg, var(--jarvis-bg-1) 0%, var(--jarvis-bg-0) 100%);
+    radial-gradient(ellipse 80% 60% at 50% 110%, color-mix(in srgb, var(--friday-cyan) 6%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--friday-bg-1) 0%, var(--friday-bg-0) 100%);
 }
 
 /* Page stage = radial + grid combined. */
 .jv-bg-stage {
-  background-color: var(--jarvis-bg-0);
+  background-color: var(--friday-bg-0);
   background-image:
-    radial-gradient(circle at 1px 1px, var(--jarvis-grid) 1.1px, transparent 1.5px),
-    radial-gradient(ellipse 52% 46% at 50% 34%, color-mix(in srgb, var(--jarvis-blue) 16%, transparent), transparent 72%),
-    radial-gradient(ellipse 80% 60% at 50% 110%, color-mix(in srgb, var(--jarvis-cyan) 6%, transparent), transparent 70%),
-    linear-gradient(180deg, var(--jarvis-bg-1) 0%, var(--jarvis-bg-0) 100%);
+    radial-gradient(circle at 1px 1px, var(--friday-grid) 1.1px, transparent 1.5px),
+    radial-gradient(ellipse 52% 46% at 50% 34%, color-mix(in srgb, var(--friday-blue) 16%, transparent), transparent 72%),
+    radial-gradient(ellipse 80% 60% at 50% 110%, color-mix(in srgb, var(--friday-cyan) 6%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--friday-bg-1) 0%, var(--friday-bg-0) 100%);
   background-size:
     24px 24px,
     auto,
@@ -266,8 +266,8 @@
 
 :root[data-grid='off'] .jv-bg-stage {
   background-image:
-    radial-gradient(ellipse 52% 46% at 50% 34%, color-mix(in srgb, var(--jarvis-blue) 16%, transparent), transparent 72%),
-    radial-gradient(ellipse 80% 60% at 50% 110%, color-mix(in srgb, var(--jarvis-cyan) 6%, transparent), transparent 70%),
-    linear-gradient(180deg, var(--jarvis-bg-1) 0%, var(--jarvis-bg-0) 100%);
+    radial-gradient(ellipse 52% 46% at 50% 34%, color-mix(in srgb, var(--friday-blue) 16%, transparent), transparent 72%),
+    radial-gradient(ellipse 80% 60% at 50% 110%, color-mix(in srgb, var(--friday-cyan) 6%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--friday-bg-1) 0%, var(--friday-bg-0) 100%);
   background-size: auto;
 }

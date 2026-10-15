@@ -1,7 +1,7 @@
 "use client";
 
-import type { CommandHistoryEntry } from "@jarvis/sdk";
-import { CommandPalette, useToast, type CommandItem } from "@jarvis/ui";
+import type { CommandHistoryEntry } from "@friday/sdk";
+import { CommandPalette, useToast, type CommandItem } from "@friday/ui";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bot,
@@ -124,7 +124,7 @@ export function GlobalCommandPalette() {
 
   const groups = useMemo(
     () => ({
-      jarvis: t("palette.group.jarvis"),
+      friday: t("palette.group.friday"),
       actions: t("palette.group.actions"),
       nav: t("palette.group.navigation"),
       search: t("palette.group.search"),
@@ -151,7 +151,7 @@ export function GlobalCommandPalette() {
         label: text ? t("palette.ask.query", { query: text }) : t("palette.ask"),
         description: text ? undefined : t("palette.ask.hint"),
         icon: <MessageCircleQuestion {...ICON} />,
-        group: groups.jarvis,
+        group: groups.friday,
         keywords: [t("palette.ask"), "fragen", "ask", text],
         disabled: !canExecute || !text,
         disabledReason: !canExecute ? missing : t("palette.ask.hint"),
@@ -159,7 +159,7 @@ export function GlobalCommandPalette() {
       () => void run({ text, source: "palette" }),
     );
     add(
-      { id: "briefing", label: t("bottom.briefing"), icon: <Zap {...ICON} />, group: groups.jarvis, keywords: ["briefing", "zusammenfassung"], disabled: !canExecute, disabledReason: missing },
+      { id: "briefing", label: t("bottom.briefing"), icon: <Zap {...ICON} />, group: groups.friday, keywords: ["briefing", "zusammenfassung"], disabled: !canExecute, disabledReason: missing },
       () => void run({ text: EXECUTIVE_BRIEFING_COMMAND, source: "palette" }),
     );
 
@@ -287,7 +287,7 @@ export function GlobalCommandPalette() {
   ]);
 
   const groupOrder = useMemo(
-    () => (query.trim() ? [groups.jarvis, groups.search, groups.nav, groups.actions, groups.automations, groups.history] : [groups.jarvis, groups.actions, groups.nav, groups.automations, groups.history]),
+    () => (query.trim() ? [groups.friday, groups.search, groups.nav, groups.actions, groups.automations, groups.history] : [groups.friday, groups.actions, groups.nav, groups.automations, groups.history]),
     [groups, query],
   );
 

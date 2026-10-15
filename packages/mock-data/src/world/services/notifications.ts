@@ -4,7 +4,7 @@ import type {
   NotificationActionRequest,
   NotificationSnoozeRequest,
   Priority,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import type { TimerHandle } from "../../core/clock";
 import { conflict, notFound, validationFailed } from "../../core/errors";
 import { asList, clone, compareDesc, priorityRank, type Page } from "../../core/util";
@@ -153,7 +153,7 @@ export class NotificationService {
     this.w.state.notifications.push(notification);
     this.scheduleEscalation(notification);
     const correlationId = input.correlationId ?? this.w.correlationId();
-    this.w.emitFor("notifications", "jarvis.notification.created", notification, `notification/${notification.id}`, correlationId);
+    this.w.emitFor("notifications", "friday.notification.created", notification, `notification/${notification.id}`, correlationId);
     this.w.recordAudit({
       category: "system",
       action: "notification.created",
@@ -229,7 +229,7 @@ export class NotificationService {
           target.state = "sent";
           target.sentAt = this.w.nowIso();
           this.w.bump(current);
-          this.w.emitFor("notifications", "jarvis.notification.updated", current, `notification/${current.id}`);
+          this.w.emitFor("notifications", "friday.notification.updated", current, `notification/${current.id}`);
           this.w.refresh();
         }, delay),
       );
@@ -246,7 +246,7 @@ export class NotificationService {
       current.status = "open";
       current.snoozedUntil = null;
       this.w.bump(current);
-      this.w.emitFor("notifications", "jarvis.notification.updated", current, `notification/${current.id}`);
+      this.w.emitFor("notifications", "friday.notification.updated", current, `notification/${current.id}`);
       this.w.refresh();
     }, delay);
     this.timers.set(notification.id, [...(this.timers.get(notification.id) ?? []), handle]);
@@ -255,7 +255,7 @@ export class NotificationService {
   private commit(notification: Notification, ctx: OpContext | undefined, action: string, comment?: string): void {
     this.w.bump(notification);
     const correlationId = this.w.correlationId(ctx);
-    this.w.emitFor("notifications", "jarvis.notification.updated", notification, `notification/${notification.id}`, correlationId);
+    this.w.emitFor("notifications", "friday.notification.updated", notification, `notification/${notification.id}`, correlationId);
     this.w.recordAudit({
       category: "user_action",
       action,

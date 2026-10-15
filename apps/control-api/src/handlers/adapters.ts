@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type ActionResult, type AdapterLogEntry, type Freshness } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type ActionResult, type AdapterLogEntry, type Freshness } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { ApiError, notFound } from "../util/errors";

@@ -1,6 +1,6 @@
 "use client";
 
-import type { OrbActivationTarget } from "@jarvis/orb";
+import type { OrbActivationTarget } from "@friday/orb";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { useVoiceUi } from "@/features/voice/useVoiceUi";

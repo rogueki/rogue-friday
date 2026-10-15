@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/research/research-project.schema.json",
+  "$id": "https://friday.local/schemas/research/research-project.schema.json",
   "title": "ResearchProject",
   "description": "Research mission with sources, findings and artifacts (PLAN §36).",
   "type": "object",

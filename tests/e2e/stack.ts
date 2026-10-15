@@ -12,13 +12,13 @@ import { API_PORT } from "./support/constants";
 const root = resolve(import.meta.dirname, "..", "..");
 const main = join(root, "apps", "control-api", "dist", "main.js");
 const builtWebRoot = join(root, "apps", "web", "out");
-// Build once when the artefacts are missing (or JARVIS_E2E_BUILD=1); a present build is reused.
-if (process.env.JARVIS_E2E_BUILD === "1" || !existsSync(main) || !existsSync(join(builtWebRoot, "index.html"))) {
+// Build once when the artefacts are missing (or FRIDAY_E2E_BUILD=1); a present build is reused.
+if (process.env.FRIDAY_E2E_BUILD === "1" || !existsSync(main) || !existsSync(join(builtWebRoot, "index.html"))) {
   console.log("[stack] pnpm build:app ...");
   execFileSync("pnpm", ["build:app"], { cwd: root, stdio: "inherit" });
 }
 
-const dir = resolve(process.env.JARVIS_E2E_DIR ?? join(tmpdir(), "jarvis-e2e"));
+const dir = resolve(process.env.FRIDAY_E2E_DIR ?? join(tmpdir(), "friday-e2e"));
 rmSync(dir, { recursive: true, force: true });
 const configDir = join(dir, "config");
 for (const sub of ["config", "data", "logs"]) mkdirSync(join(dir, sub), { recursive: true });
@@ -50,7 +50,7 @@ const logFd = openSync(join(dir, "control-api.log"), "w");
 const api = spawn(process.execPath, [main], {
   cwd: root,
   stdio: ["ignore", logFd, logFd],
-  env: { ...process.env, JARVIS_CONFIG_DIR: configDir, JARVIS_DATA_MODE: "mock", JARVIS_AUTH_MODE: "dev", JARVIS_PORT: String(API_PORT) },
+  env: { ...process.env, FRIDAY_CONFIG_DIR: configDir, FRIDAY_DATA_MODE: "mock", FRIDAY_AUTH_MODE: "dev", FRIDAY_PORT: String(API_PORT) },
 });
 api.on("exit", (code) => {
   console.error(`[stack] Control API beendet (Code ${String(code)}), Log: ${join(dir, "control-api.log")}`);

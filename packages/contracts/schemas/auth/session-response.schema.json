@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/auth/session-response.schema.json",
+  "$id": "https://friday.local/schemas/auth/session-response.schema.json",
   "title": "SessionResponse",
   "description": "Single-resource envelope for Session.",
   "type": "object",

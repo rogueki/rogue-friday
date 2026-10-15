@@ -208,7 +208,7 @@ export function diffSchemas(before, after) {
       out.push({ kind: "schema-removed", path: id, message: `schema ${id} was removed` });
       continue;
     }
-    diffSchemaNode(schema, next, id.replace("https://jarvis.local/schemas/", "schema:"), out);
+    diffSchemaNode(schema, next, id.replace("https://friday.local/schemas/", "schema:"), out);
   }
   return out;
 }

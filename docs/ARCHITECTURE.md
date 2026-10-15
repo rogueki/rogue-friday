@@ -12,31 +12,41 @@ Browser (apps/web, statischer Export)
    ▼
 Control API (apps/control-api, ein Port, Standard 127.0.0.1:3100)
    │  Anfragepipeline: Auth, Rollen, CSRF, Validierung, Idempotenz, Audit
-   │  Ports (@jarvis/adapter-core) über die Adapter-Registry
+   │  Ports (@friday/adapter-core) über die Adapter-Registry
    ▼
-Adapter ── mock-* (Simulation)  │  hermes-*  │  jarvis-voice-http  │  local-system  │  example-http
+Adapter ── mock-* (Simulation)  │  hermes-*  │  friday-voice-http  │  local-system  │  example-http
    ▼
-Fremdsysteme (Hermes, Voice-Dienst, Qwen, lokaler Rechner) bzw. MockWorld (@jarvis/mock-data)
+Fremdsysteme (Hermes, Voice-Dienst, Qwen, lokaler Rechner) bzw. MockWorld (@friday/mock-data)
 ```
 
 Die Verträge (`packages/contracts`: OpenAPI 3.1.1, AsyncAPI 3.1.0, JSON Schema) sind die Quelle der Wahrheit. Aus ihnen
-entstehen die Routentabelle der Control API und der Client `@jarvis/sdk`.
+entstehen die Routentabelle der Control API und der Client `@friday/sdk`.
 
 ## Namen und Bezeichner
 
-Der Produktname ist **F.R.I.D.A.Y.** (Command Center). Die technischen Bezeichner stammen aus der Vorgängergeneration
-J.A.R.V.I.S. und sind stabil: Sie sind Teil des Vertrags (`packages/contracts`), der Workspace-Imports und der
-gespeicherten Konfiguration. Eine Umbenennung wäre ein Breaking Change und ist eine eigene, bewusste Entscheidung.
+Der Produktname ist **F.R.I.D.A.Y.** (Command Center), Nachfolger von J.A.R.V.I.S. Seit der Owner-Entscheidung vom
+2026-10-15 tragen auch alle technischen Bezeichner den Namen `friday`. Die Umbenennung war ein bewusster Vertragsbruch:
+Der Vertrag steht deshalb auf Version **2.0.0** (`contractVersion`, `info.version`), die Baseline wurde neu gesetzt.
 
 | Bezeichner                                  | Beispiele                                                                                  | Bereich               |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------ | --------------------- |
-| `@jarvis/*` Paketnamen                      | `@jarvis/sdk`, `@jarvis/orb`, `@jarvis/adapter-core`                                       | Workspace, Imports    |
-| `jarvis.*` Event-Typen                      | `jarvis.orb.status_changed`, `jarvis.status.resync_required`                               | AsyncAPI, Realtime    |
-| `/api/v1`, `$id` `https://jarvis.local/...` | WebSocket `/api/v1/events`                                                                 | Vertrag               |
-| `JARVIS_*` Umgebungsvariablen               | `JARVIS_API_ORIGIN`, `JARVIS_OWNER_PASSWORD_HASH`                                          | Konfiguration         |
-| `--jarvis-*` CSS-Variablen, Theme-IDs       | `--jarvis-focus`, `jarvis-command-gold-core`                                               | Design-Tokens, Themes |
-| Komponenten, Hooks, Clients                 | `JarvisOrb`, `JarvisShell`, `createJarvisClient`                                           | öffentliche API       |
-| Pfade und Dateien                           | `installer/install-jarvis.bat`, `C:\Jarvis`, `design-references/jarvis_orb_reference.webp` | Installer, Referenzen |
+| `@friday/*` Paketnamen                      | `@friday/sdk`, `@friday/orb`, `@friday/adapter-core`                                       | Workspace, Imports    |
+| `friday.*` Event-Typen                      | `friday.orb.status_changed`, `friday.status.resync_required`                               | AsyncAPI, Realtime    |
+| `/api/v1`, `$id` `https://friday.local/...` | WebSocket `/api/v1/events`; `contracts/openapi/friday-api.yaml`, `asyncapi/friday-events.yaml` | Vertrag           |
+| `FRIDAY_*` Umgebungsvariablen               | `FRIDAY_API_ORIGIN`, `FRIDAY_OWNER_PASSWORD_HASH`                                          | Konfiguration         |
+| `--friday-*` CSS-Variablen, Theme-IDs       | `--friday-focus`, `friday-command-gold-core`                                               | Design-Tokens, Themes |
+| Komponenten, Hooks, Clients                 | `FridayOrb`, `FridayShell`, `createFridayClient`, `FridayApiError`                         | öffentliche API       |
+| Cookies, Metriken, Hermes-Modellname        | `friday_session`, `friday_csrf`, `friday_http_requests_total`, `friday`                    | Laufzeit              |
+| Pfade und Dateien                           | `installer/install-friday.bat`, `C:\Friday`, Tasks `FRIDAY_Qwen`, `FRIDAY_Voice`, `FRIDAY_Dashboard`, `FRIDAY_Watchdog` | Installer |
+
+Unverändert geblieben sind nur der API-Pfad `/api/v1`, die Vorgängerbezeichnung J.A.R.V.I.S. in Fließtext, das
+vortrainierte openWakeWord-Modell `hey_jarvis` (wählbares Wake Word) und die beiden externen Designreferenzen
+`design-references/jarvis_orb_reference.webp` und `jarvis_dashboard_reference.webp` (sie zeigen die Vorgängermarke).
+
+**Abwärtskompatibilität:** Der Config-Loader (`@friday/config`), die Control API und die Web-Dev-Skripte lesen eine
+alte `JARVIS_X`-Umgebungsvariable weiter, solange `FRIDAY_X` nicht gesetzt ist, und melden das einmalig als veraltet
+(`normalizeLegacyEnv`, `scripts/lib/legacy-env.mjs`). Cookies, Browser-Speicherschlüssel, Event-Typen und Paketnamen haben
+keine Übergangsregel: Alte Sitzungen müssen neu angemeldet werden, der Offline-Cache beginnt leer.
 
 Sichtbare Texte (UI, Orb-Beschriftungen, Dokumentation) verwenden dagegen den Namen F.R.I.D.A.Y. Der Assistentenname ist
 über `settings.profile.assistantName` konfigurierbar (Standard „F.R.I.D.A.Y.“).
@@ -44,7 +54,7 @@ Sichtbare Texte (UI, Orb-Beschriftungen, Dokumentation) verwenden dagegen den Na
 # Frontend (`apps/web`)
 
 Next.js 16 App Router, **static export** (`output: "export"` -> `apps/web/out`, served by the Control API at `/`), React 19,
-TanStack Query 5, Zustand (small UI stores), Motion, `@jarvis/ui` + `@jarvis/design-tokens`, `@jarvis/orb`, `@jarvis/sdk`.
+TanStack Query 5, Zustand (small UI stores), Motion, `@friday/ui` + `@friday/design-tokens`, `@friday/orb`, `@friday/sdk`.
 All data is fetched on the client through the generated SDK; there are no server components that fetch.
 
 ## Layers
@@ -58,7 +68,7 @@ src/
   features/                 vertical slices that own UI + logic
     shell/                  nav model (16 pages), top bar, bottom command bar, voice panel, drawers
     palette/                global command palette, command runner (preview protocol), create-task dialog
-    orb/                    OrbSlot (the only place that mounts @jarvis/orb), audio store, click/Space routing
+    orb/                    OrbSlot (the only place that mounts @friday/orb), audio store, click/Space routing
     voice/                  useVoiceUi (voice state, toggle, focus mode)
     overview/               layout engine + 9 panels
     auth/                   login view
@@ -76,13 +86,13 @@ src/
 
 Order, outermost first: `QueryClientProvider` -> `ClientOnly` (tree mounts after hydration; the server HTML is the boot
 screen because the UI library renders portals) -> `ToastProvider` -> `ErrorSinkBridge` (QueryClient errors -> toasts) ->
-`MockGate` (starts MSW when `NEXT_PUBLIC_JARVIS_MSW=1`) -> `AppSettingsProvider` -> `CapabilitiesProvider` ->
+`MockGate` (starts MSW when `NEXT_PUBLIC_FRIDAY_MSW=1`) -> `AppSettingsProvider` -> `CapabilitiesProvider` ->
 `RealtimeProvider`. The three last ones only run for an authenticated session.
 
 | Provider         | Source                              | What it does                                                                                                                                                                                                                              |
 | ---------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| QueryClient      | `lib/api/queryClient.ts`            | stale time per domain (`staleTimes.ts`), retry only for `JarvisApiError.retryable`, never for 4xx, 3 attempts max; MutationCache turns errors into toasts, 409 CONFLICT refetches `conflictKeys`, UNAUTHENTICATED invalidates the session |
-| SDK client       | `lib/api/client.ts`                 | one `createJarvisClient({ baseUrl: "" })`; CSRF token from `/auth/session` (fallback: `jarvis_csrf` cookie); a correlation id per request (SDK)                                                                                           |
+| QueryClient      | `lib/api/queryClient.ts`            | stale time per domain (`staleTimes.ts`), retry only for `FridayApiError.retryable`, never for 4xx, 3 attempts max; MutationCache turns errors into toasts, 409 CONFLICT refetches `conflictKeys`, UNAUTHENTICATED invalidates the session |
+| SDK client       | `lib/api/client.ts`                 | one `createFridayClient({ baseUrl: "" })`; CSRF token from `/auth/session` (fallback: `friday_csrf` cookie); a correlation id per request (SDK)                                                                                           |
 | Session          | `lib/session.tsx`                   | `useSession()`; `SessionGate` redirects to `/login` or shows the "API not reachable" screen                                                                                                                                               |
 | Settings / theme | `lib/settings.tsx`                  | `GET /settings` -> `applyTheme`, theme knobs (cyan/panel/gold/grid/font scale), `setMotionMode`, `<html lang>`, locale/timezone/hour12; every change re-runs the effects, no rebuild (PLAN §25.2)                                         |
 | Capabilities     | `lib/capabilities.tsx`              | `useCapability(module, action)` (boolean), `useCapabilityState` (`available                                                                                                                                                               | read-only | missing`), `capabilityPathState("mail.send")` |
@@ -144,7 +154,7 @@ to replay a request (retry button), omit it for a new intent.
 - URL: `meta.eventsOrigin + meta.eventsPath` (http->ws), or the page origin (ws/wss from the page protocol), `?since=<last sequence>`.
 - Persists the last applied sequence in `sessionStorage` (try/catch); resumes with `?since=` after reload or reconnect.
 - Dedupe: `sequence <= last` is ignored. Gap: `sequence > last + 1` -> `onGap` (the provider refetches snapshot roots and backfills
-  `GET /activity?sinceSequence=`), the event is still applied. `jarvis.status.resync_required` -> `onResync` (refetch everything,
+  `GET /activity?sinceSequence=`), the event is still applied. `friday.status.resync_required` -> `onResync` (refetch everything,
   sequence jumps to `latestSequence`).
 - Heartbeat: answers server pings with the echoed `ts`, sends its own ping every 10 s, roundtrip = pong delay; a ping unanswered
   for 5 s or a roundtrip > 1.5 s marks the stream `degraded`; 45 s of silence replaces the connection.
@@ -153,30 +163,30 @@ to replay a request (retry button), omit it for a new intent.
 - `navigator.onLine` (offline stops retrying, online reconnects immediately) and page visibility (visible -> reconnect/ping now).
 - `useRealtimeStatus()` -> `{ state: connecting|online|degraded|offline|polling, roundtripMs, lastEventAt, sequence }`
   ("Event-Stream online · 28 ms · vor 2 s" in the top bar).
-- Transport interface (`transport.ts`): `WebSocketTransport` in production, the same class over `@jarvis/mock-data`'s in-memory
+- Transport interface (`transport.ts`): `WebSocketTransport` in production, the same class over `@friday/mock-data`'s in-memory
   socket in standalone mock mode (`lib/mock/bootstrap.ts`). The client never knows the difference.
 
 `applyEvent(queryClient, event)` (`applyEvent.ts`) is the deterministic event -> cache reducer, exhaustive over all 44 event types
 (a new contract event is a compile error until handled). Rules: replace only with an equal-or-newer `version`; patch lists and
 details in place; prepend created items to unfiltered first-page lists; refetch filtered lists instead of guessing membership;
 keep `overview` (running tasks, open approvals, critical alerts, counters, orb, voice, system summary) in sync and coalesce the
-derived parts (attention, counters) into one debounced refetch (1.5 s). `jarvis.voice.audio_level` bypasses the cache.
+derived parts (attention, counters) into one debounced refetch (1.5 s). `friday.voice.audio_level` bypasses the cache.
 
 ## Orb integration (`src/features/orb`)
 
-- State = the query-cache entry of `GET /orb/status`; `jarvis.orb.status_changed` writes the same entry (`useOrbSnapshot`).
-- `OrbSlot` lazy-loads `OrbSlotInner` (client only, three.js chunk) which renders `<JarvisOrb snapshot settings onActivate onVoiceToggle>`.
+- State = the query-cache entry of `GET /orb/status`; `friday.orb.status_changed` writes the same entry (`useOrbSnapshot`).
+- `OrbSlot` lazy-loads `OrbSlotInner` (client only, three.js chunk) which renders `<FridayOrb snapshot settings onActivate onVoiceToggle>`.
   `settings.orb` -> `orbSettingsFromWire`; `meta.features.forceOrbFallback2D` (scenario hint) -> `renderer: "2d"`; WebGL failure and
-  context loss are handled by `@jarvis/orb` itself (2D fallback).
-- Audio: `jarvis.voice.audio_level` events are written into `audioStore` without React state; consumers sample it at <= 12 Hz and only
-  while a voice mode is active (`useAudioSamples`), so only the orb/waveform subtree re-renders. `JarvisOrb` has no ref-based audio
+  context loss are handled by `@friday/orb` itself (2D fallback).
+- Audio: `friday.voice.audio_level` events are written into `audioStore` without React state; consumers sample it at <= 12 Hz and only
+  while a voice mode is active (`useAudioSamples`), so only the orb/waveform subtree re-renders. `FridayOrb` has no ref-based audio
   input yet, hence the bounded-rate `status.audioLevel` update.
 - Interaction routing (PLAN §21, `useOrbActions.routeOrbActivation`): approval -> `/approvals?approval=`, task -> `/tasks?task=`,
   error -> error-detail drawer, activity -> live-activity drawer, command -> palette; Space -> voice start/stop.
 
 ## Shell, palette, command bar
 
-`AppShell` = `JarvisShell` + `LeftCommandNav` (16 pages, order/visibility from `settings.navigation`, live badges from
+`AppShell` = `FridayShell` + `LeftCommandNav` (16 pages, order/visibility from `settings.navigation`, live badges from
 `overview.counters`, collapse state written back to `navigation.mode`) + `VoiceNavPanel` + `AppTopBar` + `AppBottomBar` + global
 overlays (palette, create-task dialog, command confirmation, notification/activity/error drawers).
 Commands go through `useRunCommand`: `POST /commands`; when the server answers `requiresConfirmation` the preview text is shown and
@@ -208,36 +218,36 @@ single `GET /overview` payload feeds all panels; `degradedSections` decides per 
 
 ## Standalone mock mode
 
-`pnpm --filter @jarvis/web dev:mock` (or `build:mock`) sets `NEXT_PUBLIC_JARVIS_MSW=1`: `MockStarter` (client-only dynamic import)
-calls `setupBrowserMocks()` from `@jarvis/mock-data` (msw service worker, in mock runs copied from `apps/web/mock-worker/` to
+`pnpm --filter @friday/web dev:mock` (or `build:mock`) sets `NEXT_PUBLIC_FRIDAY_MSW=1`: `MockStarter` (client-only dynamic import)
+calls `setupBrowserMocks()` from `@friday/mock-data` (msw service worker, in mock runs copied from `apps/web/mock-worker/` to
 `public/mockServiceWorker.js`; normal runs delete it, so production exports never contain it) plus the in-memory event socket.
-`window.__jarvisMock` exposes the platform (scenario engine) to the browser console and the screenshot script.
+`window.__fridayMock` exposes the platform (scenario engine) to the browser console and the screenshot script.
 
 ## Type checking
 
-`pnpm --filter @jarvis/web typecheck` runs `tsc -p tsconfig.json --noEmit` against the real workspace packages. Next's own type
-check is active (no `ignoreBuildErrors` in `next.config.ts`), and `pnpm --filter @jarvis/web build` runs the typecheck before the
-export. The former compiler shim (`src/shims/jarvis-orb.d.ts` and `tsconfig.typecheck.json`) was removed in commit `1903958`.
+`pnpm --filter @friday/web typecheck` runs `tsc -p tsconfig.json --noEmit` against the real workspace packages. Next's own type
+check is active (no `ignoreBuildErrors` in `next.config.ts`), and `pnpm --filter @friday/web build` runs the typecheck before the
+export. The former compiler shim (`src/shims/friday-orb.d.ts` and `tsconfig.typecheck.json`) was removed in commit `1903958`.
 
 ## Commands
 
 | Command                                        | Purpose                                                                                                                                 |
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm --filter @jarvis/web dev`                | `next dev` on :3000, `/api/*` rewritten to `JARVIS_API_ORIGIN` (default `http://127.0.0.1:3100`)                                        |
-| `pnpm --filter @jarvis/web dev:mock`           | standalone with MSW + mock event stream                                                                                                 |
-| `pnpm --filter @jarvis/web build`              | typecheck + static export to `apps/web/out`                                                                                             |
-| `pnpm --filter @jarvis/web typecheck` / `test` | tsc / vitest (jsdom)                                                                                                                    |
-| `pnpm --filter @jarvis/web screenshots`        | Playwright screenshots of the overview into `apps/web/screenshots/` (needs a running server, `--base`, default `http://localhost:3000`) |
+| `pnpm --filter @friday/web dev`                | `next dev` on :3000, `/api/*` rewritten to `FRIDAY_API_ORIGIN` (default `http://127.0.0.1:3100`)                                        |
+| `pnpm --filter @friday/web dev:mock`           | standalone with MSW + mock event stream                                                                                                 |
+| `pnpm --filter @friday/web build`              | typecheck + static export to `apps/web/out`                                                                                             |
+| `pnpm --filter @friday/web typecheck` / `test` | tsc / vitest (jsdom)                                                                                                                    |
+| `pnpm --filter @friday/web screenshots`        | Playwright screenshots of the overview into `apps/web/screenshots/` (needs a running server, `--base`, default `http://localhost:3000`) |
 
 # Control API (`apps/control-api`)
 
 Die Control API ist der einzige Server des Command Centers. Sie ist eine Fastify-Anwendung (Fastify 5) unter einer
 NestJS-12-Hülle (`@nestjs/platform-fastify`) und wird mit `tsup` zu einem Bundle (`apps/control-api/dist/main.js`) gebaut.
 Sie liefert auf einem Port die REST-Operationen unter `/api/v1`, den Ereignisstrom unter `/api/v1/events` und das statische Web aus
-`apps/web/out`. Standard: `127.0.0.1:3100`. Alle Fachdaten kommen über Adapter-Ports (`@jarvis/adapter-core`); im Mock-Modus liefert
-`@jarvis/adapter-mock` die Daten aus `@jarvis/mock-data`.
+`apps/web/out`. Standard: `127.0.0.1:3100`. Alle Fachdaten kommen über Adapter-Ports (`@friday/adapter-core`); im Mock-Modus liefert
+`@friday/adapter-mock` die Daten aus `@friday/mock-data`.
 
-Verbindliche Regeln: Modelle kommen aus `@jarvis/sdk` (nie von Hand). Abhängigkeiten werden über explizite Injection-Tokens
+Verbindliche Regeln: Modelle kommen aus `@friday/sdk` (nie von Hand). Abhängigkeiten werden über explizite Injection-Tokens
 verdrahtet (`@Inject(TOKEN)`), weil die Anwendung unter `tsx` und `tsup` (esbuild) läuft und keine Decorator-Metadaten braucht.
 Antworten werden in Dev/Test gegen das Vertragsschema geprüft (`dev.responseValidation`).
 
@@ -261,7 +271,7 @@ Antworten werden in Dev/Test gegen das Vertragsschema geprüft (`dev.responseVal
 
 ```bash
 pnpm dev:api                                  # tsx watch, Mock-Modus, Dev-Login
-pnpm --filter @jarvis/control-api build       # tsup -> apps/control-api/dist/main.js
+pnpm --filter @friday/control-api build       # tsup -> apps/control-api/dist/main.js
 pnpm start                                    # node apps/control-api/dist/main.js
 ```
 
@@ -290,18 +300,18 @@ HTTP-Status je Code steht in `src/util/errors.ts` (z. B. `CAPABILITY_MISSING` ->
 ## Routentabelle
 
 `src/http/route-table.generated.ts` wird von `scripts/generate-route-table.ts` aus dem gebündelten Vertrag
-(`packages/contracts/dist/jarvis-api.bundled.yaml`) erzeugt. Reihenfolge: `pnpm contracts:generate`, dann
-`pnpm --filter @jarvis/control-api generate:routes`. Jede Route enthält `operationId`, Methode, Pfad, Capability, Mindestrolle,
+(`packages/contracts/dist/friday-api.bundled.yaml`) erzeugt. Reihenfolge: `pnpm contracts:generate`, dann
+`pnpm --filter @friday/control-api generate:routes`. Jede Route enthält `operationId`, Methode, Pfad, Capability, Mindestrolle,
 `requiresSession`, `csrf`, `acceptsIfMatch`, `acceptsIdempotencyKey`, Body- und Größengrenzen sowie die zulässigen Antworten.
 Fehlt für eine Operation ein Handler, antwortet die Pipeline mit `INTERNAL`. `contract.test.ts` prüft alle 122 Operationen
 gegen ihre Verträge. `/api/v1/events` ist kein OpenAPI-Eintrag, sondern ein WebSocket im AsyncAPI-Vertrag.
 
 ## Authentifizierung, CSRF und Rollen
 
-- **Login**: `POST /api/v1/auth/login`. Die Sitzung läuft über das Cookie `jarvis_session` (HttpOnly, SameSite=Strict, mit `Secure`,
-  sobald `auth.secureCookies: true`). Das Cookie `jarvis_csrf` ist für die Oberfläche lesbar und ebenfalls SameSite=Strict.
+- **Login**: `POST /api/v1/auth/login`. Die Sitzung läuft über das Cookie `friday_session` (HttpOnly, SameSite=Strict, mit `Secure`,
+  sobald `auth.secureCookies: true`). Das Cookie `friday_csrf` ist für die Oberfläche lesbar und ebenfalls SameSite=Strict.
 - **CSRF**: Jede mutierende Anfrage braucht `X-CSRF-Token`. Der Wert ist HMAC-SHA256 über die Sitzungs-ID mit einem Serverschlüssel
-  (`@jarvis/auth`, `csrf.ts`). Ein Token einer anderen Sitzung ist ungültig.
+  (`@friday/auth`, `csrf.ts`). Ein Token einer anderen Sitzung ist ungültig.
 - **Rollen**: `owner` > `operator` > `viewer`. Die Rollenmatrix je Operation steht im Vertrag und in der Routentabelle.
 - **Sitzungen**: Lebensdauer 720 Minuten, Leerlauf-Timeout 30 Minuten, Re-Auth-Fenster 5 Minuten (Vorlage `dashboard.example.yaml`).
 - **Login-Drosselung** (`LoginRateLimiter`): 5 Fehlversuche je Benutzer und IP, zusätzlich 20 je IP, Fenster 15 Minuten.
@@ -319,7 +329,7 @@ gegen ihre Verträge. `/api/v1/events` ist kein OpenAPI-Eintrag, sondern ein Web
   Antworten mit Body werden gespeichert.
 - Gleicher Schlüssel und gleicher Body: dieselbe Antwort mit `Idempotent-Replayed: true`, ohne erneute Ausführung. Gleicher Schlüssel,
   anderer Body: `409 IDEMPOTENCY_CONFLICT`. Ein paralleler Doppelklick wartet auf die laufende Ausführung, statt doppelt auszuführen.
-- Cache-Treffer und -Fehlzugriffe zählen in den Metriken (`jarvis_cache_requests_total`).
+- Cache-Treffer und -Fehlzugriffe zählen in den Metriken (`friday_cache_requests_total`).
 
 ## If-Match
 
@@ -344,7 +354,7 @@ Die Adapter-Einstellungen führen eine `version`, die bei jeder gespeicherten Ä
 - Endpunkt `GET /api/v1/events` (WebSocket, Pfad aus `/meta`). Umschläge nach AsyncAPI mit einer **globalen, streng steigenden
   `sequence`**. Der Hub vergibt `id`, `time`, `sequence` und die Vertragsversion. Unbekannte Ereignistypen werden verworfen.
 - **Ringpuffer** mit `realtime.ringBufferSize` (Standard 5000). `?since=<n>` spielt Verpasstes nach. Liegt `since` außerhalb des
-  Puffers oder über dem aktuellen Stand, kommt `jarvis.status.resync_required` mit einem Grund (`sequence_too_old`,
+  Puffers oder über dem aktuellen Stand, kommt `friday.status.resync_required` mit einem Grund (`sequence_too_old`,
   `buffer_overflow` oder `server_restart`). Der Client lädt dann seine Snapshots neu.
 - **Heartbeat**: Der Server sendet `{"kind":"ping","ts":…}` alle `realtime.heartbeatSeconds` (Standard 15), der Client antwortet mit
   `pong`. Stille Clients werden getrennt. Langsame Clients (Puffer läuft voll) werden mit Close-Code 1013 beendet und müssen neu synchronisieren.
@@ -352,7 +362,7 @@ Die Adapter-Einstellungen führen eine `version`, die bei jeder gespeicherten Ä
 - **Sequenz über Neustarts**: Der Stand wird in der Tabelle `kv` (Schlüssel `hub.sequence`) alle 50 Ereignisse und beim Beenden
   gesichert. Nach dem Start zählt der Hub mit einem Sicherheitsabstand weiter, damit Cursor nie rückwärts laufen.
 - Im Mock-Modus nummeriert die Welt ihre Aktivität mit derselben Sequenz (`MockWorld({ nextSequence })`). Der Umschlag von
-  `jarvis.activity.appended` und `ActivityEvent.sequence` stimmen dadurch überein.
+  `friday.activity.appended` und `ActivityEvent.sequence` stimmen dadurch überein.
 
 ## Audit und Manipulationsschutz
 
@@ -366,11 +376,11 @@ Die Adapter-Einstellungen führen eine `version`, die bei jeder gespeicherten Ä
 
 ## Metriken und Telemetrie (PLAN §50.3)
 
-- `GET /api/v1/metrics` (nur `owner`, `text/plain; version=0.0.4`): `jarvis_http_request_duration_seconds`, `jarvis_http_requests_total`,
-  `jarvis_http_errors_total`, `jarvis_http_error_ratio` (Anteil 5xx), `jarvis_ws_connections`, `jarvis_events_total`,
-  `jarvis_events_per_second`, `jarvis_adapter_health` (1 gesund, 0,5 eingeschränkt, 0 aus, -1 unbekannt), `jarvis_cache_requests_total`,
-  `jarvis_cache_hit_ratio` sowie die Frontend-Reihen `jarvis_frontend_orb_fps`, `jarvis_frontend_orb_frame_time_ms`/`_seconds`,
-  `jarvis_frontend_webgl_memory_bytes`, `jarvis_frontend_errors_total`. Die Label-Kardinalität ist auf 500 Reihen je Metrik begrenzt.
+- `GET /api/v1/metrics` (nur `owner`, `text/plain; version=0.0.4`): `friday_http_request_duration_seconds`, `friday_http_requests_total`,
+  `friday_http_errors_total`, `friday_http_error_ratio` (Anteil 5xx), `friday_ws_connections`, `friday_events_total`,
+  `friday_events_per_second`, `friday_adapter_health` (1 gesund, 0,5 eingeschränkt, 0 aus, -1 unbekannt), `friday_cache_requests_total`,
+  `friday_cache_hit_ratio` sowie die Frontend-Reihen `friday_frontend_orb_fps`, `friday_frontend_orb_frame_time_ms`/`_seconds`,
+  `friday_frontend_webgl_memory_bytes`, `friday_frontend_errors_total`. Die Label-Kardinalität ist auf 500 Reihen je Metrik begrenzt.
 - `POST /api/v1/telemetry/frontend` (`operator` und höher, CSRF): bis zu 20 Fehler und 60 Orb-Messwerte je Anfrage, höchstens 32 KiB
   (`413`), 30 Anfragen je Minute und Sitzung (`429`). Meldungstexte werden bereinigt (URLs, E-Mail-Adressen, Tokens) und nur als
   Logzeile gehalten. Telemetrie erzeugt keine Audit-Einträge.
@@ -406,7 +416,7 @@ SPA-Hülle zurück. `/api/*` wird nie statisch beantwortet, und Pfade dürfen da
 ## Tests
 
 ```bash
-pnpm --filter @jarvis/control-api test        # vitest, test/*.test.ts
+pnpm --filter @friday/control-api test        # vitest, test/*.test.ts
 ```
 
 | Datei                                               | Prüft                                                                                                            |
@@ -446,12 +456,12 @@ Ringpuffer, Heartbeat und Log-Mitschnitt.
 | Verdrahtung               | `apps/control-api/src/runtime/adapter-wiring.ts`                      | Allowlist auf Factories abbilden, Einträge bilden, Secrets liefern, Ereignisse in den Hub leiten                   |
 | Adapter                   | `adapters/*`                                                          | übersetzen Fremdsysteme in kanonische Modelle                                                                      |
 
-Ein Adapter implementiert `JarvisAdapter` (Lebenszyklus) und den Port seiner Kategorie. Er gibt nur `AdapterError` nach außen. Fremdfelder
+Ein Adapter implementiert `FridayAdapter` (Lebenszyklus) und den Port seiner Kategorie. Er gibt nur `AdapterError` nach außen. Fremdfelder
 erreichen die Control API nie; kanonische Schemas verbieten zusätzliche Felder (`additionalProperties: false`).
 
 ## Betriebsmodi
 
-`dataMode` in `dashboard.yaml`, überschreibbar mit `JARVIS_DATA_MODE`. Die Auflösung je Kategorie steht in `packages/config/src/load.ts`:
+`dataMode` in `dashboard.yaml`, überschreibbar mit `FRIDAY_DATA_MODE`. Die Auflösung je Kategorie steht in `packages/config/src/load.ts`:
 
 | Modus    | Kategorie in `adapters.yaml` genannt                                           | Kategorie nicht genannt                                                 | Provider `mock-*` in `adapters.yaml` |
 | -------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------- | ------------------------------------ |
@@ -467,25 +477,25 @@ Mock-Provider ist. Im Modus `mock` bleibt es bei den Mock-Adaptern.
 
 Eine Anbindung braucht zwei Dinge:
 
-1. **Allowlist** in `adapters.yaml`: Provider-ID -> npm-Paket (`allowlist: { hermes-tasks: "@jarvis/adapter-hermes" }`). Die Registry
+1. **Allowlist** in `adapters.yaml`: Provider-ID -> npm-Paket (`allowlist: { hermes-tasks: "@friday/adapter-hermes" }`). Die Registry
    lädt nur diese Einträge. Ein aktivierter Provider ohne Allowlist-Eintrag ist ein Konfigurationsfehler (Exit-Code 2 beim Start).
 2. **Factory im Build**: `packageFactories()` in `adapter-wiring.ts` bildet jeden erlaubten Paketnamen auf seine Factories ab. Die
    Control API bündelt sie statisch, es gibt keinen dynamischen Import. Ein Paket ohne Eintrag wird nicht geladen (Warnung).
 
-Ältere Allowlist-Einträge, die auf ein Platzhalterpaket zeigen (`@jarvis/adapter-hermes-placeholder`, `@jarvis/adapter-voice-placeholder`),
+Ältere Allowlist-Einträge, die auf ein Platzhalterpaket zeigen (`@friday/adapter-hermes-placeholder`, `@friday/adapter-voice-placeholder`),
 bekommen automatisch den echten Adapter mit derselben Provider-ID (Warnung im Log). Die Vorlagen führen die echten Pakete.
 
 ## Reale Adapter
 
 | Provider             | Kategorie  | Paket                          | Status                                                                           |
 | -------------------- | ---------- | ------------------------------ | -------------------------------------------------------------------------------- |
-| `hermes-tasks`       | `tasks`    | `@jarvis/adapter-hermes`       | Kanban-Aufgaben über das Hermes-Dashboard (`127.0.0.1:43691`)                    |
-| `hermes-activity`    | `activity` | `@jarvis/adapter-hermes`       | Sitzungen und Nachrichten über den Hermes-API-Server (`127.0.0.1:43693`, Bearer) |
-| `hermes-agents`      | `agents`   | `@jarvis/adapter-hermes`       | Profile, Assignees und Worker aus dem Hermes-Dashboard                           |
-| `jarvis-voice-http`  | `voice`    | `@jarvis/adapter-voice-http`   | Statusdokument des Voice-Dienstes (`127.0.0.1:43694`), nur lesend                |
-| `local-system`       | `system`   | `@jarvis/adapter-system-local` | Host-Metriken, Dienstprobes und Modelllisten auf dem Rechner der Control API     |
-| `example-tasks-http` | `tasks`    | `@jarvis/adapter-example-http` | Referenz für eine fiktive REST-API, nicht verdrahtet                             |
-| `mock-*`             | alle       | `@jarvis/adapter-mock`         | Simulation aus `@jarvis/mock-data`, 15 Port-Wrapper                              |
+| `hermes-tasks`       | `tasks`    | `@friday/adapter-hermes`       | Kanban-Aufgaben über das Hermes-Dashboard (`127.0.0.1:43691`)                    |
+| `hermes-activity`    | `activity` | `@friday/adapter-hermes`       | Sitzungen und Nachrichten über den Hermes-API-Server (`127.0.0.1:43693`, Bearer) |
+| `hermes-agents`      | `agents`   | `@friday/adapter-hermes`       | Profile, Assignees und Worker aus dem Hermes-Dashboard                           |
+| `friday-voice-http`  | `voice`    | `@friday/adapter-voice-http`   | Statusdokument des Voice-Dienstes (`127.0.0.1:43694`), nur lesend                |
+| `local-system`       | `system`   | `@friday/adapter-system-local` | Host-Metriken, Dienstprobes und Modelllisten auf dem Rechner der Control API     |
+| `example-tasks-http` | `tasks`    | `@friday/adapter-example-http` | Referenz für eine fiktive REST-API, nicht verdrahtet                             |
+| `mock-*`             | alle       | `@friday/adapter-mock`         | Simulation aus `@friday/mock-data`, 15 Port-Wrapper                              |
 
 Capabilities, Verifikationsstand und offene Annahmen je Adapter stehen in [`HANDOFF.md`](HANDOFF.md) (Abschnitt 3) und in den
 READMEs unter `adapters/`.
@@ -520,8 +530,8 @@ Registry maskiert Secrets in Logs, Fehlern und Ereignissen; die Conformance-Suit
   letzten Fehler, aufeinanderfolgende Fehler und den Breaker-Zustand.
 - Zustände: `INITIALIZING`, `ONLINE`, `DEGRADED` (erster Fehler im Betrieb oder Latenz über 3 Sekunden), `OFFLINE` (ab 3 Fehlern in Folge),
   `RECOVERING` (intern, im Vertrag als `OFFLINE`), `STOPPING`, `STOPPED`.
-- Nach einer Erholung liest die Registry `getCapabilities()` neu. Die Ereignisse `jarvis.adapter.health_changed` und
-  `jarvis.adapter.capabilities_changed` kommen nur bei echter Änderung.
+- Nach einer Erholung liest die Registry `getCapabilities()` neu. Die Ereignisse `friday.adapter.health_changed` und
+  `friday.adapter.capabilities_changed` kommen nur bei echter Änderung.
 - Ein Adapter im Zustand `OFFLINE` oder `STOPPED` trägt nichts zu `GET /capabilities` bei; die Oberfläche zeigt „Nicht verbunden“.
 - `POST /api/v1/adapters/{id}/restart` (nur `owner`, auditiert): stoppt den Adapter über die Registry, erzeugt eine frische Instanz und
   initialisiert sie neu. Die Capabilities `system.restartAdapter` und `system.openLogs` stellt die Control API selbst bereit, der

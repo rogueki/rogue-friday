@@ -1,4 +1,4 @@
-﻿# Mock-Szenarien (`@jarvis/mock-data`)
+﻿# Mock-Szenarien (`@friday/mock-data`)
 
 Verbindliche Mock-Szenarien nach PLAN §44/§45. Alle Szenarien sind **deklarative Zeitleisten** (`packages/mock-data/src/scenarios/definitions.ts`):
 Schritte mit einem Offset `at` (ms auf der `MockClock`) und Aktionen auf der `MockWorld`. Dieses Dokument wird aus denselben Definitionen
@@ -9,9 +9,9 @@ erzeugt, die Tests (`test/scenarios.test.ts`) prüfen die hier genannten Orb-Fol
 | Weg | Aufruf |
 |---|---|
 | **REST (Control API / MSW)** | `GET /api/v1/dev/scenarios` (Liste), `POST /api/v1/dev/scenarios/{id}/play` (optional `?speed=2`), `GET /api/v1/dev/scenarios/state`, `POST /api/v1/dev/scenarios/control` mit einem `ScenarioControlRequest` |
-| **Browser-Konsole** (MSW-Modus, `setupBrowserMocks()`) | `__JARVIS_MOCK__.engine.play("voice-pipeline", { speed: 2 })`, `__JARVIS_MOCK__.engine.control({ action: "adapter_offline", adapterId: "mock-calendar", offline: true })` |
+| **Browser-Konsole** (MSW-Modus, `setupBrowserMocks()`) | `__FRIDAY_MOCK__.engine.play("voice-pipeline", { speed: 2 })`, `__FRIDAY_MOCK__.engine.control({ action: "adapter_offline", adapterId: "mock-calendar", offline: true })` |
 | **TypeScript / Tests** | `const engine = ScenarioEngine.for(world); engine.play(id); engine.runToCompletion();` oder `world.clock.advance(ms)` |
-| **CLI (`pnpm scenario …`)** | `@jarvis/mock-console` ist ein dünner Wrapper um `ScenarioEngine`: `list` → `engine.list()`, `play <id> [--speed n]` → `engine.play`, `stop`, `reset`, `advance <ms>` → `engine.advanceClock`, `offline <adapter>` → `engine.setAdapterState`, `latency <ms> [adapter]`, `errors <rate> [adapter]`, `capability <modul> <fähigkeit> on\|off`, `orb <mode>\|off` → `engine.forceOrbState`, `emit <json>` → `engine.emitEvent` |
+| **CLI (`pnpm scenario …`)** | `@friday/mock-console` ist ein dünner Wrapper um `ScenarioEngine`: `list` → `engine.list()`, `play <id> [--speed n]` → `engine.play`, `stop`, `reset`, `advance <ms>` → `engine.advanceClock`, `offline <adapter>` → `engine.setAdapterState`, `latency <ms> [adapter]`, `errors <rate> [adapter]`, `capability <modul> <fähigkeit> on\|off`, `orb <mode>\|off` → `engine.forceOrbState`, `emit <json>` → `engine.emitEvent` |
 
 `play(id, { speed, reset })` lädt zuerst das Profil des Szenarios (`default`, `empty`, `highLoad`, `longGerman`), stellt den Basis-Snapshot wieder her
 (`reset: false` lässt den aktuellen Zustand stehen) und beruhigt bei `baseline: "quiet"` die Welt (offene Freigaben/Alerts, laufende Arbeit und Voice-Aktivität werden entfernt).
@@ -39,14 +39,14 @@ Anschließend werden alle Schritte als Timer auf der Mock-Uhr geplant. `speed` s
 - **Uhr:** Es gibt kein `Date.now()` im Weltzustand. Startzeit `2026-10-14T08:15:00Z` (Datum der Seed-Inhalte). Timer (Freigabe-Ablauf, Eskalationsketten, Snooze, Szenarien, Audio-Pegel) laufen ausschließlich auf der `MockClock`.
   Im Dev-Betrieb folgt die Uhr der Wanduhr (`realTime: true`), in Tests treibt `clock.advance()` sie.
 - **Snapshots:** `world.snapshot()` ist reines JSON (Zustand, Uhr, ID-Zähler, PRNG-Zustände). Gleicher Seed und gleiche Aufrufreihenfolge ergeben ein byte-identisches Snapshot-JSON und identische Event-Streams (Test `deterministic`).
-- **Event-Sequenzen** steigen streng monoton, auch über `reset()` hinweg; nach `reset`/`loadProfile`/`restore` wird `jarvis.status.resync_required` (`server_restart`) veröffentlicht und der Hub-Puffer geleert.
+- **Event-Sequenzen** steigen streng monoton, auch über `reset()` hinweg; nach `reset`/`loadProfile`/`restore` wird `friday.status.resync_required` (`server_restart`) veröffentlicht und der Hub-Puffer geleert.
 - **Audio-Fixtures** (`silence`, `normal`, `loud`, `tts`, `spike`) sind reine Funktionen von Zeit und Dauer (12 Hz, 83 ms Takt).
 
 ## 4. Orb-Ableitung (`deriveOrbSnapshot`)
 
 Priorität (PLAN §18.3, ergänzt): `error` > `offline` > `waiting_approval` > `listening`/`speaking` > `transcribing`/`thinking` > `success` (kurz) > `working`/`syncing` > `paused` > `warning` > `idle`.
 Niedrigere Zustände bleiben in `detailText` und `layers` sichtbar (z. B. „… · 3 Agenten arbeiten weiter“). Fortschritt wird nur gemeldet, wenn der Fokus-Task echten Fortschritt hat
-(`determinate`), sonst `indeterminate` (Working/Syncing) oder `none`. `jarvis.orb.status_changed` wird bei jeder Änderung ausgesandt (Audiopegel zählt nicht als Änderung).
+(`determinate`), sonst `indeterminate` (Working/Syncing) oder `none`. `friday.orb.status_changed` wird bei jeder Änderung ausgesandt (Audiopegel zählt nicht als Änderung).
 Fehler = offener P0-Alert oder Voice-Fehler; `offline` = alle Adapter offline; `warning` = offener P1-Alert oder eingeschränkter Adapter.
 
 ## 5. Weitere Profile (§45.10–§45.12)

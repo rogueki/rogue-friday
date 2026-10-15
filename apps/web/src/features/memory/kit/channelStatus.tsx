@@ -1,5 +1,5 @@
-import type { ChannelKind, ChannelStatus } from "@jarvis/sdk";
-import type { Tone } from "@jarvis/ui";
+import type { ChannelKind, ChannelStatus } from "@friday/sdk";
+import type { Tone } from "@friday/ui";
 import { LayoutDashboard, Mail, MessageCircle, MessageSquare, Phone, Plug, Send, type LucideIcon } from "lucide-react";
 import type { MessageKey } from "@/i18n";
 

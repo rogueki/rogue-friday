@@ -1,9 +1,9 @@
-import type { AdapterRegistry } from "@jarvis/adapter-core";
-import type { ApprovalTokenService } from "@jarvis/auth";
-import type { JarvisConfig } from "@jarvis/config";
-import type { MockWorld, ScenarioEngine } from "@jarvis/mock-data";
-import type { JarvisMetrics, Logger } from "@jarvis/observability";
-import type { Capabilities, SchemaValidator } from "@jarvis/sdk";
+import type { AdapterRegistry } from "@friday/adapter-core";
+import type { ApprovalTokenService } from "@friday/auth";
+import type { FridayConfig } from "@friday/config";
+import type { MockWorld, ScenarioEngine } from "@friday/mock-data";
+import type { FridayMetrics, Logger } from "@friday/observability";
+import type { Capabilities, SchemaValidator } from "@friday/sdk";
 import type { AuditStore, AuditDraft, AuditVerification } from "../db/audit-store";
 import type { Db } from "../db/database";
 import type { AdapterOverrideStore, CommandHistoryStore, IdempotencyStore, LibraryStore } from "../db/stores";
@@ -26,12 +26,12 @@ export interface AuditRecorder {
 }
 
 export interface Runtime {
-  config: JarvisConfig;
+  config: FridayConfig;
   env: NodeJS.ProcessEnv;
   logger: Logger;
   /** Redacted adapter log lines behind `GET /adapters/{id}/logs`; `logger` already mirrors into it. */
   logBuffer: LogBuffer;
-  metrics: JarvisMetrics;
+  metrics: FridayMetrics;
   db: Db;
   validator: SchemaValidator;
   hub: EventHub;

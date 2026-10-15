@@ -1,4 +1,4 @@
-import type { Agent } from "@jarvis/sdk";
+import type { Agent } from "@friday/sdk";
 import {
   AdapterError,
   assertCanonicalEvent,
@@ -13,7 +13,7 @@ import {
   type MapContext,
   type Page,
   type Single,
-} from "@jarvis/adapter-core";
+} from "@friday/adapter-core";
 import {
   agentFingerprint,
   createAgentMapper,
@@ -62,8 +62,8 @@ interface BoardWorkers {
 
 /**
  * Agents on Hermes: profiles (`/api/profiles`), Kanban assignees and active workers. Status is derived; pause, resume
- * and stop are not offered (Hermes has no verified interface for them). Events: `jarvis.agent.status_changed` after
- * Kanban events that move an agent, `jarvis.agent.heartbeat` when a worker's heartbeat advances.
+ * and stop are not offered (Hermes has no verified interface for them). Events: `friday.agent.status_changed` after
+ * Kanban events that move an agent, `friday.agent.heartbeat` when a worker's heartbeat advances.
  */
 export class HermesAgentsAdapter extends HermesAdapterBase implements AgentPort {
   readonly manifest = manifestFor("agents");
@@ -164,7 +164,7 @@ export class HermesAgentsAdapter extends HermesAdapterBase implements AgentPort 
         const name = assignees.get(`${batch.board}/${event.taskId}`);
         const agent = name ? agents?.get(name) : undefined;
         if (agent) {
-          events.push({ type: "jarvis.agent.status_changed", subject: `agent/${agent.id}`, data: agent });
+          events.push({ type: "friday.agent.status_changed", subject: `agent/${agent.id}`, data: agent });
         }
       }
     }
@@ -182,7 +182,7 @@ export class HermesAgentsAdapter extends HermesAdapterBase implements AgentPort 
         seen.set(key, worker.lastHeartbeatAt);
         if (worker.lastHeartbeatAt <= (this.heartbeats.get(key) ?? 0)) continue;
         events.push({
-          type: "jarvis.agent.heartbeat",
+          type: "friday.agent.heartbeat",
           subject: `agent/${this.agentIds.encode(name)}`,
           data: {
             agentId: this.agentIds.encode(name),

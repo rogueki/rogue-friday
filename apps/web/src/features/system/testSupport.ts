@@ -1,4 +1,4 @@
-import type { SourceDescriptor } from "@jarvis/sdk";
+import type { SourceDescriptor } from "@friday/sdk";
 
 /** Shared fixtures and fakes for the group-C module tests (not imported by production code). */
 
@@ -8,7 +8,7 @@ export const FRESH = { state: "fresh", asOf: NOW } as const;
 
 export function listOf<T>(items: T[], extra: { hasNextPage?: boolean; totalCount?: number } = {}) {
   return {
-    contractVersion: "1.0.0",
+    contractVersion: "2.0.0",
     items,
     pageInfo: { nextCursor: null, hasNextPage: extra.hasNextPage ?? false, ...(extra.totalCount === undefined ? {} : { totalCount: extra.totalCount }) },
     freshness: FRESH,
@@ -16,7 +16,7 @@ export function listOf<T>(items: T[], extra: { hasNextPage?: boolean; totalCount
   };
 }
 
-export const single = <T>(data: T) => ({ contractVersion: "1.0.0", data, freshness: FRESH });
+export const single = <T>(data: T) => ({ contractVersion: "2.0.0", data, freshness: FRESH });
 
 export function errorBody(code: string, message: string, status: number): Response {
   return new Response(JSON.stringify({ error: { code, message, severity: "error", retryable: false, correlationId: "corr_01JTESTTESTTESTTESTTESTTES", details: {} } }), {

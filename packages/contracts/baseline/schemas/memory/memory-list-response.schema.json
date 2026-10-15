@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/memory/memory-list-response.schema.json",
+  "$id": "https://friday.local/schemas/memory/memory-list-response.schema.json",
   "title": "MemoryListResponse",
   "description": "Cursor-paginated list envelope for Memory.",
   "type": "object",

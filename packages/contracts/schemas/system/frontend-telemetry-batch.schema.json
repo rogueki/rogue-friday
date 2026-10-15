@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/system/frontend-telemetry-batch.schema.json",
+  "$id": "https://friday.local/schemas/system/frontend-telemetry-batch.schema.json",
   "title": "FrontendTelemetryBatch",
   "description": "Batch of frontend errors and orb performance samples (PLAN §50.3). Limited to 20 errors and 60 samples per request; the server also caps the body size (32 KiB) and the request rate. Must not contain personal data.",
   "type": "object",

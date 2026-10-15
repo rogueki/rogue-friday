@@ -27,18 +27,19 @@ Operator: RogueKI. Kommunikation: **Deutsch**, direkt, technisch, präzise. Code
 ## Harte Regeln
 
 - Contract-First: jede Modelländerung beginnt in `packages/contracts`; danach `pnpm contracts:generate`.
-  Keine handgeschriebenen DTOs — Typen aus `@jarvis/sdk`.
+  Keine handgeschriebenen DTOs — Typen aus `@friday/sdk`.
 - Frontend spricht nur mit der Control API über das generierte SDK; kein `fetch()` in Komponenten.
 - Keine Secrets, keine echten Personendaten (Namen, E-Mails, Telefonnummern) in Code, Mock-Daten, Beispielen oder
   Screenshots. Mock-Personen sind fiktiv (z. B. „Erik Brandt“).
 - Orb: prozedural (R3F), Gold/Amber-Identität, keine Videos/GIFs/Bilder als Orb; keine React-State-Updates pro Frame.
-- Interne Paket-/Event-Namen (`@jarvis/*`, `jarvis.*`, `/api/v1`) bleiben stabil (Contract); die **sichtbare Marke**
-  ist F.R.I.D.A.Y. (siehe Aufgabe „Branding“ in `docs/PROJECT_STATUS.md`).
+- Interne Bezeichner heißen `friday` (`@friday/*`, `friday.*`, `FRIDAY_*`, `--friday-*`; Contract 2.0.0 seit der
+  Umbenennung vom 2026-10-15), der API-Pfad bleibt `/api/v1`. Die **sichtbare Marke** ist F.R.I.D.A.Y. (siehe
+  `docs/PROJECT_STATUS.md`). Umbenennungen von Vertragsbezeichnern sind Breaking Changes (Major-Sprung + `baseline:update`).
 
 ## Installer (`installer/`)
 
 - Läuft nur unter Windows 11 (PowerShell 5.1, WSL2); in der Cloud nicht ausführbar — nur statisch prüfen/ändern.
-- `install-jarvis.ps1` kopiert den eigenen Ordner (`$PSScriptRoot`) per robocopy nach `C:\Jarvis\installer` → der Installer
+- `install-friday.ps1` kopiert den eigenen Ordner (`$PSScriptRoot`) per robocopy nach `C:\Friday\installer` → der Installer
   muss in seinem eigenen Unterordner bleiben.
 - Zeilenenden: `.bat/.ps1/.vbs` CRLF, `.sh` LF (per `.gitattributes` erzwungen). `.ps1` sind UTF-8 mit BOM.
 - Keine Secrets im Code: API-Keys/Passwörter werden zur Installationszeit abgefragt und nur lokal gespeichert.
@@ -58,4 +59,4 @@ pnpm test:e2e   # sobald die Playwright-Suite existiert
   `--use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist`. Falls der Browser-Download im
   Cloud-Netzwerk blockiert ist: Host `cdn.playwright.dev` / `playwright.download.prss.microsoft.com` in der
   Cloud-Umgebung freigeben oder das vorinstallierte Chrome per `channel: "chrome"` nutzen.
-- Zielplattform des Endnutzers ist Windows (`D:\Jarvis\dashboard`); Pfade/Skripte plattformneutral halten.
+- Zielplattform des Endnutzers ist Windows (`D:\Friday\dashboard`); Pfade/Skripte plattformneutral halten.

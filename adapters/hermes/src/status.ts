@@ -1,5 +1,5 @@
-import type { AgentStatus, Priority, TaskStatus } from "@jarvis/sdk";
-import { AdapterError } from "@jarvis/adapter-core";
+import type { AgentStatus, Priority, TaskStatus } from "@friday/sdk";
+import { AdapterError } from "@friday/adapter-core";
 
 /** `tasks.status` values of Hermes' default workflow (kanban_workflow.DEFAULT_STATUSES, mapping doc §6.4). */
 export const HERMES_STATUSES = [

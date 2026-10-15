@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/tasks/task-update-request.schema.json",
+  "$id": "https://friday.local/schemas/tasks/task-update-request.schema.json",
   "title": "TaskUpdateRequest",
   "description": "Partial update (also used for Kanban moves via status). Requires If-Match.",
   "type": "object",

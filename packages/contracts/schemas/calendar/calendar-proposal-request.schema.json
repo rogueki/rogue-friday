@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/calendar/calendar-proposal-request.schema.json",
+  "$id": "https://friday.local/schemas/calendar/calendar-proposal-request.schema.json",
   "title": "CalendarProposalRequest",
   "type": "object",
   "properties": {

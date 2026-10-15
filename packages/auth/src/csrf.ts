@@ -27,7 +27,7 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Validates the token from the `X-CSRF-Token` header. When the readable `jarvis_csrf` cookie value is
+ * Validates the token from the `X-CSRF-Token` header. When the readable `friday_csrf` cookie value is
  * passed as well it must match the header (the double-submit check itself).
  */
 export function verifyCsrfToken(csrfKey: Buffer, sessionId: string, headerToken: string | undefined | null, cookieToken?: string | null): boolean {

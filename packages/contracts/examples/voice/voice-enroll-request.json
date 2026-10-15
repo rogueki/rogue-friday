@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/voice/voice-enroll-request.schema.json",
+  "$schema": "https://friday.local/schemas/voice/voice-enroll-request.schema.json",
   "sampleTarget": 12,
   "recalibrate": true
 }

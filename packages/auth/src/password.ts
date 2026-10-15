@@ -67,7 +67,7 @@ let dummyHash: Promise<string> | undefined;
 export async function verifyPassword(password: string, encoded: string | null | undefined): Promise<boolean> {
   const parsed = encoded ? parsePasswordHash(encoded) : null;
   if (!parsed) {
-    dummyHash ??= hashPassword('jarvis-dummy-password');
+    dummyHash ??= hashPassword('friday-dummy-password');
     const dummy = parsePasswordHash(await dummyHash);
     if (dummy) await scryptAsync(password, dummy.salt, dummy.hash.length, { N: dummy.N, r: dummy.r, p: dummy.p, maxmem: maxmemFor(dummy.N, dummy.r, dummy.p) });
     return false;

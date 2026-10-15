@@ -1,13 +1,13 @@
 import type {
   ActivityEvent,
   Capabilities,
-  JarvisEvent,
+  FridayEvent,
   Notification,
   OrbSnapshotResponse,
   Overview,
   OverviewResponse,
   Task,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import { queryKeys, SNAPSHOT_ROOT_KEYS } from "../api/queryKeys";
 
@@ -165,19 +165,19 @@ function isCriticalAlert(notification: Notification): boolean {
   return (notification.priority === "P0" || notification.priority === "P1") && notification.status === "open";
 }
 
-export function applyEvent(queryClient: QueryClient, event: JarvisEvent): void {
+export function applyEvent(queryClient: QueryClient, event: FridayEvent): void {
   switch (event.type) {
     // ── status / orb / voice ────────────────────────────────────────────
-    case "jarvis.status.changed": {
+    case "friday.status.changed": {
       setEnvelopeData(queryClient, queryKeys.status, event.data);
-      patchOverview(queryClient, (o) => ({ ...o, jarvis: event.data }));
+      patchOverview(queryClient, (o) => ({ ...o, friday: event.data }));
       return;
     }
-    case "jarvis.status.resync_required": {
+    case "friday.status.resync_required": {
       invalidateSnapshots(queryClient);
       return;
     }
-    case "jarvis.orb.status_changed": {
+    case "friday.orb.status_changed": {
       queryClient.setQueryData<OrbSnapshotResponse>(queryKeys.orb, (old) =>
         old
           ? { ...old, data: event.data, freshness: { state: "fresh", asOf: event.time } }
@@ -186,32 +186,32 @@ export function applyEvent(queryClient: QueryClient, event: JarvisEvent): void {
       patchOverview(queryClient, (o) => ({ ...o, orb: event.data }));
       return;
     }
-    case "jarvis.voice.state_changed": {
+    case "friday.voice.state_changed": {
       setEnvelopeData(queryClient, queryKeys.voice.status, event.data);
       patchOverview(queryClient, (o) => ({ ...o, voice: event.data }));
       return;
     }
-    case "jarvis.voice.audio_level":
-    case "jarvis.voice.transcript_partial":
-    case "jarvis.voice.transcript_final":
-    case "jarvis.voice.tts_started":
-    case "jarvis.voice.tts_ended":
+    case "friday.voice.audio_level":
+    case "friday.voice.transcript_partial":
+    case "friday.voice.transcript_final":
+    case "friday.voice.tts_started":
+    case "friday.voice.tts_ended":
       // High-frequency / ephemeral: consumed by the orb audio store and the voice feature, never cached.
       return;
 
     // ── tasks ───────────────────────────────────────────────────────────
-    case "jarvis.task.created":
-    case "jarvis.task.updated":
-    case "jarvis.task.completed":
-    case "jarvis.task.failed":
-    case "jarvis.task.cancelled": {
+    case "friday.task.created":
+    case "friday.task.updated":
+    case "friday.task.completed":
+    case "friday.task.failed":
+    case "friday.task.cancelled": {
       const task = event.data;
-      upsertResource(queryClient, taskKeys, task, { insert: event.type === "jarvis.task.created", refetchFiltered: event.type !== "jarvis.task.updated" });
+      upsertResource(queryClient, taskKeys, task, { insert: event.type === "friday.task.created", refetchFiltered: event.type !== "friday.task.updated" });
       patchOverview(queryClient, (o) => syncRunningTasks(o, task));
       scheduleOverviewRefresh(queryClient);
       return;
     }
-    case "jarvis.task.progress": {
+    case "friday.task.progress": {
       const { taskId, progress } = event.data;
       for (const [key, cache] of listEntries<Task>(queryClient, taskKeys.lists)) {
         if (cache.items.some((t) => t.id === taskId)) {
@@ -224,17 +224,17 @@ export function applyEvent(queryClient: QueryClient, event: JarvisEvent): void {
     }
 
     // ── activity / audit ────────────────────────────────────────────────
-    case "jarvis.activity.appended": {
+    case "friday.activity.appended": {
       upsertResource(queryClient, activityKeys, event.data, { insert: true, cap: ACTIVITY_LIST_CAP });
       return;
     }
-    case "jarvis.audit.appended": {
+    case "friday.audit.appended": {
       upsertResource(queryClient, auditKeys, event.data, { insert: true, cap: ACTIVITY_LIST_CAP });
       return;
     }
 
     // ── agents ──────────────────────────────────────────────────────────
-    case "jarvis.agent.status_changed": {
+    case "friday.agent.status_changed": {
       const agent = event.data;
       upsertResource(queryClient, agentKeys, agent, {});
       patchOverview(queryClient, (o) => {
@@ -244,7 +244,7 @@ export function applyEvent(queryClient: QueryClient, event: JarvisEvent): void {
       });
       return;
     }
-    case "jarvis.agent.heartbeat": {
+    case "friday.agent.heartbeat": {
       const { agentId, heartbeatAt, status, currentTaskId } = event.data;
       const patch = { heartbeatAt, status, currentTaskId };
       for (const [key, cache] of listEntries<{ id: string }>(queryClient, agentKeys.lists)) {
@@ -258,11 +258,11 @@ export function applyEvent(queryClient: QueryClient, event: JarvisEvent): void {
     }
 
     // ── approvals ───────────────────────────────────────────────────────
-    case "jarvis.approval.requested":
-    case "jarvis.approval.resolved":
-    case "jarvis.approval.expired": {
+    case "friday.approval.requested":
+    case "friday.approval.resolved":
+    case "friday.approval.expired": {
       const approval = event.data;
-      upsertResource(queryClient, approvalKeys, approval, { insert: event.type === "jarvis.approval.requested", refetchFiltered: true });
+      upsertResource(queryClient, approvalKeys, approval, { insert: event.type === "friday.approval.requested", refetchFiltered: true });
       patchOverview(queryClient, (o) => {
         const present = o.openApprovals.some((a) => a.id === approval.id);
         if (approval.status === "pending") {
@@ -279,10 +279,10 @@ export function applyEvent(queryClient: QueryClient, event: JarvisEvent): void {
     }
 
     // ── notifications ───────────────────────────────────────────────────
-    case "jarvis.notification.created":
-    case "jarvis.notification.updated": {
+    case "friday.notification.created":
+    case "friday.notification.updated": {
       const notification = event.data;
-      upsertResource(queryClient, notificationKeys, notification, { insert: event.type === "jarvis.notification.created", refetchFiltered: true });
+      upsertResource(queryClient, notificationKeys, notification, { insert: event.type === "friday.notification.created", refetchFiltered: true });
       patchOverview(queryClient, (o) => {
         const present = o.criticalAlerts.some((n) => n.id === notification.id);
         if (isCriticalAlert(notification)) {
@@ -299,7 +299,7 @@ export function applyEvent(queryClient: QueryClient, event: JarvisEvent): void {
     }
 
     // ── system / adapters ───────────────────────────────────────────────
-    case "jarvis.system.metrics": {
+    case "friday.system.metrics": {
       const metrics = event.data;
       setEnvelopeData(queryClient, queryKeys.system.metrics, metrics);
       patchOverview(queryClient, (o) => ({
@@ -315,7 +315,7 @@ export function applyEvent(queryClient: QueryClient, event: JarvisEvent): void {
       }));
       return;
     }
-    case "jarvis.system.service_status_changed": {
+    case "friday.system.service_status_changed": {
       const service = event.data;
       queryClient.setQueryData<ListCache<Identified>>(queryKeys.system.services, (old) =>
         old ? { ...old, items: old.items.some((s) => s.id === service.id) ? old.items.map((s) => (s.id === service.id ? service : s)) : [...old.items, service] } : old,
@@ -329,7 +329,7 @@ export function applyEvent(queryClient: QueryClient, event: JarvisEvent): void {
       }));
       return;
     }
-    case "jarvis.adapter.health_changed": {
+    case "friday.adapter.health_changed": {
       const health = event.data;
       for (const [key, cache] of listEntries<{ manifest: { id: string }; health: unknown }>(queryClient, queryKeys.adapters.lists())) {
         queryClient.setQueryData(key, { ...cache, items: cache.items.map((a) => (a.manifest.id === health.adapterId ? { ...a, health } : a)) });
@@ -339,17 +339,17 @@ export function applyEvent(queryClient: QueryClient, event: JarvisEvent): void {
       scheduleOverviewRefresh(queryClient);
       return;
     }
-    case "jarvis.adapter.capabilities_changed": {
+    case "friday.adapter.capabilities_changed": {
       queryClient.setQueryData<Capabilities>(queryKeys.capabilities, event.data);
       scheduleOverviewRefresh(queryClient);
       return;
     }
 
     // ── memory ──────────────────────────────────────────────────────────
-    case "jarvis.memory.created":
-    case "jarvis.memory.updated": {
-      upsertResource(queryClient, memoryKeys, event.data, { insert: event.type === "jarvis.memory.created", refetchFiltered: true });
-      if (event.type === "jarvis.memory.created") {
+    case "friday.memory.created":
+    case "friday.memory.updated": {
+      upsertResource(queryClient, memoryKeys, event.data, { insert: event.type === "friday.memory.created", refetchFiltered: true });
+      if (event.type === "friday.memory.created") {
         patchOverview(queryClient, (o) =>
           o.memoryInsights
             ? { ...o, memoryInsights: { total: o.memoryInsights.total + 1, newToday: o.memoryInsights.newToday + 1, lastUpdatedAt: event.time } }
@@ -358,58 +358,58 @@ export function applyEvent(queryClient: QueryClient, event: JarvisEvent): void {
       }
       return;
     }
-    case "jarvis.memory.deleted": {
+    case "friday.memory.deleted": {
       removeResource(queryClient, memoryKeys, event.data.id);
       patchOverview(queryClient, (o) => (o.memoryInsights ? { ...o, memoryInsights: { ...o.memoryInsights, total: Math.max(0, o.memoryInsights.total - 1) } } : o));
       return;
     }
 
     // ── communication / calendar ────────────────────────────────────────
-    case "jarvis.communication.thread_updated": {
+    case "friday.communication.thread_updated": {
       upsertResource(queryClient, threadKeys, event.data, { insert: true, refetchFiltered: true });
       void queryClient.invalidateQueries({ queryKey: queryKeys.communication.channels });
       scheduleOverviewRefresh(queryClient);
       return;
     }
-    case "jarvis.communication.draft_updated": {
+    case "friday.communication.draft_updated": {
       upsertResource(queryClient, draftKeys, event.data, { insert: true });
       return;
     }
-    case "jarvis.calendar.event_updated": {
+    case "friday.calendar.event_updated": {
       upsertResource(queryClient, eventKeys, event.data, { insert: true, refetchFiltered: true });
       scheduleOverviewRefresh(queryClient);
       return;
     }
-    case "jarvis.calendar.conflict_detected": {
+    case "friday.calendar.conflict_detected": {
       void queryClient.invalidateQueries({ queryKey: queryKeys.calendar.conflicts });
       return;
     }
 
     // ── automations / research / files ──────────────────────────────────
-    case "jarvis.automation.updated": {
+    case "friday.automation.updated": {
       upsertResource(queryClient, automationKeys, event.data, { insert: true, refetchFiltered: true });
       return;
     }
-    case "jarvis.automation.run_started":
-    case "jarvis.automation.run_finished": {
+    case "friday.automation.run_started":
+    case "friday.automation.run_finished": {
       void queryClient.invalidateQueries({ queryKey: ["automations", "runs"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.automations.lists() });
       return;
     }
-    case "jarvis.research.updated":
-    case "jarvis.research.source_added":
-    case "jarvis.research.finding_added": {
+    case "friday.research.updated":
+    case "friday.research.source_added":
+    case "friday.research.finding_added": {
       void queryClient.invalidateQueries({ queryKey: queryKeys.research.all, refetchType: "active" });
       return;
     }
-    case "jarvis.file.created":
-    case "jarvis.file.updated": {
-      upsertResource(queryClient, fileKeys, event.data, { insert: event.type === "jarvis.file.created", refetchFiltered: true });
+    case "friday.file.created":
+    case "friday.file.updated": {
+      upsertResource(queryClient, fileKeys, event.data, { insert: event.type === "friday.file.created", refetchFiltered: true });
       // A new version changes the content: the cached preview of this file must not outlive it.
       void queryClient.invalidateQueries({ queryKey: queryKeys.files.preview(event.data.id), refetchType: "active" });
       return;
     }
-    case "jarvis.file.deleted": {
+    case "friday.file.deleted": {
       removeResource(queryClient, fileKeys, event.data.id);
       queryClient.removeQueries({ queryKey: queryKeys.files.preview(event.data.id) });
       return;

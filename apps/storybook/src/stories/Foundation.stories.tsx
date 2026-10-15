@@ -4,14 +4,14 @@ import {
   TONES,
   applyThemeSettings,
   fontFamilies,
-  jarvisTokens,
+  fridayTokens,
   spacing,
-  type JarvisTokenKey,
+  type FridayTokenKey,
   type ThemeSettings,
-} from '@jarvis/design-tokens';
+} from '@friday/design-tokens';
 import { Activity, Bell, Bot, Cpu, Database, Mic, ShieldCheck, Sparkles, Zap } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { HudPanel, IconTile, Slider, TagPill } from '@jarvis/ui';
+import { HudPanel, IconTile, Slider, TagPill } from '@friday/ui';
 import { Grid, Row, Section } from './_helpers';
 
 const meta = {
@@ -21,7 +21,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const groups: { title: string; keys: JarvisTokenKey[] }[] = [
+const groups: { title: string; keys: FridayTokenKey[] }[] = [
   { title: 'Hintergrund', keys: ['bg0', 'bg1', 'bg2'] },
   { title: 'Panel-Flächen', keys: ['panel0', 'panel1', 'panelActive'] },
   { title: 'Linien', keys: ['borderDim', 'border', 'borderActive', 'grid'] },
@@ -31,8 +31,8 @@ const groups: { title: string; keys: JarvisTokenKey[] }[] = [
   { title: 'Text', keys: ['text', 'textStrong', 'muted', 'disabled'] },
 ];
 
-function Swatch({ k }: { k: JarvisTokenKey }) {
-  const t = jarvisTokens[k];
+function Swatch({ k }: { k: FridayTokenKey }) {
+  const t = fridayTokens[k];
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
       <span
@@ -46,8 +46,8 @@ function Swatch({ k }: { k: JarvisTokenKey }) {
         }}
       />
       <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.35, minWidth: 0 }}>
-        <code style={{ fontFamily: 'var(--jv-font-mono)', fontSize: 12, color: 'var(--jarvis-text-strong)' }}>{t.name}</code>
-        <code style={{ fontFamily: 'var(--jv-font-mono)', fontSize: 11, color: 'var(--jarvis-muted)' }}>{t.value}</code>
+        <code style={{ fontFamily: 'var(--jv-font-mono)', fontSize: 12, color: 'var(--friday-text-strong)' }}>{t.name}</code>
+        <code style={{ fontFamily: 'var(--jv-font-mono)', fontSize: 11, color: 'var(--friday-muted)' }}>{t.value}</code>
       </span>
     </div>
   );
@@ -58,10 +58,10 @@ export const Colors: Story = {
     <div style={{ padding: 28 }}>
       <Section title="Farbdisziplin: 80–85 % Navy · 10–15 % Cyan · 2–5 % Semantik · Gold nur im Orb-Kontext">
         <div style={{ display: 'flex', height: 18, borderRadius: 3, overflow: 'hidden', border: '1px solid var(--jv-line-soft)' }}>
-          <span style={{ flex: 83, background: 'var(--jarvis-bg-1)' }} />
-          <span style={{ flex: 12, background: 'var(--jarvis-cyan)' }} />
-          <span style={{ flex: 3, background: 'var(--jarvis-success)' }} />
-          <span style={{ flex: 2, background: 'var(--jarvis-orb-gold)' }} />
+          <span style={{ flex: 83, background: 'var(--friday-bg-1)' }} />
+          <span style={{ flex: 12, background: 'var(--friday-cyan)' }} />
+          <span style={{ flex: 3, background: 'var(--friday-success)' }} />
+          <span style={{ flex: 2, background: 'var(--friday-orb-gold)' }} />
         </div>
       </Section>
       {groups.map((g) => (
@@ -113,8 +113,8 @@ export const Typography: Story = {
   render: () => (
     <div style={{ padding: 28, display: 'grid', gap: 24, maxWidth: 900 }}>
       <Section title={`Oxanium – Überschriften, Labels, Uhr (${fontFamilies.display.split(',')[0]})`}>
-        <div style={{ fontFamily: 'var(--jv-font-display)', fontSize: 40, letterSpacing: '0.42em', color: 'var(--jarvis-text-strong)' }}>F.R.I.D.A.Y.</div>
-        <div style={{ fontFamily: 'var(--jv-font-display)', fontSize: 30, color: 'var(--jarvis-cyan)', marginTop: 8 }}>11:18:21</div>
+        <div style={{ fontFamily: 'var(--jv-font-display)', fontSize: 40, letterSpacing: '0.42em', color: 'var(--friday-text-strong)' }}>F.R.I.D.A.Y.</div>
+        <div style={{ fontFamily: 'var(--jv-font-display)', fontSize: 30, color: 'var(--friday-cyan)', marginTop: 8 }}>11:18:21</div>
         <div style={{ fontFamily: 'var(--jv-font-display)', fontSize: 12, letterSpacing: '0.16em', textTransform: 'uppercase', marginTop: 8 }}>
           Panel-Titel · Aktive Agenten
         </div>
@@ -123,7 +123,7 @@ export const Typography: Story = {
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>
           Größenänderung der Überwachungsschwelle für Übertragungsfehler – lange deutsche Wörter mit Umlauten bleiben lesbar.
         </p>
-        <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--jarvis-muted)' }}>Sekundärtext, 12 px, Kontrast AA auf Navy.</p>
+        <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--friday-muted)' }}>Sekundärtext, 12 px, Kontrast AA auf Navy.</p>
       </Section>
       <Section title="JetBrains Mono – Zahlen, IDs, Tags">
         <code style={{ fontFamily: 'var(--jv-font-mono)', fontSize: 14 }}>task_01HZX3K8M2 · 3.380 · 15 % · +14</code>
@@ -142,8 +142,8 @@ export const SpacingAndHierarchy: Story = {
             .filter((n) => n > 0)
             .map((n) => (
               <div key={n} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: n, height: n, background: 'var(--jarvis-cyan)', opacity: 0.8 }} />
-                <code style={{ fontFamily: 'var(--jv-font-mono)', fontSize: 10, color: 'var(--jarvis-muted)' }}>{n}</code>
+                <span style={{ width: n, height: n, background: 'var(--friday-cyan)', opacity: 0.8 }} />
+                <code style={{ fontFamily: 'var(--jv-font-mono)', fontSize: 10, color: 'var(--friday-muted)' }}>{n}</code>
               </div>
             ))}
         </Row>
@@ -179,7 +179,7 @@ export const BackgroundUtilities: Story = {
         <div
           key={cls}
           className={cls}
-          style={{ height: 180, border: '1px solid var(--jv-line-soft)', display: 'grid', placeItems: 'center', fontFamily: 'var(--jv-font-mono)', fontSize: 12, color: 'var(--jarvis-muted)' }}
+          style={{ height: 180, border: '1px solid var(--jv-line-soft)', display: 'grid', placeItems: 'center', fontFamily: 'var(--jv-font-mono)', fontSize: 12, color: 'var(--friday-muted)' }}
         >
           .{cls} – {label}
         </div>

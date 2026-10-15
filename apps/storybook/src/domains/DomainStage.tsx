@@ -1,6 +1,6 @@
-import { createJarvisClient, type AdapterCategory, type Capabilities, type JarvisClient } from '@jarvis/sdk';
-import { DEFAULT_SEED, MockWorld, handleApiRequest, type ProfileName } from '@jarvis/mock-data';
-import { ToastProvider } from '@jarvis/ui';
+import { createFridayClient, type AdapterCategory, type Capabilities, type FridayClient } from '@friday/sdk';
+import { DEFAULT_SEED, MockWorld, handleApiRequest, type ProfileName } from '@friday/mock-data';
+import { ToastProvider } from '@friday/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Suspense, useState, type ComponentType, type CSSProperties } from 'react';
 import { setStoryLocation } from '../../.storybook/shims/next-navigation';
@@ -97,12 +97,12 @@ export function createStoryFetch(world: MockWorld, state: DomainState, keepPaths
 
 interface StageRuntime {
   client: QueryClient;
-  api: JarvisClient;
+  api: FridayClient;
 }
 
 function createRuntime(props: DomainStageProps): StageRuntime {
   const world = createStoryWorld(props.state, props);
-  const api = createJarvisClient({ baseUrl: STORY_API_ORIGIN, fetch: createStoryFetch(world, props.state, props.keepPaths) });
+  const api = createFridayClient({ baseUrl: STORY_API_ORIGIN, fetch: createStoryFetch(world, props.state, props.keepPaths) });
   // The data layer talks to one module-level SDK client; every story swaps in its own, backed by its own world.
   setApiClient(api);
   useRealtimeStore.setState({ state: props.state === 'offline' ? 'offline' : props.state === 'stale' ? 'degraded' : 'online', roundtripMs: 24, lastEventAt: Date.now(), sequence: 1 });
@@ -113,7 +113,7 @@ function createRuntime(props: DomainStageProps): StageRuntime {
 
 /**
  * Renders a real feature page of apps/web with the providers of the app (query cache, toasts, settings, capabilities)
- * on top of an in-memory MockWorld. No DTO is hand-written: every response comes from @jarvis/mock-data's seed profiles
+ * on top of an in-memory MockWorld. No DTO is hand-written: every response comes from @friday/mock-data's seed profiles
  * (`empty`, `default`, `longGerman`, `highLoad`) through the same REST handler the MSW mock mode uses.
  */
 export function DomainStage(props: DomainStageProps) {

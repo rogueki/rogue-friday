@@ -64,7 +64,7 @@ try {
   // keyboard
   const logs = [];
   page.on("console", (m) => m.type() === "info" && logs.push(m.text()));
-  await page.focus("button.jarvis-orb__target");
+  await page.focus("button.friday-orb__target");
   await page.keyboard.press("Enter");
   await page.keyboard.press("Space");
   await page.waitForTimeout(200);

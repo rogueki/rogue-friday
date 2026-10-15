@@ -4,15 +4,15 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import {
   CONTRACT_VERSION,
-  JARVIS_EVENT_DATA_SCHEMA_IDS,
-  JARVIS_EVENT_TYPES,
-  JarvisApiError,
+  FRIDAY_EVENT_DATA_SCHEMA_IDS,
+  FRIDAY_EVENT_TYPES,
+  FridayApiError,
   SCHEMA_IDS,
-  createJarvisClient,
+  createFridayClient,
   createSchemaValidator,
   isControlFrame,
-  isJarvisEvent,
-  type JarvisEvent,
+  isFridayEvent,
+  type FridayEvent,
 } from "../src/index";
 
 const examples = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../contracts/examples");
@@ -26,12 +26,12 @@ const readExample = (rel: string): Record<string, unknown> => {
 const jsonResponse = (body: unknown, init: ResponseInit = {}): Response =>
   new Response(JSON.stringify(body), { headers: { "content-type": "application/json" }, ...init });
 
-describe("createJarvisClient", () => {
+describe("createFridayClient", () => {
   it("sends credentials, correlation id and CSRF token on mutating requests only", async () => {
     const fetchMock = vi.fn(async (_request: Request) =>
       jsonResponse(readExample("tasks/task-response.json")),
     );
-    const client = createJarvisClient({
+    const client = createFridayClient({
       baseUrl: "http://localhost:3100",
       fetch: fetchMock as unknown as typeof fetch,
       getCsrfToken: () => "csrf-token",
@@ -56,7 +56,7 @@ describe("createJarvisClient", () => {
 
   it("generates a contract-conformant correlation id when none is supplied", async () => {
     const fetchMock = vi.fn(async (_request: Request) => jsonResponse(readExample("meta/meta.json")));
-    const client = createJarvisClient({
+    const client = createFridayClient({
       baseUrl: "http://localhost:3100",
       fetch: fetchMock as unknown as typeof fetch,
     });
@@ -64,7 +64,7 @@ describe("createJarvisClient", () => {
     expect(fetchMock.mock.calls[0]?.[0].headers.get("X-Correlation-Id")).toMatch(/^corr_[0-9A-Z]{26}$/);
   });
 
-  it("maps contract errors to a typed JarvisApiError", async () => {
+  it("maps contract errors to a typed FridayApiError", async () => {
     const body = readExample("common/error-adapter-unavailable.json");
     const fetchMock = vi.fn(async () =>
       jsonResponse(body, {
@@ -72,13 +72,13 @@ describe("createJarvisClient", () => {
         headers: { "content-type": "application/json", "X-Correlation-Id": "corr_HEADER" },
       }),
     );
-    const client = createJarvisClient({
+    const client = createFridayClient({
       baseUrl: "http://localhost:3100",
       fetch: fetchMock as unknown as typeof fetch,
     });
     const error = await client.GET("/api/v1/calendar/events").catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(JarvisApiError);
-    const api = error as JarvisApiError;
+    expect(error).toBeInstanceOf(FridayApiError);
+    const api = error as FridayApiError;
     expect(api.code).toBe("ADAPTER_UNAVAILABLE");
     expect(api.status).toBe(503);
     expect(api.retryable).toBe(true);
@@ -91,26 +91,26 @@ describe("createJarvisClient", () => {
     const fetchMock = vi.fn(
       async () => new Response("<html>bad gateway</html>", { status: 429, statusText: "Too Many Requests" }),
     );
-    const client = createJarvisClient({
+    const client = createFridayClient({
       baseUrl: "http://localhost:3100",
       fetch: fetchMock as unknown as typeof fetch,
     });
-    const api = (await client.GET("/api/v1/tasks").catch((e: unknown) => e)) as JarvisApiError;
+    const api = (await client.GET("/api/v1/tasks").catch((e: unknown) => e)) as FridayApiError;
     expect(api.code).toBe("RATE_LIMITED");
     expect(api.retryable).toBe(true);
     expect(api.status).toBe(429);
   });
 
-  it("maps network failures to a retryable JarvisApiError with status 0", async () => {
+  it("maps network failures to a retryable FridayApiError with status 0", async () => {
     const fetchMock = vi.fn(async () => {
       throw new TypeError("fetch failed");
     });
-    const client = createJarvisClient({
+    const client = createFridayClient({
       baseUrl: "http://localhost:3100",
       fetch: fetchMock as unknown as typeof fetch,
     });
-    const api = (await client.GET("/api/v1/health").catch((e: unknown) => e)) as JarvisApiError;
-    expect(api).toBeInstanceOf(JarvisApiError);
+    const api = (await client.GET("/api/v1/health").catch((e: unknown) => e)) as FridayApiError;
+    expect(api).toBeInstanceOf(FridayApiError);
     expect(api.status).toBe(0);
     expect(api.retryable).toBe(true);
   });
@@ -142,26 +142,26 @@ describe("createSchemaValidator", () => {
 
   it("validates event payloads through the event schema map", () => {
     const event = readExample("events/event-task-updated.json");
-    const type = event.type as keyof typeof JARVIS_EVENT_DATA_SCHEMA_IDS;
+    const type = event.type as keyof typeof FRIDAY_EVENT_DATA_SCHEMA_IDS;
     expect(validator.validate("EventEnvelope", event).valid).toBe(true);
-    expect(validator.validate(JARVIS_EVENT_DATA_SCHEMA_IDS[type], event.data).valid).toBe(true);
+    expect(validator.validate(FRIDAY_EVENT_DATA_SCHEMA_IDS[type], event.data).valid).toBe(true);
   });
 });
 
 describe("event helpers and constants", () => {
   it("exposes the contract version and a complete event type list", () => {
-    expect(CONTRACT_VERSION).toBe("1.0.0");
-    expect(JARVIS_EVENT_TYPES).toContain("jarvis.orb.status_changed");
-    expect(JARVIS_EVENT_TYPES).toContain("jarvis.status.resync_required");
-    expect(new Set(JARVIS_EVENT_TYPES).size).toBe(JARVIS_EVENT_TYPES.length);
+    expect(CONTRACT_VERSION).toBe("2.0.0");
+    expect(FRIDAY_EVENT_TYPES).toContain("friday.orb.status_changed");
+    expect(FRIDAY_EVENT_TYPES).toContain("friday.status.resync_required");
+    expect(new Set(FRIDAY_EVENT_TYPES).size).toBe(FRIDAY_EVENT_TYPES.length);
   });
 
   it("recognises events and control frames structurally", () => {
     const event = readExample("events/event-task-updated.json");
-    expect(isJarvisEvent(event)).toBe(true);
-    expect(isJarvisEvent({ ...event, type: "jarvis.unknown.thing" })).toBe(false);
-    expect(isJarvisEvent({ ...event, sequence: 1.5 })).toBe(false);
-    expect(isJarvisEvent(null)).toBe(false);
+    expect(isFridayEvent(event)).toBe(true);
+    expect(isFridayEvent({ ...event, type: "friday.unknown.thing" })).toBe(false);
+    expect(isFridayEvent({ ...event, sequence: 1.5 })).toBe(false);
+    expect(isFridayEvent(null)).toBe(false);
     expect(isControlFrame({ kind: "ping", ts: 1 })).toBe(true);
     expect(isControlFrame(event)).toBe(false);
   });
@@ -169,7 +169,7 @@ describe("event helpers and constants", () => {
   it("types event payloads (compile-time check)", () => {
     const event = readExample(
       "events/event-orb-status-changed.json",
-    ) as unknown as JarvisEvent<"jarvis.orb.status_changed">;
+    ) as unknown as FridayEvent<"friday.orb.status_changed">;
     expect(event.data.status.mode).toBe("working");
     expect(event.data.layers.activeAgentIds).toHaveLength(3);
   });

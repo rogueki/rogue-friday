@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- test code reads untyped JSON bodies and frames that the contract validators check */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { JarvisEvent } from "@jarvis/sdk";
+import type { FridayEvent } from "@friday/sdk";
 import { ROUTE_TABLE } from "../src/http/route-table.generated";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 import { pathOf } from "./support/contract";
@@ -25,7 +25,7 @@ describe("secret hygiene", () => {
 
   beforeAll(async () => {
     api = await startTestApi({ authMode: "local", ownerPassword: OWNER_PASSWORD, logs });
-    api.runtime.hub.subscribe((event: JarvisEvent) => streamed.push(JSON.stringify(event)));
+    api.runtime.hub.subscribe((event: FridayEvent) => streamed.push(JSON.stringify(event)));
     owner = api.client();
     record("login", await owner.loginOwner(OWNER_PASSWORD));
 
@@ -81,7 +81,7 @@ describe("secret hygiene", () => {
   });
 
   it("does not leak any secret, password, password hash or server key through any read endpoint", async () => {
-    const hash = api.env.JARVIS_OWNER_PASSWORD_HASH as string;
+    const hash = api.env.FRIDAY_OWNER_PASSWORD_HASH as string;
     expect(hash).toBeTruthy();
     for (const spec of ROUTE_TABLE.filter((candidate) => candidate.method === "GET" && candidate.pathParams.length === 0 && candidate.requiresSession)) {
       if (spec.operationId === "downloadFile") continue;
@@ -95,7 +95,7 @@ describe("secret hygiene", () => {
 
   it("keeps secrets and credentials out of responses and headers of every call made in this suite", () => {
     expect(wire.length).toBeGreaterThan(30);
-    const hash = api.env.JARVIS_OWNER_PASSWORD_HASH as string;
+    const hash = api.env.FRIDAY_OWNER_PASSWORD_HASH as string;
     for (const entry of wire) {
       expect(hasCanary(entry.replace(OWNER_PASSWORD + "-wrong", ""))).toBeUndefined();
       expect(entry).not.toContain(hash);
@@ -121,8 +121,8 @@ describe("secret hygiene", () => {
     const text = logs.join("\n");
     expect(hasCanary(text)).toBeUndefined();
     expect(text).not.toContain(OWNER_PASSWORD + "-wrong");
-    expect(text).not.toContain(api.env.JARVIS_OWNER_PASSWORD_HASH as string);
-    expect(text).not.toMatch(/jarvis_session=[A-Za-z0-9_-]{20,}/);
+    expect(text).not.toContain(api.env.FRIDAY_OWNER_PASSWORD_HASH as string);
+    expect(text).not.toMatch(/friday_session=[A-Za-z0-9_-]{20,}/);
   });
 
   it("does not persist secret values in the settings database", () => {
@@ -143,7 +143,7 @@ describe("secret hygiene", () => {
     const client = api.client();
     const login = await client.loginOwner(OWNER_PASSWORD);
     const cookies = ([] as string[]).concat(login.headers["set-cookie"] ?? []);
-    const session = cookies.find((cookie) => cookie.startsWith("jarvis_session=")) as string;
+    const session = cookies.find((cookie) => cookie.startsWith("friday_session=")) as string;
     const sessionId = session.split(";")[0]?.split("=")[1] as string;
     expect(sessionId.length).toBeGreaterThan(20);
     expect(login.body).not.toContain(sessionId);

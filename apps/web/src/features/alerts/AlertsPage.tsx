@@ -1,7 +1,7 @@
 "use client";
 
-import type { Notification, Priority } from "@jarvis/sdk";
-import { Button, ConfirmDialog, HudPanel, Select, StatusChip, Tabs } from "@jarvis/ui";
+import type { Notification, Priority } from "@friday/sdk";
+import { Button, ConfirmDialog, HudPanel, Select, StatusChip, Tabs } from "@friday/ui";
 import { BellRing, CheckCheck } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";

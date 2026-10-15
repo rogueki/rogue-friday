@@ -19,7 +19,7 @@ import { OrbCanvas } from "./scene/OrbCanvas";
 import { resolveQuality, resolveSettings, type OrbQualityLevel, type OrbSettings } from "./settings";
 import { deriveVisualTargets } from "./visual/deriveVisualTargets";
 
-interface JarvisOrbBaseProps {
+interface FridayOrbBaseProps {
   settings?: Partial<OrbSettings>;
   onActivate?: (target: OrbActivationTarget) => void;
   onVoiceToggle?: () => void;
@@ -48,7 +48,7 @@ interface JarvisOrbBaseProps {
  * Either a wire `snapshot` (GET /orb/status payload) or `status` + optional `layers` (derived from `status.mode`
  * when omitted, PLAN §18.2).
  */
-export type JarvisOrbProps = JarvisOrbBaseProps &
+export type FridayOrbProps = FridayOrbBaseProps &
   (
     | { snapshot: OrbSnapshot; status?: undefined; layers?: undefined }
     | { status: OrbStatus; layers?: OrbLayers; snapshot?: undefined }
@@ -132,7 +132,7 @@ function useAnnouncement(sentence: string, mode: string): string {
   return text;
 }
 
-export function JarvisOrb({
+export function FridayOrb({
   status: statusProp,
   layers: layersProp,
   snapshot,
@@ -148,7 +148,7 @@ export function JarvisOrb({
   onRendererChange,
   getAudioLevel,
   audioLevelRef,
-}: JarvisOrbProps) {
+}: FridayOrbProps) {
   const status = (snapshot?.status ?? statusProp) as OrbStatus;
   const layers = snapshot?.layers ?? layersProp;
   const settings = useStableSettings(settingsInput);
@@ -243,12 +243,12 @@ export function JarvisOrb({
   const announced = useAnnouncement(sentence, status.mode);
   const agentCount = Math.max(effectiveLayers.activeAgentIds.length, status.activeAgentCount ?? 0);
   const none = labels.tooltip.none;
-  const tipId = "jarvis-orb-tip";
+  const tipId = "friday-orb-tip";
 
   return (
     <div
       ref={containerRef}
-      className={["jarvis-orb", className].filter(Boolean).join(" ")}
+      className={["friday-orb", className].filter(Boolean).join(" ")}
       style={style}
       data-orb-root=""
       data-orb-mode={status.mode}
@@ -280,7 +280,7 @@ export function JarvisOrb({
       <OrbOverlay status={status} layers={effectiveLayers} labels={labels} />
       <button
         type="button"
-        className="jarvis-orb__target"
+        className="friday-orb__target"
         aria-label={`${labels.hitTarget}. ${labels.states[status.mode]}`}
         aria-describedby={tipOpen ? tipId : undefined}
         onClick={() => onActivate?.(activationTarget(status))}
@@ -292,7 +292,7 @@ export function JarvisOrb({
         onBlur={() => setTipOpen(false)}
       />
       {tipOpen ? (
-        <div id={tipId} role="tooltip" className="jarvis-orb__tip" data-testid="orb-tooltip">
+        <div id={tipId} role="tooltip" className="friday-orb__tip" data-testid="orb-tooltip">
           <dl>
             <dt>{labels.tooltip.state}</dt>
             <dd>{labels.states[status.mode]}</dd>
@@ -309,7 +309,7 @@ export function JarvisOrb({
           </dl>
         </div>
       ) : null}
-      <span className="jarvis-orb__sr" role="status" aria-live="polite" aria-atomic="true" data-testid="orb-aria-live">
+      <span className="friday-orb__sr" role="status" aria-live="polite" aria-atomic="true" data-testid="orb-aria-live">
         {announced}
       </span>
       {showPerf ? <OrbPerfOverlay bloom={settings.bloom} /> : null}

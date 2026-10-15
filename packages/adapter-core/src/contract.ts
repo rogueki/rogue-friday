@@ -1,4 +1,4 @@
-import { createSchemaValidator, type SchemaValidator, type ValidationIssue } from "@jarvis/sdk";
+import { createSchemaValidator, type SchemaValidator, type ValidationIssue } from "@friday/sdk";
 import { AdapterError } from "./errors";
 
 let shared: SchemaValidator | undefined;

@@ -1,7 +1,7 @@
 "use client";
 
-import type { Role, Session } from "@jarvis/sdk";
-import { isJarvisApiError } from "@jarvis/sdk";
+import type { Role, Session } from "@friday/sdk";
+import { isFridayApiError } from "@friday/sdk";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
@@ -45,7 +45,7 @@ export function useSession(): SessionInfo {
   let status: SessionStatus;
   if (cached) status = "authenticated";
   else if (query.isPending) status = "loading";
-  else if (isJarvisApiError(query.error) && (query.error.code === "UNAUTHENTICATED" || query.error.status === 401)) status = "unauthenticated";
+  else if (isFridayApiError(query.error) && (query.error.code === "UNAUTHENTICATED" || query.error.status === 401)) status = "unauthenticated";
   else if (query.isError && !session) status = "error";
   else status = session?.authenticated ? "authenticated" : "unauthenticated";
 

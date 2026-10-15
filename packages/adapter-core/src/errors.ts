@@ -1,4 +1,4 @@
-import type { ErrorCode, ErrorDetail, Severity } from "@jarvis/sdk";
+import type { ErrorCode, ErrorDetail, Severity } from "@friday/sdk";
 
 export interface AdapterErrorInit {
   code: ErrorCode;

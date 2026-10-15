@@ -1,6 +1,6 @@
 "use client";
 
-import { StatusFlag, Tooltip, VoiceStatusPanel } from "@jarvis/ui";
+import { StatusFlag, Tooltip, VoiceStatusPanel } from "@friday/ui";
 import { AudioLines, Fingerprint, KeyRound, Mic, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";

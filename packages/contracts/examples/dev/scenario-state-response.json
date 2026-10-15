@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/dev/scenario-state-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/dev/scenario-state-response.schema.json",
+  "contractVersion": "2.0.0",
   "data": {
     "activeScenarioId": "voice-pipeline",
     "running": true,

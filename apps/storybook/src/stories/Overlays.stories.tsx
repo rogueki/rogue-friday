@@ -13,7 +13,7 @@ import {
   useToast,
   type CommandItem,
   type ToastData,
-} from '@jarvis/ui';
+} from '@friday/ui';
 import { Row } from './_helpers';
 
 const meta = { title: 'Components/Overlays', parameters: { layout: 'fullscreen' } } satisfies Meta;
@@ -114,7 +114,7 @@ export const CommandPaletteStory: Story = {
     return (
       <div style={{ padding: 28 }}>
         <Button onClick={() => setOpen(true)}>Palette öffnen (Ctrl+K)</Button>
-        <p style={{ color: 'var(--jarvis-muted)' }}>Zuletzt ausgeführt: {last || '–'}</p>
+        <p style={{ color: 'var(--friday-muted)' }}>Zuletzt ausgeführt: {last || '–'}</p>
         <CommandPalette open={open} onOpenChange={setOpen} items={paletteItems} onSelect={(i) => setLast(i.label)} groupOrder={['F.R.I.D.A.Y.', 'Erstellen', 'Navigation', 'Automationen']} />
       </div>
     );

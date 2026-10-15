@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ConfigError, isLoopback, loadConfig, type JarvisConfig } from "@jarvis/config";
+import { ConfigError, isLoopback, legacyEnvWarning, loadConfig, normalizeLegacyEnv, type FridayConfig } from "@friday/config";
 import { createControlApi } from "./app";
 
 /** The monorepo root (the folder with `pnpm-workspace.yaml`), or the current directory for a deployed bundle. */
@@ -29,10 +29,10 @@ function loadDotEnv(root: string): void {
 
 /**
  * Without a configured owner password hash the dashboard would be unreachable. For mock data on loopback (the only
- * combination `@jarvis/auth` accepts) it falls back to the fixed dev accounts and says so loudly.
+ * combination `@friday/auth` accepts) it falls back to the fixed dev accounts and says so loudly.
  */
-export function withDevFallback(config: JarvisConfig, env: NodeJS.ProcessEnv): JarvisConfig {
-  const explicit = env.JARVIS_AUTH_MODE;
+export function withDevFallback(config: FridayConfig, env: NodeJS.ProcessEnv): FridayConfig {
+  const explicit = env.FRIDAY_AUTH_MODE;
   const wantsDev = explicit === "dev" || (explicit === undefined && config.auth.mode === "local" && !config.auth.ownerPasswordHash.configured);
   if (!wantsDev || config.auth.mode === "dev") return config;
   if (config.dataMode !== "mock" || !isLoopback(config.server.host)) return config;
@@ -41,7 +41,7 @@ export function withDevFallback(config: JarvisConfig, env: NodeJS.ProcessEnv): J
     auth: { ...config.auth, mode: "dev" },
     warnings: [
       ...config.warnings,
-      "Kein Owner-Passwort-Hash konfiguriert: Dev-Login aktiv (feste Konten dev-owner/-operator/-viewer, nur Mock-Daten auf Loopback). Für den Echtbetrieb JARVIS_OWNER_PASSWORD_HASH setzen.",
+      "Kein Owner-Passwort-Hash konfiguriert: Dev-Login aktiv (feste Konten dev-owner/-operator/-viewer, nur Mock-Daten auf Loopback). Für den Echtbetrieb FRIDAY_OWNER_PASSWORD_HASH setzen.",
     ],
   };
 }
@@ -49,11 +49,12 @@ export function withDevFallback(config: JarvisConfig, env: NodeJS.ProcessEnv): J
 export async function main(): Promise<void> {
   const root = findProjectRoot(process.cwd());
   loadDotEnv(root);
-  const env = process.env;
-  let config: JarvisConfig;
+  const { env, legacy } = normalizeLegacyEnv(process.env);
+  if (legacy.length > 0) console.warn(legacyEnvWarning(legacy));
+  let config: FridayConfig;
   try {
     config = withDevFallback(
-      loadConfig({ configDir: env.JARVIS_CONFIG_DIR ?? join(root, "config"), cwd: root, env }),
+      loadConfig({ configDir: env.FRIDAY_CONFIG_DIR ?? join(root, "config"), cwd: root, env }),
       env,
     );
   } catch (error) {

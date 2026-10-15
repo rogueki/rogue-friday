@@ -1,8 +1,8 @@
 "use client";
 
-import type { Approval, Freshness } from "@jarvis/sdk";
-import { isJarvisApiError } from "@jarvis/sdk";
-import { Button, Drawer, EmptyState, ErrorState, Skeleton, StatusDot, TagPill, cx, useToast } from "@jarvis/ui";
+import type { Approval, Freshness } from "@friday/sdk";
+import { isFridayApiError } from "@friday/sdk";
+import { Button, Drawer, EmptyState, ErrorState, Skeleton, StatusDot, TagPill, cx, useToast } from "@friday/ui";
 import { Check, ExternalLink, MessageSquareQuote, Pencil, ShieldAlert, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -198,7 +198,7 @@ export function ApprovalDrawer({ approvalId, agentNames, onClose }: ApprovalDraw
   else if (query.isPending) body = <Skeleton variant="block" height={260} label={t("common.loading")} />;
   else if (query.isError) {
     body =
-      isJarvisApiError(query.error) && query.error.code === "NOT_FOUND" ? (
+      isFridayApiError(query.error) && query.error.code === "NOT_FOUND" ? (
         <EmptyState compact title={t("approvals.drawer.notFound")} description={t("approvals.drawer.notFoundHint")} />
       ) : (
         <ErrorState compact title={t("common.loadError")} description={query.error instanceof Error ? query.error.message : undefined} onRetry={() => void query.refetch()} retryLabel={t("common.retry")} />

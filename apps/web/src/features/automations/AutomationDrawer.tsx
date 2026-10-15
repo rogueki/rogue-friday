@@ -1,7 +1,7 @@
 "use client";
 
 import type { AutomationDto as Automation } from "@/lib/api/domains/automations";
-import { Button, Drawer, StatusChip, Switch, Tabs } from "@jarvis/ui";
+import { Button, Drawer, StatusChip, Switch, Tabs } from "@friday/ui";
 import { Pencil } from "lucide-react";
 import { useT } from "@/i18n";
 import { useAutomationRuns, useToggleAutomation } from "@/lib/api/domains/automations";

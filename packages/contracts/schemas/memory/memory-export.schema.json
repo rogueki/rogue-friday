@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/memory/memory-export.schema.json",
+  "$id": "https://friday.local/schemas/memory/memory-export.schema.json",
   "title": "MemoryExport",
   "description": "JSON export of the memory store (PLAN §30.3). Never contains secrets: restricted memories are omitted and only counted.",
   "type": "object",

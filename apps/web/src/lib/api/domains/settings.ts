@@ -17,7 +17,7 @@ import type {
   ThemeImportRequest,
   ThemeListResponse,
   ThemeResponse,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";

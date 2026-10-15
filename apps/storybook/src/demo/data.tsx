@@ -37,7 +37,7 @@ import type {
   ProviderStatus,
   Tone,
   TimelineItem,
-} from '@jarvis/ui';
+} from '@friday/ui';
 
 export const navItems: NavItem[] = [
   { id: 'overview', label: 'Übersicht', icon: <LayoutDashboard /> },

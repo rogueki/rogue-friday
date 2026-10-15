@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/meta/quick-command.schema.json",
+  "$schema": "https://friday.local/schemas/meta/quick-command.schema.json",
   "id": "qc_new_task",
   "label": "Neue Aufgabe",
   "icon": "plus",

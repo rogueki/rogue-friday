@@ -110,7 +110,7 @@ const WINCRED_SCRIPT = [
   "$ErrorActionPreference = 'Stop'",
   "if (-not (Get-Module -ListAvailable -Name CredentialManager)) { exit 3 }",
   'Import-Module CredentialManager',
-  '$cred = Get-StoredCredential -Target $env:JARVIS_WINCRED_TARGET',
+  '$cred = Get-StoredCredential -Target $env:FRIDAY_WINCRED_TARGET',
   'if ($null -eq $cred) { exit 4 }',
   '[Console]::Out.Write($cred.GetNetworkCredential().Password)',
 ].join('; ');
@@ -158,7 +158,7 @@ export function resolveSecret(ref: string, options: ResolveSecretOptions = {}): 
   }
   const spawn = options.spawn ?? defaultSpawn;
   const result = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', WINCRED_SCRIPT], {
-    env: { ...(options.env ?? process.env), JARVIS_WINCRED_TARGET: parsed.name },
+    env: { ...(options.env ?? process.env), FRIDAY_WINCRED_TARGET: parsed.name },
     timeoutMs: options.timeoutMs ?? 15_000,
   });
   if (result.error) {

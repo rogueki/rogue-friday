@@ -3,7 +3,7 @@ import type {
   ResearchFinding,
   ResearchProject,
   ResearchSource,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { DAY, HOUR, MIN, type SeedContext } from "./context";
 import { fileSpec } from "./files";
 import type { AgentKey, FileKey, ResearchKey, Story } from "./story";

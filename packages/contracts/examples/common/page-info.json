@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/common/page-info.schema.json",
+  "$schema": "https://friday.local/schemas/common/page-info.schema.json",
   "nextCursor": "eyJvIjo1MH0",
   "hasNextPage": true,
   "totalCount": 143

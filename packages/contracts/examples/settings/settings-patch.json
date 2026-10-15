@@ -1,13 +1,13 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/settings-patch.schema.json",
+  "$schema": "https://friday.local/schemas/settings/settings-patch.schema.json",
   "theme": {
-    "activeThemeId": "jarvis-command-gold-core",
+    "activeThemeId": "friday-command-gold-core",
     "cyanIntensity": 0.8,
     "panelOpacity": 0.88,
     "goldIntensity": 0.78
   },
   "dashboard": {
-    "activeLayoutId": "jarvis-command-overview",
+    "activeLayoutId": "friday-command-overview",
     "fontScale": 1,
     "backgroundGrid": true,
     "soundEffects": false,

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/system/frontend-telemetry-batch.schema.json",
+  "$schema": "https://friday.local/schemas/system/frontend-telemetry-batch.schema.json",
   "errors": [
     {
       "kind": "render_error",

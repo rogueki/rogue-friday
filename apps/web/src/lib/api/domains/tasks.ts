@@ -11,7 +11,7 @@ import type {
   TaskResponse,
   TaskStatus,
   TaskUpdateRequest,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";

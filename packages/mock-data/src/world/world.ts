@@ -1,6 +1,6 @@
 import {
   CONTRACT_VERSION,
-  JARVIS_EVENT_DATA_SCHEMA_IDS as JARVIS_EVENT_SCHEMA_IDS,
+  FRIDAY_EVENT_DATA_SCHEMA_IDS as FRIDAY_EVENT_SCHEMA_IDS,
   createSchemaValidator,
   type ActivityEvent,
   type Actor,
@@ -11,16 +11,16 @@ import {
   type Capabilities,
   type ErrorDetail,
   type Freshness,
-  type JarvisEvent,
-  type JarvisEventMap,
-  type JarvisEventType,
-  type JarvisStatus,
+  type FridayEvent,
+  type FridayEventMap,
+  type FridayEventType,
+  type FridayStatus,
   type OrbMode,
   type OrbSnapshot,
   type SchemaName,
   type SchemaValidator,
   type SourceDescriptor,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { createAuditEvent, verifyAuditChain, type AuditDraft, type ChainVerification } from "../core/audit-chain";
 import { MockClock, type TimerHandle } from "../core/clock";
 import {
@@ -292,7 +292,7 @@ export class MockWorld {
 
   announceResync(reason: "server_restart" | "unknown" = "server_restart"): void {
     this.emit(
-      "jarvis.status.resync_required",
+      "friday.status.resync_required",
       { reason, requestedSince: null, oldestAvailableSequence: null, latestSequence: this.highWater },
       { source: "control-api://core", subject: "status/resync" },
     );
@@ -514,7 +514,7 @@ export class MockWorld {
         { from: previous, to: mode },
       );
     }
-    this.emit("jarvis.adapter.health_changed", health, {
+    this.emit("friday.adapter.health_changed", health, {
       source: "control-api://core",
       subject: `adapter/${adapter.manifest.id}`,
     });
@@ -531,7 +531,7 @@ export class MockWorld {
     const adapter = this.adapter(category);
     service.status = adapter.mode === "online" ? "online" : adapter.mode === "offline" ? "offline" : "degraded";
     service.updatedAt = this.clock.nowIso();
-    this.emit("jarvis.system.service_status_changed", clone(service), { source: "adapter://mock-system", subject: `service/${service.id}` });
+    this.emit("friday.system.service_status_changed", clone(service), { source: "adapter://mock-system", subject: `service/${service.id}` });
   }
 
   adapterHealth(category: AdapterCategory): AdapterHealth {
@@ -593,7 +593,7 @@ export class MockWorld {
     }
     if (!found) throw validationFailed(`Unbekannte Fähigkeit ${module}.${capability}.`, [{ path: "capability", message: "unbekannt" }]);
     const capabilities = clone(this.state.capabilities);
-    this.emit("jarvis.adapter.capabilities_changed", capabilities, { source: "control-api://core", subject: `capabilities/${module}` });
+    this.emit("friday.adapter.capabilities_changed", capabilities, { source: "control-api://core", subject: `capabilities/${module}` });
     this.refresh();
     return capabilities;
   }
@@ -660,11 +660,11 @@ export class MockWorld {
 
   // ---------------------------------------------------------------- events, audit, activity
 
-  emit<K extends JarvisEventType>(
+  emit<K extends FridayEventType>(
     type: K,
-    data: JarvisEventMap[K],
+    data: FridayEventMap[K],
     options: Pick<EmitOptions, "subject"> & Partial<EmitOptions>,
-  ): JarvisEvent<K> {
+  ): FridayEvent<K> {
     return this.events.emit(type, clone(data), {
       subject: options.subject,
       source: options.source ?? "control-api://core",
@@ -674,14 +674,14 @@ export class MockWorld {
   }
 
   /** Emits an event whose source is the mock adapter of `category`. */
-  emitFor<K extends JarvisEventType>(
+  emitFor<K extends FridayEventType>(
     category: AdapterCategory,
     type: K,
-    data: JarvisEventMap[K],
+    data: FridayEventMap[K],
     subject: string,
     correlationId?: string,
     causationId?: string,
-  ): JarvisEvent<K> {
+  ): FridayEvent<K> {
     return this.emit(type, data, {
       subject,
       source: `adapter://${adapterIdFor(category)}`,
@@ -713,7 +713,7 @@ export class MockWorld {
       prevHash: last?.hash ?? null,
     });
     this.state.audit.push(event);
-    this.emitFor("audit", "jarvis.audit.appended", event, `audit/${event.id}`, event.correlationId);
+    this.emitFor("audit", "friday.audit.appended", event, `audit/${event.id}`, event.correlationId);
     return event;
   }
 
@@ -751,7 +751,7 @@ export class MockWorld {
       ...(input.details ? { details: input.details } : {}),
     };
     this.state.activity.push(event);
-    const emitted = this.emitFor("activity", "jarvis.activity.appended", event, `activity/${event.id}`, input.correlationId);
+    const emitted = this.emitFor("activity", "friday.activity.appended", event, `activity/${event.id}`, input.correlationId);
     // The envelope sequence is the activity sequence; both are drawn from the same counter.
     if (emitted.sequence !== event.sequence) event.sequence = emitted.sequence;
     return event;
@@ -792,11 +792,11 @@ export class MockWorld {
   private statusSignature = "";
 
   private computeStatusSignature(): string {
-    const status = this.jarvisStatus();
+    const status = this.fridayStatus();
     return canonicalJson({ ...status, uptimeSeconds: 0, eventStream: { state: status.eventStream.state } });
   }
 
-  /** Recomputes orb and overall status; emits `jarvis.orb.status_changed` / `jarvis.status.changed` on change. */
+  /** Recomputes orb and overall status; emits `friday.orb.status_changed` / `friday.status.changed` on change. */
   refresh(): void {
     if (this.refreshing) return;
     this.refreshing = true;
@@ -810,7 +810,7 @@ export class MockWorld {
         this.state.orb = { mode: snapshot.status.mode, since, signature, ...(causing ? { sourceEventId: causing } : {}) };
         const next = deriveOrbSnapshot(this, since);
         if (causing) next.status.sourceEventId = causing;
-        this.emit("jarvis.orb.status_changed", next, {
+        this.emit("friday.orb.status_changed", next, {
           source: "control-api://core",
           subject: "orb/status",
           ...(causing ? { causationId: causing } : {}),
@@ -819,14 +819,14 @@ export class MockWorld {
       const statusSignature = this.computeStatusSignature();
       if (statusSignature !== this.statusSignature) {
         this.statusSignature = statusSignature;
-        this.emit("jarvis.status.changed", this.jarvisStatus(), { source: "control-api://core", subject: "status/overall" });
+        this.emit("friday.status.changed", this.fridayStatus(), { source: "control-api://core", subject: "status/overall" });
       }
     } finally {
       this.refreshing = false;
     }
   }
 
-  jarvisStatus(): JarvisStatus {
+  fridayStatus(): FridayStatus {
     const health = computeHealth(this.state);
     const summary = { online: 0, degraded: 0, offline: 0 };
     for (const adapter of this.state.adapters) {
@@ -869,10 +869,10 @@ export class MockWorld {
   }
 
   /** Emits a raw event (dev console). Unknown types are rejected so streams stay contract-conform. */
-  emitRaw(raw: { type: string; subject?: string; data: unknown; source?: string; correlationId?: string }): JarvisEvent {
-    const type = raw.type as JarvisEventType;
+  emitRaw(raw: { type: string; subject?: string; data: unknown; source?: string; correlationId?: string }): FridayEvent {
+    const type = raw.type as FridayEventType;
     const validator = getValidator();
-    const schemaId = (JARVIS_EVENT_SCHEMA_IDS as Record<string, string>)[type];
+    const schemaId = (FRIDAY_EVENT_SCHEMA_IDS as Record<string, string>)[type];
     if (!schemaId) throw validationFailed(`Unbekannter Ereignistyp ${raw.type}.`, [{ path: "type", message: "unbekannt" }]);
     const result = validator.validate(schemaId, raw.data);
     if (!result.valid) throw validationFailed("Ereignisdaten entsprechen nicht dem Schema.", result.errors);
@@ -885,7 +885,7 @@ export class MockWorld {
     return event;
   }
 
-  /** Periodic `jarvis.system.metrics` and `jarvis.agent.heartbeat` events on the mock clock. */
+  /** Periodic `friday.system.metrics` and `friday.agent.heartbeat` events on the mock clock. */
   startTelemetry(options: { metricsMs?: number; heartbeatMs?: number } = {}): void {
     this.stopTelemetry();
     this.telemetryOptions = options;
@@ -1004,7 +1004,7 @@ export class MockWorld {
     this.approvals.scheduleTimers();
     this.notifications.scheduleTimers();
     this.refresh();
-    this.emit("jarvis.status.resync_required", { reason: "unknown", requestedSince: null, oldestAvailableSequence: null, latestSequence: this.highWater }, { source: "control-api://core", subject: "status/resync" });
+    this.emit("friday.status.resync_required", { reason: "unknown", requestedSince: null, oldestAvailableSequence: null, latestSequence: this.highWater }, { source: "control-api://core", subject: "status/resync" });
   }
 }
 

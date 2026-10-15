@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { JarvisEvent } from "@jarvis/sdk";
+import type { FridayEvent } from "@friday/sdk";
 import { brandText, deriveOrb, type OrbInputs } from "../src/services/core-views";
 import { matchBuiltinIntent } from "../src/services/command-intents";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
@@ -31,7 +31,7 @@ describe("branding (assistantName)", () => {
     const status = (await owner.get("/api/v1/status")).json().data;
     expect(status.label).toBe("F.R.I.D.A.Y. online");
     const overview = (await owner.get("/api/v1/overview")).json().data;
-    expect(overview.jarvis.label).toBe("F.R.I.D.A.Y. online");
+    expect(overview.friday.label).toBe("F.R.I.D.A.Y. online");
     expect(overview.orb.status.activityText).not.toMatch(/JARVIS/i);
   });
 
@@ -53,15 +53,15 @@ describe("branding (assistantName)", () => {
     expect(world?.orbSnapshot().status.activityText, "default name straight from the world").toBe("F.R.I.D.A.Y. SPRICHT");
     expect(brandText(world?.orbSnapshot().status.activityText ?? "", "F.R.I.D.A.Y.")).toBe("F.R.I.D.A.Y. SPRICHT");
 
-    const seen: JarvisEvent[] = [];
+    const seen: FridayEvent[] = [];
     api.runtime.hub.subscribe((event) => seen.push(event));
     const settings = (await owner.get("/api/v1/settings")).json().data;
     await owner.patch("/api/v1/settings", { profile: { ...settings.profile, assistantName: "Fridolin" } });
     // unbranded, as the world produced it
     expect(world?.orbSnapshot().status.activityText).toBe("FRIDOLIN SPRICHT");
-    expect(world?.jarvisStatus().label).toBe("Fridolin online");
+    expect(world?.fridayStatus().label).toBe("Fridolin online");
     // and the stream already carries the new wording (no rewrite at the API edge)
-    const orbEvent = seen.find((event) => event.type === "jarvis.orb.status_changed");
+    const orbEvent = seen.find((event) => event.type === "friday.orb.status_changed");
     expect((orbEvent?.data as { status: { activityText: string } } | undefined)?.status.activityText).toBe("FRIDOLIN SPRICHT");
     expect(JSON.stringify((await owner.get("/api/v1/orb/status")).json())).not.toMatch(/F\.R\.I\.D\.A\.Y\.|JARVIS/);
   });
@@ -116,7 +116,7 @@ describe("command conventions of the web client", () => {
   let api: TestApi;
   let operator: ApiClient;
   let owner: ApiClient;
-  const events: JarvisEvent[] = [];
+  const events: FridayEvent[] = [];
 
   beforeEach(async () => {
     api = await startTestApi();
@@ -151,7 +151,7 @@ describe("command conventions of the web client", () => {
     expect((await voice()).mode).toBe("listening");
     // pending approvals outrank listening in the orb arbitration; the voice layer still reports the recording
     expect((await owner.get("/api/v1/orb/status")).json().data.layers.voice).toBe("listening");
-    expect(events.some((event) => event.type === "jarvis.voice.state_changed")).toBe(true);
+    expect(events.some((event) => event.type === "friday.voice.state_changed")).toBe(true);
     // stopping works through the regular endpoint
     expect((await operator.post("/api/v1/voice/stop")).statusCode).toBe(200);
     expect((await voice()).mode).toBe("idle");

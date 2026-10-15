@@ -1,13 +1,13 @@
 "use client";
 
-import { TopStatusBar, useMediaQuery, useNow, type ConnectionState, type TopBarAction } from "@jarvis/ui";
+import { TopStatusBar, useMediaQuery, useNow, type ConnectionState, type TopBarAction } from "@friday/ui";
 import { Bell, LayoutGrid, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { formatRelative } from "@/features/shared/time";
 import { toneFromHealth } from "@/features/shared/presentation";
 import { useT, type MessageKey } from "@/i18n";
-import { useMeta, useJarvisStatus } from "@/lib/api/domains/core";
+import { useMeta, useFridayStatus } from "@/lib/api/domains/core";
 import { useNotifications } from "@/lib/api/domains/notifications";
 import { useRealtimeStatus, type RealtimeStatus } from "@/lib/realtime/store";
 import { useSession } from "@/lib/session";
@@ -45,7 +45,7 @@ export function AppTopBar() {
   const router = useRouter();
   const { t, locale } = useT();
   const { timeZone, hour12 } = useAppSettings();
-  const status = useJarvisStatus();
+  const status = useFridayStatus();
   const meta = useMeta();
   const session = useSession();
   const realtime = useRealtimeStatus();
@@ -57,8 +57,8 @@ export function AppTopBar() {
   const setNotificationsOpen = useUiStore((s) => s.setNotificationsOpen);
 
   const notificationCount = notifications.data?.pageInfo.totalCount ?? notifications.data?.items.length ?? 0;
-  const jarvis = status.data?.data;
-  const dataMode = jarvis?.dataMode ?? meta.data?.dataMode;
+  const friday = status.data?.data;
+  const dataMode = friday?.dataMode ?? meta.data?.dataMode;
 
   const actions = useMemo<TopBarAction[]>(() => {
     const bell: TopBarAction = {
@@ -76,8 +76,8 @@ export function AppTopBar() {
     ];
   }, [t, router, notificationCount, setNotificationsOpen, narrow]);
 
-  const statusLabel = jarvis ? jarvis.label.toUpperCase() : status.isError ? t("top.status.unknown") : "…";
-  const statusTone = jarvis ? toneFromHealth(jarvis.status) : "muted";
+  const statusLabel = friday ? friday.label.toUpperCase() : status.isError ? t("top.status.unknown") : "…";
+  const statusTone = friday ? toneFromHealth(friday.status) : "muted";
   const roleText = session.role ? t(`role.${session.role}` as MessageKey) : undefined;
   const modeText = dataMode ? t(`dataMode.${dataMode}` as MessageKey) : undefined;
 

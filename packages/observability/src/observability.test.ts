@@ -11,13 +11,13 @@ import {
   computeAuditHash,
   createCorrelationId,
   createId,
-  createJarvisMetrics,
+  createFridayMetrics,
   createLogger,
   createRedactor,
   createSeededIdFactory,
   createUlidGenerator,
   getCorrelationId,
-  isJarvisId,
+  isFridayId,
   isSensitiveKey,
   redact,
   redactString,
@@ -34,7 +34,7 @@ afterEach(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 function tempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'jarvis-obs-'));
+  const dir = mkdtempSync(join(tmpdir(), 'friday-obs-'));
   tempDirs.push(dir);
   return dir;
 }
@@ -43,8 +43,8 @@ describe('ids', () => {
   it('creates prefixed 26-char ULID ids', () => {
     const id = createId('task');
     expect(id).toMatch(/^task_[0-9A-HJKMNP-TV-Z]{26}$/);
-    expect(isJarvisId(id, 'task')).toBe(true);
-    expect(isJarvisId(id, 'agent')).toBe(false);
+    expect(isFridayId(id, 'task')).toBe(true);
+    expect(isFridayId(id, 'agent')).toBe(false);
     expect(createId('appr_')).toMatch(/^appr_/);
     expect(createCorrelationId()).toMatch(/^corr_[0-9A-HJKMNP-TV-Z]{26}$/);
   });
@@ -76,7 +76,7 @@ describe('ids', () => {
     expect(seqA).toEqual(seqB);
     expect(c('task')).not.toBe(seqA[0]);
     expect(seqA[1]! > seqA[0]!).toBe(true);
-    expect(seqA.every((id) => isJarvisId(id))).toBe(true);
+    expect(seqA.every((id) => isFridayId(id))).toBe(true);
   });
 });
 
@@ -315,15 +315,15 @@ describe('metrics', () => {
     expect(c.dropped).toBe(100);
   });
 
-  it('provides the JARVIS summary (latency, error rate, adapters, cache, frontend)', () => {
+  it('provides the FRIDAY summary (latency, error rate, adapters, cache, frontend)', () => {
     let now = 1_000_000;
-    const m = createJarvisMetrics(new MetricsRegistry(), () => now);
+    const m = createFridayMetrics(new MetricsRegistry(), () => now);
     m.recordRequest('GET', '/api/v1/tasks', 200, 0.02);
     m.recordRequest('GET', '/api/v1/tasks', 200, 0.3);
     m.recordRequest('POST', '/api/v1/tasks', 500, 0.01);
     m.wsConnections.inc();
-    m.recordEvent('jarvis.task.updated');
-    m.recordEvent('jarvis.task.updated');
+    m.recordEvent('friday.task.updated');
+    m.recordEvent('friday.task.updated');
     m.recordCache(true);
     m.recordCache(true);
     m.recordCache(false);
@@ -347,7 +347,7 @@ describe('metrics', () => {
 
   it('records orb samples (fps, frame time, WebGL memory) and derives ratio gauges for the exposition', () => {
     let now = 1_000_000;
-    const m = createJarvisMetrics(new MetricsRegistry(), () => now);
+    const m = createFridayMetrics(new MetricsRegistry(), () => now);
     m.recordFrontendReport({
       orbSamples: [
         { fps: 60, frameTimeMs: 16.7, webglMemoryBytes: 1000 },
@@ -357,21 +357,21 @@ describe('metrics', () => {
     });
     m.recordRequest('GET', '/a', 200, 0.01);
     m.recordRequest('GET', '/a', 503, 0.01);
-    m.recordEvent('jarvis.task.updated');
+    m.recordEvent('friday.task.updated');
     m.refreshDerived();
     expect(m.cacheHitRatio.value()).toBeUndefined();
     m.recordCache(true);
     m.recordCache(false);
     m.refreshDerived();
     const text = m.registry.renderPrometheus();
-    expect(text).toContain('jarvis_frontend_orb_fps 30');
-    expect(text).toContain('jarvis_frontend_orb_frame_time_ms 33');
-    expect(text).toContain('jarvis_frontend_webgl_memory_bytes 2000');
-    expect(text).toContain('jarvis_frontend_orb_frame_time_seconds_count 2');
-    expect(text).toContain('jarvis_frontend_errors_total{kind="js_error"} 2');
-    expect(text).toContain('jarvis_http_error_ratio 0.5');
-    expect(text).toContain('jarvis_events_per_second 0.1');
-    expect(text).toContain('jarvis_cache_hit_ratio 0.5');
+    expect(text).toContain('friday_frontend_orb_fps 30');
+    expect(text).toContain('friday_frontend_orb_frame_time_ms 33');
+    expect(text).toContain('friday_frontend_webgl_memory_bytes 2000');
+    expect(text).toContain('friday_frontend_orb_frame_time_seconds_count 2');
+    expect(text).toContain('friday_frontend_errors_total{kind="js_error"} 2');
+    expect(text).toContain('friday_http_error_ratio 0.5');
+    expect(text).toContain('friday_events_per_second 0.1');
+    expect(text).toContain('friday_cache_hit_ratio 0.5');
     now += 20_000;
     m.refreshDerived();
     expect(m.eventsPerSecond.value()).toBe(0);

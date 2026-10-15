@@ -1,4 +1,4 @@
-import type { Actor, AdapterCategory, SourceDescriptor } from "@jarvis/sdk";
+import type { Actor, AdapterCategory, SourceDescriptor } from "@friday/sdk";
 import { adapterIdFor } from "../core/constants";
 import type { IdFactory } from "../core/ids";
 import type { Rng } from "../core/prng";

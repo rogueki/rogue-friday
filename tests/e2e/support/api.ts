@@ -40,7 +40,7 @@ export class ApiClient {
       const name = pair!.slice(0, index);
       const value = pair!.slice(index + 1);
       this.cookies.set(name, value);
-      if (name === "jarvis_csrf") this.csrf = value;
+      if (name === "friday_csrf") this.csrf = value;
     }
     const text = await response.text();
     let parsed: unknown = text;

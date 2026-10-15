@@ -6,7 +6,7 @@ import type {
   AutomationTrigger,
   AutomationVersion,
   EscalationStep,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { nextCronRun } from "../core/cron";
 import { DAY, HOUR, MIN, type SeedContext } from "./context";
 import type { AutomationKey, Story } from "./story";
@@ -36,7 +36,7 @@ const SPECS: AutomationSpec[] = [
     name: "Wichtige Mail eskalieren",
     description: "Neue P1-Mail → Telegram, nach 10 Minuten ohne Bestätigung Anruf.",
     enabled: true,
-    trigger: { type: "event", event: "jarvis.communication.thread_updated", description: "Neuer E-Mail-Thread mit Priorität P1" },
+    trigger: { type: "event", event: "friday.communication.thread_updated", description: "Neuer E-Mail-Thread mit Priorität P1" },
     conditions: [
       { id: "cond_1", field: "thread.priority", operator: "eq", value: conditionValue("P1"), description: "Priorität ist P1" },
       { id: "cond_2", field: "thread.channelKind", operator: "eq", value: conditionValue("email"), description: "Kanal ist E-Mail" },
@@ -83,7 +83,7 @@ const SPECS: AutomationSpec[] = [
     name: "Terminkonflikte melden",
     description: "Bei neu erkanntem Konflikt Benachrichtigung auslösen und Aufgabe zur Lösung anlegen.",
     enabled: true,
-    trigger: { type: "event", event: "jarvis.calendar.conflict_detected", description: "Konflikt im Kalender erkannt" },
+    trigger: { type: "event", event: "friday.calendar.conflict_detected", description: "Konflikt im Kalender erkannt" },
     conditions: [{ id: "cond_1", field: "conflict.severity", operator: "in", value: conditionValue(["warning", "error", "critical"]), description: "Schweregrad mindestens Warnung" }],
     actions: [
       { id: "act_1", type: "notify", channel: "dashboard", requiresApproval: false, description: "Hinweis im Dashboard" },
@@ -100,7 +100,7 @@ const SPECS: AutomationSpec[] = [
     name: "Rechnungseingang prüfen",
     description: "Neue Rechnungs-Mails automatisch einlesen und Prüfaufgabe erzeugen (derzeit deaktiviert).",
     enabled: false,
-    trigger: { type: "event", event: "jarvis.communication.thread_updated", description: "Neuer Thread mit Betreff 'Rechnung'" },
+    trigger: { type: "event", event: "friday.communication.thread_updated", description: "Neuer Thread mit Betreff 'Rechnung'" },
     conditions: [{ id: "cond_1", field: "thread.subject", operator: "contains", value: conditionValue("Rechnung"), description: "Betreff enthält 'Rechnung'" }],
     actions: [
       { id: "act_1", type: "create_task", params: { title: "Rechnung prüfen" }, requiresApproval: false, description: "Prüfaufgabe anlegen" },
@@ -244,7 +244,7 @@ export function buildBulkAutomations(ctx: SeedContext, count: number): Automatio
       paused: false,
       trigger: schedule
         ? { type: "schedule", schedule: `${ctx.rng.int(0, 59)} ${ctx.rng.int(6, 20)} * * *`, timeZone: "Europe/Berlin", description: "Täglich" }
-        : { type: "event", event: "jarvis.notification.created", description: "Neue Benachrichtigung" },
+        : { type: "event", event: "friday.notification.created", description: "Neue Benachrichtigung" },
       conditions: [],
       actions: [{ id: "act_1", type: "notify", channel: "dashboard", requiresApproval: false, description: "Dashboard-Hinweis" }],
       escalation: [],

@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/config/adapters.schema.json",
+  "$id": "https://friday.local/schemas/config/adapters.schema.json",
   "title": "adapters.yaml",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "mode": {
-      "description": "Informational (PLAN §10.10 example). The effective mode is dataMode from dashboard.yaml / JARVIS_DATA_MODE.",
+      "description": "Informational (PLAN §10.10 example). The effective mode is dataMode from dashboard.yaml / FRIDAY_DATA_MODE.",
       "enum": ["mock", "hybrid", "live"]
     },
     "allowlist": {

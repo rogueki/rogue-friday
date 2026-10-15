@@ -1,5 +1,5 @@
-import { AdapterError } from "@jarvis/adapter-core";
-import type { AdapterInfo } from "@jarvis/sdk";
+import { AdapterError } from "@friday/adapter-core";
+import type { AdapterInfo } from "@friday/sdk";
 import { describe, expect, it } from "vitest";
 import { sectionStatusOf } from "../src/services/core-views";
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { BrandMark, ErrorState } from "@jarvis/ui";
-import { isJarvisApiError } from "@jarvis/sdk";
+import { BrandMark, ErrorState } from "@friday/ui";
+import { isFridayApiError } from "@friday/sdk";
 import { useT } from "@/i18n";
 
 /** Full-viewport boot placeholder shown while the session / meta are resolved. */
@@ -19,7 +19,7 @@ export function BootScreen() {
 /** Control API unreachable or answering with a non-auth error: the whole app cannot work, so say so clearly. */
 export function FatalErrorScreen({ error, onRetry }: { error: unknown; onRetry: () => void }) {
   const { t } = useT();
-  const api = isJarvisApiError(error) ? error : null;
+  const api = isFridayApiError(error) ? error : null;
   return (
     <div className="web-fullscreen jv-bg-stage">
       <ErrorState

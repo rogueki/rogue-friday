@@ -11,7 +11,7 @@ import {
   type Capability,
   type ProviderStatus,
   type Severity,
-} from '@jarvis/ui';
+} from '@friday/ui';
 import { Grid, Row, Section, longGerman } from './_helpers';
 
 const meta = { title: 'Components/Cards', parameters: { layout: 'fullscreen' } } satisfies Meta;

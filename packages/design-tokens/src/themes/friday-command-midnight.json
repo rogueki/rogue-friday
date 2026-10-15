@@ -1,6 +1,6 @@
 {
-  "id": "jarvis-command-midnight",
-  "name": "Jarvis Command / Midnight",
+  "id": "friday-command-midnight",
+  "name": "Friday Command / Midnight",
   "version": 1,
   "tokens": {
     "color.background": "#00030a",

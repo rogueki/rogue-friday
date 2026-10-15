@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/automations/automation-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/automations/automation-response.schema.json",
+  "contractVersion": "2.0.0",
   "data": {
     "id": "auto_01JCW5E9R2Q7T4M8N3B6V00001",
     "version": 3,
@@ -17,7 +17,7 @@
     "paused": false,
     "trigger": {
       "type": "event",
-      "event": "jarvis.communication.thread_updated",
+      "event": "friday.communication.thread_updated",
       "description": "Neuer Thread mit Priorität P1"
     },
     "conditions": [

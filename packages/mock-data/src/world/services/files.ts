@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type ActionResult, type Approval, type FileItem, type FilePreview, type FileRenameRequest } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type ActionResult, type Approval, type FileItem, type FilePreview, type FileRenameRequest } from "@friday/sdk";
 import { conflict, notFound, validationFailed } from "../../core/errors";
 import { asList, clone, compareDesc, matchesQuery, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
@@ -93,7 +93,7 @@ export class FileService {
       const previous = file.name;
       file.name = name;
       this.w.bump(file);
-      this.w.emitFor("files", "jarvis.file.updated", file, `file/${file.id}`, correlationId);
+      this.w.emitFor("files", "friday.file.updated", file, `file/${file.id}`, correlationId);
       this.w.recordAudit({
         category: "user_action",
         action: "file.renamed",
@@ -168,7 +168,7 @@ export class FileService {
       versions: [{ version: 1, createdAt: now, sizeBytes: input.sizeBytes, createdBy }],
       createdBy,
       taskId: input.taskId ?? null,
-      location: input.location ?? "D:\\Jarvis\\Dateien\\Berichte",
+      location: input.location ?? "D:\\Friday\\Dateien\\Berichte",
       tags: [],
       previewKind: input.content !== undefined ? "text" : "none",
       lineage: input.taskId ? [{ relation: "output_of", taskId: input.taskId, description: "Ergebnis einer Aufgabe" }] : [],
@@ -176,11 +176,11 @@ export class FileService {
     };
     this.w.state.files.push(file);
     if (input.content !== undefined) this.w.state.fileContents[file.id] = { text: input.content };
-    this.w.emitFor("files", "jarvis.file.created", file, `file/${file.id}`);
+    this.w.emitFor("files", "friday.file.created", file, `file/${file.id}`);
     return file;
   }
 
-  /** Simulation hook: a task regenerated the file; adds a version and publishes `jarvis.file.updated`. */
+  /** Simulation hook: a task regenerated the file; adds a version and publishes `friday.file.updated`. */
   addVersion(id: string, sizeBytes: number, content?: string): FileItem {
     const file = this.find(id);
     const now = this.w.nowIso();
@@ -190,7 +190,7 @@ export class FileService {
     file.sizeBytes = sizeBytes;
     if (content !== undefined) this.w.state.fileContents[id] = { text: content };
     this.w.bump(file);
-    this.w.emitFor("files", "jarvis.file.updated", file, `file/${file.id}`);
+    this.w.emitFor("files", "friday.file.updated", file, `file/${file.id}`);
     return file;
   }
 
@@ -198,7 +198,7 @@ export class FileService {
     this.w.state.files = this.w.state.files.filter((candidate) => candidate.id !== file.id);
     delete this.w.state.fileContents[file.id];
     const deletedAt = this.w.nowIso();
-    this.w.emitFor("files", "jarvis.file.deleted", { id: file.id, deletedAt, deletedBy: this.w.actorOf(ctx) }, `file/${file.id}`, correlationId);
+    this.w.emitFor("files", "friday.file.deleted", { id: file.id, deletedAt, deletedBy: this.w.actorOf(ctx) }, `file/${file.id}`, correlationId);
     const audit = this.w.recordAudit({
       category: "user_action",
       action: "file.deleted",

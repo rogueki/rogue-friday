@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/dev/scenario.schema.json",
+  "$schema": "https://friday.local/schemas/dev/scenario.schema.json",
   "id": "voice-pipeline",
   "name": "Voice-Pipeline",
   "description": "Listening → Transcribing → Thinking → Speaking → Idle",

@@ -1,8 +1,8 @@
-import type { FakeUpstream } from "@jarvis/adapter-testkit";
+import type { FakeUpstream } from "@friday/adapter-testkit";
 
 /**
  * Hermes API server on 43693 as documented in docs/MAPPING/hermes.md §3 (live-tested there):
- * `GET /health` needs no key, `GET /v1/models` needs `Authorization: Bearer <API_SERVER_KEY>` and lists `jarvis`;
+ * `GET /health` needs no key, `GET /v1/models` needs `Authorization: Bearer <API_SERVER_KEY>` and lists `friday`;
  * a wrong or missing key is HTTP 401 with the gateway's error body.
  */
 export interface FakeHermes {
@@ -14,7 +14,7 @@ export function installHermesApi(
   upstream: FakeUpstream,
   options: { apiKey: string; models?: string[] },
 ): FakeHermes {
-  const models = options.models ?? ["jarvis"];
+  const models = options.models ?? ["friday"];
   const acceptedKeys: string[] = [];
   upstream.route("GET", "/health", { body: { status: "ok", platform: "hermes-agent", version: "unknown" } });
   upstream.route("GET", "/v1/models", (request) => {

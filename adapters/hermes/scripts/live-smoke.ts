@@ -1,7 +1,7 @@
 /**
  * Read-only smoke test of the three Hermes adapters against a real Hermes instance (nothing is created or changed).
  *
- *   HERMES_API_KEY=... pnpm --filter @jarvis/adapter-hermes smoke
+ *   HERMES_API_KEY=... pnpm --filter @friday/adapter-hermes smoke
  *
  * Environment (all optional):
  *   HERMES_API_URL            default http://127.0.0.1:43693
@@ -11,14 +11,14 @@
  *   HERMES_BOARDS             comma separated board slugs, default "default"
  */
 import { readFile } from "node:fs/promises";
-import { createCorrelationId } from "@jarvis/sdk";
+import { createCorrelationId } from "@friday/sdk";
 import {
   createMemoryLogger,
   normalizeError,
   systemClock,
   type AdapterContext,
-  type JarvisAdapter,
-} from "@jarvis/adapter-core";
+  type FridayAdapter,
+} from "@friday/adapter-core";
 import { HermesActivityAdapter, HermesAgentsAdapter, HermesTasksAdapter } from "../src";
 
 const env = process.env;
@@ -36,7 +36,7 @@ const config = {
 const secrets: Record<string, string | undefined> = { apiKey, dashboardToken };
 
 async function run(
-  adapter: JarvisAdapter,
+  adapter: FridayAdapter,
   list: (adapter: never, call: { correlationId: string }) => Promise<string[]>,
 ) {
   const logger = createMemoryLogger();

@@ -1,5 +1,5 @@
-import { createJarvisClient, type AdapterInfo, type Capabilities, type OverviewResponse } from "@jarvis/sdk";
-import { ToastProvider } from "@jarvis/ui";
+import { createFridayClient, type AdapterInfo, type Capabilities, type OverviewResponse } from "@friday/sdk";
+import { ToastProvider } from "@friday/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
@@ -14,13 +14,13 @@ export function jsonResponse(body: unknown, status = 200): Response {
 }
 
 export function capabilitiesOf(modules: Record<string, Record<string, boolean>>): Capabilities {
-  return { contractVersion: "1.0.0", modules } as unknown as Capabilities;
+  return { contractVersion: "2.0.0", modules } as unknown as Capabilities;
 }
 
 export function adapterInfoOf(partial: { id: string; category: AdapterInfo["manifest"]["category"]; name?: string; health?: Partial<AdapterInfo["health"]> } & Partial<Omit<AdapterInfo, "manifest" | "health">>): AdapterInfo {
   const { id, category, name, health, ...rest } = partial;
   return {
-    manifest: { id, name: name ?? id, adapterVersion: "1.0.0", contractVersion: "1.0.0", apiVersion: "v1", category, capabilities: [], configSchemaRef: "urn:test", secretFields: [] },
+    manifest: { id, name: name ?? id, adapterVersion: "1.0.0", contractVersion: "2.0.0", apiVersion: "v1", category, capabilities: [], configSchemaRef: "urn:test", secretFields: [] },
     health: {
       adapterId: id,
       status: "online",
@@ -54,14 +54,14 @@ export function renderWithProviders(ui: ReactElement, options: RenderOptions = {
   if (options.overview) queryClient.setQueryData(queryKeys.overview, options.overview);
   if (options.adapters) {
     queryClient.setQueryData(queryKeys.adapters.list({}), {
-      contractVersion: "1.0.0",
+      contractVersion: "2.0.0",
       items: options.adapters,
       pageInfo: { nextCursor: null, hasNextPage: false },
       freshness: { state: "fresh", asOf: "2026-10-14T08:15:00Z" },
       sources: [],
     });
   }
-  setApiClient(createJarvisClient({ baseUrl: "http://jarvis.test", fetch: options.fetchImpl ?? NEVER_RESOLVES }));
+  setApiClient(createFridayClient({ baseUrl: "http://friday.test", fetch: options.fetchImpl ?? NEVER_RESOLVES }));
   const result = render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>

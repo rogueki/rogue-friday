@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { redactString } from "@jarvis/observability";
-import type { Layout, Theme } from "@jarvis/sdk";
+import { redactString } from "@friday/observability";
+import type { Layout, Theme } from "@friday/sdk";
 import type { Db } from "./database";
 
 export const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;

@@ -1,4 +1,4 @@
-import type { Actor, JarvisEvent, JarvisEventMap, JarvisEventType } from "@jarvis/sdk";
+import type { Actor, FridayEvent, FridayEventMap, FridayEventType } from "@friday/sdk";
 
 /** Per-call context a transport (MSW, Control API, port adapter) hands to world operations. */
 export interface OpContext {
@@ -22,9 +22,9 @@ export interface EmitOptions {
   causationId?: string | undefined;
 }
 
-export type WorldEvent<K extends JarvisEventType = JarvisEventType> = JarvisEvent<K>;
-export type WorldEventListener = (event: JarvisEvent) => void;
-export type EventData<K extends JarvisEventType> = JarvisEventMap[K];
+export type WorldEvent<K extends FridayEventType = FridayEventType> = FridayEvent<K>;
+export type WorldEventListener = (event: FridayEvent) => void;
+export type EventData<K extends FridayEventType> = FridayEventMap[K];
 
 /** Result of deleting a resource that may need an approval first. */
 export type DeleteOutcome<A, R> = { kind: "deleted"; result: R } | { kind: "approval"; approval: A };

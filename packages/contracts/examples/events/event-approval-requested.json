@@ -1,15 +1,15 @@
 {
-  "$schema": "https://jarvis.local/schemas/events/event-envelope.schema.json",
+  "$schema": "https://friday.local/schemas/events/event-envelope.schema.json",
   "specversion": "1.0",
   "id": "evt_01JCW5E9R2Q7T4M8N3B6V01844",
-  "type": "jarvis.approval.requested",
+  "type": "friday.approval.requested",
   "source": "adapter://mock-approvals",
   "subject": "approval/appr_01JCW5E9R2Q7T4M8N3B6V00001",
   "time": "2026-10-14T08:15:00Z",
   "sequence": 1844,
   "correlationId": "corr_01JCW5E9R2Q7T4M8N3B6V00001",
   "causationId": "evt_01JCW5E9R2Q7T4M8N3B6V01843",
-  "contractVersion": "1.0.0",
+  "contractVersion": "2.0.0",
   "data": {
     "id": "appr_01JCW5E9R2Q7T4M8N3B6V00001",
     "version": 3,

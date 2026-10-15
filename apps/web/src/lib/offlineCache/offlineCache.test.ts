@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, JarvisApiError, type SessionResponse } from "@jarvis/sdk";
+import { CONTRACT_VERSION, FridayApiError, type SessionResponse } from "@friday/sdk";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { queryKeys } from "../api/queryKeys";
@@ -236,7 +236,7 @@ describe("controller", () => {
     const client = newClient();
     restoreOfflineCache(client);
     const controller = startOfflineCache(client, { delayMs: 10 });
-    const denied = new JarvisApiError({ code: "UNAUTHENTICATED", message: "x", severity: "error", retryable: false, correlationId: "corr_00000000000000000000000000" }, 401);
+    const denied = new FridayApiError({ code: "UNAUTHENTICATED", message: "x", severity: "error", retryable: false, correlationId: "corr_00000000000000000000000000" }, 401);
     await client.fetchQuery({ queryKey: queryKeys.session, queryFn: () => Promise.reject(denied) }).catch(() => undefined);
     expect(readStored()).toBeNull();
     expect(getRestoredIdentity()).toBeNull();
@@ -273,7 +273,7 @@ describe("controller", () => {
 });
 
 describe("isUnreachable", () => {
-  const apiError = (status: number) => new JarvisApiError({ code: "INTERNAL", message: "x", severity: "error", retryable: false, correlationId: "corr_00000000000000000000000000" }, status);
+  const apiError = (status: number) => new FridayApiError({ code: "INTERNAL", message: "x", severity: "error", retryable: false, correlationId: "corr_00000000000000000000000000" }, status);
   it("treats network failures and gateway errors as unreachable, never 4xx", () => {
     expect(isUnreachable(new TypeError("Failed to fetch"))).toBe(true);
     expect(isUnreachable(apiError(502))).toBe(true);

@@ -1,5 +1,5 @@
-import type { ArtifactRef, ErrorDetail, Task, TaskBlocker, TaskStep } from "@jarvis/sdk";
-import { defineMapper, type MapContext } from "@jarvis/adapter-core";
+import type { ArtifactRef, ErrorDetail, Task, TaskBlocker, TaskStep } from "@friday/sdk";
+import { defineMapper, type MapContext } from "@friday/adapter-core";
 import { correlationFor, nestedId, type AgentIds, type TaskIds } from "./ids";
 import { toPriority, toTaskStatus } from "./status";
 import type { WireRun, WireTask, WireTaskDetail } from "./wire";

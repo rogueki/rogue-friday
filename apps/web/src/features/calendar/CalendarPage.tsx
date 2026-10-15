@@ -1,7 +1,7 @@
 "use client";
 
-import type { CalendarEvent, CalendarProposalType } from "@jarvis/sdk";
-import { Button, EmptyState, HudPanel, IconButton, useMediaQuery, useNow } from "@jarvis/ui";
+import type { CalendarEvent, CalendarProposalType } from "@friday/sdk";
+import { Button, EmptyState, HudPanel, IconButton, useMediaQuery, useNow } from "@friday/ui";
 import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Globe2 } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";

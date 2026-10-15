@@ -47,15 +47,15 @@ describe("cookies behind TLS", () => {
     const secure = await start({ secureCookies: true });
     const login = await secure.client().post("/api/v1/auth/login", { username: "dev-owner", password: "dev" }, { csrf: false });
     const cookies = ([] as string[]).concat(login.headers["set-cookie"] ?? []);
-    expect(cookies.find((cookie) => cookie.startsWith("jarvis_session="))).toMatch(/;\s*Secure/i);
-    expect(cookies.find((cookie) => cookie.startsWith("jarvis_csrf="))).toMatch(/;\s*Secure/i);
+    expect(cookies.find((cookie) => cookie.startsWith("friday_session="))).toMatch(/;\s*Secure/i);
+    expect(cookies.find((cookie) => cookie.startsWith("friday_csrf="))).toMatch(/;\s*Secure/i);
     expect(login.headers["strict-transport-security"]).toContain("max-age=");
   });
 });
 
 describe("server key loss (auth.key)", () => {
   it("invalidates only CSRF tokens: sessions, data and the audit trail survive; a fresh session read reissues a working token", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "jarvis-keyloss-"));
+    const dir = mkdtempSync(join(tmpdir(), "friday-keyloss-"));
     try {
       const first = await start({ dir });
       const before = first.client();
@@ -77,7 +77,7 @@ describe("server key loss (auth.key)", () => {
       expect((await after.post("/api/v1/tasks", { title: "mit altem Token" })).statusCode).toBe(403);
       const session = await after.get("/api/v1/auth/session");
       after.csrfToken = (session.json() as { data: { csrfToken: string } }).data.csrfToken;
-      after.cookies.set("jarvis_csrf", after.csrfToken);
+      after.cookies.set("friday_csrf", after.csrfToken);
       expect((await after.post("/api/v1/tasks", { title: "mit neuem Token" })).statusCode).toBe(201);
       expect(second.runtime.stores.audit.count()).toBeGreaterThanOrEqual(auditBefore);
       expect(second.runtime.stores.audit.verify()).toMatchObject({ valid: true });
@@ -87,7 +87,7 @@ describe("server key loss (auth.key)", () => {
   });
 
   it("still reports a really tampered trail after the key was regenerated", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "jarvis-keyloss-"));
+    const dir = mkdtempSync(join(tmpdir(), "friday-keyloss-"));
     try {
       const first = await start({ dir });
       const client = first.client();
@@ -152,7 +152,7 @@ describe("browser bundle", () => {
   it.skipIf(!existsSync(join(out, "index.html")))("contains no secret material, server paths or credentials", () => {
     const patterns: Array<[string, RegExp]> = [
       ["scrypt hash", /scrypt\$\d+\$/],
-      ["owner hash env", /JARVIS_OWNER_PASSWORD_HASH/],
+      ["owner hash env", /FRIDAY_OWNER_PASSWORD_HASH/],
       ["bearer token", /Bearer\s+[A-Za-z0-9._-]{20,}/],
       ["vendor key", /\b(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16})\b/],
       ["private key", /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
@@ -168,7 +168,7 @@ describe("browser bundle", () => {
 
   it("only the MSW switch is a public build variable", () => {
     const source = execFileSync("git", ["grep", "-ho", "NEXT_PUBLIC_[A-Z_]*", "--", "apps/web/src", "apps/web/next.config.ts", "apps/web/scripts"], { cwd: ROOT, encoding: "utf8" });
-    expect([...new Set(source.split("\n").filter(Boolean))]).toEqual(["NEXT_PUBLIC_JARVIS_MSW"]);
+    expect([...new Set(source.split("\n").filter(Boolean))]).toEqual(["NEXT_PUBLIC_FRIDAY_MSW"]);
   });
 });
 
@@ -183,7 +183,7 @@ describe("repository hygiene", () => {
   });
 
   it("the installer deploys an allowlist of sources only: no agent metadata, .env, data, logs or docs", () => {
-    const script = readFileSync(join(ROOT, "installer", "install-jarvis.ps1"), "utf8");
+    const script = readFileSync(join(ROOT, "installer", "install-friday.ps1"), "utf8");
     const list = (name: string): string[] => {
       const match = new RegExp(`\\$${name}\\s*=\\s*@\\(([^)]*)\\)`).exec(script);
       return [...(match?.[1] ?? "").matchAll(/'([^']+)'/g)].map((entry) => entry[1] as string);

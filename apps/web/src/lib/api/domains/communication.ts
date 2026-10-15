@@ -1,6 +1,6 @@
 "use client";
 
-import type { ApprovalResponse, ChannelListResponse, components, DraftCreateRequest, DraftListResponse, DraftStatus, DraftUpdateRequest, Priority, ThreadListResponse, ThreadResponse } from "@jarvis/sdk";
+import type { ApprovalResponse, ChannelListResponse, components, DraftCreateRequest, DraftListResponse, DraftStatus, DraftUpdateRequest, Priority, ThreadListResponse, ThreadResponse } from "@friday/sdk";
 import { queryOptions, useQuery, type QueryClient } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
@@ -106,7 +106,7 @@ export function useRequestDraftSend() {
 
 /**
  * There is no `GET /communication/drafts/{id}`: a single draft is known from the draft list, from create/update
- * responses and from `jarvis.communication.draft_updated` events. This hook only reads that cache entry (it never
+ * responses and from `friday.communication.draft_updated` events. This hook only reads that cache entry (it never
  * fetches); it is the fallback for adapters without the list operation.
  */
 export const useCachedDraft = (id: string | null | undefined) =>

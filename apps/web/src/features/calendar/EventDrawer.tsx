@@ -1,7 +1,7 @@
 "use client";
 
-import type { CalendarBriefing, CalendarConflict, CalendarEvent, CalendarProposalType } from "@jarvis/sdk";
-import { Button, Drawer, StatusChip, TagPill } from "@jarvis/ui";
+import type { CalendarBriefing, CalendarConflict, CalendarEvent, CalendarProposalType } from "@friday/sdk";
+import { Button, Drawer, StatusChip, TagPill } from "@friday/ui";
 import { AlarmClock, CalendarClock, CalendarX2, Mail, Reply, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n";

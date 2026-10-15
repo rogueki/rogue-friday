@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/theme-response.schema.json",
+  "$id": "https://friday.local/schemas/settings/theme-response.schema.json",
   "title": "ThemeResponse",
   "description": "Single-resource envelope for Theme.",
   "type": "object",

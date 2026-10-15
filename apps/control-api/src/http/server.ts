@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { runWithCorrelation } from "@jarvis/observability";
+import { runWithCorrelation } from "@friday/observability";
 import type { Runtime } from "../runtime/types";
 import { CSP_BASE, SECURITY_HEADERS, createRequestGuards, type RequestGuards } from "../security/guards";
 import { ApiError, toFailure } from "../util/errors";

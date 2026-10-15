@@ -20,24 +20,24 @@ a technical detail, this file wins; on product scope, `PLAN.md` wins.
 
 | Package | Name | Path |
 |---|---|---|
-| Contracts (source of truth) | `@jarvis/contracts` | `packages/contracts` |
-| Generated SDK | `@jarvis/sdk` | `packages/generated-sdk` |
-| Design tokens/themes | `@jarvis/design-tokens` | `packages/design-tokens` |
-| UI components | `@jarvis/ui` | `packages/ui` |
-| Orb | `@jarvis/orb` | `packages/orb` |
-| Adapter SDK (ports, registry, resilience) | `@jarvis/adapter-core` | `packages/adapter-core` |
-| Conformance suite | `@jarvis/adapter-testkit` | `packages/adapter-testkit` |
-| Mock data, seeds, scenarios, MSW handlers | `@jarvis/mock-data` | `packages/mock-data` |
-| Config loader | `@jarvis/config` | `packages/config` |
-| Auth (sessions, roles, CSRF) | `@jarvis/auth` | `packages/auth` |
-| Observability (logger, redaction, metrics) | `@jarvis/observability` | `packages/observability` |
-| Mock adapters | `@jarvis/adapter-mock` | `adapters/mock` |
-| Example HTTP adapter (template) | `@jarvis/adapter-example-http` | `adapters/example-http` |
-| Placeholders | `@jarvis/adapter-*-placeholder` | `adapters/*-placeholder` |
-| Control API (NestJS + Fastify) | `@jarvis/control-api` | `apps/control-api` |
-| Web (Next.js App Router) | `@jarvis/web` | `apps/web` |
-| Scenario CLI | `@jarvis/mock-console` | `apps/mock-console` |
-| Storybook | `@jarvis/storybook` | `apps/storybook` |
+| Contracts (source of truth) | `@friday/contracts` | `packages/contracts` |
+| Generated SDK | `@friday/sdk` | `packages/generated-sdk` |
+| Design tokens/themes | `@friday/design-tokens` | `packages/design-tokens` |
+| UI components | `@friday/ui` | `packages/ui` |
+| Orb | `@friday/orb` | `packages/orb` |
+| Adapter SDK (ports, registry, resilience) | `@friday/adapter-core` | `packages/adapter-core` |
+| Conformance suite | `@friday/adapter-testkit` | `packages/adapter-testkit` |
+| Mock data, seeds, scenarios, MSW handlers | `@friday/mock-data` | `packages/mock-data` |
+| Config loader | `@friday/config` | `packages/config` |
+| Auth (sessions, roles, CSRF) | `@friday/auth` | `packages/auth` |
+| Observability (logger, redaction, metrics) | `@friday/observability` | `packages/observability` |
+| Mock adapters | `@friday/adapter-mock` | `adapters/mock` |
+| Example HTTP adapter (template) | `@friday/adapter-example-http` | `adapters/example-http` |
+| Placeholders | `@friday/adapter-*-placeholder` | `adapters/*-placeholder` |
+| Control API (NestJS + Fastify) | `@friday/control-api` | `apps/control-api` |
+| Web (Next.js App Router) | `@friday/web` | `apps/web` |
+| Scenario CLI | `@friday/mock-console` | `apps/mock-console` |
+| Storybook | `@friday/storybook` | `apps/storybook` |
 
 ### Windows shell gotchas (this machine)
 
@@ -52,24 +52,24 @@ a technical detail, this file wins; on product scope, `PLAN.md` wins.
 
 - Source of truth: `packages/contracts/`.
   - `schemas/<domain>/*.schema.json` — JSON Schema 2020-12, one canonical model per file, `$id` of the form
-    `https://jarvis.local/schemas/<domain>/<name>.schema.json`, relative `$ref`s between files.
-  - `openapi/jarvis-api.yaml` — OpenAPI **3.1.1**, references the JSON schema files via relative `$ref`.
-  - `asyncapi/jarvis-events.yaml` — AsyncAPI **3.0.0** (the newest version that `@asyncapi/parser` validates
+    `https://friday.local/schemas/<domain>/<name>.schema.json`, relative `$ref`s between files.
+  - `openapi/friday-api.yaml` — OpenAPI **3.1.1**, references the JSON schema files via relative `$ref`.
+  - `asyncapi/friday-events.yaml` — AsyncAPI **3.0.0** (the newest version that `@asyncapi/parser` validates
     reliably; upgrade to 3.1 once the parser supports it — record the check result in `docs/CONTRACT_FIRST.md`).
   - `examples/<domain>/*.json` — example payloads, each declares the schema it must satisfy.
   - `baseline/` — snapshot of the last released contract for breaking-change detection.
 - Generator chain (no Java available, so the OpenAPI Generator JAR is replaced by TS-native tooling):
-  1. `redocly bundle` → `packages/contracts/dist/jarvis-api.bundled.yaml`
+  1. `redocly bundle` → `packages/contracts/dist/friday-api.bundled.yaml`
   2. `openapi-typescript` → `packages/generated-sdk/src/generated/openapi.ts`
   3. `json-schema-to-typescript` over all schemas → `packages/generated-sdk/src/generated/models.ts`
   4. event payload/type map from AsyncAPI → `packages/generated-sdk/src/generated/events.ts`
   5. JSON schema registry (all schemas inlined as data) → `packages/generated-sdk/src/generated/schemas.ts`
-- `@jarvis/sdk` exports: generated types, `createJarvisClient({ baseUrl, fetch?, getCsrfToken? })` built on
-  `openapi-fetch`, `JarvisEventMap` / `JarvisEventType` / `JarvisEventEnvelope<T>`, the schema registry,
+- `@friday/sdk` exports: generated types, `createFridayClient({ baseUrl, fetch?, getCsrfToken? })` built on
+  `openapi-fetch`, `FridayEventMap` / `FridayEventType` / `FridayEventEnvelope<T>`, the schema registry,
   and `CONTRACT_VERSION`.
-- **Nobody hand-writes DTO types.** Import models from `@jarvis/sdk`. The only exception: `@jarvis/orb` and
-  `@jarvis/ui` keep their own *visual* prop types (e.g. `OrbVisualParams`) that are not wire models.
-- Contract version: `1.0.0`, in every response envelope as `contractVersion` and in every event.
+- **Nobody hand-writes DTO types.** Import models from `@friday/sdk`. The only exception: `@friday/orb` and
+  `@friday/ui` keep their own *visual* prop types (e.g. `OrbVisualParams`) that are not wire models.
+- Contract version: `2.0.0` (bumped from 1.0.0 on 2026-10-15: identifier rename jarvis -> friday is a breaking change), in every response envelope as `contractVersion` and in every event.
 
 ## 3. Wire conventions (from PLAN §8)
 
@@ -93,7 +93,7 @@ a technical detail, this file wins; on product scope, `PLAN.md` wins.
 - WebSocket at `GET /api/v1/events` (same origin as REST). Query `?since=<sequence>` for replay.
 - Envelope (PLAN §12.3) with monotonically increasing global `sequence`.
 - Server keeps a ring buffer (default 5 000 events). If `since` is older than the buffer → server sends a
-  `jarvis.status.resync_required` event; client reloads snapshots.
+  `friday.status.resync_required` event; client reloads snapshots.
 - Heartbeat: server sends `{"kind":"ping","ts":…}` every 15 s, client answers `{"kind":"pong","ts":…}`;
   client may also ping to measure roundtrip. Control frames are not envelopes and carry no `sequence`.
 - Client: persists last applied `sequence`, ignores duplicates (`sequence <= last`), detects gaps
@@ -107,23 +107,23 @@ a technical detail, this file wins; on product scope, `PLAN.md` wins.
 - Port default `3100`, host default `127.0.0.1`. Serves the static web build (`apps/web/out`) at `/` and the
   API at `/api/v1`. One origin, one port in production.
 - Response validation against the contract schemas (AJV 2020) is **on in dev/test** and logs/fails on mismatch.
-- Persistence: `node:sqlite` (built into Node ≥ 22.13) at `${JARVIS_DATA_DIR}/dashboard.sqlite` for settings,
+- Persistence: `node:sqlite` (built into Node ≥ 22.13) at `${FRIDAY_DATA_DIR}/dashboard.sqlite` for settings,
   sessions, audit (append-only, hash chain), idempotency keys, command history. No native modules.
-- Data mode: `JARVIS_DATA_MODE=mock|hybrid|live` + `config/adapters.yaml`.
+- Data mode: `FRIDAY_DATA_MODE=mock|hybrid|live` + `config/adapters.yaml`.
 
 ## 6. Frontend
 
 - Next.js App Router, `output: "export"` (static), React 19, TanStack Query v5, XState v5, React Three Fiber 9,
   Motion (`motion/react`). No server components that fetch data; all data via the SDK on the client.
 - Detail views use drawers / query params (`/tasks?task=task_…`), not dynamic route segments (static export).
-- Dev: `next dev` on 3000 rewrites `/api/*` to `JARVIS_API_ORIGIN` (default `http://127.0.0.1:3100`).
+- Dev: `next dev` on 3000 rewrites `/api/*` to `FRIDAY_API_ORIGIN` (default `http://127.0.0.1:3100`).
   The WebSocket URL is derived from `GET /api/v1/meta` (`eventsPath`, optional `eventsOrigin`) — never hardcoded.
 - No `fetch()` in components. Query keys live in one module. Realtime events patch the cache deterministically.
-- Optional standalone mock: `NEXT_PUBLIC_JARVIS_MSW=1` starts MSW in the browser with `@jarvis/mock-data` handlers.
+- Optional standalone mock: `NEXT_PUBLIC_FRIDAY_MSW=1` starts MSW in the browser with `@friday/mock-data` handlers.
 
 ## 7. Design
 
-- Tokens exactly as PLAN §24.15 as CSS custom properties, exported from `@jarvis/design-tokens`
+- Tokens exactly as PLAN §24.15 as CSS custom properties, exported from `@friday/design-tokens`
   (`tokens.css`, `themes/*.json`, `applyTheme(theme)`), runtime-switchable without rebuild.
 - Fonts self-hosted via `@fontsource`: Oxanium (headings, uppercase, tracking), Inter (body), JetBrains Mono (metrics).
 - Icons: `lucide-react`, stroke width 1.5, cyan by default.
@@ -133,9 +133,9 @@ a technical detail, this file wins; on product scope, `PLAN.md` wins.
 
 ## 8. Orb
 
-- `@jarvis/orb` exports `<JarvisOrb status={OrbStatus} settings={OrbSettings} onActivate=… />`, the XState
+- `@friday/orb` exports `<FridayOrb status={OrbStatus} settings={OrbSettings} onActivate=… />`, the XState
   machine `orbMachine`, `arbitrateOrbState()`, the 2D fallback `<OrbFallback2D/>`, and `<OrbPerfOverlay/>`.
-- Semantic input only (`OrbStatus` from `@jarvis/sdk`, PLAN §17). Visual parameters are derived in the orb package.
+- Semantic input only (`OrbStatus` from `@friday/sdk`, PLAN §17). Visual parameters are derived in the orb package.
 - Scene is mounted once; state changes interpolate uniforms/speeds inside `useFrame`; no per-frame React state.
 
 ## 9. i18n
@@ -147,7 +147,7 @@ a technical detail, this file wins; on product scope, `PLAN.md` wins.
 
 - `pnpm contracts:check` — lint OpenAPI/AsyncAPI, validate schemas/examples, generated SDK up to date, breaking check.
 - `pnpm test` — Vitest unit/component across the workspace (root `vitest.config.ts` uses `projects`).
-- `pnpm test:conformance` — every adapter passes `@jarvis/adapter-testkit`.
+- `pnpm test:conformance` — every adapter passes `@friday/adapter-testkit`.
 - `pnpm test:e2e` — Playwright (navigation, flows, orb states, visual regression, axe).
 - `pnpm typecheck`, `pnpm lint` must be clean.
 

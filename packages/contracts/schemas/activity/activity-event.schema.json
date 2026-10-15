@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/activity/activity-event.schema.json",
+  "$id": "https://friday.local/schemas/activity/activity-event.schema.json",
   "title": "ActivityEvent",
   "description": "Immutable event in the activity tree (PLAN §29). parentId links children to their parent.",
   "type": "object",

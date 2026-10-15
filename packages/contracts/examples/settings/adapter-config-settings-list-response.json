@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/adapter-config-settings-list-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/settings/adapter-config-settings-list-response.schema.json",
+  "contractVersion": "2.0.0",
   "items": [
     {
       "adapterId": "hermes-tasks",
@@ -48,7 +48,7 @@
   "sources": [
     {
       "adapterId": "control-api",
-      "system": "jarvis",
+      "system": "friday",
       "lastSyncedAt": "2026-10-14T08:15:00Z"
     }
   ]

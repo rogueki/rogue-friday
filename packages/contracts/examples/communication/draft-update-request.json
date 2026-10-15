@@ -1,4 +1,4 @@
 {
-  "$schema": "https://jarvis.local/schemas/communication/draft-update-request.schema.json",
+  "$schema": "https://friday.local/schemas/communication/draft-update-request.schema.json",
   "body": "Danke für Ihre Nachricht, ich melde mich bis 12 Uhr."
 }

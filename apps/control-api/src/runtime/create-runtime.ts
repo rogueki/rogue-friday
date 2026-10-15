@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { getContractValidator } from "@jarvis/adapter-core";
+import { getContractValidator } from "@friday/adapter-core";
 import {
   ApprovalTokenService,
   LoginRateLimiter,
@@ -7,18 +7,18 @@ import {
   SqliteSessionStore,
   deriveKey,
   loadOrCreateServerKey,
-} from "@jarvis/auth";
-import type { JarvisConfig } from "@jarvis/config";
-import { ScenarioEngine, type MockWorld } from "@jarvis/mock-data";
+} from "@friday/auth";
+import type { FridayConfig } from "@friday/config";
+import { ScenarioEngine, type MockWorld } from "@friday/mock-data";
 import {
   canonicalJson,
-  createJarvisMetrics,
+  createFridayMetrics,
   createLogger,
   redact,
-  type JarvisMetrics,
+  type FridayMetrics,
   type Logger,
-} from "@jarvis/observability";
-import type { AdapterHealth, JarvisEvent } from "@jarvis/sdk";
+} from "@friday/observability";
+import type { AdapterHealth, FridayEvent } from "@friday/sdk";
 import { kvGet, kvSet, openDatabase } from "../db/database";
 import { AuditAnchor } from "../db/audit-anchor";
 import { AuditStore, type AuditVerification } from "../db/audit-store";
@@ -34,7 +34,7 @@ import { createRuntimeSecrets, createWorld, wireAdapters } from "./adapter-wirin
 import type { AuditRecorder, ResponseValidationMode, Runtime } from "./types";
 
 export interface CreateRuntimeOptions {
-  config: JarvisConfig;
+  config: FridayConfig;
   env?: NodeJS.ProcessEnv;
   logger?: Logger;
   /** `:memory:` for tests. Defaults to `<dataDir>/dashboard.sqlite`. */
@@ -52,7 +52,7 @@ export interface CreateRuntimeOptions {
   worldProfile?: string;
   /** Wall clock for sessions, approval tokens and re-authentication windows (tests move it to prove expiry). */
   now?: () => number;
-  /** Lifetime of approval tokens in ms; defaults to the `@jarvis/auth` value (2 minutes). */
+  /** Lifetime of approval tokens in ms; defaults to the `@friday/auth` value (2 minutes). */
   approvalTokenTtlMs?: number;
 }
 
@@ -68,7 +68,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const { config } = options;
   const env = options.env ?? process.env;
   const startedAt = new Date();
-  const buildVersion = options.buildVersion ?? process.env.JARVIS_BUILD_VERSION ?? "1.0.0";
+  const buildVersion = options.buildVersion ?? process.env.FRIDAY_BUILD_VERSION ?? "1.0.0";
 
   const logBuffer = new LogBuffer({ redactEmails: config.logging.redactEmails });
   const baseLogger =
@@ -83,7 +83,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     });
   // Every log call also lands (redacted) in the ring buffer that serves the adapter logs of the System page.
   const logger = withLogBuffer(baseLogger, logBuffer);
-  const metrics: JarvisMetrics = createJarvisMetrics();
+  const metrics: FridayMetrics = createFridayMetrics();
   for (const warning of config.warnings) logger.warn(warning);
 
   const db = openDatabase(options.dbPath ?? join(config.paths.dataDir, "dashboard.sqlite"));
@@ -152,7 +152,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const world: MockWorld | undefined = createWorld(config, {
     realTime: options.realTimeWorld ?? true,
     // One global sequence: the mock world numbers its events (and `ActivityEvent.sequence`) with the hub's counter, so
-    // an activity item's sequence equals the envelope sequence of its `jarvis.activity.appended` event.
+    // an activity item's sequence equals the envelope sequence of its `friday.activity.appended` event.
     assistantName: () => settingsHolder.current?.area("profile").assistantName ?? DEFAULT_ASSISTANT_NAME,
     nextSequence: (floor) => {
       hub.ensureSequenceAtLeast(floor);
@@ -211,7 +211,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
         const safe = { ...draft, ...(draft.context ? { context: redact(draft.context) as Record<string, unknown> } : {}) };
         const event = audit.append(safe);
         hub.publish("control-api://core", {
-          type: "jarvis.audit.appended",
+          type: "friday.audit.appended",
           subject: `audit/${event.id}`,
           data: event,
           correlationId: event.correlationId,
@@ -260,14 +260,14 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const bridgeWorld = (): void => {
     if (!world) return;
     unsubscribers.push(
-      world.events.subscribe((event: JarvisEvent) => {
+      world.events.subscribe((event: FridayEvent) => {
         if (event.source.startsWith("adapter://")) return; // forwarded by the mock adapters
-        if (event.type === "jarvis.adapter.health_changed" || event.type === "jarvis.adapter.capabilities_changed") {
+        if (event.type === "friday.adapter.health_changed" || event.type === "friday.adapter.capabilities_changed") {
           // The registry re-derives both from a fresh health check and publishes its own change events.
           void refreshAdapters();
           return;
         }
-        if (config.dataMode !== "mock" && event.type !== "jarvis.status.resync_required") return;
+        if (config.dataMode !== "mock" && event.type !== "friday.status.resync_required") return;
         hub.publish("control-api://core", {
           type: event.type,
           subject: event.subject,
@@ -292,13 +292,13 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
         const signature = canonicalJson({ status: stable, layers: snapshot.layers });
         if (signature !== orbSignature) {
           orbSignature = signature;
-          hub.publish("control-api://core", { type: "jarvis.orb.status_changed", subject: "orb/status", data: snapshot });
+          hub.publish("control-api://core", { type: "friday.orb.status_changed", subject: "orb/status", data: snapshot });
         }
         const current = status.get();
         const statusKey = canonicalJson({ ...current, uptimeSeconds: 0, eventStream: current.eventStream.state });
         if (statusKey !== statusSignature) {
           statusSignature = statusKey;
-          hub.publish("control-api://core", { type: "jarvis.status.changed", subject: "status/overall", data: current });
+          hub.publish("control-api://core", { type: "friday.status.changed", subject: "status/overall", data: current });
         }
       } catch (error) {
         logger.warn("Orb-/Status-Ableitung fehlgeschlagen", { error: error instanceof Error ? error.message : String(error) });
@@ -306,7 +306,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     };
     unsubscribers.push(
       hub.subscribe((event) => {
-        if (event.source === "control-api://core" && (event.type === "jarvis.orb.status_changed" || event.type === "jarvis.status.changed")) return;
+        if (event.source === "control-api://core" && (event.type === "friday.orb.status_changed" || event.type === "friday.status.changed")) return;
         clearTimeout(timer);
         timer = setTimeout(() => void evaluate(), 150);
         timer.unref?.();
@@ -318,7 +318,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const trackAdapterMetrics = (): void => {
     unsubscribers.push(
       hub.subscribe((event) => {
-        if (event.type !== "jarvis.adapter.health_changed") return;
+        if (event.type !== "friday.adapter.health_changed") return;
         const health = event.data as AdapterHealth;
         metrics.setAdapterHealth(health.adapterId, HEALTH_GAUGE[health.status] ?? "unknown");
       }),
@@ -330,7 +330,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
       const system = registry.listAdapters().find((info) => info.manifest.category === "system");
       if (!system) return;
       const result = await registry.getPort("system").getSystemMetrics({}, { correlationId: `corr_${"0".repeat(26)}` });
-      hub.publish(`adapter://${system.manifest.id}`, { type: "jarvis.system.metrics", subject: "system/metrics", data: result.data });
+      hub.publish(`adapter://${system.manifest.id}`, { type: "friday.system.metrics", subject: "system/metrics", data: result.data });
     } catch {
       // The system adapter being down is already visible as health; no metrics event is the correct signal.
     }

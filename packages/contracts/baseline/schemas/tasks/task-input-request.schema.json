@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/tasks/task-input-request.schema.json",
+  "title": "TaskInputRequest",
+  "description": "Answer to a task that waits for input (blocker kind input_needed). The text is forwarded to the agent; it resolves the blocker.",
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "blockerId": {
+      "type": "string",
+      "description": "Blocker to resolve; defaults to the first input_needed blocker."
+    }
+  },
+  "required": ["input"],
+  "additionalProperties": false
+}

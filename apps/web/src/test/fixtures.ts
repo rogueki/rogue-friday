@@ -1,4 +1,4 @@
-import type { Agent, Overview, OverviewResponse, Task } from "@jarvis/sdk";
+import type { Agent, Overview, OverviewResponse, Task } from "@friday/sdk";
 
 const SOURCE = { adapterId: "mock-core", system: "mock", lastSyncedAt: "2026-10-14T08:00:00Z" } as const;
 const NOW = "2026-10-14T08:15:00Z";
@@ -62,7 +62,7 @@ export function makeTask(partial: Partial<Task> = {}): Task {
 
 export function makeOverview(partial: Partial<Overview> = {}): Overview {
   return {
-    jarvis: {
+    friday: {
       status: "online",
       label: "Optimal",
       mode: "idle",
@@ -103,7 +103,7 @@ export function makeOverview(partial: Partial<Overview> = {}): Overview {
 }
 
 export const overviewResponse = (data: Overview): OverviewResponse => ({
-  contractVersion: "1.0.0",
+  contractVersion: "2.0.0",
   data,
   freshness: { state: "fresh", asOf: NOW },
 });

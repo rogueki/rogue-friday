@@ -48,7 +48,7 @@ describe("security: sessions, CSRF and roles (dev auth)", () => {
     });
 
     it("rejects a forged or unknown session cookie", async () => {
-      const response = await api.client().get("/api/v1/tasks", { headers: { cookie: "jarvis_session=not-a-real-session-token" } });
+      const response = await api.client().get("/api/v1/tasks", { headers: { cookie: "friday_session=not-a-real-session-token" } });
       expect(response.statusCode).toBe(401);
     });
 
@@ -75,8 +75,8 @@ describe("security: sessions, CSRF and roles (dev auth)", () => {
     it("sets HttpOnly, SameSite=Strict cookies and a readable CSRF cookie", async () => {
       const response = await api.client().post("/api/v1/auth/login", { username: "dev-owner", password: "dev" }, { csrf: false });
       const cookies = ([] as string[]).concat(response.headers["set-cookie"] ?? []);
-      const session = cookies.find((cookie) => cookie.startsWith("jarvis_session="));
-      const csrf = cookies.find((cookie) => cookie.startsWith("jarvis_csrf="));
+      const session = cookies.find((cookie) => cookie.startsWith("friday_session="));
+      const csrf = cookies.find((cookie) => cookie.startsWith("friday_csrf="));
       expect(session).toMatch(/HttpOnly/i);
       expect(session).toMatch(/SameSite=Strict/i);
       expect(session).toMatch(/Path=\//);

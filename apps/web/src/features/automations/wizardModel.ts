@@ -1,4 +1,4 @@
-import type { AutomationAction, AutomationCondition, AutomationCreateRequest, AutomationTrigger, EscalationStep } from "@jarvis/sdk";
+import type { AutomationAction, AutomationCondition, AutomationCreateRequest, AutomationTrigger, EscalationStep } from "@friday/sdk";
 import type { AutomationDto as Automation } from "@/lib/api/domains/automations";
 import type { MessageKey } from "@/i18n";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ActionResult, LoginRequest, SessionResponse } from "@jarvis/sdk";
+import type { ActionResult, LoginRequest, SessionResponse } from "@friday/sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { clearOfflineCache } from "../../offlineCache/controller";
 import { call } from "../call";

@@ -1,4 +1,4 @@
-import type { Task, TaskCreateRequest, TaskUpdateRequest } from "@jarvis/sdk";
+import type { Task, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
 import {
   AdapterError,
   assertCanonicalEvent,
@@ -13,7 +13,7 @@ import {
   type Page,
   type Single,
   type TaskPort,
-} from "@jarvis/adapter-core";
+} from "@friday/adapter-core";
 import { HermesAdapterBase, type HealthProbeResult } from "./base";
 import {
   correlationFor,
@@ -47,11 +47,11 @@ function offsetOf(cursor: string | null | undefined): number {
 
 /** Canonical event type for a Kanban event kind (mapping doc §6.2; unknown kinds are plain updates). */
 export function taskEventType(kind: string, task: Task): AdapterEventInput["type"] {
-  if (kind === "created") return "jarvis.task.created";
-  if (kind === "completed") return "jarvis.task.completed";
-  if (kind === "archived") return "jarvis.task.cancelled";
-  if (FAILURE_KINDS.has(kind) && task.status === "failed") return "jarvis.task.failed";
-  return "jarvis.task.updated";
+  if (kind === "created") return "friday.task.created";
+  if (kind === "completed") return "friday.task.completed";
+  if (kind === "archived") return "friday.task.cancelled";
+  if (FAILURE_KINDS.has(kind) && task.status === "failed") return "friday.task.failed";
+  return "friday.task.updated";
 }
 
 /**
@@ -250,7 +250,7 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
 
   /**
    * One cycle: drain the Kanban event stream per board, fetch each touched task once, map every raw event to
-   * `jarvis.task.*` carrying the task snapshot at fetch time. Cursors advance only after all events were emitted.
+   * `friday.task.*` carrying the task snapshot at fetch time. Cursors advance only after all events were emitted.
    */
   protected async pollCycle(): Promise<number> {
     const { feed, kanban, context } = this.ready();
@@ -302,7 +302,7 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
 
   private toEvent(event: WireEvent, task: Task): AdapterEventInput {
     const type = taskEventType(event.kind, task);
-    // The type is computed, so TypeScript cannot narrow the union; every `jarvis.task.*` type here carries a Task.
+    // The type is computed, so TypeScript cannot narrow the union; every `friday.task.*` type here carries a Task.
     return {
       type,
       subject: `task/${task.id}`,

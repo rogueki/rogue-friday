@@ -1,4 +1,4 @@
-import type { Layout, LayoutWidget } from "@jarvis/sdk";
+import type { Layout, LayoutWidget } from "@friday/sdk";
 
 export type WidgetId =
   | "core-overview"
@@ -23,9 +23,9 @@ export const WIDGET_IDS: readonly WidgetId[] = [
   "models-services",
 ];
 
-/** Built-in layout (same as config/layouts/jarvis-command-overview.json); used until/unless the settings deliver another. */
+/** Built-in layout (same as config/layouts/friday-command-overview.json); used until/unless the settings deliver another. */
 export const DEFAULT_OVERVIEW_LAYOUT: Layout = {
-  layoutId: "jarvis-command-overview",
+  layoutId: "friday-command-overview",
   name: "F.R.I.D.A.Y. Command / Overview",
   columns: 12,
   widgets: [

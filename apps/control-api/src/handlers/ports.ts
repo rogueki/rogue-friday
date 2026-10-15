@@ -1,6 +1,6 @@
 import { Readable } from "node:stream";
-import { PORT_SPEC, collectSources, type FileDownload, type MethodSpec, type PortCategory } from "@jarvis/adapter-core";
-import { CONTRACT_VERSION, type AuditEvent } from "@jarvis/sdk";
+import { PORT_SPEC, collectSources, type FileDownload, type MethodSpec, type PortCategory } from "@friday/adapter-core";
+import { CONTRACT_VERSION, type AuditEvent } from "@friday/sdk";
 import type { Handler, HandlerResult, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";
 

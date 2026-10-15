@@ -1,6 +1,6 @@
 "use client";
 
-import { FreshnessBadge, useNow } from "@jarvis/ui";
+import { FreshnessBadge, useNow } from "@friday/ui";
 import { CloudOff } from "lucide-react";
 import { useT } from "@/i18n";
 import { useSession } from "@/lib/session";

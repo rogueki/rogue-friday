@@ -9,7 +9,7 @@ import type {
   ApprovalType,
   ReauthResponse,
   RiskTier,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { keepPreviousData, queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { call } from "../call";

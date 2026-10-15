@@ -23,16 +23,17 @@ prozedural gerenderten Orb als AI-Core.
   (`settings.profile.assistantName`, Standard „F.R.I.D.A.Y.“).
 - Das Standard-Aktivierungswort ist „Hey Friday“. Der Installer fragt den Namen vor den Stimmaufnahmen ab; später lässt er sich
   mit `installer/change-assistant-name.bat` ändern.
-- Technische Bezeichner aus der Vorgängergeneration bleiben bewusst unverändert, weil sie Teil des Vertrags und des
-  Build-Setups sind: Paketnamen `@jarvis/*`, Event-Typen `jarvis.*`, API-Pfad `/api/v1`, Umgebungsvariablen `JARVIS_*`,
-  CSS-Variablen `--jarvis-*`, Komponenten wie `JarvisOrb` sowie Pfade wie `installer/install-jarvis.bat` und `C:\Jarvis`.
+- Auch die technischen Bezeichner heißen seit 2026-10-15 `friday` (Owner-Entscheidung, bewusster Vertragsbruch,
+  Vertrag Version 2.0.0): Paketnamen `@friday/*`, Event-Typen `friday.*`, Umgebungsvariablen `FRIDAY_*`,
+  CSS-Variablen `--friday-*`, Komponenten wie `FridayOrb` sowie Pfade wie `installer/install-friday.bat` und `C:\Friday`.
+  Alte `JARVIS_*`-Umgebungsvariablen werden vorübergehend noch gelesen und als veraltet gemeldet. Der API-Pfad bleibt `/api/v1`.
   Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), Abschnitt „Namen und Bezeichner“.
 
 ## Paketinhalt
 
 | Ordner                            | Inhalt                                                                                                                                                                                                                    |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `installer/`                      | Windows-Komplettinstaller (WSL2, Hermes Agent, Kimi, lokales Qwen, Sprachsteuerung mit Stimmprofil). Start: `installer/install-jarvis.bat` per Doppelklick, Anleitung: [`installer/ANLEITUNG.md`](installer/ANLEITUNG.md) |
+| `installer/`                      | Windows-Komplettinstaller (WSL2, Hermes Agent, Kimi, lokales Qwen, Sprachsteuerung mit Stimmprofil). Start: `installer/install-friday.bat` per Doppelklick, Anleitung: [`installer/ANLEITUNG.md`](installer/ANLEITUNG.md) |
 | `apps/`, `packages/`, `adapters/` | F.R.I.D.A.Y. Command Center (Dashboard, Control API, Adapter) – pnpm-Monorepo                                                                                                                                             |
 | `skills/`                         | Platz für separate Skills (siehe [`skills/README.md`](skills/README.md))                                                                                                                                                  |
 | `docs/`                           | Plan, Konventionen, Architektur, Übergabe, Deployment, Tests, Status                                                                                                                                                      |
@@ -57,7 +58,7 @@ Alle Befehle stammen aus der Root-`package.json`. Die Befehle für Anbindung und
 | `pnpm build`                        | alle Pakete bauen                                                                                    |
 | `pnpm build:app`                    | Web (statischer Export nach `apps/web/out`) und Control API (`apps/control-api/dist/main.js`) bauen  |
 | `pnpm start`                        | Control API aus `dist/main.js` starten, Datenmodus laut `config/dashboard.yaml`                      |
-| `pnpm start:hybrid`                 | wie `pnpm start`, erzwingt `JARVIS_DATA_MODE=hybrid` (echte Adapter, Rest Mock)                      |
+| `pnpm start:hybrid`                 | wie `pnpm start`, erzwingt `FRIDAY_DATA_MODE=hybrid` (echte Adapter, Rest Mock)                      |
 | `pnpm fake:upstreams`               | fiktive Hermes-, Voice- und llama-Dienste auf den Installer-Ports 43691–43694, Steuerport 43699      |
 | `pnpm contracts:check`              | Lint, Schema-/Beispielvalidierung, SDK aktuell, Breaking-Change-Prüfung                              |
 | `pnpm contracts:generate`           | SDK aus den Verträgen neu erzeugen                                                                   |

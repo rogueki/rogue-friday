@@ -68,7 +68,7 @@ export type OrbMachineEvent =
   | { type: "SYSTEM_ONLINE" }
   | { type: "PAUSE" }
   | { type: "RESUME" }
-  /** Snap every region to a backend-provided snapshot (GET /orb/status, jarvis.orb.status_changed). */
+  /** Snap every region to a backend-provided snapshot (GET /orb/status, friday.orb.status_changed). */
   | { type: "SYNC_STATUS"; snapshot: OrbSnapshot };
 
 /**
@@ -549,7 +549,7 @@ export function selectOrbLayers(snapshot: OrbMachineSnapshot): OrbLayers {
   return toOrbLayers(snapshot.context);
 }
 
-/** Wire snapshot (what `<JarvisOrb snapshot>` and the API carry). */
+/** Wire snapshot (what `<FridayOrb snapshot>` and the API carry). */
 export function selectOrbSnapshot(snapshot: OrbMachineSnapshot): OrbSnapshot {
   return { status: selectOrbStatus(snapshot), layers: selectOrbLayers(snapshot) };
 }

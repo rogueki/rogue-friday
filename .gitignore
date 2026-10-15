@@ -28,3 +28,4 @@ PROMPT.md
 __pycache__/
 *.pyc
 apps/web/screenshots/**/*.png
+.pytest_cache/

@@ -68,40 +68,40 @@ importers:
 
   adapters/calendar-placeholder:
     dependencies:
-      '@jarvis/adapter-core':
+      '@friday/adapter-core':
         specifier: workspace:*
         version: link:../../packages/adapter-core
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
     devDependencies:
-      '@jarvis/adapter-testkit':
+      '@friday/adapter-testkit':
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
 
   adapters/example-http:
     dependencies:
-      '@jarvis/adapter-core':
+      '@friday/adapter-core':
         specifier: workspace:*
         version: link:../../packages/adapter-core
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
     devDependencies:
-      '@jarvis/adapter-testkit':
+      '@friday/adapter-testkit':
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
 
   adapters/hermes:
     dependencies:
-      '@jarvis/adapter-core':
+      '@friday/adapter-core':
         specifier: workspace:*
         version: link:../../packages/adapter-core
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
     devDependencies:
-      '@jarvis/adapter-testkit':
+      '@friday/adapter-testkit':
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
       ajv:
@@ -110,56 +110,56 @@ importers:
 
   adapters/hermes-placeholder:
     dependencies:
-      '@jarvis/adapter-core':
+      '@friday/adapter-core':
         specifier: workspace:*
         version: link:../../packages/adapter-core
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
     devDependencies:
-      '@jarvis/adapter-testkit':
+      '@friday/adapter-testkit':
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
 
   adapters/mail-placeholder:
     dependencies:
-      '@jarvis/adapter-core':
+      '@friday/adapter-core':
         specifier: workspace:*
         version: link:../../packages/adapter-core
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
     devDependencies:
-      '@jarvis/adapter-testkit':
+      '@friday/adapter-testkit':
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
 
   adapters/mock:
     dependencies:
-      '@jarvis/adapter-core':
+      '@friday/adapter-core':
         specifier: workspace:*
         version: link:../../packages/adapter-core
-      '@jarvis/mock-data':
+      '@friday/mock-data':
         specifier: workspace:*
         version: link:../../packages/mock-data
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
     devDependencies:
-      '@jarvis/adapter-testkit':
+      '@friday/adapter-testkit':
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
 
   adapters/system-local:
     dependencies:
-      '@jarvis/adapter-core':
+      '@friday/adapter-core':
         specifier: workspace:*
         version: link:../../packages/adapter-core
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
     devDependencies:
-      '@jarvis/adapter-testkit':
+      '@friday/adapter-testkit':
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
       ajv:
@@ -168,27 +168,27 @@ importers:
 
   adapters/system-placeholder:
     dependencies:
-      '@jarvis/adapter-core':
+      '@friday/adapter-core':
         specifier: workspace:*
         version: link:../../packages/adapter-core
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
     devDependencies:
-      '@jarvis/adapter-testkit':
+      '@friday/adapter-testkit':
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
 
   adapters/voice-http:
     dependencies:
-      '@jarvis/adapter-core':
+      '@friday/adapter-core':
         specifier: workspace:*
         version: link:../../packages/adapter-core
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
     devDependencies:
-      '@jarvis/adapter-testkit':
+      '@friday/adapter-testkit':
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
       ajv:
@@ -197,14 +197,14 @@ importers:
 
   adapters/voice-placeholder:
     dependencies:
-      '@jarvis/adapter-core':
+      '@friday/adapter-core':
         specifier: workspace:*
         version: link:../../packages/adapter-core
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
     devDependencies:
-      '@jarvis/adapter-testkit':
+      '@friday/adapter-testkit':
         specifier: workspace:*
         version: link:../../packages/adapter-testkit
 
@@ -216,52 +216,52 @@ importers:
       '@fastify/static':
         specifier: ^10.1.6
         version: 10.1.6
-      '@jarvis/adapter-calendar-placeholder':
+      '@friday/adapter-calendar-placeholder':
         specifier: workspace:*
         version: link:../../adapters/calendar-placeholder
-      '@jarvis/adapter-core':
+      '@friday/adapter-core':
         specifier: workspace:*
         version: link:../../packages/adapter-core
-      '@jarvis/adapter-example-http':
+      '@friday/adapter-example-http':
         specifier: workspace:*
         version: link:../../adapters/example-http
-      '@jarvis/adapter-hermes':
+      '@friday/adapter-hermes':
         specifier: workspace:*
         version: link:../../adapters/hermes
-      '@jarvis/adapter-hermes-placeholder':
+      '@friday/adapter-hermes-placeholder':
         specifier: workspace:*
         version: link:../../adapters/hermes-placeholder
-      '@jarvis/adapter-mail-placeholder':
+      '@friday/adapter-mail-placeholder':
         specifier: workspace:*
         version: link:../../adapters/mail-placeholder
-      '@jarvis/adapter-mock':
+      '@friday/adapter-mock':
         specifier: workspace:*
         version: link:../../adapters/mock
-      '@jarvis/adapter-system-local':
+      '@friday/adapter-system-local':
         specifier: workspace:*
         version: link:../../adapters/system-local
-      '@jarvis/adapter-system-placeholder':
+      '@friday/adapter-system-placeholder':
         specifier: workspace:*
         version: link:../../adapters/system-placeholder
-      '@jarvis/adapter-voice-http':
+      '@friday/adapter-voice-http':
         specifier: workspace:*
         version: link:../../adapters/voice-http
-      '@jarvis/adapter-voice-placeholder':
+      '@friday/adapter-voice-placeholder':
         specifier: workspace:*
         version: link:../../adapters/voice-placeholder
-      '@jarvis/auth':
+      '@friday/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@jarvis/config':
+      '@friday/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@jarvis/mock-data':
+      '@friday/mock-data':
         specifier: workspace:*
         version: link:../../packages/mock-data
-      '@jarvis/observability':
+      '@friday/observability':
         specifier: workspace:*
         version: link:../../packages/observability
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
       '@nestjs/common':
@@ -307,7 +307,7 @@ importers:
 
   apps/mock-console:
     dependencies:
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
       ws:
@@ -320,19 +320,19 @@ importers:
 
   apps/storybook:
     dependencies:
-      '@jarvis/design-tokens':
+      '@friday/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
-      '@jarvis/mock-data':
+      '@friday/mock-data':
         specifier: workspace:*
         version: link:../../packages/mock-data
-      '@jarvis/orb':
+      '@friday/orb':
         specifier: workspace:*
         version: link:../../packages/orb
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
-      '@jarvis/ui':
+      '@friday/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@tanstack/react-query':
@@ -387,19 +387,19 @@ importers:
       '@dnd-kit/sortable':
         specifier: ^10.0.0
         version: 10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
-      '@jarvis/design-tokens':
+      '@friday/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
-      '@jarvis/mock-data':
+      '@friday/mock-data':
         specifier: workspace:*
         version: link:../../packages/mock-data
-      '@jarvis/orb':
+      '@friday/orb':
         specifier: workspace:*
         version: link:../../packages/orb
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../../packages/generated-sdk
-      '@jarvis/ui':
+      '@friday/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@tanstack/react-query':
@@ -448,7 +448,7 @@ importers:
 
   packages/adapter-core:
     dependencies:
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../generated-sdk
       ajv:
@@ -460,10 +460,10 @@ importers:
 
   packages/adapter-testkit:
     dependencies:
-      '@jarvis/adapter-core':
+      '@friday/adapter-core':
         specifier: workspace:*
         version: link:../adapter-core
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../generated-sdk
       ajv:
@@ -524,7 +524,7 @@ importers:
 
   packages/mock-data:
     dependencies:
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../generated-sdk
       msw:
@@ -535,7 +535,7 @@ importers:
 
   packages/orb:
     dependencies:
-      '@jarvis/sdk':
+      '@friday/sdk':
         specifier: workspace:*
         version: link:../generated-sdk
       '@react-three/fiber':
@@ -590,7 +590,7 @@ importers:
       '@fontsource/oxanium':
         specifier: ^5.3.0
         version: 5.3.0
-      '@jarvis/design-tokens':
+      '@friday/design-tokens':
         specifier: workspace:*
         version: link:../design-tokens
       '@tanstack/react-virtual':

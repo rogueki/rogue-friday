@@ -4,14 +4,14 @@ import { useState } from 'react';
 import {
   BottomCommandBar,
   BrandMark,
-  JarvisShell,
+  FridayShell,
   LeftCommandNav,
   TopStatusBar,
   VoiceStatusPanel,
   defaultTopBarActions,
   type ConnectionState,
   type VoiceState,
-} from '@jarvis/ui';
+} from '@friday/ui';
 import { contextChips, demoNow, navItems } from '../demo/data';
 import { Section } from './_helpers';
 
@@ -84,23 +84,23 @@ export const LeftNav: Story = {
 function ShellDemo({ voice = 'idle' as VoiceState }) {
   const [active, setActive] = useState('overview');
   return (
-    <JarvisShell
+    <FridayShell
       nav={<LeftCommandNav items={navItems} activeId={active} onNavigate={setActive} footer={<VoiceStatusPanel state={voice} collapsed={undefined} />} />}
       topBar={<TopStatusBar now={demoNow} timeZone="Europe/Berlin" connection={{ state: 'online' }} operator={{ name: 'RogueKI', role: 'Operator' }} />}
       bottomBar={<BottomCommandBar compact state={voice} />}
     >
-      <div style={{ padding: 24, color: 'var(--jarvis-muted)' }}>Inhaltsbereich – schmaler als 1024 px wird die Navigation zum Drawer (Menü-Button oben links).</div>
-    </JarvisShell>
+      <div style={{ padding: 24, color: 'var(--friday-muted)' }}>Inhaltsbereich – schmaler als 1024 px wird die Navigation zum Drawer (Menü-Button oben links).</div>
+    </FridayShell>
   );
 }
 
 export const ShellEmpty: Story = {
-  name: 'JarvisShell',
+  name: 'FridayShell',
   render: () => <ShellDemo />,
 };
 
 export const ShellDrawerMode: Story = {
-  name: 'JarvisShell – drawer below 1024 px',
+  name: 'FridayShell – drawer below 1024 px',
   parameters: { viewport: { defaultViewport: 'tablet' } },
   render: () => (
     <div style={{ width: 820, height: 640, margin: '0 auto', border: '1px dashed var(--jv-line-soft)', overflow: 'hidden', position: 'relative' }}>

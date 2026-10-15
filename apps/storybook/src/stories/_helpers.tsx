@@ -10,7 +10,7 @@ export function Section({ title, children, style }: { title: string; children: R
           fontSize: 12,
           letterSpacing: '0.18em',
           textTransform: 'uppercase',
-          color: 'var(--jarvis-muted)',
+          color: 'var(--friday-muted)',
         }}
       >
         {title}

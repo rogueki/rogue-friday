@@ -174,7 +174,7 @@ export function createSeededIdFactory(seed: string, options: SeededIdFactoryOpti
 }
 
 const ID_PATTERN = /^[a-z]+_[0-9A-HJKMNP-TV-Z]{26}$/;
-export function isJarvisId(value: string, prefix?: string): boolean {
+export function isFridayId(value: string, prefix?: string): boolean {
   if (!ID_PATTERN.test(value)) return false;
   return prefix === undefined || value.startsWith(`${normalizePrefix(prefix)}_`);
 }

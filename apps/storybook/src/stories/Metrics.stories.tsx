@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Cpu, Database, ListChecks } from 'lucide-react';
-import { CircularMetric, ConstellationGraph, MetricCard, Waveform, TONES } from '@jarvis/ui';
+import { CircularMetric, ConstellationGraph, MetricCard, Waveform, TONES } from '@friday/ui';
 import { Grid, Row, Section } from './_helpers';
 
 const meta = { title: 'Components/Metrics', parameters: { layout: 'fullscreen' } } satisfies Meta;

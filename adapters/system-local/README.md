@@ -1,4 +1,4 @@
-# @jarvis/adapter-system-local
+# @friday/adapter-system-local
 
 System-Adapter (Kategorie `system`, Provider-ID `local-system`) für **den Rechner, auf dem die Control API läuft**: CPU/RAM/Speicher/GPU, Dienststatus per Health-Probe,
 Modellliste. Plattformneutral (Windows und Linux), ohne native Module. Lesend; einzige Aktion ist `system.healthcheck` (erneute Prüfung eines Dienstes).
@@ -7,7 +7,7 @@ Ein nicht erreichbarer **Dienst** ist ein Zustand (`Service.status = offline`) u
 
 ## Konfiguration
 
-JSON Schema: `configSchema` in `src/manifest.ts` (`$id` `urn:jarvis:adapter:local-system:config`, PLAN §42.2). Secrets sind `writeOnly` und werden nie zurückgegeben.
+JSON Schema: `configSchema` in `src/manifest.ts` (`$id` `urn:friday:adapter:local-system:config`, PLAN §42.2). Secrets sind `writeOnly` und werden nie zurückgegeben.
 
 | Feld                 | Standard                 | Bedeutung                                                                                                                 |
 | -------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
@@ -16,7 +16,7 @@ JSON Schema: `configSchema` in `src/manifest.ts` (`$id` `urn:jarvis:adapter:loca
 | `hermesDashboardUrl` | `http://127.0.0.1:43691` | Hermes-Dashboard                                                                                                          |
 | `voiceUrl`           | `http://127.0.0.1:43694` | Status-Server des Voice-Dienstes                                                                                          |
 | `hermesApiKey`       | -                        | **Secret** (`env:HERMES_API_KEY` o. Ä.): Bearer-Key nur für `GET /v1/models`                                              |
-| `hermesApiKeyFile`   | -                        | Alternative: Pfad zur Installer-Datei (`C:\Jarvis\config\hermes_api.key`), Inhalt wird je Abfrage gelesen; Secret gewinnt |
+| `hermesApiKeyFile`   | -                        | Alternative: Pfad zur Installer-Datei (`C:\Friday\config\hermes_api.key`), Inhalt wird je Abfrage gelesen; Secret gewinnt |
 | `storagePaths`       | `C:\` (Windows), `/`     | Laufwerke/Verzeichnisse für `statfs`; nicht lesbare Pfade werden übersprungen und geloggt                                 |
 | `enableGpuProbe`     | `true`                   | `nvidia-smi` abfragen, wenn vorhanden                                                                                     |
 | `nvidiaSmiPath`      | `nvidia-smi`             | Name oder Pfad                                                                                                            |
@@ -72,7 +72,7 @@ Jede Probe ist ein Versuch mit `timeoutMs`; Antwortzeit = gemessene Dauer. Fremd
 ## Modelle (`listModelProviders`)
 
 - **Qwen (lokal, llama.cpp)**: `providerKind local`, Modelle aus `/v1/models` (Alias `qwen3-router`, `start-qwen-server.ps1`).
-- **Hermes (API-Server)**: `providerKind local`, Modelle aus `/v1/models` mit Bearer-Key (erwartet `jarvis`, `API_SERVER_MODEL_NAME`). Ohne Key: Status aus `/health`, Modelle leer.
+- **Hermes (API-Server)**: `providerKind local`, Modelle aus `/v1/models` mit Bearer-Key (erwartet `friday`, `API_SERVER_MODEL_NAME`). Ohne Key: Status aus `/health`, Modelle leer.
   Falscher Key (401): `degraded`, Modelle leer, der Key erscheint nirgends.
 - **Kimi** wird bewusst **nicht** aufgeführt: dass Hermes zu Kimi routet, ist aus `/v1/models` nicht belegbar.
 - `activeRequests` ist immer `0` (keine Datenquelle: `/slots` ist optional und unbelegt); `contextWindow` entfällt.
@@ -94,7 +94,7 @@ Der Hermes-Key geht nur im `Authorization`-Header an `/v1/models`, wird in Fehle
 ## Tests
 
 ```bash
-pnpm --filter @jarvis/adapter-system-local typecheck
+pnpm --filter @friday/adapter-system-local typecheck
 pnpm exec vitest run adapters/system-local
 pnpm test:conformance
 ```
@@ -102,7 +102,7 @@ pnpm test:conformance
 - `test/parsers.test.ts`: CPU-Deltas, `nvidia-smi` (inkl. `[N/A]`), `/proc/net/dev`, `netstat -e`, `wsl.exe` (UTF-16LE, deutsch), Modellliste.
 - `test/adapter.test.ts`: Hardware, Speicher, jeder Dienst in jedem Zustand, WSL (simulierter Windows-Host), Healthcheck-Aktion, Modelle, Key aus Secret/Datei, echter Rechner (`node:os`, `statfs`).
 - `test/conformance.test.ts`: Prüfpunkte aus PLAN §11.1 mit den Namen der Conformance-Suite.
-- Fakes in `test/fake/`: `voice-status-server.ts` (byte-genau wie `jarvis_voice.py`), `llama-server.ts` (`/v1/models`), `hermes-server.ts` (`/health`, `/v1/models` mit Bearer-Prüfung, Dashboard), jeweils mit `setOffline`, Latenz/Timeout, Statuscodes und Ungültig-Daten-Schaltern (Testkit-`FakeUpstream`).
+- Fakes in `test/fake/`: `voice-status-server.ts` (byte-genau wie `friday_voice.py`), `llama-server.ts` (`/v1/models`), `hermes-server.ts` (`/health`, `/v1/models` mit Bearer-Prüfung, Dashboard), jeweils mit `setOffline`, Latenz/Timeout, Statuscodes und Ungültig-Daten-Schaltern (Testkit-`FakeUpstream`).
 
 ### Conformance: Abweichung von `runConformanceSuite`
 
@@ -114,4 +114,4 @@ nichts wirft). Hilfen: `test/support/conformance-kit.ts`.
 
 - `SystemMetrics.network.rxBytesPerSec/txBytesPerSec` sind Pflicht und nicht nullable; ohne Zähler (macOS, unbekannte Windows-Sprache) bleibt nur `0`.
 - `ModelProvider.activeRequests` ist Pflicht und nicht nullable (hier immer `0`).
-- `IdPrefix` in `@jarvis/adapter-core` kennt `vol` und `mdl` nicht (Verträge verlangen sie); `src/ids.ts` castet.
+- `IdPrefix` in `@friday/adapter-core` kennt `vol` und `mdl` nicht (Verträge verlangen sie); `src/ids.ts` castet.

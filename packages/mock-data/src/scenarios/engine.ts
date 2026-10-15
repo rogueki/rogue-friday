@@ -1,10 +1,10 @@
 import type {
-  JarvisEvent,
+  FridayEvent,
   OrbMode,
   Scenario,
   ScenarioControlRequest,
   ScenarioState,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import type { TimerHandle } from "../core/clock";
 import { MockApiError, notFound, validationFailed } from "../core/errors";
 import { clone } from "../core/util";
@@ -137,8 +137,8 @@ export class ScenarioEngine {
     }
     this.orbLog = [this.world.orbSnapshot().status.mode];
     this.unsubscribeOrb?.();
-    this.unsubscribeOrb = this.world.events.subscribe((event: JarvisEvent) => {
-      if (event.type !== "jarvis.orb.status_changed") return;
+    this.unsubscribeOrb = this.world.events.subscribe((event: FridayEvent) => {
+      if (event.type !== "friday.orb.status_changed") return;
       const mode = event.data.status.mode;
       if (this.orbLog[this.orbLog.length - 1] !== mode) this.orbLog.push(mode);
     });
@@ -236,7 +236,7 @@ export class ScenarioEngine {
     return this.getState();
   }
 
-  emitEvent(raw: { type: string; subject?: string; data: unknown }): JarvisEvent {
+  emitEvent(raw: { type: string; subject?: string; data: unknown }): FridayEvent {
     return this.world.emitRaw(raw);
   }
 
@@ -262,15 +262,15 @@ export class ScenarioEngine {
   private stateSample(eventType: string): unknown {
     const w = this.world;
     switch (eventType) {
-      case "jarvis.orb.status_changed":
+      case "friday.orb.status_changed":
         return w.orbSnapshot();
-      case "jarvis.status.changed":
-        return w.jarvisStatus();
-      case "jarvis.system.metrics":
+      case "friday.status.changed":
+        return w.fridayStatus();
+      case "friday.system.metrics":
         return w.currentMetrics();
-      case "jarvis.voice.state_changed":
+      case "friday.voice.state_changed":
         return clone(w.state.voice.status);
-      case "jarvis.status.resync_required":
+      case "friday.status.resync_required":
         return { reason: "unknown", requestedSince: null, oldestAvailableSequence: null, latestSequence: Math.max(0, w.peekSequence() - 1) };
       default:
         return undefined;

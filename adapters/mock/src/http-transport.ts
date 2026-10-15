@@ -4,7 +4,7 @@ import {
   createRedactor,
   type AdapterContext,
   type HttpClient,
-} from "@jarvis/adapter-core";
+} from "@friday/adapter-core";
 import type { MockTransport, TransportCall } from "./transport";
 
 /** Config keys read by {@link httpTransport} from `AdapterContext.config`. */

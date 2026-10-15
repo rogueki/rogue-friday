@@ -2,7 +2,7 @@
 
 Kopieren nach `adapters/<name>/`, danach (siehe `docs/ADAPTER_SDK.md`, Abschnitt "Neue Anbindung erstellen"):
 
-1. `package.json`: `name` auf `@jarvis/adapter-<name>` setzen, `pnpm install` ausführen.
+1. `package.json`: `name` auf `@friday/adapter-<name>` setzen, `pnpm install` ausführen.
 2. `src/index.ts`: Manifest (`id`, `name`, `category`) anpassen.
 3. Config-Schema definieren (Secrets als `writeOnly` und in `manifest.secretFields` eintragen).
 4. `healthCheck()` auf einen billigen Endpunkt des Fremdsystems richten.

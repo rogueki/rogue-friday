@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/system/adapter-log-list-response.schema.json",
+  "$id": "https://friday.local/schemas/system/adapter-log-list-response.schema.json",
   "title": "AdapterLogListResponse",
   "description": "Recent log lines of one adapter, newest last. Not paginated: the buffer is bounded and limit caps the result.",
   "type": "object",

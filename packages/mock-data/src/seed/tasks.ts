@@ -8,7 +8,7 @@ import type {
   TaskStatus,
   TaskStep,
   TaskToolCall,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { DAY, HOUR, MIN, type SeedContext } from "./context";
 import { fileSpec } from "./files";
 import type { AgentKey, ApprovalKey, FileKey, Story, TaskKey, ThreadKey } from "./story";
@@ -253,7 +253,7 @@ const SPECS: TaskSpec[] = [
       ["Prüfsummen vergleichen", "done", "1 482 Dateien"],
       ["Protokoll schreiben", "done"],
     ],
-    tools: [["fs.read", "succeeded", "D:\\Jarvis\\Backups geprüft", 218_000, "mock-system"]],
+    tools: [["fs.read", "succeeded", "D:\\Friday\\Backups geprüft", 218_000, "mock-system"]],
     files: [{ key: "backupLog", kind: "file" }],
   },
   {

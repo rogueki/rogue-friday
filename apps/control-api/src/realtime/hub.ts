@@ -3,16 +3,16 @@ import type { Duplex } from "node:stream";
 import { WebSocketServer, type WebSocket } from "ws";
 import {
   CONTRACT_VERSION,
-  JARVIS_EVENT_DATA_SCHEMA_IDS,
-  isJarvisEventType,
-  type JarvisEvent,
-  type JarvisEventEnvelope,
-  type JarvisEventMap,
-  type JarvisEventType,
+  FRIDAY_EVENT_DATA_SCHEMA_IDS,
+  isFridayEventType,
+  type FridayEvent,
+  type FridayEventEnvelope,
+  type FridayEventMap,
+  type FridayEventType,
   type SchemaValidator,
-} from "@jarvis/sdk";
-import { getCorrelationId, type JarvisMetrics, type Logger } from "@jarvis/observability";
-import { createCorrelationId } from "@jarvis/observability";
+} from "@friday/sdk";
+import { getCorrelationId, type FridayMetrics, type Logger } from "@friday/observability";
+import { createCorrelationId } from "@friday/observability";
 import { newEventId } from "../util/ids";
 
 export const EVENTS_PATH = "/api/v1/events";
@@ -23,10 +23,10 @@ const EVENT_ID = /^evt_[0-9A-Za-z]{26}$/;
 const MAX_BUFFERED_BYTES = 2 * 1024 * 1024;
 
 /** What producers hand to the hub; id, sequence, time and contract version are assigned here. */
-export interface HubEventInput<K extends JarvisEventType = JarvisEventType> {
+export interface HubEventInput<K extends FridayEventType = FridayEventType> {
   type: K;
   subject: string;
-  data: JarvisEventMap[K];
+  data: FridayEventMap[K];
   correlationId?: string | undefined;
   causationId?: string | undefined;
 }
@@ -39,7 +39,7 @@ export interface HubPrincipal {
 
 export interface HubOptions {
   logger: Logger;
-  metrics: JarvisMetrics;
+  metrics: FridayMetrics;
   validator: SchemaValidator;
   ringBufferSize: number;
   heartbeatMs: number;
@@ -78,7 +78,7 @@ export type OriginGuard = (request: IncomingMessage) => boolean;
  */
 export class EventHub {
   private sequence: number;
-  private ring: JarvisEvent[] = [];
+  private ring: FridayEvent[] = [];
   private readonly clients = new Set<Client>();
   private readonly wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
   private heartbeat: NodeJS.Timeout | undefined;
@@ -87,7 +87,7 @@ export class EventHub {
   private dropped = 0;
   private sinceLastPersist = 0;
   private lastAt: string | null = null;
-  private readonly listeners = new Set<(event: JarvisEvent) => void>();
+  private readonly listeners = new Set<(event: FridayEvent) => void>();
   private readonly now: () => number;
 
   constructor(private readonly options: HubOptions) {
@@ -98,13 +98,13 @@ export class EventHub {
   // ---- publishing -----------------------------------------------------------------------------------------------
 
   /** Validates, sequences, buffers and broadcasts. Returns the envelope, or null when the payload was rejected. */
-  publish<K extends JarvisEventType>(source: string, input: HubEventInput<K>): JarvisEvent<K> | null {
+  publish<K extends FridayEventType>(source: string, input: HubEventInput<K>): FridayEvent<K> | null {
     const { type } = input;
-    if (!isJarvisEventType(type)) {
+    if (!isFridayEventType(type)) {
       this.reject(`Unbekannter Ereignistyp ${String(type)}`, source, type);
       return null;
     }
-    const schemaId = JARVIS_EVENT_DATA_SCHEMA_IDS[type];
+    const schemaId = FRIDAY_EVENT_DATA_SCHEMA_IDS[type];
     const check = this.options.validator.validate(schemaId, input.data);
     if (!check.valid) {
       this.reject(`Ereignisdaten verletzen ${schemaId}`, source, type, check.errors.slice(0, 5));
@@ -131,13 +131,13 @@ export class EventHub {
       ...(input.causationId && EVENT_ID.test(input.causationId) ? { causationId: input.causationId } : {}),
       contractVersion: CONTRACT_VERSION,
       data: input.data,
-    } as unknown as JarvisEvent<K>;
+    } as unknown as FridayEvent<K>;
 
-    if (type === "jarvis.status.resync_required") {
+    if (type === "friday.status.resync_required") {
       // State was replaced wholesale: events before this point must not be replayed to anyone.
       this.ring = [];
     }
-    this.ring.push(envelope as unknown as JarvisEvent);
+    this.ring.push(envelope as unknown as FridayEvent);
     if (this.ring.length > this.options.ringBufferSize) this.ring.splice(0, this.ring.length - this.options.ringBufferSize);
     this.published += 1;
     this.lastAt = envelope.time;
@@ -148,7 +148,7 @@ export class EventHub {
     for (const client of [...this.clients]) this.send(client, frame);
     for (const listener of [...this.listeners]) {
       try {
-        listener(envelope as unknown as JarvisEvent);
+        listener(envelope as unknown as FridayEvent);
       } catch (error) {
         this.options.logger.error("Hub-Listener hat einen Fehler geworfen", { error: error instanceof Error ? error.message : String(error) });
       }
@@ -157,7 +157,7 @@ export class EventHub {
   }
 
   /** In-process subscription (orb/status tracker, metrics). */
-  subscribe(listener: (event: JarvisEvent) => void): () => void {
+  subscribe(listener: (event: FridayEvent) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
@@ -201,7 +201,7 @@ export class EventHub {
   }
 
   /** Events after `since`, or null when the cursor is outside the buffer (client must reload its snapshots). */
-  replay(since: number): JarvisEvent[] | null {
+  replay(since: number): FridayEvent[] | null {
     if (since > this.sequence) return null; // client is from a different run
     const oldest = this.oldestSequence;
     if (oldest === null) return since === this.sequence ? [] : null;
@@ -209,12 +209,12 @@ export class EventHub {
     return this.ring.filter((event) => event.sequence > since);
   }
 
-  private resyncEnvelope(requestedSince: number | null, reason: "sequence_too_old" | "buffer_overflow" | "server_restart"): JarvisEvent {
+  private resyncEnvelope(requestedSince: number | null, reason: "sequence_too_old" | "buffer_overflow" | "server_restart"): FridayEvent {
     // Per-client frame: reuses the head sequence instead of burning a number that other clients would see as a gap.
     return {
       specversion: "1.0",
       id: newEventId(),
-      type: "jarvis.status.resync_required",
+      type: "friday.status.resync_required",
       source: "control-api://core",
       subject: "status/resync",
       time: new Date(this.now()).toISOString(),
@@ -222,7 +222,7 @@ export class EventHub {
       correlationId: createCorrelationId(),
       contractVersion: CONTRACT_VERSION,
       data: { reason, requestedSince, oldestAvailableSequence: this.oldestSequence, latestSequence: this.sequence },
-    } as unknown as JarvisEvent;
+    } as unknown as FridayEvent;
   }
 
   // ---- WebSocket ------------------------------------------------------------------------------------------------
@@ -411,4 +411,4 @@ export class EventHub {
   }
 }
 
-export type { JarvisEventEnvelope };
+export type { FridayEventEnvelope };

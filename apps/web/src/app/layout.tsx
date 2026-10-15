@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import "@jarvis/ui/styles.css";
+import "@friday/ui/styles.css";
 import "./web.css";
 import "./responsive.css";
 import { Providers } from "./providers";

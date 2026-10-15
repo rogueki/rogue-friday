@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/settings-schema.schema.json",
+  "$schema": "https://friday.local/schemas/settings/settings-schema.schema.json",
   "schema": {
     "type": "object",
     "properties": {

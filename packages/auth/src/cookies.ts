@@ -1,5 +1,5 @@
-export const SESSION_COOKIE = 'jarvis_session';
-export const CSRF_COOKIE = 'jarvis_csrf';
+export const SESSION_COOKIE = 'friday_session';
+export const CSRF_COOKIE = 'friday_csrf';
 
 export interface CookieOptions {
   /** Set the `Secure` attribute. Required whenever TLS terminates in front of the API (PLAN §49.7). */
@@ -17,7 +17,7 @@ function build(name: string, value: string, attributes: string[]): string {
   return [`${name}=${value}`, ...attributes].join('; ');
 }
 
-/** `jarvis_session`: HttpOnly so scripts cannot read it, SameSite=Strict against cross-site sends. */
+/** `friday_session`: HttpOnly so scripts cannot read it, SameSite=Strict against cross-site sends. */
 export function serializeSessionCookie(sessionId: string, options: CookieOptions): string {
   assertCookieValue(sessionId);
   const attrs = ['Path=/', 'HttpOnly', 'SameSite=Strict', `Max-Age=${Math.max(0, Math.floor(options.maxAgeSeconds))}`];
@@ -25,7 +25,7 @@ export function serializeSessionCookie(sessionId: string, options: CookieOptions
   return build(SESSION_COOKIE, sessionId, attrs);
 }
 
-/** `jarvis_csrf`: deliberately readable by the SPA, which echoes it in `X-CSRF-Token`. */
+/** `friday_csrf`: deliberately readable by the SPA, which echoes it in `X-CSRF-Token`. */
 export function serializeCsrfCookie(token: string, options: CookieOptions): string {
   assertCookieValue(token);
   const attrs = ['Path=/', 'SameSite=Strict', `Max-Age=${Math.max(0, Math.floor(options.maxAgeSeconds))}`];

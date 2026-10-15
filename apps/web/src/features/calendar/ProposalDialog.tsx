@@ -1,7 +1,7 @@
 "use client";
 
-import type { Attendee, CalendarEvent, CalendarProposalRequest, CalendarProposalType } from "@jarvis/sdk";
-import { Button, Dialog, Select, TextField } from "@jarvis/ui";
+import type { Attendee, CalendarEvent, CalendarProposalRequest, CalendarProposalType } from "@friday/sdk";
+import { Button, Dialog, Select, TextField } from "@friday/ui";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { useT } from "@/i18n";

@@ -12,12 +12,12 @@ export const REPO_ROOT = path.resolve(CONTRACTS_ROOT, "..", "..");
 export const paths = {
   root: CONTRACTS_ROOT,
   schemas: path.join(CONTRACTS_ROOT, "schemas"),
-  openapi: path.join(CONTRACTS_ROOT, "openapi", "jarvis-api.yaml"),
-  asyncapi: path.join(CONTRACTS_ROOT, "asyncapi", "jarvis-events.yaml"),
+  openapi: path.join(CONTRACTS_ROOT, "openapi", "friday-api.yaml"),
+  asyncapi: path.join(CONTRACTS_ROOT, "asyncapi", "friday-events.yaml"),
   examples: path.join(CONTRACTS_ROOT, "examples"),
   baseline: path.join(CONTRACTS_ROOT, "baseline"),
   dist: path.join(CONTRACTS_ROOT, "dist"),
-  bundledOpenapi: path.join(CONTRACTS_ROOT, "dist", "jarvis-api.bundled.yaml"),
+  bundledOpenapi: path.join(CONTRACTS_ROOT, "dist", "friday-api.bundled.yaml"),
   sdkGenerated: path.join(REPO_ROOT, "packages", "generated-sdk", "src", "generated"),
 };
 

@@ -3,12 +3,12 @@ import {
   systemClock,
   type AdapterContext,
   type AdapterEventInput,
-  type JarvisAdapter,
+  type FridayAdapter,
   type LogRecord,
-} from "@jarvis/adapter-core";
-import { createCorrelationId } from "@jarvis/sdk";
+} from "@friday/adapter-core";
+import { createCorrelationId } from "@friday/sdk";
 
-export interface Harness<A extends JarvisAdapter> {
+export interface Harness<A extends FridayAdapter> {
   adapter: A;
   context: AdapterContext;
   emitted: AdapterEventInput[];
@@ -23,7 +23,7 @@ export interface Harness<A extends JarvisAdapter> {
 }
 
 /** Wires an adapter to a hand-built context with known secrets (the conformance suite uses random canaries). */
-export async function start<A extends JarvisAdapter>(
+export async function start<A extends FridayAdapter>(
   adapter: A,
   config: Record<string, unknown>,
   secrets: Record<string, string> = {},

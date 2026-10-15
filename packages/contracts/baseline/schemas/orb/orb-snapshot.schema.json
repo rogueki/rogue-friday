@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/orb/orb-snapshot.schema.json",
+  "$id": "https://friday.local/schemas/orb/orb-snapshot.schema.json",
   "title": "OrbSnapshot",
-  "description": "Dominant orb status plus the parallel layers. Payload of GET /orb/status and jarvis.orb.status_changed.",
+  "description": "Dominant orb status plus the parallel layers. Payload of GET /orb/status and friday.orb.status_changed.",
   "type": "object",
   "properties": {
     "status": {

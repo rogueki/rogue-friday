@@ -8,7 +8,7 @@ import type {
   AutomationTestRequest,
   AutomationUpdateRequest,
   AutomationVersion,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { isValidCron, nextCronRun } from "../../core/cron";
 import { notFound, validationFailed } from "../../core/errors";
 import { asBool, clone, compareAsc, compareDesc, matchesQuery, type Page } from "../../core/util";
@@ -188,7 +188,7 @@ export class AutomationService {
         result: "",
         correlationId,
       };
-      this.w.emitFor("automations", "jarvis.automation.run_started", run, `automation/${automation.id}`, correlationId);
+      this.w.emitFor("automations", "friday.automation.run_started", run, `automation/${automation.id}`, correlationId);
 
       const executedAt = this.w.nowIso();
       run.actionsExecuted = automation.actions.map((action) => {
@@ -222,14 +222,14 @@ export class AutomationService {
           : `${run.actionsExecuted.filter((entry) => entry.status === "succeeded").length} Aktion(en) ausgeführt.`;
       run.updatedAt = run.finishedAt;
       this.w.state.automationRuns.push(run);
-      this.w.emitFor("automations", "jarvis.automation.run_finished", run, `automation/${automation.id}`, correlationId);
+      this.w.emitFor("automations", "friday.automation.run_finished", run, `automation/${automation.id}`, correlationId);
 
       if (!dryRun) {
         automation.lastRunAt = run.finishedAt;
         automation.runCount += 1;
         if (run.status === "succeeded") automation.lastSuccess = { at: run.finishedAt, runId: run.id };
         this.w.bump(automation);
-        this.w.emitFor("automations", "jarvis.automation.updated", automation, `automation/${automation.id}`, correlationId);
+        this.w.emitFor("automations", "friday.automation.updated", automation, `automation/${automation.id}`, correlationId);
       }
       this.w.recordAudit({
         category: "user_action",
@@ -252,7 +252,7 @@ export class AutomationService {
       automation.nextRunAt = this.computeNextRun(automation);
       this.w.bump(automation);
       this.recordVersion(automation, ctx, paused ? "Pausiert (alle Automationen)." : "Fortgesetzt (alle Automationen).");
-      this.w.emitFor("automations", "jarvis.automation.updated", automation, `automation/${automation.id}`, ctx?.correlationId);
+      this.w.emitFor("automations", "friday.automation.updated", automation, `automation/${automation.id}`, ctx?.correlationId);
       changed++;
     }
     return changed;
@@ -288,7 +288,7 @@ export class AutomationService {
           automation.nextRunAt = this.computeNextRun(automation);
           this.w.bump(automation);
           this.recordVersion(automation, ctx, body.reason ? `Pausiert (Alle pausieren): ${body.reason}` : "Pausiert (Alle pausieren).");
-          this.w.emitFor("automations", "jarvis.automation.updated", automation, `automation/${automation.id}`, correlationId);
+          this.w.emitFor("automations", "friday.automation.updated", automation, `automation/${automation.id}`, correlationId);
           results.push({ automationId: automation.id, name: automation.name, outcome: "paused", version: automation.version });
         }
       }
@@ -365,7 +365,7 @@ export class AutomationService {
 
   private publish(automation: Automation, ctx: OpContext | undefined, action: string, before: Record<string, unknown> | null): void {
     const correlationId = this.w.correlationId(ctx);
-    this.w.emitFor("automations", "jarvis.automation.updated", automation, `automation/${automation.id}`, correlationId);
+    this.w.emitFor("automations", "friday.automation.updated", automation, `automation/${automation.id}`, correlationId);
     this.w.recordAudit({
       category: "user_action",
       action,

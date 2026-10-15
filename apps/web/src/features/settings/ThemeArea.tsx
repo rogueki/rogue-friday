@@ -1,9 +1,9 @@
 "use client";
 
-import { defaultTheme, getTheme, parseColor } from "@jarvis/design-tokens";
-import { OrbFallback2D } from "@jarvis/orb";
-import type { OrbStatus, Theme } from "@jarvis/sdk";
-import { Button, EmptyState, HudPanel, Slider, StatusChip, Switch, TagPill } from "@jarvis/ui";
+import { defaultTheme, getTheme, parseColor } from "@friday/design-tokens";
+import { OrbFallback2D } from "@friday/orb";
+import type { OrbStatus, Theme } from "@friday/sdk";
+import { Button, EmptyState, HudPanel, Slider, StatusChip, Switch, TagPill } from "@friday/ui";
 import { Download, FileUp, RotateCcw, Upload } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useT } from "@/i18n";
@@ -202,7 +202,7 @@ export function ThemeArea() {
                 <Button size="sm" variant="ghost">
                   {t("settings.theme.preview.ghost")}
                 </Button>
-                <Button size="sm" variant="jarvis">
+                <Button size="sm" variant="friday">
                   {t("settings.theme.preview.gold")}
                 </Button>
               </div>

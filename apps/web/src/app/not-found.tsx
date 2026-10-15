@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, EmptyState } from "@jarvis/ui";
+import { Button, EmptyState } from "@friday/ui";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n";
 

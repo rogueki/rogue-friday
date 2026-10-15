@@ -9,7 +9,7 @@ import {
   type AdapterInfo,
   type AdapterManifest,
   type Capabilities,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { systemClock, toIso, type Clock } from "./clock";
 import { assertContract } from "./contract";
 import { validatePortResult } from "./result-validation";
@@ -31,7 +31,7 @@ import {
   type RetryConfigInput,
 } from "./resilience";
 import { createRedactor } from "./http-client";
-import type { AdapterContext, AdapterEventInput, AdapterFactory, DataMode, JarvisAdapter } from "./types";
+import type { AdapterContext, AdapterEventInput, AdapterFactory, DataMode, FridayAdapter } from "./types";
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Configuration
@@ -100,7 +100,7 @@ interface Runtime {
   category: AdapterCategory;
   entry: AdapterEntryConfig;
   factory: AdapterFactory;
-  adapter: JarvisAdapter;
+  adapter: FridayAdapter;
   manifest: AdapterManifest;
   lifecycle: AdapterLifecycleMachine;
   monitor: HealthMonitor;
@@ -261,7 +261,7 @@ export class AdapterRegistry {
   private validateManifest(
     category: AdapterCategory,
     factory: AdapterFactory,
-    adapter: JarvisAdapter,
+    adapter: FridayAdapter,
   ): AdapterManifest {
     const manifest = adapter.manifest;
     assertContract("AdapterManifest", manifest, `Manifest von ${factory.providerId}`);
@@ -339,7 +339,7 @@ export class AdapterRegistry {
     category: AdapterCategory,
     entry: AdapterEntryConfig,
     factory: AdapterFactory,
-    adapter: JarvisAdapter,
+    adapter: FridayAdapter,
     manifest: AdapterManifest,
   ): Runtime {
     const lifecycle = new AdapterLifecycleMachine();
@@ -626,7 +626,7 @@ export class AdapterRegistry {
     this.lastCapabilitiesKey = key;
     if (initial) return;
     this.dispatch("registry", {
-      type: "jarvis.adapter.capabilities_changed",
+      type: "friday.adapter.capabilities_changed",
       subject: "capabilities",
       data: document,
     });

@@ -1,6 +1,6 @@
 {
-  "name": "@jarvis/contracts",
-  "version": "1.0.0",
+  "name": "@friday/contracts",
+  "version": "2.0.0",
   "private": true,
   "description": "Vertragsquelle: JSON Schema, OpenAPI, AsyncAPI, Beispiele",
   "type": "module",

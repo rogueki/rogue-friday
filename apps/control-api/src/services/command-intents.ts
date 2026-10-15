@@ -1,5 +1,5 @@
-import { CONTRACT_VERSION, type CommandResponse } from "@jarvis/sdk";
-import { createId } from "@jarvis/observability";
+import { CONTRACT_VERSION, type CommandResponse } from "@friday/sdk";
+import { createId } from "@friday/observability";
 import type { HandlerResult, RequestContext } from "../http/context";
 
 /**

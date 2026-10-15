@@ -1,4 +1,4 @@
-import type { AdapterInfo, SystemMetrics } from "@jarvis/sdk";
+import type { AdapterInfo, SystemMetrics } from "@friday/sdk";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,7 +19,7 @@ vi.mock("next/navigation", () => ({
 
 function adapter(id: string, name: string, status: AdapterInfo["health"]["status"], extra: Partial<AdapterInfo["health"]> = {}): AdapterInfo {
   return {
-    manifest: { id, name, adapterVersion: "1.2.0", contractVersion: "1.0.0", apiVersion: "v1", category: "tasks", capabilities: ["tasks.read", "tasks.create"], configSchemaRef: "x", secretFields: [] },
+    manifest: { id, name, adapterVersion: "1.2.0", contractVersion: "2.0.0", apiVersion: "v1", category: "tasks", capabilities: ["tasks.read", "tasks.create"], configSchemaRef: "x", secretFields: [] },
     health: { adapterId: id, status, lifecycle: status === "offline" ? "OFFLINE" : "ONLINE", latencyMs: status === "offline" ? null : 12, lastSuccessAt: status === "offline" ? null : NOW, lastError: status === "offline" ? { code: "ADAPTER_UNAVAILABLE", message: "IMAP nicht erreichbar" } : null, checkedAt: NOW, consecutiveFailures: status === "offline" ? 4 : 0, circuit: status === "offline" ? "open" : "closed", ...extra },
     enabled: true,
     provider: "mock",
@@ -109,7 +109,7 @@ describe("adapter matrix (PLAN §40.3)", () => {
     const user = userEvent.setup();
     const fake = routedFetch({
       ...routes(),
-      "POST /api/v1/adapters/mock-mail/restart": { contractVersion: "1.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES", resourceId: "mock-mail", message: "Adapter „Mail“ wurde neu gestartet (ONLINE)." },
+      "POST /api/v1/adapters/mock-mail/restart": { contractVersion: "2.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES", resourceId: "mock-mail", message: "Adapter „Mail“ wurde neu gestartet (ONLINE)." },
     });
     renderWithProviders(<SystemPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true, healthcheck: true, restartAdapter: true, openLogs: true } }) });
     const dialog = await screen.findByRole("dialog");
@@ -160,8 +160,8 @@ describe("adapter matrix (PLAN §40.3)", () => {
         ...routes(),
         "GET /api/v1/adapters/mock-mail/logs": (url: URL) =>
           url.searchParams.get("level") === "error"
-            ? { contractVersion: "1.0.0", items: [entry("IMAP-Verbindung verloren", "error", { code: "ECONNRESET", token: "[REDACTED]" })], freshness: FRESH, sources: [SOURCE] }
-            : { contractVersion: "1.0.0", items: [entry("Healthcheck erfolgreich", "info", { latencyMs: 12 }), entry("IMAP-Verbindung verloren", "error", { code: "ECONNRESET", token: "[REDACTED]" })], freshness: FRESH, sources: [SOURCE] },
+            ? { contractVersion: "2.0.0", items: [entry("IMAP-Verbindung verloren", "error", { code: "ECONNRESET", token: "[REDACTED]" })], freshness: FRESH, sources: [SOURCE] }
+            : { contractVersion: "2.0.0", items: [entry("Healthcheck erfolgreich", "info", { latencyMs: 12 }), entry("IMAP-Verbindung verloren", "error", { code: "ECONNRESET", token: "[REDACTED]" })], freshness: FRESH, sources: [SOURCE] },
       });
       renderWithProviders(<SystemPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true, healthcheck: true, restartAdapter: true, openLogs: true } }) });
       const drawer = await screen.findByRole("dialog");
@@ -191,7 +191,7 @@ describe("adapter matrix (PLAN §40.3)", () => {
       let fail = false;
       const fake = routedFetch({
         ...routes(),
-        "GET /api/v1/adapters/mock-mail/logs": () => (fail ? errorBody("FORBIDDEN", "Für diese Aktion ist mindestens die Rolle owner erforderlich.", 403) : { contractVersion: "1.0.0", items: [], freshness: FRESH, sources: [SOURCE] }),
+        "GET /api/v1/adapters/mock-mail/logs": () => (fail ? errorBody("FORBIDDEN", "Für diese Aktion ist mindestens die Rolle owner erforderlich.", 403) : { contractVersion: "2.0.0", items: [], freshness: FRESH, sources: [SOURCE] }),
       });
       renderWithProviders(<SystemPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ system: { read: true, openLogs: true } }) });
       await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /Logs öffnen/ }));

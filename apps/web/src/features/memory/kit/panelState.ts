@@ -1,6 +1,6 @@
 "use client";
 
-import type { Freshness } from "@jarvis/sdk";
+import type { Freshness } from "@friday/sdk";
 import type { ReactNode } from "react";
 import type { PanelState } from "@/components/PanelFrame";
 import { useModulePanelGate } from "@/features/shared/useAvailability";

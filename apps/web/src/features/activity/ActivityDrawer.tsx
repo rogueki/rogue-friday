@@ -1,8 +1,8 @@
 "use client";
 
-import type { ActivityEvent } from "@jarvis/sdk";
-import { Button, Drawer, EmptyState, ErrorState, Skeleton, TagPill } from "@jarvis/ui";
-import { isJarvisApiError } from "@jarvis/sdk";
+import type { ActivityEvent } from "@friday/sdk";
+import { Button, Drawer, EmptyState, ErrorState, Skeleton, TagPill } from "@friday/ui";
+import { isFridayApiError } from "@friday/sdk";
 import { Bot, ExternalLink, Filter, ListChecks } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -50,7 +50,7 @@ export function ActivityDrawer({ eventId, events, agentNames, onClose, onSelect,
   else if (!event && query.isPending) body = <Skeleton variant="block" height={200} label={t("common.loading")} />;
   else if (!event && query.isError) {
     body =
-      isJarvisApiError(query.error) && query.error.code === "NOT_FOUND" ? (
+      isFridayApiError(query.error) && query.error.code === "NOT_FOUND" ? (
         <EmptyState compact title={t("activity.drawer.notFound")} description={t("activity.drawer.notFoundHint")} />
       ) : (
         <ErrorState compact title={t("common.loadError")} onRetry={() => void query.refetch()} retryLabel={t("common.retry")} />

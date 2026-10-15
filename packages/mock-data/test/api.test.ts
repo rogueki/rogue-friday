@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { createJarvisClient, isJarvisApiError, type SchemaName } from "@jarvis/sdk";
+import { createFridayClient, isFridayApiError, type SchemaName } from "@friday/sdk";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MockWorld, ROUTES, ScenarioEngine, createMswHandlers, handleApiRequest, setupNodeMocks, type NodeMocks } from "../src";
 import { validator } from "./support";
@@ -63,7 +63,7 @@ const SAMPLES: Sample[] = [
   { operationId: "restartAdapter", method: "POST", path: "/adapters/mock-tasks/restart", status: 200, schema: "ActionResult" },
   { operationId: "getAdapterLogs", method: "GET", path: "/adapters/mock-tasks/logs?limit=5&level=info", status: 200, schema: "AdapterLogListResponse" },
   { operationId: "getOverview", method: "GET", path: "/overview", status: 200, schema: "OverviewResponse" },
-  { operationId: "getStatus", method: "GET", path: "/status", status: 200, schema: "JarvisStatusResponse" },
+  { operationId: "getStatus", method: "GET", path: "/status", status: 200, schema: "FridayStatusResponse" },
   { operationId: "getOrbStatus", method: "GET", path: "/orb/status", status: 200, schema: "OrbSnapshotResponse" },
   { operationId: "login", method: "POST", path: "/auth/login", status: 200, schema: "SessionResponse", body: { username: "erik", password: "mock" } },
   { operationId: "logout", method: "POST", path: "/auth/logout", status: 200, schema: "ActionResult" },
@@ -173,7 +173,7 @@ const SAMPLES: Sample[] = [
   { operationId: "pauseCommand", method: "POST", path: "/commands/pause", status: 200, schema: "ActionResult", body: { scope: "automations" } },
   { operationId: "resumeCommand", method: "POST", path: "/commands/resume", status: 200, schema: "ActionResult", body: { scope: "automations" } },
   { operationId: "listCommandHistory", method: "GET", path: "/commands/history", status: 200, schema: "CommandHistoryEntryListResponse" },
-  { operationId: "getMetrics", method: "GET", path: "/metrics", status: 200, text: /# TYPE jarvis_adapter_health gauge/ },
+  { operationId: "getMetrics", method: "GET", path: "/metrics", status: 200, text: /# TYPE friday_adapter_health gauge/ },
   { operationId: "submitFrontendTelemetry", method: "POST", path: "/telemetry/frontend", status: 202, schema: "FrontendTelemetryReceiptResponse", body: { errors: [{ kind: "js_error", message: "Fehler in OrbScene" }], orbSamples: [{ fps: 60, frameTimeMs: 16.7 }] } },
   { operationId: "listScenarios", method: "GET", path: "/dev/scenarios", status: 200, schema: "ScenarioListResponse" },
   { operationId: "playScenario", method: "POST", path: "/dev/scenarios/clean-idle/play", status: 200, schema: "ScenarioStateResponse" },
@@ -195,7 +195,7 @@ async function call(world: MockWorld, sample: Sample): Promise<Response> {
 
 describe("REST route coverage", () => {
   it("implements every operationId of the OpenAPI contract (and nothing else)", () => {
-    const yaml = readFileSync(resolve(__dirname, "../../contracts/openapi/jarvis-api.yaml"), "utf8");
+    const yaml = readFileSync(resolve(__dirname, "../../contracts/openapi/friday-api.yaml"), "utf8");
     const contract = [...yaml.matchAll(/operationId:\s*(\w+)/g)].map((match) => match[1] as string).sort();
     expect(ROUTES.map((route) => route.operationId).sort()).toEqual(contract);
     expect(new Set(SAMPLES.map((sample) => sample.operationId))).toEqual(new Set(contract));
@@ -227,7 +227,7 @@ describe("envelopes and errors", () => {
     const world = new MockWorld();
     const response = await handleApiRequest(world, new Request(`${BASE}/tasks?limit=3`));
     const body = (await response.json()) as Record<string, unknown>;
-    expect(body).toMatchObject({ contractVersion: "1.0.0", freshness: { state: "fresh" }, pageInfo: { hasNextPage: true } });
+    expect(body).toMatchObject({ contractVersion: "2.0.0", freshness: { state: "fresh" }, pageInfo: { hasNextPage: true } });
     expect(body.sources).toEqual([expect.objectContaining({ adapterId: "mock-tasks" })]);
     const next = (body.pageInfo as { nextCursor: string }).nextCursor;
     const page2 = (await (await handleApiRequest(world, new Request(`${BASE}/tasks?limit=3&cursor=${next}`))).json()) as { items: { id: string }[] };
@@ -319,7 +319,7 @@ describe("msw node integration with the SDK client", () => {
   afterAll(() => mocks.stop());
 
   it("serves the typed client via msw", async () => {
-    const client = createJarvisClient({ baseUrl: "http://127.0.0.1:3100" });
+    const client = createFridayClient({ baseUrl: "http://127.0.0.1:3100" });
     const tasks = await client.GET("/api/v1/tasks", { params: { query: { status: ["running"], limit: 5 } } });
     expect(tasks.data?.items.length).toBeGreaterThan(0);
     const created = await client.POST("/api/v1/tasks", { body: { title: "Über msw angelegt" } });
@@ -328,7 +328,7 @@ describe("msw node integration with the SDK client", () => {
       await client.GET("/api/v1/tasks/{id}", { params: { path: { id: "task_00000000000000000000000000" } } });
       expect.unreachable();
     } catch (error) {
-      expect(isJarvisApiError(error) && error.code).toBe("NOT_FOUND");
+      expect(isFridayApiError(error) && error.code).toBe("NOT_FOUND");
     }
     ScenarioEngine.for(mocks.world).play("clean-idle");
     const orb = await client.GET("/api/v1/orb/status");

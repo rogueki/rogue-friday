@@ -1,7 +1,7 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/layout-import-request.schema.json",
+  "$schema": "https://friday.local/schemas/settings/layout-import-request.schema.json",
   "layout": {
-    "layoutId": "jarvis-command-overview",
+    "layoutId": "friday-command-overview",
     "name": "Command Overview",
     "columns": 12,
     "widgets": [

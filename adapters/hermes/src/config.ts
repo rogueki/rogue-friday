@@ -1,4 +1,4 @@
-import { AdapterError } from "@jarvis/adapter-core";
+import { AdapterError } from "@friday/adapter-core";
 import { DEFAULTS } from "./manifest";
 
 export type DashboardAuthMode = "scrape" | "secret" | "file";

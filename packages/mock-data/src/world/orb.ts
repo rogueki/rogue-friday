@@ -1,4 +1,4 @@
-import type { Agent, OrbHealth, OrbLayers, OrbMode, OrbSnapshot, OrbStatus, OrbUrgency, Task } from "@jarvis/sdk";
+import type { Agent, OrbHealth, OrbLayers, OrbMode, OrbSnapshot, OrbStatus, OrbUrgency, Task } from "@friday/sdk";
 import { CATEGORY_LABEL } from "../core/constants";
 import { priorityRank } from "../core/util";
 import type { WorldState } from "./state";

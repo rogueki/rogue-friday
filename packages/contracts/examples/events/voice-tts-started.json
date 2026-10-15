@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/events/voice-tts-started.schema.json",
+  "$schema": "https://friday.local/schemas/events/voice-tts-started.schema.json",
   "utteranceId": "utt_1",
   "engine": "Piper",
   "voice": "de_DE-thorsten",

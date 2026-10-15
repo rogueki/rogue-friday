@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { orbSettingsFromTestOverrides, readOrbTestOverrides } from "./orbTestHook";
 
 afterEach(() => {
-  delete window.__JARVIS_ORB_TEST__;
+  delete window.__FRIDAY_ORB_TEST__;
   window.history.replaceState(null, "", "/");
 });
 
@@ -24,7 +24,7 @@ describe("orb test clock hook", () => {
 
   it("lets the window hook win over the URL", () => {
     window.history.replaceState(null, "", "/?orbTime=1");
-    window.__JARVIS_ORB_TEST__ = { fixedTime: 9, audioFixture: "spike" };
+    window.__FRIDAY_ORB_TEST__ = { fixedTime: 9, audioFixture: "spike" };
     expect(readOrbTestOverrides()).toEqual({ fixedTime: 9, audioFixture: "spike" });
   });
 

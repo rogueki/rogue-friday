@@ -13,7 +13,7 @@
     "errors": [],
     "renderer": "3d",
     "quality": "high",
-    "label": "JARVIS WIRD INITIALISIERT"
+    "label": "F.R.I.D.A.Y. WIRD INITIALISIERT"
   },
   {
     "name": "listening-low",
@@ -77,7 +77,7 @@
     "errors": [],
     "renderer": "3d",
     "quality": "high",
-    "label": "JARVIS SPRICHT"
+    "label": "F.R.I.D.A.Y. SPRICHT"
   },
   {
     "name": "speaking-3agents-working",
@@ -85,7 +85,7 @@
     "errors": [],
     "renderer": "3d",
     "quality": "high",
-    "label": "JARVIS SPRICHT"
+    "label": "F.R.I.D.A.Y. SPRICHT"
   },
   {
     "name": "waiting-approval",
@@ -181,7 +181,7 @@
     "errors": [],
     "renderer": "3d",
     "quality": "high",
-    "label": "JARVIS SPRICHT"
+    "label": "F.R.I.D.A.Y. SPRICHT"
   },
   {
     "name": "working-large",

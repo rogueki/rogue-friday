@@ -1,5 +1,5 @@
-import type { ResearchArtifact, ResearchFinding, ResearchProject, ResearchSource } from "@jarvis/sdk";
-import { CONTRACT_VERSION } from "@jarvis/sdk";
+import type { ResearchArtifact, ResearchFinding, ResearchProject, ResearchSource } from "@friday/sdk";
+import { CONTRACT_VERSION } from "@friday/sdk";
 
 /** Everything a research export contains, assembled from API data only (nothing is invented client-side). */
 export interface ResearchBundle {

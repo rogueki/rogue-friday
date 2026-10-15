@@ -1,8 +1,8 @@
-import type { AdapterManifest } from "@jarvis/sdk";
+import type { AdapterManifest } from "@friday/sdk";
 import { AdapterError } from "./errors";
 import { methodsOf } from "./port-spec";
 import type { PortCategory } from "./ports";
-import type { AdapterContext, AdapterHealthReport, CapabilitySet, JarvisAdapter, PortAdapter } from "./types";
+import type { AdapterContext, AdapterHealthReport, CapabilitySet, FridayAdapter, PortAdapter } from "./types";
 
 export interface PlaceholderOptions<C extends PortCategory> {
   manifest: AdapterManifest & { category: C };
@@ -38,7 +38,7 @@ export function createPlaceholderAdapter<C extends PortCategory>(
     });
   };
 
-  const adapter: JarvisAdapter = {
+  const adapter: FridayAdapter = {
     manifest: { ...manifest, capabilities: [] },
     async initialize(ctx) {
       context = ctx;

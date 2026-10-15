@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/memory/memory-search-request.schema.json",
+  "$id": "https://friday.local/schemas/memory/memory-search-request.schema.json",
   "title": "MemorySearchRequest",
   "type": "object",
   "properties": {

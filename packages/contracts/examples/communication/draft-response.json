@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/communication/draft-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/communication/draft-response.schema.json",
+  "contractVersion": "2.0.0",
   "data": {
     "id": "draft_01JCW5E9R2Q7T4M8N3B6V00001",
     "version": 3,

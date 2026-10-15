@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/events/task-progress.schema.json",
+  "$schema": "https://friday.local/schemas/events/task-progress.schema.json",
   "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00001",
   "progress": {
     "mode": "determinate",

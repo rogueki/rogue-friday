@@ -7,7 +7,7 @@ Frontend, Backend oder Adaptern gepflegt.
 ## Ablauf einer Änderung
 
 1. Schema in `packages/contracts/schemas/<domain>/<name>.schema.json` anlegen oder ändern.
-2. Endpunkt in `openapi/jarvis-api.yaml` bzw. Event in `asyncapi/jarvis-events.yaml` ergänzen. Schemas werden
+2. Endpunkt in `openapi/friday-api.yaml` bzw. Event in `asyncapi/friday-events.yaml` ergänzen. Schemas werden
    ausschließlich per relativem `$ref` auf die Schema-Dateien eingebunden; in `components.schemas` steht ein Alias
    je Schema, damit die generierten Namen stabil bleiben (`Task` statt `task.schema`).
 3. Beispiel in `examples/<domain>/` anlegen (`{ "$schema": "<$id>", ... }`).
@@ -18,9 +18,9 @@ Frontend, Backend oder Adaptern gepflegt.
 
 | Pfad                          | Inhalt                                                                                                       |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `schemas/<domain>/*.json`     | JSON Schema 2020-12, ein Modell je Datei, `$id` = `https://jarvis.local/schemas/<domain>/<name>.schema.json` |
-| `openapi/jarvis-api.yaml`     | OpenAPI **3.1.1**, 122 Operationen unter `/api/v1`                                                           |
-| `asyncapi/jarvis-events.yaml` | AsyncAPI **3.1.0**, WebSocket `/api/v1/events`, 44 Event-Typen plus `ping`/`pong`                            |
+| `schemas/<domain>/*.json`     | JSON Schema 2020-12, ein Modell je Datei, `$id` = `https://friday.local/schemas/<domain>/<name>.schema.json` |
+| `openapi/friday-api.yaml`     | OpenAPI **3.1.1**, 122 Operationen unter `/api/v1`                                                           |
+| `asyncapi/friday-events.yaml` | AsyncAPI **3.1.0**, WebSocket `/api/v1/events`, 44 Event-Typen plus `ping`/`pong`                            |
 | `examples/<domain>/*.json`    | Deutsche, realistische Beispiele je Modell und je Response-Envelope                                          |
 | `baseline/`                   | Schnappschuss des zuletzt freigegebenen Vertrags für die Breaking-Change-Prüfung                             |
 | `scripts/`                    | `lint`, `validate`, `bundle`, `generate`, `check-generated`, `breaking`, `check`                             |
@@ -57,16 +57,16 @@ Event-Payloads).
 | Datei        | Quelle                                | Inhalt                                                                                                                             |
 | ------------ | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `openapi.ts` | Redocly-Bundle + `openapi-typescript` | `paths`, `components`, `operations` (typisiert den `openapi-fetch`-Client)                                                         |
-| `models.ts`  | `json-schema-to-typescript`           | ein Export je Schema-`title` (`Task`, `OrbStatus`, ...), `JarvisModelMap`                                                          |
-| `events.ts`  | AsyncAPI                              | `JARVIS_EVENT_TYPES`, `JarvisEventType`, `JarvisEventMap`, `JarvisEventEnvelope<T>`, `JarvisEvent`, `JARVIS_EVENT_DATA_SCHEMA_IDS` |
+| `models.ts`  | `json-schema-to-typescript`           | ein Export je Schema-`title` (`Task`, `OrbStatus`, ...), `FridayModelMap`                                                          |
+| `events.ts`  | AsyncAPI                              | `FRIDAY_EVENT_TYPES`, `FridayEventType`, `FridayEventMap`, `FridayEventEnvelope<T>`, `FridayEvent`, `FRIDAY_EVENT_DATA_SCHEMA_IDS` |
 | `schemas.ts` | alle JSON Schemas                     | `SCHEMAS` (nach `$id`), `SCHEMA_IDS` (Titel -> `$id`), `CONTRACT_VERSION`                                                          |
 
 Der Bundle-Schritt (`scripts/bundle.mjs`) löst die Datei-`$ref`s auf, faltet die Alias-Einträge zusammen und entfernt die
-dateibezogenen `$id`/`$schema`-Schlüssel (`dist/jarvis-api.bundled.yaml`, nicht eingecheckt). `minItems`/`maxItems`
+dateibezogenen `$id`/`$schema`-Schlüssel (`dist/friday-api.bundled.yaml`, nicht eingecheckt). `minItems`/`maxItems`
 werden nur für die TypeScript-Erzeugung ignoriert (keine Tupeltypen); AJV erzwingt sie zur Laufzeit.
 
-`@jarvis/sdk` (`packages/generated-sdk`) exportiert zusätzlich `createJarvisClient`, `JarvisApiError`,
-`createSchemaValidator`, `createCorrelationId`, `createIdempotencyKey`, `isJarvisEvent`, `isControlFrame`.
+`@friday/sdk` (`packages/generated-sdk`) exportiert zusätzlich `createFridayClient`, `FridayApiError`,
+`createSchemaValidator`, `createCorrelationId`, `createIdempotencyKey`, `isFridayEvent`, `isControlFrame`.
 
 ## Qualitätstore (PLAN §7.4)
 
@@ -88,7 +88,7 @@ entfernte Event-Typen oder geänderte Event-Payload-Schemas, entfernte Schema-Da
 das Major von `info.version` nicht höher ist als in der Baseline. Nach einem Release oder bewusstem Major-Sprung:
 
 ```bash
-pnpm --filter @jarvis/contracts baseline:update
+pnpm --filter @friday/contracts baseline:update
 ```
 
 ## AsyncAPI-Version
@@ -106,14 +106,14 @@ zu wechseln). Der Lint-Schritt akzeptiert beide Versionen; er schlägt nur bei F
 
 - Envelope: `specversion, id, type, source, subject, time, sequence, correlationId, causationId?, contractVersion, data`.
 - `data` ist je Event-Typ ein vorhandenes Ressourcen-Schema oder ein Payload-Schema aus `schemas/events/`. Die Zuordnung
-  Typ -> Schema-`$id` liefert `JARVIS_EVENT_DATA_SCHEMA_IDS`; damit validieren Client (Dev) und Server `data`.
+  Typ -> Schema-`$id` liefert `FRIDAY_EVENT_DATA_SCHEMA_IDS`; damit validieren Client (Dev) und Server `data`.
 - `ping`/`pong` sind Control-Frames (`ControlFrame`), keine Envelopes, ohne `sequence`.
 - Nachladen nach Verbindungsabbruch: `?since=<sequence>`; bei zu altem `since` sendet der Server
-  `jarvis.status.resync_required`. Lückenfüllung über `GET /api/v1/activity?sinceSequence=`.
+  `friday.status.resync_required`. Lückenfüllung über `GET /api/v1/activity?sinceSequence=`.
 
 ## Abweichungen und Auslegungen gegenüber dem Plan
 
-- `GET /orb/status` und `jarvis.orb.status_changed` liefern `OrbSnapshot = { status: OrbStatus, layers: OrbLayers }`.
+- `GET /orb/status` und `friday.orb.status_changed` liefern `OrbSnapshot = { status: OrbStatus, layers: OrbLayers }`.
   `OrbStatus` bleibt exakt PLAN §17; die parallelen Ebenen (§18.2) liegen daneben, nicht darin.
 - Approval-IDs verwenden das Präfix `appr_` (Konventionen §3 vor Plan §8.3).
 - `ErrorCode` enthält zusätzlich `REAUTH_REQUIRED` (Tier-3-Freigaben ohne frische Re-Authentifizierung).

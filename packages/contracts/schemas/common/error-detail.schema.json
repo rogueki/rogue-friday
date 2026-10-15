@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/common/error-detail.schema.json",
+  "$id": "https://friday.local/schemas/common/error-detail.schema.json",
   "title": "ErrorDetail",
   "description": "Normalized error. Provider-specific errors are mapped to this shape by adapters.",
   "type": "object",

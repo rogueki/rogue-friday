@@ -10,7 +10,7 @@ Verbindliche Gates stehen in `CLAUDE.md` und `docs/IMPLEMENTATION_CONVENTIONS.md
 | ------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Contracts                             | Redocly, AsyncAPI-Parser, JSON-Schema (Node-Skripte in `packages/contracts/scripts/`) | `pnpm contracts:check`                                         | OpenAPI- und AsyncAPI-Lint, Schema- und Beispielvalidierung, generiertes SDK aktuell, Breaking-Change-Erkennung                                                                                            | 4 Schritte, 122 Operationen. Laufzeit ca. 7 s (gemessen). Der Control-API-Vertragstest deckt alle 122 Operationen ab (`apps/control-api/test/contract.test.ts`, läuft unter `pnpm test`).                                                                |
 | Unit und Komponente                   | Vitest (Root-`vitest.config.ts` mit `projects`), jsdom, Testing Library               | `pnpm test`                                                    | Mapper, Adapter-Registry, Zustandsmaschinen, Orb-Arbitrierung, Rechte, Formatierung, Fehlerabbildung, React-Komponenten                                                                                    | 110 Dateien, 2469 Tests bestanden, 60 übersprungen (gemessen, 101 s). Enthält auch die 10 Conformance-Dateien (siehe unten).                                                                                                                             |
-| Adapter-Conformance                   | Vitest mit `@jarvis/adapter-testkit`                                                  | `pnpm test:conformance`                                        | 21 Prüfpunkte je Adapter (PLAN §11, Details in `docs/ADAPTER_CONFORMANCE.md`)                                                                                                                              | 10 Adapter, 422 Tests bestanden, 60 übersprungen (482 gesamt, gemessen, 29 s)                                                                                                                                                                            |
+| Adapter-Conformance                   | Vitest mit `@friday/adapter-testkit`                                                  | `pnpm test:conformance`                                        | 21 Prüfpunkte je Adapter (PLAN §11, Details in `docs/ADAPTER_CONFORMANCE.md`)                                                                                                                              | 10 Adapter, 422 Tests bestanden, 60 übersprungen (482 gesamt, gemessen, 29 s)                                                                                                                                                                            |
 | Storybook-Audit                       | Chromium über `@playwright/test`, axe-core                                            | `node apps/storybook/scripts/audit.mjs` (nach Storybook-Build) | Jede Story rendert, keine Seiten-, Konsolen- oder HTTP-Fehler, axe mit WCAG 2.0/2.1 A und AA plus Best Practice                                                                                            | 254 Stories laut Auftrag; nicht exakt reproduziert (siehe Abschnitt 10). Kein npm-Skript, kein Gate.                                                                                                                                                     |
 | End-to-End, Visual, A11y, Performance | Playwright (Chromium, seriell, 1 Worker)                                              | `pnpm test:e2e`                                                | Navigation, Szenario-Wechsel, Aufgaben, Freigaben, Live-Aktivität, Agenten, Gedächtnis, Meldungen und Alarme, Ausfälle, Orb-Zustände, Befehlsleiste, Einstellungen, Theme, Reconnect, 2D-Fallback, Visual Regression, axe und Tastatur, Last- und Performance-Budgets | 204 Tests in 20 Dateien (gemessen per `--list`, davon 40 in den vier Modul-Flows). Laufzeit 42,7 min (gemessen, vollständiger Lauf 2026-10-15).                                                                                                                                                       |
 | Integration                           | Playwright mit Fake-Upstreams                                                         | `pnpm test:integration`                                        | Kette Fake-Upstream, echter Adapter, Control API im Hybrid-Modus, Web-UI; Ausfall und Erholung von Voice und Hermes                                                                                        | 7 Tests in 1 Datei (gemessen per `--list`). Laufzeit 3,3 bis 3,5 min laut `docs/evidence/integration/README.md` (Lauf 2026-10-14).                                                                                                                       |
@@ -76,7 +76,7 @@ Ein neuer Adapter braucht nur `adapters/<name>/test/conformance.test.ts` (Detail
 ### Storybook-Audit
 
 ```bash
-pnpm --filter @jarvis/storybook build      # erzeugt apps/storybook/storybook-static
+pnpm --filter @friday/storybook build      # erzeugt apps/storybook/storybook-static
 node apps/storybook/scripts/audit.mjs      # alle Stories
 node apps/storybook/scripts/audit.mjs --only <Story-ID-Teil> --json <datei>
 ```
@@ -100,18 +100,18 @@ Entwicklung einer Spec ohne Neustart des Stacks:
 
 ```bash
 pnpm exec tsx tests/e2e/stack.ts                          # Terminal 1: Stack von Hand
-JARVIS_E2E_REUSE=1 pnpm test:e2e tests/e2e/tasks.spec.ts  # Terminal 2
+FRIDAY_E2E_REUSE=1 pnpm test:e2e tests/e2e/tasks.spec.ts  # Terminal 2
 ```
 
 Umgebungsvariablen (E2E):
 
 | Variable           | Standard                    | Wirkung                                                        |
 | ------------------ | --------------------------- | -------------------------------------------------------------- |
-| `JARVIS_E2E_PORT`  | `3200`                      | Port der Control API im Teststack                              |
-| `JARVIS_E2E_DIR`   | `<tmp>/jarvis-e2e`          | Datenverzeichnis des Stacks                                    |
-| `JARVIS_E2E_BUILD` | leer                        | `1` erzwingt `pnpm build:app` vor dem Start                    |
-| `JARVIS_E2E_REUSE` | leer                        | `1`: vorhandenen Stack wiederverwenden (`reuseExistingServer`) |
-| `JARVIS_CHROMIUM`  | Cloud-Pfad, falls vorhanden | Chromium-Binary für Playwright                                 |
+| `FRIDAY_E2E_PORT`  | `3200`                      | Port der Control API im Teststack                              |
+| `FRIDAY_E2E_DIR`   | `<tmp>/friday-e2e`          | Datenverzeichnis des Stacks                                    |
+| `FRIDAY_E2E_BUILD` | leer                        | `1` erzwingt `pnpm build:app` vor dem Start                    |
+| `FRIDAY_E2E_REUSE` | leer                        | `1`: vorhandenen Stack wiederverwenden (`reuseExistingServer`) |
+| `FRIDAY_CHROMIUM`  | Cloud-Pfad, falls vorhanden | Chromium-Binary für Playwright                                 |
 | `E2E_SOAK`         | leer                        | `1`: Orb-Soak 30 min statt 2 min                               |
 
 Der Stack läuft aus einer Kopie von `apps/web/out` in einem Temp-Verzeichnis, ein paralleler Rebuild verändert den Lauf also nicht.
@@ -127,10 +127,10 @@ Die Spec `tests/integration/hybrid.spec.ts` startet über `tests/integration/sta
 
 | Variable                  | Standard                            | Wirkung                     |
 | ------------------------- | ----------------------------------- | --------------------------- |
-| `JARVIS_INTEGRATION_PORT` | `3100`                              | Port der Control API        |
-| `JARVIS_INTEGRATION_DIR`  | `<tmp>/jarvis-integration`          | Arbeitsverzeichnis          |
-| `JARVIS_EVIDENCE_DIR`     | `test-results/integration/evidence` | PNG-Ausgabe der Screenshots |
-| `JARVIS_CHROMIUM`         | Cloud-Pfad, falls vorhanden         | Chromium-Binary             |
+| `FRIDAY_INTEGRATION_PORT` | `3100`                              | Port der Control API        |
+| `FRIDAY_INTEGRATION_DIR`  | `<tmp>/friday-integration`          | Arbeitsverzeichnis          |
+| `FRIDAY_EVIDENCE_DIR`     | `test-results/integration/evidence` | PNG-Ausgabe der Screenshots |
+| `FRIDAY_CHROMIUM`         | Cloud-Pfad, falls vorhanden         | Chromium-Binary             |
 
 Ausfälle lassen sich von Hand auslösen, solange der Fake-Upstream läuft: `curl -X POST http://127.0.0.1:43699/services/<voice|hermes|hermes-api|hermes-dashboard|llama>/<stop|start>`. Die Evidenz-WebPs in `docs/evidence/integration/` entstehen aus den PNGs (Qualität 80, siehe dortiger README).
 
@@ -145,7 +145,7 @@ Der synthetische Benchmark `installer/voice/tests/eval_synthetic_wake.py` ist ke
 ### Screenshots (keine Tests)
 
 ```bash
-pnpm --filter @jarvis/web screenshots      # apps/web/scripts/screenshot.mjs, braucht laufendes dev:mock
+pnpm --filter @friday/web screenshots      # apps/web/scripts/screenshot.mjs, braucht laufendes dev:mock
 node apps/web/scripts/screenshot-scenarios.mjs --base http://localhost:3000   # Szenario-Screenshots
 ```
 
@@ -181,7 +181,7 @@ Der Testtakt wirkt nur, wenn `GET /meta` `features.devScenarios` meldet. In der 
 | Zugang        | Form                                                                                                                |
 | ------------- | ------------------------------------------------------------------------------------------------------------------- |
 | URL-Parameter | `?orbTime=4&orbProgress=0.5&orbAudio=loud&orbFrameMs=40`                                                            |
-| Window-Hook   | `window.__JARVIS_ORB_TEST__ = { fixedTime, animationProgress, audioFixture, frameMs }` plus Event `jarvis-orb-test` |
+| Window-Hook   | `window.__FRIDAY_ORB_TEST__ = { fixedTime, animationProgress, audioFixture, frameMs }` plus Event `friday-orb-test` |
 | Rückmeldung   | `window.__ORB_DEBUG__.testClock` (Takt, den der Frame-Loop angewendet hat) und `frames`                             |
 
 Mit `fixedTime` ist ein Frame eine reine Funktion aus Modus, Zeit, Fortschritt und Audio-Fixture. Die 3D-Qualität ist auf `medium` gepinnt. `frameMs` ersetzt die gemessene Frame-Zeit des Qualitätsreglers. Quelle: `apps/web/src/features/orb/orbTestHook.ts`.

@@ -1,7 +1,7 @@
 "use client";
 
-import type { Freshness, Task } from "@jarvis/sdk";
-import { DataTable, FreshnessBadge, TagPill, type DataTableColumn } from "@jarvis/ui";
+import type { Freshness, Task } from "@friday/sdk";
+import { DataTable, FreshnessBadge, TagPill, type DataTableColumn } from "@friday/ui";
 import { useMemo } from "react";
 import { useT } from "@/i18n";
 import { StatusChip } from "./TaskCard";

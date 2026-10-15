@@ -1,8 +1,8 @@
 "use client";
 
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, useDroppable, useSensor, useSensors, type Announcements, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
-import type { Freshness, Task, TaskStatus } from "@jarvis/sdk";
-import { Button, KanbanColumn, cx } from "@jarvis/ui";
+import type { Freshness, Task, TaskStatus } from "@friday/sdk";
+import { Button, KanbanColumn, cx } from "@friday/ui";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useT, type MessageKey } from "@/i18n";

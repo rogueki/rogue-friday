@@ -1,7 +1,7 @@
 "use client";
 
-import type { Progress, ResearchArtifact, ResearchFinding, ResearchProject, ResearchSource } from "@jarvis/sdk";
-import { Button, DataTable, Drawer, EmptyState, MetricCard, StatusChip, TagPill, Tabs, type DataTableColumn, type Tone } from "@jarvis/ui";
+import type { Progress, ResearchArtifact, ResearchFinding, ResearchProject, ResearchSource } from "@friday/sdk";
+import { Button, DataTable, Drawer, EmptyState, MetricCard, StatusChip, TagPill, Tabs, type DataTableColumn, type Tone } from "@friday/ui";
 import { AlertTriangle, BookOpen, Clock, Download, ExternalLink, FileJson, FileText, FlaskConical, Link2, Quote } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useMemo, useState } from "react";

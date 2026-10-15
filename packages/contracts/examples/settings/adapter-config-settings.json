@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/adapter-config-settings.schema.json",
+  "$schema": "https://friday.local/schemas/settings/adapter-config-settings.schema.json",
   "adapterId": "hermes-tasks",
   "category": "tasks",
   "provider": "hermes-tasks",

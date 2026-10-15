@@ -9,7 +9,7 @@ import {
   Timeline,
   type ActivityItem,
   type Severity,
-} from '@jarvis/ui';
+} from '@friday/ui';
 import { timeline } from '../demo/data';
 import { seeded } from '../demo/data';
 import { Section, longGerman } from './_helpers';
@@ -81,7 +81,7 @@ export const FeedHuge: Story = {
     const [sel, setSel] = useState<string>();
     return (
       <div style={{ padding: 28, maxWidth: 520 }}>
-        <p style={{ marginTop: 0, fontFamily: 'var(--jv-font-mono)', fontSize: 12, color: 'var(--jarvis-muted)' }}>10.000 Zeilen, gerendert wird nur das sichtbare Fenster.</p>
+        <p style={{ marginTop: 0, fontFamily: 'var(--jv-font-mono)', fontSize: 12, color: 'var(--friday-muted)' }}>10.000 Zeilen, gerendert wird nur das sichtbare Fenster.</p>
         <ActivityFeed items={items} label="Alle Ereignisse" height={460} selectedId={sel} onSelect={setSel} />
       </div>
     );

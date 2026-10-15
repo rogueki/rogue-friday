@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/memory/memory-conflict-resolve-request.schema.json",
+  "title": "MemoryConflictResolveRequest",
+  "description": "Resolution of one memory conflict (PLAN §30.3). The conflict is addressed by the id of the conflicting memory (MemoryConflict.memoryId). keep_both keeps both entries, replace lets the addressed memory replace the conflicting one (the conflicting entry is forgotten, locked entries refuse with 409), dismiss marks the hint as irrelevant.",
+  "type": "object",
+  "properties": {
+    "resolution": {
+      "type": "string",
+      "enum": ["keep_both", "replace", "dismiss"]
+    },
+    "note": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Optional reason that is stored in the memory history."
+    }
+  },
+  "required": ["resolution"],
+  "additionalProperties": false
+}

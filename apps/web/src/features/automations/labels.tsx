@@ -1,6 +1,6 @@
-import type { AutomationRun } from "@jarvis/sdk";
+import type { AutomationRun } from "@friday/sdk";
 import type { AutomationDto as Automation } from "@/lib/api/domains/automations";
-import type { Tone } from "@jarvis/ui";
+import type { Tone } from "@friday/ui";
 import { Bell, CheckSquare, Cpu, FilePenLine, Flag, Globe, PhoneCall, type LucideIcon } from "lucide-react";
 import type { MessageKey } from "@/i18n";
 import type { ActionType, ChannelId, Operator, TriggerType } from "./wizardModel";

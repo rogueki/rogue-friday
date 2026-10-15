@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/dev/scenario-control-request.schema.json",
+  "$id": "https://friday.local/schemas/dev/scenario-control-request.schema.json",
   "title": "ScenarioControlRequest",
   "description": "Mock control actions of the scenario console (PLAN §44.6). Discriminated by action.",
   "oneOf": [
@@ -152,7 +152,7 @@
         },
         "eventType": {
           "type": "string",
-          "pattern": "^jarvis\\.[a-z_]+(\\.[a-z_]+)+$"
+          "pattern": "^friday\\.[a-z_]+(\\.[a-z_]+)+$"
         },
         "subject": {
           "type": "string",

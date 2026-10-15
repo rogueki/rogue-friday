@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AdapterError, validatePortResult, PORT_SPEC } from "@jarvis/adapter-core";
+import { AdapterError, validatePortResult, PORT_SPEC } from "@friday/adapter-core";
 import { HermesTasksAdapter } from "../src";
 import { createHermesFake, type HermesFake } from "./fake/server";
 import { start, type Harness } from "./helpers";
@@ -561,10 +561,10 @@ describe("tasks: events over the real WebSocket", () => {
 
     expect(emitted).toBe(4);
     expect(h.emitted.map((event) => event.type)).toEqual([
-      "jarvis.task.created",
-      "jarvis.task.updated",
-      "jarvis.task.updated",
-      "jarvis.task.completed",
+      "friday.task.created",
+      "friday.task.updated",
+      "friday.task.updated",
+      "friday.task.completed",
     ]);
     expect(h.emitted.every((event) => event.subject.startsWith("task/task_"))).toBe(true);
     expect(await h.adapter.pollEvents?.()).toBe(0);
@@ -574,7 +574,7 @@ describe("tasks: events over the real WebSocket", () => {
     if (!task) throw new Error("no task");
     fake.state.setStatus(board, task, "triage");
     expect(await h.adapter.pollEvents?.()).toBe(1);
-    expect(h.emitted.at(-1)?.type).toBe("jarvis.task.updated");
+    expect(h.emitted.at(-1)?.type).toBe("friday.task.updated");
   });
 
   it("starts at the tail by default: pre-existing events are not replayed", async () => {
@@ -584,7 +584,7 @@ describe("tasks: events over the real WebSocket", () => {
     expect(await h.adapter.pollEvents?.()).toBe(0);
     const task = fake.state.addTask("default", { title: "Neu" });
     expect(await h.adapter.pollEvents?.()).toBe(1);
-    expect(h.emitted[0]).toMatchObject({ type: "jarvis.task.created" });
+    expect(h.emitted[0]).toMatchObject({ type: "friday.task.created" });
     expect((h.emitted[0]?.data as { title: string }).title).toBe(task.title);
   });
 
@@ -607,9 +607,9 @@ describe("tasks: events over the real WebSocket", () => {
     await h.adapter.pollEvents?.();
 
     const types = h.emitted.map((event) => event.type);
-    expect(types).toContain("jarvis.task.cancelled");
-    expect(types).toContain("jarvis.task.failed");
-    expect(types.at(-1)).toBe("jarvis.task.updated");
+    expect(types).toContain("friday.task.cancelled");
+    expect(types).toContain("friday.task.failed");
+    expect(types.at(-1)).toBe("friday.task.updated");
   });
 
   it("follows a rotated token: the rejected handshake triggers a re-read and one retry", async () => {

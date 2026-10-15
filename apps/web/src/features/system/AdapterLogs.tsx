@@ -1,7 +1,7 @@
 "use client";
 
-import { isJarvisApiError, type AdapterLogEntry } from "@jarvis/sdk";
-import { Button, Dialog, EmptyState, ErrorState, Select, Skeleton, Switch, TagPill, type Tone } from "@jarvis/ui";
+import { isFridayApiError, type AdapterLogEntry } from "@friday/sdk";
+import { Button, Dialog, EmptyState, ErrorState, Select, Skeleton, Switch, TagPill, type Tone } from "@friday/ui";
 import { FileText, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useT, type MessageKey } from "@/i18n";
@@ -77,8 +77,8 @@ export function AdapterLogsDialog({ adapterId, name, open, onOpenChange }: Adapt
         <ErrorState
           compact
           title={t("system.logs.error")}
-          description={isJarvisApiError(query.error) ? query.error.message : t("system.logs.errorDescription")}
-          {...(isJarvisApiError(query.error) ? { code: query.error.code, correlationId: query.error.correlationId } : {})}
+          description={isFridayApiError(query.error) ? query.error.message : t("system.logs.errorDescription")}
+          {...(isFridayApiError(query.error) ? { code: query.error.code, correlationId: query.error.correlationId } : {})}
           onRetry={() => void query.refetch()}
         />
       ) : items.length === 0 ? (

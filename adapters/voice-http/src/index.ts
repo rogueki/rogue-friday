@@ -1,8 +1,8 @@
-import type { AdapterFactory } from "@jarvis/adapter-core";
-import { JarvisVoiceHttpAdapter } from "./adapter";
+import type { AdapterFactory } from "@friday/adapter-core";
+import { FridayVoiceHttpAdapter } from "./adapter";
 import { PROVIDER_ID, configSchema } from "./manifest";
 
-export { JarvisVoiceHttpAdapter } from "./adapter";
+export { FridayVoiceHttpAdapter } from "./adapter";
 export {
   ADAPTER_ID,
   CONFIG_SCHEMA_ID,
@@ -18,10 +18,10 @@ export type { LocalModelProbe, VoiceSettings, VoiceStatusInput } from "./mapping
 export { RAW_VOICE_STATES } from "./provider-types";
 export type { RawVoiceState, RawVoiceStatus } from "./provider-types";
 
-/** Register under `PROVIDER_ID` in the registry allowlist (config/adapters.yaml: `provider: jarvis-voice-http`). */
+/** Register under `PROVIDER_ID` in the registry allowlist (config/adapters.yaml: `provider: friday-voice-http`). */
 export const voiceHttpFactory: AdapterFactory<"voice"> = {
   providerId: PROVIDER_ID,
   category: "voice",
   configSchema,
-  create: () => new JarvisVoiceHttpAdapter(),
+  create: () => new FridayVoiceHttpAdapter(),
 };

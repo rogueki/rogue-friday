@@ -1,4 +1,4 @@
-import type { operations, SchemaName } from "@jarvis/sdk";
+import type { operations, SchemaName } from "@friday/sdk";
 import type { PortCategory, PortMap } from "./ports";
 
 /** How the result of a port method is validated against the contract before it is forwarded. */

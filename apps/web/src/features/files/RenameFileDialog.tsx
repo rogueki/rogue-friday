@@ -1,8 +1,8 @@
 "use client";
 
-import type { FileItem } from "@jarvis/sdk";
-import { isJarvisApiError } from "@jarvis/sdk";
-import { Button, Dialog, TextField, useToast } from "@jarvis/ui";
+import type { FileItem } from "@friday/sdk";
+import { isFridayApiError } from "@friday/sdk";
+import { Button, Dialog, TextField, useToast } from "@friday/ui";
 import { useRef, useState, type FormEvent } from "react";
 import { useT } from "@/i18n";
 import { useRenameFile } from "@/lib/api/domains/files";
@@ -38,7 +38,7 @@ export function RenameFileDialog({ file, open, onOpenChange, siblingNames }: Ren
   const problem = validateFileName(name);
   const taken = trimmed.toLowerCase() !== file.name.toLowerCase() && siblingNames.some((entry) => entry.toLowerCase() === trimmed.toLowerCase());
   const unchanged = trimmed === file.name;
-  const serverError = rename.error ? (isJarvisApiError(rename.error) ? rename.error.message : t("files.rename.error")) : undefined;
+  const serverError = rename.error ? (isFridayApiError(rename.error) ? rename.error.message : t("files.rename.error")) : undefined;
   const error = problem === "invalid" ? t("files.rename.invalid") : taken ? t("files.rename.taken") : serverError;
 
   const submit = (event: FormEvent): void => {

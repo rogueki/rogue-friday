@@ -1,4 +1,4 @@
-import { isControlFrame, isJarvisEvent, type JarvisEvent, type ResyncRequired } from "@jarvis/sdk";
+import { isControlFrame, isFridayEvent, type FridayEvent, type ResyncRequired } from "@friday/sdk";
 import { POLLING_AFTER_FAILURES, POLL_INTERVAL_MS, reconnectDelay } from "./backoff";
 import type { RealtimeTransport, TransportCloseInfo, TransportFactory } from "./transport";
 
@@ -23,7 +23,7 @@ export interface SequenceGap {
 
 export interface RealtimeCallbacks {
   /** Called exactly once per event (deduplicated, in arrival order). */
-  onEvent: (event: JarvisEvent) => void;
+  onEvent: (event: FridayEvent) => void;
   /** `sequence > last + 1`: events were missed; the owner backfills and/or refreshes snapshots. */
   onGap?: (gap: SequenceGap) => void;
   /** Server cannot replay `?since=`; snapshots must be reloaded. */
@@ -56,7 +56,7 @@ export interface RealtimeOptions {
   slowRoundtripMs?: number;
 }
 
-export const DEFAULT_SEQUENCE_STORAGE_KEY = "jarvis.realtime.sequence";
+export const DEFAULT_SEQUENCE_STORAGE_KEY = "friday.realtime.sequence";
 
 function safeStorage(): StorageLike | null {
   try {
@@ -208,7 +208,7 @@ export class RealtimeClient {
       this.handleControlFrame(payload);
       return;
     }
-    if (!isJarvisEvent(payload)) {
+    if (!isFridayEvent(payload)) {
       this.stats.malformed += 1;
       return;
     }
@@ -338,8 +338,8 @@ export class RealtimeClient {
 
   // ── events ──────────────────────────────────────────────────────────────
 
-  private handleEvent(event: JarvisEvent): void {
-    if (event.type === "jarvis.status.resync_required") {
+  private handleEvent(event: FridayEvent): void {
+    if (event.type === "friday.status.resync_required") {
       const data = event.data;
       this.options.callbacks.onResync?.(data);
       // The snapshot reload that follows covers everything up to `latestSequence`.

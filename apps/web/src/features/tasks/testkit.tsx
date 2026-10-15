@@ -1,4 +1,4 @@
-import type { ActivityEvent, Agent, Approval, Task } from "@jarvis/sdk";
+import type { ActivityEvent, Agent, Approval, Task } from "@friday/sdk";
 import { makeAgent, makeTask } from "@/test/fixtures";
 
 /**
@@ -64,14 +64,14 @@ const NOW = "2026-10-14T08:15:00Z";
 const SOURCE = { adapterId: "mock-core", system: "mock", lastSyncedAt: NOW } as const;
 
 export const listOf = <T,>(items: T[], extra: { nextCursor?: string | null; totalCount?: number; freshness?: "fresh" | "stale" | "offline-cache" } = {}) => ({
-  contractVersion: "1.0.0",
+  contractVersion: "2.0.0",
   items,
   pageInfo: { nextCursor: extra.nextCursor ?? null, hasNextPage: Boolean(extra.nextCursor), ...(extra.totalCount === undefined ? {} : { totalCount: extra.totalCount }) },
   freshness: { state: extra.freshness ?? "fresh", asOf: NOW },
   sources: [SOURCE],
 });
 
-export const dataOf = <T,>(data: T, state: "fresh" | "stale" = "fresh") => ({ contractVersion: "1.0.0", data, freshness: { state, asOf: NOW } });
+export const dataOf = <T,>(data: T, state: "fresh" | "stale" = "fresh") => ({ contractVersion: "2.0.0", data, freshness: { state, asOf: NOW } });
 
 export { makeAgent, makeTask };
 

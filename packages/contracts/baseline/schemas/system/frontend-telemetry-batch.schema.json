@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/system/frontend-telemetry-batch.schema.json",
+  "title": "FrontendTelemetryBatch",
+  "description": "Batch of frontend errors and orb performance samples (PLAN §50.3). Limited to 20 errors and 60 samples per request; the server also caps the body size (32 KiB) and the request rate. Must not contain personal data.",
+  "type": "object",
+  "properties": {
+    "errors": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "$ref": "../system/frontend-error-report.schema.json"
+      }
+    },
+    "orbSamples": {
+      "type": "array",
+      "maxItems": 60,
+      "items": {
+        "$ref": "../system/orb-performance-sample.schema.json"
+      }
+    }
+  },
+  "minProperties": 1,
+  "additionalProperties": false
+}

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/common/priority.schema.json",
+  "$id": "https://friday.local/schemas/common/priority.schema.json",
   "title": "Priority",
   "type": "string",
   "enum": ["P0", "P1", "P2", "P3", "P4"],

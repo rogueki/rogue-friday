@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/dev/scenario-list-response.schema.json",
+  "$id": "https://friday.local/schemas/dev/scenario-list-response.schema.json",
   "title": "ScenarioListResponse",
   "description": "Cursor-paginated list envelope for Scenario.",
   "type": "object",

@@ -1,12 +1,12 @@
-import type { AdapterManifest } from "@jarvis/sdk";
+import type { AdapterManifest } from "@friday/sdk";
 import {
   AdapterError,
   normalizeError,
   type AdapterContext,
   type AdapterHealthReport,
   type CapabilitySet,
-  type JarvisAdapter,
-} from "@jarvis/adapter-core";
+  type FridayAdapter,
+} from "@friday/adapter-core";
 import { createClients, type HermesClients } from "./clients";
 import { readSettings, type HermesSettings } from "./config";
 import { KanbanApi } from "./kanban-api";
@@ -51,7 +51,7 @@ export function healthMessage(error: AdapterError): string {
  * Lifecycle shared by the three Hermes adapters: settings, credentials, HTTP clients, the Kanban event feed, the
  * background event loop and health. Subclasses add their port methods, `pollCycle()` and `probe()`.
  */
-export abstract class HermesAdapterBase implements JarvisAdapter {
+export abstract class HermesAdapterBase implements FridayAdapter {
   abstract readonly manifest: AdapterManifest;
 
   protected context: AdapterContext | undefined;

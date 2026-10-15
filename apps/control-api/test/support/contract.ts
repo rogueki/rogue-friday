@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- test code reads untyped JSON bodies and frames that the contract validators check */
 import type { LightMyRequestResponse } from "fastify";
-import { createSchemaValidator } from "@jarvis/sdk";
+import { createSchemaValidator } from "@friday/sdk";
 import { ROUTE_TABLE } from "../../src/http/route-table.generated";
 import type { OperationId, RouteSpec } from "../../src/http/route-types";
 import type { ApiClient } from "../helpers";

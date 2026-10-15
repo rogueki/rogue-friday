@@ -1,4 +1,4 @@
-# Dashboard Art-Direction Brief (input for `@jarvis/design-tokens`, `@jarvis/ui`, `apps/web`)
+# Dashboard Art-Direction Brief (input for `@friday/design-tokens`, `@friday/ui`, `apps/web`)
 
 Binding sources: `docs/PLAN.md` §14, §24–27 and `design-references/jarvis_dashboard_reference.webp`.
 Open the reference image and keep comparing. Goal: same visual family, not a pixel copy.

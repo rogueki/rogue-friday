@@ -1,7 +1,7 @@
 import type { ErrorCode, ErrorDetail, ErrorResponse, Severity } from "./generated/models";
 
 /** Typed error thrown by the SDK client for every non-2xx response and for network failures. */
-export class JarvisApiError extends Error {
+export class FridayApiError extends Error {
   readonly code: ErrorCode;
   readonly severity: Severity;
   readonly retryable: boolean;
@@ -16,7 +16,7 @@ export class JarvisApiError extends Error {
     status: number,
   ) {
     super(detail.message);
-    this.name = "JarvisApiError";
+    this.name = "FridayApiError";
     this.code = detail.code;
     this.severity = detail.severity;
     this.retryable = detail.retryable;
@@ -26,8 +26,8 @@ export class JarvisApiError extends Error {
   }
 }
 
-export function isJarvisApiError(value: unknown): value is JarvisApiError {
-  return value instanceof JarvisApiError;
+export function isFridayApiError(value: unknown): value is FridayApiError {
+  return value instanceof FridayApiError;
 }
 
 const isErrorResponse = (value: unknown): value is ErrorResponse =>
@@ -49,11 +49,11 @@ const STATUS_FALLBACK: Readonly<Record<number, ErrorCode>> = {
   503: "ADAPTER_UNAVAILABLE",
 };
 
-/** Builds a JarvisApiError from an HTTP error response; falls back to status-derived values when the body is not a contract error. */
+/** Builds a FridayApiError from an HTTP error response; falls back to status-derived values when the body is not a contract error. */
 export async function errorFromResponse(
   response: Response,
   fallbackCorrelationId: string,
-): Promise<JarvisApiError> {
+): Promise<FridayApiError> {
   const correlationId = response.headers.get("X-Correlation-Id") ?? fallbackCorrelationId;
   let body: unknown;
   try {
@@ -62,12 +62,12 @@ export async function errorFromResponse(
     body = undefined;
   }
   if (isErrorResponse(body)) {
-    return new JarvisApiError(
+    return new FridayApiError(
       { ...body.error, correlationId: body.error.correlationId || correlationId },
       response.status,
     );
   }
-  return new JarvisApiError(
+  return new FridayApiError(
     {
       code: STATUS_FALLBACK[response.status] ?? "INTERNAL",
       message: response.statusText || `HTTP ${response.status}`,
@@ -80,8 +80,8 @@ export async function errorFromResponse(
 }
 
 /** Network-level failure (control API unreachable, aborted, CORS). Status 0 marks "no HTTP response". */
-export function networkError(cause: unknown, correlationId: string): JarvisApiError {
-  const error = new JarvisApiError(
+export function networkError(cause: unknown, correlationId: string): FridayApiError {
+  const error = new FridayApiError(
     {
       code: "ADAPTER_UNAVAILABLE",
       message: cause instanceof Error ? cause.message : "Control API is not reachable",

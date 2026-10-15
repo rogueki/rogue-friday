@@ -1,5 +1,5 @@
-import { isAdapterError, normalizeError } from "@jarvis/adapter-core";
-import type { ErrorCode, ErrorDetail, Severity } from "@jarvis/sdk";
+import { isAdapterError, normalizeError } from "@friday/adapter-core";
+import type { ErrorCode, ErrorDetail, Severity } from "@friday/sdk";
 
 /**
  * HTTP status per canonical error code. The contract lists 400/401/403/404/409/422/429/503 only, so unexpected

@@ -1,5 +1,5 @@
 {
-  "name": "@jarvis/adapter-system-local",
+  "name": "@friday/adapter-system-local",
   "version": "1.0.0",
   "private": true,
   "description": "System-Adapter für den lokalen Rechner (CPU/RAM/Speicher/GPU, Dienste, Modelle)",
@@ -12,11 +12,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@jarvis/adapter-core": "workspace:*",
-    "@jarvis/sdk": "workspace:*"
+    "@friday/adapter-core": "workspace:*",
+    "@friday/sdk": "workspace:*"
   },
   "devDependencies": {
-    "@jarvis/adapter-testkit": "workspace:*",
+    "@friday/adapter-testkit": "workspace:*",
     "ajv": "^8.20.0"
   }
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/tasks/task-list-response.schema.json",
+  "$id": "https://friday.local/schemas/tasks/task-list-response.schema.json",
   "title": "TaskListResponse",
   "description": "Cursor-paginated list envelope for Task.",
   "type": "object",

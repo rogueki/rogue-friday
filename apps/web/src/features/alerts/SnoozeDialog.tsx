@@ -1,7 +1,7 @@
 "use client";
 
-import type { Notification } from "@jarvis/sdk";
-import { Button, Dialog, Select, TextField } from "@jarvis/ui";
+import type { Notification } from "@friday/sdk";
+import { Button, Dialog, Select, TextField } from "@friday/ui";
 import { useState, type FormEvent } from "react";
 import { useT } from "@/i18n";
 

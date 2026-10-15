@@ -1,14 +1,14 @@
 # Mapping-Dokumente
 
 Jedes Fremdsystem bekommt ein Dokument, das **Feld für Feld** festlegt, wie seine Objekte und Ereignisse auf die kanonischen Modelle
-(`@jarvis/sdk`, Quelle: `packages/contracts`) abgebildet werden. Sie sind die Spezifikation für den jeweiligen Adapter und die
+(`@friday/sdk`, Quelle: `packages/contracts`) abgebildet werden. Sie sind die Spezifikation für den jeweiligen Adapter und die
 Grundlage der Conformance-Tests.
 
 | Dokument                             | Fremdsystem                            | Paket                           | Status                               |
 | ------------------------------------ | -------------------------------------- | ------------------------------- | ------------------------------------ |
 | [example-tasks.md](example-tasks.md) | ExampleTasks REST API (fiktiv)         | `adapters/example-http`         | implementiert, Conformance bestanden |
 | [hermes.md](hermes.md)               | Hermes (Aufgaben, Aktivität, Agenten)  | `adapters/hermes-placeholder`   | Platzhalter                          |
-| [voice.md](voice.md)                 | lokaler Voice-Dienst `jarvis_voice.py` | `adapters/voice-placeholder`    | Platzhalter                          |
+| [voice.md](voice.md)                 | lokaler Voice-Dienst `friday_voice.py` | `adapters/voice-placeholder`    | Platzhalter                          |
 | [mail-gmx.md](mail-gmx.md)           | GMX IMAP/SMTP                          | `adapters/mail-placeholder`     | Platzhalter                          |
 | [calendar.md](calendar.md)           | CalDAV / ICS                           | `adapters/calendar-placeholder` | Platzhalter                          |
 | [system.md](system.md)               | Windows + WSL (Metriken, Dienste)      | `adapters/system-placeholder`   | Platzhalter                          |

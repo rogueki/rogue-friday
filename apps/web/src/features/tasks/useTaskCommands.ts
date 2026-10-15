@@ -1,7 +1,7 @@
 "use client";
 
-import type { Task, TaskStatus } from "@jarvis/sdk";
-import { useToast } from "@jarvis/ui";
+import type { Task, TaskStatus } from "@friday/sdk";
+import { useToast } from "@friday/ui";
 import { useCallback, useMemo } from "react";
 import { useT } from "@/i18n";
 import { useAssignTask, useTaskAction, useUpdateTask } from "@/lib/api/domains/tasks";

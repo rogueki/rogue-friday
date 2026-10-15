@@ -1,6 +1,6 @@
 "use client";
 
-import { BottomCommandBar, useToast, type ContextChip } from "@jarvis/ui";
+import { BottomCommandBar, useToast, type ContextChip } from "@friday/ui";
 import { Cloud, MapPin, Wifi, Zap } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCallback, useMemo } from "react";

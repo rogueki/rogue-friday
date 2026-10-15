@@ -37,7 +37,7 @@ import {
   type ThemeImportRequest,
   type VoiceEnrollRequest,
   type VoiceTestRequest,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import type { Page } from "../core/util";
 import { ScenarioEngine } from "../scenarios/engine";
 import type { OpContext } from "../world/types";
@@ -101,20 +101,20 @@ const bodyOr = <T extends object>(input: RouteInput): T => ((input.body ?? {}) a
 /** Static Prometheus sample for the browser mock (the real series come from the Control API's registry). */
 function prometheusSample(world: MockWorld): string {
   const lines = [
-    "# HELP jarvis_ws_connections Open WebSocket connections",
-    "# TYPE jarvis_ws_connections gauge",
-    "jarvis_ws_connections 1",
-    "# HELP jarvis_http_error_ratio Share of HTTP responses with status >= 500 since start",
-    "# TYPE jarvis_http_error_ratio gauge",
-    "jarvis_http_error_ratio 0",
-    "# HELP jarvis_events_per_second Realtime events per second (10 s window)",
-    "# TYPE jarvis_events_per_second gauge",
-    "jarvis_events_per_second 0.4",
-    "# HELP jarvis_adapter_health Adapter health: 1 healthy, 0.5 degraded, 0 down, -1 unknown",
-    "# TYPE jarvis_adapter_health gauge",
+    "# HELP friday_ws_connections Open WebSocket connections",
+    "# TYPE friday_ws_connections gauge",
+    "friday_ws_connections 1",
+    "# HELP friday_http_error_ratio Share of HTTP responses with status >= 500 since start",
+    "# TYPE friday_http_error_ratio gauge",
+    "friday_http_error_ratio 0",
+    "# HELP friday_events_per_second Realtime events per second (10 s window)",
+    "# TYPE friday_events_per_second gauge",
+    "friday_events_per_second 0.4",
+    "# HELP friday_adapter_health Adapter health: 1 healthy, 0.5 degraded, 0 down, -1 unknown",
+    "# TYPE friday_adapter_health gauge",
   ];
   for (const adapter of world.state.adapters) {
-    lines.push(`jarvis_adapter_health{adapter="${adapter.manifest.id}"} ${adapter.mode === "online" ? 1 : adapter.mode === "offline" ? 0 : 0.5}`);
+    lines.push(`friday_adapter_health{adapter="${adapter.manifest.id}"} ${adapter.mode === "online" ? 1 : adapter.mode === "offline" ? 0 : 0.5}`);
   }
   return `${lines.join("\n")}\n`;
 }

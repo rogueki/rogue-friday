@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/voice/voice-enrollment.schema.json",
+  "$id": "https://friday.local/schemas/voice/voice-enrollment.schema.json",
   "title": "VoiceEnrollment",
   "description": "Status of one enrollment job.",
   "type": "object",

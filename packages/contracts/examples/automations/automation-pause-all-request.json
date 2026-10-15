@@ -1,4 +1,4 @@
 {
-  "$schema": "https://jarvis.local/schemas/automations/automation-pause-all-request.schema.json",
+  "$schema": "https://friday.local/schemas/automations/automation-pause-all-request.schema.json",
   "reason": "Urlaub bis Sonntag"
 }

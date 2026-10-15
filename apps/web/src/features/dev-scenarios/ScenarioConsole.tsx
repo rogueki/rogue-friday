@@ -1,7 +1,7 @@
 "use client";
 
-import type { OrbMode, ScenarioControlRequest, ScenarioState } from "@jarvis/sdk";
-import { Button, EmptyState, HudPanel, Select, Skeleton, Slider, StatusChip, Switch, TagPill, TextField } from "@jarvis/ui";
+import type { OrbMode, ScenarioControlRequest, ScenarioState } from "@friday/sdk";
+import { Button, EmptyState, HudPanel, Select, Skeleton, Slider, StatusChip, Switch, TagPill, TextField } from "@friday/ui";
 import { Clock, FlaskConical, Play, Plug, RotateCcw, ShieldCheck, Sparkles, Unlock, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -330,7 +330,7 @@ function ScenarioConsole() {
             <TextField label={t("devScenarios.orb.text")} value={orbText} placeholder={t("devScenarios.orb.textPlaceholder")} onChange={(event) => setOrbText(event.target.value)} />
             <Slider label={t("devScenarios.orb.level")} min={0} max={1} step={0.05} value={orbLevel} formatValue={(v) => `${Math.round(v * 100)} %`} onValueChange={setOrbLevel} />
             <div className="ds-row">
-              <Button type="button" variant="jarvis" icon={<Zap size={15} />} disabled={busy} onClick={() => void send(forceOrbRequest(orbMode, { text: orbText.trim(), level: orbLevel }), t("devScenarios.orb.forceDone", { mode: modeLabel(t, orbMode) }))}>
+              <Button type="button" variant="friday" icon={<Zap size={15} />} disabled={busy} onClick={() => void send(forceOrbRequest(orbMode, { text: orbText.trim(), level: orbLevel }), t("devScenarios.orb.forceDone", { mode: modeLabel(t, orbMode) }))}>
                 {t("devScenarios.orb.force")}
               </Button>
               <Button

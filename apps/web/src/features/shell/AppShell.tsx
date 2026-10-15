@@ -1,6 +1,6 @@
 "use client";
 
-import { JarvisShell, LeftCommandNav } from "@jarvis/ui";
+import { FridayShell, LeftCommandNav } from "@friday/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { CommandConfirmHost } from "@/features/palette/commandRunner";
@@ -39,7 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <JarvisShell
+      <FridayShell
         drawerBreakpoint={1100}
         navCollapsed={collapsed}
         onNavCollapsedChange={onCollapsedChange}
@@ -63,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <OfflineCacheBanner />
         {children}
-      </JarvisShell>
+      </FridayShell>
       <GlobalCommandPalette />
       <CreateTaskDialog />
       <CommandConfirmHost />

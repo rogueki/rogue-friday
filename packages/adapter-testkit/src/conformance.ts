@@ -5,8 +5,8 @@ import {
   CONTRACT_VERSION,
   createCorrelationId,
   createIdempotencyKey,
-  type JarvisEventType,
-} from "@jarvis/sdk";
+  type FridayEventType,
+} from "@friday/sdk";
 import {
   AdapterError,
   allowedCapabilities,
@@ -21,10 +21,10 @@ import {
   type AdapterContext,
   type AdapterEventInput,
   type CallContext,
-  type JarvisAdapter,
+  type FridayAdapter,
   type LogRecord,
   type PortCategory,
-} from "@jarvis/adapter-core";
+} from "@friday/adapter-core";
 import { createFakeUpstream, type FakeUpstream } from "./fake-upstream";
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -55,7 +55,7 @@ export interface ConformanceEnv {
 }
 
 export interface ConformanceTarget {
-  adapter: JarvisAdapter;
+  adapter: FridayAdapter;
   /** Config handed to `AdapterContext.config` (secrets are supplied by the suite through `getSecret`). */
   config?: Record<string, unknown>;
   /** JSON Schema exported by the adapter; checked against `manifest.configSchemaRef`. */
@@ -89,7 +89,7 @@ export interface ConformanceFixtures {
     /** Adds `count` raw provider events to the upstream. */
     publish(upstream: FakeUpstream, count: number): void;
     /** Canonical event type expected for each of the `publish`ed events (index-aligned, any count >= 3 is cycled). */
-    expectedTypes: readonly JarvisEventType[];
+    expectedTypes: readonly FridayEventType[];
   };
 }
 
@@ -118,7 +118,7 @@ export interface ConformanceOptions {
 
 interface Session {
   upstream: FakeUpstream;
-  adapter: JarvisAdapter;
+  adapter: FridayAdapter;
   target: ConformanceTarget;
   context: AdapterContext;
   emitted: AdapterEventInput[];

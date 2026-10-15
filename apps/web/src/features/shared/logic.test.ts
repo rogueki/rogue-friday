@@ -10,7 +10,7 @@ import { translate } from "@/i18n";
 import { de } from "@/i18n/de";
 import { en } from "@/i18n/en";
 import { shouldRetry } from "@/lib/api/queryClient";
-import { JarvisApiError } from "@jarvis/sdk";
+import { FridayApiError } from "@friday/sdk";
 
 describe("navigation", () => {
   it("has all 16 pages of PLAN §26 with the specified routes", () => {
@@ -109,7 +109,7 @@ describe("i18n", () => {
 
 describe("retry policy", () => {
   const error = (status: number, retryable: boolean) =>
-    new JarvisApiError({ code: "INTERNAL", message: "x", severity: "error", retryable, correlationId: "corr_x" }, status);
+    new FridayApiError({ code: "INTERNAL", message: "x", severity: "error", retryable, correlationId: "corr_x" }, status);
   it("retries retryable 5xx and network errors, never 4xx, and stops after three attempts", () => {
     expect(shouldRetry(0, error(503, true))).toBe(true);
     expect(shouldRetry(0, error(0, true))).toBe(true);

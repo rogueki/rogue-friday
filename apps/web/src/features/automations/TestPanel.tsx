@@ -1,8 +1,8 @@
 "use client";
 
-import type { AutomationRun } from "@jarvis/sdk";
+import type { AutomationRun } from "@friday/sdk";
 import type { AutomationDto as Automation } from "@/lib/api/domains/automations";
-import { Button } from "@jarvis/ui";
+import { Button } from "@friday/ui";
 import { FlaskConical, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { useT } from "@/i18n";

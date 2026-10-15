@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/automations/automation-version.schema.json",
+  "title": "AutomationVersion",
+  "description": "One entry of the version history of an automation (PLAN §35.3 Versionierung). Newest version first.",
+  "type": "object",
+  "properties": {
+    "automationId": {
+      "type": "string",
+      "pattern": "^auto_[0-9A-Za-z]{26}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "changedBy": {
+      "$ref": "../common/actor.schema.json"
+    },
+    "summary": {
+      "type": "string",
+      "description": "What changed compared to the previous version."
+    },
+    "current": {
+      "type": "boolean",
+      "description": "True for the version that is live now."
+    },
+    "snapshot": {
+      "type": "object",
+      "description": "Definition of the automation at this version.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "paused": {
+          "type": "boolean"
+        },
+        "trigger": {
+          "$ref": "../automations/automation-trigger.schema.json"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "../automations/automation-condition.schema.json"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "../automations/automation-action.schema.json"
+          },
+          "minItems": 1
+        },
+        "escalation": {
+          "type": "array",
+          "items": {
+            "$ref": "../automations/escalation-step.schema.json"
+          }
+        }
+      },
+      "required": ["name", "enabled", "paused", "trigger", "conditions", "actions", "escalation"],
+      "additionalProperties": false
+    },
+    "source": {
+      "$ref": "../common/source-descriptor.schema.json"
+    }
+  },
+  "required": [
+    "automationId",
+    "version",
+    "createdAt",
+    "changedBy",
+    "summary",
+    "current",
+    "snapshot",
+    "source"
+  ],
+  "additionalProperties": false
+}

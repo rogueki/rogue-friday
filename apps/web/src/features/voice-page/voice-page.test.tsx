@@ -1,4 +1,4 @@
-import type { VoiceEnrollment, VoiceMetrics, VoiceProfile, VoiceStatus } from "@jarvis/sdk";
+import type { VoiceEnrollment, VoiceMetrics, VoiceProfile, VoiceStatus } from "@friday/sdk";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -92,7 +92,7 @@ describe("voice status (PLAN §38.1)", () => {
 
   it("gates stop by capability and runs it when granted", async () => {
     const user = userEvent.setup();
-    const fake = routedFetch(routes({ "GET /api/v1/voice/status": single(status({ mode: "speaking" })), "POST /api/v1/voice/stop": { contractVersion: "1.0.0", accepted: true, status: "completed", correlationId: "corr_1", message: "Gestoppt" } }));
+    const fake = routedFetch(routes({ "GET /api/v1/voice/status": single(status({ mode: "speaking" })), "POST /api/v1/voice/stop": { contractVersion: "2.0.0", accepted: true, status: "completed", correlationId: "corr_1", message: "Gestoppt" } }));
     const view = renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({ stop: false }) });
     expect(await screen.findByRole("button", { name: /Sprachausgabe stoppen/ })).toBeDisabled();
     view.unmount();
@@ -236,7 +236,7 @@ describe("enrollment (PLAN §38.3) and privacy (PLAN §38.4)", () => {
     const user = userEvent.setup();
     const fake = routedFetch(
       routes({
-        "DELETE /api/v1/voice/history": { contractVersion: "1.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES", message: "38 Verlaufseinträge wurden gelöscht." },
+        "DELETE /api/v1/voice/history": { contractVersion: "2.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES", message: "38 Verlaufseinträge wurden gelöscht." },
       }),
     );
     renderWithProviders(<VoicePage />, { fetchImpl: fake.fetch, capabilities: caps({ deleteHistory: true }) });

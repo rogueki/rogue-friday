@@ -1,5 +1,5 @@
 {
-  "name": "@jarvis/adapter-hermes",
+  "name": "@friday/adapter-hermes",
   "version": "1.0.0",
   "private": true,
   "description": "Hermes Agent adapter (tasks/kanban, activity, agents)",
@@ -13,11 +13,11 @@
     "smoke": "tsx scripts/live-smoke.ts"
   },
   "dependencies": {
-    "@jarvis/adapter-core": "workspace:*",
-    "@jarvis/sdk": "workspace:*"
+    "@friday/adapter-core": "workspace:*",
+    "@friday/sdk": "workspace:*"
   },
   "devDependencies": {
-    "@jarvis/adapter-testkit": "workspace:*",
+    "@friday/adapter-testkit": "workspace:*",
     "ajv": "^8.20.0"
   }
 }

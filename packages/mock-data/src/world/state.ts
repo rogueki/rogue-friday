@@ -41,7 +41,7 @@ import type {
   VoiceMetrics,
   VoiceProfile,
   VoiceStatus,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 
 export type ProfileName = "default" | "empty" | "highLoad" | "longGerman";
 
@@ -83,7 +83,7 @@ export interface ForcedOrb {
 export interface OrbMemo {
   mode: OrbMode;
   since: string;
-  /** JSON of the last emitted snapshot without volatile fields; change detection for jarvis.orb.status_changed. */
+  /** JSON of the last emitted snapshot without volatile fields; change detection for friday.orb.status_changed. */
   signature: string;
   sourceEventId?: string;
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/automations/automation-pause-all-result.schema.json",
+  "$id": "https://friday.local/schemas/automations/automation-pause-all-result.schema.json",
   "title": "AutomationPauseAllResult",
   "description": "Per-automation outcome of the bulk pause. Automations that are already paused or disabled stay untouched.",
   "type": "object",

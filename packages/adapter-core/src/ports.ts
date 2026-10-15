@@ -83,7 +83,7 @@ import type {
   VoiceTestRequest,
   VoiceTestResult,
   AdapterCategory,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Shared call shapes

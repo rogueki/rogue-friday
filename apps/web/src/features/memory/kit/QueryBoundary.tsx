@@ -1,7 +1,7 @@
 "use client";
 
-import { isJarvisApiError } from "@jarvis/sdk";
-import { ErrorState, OfflineState, Skeleton } from "@jarvis/ui";
+import { isFridayApiError } from "@friday/sdk";
+import { ErrorState, OfflineState, Skeleton } from "@friday/ui";
 import type { ReactNode } from "react";
 import { useT } from "@/i18n";
 import { isAdapterOutage, type QueryView } from "./panelState";
@@ -24,13 +24,13 @@ export function QueryBoundary<T>({ query, children, rows = 4 }: { query: QueryVi
       <OfflineState
         compact
         title={t("panel.offline.title")}
-        description={isJarvisApiError(query.error) ? query.error.message : t("panel.offline.description")}
+        description={isFridayApiError(query.error) ? query.error.message : t("panel.offline.description")}
         onRetry={() => void query.refetch()}
         retryLabel={t("common.retry")}
       />
     );
   }
-  const api = isJarvisApiError(query.error) ? query.error : null;
+  const api = isFridayApiError(query.error) ? query.error : null;
   return (
     <ErrorState
       compact

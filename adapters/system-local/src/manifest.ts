@@ -1,9 +1,9 @@
-import { CONTRACT_VERSION, type AdapterManifest } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type AdapterManifest } from "@friday/sdk";
 
 export const ADAPTER_ID = "local-system";
 export const PROVIDER_ID = "local-system";
 export const PROVIDER_SYSTEM = "local-system";
-export const CONFIG_SCHEMA_ID = "urn:jarvis:adapter:local-system:config";
+export const CONFIG_SCHEMA_ID = "urn:friday:adapter:local-system:config";
 
 /** Installer ports (docs/INSTALLER_INTEGRATION_REVIEW.md §3.1); all services bind to 127.0.0.1 only. */
 export const DEFAULT_URLS = {
@@ -27,7 +27,7 @@ export const configSchema = {
       type: "string",
       format: "uri",
       default: DEFAULT_URLS.qwenUrl,
-      description: "Lokaler Qwen-Router (llama-server, Aufgabe JARVIS_Qwen). Probe: GET /v1/models.",
+      description: "Lokaler Qwen-Router (llama-server, Aufgabe FRIDAY_Qwen). Probe: GET /v1/models.",
     },
     hermesApiUrl: {
       type: "string",
@@ -59,7 +59,7 @@ export const configSchema = {
       type: "string",
       minLength: 1,
       description:
-        "Alternative zum Secret: Pfad zur Key-Datei des Installers (C:\\Jarvis\\config\\hermes_api.key). Der Inhalt wird zur Laufzeit gelesen und nie zurückgegeben. Das Secret hat Vorrang.",
+        "Alternative zum Secret: Pfad zur Key-Datei des Installers (C:\\Friday\\config\\hermes_api.key). Der Inhalt wird zur Laufzeit gelesen und nie zurückgegeben. Das Secret hat Vorrang.",
     },
     storagePaths: {
       type: "array",

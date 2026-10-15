@@ -3,8 +3,8 @@
  * Copy this folder to `adapters/<name>/`, then follow docs/ADAPTER_SDK.md ("Neue Anbindung erstellen").
  * The numbered markers below match the ten steps of PLAN §56.1.
  */
-import type { AdapterManifest, Task } from "@jarvis/sdk";
-import { CONTRACT_VERSION } from "@jarvis/sdk";
+import type { AdapterManifest, Task } from "@friday/sdk";
+import { CONTRACT_VERSION } from "@friday/sdk";
 import {
   AdapterError,
   createHttpClient,
@@ -20,16 +20,16 @@ import {
   type CapabilitySet,
   type HttpClient,
   type IdParam,
-  type JarvisAdapter,
+  type FridayAdapter,
   type ListTasksParams,
   type Page,
   type Single,
   type TaskPort,
-} from "@jarvis/adapter-core";
+} from "@friday/adapter-core";
 
 // Step 2: manifest ----------------------------------------------------------------------------------------------------
 const ADAPTER_ID = "things-http";
-const CONFIG_SCHEMA_ID = "urn:jarvis:adapter:things-http:config";
+const CONFIG_SCHEMA_ID = "urn:friday:adapter:things-http:config";
 
 export const manifest: AdapterManifest = {
   id: ADAPTER_ID,
@@ -108,7 +108,7 @@ const thingMapper = defineMapper<RawThing, Task>({
 });
 
 // The adapter ---------------------------------------------------------------------------------------------------------
-export class ThingsAdapter implements JarvisAdapter, TaskPort {
+export class ThingsAdapter implements FridayAdapter, TaskPort {
   readonly manifest = manifest;
   private context: AdapterContext | undefined;
   private http: HttpClient | undefined;

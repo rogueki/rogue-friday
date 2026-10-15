@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, isJarvisApiError, type SessionResponse } from "@jarvis/sdk";
+import { CONTRACT_VERSION, isFridayApiError, type SessionResponse } from "@friday/sdk";
 import type { Query, QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../api/queryKeys";
 import { buildSnapshot, parseSnapshot, restoreSnapshot, type OfflineIdentity } from "./snapshot";
@@ -31,7 +31,7 @@ export function getRestoredIdentity(): { identity: OfflineIdentity; savedAt: num
 
 /** A refused connection, a timeout or a gateway error: the API is not there. 4xx answers are never "offline". */
 export function isUnreachable(error: unknown): boolean {
-  if (isJarvisApiError(error)) return error.status === 0 || error.status >= 500;
+  if (isFridayApiError(error)) return error.status === 0 || error.status >= 500;
   return error instanceof TypeError || (error instanceof Error && /fetch|network|load failed/i.test(error.message));
 }
 
@@ -127,7 +127,7 @@ export function startOfflineCache(client: QueryClient, hooks: { onRecovered?: ()
       return;
     }
     if (state.status === "error") {
-      if (isJarvisApiError(state.error) && (state.error.code === "UNAUTHENTICATED" || state.error.status === 401)) {
+      if (isFridayApiError(state.error) && (state.error.code === "UNAUTHENTICATED" || state.error.status === 401)) {
         if (restored) forgetUserData();
         clearOfflineCache();
         identity = null;

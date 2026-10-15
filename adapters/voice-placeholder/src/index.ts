@@ -1,13 +1,13 @@
-import { CONTRACT_VERSION, type AdapterManifest } from "@jarvis/sdk";
-import { createPlaceholderAdapter, type AdapterFactory } from "@jarvis/adapter-core";
+import { CONTRACT_VERSION, type AdapterManifest } from "@friday/sdk";
+import { createPlaceholderAdapter, type AdapterFactory } from "@friday/adapter-core";
 
-export const PROVIDER_ID = "jarvis-voice-http";
-export const CONFIG_SCHEMA_ID = "urn:jarvis:adapter:jarvis-voice-http:config";
+export const PROVIDER_ID = "friday-voice-http";
+export const CONFIG_SCHEMA_ID = "urn:friday:adapter:friday-voice-http:config";
 
 export const configSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: CONFIG_SCHEMA_ID,
-  title: "Jarvis Voice (lokale HTTP-Bridge)",
+  title: "Friday Voice (lokale HTTP-Bridge)",
   type: "object",
   properties: {
     baseUrl: {
@@ -41,7 +41,7 @@ export const configSchema = {
 
 export const manifest: AdapterManifest = {
   id: PROVIDER_ID,
-  name: "Jarvis Voice (HTTP)",
+  name: "Friday Voice (HTTP)",
   adapterVersion: "0.1.0",
   contractVersion: CONTRACT_VERSION,
   apiVersion: "v1",
@@ -58,7 +58,7 @@ export const voiceFactory: AdapterFactory<"voice"> = {
   create: () =>
     createPlaceholderAdapter({
       manifest: { ...manifest, category: "voice" },
-      systemName: "Jarvis Voice",
+      systemName: "Friday Voice",
       isConfigured: (config) => typeof config.baseUrl === "string" && config.baseUrl.length > 0,
     }),
 };

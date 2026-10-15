@@ -1,5 +1,5 @@
 // Step 8: run the conformance suite. `pnpm test:conformance` discovers adapters/*/test/conformance.test.ts.
-import { runConformanceSuite, type FakeUpstream } from "@jarvis/adapter-testkit";
+import { runConformanceSuite, type FakeUpstream } from "@friday/adapter-testkit";
 import { ThingsAdapter, configSchema } from "../src";
 
 /** Fake "Things API": GET /things (cursor paging) and GET /things/:id. */

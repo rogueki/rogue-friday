@@ -20,7 +20,7 @@ describe("mock-console CLI against the Control API", () => {
   const cli = async (...argv: string[]) => {
     const out: string[] = [];
     const err: string[] = [];
-    const code = await run(argv, { io: { out: (line) => out.push(line), err: (line) => err.push(line) }, env: { JARVIS_API_URL: api.origin }, sleep: async () => {} });
+    const code = await run(argv, { io: { out: (line) => out.push(line), err: (line) => err.push(line) }, env: { FRIDAY_API_URL: api.origin }, sleep: async () => {} });
     return { code, out: out.join("\n"), err: err.join("\n") };
   };
 
@@ -62,10 +62,10 @@ describe("mock-console CLI against the Control API", () => {
     expect((await cli("release-orb")).code).toBe(0);
     expect((await observer.get("/api/v1/dev/scenarios/state")).json().data.forcedOrbMode).toBeNull();
     expect((await observer.get("/api/v1/orb/status")).json().data.status.mode).not.toBe("error");
-    const played = await cli("play-event", "jarvis.orb.status_changed");
+    const played = await cli("play-event", "friday.orb.status_changed");
     expect(played.code, played.err).toBe(0);
-    expect(played.out).toContain("jarvis.orb.status_changed");
-    const rejected = await cli("play-event", "jarvis.task.created");
+    expect(played.out).toContain("friday.orb.status_changed");
+    const rejected = await cli("play-event", "friday.task.created");
     expect(rejected.code).toBe(1);
     expect(rejected.err).toMatch(/API-Fehler 422 VALIDATION_FAILED/);
   });
@@ -93,9 +93,9 @@ describe("mock-console CLI against the Control API", () => {
 
   it("streams events over the WebSocket while another command changes the world", async () => {
     const lines: string[] = [];
-    const watching = run(["watch", "--count", "2", "--for", "4000", "--type", "jarvis.orb"], {
+    const watching = run(["watch", "--count", "2", "--for", "4000", "--type", "friday.orb"], {
       io: { out: (line) => lines.push(line), err: (line) => lines.push(`ERR ${line}`) },
-      env: { JARVIS_API_URL: api.origin },
+      env: { FRIDAY_API_URL: api.origin },
     });
     await new Promise((resolve) => setTimeout(resolve, 300));
     await cli("orb", "working");
@@ -103,7 +103,7 @@ describe("mock-console CLI against the Control API", () => {
     expect(await watching).toBe(0);
     const events = lines.filter((line) => line.startsWith("#"));
     expect(events.length).toBeGreaterThanOrEqual(2);
-    expect(events.every((line) => /^#\d+ jarvis\.orb\./.test(line))).toBe(true);
+    expect(events.every((line) => /^#\d+ friday\.orb\./.test(line))).toBe(true);
   });
 
   it("works as a viewer only for what a viewer may do", async () => {

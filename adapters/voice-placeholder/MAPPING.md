@@ -1,6 +1,6 @@
-# Mapping: Jarvis Voice -> Voice
+# Mapping: Friday Voice -> Voice
 
-Vollständige Zustands- und Ereignistabellen (Dienstzustände -> `VoiceStatus.mode` -> `OrbLayers.voice`, `voice.jsonl` -> `jarvis.voice.*`):
+Vollständige Zustands- und Ereignistabellen (Dienstzustände -> `VoiceStatus.mode` -> `OrbLayers.voice`, `voice.jsonl` -> `friday.voice.*`):
 [`docs/MAPPING/voice.md`](../../docs/MAPPING/voice.md).
 
 | Feld             | Typ     | Bedeutung                                                                                             |

@@ -1,10 +1,10 @@
-import { createJarvisClient, type JarvisClient } from "@jarvis/sdk";
+import { createFridayClient, type FridayClient } from "@friday/sdk";
 
 /** Name of the readable double-submit cookie written by the Control API (packages/auth/src/cookies.ts). */
-const CSRF_COOKIE = "jarvis_csrf";
+const CSRF_COOKIE = "friday_csrf";
 
 let sessionCsrfToken: string | null = null;
-let client: JarvisClient | null = null;
+let client: FridayClient | null = null;
 
 /** Called by the session provider whenever GET /auth/session delivers a (new) token. */
 export function setCsrfToken(token: string | null): void {
@@ -22,12 +22,12 @@ export function getCsrfToken(): string | null {
 }
 
 /** Single SDK client for the whole app; same origin (Next rewrite in dev, static hosting by the API in production). */
-export function getApiClient(): JarvisClient {
-  client ??= createJarvisClient({ baseUrl: "", getCsrfToken });
+export function getApiClient(): FridayClient {
+  client ??= createFridayClient({ baseUrl: "", getCsrfToken });
   return client;
 }
 
 /** Test seam: inject a client with a fake fetch, or pass `null` to reset. */
-export function setApiClient(next: JarvisClient | null): void {
+export function setApiClient(next: FridayClient | null): void {
   client = next;
 }

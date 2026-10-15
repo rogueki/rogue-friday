@@ -1,5 +1,5 @@
-import type { Channel, ChannelKind, DraftStatus, Thread } from "@jarvis/sdk";
-import type { Tone } from "@jarvis/ui";
+import type { Channel, ChannelKind, DraftStatus, Thread } from "@friday/sdk";
+import type { Tone } from "@friday/ui";
 import type { MessageKey } from "@/i18n";
 
 export type ThreadStatus = Thread["status"];

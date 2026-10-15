@@ -1,7 +1,7 @@
 # Security (F.R.I.D.A.Y. Command Center)
 
-Implements PLAN §32.5, §37.4, §41.4, §42.2, §49, §50.4. Library code: `@jarvis/auth` (identity, sessions, CSRF, approvals),
-`@jarvis/config` (loopback guard, secret references), `@jarvis/observability` (redaction, audit hash chain).
+Implements PLAN §32.5, §37.4, §41.4, §42.2, §49, §50.4. Library code: `@friday/auth` (identity, sessions, CSRF, approvals),
+`@friday/config` (loopback guard, secret references), `@friday/observability` (redaction, audit hash chain).
 The Control API wires these together; the browser never talks to Hermes, voice, mail or any other adapter directly (§49.2).
 
 ## 1. Threat model (localhost deployment)
@@ -68,20 +68,20 @@ token `consume()` (single use) -> state recheck -> execute -> audit event with c
 
 ## 3. Sessions, CSRF, cookies
 
-- **Login**: `verifyPassword` (scrypt, timing-safe) against `JARVIS_OWNER_PASSWORD_HASH` (create with
-  `pnpm --filter @jarvis/auth hash-password`; `.env` value must be single-quoted because it contains `$`). Failures feed
+- **Login**: `verifyPassword` (scrypt, timing-safe) against `FRIDAY_OWNER_PASSWORD_HASH` (create with
+  `pnpm --filter @friday/auth hash-password`; `.env` value must be single-quoted because it contains `$`). Failures feed
   `LoginRateLimiter`; locked keys never reach the password check.
 - **Session id**: 32 random bytes (base64url) in the cookie; the server stores only its SHA-256 (`SqliteSessionStore`,
   table `auth_sessions`). Absolute TTL (`sessionTtlMinutes`), idle timeout (`idleTimeoutMinutes`, sliding),
   `reauthAt` for sensitive actions, `revokeAll(userId)` for "logout all" (§49.4).
-- **Cookies**: `jarvis_session` = `HttpOnly; SameSite=Strict; Path=/; Max-Age` (+`Secure` when `auth.secureCookies`).
-  `jarvis_csrf` = readable (no `HttpOnly`), same flags otherwise.
-- **CSRF**: token = `HMAC-SHA256(csrfKey, sessionId)`. The SPA copies the `jarvis_csrf` cookie into `X-CSRF-Token` on every
+- **Cookies**: `friday_session` = `HttpOnly; SameSite=Strict; Path=/; Max-Age` (+`Secure` when `auth.secureCookies`).
+  `friday_csrf` = readable (no `HttpOnly`), same flags otherwise.
+- **CSRF**: token = `HMAC-SHA256(csrfKey, sessionId)`. The SPA copies the `friday_csrf` cookie into `X-CSRF-Token` on every
   mutating request (POST/PUT/PATCH/DELETE). The server checks header == cookie (double submit) **and** header == HMAC of the
   caller's own session id, so a token from another session or a planted cookie fails. `csrfKey` is derived (HKDF) from the
   server key `data/auth.key`, created on first start with owner-only permissions; approval tokens use a different derived key.
 - **Dev auth** (`auth.mode: dev`): fixed identities `dev-owner|operator|viewer`; refused unless `dataMode == mock` **and** the
-  host is loopback. Enforced in `@jarvis/config` (startup error) and again in `@jarvis/auth` (`DevAuthNotAllowedError`).
+  host is loopback. Enforced in `@friday/config` (startup error) and again in `@friday/auth` (`DevAuthNotAllowedError`).
 
 ## 3a. Offline cache in the browser (PLAN Phase 11, §12.5)
 
@@ -266,8 +266,8 @@ Files and adapters
 
 ### Other rules verified in this phase
 
-- **Log spot check (2026-10-15):** the structured log (`logs/jarvis.log`, 188 lines) and stdout log of the built server after the offline/security/mobile e2e runs (dev logins, foreign Host/Origin probes, approvals, scenario control) were searched with
-  `grep -ciE "bearer |csrf|jarvis_session|\"password\"|@[a-z0-9-]+\.[a-z]{2,}|approvalToken|x-approval"`: 0 hits. PIN patterns do not occur in the mock data; the redaction rules cover them (`observability.test.ts`).
+- **Log spot check (2026-10-15):** the structured log (`logs/friday.log`, 188 lines) and stdout log of the built server after the offline/security/mobile e2e runs (dev logins, foreign Host/Origin probes, approvals, scenario control) were searched with
+  `grep -ciE "bearer |csrf|friday_session|\"password\"|@[a-z0-9-]+\.[a-z]{2,}|approvalToken|x-approval"`: 0 hits. PIN patterns do not occur in the mock data; the redaction rules cover them (`observability.test.ts`).
 
 - **Static file traversal:** `static.test.ts` (inject) and `security-gate.test.ts` (real socket, raw request lines with `..`, `%2e%2e`, `%2f`, backslashes, double encoding): nothing outside the web root is served.
   A symlink inside the web root is not specially handled (the export contains none); keep the web root free of untrusted links.

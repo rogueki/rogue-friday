@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/memory/memory-export.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/memory/memory-export.schema.json",
+  "contractVersion": "2.0.0",
   "exportedAt": "2026-10-14T08:20:00Z",
   "count": 1,
   "omittedRestricted": 2,

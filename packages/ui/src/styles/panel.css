@@ -14,11 +14,11 @@
   --cut-b: 0px; /* top-right */
   --cut-c: 0px; /* bottom-right */
   --cut-d: 0px; /* bottom-left */
-  --panel-bg: var(--jarvis-panel-1);
-  --panel-line: var(--jarvis-border);
-  --panel-hair: color-mix(in srgb, var(--jarvis-cyan) 11%, transparent);
+  --panel-bg: var(--friday-panel-1);
+  --panel-line: var(--friday-border);
+  --panel-hair: color-mix(in srgb, var(--friday-cyan) 11%, transparent);
   --panel-glow: transparent;
-  --panel-bracket: var(--jarvis-cyan-bright);
+  --panel-bracket: var(--friday-cyan-bright);
 
   position: relative;
   display: flex;
@@ -39,31 +39,31 @@
 
 /* Hierarchy §24.5 */
 .jv-panel[data-level='2'] {
-  --panel-bg: var(--jarvis-panel-active);
-  --panel-line: var(--jarvis-border-active);
-  --panel-hair: color-mix(in srgb, var(--jarvis-cyan) 18%, transparent);
-  --panel-glow: color-mix(in srgb, var(--jarvis-cyan) 26%, transparent);
+  --panel-bg: var(--friday-panel-active);
+  --panel-line: var(--friday-border-active);
+  --panel-hair: color-mix(in srgb, var(--friday-cyan) 18%, transparent);
+  --panel-glow: color-mix(in srgb, var(--friday-cyan) 26%, transparent);
   z-index: var(--jv-z-level-2);
 }
 .jv-panel[data-level='3'] {
-  --panel-bg: color-mix(in srgb, var(--panel-tone, var(--jarvis-warning)) 7%, var(--jarvis-panel-0));
-  --panel-line: color-mix(in srgb, var(--panel-tone, var(--jarvis-warning)) 78%, transparent);
-  --panel-hair: color-mix(in srgb, var(--panel-tone, var(--jarvis-warning)) 22%, transparent);
-  --panel-glow: color-mix(in srgb, var(--panel-tone, var(--jarvis-warning)) 32%, transparent);
-  --panel-bracket: var(--panel-tone, var(--jarvis-warning));
+  --panel-bg: color-mix(in srgb, var(--panel-tone, var(--friday-warning)) 7%, var(--friday-panel-0));
+  --panel-line: color-mix(in srgb, var(--panel-tone, var(--friday-warning)) 78%, transparent);
+  --panel-hair: color-mix(in srgb, var(--panel-tone, var(--friday-warning)) 22%, transparent);
+  --panel-glow: color-mix(in srgb, var(--panel-tone, var(--friday-warning)) 32%, transparent);
+  --panel-bracket: var(--panel-tone, var(--friday-warning));
   z-index: var(--jv-z-level-3);
 }
 
 /* Tone families (gold is reserved for the AI core context) */
 .jv-panel[data-tone='gold'] {
-  --panel-tone: var(--jarvis-orb-gold);
-  --panel-line: color-mix(in srgb, var(--jarvis-orb-gold) 52%, transparent);
-  --panel-hair: color-mix(in srgb, var(--jarvis-orb-gold) 14%, transparent);
-  --panel-glow: color-mix(in srgb, var(--jarvis-orb-gold) calc(30% * var(--jv-orb-intensity)), transparent);
-  --panel-bracket: var(--jarvis-orb-gold);
+  --panel-tone: var(--friday-orb-gold);
+  --panel-line: color-mix(in srgb, var(--friday-orb-gold) 52%, transparent);
+  --panel-hair: color-mix(in srgb, var(--friday-orb-gold) 14%, transparent);
+  --panel-glow: color-mix(in srgb, var(--friday-orb-gold) calc(30% * var(--jv-orb-intensity)), transparent);
+  --panel-bracket: var(--friday-orb-gold);
 }
-.jv-panel[data-tone='amber'] { --panel-tone: var(--jarvis-warning); }
-.jv-panel[data-tone='red'] { --panel-tone: var(--jarvis-error); }
+.jv-panel[data-tone='amber'] { --panel-tone: var(--friday-warning); }
+.jv-panel[data-tone='red'] { --panel-tone: var(--friday-error); }
 .jv-panel[data-tone='amber'][data-level='1'],
 .jv-panel[data-tone='red'][data-level='1'] {
   --panel-line: color-mix(in srgb, var(--panel-tone) 55%, transparent);
@@ -80,8 +80,8 @@
   min-width: 0;
   min-height: 0;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--jarvis-cyan) 7.5%, transparent) 0%, transparent 38%),
-    radial-gradient(ellipse 90% 60% at 50% 115%, color-mix(in srgb, var(--panel-tone, var(--jarvis-cyan)) 8%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--friday-cyan) 7.5%, transparent) 0%, transparent 38%),
+    radial-gradient(ellipse 90% 60% at 50% 115%, color-mix(in srgb, var(--panel-tone, var(--friday-cyan)) 8%, transparent), transparent 70%),
     var(--panel-bg);
   clip-path: polygon(
     0 var(--cut-a),
@@ -150,18 +150,18 @@
 
 /* Corner brackets */
 .jv-brackets { position: absolute; inset: 0; z-index: 3; pointer-events: none; --jv-bracket: 9px; }
-.jv-brackets__c { position: absolute; width: var(--jv-bracket); height: var(--jv-bracket); border: 0 solid var(--panel-bracket, var(--jarvis-cyan-bright)); filter: drop-shadow(0 0 3px color-mix(in srgb, var(--panel-bracket, var(--jarvis-cyan-bright)) 55%, transparent)); }
-.jv-brackets--gold .jv-brackets__c { --panel-bracket: var(--jarvis-orb-gold); }
-.jv-brackets--amber .jv-brackets__c { --panel-bracket: var(--jarvis-warning); }
-.jv-brackets--red .jv-brackets__c { --panel-bracket: var(--jarvis-error); }
+.jv-brackets__c { position: absolute; width: var(--jv-bracket); height: var(--jv-bracket); border: 0 solid var(--panel-bracket, var(--friday-cyan-bright)); filter: drop-shadow(0 0 3px color-mix(in srgb, var(--panel-bracket, var(--friday-cyan-bright)) 55%, transparent)); }
+.jv-brackets--gold .jv-brackets__c { --panel-bracket: var(--friday-orb-gold); }
+.jv-brackets--amber .jv-brackets__c { --panel-bracket: var(--friday-warning); }
+.jv-brackets--red .jv-brackets__c { --panel-bracket: var(--friday-error); }
 .jv-brackets__c--tl { top: 0; left: 0; border-top-width: 2px; border-left-width: 2px; }
 .jv-brackets__c--tr { top: 0; right: 0; border-top-width: 2px; border-right-width: 2px; }
 .jv-brackets__c--br { bottom: 0; right: 0; border-bottom-width: 2px; border-right-width: 2px; }
 .jv-brackets__c--bl { bottom: 0; left: 0; border-bottom-width: 2px; border-left-width: 2px; }
 
 .jv-panel--interactive { cursor: pointer; }
-.jv-panel--interactive:hover { --panel-line: var(--jarvis-border-active); }
-.jv-panel--interactive:focus-visible { outline: 2px solid var(--jarvis-focus); outline-offset: 3px; }
+.jv-panel--interactive:hover { --panel-line: var(--friday-border-active); }
+.jv-panel--interactive:focus-visible { outline: 2px solid var(--friday-focus); outline-offset: 3px; }
 
 /* Header */
 .jv-panel-header {
@@ -173,7 +173,7 @@
   min-height: 36px;
   padding: 12px 16px 4px;
 }
-.jv-panel-header__icon { display: inline-flex; color: var(--jarvis-cyan); }
+.jv-panel-header__icon { display: inline-flex; color: var(--friday-cyan); }
 .jv-panel-header__icon svg { width: 15px; height: 15px; stroke-width: 1.5; }
 .jv-panel-header__text { display: flex; flex: 1; min-width: 0; align-items: baseline; gap: 10px; }
 .jv-panel-header__title {
@@ -187,9 +187,9 @@
   text-transform: uppercase;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--jarvis-text);
+  color: var(--friday-text);
 }
-.jv-panel-header__subtitle { font-size: var(--jv-fs-xs); color: var(--jarvis-muted); white-space: nowrap; }
+.jv-panel-header__subtitle { font-size: var(--jv-fs-xs); color: var(--friday-muted); white-space: nowrap; }
 .jv-panel-header__actions { display: flex; flex: none; align-items: center; gap: 10px; }
 
 .jv-panel-link {
@@ -199,13 +199,13 @@
   padding: 2px 0;
   font-family: var(--jv-font-body);
   font-size: var(--jv-fs-xs);
-  color: var(--jarvis-cyan);
+  color: var(--friday-cyan);
   background: none;
   border: 0;
   cursor: pointer;
   transition: color var(--jv-dur-fast);
 }
-.jv-panel-link:hover { color: var(--jarvis-cyan-bright); }
+.jv-panel-link:hover { color: var(--friday-cyan-bright); }
 
 .jv-live-pill {
   display: inline-flex;
@@ -217,12 +217,12 @@
   font-size: var(--jv-fs-2xs);
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: var(--jarvis-success);
-  background: var(--jarvis-tint-green-bg);
-  border: 1px solid var(--jarvis-tint-green-border);
+  color: var(--friday-success);
+  background: var(--friday-tint-green-bg);
+  border: 1px solid var(--friday-tint-green-border);
   border-radius: var(--jv-radius-pill);
 }
-.jv-live-pill__dot { width: 5px; height: 5px; border-radius: 50%; background: var(--jarvis-success); animation: jv-live-dot 1.8s ease-in-out infinite; }
+.jv-live-pill__dot { width: 5px; height: 5px; border-radius: 50%; background: var(--friday-success); animation: jv-live-dot 1.8s ease-in-out infinite; }
 
 /* Body */
 .jv-panel__body { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; min-width: 0; }

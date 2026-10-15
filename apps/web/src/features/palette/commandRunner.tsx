@@ -1,7 +1,7 @@
 "use client";
 
-import { isJarvisApiError, type CommandRequest, type CommandResponse } from "@jarvis/sdk";
-import { ConfirmDialog, useToast } from "@jarvis/ui";
+import { isFridayApiError, type CommandRequest, type CommandResponse } from "@friday/sdk";
+import { ConfirmDialog, useToast } from "@friday/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { create } from "zustand";
@@ -76,7 +76,7 @@ export function useRunCommand(): (input: CommandInput) => Promise<CommandRespons
       } catch (error) {
         toast({
           title: t("command.failed"),
-          description: isJarvisApiError(error) ? `${error.message} (${error.correlationId})` : String(error),
+          description: isFridayApiError(error) ? `${error.message} (${error.correlationId})` : String(error),
           tone: "red",
           duration: 9000,
         });
@@ -116,7 +116,7 @@ export function CommandConfirmHost() {
       });
     } catch (error) {
       setPending(null);
-      toast({ title: t("command.failed"), description: isJarvisApiError(error) ? error.message : String(error), tone: "red", duration: 9000 });
+      toast({ title: t("command.failed"), description: isFridayApiError(error) ? error.message : String(error), tone: "red", duration: 9000 });
     }
   };
 

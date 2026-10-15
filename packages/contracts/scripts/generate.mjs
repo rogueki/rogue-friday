@@ -46,7 +46,7 @@ export function buildCombinedSchema(schemas) {
     defs[schema.title] = rewrite(rest, schema.title);
   }
   return {
-    title: "JarvisModelMap",
+    title: "FridayModelMap",
     description: "Maps every contract schema title to its generated type.",
     type: "object",
     additionalProperties: false,
@@ -60,7 +60,7 @@ export function buildCombinedSchema(schemas) {
 
 async function generateModels(schemas) {
   const { compile } = require("json-schema-to-typescript");
-  const ts = await compile(buildCombinedSchema(schemas), "JarvisModelMap", {
+  const ts = await compile(buildCombinedSchema(schemas), "FridayModelMap", {
     bannerComment: "",
     additionalProperties: false,
     unreachableDefinitions: false,
@@ -83,7 +83,7 @@ function generateEvents(schemas) {
   const titleByPath = new Map(schemas.map(({ rel, schema }) => [rel, schema.title]));
   const schemaIdByTitle = new Map(schemas.map(({ schema }) => [schema.title, schema.$id]));
   const entries = Object.values(asyncapi.components.messages)
-    .filter((message) => String(message.name).startsWith("jarvis."))
+    .filter((message) => String(message.name).startsWith("friday."))
     .map((message) => {
       const dataRef = message.payload.allOf.find((part) => part.properties?.data)?.properties.data.$ref;
       const title = titleByPath.get(String(dataRef).replace(/^\.\.\/schemas\//, ""));
@@ -94,28 +94,28 @@ function generateEvents(schemas) {
   const imports = [...new Set(entries.map((e) => e.title))].sort();
   const lines = [HEADER, "/* eslint-disable */"];
   lines.push(`import type { EventEnvelope, ${imports.join(", ")} } from "./models";`, "");
-  lines.push("export const JARVIS_EVENT_TYPES = [");
+  lines.push("export const FRIDAY_EVENT_TYPES = [");
   for (const e of entries) lines.push(`  "${e.type}",`);
-  lines.push("] as const;", "", "export type JarvisEventType = (typeof JARVIS_EVENT_TYPES)[number];", "");
+  lines.push("] as const;", "", "export type FridayEventType = (typeof FRIDAY_EVENT_TYPES)[number];", "");
   lines.push(
     "/** Event type -> payload type (`data` of the envelope). */",
-    "export interface JarvisEventMap {",
+    "export interface FridayEventMap {",
   );
   for (const e of entries) lines.push(`  "${e.type}": ${e.title};`);
   lines.push("}", "");
   lines.push(
     "/** Event type -> $id of the JSON Schema that validates `data`. */",
-    "export const JARVIS_EVENT_DATA_SCHEMA_IDS: Readonly<Record<JarvisEventType, string>> = {",
+    "export const FRIDAY_EVENT_DATA_SCHEMA_IDS: Readonly<Record<FridayEventType, string>> = {",
   );
   for (const e of entries) lines.push(`  "${e.type}": "${schemaIdByTitle.get(e.title)}",`);
   lines.push("};", "");
   lines.push(
     "/** CloudEvents-inspired envelope; `data` is typed per event type. */",
-    'export type JarvisEventEnvelope<T = unknown> = Omit<EventEnvelope, "data"> & { data: T };',
+    'export type FridayEventEnvelope<T = unknown> = Omit<EventEnvelope, "data"> & { data: T };',
     "",
     "/** Discriminated union of all typed events (narrow on `type`). */",
-    "export type JarvisEvent<K extends JarvisEventType = JarvisEventType> = {",
-    "  [P in K]: JarvisEventEnvelope<JarvisEventMap[P]> & { type: P };",
+    "export type FridayEvent<K extends FridayEventType = FridayEventType> = {",
+    "  [P in K]: FridayEventEnvelope<FridayEventMap[P]> & { type: P };",
     "}[K];",
     "",
   );
@@ -153,10 +153,10 @@ function generateSchemas(schemas) {
 /** Generates all SDK sources into outDir and returns the file map. */
 export async function generateAll(outDir = paths.sdkGenerated) {
   const schemas = loadSchemas();
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-bundle-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "friday-bundle-"));
   let bundled;
   try {
-    bundled = bundleOpenapi(path.join(tmp, "jarvis-api.bundled.yaml"));
+    bundled = bundleOpenapi(path.join(tmp, "friday-api.bundled.yaml"));
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

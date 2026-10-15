@@ -1,4 +1,4 @@
-import type { ModelProvider, Service, StorageVolume, SystemMetrics } from "@jarvis/sdk";
+import type { ModelProvider, Service, StorageVolume, SystemMetrics } from "@friday/sdk";
 import { DAY, MIN, type SeedContext } from "./context";
 
 const GB = 1024 ** 3;

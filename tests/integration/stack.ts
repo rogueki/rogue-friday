@@ -19,7 +19,7 @@ for (const [label, path] of [["Control API (pnpm build:app)", main], ["Web-Build
   if (!existsSync(path)) throw new Error(`${label} fehlt: ${path}`);
 }
 
-const dir = resolve(process.env.JARVIS_INTEGRATION_DIR ?? join(tmpdir(), "jarvis-integration"));
+const dir = resolve(process.env.FRIDAY_INTEGRATION_DIR ?? join(tmpdir(), "friday-integration"));
 rmSync(dir, { recursive: true, force: true });
 const configDir = join(dir, "config");
 for (const sub of ["config", "data", "logs", "secrets"]) mkdirSync(join(dir, sub), { recursive: true });
@@ -41,12 +41,12 @@ const api = spawn(process.execPath, [main], {
   stdio: ["ignore", logFd, logFd],
   env: {
     ...process.env,
-    JARVIS_CONFIG_DIR: configDir,
-    JARVIS_DATA_MODE: "hybrid",
-    JARVIS_PORT: String(API_PORT),
-    JARVIS_OWNER_PASSWORD_HASH: await hashPassword(OWNER_PASSWORD),
+    FRIDAY_CONFIG_DIR: configDir,
+    FRIDAY_DATA_MODE: "hybrid",
+    FRIDAY_PORT: String(API_PORT),
+    FRIDAY_OWNER_PASSWORD_HASH: await hashPassword(OWNER_PASSWORD),
     HERMES_API_KEY_FILE: keyFile,
-    JARVIS_STORAGE_PATH: process.platform === "win32" ? "C:/" : "/",
+    FRIDAY_STORAGE_PATH: process.platform === "win32" ? "C:/" : "/",
   },
 });
 api.on("exit", (code) => {

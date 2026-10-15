@@ -200,7 +200,7 @@ export const de = {
   "palette.previewEmpty": "Wähle einen Befehl, um die Vorschau zu sehen.",
   "palette.results": "{count} Ergebnisse",
   "palette.none": "Keine Befehle verfügbar",
-  "palette.group.jarvis": "{assistant}",
+  "palette.group.friday": "{assistant}",
   "palette.group.actions": "Aktionen",
   "palette.group.navigation": "Navigation",
   "palette.group.search": "Suche",

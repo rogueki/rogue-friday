@@ -23,7 +23,7 @@ describe("real adapters behind the Control API (hybrid)", () => {
   const logs: string[] = [];
 
   beforeAll(async () => {
-    keyDir = mkdtempSync(join(tmpdir(), "jarvis-hybrid-"));
+    keyDir = mkdtempSync(join(tmpdir(), "friday-hybrid-"));
     keyFile = join(keyDir, "hermes_api.key");
     upstreams = await startFakeUpstreams({ ports: { hermesApi: 0, hermesDashboard: 0, voice: 0, llama: 0, control: 0 }, keyFile });
     api = await startTestApi({
@@ -31,7 +31,7 @@ describe("real adapters behind the Control API (hybrid)", () => {
       authMode: "local",
       ownerPassword: PASSWORD,
       adaptersYaml: exampleAdapters("hybrid", upstreams),
-      env: { HERMES_API_KEY_FILE: keyFile, JARVIS_STORAGE_PATH: "/" },
+      env: { HERMES_API_KEY_FILE: keyFile, FRIDAY_STORAGE_PATH: "/" },
       logs,
       healthIntervalMs: 200,
     });
@@ -54,7 +54,7 @@ describe("real adapters behind the Control API (hybrid)", () => {
     expect(byCategory.tasks?.manifest.id).toBe("hermes-tasks");
     expect(byCategory.activity?.manifest.id).toBe("hermes-activity");
     expect(byCategory.agents?.manifest.id).toBe("hermes-agents");
-    expect(byCategory.voice?.manifest.id).toBe("jarvis-voice-http");
+    expect(byCategory.voice?.manifest.id).toBe("friday-voice-http");
     expect(byCategory.system?.manifest.id).toBe("local-system");
     for (const category of ["memory", "approvals", "communication", "calendar", "automations", "research", "files", "notifications", "audit", "commands"]) {
       expect(byCategory[category]?.manifest.id, category).toBe(`mock-${category}`);
@@ -78,7 +78,7 @@ describe("real adapters behind the Control API (hybrid)", () => {
     const services = (await owner.get("/api/v1/system/services")).json().items as Array<{ name: string; status: string }>;
     expect(services.filter((service) => /qwen|hermes|voice/i.test(service.name)).every((service) => service.status === "online")).toBe(true);
     const models = (await owner.get("/api/v1/system/models")).json().items.flatMap((provider: any) => provider.models);
-    expect(models).toEqual(expect.arrayContaining(["qwen3-router", "jarvis"]));
+    expect(models).toEqual(expect.arrayContaining(["qwen3-router", "friday"]));
 
     const metrics = (await owner.get("/api/v1/system/metrics")).json().data;
     expect(metrics.ram.totalBytes).toBeGreaterThan(0);
@@ -105,7 +105,7 @@ describe("real adapters behind the Control API (hybrid)", () => {
         const items = (await owner.get("/api/v1/adapters")).json().items as Array<{ manifest: { id: string }; health: { status: string } }>;
         return items.filter((entry) => entry.health.status !== "online").map((entry) => entry.manifest.id);
       }, { timeout: 8000 })
-      .toEqual(["jarvis-voice-http"]);
+      .toEqual(["friday-voice-http"]);
     const services = (await owner.get("/api/v1/system/services")).json().items as Array<{ name: string; status: string }>;
     expect(services.find((service) => /voice/i.test(service.name))?.status).toBe("offline");
     expect(services.find((service) => /hermes api/i.test(service.name))?.status).toBe("online");
@@ -131,7 +131,7 @@ describe("allowlist wiring", () => {
   let api: TestApi | undefined;
 
   beforeAll(async () => {
-    keyDir = mkdtempSync(join(tmpdir(), "jarvis-wiring-"));
+    keyDir = mkdtempSync(join(tmpdir(), "friday-wiring-"));
     upstreams = await startFakeUpstreams({ ports: { hermesApi: 0, hermesDashboard: 0, voice: 0, llama: 0, control: 0 }, keyFile: join(keyDir, "k.key") });
   });
   afterEach(async () => {
@@ -146,14 +146,14 @@ describe("allowlist wiring", () => {
   it("lets the real packages win when the allowlist still names the placeholder packages", async () => {
     const logs: string[] = [];
     const yaml = exampleAdapters("hybrid", upstreams)
-      .replace('hermes-tasks: "@jarvis/adapter-hermes"', 'hermes-tasks: "@jarvis/adapter-hermes-placeholder"')
-      .replace('jarvis-voice-http: "@jarvis/adapter-voice-http"', 'jarvis-voice-http: "@jarvis/adapter-voice-placeholder"');
+      .replace('hermes-tasks: "@friday/adapter-hermes"', 'hermes-tasks: "@friday/adapter-hermes-placeholder"')
+      .replace('friday-voice-http: "@friday/adapter-voice-http"', 'friday-voice-http: "@friday/adapter-voice-placeholder"');
     api = await startTestApi({
       dataMode: "hybrid",
       authMode: "local",
       ownerPassword: PASSWORD,
       adaptersYaml: yaml,
-      env: { HERMES_API_KEY_FILE: join(keyDir, "k.key"), JARVIS_STORAGE_PATH: "/" },
+      env: { HERMES_API_KEY_FILE: join(keyDir, "k.key"), FRIDAY_STORAGE_PATH: "/" },
       logs,
     });
     const client = api.client();
@@ -164,8 +164,8 @@ describe("allowlist wiring", () => {
   });
 
   it("keeps the placeholder system adapter selectable under its own id", async () => {
-    const yaml = exampleAdapters("hybrid", upstreams).replace('local-system: "@jarvis/adapter-system-local"', 'windows-wsl-system: "@jarvis/adapter-system-placeholder"').replace("provider: local-system", "provider: windows-wsl-system");
-    api = await startTestApi({ dataMode: "hybrid", authMode: "local", ownerPassword: PASSWORD, adaptersYaml: yaml, env: { HERMES_API_KEY_FILE: join(keyDir, "k.key"), JARVIS_STORAGE_PATH: "/" }, logs: [] });
+    const yaml = exampleAdapters("hybrid", upstreams).replace('local-system: "@friday/adapter-system-local"', 'windows-wsl-system: "@friday/adapter-system-placeholder"').replace("provider: local-system", "provider: windows-wsl-system");
+    api = await startTestApi({ dataMode: "hybrid", authMode: "local", ownerPassword: PASSWORD, adaptersYaml: yaml, env: { HERMES_API_KEY_FILE: join(keyDir, "k.key"), FRIDAY_STORAGE_PATH: "/" }, logs: [] });
     const client = api.client();
     await client.loginOwner(PASSWORD);
     // The local-system config keys do not fit the placeholder's schema, so it initialises as failed; only the selection is asserted.
@@ -174,14 +174,14 @@ describe("allowlist wiring", () => {
   });
 
   it("live example: configured categories are real, every other one is absent", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "jarvis-live-"));
+    const dir = mkdtempSync(join(tmpdir(), "friday-live-"));
     try {
       api = await startTestApi({
         dataMode: "hybrid", // the helper writes dashboard.yaml; the live mode is switched through the env override below
         authMode: "local",
         ownerPassword: PASSWORD,
         adaptersYaml: exampleAdapters("live", upstreams),
-        env: { HERMES_API_KEY_FILE: join(keyDir, "k.key"), JARVIS_STORAGE_PATH: "/", JARVIS_DATA_MODE: "live" },
+        env: { HERMES_API_KEY_FILE: join(keyDir, "k.key"), FRIDAY_STORAGE_PATH: "/", FRIDAY_DATA_MODE: "live" },
         dir,
       });
       expect(api.config.dataMode).toBe("live");
@@ -193,7 +193,7 @@ describe("allowlist wiring", () => {
         "agents:hermes-agents",
         "system:local-system",
         "tasks:hermes-tasks",
-        "voice:jarvis-voice-http",
+        "voice:friday-voice-http",
       ]);
       expect((await client.get("/api/v1/tasks")).statusCode).toBe(200);
       const memory = await client.get("/api/v1/memory");

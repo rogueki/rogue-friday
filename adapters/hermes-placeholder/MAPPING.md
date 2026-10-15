@@ -4,9 +4,9 @@ Vollständige Feldtabellen: [`docs/MAPPING/hermes.md`](../../docs/MAPPING/hermes
 
 | Adapter           | Provider-ID       | Kategorie  | Zielobjekt                                     |
 | ----------------- | ----------------- | ---------- | ---------------------------------------------- |
-| `hermes-tasks`    | `hermes-tasks`    | `tasks`    | `Task` (+ `jarvis.task.*`)                     |
-| `hermes-activity` | `hermes-activity` | `activity` | `ActivityEvent` (+ `jarvis.activity.appended`) |
-| `hermes-agents`   | `hermes-agents`   | `agents`   | `Agent` (+ `jarvis.agent.*`)                   |
+| `hermes-tasks`    | `hermes-tasks`    | `tasks`    | `Task` (+ `friday.task.*`)                     |
+| `hermes-activity` | `hermes-activity` | `activity` | `ActivityEvent` (+ `friday.activity.appended`) |
+| `hermes-agents`   | `hermes-agents`   | `agents`   | `Agent` (+ `friday.agent.*`)                   |
 
 Ein Adapter je Kategorie in einem Paket (`hermesFactories`): jede Kategorie ist einzeln zwischen Mock und Live umschaltbar.
 

@@ -1,7 +1,7 @@
 "use client";
 
-import type { Priority, Task, TaskStatus } from "@jarvis/sdk";
-import { Button, FilterBar, type FilterChip, type FilterDef } from "@jarvis/ui";
+import type { Priority, Task, TaskStatus } from "@friday/sdk";
+import { Button, FilterBar, type FilterChip, type FilterDef } from "@friday/ui";
 import { CalendarClock, KanbanSquare, List, Plus, UserCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";

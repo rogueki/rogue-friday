@@ -1,4 +1,4 @@
-/* @jarvis/ui — single stylesheet entry. Import once in the app: `import '@jarvis/ui/styles.css'`. */
+/* @friday/ui — single stylesheet entry. Import once in the app: `import '@friday/ui/styles.css'`. */
 
 @import '@fontsource/oxanium/400.css';
 @import '@fontsource/oxanium/500.css';
@@ -13,7 +13,7 @@
 @import '@fontsource/jetbrains-mono/600.css';
 @import '@fontsource/jetbrains-mono/700.css';
 
-@import '@jarvis/design-tokens/tokens.css';
+@import '@friday/design-tokens/tokens.css';
 
 @import './styles/base.css';
 @import './styles/panel.css';

@@ -1,4 +1,4 @@
-import type { AutomationRun } from "@jarvis/sdk";
+import type { AutomationRun } from "@friday/sdk";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -23,7 +23,7 @@ function automation(id: string, partial: Partial<AutomationDto> = {}): Automatio
     description: "Neue P1-Mail → Telegram, nach 10 Minuten Anruf.",
     enabled: true,
     paused: false,
-    trigger: { type: "event", event: "jarvis.communication.thread_updated", description: "Neuer E-Mail-Thread mit Priorität P1" },
+    trigger: { type: "event", event: "friday.communication.thread_updated", description: "Neuer E-Mail-Thread mit Priorität P1" },
     conditions: [{ id: "cond_1", field: "thread.priority", operator: "eq", value: "P1", description: "Priorität ist P1" }],
     actions: [{ id: "act_1", type: "notify", channel: "telegram", requiresApproval: false, description: "Telegram senden" }],
     escalation: [{ afterSeconds: 600, channel: "phone", description: "Anruf nach 10 Minuten", stopOnAcknowledge: true }],
@@ -292,7 +292,7 @@ describe("automation wizard", () => {
     expect(within(dialog).getByText("Bitte einen Namen mit mindestens 3 Zeichen angeben.")).toBeInTheDocument();
     expect(within(dialog).getByText("Bitte ein Ereignis angeben.")).toBeInTheDocument();
     await user.type(within(dialog).getByLabelText(/^Name/), "Mail melden");
-    await user.type(within(dialog).getByLabelText(/^Ereignis/), "jarvis.communication.thread_updated");
+    await user.type(within(dialog).getByLabelText(/^Ereignis/), "friday.communication.thread_updated");
     await user.click(within(dialog).getByRole("button", { name: "Weiter" }));
     expect(within(dialog).getByText(/Optional: Die Aktionen laufen nur/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Weiter" }));
@@ -334,7 +334,7 @@ describe("automation wizard", () => {
     renderWithProviders(<AutomationsPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     const dialog = await openWizard(user);
     await user.type(within(dialog).getByLabelText(/^Name/), "Mail melden");
-    await user.type(within(dialog).getByLabelText(/^Ereignis/), "jarvis.communication.thread_updated");
+    await user.type(within(dialog).getByLabelText(/^Ereignis/), "friday.communication.thread_updated");
     await user.click(within(dialog).getByRole("button", { name: "Weiter" }));
 
     await user.click(within(dialog).getByRole("button", { name: "Bedingung hinzufügen" }));
@@ -357,7 +357,7 @@ describe("automation wizard", () => {
     expect(call?.body).toMatchObject({
       name: "Mail melden",
       enabled: true,
-      trigger: { type: "event", event: "jarvis.communication.thread_updated" },
+      trigger: { type: "event", event: "friday.communication.thread_updated" },
       conditions: [{ id: "cond_1", field: "thread.priority", operator: "eq", value: "P1" }],
       actions: [{ id: "act_1", type: "notify", channel: "dashboard", requiresApproval: false }],
       escalation: [{ afterSeconds: 600, channel: "telegram", stopOnAcknowledge: true }],
@@ -403,7 +403,7 @@ describe("automations drawer: version history (PLAN §35.3 Versionierung)", () =
     description: "Neue P1-Mail → Telegram",
     enabled: true,
     paused: false,
-    trigger: { type: "event", event: "jarvis.communication.thread_updated", description: "Neuer E-Mail-Thread mit Priorität P1" },
+    trigger: { type: "event", event: "friday.communication.thread_updated", description: "Neuer E-Mail-Thread mit Priorität P1" },
     conditions: [{ id: "cond_1", field: "thread.priority", operator: "eq", value: "P1", description: "Priorität ist P1" }],
     actions: [{ id: "act_1", type: "notify", channel: "telegram", requiresApproval: false, description: "Telegram senden" }],
     escalation: [{ afterSeconds: 600, channel: "phone", description: "Anruf nach 10 Minuten", stopOnAcknowledge: true }],

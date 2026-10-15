@@ -1,8 +1,8 @@
-import { CONTRACT_VERSION, type AdapterManifest } from "@jarvis/sdk";
-import { createPlaceholderAdapter, type AdapterFactory } from "@jarvis/adapter-core";
+import { CONTRACT_VERSION, type AdapterManifest } from "@friday/sdk";
+import { createPlaceholderAdapter, type AdapterFactory } from "@friday/adapter-core";
 
 export const PROVIDER_ID = "caldav-calendar";
-export const CONFIG_SCHEMA_ID = "urn:jarvis:adapter:caldav-calendar:config";
+export const CONFIG_SCHEMA_ID = "urn:friday:adapter:caldav-calendar:config";
 
 export const configSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",

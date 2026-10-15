@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { JARVIS_EVENT_DATA_SCHEMA_IDS, createSchemaValidator, isJarvisEventType } from "@jarvis/sdk";
+import { FRIDAY_EVENT_DATA_SCHEMA_IDS, createSchemaValidator, isFridayEventType } from "@friday/sdk";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 import { WsProbe } from "./support/ws";
 
@@ -12,8 +12,8 @@ const validator = createSchemaValidator();
 function assertEnvelope(event: any): void {
   const envelope = validator.validate("EventEnvelope", event);
   expect(envelope.valid, `${event.type}: ${JSON.stringify(envelope.errors)}`).toBe(true);
-  expect(isJarvisEventType(event.type), `bekannter Ereignistyp ${event.type}`).toBe(true);
-  const data = validator.validate(JARVIS_EVENT_DATA_SCHEMA_IDS[event.type as keyof typeof JARVIS_EVENT_DATA_SCHEMA_IDS], event.data);
+  expect(isFridayEventType(event.type), `bekannter Ereignistyp ${event.type}`).toBe(true);
+  const data = validator.validate(FRIDAY_EVENT_DATA_SCHEMA_IDS[event.type as keyof typeof FRIDAY_EVENT_DATA_SCHEMA_IDS], event.data);
   expect(data.valid, `${event.type} data: ${JSON.stringify(data.errors)}`).toBe(true);
 }
 
@@ -47,7 +47,7 @@ describe("WebSocket /api/v1/events", () => {
     it("refuses unauthenticated clients with 401", async () => {
       await expect(connect(null)).rejects.toMatchObject({ status: 401 });
       const forged = api.client();
-      forged.cookies.set("jarvis_session", "forged-session");
+      forged.cookies.set("friday_session", "forged-session");
       await expect(connect(forged)).rejects.toMatchObject({ status: 401 });
     });
 
@@ -65,7 +65,7 @@ describe("WebSocket /api/v1/events", () => {
       await viewer.loginDev("viewer");
       const probe = await connect(viewer);
       await createTask("Viewer sieht Ereignisse");
-      await probe.waitFor((p) => p.events().some((event) => event.type === "jarvis.task.created"), 3_000, "task.created beim Viewer");
+      await probe.waitFor((p) => p.events().some((event) => event.type === "friday.task.created"), 3_000, "task.created beim Viewer");
     });
 
     it("announces the stream address in /meta", async () => {
@@ -80,7 +80,7 @@ describe("WebSocket /api/v1/events", () => {
       const created = await owner.post("/api/v1/tasks", { title: "Ereignistest" }, { headers: { "x-correlation-id": correlationId } });
       const taskId = created.json().data.id as string;
       await owner.post("/api/v1/memory", { type: "fact", content: "Ereignis aus dem Gedächtnis" });
-      await probe.waitFor((p) => p.events().length >= 3 && p.events().some((event) => event.type === "jarvis.task.created"), 3_000, "mindestens 3 Ereignisse");
+      await probe.waitFor((p) => p.events().length >= 3 && p.events().some((event) => event.type === "friday.task.created"), 3_000, "mindestens 3 Ereignisse");
 
       const events = probe.events();
       for (const event of events) assertEnvelope(event);
@@ -90,11 +90,11 @@ describe("WebSocket /api/v1/events", () => {
       for (let index = 1; index < sequences.length; index += 1) expect(sequences[index]).toBe((sequences[index - 1] as number) + 1);
       expect(new Set(events.map((event) => event.id)).size).toBe(events.length);
 
-      const task = events.find((event) => event.type === "jarvis.task.created");
+      const task = events.find((event) => event.type === "friday.task.created");
       expect(task.subject).toContain(taskId);
       expect(task.correlationId, "the request's correlation id travels into its events").toBe(correlationId);
       expect(task.source).toMatch(/^adapter:\/\/mock-tasks$/);
-      expect(task.contractVersion).toBe("1.0.0");
+      expect(task.contractVersion).toBe("2.0.0");
     });
 
     it("emits one frame per message (JSON text) and never leaks session data", async () => {
@@ -102,7 +102,7 @@ describe("WebSocket /api/v1/events", () => {
       await createTask("Leck-Test");
       await probe.waitFor((p) => p.events().length > 0, 3_000, "Ereignis");
       const text = probe.frames.map((frame) => frame.raw).join("\n");
-      expect(text).not.toMatch(/jarvis_session|csrf|password|secret/i);
+      expect(text).not.toMatch(/friday_session|csrf|password|secret/i);
       for (const frame of probe.frames) expect(() => JSON.parse(frame.raw)).not.toThrow();
     });
   });
@@ -134,7 +134,7 @@ describe("WebSocket /api/v1/events", () => {
       expect(probe.events()).toEqual([]);
     });
 
-    it("sends jarvis.status.resync_required when the cursor fell out of the ring buffer", async () => {
+    it("sends friday.status.resync_required when the cursor fell out of the ring buffer", async () => {
       const first = api.runtime.hub.latestSequence;
       for (let index = 0; index < 300 && (api.runtime.hub.oldestSequence ?? 0) <= first + 1; index += 1) await createTask(`Überlauf ${index}`);
       expect(api.runtime.hub.stats().buffered).toBeLessThanOrEqual(100);
@@ -144,7 +144,7 @@ describe("WebSocket /api/v1/events", () => {
       await probe.waitFor((p) => p.events().length > 0, 3_000, "resync_required");
       const [resync] = probe.events();
       assertEnvelope(resync);
-      expect(resync.type).toBe("jarvis.status.resync_required");
+      expect(resync.type).toBe("friday.status.resync_required");
       expect(resync.data).toMatchObject({ reason: "sequence_too_old", requestedSince: first, latestSequence: api.runtime.hub.latestSequence });
       expect(resync.data.oldestAvailableSequence).toBe(api.runtime.hub.oldestSequence);
       expect(probe.events(), "no partial replay after a resync request").toHaveLength(1);
@@ -169,10 +169,10 @@ describe("WebSocket /api/v1/events", () => {
       const probe = await connect(owner);
       const before = api.runtime.hub.latestSequence;
       expect((await owner.post("/api/v1/dev/scenarios/control", { action: "reset" })).statusCode).toBe(200);
-      await probe.waitFor((p) => p.events().some((event) => event.type === "jarvis.status.resync_required"), 3_000, "resync nach Reset");
+      await probe.waitFor((p) => p.events().some((event) => event.type === "friday.status.resync_required"), 3_000, "resync nach Reset");
       const late = await connect(owner, { since: before });
       await late.waitFor((p) => p.events().length > 0, 3_000, "Antwort auf spätes Replay");
-      expect(late.events()[0].type).toBe("jarvis.status.resync_required");
+      expect(late.events()[0].type).toBe("friday.status.resync_required");
     });
   });
 
@@ -252,7 +252,7 @@ describe("WebSocket /api/v1/events", () => {
 
 describe("sequence continuity across restarts", () => {
   it("never reuses sequence numbers after a restart (cursors cannot go backwards)", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "jarvis-seq-"));
+    const dir = mkdtempSync(join(tmpdir(), "friday-seq-"));
     try {
       const first = await startTestApi({ dir, listen: true });
       const client = first.client();
@@ -271,7 +271,7 @@ describe("sequence continuity across restarts", () => {
         try {
           await probe.waitFor((p) => p.events().length > 0, 3_000, "Antwort auf altes Cursor");
           // the ring buffer is gone: a client holding an old cursor must resync, not silently miss events
-          expect(probe.events()[0].type).toBe("jarvis.status.resync_required");
+          expect(probe.events()[0].type).toBe("friday.status.resync_required");
         } finally {
           probe.close();
         }

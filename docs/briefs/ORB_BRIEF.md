@@ -1,4 +1,4 @@
-# Orb Art-Direction Brief (input for `@jarvis/orb`)
+# Orb Art-Direction Brief (input for `@friday/orb`)
 
 Binding sources: `docs/PLAN.md` §15–23, §46.1, §52 and `design-references/jarvis_orb_reference.webp`.
 This brief turns those sections into concrete construction rules. Look at the reference image before

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Freshness, SourceDescriptor } from "@jarvis/sdk";
+import type { Freshness, SourceDescriptor } from "@friday/sdk";
 import {
   Button,
   FreshnessBadge,
@@ -10,7 +10,7 @@ import {
   useNow,
   useToast,
   type ButtonProps,
-} from "@jarvis/ui";
+} from "@friday/ui";
 import { Check, Copy, Lock } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";

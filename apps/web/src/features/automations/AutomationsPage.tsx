@@ -1,7 +1,7 @@
 "use client";
 
 import type { AutomationDto as Automation } from "@/lib/api/domains/automations";
-import { Button, ConfirmDialog, FilterBar, HudPanel, StatusChip, useToast } from "@jarvis/ui";
+import { Button, ConfirmDialog, FilterBar, HudPanel, StatusChip, useToast } from "@friday/ui";
 import { PauseCircle, PlayCircle, Plus, Workflow } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";

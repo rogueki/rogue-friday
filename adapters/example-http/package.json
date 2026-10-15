@@ -1,5 +1,5 @@
 {
-  "name": "@jarvis/adapter-example-http",
+  "name": "@friday/adapter-example-http",
   "version": "1.0.0",
   "private": true,
   "description": "Beispiel-HTTP-Adapter (Vorlage)",
@@ -12,10 +12,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@jarvis/sdk": "workspace:*",
-    "@jarvis/adapter-core": "workspace:*"
+    "@friday/sdk": "workspace:*",
+    "@friday/adapter-core": "workspace:*"
   },
   "devDependencies": {
-    "@jarvis/adapter-testkit": "workspace:*"
+    "@friday/adapter-testkit": "workspace:*"
   }
 }

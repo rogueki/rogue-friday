@@ -1,21 +1,21 @@
-# Orb Specification (`@jarvis/orb`)
+# Orb Specification (`@friday/orb`)
 
 Implementation spec of the golden holographic orb. Binding sources: `docs/PLAN.md` §15–23, §46.1, §52, `docs/briefs/ORB_BRIEF.md`,
-`docs/IMPLEMENTATION_CONVENTIONS.md` §8. Wire types come from `@jarvis/sdk` (`OrbStatus`, `OrbLayers`, `OrbSnapshot`, `OrbMode`, `OrbHealth`);
+`docs/IMPLEMENTATION_CONVENTIONS.md` §8. Wire types come from `@friday/sdk` (`OrbStatus`, `OrbLayers`, `OrbSnapshot`, `OrbMode`, `OrbHealth`);
 nothing about the wire is hand-written in the package (`src/contract-types.ts` is a pure re-export).
 
 ## 1. Package layout
 
 ```text
 packages/orb
-├── src/contract-types.ts        re-export of @jarvis/sdk orb types
+├── src/contract-types.ts        re-export of @friday/sdk orb types
 ├── src/settings.ts              OrbSettings, defaults, quality profiles, resolveQuality(), orbSettingsFromWire()
 ├── src/machine/orbMachine.ts    XState v5 parallel machine, arbitrateOrbState(), wire <-> internal layer mapping
 ├── src/visual/deriveVisualTargets.ts   pure: snapshot + settings -> numeric targets, §20.2 time constants
 ├── src/audio/fixtures.ts        deterministic audio fixtures + attack/release smoothing
 ├── src/scene/                   R3F scene (geometry builders, GLSL, components, live params, adaptive quality)
 ├── src/fallback/                OrbFallback2D (Canvas 2D) + draw2d
-├── src/JarvisOrb.tsx            public component (canvas + HTML layer + interaction + a11y)
+├── src/FridayOrb.tsx            public component (canvas + HTML layer + interaction + a11y)
 ├── src/OrbOverlay.tsx           StateLabel, ActivityText, glyphs, shared CSS
 ├── src/labels.ts                German/English dictionaries, aria sentence, activation targets
 ├── src/debug/OrbPerfOverlay.tsx dev-only perf overlay
@@ -27,8 +27,8 @@ packages/orb
 ## 2. Public API
 
 ```tsx
-<JarvisOrb
-  snapshot={orbSnapshot}            // OrbSnapshot ({ status, layers }) from GET /orb/status or jarvis.orb.status_changed
+<FridayOrb
+  snapshot={orbSnapshot}            // OrbSnapshot ({ status, layers }) from GET /orb/status or friday.orb.status_changed
   // or: status={orbStatus} layers={orbLayers?}   (layers derived from status.mode when omitted)
   settings={partialOrbSettings}     // see §6, map persisted wire settings with orbSettingsFromWire()
   onActivate={(target) => …}        // { kind: "approval"|"error"|"task"|"activity"|"command", … }
@@ -143,7 +143,7 @@ working→speaking 250, any→error 160, error→recovered 950, offline→online
 `OrbSettings`: `preset` (gold/amber/calm/dense), `size` 0.5–1.5, `intensity` 0–100, `speed` 0.25–2, `particleDensity` 0–100, `audioReactive`,
 `mouseParallax`, `bloom`, `quality` (`auto|low|medium|high|ultra`), `animations` (`full|reduced|off`), `renderer` (`auto|3d|2d`),
 `statusAccentColors` (per mode), `testClock {fixedTime?, animationProgress?}`, `audioFixture?`. `orbSettingsFromWire()` maps the persisted
-`@jarvis/sdk` `OrbSettings` (`renderMode`, `statusColors`) onto them.
+`@friday/sdk` `OrbSettings` (`renderMode`, `statusColors`) onto them.
 
 | Level | DPR cap | traces | plates | outer traces/arcs | particles / dust | packets | halo bars | markers | bloom |
 |---|---|---|---|---|---|---|---|---|---|
@@ -180,9 +180,9 @@ never at `ultra`. `AdaptiveQuality` feeds on wall-clock frame times: p95 > 20 ms
 impulse `1 − p`); defaults: booting 0.65, error 0.3, success 0.5, everything else settled. Audio fixtures: `silence`, `normal`, `loud`, `tts`, `spike`
 (deterministic hash noise, no `Math.random`). Geometry is seeded (mulberry32 + value noise) and unit-tested for determinism.
 
-Demo: `pnpm --filter @jarvis/orb demo` (http://127.0.0.1:5180). URL params: `mode` (all modes or `parallel`), `progress`, `indeterminate=1`, `agents`, `audio`,
+Demo: `pnpm --filter @friday/orb demo` (http://127.0.0.1:5180). URL params: `mode` (all modes or `parallel`), `progress`, `indeterminate=1`, `agents`, `audio`,
 `fixture`, `t` (fixed clock), `ap` (animationProgress), `quality`, `anim`, `renderer`, `bloom`, `intensity`, `size=large`, `perf=1`, `shot=1` (panel only).
-Screenshots: `pnpm --filter @jarvis/orb screenshots` → `packages/orb/screenshots/*.png`, `perf.json`, `report.json` (software GL via SwiftShader; use
+Screenshots: `pnpm --filter @friday/orb screenshots` → `packages/orb/screenshots/*.png`, `perf.json`, `report.json` (software GL via SwiftShader; use
 `--only=idle,error`, `--dsf=1`, `--quality=…`). `node scripts/verify-browser.mjs` checks context loss/restore, hidden tab, keyboard and tooltip in a real browser.
 
 ## 9. Performance notes

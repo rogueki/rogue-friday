@@ -1,5 +1,5 @@
 {
-  "name": "@jarvis/ui",
+  "name": "@friday/ui",
   "version": "1.0.0",
   "private": true,
   "description": "HUD-Komponentenbibliothek",
@@ -19,7 +19,7 @@
     "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/oxanium": "^5.3.0",
-    "@jarvis/design-tokens": "workspace:*",
+    "@friday/design-tokens": "workspace:*",
     "@tanstack/react-virtual": "^3.14.19",
     "clsx": "^2.1.1",
     "lucide-react": "^1.56.0",

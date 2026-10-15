@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/layout.schema.json",
+  "$id": "https://friday.local/schemas/settings/layout.schema.json",
   "title": "Layout",
   "description": "Overview layout file (PLAN §25.4) on a 12-column grid.",
   "type": "object",

@@ -1,5 +1,5 @@
-import { CONTRACT_VERSION, type AdapterManifest } from "@jarvis/sdk";
-import { createPlaceholderAdapter, type AdapterFactory, type PortCategory } from "@jarvis/adapter-core";
+import { CONTRACT_VERSION, type AdapterManifest } from "@friday/sdk";
+import { createPlaceholderAdapter, type AdapterFactory, type PortCategory } from "@friday/adapter-core";
 
 /**
  * Hermes is one system behind three categories (tasks, activity, agents). Decision: ONE ADAPTER PER CATEGORY, shipped
@@ -19,7 +19,7 @@ const HERMES_CATEGORIES: ReadonlyArray<{ category: HermesCategory; name: string 
 const configSchemaFor = (id: string) =>
   ({
     $schema: "https://json-schema.org/draft/2020-12/schema",
-    $id: `urn:jarvis:adapter:${id}:config`,
+    $id: `urn:friday:adapter:${id}:config`,
     title: `Hermes (${id})`,
     type: "object",
     properties: {

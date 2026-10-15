@@ -1,7 +1,7 @@
 "use client";
 
-import type { Freshness } from "@jarvis/sdk";
-import { FreshnessBadge, SourceBadge, useNow, type HealthState } from "@jarvis/ui";
+import type { Freshness } from "@friday/sdk";
+import { FreshnessBadge, SourceBadge, useNow, type HealthState } from "@friday/ui";
 import { useMemo, type ReactNode } from "react";
 import type { PanelState } from "@/components/PanelFrame";
 import { useModulePanelGate } from "@/features/shared/useAvailability";
@@ -151,7 +151,7 @@ export function KeyValue({ label, children, reason, mono = false }: { label: str
   );
 }
 
-/** Health labels in the UI locale (the `@jarvis/ui` defaults are German only). */
+/** Health labels in the UI locale (the `@friday/ui` defaults are German only). */
 export function useHealthLabels(): Record<HealthState, string> {
   const { t } = useT();
   return {

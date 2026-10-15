@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/theme-settings.schema.json",
+  "$id": "https://friday.local/schemas/settings/theme-settings.schema.json",
   "title": "ThemeSettings",
   "type": "object",
   "properties": {

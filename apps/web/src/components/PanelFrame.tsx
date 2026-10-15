@@ -1,7 +1,7 @@
 "use client";
 
-import type { Freshness } from "@jarvis/sdk";
-import { Button, HudPanel, type HudPanelProps } from "@jarvis/ui";
+import type { Freshness } from "@friday/sdk";
+import { Button, HudPanel, type HudPanelProps } from "@friday/ui";
 import { Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";

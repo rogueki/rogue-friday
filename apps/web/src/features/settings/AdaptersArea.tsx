@@ -1,7 +1,7 @@
 "use client";
 
-import type { AdapterConfigSettings, AdapterTestResult } from "@jarvis/sdk";
-import { Button, EmptyState, HealthBadge, StatusChip, Switch } from "@jarvis/ui";
+import type { AdapterConfigSettings, AdapterTestResult } from "@friday/sdk";
+import { Button, EmptyState, HealthBadge, StatusChip, Switch } from "@friday/ui";
 import { Plug, Save, TestTube2, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/i18n";

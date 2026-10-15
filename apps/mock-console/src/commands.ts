@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { JarvisApiError, type OrbMode, type ScenarioControlRequest, type ScenarioState } from "@jarvis/sdk";
+import { FridayApiError, type OrbMode, type ScenarioControlRequest, type ScenarioState } from "@friday/sdk";
 import { openSession, type ConsoleSession, type DevRole } from "./session";
 import { watchEvents } from "./watch";
 
@@ -61,7 +61,7 @@ Befehle
                                  Orb-Zustand erzwingen (${ORB_MODES.join(", ")})
   release-orb                    erzwungenen Orb-Zustand freigeben (Orb folgt wieder dem abgeleiteten Zustand)
   play-event <typ> [--subject <s>] [--payload <json|@datei>]
-                                 beliebiges Ereignis der Ereignisliste abspielen (z. B. jarvis.orb.status_changed;
+                                 beliebiges Ereignis der Ereignisliste abspielen (z. B. friday.orb.status_changed;
                                  Typen ohne abgeleiteten Zustand brauchen --payload)
   reset                          Snapshot zurücksetzen
   status                         Gesamtstatus und Orb-Zustand anzeigen
@@ -69,7 +69,7 @@ Befehle
                                  Echtzeit-Ereignisse mitlesen
 
 Optionen
-  --url <basis>   Control API (Standard: $JARVIS_API_URL oder http://127.0.0.1:3100)
+  --url <basis>   Control API (Standard: $FRIDAY_API_URL oder http://127.0.0.1:3100)
   --role <rolle>  Dev-Anmeldung als owner (Standard), operator oder viewer
   --json          Ausgabe als JSON
   -h, --help      diese Hilfe
@@ -111,7 +111,7 @@ function parseNumber(text: string | undefined, label: string, min: number, max: 
   return value;
 }
 
-const EVENT_TYPE = /^jarvis\.[a-z_]+(\.[a-z_]+)+$/;
+const EVENT_TYPE = /^friday\.[a-z_]+(\.[a-z_]+)+$/;
 
 /** `--payload '{"a":1}'` or `--payload @datei.json`; the payload must be a JSON object. */
 function parsePayload(text: string): Record<string, unknown> {
@@ -200,7 +200,7 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
     const session =
       deps.session ??
       (await openSession({
-        baseUrl: values.url ?? env.JARVIS_API_URL ?? "http://127.0.0.1:3100",
+        baseUrl: values.url ?? env.FRIDAY_API_URL ?? "http://127.0.0.1:3100",
         role,
         ...(deps.fetch ? { fetch: deps.fetch } : {}),
       }));
@@ -321,7 +321,7 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
       case "play-event": {
         const eventType = rest[0];
         if (!eventType || !EVENT_TYPE.test(eventType)) {
-          throw new UsageError("play-event: Ereignistyp fehlt oder ist ungültig (z. B. jarvis.orb.status_changed).");
+          throw new UsageError("play-event: Ereignistyp fehlt oder ist ungültig (z. B. friday.orb.status_changed).");
         }
         const payload = values.payload === undefined ? undefined : parsePayload(values.payload);
         const state = await control({
@@ -371,7 +371,7 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
       io.err('Hilfe: pnpm scenario -- --help');
       return 2;
     }
-    if (error instanceof JarvisApiError) {
+    if (error instanceof FridayApiError) {
       io.err(`API-Fehler ${error.status} ${error.code}: ${error.message} (${error.correlationId})`);
       return 1;
     }

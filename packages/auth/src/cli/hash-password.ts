@@ -53,7 +53,7 @@ async function main(): Promise<void> {
 
   const hash = await hashPassword(password);
   process.stderr.write('In .env eintragen (Single Quotes wegen der $-Zeichen):\n');
-  process.stdout.write(`JARVIS_OWNER_PASSWORD_HASH='${hash}'\n`);
+  process.stdout.write(`FRIDAY_OWNER_PASSWORD_HASH='${hash}'\n`);
 }
 
 main().catch((error: unknown) => {

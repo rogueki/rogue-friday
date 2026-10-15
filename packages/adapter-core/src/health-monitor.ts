@@ -1,14 +1,14 @@
-import type { AdapterHealth } from "@jarvis/sdk";
+import type { AdapterHealth } from "@friday/sdk";
 import { toIso, type Clock } from "./clock";
 import { AdapterError, normalizeError } from "./errors";
 import { toContractLifecycle, toHealthStatus, type AdapterLifecycleMachine } from "./lifecycle";
 import type { Logger } from "./logger";
 import { withTimeout, type CircuitBreaker } from "./resilience";
-import type { AdapterEventInput, AdapterHealthReport, CapabilitySet, JarvisAdapter } from "./types";
+import type { AdapterEventInput, AdapterHealthReport, CapabilitySet, FridayAdapter } from "./types";
 
 export interface HealthMonitorOptions {
   adapterId: string;
-  adapter: Pick<JarvisAdapter, "healthCheck" | "getCapabilities">;
+  adapter: Pick<FridayAdapter, "healthCheck" | "getCapabilities">;
   lifecycle: AdapterLifecycleMachine;
   clock: Clock;
   logger: Logger;
@@ -28,8 +28,8 @@ export interface HealthMonitorOptions {
 
 /**
  * Polls `healthCheck()` on an interval, keeps latency / last success / last error / consecutive failures, drives the
- * lifecycle (ONLINE <-> DEGRADED -> OFFLINE -> RECOVERING -> ONLINE) and emits `jarvis.adapter.health_changed` and
- * `jarvis.adapter.capabilities_changed` only when something actually changed.
+ * lifecycle (ONLINE <-> DEGRADED -> OFFLINE -> RECOVERING -> ONLINE) and emits `friday.adapter.health_changed` and
+ * `friday.adapter.capabilities_changed` only when something actually changed.
  */
 export class HealthMonitor {
   private readonly intervalMs: number;
@@ -150,7 +150,7 @@ export class HealthMonitor {
     return this.snapshot();
   }
 
-  private async probe(adapter: Pick<JarvisAdapter, "healthCheck">): Promise<AdapterHealthReport> {
+  private async probe(adapter: Pick<FridayAdapter, "healthCheck">): Promise<AdapterHealthReport> {
     const started = this.options.clock.now();
     try {
       const report = await withTimeout(() => adapter.healthCheck(), {
@@ -218,7 +218,7 @@ export class HealthMonitor {
     if (key === this.lastEmittedKey) return;
     this.lastEmittedKey = key;
     this.options.emit({
-      type: "jarvis.adapter.health_changed",
+      type: "friday.adapter.health_changed",
       subject: `adapter/${this.options.adapterId}`,
       data: health,
     });

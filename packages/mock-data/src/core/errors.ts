@@ -1,4 +1,4 @@
-import type { AdapterCategory, ErrorCode, ErrorDetail, ErrorResponse, Severity } from "@jarvis/sdk";
+import type { AdapterCategory, ErrorCode, ErrorDetail, ErrorResponse, Severity } from "@friday/sdk";
 
 /** HTTP status per canonical error code (OpenAPI error responses). */
 export const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {

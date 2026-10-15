@@ -8,8 +8,8 @@ import type {
   MemorySearchRequest,
   MemoryUpdateRequest,
   ActionResult,
-} from "@jarvis/sdk";
-import { CONTRACT_VERSION } from "@jarvis/sdk";
+} from "@friday/sdk";
+import { CONTRACT_VERSION } from "@friday/sdk";
 import { conflict, notFound } from "../../core/errors";
 import { asBool, asList, clone, compareDesc, matchesQuery, normalizeText, tokenize, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
@@ -100,7 +100,7 @@ export class MemoryService {
         history: [{ version: 1, changedAt: now, actor, change: "created", summary: "Eintrag angelegt.", before: null, after: body.content }],
       };
       this.w.state.memory.push(memory);
-      this.publish("jarvis.memory.created", memory, ctx, "memory.created", null);
+      this.publish("friday.memory.created", memory, ctx, "memory.created", null);
       return clone(memory);
     });
   }
@@ -147,7 +147,7 @@ export class MemoryService {
       }
       if (history.length === 0) push("updated", "Metadaten aktualisiert.");
       memory.history.push(...history);
-      this.publish("jarvis.memory.updated", memory, ctx, "memory.updated", { content: before });
+      this.publish("friday.memory.updated", memory, ctx, "memory.updated", { content: before });
       return clone(memory);
     });
   }
@@ -162,7 +162,7 @@ export class MemoryService {
       for (const other of this.w.state.memory) {
         other.conflicts = other.conflicts.map((entry) => (entry.memoryId === id ? { ...entry, resolution: "replaced" as const } : entry));
       }
-      this.w.emitFor("memory", "jarvis.memory.deleted", { id, deletedAt: this.w.nowIso(), deletedBy: this.w.actorOf(ctx) }, `memory/${id}`, correlationId);
+      this.w.emitFor("memory", "friday.memory.deleted", { id, deletedAt: this.w.nowIso(), deletedBy: this.w.actorOf(ctx) }, `memory/${id}`, correlationId);
       const audit = this.w.recordAudit({
         category: "user_action",
         action: "memory.deleted",
@@ -217,18 +217,18 @@ export class MemoryService {
       }[body.resolution];
       memory.history.push({ version: memory.version + 1, changedAt: now, actor, change: "updated", summary: body.note ? `${summary} ${body.note}` : summary, before: null, after: null });
       this.w.bump(memory);
-      this.w.emitFor("memory", "jarvis.memory.updated", memory, `memory/${memory.id}`, correlationId);
+      this.w.emitFor("memory", "friday.memory.updated", memory, `memory/${memory.id}`, correlationId);
       if (other) {
         const mirror = other.conflicts.find((candidate) => candidate.memoryId === id && candidate.resolution === "pending");
         if (mirror && body.resolution !== "replace") {
           mirror.resolution = resolution;
           other.history.push({ version: other.version + 1, changedAt: now, actor, change: "updated", summary, before: null, after: null });
           this.w.bump(other);
-          this.w.emitFor("memory", "jarvis.memory.updated", other, `memory/${other.id}`, correlationId);
+          this.w.emitFor("memory", "friday.memory.updated", other, `memory/${other.id}`, correlationId);
         }
         if (body.resolution === "replace") {
           this.w.state.memory = this.w.state.memory.filter((candidate) => candidate.id !== conflictId);
-          this.w.emitFor("memory", "jarvis.memory.deleted", { id: conflictId, deletedAt: now, deletedBy: actor }, `memory/${conflictId}`, correlationId);
+          this.w.emitFor("memory", "friday.memory.deleted", { id: conflictId, deletedAt: now, deletedBy: actor }, `memory/${conflictId}`, correlationId);
         }
       }
       this.w.recordAudit({
@@ -296,13 +296,13 @@ export class MemoryService {
     });
   }
 
-  private publish(type: "jarvis.memory.created" | "jarvis.memory.updated", memory: Memory, ctx: OpContext | undefined, action: string, before: Record<string, unknown> | null): void {
-    if (type === "jarvis.memory.updated") this.w.bump(memory);
+  private publish(type: "friday.memory.created" | "friday.memory.updated", memory: Memory, ctx: OpContext | undefined, action: string, before: Record<string, unknown> | null): void {
+    if (type === "friday.memory.updated") this.w.bump(memory);
     else memory.version = Math.max(memory.version, 1);
     // History versions follow the resource version so the timeline stays consistent.
     const correlationId = this.w.correlationId(ctx);
     this.w.emitFor("memory", type, memory, `memory/${memory.id}`, correlationId);
-    this.w.logActivity({ kind: "system", title: `Memory ${type === "jarvis.memory.created" ? "angelegt" : "aktualisiert"}: ${memory.title ?? memory.type}`, correlationId, adapterId: "mock-memory", actor: this.w.actorOf(ctx) });
+    this.w.logActivity({ kind: "system", title: `Memory ${type === "friday.memory.created" ? "angelegt" : "aktualisiert"}: ${memory.title ?? memory.type}`, correlationId, adapterId: "mock-memory", actor: this.w.actorOf(ctx) });
     this.w.recordAudit({
       category: ctx?.actor?.type === "agent" ? "agent_action" : "user_action",
       action,

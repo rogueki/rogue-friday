@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
-import type { UpstreamRequest } from "@jarvis/adapter-testkit";
+import type { UpstreamRequest } from "@friday/adapter-testkit";
 import { apiRoutes, dashboardRoutes, type RouteDef } from "./routes";
 import { HermesState } from "./state";
 import { acceptWebSocket } from "./ws-server";

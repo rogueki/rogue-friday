@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/dev/scenario-state.schema.json",
+  "$schema": "https://friday.local/schemas/dev/scenario-state.schema.json",
   "activeScenarioId": "voice-pipeline",
   "running": true,
   "stepIndex": 2,

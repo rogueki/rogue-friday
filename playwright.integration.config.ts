@@ -4,7 +4,7 @@ import { API_ORIGIN } from "./tests/integration/constants";
 
 // Headless WebGL (the orb) needs SwiftShader; CLAUDE.md "Umgebung". The Chromium path can be overridden for other machines.
 const CLOUD_CHROMIUM = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-const executablePath = process.env.JARVIS_CHROMIUM ?? (existsSync(CLOUD_CHROMIUM) ? CLOUD_CHROMIUM : undefined);
+const executablePath = process.env.FRIDAY_CHROMIUM ?? (existsSync(CLOUD_CHROMIUM) ? CLOUD_CHROMIUM : undefined);
 
 export default defineConfig({
   testDir: "tests/integration",

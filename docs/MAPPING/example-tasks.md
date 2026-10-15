@@ -43,14 +43,14 @@ Nicht unterstützt (nicht deklariert): `tasks.retry`, `tasks.pause`, `tasks.resu
 `dueAt -> due`, `labels -> tags`. `TaskUpdateRequest.status`: `triage/todo/ready -> open`, `running/review -> in_progress`,
 `waiting -> blocked`, `done -> closed/completed`, `failed -> closed/failed`, `cancelled -> closed/cancelled`.
 
-## Ereignisse (`RawEvent.kind` -> `jarvis.task.*`)
+## Ereignisse (`RawEvent.kind` -> `friday.task.*`)
 
 | `kind`          | Ereignis                                                                | Payload                                                   |
 | --------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- |
-| `item.created`  | `jarvis.task.created`                                                   | `Task`                                                    |
-| `item.updated`  | `jarvis.task.updated`                                                   | `Task`                                                    |
-| `item.progress` | `jarvis.task.progress`                                                  | `TaskProgressEvent {taskId, progress, message?, agentId}` |
-| `item.closed`   | `jarvis.task.completed` / `cancelled` / `failed` (nach `closed_reason`) | `Task`                                                    |
+| `item.created`  | `friday.task.created`                                                   | `Task`                                                    |
+| `item.updated`  | `friday.task.updated`                                                   | `Task`                                                    |
+| `item.progress` | `friday.task.progress`                                                  | `TaskProgressEvent {taskId, progress, message?, agentId}` |
+| `item.closed`   | `friday.task.completed` / `cancelled` / `failed` (nach `closed_reason`) | `Task`                                                    |
 | unbekannt       | verworfen (bewusst, mit Log)                                            | -                                                         |
 
 ## Fehler

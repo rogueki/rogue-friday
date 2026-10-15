@@ -1,4 +1,4 @@
-import type { AdapterLifecycle as ContractLifecycle, HealthStatus } from "@jarvis/sdk";
+import type { AdapterLifecycle as ContractLifecycle, HealthStatus } from "@friday/sdk";
 import { AdapterError } from "./errors";
 
 /** PLAN §10.6 plus RECOVERING (PLAN §10.7 "Health Recovery", §45.9), which the contract carries on the wire. */

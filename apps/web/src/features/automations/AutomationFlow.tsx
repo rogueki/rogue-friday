@@ -1,7 +1,7 @@
 "use client";
 
 import type { AutomationDto as Automation } from "@/lib/api/domains/automations";
-import { StatusChip } from "@jarvis/ui";
+import { StatusChip } from "@friday/ui";
 import { ArrowDown, Hand, Radio, Timer, Zap, type LucideIcon } from "lucide-react";
 import { Fragment } from "react";
 import { useT } from "@/i18n";

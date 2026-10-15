@@ -1,6 +1,6 @@
 "use client";
 
-import type { NavItem } from "@jarvis/ui";
+import type { NavItem } from "@friday/ui";
 import {
   Activity,
   Bell,

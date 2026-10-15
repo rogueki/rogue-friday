@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/tasks/task-action-request.schema.json",
+  "$schema": "https://friday.local/schemas/tasks/task-action-request.schema.json",
   "reason": "Nicht mehr benötigt",
   "confirm": true
 }

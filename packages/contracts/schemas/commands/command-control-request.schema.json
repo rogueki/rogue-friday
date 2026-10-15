@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/commands/command-control-request.schema.json",
+  "$id": "https://friday.local/schemas/commands/command-control-request.schema.json",
   "title": "CommandControlRequest",
   "description": "Body of stop/pause/resume.",
   "type": "object",

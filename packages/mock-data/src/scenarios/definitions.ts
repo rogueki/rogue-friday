@@ -1,4 +1,4 @@
-import type { OrbMode } from "@jarvis/sdk";
+import type { OrbMode } from "@friday/sdk";
 import type { ScenarioDefinition } from "./types";
 
 const REDUCED_MOTION_MODES: OrbMode[] = [

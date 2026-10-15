@@ -1,4 +1,4 @@
-import type { PageInfo } from "@jarvis/sdk";
+import type { PageInfo } from "@friday/sdk";
 import { validationFailed } from "./errors";
 
 export type QueryValue = string | number | boolean | readonly (string | number | boolean)[] | null | undefined;

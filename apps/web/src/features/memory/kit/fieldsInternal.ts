@@ -1,4 +1,4 @@
-import { cx } from "@jarvis/ui";
+import { cx } from "@friday/ui";
 import { useId } from "react";
 
 export { cx };

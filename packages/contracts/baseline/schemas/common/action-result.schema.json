@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/common/action-result.schema.json",
+  "$id": "https://friday.local/schemas/common/action-result.schema.json",
   "title": "ActionResult",
   "description": "Result of an action that returns no resource (delete, stop, ...).",
   "type": "object",

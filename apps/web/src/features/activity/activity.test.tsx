@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dataOf, listOf, makeEvent, mockElementSize, routerFetch } from "@/features/tasks/testkit";
 import { setApiClient } from "@/lib/api/client";
-import type { ActivityEvent, JarvisEvent } from "@jarvis/sdk";
+import type { ActivityEvent, FridayEvent } from "@friday/sdk";
 import type { QueryClient } from "@tanstack/react-query";
 import { applyEvent } from "@/lib/realtime/applyEvent";
 import { capabilitiesOf, renderWithProviders } from "@/test/render";
@@ -27,15 +27,15 @@ function pushLive(queryClient: QueryClient, event: ActivityEvent): void {
     applyEvent(queryClient, {
       specversion: "1.0",
       id: `evt_${event.sequence}`,
-      type: "jarvis.activity.appended",
+      type: "friday.activity.appended",
       source: "adapter://mock",
       subject: `activity/${event.id}`,
       time: event.occurredAt,
       sequence: event.sequence,
       correlationId: event.correlationId,
-      contractVersion: "1.0.0",
+      contractVersion: "2.0.0",
       data: event,
-    } as unknown as JarvisEvent);
+    } as unknown as FridayEvent);
   });
 }
 
@@ -300,7 +300,7 @@ describe("ActivityDrawer", () => {
   });
   const base = { "GET /activity": listOf([failing]), "GET /agents": listOf([]) };
   const session = (role: string) => ({ "GET /auth/session": dataOf({ authenticated: true, user: { id: "usr_00000000000000000000000001", displayName: "Erik", role }, role, csrfToken: "x", expiresAt: null, reauthUntil: null }) });
-  const meta = (rawJsonView: boolean) => ({ "GET /meta": { contractVersion: "1.0.0", apiVersion: "v1", dataMode: "mock", eventsPath: "/api/v1/events", buildVersion: "1", features: { rawJsonView } } });
+  const meta = (rawJsonView: boolean) => ({ "GET /meta": { contractVersion: "2.0.0", apiVersion: "v1", dataMode: "mock", eventsPath: "/api/v1/events", buildVersion: "1", features: { rawJsonView } } });
 
   beforeEach(() => {
     nav.params = new URLSearchParams(`event=${failing.id}`);

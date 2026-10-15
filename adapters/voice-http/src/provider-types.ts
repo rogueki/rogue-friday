@@ -1,4 +1,4 @@
-/** `state` values written by installer/voice/jarvis_voice.py (JV:276, 472, 511, 518, 528, 533, 539). */
+/** `state` values written by installer/voice/friday_voice.py (JV:276, 472, 511, 518, 528, 533, 539). */
 export const RAW_VOICE_STATES = ["starting", "listening", "command", "speaking", "followup"] as const;
 export type RawVoiceState = (typeof RAW_VOICE_STATES)[number];
 

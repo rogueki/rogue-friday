@@ -1,6 +1,6 @@
 "use client";
 
-import type { Channel } from "@jarvis/sdk";
+import type { Channel } from "@friday/sdk";
 import { useCapability, useCapabilityState, type CapabilityState } from "@/lib/capabilities";
 import { channelAllows } from "./labels";
 

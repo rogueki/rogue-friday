@@ -1,5 +1,5 @@
-import type { AdapterError, AdapterRegistry, CallContext, PortCategory } from "@jarvis/adapter-core";
-import { normalizeError } from "@jarvis/adapter-core";
+import type { AdapterError, AdapterRegistry, CallContext, PortCategory } from "@friday/adapter-core";
+import { normalizeError } from "@friday/adapter-core";
 import {
   CONTRACT_VERSION,
   type AdapterCategory,
@@ -9,7 +9,7 @@ import {
   type CalendarEvent,
   type Health,
   type HealthStatus,
-  type JarvisStatus,
+  type FridayStatus,
   type Notification,
   type OrbHealth,
   type OrbMode,
@@ -21,10 +21,10 @@ import {
   type Task,
   type Thread,
   type OrbLayers,
-} from "@jarvis/sdk";
-import type { DataMode } from "@jarvis/config";
-import { getCorrelationId } from "@jarvis/observability";
-import type { MockWorld } from "@jarvis/mock-data";
+} from "@friday/sdk";
+import type { DataMode } from "@friday/config";
+import { getCorrelationId } from "@friday/observability";
+import type { MockWorld } from "@friday/mock-data";
 import type { EventHub } from "../realtime/hub";
 import { createCorrelationId } from "../util/ids";
 
@@ -56,7 +56,7 @@ export const DEFAULT_ASSISTANT_NAME = "F.R.I.D.A.Y.";
 
 /**
  * Applies the configured assistant name to server-generated copy. Adapters (the mock world today) may still produce the
- * legacy "JARVIS" wording or the default brand "F.R.I.D.A.Y."; both are replaced, upper-cased for all-caps orb labels.
+ * legacy "JARVIS" wording (the predecessor name) or the default brand "F.R.I.D.A.Y."; both are replaced, upper-cased for all-caps orb labels.
  */
 export function brandText(text: string, assistantName: string): string {
   const loud = text === text.toUpperCase();
@@ -151,11 +151,11 @@ export class StatusService {
   constructor(private readonly deps: StatusServiceDeps) {}
 
   /** Overall status for the top bar. Mock mode asks the world (it knows its scenario state); otherwise it is derived. */
-  get(): JarvisStatus {
+  get(): FridayStatus {
     const { world, dataMode } = this.deps;
     if (world && dataMode === "mock") {
       world.refresh();
-      const raw = world.jarvisStatus();
+      const raw = world.fridayStatus();
       return { ...raw, label: brandText(raw.label, this.assistantName()), dataMode, eventStream: this.eventStream() };
     }
     const overall = summarizeAdapters(this.deps.registry.listAdapters());
@@ -177,7 +177,7 @@ export class StatusService {
     return this.deps.assistantName?.() ?? DEFAULT_ASSISTANT_NAME;
   }
 
-  private eventStream(): JarvisStatus["eventStream"] {
+  private eventStream(): FridayStatus["eventStream"] {
     const stats = this.deps.hub.stats();
     return { state: "online", roundtripMs: stats.clients > 0 ? 1 : null, lastEventAt: this.deps.hub.lastEventAt };
   }
@@ -533,7 +533,7 @@ export class OverviewService {
     const openTaskCount = openTasks ? (openTasks.pageInfo.totalCount ?? openTasks.items.length) : 0;
 
     const overview: Overview = {
-      jarvis: this.deps.status.get(),
+      friday: this.deps.status.get(),
       orb,
       currentActivity: activeMode
         ? { text: orb.status.activityText ?? "", agentId: orb.status.currentAgentId ?? null, taskId: orb.status.taskId ?? null, since: orb.status.since }

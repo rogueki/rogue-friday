@@ -1,9 +1,9 @@
 {
-  "$schema": "https://jarvis.local/schemas/settings/layout-list-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/settings/layout-list-response.schema.json",
+  "contractVersion": "2.0.0",
   "items": [
     {
-      "layoutId": "jarvis-command-overview",
+      "layoutId": "friday-command-overview",
       "name": "Command Overview",
       "columns": 12,
       "widgets": [
@@ -37,7 +37,7 @@
   "sources": [
     {
       "adapterId": "control-api",
-      "system": "jarvis",
+      "system": "friday",
       "lastSyncedAt": "2026-10-14T08:15:00Z"
     }
   ]

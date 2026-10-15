@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/auth/session.schema.json",
+  "$id": "https://friday.local/schemas/auth/session.schema.json",
   "title": "Session",
   "description": "Current session. csrfToken must be echoed in X-CSRF-Token on mutating requests.",
   "type": "object",

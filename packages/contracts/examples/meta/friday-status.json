@@ -1,7 +1,7 @@
 {
-  "$schema": "https://jarvis.local/schemas/meta/jarvis-status.schema.json",
+  "$schema": "https://friday.local/schemas/meta/friday-status.schema.json",
   "status": "online",
-  "label": "Jarvis online",
+  "label": "F.R.I.D.A.Y. online",
   "mode": "working",
   "dataMode": "mock",
   "uptimeSeconds": 28800,

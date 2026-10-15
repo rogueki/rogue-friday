@@ -1,7 +1,7 @@
 "use client";
 
-import type { Agent, Task } from "@jarvis/sdk";
-import { Button, Dialog, EmptyState, Select, Skeleton } from "@jarvis/ui";
+import type { Agent, Task } from "@friday/sdk";
+import { Button, Dialog, EmptyState, Select, Skeleton } from "@friday/ui";
 import { UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useT, type MessageKey } from "@/i18n";

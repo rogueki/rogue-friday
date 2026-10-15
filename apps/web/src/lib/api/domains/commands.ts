@@ -1,6 +1,6 @@
 "use client";
 
-import type { ActionResult, CommandControlRequest, CommandHistoryEntryListResponse, CommandRequest, CommandResponse } from "@jarvis/sdk";
+import type { ActionResult, CommandControlRequest, CommandHistoryEntryListResponse, CommandRequest, CommandResponse } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";

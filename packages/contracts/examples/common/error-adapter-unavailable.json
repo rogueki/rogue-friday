@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/common/error.schema.json",
+  "$schema": "https://friday.local/schemas/common/error.schema.json",
   "error": {
     "code": "ADAPTER_UNAVAILABLE",
     "message": "Der Kalender-Adapter ist derzeit nicht erreichbar.",

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Freshness, OrbSnapshot } from "@jarvis/sdk";
+import type { Freshness, OrbSnapshot } from "@friday/sdk";
 import { useQuery } from "@tanstack/react-query";
 import { coreQueries } from "@/lib/api/domains/core";
 
@@ -14,7 +14,7 @@ export interface OrbSnapshotState {
 }
 
 /**
- * Orb state store = the query cache entry of GET /orb/status. `jarvis.orb.status_changed` events are written into the
+ * Orb state store = the query cache entry of GET /orb/status. `friday.orb.status_changed` events are written into the
  * same entry by the realtime reducer, so every consumer (orb, voice panel, command bar, a11y sentence) sees one value.
  */
 export function useOrbSnapshot(): OrbSnapshotState {

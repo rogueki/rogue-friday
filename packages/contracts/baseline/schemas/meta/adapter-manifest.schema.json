@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/meta/adapter-manifest.schema.json",
+  "$id": "https://friday.local/schemas/meta/adapter-manifest.schema.json",
   "title": "AdapterManifest",
   "description": "Static description of an adapter package (PLAN §10.4).",
   "type": "object",

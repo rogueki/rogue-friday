@@ -33,13 +33,13 @@ Schreibende Änderungen eines Termins (verschieben, absagen, einladen) sind Tier
 
 ## Konflikte und Briefings
 
-`CalendarConflict` entsteht im Adapter aus überlappenden Terminen (`kind = overlap`, beteiligte `eventIds`) -> `jarvis.calendar.conflict_detected`.
+`CalendarConflict` entsteht im Adapter aus überlappenden Terminen (`kind = overlap`, beteiligte `eventIds`) -> `friday.calendar.conflict_detected`.
 `CalendarBriefing` ist Agentenausgabe (Hermes), nicht Kalenderdaten; `listCalendarBriefings` bleibt bis zur Hermes-Anbindung leer (gültige leere Seite).
 
 ## Synchronisation und Ereignisse
 
 CalDAV: `ctag`/`getctag` und `sync-token` (RFC 6578) für inkrementelle Abfragen; ICS: `ETag`/`Last-Modified` (`If-None-Match`).
-Änderungen -> `jarvis.calendar.event_updated`. `freshness.asOf` = Zeitpunkt des letzten erfolgreichen Syncs; bei Fehlern `stale`/`offline-cache`
+Änderungen -> `friday.calendar.event_updated`. `freshness.asOf` = Zeitpunkt des letzten erfolgreichen Syncs; bei Fehlern `stale`/`offline-cache`
 (nie veraltete Daten als live ausgeben).
 
 ## Fehler

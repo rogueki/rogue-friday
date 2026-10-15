@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type AdapterConfigPatch, type Freshness, type LayoutImportRequest, type SettingsExport, type SettingsPatch, type ThemeImportRequest } from "@jarvis/sdk";
+import { CONTRACT_VERSION, type AdapterConfigPatch, type Freshness, type LayoutImportRequest, type SettingsExport, type SettingsPatch, type ThemeImportRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { localList } from "./meta";

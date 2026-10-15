@@ -1,8 +1,8 @@
 {
-  "$schema": "https://jarvis.local/schemas/meta/overview.schema.json",
-  "jarvis": {
+  "$schema": "https://friday.local/schemas/meta/overview.schema.json",
+  "friday": {
     "status": "online",
-    "label": "Jarvis online",
+    "label": "F.R.I.D.A.Y. online",
     "mode": "working",
     "dataMode": "mock",
     "uptimeSeconds": 28800,
@@ -22,7 +22,7 @@
   "orb": {
     "status": {
       "mode": "working",
-      "activityText": "Jarvis recherchiert Angebote",
+      "activityText": "F.R.I.D.A.Y. recherchiert Angebote",
       "detailText": "Agent „Recherche“ liest 3 Quellen",
       "progress": 0.62,
       "progressMode": "determinate",
@@ -48,7 +48,7 @@
     }
   },
   "currentActivity": {
-    "text": "Jarvis recherchiert Angebote",
+    "text": "F.R.I.D.A.Y. recherchiert Angebote",
     "agentId": "agent_01JCW5E9R2Q7T4M8N3B6V00002",
     "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00001",
     "since": "2026-10-14T07:55:00Z"

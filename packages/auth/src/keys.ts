@@ -69,5 +69,5 @@ function readKey(path: string): Buffer {
 
 /** Domain-separated sub-key so CSRF and approval tokens can never be replayed against each other. */
 export function deriveKey(masterKey: Buffer, purpose: string): Buffer {
-  return Buffer.from(hkdfSync('sha256', masterKey, Buffer.alloc(0), `jarvis/${purpose}/v1`, KEY_BYTES));
+  return Buffer.from(hkdfSync('sha256', masterKey, Buffer.alloc(0), `friday/${purpose}/v1`, KEY_BYTES));
 }

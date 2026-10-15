@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/events/voice-audio-level.schema.json",
+  "$schema": "https://friday.local/schemas/events/voice-audio-level.schema.json",
   "direction": "input",
   "level": 0.42,
   "peak": 0.61,

@@ -1,4 +1,4 @@
-import type { AdapterFactory } from "@jarvis/adapter-core";
+import type { AdapterFactory } from "@friday/adapter-core";
 import { HermesActivityAdapter } from "./activity-adapter";
 import { HermesAgentsAdapter } from "./agents-adapter";
 import type { HermesAdapterOptions } from "./base";

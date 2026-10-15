@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import Ajv2020 from "ajv/dist/2020.js";
-import { createIdCodec } from "@jarvis/adapter-core";
+import { createIdCodec } from "@friday/adapter-core";
 import {
   HERMES_CATEGORIES,
   adapterIdFor,
@@ -158,11 +158,11 @@ describe("event mapping tables", () => {
 
   it("only labels a failure event failed when the task really is failed", () => {
     const task = (status: string) => ({ status }) as Parameters<typeof taskEventType>[1];
-    expect(taskEventType("crashed", task("failed"))).toBe("jarvis.task.failed");
-    expect(taskEventType("crashed", task("ready"))).toBe("jarvis.task.updated");
-    expect(taskEventType("created", task("ready"))).toBe("jarvis.task.created");
-    expect(taskEventType("archived", task("cancelled"))).toBe("jarvis.task.cancelled");
-    expect(taskEventType("zukunft", task("ready"))).toBe("jarvis.task.updated");
+    expect(taskEventType("crashed", task("failed"))).toBe("friday.task.failed");
+    expect(taskEventType("crashed", task("ready"))).toBe("friday.task.updated");
+    expect(taskEventType("created", task("ready"))).toBe("friday.task.created");
+    expect(taskEventType("archived", task("cancelled"))).toBe("friday.task.cancelled");
+    expect(taskEventType("zukunft", task("ready"))).toBe("friday.task.updated");
   });
 });
 

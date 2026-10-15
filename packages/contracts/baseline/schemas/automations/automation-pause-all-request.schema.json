@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/automations/automation-pause-all-request.schema.json",
+  "title": "AutomationPauseAllRequest",
+  "description": "Optional body of the bulk pause (PLAN §35.3 Pause All).",
+  "type": "object",
+  "properties": {
+    "reason": {
+      "type": "string",
+      "maxLength": 500
+    }
+  },
+  "additionalProperties": false
+}

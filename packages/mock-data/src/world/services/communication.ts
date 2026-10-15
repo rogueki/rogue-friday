@@ -9,7 +9,7 @@ import type {
   Participant,
   Priority,
   Thread,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { MockApiError, conflict, notFound } from "../../core/errors";
 import { asBool, asList, clone, compareDesc, matchesQuery, priorityRank, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
@@ -121,7 +121,7 @@ export class CommunicationService {
       this.w.state.drafts.push(draft);
       if (thread) this.linkDraft(thread, draft.id);
       const correlationId = this.w.correlationId(ctx);
-      this.w.emitFor("communication", "jarvis.communication.draft_updated", draft, `draft/${draft.id}`, correlationId);
+      this.w.emitFor("communication", "friday.communication.draft_updated", draft, `draft/${draft.id}`, correlationId);
       this.w.recordAudit({ category: actor.type === "agent" ? "agent_action" : "user_action", action: "draft.created", correlationId, adapterId: "mock-communication", actor, after: { channel: channel.kind, subject: draft.subject } });
       return clone(draft);
     });
@@ -140,7 +140,7 @@ export class CommunicationService {
       if (body.status) draft.status = body.status;
       this.w.bump(draft);
       const correlationId = this.w.correlationId(ctx);
-      this.w.emitFor("communication", "jarvis.communication.draft_updated", draft, `draft/${draft.id}`, correlationId);
+      this.w.emitFor("communication", "friday.communication.draft_updated", draft, `draft/${draft.id}`, correlationId);
       if (draft.status === "discarded" && draft.threadId) this.unlinkDraft(this.findThread(draft.threadId), draft.id);
       this.w.recordAudit({ category: "user_action", action: draft.status === "discarded" ? "draft.discarded" : "draft.updated", correlationId, adapterId: "mock-communication", actor: this.w.actorOf(ctx), after: { status: draft.status } });
       return clone(draft);
@@ -184,7 +184,7 @@ export class CommunicationService {
       draft.status = "pending_approval";
       draft.approvalId = approval.id;
       this.w.bump(draft);
-      this.w.emitFor("communication", "jarvis.communication.draft_updated", draft, `draft/${draft.id}`, approval.correlationId);
+      this.w.emitFor("communication", "friday.communication.draft_updated", draft, `draft/${draft.id}`, approval.correlationId);
       return clone(approval);
     });
   }
@@ -206,7 +206,7 @@ export class CommunicationService {
     const now = this.w.nowIso();
     draft.status = "sent";
     this.w.bump(draft);
-    this.w.emitFor("communication", "jarvis.communication.draft_updated", draft, `draft/${draft.id}`, approval.correlationId);
+    this.w.emitFor("communication", "friday.communication.draft_updated", draft, `draft/${draft.id}`, approval.correlationId);
     if (draft.threadId) {
       const thread = this.findThread(draft.threadId);
       const message: Message = {
@@ -247,7 +247,7 @@ export class CommunicationService {
       draft.approvalId = null;
     }
     this.w.bump(draft);
-    this.w.emitFor("communication", "jarvis.communication.draft_updated", draft, `draft/${draft.id}`, approval.correlationId);
+    this.w.emitFor("communication", "friday.communication.draft_updated", draft, `draft/${draft.id}`, approval.correlationId);
   }
 
   /** Simulates an incoming message (scenario hook): creates a thread with one inbound message. */
@@ -300,7 +300,7 @@ export class CommunicationService {
     channel.unreadCount += 1;
     channel.lastSyncAt = now;
     this.w.bump(channel);
-    this.w.emitFor("communication", "jarvis.communication.thread_updated", thread, `thread/${thread.id}`);
+    this.w.emitFor("communication", "friday.communication.thread_updated", thread, `thread/${thread.id}`);
     this.w.refresh();
     return thread;
   }
@@ -309,14 +309,14 @@ export class CommunicationService {
     if (!thread.draftIds.includes(draftId)) thread.draftIds.push(draftId);
     thread.hasDraft = thread.draftIds.length > 0;
     this.w.bump(thread);
-    this.w.emitFor("communication", "jarvis.communication.thread_updated", thread, `thread/${thread.id}`);
+    this.w.emitFor("communication", "friday.communication.thread_updated", thread, `thread/${thread.id}`);
   }
 
   private unlinkDraft(thread: Thread, draftId: string): void {
     thread.draftIds = thread.draftIds.filter((candidate) => candidate !== draftId);
     thread.hasDraft = thread.draftIds.length > 0;
     this.w.bump(thread);
-    this.w.emitFor("communication", "jarvis.communication.thread_updated", thread, `thread/${thread.id}`);
+    this.w.emitFor("communication", "friday.communication.thread_updated", thread, `thread/${thread.id}`);
   }
 
   private capabilityMissing(message: string, channel: Channel): MockApiError {

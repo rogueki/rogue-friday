@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/voice/voice-test-result.schema.json",
+  "$schema": "https://friday.local/schemas/voice/voice-test-result.schema.json",
   "kind": "full_pipeline",
   "success": true,
   "startedAt": "2026-10-14T08:15:00Z",

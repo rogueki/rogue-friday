@@ -1,5 +1,5 @@
 {
-  "name": "@jarvis/orb",
+  "name": "@friday/orb",
   "version": "1.0.0",
   "private": true,
   "description": "Goldener Hologramm-Orb (R3F) und Orb-State-Machine",
@@ -15,7 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@jarvis/sdk": "workspace:*",
+    "@friday/sdk": "workspace:*",
     "@react-three/fiber": "^9.8.1",
     "@react-three/postprocessing": "^3.2.0",
     "@xstate/react": "^6.1.0",

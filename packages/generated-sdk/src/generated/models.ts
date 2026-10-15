@@ -133,7 +133,7 @@ export type VoiceTestKind = "wake_word" | "speaker" | "stt" | "tts" | "full_pipe
 /**
  * Maps every contract schema title to its generated type.
  */
-export interface JarvisModelMap {
+export interface FridayModelMap {
   ActionResult: ActionResult;
   ActivityEvent: ActivityEvent;
   ActivityEventListResponse: ActivityEventListResponse;
@@ -251,6 +251,8 @@ export interface JarvisModelMap {
   FileVersion: FileVersion;
   Freshness: Freshness;
   FreshnessState: FreshnessState;
+  FridayStatus: FridayStatus;
+  FridayStatusResponse: FridayStatusResponse;
   FrontendErrorReport: FrontendErrorReport;
   FrontendTelemetryBatch: FrontendTelemetryBatch;
   FrontendTelemetryReceipt: FrontendTelemetryReceipt;
@@ -259,8 +261,6 @@ export interface JarvisModelMap {
   HealthcheckResult: HealthcheckResult;
   HealthcheckResultResponse: HealthcheckResultResponse;
   HealthStatus: HealthStatus;
-  JarvisStatus: JarvisStatus;
-  JarvisStatusResponse: JarvisStatusResponse;
   JsonSchemaObject: JsonSchemaObject;
   LatencyStat: LatencyStat;
   Layout: Layout;
@@ -1006,7 +1006,7 @@ export interface Automation {
 export interface AutomationTrigger {
   type: "event" | "schedule" | "manual" | "condition";
   /**
-   * Event type, e.g. jarvis.communication.thread_updated.
+   * Event type, e.g. friday.communication.thread_updated.
    */
   event?: string;
   /**
@@ -1851,7 +1851,7 @@ export interface FileItem {
   createdBy: Actor;
   taskId: string | null;
   /**
-   * Logical location, e.g. D:\Jarvis\Dateien\Berichte.
+   * Logical location, e.g. D:\Friday\Dateien\Berichte.
    */
   location: string;
   tags: string[];
@@ -1918,6 +1918,36 @@ export interface FileRenameRequest {
    * New file name including extension.
    */
   name: string;
+}
+/**
+ * Compact overall status (top bar).
+ */
+export interface FridayStatus {
+  status: HealthStatus;
+  label: string;
+  mode: OrbMode;
+  dataMode: "mock" | "hybrid" | "live";
+  uptimeSeconds: number;
+  since: string;
+  version: string;
+  eventStream: {
+    state: "online" | "degraded" | "offline" | "connecting";
+    roundtripMs: number | null;
+    lastEventAt: string | null;
+  };
+  adapterSummary: {
+    online: number;
+    degraded: number;
+    offline: number;
+  };
+}
+/**
+ * Single-resource envelope for FridayStatus.
+ */
+export interface FridayStatusResponse {
+  contractVersion: ContractVersion;
+  data: FridayStatus;
+  freshness: Freshness;
 }
 /**
  * One aggregated browser error (PLAN §50.3). Contains no user data: no stack traces, no URLs with query strings, no identifiers. The server additionally redacts the message.
@@ -2009,36 +2039,6 @@ export interface HealthcheckResult {
 export interface HealthcheckResultResponse {
   contractVersion: ContractVersion;
   data: HealthcheckResult;
-  freshness: Freshness;
-}
-/**
- * Compact overall status (top bar).
- */
-export interface JarvisStatus {
-  status: HealthStatus;
-  label: string;
-  mode: OrbMode;
-  dataMode: "mock" | "hybrid" | "live";
-  uptimeSeconds: number;
-  since: string;
-  version: string;
-  eventStream: {
-    state: "online" | "degraded" | "offline" | "connecting";
-    roundtripMs: number | null;
-    lastEventAt: string | null;
-  };
-  adapterSummary: {
-    online: number;
-    degraded: number;
-    offline: number;
-  };
-}
-/**
- * Single-resource envelope for JarvisStatus.
- */
-export interface JarvisStatusResponse {
-  contractVersion: ContractVersion;
-  data: JarvisStatus;
   freshness: Freshness;
 }
 export interface LatencyStat {
@@ -2473,7 +2473,7 @@ export interface OrbSettings {
   };
 }
 /**
- * Dominant orb status plus the parallel layers. Payload of GET /orb/status and jarvis.orb.status_changed.
+ * Dominant orb status plus the parallel layers. Payload of GET /orb/status and friday.orb.status_changed.
  */
 export interface OrbSnapshot {
   status: OrbStatus;
@@ -2510,7 +2510,7 @@ export interface OrbSnapshotResponse {
  * Aggregated home payload (PLAN §27.14). Sections of failed adapters are listed in degradedSections instead of failing the call.
  */
 export interface Overview {
-  jarvis: JarvisStatus;
+  friday: FridayStatus;
   orb: OrbSnapshot;
   currentActivity: {
     text: string;

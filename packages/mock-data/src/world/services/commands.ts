@@ -7,7 +7,7 @@ import {
   type CommandResponse,
   type Participant,
   type RiskTier,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { notFound, validationFailed } from "../../core/errors";
 import { compareDesc, normalizeText, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
@@ -352,7 +352,7 @@ export class CommandService {
             task.status = "waiting";
             task.blockers.push({ id: this.w.id("blk"), kind: "other", description: "Vom Benutzer pausiert", since: this.w.nowIso() });
             this.w.bump(task);
-            this.w.emitFor("tasks", "jarvis.task.updated", task, `task/${task.id}`, correlationId);
+            this.w.emitFor("tasks", "friday.task.updated", task, `task/${task.id}`, correlationId);
             paused++;
           }
         }
@@ -367,7 +367,7 @@ export class CommandService {
             task.blockers = task.blockers.filter((blocker) => blocker.description !== "Vom Benutzer pausiert");
             task.status = "running";
             this.w.bump(task);
-            this.w.emitFor("tasks", "jarvis.task.updated", task, `task/${task.id}`, correlationId);
+            this.w.emitFor("tasks", "friday.task.updated", task, `task/${task.id}`, correlationId);
             resumed++;
           }
         }

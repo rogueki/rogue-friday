@@ -1,12 +1,12 @@
-import type { AdapterManifest, Task } from "@jarvis/sdk";
-import { CONTRACT_VERSION } from "@jarvis/sdk";
+import type { AdapterManifest, Task } from "@friday/sdk";
+import { CONTRACT_VERSION } from "@friday/sdk";
 import { createId } from "../src/ids";
 import type {
   AdapterContext,
   AdapterFactory,
   AdapterHealthReport,
   CapabilitySet,
-  JarvisAdapter,
+  FridayAdapter,
   PortAdapter,
 } from "../src";
 import type { CallContext, MutationContext, Page, Single } from "../src";
@@ -48,7 +48,7 @@ export function makeTask(index: number, overrides: Partial<Task> = {}): Task {
 export const FRESH = { state: "fresh", asOf: "2026-10-13T20:00:00.000Z" } as const;
 
 export const TEST_CONFIG_SCHEMA = {
-  $id: "urn:jarvis:test:config",
+  $id: "urn:friday:test:config",
   type: "object",
   properties: {
     baseUrl: { type: "string", minLength: 1 },
@@ -68,7 +68,7 @@ export function makeManifest(overrides: Partial<AdapterManifest> = {}): AdapterM
     apiVersion: "v1",
     category: "tasks",
     capabilities: ["tasks.read", "tasks.create", "tasks.stream"],
-    configSchemaRef: "urn:jarvis:test:config",
+    configSchemaRef: "urn:friday:test:config",
     secretFields: ["apiToken"],
     ...overrides,
   };
@@ -103,7 +103,7 @@ export function createTestAdapter(manifest: AdapterManifest = makeManifest()): {
     capabilities: [...manifest.capabilities],
     createCalls: [],
   };
-  const base: JarvisAdapter = {
+  const base: FridayAdapter = {
     manifest,
     async initialize(context) {
       if (control.initializeError) throw control.initializeError;

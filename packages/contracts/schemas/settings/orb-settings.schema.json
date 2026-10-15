@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/orb-settings.schema.json",
+  "$id": "https://friday.local/schemas/settings/orb-settings.schema.json",
   "title": "OrbSettings",
   "description": "User-tunable orb behaviour (PLAN §23.2, §42.3). Never contains shader parameters of the backend.",
   "type": "object",

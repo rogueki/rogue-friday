@@ -1,7 +1,7 @@
 "use client";
 
-import { isJarvisApiError, type Role } from "@jarvis/sdk";
-import { BrandMark, Button, HudPanel, TextField } from "@jarvis/ui";
+import { isFridayApiError, type Role } from "@friday/sdk";
+import { BrandMark, Button, HudPanel, TextField } from "@friday/ui";
 import { LogIn, ShieldCheck, User, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
@@ -38,7 +38,7 @@ export function LoginView() {
     setError(null);
     login.mutate(credentials, {
       onSuccess: () => router.replace("/"),
-      onError: (failure) => setError(isJarvisApiError(failure) && failure.status === 429 ? t("login.rateLimited") : t("login.failed")),
+      onError: (failure) => setError(isFridayApiError(failure) && failure.status === 429 ? t("login.rateLimited") : t("login.failed")),
     });
   };
 

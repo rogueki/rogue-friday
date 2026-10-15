@@ -1,6 +1,6 @@
 "use client";
 
-import type { AuditEvent, Severity } from "@jarvis/sdk";
+import type { AuditEvent, Severity } from "@friday/sdk";
 import {
   Button,
   DataTable,
@@ -14,7 +14,7 @@ import {
   useToast,
   type DataTableColumn,
   type Tone,
-} from "@jarvis/ui";
+} from "@friday/ui";
 import { Copy, Download, ExternalLink, FileText, Fingerprint, History, Link2, RotateCcw, ShieldCheck, ShieldAlert } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";

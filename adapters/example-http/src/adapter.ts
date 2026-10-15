@@ -1,4 +1,4 @@
-import type { Task, TaskActionRequest, TaskCreateRequest, TaskUpdateRequest } from "@jarvis/sdk";
+import type { Task, TaskActionRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
 import {
   AdapterError,
   createHttpClient,
@@ -12,13 +12,13 @@ import {
   type CapabilitySet,
   type HttpClient,
   type IdParam,
-  type JarvisAdapter,
+  type FridayAdapter,
   type ListTasksParams,
   type MutationContext,
   type Page,
   type Single,
   type TaskPort,
-} from "@jarvis/adapter-core";
+} from "@friday/adapter-core";
 import { PROVIDER_SYSTEM, manifest } from "./manifest";
 import { createTaskMapping, type TaskMapping } from "./mapping";
 import type { RawEventBatch, RawItem, RawItemPage, RawState } from "./provider-types";
@@ -74,7 +74,7 @@ const SORT_FILTER: Readonly<Record<NonNullable<ListTasksParams["sort"]>, string>
  * Reference adapter (tasks) for the fictional ExampleTasks REST API. Shows every part an adapter needs: config + secret
  * handling, resilient HTTP, id mapping, contract-validated mapping, idempotency forwarding, event polling and health.
  */
-export class ExampleTasksAdapter implements TaskPort, JarvisAdapter {
+export class ExampleTasksAdapter implements TaskPort, FridayAdapter {
   readonly manifest = manifest;
 
   private context: AdapterContext | undefined;

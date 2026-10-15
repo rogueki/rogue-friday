@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/layout-list-response.schema.json",
+  "$id": "https://friday.local/schemas/settings/layout-list-response.schema.json",
   "title": "LayoutListResponse",
   "description": "Cursor-paginated list envelope for Layout.",
   "type": "object",

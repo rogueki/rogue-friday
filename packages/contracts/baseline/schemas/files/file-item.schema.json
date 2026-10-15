@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/files/file-item.schema.json",
+  "$id": "https://friday.local/schemas/files/file-item.schema.json",
   "title": "FileItem",
   "description": "Generated or uploaded document (PLAN §37). Untrusted content is only previewed in a sandbox.",
   "type": "object",
@@ -63,7 +63,7 @@
     },
     "location": {
       "type": "string",
-      "description": "Logical location, e.g. D:\\Jarvis\\Dateien\\Berichte."
+      "description": "Logical location, e.g. D:\\Friday\\Dateien\\Berichte."
     },
     "tags": {
       "type": "array",

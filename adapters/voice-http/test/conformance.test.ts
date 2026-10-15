@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createFakeUpstream, type FakeUpstream } from "@jarvis/adapter-testkit";
-import { JarvisVoiceHttpAdapter, configSchema } from "../src";
+import { createFakeUpstream, type FakeUpstream } from "@friday/adapter-testkit";
+import { FridayVoiceHttpAdapter, configSchema } from "../src";
 import { installLlamaServer } from "./fake/llama-server";
 import { makeVoiceStatus } from "./fake/voice-status-server";
 import {
@@ -23,7 +23,7 @@ import {
  * Conformance (PLAN §11.1) for the voice status adapter. Same check names and rules as `runConformanceSuite`; the
  * generic suite cannot be used as-is because it seeds N paged list items upstream, while the voice service exposes a
  * single status document and no devices/profiles (README, "Conformance"). Upstreams are the testkit's fake HTTP server
- * (fault injection) - the byte-exact jarvis_voice.py replica is exercised in adapter.test.ts.
+ * (fault injection) - the byte-exact friday_voice.py replica is exercised in adapter.test.ts.
  */
 const CATEGORY = "voice" as const;
 const TIMING = { timeoutMs: 250, maxAttempts: 3, retryBaseDelayMs: 5 } as const;
@@ -43,7 +43,7 @@ async function open(initialize = true): Promise<Rig> {
   installLlamaServer(llama);
   upstream.route("GET", "/", { body: makeVoiceStatus() });
   const session = await openSession(
-    new JarvisVoiceHttpAdapter(),
+    new FridayVoiceHttpAdapter(),
     { baseUrl: upstream.url, localModelUrl: llama.url, ...TIMING },
     { initialize },
   );
@@ -63,7 +63,7 @@ afterEach(async () => {
 
 const READS = ["getVoiceStatus", "listVoiceDevices", "getVoiceMetrics", "listVoiceProfiles"] as const;
 
-describe(`Conformance: jarvis-voice-http [${CATEGORY}, single-resource]`, () => {
+describe(`Conformance: friday-voice-http [${CATEGORY}, single-resource]`, () => {
   it("manifest valid", async () => {
     const { session } = await open(false);
     assertManifestValid(session.adapter, CATEGORY, configSchema);
@@ -266,7 +266,7 @@ describe(`Conformance: jarvis-voice-http [${CATEGORY}, single-resource]`, () => 
     expect(session.emitted).toEqual([]);
     upstream.route("GET", "/", { body: makeVoiceStatus({ state: "command", input_level: 0.4 }) });
     expect(await session.adapter.pollEvents?.()).toBe(1);
-    expect(session.emitted.map((event) => event.type)).toEqual(["jarvis.voice.audio_level"]);
+    expect(session.emitted.map((event) => event.type)).toEqual(["friday.voice.audio_level"]);
   });
 
   it("no provider-specific fields in canonical models", async () => {

@@ -7,7 +7,7 @@ import type {
   Participant,
   Priority,
   Thread,
-} from "@jarvis/sdk";
+} from "@friday/sdk";
 import { DAY, HOUR, MIN, type SeedContext } from "./context";
 import { fileSpec } from "./files";
 import type { ChannelKey, FileKey, Story, TaskKey, ThreadKey } from "./story";

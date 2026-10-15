@@ -29,7 +29,7 @@ export interface LogSink {
 
 export interface RotatingFileOptions {
   dir: string;
-  /** Active file name. Rotated files get `.1` (newest) .. `.N` suffixes. Default `jarvis.log`. */
+  /** Active file name. Rotated files get `.1` (newest) .. `.N` suffixes. Default `friday.log`. */
   fileName?: string;
   /** Rotate when the active file would exceed this size. Default 10 MiB. */
   maxBytes?: number;
@@ -42,7 +42,7 @@ export interface RotatingFileOptions {
  * it guarantees that the last line before a crash is on disk.
  */
 export function createRotatingFileSink(options: RotatingFileOptions): LogSink & { readonly path: string } {
-  const fileName = options.fileName ?? 'jarvis.log';
+  const fileName = options.fileName ?? 'friday.log';
   const maxBytes = options.maxBytes ?? 10 * 1024 * 1024;
   const maxFiles = Math.max(1, options.maxFiles ?? 5);
   const path = join(options.dir, fileName);

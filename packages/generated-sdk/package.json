@@ -1,5 +1,5 @@
 {
-  "name": "@jarvis/sdk",
+  "name": "@friday/sdk",
   "version": "1.0.0",
   "private": true,
   "description": "Aus den Verträgen generierter Client und Typen",

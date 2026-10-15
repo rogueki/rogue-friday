@@ -1,4 +1,4 @@
 {
-  "$schema": "https://jarvis.local/schemas/communication/draft-send-request.schema.json",
+  "$schema": "https://friday.local/schemas/communication/draft-send-request.schema.json",
   "comment": "Bitte heute noch versenden."
 }

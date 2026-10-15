@@ -1,12 +1,12 @@
 "use client";
 
-import type { SettingsExport } from "@jarvis/sdk";
-import { Button, ConfirmDialog, Dialog } from "@jarvis/ui";
+import type { SettingsExport } from "@friday/sdk";
+import { Button, ConfirmDialog, Dialog } from "@friday/ui";
 import { Download, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { useT } from "@/i18n";
 import { fetchSettingsExport, useImportSettings } from "@/lib/api/domains/settings";
-import { useToast } from "@jarvis/ui";
+import { useToast } from "@friday/ui";
 import { useSettingsDrafts } from "./SettingsDrafts";
 import { downloadJson, parseSettingsImport } from "./settingsLogic";
 

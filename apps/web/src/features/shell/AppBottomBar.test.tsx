@@ -23,7 +23,7 @@ function commandFetch(respond: (body: Record<string, unknown>) => Record<string,
     if (!url.endsWith("/api/v1/commands")) return NEVER_RESOLVES(input, init);
     return (request ? request.clone().json() : Promise.resolve(JSON.parse(String(init?.body)))).then((body: Record<string, unknown>) => {
       calls.push(body);
-      return jsonResponse({ contractVersion: "1.0.0", commandId: COMMAND_ID, ...respond(body) });
+      return jsonResponse({ contractVersion: "2.0.0", commandId: COMMAND_ID, ...respond(body) });
     });
   }) as typeof fetch;
   return { impl, calls };

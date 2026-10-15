@@ -13,7 +13,7 @@ export function validateAll() {
     if (!schema.$id) failures.push(`${rel}: missing $id`);
     else if (ids.has(schema.$id)) failures.push(`${rel}: duplicate $id ${schema.$id}`);
     ids.add(schema.$id);
-    const expected = `https://jarvis.local/schemas/${rel}`;
+    const expected = `https://friday.local/schemas/${rel}`;
     if (schema.$id !== expected) failures.push(`${rel}: $id must be ${expected}`);
     if (!schema.title) failures.push(`${rel}: missing title`);
     try {

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/meta/jarvis-status.schema.json",
-  "title": "JarvisStatus",
+  "$id": "https://friday.local/schemas/meta/friday-status.schema.json",
+  "title": "FridayStatus",
   "description": "Compact overall status (top bar).",
   "type": "object",
   "properties": {

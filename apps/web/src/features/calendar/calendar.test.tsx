@@ -1,4 +1,4 @@
-import type { CalendarBriefing, CalendarConflict, CalendarEvent } from "@jarvis/sdk";
+import type { CalendarBriefing, CalendarConflict, CalendarEvent } from "@friday/sdk";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

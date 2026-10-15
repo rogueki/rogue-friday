@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/settings/theme-list-response.schema.json",
+  "$id": "https://friday.local/schemas/settings/theme-list-response.schema.json",
   "title": "ThemeListResponse",
   "description": "Cursor-paginated list envelope for Theme.",
   "type": "object",

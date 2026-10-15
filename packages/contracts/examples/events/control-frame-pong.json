@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/events/control-frame.schema.json",
+  "$schema": "https://friday.local/schemas/events/control-frame.schema.json",
   "kind": "pong",
   "ts": 1792000000028
 }

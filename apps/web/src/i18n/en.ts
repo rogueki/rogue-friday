@@ -189,7 +189,7 @@ export const en: Record<keyof typeof de, string> = {
   "palette.previewEmpty": "Select a command to see its preview.",
   "palette.results": "{count} results",
   "palette.none": "No commands available",
-  "palette.group.jarvis": "{assistant}",
+  "palette.group.friday": "{assistant}",
   "palette.group.actions": "Actions",
   "palette.group.navigation": "Navigation",
   "palette.group.search": "Search",

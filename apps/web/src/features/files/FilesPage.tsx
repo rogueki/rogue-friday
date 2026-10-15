@@ -1,7 +1,7 @@
 "use client";
 
-import type { FileCategory, FileItem } from "@jarvis/sdk";
-import { isJarvisApiError } from "@jarvis/sdk";
+import type { FileCategory, FileItem } from "@friday/sdk";
+import { isFridayApiError } from "@friday/sdk";
 import {
   Button,
   ConfirmDialog,
@@ -15,7 +15,7 @@ import {
   useMediaQuery,
   useToast,
   type Tone,
-} from "@jarvis/ui";
+} from "@friday/ui";
 import { Download, ExternalLink, File as FileGlyph, FileCode, FileImage, FileSpreadsheet, FileText, FolderOpen, Pencil, Presentation, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -171,7 +171,7 @@ export function FileDetail({ file, onClose, onSelectFile, siblings = [] }: FileD
     );
   };
 
-  const conflict = remove.error && isJarvisApiError(remove.error) && remove.error.code === "CONFLICT";
+  const conflict = remove.error && isFridayApiError(remove.error) && remove.error.code === "CONFLICT";
 
   const detailsTab = (
     <div className="mc-stack">

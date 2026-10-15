@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/common/actor.schema.json",
+  "$schema": "https://friday.local/schemas/common/actor.schema.json",
   "type": "user",
   "id": "usr_owner",
   "name": "Erik"

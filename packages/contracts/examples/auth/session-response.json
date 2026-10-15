@@ -1,6 +1,6 @@
 {
-  "$schema": "https://jarvis.local/schemas/auth/session-response.schema.json",
-  "contractVersion": "1.0.0",
+  "$schema": "https://friday.local/schemas/auth/session-response.schema.json",
+  "contractVersion": "2.0.0",
   "data": {
     "authenticated": true,
     "user": {

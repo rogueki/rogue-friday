@@ -1,5 +1,5 @@
-import type { Attendee, CalendarEvent, CalendarProposalType } from "@jarvis/sdk";
-import type { Tone } from "@jarvis/ui";
+import type { Attendee, CalendarEvent, CalendarProposalType } from "@friday/sdk";
+import type { Tone } from "@friday/ui";
 import type { MessageKey } from "@/i18n";
 import type { Civil } from "./dates";
 

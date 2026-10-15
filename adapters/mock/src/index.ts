@@ -1,6 +1,6 @@
-import type { AdapterFactory, JarvisAdapter, PortCategory } from "@jarvis/adapter-core";
-import { PORT_CATEGORIES } from "@jarvis/adapter-core";
-import { adapterIdFor } from "@jarvis/mock-data";
+import type { AdapterFactory, FridayAdapter, PortCategory } from "@friday/adapter-core";
+import { PORT_CATEGORIES } from "@friday/adapter-core";
+import { adapterIdFor } from "@friday/mock-data";
 import {
   MockActivityAdapter,
   MockAgentsAdapter,
@@ -28,7 +28,7 @@ export type { HttpTransportConfig } from "./http-transport";
 export { worldTransport } from "./transport";
 export type { MockTransport, TransportCall } from "./transport";
 
-const CONSTRUCTORS: Record<PortCategory, new (options: MockAdapterOptions) => JarvisAdapter> = {
+const CONSTRUCTORS: Record<PortCategory, new (options: MockAdapterOptions) => FridayAdapter> = {
   tasks: MockTasksAdapter,
   activity: MockActivityAdapter,
   memory: MockMemoryAdapter,
@@ -46,7 +46,7 @@ const CONSTRUCTORS: Record<PortCategory, new (options: MockAdapterOptions) => Ja
   commands: MockCommandsAdapter,
 };
 
-/** Provider ids of the built-in mock adapters (`mock-tasks`, ...); they match the built-in allowlist of `@jarvis/config`. */
+/** Provider ids of the built-in mock adapters (`mock-tasks`, ...); they match the built-in allowlist of `@friday/config`. */
 export const MOCK_PROVIDER_IDS = PORT_CATEGORIES.map((category) => adapterIdFor(category));
 
 export function createMockAdapterFactory(category: PortCategory, options: MockAdapterOptions): AdapterFactory {

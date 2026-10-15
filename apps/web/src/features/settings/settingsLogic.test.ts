@@ -1,5 +1,5 @@
-import { applyTheme, defaultTheme } from "@jarvis/design-tokens";
-import type { Layout } from "@jarvis/sdk";
+import { applyTheme, defaultTheme } from "@friday/design-tokens";
+import type { Layout } from "@friday/sdk";
 import { describe, expect, it } from "vitest";
 import { validateContract } from "./jsonSchemaValidate";
 import { fieldKind, jsonEqual, secretPropertyNames, stripSecrets, validateConfig, type FieldSchema } from "./schemaLogic";
@@ -100,7 +100,7 @@ describe("layout and settings import", () => {
   });
 
   it("validates a settings export against the contract schema", () => {
-    const good = { contractVersion: "1.0.0", exportedAt: "2026-10-14T08:00:00Z", settings: { dashboard: { activeLayoutId: "default", fontScale: 1, backgroundGrid: true, soundEffects: false, autoRefreshSeconds: 30, compact: false } }, themes: [], layouts: [] };
+    const good = { contractVersion: "2.0.0", exportedAt: "2026-10-14T08:00:00Z", settings: { dashboard: { activeLayoutId: "default", fontScale: 1, backgroundGrid: true, soundEffects: false, autoRefreshSeconds: 30, compact: false } }, themes: [], layouts: [] };
     expect(parseSettingsImport(JSON.stringify(good)).ok).toBe(true);
     // a secret smuggled in as an extra field must not pass the schema
     const leaking = { ...good, settings: { ...good.settings, adapters: [{ secret: "x" }] } };

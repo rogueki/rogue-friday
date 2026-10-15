@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/voice/voice-profile-list-response.schema.json",
+  "$id": "https://friday.local/schemas/voice/voice-profile-list-response.schema.json",
   "title": "VoiceProfileListResponse",
   "description": "Cursor-paginated list envelope for VoiceProfile.",
   "type": "object",

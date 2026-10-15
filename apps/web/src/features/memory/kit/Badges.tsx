@@ -1,7 +1,7 @@
 "use client";
 
-import type { Freshness, SourceDescriptor } from "@jarvis/sdk";
-import { FreshnessBadge, SourceBadge, StatusChip } from "@jarvis/ui";
+import type { Freshness, SourceDescriptor } from "@friday/sdk";
+import { FreshnessBadge, SourceBadge, StatusChip } from "@friday/ui";
 import { Eye } from "lucide-react";
 import { useT } from "@/i18n";
 import type { CapabilityState } from "@/lib/capabilities";

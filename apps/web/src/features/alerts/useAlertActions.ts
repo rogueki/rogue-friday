@@ -1,6 +1,6 @@
 "use client";
 
-import type { Notification } from "@jarvis/sdk";
+import type { Notification } from "@friday/sdk";
 import { useRouter } from "next/navigation";
 import { useAcknowledgeNotification, useResolveNotification, useSnoozeNotification } from "@/lib/api/domains/notifications";
 import { useCapability, useCapabilityState, type CapabilityState } from "@/lib/capabilities";

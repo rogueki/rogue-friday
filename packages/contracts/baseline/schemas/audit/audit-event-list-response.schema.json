@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/audit/audit-event-list-response.schema.json",
+  "$id": "https://friday.local/schemas/audit/audit-event-list-response.schema.json",
   "title": "AuditEventListResponse",
   "description": "Cursor-paginated list envelope for AuditEvent.",
   "type": "object",

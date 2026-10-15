@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/approvals/approval-impact.schema.json",
+  "$id": "https://friday.local/schemas/approvals/approval-impact.schema.json",
   "title": "ApprovalImpact",
   "type": "object",
   "properties": {

@@ -1,4 +1,4 @@
-import { isJarvisApiError } from "@jarvis/sdk";
+import { isFridayApiError } from "@friday/sdk";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { ApiMutationMeta } from "./mutation";
 
@@ -12,12 +12,12 @@ export interface ErrorSink {
 const MAX_RETRIES = 3;
 
 /**
- * Retry policy: respect `JarvisApiError.retryable`, never retry 4xx (also not 429; the user-visible rate limit must be
+ * Retry policy: respect `FridayApiError.retryable`, never retry 4xx (also not 429; the user-visible rate limit must be
  * respected), at most three attempts for 5xx / network errors.
  */
 export function shouldRetry(failureCount: number, error: unknown): boolean {
   if (failureCount >= MAX_RETRIES) return false;
-  if (isJarvisApiError(error)) {
+  if (isFridayApiError(error)) {
     if (error.status >= 400 && error.status < 500) return false;
     return error.retryable;
   }
@@ -27,7 +27,7 @@ export function shouldRetry(failureCount: number, error: unknown): boolean {
 export const retryDelay = (attempt: number): number => Math.min(1000 * 2 ** attempt, 8000);
 
 export function describeError(error: unknown): { title: string; description: string; correlationId?: string } {
-  if (isJarvisApiError(error)) {
+  if (isFridayApiError(error)) {
     return { title: error.code, description: error.message, correlationId: error.correlationId };
   }
   return { title: "Fehler", description: error instanceof Error ? error.message : String(error) };
@@ -49,17 +49,17 @@ export function createQueryClient(sink: () => ErrorSink | null): QueryClient {
     },
     queryCache: new QueryCache({
       onError: (error) => {
-        if (isJarvisApiError(error) && error.code === "UNAUTHENTICATED") sink()?.onUnauthenticated?.();
+        if (isFridayApiError(error) && error.code === "UNAUTHENTICATED") sink()?.onUnauthenticated?.();
       },
     }),
     mutationCache: new MutationCache({
       onError: (error, _variables, _context, mutation) => {
         const meta = (mutation.options.meta ?? {}) as ApiMutationMeta;
-        if (isJarvisApiError(error) && error.code === "UNAUTHENTICATED") {
+        if (isFridayApiError(error) && error.code === "UNAUTHENTICATED") {
           sink()?.onUnauthenticated?.();
           return;
         }
-        if (isJarvisApiError(error) && error.code === "CONFLICT") {
+        if (isFridayApiError(error) && error.code === "CONFLICT") {
           // If-Match mismatch: somebody (or the assistant itself) changed the resource. Reload instead of overwriting.
           for (const key of meta.conflictKeys ?? []) void client.invalidateQueries({ queryKey: key });
           sink()?.notify({

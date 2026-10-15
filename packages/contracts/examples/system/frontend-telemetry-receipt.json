@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/system/frontend-telemetry-receipt.schema.json",
+  "$schema": "https://friday.local/schemas/system/frontend-telemetry-receipt.schema.json",
   "acceptedErrors": 1,
   "acceptedOrbSamples": 2
 }

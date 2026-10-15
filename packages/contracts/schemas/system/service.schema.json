@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/system/service.schema.json",
+  "$id": "https://friday.local/schemas/system/service.schema.json",
   "title": "Service",
   "description": "Monitored system component (PLAN §40.2): Hermes, Kimi API, Local Qwen, Voice, WSL, ...",
   "type": "object",

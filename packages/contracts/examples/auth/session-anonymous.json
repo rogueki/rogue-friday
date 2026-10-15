@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jarvis.local/schemas/auth/session.schema.json",
+  "$schema": "https://friday.local/schemas/auth/session.schema.json",
   "authenticated": false,
   "user": null,
   "role": null,

@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { copyFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { withLegacyEnv } from "../../../scripts/lib/legacy-env.mjs";
 
 const [command = "dev", ...rest] = process.argv.slice(2);
 const mock = rest.includes("--mock");
@@ -19,7 +20,7 @@ else rmSync(workerTarget, { force: true });
 
 const child = spawn(process.execPath, [nextBin, command, ...nextArgs], {
   stdio: "inherit",
-  env: { ...process.env, ...(mock ? { NEXT_PUBLIC_JARVIS_MSW: "1" } : {}) },
+  env: { ...withLegacyEnv(), ...(mock ? { NEXT_PUBLIC_FRIDAY_MSW: "1" } : {}) },
 });
 // The worker is not removed on exit: parallel mock dev servers share public/. Every non-mock run (dev or build)
 // deletes it before starting, so a production export never contains it.

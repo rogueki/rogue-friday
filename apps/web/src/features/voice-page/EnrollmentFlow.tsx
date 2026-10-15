@@ -1,7 +1,7 @@
 "use client";
 
-import type { VoiceEnrollment, VoiceProfile } from "@jarvis/sdk";
-import { Button, Dialog, StatusChip, Switch, TextField, type Tone } from "@jarvis/ui";
+import type { VoiceEnrollment, VoiceProfile } from "@friday/sdk";
+import { Button, Dialog, StatusChip, Switch, TextField, type Tone } from "@friday/ui";
 import { CheckCircle2, Fingerprint, XCircle } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { formatFraction } from "@/features/system/format";

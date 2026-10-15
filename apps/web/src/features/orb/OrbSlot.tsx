@@ -1,6 +1,6 @@
 "use client";
 
-import { Skeleton } from "@jarvis/ui";
+import { Skeleton } from "@friday/ui";
 import dynamic from "next/dynamic";
 import { useT } from "@/i18n";
 import type { OrbSlotProps } from "./OrbSlotInner";

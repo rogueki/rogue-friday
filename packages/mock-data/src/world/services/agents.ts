@@ -1,4 +1,4 @@
-import type { Agent, AgentStatus, Task } from "@jarvis/sdk";
+import type { Agent, AgentStatus, Task } from "@friday/sdk";
 import { conflict, notFound } from "../../core/errors";
 import { asList, clone, compareAsc, matchesQuery, type Page } from "../../core/util";
 import type { MockWorld } from "../world";
@@ -46,7 +46,7 @@ export class AgentService {
         task.status = "waiting";
         task.blockers = [...task.blockers, { id: this.w.id("blk"), kind: "other", description: PAUSE_BLOCKER, since: this.w.nowIso() }];
         this.w.bump(task);
-        this.w.emitFor("tasks", "jarvis.task.updated", task, `task/${task.id}`);
+        this.w.emitFor("tasks", "friday.task.updated", task, `task/${task.id}`);
       }
       agent.status = "paused";
       this.commit(agent, ctx, "agent.paused", { status: before });
@@ -63,7 +63,7 @@ export class AgentService {
         task.blockers = task.blockers.filter((blocker) => blocker.description !== PAUSE_BLOCKER);
         task.status = "running";
         this.w.bump(task);
-        this.w.emitFor("tasks", "jarvis.task.updated", task, `task/${task.id}`);
+        this.w.emitFor("tasks", "friday.task.updated", task, `task/${task.id}`);
       }
       agent.status = task && task.status === "running" ? "working" : "idle";
       this.commit(agent, ctx, "agent.resumed", { status: "paused" });
@@ -165,20 +165,20 @@ export class AgentService {
       if (agent.startedAt && (agent.status === "working" || agent.status === "waiting")) {
         agent.runtimeMs = Math.max(0, this.w.nowMs() - Date.parse(agent.startedAt));
       }
-      this.w.emitFor("agents", "jarvis.agent.heartbeat", { agentId: agent.id, heartbeatAt: now, status: agent.status, currentTaskId: agent.currentTaskId }, `agent/${agent.id}`);
+      this.w.emitFor("agents", "friday.agent.heartbeat", { agentId: agent.id, heartbeatAt: now, status: agent.status, currentTaskId: agent.currentTaskId }, `agent/${agent.id}`);
     }
   }
 
   private publish(agent: Agent): void {
     this.w.bump(agent);
-    this.w.emitFor("agents", "jarvis.agent.status_changed", agent, `agent/${agent.id}`);
+    this.w.emitFor("agents", "friday.agent.status_changed", agent, `agent/${agent.id}`);
   }
 
   private commit(agent: Agent, ctx: OpContext | undefined, action: string, before: Record<string, unknown>): void {
     const correlationId = this.w.correlationId(ctx);
     agent.lastActivityAt = this.w.nowIso();
     this.w.bump(agent);
-    this.w.emitFor("agents", "jarvis.agent.status_changed", agent, `agent/${agent.id}`, correlationId);
+    this.w.emitFor("agents", "friday.agent.status_changed", agent, `agent/${agent.id}`, correlationId);
     this.w.logActivity({
       kind: "agent",
       title: `${agent.name}: ${action === "agent.paused" ? "pausiert" : action === "agent.resumed" ? "fortgesetzt" : "gestoppt"}`,

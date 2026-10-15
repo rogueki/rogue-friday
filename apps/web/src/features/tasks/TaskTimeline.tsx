@@ -1,7 +1,7 @@
 "use client";
 
-import type { Task } from "@jarvis/sdk";
-import { Button, Timeline, type TimelineItem } from "@jarvis/ui";
+import type { Task } from "@friday/sdk";
+import { Button, Timeline, type TimelineItem } from "@friday/ui";
 import { useMemo, useState } from "react";
 import { useT, type MessageKey } from "@/i18n";
 import { STATUS_TONE, progressPercent } from "./model";

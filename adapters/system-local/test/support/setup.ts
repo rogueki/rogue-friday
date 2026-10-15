@@ -1,6 +1,6 @@
-import { createFakeUpstream, type FakeUpstream } from "@jarvis/adapter-testkit";
-import { createCorrelationId } from "@jarvis/sdk";
-import { createMemoryLogger, systemClock } from "@jarvis/adapter-core";
+import { createFakeUpstream, type FakeUpstream } from "@friday/adapter-testkit";
+import { createCorrelationId } from "@friday/sdk";
+import { createMemoryLogger, systemClock } from "@friday/adapter-core";
 import { LocalSystemAdapter } from "../../src";
 import { installHermesApi, installHermesDashboard, type FakeHermes } from "../fake/hermes-server";
 import { installLlamaServer } from "../fake/llama-server";

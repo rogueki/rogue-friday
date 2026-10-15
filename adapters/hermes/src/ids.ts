@@ -1,4 +1,4 @@
-import { AdapterError, createId, createIdCodec, type IdCodec } from "@jarvis/adapter-core";
+import { AdapterError, createId, createIdCodec, type IdCodec } from "@friday/adapter-core";
 
 export const DEFAULT_BOARD = "default";
 

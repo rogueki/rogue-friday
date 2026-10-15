@@ -274,7 +274,7 @@ sessionStoreSuite('SqliteSessionStore', (c) => new SqliteSessionStore(new Databa
 
 describe('SqliteSessionStore persistence', () => {
   it('survives reopening the database file and never stores the raw id', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'jarvis-auth-'));
+    const dir = mkdtempSync(join(tmpdir(), 'friday-auth-'));
     tempDirs.push(dir);
     const file = join(dir, 'dashboard.sqlite');
     const first = await SqliteSessionStore.open(file);
@@ -290,7 +290,7 @@ describe('SqliteSessionStore persistence', () => {
 
 describe('server key + CSRF', () => {
   const dirWithKey = () => {
-    const dir = mkdtempSync(join(tmpdir(), 'jarvis-key-'));
+    const dir = mkdtempSync(join(tmpdir(), 'friday-key-'));
     tempDirs.push(dir);
     return dir;
   };
@@ -358,14 +358,14 @@ describe('server key + CSRF', () => {
 describe('cookies', () => {
   it('session cookie is HttpOnly, SameSite=Strict, Path=/ and optionally Secure', () => {
     const plain = serializeSessionCookie('abc_DEF-123', { maxAgeSeconds: 3600 });
-    expect(plain).toBe('jarvis_session=abc_DEF-123; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600');
+    expect(plain).toBe('friday_session=abc_DEF-123; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600');
     expect(serializeSessionCookie('abc', { maxAgeSeconds: 10, secureCookies: true })).toContain('; Secure');
     expect(() => serializeSessionCookie('bad;value', { maxAgeSeconds: 1 })).toThrow();
   });
 
   it('csrf cookie is readable by scripts', () => {
     const cookie = serializeCsrfCookie('tok-en_1', { maxAgeSeconds: 60, secureCookies: true });
-    expect(cookie).toBe('jarvis_csrf=tok-en_1; Path=/; SameSite=Strict; Max-Age=60; Secure');
+    expect(cookie).toBe('friday_csrf=tok-en_1; Path=/; SameSite=Strict; Max-Age=60; Secure');
     expect(cookie).not.toContain('HttpOnly');
   });
 
@@ -373,8 +373,8 @@ describe('cookies', () => {
     expect(clearSessionCookie()).toContain('Max-Age=0');
     expect(clearCsrfCookie(true)).toContain('Secure');
     expect(parseCookies(`${SESSION_COOKIE}=a1; ${CSRF_COOKIE}="b2"; other=x=y; ${SESSION_COOKIE}=evil`)).toEqual({
-      jarvis_session: 'a1',
-      jarvis_csrf: 'b2',
+      friday_session: 'a1',
+      friday_csrf: 'b2',
       other: 'x=y',
     });
     expect(parseCookies(undefined)).toEqual({});

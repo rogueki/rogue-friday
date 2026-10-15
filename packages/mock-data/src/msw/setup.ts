@@ -7,7 +7,7 @@ import { createMswHandlers, type MswHandlerOptions } from "./handlers";
 export interface MockPlatformOptions extends MockWorldOptions {
   world?: MockWorld;
   handlers?: MswHandlerOptions;
-  /** Start `jarvis.system.metrics` / `jarvis.agent.heartbeat` events (default: true in the browser, false in Node). */
+  /** Start `friday.system.metrics` / `friday.agent.heartbeat` events (default: true in the browser, false in Node). */
   telemetry?: boolean;
 }
 
@@ -55,8 +55,8 @@ export async function setupBrowserMocks(options: MockPlatformOptions & { service
     ...(serviceWorkerUrl ? { serviceWorker: { url: serviceWorkerUrl } } : {}),
   });
   const uninstall = platform.eventSource.install();
-  // Dev console handle: `__JARVIS_MOCK__.engine.play("voice-pipeline")` in the browser console.
-  (globalThis as { __JARVIS_MOCK__?: unknown }).__JARVIS_MOCK__ = { world: platform.world, engine: platform.engine, hub: platform.hub };
+  // Dev console handle: `__FRIDAY_MOCK__.engine.play("voice-pipeline")` in the browser console.
+  (globalThis as { __FRIDAY_MOCK__?: unknown }).__FRIDAY_MOCK__ = { world: platform.world, engine: platform.engine, hub: platform.hub };
   return {
     ...platform,
     worker,

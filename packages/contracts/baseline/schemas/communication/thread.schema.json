@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/communication/thread.schema.json",
+  "$id": "https://friday.local/schemas/communication/thread.schema.json",
   "title": "Thread",
   "description": "Unified inbox thread (PLAN §33.2). messages is populated in the detail view only.",
   "type": "object",

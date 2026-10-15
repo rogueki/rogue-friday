@@ -1,4 +1,4 @@
-import type { JarvisEvent } from "@jarvis/sdk";
+import type { FridayEvent } from "@friday/sdk";
 import { describe, expect, it } from "vitest";
 import { MockWorld, ORB_TEXT, ScenarioEngine, orbText } from "../src";
 import { eventProblems, expectApiError, record } from "./support";
@@ -16,7 +16,7 @@ describe("injectable sequence provider", () => {
     const seeded = Math.max(...world.state.activity.map((item) => item.sequence));
     const recorder = record(world);
     const activity = world.logActivity({ kind: "system", title: "Test", correlationId: world.correlationId(), adapterId: "mock-activity" });
-    const appended = recorder.events.find((event) => event.type === "jarvis.activity.appended");
+    const appended = recorder.events.find((event) => event.type === "friday.activity.appended");
     expect(appended?.sequence).toBe(1001);
     expect(activity.sequence).toBe(1001);
     expect(activity.sequence).toBe(appended?.sequence);
@@ -50,7 +50,7 @@ describe("injectable sequence provider", () => {
     const first = world.logActivity({ kind: "system", title: "x", correlationId: world.correlationId(), adapterId: "mock-activity" });
     const second = world.logActivity({ kind: "system", title: "y", correlationId: world.correlationId(), adapterId: "mock-activity" });
     expect(second.sequence).toBe(first.sequence + 1);
-    expect(recorder.events.filter((event) => event.type === "jarvis.activity.appended").map((event) => event.sequence)).toEqual([first.sequence, second.sequence]);
+    expect(recorder.events.filter((event) => event.type === "friday.activity.appended").map((event) => event.sequence)).toEqual([first.sequence, second.sequence]);
   });
 });
 
@@ -70,8 +70,8 @@ describe("scenario console: release_orb_state and play_event", () => {
     const engine = ScenarioEngine.for(world);
     const recorder = record(world);
     const payload = { utteranceId: "utt_demo_0001", text: "Hallo", final: false, language: "de", startedAt: "2026-10-14T08:15:00Z" };
-    engine.control({ action: "play_event", eventType: "jarvis.voice.transcript_partial", subject: "voice/utterance", payload });
-    const played = recorder.events.find((event) => event.type === "jarvis.voice.transcript_partial") as JarvisEvent;
+    engine.control({ action: "play_event", eventType: "friday.voice.transcript_partial", subject: "voice/utterance", payload });
+    const played = recorder.events.find((event) => event.type === "friday.voice.transcript_partial") as FridayEvent;
     expect(played.data).toEqual(payload);
     expect(played.subject).toBe("voice/utterance");
     expect(eventProblems(recorder.events)).toEqual([]);
@@ -81,14 +81,14 @@ describe("scenario console: release_orb_state and play_event", () => {
     const world = new MockWorld();
     const engine = ScenarioEngine.for(world);
     const recorder = record(world);
-    for (const eventType of ["jarvis.orb.status_changed", "jarvis.status.changed", "jarvis.system.metrics", "jarvis.voice.state_changed", "jarvis.status.resync_required"] as const) {
+    for (const eventType of ["friday.orb.status_changed", "friday.status.changed", "friday.system.metrics", "friday.voice.state_changed", "friday.status.resync_required"] as const) {
       engine.control({ action: "play_event", eventType });
       expect(recorder.events.some((event) => event.type === eventType), eventType).toBe(true);
     }
     expect(eventProblems(recorder.events)).toEqual([]);
-    expect(expectApiError(() => engine.control({ action: "play_event", eventType: "jarvis.task.created" }))).toMatchObject({ code: "VALIDATION_FAILED" });
-    expect(expectApiError(() => engine.control({ action: "play_event", eventType: "jarvis.unknown.thing", payload: {} }))).toMatchObject({ code: "VALIDATION_FAILED" });
-    expect(expectApiError(() => engine.control({ action: "play_event", eventType: "jarvis.voice.transcript_partial", payload: { text: 5 } }))).toMatchObject({ code: "VALIDATION_FAILED" });
+    expect(expectApiError(() => engine.control({ action: "play_event", eventType: "friday.task.created" }))).toMatchObject({ code: "VALIDATION_FAILED" });
+    expect(expectApiError(() => engine.control({ action: "play_event", eventType: "friday.unknown.thing", payload: {} }))).toMatchObject({ code: "VALIDATION_FAILED" });
+    expect(expectApiError(() => engine.control({ action: "play_event", eventType: "friday.voice.transcript_partial", payload: { text: 5 } }))).toMatchObject({ code: "VALIDATION_FAILED" });
   });
 });
 
@@ -99,7 +99,7 @@ describe("assistant name in generated texts", () => {
     expect(world.orbSnapshot().status.activityText).toBe("FRIDOLIN SPRICHT");
     world.forceOrbState("booting");
     expect(world.orbSnapshot().status.activityText).toBe("FRIDOLIN WIRD INITIALISIERT");
-    expect(world.jarvisStatus().label).toMatch(/^Fridolin /);
+    expect(world.fridayStatus().label).toMatch(/^Fridolin /);
   });
 
   it("defaults to F.R.I.D.A.Y. and follows the world's own profile setting", () => {
@@ -112,8 +112,8 @@ describe("assistant name in generated texts", () => {
     expect(orbText("booting", "Edith")).toBe("EDITH WIRD INITIALISIERT");
   });
 
-  it("contains no legacy brand in user-visible texts (install paths, event names, ids and the wake word are not texts)", () => {
-    const allowed = [/D:\\Jarvis/, /^jarvis\./, /Ereignis jarvis\./, /^jarvis-/, /^Hey Jarvis$/];
+  it("contains no legacy brand in the mock data (the selectable wake word Hey Jarvis is the only exception)", () => {
+    const allowed = [/^Hey Jarvis$/];
     for (const profile of ["default", "empty", "highLoad", "longGerman"] as const) {
       const world = new MockWorld({ profile });
       const offenders: string[] = [];

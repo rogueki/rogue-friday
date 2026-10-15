@@ -1,5 +1,5 @@
-import type { Agent, AgentStatus, ReasoningLevel } from "@jarvis/sdk";
-import type { Tone } from "@jarvis/ui";
+import type { Agent, AgentStatus, ReasoningLevel } from "@friday/sdk";
+import type { Tone } from "@friday/ui";
 
 export const AGENT_STATUSES: readonly AgentStatus[] = ["working", "starting", "waiting", "idle", "paused", "error", "offline"];
 export const REASONING_LEVELS: readonly ReasoningLevel[] = ["none", "low", "medium", "high", "max"];

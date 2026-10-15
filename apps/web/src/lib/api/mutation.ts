@@ -1,6 +1,6 @@
 "use client";
 
-import { createIdempotencyKey } from "@jarvis/sdk";
+import { createIdempotencyKey } from "@friday/sdk";
 import {
   useMutation,
   useQueryClient,

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jarvis.local/schemas/calendar/calendar-conflict-response.schema.json",
+  "$id": "https://friday.local/schemas/calendar/calendar-conflict-response.schema.json",
   "title": "CalendarConflictResponse",
   "description": "Single-resource envelope for CalendarConflict.",
   "type": "object",

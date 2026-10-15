@@ -1,6 +1,6 @@
 "use client";
 
-import type { Capabilities } from "@jarvis/sdk";
+import type { Capabilities } from "@friday/sdk";
 import { useQuery } from "@tanstack/react-query";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { coreQueries } from "./api/domains/core";

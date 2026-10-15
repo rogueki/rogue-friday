@@ -1,5 +1,5 @@
 export * from './types';
-export { TONES } from '@jarvis/design-tokens';
+export { TONES } from '@friday/design-tokens';
 export { cx } from './cx';
 export {
   useMotionMode,
