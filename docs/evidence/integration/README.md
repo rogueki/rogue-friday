@@ -29,28 +29,28 @@ Ein gestoppter Dienst schliesst seinen Port (ECONNREFUSED), wie ein echter gesto
 
 ## Was gezeigt wird (Spec `tests/integration/hybrid.spec.ts`)
 
-| # | Pruefung | Ergebnis | Bilder |
-|---|---|---|---|
-| 1 | Uebersicht: Hermes-Aufgabe im Live-Feed, Kacheln Sprache "Bereit", Agenten "1 aktiv", Modelle "2 verbunden"; `GET /api/v1/overview`: Quellen `hermes-tasks`/`hermes-agents`/`jarvis-voice-http`, Wake Phrase, echte CPU/RAM | PASS | 01 |
-| 2 | Aufgaben: 7 Hermes-Kanban-Aufgaben, Quelle-Badge `hermes` | PASS | 02 |
-| 3 | Agenten: Profile Hermes, Kira, Milo, Kiras laufende Aufgabe | PASS | 03 |
-| 4 | Sprache: Modus Bereit, Wake Word "Hey Friday", Modell `qwen3-router` | PASS | 04 |
-| 5 | System: Qwen, Hermes API, Hermes Dashboard, Voice online; Adaptermatrix 15/15 online; Modelle `qwen3-router` + `jarvis` (API); RAM = `os.totalmem()` des Hosts (echte Messung) | PASS | 05 |
-| 6 | Voice-Dienst gestoppt: genau `jarvis-voice-http` offline (Matrix 14 online, 1 offline), Sprache-Seite "Offline - ... nicht erreichbar seit ..." und Nav-Widget "Sprachdienst offline" (nie "Nicht verbunden"), Uebersichtskachel Sprache "Offline", Voice-Dienst "Offline"; Aufgaben, Agenten, Uebersicht, Memory laufen weiter (`/voice/status` 503, `/tasks` 200) | PASS | 06-09 |
-| 7 | (im selben Test wie 6) Voice neu gestartet: Seite und Matrix erholen sich | PASS | 10-11 |
-| 8 | Hermes (API + Dashboard) gestoppt: genau `hermes-tasks/-activity/-agents` offline (3 offline), Aufgaben/Agenten "Offline - Hermes ... nicht erreichbar seit ...", Hermes-Dienste "Offline"; Voice, System, Memory laufen weiter | PASS | 12-15 |
-| 9 | (im selben Test wie 8) Hermes neu gestartet: 7 Aufgaben, 3 Agenten, Matrix 15 online | PASS | 16-17 |
+| #   | Pruefung                                                                                                                                                                                                                                                                                                                                                            | Ergebnis | Bilder |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | Uebersicht: Hermes-Aufgabe im Live-Feed, Kacheln Sprache "Bereit", Agenten "1 aktiv", Modelle "2 verbunden"; `GET /api/v1/overview`: Quellen `hermes-tasks`/`hermes-agents`/`jarvis-voice-http`, Wake Phrase, echte CPU/RAM                                                                                                                                         | PASS     | 01     |
+| 2   | Aufgaben: 7 Hermes-Kanban-Aufgaben, Quelle-Badge `hermes`                                                                                                                                                                                                                                                                                                           | PASS     | 02     |
+| 3   | Agenten: Profile Hermes, Kira, Milo, Kiras laufende Aufgabe                                                                                                                                                                                                                                                                                                         | PASS     | 03     |
+| 4   | Sprache: Modus Bereit, Wake Word "Hey Friday", Modell `qwen3-router`                                                                                                                                                                                                                                                                                                | PASS     | 04     |
+| 5   | System: Qwen, Hermes API, Hermes Dashboard, Voice online; Adaptermatrix 15/15 online; Modelle `qwen3-router` + `jarvis` (API); RAM = `os.totalmem()` des Hosts (echte Messung)                                                                                                                                                                                      | PASS     | 05     |
+| 6   | Voice-Dienst gestoppt: genau `jarvis-voice-http` offline (Matrix 14 online, 1 offline), Sprache-Seite "Offline - ... nicht erreichbar seit ..." und Nav-Widget "Sprachdienst offline" (nie "Nicht verbunden"), Uebersichtskachel Sprache "Offline", Voice-Dienst "Offline"; Aufgaben, Agenten, Uebersicht, Memory laufen weiter (`/voice/status` 503, `/tasks` 200) | PASS     | 06-09  |
+| 7   | (im selben Test wie 6) Voice neu gestartet: Seite und Matrix erholen sich                                                                                                                                                                                                                                                                                           | PASS     | 10-11  |
+| 8   | Hermes (API + Dashboard) gestoppt: genau `hermes-tasks/-activity/-agents` offline (3 offline), Aufgaben/Agenten "Offline - Hermes ... nicht erreichbar seit ...", Hermes-Dienste "Offline"; Voice, System, Memory laufen weiter                                                                                                                                     | PASS     | 12-15  |
+| 9   | (im selben Test wie 8) Hermes neu gestartet: 7 Aufgaben, 3 Agenten, Matrix 15 online                                                                                                                                                                                                                                                                                | PASS     | 16-17  |
 
 Die Tabelle nummeriert die Szenarien; die Spec fasst Ausfall und Erholung je Dienst in einem Test zusammen (7 Tests, Zeilen 6+7 und 8+9).
 Die Tests sind unabhaengig (kein `serial`-Modus: ein Fehlschlag ueberspringt die uebrigen nicht mehr) und starten den gestoppten Dienst in `finally` neu.
 Ausfall-Texte: `Offline` + `<Adapter> nicht erreichbar seit ...` (innerText zeigt per CSS Grossbuchstaben, daher case-insensitive); "Nicht verbunden" bleibt dem Fall "nicht konfiguriert" vorbehalten.
 
-Ergebnis 2026-10-14, Commit `8d5efb3` (+ lokale Aenderung an `tests/integration/hybrid.spec.ts`), zwei Laeufe nacheinander:
+Ergebnis 2026-10-14, Commit `25a7d56` (Spec-Anpassung enthalten); erneut 7/7 nach `f4b281e`, zwei Laeufe nacheinander:
 
-| Lauf | Ergebnis | Dauer |
-|---|---|---|
-| 1 | 7 passed | 3,5 min |
-| 2 | 7 passed | 3,3 min |
+| Lauf | Ergebnis | Dauer   |
+| ---- | -------- | ------- |
+| 1    | 7 passed | 3,5 min |
+| 2    | 7 passed | 3,3 min |
 
 Zusaetzlich `apps/control-api/test/real-adapters.test.ts` (8 Tests, ohne Browser)
 prueft Registrierung, Mock-Fallbacks, `file:`-Secret (Schluessel taucht in Antworten, Health und Logs nie auf), Platzhalter-Kollision
