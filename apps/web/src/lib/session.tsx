@@ -4,8 +4,9 @@ import type { Role, Session } from "@jarvis/sdk";
 import { isJarvisApiError } from "@jarvis/sdk";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { setCsrfToken } from "./api/client";
+import { getRestoredIdentity, isApiUnreachable, subscribeUnreachable } from "./offlineCache/controller";
 import { coreQueries } from "./api/domains/core";
 import { BootScreen, FatalErrorScreen } from "@/components/FullScreen";
 
@@ -17,6 +18,12 @@ export interface SessionInfo {
   role: Role | null;
   displayName: string | null;
   error: unknown;
+  /**
+   * The API is unreachable and the identity comes from the offline cache of the last session (read-only, no token).
+   * `session` stays null in this state; `savedAt` is when the cached data was written.
+   */
+  offline: boolean;
+  offlineSavedAt: number | null;
   refetch: () => void;
 }
 
@@ -29,8 +36,15 @@ export function useSession(): SessionInfo {
     setCsrfToken(session?.csrfToken ?? null);
   }, [session?.csrfToken]);
 
+  // Only an unreachable API (never a 401) may fall back to the stored identity; the cookie stays the only credential.
+  // The flag survives the retries of the session query (a refetch without data resets its status to pending), so the
+  // gate does not flip back to the boot screen every few seconds while the API is away.
+  const unreachable = useSyncExternalStore(subscribeUnreachable, isApiUnreachable, () => false);
+  const cached = !session && unreachable ? getRestoredIdentity() : null;
+
   let status: SessionStatus;
-  if (query.isPending) status = "loading";
+  if (cached) status = "authenticated";
+  else if (query.isPending) status = "loading";
   else if (isJarvisApiError(query.error) && (query.error.code === "UNAUTHENTICATED" || query.error.status === 401)) status = "unauthenticated";
   else if (query.isError && !session) status = "error";
   else status = session?.authenticated ? "authenticated" : "unauthenticated";
@@ -38,9 +52,11 @@ export function useSession(): SessionInfo {
   return {
     status,
     session,
-    role: session?.role ?? null,
-    displayName: session?.user?.displayName ?? null,
+    role: session?.role ?? (cached ? (cached.identity.role as Role) : null),
+    displayName: session?.user?.displayName ?? cached?.identity.displayName ?? null,
     error: query.error,
+    offline: cached !== null,
+    offlineSavedAt: cached?.savedAt ?? null,
     refetch: () => void query.refetch(),
   };
 }

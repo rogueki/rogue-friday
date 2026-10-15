@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -147,6 +147,21 @@ describe('password hashing', () => {
     expect(await verifyPassword('', a)).toBe(false);
   });
 
+  it('burns a full scrypt computation for an unknown user (no timing oracle for user names)', async () => {
+    const stored = await hashPassword('secret-password-1');
+    const time = async (encoded: string | null) => {
+      const started = performance.now();
+      await verifyPassword('secret-password-2', encoded);
+      return performance.now() - started;
+    };
+    await time(null); // warm up the dummy hash
+    const median = async (encoded: string | null) => (await Promise.all([0, 1, 2].map(() => time(encoded)))).sort((x, y) => x - y)[1]!;
+    const wrong = await median(stored);
+    const unknown = await median(null);
+    expect(unknown).toBeGreaterThan(wrong * 0.4);
+    expect(unknown).toBeLessThan(wrong * 2.5);
+  });
+
   it('fails closed on malformed or hostile stored hashes', async () => {
     expect(await verifyPassword('x', null)).toBe(false);
     expect(await verifyPassword('x', 'plaintext')).toBe(false);
@@ -290,6 +305,15 @@ describe('server key + CSRF', () => {
     expect(second.key.equals(first.key)).toBe(true);
     expect(statSync(first.path).isFile()).toBe(true);
     if (process.platform !== 'win32') expect(statSync(first.path).mode & 0o077).toBe(0);
+  });
+
+  it('tightens the permissions of an existing, too open key file on every load', () => {
+    if (process.platform === 'win32') return;
+    const dir = dirWithKey();
+    const { path } = loadOrCreateServerKey(dir);
+    chmodSync(path, 0o644);
+    expect(loadOrCreateServerKey(dir).permissionsRestricted).toBe(true);
+    expect(statSync(path).mode & 0o077).toBe(0);
   });
 
   it('derives independent sub-keys', () => {

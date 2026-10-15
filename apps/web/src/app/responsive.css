@@ -51,8 +51,12 @@
   .jv-bottombar__center { flex: 1; }
   .jv-bottombar .jv-panel__body { padding: 0 10px; }
   .jv-bottombar__quick { display: none; }
-  /* The capsule needs the whole row on phones; the text input is not offered below 700 px (open point: a dedicated mobile entry). */
-  .jv-bottombar__text { display: none; }
+  /* Command bar stays prominent on phones: a full-width text field on top, the talk capsule with pause/stop below it. */
+  .jv-bottombar .jv-panel__body { display: flex; flex-wrap: wrap; align-items: center; height: auto; padding: 8px 10px; gap: 8px; }
+  .jv-bottombar__text { order: 1; flex: 1 1 100%; max-width: none; height: 38px; }
+  .jv-bottombar__center { order: 2; flex: 1 1 100%; min-width: 0; }
+  .jv-capsule { flex: 1 1 0; width: auto; min-width: 0; }
+  .jv-bottombar--compact .jv-capsule { min-width: 0; }
 }
 
 /* Short laptop screens: agent cards keep name, status and trace; the task line would be clipped. */

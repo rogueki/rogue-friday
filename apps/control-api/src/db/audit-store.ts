@@ -159,6 +159,21 @@ export class AuditStore {
     return null;
   }
 
+  /**
+   * Re-seals the head anchors with the current server key after `auth.key` was lost and regenerated. The anchors are
+   * HMACs under a key derived from it, so they can no longer be read; the stored data is unaffected. Only done when the
+   * chain itself verifies (a broken chain stays reported). Returns whether the anchors were rewritten.
+   */
+  reanchorAfterKeyLoss(): boolean {
+    if (!this.anchor) return false;
+    const rows = this.db.prepare("SELECT seq, json, prev_hash, hash FROM audit_log ORDER BY seq").all() as unknown as AuditRow[];
+    if (rows.length === 0) return false;
+    const result = verifyChain(rows.map((row) => ({ event: JSON.parse(row.json) as unknown, prevHash: row.prev_hash, hash: row.hash })));
+    if (!result.valid) return false;
+    this.anchor.write({ length: rows.length, hash: (rows.at(-1) as AuditRow).hash });
+    return true;
+  }
+
   count(): number {
     return (this.db.prepare("SELECT COUNT(*) AS n FROM audit_log").get() as { n: number }).n;
   }

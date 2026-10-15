@@ -125,6 +125,9 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     onError: (error) => logger.error("Audit-Anker konnte nicht geschrieben werden", { error: error instanceof Error ? error.message : String(error) }),
   });
   const audit = new AuditStore(db, undefined, auditAnchor);
+  // A freshly generated server key next to an existing audit trail means auth.key was lost: the old anchors cannot be
+  // verified any more, but the data is intact. Re-seal them (only if the chain verifies) instead of reporting tampering.
+  if (serverKey.created && audit.reanchorAfterKeyLoss()) logger.warn("auth.key wurde neu erzeugt: Audit-Anker mit dem neuen Schlüssel neu versiegelt; angemeldete Clients holen ein neues CSRF-Token");
   const idempotency = new IdempotencyStore(db);
   const commands = new CommandHistoryStore(db);
   const library = new LibraryStore(db);

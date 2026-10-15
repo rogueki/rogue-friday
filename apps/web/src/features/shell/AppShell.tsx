@@ -11,6 +11,7 @@ import { useUpdateSettings } from "@/lib/api/domains/settings";
 import { useAppSettings } from "@/lib/settings";
 import { AppBottomBar } from "./AppBottomBar";
 import { AppTopBar } from "./AppTopBar";
+import { OfflineCacheBanner } from "./OfflineCacheBanner";
 import { ErrorDetailDrawer, LiveActivityDrawer, NotificationsDrawer } from "./drawers";
 import { pageRoute, useNavItems } from "./navModel";
 import { VoiceNavPanel } from "./VoiceNavPanel";
@@ -60,6 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         topBar={<AppTopBar />}
         bottomBar={<AppBottomBar />}
       >
+        <OfflineCacheBanner />
         {children}
       </JarvisShell>
       <GlobalCommandPalette />

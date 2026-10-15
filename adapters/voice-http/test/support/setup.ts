@@ -24,7 +24,8 @@ export async function createRig(
   const llama = await createFakeUpstream();
   installLlamaServer(llama);
   const adapter = new JarvisVoiceHttpAdapter();
-  const config = { baseUrl: voice.url, localModelUrl: llama.url, ...FAST, ...overrides };
+  // Level polling is off by default so request counting tests stay exact; level tests switch it on.
+  const config = { baseUrl: voice.url, localModelUrl: llama.url, ...FAST, levelPollIntervalMs: 0, ...overrides };
   const session = await openSession(adapter, config, options);
   return {
     voice,

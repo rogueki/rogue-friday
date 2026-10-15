@@ -1,5 +1,6 @@
 "use client";
 
+import { clearOfflineCache } from "../../offlineCache/controller";
 import type {
   ActionResult,
   AdapterConfigPatch,
@@ -138,6 +139,7 @@ export function useLogoutAll() {
     mutationFn: () => call(getApiClient().POST("/api/v1/auth/logout-all")),
     invalidate: () => {
       queryClient.clear();
+      clearOfflineCache();
       return [];
     },
   });

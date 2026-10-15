@@ -35,6 +35,9 @@ E2E_SOAK=1 pnpm test:e2e tests/e2e/performance.spec.ts -g soak   # 30-Minuten-Or
 | `navigation`, `scenarios`, `tasks`, `approvals`, `outage`, `orb-states`, `command-bar`, `settings`, `reconnect`, `fallback-2d` `.spec.ts` | E2E (§51.5)                                                                                                                                                    |
 | `visual.spec.ts`                                                                                                                          | Visual Regression (§51.4), Baselines in `__screenshots__/visual.spec.ts/` (pro Plattform)                                                                      |
 | `a11y.spec.ts`                                                                                                                            | axe-core WCAG 2.0/2.1 A+AA, Tastatur, Fokus, Reduced Motion, Nicht-nur-Farbe (§51.7)                                                                           |
+| `mobile.spec.ts` | Smartphone 390x844 (PLAN §27.15, §53): kein horizontales Scrollen, Command Bar vollständig und prominent, Navigation als Drawer, Attention vor Detailmodulen, Karten statt Tabellen; Baselines `mobile-*-linux.png` |
+| `offline-cache.spec.ts` | Offline-Cache (Phase 11): Reload bei gesperrter API zeigt die letzten Daten mit Offline-Cache-Banner/-Badge, nichts Geheimes im Speicher, automatische Rückkehr |
+| `security.spec.ts` | Security-Gate im Browser (docs/SECURITY.md §9): Cookie-Flags, CSP ohne Verstöße auf allen Seiten, kein ungehashtes Inline-Skript, kein Framing, Host-/Origin-Prüfung |
 | `performance.spec.ts`                                                                                                                     | 10 000 Aktivitäten, 1 000 Tasks, Reconnect unter Last, Hintergrund-Tab, Orb-Soak (§51.6)                                                                       |
 
 ## Determinismus der Visual-Tests

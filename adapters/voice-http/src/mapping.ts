@@ -21,6 +21,9 @@ const invalid = (reason: string): AdapterError =>
     retryable: false,
   });
 
+/** Levels are normalized by the service; anything outside 0..1 is clamped, not rejected (a level is only a hint). */
+export const clampLevel = (value: number): number => Math.min(1, Math.max(0, value));
+
 const isCount = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= 0;
 
@@ -42,6 +45,9 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
   if (typeof raw.trusted !== "boolean") throw invalid("trusted");
   if (raw.game_mode !== undefined && raw.game_mode !== null && typeof raw.game_mode !== "string")
     throw invalid("game_mode");
+  for (const key of ["input_level", "output_level"] as const)
+    if (raw[key] !== undefined && (typeof raw[key] !== "number" || !Number.isFinite(raw[key])))
+      throw invalid(key);
   for (const key of ["assistant_name", "wake_phrase"] as const)
     if (raw[key] !== undefined && (typeof raw[key] !== "string" || raw[key] === "")) throw invalid(key);
   return {
@@ -56,6 +62,8 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
     ...(raw.game_mode !== undefined ? { game_mode: raw.game_mode } : {}),
     ...(typeof raw.assistant_name === "string" ? { assistant_name: raw.assistant_name } : {}),
     ...(typeof raw.wake_phrase === "string" ? { wake_phrase: raw.wake_phrase } : {}),
+    ...(typeof raw.input_level === "number" ? { input_level: clampLevel(raw.input_level) } : {}),
+    ...(typeof raw.output_level === "number" ? { output_level: clampLevel(raw.output_level) } : {}),
   };
 }
 
@@ -93,8 +101,8 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
         state: starting ? "off" : inCommand ? "listening" : "idle",
         active: !starting,
         deviceId: null,
-        // The service measures no level towards the outside; 0 is "no data", not silence.
-        inputLevel: 0,
+        // Smoothed RMS of the last input blocks (`input_level`). Services without the meter report nothing: 0 = no data.
+        inputLevel: raw.input_level ?? 0,
       },
       wakeWord: {
         enabled: !starting,
