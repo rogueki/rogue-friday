@@ -128,7 +128,11 @@ a technical detail, this file wins; on product scope, `PLAN.md` wins.
 - Fonts self-hosted via `@fontsource`: Oxanium (headings, uppercase, tracking), Inter (body), JetBrains Mono (metrics).
 - Icons: `lucide-react`, stroke width 1.5, cyan by default.
 - Panels: `HudPanel` with technical cut corners via `clip-path`, 1px cyan border at low/medium opacity, inner
-  highlight line, small corner brackets. Glow only on active/attention panels. Gold only for orb/AI-core context.
+  highlight line, small corner brackets. Glow only on active/attention panels. Full gold only for orb/AI-core context.
+- **Owner decision 2026-10-15 (relaxes PLAN §24.2, not edited in PLAN.md):** warning and approval hints (tone `amber`, `--friday-warning`)
+  use a subtle gold derived from the orb gold (`--friday-attention-gold` text/border, `--friday-attention-gold-dim` fill) instead of yellow.
+  Errors stay red, success green, info cyan, P0/critical red. Only thin borders, text and low-alpha fills; cyan stays dominant
+  (80-85 % navy, 10-15 % cyan). Details: `docs/DESIGN_SYSTEM.md` "Attention gold".
 - Reference images: `design-references/` — briefing only, never used as assets.
 
 ## 8. Orb
