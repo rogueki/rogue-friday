@@ -1,8 +1,9 @@
 """Installer: Sprachmodelle laden, GPU/CPU fuer Whisper ermitteln, config/voice.json schreiben.
 
-Aufruf: python voice_setup.py <C:\\Jarvis>
-Assistentenname und Wake-Phrase kommen aus config/persona.json (assistant_name, Standard Friday). Wake-Engine:
-"openwakeword" nur fuer Jarvis (vortrainiertes hey_jarvis + Owner-Verifier), sonst "personal" (siehe personal_wake.py).
+Aufruf: python voice_setup.py <C:\\Friday>
+Assistentenname und Wake-Phrase kommen aus config/persona.json (assistant_name, Standard Friday; wake_phrase, frei
+waehlbar, Standard "Hey <Name>"). Wake-Engine: "openwakeword" nur fuer die Phrase "Hey Jarvis" (vortrainiertes
+hey_jarvis + Owner-Verifier), sonst "personal" (siehe personal_wake.py).
 """
 import json
 import os
@@ -10,7 +11,7 @@ import shutil
 import sys
 import time
 
-ROOT = sys.argv[1] if len(sys.argv) > 1 else r"C:\Jarvis"
+ROOT = sys.argv[1] if len(sys.argv) > 1 else r"C:\Friday"
 VOICE = os.path.join(ROOT, "voice")
 MODELS = os.path.join(ROOT, "models")
 CONFIG = os.path.join(ROOT, "config")
@@ -32,8 +33,8 @@ def step(msg: str) -> None:
 
 p = persona.load(os.path.join(CONFIG, "persona.json"))
 NAME = p["assistant_name"]
-ENGINE = persona.wake_engine(NAME)
-PHRASE = persona.wake_phrase(NAME)
+PHRASE = p["wake_phrase"]
+ENGINE = persona.wake_engine(PHRASE)
 print(f"   Assistent: {NAME} | Wake Word: {PHRASE} | Engine: {ENGINE}")
 
 step("Wake-Word-Modelle (openWakeWord: Audio-Features, enthaelt 'Hey Jarvis')")
@@ -95,7 +96,7 @@ else:
 step("config/voice.json schreiben")
 cfg = {
     **persona.voice_settings(p),
-    # Jarvis-Weg (wake_engine "openwakeword"): vortrainiertes Modell + Owner-Verifier, unveraendert
+    # Weg "Hey Jarvis" (wake_engine "openwakeword"): vortrainiertes Modell + Owner-Verifier, unveraendert
     "wake_model": os.path.join(oww, "hey_jarvis_v0.1.onnx"),
     "wake_verifier": os.path.join(oww, "hey_jarvis_owner_verifier.joblib"),
     "wake_threshold": 0.5,
@@ -105,11 +106,11 @@ cfg = {
     "personal_wake_model": os.path.join(oww, "personal_wake.npz"),
     "personal_wake_meta": os.path.join(oww, "personal_wake.json"),
     "personal_wake_threshold": None,
-    # Stufe 2 (nur persoenlicher Weg): Whisper-Namenscheck auf dem ~2-s-Fenster nach Stufe 1
+    # Stufe 2 (nur persoenlicher Weg): Whisper-Abgleich mit der Wake Phrase auf dem ~2-s-Fenster nach Stufe 1
     "wake_confirm": True,
     "wake_confirm_languages": ["de", "en"],
-    "wake_aliases": personal_wake.default_aliases(NAME),
-    "wake_reject_words": personal_wake.default_reject_words(NAME),
+    "wake_aliases": personal_wake.default_aliases(PHRASE),
+    "wake_reject_words": personal_wake.default_reject_words(PHRASE),
     "wake_match_max_dist": None,
     "wake_refractory_s": 1.0,
     "speaker_profile": os.path.join(VOICE, "profiles", "owner", "embeddings", "owner_ecapa.npy"),
@@ -123,7 +124,7 @@ cfg = {
     **whisper,
     "qwen_url": "http://127.0.0.1:43692/v1/chat/completions",
     "hermes_url": "http://127.0.0.1:43693/v1/chat/completions",
-    "hermes_model": "jarvis",
+    "hermes_model": "friday",
     "hermes_key_file": os.path.join(CONFIG, "hermes_api.key"),
     "tts_url": None,
     "tts_voice": voice,

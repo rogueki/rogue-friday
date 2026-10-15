@@ -1,9 +1,9 @@
 """Wake-Word-Training nach dem Enrollment.
 
-Name "Jarvis": trainiert den openWakeWord-Custom-Verifier (Owner sagt "Hey Jarvis" vs. Owner sagt etwas anderes) und
-schreibt models/openwakeword/hey_jarvis_owner_verifier.joblib - unveraendert.
-Jeder andere Name (Standard Friday): der Verifier kann nur ein vorhandenes Basismodell neu bewerten, keine neue Phrase
-erkennen. Stattdessen entsteht das persoenliche Wake Word (build_personal_wake.py).
+Wake Phrase "Hey Jarvis": trainiert den openWakeWord-Custom-Verifier (Owner sagt "Hey Jarvis" vs. Owner sagt etwas
+anderes) und schreibt models/openwakeword/hey_jarvis_owner_verifier.joblib - unveraendert.
+Jede andere Phrase (Standard "Hey Friday"): der Verifier kann nur ein vorhandenes Basismodell neu bewerten, keine neue
+Phrase erkennen. Stattdessen entsteht das persoenliche Wake Word (build_personal_wake.py).
 """
 import glob
 import os
@@ -11,19 +11,19 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-JARVIS = os.path.dirname(ROOT)
+INSTALL_ROOT = os.path.dirname(ROOT)
 sys.path.insert(0, ROOT)
 
 import personal_wake  # noqa: E402
 
-NAME = personal_wake.resolve_assistant_name(os.path.join(JARVIS, "config"))
-if personal_wake.slugify(NAME) != "jarvis":
-    sys.exit(subprocess.call([sys.executable, os.path.join(ROOT, "build_personal_wake.py"), JARVIS]))
+PHRASE = personal_wake.resolve_wake_phrase(os.path.join(INSTALL_ROOT, "config"))
+if not personal_wake.is_pretrained_phrase(PHRASE):
+    sys.exit(subprocess.call([sys.executable, os.path.join(ROOT, "build_personal_wake.py"), INSTALL_ROOT]))
 
 import openwakeword  # noqa: E402
 
 RAW = os.path.join(ROOT, "profiles", "owner", "raw")
-OWW = os.path.join(JARVIS, "models", "openwakeword")
+OWW = os.path.join(INSTALL_ROOT, "models", "openwakeword")
 
 # Trotz Docstring ("directory") erwartet train_custom_verifier Listen von WAV-Pfaden.
 positives = sorted(glob.glob(os.path.join(RAW, "wake_hey_jarvis", "*.wav")))

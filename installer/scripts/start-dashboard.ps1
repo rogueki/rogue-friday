@@ -1,12 +1,12 @@
 ﻿# Startet das F.R.I.D.A.Y. Command Center (Control API + Web, Standard http://127.0.0.1:3100) und startet es bei Absturz neu.
-# Einzelinstanz per benanntem Mutex; Stop: Datei C:\Jarvis\run\start-dashboard.ps1.stop (siehe Stop-LauncherService im Installer).
-# Installationsort C:\Jarvis\dashboard (Entscheidung des Eigentuemers, siehe docs/DEPLOYMENT.md). Log: C:\Jarvis\logs\dashboard-service.log
+# Einzelinstanz per benanntem Mutex; Stop: Datei C:\Friday\run\start-dashboard.ps1.stop (siehe Stop-LauncherService im Installer).
+# Installationsort C:\Friday\dashboard (Entscheidung des Eigentuemers, siehe docs/DEPLOYMENT.md). Log: C:\Friday\logs\dashboard-service.log
 param([switch]$Visible)
-$root = 'C:\Jarvis'
+$root = 'C:\Friday'
 $dash = "$root\dashboard"
 $main = "$dash\apps\control-api\dist\main.js"
 $log  = "$root\logs\dashboard-service.log"
-$env:JARVIS_CONFIG_DIR = "$dash\config"
+$env:FRIDAY_CONFIG_DIR = "$dash\config"
 # Log-Rotation waehrend der Server laeuft: Ausgabe von node geht Zeile fuer Zeile durch Write-AppLog, das alle 30 s die Groesse prueft
 # (dashboard-service.log > 10 MB -> dashboard-service.log.1). Kein cmd-Redirect, der die Datei dauerhaft offen halten wuerde.
 $script:lastRotateCheck = Get-Date
@@ -50,9 +50,9 @@ while (-not (Test-Path $stopFlag)) {
     Invoke-LogRotation
     $node = Find-Node
     if (-not $node) {
-        Write-Log 'Node.js nicht gefunden - install-jarvis.bat erneut starten (Schritt Command Center).'
+        Write-Log 'Node.js nicht gefunden - install-friday.bat erneut starten (Schritt Command Center).'
     } elseif (-not (Test-Path $main)) {
-        Write-Log "$main fehlt - install-jarvis.bat erneut starten (Schritt Command Center)."
+        Write-Log "$main fehlt - install-friday.bat erneut starten (Schritt Command Center)."
     } else {
         Write-Log "start ($node)"
         & $node $main 2>&1 | ForEach-Object { Write-AppLog "$_"; if ($Visible) { "$_" } }

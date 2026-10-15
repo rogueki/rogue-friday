@@ -4,9 +4,10 @@ Mikrofon -> Wake Word -> Befehl per Silero-VAD -> ECAPA-Sprecherpruefung
 -> faster-whisper (GPU) -> Qwen-Router -> lokale Antwort oder Hermes/Kimi -> Piper-TTS.
 
 Wake-Engines (voice.json "wake_engine"):
-- "openwakeword": vortrainiertes hey_jarvis + Owner-Verifier (nur Name Jarvis).
-- "personal": persoenliches Wake Word (personal_wake.py): Stufe 1 Few-Shot-Fenstermodell auf openWakeWord-Features,
-  Stufe 2 Whisper-Namenscheck nur wenn Stufe 1 ausloest, danach wie immer die ECAPA-Sprecherpruefung.
+- "openwakeword": vortrainiertes hey_jarvis + Owner-Verifier (nur die Wake Phrase "Hey Jarvis").
+- "personal": persoenliches Wake Word fuer eine frei gewaehlte Phrase (personal_wake.py): Stufe 1 Few-Shot-Fenstermodell
+  auf openWakeWord-Features, Stufe 2 Whisper-Abgleich mit der ganzen Phrase nur wenn Stufe 1 ausloest, danach wie immer
+  die ECAPA-Sprecherpruefung.
 
 Fail closed: ohne Sprecherprofil/ECAPA startet der Dienst nicht; unbekannte Sprecher werden still ignoriert.
 Keine Rohaudios werden gespeichert, nur Metadaten in logs/voice.jsonl.
@@ -29,9 +30,9 @@ import uuid
 import winsound
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-JARVIS = os.path.dirname(ROOT)
+INSTALL_ROOT = os.path.dirname(ROOT)
 sys.path.insert(0, ROOT)
-os.environ.setdefault("HF_HOME", os.path.join(JARVIS, "cache", "huggingface"))
+os.environ.setdefault("HF_HOME", os.path.join(INSTALL_ROOT, "cache", "huggingface"))
 
 import cuda_dlls  # noqa: E402
 
@@ -47,7 +48,7 @@ from audio_level import LevelMeter  # noqa: E402
 SR = 16000
 CHUNK = 1280  # 80 ms, Eingabegroesse von openWakeWord
 VAD_FRAME = 512
-LOG_PATH = os.path.join(JARVIS, "logs", "voice.jsonl")
+LOG_PATH = os.path.join(INSTALL_ROOT, "logs", "voice.jsonl")
 
 # Kompaktes Zeilenformat statt JSON: Qwen erzeugt ~40 tok/s, ein JSON-Objekt kostete ~1,2 s, diese Zeile ~0,3 s.
 ROUTER_PROMPT = """JETZT IST: {now}. Nutze fuer Uhrzeit/Datum ausschliesslich diesen Wert.
@@ -273,7 +274,7 @@ class SpeakerVerifier:
         self.threshold = threshold
         # COPY statt Symlink: Windows-Symlinks brauchen Sonderrechte und erzeugen sonst eine Warnung.
         self.enc = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
-                                                  savedir=os.path.join(JARVIS, "models", "ecapa"),
+                                                  savedir=os.path.join(INSTALL_ROOT, "models", "ecapa"),
                                                   local_strategy=LocalStrategy.COPY)
 
     def score(self, audio: np.ndarray) -> float:
@@ -317,14 +318,14 @@ class VoiceService:
         from faster_whisper import WhisperModel
         self.whisper = WhisperModel(cfg["whisper_model"], device=cfg.get("whisper_device", "cuda"),
                                     compute_type=cfg["whisper_compute_type"],
-                                    download_root=os.path.join(JARVIS, "models", "whisper"))
+                                    download_root=os.path.join(INSTALL_ROOT, "models", "whisper"))
         self.whisper.transcribe(np.zeros(SR, dtype=np.float32), language="de")  # CUDA-Warmup
         self.tts = Speaker(cfg["tts_voice"], cfg["output_device"], cfg.get("tts_url"), cfg.get("tts_film_filter", False))
         self.tts.prefetch([cfg.get("ack_wait", DEFAULT_ACK_WAIT), cfg.get("ack_background", DEFAULT_ACK_BACKGROUND)])
         self._route("Hallo")  # Router-Warmup: erster Aufruf dauerte live 7,2 s statt ~0,4 s
 
     def _load_wake(self, test_wake_model: str | None) -> None:
-        oww_dir = os.path.join(JARVIS, "models", "openwakeword")
+        oww_dir = os.path.join(INSTALL_ROOT, "models", "openwakeword")
         if self.engine == "personal":
             self._load_personal_wake(oww_dir)
             return
@@ -351,17 +352,17 @@ class VoiceService:
         for path in (model_path, meta_path):
             if not os.path.exists(path):
                 raise SystemExit(f"Persoenliches Wake-Word-Modell fehlt: {path} - Stimmaufnahme/Training erneut "
-                                 "ausfuehren (install-jarvis.bat). Fail closed, Dienst startet nicht.")
+                                 "ausfuehren (install-friday.bat). Fail closed, Dienst startet nicht.")
         meta = personal_wake.load_meta(meta_path)
-        if meta.get("slug") and meta["slug"] != personal_wake.slugify(self.name):
-            raise SystemExit(f"Wake-Word-Modell gehoert zu '{meta.get('assistant_name')}', nicht zu '{self.name}'.")
+        if meta.get("wake_phrase") and personal_wake.phrase_key(meta["wake_phrase"]) != personal_wake.phrase_key(self.phrase):
+            raise SystemExit(f"Wake-Word-Modell gehoert zu '{meta['wake_phrase']}', nicht zu '{self.phrase}'.")
         self.wake_threshold = self.cfg.get("personal_wake_threshold") or meta["threshold"]
         self.oww = personal_wake.PersonalWakeDetector(
             personal_wake.WindowModel.load(model_path), os.path.join(oww_dir, "melspectrogram.onnx"),
             os.path.join(oww_dir, "embedding_model.onnx"))
         self.wake_name = "personal"
         print(f"Wake Word: {self.phrase} (persoenlich, Schwelle {self.wake_threshold}, Qualitaet "
-              f"{meta.get('quality', '?')}, Namenscheck {'an' if self.cfg.get('wake_confirm', True) else 'aus'})",
+              f"{meta.get('quality', '?')}, Phrasencheck {'an' if self.cfg.get('wake_confirm', True) else 'aus'})",
               flush=True)
 
     # ---------- Audio ----------
@@ -444,7 +445,7 @@ class VoiceService:
 
     def _ask_hermes(self, text: str, decision: dict, task_id: str) -> str:
         effort = {"kimi_low": "low", "kimi_high": "high", "kimi_max": "max"}[decision["route"]]
-        payload = {"model": self.cfg.get("hermes_model", "kira"), "messages": [
+        payload = {"model": self.cfg.get("hermes_model", "friday"), "messages": [
             {"role": "system", "content": HERMES_VOICE_SYSTEM.format(effort=effort)},
             *self.history[-6:], {"role": "user", "content": text}]}
         t = time.monotonic()
@@ -535,8 +536,8 @@ class VoiceService:
         return float(self.oww.predict(chunk).get(self.wake_name, 0.0))
 
     def _confirm_name(self) -> tuple[bool, int]:
-        """Stufe 2 (persoenliches Wake Word): Whisper auf dem ~2-s-Fenster, unscharfer Namensvergleich.
-        Der Name steht am Ende des Fensters; Rueckgabe (bestaetigt, Dauer in ms)."""
+        """Stufe 2 (persoenliches Wake Word): Whisper auf dem ~2-s-Fenster, unscharfer Abgleich mit der ganzen Wake Phrase
+        (bzw. ihrer Kurzform). Die Phrase steht am Ende des Fensters; Rueckgabe (bestaetigt, Dauer in ms)."""
         cfg = self.cfg
         t0 = time.monotonic()
         audio = np.concatenate(list(self.ring)).astype(np.float32) / 32768.0
@@ -544,8 +545,8 @@ class VoiceService:
             segs, _ = self.whisper.transcribe(audio, language=language, beam_size=1, vad_filter=False,
                                               condition_on_previous_text=False, temperature=0.0)
             text = " ".join(seg.text.strip() for seg in segs)
-            hit, _, _ = personal_wake.name_matches(text, self.name, cfg.get("wake_aliases", ()),
-                                                   cfg.get("wake_reject_words", ()), cfg.get("wake_match_max_dist"))
+            hit, _, _ = personal_wake.phrase_matches(text, self.phrase, cfg.get("wake_aliases", ()),
+                                                     cfg.get("wake_reject_words", ()), cfg.get("wake_match_max_dist"))
             if hit:
                 return True, round((time.monotonic() - t0) * 1000)
         return False, round((time.monotonic() - t0) * 1000)
@@ -691,7 +692,7 @@ class VoiceService:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--config", default=os.path.join(JARVIS, "config", "voice.json"))
+    ap.add_argument("--config", default=os.path.join(INSTALL_ROOT, "config", "voice.json"))
     ap.add_argument("--test-wake-model", help="Ersatzmodell zum Testen der Kette (z. B. hey_jarvis), ohne Verifier; "
                     "erzwingt die Engine openwakeword")
     args = ap.parse_args()

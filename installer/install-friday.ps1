@@ -1,14 +1,16 @@
 ﻿#Requires -Version 5.1
 <#
   F.R.I.D.A.Y. – Komplettinstallation (Windows 11 + WSL2 + Hermes Agent + Kimi K3 + lokale Sprachsteuerung)
-  Standardassistent: F.R.I.D.A.Y. ("Friday", Nachfolger von J.A.R.V.I.S.), Wake Word "Hey Friday". Der Name wird
-  vor der Stimmaufnahme abgefragt und kann frei gewählt werden (z. B. Jarvis, James). Später ändern: change-assistant-name.bat
-  (= install-jarvis.ps1 -ChangeName).
+  Standardassistent: F.R.I.D.A.Y. ("Friday", Nachfolger von J.A.R.V.I.S.), Wake Word "Hey Friday". Name UND Wake Word werden
+  vor der Stimmaufnahme abgefragt und sind frei waehlbar (z. B. Name James, Wake Word "Computer" oder "Guten Morgen James").
+  Spaeter aendern: change-assistant-name.bat (= install-friday.ps1 -ChangeName).
+  Installationsordner: C:\Friday. Eine vorhandene Installation der J.A.R.V.I.S.-Version in C:\Jarvis (Zustand
+  C:\Jarvis\config\install-state.json) wird beim Start zur Uebernahme angeboten (Migration, C:\Jarvis bleibt als Sicherung).
   Zuletzt (Schritt 15) wird das F.R.I.D.A.Y. Command Center (Dashboard + Control API, http://127.0.0.1:3100) nach
-  C:\Jarvis\dashboard installiert; -UpdateDashboard (update-dashboard.bat) spielt nur dieses Update ein.
-  Start per Doppelklick auf install-jarvis.bat. Kann jederzeit erneut gestartet werden: erledigte Schritte
-  werden übersprungen (Fortschritt: C:\Jarvis\config\install-state.json).
-  Am Ende richtet ein Zusatzschritt den Service-Watchdog ein (Aufgabe JARVIS_Watchdog, alle 5 Minuten, unsichtbar).
+  C:\Friday\dashboard installiert; -UpdateDashboard (update-dashboard.bat) spielt nur dieses Update ein.
+  Start per Doppelklick auf install-friday.bat. Kann jederzeit erneut gestartet werden: erledigte Schritte
+  werden uebersprungen (Fortschritt: C:\Friday\config\install-state.json).
+  Am Ende richtet ein Zusatzschritt den Service-Watchdog ein (Aufgabe FRIDAY_Watchdog, alle 5 Minuten, unsichtbar).
 #>
 param([switch]$Resume, [switch]$ChangeName, [switch]$UpdateDashboard)
 
@@ -16,16 +18,16 @@ $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
 $env:WSL_UTF8 = '1'
 $OutputEncoding = New-Object Text.UTF8Encoding $false  # Eingaben (z. B. Passwort mit Umlauten) korrekt an wsl.exe
-$Root   = 'C:\Jarvis'
+$Root   = 'C:\Friday'
 $Inst   = "$Root\installer"
 $Distro = 'Ubuntu'
 $Ports  = @{ Dashboard = 43691; Qwen = 43692; HermesApi = 43693; Voice = 43694; CommandCenter = 3100 }
-$ResumeTask = 'JARVIS_Installation_fortsetzen'
-# Command Center (Schritt 15). Zielpfad C:\Jarvis\dashboard weicht bewusst von PLAN §54 (D:\Jarvis\dashboard) ab, siehe docs/DEPLOYMENT.md.
+$ResumeTask = 'FRIDAY_Installation_fortsetzen'
+# Command Center (Schritt 15). Zielpfad C:\Friday\dashboard weicht bewusst von PLAN §54 (D:\Friday\dashboard) ab, siehe docs/DEPLOYMENT.md.
 $Dash       = "$Root\dashboard"
 $DashUrl    = "http://127.0.0.1:$($Ports.CommandCenter)"
 $DashPort   = $Ports.CommandCenter
-$DashTask   = 'JARVIS_Dashboard'
+$DashTask   = 'FRIDAY_Dashboard'
 $DashInstallLog = "$Root\logs\dashboard-install.log"
 $DashHashFile   = "$Root\config\dashboard_owner.hash"   # nur der scrypt-Hash des Owner-Passworts, ACL nur Installationsbenutzer
 
@@ -42,17 +44,6 @@ if (-not $admin) {
 }
 $Host.UI.RawUI.WindowTitle = 'F.R.I.D.A.Y. Installation'
 
-foreach ($d in 'config','exchange','logs','models','scripts','voice','windows-worker','backups','cache','installer') {
-    New-Item -ItemType Directory -Force "$Root\$d" | Out-Null
-}
-# Markierung "Installer laeuft" (Inhalt: PID): der Service-Watchdog (JARVIS_Watchdog) startet waehrenddessen nichts neu, denn
-# Stop-LauncherService/Neuinstallation halten Dienste absichtlich lange gestoppt. Entfernt am Ende und beim Beenden der Sitzung
-# (auch bei Stop-Install/Neustart-Exit); eine verwaiste Datei ignoriert der Watchdog (Prozess tot oder aelter als 12 h).
-New-Item -ItemType Directory -Force "$Root\run" | Out-Null
-Set-Content -Path "$Root\run\installer.active" -Value "$PID" -Encoding Ascii
-Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action { Remove-Item 'C:\Jarvis\run\installer.active' -Force -ErrorAction SilentlyContinue } | Out-Null
-Start-Transcript -Path "$Root\logs\install-$(Get-Date -Format yyyyMMdd-HHmmss).log" -Append | Out-Null
-
 # ---------------------------------------------------------------- Ausgabe & Eingabe
 function Title($text) { Write-Host ""; Write-Host ("=" * 70) -ForegroundColor DarkCyan; Write-Host "  $text" -ForegroundColor Cyan; Write-Host ("=" * 70) -ForegroundColor DarkCyan }
 function Info($text)  { Write-Host "  $text" }
@@ -60,7 +51,7 @@ function Ok($text)    { Write-Host "  [OK] $text" -ForegroundColor Green }
 function Warn($text)  { Write-Host "  [!]  $text" -ForegroundColor Yellow }
 function Stop-Install($text) {
     Write-Host ""; Write-Host "  [FEHLER] $text" -ForegroundColor Red
-    Write-Host "  Problem beheben und install-jarvis.bat einfach erneut starten - es geht an dieser Stelle weiter." -ForegroundColor Red
+    Write-Host "  Problem beheben und install-friday.bat einfach erneut starten - es geht an dieser Stelle weiter." -ForegroundColor Red
     Stop-Transcript | Out-Null; Read-Host "  Enter zum Beenden"; exit 1
 }
 function Ask($question, $default = '') {
@@ -84,42 +75,6 @@ function Plain([Security.SecureString]$s) {
     $b = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)
     try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($b) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b) }
 }
-
-# ---------------------------------------------------------------- Assistentenname
-# Gleiche Regeln wie voice/personal_wake.py (valid_name, slugify, wake_phrase) und common/persona.py.
-$DefaultName = 'Friday'
-function Test-AssistantName($n) { return $n -match '^\p{L}{2,20}$' }
-function Format-AssistantName($n) { return $n.Substring(0, 1).ToUpper() + $n.Substring(1) }
-function Get-WakeSlug($n) {
-    $s = $n.ToLower().Replace('ä', 'ae').Replace('ö', 'oe').Replace('ü', 'ue').Replace('ß', 'ss')
-    $s = ($s.Normalize([Text.NormalizationForm]::FormD) -replace '[^\x00-\x7F]', '') -replace '[^a-z0-9]+', '_'
-    $s = $s.Trim('_')
-    if ($s) { return $s } else { return 'assistant' }
-}
-function Read-AssistantName($default) {
-    while ($true) {
-        $n = Ask 'Wie soll dein Assistent heißen?' $default
-        if (Test-AssistantName $n) { return (Format-AssistantName $n) }
-        Warn 'Bitte nur Buchstaben (auch Umlaute), 2 bis 20 Zeichen, ohne Leerzeichen und Zahlen.'
-    }
-}
-function Set-AssistantName($n) {
-    $State.assistant_name = $n
-    $State.wake_phrase = "Hey $n"
-    $State.wake_slug = Get-WakeSlug $n
-    $State.wake_engine = if ($State.wake_slug -eq 'jarvis') { 'openwakeword' } else { 'personal' }
-    Save-State
-}
-
-# ---------------------------------------------------------------- Fortschritt
-$StateFile = "$Root\config\install-state.json"
-$State = @{ done = @() }
-if (Test-Path $StateFile) {
-    (Get-Content $StateFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $State[$_.Name] = $_.Value }
-}
-function Save-State { $State | ConvertTo-Json -Depth 6 | Set-Content $StateFile -Encoding UTF8 }
-function IsDone($n) { return @($State.done) -contains $n }
-function MarkDone($n) { $State.done = @(@($State.done) + $n | Select-Object -Unique); Save-State }
 
 # ---------------------------------------------------------------- Helfer
 function Native([scriptblock]$cmd) { & $cmd 2>&1 | ForEach-Object { "$_" } }
@@ -159,17 +114,19 @@ function Register-UserTask($name, $vbsArgs, $description, $delaySeconds = 0, $re
 # Dienst-Launcher (hidden.vbs startet powershell mit Neustartschleife entkoppelt): Stop-ScheduledTask beendet die Schleife nicht.
 # Darum Stop-Flag setzen (Schleife beendet sich selbst), Launcher-Prozess und Kindprozess per CommandLine beenden.
 # Die Launcher halten ausserdem einen benannten Mutex (Einzelinstanz).
-function Get-LauncherProcesses([string]$Launcher, [string]$ChildPattern) {
-    return @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='cmd.exe' OR Name='python.exe' OR Name='node.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.ProcessId -ne $PID -and ($_.CommandLine -like "*$Launcher*" -or $_.CommandLine -like $ChildPattern) })
+function Get-LauncherProcesses([string]$Launcher, [string]$ChildPattern, [string]$RootFilter = '') {
+    # $RootFilter (z. B. 'C:\Jarvis\'): nur Prozesse, deren Befehlszeile diesen Pfad nennt (Migration: nie fremde Prozesse beenden)
+    return @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='cmd.exe' OR Name='python.exe' OR Name='node.exe' OR Name='llama-server.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.ProcessId -ne $PID -and ($_.CommandLine -like "*$Launcher*" -or $_.CommandLine -like $ChildPattern) -and
+                       (-not $RootFilter -or $_.CommandLine -like "*$RootFilter*") })
 }
-function Stop-LauncherService([string]$Task, [string]$Launcher, [string]$ChildPattern) {
-    New-Item -ItemType Directory -Force "$Root\run" | Out-Null
-    $flag = "$Root\run\$Launcher.stop"
+function Stop-LauncherService([string]$Task, [string]$Launcher, [string]$ChildPattern, [string]$RunRoot = $Root, [string]$RootFilter = '') {
+    New-Item -ItemType Directory -Force "$RunRoot\run" | Out-Null
+    $flag = "$RunRoot\run\$Launcher.stop"
     Set-Content -Path $flag -Value 'stop' -Encoding Ascii
     Stop-ScheduledTask -TaskName $Task -ErrorAction SilentlyContinue
     foreach ($round in 1..3) {
-        $procs = Get-LauncherProcesses $Launcher $ChildPattern
+        $procs = Get-LauncherProcesses $Launcher $ChildPattern $RootFilter
         if ($procs.Count -eq 0) { break }
         # Erst die Schleife (powershell), dann deren Kinder - sonst startet sie den Dienst sofort neu.
         $procs | Where-Object { $_.Name -eq 'powershell.exe' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
@@ -178,8 +135,8 @@ function Stop-LauncherService([string]$Task, [string]$Launcher, [string]$ChildPa
     }
     Remove-Item $flag -Force -ErrorAction SilentlyContinue
 }
-function Stop-VoiceService { Stop-LauncherService 'JARVIS_Voice' 'start-jarvis-voice.ps1' '*jarvis_voice.py*' }
-function Test-VoiceServiceRunning { return ((Get-LauncherProcesses 'start-jarvis-voice.ps1' '*jarvis_voice.py*').Count -gt 0) }
+function Stop-VoiceService { Stop-LauncherService 'FRIDAY_Voice' 'start-friday-voice.ps1' '*friday_voice.py*' }
+function Test-VoiceServiceRunning { return ((Get-LauncherProcesses 'start-friday-voice.ps1' '*friday_voice.py*').Count -gt 0) }
 function Download($url, $file) {
     & curl.exe -L --fail --retry 5 -C - -s -o $file $url
     return $LASTEXITCODE -eq 0
@@ -190,71 +147,528 @@ if (Get-ScheduledTask -TaskName $ResumeTask -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName $ResumeTask -Confirm:$false
 }
 
+# ---------------------------------------------------------------- Assistentenname und Wake Word
+# Gleiche Regeln wie voice/personal_wake.py (valid_name, valid_phrase, slugify, short_form, is_pretrained_phrase) und common/persona.py.
+$DefaultName = 'Friday'
+$WakeGreetings = @('hey', 'hi', 'hallo', 'ok', 'okay', 'hej')   # Grusswort am Anfang -> die Phrase hat eine Kurzform ("Friday")
+function Test-AssistantName($n) { return $n -match '^\p{L}{2,20}$' }
+function Format-AssistantName($n) { return $n.Substring(0, 1).ToUpper() + $n.Substring(1) }
+function Get-WakeSlug($n) {
+    # Ordnername der Aufnahmen (wake_<slug>): ASCII, Kleinbuchstaben, ae/oe/ue, Leerzeichen/Bindestrich -> "_" ("Hey Friday" -> hey_friday)
+    $s = $n.ToLower().Replace('ä', 'ae').Replace('ö', 'oe').Replace('ü', 'ue').Replace('ß', 'ss')
+    $s = ($s.Normalize([Text.NormalizationForm]::FormD) -replace '[^\x00-\x7F]', '') -replace '[^a-z0-9]+', '_'
+    $s = $s.Trim('_')
+    if ($s) { return $s } else { return 'assistant' }
+}
+function Get-WakeFold($w) {
+    # Kleinbuchstaben ohne Akzente, nur a-z (wie personal_wake.fold)
+    return (("$w".ToLower().Replace('ß', 'ss')).Normalize([Text.NormalizationForm]::FormD) -replace '[^a-z]', '')
+}
+function ConvertTo-PhraseText($p) { return ((("$p").Normalize([Text.NormalizationForm]::FormC).Trim()) -replace '\s+', ' ') }
+function Test-WakePhrase($p) {
+    # 1-4 Woerter aus Buchstaben (auch Umlaute) mit optionalem Bindestrich, durch Leerzeichen getrennt, insgesamt 3-30 Zeichen
+    $t = ConvertTo-PhraseText $p
+    if ($t.Length -lt 3 -or $t.Length -gt 30) { return $false }
+    $words = @($t -split ' ')
+    if ($words.Count -gt 4) { return $false }
+    foreach ($w in $words) { if ($w -notmatch '^\p{L}+(-\p{L}+)*$') { return $false } }
+    return $true
+}
+function Format-WakePhrase($p) {
+    return ((@((ConvertTo-PhraseText $p) -split ' ') | ForEach-Object { $_.Substring(0, 1).ToUpper() + $_.Substring(1) }) -join ' ')
+}
+function Get-WakeKey($p) { return ((("$p").Trim().ToLower()) -replace '[\s-]+', ' ') }
+function Test-PretrainedPhrase($p) { return ((Get-WakeKey $p) -eq 'hey jarvis') }   # nur exakt "Hey Jarvis" nutzt das vortrainierte openWakeWord-Modell
+function Get-WakeShort($p) {
+    # Kurzform ohne fuehrendes Grusswort ("Hey Friday" -> "Friday"); $null, wenn die Phrase nicht so beginnt
+    $words = @((ConvertTo-PhraseText $p) -split ' ')
+    if ($words.Count -ge 2 -and ($WakeGreetings -contains (Get-WakeFold $words[0]))) { return (Format-WakePhrase ($words[1..($words.Count - 1)] -join ' ')) }
+    return $null
+}
+function Read-AssistantName($default) {
+    while ($true) {
+        $n = Ask 'Wie soll dein Assistent heißen?' $default
+        if (Test-AssistantName $n) { return (Format-AssistantName $n) }
+        Warn 'Bitte nur Buchstaben (auch Umlaute), 2 bis 20 Zeichen, ohne Leerzeichen und Zahlen.'
+    }
+}
+function Read-WakePhrase($name, $default) {
+    # Das Wake Word wird immer frei gefragt (nicht aus dem Namen abgeleitet); Standard "Hey <Name>".
+    while ($true) {
+        $p = Ask "Mit welchem Wort oder Satz soll $name geweckt werden?" $default
+        if (Test-WakePhrase $p) { return (Format-WakePhrase $p) }
+        Warn 'Bitte 1 bis 4 Wörter (nur Buchstaben, auch Umlaute, sowie Bindestrich), insgesamt 3 bis 30 Zeichen.'
+    }
+}
+function Set-AssistantIdentity($name, $phrase) {
+    $State.assistant_name = $name
+    $State.wake_phrase = $phrase
+    $State.wake_slug = Get-WakeSlug $phrase
+    $State.wake_engine = if (Test-PretrainedPhrase $phrase) { 'openwakeword' } else { 'personal' }
+    Save-State
+}
+
+# ---------------------------------------------------------------- Migration einer vorhandenen Installation (C:\Jarvis -> C:\Friday)
+# Die JARVIS-Version dieses Installers legte alles unter C:\Jarvis ab. Gibt es dort eine Installation und noch kein C:\Friday,
+# wird angeboten, sie zu uebernehmen. Phasen (Schluessel in C:\Jarvis\migrate-to-friday.json, jede Phase ist wiederholbar):
+#   stop     alte Dienste anhalten (alter Watchdog zuerst, dann Launcher/Prozesse mit den ALTEN Namen und Mustern)
+#   copy     C:\Jarvis -> C:\Friday kopieren (robocopy); C:\Jarvis bleibt unveraendert als Sicherung
+#   rewrite  Pfade in kopierten Zustands-/Konfigurationsdateien umschreiben, Zustand fuer die Neu-Einrichtung anpassen
+#   tasks    alte JARVIS_*-Aufgaben sichern (XML) und entfernen, FRIDAY_*-Aufgaben registrieren; Fremdes nur auflisten
+#   wsl      (nach Schritt 2) Hermes in Ubuntu auf die neuen Pfade umstellen (wsl\migrate_paths.sh)
+# Am Ende (Schluss des Installers) steht die Abschlussmeldung mit Hinweis auf die Sicherung.
+$LegacyRoot    = 'C:\Jarvis'
+$MigrationFile = "$LegacyRoot\migrate-to-friday.json"
+# Dienste der alten Version: Aufgabe, Launcher-Skript (Name des Stop-Flags), Kindprozess-Muster
+$LegacyServices = @(
+    @{ Task = 'JARVIS_Voice';     Launcher = 'start-jarvis-voice.ps1'; Child = '*jarvis_voice.py*' }
+    @{ Task = 'JARVIS_Qwen';      Launcher = 'start-qwen-server.ps1';  Child = '*llama-server*--port 43692*' }
+    @{ Task = 'JARVIS_Dashboard'; Launcher = 'start-dashboard.ps1';    Child = '*control-api*dist*main.js*' }
+)
+# Aufgaben, die der alte Installer selbst angelegt hat. Nur diese (und nur mit Aktion unter C:\Jarvis\installer) werden entfernt.
+$LegacyTaskNames = @('JARVIS_Watchdog', 'JARVIS_Voice', 'JARVIS_Qwen', 'JARVIS_Dashboard', 'JARVIS_WSL_Keepalive', 'JARVIS_Installation_fortsetzen')
+$PrePhases = @('stop', 'copy', 'rewrite', 'tasks')   # vor dem Kopieren der Installationsdateien; 'wsl' folgt danach
+
+function Read-Migration {
+    if (-not (Test-Path $MigrationFile)) { return $null }
+    try { $j = Get-Content $MigrationFile -Raw | ConvertFrom-Json }
+    catch { Stop-Install "Die Migrationsdatei $MigrationFile ist nicht lesbar ($($_.Exception.Message)). Datei prüfen oder löschen (dann wird die Übernahme neu angeboten)." }
+    return @{
+        phases   = @($j.phases | Where-Object { $_ })
+        foreign  = @($j.foreign | Where-Object { $_ })
+        removed  = @($j.removed | Where-Object { $_ })
+        disabled = @($j.disabled | Where-Object { $_ })
+        started  = "$($j.started)"
+        finished = [bool]$j.finished
+    }
+}
+function Save-Migration($m) {
+    [IO.File]::WriteAllText($MigrationFile, ($m | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
+}
+function Complete-MigrationPhase($m, [string]$phase) {
+    $m.phases = @(@($m.phases) + $phase | Select-Object -Unique)
+    Save-Migration $m
+}
+function Get-LegacyTaskReport {
+    # Aufgaben mit JARVIS_-Namen oder einer Aktion, die C:\Jarvis nennt. "Own" = vom alten Installer angelegt, "Foreign" = alles andere.
+    $own = @(); $foreign = @()
+    foreach ($t in @(Get-ScheduledTask -ErrorAction SilentlyContinue)) {
+        $text = (@($t.Actions | ForEach-Object { ("$($_.Execute) $($_.Arguments)").Trim() }) -join ' | ')
+        if (-not (($t.TaskName -like 'JARVIS_*') -or ($text -like "*$LegacyRoot*"))) { continue }
+        $item = [pscustomobject]@{ Name = $t.TaskName; Path = $t.TaskPath; Action = $text }
+        if (($LegacyTaskNames -contains $t.TaskName) -and $t.TaskPath -eq '\' -and ($text -like "*$LegacyRoot\installer\*")) { $own += $item } else { $foreign += $item }
+    }
+    return [pscustomobject]@{ Own = $own; Foreign = $foreign }
+}
+function Stop-LegacyServices($report) {
+    # Alten Watchdog zuerst (sonst startet er die Dienste sofort neu), dann die Launcher mit den alten Namen/Mustern.
+    New-Item -ItemType Directory -Force "$LegacyRoot\run" | Out-Null
+    Set-Content -Path "$LegacyRoot\run\installer.active" -Value "$PID" -Encoding Ascii   # auch der alte Watchdog greift dann nicht ein
+    foreach ($t in @($report.Own | Where-Object { $_.Name -eq 'JARVIS_Watchdog' })) {
+        Disable-ScheduledTask -TaskName $t.Name -ErrorAction SilentlyContinue | Out-Null
+        Stop-ScheduledTask -TaskName $t.Name -ErrorAction SilentlyContinue
+    }
+    foreach ($svc in $LegacyServices) {
+        Stop-LauncherService $svc.Task $svc.Launcher $svc.Child $LegacyRoot "$LegacyRoot\"
+    }
+    $left = @($LegacyServices | ForEach-Object { Get-LauncherProcesses $_.Launcher $_.Child "$LegacyRoot\" })
+    if ($left.Count -gt 0) {
+        Stop-Install "Alte Dienste laufen noch (PID $(($left | ForEach-Object { $_.ProcessId }) -join ', ')). Bitte in der Aufgabenverwaltung beenden und den Installer erneut starten."
+    }
+    Remove-Item "$LegacyRoot\run\installer.active" -Force -ErrorAction SilentlyContinue
+}
+function Get-EnableCommand($name, $path) {
+    if ($path -and $path -ne '\') { return "Enable-ScheduledTask -TaskName '$name' -TaskPath '$path'" }
+    return "Enable-ScheduledTask -TaskName '$name'"
+}
+function Disable-ForeignLegacyTasks($report) {
+    # Fremde Aufgaben, deren Aktion C:\Jarvis oder /mnt/c/Jarvis nennt (z. B. ein Watchdog eines aelteren Installers, der den ALTEN
+    # Sprachdienst auf Port 43694 neu startet): auflisten, nachfragen (Standard ja), XML sichern, nur DEAKTIVIEREN - nie loeschen.
+    # Rueckgabe: je deaktivierter Aufgabe Name + Befehl zum Wieder-Aktivieren (fuer Migrationszustand und Abschlusstext).
+    $disabled = @()
+    $hits = @($report.Foreign | Where-Object { $_.Action -like "*$LegacyRoot*" -or $_.Action -like '*/mnt/c/Jarvis*' })
+    if ($hits.Count -eq 0) { return $disabled }
+    Warn 'Diese fremden Aufgaben (nicht von diesem Installer) verweisen auf die alte Installation:'
+    foreach ($t in $hits) { Warn "  $($t.Name) :: $($t.Action)" }
+    Info 'Solche Aufgaben starten oft den ALTEN Sprachdienst (Port 43694) oder einen TTS-Server (43695) neu und würden mit dem neuen Dienst um die Ports streiten.'
+    if (-not (YesNo 'Diese Aufgaben jetzt DEAKTIVIEREN (nicht löschen; die Aufgabe wird vorher als XML gesichert)?' $true)) {
+        Warn 'Aufgaben bleiben aktiv - sie können den alten Dienst neu starten. Von Hand deaktivieren: Disable-ScheduledTask -TaskName <Name>'
+        return $disabled
+    }
+    $dir = "$LegacyRoot\migration-tasks"
+    New-Item -ItemType Directory -Force $dir | Out-Null
+    foreach ($t in $hits) {
+        try { Export-ScheduledTask -TaskName $t.Name -TaskPath $t.Path | Set-Content -Path "$dir\foreign-$($t.Name).xml" -Encoding UTF8 }
+        catch { Stop-Install "Sicherung der Aufgabe $($t.Name) fehlgeschlagen: $($_.Exception.Message)" }
+        Stop-ScheduledTask -TaskName $t.Name -TaskPath $t.Path -ErrorAction SilentlyContinue
+        Disable-ScheduledTask -TaskName $t.Name -TaskPath $t.Path | Out-Null
+        Ok "Aufgabe $($t.Name) deaktiviert (Sicherung: $dir\foreign-$($t.Name).xml). Wieder aktivieren: $(Get-EnableCommand $t.Name $t.Path)"
+        $disabled += [pscustomobject]@{ Name = $t.Name; Command = (Get-EnableCommand $t.Name $t.Path) }
+    }
+    return $disabled
+}
+function Disable-LegacyAutostart($report) {
+    # Bei abgelehnter Uebernahme: Aufgaben nur deaktivieren (nichts wird geloescht), dann die alten Dienste anhalten.
+    foreach ($t in $report.Own) { Disable-ScheduledTask -TaskName $t.Name -ErrorAction SilentlyContinue | Out-Null }
+    $disabled = @(Disable-ForeignLegacyTasks $report)
+    Stop-LegacyServices $report
+    if ($disabled.Count -gt 0) {
+        Info 'Zum Wieder-Aktivieren der fremden Aufgaben (PowerShell als Administrator):'
+        foreach ($d in $disabled) { Info "  $($d.Command)" }
+    }
+}
+function Get-FolderBytes([string]$path, [string[]]$skip) {
+    # Gesamtgroesse in Bytes ohne die Ordner in $skip und ohne Junctions/Symlinks (wie robocopy /XJ)
+    [long]$sum = 0
+    foreach ($f in @(Get-ChildItem $path -File -Force -ErrorAction SilentlyContinue)) { $sum += $f.Length }
+    foreach ($d in @(Get-ChildItem $path -Directory -Force -ErrorAction SilentlyContinue)) {
+        if (($skip -contains $d.FullName) -or ($d.Attributes -band [IO.FileAttributes]::ReparsePoint)) { continue }
+        $sum += Get-FolderBytes $d.FullName $skip
+    }
+    return $sum
+}
+function Convert-LegacyText([string]$text, [bool]$dashboardIds) {
+    # C:\Jarvis / C:\\Jarvis (JSON-escaped) / C:/Jarvis und /mnt/c/Jarvis -> Friday; das Trennzeichen bleibt, wie es ist.
+    $t = [regex]::Replace($text, '(?i)C:(\\\\|\\|/)Jarvis(?![\p{L}\p{N}_-])', 'C:$1Friday')
+    $t = [regex]::Replace($t, '/mnt/c/Jarvis(?![\p{L}\p{N}_-])', '/mnt/c/Friday')
+    if ($dashboardIds) {
+        # Kennungen in dashboard.yaml/adapters.yaml, die mit dem Umbenennen des Monorepos wechseln
+        foreach ($pair in @(@('@jarvis/', '@friday/'), @('jarvis-voice-http', 'friday-voice-http'),
+                            @('jarvis-command-midnight', 'friday-command-midnight'), @('jarvis-command-overview', 'friday-command-overview'))) {
+            $t = $t.Replace($pair[0], $pair[1])
+        }
+    }
+    return $t
+}
+function Convert-LegacyFile([string]$file, [bool]$dashboardIds) {
+    $bytes = [IO.File]::ReadAllBytes($file)
+    $bom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+    $old = (New-Object Text.UTF8Encoding $false).GetString($bytes, $(if ($bom) { 3 } else { 0 }), $bytes.Length - $(if ($bom) { 3 } else { 0 }))
+    $new = Convert-LegacyText $old $dashboardIds
+    if ($new -eq $old) { return $false }
+    if ($file -like '*.json') { $null = $new | ConvertFrom-Json }   # kaputtes JSON darf nie geschrieben werden (wirft)
+    [IO.File]::WriteAllText($file, $new, (New-Object Text.UTF8Encoding $bom))
+    return $true
+}
+function Protect-MigratedFile([string]$file) {
+    if (-not (Test-Path $file)) { return }
+    & icacls.exe $file /inheritance:r /grant:r "$($env:USERNAME):(R,W)" /grant:r 'SYSTEM:(R)' | Out-Null
+    if ($LASTEXITCODE -ne 0) { Stop-Install "Zugriffsrechte für $file konnten nicht gesetzt werden." }
+}
+function Invoke-MigrationCopy {
+    $skip = @("$LegacyRoot\run", "$LegacyRoot\installer", "$LegacyRoot\dashboard", "$LegacyRoot\cache\pip", "$LegacyRoot\migration-tasks")
+    $copyGB = [math]::Round((Get-FolderBytes $LegacyRoot $skip) / 1GB, 1)
+    $needGB = [math]::Ceiling($copyGB * 1.1) + 2
+    $driveLetter = $Root.Substring(0, 1)
+    $freeGB = [math]::Round((Get-Volume -DriveLetter $driveLetter).SizeRemaining / 1GB)
+    Info "Zu kopieren: ca. $copyGB GB, frei auf ${driveLetter}: $freeGB GB."
+    if ($freeGB -lt $needGB) { Stop-Install "Auf ${driveLetter}: sind nur $freeGB GB frei, die Übernahme braucht ca. $needGB GB. Platz schaffen und erneut starten." }
+    Info 'Kopiere C:\Jarvis nach C:\Friday (Modelle, Stimmprofil, Konfiguration; das dauert einige Minuten) …'
+    & robocopy.exe $LegacyRoot $Root /E /XJ /R:2 /W:2 /XD @skip '__pycache__' /XF 'migrate-to-friday.json' 'installer.active' /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -ge 8) { Stop-Install "Kopieren von $LegacyRoot nach $Root fehlgeschlagen (robocopy-Code $LASTEXITCODE). Platz/Berechtigungen prüfen und erneut starten." }
+    # Command Center: nur Konfiguration, Daten und Sicherungen. Programm, node_modules und Build werden in Schritt 15 neu aufgebaut
+    # (pnpm-Junctions wuerden beim Kopieren aufgeloest und die absoluten Pfade im Build wuerden nicht mehr stimmen).
+    foreach ($sub in 'config', 'data', 'backups') {
+        if (-not (Test-Path "$LegacyRoot\dashboard\$sub")) { continue }
+        & robocopy.exe "$LegacyRoot\dashboard\$sub" "$Root\dashboard\$sub" /E /R:2 /W:2 /NFL /NDL /NJH /NJS /NP | Out-Null
+        if ($LASTEXITCODE -ge 8) { Stop-Install "Kopieren von dashboard\$sub fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
+    }
+    # Dateien der alten Version, die im neuen Paket anders heissen, nicht mitnehmen.
+    Remove-Item "$Root\voice\jarvis_voice.py" -Force -ErrorAction SilentlyContinue
+}
+function Invoke-MigrationRewrite {
+    Info 'Schreibe die Pfade in den kopierten Dateien um (C:\Jarvis → C:\Friday) …'
+    $targets = @()
+    foreach ($dir in "$Root\config", "$Root\windows-worker", "$Root\dashboard\config") {
+        if (Test-Path $dir) { $targets += @(Get-ChildItem $dir -File -Recurse -Include *.json, *.yaml, *.yml, *.md, *.txt, *.ps1, *.cfg, *.ini -ErrorAction SilentlyContinue) }
+    }
+    foreach ($dir in "$Root\models\openwakeword", "$Root\voice") {
+        if (Test-Path $dir) { $targets += @(Get-ChildItem $dir -File -Filter '*.json' -ErrorAction SilentlyContinue) }
+    }
+    if (Test-Path "$Root\INSTALL_STATE.md") { $targets += Get-Item "$Root\INSTALL_STATE.md" }
+    $changed = 0
+    foreach ($f in $targets) {
+        $dash = ($f.FullName -like "$Root\dashboard\config\*")
+        try { if (Convert-LegacyFile $f.FullName $dash) { $changed++; Info "umgeschrieben: $($f.FullName.Substring($Root.Length + 1))" } }
+        catch { Stop-Install "Umschreiben von $($f.FullName) fehlgeschlagen: $($_.Exception.Message) - die Datei in C:\Jarvis ist unverändert." }
+    }
+    Ok "$changed Datei(en) umgeschrieben."
+    $left = @($targets | Where-Object { (Get-Content $_.FullName -Raw -ErrorAction SilentlyContinue) -match '(?i)C:(\\\\|\\|/)Jarvis(?![\p{L}\p{N}_-])|/mnt/c/Jarvis(?![\p{L}\p{N}_-])' })
+    foreach ($f in $left) { Warn "Enthält weiterhin einen alten Pfad (bitte prüfen): $($f.FullName)" }
+    # Hermes-Modellname der Sprachsteuerung: die Umstellung in Ubuntu (migrate_paths.sh) setzt API_SERVER_MODEL_NAME=friday.
+    $vf = "$Root\config\voice.json"
+    if (Test-Path $vf) {
+        $vj = Get-Content $vf -Raw | ConvertFrom-Json
+        if ("$($vj.hermes_model)" -eq 'jarvis') {
+            $vj | Add-Member -NotePropertyName hermes_model -NotePropertyValue 'friday' -Force
+            [IO.File]::WriteAllText($vf, ($vj | ConvertTo-Json -Depth 8), (New-Object Text.UTF8Encoding $false))
+            Info 'voice.json: hermes_model jarvis → friday'
+        }
+    }
+    # Geheimnisdateien: robocopy uebernimmt die Zugriffsrechte nicht, also neu setzen (nur der Installationsbenutzer).
+    foreach ($secret in "$Root\config\hermes_api.key", "$Root\config\dashboard_owner.hash", "$Root\dashboard\data\auth.key") { Protect-MigratedFile $secret }
+    # Zustand: Schritte, die Pfade/Aufgaben einbetten, werden mit den neuen Pfaden wiederholt.
+    $sf = "$Root\config\install-state.json"
+    $st = Get-Content $sf -Raw | ConvertFrom-Json
+    $done = @($st.done | Where-Object { $_ -and $_ -notin @('files', 'voiceservice', 'dashboard', 'watchdog') })
+    $venvOk = $false
+    $vpy = "$Root\voice\.venv\Scripts\python.exe"
+    if ($done -contains 'voicepython' -and (Test-Path $vpy)) {
+        Info 'Prüfe die kopierte Python-Umgebung (kann einige Sekunden dauern) …'
+        & $vpy -c 'import numpy, torch, sounddevice, faster_whisper, openwakeword, speechbrain' 2>&1 | Out-Null
+        $venvOk = ($LASTEXITCODE -eq 0)
+        if (-not $venvOk) { Warn 'Die kopierte Python-Umgebung funktioniert am neuen Ort nicht. Sie wird in Schritt 12 neu aufgebaut (10-20 min, Internet nötig).' }
+    }
+    if ($done -contains 'voicepython' -and -not $venvOk) { $done = @($done | Where-Object { $_ -ne 'voicepython' }) }
+    $st | Add-Member -NotePropertyName done -NotePropertyValue $done -Force
+    $st | Add-Member -NotePropertyName migrated_from -NotePropertyValue 'Jarvis' -Force   # bewusst kein Pfad: ein erneuter Umschreib-Lauf soll ihn nicht anfassen
+    $st | Add-Member -NotePropertyName migrated_at -NotePropertyValue (Get-Date -Format s) -Force
+    foreach ($k in 'dashboard_hash', 'dashboard_pnpm') { if ($st.PSObject.Properties[$k]) { $st.PSObject.Properties.Remove($k) } }
+    [IO.File]::WriteAllText($sf, ($st | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding $false))
+    Ok 'Zustand angepasst: Command Center und Sprachdienst werden neu eingerichtet, alles andere bleibt.'
+}
+function Invoke-MigrationTasks($m, $report) {
+    $m.foreign = @($report.Foreign | ForEach-Object { "$($_.Name) :: $($_.Action)" })
+    $dir = "$LegacyRoot\migration-tasks"
+    New-Item -ItemType Directory -Force $dir | Out-Null
+    foreach ($t in $report.Own) {
+        try { Export-ScheduledTask -TaskName $t.Name | Set-Content -Path "$dir\$($t.Name).xml" -Encoding UTF8 }
+        catch { Stop-Install "Sicherung der Aufgabe $($t.Name) fehlgeschlagen: $($_.Exception.Message)" }
+        Unregister-ScheduledTask -TaskName $t.Name -Confirm:$false
+        Ok "Alte Aufgabe $($t.Name) entfernt (Sicherung: $dir\$($t.Name).xml)."
+        $m.removed = @(@($m.removed) + $t.Name | Select-Object -Unique)
+    }
+    $st = Get-Content "$Root\config\install-state.json" -Raw | ConvertFrom-Json
+    $done = @($st.done)
+    # Aufgaben, deren Schritt nicht wiederholt wird, direkt neu registrieren (Dienst-Aufgaben folgen in den Schritten 14/15 und am Ende).
+    if ($done -contains 'keepalive') {
+        Register-UserTask 'FRIDAY_WSL_Keepalive' "`"$Inst\scripts\wsl-keepalive.vbs`"" 'Hält Ubuntu/WSL für Hermes dauerhaft aktiv'
+        Ok 'Aufgabe FRIDAY_WSL_Keepalive eingerichtet.'
+    }
+    if ($done -contains 'qwen') {
+        Register-UserTask 'FRIDAY_Qwen' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-qwen-server.ps1`"" 'Lokaler Qwen3-4B-Router für F.R.I.D.A.Y.'
+        Ok 'Aufgabe FRIDAY_Qwen eingerichtet (wird nach dem Kopieren der Skripte gestartet).'
+    }
+    $newlyDisabled = @(Disable-ForeignLegacyTasks $report)
+    $m.disabled = @(@($m.disabled) + @($newlyDisabled | ForEach-Object { $_.Command }) | Select-Object -Unique)
+    if ($newlyDisabled.Count -gt 0) { Stop-LegacyServices $report }   # ein fremder Watchdog kann den alten Dienst zwischenzeitlich neu gestartet haben
+    $m.foreign = @($report.Foreign | Where-Object { $_.Name -notin @($newlyDisabled | ForEach-Object { $_.Name }) } | ForEach-Object { "$($_.Name) :: $($_.Action)" })
+    if ($m.foreign.Count -gt 0) {
+        Warn 'Weitere Aufgaben verweisen noch auf C:\Jarvis oder heißen JARVIS_* und wurden NICHT angefasst:'
+        foreach ($f in $m.foreign) { Warn "  $f" }
+        Warn 'Sie gehören nicht zu diesem Installer. Von Hand anpassen, deaktivieren oder löschen.'
+    }
+}
+function Invoke-LegacyMigration {
+    $m = Read-Migration
+    if (-not $m) {
+        if (-not (Test-Path "$LegacyRoot\config\install-state.json")) { return }
+        if (Test-Path $Root) { return }   # C:\Friday existiert bereits: frische oder schon uebernommene Installation
+        Title 'Vorhandene Installation gefunden'
+        Info 'Auf diesem PC liegt eine frühere Installation (J.A.R.V.I.S.-Version) in C:\Jarvis. F.R.I.D.A.Y. wird in C:\Friday eingerichtet.'
+        Info 'Ich kann die bestehende Einrichtung übernehmen:'
+        Info '  • Stimmprofil, Wake-Word-Modell, Persönlichkeit, Modelle, Hermes-Einrichtung und Command-Center-Daten werden kopiert'
+        Info '  • die alten JARVIS_*-Aufgaben werden angehalten, gesichert und durch FRIDAY_*-Aufgaben ersetzt'
+        Info '  • Hermes in Ubuntu wird auf die neuen Pfade umgestellt (kein Neuinstallieren, Kimi-Schlüssel bleibt)'
+        Info '  • C:\Jarvis bleibt bis zum Schluss unverändert als Sicherung erhalten, nichts wird gelöscht'
+        Info '  • Dauer: einige Minuten; das Command Center wird danach neu gebaut (Internet nötig)'
+        if (-not (YesNo 'Bestehende Installation nach C:\Friday übernehmen?' $true)) {
+            Info 'Dann wird F.R.I.D.A.Y. frisch in C:\Friday installiert; C:\Jarvis bleibt unberührt.'
+            if (YesNo 'Die alten JARVIS_*-Dienste jetzt anhalten und deaktivieren (empfohlen: sie belegen sonst dieselben Ports 43691-43694 und 3100)?' $true) {
+                Disable-LegacyAutostart (Get-LegacyTaskReport)
+                Ok 'Alte Dienste angehalten, ihre Aufgaben sind deaktiviert (nicht gelöscht; wieder aktivieren: Enable-ScheduledTask JARVIS_<Name>).'
+            }
+            return
+        }
+        $m = @{ phases = @(); foreign = @(); removed = @(); disabled = @(); started = (Get-Date -Format s); finished = $false }
+        Save-Migration $m
+    }
+    if ($m.finished -or @($PrePhases | Where-Object { @($m.phases) -notcontains $_ }).Count -eq 0) { return }
+    New-Item -ItemType Directory -Force "$LegacyRoot\logs" | Out-Null
+    Start-Transcript -Path "$LegacyRoot\logs\migrate-to-friday-$(Get-Date -Format yyyyMMdd-HHmmss).log" -Append | Out-Null
+    Title 'Übernahme von C:\Jarvis nach C:\Friday'
+    $report = Get-LegacyTaskReport
+    if (@($m.phases) -notcontains 'stop') {
+        Info 'Phase 1/4 – alte Dienste anhalten …'
+        Stop-LegacyServices $report
+        Complete-MigrationPhase $m 'stop'
+    }
+    if (@($m.phases) -notcontains 'copy') {
+        Info 'Phase 2/4 – kopieren …'
+        New-Item -ItemType Directory -Force $Root | Out-Null
+        Invoke-MigrationCopy
+        Complete-MigrationPhase $m 'copy'
+    }
+    if (@($m.phases) -notcontains 'rewrite') {
+        Info 'Phase 3/4 – Pfade und Zustand anpassen …'
+        Invoke-MigrationRewrite
+        Complete-MigrationPhase $m 'rewrite'
+    }
+    if (@($m.phases) -notcontains 'tasks') {
+        Info 'Phase 4/4 – Aufgaben umstellen …'
+        Invoke-MigrationTasks $m $report
+        Complete-MigrationPhase $m 'tasks'
+    }
+    Ok 'Dateien und Aufgaben sind übernommen. Die Hermes-Umstellung in Ubuntu folgt nach dem Kopieren der Installationsdateien.'
+    Stop-Transcript | Out-Null
+}
+function Invoke-MigrationWsl {
+    # Nach Schritt 2 (C:\Friday\installer existiert): Hermes in Ubuntu auf die neuen Pfade umstellen, Qwen starten.
+    $m = Read-Migration
+    if (-not $m -or $m.finished -or @($m.phases) -contains 'wsl') { return }
+    Title 'Übernahme: Hermes und Dienste umstellen'
+    if (IsDone 'hermes') {
+        if (-not $State.linux_user) { Stop-Install 'install-state.json enthält keinen Linux-Benutzer - Hermes kann nicht umgestellt werden.' }
+        $out = Wsl-Run $State.linux_user '/mnt/c/Friday/installer/wsl/migrate_paths.sh'
+        if ($out -notmatch 'MIGRATE_WSL_DONE') { Stop-Install 'Umstellung von Hermes in Ubuntu fehlgeschlagen (graue Ausgabe oben). Nach der Behebung install-friday.bat erneut starten - C:\Jarvis ist unverändert.' }
+        Ok 'Hermes verwendet jetzt /mnt/c/Friday und das Modell "friday".'
+    } else { Info 'Hermes war in der alten Installation nicht eingerichtet - nichts umzustellen.' }
+    if ((IsDone 'keepalive') -and (Get-ScheduledTask -TaskName 'FRIDAY_WSL_Keepalive' -ErrorAction SilentlyContinue)) { Start-ScheduledTask -TaskName 'FRIDAY_WSL_Keepalive' }
+    if ((IsDone 'qwen') -and (Get-ScheduledTask -TaskName 'FRIDAY_Qwen' -ErrorAction SilentlyContinue)) {
+        Start-ScheduledTask -TaskName 'FRIDAY_Qwen'
+        if (Wait-Http "http://127.0.0.1:$($Ports.Qwen)/v1/models" 120) { Ok 'Qwen läuft aus C:\Friday.' }
+        else { Warn "Qwen antwortet nicht (C:\Friday\logs\qwen-server.log). Erneut versuchen: Start-ScheduledTask FRIDAY_Qwen" }
+    }
+    Complete-MigrationPhase $m 'wsl'
+}
+function Show-MigrationSummary {
+    $m = Read-Migration
+    if (-not $m -or $m.finished) { return }
+    Title 'Übernahme abgeschlossen'
+    Ok 'Deine bisherige Installation läuft jetzt als F.R.I.D.A.Y. aus C:\Friday.'
+    Info 'C:\Jarvis wurde NICHT verändert (bis auf die Migrationsdatei und das Protokoll) und bleibt als Sicherung erhalten.'
+    Info '  Sicherung der alten Aufgaben (XML): C:\Jarvis\migration-tasks'
+    Info '  Protokoll der Übernahme:            C:\Jarvis\logs\migrate-to-friday-*.log'
+    Info 'Erst prüfen, ob alles läuft (Wake Word, Command Center, Hermes-Dashboard), und wenn ja - in einer PowerShell als Administrator:'
+    Info '  Remove-Item -Recurse -Force C:\Jarvis'
+    Info '(Wer die alten Aufgaben-XML behalten will, kopiert C:\Jarvis\migration-tasks vorher weg.)'
+    if (@($m.disabled).Count -gt 0) {
+        Info 'Fremde Aufgaben, die auf C:\Jarvis verwiesen, wurden DEAKTIVIERT (nicht gelöscht; XML-Sicherung in C:\Jarvis\migration-tasks\foreign-*.xml).'
+        Info 'Wieder aktivieren (PowerShell als Administrator), falls du sie weiter brauchst:'
+        foreach ($c in $m.disabled) { Info "  $c" }
+        Info 'Ein TTS-Server auf Port 43695 aus der alten Installation wird NICHT übernommen: er läuft weiter nur, wenn du ihn selbst auf C:\Friday umstellst.'
+    }
+    if (@($m.foreign).Count -gt 0) {
+        Warn 'Diese Aufgaben gehören nicht zu diesem Installer, zeigen noch auf C:\Jarvis und müssen von Hand angepasst oder gelöscht werden:'
+        foreach ($f in $m.foreign) { Warn "  $f" }
+    }
+    $m.finished = $true
+    Save-Migration $m
+}
+
+Invoke-LegacyMigration
+
+foreach ($d in 'config','exchange','logs','models','scripts','voice','windows-worker','backups','cache','installer') {
+    New-Item -ItemType Directory -Force "$Root\$d" | Out-Null
+}
+# Markierung "Installer laeuft" (Inhalt: PID): der Service-Watchdog (FRIDAY_Watchdog) startet waehrenddessen nichts neu, denn
+# Stop-LauncherService/Neuinstallation halten Dienste absichtlich lange gestoppt. Entfernt am Ende und beim Beenden der Sitzung
+# (auch bei Stop-Install/Neustart-Exit); eine verwaiste Datei ignoriert der Watchdog (Prozess tot oder aelter als 12 h).
+New-Item -ItemType Directory -Force "$Root\run" | Out-Null
+$ActiveFile = "$Root\run\installer.active"
+Set-Content -Path $ActiveFile -Value "$PID" -Encoding Ascii
+Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action ([scriptblock]::Create("Remove-Item '$ActiveFile' -Force -ErrorAction SilentlyContinue")) | Out-Null
+Start-Transcript -Path "$Root\logs\install-$(Get-Date -Format yyyyMMdd-HHmmss).log" -Append | Out-Null
+
+# ---------------------------------------------------------------- Fortschritt
+$StateFile = "$Root\config\install-state.json"
+$State = @{ done = @() }
+if (Test-Path $StateFile) {
+    (Get-Content $StateFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $State[$_.Name] = $_.Value }
+}
+function Save-State { $State | ConvertTo-Json -Depth 6 | Set-Content $StateFile -Encoding UTF8 }
+function IsDone($n) { return @($State.done) -contains $n }
+function MarkDone($n) { $State.done = @(@($State.done) + $n | Select-Object -Unique); Save-State }
+
 Title 'F.R.I.D.A.Y. – Installation'
 Info 'Dieser Assistent richtet F.R.I.D.A.Y., deinen persönlichen Sprachassistenten, komplett ein. Du wirst nur nach wenigen Dingen gefragt.'
 Info 'Dauer: ca. 45–90 Minuten (viele Downloads). Unterbrechen ist kein Problem – einfach neu starten.'
 
-# ================================================================ 0 Name des Assistenten (VOR allen Aufnahmen und Konfigurationsdateien)
-# Einmal fragen, bei Fortsetzung wiederverwenden. Ändern ohne Zusatzaufwand nur, solange noch keine Stimmaufnahmen
-# existieren; danach über change-assistant-name.bat (-ChangeName): neuer Name, Aufnahme und Sprachdienst werden wiederholt.
-function Update-PersonaName($newName, [string[]]$redo) {
-    # persona.json, SOUL.md (Hermes) und voice.json tragen den alten Namen: Name ersetzen, die abhängigen Schritte wiederholen.
+# ================================================================ 0 Name und Wake Word des Assistenten (VOR allen Aufnahmen und Konfigurationsdateien)
+# Name und Wake Word werden einmal gefragt, bei Fortsetzung wiederverwendet. Das Wake Word wird IMMER frei gefragt (Standard
+# "Hey <Name>"), nicht aus dem Namen abgeleitet. Aendern ohne Zusatzaufwand nur, solange noch keine Stimmaufnahmen existieren;
+# danach ueber change-assistant-name.bat (-ChangeName): Aufnahme, Wake-Word-Training und Sprachdienst werden wiederholt.
+function Sync-PersonaIdentity($name, $phrase) {
+    # persona.json (Quelle fuer Hermes SOUL.md und voice.json) traegt Name und Wake Phrase.
     $pf = "$Root\config\persona.json"
-    if (Test-Path $pf) {
-        $pj = Get-Content $pf -Raw | ConvertFrom-Json
-        $pj | Add-Member -NotePropertyName assistant_name -NotePropertyValue $newName -Force
-        [IO.File]::WriteAllText($pf, ($pj | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
-    }
+    if (-not (Test-Path $pf)) { return }
+    $pj = Get-Content $pf -Raw | ConvertFrom-Json
+    if ("$($pj.assistant_name)" -ceq $name -and "$($pj.wake_phrase)" -ceq $phrase) { return }
+    $pj | Add-Member -NotePropertyName assistant_name -NotePropertyValue $name -Force
+    $pj | Add-Member -NotePropertyName wake_phrase -NotePropertyValue $phrase -Force
+    [IO.File]::WriteAllText($pf, ($pj | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
+}
+function Update-PersonaIdentity($newName, $newPhrase, [string[]]$redo) {
+    # persona.json, SOUL.md (Hermes) und voice.json tragen den alten Namen/die alte Phrase: ersetzen, die abhaengigen Schritte wiederholen.
+    Sync-PersonaIdentity $newName $newPhrase
     $State.done = @(@($State.done) | Where-Object { $_ -notin $redo })
     Save-State
 }
+function Initialize-WakeSettings {
+    # Zustand aus der Zeit vor dem frei waehlbaren Wake Word (und alter Ordnername wake_slug = Namens-Slug) auf die Phrase bringen.
+    if (-not $State.assistant_name) { return }
+    $phrase = if (Test-WakePhrase $State.wake_phrase) { Format-WakePhrase $State.wake_phrase } else { "Hey $($State.assistant_name)" }
+    if ($State.wake_phrase -cne $phrase -or $State.wake_slug -cne (Get-WakeSlug $phrase)) { Set-AssistantIdentity $State.assistant_name $phrase }
+    Sync-PersonaIdentity $State.assistant_name $State.wake_phrase
+}
 $recordingsExist = (IsDone 'enroll') -or [bool](Get-ChildItem "$Root\voice\profiles\owner\raw" -Recurse -Filter *.wav -ErrorAction SilentlyContinue | Select-Object -First 1)
-$oldName = $null
+Initialize-WakeSettings
+$oldName = $null; $oldPhrase = $null
 if ($ChangeName -and $State.assistant_name) {
-    $oldName = $State.assistant_name
+    $oldName = $State.assistant_name; $oldPhrase = $State.wake_phrase
     foreach ($k in 'assistant_name', 'wake_phrase', 'wake_slug', 'wake_engine') { $State.Remove($k) }
     Save-State
-    Info "Bisheriger Name: $oldName. Du kannst einen neuen Namen wählen (Enter = $oldName behalten)."
+    Info "Bisher: Name $oldName, Wake Word '$oldPhrase'. Du kannst beides ändern (Enter = beibehalten)."
 }
 if (-not $State.assistant_name) {
     Title 'Dein Assistent'
-    # Installation aus der Zeit vor der Namensabfrage (persona.json ohne assistant_name): der Assistent hieß Jarvis.
+    # Installation aus der Zeit vor der Namensabfrage (persona.json ohne assistant_name): der Assistent hieß Jarvis, Wake Word "Hey Jarvis".
     $legacy = (-not $oldName) -and ((IsDone 'persona') -or $recordingsExist)
     $prev = if ($oldName) { $oldName } elseif ($legacy) { 'Jarvis' } else { $null }
+    $prevPhrase = if ($oldName) { if ($oldPhrase) { $oldPhrase } else { "Hey $oldName" } } elseif ($legacy) { 'Hey Jarvis' } else { $null }
     if ($legacy) {
-        Info "Vorhandene Installation erkannt: Der Assistent heißt bisher $prev (Enter = beibehalten)."
+        Info "Vorhandene Installation erkannt: Der Assistent heißt bisher $prev, Wake Word '$prevPhrase' (Enter = beibehalten)."
     } elseif (-not $oldName) {
         Info 'Standardmäßig heißt dein Assistent Friday (F.R.I.D.A.Y., der Nachfolger von J.A.R.V.I.S.) und hört auf "Hey Friday".'
-        Info 'Du kannst ihm jetzt einen eigenen Namen geben, z. B. Jarvis, James oder Frida. Der Name wird für die Stimmaufnahme gebraucht.'
+        Info 'Du kannst ihm jetzt einen eigenen Namen geben, z. B. Jarvis, James oder Frida.'
     }
     $new = Read-AssistantName $(if ($prev) { $prev } else { $DefaultName })
-    Set-AssistantName $new
+    if (-not $legacy -and -not $oldName) {
+        Info 'Das Wake Word ist frei wählbar: ein Wort oder ein kurzer Satz (1 bis 4 Wörter), z. B. "Hey Friday", "Computer" oder "Guten Morgen Friday".'
+        Info 'Nur "Hey Jarvis" nutzt ein fertiges Modell. Jedes andere Wake Word lernt dein PC aus deinen eigenen Aufnahmen (lokal, einige Minuten Rechenzeit); zwei Silben oder mehr und ein markanter Klang werden zuverlässiger erkannt.'
+    }
+    $defaultPhrase = if ($prevPhrase -and $new -eq $prev) { $prevPhrase } else { "Hey $new" }
+    $newPhrase = Read-WakePhrase $new $defaultPhrase
+    Set-AssistantIdentity $new $newPhrase
     if ($prev) {
+        $nameChanged = ($new -ne $prev)
+        $phraseChanged = ((Get-WakeKey $newPhrase) -ne (Get-WakeKey $prevPhrase))
         $redo = @()
-        if ($new -ne $prev) {
-            $redo = @('hermes', 'voicepython')
-            if ($recordingsExist) { $redo += @('enroll', 'voiceservice') }
-        } elseif ($oldName -and (YesNo 'Name unverändert. Stimmaufnahme trotzdem wiederholen?' $false)) {
+        if ($nameChanged) { $redo = @('hermes', 'voicepython') } elseif ($phraseChanged) { $redo = @('voicepython') }
+        if (($nameChanged -or $phraseChanged) -and $recordingsExist) { $redo += @('enroll', 'voiceservice') }
+        elseif (-not ($nameChanged -or $phraseChanged) -and $oldName -and (YesNo 'Name und Wake Word unverändert. Stimmaufnahme trotzdem wiederholen?' $false)) {
             $redo = @('enroll', 'voiceservice')
         }
-        Update-PersonaName $new $redo
-        if ($redo.Count -gt 0) { Warn 'Die abhängigen Schritte (Hermes-Persönlichkeit, Sprachmodell-Konfiguration, ggf. Stimmaufnahme und Sprachdienst) werden jetzt mit diesem Namen erneut durchlaufen.' }
+        Update-PersonaIdentity $new $newPhrase $redo
+        if ($redo.Count -gt 0) { Warn 'Die abhängigen Schritte (Hermes-Persönlichkeit, Sprachmodell-Konfiguration, ggf. Stimmaufnahme, Wake-Word-Training und Sprachdienst) werden jetzt mit diesen Angaben erneut durchlaufen.' }
     }
     Ok "Dein Assistent heißt $($State.assistant_name) – Wake Word: '$($State.wake_phrase)'."
 } elseif (-not $Resume -and -not $recordingsExist) {
     Info "Dein Assistent heißt $($State.assistant_name) (Wake Word '$($State.wake_phrase)')."
-    if (-not (YesNo 'Namen beibehalten?')) {
+    if (-not (YesNo 'Name und Wake Word beibehalten?')) {
         $new = Read-AssistantName $State.assistant_name
-        if ($new -ne $State.assistant_name) {
-            Set-AssistantName $new
-            Update-PersonaName $new @('hermes', 'voicepython')
-            Ok "Dein Assistent heißt jetzt $new – Wake Word: '$($State.wake_phrase)'."
+        $newPhrase = Read-WakePhrase $new $(if ($new -eq $State.assistant_name) { $State.wake_phrase } else { "Hey $new" })
+        if ($new -ne $State.assistant_name -or (Get-WakeKey $newPhrase) -ne (Get-WakeKey $State.wake_phrase)) {
+            Set-AssistantIdentity $new $newPhrase
+            Update-PersonaIdentity $new $newPhrase @('hermes', 'voicepython')
+            Ok "Dein Assistent heißt jetzt $new – Wake Word: '$newPhrase'."
         }
     }
 }
 $AN = $State.assistant_name
 $WP = $State.wake_phrase
 $Slug = $State.wake_slug
+$WakeShort = Get-WakeShort $WP
 
 # ================================================================ 1 Systemcheck
 if (-not (IsDone 'preflight')) {
@@ -289,10 +703,10 @@ if (-not (IsDone 'preflight')) {
 }
 
 # ================================================================ 2 Dateien
-# Bei jedem Start synchronisieren, solange das Skript nicht aus C:\Jarvis\installer laeuft: ein aktualisiertes Paket
+# Bei jedem Start synchronisieren, solange das Skript nicht aus C:\Friday\installer laeuft: ein aktualisiertes Paket
 # muss die dort liegenden Kopien (WSL-Skripte, Voice-Dateien) ersetzen, auch wenn der Schritt schon erledigt ist.
 if (-not (IsDone 'files') -or $PSScriptRoot -ne $Inst) {
-    Title 'Schritt 2/15 – Installationsdateien nach C:\Jarvis kopieren'
+    Title 'Schritt 2/15 – Installationsdateien nach C:\Friday kopieren'
     if ($PSScriptRoot -ne $Inst) {
         & robocopy.exe $PSScriptRoot $Inst /E /NFL /NDL /NJH /NJS /NP | Out-Null
         if ($LASTEXITCODE -ge 8) { Stop-Install "Kopieren der Installationsdateien fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
@@ -300,7 +714,9 @@ if (-not (IsDone 'files') -or $PSScriptRoot -ne $Inst) {
     Ok "Dateien liegen in $Inst"
     MarkDone 'files'
 }
-# Quelle des Command Centers (Ordner ueber installer\) merken: nach einem Neustart laeuft das Skript aus C:\Jarvis\installer,
+# Uebernahme einer alten Installation (nur wenn Phasen offen sind): Hermes in Ubuntu umstellen, Qwen starten - braucht die Skripte aus Schritt 2.
+Invoke-MigrationWsl
+# Quelle des Command Centers (Ordner ueber installer\) merken: nach einem Neustart laeuft das Skript aus C:\Friday\installer,
 # wo die Quellen nicht liegen. Schritt 15 findet sie dann ueber install-state.json (dashboard_source).
 if ($PSScriptRoot -ne $Inst) {
     $repoCand = (Split-Path $PSScriptRoot -Parent).TrimEnd('\')
@@ -310,7 +726,7 @@ if ($PSScriptRoot -ne $Inst) {
 }
 
 # Aktualisierte Voice-Dateien muessen auch eine bestehende Installation erreichen (Schritt 12 laeuft nur einmal): Hash-Vergleich
-# je Datei, geaendert -> nach C:\Jarvis\voice kopieren (profiles, models, .venv bleiben unberuehrt) und den Sprachdienst neu starten,
+# je Datei, geaendert -> nach C:\Friday\voice kopieren (profiles, models, .venv bleiben unberuehrt) und den Sprachdienst neu starten,
 # falls er lief.
 function Sync-VoiceFiles {
     $src = "$Inst\voice"; $dst = "$Root\voice"
@@ -324,10 +740,10 @@ function Sync-VoiceFiles {
     $changed | ForEach-Object { Copy-Item $_.FullName "$dst\$($_.Name)" -Force }
     Ok "$($changed.Count) Sprachdatei(en) nach $dst aktualisiert."
     if ($wasRunning) {
-        if (Get-ScheduledTask -TaskName 'JARVIS_Voice' -ErrorAction SilentlyContinue) {
-            Start-ScheduledTask -TaskName 'JARVIS_Voice'
+        if (Get-ScheduledTask -TaskName 'FRIDAY_Voice' -ErrorAction SilentlyContinue) {
+            Start-ScheduledTask -TaskName 'FRIDAY_Voice'
             Ok 'Sprachdienst mit den neuen Dateien neu gestartet (lädt die Modelle, ca. 1-3 Minuten).'
-        } else { Warn 'Aufgabe JARVIS_Voice fehlt - Sprachdienst nicht neu gestartet. install-jarvis.bat mit entferntem Eintrag "voiceservice" in install-state.json starten.' }
+        } else { Warn 'Aufgabe FRIDAY_Voice fehlt - Sprachdienst nicht neu gestartet. install-friday.bat mit entferntem Eintrag "voiceservice" in install-state.json starten.' }
     }
 }
 Sync-VoiceFiles
@@ -339,7 +755,7 @@ if (-not (IsDone 'wslfeature')) {
     if ($LASTEXITCODE -ne 0) {
         Info 'WSL wird installiert …'
         Native { wsl.exe --install --no-distribution } | ForEach-Object { Info $_ }
-        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$Inst\install-jarvis.ps1`" -Resume"
+        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$Inst\install-friday.ps1`" -Resume"
         $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
         $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
         Register-ScheduledTask -TaskName $ResumeTask -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
@@ -376,6 +792,7 @@ if (-not (IsDone 'persona')) {
     $about = Ask 'Über mich'
     $persona = [ordered]@{
         assistant_name = $AN
+        wake_phrase = $WP
         owner_name = $name
         address    = @('sir', 'sie', 'du')[$addr - 1]
         character  = @('butler', 'freundlich', 'sachlich')[$char - 1]
@@ -383,7 +800,7 @@ if (-not (IsDone 'persona')) {
         about      = $about
     }
     [IO.File]::WriteAllText("$Root\config\persona.json", ($persona | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
-    Ok 'Gespeichert (änderbar in C:\Jarvis\config\persona.json).'
+    Ok 'Gespeichert (änderbar in C:\Friday\config\persona.json).'
     MarkDone 'persona'
 }
 
@@ -424,7 +841,7 @@ if (-not (IsDone 'linuxuser')) {
     Title 'Schritt 8/15 – Linux-Benutzer anlegen'
     Info "$AN läuft in Ubuntu unter einem eigenen Benutzer. Name: nur Kleinbuchstaben/Zahlen."
     $suggest = ($env:USERNAME.ToLower() -replace '[^a-z0-9_-]', '')
-    if ($suggest -notmatch '^[a-z_]') { $suggest = 'jarvis' }
+    if ($suggest -notmatch '^[a-z_]') { $suggest = 'friday' }
     do { $user = Ask 'Linux-Benutzername' $suggest } until ($user -match '^[a-z_][a-z0-9_-]{0,31}$')
     while ($true) {
         $p1 = Plain (Read-Host '  Linux-Passwort (wird für "sudo" gebraucht, gut merken!)' -AsSecureString)
@@ -433,7 +850,7 @@ if (-not (IsDone 'linuxuser')) {
         Warn 'Passwörter leer oder ungleich – bitte nochmal.'
     }
     Info 'Richte Ubuntu ein (Pakete, Benutzer, systemd) – dauert einige Minuten …'
-    $out = Wsl-Run 'root' "/mnt/c/Jarvis/installer/wsl/setup_root.sh" "$user`n$p1"
+    $out = Wsl-Run 'root' "/mnt/c/Friday/installer/wsl/setup_root.sh" "$user`n$p1"
     $p1 = $null; $p2 = $null
     if ($out -notmatch 'ROOT_SETUP_DONE') { Stop-Install 'Ubuntu-Grundeinrichtung fehlgeschlagen.' }
     & wsl.exe --terminate $Distro | Out-Null
@@ -449,9 +866,9 @@ if (-not (IsDone 'linuxuser')) {
 # ================================================================ 9 WSL wach halten
 if (-not (IsDone 'keepalive')) {
     Title 'Schritt 9/15 – WSL dauerhaft aktiv halten'
-    Register-UserTask 'JARVIS_WSL_Keepalive' "`"$Inst\scripts\wsl-keepalive.vbs`"" 'Hält Ubuntu/WSL für Hermes dauerhaft aktiv'
-    Start-ScheduledTask -TaskName 'JARVIS_WSL_Keepalive'
-    Ok 'Aufgabe JARVIS_WSL_Keepalive eingerichtet (startet bei jeder Anmeldung).'
+    Register-UserTask 'FRIDAY_WSL_Keepalive' "`"$Inst\scripts\wsl-keepalive.vbs`"" 'Hält Ubuntu/WSL für Hermes dauerhaft aktiv'
+    Start-ScheduledTask -TaskName 'FRIDAY_WSL_Keepalive'
+    Ok 'Aufgabe FRIDAY_WSL_Keepalive eingerichtet (startet bei jeder Anmeldung).'
     MarkDone 'keepalive'
 }
 
@@ -477,7 +894,7 @@ if (-not (IsDone 'hermes')) {
         [IO.File]::WriteAllText($apiKeyFile, (-join ($bytes | ForEach-Object { $_.ToString('x2') })))
     }
     Info 'Installiere Hermes, verbinde Kimi, richte Persönlichkeit, Kanban, Dashboard und Gateway ein (10–20 min) …'
-    $out = Wsl-Run $State.linux_user '/mnt/c/Jarvis/installer/wsl/setup_hermes.sh' $key
+    $out = Wsl-Run $State.linux_user '/mnt/c/Friday/installer/wsl/setup_hermes.sh' $key
     $key = $null
     if ($out -notmatch 'HERMES_SETUP_DONE') { Stop-Install 'Hermes-Einrichtung fehlgeschlagen (siehe graue Ausgabe oben).' }
     if ($out -match 'KIMI_OK') { Ok 'Kimi K3 antwortet.' } else { Warn 'Kimi-Test nicht bestanden – Key prüfen; später in Ubuntu: hermes model' }
@@ -493,7 +910,7 @@ if (-not (IsDone 'qwen')) {
     # Pascal (GTX 10xx) & Co. laufen nur mit dem CUDA-12.4-Build; RTX 50xx braucht CUDA 13.
     $flavor = if (-not $gpu.nvidia) { 'cpu' } elseif ([double]$gpu.cc -ge 12.0) { 'cuda-13' } else { 'cuda-12.4' }
     Info "llama.cpp-Variante: $flavor"
-    $rels = Invoke-RestMethod 'https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=40' -Headers @{ 'User-Agent' = 'jarvis-installer' }
+    $rels = Invoke-RestMethod 'https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=40' -Headers @{ 'User-Agent' = 'friday-installer' }
     $pattern = '^llama-b\d+-bin-win-' + [regex]::Escape($flavor) + '[\d.]*-x64\.zip$'
     $rel = $null; $main = $null
     foreach ($r in $rels) { $main = $r.assets | Where-Object { $_.name -match $pattern } | Select-Object -First 1; if ($main) { $rel = $r; break } }
@@ -521,12 +938,12 @@ if (-not (IsDone 'qwen')) {
     $layers = if ($gpu.nvidia) { 99 } else { 0 }
     @{ ctx_size = $ctx; gpu_layers = $layers } | ConvertTo-Json | Set-Content "$Root\config\qwen.json" -Encoding Ascii
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$Inst\scripts\start-qwen-server.ps1"
-    if (-not (Wait-Http "http://127.0.0.1:$($Ports.Qwen)/v1/models" 120)) { Stop-Install 'Qwen-Server startet nicht (C:\Jarvis\logs\qwen-server.log).' }
+    if (-not (Wait-Http "http://127.0.0.1:$($Ports.Qwen)/v1/models" 120)) { Stop-Install 'Qwen-Server startet nicht (C:\Friday\logs\qwen-server.log).' }
     $body = @{ model = 'qwen3-router'; max_tokens = 10; chat_template_kwargs = @{ enable_thinking = $false }
                messages = @(@{ role = 'user'; content = 'Antworte nur mit LOCAL_OK' }) } | ConvertTo-Json -Depth 5
     $t = Measure-Command { $r = Invoke-RestMethod -Method Post "http://127.0.0.1:$($Ports.Qwen)/v1/chat/completions" -ContentType 'application/json' -Body $body -TimeoutSec 120 }
     Ok ("Qwen antwortet ({0:N1} s): {1}" -f $t.TotalSeconds, $r.choices[0].message.content.Trim())
-    Register-UserTask 'JARVIS_Qwen' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-qwen-server.ps1`"" 'Lokaler Qwen3-4B-Router für F.R.I.D.A.Y.'
+    Register-UserTask 'FRIDAY_Qwen' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-qwen-server.ps1`"" 'Lokaler Qwen3-4B-Router für F.R.I.D.A.Y.'
     MarkDone 'qwen'
 }
 
@@ -554,7 +971,7 @@ if (-not (IsDone 'voicepython')) {
     & $vpy -m pip install -q torch torchaudio --index-url https://download.pytorch.org/whl/cpu 2>&1 | Out-File "$Root\logs\pip.log" -Append
     & $vpy -m pip install -q faster-whisper nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*" openwakeword speechbrain silero-vad `
         piper-tts sounddevice soundfile scipy scikit-learn huggingface_hub 2>&1 | Out-File "$Root\logs\pip.log" -Append
-    if ($LASTEXITCODE -ne 0) { Stop-Install 'Python-Pakete konnten nicht installiert werden (C:\Jarvis\logs\pip.log).' }
+    if ($LASTEXITCODE -ne 0) { Stop-Install 'Python-Pakete konnten nicht installiert werden (C:\Friday\logs\pip.log).' }
     Info 'Lade Sprachmodelle und teste die Grafikkarte …'
     $out = & $vpy "$Root\voice\voice_setup.py" $Root 2>&1 | ForEach-Object { "$_" }
     $out | Where-Object { $_ -match '==>|^\s{3}|DONE' } | ForEach-Object { Info $_ }
@@ -567,21 +984,24 @@ if (-not (IsDone 'voicepython')) {
 if (-not (IsDone 'enroll')) {
     Title "Schritt 13/15 – $AN lernt deine Stimme"
     Info "$AN reagiert nur auf DEINE Stimme. Dafür nimmst du jetzt einige Sätze auf (ca. 10–12 Minuten):"
-    Info "  • 26x ""$WP"", 18x ""$AN"", 15 ähnlich klingende Wörter, 8 kurze Texte vorlesen"
+    if ($WakeShort) { Info "  • 26x ""$WP"", 18x ""$WakeShort"", 15 ähnlich klingende Wörter, 8 kurze Texte vorlesen" }
+    else { Info "  • 44x ""$WP"", 15 ähnlich klingende Wörter (Teile und Varianten der Phrase), 8 kurze Texte vorlesen" }
     Info '  • Ruhige Umgebung, normal sprechen, nach jedem Piepton sprechen.'
     Info 'Es öffnet sich gleich ein eigenes Fenster. Dort Enter drücken und den Anweisungen folgen.'
     Read-Host '  Enter, wenn du bereit bist'
     $vpy = "$Root\voice\.venv\Scripts\python.exe"
     $raw = "$Root\voice\profiles\owner\raw"
     while ($true) {
-        Start-Process -FilePath $vpy -ArgumentList "`"$Root\voice\enroll_record.py`" --name `"$AN`"" -WorkingDirectory "$Root\voice" -Wait
-        $nWake = @(Get-ChildItem "$raw\wake_hey_$Slug\*.wav" -ErrorAction SilentlyContinue).Count
+        Start-Process -FilePath $vpy -ArgumentList "`"$Root\voice\enroll_record.py`" --name `"$AN`" --phrase `"$WP`"" -WorkingDirectory "$Root\voice" -Wait
+        $nWake = @(Get-ChildItem "$raw\wake_$Slug\*.wav" -ErrorAction SilentlyContinue).Count
         $nSpeech = @(Get-ChildItem "$raw\speech\*.wav" -ErrorAction SilentlyContinue).Count
         if ($nWake -ge 20 -and $nSpeech -ge 6) { break }
         Warn "Zu wenige Aufnahmen ($nWake x '$WP', $nSpeech Texte). Bitte vollständig durchlaufen."
         if (-not (YesNo 'Aufnahme fortsetzen?')) { Stop-Install 'Stimmprofil unvollständig.' }
     }
-    Info 'Berechne dein Stimmprofil und trainiere die Wake-Word-Erkennung (bei eigenem Namen einige Minuten) …'
+    Info 'Berechne dein Stimmprofil und trainiere die Wake-Word-Erkennung (bei eigenem Wake Word einige Minuten) …'
+    # Altes persoenliches Modell (andere Phrase) entfernen: fehlt es danach, ist das Training gescheitert - nie ein veraltetes Modell weiterverwenden.
+    Remove-Item "$Root\models\openwakeword\personal_wake.npz", "$Root\models\openwakeword\personal_wake.json" -Force -ErrorAction SilentlyContinue
     & $vpy "$Root\voice\build_speaker_profile.py" 2>&1 | ForEach-Object { "$_" } | Where-Object { $_ -match 'Profil|score|Kreuz' } | ForEach-Object { Info $_ }
     $wakeOut = @(& $vpy "$Root\voice\train_owner_verifier.py" 2>&1 | ForEach-Object { "$_" })
     $wakeOut | Where-Object { $_ -match 'Verifier|Wake|Schwelle|Aufnahmen|Kalibrier' } | ForEach-Object { Info $_ }
@@ -590,9 +1010,13 @@ if (-not (IsDone 'enroll')) {
         if (-not (Test-Path "$Root\models\openwakeword\personal_wake.npz") -or -not (Test-Path "$Root\models\openwakeword\personal_wake.json")) {
             Stop-Install "Wake-Word-Modell für '$WP' konnte nicht erstellt werden (Ausgabe oben). Aufnahme prüfen und erneut starten."
         }
+        $wakeMeta = Get-Content "$Root\models\openwakeword\personal_wake.json" -Raw | ConvertFrom-Json
+        if ((Get-WakeKey $wakeMeta.wake_phrase) -ne (Get-WakeKey $WP)) {
+            Stop-Install "Das Wake-Word-Modell gehört zu '$($wakeMeta.wake_phrase)', nicht zu '$WP'. Aufnahme prüfen und erneut starten."
+        }
         if (($wakeOut -join "`n") -match 'WAKE_QUALITY=schwach') {
             Warn "Das Wake Word '$WP' ist noch unsicher erkennbar (ähnlich klingende Wörter). Es funktioniert, kann aber öfter nicht oder fälschlich anspringen."
-            Warn 'Tipp: Aufnahme in ruhigerer Umgebung wiederholen (siehe ANLEITUNG.md) oder einen längeren, markanteren Namen wählen.'
+            Warn 'Tipp: Aufnahme in ruhigerer Umgebung wiederholen (siehe ANLEITUNG.md) oder ein längeres, markanteres Wake Word wählen (change-assistant-name.bat).'
         }
     }
     Ok 'Stimmprofil erstellt (bleibt nur auf diesem PC).'
@@ -602,18 +1026,18 @@ if (-not (IsDone 'enroll')) {
 # ================================================================ 14 Sprachdienst + Abschluss
 if (-not (IsDone 'voiceservice')) {
     Title "Schritt 14/15 – $AN starten"
-    Register-UserTask 'JARVIS_Voice' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-jarvis-voice.ps1`"" "$AN Sprachsteuerung ($WP)" 45
+    Register-UserTask 'FRIDAY_Voice' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-friday-voice.ps1`"" "$AN Sprachsteuerung ($WP)" 45
     # Läuft noch ein Sprachdienst mit alter Konfiguration (Namenswechsel), erst Neustartschleife und Python beenden:
     # sonst startet die Schleife Python nach 10 s neu oder die Aufgabe startet eine zweite Instanz.
     Stop-VoiceService
-    Start-ScheduledTask -TaskName 'JARVIS_Voice'
+    Start-ScheduledTask -TaskName 'FRIDAY_Voice'
     Info 'Lade die Sprachmodelle (bis zu 3 Minuten) …'
     $ok = $false
     foreach ($i in 1..90) {
         try { if ((Invoke-RestMethod "http://127.0.0.1:$($Ports.Voice)" -TimeoutSec 2).state -eq 'listening') { $ok = $true; break } } catch {}
         Start-Sleep 2
     }
-    if (-not $ok) { Stop-Install 'Sprachdienst startet nicht (C:\Jarvis\logs\voice-service.log).' }
+    if (-not $ok) { Stop-Install 'Sprachdienst startet nicht (C:\Friday\logs\voice-service.log).' }
     Ok "$AN antwortet auf dem Sprachport (state=listening)."
     $helloLog = "$Root\logs\say-hello.log"
     $helloOut = @(& "$Root\voice\.venv\Scripts\python.exe" "$Root\voice\say_hello.py" $Root "Guten Tag. $AN ist installiert und bereit." 2>&1 | ForEach-Object { "$_" })
@@ -629,8 +1053,8 @@ if (-not (IsDone 'voiceservice')) {
 }
 
 # ================================================================ 15 F.R.I.D.A.Y. Command Center (Dashboard + Control API)
-# Zielpfad C:\Jarvis\dashboard - Entscheidung des Eigentuemers; PLAN §54 nennt D:\Jarvis\dashboard. Der Installer legt
-# ueberall C:\Jarvis zugrunde (kein D:-Laufwerk garantiert); der Pfad steht in dashboard.yaml und ist dort aenderbar.
+# Zielpfad C:\Friday\dashboard - Entscheidung des Eigentuemers; PLAN §54 nennt D:\Friday\dashboard. Der Installer legt
+# ueberall C:\Friday zugrunde (kein D:-Laufwerk garantiert); der Pfad steht in dashboard.yaml und ist dort aenderbar.
 # Details: docs/DEPLOYMENT.md. Der Schritt ist idempotent; ein Fehler hier laesst Sprache/Hermes/Qwen unangetastet.
 $NodeMin = [version]'22.13.0'
 # Verzeichnisse, die nie ins Ziel kopiert werden (Build-Ausgaben, Abhaengigkeiten, Screenshots/Belege, Metadaten).
@@ -672,7 +1096,7 @@ function Ensure-Node {
     $node = Find-Node; $ver = Get-NodeVersion $node
     if ($ver -and $ver -ge $NodeMin) { Ok "Node.js $ver gefunden"; return $node }
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Stop-Dashboard "Für das Command Center wird Node.js $NodeMin oder neuer gebraucht, aber winget (App-Installer) fehlt. Bitte im Microsoft Store den 'App-Installer' aktualisieren oder Node.js LTS von https://nodejs.org installieren und install-jarvis.bat erneut starten."
+        Stop-Dashboard "Für das Command Center wird Node.js $NodeMin oder neuer gebraucht, aber winget (App-Installer) fehlt. Bitte im Microsoft Store den 'App-Installer' aktualisieren oder Node.js LTS von https://nodejs.org installieren und install-friday.bat erneut starten."
     }
     $wingetArgs = @('--id', 'OpenJS.NodeJS.LTS', '-e', '--silent', '--accept-package-agreements', '--accept-source-agreements')
     $verbs = if ($ver) { Info "Node.js $ver ist zu alt (mindestens $NodeMin) - aktualisiere per winget …"; @('upgrade', 'install') } else { Info 'Installiere Node.js LTS per winget …'; @('install') }
@@ -688,8 +1112,8 @@ function Ensure-Node {
         if (($env:Path -split ';') -notcontains $nd) { $env:Path = "$nd;$env:Path" }
         Ok "Node.js $ver bereit"; return $node
     }
-    if ($ver) { Stop-Dashboard "Node.js $ver ist zu alt (mindestens $NodeMin) und ließ sich nicht aktualisieren (Log: $DashInstallLog). Bitte Node.js LTS manuell von https://nodejs.org installieren und install-jarvis.bat erneut starten." }
-    Stop-Dashboard "Node.js wurde installiert oder angefordert, ist in dieser Sitzung aber nicht auffindbar (der PATH wird erst in einer neuen Shell aktualisiert). Dieses Fenster schließen und install-jarvis.bat erneut starten. Log: $DashInstallLog"
+    if ($ver) { Stop-Dashboard "Node.js $ver ist zu alt (mindestens $NodeMin) und ließ sich nicht aktualisieren (Log: $DashInstallLog). Bitte Node.js LTS manuell von https://nodejs.org installieren und install-friday.bat erneut starten." }
+    Stop-Dashboard "Node.js wurde installiert oder angefordert, ist in dieser Sitzung aber nicht auffindbar (der PATH wird erst in einer neuen Shell aktualisiert). Dieses Fenster schließen und install-friday.bat erneut starten. Log: $DashInstallLog"
 }
 function Ensure-Pnpm([string]$wanted) {
     $env:COREPACK_ENABLE_DOWNLOAD_PROMPT = '0'
@@ -768,7 +1192,7 @@ function Test-DashboardHealth([int]$timeoutSec = 3) {
     }
 }
 function Get-ConfiguredPort([string]$yamlFile, [int]$default) {
-    # server.port aus dashboard.yaml (einfacher Zeilenscan; Umgebungsvariable JARVIS_PORT bleibt unberuecksichtigt).
+    # server.port aus dashboard.yaml (einfacher Zeilenscan; Umgebungsvariable FRIDAY_PORT bleibt unberuecksichtigt).
     if (-not (Test-Path $yamlFile)) { return $default }
     $inServer = $false
     foreach ($line in (Get-Content $yamlFile)) {
@@ -799,7 +1223,7 @@ function Write-DashFile([string]$path, [string]$content, [string]$label) {
     if ([IO.File]::ReadAllText($path).Replace("`r`n", "`n") -eq $content) { Info "$label ist aktuell: $path"; return }
     if ($UpdateDashboard) { Info "$label bleibt unverändert (deine Änderungen werden behalten): $path"; return }
     Warn "$label existiert bereits und weicht von der Vorgabe des Installers ab: $path"
-    if (YesNo 'Mit der Vorgabe überschreiben? (die alte Datei wird nach C:\Jarvis\backups gesichert)' $false) {
+    if (YesNo 'Mit der Vorgabe überschreiben? (die alte Datei wird nach C:\Friday\backups gesichert)' $false) {
         Copy-Item $path "$Root\backups\$(Split-Path $path -Leaf).bak-$(Get-Date -Format yyyyMMdd-HHmmss)" -Force
         [IO.File]::WriteAllText($path, $content, $enc); Ok "$label überschrieben"
     } else { Info "$label bleibt unverändert (deine Änderungen werden behalten)." }
@@ -815,7 +1239,7 @@ function Write-DashboardConfig {
     $dashboardYaml = @"
 # F.R.I.D.A.Y. Command Center - Dashboard-Konfiguration (vom Installer erzeugt, HYBRID-Betrieb; frei editierbar).
 # Der Installer ueberschreibt diese Datei nie ohne Rueckfrage. Mehr: docs/DEPLOYMENT.md, config/dashboard.example.yaml.
-# Geaendert wird nach einem Neustart der Aufgabe JARVIS_Dashboard wirksam.
+# Geaendert wird nach einem Neustart der Aufgabe FRIDAY_Dashboard wirksam.
 
 dataMode: hybrid # mock | hybrid | live - hybrid: in adapters.yaml genannte Kategorien live, der Rest mock
 
@@ -824,19 +1248,19 @@ server:
   port: 3100
   allowRemote: false
 
-# Pfade ohne Backslash (YAML). Entscheidung: C:\Jarvis\dashboard statt D:\Jarvis\dashboard (PLAN 54), Logs bei den
-# anderen Diensten in C:\Jarvis\logs.
+# Pfade ohne Backslash (YAML). Entscheidung: C:\Friday\dashboard statt D:\Friday\dashboard (PLAN 54), Logs bei den
+# anderen Diensten in C:\Friday\logs.
 paths:
-  dataDir: C:/Jarvis/dashboard/data
-  logDir: C:/Jarvis/logs/dashboard
-  backupDir: C:/Jarvis/dashboard/backups
-  webRoot: C:/Jarvis/dashboard/apps/web/out
+  dataDir: C:/Friday/dashboard/data
+  logDir: C:/Friday/logs/dashboard
+  backupDir: C:/Friday/dashboard/backups
+  webRoot: C:/Friday/dashboard/apps/web/out
 
 auth:
   mode: local
   ownerUsername: owner
   # Nur der scrypt-Hash, nie das Passwort. Datei mit Zugriff nur fuer den Installationsbenutzer (icacls).
-  ownerPasswordHash: file:C:/Jarvis/config/dashboard_owner.hash
+  ownerPasswordHash: file:C:/Friday/config/dashboard_owner.hash
   sessionTtlMinutes: 720
   reauthWindowMinutes: 5
   idleTimeoutMinutes: 30
@@ -850,8 +1274,8 @@ ui:
   locale: de-DE
   timezone: Europe/Berlin
   assistantName: "$AN" # Anzeigename; settings.profile.assistantName (in der Oberflaeche geaendert) hat Vorrang
-  theme: jarvis-command-midnight
-  layout: jarvis-command-overview
+  theme: friday-command-midnight
+  layout: friday-command-overview
 
 dev:
   scenarioConsole: false
@@ -874,11 +1298,11 @@ logging:
 # Geheimnisse nie im Klartext: file:<absoluter Pfad> (nur serverseitig gelesen), env:NAME oder wincred:ZIEL.
 
 allowlist:
-  hermes-tasks: "@jarvis/adapter-hermes"
-  hermes-activity: "@jarvis/adapter-hermes"
-  hermes-agents: "@jarvis/adapter-hermes"
-  jarvis-voice-http: "@jarvis/adapter-voice-http"
-  local-system: "@jarvis/adapter-system-local"
+  hermes-tasks: "@friday/adapter-hermes"
+  hermes-activity: "@friday/adapter-hermes"
+  hermes-agents: "@friday/adapter-hermes"
+  friday-voice-http: "@friday/adapter-voice-http"
+  local-system: "@friday/adapter-system-local"
 
 adapters:
   tasks:
@@ -895,7 +1319,7 @@ adapters:
     timeoutMs: 10000
     config:
       apiBaseUrl: http://127.0.0.1:43693
-      apiKey: "file:C:/Jarvis/config/hermes_api.key"
+      apiKey: "file:C:/Friday/config/hermes_api.key"
       dashboardBaseUrl: http://127.0.0.1:43691
       boards: [default]
   agents:
@@ -904,11 +1328,11 @@ adapters:
     timeoutMs: 10000
     config:
       apiBaseUrl: http://127.0.0.1:43693
-      apiKey: "file:C:/Jarvis/config/hermes_api.key"
+      apiKey: "file:C:/Friday/config/hermes_api.key"
       dashboardBaseUrl: http://127.0.0.1:43691
       boards: [default]
   voice:
-    provider: jarvis-voice-http
+    provider: friday-voice-http
     enabled: true
     timeoutMs: 3000
     config:
@@ -924,7 +1348,7 @@ adapters:
       hermesApiUrl: http://127.0.0.1:43693
       hermesDashboardUrl: http://127.0.0.1:43691
       voiceUrl: http://127.0.0.1:43694
-      hermesApiKey: "file:C:/Jarvis/config/hermes_api.key"
+      hermesApiKey: "file:C:/Friday/config/hermes_api.key"
       storagePaths: ["C:/"]
       wslDistro: $Distro
 "@
@@ -952,12 +1376,12 @@ function Set-DashboardOwnerPassword {
     }
     $pw2 = $null
     Push-Location $Dash
-    try { $lines = @($pw | & pnpm.cmd --filter '@jarvis/auth' hash-password 2>&1 | ForEach-Object { "$_" }) }
+    try { $lines = @($pw | & pnpm.cmd --filter '@friday/auth' hash-password 2>&1 | ForEach-Object { "$_" }) }
     finally { Pop-Location; $pw = $null }
     $text = $lines -join "`n"
-    if (-not ($text -match 'JARVIS_OWNER_PASSWORD_HASH=''(scrypt\$\d+\$\d+\$\d+\$[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+)''')) {
+    if (-not ($text -match 'FRIDAY_OWNER_PASSWORD_HASH=''(scrypt\$\d+\$\d+\$\d+\$[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+)''')) {
         Write-DashLog ">>> hash-password fehlgeschlagen:`n$text"
-        Stop-Dashboard "Das Passwort-Hash-Werkzeug (pnpm --filter @jarvis/auth hash-password) hat keinen Hash geliefert. Log: $DashInstallLog"
+        Stop-Dashboard "Das Passwort-Hash-Werkzeug (pnpm --filter @friday/auth hash-password) hat keinen Hash geliefert. Log: $DashInstallLog"
     }
     $hash = $Matches[1]
     # Datei zuerst leer anlegen und absichern, dann erst den Hash hineinschreiben (Muster hermes_api.key).
@@ -970,7 +1394,7 @@ function Set-DashboardOwnerPassword {
 function Install-Dashboard {
     Write-DashLog "=== Dashboard-Schritt gestartet ($(Get-Date -Format s)) ==="
     Info "Ziel: $Dash  |  URL: $DashUrl  |  Log: $DashInstallLog"
-    Info 'Hinweis: PLAN §54 nennt D:\Jarvis\dashboard; hier gilt C:\Jarvis\dashboard (Entscheidung des Eigentümers, siehe docs\DEPLOYMENT.md).'
+    Info 'Hinweis: PLAN §54 nennt D:\Friday\dashboard; hier gilt C:\Friday\dashboard (Entscheidung des Eigentümers, siehe docs\DEPLOYMENT.md).'
 
     # --- Quelle des Command Centers: Ordner neben installer\ (oder der beim ersten Start gemerkte)
     $src = $null
@@ -978,9 +1402,9 @@ function Install-Dashboard {
         if ($cand -and (Test-Path "$cand\pnpm-workspace.yaml") -and (Test-Path "$cand\apps\control-api\package.json")) { $src = "$cand".TrimEnd('\'); break }
     }
     if (-not $src) {
-        Stop-Dashboard "Die Quellen des Command Centers (Ordner apps, packages, adapters, config neben dem Ordner 'installer') wurden nicht gefunden. Bitte das komplette Paket entpacken (nicht nur den Ordner 'installer') und install-jarvis.bat aus dem entpackten Paket starten; der entpackte Ordner muss bis zum Ende der Installation an seinem Platz bleiben."
+        Stop-Dashboard "Die Quellen des Command Centers (Ordner apps, packages, adapters, config neben dem Ordner 'installer') wurden nicht gefunden. Bitte das komplette Paket entpacken (nicht nur den Ordner 'installer') und install-friday.bat aus dem entpackten Paket starten; der entpackte Ordner muss bis zum Ende der Installation an seinem Platz bleiben."
     }
-    if ($src -eq $Dash) { Stop-Dashboard "Die Quelle darf nicht $Dash selbst sein - bitte install-jarvis.bat aus dem entpackten Paket starten." }
+    if ($src -eq $Dash) { Stop-Dashboard "Die Quelle darf nicht $Dash selbst sein - bitte install-friday.bat aus dem entpackten Paket starten." }
     Info "Quelle: $src"
 
     # --- Node.js + pnpm
@@ -1029,7 +1453,7 @@ function Install-Dashboard {
     $owner = Get-PortOwner $DashPort
     if ($owner) {
         Warn "Port $DashPort ist belegt durch '$($owner.Name)' (PID $($owner.ProcessId)): $($owner.CommandLine)"
-        Warn "Das Command Center wurde gebaut und konfiguriert, aber nicht gestartet. Programm beenden oder in $Dash\config\dashboard.yaml einen anderen Port wählen, dann install-jarvis.bat erneut starten."
+        Warn "Das Command Center wurde gebaut und konfiguriert, aber nicht gestartet. Programm beenden oder in $Dash\config\dashboard.yaml einen anderen Port wählen, dann install-friday.bat erneut starten."
         return
     }
     Register-UserTask $DashTask "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-dashboard.ps1`"" 'F.R.I.D.A.Y. Command Center (Dashboard + Control API)' 60
@@ -1040,7 +1464,7 @@ function Install-Dashboard {
     foreach ($i in 1..30) { $h = Test-DashboardHealth 3; if ($h.Up) { break }; Start-Sleep 2 }
     if (-not $h.Up) {
         Warn "Das Command Center antwortet nicht auf $DashUrl/api/v1/health. Log: $Root\logs\dashboard-service.log (und $DashInstallLog)."
-        Warn 'Sprache und Hermes laufen davon unabhängig weiter. Ursache beheben und install-jarvis.bat erneut starten.'
+        Warn 'Sprache und Hermes laufen davon unabhängig weiter. Ursache beheben und install-friday.bat erneut starten.'
         return
     }
     if ($h.Code -ge 200 -and $h.Code -lt 300) { Ok "Command Center läuft: $DashUrl (Health $($h.Code))" }
@@ -1061,34 +1485,34 @@ if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
     if ($script:DashOk) { MarkDone 'dashboard' }
     else {
         Warn 'Das Command Center ist noch nicht fertig eingerichtet (Details oben). Sprache und Hermes sind davon nicht betroffen.'
-        Warn "Erneut versuchen: update-dashboard.bat (im Paketordner) oder install-jarvis.bat -Resume. Log: $DashInstallLog"
+        Warn "Erneut versuchen: update-dashboard.bat (im Paketordner) oder install-friday.bat -Resume. Log: $DashInstallLog"
     }
 }
 
-# ================================================================ Zusatz: Service-Watchdog (JARVIS_Watchdog)
+# ================================================================ Zusatz: Service-Watchdog (FRIDAY_Watchdog)
 # Prueft alle 5 Minuten, ob Sprachdienst, Qwen und Command Center antworten, und startet abgestuerzte Dienste ueber ihre Aufgabe neu
-# (Regeln: scripts\friday-watchdog.ps1). Laeuft unsichtbar ueber hidden.vbs (wscript), wie die uebrigen JARVIS-Aufgaben - ein direkter
+# (Regeln: scripts\friday-watchdog.ps1). Laeuft unsichtbar ueber hidden.vbs (wscript), wie die uebrigen FRIDAY-Aufgaben - ein direkter
 # powershell.exe-Start mit -WindowStyle Hidden blitzt sonst alle 5 Minuten ein Konsolenfenster auf. Idempotent: wird bei jedem Lauf
 # neu registriert. Ein Fehler hier laesst die Installation unberuehrt (nur Warnung). Andere Aufgaben (z. B. ein altes
-# JARVIS_Voice_Watchdog frueherer Installer) werden nicht angefasst.
+# FRIDAY_Voice_Watchdog frueherer Installer) werden nicht angefasst.
 Title 'Zusatz – Service-Watchdog einrichten'
 $eapBefore = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
 try {
     $wd = "$Inst\scripts\friday-watchdog.ps1"
     if (-not (Test-Path $wd)) { throw "$wd fehlt (Installationsdateien unvollständig)." }
-    Register-UserTask 'JARVIS_Watchdog' "`"$Inst\scripts\hidden.vbs`" `"$wd`"" 'F.R.I.D.A.Y. Service-Watchdog: startet abgestürzte Dienste neu (alle 5 Minuten, unsichtbar)' 120 5 2
-    if (-not (Get-ScheduledTask -TaskName 'JARVIS_Watchdog')) { throw 'Aufgabe JARVIS_Watchdog nach der Registrierung nicht auffindbar.' }
-    Ok 'Aufgabe JARVIS_Watchdog eingerichtet (alle 5 Minuten und bei Anmeldung, unsichtbar). Log: C:\Jarvis\logs\watchdog.log'
+    Register-UserTask 'FRIDAY_Watchdog' "`"$Inst\scripts\hidden.vbs`" `"$wd`"" 'F.R.I.D.A.Y. Service-Watchdog: startet abgestürzte Dienste neu (alle 5 Minuten, unsichtbar)' 120 5 2
+    if (-not (Get-ScheduledTask -TaskName 'FRIDAY_Watchdog')) { throw 'Aufgabe FRIDAY_Watchdog nach der Registrierung nicht auffindbar.' }
+    Ok 'Aufgabe FRIDAY_Watchdog eingerichtet (alle 5 Minuten und bei Anmeldung, unsichtbar). Log: C:\Friday\logs\watchdog.log'
     MarkDone 'watchdog'
 } catch {
     Warn "Service-Watchdog nicht eingerichtet: $($_.Exception.Message)"
-    Warn 'Die Dienste laufen trotzdem; ohne Watchdog werden abgestürzte Dienste nur durch die eigenen Neustartschleifen bzw. bei der nächsten Anmeldung wieder gestartet. Erneut versuchen: install-jarvis.bat starten.'
+    Warn 'Die Dienste laufen trotzdem; ohne Watchdog werden abgestürzte Dienste nur durch die eigenen Neustartschleifen bzw. bei der nächsten Anmeldung wieder gestartet. Erneut versuchen: install-friday.bat starten.'
 } finally { $ErrorActionPreference = $eapBefore }
 
 $DashProbe = Test-DashboardHealth 3
 $p = Get-Content "$Root\config\persona.json" -Raw | ConvertFrom-Json
-$dashNote = if (IsDone 'dashboard') { '' } else { "ACHTUNG: Command Center nicht eingerichtet - update-dashboard.bat oder install-jarvis.bat -Resume starten. Log: $DashInstallLog" }
+$dashNote = if (IsDone 'dashboard') { '' } else { "ACHTUNG: Command Center nicht eingerichtet - update-dashboard.bat oder install-friday.bat -Resume starten. Log: $DashInstallLog" }
 $report = @"
 # F.R.I.D.A.Y. – Installationsstatus
 
@@ -1103,7 +1527,7 @@ Installiert am $(Get-Date -Format 'dd.MM.yyyy HH:mm') für $($p.owner_name). Ass
 | Sprachdienst-Status | http://127.0.0.1:$($Ports.Voice) |
 
 Grafikkarte: $($State.gpu.name) ($($State.gpu.vram_mb) MB) · Linux-Benutzer: $($State.linux_user)
-Autostart: JARVIS_WSL_Keepalive, JARVIS_Qwen, JARVIS_Voice, JARVIS_Dashboard (Aufgabenplanung). Watchdog: JARVIS_Watchdog (alle 5 Minuten, Log C:\Jarvis\logs\watchdog.log). Hermes-Dienste: systemd in Ubuntu.
+Autostart: FRIDAY_WSL_Keepalive, FRIDAY_Qwen, FRIDAY_Voice, FRIDAY_Dashboard (Aufgabenplanung). Watchdog: FRIDAY_Watchdog (alle 5 Minuten, Log C:\Friday\logs\watchdog.log). Hermes-Dienste: systemd in Ubuntu.
 $dashNote
 Erledigte Schritte: $(@($State.done) -join ', ')
 "@
@@ -1114,10 +1538,11 @@ Title "FERTIG – $AN ist einsatzbereit"
 Info "Sag:  ""$WP""  … kurzer Piepton … dann deine Frage, z. B. ""Wie spät ist es?"""
 Info "Folgefragen gehen 90 Sekunden lang ohne erneutes ""$WP""."
 if ($DashProbe.Up) { Info "Command Center (Dashboard, Login 'owner'): $DashUrl" }
-else { Warn "Command Center nicht erreichbar ($DashUrl) - Logs: $Root\logs\dashboard-service.log, $DashInstallLog. Erneut versuchen: update-dashboard.bat oder install-jarvis.bat -Resume." }
+else { Warn "Command Center nicht erreichbar ($DashUrl) - Logs: $Root\logs\dashboard-service.log, $DashInstallLog. Erneut versuchen: update-dashboard.bat oder install-friday.bat -Resume." }
 Info "Hermes-Dashboard (Kanban, Einstellungen): http://127.0.0.1:$($Ports.Dashboard)"
 Info 'Alles startet ab jetzt automatisch bei der Anmeldung.'
 Info 'Nächste Schritte (Telegram, E-Mail, Kalender): siehe ANLEITUNG.md'
+Show-MigrationSummary
 if ($DashProbe.Up -and (YesNo 'Command Center jetzt im Browser öffnen?')) { Start-Process $DashUrl }
 elseif (-not $DashProbe.Up) { Start-Process "http://127.0.0.1:$($Ports.Dashboard)" }
 Stop-Transcript | Out-Null

@@ -1,8 +1,13 @@
 """Neutrale deutsche Saetze, die beim Einrichten des persoenlichen Wake Words lokal mit Piper gesprochen werden.
 
-Sie dienen nur als zusaetzliche Negativbeispiele (Alltagssprache ohne Assistentennamen) und enthalten keine echten
-Personen, Firmen oder privaten Daten.
+Sie dienen nur als zusaetzliche Negativbeispiele (Alltagssprache ohne Wake Phrase) und enthalten keine echten
+Personen, Firmen oder privaten Daten. `sentences_for` / `without_phrase_words` entfernen Saetze, in denen ein Wort der
+gewaehlten Wake Phrase vorkommt - sonst wuerde die Phrase selbst als Negativbeispiel gelernt.
 """
+import re
+import unicodedata
+
+_SKIP_WORDS = {"hey", "hallo", "okay", "hej"}   # Grussworte der Phrase zaehlen nicht als "Phrasenwort"
 
 SENTENCES_DE = [
     "Heute Morgen habe ich lange geschlafen und dann in Ruhe gefruehstueckt.",
@@ -115,3 +120,42 @@ SENTENCES_DE = [
     "Auf dem Weg nach Hause habe ich noch schnell Blumen und etwas Obst besorgt.",
     "Fuenf mal sieben ist fuenfunddreissig, und dreissig plus zwoelf ergibt zweiundvierzig.",
 ]
+
+
+def _fold(word: str) -> str:
+    text = unicodedata.normalize("NFKD", word.lower().replace("ß", "ss"))
+    return "".join(c for c in text if "a" <= c <= "z")
+
+
+def phrase_words(phrase: str) -> set:
+    """Gefaltete Woerter der Phrase (a-z, Mindestlaenge 3, ohne Grussworte); Bindestrich-Woerter zaehlen mit Teilen."""
+    words = set()
+    for raw in re.findall(r"[^\W\d_]+", phrase or ""):
+        word = _fold(raw)
+        if len(word) >= 3 and word not in _SKIP_WORDS:
+            words.add(word)
+    return words
+
+
+def _contains(text: str, words: set) -> bool:
+    return any(_fold(w) in words for w in re.findall(r"[^\W\d_]+", text))
+
+
+def without_phrase_words(texts: list, phrase: str) -> list:
+    """Behaelt je Text nur die Saetze ohne Wort der Phrase. Bleibt von einem Text nichts uebrig, steht ein neutraler
+    Satz an seiner Stelle: die Laenge der Liste bleibt gleich."""
+    words = phrase_words(phrase)
+    if not words:
+        return list(texts)
+    clean = [s for s in SENTENCES_DE if not _contains(s, words)]
+    out = []
+    for i, text in enumerate(texts):
+        kept = [s for s in re.split(r"(?<=[.!?])\s+", text) if not _contains(s, words)]
+        out.append(" ".join(kept) if kept else (clean[i % len(clean)] if clean else text))
+    return out
+
+
+def sentences_for(phrase: str) -> list:
+    """Neutrale Saetze fuer das Training, ohne Wort der Wake Phrase."""
+    words = phrase_words(phrase)
+    return [s for s in SENTENCES_DE if not _contains(s, words)] if words else list(SENTENCES_DE)

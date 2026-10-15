@@ -1,8 +1,10 @@
 """Gefuehrte Aufnahme fuer den Assistenten: Wake-Word-Samples, Sprecher-Enrollment, harte Negativbeispiele.
 
-Aufruf: python enroll_record.py [--name Friday]   (ohne --name: assistant_name aus ../config/persona.json, sonst Friday)
+Aufruf: python enroll_record.py [--name Friday] [--phrase "Hey Friday"]
+Ohne Angaben gelten assistant_name/wake_phrase aus ../config/persona.json, sonst Friday / "Hey <Name>".
 Speichert 16 kHz Mono WAVs unter profiles/owner/raw/<block>/. Biometrische Daten bleiben lokal.
-Ordner der Wake-Blocks: wake_hey_<slug> und wake_<slug> (slug = ASCII-Kleinschreibung des Namens, "Jarvis" -> jarvis).
+Ordner der Wake-Blocks: wake_<slug der Phrase> (z. B. wake_hey_friday) und, wenn die Phrase mit einem Grusswort beginnt,
+wake_<slug der Kurzform> (wake_friday). Gegenbeispiele leiten sich aus den Woertern der Phrase ab (negatives).
 """
 import argparse
 import datetime
@@ -23,51 +25,45 @@ RAW = os.path.join(ROOT, "profiles", "owner", "raw")
 MANIFEST = os.path.join(RAW, "manifest.jsonl")
 DEFAULT_NAME = "Friday"
 
-import personal_wake  # noqa: E402  (gleicher Ordner: slugify, hard_negatives)
+import negative_texts  # noqa: E402
+import personal_wake  # noqa: E402  (gleicher Ordner: slugify, hard_negatives, enrollment_blocks)
 
 
-def assistant_name() -> str:
-    """--name, sonst persona.json, sonst Friday. Ungueltige Namen brechen ab (der Installer prueft sie vorher)."""
+def _persona_field(key: str):
+    try:
+        with open(os.path.join(ROOT, "..", "config", "persona.json"), encoding="utf-8-sig") as f:
+            return json.load(f).get(key)
+    except (OSError, ValueError):
+        return None
+
+
+def assistant_identity() -> tuple[str, str]:
+    """(Name, Wake Phrase): --name/--phrase, sonst persona.json, sonst Friday / "Hey <Name>". Ungueltige Angaben brechen
+    ab (der Installer prueft sie vorher)."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--name")
-    name = ap.parse_args().name
-    if not name:
-        try:
-            with open(os.path.join(ROOT, "..", "config", "persona.json"), encoding="utf-8-sig") as f:
-                name = json.load(f).get("assistant_name")
-        except (OSError, ValueError):
-            name = None
-    name = (name or DEFAULT_NAME).strip()
+    ap.add_argument("--phrase")
+    args = ap.parse_args()
+    name = (args.name or _persona_field("assistant_name") or DEFAULT_NAME).strip()
     if not personal_wake.valid_name(name):
         raise SystemExit(f"Ungueltiger Assistentenname '{name}' (2-20 Buchstaben).")
-    return personal_wake.display_name(name)
+    name = personal_wake.display_name(name)
+    phrase = (args.phrase or _persona_field("wake_phrase") or personal_wake.wake_phrase(name)).strip()
+    if not personal_wake.valid_phrase(phrase):
+        raise SystemExit(f"Ungueltige Wake Phrase '{phrase}' (1-4 Woerter, Buchstaben/Bindestrich, 3-30 Zeichen).")
+    return name, personal_wake.display_phrase(phrase)
 
 
-def wake_blocks(name: str, slug: str) -> list:
-    return [
-        (f"wake_hey_{slug}", personal_wake.wake_phrase(name), [
-            ("normal, ca. 50 cm vom Laptop", 8),
-            ("leise", 4),
-            ("laut / bestimmt", 4),
-            ("ca. 1-2 m entfernt (aufstehen oder zuruecklehnen)", 6),
-            ("schnell/beilaeufig, wie im Alltag", 4),
-        ]),
-        (f"wake_{slug}", name, [
-            ("normal", 8),
-            ("leise oder aus 1-2 m", 6),
-            (f"fragend, z. B. '{name}?'", 4),
-        ]),
-    ]
-
-
-def passages(name: str) -> list:
-    """Lesetexte. Der Name kommt nur beim Jarvis-Weg (Verifier-Training, unveraendert) im Text vor: beim persoenlichen
-    Wake Word wuerden Namensnennungen in den Lesetexten als falsche Negativbeispiele kalibriert."""
+def passages(phrase: str) -> list:
+    """Lesetexte. Der Name steht nur beim Weg "Hey Jarvis" (Verifier-Training, unveraendert) im Text. Beim persoenlichen
+    Wake Word entfallen Saetze mit Woertern der Phrase: sonst wuerden sie als falsche Negativbeispiele gelernt."""
     texts = list(PASSAGES)
-    if personal_wake.slugify(name) == "jarvis":
+    if personal_wake.is_pretrained_phrase(phrase):
+        name = personal_wake.short_form(phrase)
         texts[-1] = (f"{name}, starte bitte den Hintergrundtask und melde dich, sobald das Ergebnis da ist. "
                      f"{name}, stopp. {name}, abbrechen. {name}, wie ist der Status?")
-    return texts
+        return texts
+    return negative_texts.without_phrase_words(texts, phrase)
 
 
 PASSAGES = [
@@ -139,11 +135,11 @@ def pause(msg: str) -> None:
 
 
 def main() -> None:
-    name = assistant_name()
-    slug = personal_wake.slugify(name)
-    texts = passages(name)
+    name, phrase = assistant_identity()
+    texts = passages(phrase)
     print("=" * 70)
     print(f" {name} - Stimmaufnahme (alles bleibt lokal auf diesem Rechner)")
+    print(f" Wake Word: {phrase}")
     print("=" * 70)
     print(f" Mikrofon: {sd.query_devices(kind='input')['name']}")
     print(" Ruhige Umgebung, normal sprechen. Nach jedem Piepton sprechen.")
@@ -155,7 +151,7 @@ def main() -> None:
     if peak < 0.05:
         print("  WARNUNG: sehr leise. Mikrofon in Windows-Soundeinstellungen pruefen (Pegel ~80-100%).")
 
-    for block, text, phases in wake_blocks(name, slug):
+    for block, text, phases in personal_wake.enrollment_blocks(phrase):
         idx = len([f for f in os.listdir(os.path.join(RAW, block))]) if os.path.isdir(os.path.join(RAW, block)) else 0
         for hint, count in phases:
             pause(f"SCHRITT Wake Word '{text}' - Variante: {hint}  ({count} Aufnahmen)")
@@ -163,8 +159,8 @@ def main() -> None:
                 idx += 1
                 capture_short(block, idx, text, hint)
 
-    pause("SCHRITT Gegenbeispiele: aehnlich klingende Woerter, NICHT das Wake Word (je 2 s).")
-    for i, word in enumerate(personal_wake.hard_negatives(name), 1):
+    pause("SCHRITT Gegenbeispiele: aehnlich klingende Woerter bzw. Teile der Phrase, NICHT das Wake Word (je 2 s).")
+    for i, word in enumerate(personal_wake.hard_negatives(phrase), 1):
         capture_short("negatives", i, word, "Gegenbeispiel")
 
     pause("SCHRITT Sprecherprofil: 8 Texte vorlesen, je 20 Sekunden. Natuerlich sprechen; "
