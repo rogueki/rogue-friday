@@ -769,7 +769,7 @@ export const BottomCommandBar = forwardRef<HTMLElement, BottomCommandBarProps>(f
       <div className="jv-bottombar__dots jv-bottombar__dots--right" aria-hidden="true" />
 
       {quickAction ? (
-        <Button variant="ghost" className="jv-bottombar__quick" icon={quickAction.icon ?? <Zap size={14} />} onClick={quickAction.onClick} disabled={quickAction.disabled}>
+        <Button variant="ghost" className="jv-bottombar__quick" aria-label={quickAction.label} title={quickAction.label} icon={quickAction.icon ?? <Zap size={14} />} onClick={quickAction.onClick} disabled={quickAction.disabled}>
           {quickAction.label}
         </Button>
       ) : (

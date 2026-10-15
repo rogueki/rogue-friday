@@ -51,8 +51,8 @@ interface CachedHtml {
 }
 
 /**
- * Serves the static web export (`apps/web/out`) with SPA-style fallbacks: `/tasks` -> `tasks.html` -> `tasks/index.html`
- * -> `index.html`. Never reached for `/api/*`, never escapes the web root.
+ * Serves the static web export (`apps/web/out`) with route resolution: `/tasks` -> `tasks.html` -> `tasks/index.html`; unknown
+ * page routes answer 404 with the exported `404.html`. Never reached for `/api/*`, never escapes the web root.
  */
 export class StaticWeb {
   private readonly root: string;
@@ -66,7 +66,7 @@ export class StaticWeb {
     return existsSync(join(this.root, "index.html"));
   }
 
-  private resolveFile(urlPath: string): string | null {
+  private resolveFile(urlPath: string): { file: string; status: number } | null {
     let decoded: string;
     try {
       decoded = decodeURIComponent(urlPath);
@@ -87,21 +87,25 @@ export class StaticWeb {
     };
     const candidates = [target, `${target}.html`, join(target, "index.html")];
     const hit = candidates.find(isFile);
-    if (hit) return hit;
-    // Assets (anything with an extension) must exist; page routes fall back to the SPA shell.
+    if (hit) return { file: hit, status: 200 };
+    // Assets (anything with an extension) must exist; an unknown page route gets the exported 404 page (never the overview).
     if (extname(decoded) !== "") return null;
+    const notFound = join(this.root, "404.html");
+    if (isFile(notFound)) return { file: notFound, status: 404 };
     const shell = join(this.root, "index.html");
-    return isFile(shell) ? shell : null;
+    return isFile(shell) ? { file: shell, status: 404 } : null;
   }
 
   handle(request: FastifyRequest, reply: FastifyReply): void {
     const path = new URL(request.url, "http://localhost").pathname;
-    const file = this.resolveFile(path);
-    if (!file) {
+    const resolved = this.resolveFile(path);
+    if (!resolved) {
       reply.status(404).header("Content-Type", "text/plain; charset=utf-8");
       reply.send(this.available ? "Nicht gefunden." : "Die Web-Oberfläche ist nicht gebaut (pnpm --filter @jarvis/web build).");
       return;
     }
+    const { file, status } = resolved;
+    reply.status(status);
     const type = CONTENT_TYPES[extname(file).toLowerCase()] ?? "application/octet-stream";
     reply.header("Content-Type", type);
     if (extname(file) === ".html") {

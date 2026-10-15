@@ -69,14 +69,35 @@ test("tier 3: the confirm button stays disabled without a password, then approvi
   const pending = (await api.get("/approvals?status=pending&riskTier=3&limit=50")).body.items as Array<{ action: string }>;
   expect(pending.map((item) => item.action), "still pending without a password").toContain(TIER3);
 
-  // Dev auth (this stack) accepts any non-empty password by design (auth-service.ts); wrong-password refusal is covered
-  // by the control-api auth tests against the scrypt hash, which a mock/dev stack cannot exercise.
+  // Dev auth: login accepts any non-empty password, re-auth needs the documented dev password "dev" (auth-service.ts).
   await password.fill("dev");
   await expect(submit).toBeEnabled();
   const sent = page.waitForRequest(decision);
   await submit.click();
   const body = (await sent).postDataJSON() as { reauthToken?: string };
   expect(body.reauthToken, "re-auth token in the approve body").toBeTruthy();
+  await expect(page.getByText("Freigabe erteilt").first()).toBeVisible();
+  const after = (await api.get("/approvals?status=pending&riskTier=3&limit=50")).body.items as Array<{ action: string }>;
+  expect(after.map((item) => item.action)).not.toContain(TIER3);
+});
+
+test("tier 3: a wrong password is refused, nothing is approved, and the right one still works afterwards", async ({ page, api }) => {
+  await openApproval(page, TIER3);
+  await page.getByRole("dialog", { name: "Freigabe" }).getByRole("button", { name: "Genehmigen", exact: true }).click();
+  const confirm = page.getByRole("dialog", { name: "Freigabe erteilen" });
+  const password = confirm.getByLabel("Passwort zur erneuten Anmeldung");
+  const submit = confirm.getByRole("button", { name: "Freigabe erteilen" });
+  await password.fill("falsches-passwort");
+  const reauth = page.waitForResponse((response) => response.url().endsWith("/api/v1/auth/reauth") && response.request().method() === "POST");
+  await submit.click();
+  expect((await reauth).status(), "re-auth refuses the wrong password").toBe(401);
+  await expect(confirm.getByRole("alert")).toContainText("Das Passwort ist nicht korrekt.");
+  await expect(confirm).toBeVisible(); // the dialog stays open for another attempt
+  const pending = (await api.get("/approvals?status=pending&riskTier=3&limit=50")).body.items as Array<{ action: string }>;
+  expect(pending.map((item) => item.action), "still pending after the wrong password").toContain(TIER3);
+
+  await password.fill("dev");
+  await submit.click();
   await expect(page.getByText("Freigabe erteilt").first()).toBeVisible();
   const after = (await api.get("/approvals?status=pending&riskTier=3&limit=50")).body.items as Array<{ action: string }>;
   expect(after.map((item) => item.action)).not.toContain(TIER3);

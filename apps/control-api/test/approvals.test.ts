@@ -262,6 +262,17 @@ describe("approvals (PLAN §32.5)", () => {
       }
     });
 
+    it("requires the documented dev password for re-auth in dev mode while dev login stays lenient", async () => {
+      const client = api.client();
+      const login = await client.post("/api/v1/auth/login", { username: "dev-owner", password: "irgendwas" }, { csrf: false });
+      client.csrfToken = (login.json() as { data: { csrfToken: string } }).data.csrfToken;
+      const wrong = await client.post("/api/v1/auth/reauth", { password: "irgendwas" });
+      expect(wrong.statusCode).toBe(401);
+      expect(errorOf(wrong).code).toBe("UNAUTHENTICATED");
+      expect((await client.post("/api/v1/auth/reauth", { password: "" })).statusCode).toBeGreaterThanOrEqual(400);
+      expect((await client.post("/api/v1/auth/reauth", { password: "dev" })).statusCode).toBe(200);
+    });
+
     it("is not available to viewers", async () => {
       expect((await viewer.post("/api/v1/auth/reauth", { password: "dev" })).statusCode).toBe(403);
     });

@@ -1,5 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { Group, Mesh } from "three";
 import { pointsGeometry } from "../geometry/buffers";
 import {
@@ -14,12 +14,14 @@ import {
 import { useGeometry, useLineLayer, useMaterial } from "../hooks";
 import { makeLineMaterial, makePointsMaterial } from "../materials";
 import { useOrb } from "../OrbContext";
+import { registerStat } from "../stats";
 import { SEED } from "./circuit";
 
 /** Fine twinkling particles in a halo shell around the orb (count = quality x particleDensity). */
 export function MicroParticleHalo() {
   const { shared, profile } = useOrb();
   const geometry = useGeometry(() => pointsGeometry(buildParticles(profile.particles, SEED + 101)), [profile.particles]);
+  useEffect(() => registerStat("points", profile.particles), [profile.particles]);
   const material = useMaterial(() => makePointsMaterial("PARTICLES", shared, { base: 0.75 }), [shared]);
   return <points geometry={geometry} material={material} frustumCulled={false} renderOrder={1} />;
 }
@@ -28,6 +30,7 @@ export function MicroParticleHalo() {
 export function DepthDust() {
   const { shared, profile } = useOrb();
   const geometry = useGeometry(() => pointsGeometry(buildDust(profile.dust, SEED + 111)), [profile.dust]);
+  useEffect(() => registerStat("points", profile.dust), [profile.dust]);
   const material = useMaterial(() => makePointsMaterial("DUST", shared, { base: 0.55, size: 1.1 }), [shared]);
   return <points geometry={geometry} material={material} frustumCulled={false} renderOrder={0} />;
 }

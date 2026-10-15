@@ -87,3 +87,24 @@ test('the "/" shortcut opens the palette, but not while typing in a field', asyn
   await expect(search).toHaveValue("a/b");
   await expect(palette).toBeHidden();
 });
+
+test("an unknown address shows the not-found page with status 404 instead of the overview", async ({ page, request }) => {
+  for (const path of ["/gibt-es-nicht", "/tasks/unbekannt", "/a/b/c"]) {
+    const response = await request.get(path);
+    expect(response.status(), `HTTP status of ${path}`).toBe(404);
+    expect(response.headers()["content-type"]).toContain("text/html");
+  }
+  await page.goto("/gibt-es-nicht");
+  await expect(page.getByText("Seite nicht gefunden")).toBeVisible();
+  await expect(page.getByText("Diese Adresse gehört zu keinem Modul des Command Centers.")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Hauptnavigation" })).toHaveCount(0); // not the overview shell
+  await page.getByRole("button", { name: "Zur Übersicht" }).click();
+  await expect(page.getByRole("main", { name: "Hauptinhalt" })).toBeVisible();
+  await expect(page).toHaveURL((url) => url.pathname === "/");
+});
+
+test("known routes and query-parameter detail views keep answering 200", async ({ request }) => {
+  for (const path of ["/", "/tasks", "/tasks/", "/approvals", "/dev/scenarios", "/tasks?task=task_unbekannt", "/settings?area=theme"]) {
+    expect((await request.get(path)).status(), path).toBe(200);
+  }
+});

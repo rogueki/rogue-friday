@@ -180,9 +180,10 @@
 }
 
 /* ── Reduced motion ──────────────────────────────────────────────────── */
-/* OS preference wins unless the user explicitly picked "Voll" in the app. */
+/* PLAN §23.1: the OS preference always applies. The app setting "Voll" is the default value, so it cannot be told apart from
+   an explicit choice; "Reduziert"/"Aus" below reduce motion on their own, and no setting can re-enable what the OS asks to stop. */
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion='full']) {
+  :root {
     --jv-motion-scale: 0;
     --jv-dur-fast: 0.01ms;
     --jv-dur-base: 0.01ms;
@@ -191,9 +192,9 @@
     --jv-dur-slow: 0.01ms;
   }
 
-  :root:not([data-motion='full']) *,
-  :root:not([data-motion='full']) *::before,
-  :root:not([data-motion='full']) *::after {
+  :root *,
+  :root *::before,
+  :root *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     animation-delay: 0ms !important;
