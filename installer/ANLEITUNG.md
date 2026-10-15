@@ -72,7 +72,7 @@ starten** – erledigte Schritte werden übersprungen.
 | Persönlichkeit ändern | `C:\Jarvis\config\persona.json`, danach Schritt erneut: siehe unten |
 | Sprach-Einstellungen (Name, Wake Word, Engine) | `C:\Jarvis\config\voice.json` |
 | Dein persönliches Wake-Word-Modell | `C:\Jarvis\models\openwakeword\personal_wake.npz` und `personal_wake.json` (Schwelle, Qualität) |
-| Protokolle | `C:\Jarvis\logs` (Command Center: `dashboard-install.log`, `dashboard-service.log`, `dashboard\`) |
+| Protokolle | `C:\Jarvis\logs` (Command Center: `dashboard-install.log`, `dashboard-service.log`, `dashboard\`; Watchdog: `watchdog.log`) |
 | Command Center (Programm, Daten, Sicherungen) | `C:\Jarvis\dashboard` (`data`, `backups`) |
 | Command-Center-Einstellungen (Modus, Port, Adapter) | `C:\Jarvis\dashboard\config\dashboard.yaml` und `adapters.yaml` – Installer überschreibt sie nie ohne Rückfrage |
 | Passwort-Hash des Command Centers | `C:\Jarvis\config\dashboard_owner.hash` (nur du hast Zugriff) |
@@ -86,6 +86,27 @@ starten** – erledigte Schritte werden übersprungen.
 **Sprachdienst stoppen:** Nicht nur die Aufgabe `JARVIS_Voice` beenden – eine Neustartschleife läuft getrennt weiter und startet Python nach 10 s neu.
 Der Installer beendet beides; manuell: in der Aufgabenverwaltung den `powershell`-Prozess mit `start-jarvis-voice.ps1` und `python.exe` mit `jarvis_voice.py` beenden.
 **Update des Sprachdienstes:** Neues Paket entpacken und `install-jarvis.bat` starten – geänderte Sprachdateien werden bei jedem Start nach `C:\Jarvis\voice` kopiert (Profile und Modelle bleiben) und der laufende Sprachdienst wird neu gestartet.
+
+## Service-Watchdog (startet abgestürzte Dienste neu)
+
+Der Installer richtet am Ende die Aufgabe `JARVIS_Watchdog` ein. Sie läuft bei der Anmeldung und danach alle 5 Minuten, prüft
+Sprachdienst (Port 43694), Qwen (43692) und Command Center (Port aus `dashboard.yaml`, Standard 3100) und startet einen
+Dienst über seine Aufgabe (`JARVIS_Voice`, `JARVIS_Qwen`, `JARVIS_Dashboard`) neu, **wenn** sein Port nicht antwortet **und** kein
+zugehöriger Prozess läuft. Wenn der Prozess noch läuft (z. B. beim Laden der Sprachmodelle, bis zu 3 Minuten), greift der Watchdog
+nie ein und beendet auch nie einen Prozess. Weitere Bremsen: Während der Installer läuft, tut der Watchdog nichts; ein absichtlich
+gesetztes Stop-Flag (`C:\Jarvis\run\<Skript>.stop`, setzt der Installer bei Updates) wird respektiert; zwischen zwei Neustarts
+desselben Dienstes liegen mindestens 10 Minuten, höchstens 3 pro Stunde (danach nur eine Warnung im Log).
+
+- **Log:** `C:\Jarvis\logs\watchdog.log` (eine Zeile je Neustart oder Warnung, stündlich eine Zeile „Heartbeat“, Rotation bei 1 MB auf `.1`).
+- **Unsichtbar:** Die Aufgabe startet über `hidden.vbs` (wie die anderen JARVIS-Aufgaben). Es darf nie ein Fenster aufblitzen –
+  auch nicht alle 5 Minuten. Blitzt doch eines auf, in der Aufgabenplanung die Aktion von `JARVIS_Watchdog` prüfen: sie muss
+  `wscript.exe //B //Nologo "C:\Jarvis\installer\scripts\hidden.vbs" "C:\Jarvis\installer\scripts\friday-watchdog.ps1"` lauten
+  (nicht `powershell.exe` direkt); sonst `install-jarvis.bat` erneut starten, das registriert die Aufgabe neu.
+- **Dienst absichtlich ausgeschaltet lassen** (z. B. Test eines Ausfalls): vorher den Watchdog anhalten –
+  `schtasks /change /tn JARVIS_Watchdog /disable`, später `/enable`.
+- **Alte Aufgabe:** Ein früherer Installer kann eine Aufgabe `JARVIS_Voice_Watchdog` angelegt haben. Der neue Installer lässt sie
+  unangetastet; wird sie nicht mehr gebraucht (besonders wenn sie ein Konsolenfenster aufblitzen lässt), von Hand löschen:
+  `schtasks /delete /tn JARVIS_Voice_Watchdog /f`.
 
 ## Command Center aktualisieren
 
@@ -131,6 +152,7 @@ Solange noch **keine** Aufnahmen existieren, fragt `install-jarvis.bat` beim ern
 | Problem | Lösung |
 |---|---|
 | Der Assistent reagiert nicht | <http://127.0.0.1:43694> öffnen – steht dort `listening`? Sonst abmelden/anmelden. Log: `C:\Jarvis\logs\voice-service.log` |
+| Ein Dienst fällt immer wieder aus | `C:\Jarvis\logs\watchdog.log` lesen (Neustarts, „Maximum erreicht“-Warnungen); Log des Dienstes prüfen (`voice-service.log`, `qwen-server.log`, `dashboard-service.log`) |
 | Reagiert auf das Wake Word (Piepton), antwortet aber nicht | Deine Stimme wurde evtl. nicht erkannt: näher ans Mikrofon, normal laut sprechen |
 | „Der Cloud-Agent ist nicht verfügbar“ | Internet prüfen; in Ubuntu: `hermes status` |
 | Hermes-Dashboard (43691) lädt nicht | Ubuntu-Fenster öffnen: `systemctl --user status hermes-dashboard` |
@@ -154,7 +176,7 @@ Regel: Lesen/Entwürfe macht der Assistent selbst. **Senden, Löschen, Termine �
 
 ## Deinstallation
 
-Aufgabenplanung: `JARVIS_Voice`, `JARVIS_Qwen`, `JARVIS_WSL_Keepalive`, `JARVIS_Dashboard` löschen → PowerShell: `wsl --unregister Ubuntu`
+Aufgabenplanung: `JARVIS_Voice`, `JARVIS_Qwen`, `JARVIS_WSL_Keepalive`, `JARVIS_Dashboard`, `JARVIS_Watchdog` löschen (zuerst `JARVIS_Watchdog`, sonst startet er Dienste neu) → PowerShell: `wsl --unregister Ubuntu`
 (löscht Ubuntu samt Hermes!) → Ordner `C:\Jarvis` löschen.
 
 ---
