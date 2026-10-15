@@ -42,6 +42,7 @@ import sounddevice as sd  # noqa: E402
 import torch  # noqa: E402
 
 import personal_wake  # noqa: E402
+from audio_level import LevelMeter  # noqa: E402
 
 SR = 16000
 CHUNK = 1280  # 80 ms, Eingabegroesse von openWakeWord
@@ -150,6 +151,7 @@ class Speaker:
         self.queue: queue.Queue[str] = queue.Queue()
         self.stop_flag = threading.Event()
         self.speaking = threading.Event()
+        self.level = LevelMeter()  # nur ein Pegelwert 0..1 fuer das Status-JSON, kein Audio
         threading.Thread(target=self._worker, daemon=True).start()
 
     def prefetch(self, texts: list[str]) -> None:
@@ -171,7 +173,9 @@ class Speaker:
                     for i in range(0, len(pcm), 4096):
                         if self.stop_flag.is_set():
                             return
-                        out.write(pcm[i:i + 4096])
+                        block = pcm[i:i + 4096]
+                        self.level.update(np.frombuffer(block[:len(block) // 2 * 2], dtype=np.int16))
+                        out.write(block)
             return
         req = urllib.request.Request(self.tts_url, json.dumps({"text": text}).encode("utf-8"),
                                      {"Content-Type": "application/json"})
@@ -194,6 +198,7 @@ class Speaker:
                     if len(data) % 2:
                         data, pending = data[:-1], data[-1:]
                     if out:
+                        self.level.update(np.frombuffer(data, dtype=np.int16))
                         out.write(data)
             finally:
                 if out:
@@ -209,7 +214,9 @@ class Speaker:
             for chunk in self.voice.synthesize(text):
                 if self.stop_flag.is_set():
                     return
-                out.write(fx.process(chunk.audio_float_array).reshape(-1, 1))
+                shaped = fx.process(chunk.audio_float_array)
+                self.level.update(shaped)
+                out.write(shaped.reshape(-1, 1))
             tail = fx.flush()
             if len(tail) and not self.stop_flag.is_set():
                 out.write(tail.reshape(-1, 1))
@@ -231,6 +238,7 @@ class Speaker:
         self.stop_flag.set()
         sd.stop()
         self.speaking.clear()
+        self.level.reset()
 
     def _worker(self) -> None:
         while True:
@@ -294,6 +302,7 @@ class VoiceService:
         self.preroll: list[np.ndarray] = []   # waehrend Stufe 2 aufgelaufenes Audio (Befehlsanfang)
         self.stage1_block_until = 0.0
         self.audio_q: queue.Queue[np.ndarray] = queue.Queue()
+        self.input_level = LevelMeter()  # geglaetteter Mikrofonpegel 0..1 (nur die Zahl, das Audio wird nicht gehalten)
         self.ring = collections.deque(maxlen=int(2.0 * SR / CHUNK))  # 2 s Vorlauf fuer Sprecherpruefung
         self.trusted_until = 0.0
         self.last_wake = 0.0
@@ -357,6 +366,7 @@ class VoiceService:
 
     # ---------- Audio ----------
     def _on_audio(self, indata, frames, time_info, status) -> None:
+        self.input_level.update(indata[:, 0])
         self.audio_q.put(indata[:, 0].copy())
 
     def _read_chunk(self) -> np.ndarray:
@@ -662,8 +672,11 @@ class VoiceService:
 
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
+                # input_level/output_level: additiv, nur Pegelzahlen 0..1 (kein Audio, nichts gespeichert)
                 body = json.dumps({**service.status, "speaking": service.tts.speaking.is_set(),
-                                   "trusted": time.monotonic() < service.trusted_until}).encode()
+                                   "trusted": time.monotonic() < service.trusted_until,
+                                   "input_level": service.input_level.value(),
+                                   "output_level": service.tts.level.value()}).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()

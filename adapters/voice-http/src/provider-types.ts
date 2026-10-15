@@ -21,4 +21,10 @@ export interface RawVoiceStatus {
   /** Additive fields of the personalized installer (assistant name / wake phrase chosen at install time). */
   assistant_name?: string;
   wake_phrase?: string;
+  /**
+   * Additive audio levels of the service (`installer/voice/audio_level.py`): smoothed normalized RMS 0..1 of the last
+   * input / output blocks. A number only, never audio. Absent on services without the meter.
+   */
+  input_level?: number;
+  output_level?: number;
 }

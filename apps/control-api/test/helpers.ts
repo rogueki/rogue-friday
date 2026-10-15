@@ -13,6 +13,7 @@ export interface TestApiOptions {
   ownerPassword?: string;
   dataMode?: "mock" | "hybrid";
   yamlExtra?: string;
+  secureCookies?: boolean;
   adaptersYaml?: string;
   responseValidation?: ResponseValidationMode;
   heartbeatSeconds?: number;
@@ -61,6 +62,7 @@ auth:
   mode: ${authMode}
   ownerUsername: owner
   ownerPasswordHash: env:JARVIS_OWNER_PASSWORD_HASH
+  secureCookies: ${options.secureCookies ?? false}
 realtime:
   ringBufferSize: ${options.ringBufferSize ?? 5000}
   heartbeatSeconds: ${options.heartbeatSeconds ?? 15}

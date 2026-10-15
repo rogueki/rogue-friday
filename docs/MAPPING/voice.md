@@ -119,6 +119,34 @@ Diagnoseansicht als Engine-Label dienen; `wake_rejected` ist ein reiner Zähler 
 
 **Messwerte:** siehe `installer/voice/tests/eval_synthetic_wake.py` (synthetische Piper-Sprecher; Zahlen im Übergabebericht, nicht echte Sprecher).
 
+### 0.5 Audio-Pegel (Stand 2026-10-15, additiv)
+
+Der Statusserver liefert zwei zusätzliche Schlüssel (`installer/voice/audio_level.py`, eingehängt in `jarvis_voice.py`: `VoiceService.input_level`,
+`Speaker.level`, `_start_health`). Bestehende Schlüssel bleiben unverändert; ältere Dienste senden die Felder nicht (Adapter behandelt sie als optional).
+
+| Schlüssel | Bedeutung |
+| --- | --- |
+| `input_level` | Geglätteter, normalisierter RMS-Pegel 0..1 der letzten Mikrofonblöcke (80 ms-Blöcke aus `_on_audio`) |
+| `output_level` | dito für die TTS-Ausgabe (Piper und Qwen3-TTS-Stream, auch Cache-Wiedergabe); 0 außerhalb des Sprechens |
+
+- Skala: RMS -> dBFS, linear von -60 dBFS (0.0) bis -6 dBFS (1.0); schneller Anstieg (Attack 0.6), langsamer Abfall (Release 0.15). Normale Sprache am Mikrofon liegt bei 0.4..0.8.
+- Veraltet der letzte Block um mehr als 0.5 s (Stream steht, TTS zu Ende), meldet der Dienst 0.0.
+- **Datenschutz:** gehalten wird ausschließlich eine Zahl je Richtung. Kein Audiopuffer, keine Datei, kein Log-Eintrag (`LevelMeter` hält keine Samples, `test_meter_keeps_no_audio`).
+- Kosten: eine RMS-Berechnung je 80-ms-Block im Audio-Callback bzw. je Wiedergabeblock.
+
+Adapter (`adapters/voice-http`): `input_level` -> `VoiceStatus.microphone.inputLevel` (Werte außerhalb 0..1 werden geklemmt; fehlendes Feld = `0` = „keine Daten“).
+Zusätzlich fragt der Adapter den Statusserver selbst ab und sendet `jarvis.voice.audio_level` (`{ direction, level, at }`, Subject `voice/audio`):
+
+| Dienstzustand | Richtung | Quelle | Abfrage |
+| --- | --- | --- | --- |
+| `command`, `followup` (Aufnahme des Befehls) | `input` | `input_level` | alle `levelPollIntervalMs` (Standard 250 ms = 4 Hz) |
+| `speaking` oder `speaking == true` (TTS) | `output` | `output_level` | alle `levelPollIntervalMs` |
+| sonst (`listening` auf Wake Word, `starting`) | – | – | alle `idlePollIntervalMs` (Standard 1000 ms), nur zur Erkennung des Wechsels, es wird nichts gesendet |
+
+Beim Verlassen eines aktiven Zustands wird je Richtung genau ein Pegel `0` gesendet. `levelPollIntervalMs: 0` schaltet die Ereignisse ab. Ob ein WebSocket-Client
+verbunden ist, kennt der Adapter nicht; die Last ist durch das Zustands-Gate begrenzt (im Leerlauf ein lokaler GET je Sekunde). Das Web nutzt die Ereignisse über
+`audioStore` (kein React-State je Frame); die Orb-Reaktion auf die echte Stimme ist damit ohne Mock möglich. Nicht geprüft: echtes Mikrofon und Lautsprecher (Windows).
+
 ## 1. Schnittstellen des Dienstes heute
 
 | Schnittstelle                                                                       | Inhalt                                                                                                                                                      | Nutzung im Adapter                                                                                                           |
@@ -167,8 +195,8 @@ Regel: `OrbLayers.voice` darf nur aus diesen semantischen Zuständen entstehen, 
 | `game_mode_error`                  | `error`                                                                                                    | `jarvis.activity.appended` (severity `warning`)                  |                                                                                                                                                                                               |
 
 `jarvis.voice.tts_started` / `tts_ended` entstehen aus dem Health-Feld `speaking` (Flanken `false -> true` / `true -> false`);
-`engine` = `qwen3-tts` solange `tts_url` aktiv ist, sonst `piper`. `jarvis.voice.audio_level` liefert erst die Bridge
-(der Dienst misst Pegel intern nicht nach außen).
+`engine` = `qwen3-tts` solange `tts_url` aktiv ist, sonst `piper`. `jarvis.voice.audio_level` entsteht aus den Statusfeldern
+`input_level`/`output_level` (siehe 0.5), nicht aus `voice.jsonl`.
 
 ## 4. `VoiceStatus` (Felder -> Quelle)
 
@@ -177,7 +205,7 @@ Regel: `OrbLayers.voice` darf nur aus diesen semantischen Zuständen entstehen, 
 | `mode`                                       | siehe Tabelle 2                                                                                                |
 | `microphone.state/active`                    | `state in {listening, command, followup}` -> aktiv; Dienst läuft nicht -> `off`                                |
 | `microphone.deviceId`                        | `voice.json: input_device`                                                                                     |
-| `microphone.inputLevel`                      | Bridge (sonst `0`)                                                                                             |
+| `microphone.inputLevel`                      | `status.input_level` (ab 0.5; fehlt es: `0` = keine Daten)                                                     |
 | `wakeWord.phrase/enabled/state`              | `status.wake_phrase` (ab 0.4; Fallback `voice.json: wake_phrase`); `armed` solange `listening`; `triggered` bis Befehlsende |
 | `speakerVerification.*`                      | `speaker_score` aus `command`/`speaker_rejected`; `enabled = true` (Dienst startet fail-closed nur mit Profil) |
 | `trustedSession.active/expiresAt`            | Health `trusted`; Ablauf = Zeitpunkt des letzten `command` + `trusted_session_s`                               |

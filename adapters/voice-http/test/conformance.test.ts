@@ -259,10 +259,14 @@ describe(`Conformance: jarvis-voice-http [${CATEGORY}, single-resource]`, () => 
     );
   });
 
-  it("no events are declared: the service has no event interface", async () => {
-    const { session } = await open();
-    expect(session.adapter.pollEvents).toBeUndefined();
+  it("the only events are audio levels, and none while the service idles", async () => {
+    const { session, upstream } = await open();
+    // The poll cycle on an idle service emits nothing.
+    expect(await session.adapter.pollEvents?.()).toBe(0);
     expect(session.emitted).toEqual([]);
+    upstream.route("GET", "/", { body: makeVoiceStatus({ state: "command", input_level: 0.4 }) });
+    expect(await session.adapter.pollEvents?.()).toBe(1);
+    expect(session.emitted.map((event) => event.type)).toEqual(["jarvis.voice.audio_level"]);
   });
 
   it("no provider-specific fields in canonical models", async () => {

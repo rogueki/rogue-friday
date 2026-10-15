@@ -136,7 +136,7 @@ body { min-height: 100dvh; }
 /* Mobile: compact orb, approvals/alerts first, details as stacked cards. */
 @media (max-width: 699px) {
   .ov-grid { grid-template-columns: minmax(0, 1fr); }
-  .ov-cell--ai-core-orb { height: 420px; }
+  .ov-cell--ai-core-orb { height: 300px; }
   .ov-cell--attention-feed { order: 2; height: 400px; }
   .ov-cell--quick-commands { order: 3; min-height: 0; }
   .ov-cell--active-agents { order: 4; }
@@ -144,6 +144,7 @@ body { min-height: 100dvh; }
   .ov-cell--core-overview { order: 6; min-height: 0; }
   .ov-agents { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ov-providers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ov-gauges { flex-wrap: wrap; justify-content: center; row-gap: 10px; }
   .ov-memory { grid-template-columns: minmax(0, 1fr); }
   .ov-memory__graph { min-height: 120px; }
   .ov-orb__updated { display: none; }

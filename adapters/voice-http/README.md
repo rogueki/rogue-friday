@@ -22,6 +22,8 @@ JSON Schema: `configSchema` in `src/manifest.ts` (`$id` `urn:jarvis:adapter:jarv
 | `timeoutMs`        | `2000`                   | je Versuch (der Installer wartet ebenfalls 2 s)                                                        |
 | `maxAttempts`      | `2`                      | nur Lesezugriffe; die Health-Prüfung macht immer genau einen Versuch                                   |
 | `retryBaseDelayMs` | `200`                    | Backoff-Basis                                                                                          |
+| `levelPollIntervalMs` | `250`                 | Abfrage für `jarvis.voice.audio_level`, solange der Dienst aufnimmt oder spricht (4 Hz). `0` = keine Pegel-Ereignisse |
+| `idlePollIntervalMs` | `1000`                 | Abfrage in allen anderen Zuständen (sendet nichts, erkennt nur den Wechsel)                            |
 
 Registry-Eintrag (Beispiel): `adapters.voice: { provider: jarvis-voice-http, enabled: true, config: {} }`, Factory `voiceHttpFactory`.
 
@@ -68,7 +70,7 @@ Ein fehlender oder falsch typisierter Schlüssel, ein unbekannter `state` oder k
 
 - `wakeWord.phrase`, `stt.engine`, `tts.engine`: aus der Konfiguration (Installer-Standard), nicht aus dem Dienst.
 - `localModel`: Zustand ist nur die **Erreichbarkeit** von `GET /v1/models` (`ready`; 503 = `busy`, Annahme: llama-server antwortet beim Laden mit 503; sonstige 4xx/ungültige Antwort = `error`; nicht erreichbar/Timeout = `offline`). Das ist nicht der `router_fallback`-Zustand des Dienstes und `latencyMs` bleibt `null` (keine Inferenzlatenz).
-- `microphone.inputLevel = 0`: der Dienst misst den Pegel nicht nach außen. 0 heißt "keine Daten", nicht Stille.
+- `microphone.inputLevel`: aus `input_level` des Dienstes (geglätteter RMS-Pegel 0..1, nur eine Zahl, kein Audio; `docs/MAPPING/voice.md` §0.5). Fehlt das Feld (älterer Dienst), ist es `0` = "keine Daten", nicht Stille.
 - `microphone.deviceId`, `audioInputDeviceId`, `audioOutputDeviceId`: `null` (stehen nur in `voice.json`).
 - `speakerVerification.recognizedSpeaker`/`confidence`, `trustedSession.expiresAt`, alle `latencyMs`: `null`. Der Dienst nennt weder Score noch Restdauer des Vertrauensfensters.
 - `transcribing`/`thinking`: nicht ableitbar, `state` bleibt `command` während Sprecherprüfung, STT, Routing und Hermes-Wartezeit (`docs/MAPPING/voice.md` §0.2).

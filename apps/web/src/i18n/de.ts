@@ -118,6 +118,8 @@ export const de = {
   "stream.offline": "offline",
   "stream.connecting": "verbindet …",
   "stream.polling": "Polling",
+  "offline.banner": "Die Control API ist nicht erreichbar. Angezeigt werden die zuletzt gespeicherten Daten; Änderungen sind erst nach der Wiederverbindung möglich.",
+  "offline.badge": "Offline-Cache",
   "bottom.talk": "MIT {assistant} SPRECHEN",
   "bottom.stop": "Stopp",
   "bottom.pause": "Pause",

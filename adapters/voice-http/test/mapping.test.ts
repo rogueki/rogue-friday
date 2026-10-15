@@ -24,6 +24,26 @@ const context = () =>
 const map = (raw: RawVoiceStatus, localState: "ready" | "busy" | "error" | "offline" = "ready") =>
   voiceStatusMapper.map({ raw, settings, localModel: { state: localState } }, context());
 
+describe("input_level / output_level", () => {
+  const base = makeVoiceStatus();
+  it("are optional and numbers only", () => {
+    expect(parseRawVoiceStatus({ ...base })).not.toHaveProperty("input_level");
+    expect(parseRawVoiceStatus({ ...base, input_level: 0.25, output_level: 0 })).toMatchObject({
+      input_level: 0.25,
+      output_level: 0,
+    });
+    expect(() => parseRawVoiceStatus({ ...base, input_level: "loud" })).toThrow();
+    expect(() => parseRawVoiceStatus({ ...base, output_level: null })).toThrow();
+    expect(() => parseRawVoiceStatus({ ...base, input_level: Number.NaN })).toThrow();
+  });
+  it("clamps to 0..1 and maps input_level to microphone.inputLevel (0 = no data when absent)", () => {
+    expect(parseRawVoiceStatus({ ...base, input_level: 3 }).input_level).toBe(1);
+    expect(parseRawVoiceStatus({ ...base, input_level: -1 }).input_level).toBe(0);
+    expect(map({ ...base, input_level: 0.6 }).microphone.inputLevel).toBe(0.6);
+    expect(map(base).microphone.inputLevel).toBe(0);
+  });
+});
+
 describe("parseRawVoiceStatus", () => {
   it("accepts the exact example of docs/MAPPING/voice.md §0.1", () => {
     const body = {

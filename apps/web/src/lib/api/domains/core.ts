@@ -4,6 +4,7 @@ import type { Capabilities, Health, JarvisStatusResponse, Meta, OrbSnapshotRespo
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
+import { isApiUnreachable } from "../../offlineCache/controller";
 import { queryKeys } from "../queryKeys";
 import { staleTimes } from "../staleTimes";
 
@@ -23,6 +24,10 @@ export const coreQueries = {
       queryFn: (): Promise<SessionResponse> => call(getApiClient().GET("/api/v1/auth/session")),
       staleTime: staleTimes.session,
       retry: false,
+      // Observers that mount while the API is away must not each start another request; the interval below handles recovery.
+      retryOnMount: false,
+      // An unreachable API: keep asking so the offline cache hands over to live data as soon as it is back.
+      refetchInterval: () => (isApiUnreachable() ? 10_000 : false),
     }),
   health: () =>
     queryOptions({

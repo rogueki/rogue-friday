@@ -111,6 +111,8 @@ export const en: Record<keyof typeof de, string> = {
   "stream.offline": "offline",
   "stream.connecting": "connecting …",
   "stream.polling": "polling",
+  "offline.banner": "The Control API is unreachable. The last stored data is shown; changes are possible once the connection is back.",
+  "offline.badge": "Offline cache",
   "bottom.talk": "TALK TO {assistant}",
   "bottom.stop": "Stop",
   "bottom.pause": "Pause",

@@ -2,6 +2,7 @@
 
 import type { ActionResult, LoginRequest, SessionResponse } from "@jarvis/sdk";
 import { useQueryClient } from "@tanstack/react-query";
+import { clearOfflineCache } from "../../offlineCache/controller";
 import { call } from "../call";
 import { getApiClient } from "../client";
 import { useApiMutation, type IntentVars } from "../mutation";
@@ -28,6 +29,8 @@ export function useLogout() {
     mutationFn: () => call(getApiClient().POST("/api/v1/auth/logout")),
     invalidate: () => {
       queryClient.clear();
+      // Logout also removes the stored offline cache: nothing of this session may stay readable in the browser.
+      clearOfflineCache();
       return [];
     },
   });

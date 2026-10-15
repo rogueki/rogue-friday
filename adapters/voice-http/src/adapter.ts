@@ -32,7 +32,17 @@ interface AdapterSettings extends VoiceSettings {
   timeoutMs: number;
   maxAttempts: number;
   retryBaseDelayMs: number;
+  /** Poll interval while the service is in a command/followup/speaking state (audio level events). 0 = off. */
+  levelPollIntervalMs: number;
+  /** Poll interval in every other state; only detects the switch into an active state, emits nothing. */
+  idlePollIntervalMs: number;
 }
+
+const DEFAULT_LEVEL_POLL_MS = 250;
+const DEFAULT_IDLE_POLL_MS = 1_000;
+const AUDIO_LEVEL_SUBJECT = "voice/audio";
+
+type LevelDirection = "input" | "output";
 
 const numberOr = (value: unknown, fallback: number): number =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -50,6 +60,8 @@ function readSettings(config: Readonly<Record<string, unknown>>): AdapterSetting
     timeoutMs: numberOr(config.timeoutMs, 2_000),
     maxAttempts: numberOr(config.maxAttempts, 2),
     retryBaseDelayMs: numberOr(config.retryBaseDelayMs, 200),
+    levelPollIntervalMs: numberOr(config.levelPollIntervalMs, DEFAULT_LEVEL_POLL_MS),
+    idlePollIntervalMs: numberOr(config.idlePollIntervalMs, DEFAULT_IDLE_POLL_MS),
   };
 }
 
@@ -73,6 +85,9 @@ export class JarvisVoiceHttpAdapter implements VoicePort, JarvisAdapter {
   private modelHttp: HttpClient | undefined;
   private abort = new AbortController();
   private stopped = true;
+  private cancelLevelTimer: (() => void) | undefined;
+  /** Directions that currently show a non-zero level, so a final 0 is emitted when the service goes quiet. */
+  private activeDirections = new Set<LevelDirection>();
 
   async initialize(context: AdapterContext): Promise<void> {
     const settings = readSettings(context.config);
@@ -101,6 +116,8 @@ export class JarvisVoiceHttpAdapter implements VoicePort, JarvisAdapter {
     });
     this.modelHttp = createHttpClient({ ...common, baseUrl: settings.localModelUrl, retry: false });
     context.signal.addEventListener("abort", () => this.abort.abort(context.signal.reason), { once: true });
+    this.activeDirections.clear();
+    if (settings.levelPollIntervalMs > 0) this.scheduleLevelPoll(settings.idlePollIntervalMs);
   }
 
   async getCapabilities(): Promise<CapabilitySet> {
@@ -171,6 +188,8 @@ export class JarvisVoiceHttpAdapter implements VoicePort, JarvisAdapter {
 
   async shutdown(): Promise<void> {
     this.stopped = true;
+    this.cancelLevelTimer?.();
+    this.cancelLevelTimer = undefined;
     this.abort.abort(new DOMException("Adapter shutdown", "AbortError"));
     this.context = undefined;
     this.voiceHttp = undefined;
@@ -219,6 +238,63 @@ export class JarvisVoiceHttpAdapter implements VoicePort, JarvisAdapter {
       data: emptyVoiceMetricsMapper.map(null, mapContext),
       freshness: { state: "unknown", asOf: mapContext.syncedAt },
     };
+  }
+
+  // ---- events (audio level, `jarvis.voice.audio_level`) -----------------------------------------------------------
+
+  /**
+   * One poll cycle: reads the status and emits the current level while the service is in an active state, i.e.
+   * `command`/`followup` (microphone is recording the user, direction `input`) or speaking (TTS, direction `output`).
+   * In every other state nothing is emitted, except one final level 0 per direction when it goes quiet. Only the
+   * level number travels; the service never exposes audio. The adapter cannot know whether a WebSocket client is
+   * connected, so the state gate is what keeps the load low (idle: one local GET per `idlePollIntervalMs`).
+   */
+  async pollEvents(): Promise<number> {
+    if (this.stopped || !this.voiceHttp || !this.context) return 0;
+    const context = this.context;
+    const raw = await this.fetchRawStatus(this.voiceHttp, false);
+    const speaking = raw.speaking || raw.state === "speaking";
+    const recording = raw.state === "command" || raw.state === "followup";
+    const levels: Array<[LevelDirection, number]> = [];
+    if (recording) levels.push(["input", raw.input_level ?? 0]);
+    if (speaking) levels.push(["output", raw.output_level ?? 0]);
+    const now = new Date(context.clock.now()).toISOString();
+    let emitted = 0;
+    const emit = (direction: LevelDirection, level: number): void => {
+      context.emit({
+        type: "jarvis.voice.audio_level",
+        subject: AUDIO_LEVEL_SUBJECT,
+        data: { direction, level, at: now },
+      });
+      emitted += 1;
+    };
+    const current = new Set<LevelDirection>();
+    for (const [direction, level] of levels) {
+      current.add(direction);
+      emit(direction, level);
+    }
+    for (const direction of this.activeDirections) if (!current.has(direction)) emit(direction, 0);
+    this.activeDirections = current;
+    return emitted;
+  }
+
+  private scheduleLevelPoll(delayMs: number): void {
+    const context = this.context;
+    const settings = this.settings;
+    if (!context || !settings || this.stopped) return;
+    this.cancelLevelTimer = context.clock.setTimeout(() => {
+      if (this.stopped) return;
+      this.pollEvents()
+        .then(
+          () => (this.activeDirections.size > 0 ? settings.levelPollIntervalMs : settings.idlePollIntervalMs),
+          () => {
+            // Unreachable or malformed: the health monitor reports it; stay quiet and fall back to the slow rate.
+            this.activeDirections.clear();
+            return settings.idlePollIntervalMs;
+          },
+        )
+        .then((next) => this.scheduleLevelPoll(next));
+    }, delayMs);
   }
 
   // ---- helpers ----------------------------------------------------------------------------------------------------

@@ -49,6 +49,8 @@ export function sectionStatus(overview: Overview | undefined, sections: readonly
  */
 export function overviewFreshness(query: { data?: { freshness: Freshness; data: Overview }; isError: boolean; dataUpdatedAt: number }): Freshness | undefined {
   const envelope = query.data?.freshness;
+  // Restored from the offline cache and not refreshed: keep the honest label and the age of the data.
+  if (envelope?.state === "offline-cache") return envelope;
   if (query.isError && query.dataUpdatedAt > 0) return { state: "stale", asOf: new Date(query.dataUpdatedAt).toISOString() };
   if (envelope && envelope.state !== "fresh" && (query.data?.data.degradedSections.length ?? 0) > 0) return { state: "fresh", asOf: envelope.asOf };
   return envelope;

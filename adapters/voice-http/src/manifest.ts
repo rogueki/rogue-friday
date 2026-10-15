@@ -75,6 +75,22 @@ export const configSchema = {
       description: "Versuche inklusive Erstversuch (nur Lesezugriffe).",
     },
     retryBaseDelayMs: { type: "integer", minimum: 1, maximum: 10000, default: 200 },
+    levelPollIntervalMs: {
+      type: "integer",
+      minimum: 0,
+      maximum: 5000,
+      default: 250,
+      description:
+        "Abfrageintervall (ms) für Audio-Pegel-Ereignisse (jarvis.voice.audio_level), solange der Dienst aufnimmt oder spricht. 0 schaltet die Pegel-Ereignisse ab. Es wird nur eine Pegelzahl übertragen, nie Audio.",
+    },
+    idlePollIntervalMs: {
+      type: "integer",
+      minimum: 100,
+      maximum: 60000,
+      default: 1000,
+      description:
+        "Abfrageintervall (ms) in allen anderen Zuständen; erkennt nur den Wechsel in Aufnahme/Sprechen und sendet nichts.",
+    },
   },
   additionalProperties: false,
 } as const;
