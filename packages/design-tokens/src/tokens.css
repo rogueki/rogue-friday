@@ -32,7 +32,9 @@
   --friday-orb-deep: #a94c00;
 
   --friday-success: #42efb0;
-  --friday-warning: #ffc857;
+  /* Owner decision 2026-10-15: warning/attention is a subtle gold derived from the orb gold (orb-gold 90 % + orb-hot 10 %),
+     not yellow. Errors stay red, success green. See docs/DESIGN_SYSTEM.md "Attention gold". */
+  --friday-warning: #ffbb3c;
   --friday-error: #ff4d54;
   --friday-violet: #9b7bff;
 
@@ -50,7 +52,9 @@
   --friday-tone-cyan: var(--friday-cyan);
   --friday-tone-green: var(--friday-success);
   --friday-tone-violet: var(--friday-violet);
-  --friday-tone-amber: var(--friday-warning);
+  --friday-attention-gold: var(--friday-warning); /* text, 1px borders, icons */
+  --friday-attention-gold-dim: color-mix(in srgb, var(--friday-attention-gold) 12%, transparent); /* low-alpha fills */
+  --friday-tone-amber: var(--friday-attention-gold);
   --friday-tone-red: var(--friday-error);
   --friday-tone-teal: var(--friday-teal);
   --friday-tone-blue: var(--friday-blue);
@@ -66,9 +70,9 @@
   --friday-tint-violet-bg: color-mix(in srgb, var(--friday-tone-violet) 14%, transparent);
   --friday-tint-violet-border: color-mix(in srgb, var(--friday-tone-violet) 48%, transparent);
   --friday-tint-violet-glow: color-mix(in srgb, var(--friday-tone-violet) 34%, transparent);
-  --friday-tint-amber-bg: color-mix(in srgb, var(--friday-tone-amber) 12%, transparent);
-  --friday-tint-amber-border: color-mix(in srgb, var(--friday-tone-amber) 46%, transparent);
-  --friday-tint-amber-glow: color-mix(in srgb, var(--friday-tone-amber) 32%, transparent);
+  --friday-tint-amber-bg: var(--friday-attention-gold-dim);
+  --friday-tint-amber-border: color-mix(in srgb, var(--friday-attention-gold) 42%, transparent);
+  --friday-tint-amber-glow: color-mix(in srgb, var(--friday-attention-gold) calc(28% * var(--jv-orb-intensity)), transparent);
   --friday-tint-red-bg: color-mix(in srgb, var(--friday-tone-red) 13%, transparent);
   --friday-tint-red-border: color-mix(in srgb, var(--friday-tone-red) 50%, transparent);
   --friday-tint-red-glow: color-mix(in srgb, var(--friday-tone-red) 36%, transparent);

@@ -19,7 +19,7 @@ export const fridayTokens = {
   orbHot: { name: '--friday-orb-hot', value: '#fff2ba' },
   orbDeep: { name: '--friday-orb-deep', value: '#a94c00' },
   success: { name: '--friday-success', value: '#42efb0' },
-  warning: { name: '--friday-warning', value: '#ffc857' },
+  warning: { name: '--friday-warning', value: '#ffbb3c' },
   error: { name: '--friday-error', value: '#ff4d54' },
   violet: { name: '--friday-violet', value: '#9b7bff' },
   text: { name: '--friday-text', value: '#e8fbff' },

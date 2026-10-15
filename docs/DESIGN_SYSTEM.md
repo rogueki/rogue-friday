@@ -43,10 +43,35 @@ TypeScript mirror (`import { … } from '@friday/design-tokens'`):
 
 80–85 % navy surfaces · 10–15 % cyan (lines, interaction, focus) · 2–5 % semantic accents (green/amber/red/violet) ·
 **gold only in the AI-core context**: `HudPanel tone="gold"`, the orb slot, the voice capsule while F.R.I.D.A.Y. speaks
-(`state="speaking"`), `Button variant="friday"`. Never use gold for normal panels, rows or status. Glow is reserved for level 2/3
+(`state="speaking"`), `Button variant="friday"`. Never use full gold for normal panels or rows. **Single exception, see "Attention gold" below.** Glow is reserved for level 2/3
 panels, active tiles and the capsule; text never glows (the clock has a soft halo as the single exception).
 States are never colour-only: status chips carry a dot **and** a word, `HealthBadge`/`FreshnessBadge` carry an icon **and** text,
 tasks/agents show the status word.
+
+### Attention gold (owner decision 2026-10-15)
+
+Warning and approval hints use a **subtle gold close to the orb gold** instead of yellow, so the dashboard reads as one
+system with the golden orb. This deliberately relaxes PLAN §24.2 ("Gold nur im Orb-Kontext"); the owner decision is documented
+here and in `IMPLEMENTATION_CONVENTIONS.md` §7, PLAN.md stays unchanged.
+
+| Token | Value (gold-core) | Use |
+|---|---|---|
+| `--friday-warning` (§24.15, themeable as `color.warning`) | `#ffbb3c` = orb-gold 90 % + orb-hot 10 % (was `#ffc857`); midnight `#eeb84f` | source colour |
+| `--friday-attention-gold` | `var(--friday-warning)` | text, 1 px borders, icons |
+| `--friday-attention-gold-dim` | 12 % of attention gold on transparent | low-alpha fills |
+| `--friday-tone-amber` / `--friday-tint-amber-*` | map to the attention tokens (border 42 %, glow 28 % x `--jv-orb-intensity`) | tone `amber` in all components |
+
+Applies to: tone `amber` (statuses `warn`, `waiting_approval`, `stale`, `degraded`, risk `high`, priority `P1`), `HudPanel tone="amber"`
+(level-3 attention/approval), approval cards/hints ("Freigabe erforderlich", "Wartet auf Freigabe"), WARN badges in the live feed, the
+sidebar approval badge, stale banners. **Unchanged:** errors and P0/critical stay red, success green, info cyan; `tone="gold"` stays the
+full orb gold for the AI core only. Warning and degraded intentionally share the attention gold (they were already one amber tone);
+they remain distinguishable by their words and icons (never colour-only).
+
+Rules to keep it dezent: thin borders, text and low-alpha fills only; no large gold areas; no new glow (the existing level-3 glow
+is only tinted); cyan stays the dominant UI colour (80-85 % navy, 10-15 % cyan). Contrast: attention gold on `--friday-panel-0`
+is above 9:1 (AA needs 4.5:1), checked by the axe e2e suite in both themes. The theme editor "Gold-Intensität des Orbs"
+scales only the glow tint of the attention tone (`--jv-orb-intensity`); fills and borders are not scaled so warnings can never become
+invisible. Changing the editor colour "Warnung" re-tints all attention accents.
 
 ## Panel hierarchy (§24.5)
 
