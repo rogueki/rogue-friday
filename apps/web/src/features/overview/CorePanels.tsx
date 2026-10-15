@@ -66,14 +66,17 @@ function coreRows(overview: Overview, adapters: readonly AdapterInfo[] | undefin
   const connectedModels = models.filter((m) => m.status === "online").length;
   const working = activeAgents.filter((a) => a.status === "working" || a.status === "starting").length;
   /** Row text and tone for a tile whose adapter is down; `null` when the adapter is fine. */
-  const unavailable = (category: string): { meta: string; tone: Tone } | null => {
+  const unavailable = (category: string, dataMissing = false): { meta: string; tone: Tone } | null => {
     const availability = tileAvailability(overview, category, adapters);
-    if (availability === "offline") return { meta: t("core.offline"), tone: toneFromHealth("offline") };
+    // A tile whose own data is absent while its adapter is registered is an outage, even when the server flags the
+    // section "degraded" (health lags behind a failing call, or a stored overview was taken in that window). It must
+    // never fall through to "Nicht verbunden", which means "no adapter configured".
+    if (availability === "offline" || (dataMissing && availability === "degraded")) return { meta: t("core.offline"), tone: toneFromHealth("offline") };
     if (availability === "not-configured") return { meta: t("core.notConnected"), tone: "muted" };
     return null;
   };
-  const memoryDown = memoryInsights ? null : unavailable("memory");
-  const voiceDown = voice ? null : unavailable("voice");
+  const memoryDown = memoryInsights ? null : unavailable("memory", true);
+  const voiceDown = voice ? null : unavailable("voice", true);
   const agentsDown = unavailable("agents");
   const systemDown = unavailable("system");
   const host = systemHealth(overview, adapters);

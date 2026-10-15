@@ -1,4 +1,4 @@
-import type { AdapterRegistry, CallContext, PortCategory } from "@jarvis/adapter-core";
+import type { AdapterError, AdapterRegistry, CallContext, PortCategory } from "@jarvis/adapter-core";
 import { normalizeError } from "@jarvis/adapter-core";
 import {
   CONTRACT_VERSION,
@@ -412,6 +412,18 @@ export interface OverviewServiceDeps {
   now?: () => number;
 }
 
+/**
+ * "offline" = the section's source cannot be reached right now; "degraded" = it answers, but slowly or with errors.
+ * A refused connection or an open circuit breaker (`ADAPTER_UNAVAILABLE` without an upstream HTTP status) is offline no
+ * matter what the health monitor currently says: its cadence (default 15 s, three failed checks before OFFLINE) lags
+ * behind the first failing call, and the same outage must not flip offline -> degraded -> offline while it lasts.
+ */
+export function sectionStatusOf(error: AdapterError, info: AdapterInfo | undefined): "degraded" | "offline" {
+  if (error.code === "ADAPTER_TIMEOUT") return "degraded";
+  if (error.code === "ADAPTER_UNAVAILABLE" && error.details.upstreamStatus === undefined) return "offline";
+  return info?.health.status === "degraded" ? "degraded" : "offline";
+}
+
 export class OverviewService {
   constructor(private readonly deps: OverviewServiceDeps) {}
 
@@ -433,7 +445,7 @@ export class OverviewService {
         degraded.push({
           section: CATEGORY_LABEL[category],
           adapterId: info?.manifest.id ?? `unconfigured-${category}`,
-          status: error.code === "ADAPTER_TIMEOUT" || info?.health.status === "degraded" ? "degraded" : "offline",
+          status: sectionStatusOf(error, info),
           reason: error.code === "CAPABILITY_MISSING" && !info ? "Kein Adapter konfiguriert." : error.message,
         });
         return fallback;

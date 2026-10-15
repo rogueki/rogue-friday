@@ -251,6 +251,26 @@ describe("JarvisVoiceHttpAdapter against the wire-level fake of jarvis_voice.py"
       expect(levelEvents(rig)).toHaveLength(0);
     });
 
+    it("level polling neither masks nor delays the outage state: health offline while down, online again right after, no events while down", async () => {
+      rig = await createRig(LEVELS);
+      const r = rig;
+      r.voice.setStatus(makeVoiceStatus({ state: "command", input_level: 0.3 }));
+      await waitFor(() => levelEvents(r).length >= 1);
+      await r.voice.setOffline(true);
+      await new Promise((resolve) => setTimeout(resolve, 100)); // several failed polls
+      const during = levelEvents(r).length;
+      for (let i = 0; i < 3; i += 1) {
+        const health = await r.adapter.healthCheck();
+        expect(health).toMatchObject({ status: "offline", errorCode: "ADAPTER_UNAVAILABLE", latencyMs: null });
+        await expectCode(r.adapter.getVoiceStatus({}, call()), "ADAPTER_UNAVAILABLE", true);
+      }
+      expect(levelEvents(r)).toHaveLength(during); // an unreachable service emits no (stale) level
+      await r.voice.setOffline(false);
+      expect((await r.adapter.healthCheck()).status).toBe("online"); // first probe after the restart, not after the next poll tick
+      expect((await r.adapter.getVoiceStatus({}, call())).data.mode).toBe("listening");
+      await waitFor(() => levelEvents(r).length > during, 4_000);
+    });
+
     it("survives an outage, resumes afterwards and stops after shutdown", async () => {
       rig = await createRig(LEVELS);
       const r = rig;

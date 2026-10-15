@@ -1,3 +1,4 @@
+import type { AdapterInfo } from "@jarvis/sdk";
 import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeAgent, makeOverview, overviewResponse } from "@/test/fixtures";
@@ -110,5 +111,30 @@ describe("overview panels: states", () => {
     renderWithProviders(<CoreOverviewPanel />, { overview: overviewResponse(makeOverview()) });
     expect(screen.getByText("10 gespeichert")).toBeInTheDocument();
     expect(screen.getByText("1 aktiv")).toBeInTheDocument();
+  });
+});
+
+describe("core overview: voice outage versus not configured", () => {
+  const voiceAdapter = (status: "online" | "degraded" | "offline"): AdapterInfo => ({
+    manifest: { id: "jarvis-voice-http", name: "Jarvis Voice", adapterVersion: "1.0.0", contractVersion: "1.0.0", apiVersion: "v1", category: "voice", capabilities: ["voice.read"], configSchemaRef: "x", secretFields: [] },
+    health: { adapterId: "jarvis-voice-http", status, lifecycle: status === "offline" ? "OFFLINE" : "DEGRADED", latencyMs: null, lastSuccessAt: null, lastError: { code: "ADAPTER_UNAVAILABLE", message: "Voice-Dienst nicht erreichbar" }, checkedAt: "2026-10-14T08:15:00Z", consecutiveFailures: 1, circuit: "open" },
+    enabled: true,
+    provider: "jarvis-voice-http",
+    mode: "live",
+  });
+  const voiceEntry = (status: "degraded" | "offline", adapterId = "jarvis-voice-http") => ({ section: "Sprache", adapterId, status, reason: "Der Adapter ist vorübergehend gesperrt (Circuit Breaker offen)." });
+  const voiceRow = (): HTMLElement => screen.getByText("Sprache").closest(".jv-row") as HTMLElement;
+
+  it.each(["degraded", "offline"] as const)("shows Offline when the registered voice adapter fails and its section is %s (health monitor lags behind)", (status) => {
+    const overview = makeOverview({ voice: null, degradedSections: [voiceEntry(status)] });
+    renderWithProviders(<CoreOverviewPanel />, { overview: overviewResponse(overview), adapters: [voiceAdapter("degraded")] });
+    expect(within(voiceRow()).getByText("Offline")).toBeInTheDocument();
+    expect(within(voiceRow()).queryByText("Nicht verbunden")).toBeNull();
+  });
+
+  it("shows Nicht verbunden only when no adapter is configured", () => {
+    const overview = makeOverview({ voice: null, degradedSections: [voiceEntry("offline", "unconfigured-voice")] });
+    renderWithProviders(<CoreOverviewPanel />, { overview: overviewResponse(overview), adapters: [] });
+    expect(within(voiceRow()).getByText("Nicht verbunden")).toBeInTheDocument();
   });
 });
