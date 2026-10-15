@@ -9,16 +9,16 @@ Command Center: Control API (`apps/control-api/dist/main.js`) im Mock-Modus mit 
 ```bash
 pnpm build:app                 # nur nötig, wenn apps/web/out oder apps/control-api/dist fehlen/veraltet sind
 pnpm test:e2e                  # komplette Suite (serieller Lauf, siehe Laufzeit in der Ausgabe)
-pnpm test:e2e -- tests/e2e/tasks.spec.ts          # einzelne Spec
+pnpm test:e2e tests/e2e/tasks.spec.ts          # einzelne Spec
 pnpm test:e2e:update           # Visual-Baselines neu erzeugen (nach jeder UI-Änderung!)
-E2E_SOAK=1 pnpm test:e2e -- tests/e2e/performance.spec.ts -g soak   # 30-Minuten-Orb-Soak (Standard: 2 Minuten)
+E2E_SOAK=1 pnpm test:e2e tests/e2e/performance.spec.ts -g soak   # 30-Minuten-Orb-Soak (Standard: 2 Minuten)
 ```
 
 - `playwright.config.ts` startet den Stack selbst (`webServer` -> `tests/e2e/stack.ts`). Fehlt der Build, läuft `pnpm build:app`
   automatisch; `JARVIS_E2E_BUILD=1` erzwingt einen Neubau. Der Stack arbeitet auf einer **Kopie** von `apps/web/out`
   (Temp-Verzeichnis), ein paralleler Rebuild verändert den Lauf also nicht.
 - Entwicklung einer Spec: Stack einmal von Hand starten (`pnpm exec tsx tests/e2e/stack.ts`) und die Specs mit
-  `JARVIS_E2E_REUSE=1 pnpm test:e2e -- <spec>` dagegen laufen lassen.
+  `JARVIS_E2E_REUSE=1 pnpm test:e2e <spec>` dagegen laufen lassen.
 - Port `JARVIS_E2E_PORT` (Standard 3200), Datenverzeichnis `JARVIS_E2E_DIR` (Standard `<tmp>/jarvis-e2e`), Chromium
   `JARVIS_CHROMIUM` (Standard in der Cloud: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`). Chromium startet mit
   `--use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist` (WebGL in Software).
@@ -27,15 +27,15 @@ E2E_SOAK=1 pnpm test:e2e -- tests/e2e/performance.spec.ts -g soak   # 30-Minuten
 
 ## Aufbau
 
-| Datei | Inhalt |
-|---|---|
-| `stack.ts` | Startet die gebaute Control API (Mock, Seed 42, Dev-Login, Temp-`JARVIS_DATA_DIR`) |
-| `support/fixtures.ts` | Auto-Fixtures: vor **jedem** Test Welt-Reset (`dev/scenarios/control reset`) und Wiederherstellung der Einstellungen; Fehler bei unbehandelten Page-Exceptions |
-| `support/api.ts` | Kleiner API-Client (Cookies, CSRF, Idempotency-Key) für Setup und Gegenprobe der UI-Aktionen am Server |
-| `navigation`, `scenarios`, `tasks`, `approvals`, `outage`, `orb-states`, `command-bar`, `settings`, `reconnect`, `fallback-2d` `.spec.ts` | E2E (§51.5) |
-| `visual.spec.ts` | Visual Regression (§51.4), Baselines in `__screenshots__/visual.spec.ts/` (pro Plattform) |
-| `a11y.spec.ts` | axe-core WCAG 2.0/2.1 A+AA, Tastatur, Fokus, Reduced Motion, Nicht-nur-Farbe (§51.7) |
-| `performance.spec.ts` | 10 000 Aktivitäten, 1 000 Tasks, Reconnect unter Last, Hintergrund-Tab, Orb-Soak (§51.6) |
+| Datei                                                                                                                                     | Inhalt                                                                                                                                                         |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `stack.ts`                                                                                                                                | Startet die gebaute Control API (Mock, Seed 42, Dev-Login, Temp-`JARVIS_DATA_DIR`)                                                                             |
+| `support/fixtures.ts`                                                                                                                     | Auto-Fixtures: vor **jedem** Test Welt-Reset (`dev/scenarios/control reset`) und Wiederherstellung der Einstellungen; Fehler bei unbehandelten Page-Exceptions |
+| `support/api.ts`                                                                                                                          | Kleiner API-Client (Cookies, CSRF, Idempotency-Key) für Setup und Gegenprobe der UI-Aktionen am Server                                                         |
+| `navigation`, `scenarios`, `tasks`, `approvals`, `outage`, `orb-states`, `command-bar`, `settings`, `reconnect`, `fallback-2d` `.spec.ts` | E2E (§51.5)                                                                                                                                                    |
+| `visual.spec.ts`                                                                                                                          | Visual Regression (§51.4), Baselines in `__screenshots__/visual.spec.ts/` (pro Plattform)                                                                      |
+| `a11y.spec.ts`                                                                                                                            | axe-core WCAG 2.0/2.1 A+AA, Tastatur, Fokus, Reduced Motion, Nicht-nur-Farbe (§51.7)                                                                           |
+| `performance.spec.ts`                                                                                                                     | 10 000 Aktivitäten, 1 000 Tasks, Reconnect unter Last, Hintergrund-Tab, Orb-Soak (§51.6)                                                                       |
 
 ## Determinismus der Visual-Tests
 
