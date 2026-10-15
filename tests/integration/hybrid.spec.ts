@@ -51,8 +51,12 @@ async function mainText(): Promise<string> {
   return page.locator("main").innerText();
 }
 
-/** Opens `path` and reloads every few seconds until the page text matches (outage/recovery propagate via health polling). */
-async function openUntil(path: string, pattern: RegExp, timeoutMs = 60_000): Promise<string> {
+/**
+ * Opens `path` and reloads every few seconds until the page text matches (outage/recovery propagate via health polling).
+ * `unlessMatching` rejects a page that still shows the old state: the offline cache renders the last known data
+ * („Hey Friday“ ...) immediately on load, so recovery must wait until the outage banner is gone, not just for the data.
+ */
+async function openUntil(path: string, pattern: RegExp, timeoutMs = 60_000, unlessMatching?: RegExp): Promise<string> {
   let text = "";
   await expect
     .poll(
@@ -61,7 +65,7 @@ async function openUntil(path: string, pattern: RegExp, timeoutMs = 60_000): Pro
         await page.locator("main").waitFor();
         await page.waitForTimeout(2500);
         text = await mainText();
-        return pattern.test(text);
+        return pattern.test(text) && !unlessMatching?.test(text);
       },
       { timeout: timeoutMs, intervals: [500], message: `${path} should match ${String(pattern)}` },
     )
@@ -162,7 +166,12 @@ test("outage and recovery: stopping the voice service marks exactly the voice mo
     const voice = await openUntil("/voice", OUTAGE_TEXT);
     expect(voice).toMatch(/Jarvis Voice[^\n]*nicht erreichbar seit/);
     expect(voice).not.toMatch(NOT_CONFIGURED_TEXT); // an outage is not "not configured"
-    expect(voice).not.toContain("„Hey Friday“");
+    // Last known data may stay visible during an outage (offline cache, PLAN §8.9) - but never as live data.
+    expect(voice).toMatch(/Mikrofonstatus unbekannt/);
+    if (voice.includes("„Hey Friday“")) {
+      expect(voice).toMatch(/Offline-Cache/);
+      expect(voice).toMatch(/zwischengespeicherte Daten/);
+    }
     await expect(page.getByText("Sprachdienst offline").first()).toBeVisible(); // nav widget
     await shot("06-voice-offline");
 
@@ -193,7 +202,7 @@ test("outage and recovery: stopping the voice service marks exactly the voice mo
     await control("/services/voice/start");
   }
 
-  const voice = await openUntil("/voice", /„Hey Friday“/, 90_000);
+  const voice = await openUntil("/voice", /„Hey Friday“/, 90_000, OUTAGE_TEXT);
   expect(voice).not.toMatch(NOT_CONFIGURED_TEXT);
   expect(voice).not.toMatch(OUTAGE_TEXT);
   await shot("10-voice-recovered");
@@ -208,7 +217,11 @@ test("outage and recovery: stopping Hermes marks tasks, activity and agents offl
     const tasks = await openUntil("/tasks", OUTAGE_TEXT);
     expect(tasks).toMatch(/Hermes Aufgaben nicht erreichbar seit/);
     expect(tasks).not.toMatch(NOT_CONFIGURED_TEXT);
-    expect(tasks).not.toContain("Angebot Nr. 2041 prüfen");
+    // Last known tasks may stay visible (offline cache, PLAN §8.9) - only when clearly marked as cached, never as live data.
+    if (tasks.includes("Angebot Nr. 2041 prüfen")) {
+      expect(tasks).toMatch(/Offline-Cache/);
+      expect(tasks).toMatch(/zwischengespeicherte Daten/);
+    }
     await shot("12-tasks-hermes-offline");
     const agents = await openUntil("/agents", OUTAGE_TEXT);
     expect(agents).not.toMatch(NOT_CONFIGURED_TEXT);
@@ -232,11 +245,11 @@ test("outage and recovery: stopping Hermes marks tasks, activity and agents offl
     await control("/services/hermes/start");
   }
 
-  const tasks = await openUntil("/tasks", /7 Treffer/, 90_000);
+  const tasks = await openUntil("/tasks", /7 Treffer/, 90_000, OUTAGE_TEXT);
   expect(tasks).toContain("Angebot Nr. 2041 prüfen");
   expect(tasks).not.toMatch(OUTAGE_TEXT);
   await shot("16-tasks-recovered");
-  await openUntil("/agents", /3 Treffer/);
+  await openUntil("/agents", /3 Treffer/, 60_000, OUTAGE_TEXT);
   const system = await openUntil("/system", /15 online/);
   expect(system).toMatch(/0 offline/);
   await shot("17-system-recovered");
