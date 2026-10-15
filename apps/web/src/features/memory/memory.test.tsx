@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/queryKeys";
 import { renderWithProviders } from "@/test/render";
 import { errorResponse, FRESH, FULL, listOf, modules, NOW, resource, routedFetch, single } from "./kit/testSupport";
 import { resetRouter } from "./kit/testRouter";
@@ -177,6 +178,37 @@ describe("memory page: search, detail and forgetting", () => {
     await user.click(within(confirm).getByRole("button", { name: "Endgültig vergessen" }));
     await waitFor(() => expect(fake.to("DELETE", `/api/v1/memory/${ID}`)).toHaveLength(1));
     expect(fake.to("DELETE", `/api/v1/memory/${ID}`)[0]?.headers.get("If-Match")).toBe("3");
+  });
+
+  it("closes the drawer and confirms the deletion even when the realtime event removes the detail before the response arrives", async () => {
+    const user = userEvent.setup();
+    let deleted = false;
+    const fake = routedFetch({
+      "GET /api/v1/memory": () => listOf(deleted ? [] : [makeMemory()]),
+      [`GET /api/v1/memory/${ID}`]: () => (deleted ? errorResponse("NOT_FOUND", "Eintrag nicht gefunden", 404) : single(makeMemory())),
+      [`DELETE /api/v1/memory/${ID}`]: { contractVersion: "1.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES" },
+    });
+    // The server publishes `jarvis.memory.deleted` before it answers: applyEvent drops the detail query (unmounting the
+    // drawer content) while the DELETE response is still in flight.
+    const rendered = renderWithProviders(<MemoryPage />, {
+      fetchImpl: ((input: Request | string | URL, init?: RequestInit) => {
+        const request = input instanceof Request ? input : new Request(input, init);
+        if (request.method !== "DELETE") return fake.fetch(input, init);
+        deleted = true;
+        // same two steps as `removeResource` in lib/realtime/applyEvent.ts: the list loses the entry, the detail query is dropped
+        rendered.queryClient.setQueriesData<{ items: unknown[] }>({ queryKey: queryKeys.memory.lists() }, (old) => (old ? { ...old, items: [] } : old));
+        rendered.queryClient.removeQueries({ queryKey: queryKeys.memory.detail(ID) });
+        return new Promise<Response>((resolve) => setTimeout(() => resolve(fake.fetch(input, init)), 150));
+      }) as typeof fetch,
+      capabilities: modules(FULL),
+    });
+    await user.click((await screen.findByText("Kaffeesorte")).closest("button") as HTMLElement);
+    const drawer = await screen.findByRole("dialog");
+    await user.click(within(drawer).getByRole("button", { name: /Vergessen/ }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Endgültig vergessen" }));
+    expect(await screen.findByText("Eintrag vergessen")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.queryByText("Daten konnten nicht geladen werden")).toBeNull();
   });
 
   it("does not offer forgetting for a locked memory", async () => {

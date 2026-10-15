@@ -328,23 +328,25 @@ function MemoryDetail({ memory, freshness, onClose, onOpenOther }: DetailProps) 
         confirmLabel={t("memory.forget.confirm")}
         cancelLabel={t("common.cancel")}
         loading={remove.isPending}
-        onConfirm={() =>
-          remove.mutate(
-            { id: memory.id, version: memory.version },
-            {
-              onSuccess: () => {
-                setConfirmDelete(false);
-                onClose();
-                toast({
-                  title: t("memory.forget.done"),
-                  description: t("memory.forget.doneDescription"),
-                  tone: "green",
-                  action: { label: t("memory.forget.openAudit"), onClick: () => router.push("/audit") },
-                });
-              },
+        onConfirm={() => {
+          // `mutateAsync`, not `mutate(..., { onSuccess })`: the realtime `memory.deleted` event usually arrives before the
+          // HTTP response and removes the detail query, which unmounts this component. Per-call callbacks of `mutate` are
+          // dropped for an unmounted observer, which left the drawer on a NOT_FOUND error without toast or audit link.
+          // Failures are already toasted by the global mutation handler.
+          remove.mutateAsync({ id: memory.id, version: memory.version }).then(
+            () => {
+              setConfirmDelete(false);
+              onClose();
+              toast({
+                title: t("memory.forget.done"),
+                description: t("memory.forget.doneDescription"),
+                tone: "green",
+                action: { label: t("memory.forget.openAudit"), onClick: () => router.push("/audit") },
+              });
             },
-          )
-        }
+            () => undefined,
+          );
+        }}
       />
     </div>
   );
