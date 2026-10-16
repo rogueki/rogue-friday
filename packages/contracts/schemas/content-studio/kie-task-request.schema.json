@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/content-studio/kie-task-request.schema.json",
+  "title": "KieTaskRequest",
+  "type": "object",
+  "properties": {
+    "kind": { "type": "string", "enum": ["image", "video"] },
+    "prompt": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "aspectRatio": { "type": "string", "enum": ["1:1", "16:9"] },
+    "confirmed": { "const": true }
+  },
+  "required": ["kind", "prompt", "aspectRatio", "confirmed"],
+  "additionalProperties": false
+}

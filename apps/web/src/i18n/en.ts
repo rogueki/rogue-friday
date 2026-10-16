@@ -64,6 +64,7 @@ export const en: Record<keyof typeof de, string> = {
   "nav.calendar": "Calendar",
   "nav.automations": "Automations",
   "nav.research": "Research",
+  "nav.contentStudio": "Content Studio",
   "nav.files": "Files & Documents",
   "nav.voice": "Voice",
   "nav.alerts": "Notifications & Alerts",

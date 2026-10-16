@@ -74,6 +74,7 @@ function NavRow({ id, index, count, visible, isDefault, locked, readOnly, onMove
 export function NavigationArea() {
   const { t } = useT();
   const { value, update, readOnly } = useAreaDraft("navigation");
+  const dashboard = useAreaDraft("dashboard");
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   if (!value) return null;
 
@@ -133,7 +134,7 @@ export function NavigationArea() {
             hint={t("settings.nav.defaultPageHint")}
             value={value.defaultPage}
             disabled={readOnly}
-            options={NAV_PAGES.map((page) => ({ value: page.id, label: t(page.labelKey) }))}
+            options={NAV_PAGES.filter((page) => page.id !== "content-studio" || dashboard.value?.contentStudioEnabled === true).map((page) => ({ value: page.id, label: t(page.labelKey) }))}
             onChange={(event) => update({ defaultPage: event.target.value })}
           />
           <Select

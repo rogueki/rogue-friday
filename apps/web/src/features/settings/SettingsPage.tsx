@@ -8,6 +8,7 @@ import {
   CircleDot,
   Code2,
   Cpu,
+  Clapperboard,
   Database,
   HardDriveDownload,
   LayoutDashboard,
@@ -26,6 +27,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { useT, type MessageKey } from "@/i18n";
 import { useThemes } from "@/lib/api/domains/settings";
 import { AdaptersArea } from "./AdaptersArea";
+import { ContentStudioKeysArea } from "./ContentStudioKeysArea";
 import { ApprovalsArea, BackupsArea, DashboardArea, DataRetentionArea, DeveloperArea, ModelsRoutingArea, NotificationsArea, ProfileArea, SecurityArea, VoiceArea } from "./BasicAreas";
 import { LayoutArea } from "./LayoutArea";
 import { NavigationArea } from "./NavigationArea";
@@ -45,6 +47,7 @@ const AREA_ICONS: Record<SettingsAreaId, ReactNode> = {
   orb: <CircleDot {...ICON} />,
   navigation: <Menu {...ICON} />,
   adapters: <Plug {...ICON} />,
+  contentStudioKeys: <Clapperboard {...ICON} />,
   modelsRouting: <Cpu {...ICON} />,
   voice: <Mic {...ICON} />,
   notifications: <Bell {...ICON} />,
@@ -78,6 +81,7 @@ const AREA_COMPONENTS: Partial<Record<SettingsAreaId, () => ReactNode>> = {
   theme: () => <ThemeArea />,
   orb: () => <OrbArea />,
   navigation: () => <NavigationArea />,
+  contentStudioKeys: () => <ContentStudioKeysArea />,
   modelsRouting: () => <ModelsRoutingArea />,
   voice: () => <VoiceArea />,
   notifications: () => <NotificationsArea />,

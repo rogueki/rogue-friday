@@ -13,6 +13,8 @@ import type { AdapterSettingsService } from "../services/adapter-settings";
 import type { LogBuffer } from "../services/log-buffer";
 import type { OrbService, OverviewService, StatusService } from "../services/core-views";
 import type { SettingsService } from "../services/settings";
+import type { ContentStudioKeysService } from "../services/content-studio-keys";
+import type { ContentStudioProviderService } from "../services/content-studio-providers";
 import type { FrontendTelemetryService } from "../services/telemetry";
 import type { AdapterWiring } from "./adapter-wiring";
 
@@ -49,6 +51,8 @@ export interface Runtime {
   auth: AuthService;
   approvalTokens: ApprovalTokenService;
   settings: SettingsService;
+  contentStudioKeys: ContentStudioKeysService;
+  contentStudioProviders: ContentStudioProviderService;
   adapterSettings: AdapterSettingsService;
   status: StatusService;
   orb: OrbService;

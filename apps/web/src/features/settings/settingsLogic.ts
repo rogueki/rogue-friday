@@ -15,6 +15,7 @@ export const SETTINGS_AREAS = [
   "orb",
   "navigation",
   "adapters",
+  "contentStudioKeys",
   "modelsRouting",
   "voice",
   "notifications",

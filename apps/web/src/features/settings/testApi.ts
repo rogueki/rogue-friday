@@ -16,7 +16,7 @@ export function makeSettings(partial: Partial<Settings> = {}): Settings {
     version: 3,
     updatedAt: "2026-10-14T08:00:00Z",
     profile: { displayName: "Erik Brandt", assistantName: "F.R.I.D.A.Y.", locale: "de", timeZone: "Europe/Berlin", dateFormat: "dd.MM.yyyy", timeFormat: "24h", firstDayOfWeek: "monday" },
-    dashboard: { activeLayoutId: "default", fontScale: 1, backgroundGrid: true, soundEffects: false, autoRefreshSeconds: 30, compact: false },
+    dashboard: { activeLayoutId: "default", fontScale: 1, backgroundGrid: true, soundEffects: false, autoRefreshSeconds: 30, compact: false, contentStudioEnabled: false },
     theme: { activeThemeId: "friday-navy-cyan", cyanIntensity: 1, panelOpacity: 0.72, goldIntensity: 1 },
     orb: {
       preset: "gold",

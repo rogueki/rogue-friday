@@ -221,6 +221,9 @@ export interface FridayModelMap {
   CommandHistoryEntryListResponse: CommandHistoryEntryListResponse;
   CommandRequest: CommandRequest;
   CommandResponse: CommandResponse;
+  ContentStudioKeyPatch: ContentStudioKeyPatch;
+  ContentStudioKeys: ContentStudioKeys;
+  ContentStudioKeysResponse: ContentStudioKeysResponse;
   ContractVersion: ContractVersion;
   ControlFrame: ControlFrame;
   DashboardSettings: DashboardSettings;
@@ -233,6 +236,7 @@ export interface FridayModelMap {
   DraftSendRequest: DraftSendRequest;
   DraftStatus: DraftStatus;
   DraftUpdateRequest: DraftUpdateRequest;
+  ElevenSpeechRequest: ElevenSpeechRequest;
   EntityRef: EntityRef;
   ErrorCode: ErrorCode;
   ErrorDetail: ErrorDetail;
@@ -262,6 +266,9 @@ export interface FridayModelMap {
   HealthcheckResultResponse: HealthcheckResultResponse;
   HealthStatus: HealthStatus;
   JsonSchemaObject: JsonSchemaObject;
+  KieTask: KieTask;
+  KieTaskRequest: KieTaskRequest;
+  KieTaskResponse: KieTaskResponse;
   LatencyStat: LatencyStat;
   Layout: Layout;
   LayoutImportRequest: LayoutImportRequest;
@@ -1697,6 +1704,20 @@ export interface CommandResponse {
   } | null;
   correlationId: string;
 }
+export interface ContentStudioKeyPatch {
+  provider: "kie" | "elevenlabs" | "capcut";
+  key: string;
+}
+export interface ContentStudioKeys {
+  kie: boolean;
+  elevenlabs: boolean;
+  capcut: boolean;
+}
+export interface ContentStudioKeysResponse {
+  contractVersion: ContractVersion;
+  data: ContentStudioKeys;
+  freshness: Freshness;
+}
 /**
  * Heartbeat frames (conventions §4). Not an envelope, no sequence.
  */
@@ -1714,6 +1735,10 @@ export interface DashboardSettings {
   soundEffects: boolean;
   autoRefreshSeconds: number;
   compact: boolean;
+  /**
+   * Enables the optional Content Studio module. Missing on older settings means disabled.
+   */
+  contentStudioEnabled?: boolean;
 }
 export interface DataRetentionSettings {
   activityDays: number;
@@ -1795,6 +1820,11 @@ export interface DraftUpdateRequest {
   subject?: string;
   body?: string;
   status?: "draft" | "discarded";
+}
+export interface ElevenSpeechRequest {
+  text: string;
+  voiceId: string;
+  confirmed: true;
 }
 /**
  * Error envelope returned for every non-2xx REST response.
@@ -2039,6 +2069,24 @@ export interface HealthcheckResult {
 export interface HealthcheckResultResponse {
   contractVersion: ContractVersion;
   data: HealthcheckResult;
+  freshness: Freshness;
+}
+export interface KieTask {
+  taskId: string;
+  kind: "image" | "video";
+  state: "waiting" | "queuing" | "generating" | "success" | "fail";
+  resultUrls: string[];
+  creditsConsumed: number | null;
+}
+export interface KieTaskRequest {
+  kind: "image" | "video";
+  prompt: string;
+  aspectRatio: "1:1" | "16:9";
+  confirmed: true;
+}
+export interface KieTaskResponse {
+  contractVersion: ContractVersion;
+  data: KieTask;
   freshness: Freshness;
 }
 export interface LatencyStat {

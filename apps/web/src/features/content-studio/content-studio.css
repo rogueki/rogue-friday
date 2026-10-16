@@ -1,0 +1,23 @@
+.cs-page { display: grid; gap: 24px; padding: clamp(20px, 3vw, 40px); max-width: 1500px; margin: 0 auto; color: var(--color-text, #dcecf2); }
+.cs-header { display: flex; align-items: end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.cs-header h1 { margin: 4px 0; font-size: clamp(30px, 3vw, 46px); }
+.cs-header p, .cs-footnote, .cs-card p { opacity: .74; }
+.cs-eyebrow { text-transform: uppercase; letter-spacing: .18em; font-size: 12px; }
+.cs-actions, .cs-card-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
+.cs-grid { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1.5fr); gap: 20px; }
+.cs-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.cs-form label, .cs-card-actions label { display: grid; gap: 6px; font-size: 13px; }
+.cs-form input, .cs-form select, .cs-form textarea, .cs-card select { width: 100%; background: #0c1726; color: inherit; border: 1px solid #345064; border-radius: 6px; padding: 9px; }
+.cs-form textarea { min-height: 84px; resize: vertical; }
+.cs-span { grid-column: 1 / -1; }
+.cs-list { display: grid; gap: 10px; max-height: 500px; overflow: auto; }
+.cs-card { display: flex; justify-content: space-between; align-items: start; gap: 12px; padding: 14px; border: 1px solid #345064; border-radius: 8px; }
+.cs-card p { margin: 5px 0; }
+.cs-notice { border-left: 3px solid #e3b765; padding: 10px 14px; background: #241d12; }
+.cs-workshop { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.cs-workshop > .cs-notice { grid-column: 1 / -1; }
+.cs-confirm { display: flex !important; align-items: start; }
+.cs-confirm input { width: auto !important; margin-top: 2px; }
+.cs-workshop a { color: #a9dfff; }
+@media (max-width: 900px) { .cs-grid, .cs-workshop { grid-template-columns: 1fr; } .cs-card { flex-direction: column; } }
+@media (max-width: 520px) { .cs-form { grid-template-columns: 1fr; } }

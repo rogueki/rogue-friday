@@ -68,6 +68,7 @@ export const de = {
   "nav.calendar": "Kalender",
   "nav.automations": "Automationen",
   "nav.research": "Recherche",
+  "nav.contentStudio": "Content Studio",
   "nav.files": "Dateien & Dokumente",
   "nav.voice": "Sprache",
   "nav.alerts": "Meldungen & Alarme",

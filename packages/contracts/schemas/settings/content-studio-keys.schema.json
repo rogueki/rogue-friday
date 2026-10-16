@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/content-studio-keys.schema.json",
+  "title": "ContentStudioKeys",
+  "type": "object",
+  "properties": {
+    "kie": { "type": "boolean" },
+    "elevenlabs": { "type": "boolean" },
+    "capcut": { "type": "boolean" }
+  },
+  "required": ["kie", "elevenlabs", "capcut"],
+  "additionalProperties": false
+}

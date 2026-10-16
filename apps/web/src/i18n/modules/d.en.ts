@@ -113,6 +113,10 @@ export const enD: Record<keyof typeof deD, string> = {
   "settings.dashboard.refreshHint": "Fallback when the event stream is unavailable.",
   "settings.dashboard.defaultPage": "Start page",
   "settings.dashboard.defaultPageHint": "Saved together with the \"Navigation\" area.",
+  "settings.dashboard.contentStudio": "Enable Content Studio",
+  "settings.dashboard.contentStudioDesc": "Show planning and media production in its own menu page.",
+  "settings.area.contentStudioKeys": "Content Studio access",
+  "settings.area.contentStudioKeys.desc": "Manage media provider API keys in the Control API process.",
 
   "settings.layout.title": "Layout editor",
   "settings.layout.subtitle": "Arrange the overview widgets on the 12-column grid",

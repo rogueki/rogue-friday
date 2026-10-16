@@ -4304,6 +4304,111 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: audit.export
       x-required-role: owner
+  /api/v1/content-studio/kie/tasks:
+    post:
+      operationId: createKieTask
+      tags:
+        - settings
+      summary: Submit a confirmed paid image or video task through the server
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KieTaskRequest"
+      responses:
+        "202":
+          description: Accepted by kie.ai; use task ID to read status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KieTaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+      x-max-body-bytes: 4096
+  /api/v1/content-studio/kie/tasks/{id}:
+    get:
+      operationId: getKieTask
+      tags:
+        - settings
+      summary: Read status of a task submitted by this Control API
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Task status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KieTaskResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/content-studio/elevenlabs/speech:
+    post:
+      operationId: createElevenSpeech
+      tags:
+        - settings
+      summary: Generate confirmed paid speech with ElevenLabs
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ElevenSpeechRequest"
+      responses:
+        "200":
+          description: MP3 audio
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                contentMediaType: audio/mpeg
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+      x-max-body-bytes: 4096
   /api/v1/settings:
     get:
       operationId: getSettings
@@ -4373,6 +4478,58 @@ paths:
           $ref: "#/components/responses/TooManyRequests"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/content-studio-keys:
+    get:
+      operationId: getContentStudioKeys
+      tags:
+        - settings
+      summary: Get configured Content Studio provider key flags; values are never returned
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentStudioKeysResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-capability: meta.read
+      x-required-role: owner
+    patch:
+      operationId: updateContentStudioKey
+      tags:
+        - settings
+      summary: Set or clear one runtime-only Content Studio provider key
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentStudioKeyPatch"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentStudioKeysResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
       x-capability: meta.read
       x-required-role: owner
   /api/v1/settings/schema:
@@ -5508,6 +5665,20 @@ components:
       $ref: ../schemas/events/control-frame.schema.json
     DashboardSettings:
       $ref: ../schemas/settings/dashboard-settings.schema.json
+    ContentStudioKeyPatch:
+      $ref: ../schemas/settings/content-studio-key-patch.schema.json
+    ContentStudioKeys:
+      $ref: ../schemas/settings/content-studio-keys.schema.json
+    ContentStudioKeysResponse:
+      $ref: ../schemas/settings/content-studio-keys-response.schema.json
+    KieTaskRequest:
+      $ref: ../schemas/content-studio/kie-task-request.schema.json
+    KieTask:
+      $ref: ../schemas/content-studio/kie-task.schema.json
+    KieTaskResponse:
+      $ref: ../schemas/content-studio/kie-task-response.schema.json
+    ElevenSpeechRequest:
+      $ref: ../schemas/content-studio/eleven-speech-request.schema.json
     DataRetentionSettings:
       $ref: ../schemas/settings/data-retention-settings.schema.json
     DeveloperSettings:

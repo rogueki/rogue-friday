@@ -115,6 +115,10 @@ export const deD = {
   "settings.dashboard.refreshHint": "Rückfall, wenn der Event-Stream nicht verfügbar ist.",
   "settings.dashboard.defaultPage": "Startseite",
   "settings.dashboard.defaultPageHint": "Wird mit dem Bereich „Navigation“ gespeichert.",
+  "settings.dashboard.contentStudio": "Content Studio aktivieren",
+  "settings.dashboard.contentStudioDesc": "Planer und Medienproduktion als eigenen Menüpunkt anzeigen.",
+  "settings.area.contentStudioKeys": "Content Studio Zugänge",
+  "settings.area.contentStudioKeys.desc": "API-Schlüssel für Medienanbieter im Control-API-Prozess verwalten.",
 
   // ── Layout-Editor ───────────────────────────────────────────────────────
   "settings.layout.title": "Layout-Editor",
