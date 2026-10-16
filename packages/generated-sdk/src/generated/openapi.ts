@@ -8286,6 +8286,7 @@ export interface operations {
             /** @description Owner-bound short-lived confirmation token and canonical preview */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     [name: string]: unknown;
                 };
                 content: {

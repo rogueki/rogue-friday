@@ -76,7 +76,8 @@ export function mockManifest(category: PortCategory): AdapterManifest {
     contractVersion: CONTRACT_VERSION,
     apiVersion: "v1",
     category,
-    capabilities: [...allowedCapabilities(category)].sort(),
+    // Event creation is provided by the live CalDAV adapter; the mock calendar only proposes changes.
+    capabilities: [...allowedCapabilities(category)].filter((capability) => category !== "calendar" || capability !== "calendar.create").sort(),
     configSchemaRef: MOCK_CONFIG_SCHEMA_ID(category),
     secretFields: mockSecretFields(category),
   };
@@ -284,4 +285,3 @@ export abstract class MockAdapterBase implements FridayAdapter {
     }
   }
 }
-

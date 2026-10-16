@@ -2534,6 +2534,8 @@ paths:
       responses:
         "200":
           description: Owner-bound short-lived confirmation token and canonical preview
+          headers:
+            Idempotent-Replayed: { $ref: "#/components/headers/IdempotentReplayed" }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CalDavEventPreviewResponse" }
