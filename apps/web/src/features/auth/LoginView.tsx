@@ -4,7 +4,7 @@ import { isFridayApiError, type Role } from "@friday/sdk";
 import { BrandMark, Button, HudPanel, TextField } from "@friday/ui";
 import { LogIn, ShieldCheck, User, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useT, type MessageKey } from "@/i18n";
 import { useMeta } from "@/lib/api/domains/core";
 import { useLogin } from "@/lib/api/domains/auth";
@@ -33,19 +33,29 @@ export function LoginView() {
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loginStarted = useRef(false);
+  const firstSetup = useRef(false);
 
   useEffect(() => {
-    if (session.status === "authenticated") router.replace("/");
+    if (session.status === "authenticated") {
+      if (loginStarted.current) clearOnboardingSnooze();
+      router.replace(firstSetup.current ? "/onboarding" : "/");
+    }
   }, [session.status, router]);
 
   const setupRequired = session.session?.setupRequired === true;
 
   const submit = (credentials: { username: string; password: string; rememberMe?: boolean; displayName?: string }): void => {
     setError(null);
+    loginStarted.current = true;
+    firstSetup.current = setupRequired;
     login.mutate(credentials, {
-      onSuccess: () => { clearOnboardingSnooze(); router.replace(setupRequired ? "/onboarding" : "/"); },
-      onError: (failure) => setError(isFridayApiError(failure) && failure.status === 429 ? t("login.rateLimited") :
-        setupRequired && isFridayApiError(failure) && failure.status === 422 ? t("login.setupInvalid") : t("login.failed")),
+      onError: (failure) => {
+        loginStarted.current = false;
+        firstSetup.current = false;
+        setError(isFridayApiError(failure) && failure.status === 429 ? t("login.rateLimited") :
+          setupRequired && isFridayApiError(failure) && failure.status === 422 ? t("login.setupInvalid") : t("login.failed"));
+      },
     });
   };
 
