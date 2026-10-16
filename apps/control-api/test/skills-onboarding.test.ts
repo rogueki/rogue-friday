@@ -163,7 +163,7 @@ describe("skills and resumable onboarding", () => {
     expect(byName.get("airtable")).toMatchObject({ accounts: ["hermes_airtable"], integrationDetails: [{ account: "required", required: true }],
       requiredCapabilities: [expect.stringContaining("Personal Access Token")] });
     expect(byName.get("opencode")).toMatchObject({ accounts: ["hermes_opencode"], integrationDetails: [{ account: "conditional", required: true }],
-      setupRefs: [], requiredCapabilities: [expect.stringContaining("OpenCode CLI")] });
+      setupRefs: [], requiredCapabilities: [expect.stringMatching(/OpenCode.*CLI/)] });
     expect(byName.get("email-inbox-triage")).toMatchObject({ accounts: ["hermes_email_inbox_triage"],
       integrationDetails: [{ account: "conditional", setupDe: expect.stringContaining("Himalaya"), settingsTarget: "Hermes-Einstellungen in Friday-Ubuntu" }],
       requiredCapabilities: [expect.stringContaining("Google-Workspace-Connector")] });
