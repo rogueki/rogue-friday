@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- test code reads untyped JSON bodies and frames that the contract validators check */
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { hkdfSync } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -7,6 +8,7 @@ import { deriveKey, loadOrCreateServerKey } from "@friday/auth";
 import { GENESIS_HASH } from "@friday/observability";
 import { createSchemaValidator, type AuditEvent, type FridayEvent } from "@friday/sdk";
 import { AuditAnchor } from "../src/db/audit-anchor";
+import { migrateLegacyAuditAnchor } from "../src/db/audit-anchor-migration";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 
 const validator = createSchemaValidator();
@@ -212,6 +214,30 @@ describe("control-plane audit trail", () => {
     const anchorOf = () =>
       new AuditAnchor({ db: api.runtime.db, key: deriveKey(loadOrCreateServerKey(api.config.paths.dataDir).key, "audit-head"), file: anchorFile() });
     const kvAnchor = () => (api.runtime.db.prepare("SELECT value FROM kv WHERE key = 'audit.head'").get() as { value: string } | undefined)?.value;
+
+    it("migrates a valid JARVIS anchor without discarding the audit trail", () => {
+      const masterKey = loadOrCreateServerKey(api.config.paths.dataDir).key;
+      const legacyKey = Buffer.from(hkdfSync("sha256", masterKey, Buffer.alloc(0), "jarvis/audit-head/v1", 32));
+      const legacy = new AuditAnchor({ db: api.runtime.db, key: legacyKey, file: anchorFile() });
+      const current = anchorOf().readFile();
+      if (current.state !== "ok") throw new Error("audit anchor missing");
+      legacy.write(current.record);
+      expect(api.runtime.stores.audit.verify()).toMatchObject({ valid: false, reason: "anchor_tampered" });
+      expect(migrateLegacyAuditAnchor(api.runtime.db, masterKey, anchorFile(), api.runtime.stores.audit)).toBe(true);
+      expect(api.runtime.stores.audit.verify()).toMatchObject({ valid: true, length: current.record.length });
+    });
+
+    it("does not migrate a truncated JARVIS audit trail", () => {
+      const masterKey = loadOrCreateServerKey(api.config.paths.dataDir).key;
+      const legacyKey = Buffer.from(hkdfSync("sha256", masterKey, Buffer.alloc(0), "jarvis/audit-head/v1", 32));
+      const legacy = new AuditAnchor({ db: api.runtime.db, key: legacyKey, file: anchorFile() });
+      const current = anchorOf().readFile();
+      if (current.state !== "ok") throw new Error("audit anchor missing");
+      legacy.write(current.record);
+      api.runtime.db.prepare("DELETE FROM audit_log WHERE seq = (SELECT MAX(seq) FROM audit_log)").run();
+      expect(migrateLegacyAuditAnchor(api.runtime.db, masterKey, anchorFile(), api.runtime.stores.audit)).toBe(false);
+      expect(api.runtime.stores.audit.verify().valid).toBe(false);
+    });
 
     it("persists the chain head (length + hash) outside the audit table after every append", () => {
       const stored = rows();
