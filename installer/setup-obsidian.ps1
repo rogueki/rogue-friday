@@ -13,10 +13,10 @@ $root = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 if ($root -notmatch '^([A-Za-z]):\\(.+)$') { throw 'InstallRoot muss ein lokaler Laufwerkspfad sein.' }
 $script = '/mnt/' + $Matches[1].ToLowerInvariant() + '/' + $Matches[2].Replace('\', '/') + '/installer/wsl/configure_obsidian.py'
 if ($Action -eq 'set') {
-    if ([string]::IsNullOrWhiteSpace($VaultPath)) { throw 'VaultPath fehlt.' }
-    $vault = [IO.Path]::GetFullPath($VaultPath)
+    if ([string]::IsNullOrWhiteSpace($VaultPath)) { exit 4 }
+    try { $vault = [IO.Path]::GetFullPath($VaultPath) } catch { exit 4 }
     if ($vault -notmatch '^([A-Za-z]):\\(.+)$' -or -not (Test-Path -LiteralPath (Join-Path $vault '.obsidian') -PathType Container)) {
-        throw 'Vault muss ein lokaler Ordner mit .obsidian sein.'
+        exit 4
     }
     $linuxVault = '/mnt/' + $Matches[1].ToLowerInvariant() + '/' + $Matches[2].Replace('\', '/')
     & wsl.exe -d $state.distro_name -u $state.linux_user --exec python3 $script set $ExpectedVersion $linuxVault
