@@ -24,5 +24,49 @@
 .cs-platforms button, .cs-meta-toggle { border: 1px solid #345064; border-radius: 6px; color: inherit; background: #0c1726; padding: 8px 12px; cursor: pointer; }
 .cs-platforms button[aria-pressed="true"], .cs-meta-toggle[aria-pressed="true"] { border-color: #e3b765; background: #352b1c; }
 .cs-meta-toggle { margin-top: 9px; }
+.cs-section-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.cs-section-nav a { color: inherit; border: 1px solid #345064; border-radius: 6px; padding: 8px 12px; text-decoration: none; }
+.cs-section-nav a:hover, .cs-section-nav a:focus-visible { border-color: #e3b765; }
+.cs-guide { display: grid; gap: 18px; }
+.cs-guide-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.cs-guide-card { min-width: 0; border: 1px solid #345064; border-radius: 8px; padding: 14px; background: rgba(12, 23, 38, .45); }
+.cs-guide-card h3 { margin: 0 0 8px; font-size: 16px; }
+.cs-guide-card p { margin: 0 0 12px; line-height: 1.5; opacity: .78; }
+.cs-guide-card a { color: #a9dfff; }
+.cs-table-scroll { overflow-x: auto; }
+.cs-guide-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+.cs-guide-table th, .cs-guide-table td { padding: 11px 12px; border-bottom: 1px solid #345064; text-align: left; vertical-align: top; }
+.cs-guide-table th { color: #f1d5a2; font-weight: 600; }
+.cs-guide-note { opacity: .72; font-size: 13px; }
+.cs-workflow { display: grid; grid-template-columns: repeat(auto-fit, minmax(195px, 1fr)); gap: 12px; padding: 0; list-style: none; counter-reset: workflow; }
+.cs-workflow li { border: 1px solid #345064; border-radius: 8px; padding: 14px; counter-increment: workflow; }
+.cs-workflow li::before { content: counter(workflow); display: inline-grid; place-items: center; width: 25px; height: 25px; margin-right: 8px; border: 1px solid #e3b765; border-radius: 50%; color: #f1d5a2; }
+.cs-workflow strong { display: inline; }
+.cs-workflow span { display: block; margin-top: 8px; opacity: .78; line-height: 1.5; }
+.cs-guide-bottom { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.cs-folders ul, .cs-quality { padding-left: 22px; line-height: 1.8; }
+.cs-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.cs-stats span { border: 1px solid #345064; border-radius: 8px; padding: 9px 13px; }
+.cs-stats strong { font-size: 20px; color: #f1d5a2; margin-right: 4px; }
+.cs-kanban { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.cs-kanban-column { min-width: 0; border: 1px solid #345064; border-radius: 8px; padding: 12px; }
+.cs-kanban-column h3 { margin: 0 0 12px; font-size: 15px; }
+.cs-kanban-column h3 span { color: #e3b765; }
+.cs-kanban-column .cs-card { display: grid; margin-top: 8px; overflow-wrap: anywhere; }
+.cs-kanban-column .cs-card-actions { align-items: center; }
+.cs-posting-section { display: grid; gap: 18px; }
+.cs-calendar-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 15px; }
+.cs-calendar-controls strong { margin-left: auto; }
+.cs-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.cs-day { min-width: 0; min-height: 130px; border: 1px solid #345064; border-radius: 8px; padding: 10px; }
+.cs-day-today { border-color: #e3b765; }
+.cs-day h3 { margin: 0 0 9px; font-size: 13px; }
+.cs-day > p { opacity: .55; font-size: 12px; }
+.cs-post-chip { display: block; width: 100%; margin: 0 0 6px; border: 1px solid #57738b; border-radius: 6px; padding: 8px; background: #142b3c; color: inherit; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.cs-post-chip small { display: block; margin-top: 4px; opacity: .75; }
+.cs-post-gepostet { border-color: #668f70; background: #153222; }
+.cs-post-verpasst, .cs-post-overdue { border-color: #aa7655; background: #39261d; }
+@media (max-width: 1200px) { .cs-kanban { grid-template-columns: 1fr; } .cs-week { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .cs-grid, .cs-workshop { grid-template-columns: 1fr; } .cs-card { flex-direction: column; } }
-@media (max-width: 520px) { .cs-form { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .cs-guide-bottom { grid-template-columns: 1fr; } .cs-week { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .cs-form { grid-template-columns: 1fr; } .cs-week { grid-template-columns: 1fr; } .cs-calendar-controls strong { width: 100%; margin-left: 0; } }

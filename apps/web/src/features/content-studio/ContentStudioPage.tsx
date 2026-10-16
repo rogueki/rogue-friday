@@ -9,6 +9,9 @@ import { useAppSettings } from "@/lib/settings";
 import { ideaTargets, parseStudioPlan, platforms, postingTargets, type ContentIdea, type ContentFormat, type Platform, type Posting, type StudioPlan } from "./plan";
 import { MediaWorkshop } from "./MediaWorkshop";
 import { SocialPublishingOnboarding } from "./SocialPublishingOnboarding";
+import { PostingCalendar } from "./PostingCalendar";
+import { StudioGuide } from "./StudioGuide";
+import { IdeaKanban } from "./IdeaKanban";
 import "./content-studio.css";
 
 const STORAGE_KEY = "friday.content-studio.plan.v1";
@@ -41,6 +44,13 @@ export function ContentStudioPage() {
   const [metaTogether, setMetaTogether] = useState(true);
   const [format, setFormat] = useState<ContentFormat>("Feed-Post");
   const [date, setDate] = useState("");
+  const [ideaStatus, setIdeaStatus] = useState<ContentIdea["status"]>("idee");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [postingTitle, setPostingTitle] = useState("");
+  const [postingDate, setPostingDate] = useState("");
+  const [postingTime, setPostingTime] = useState("09:00");
+  const [postingPlatform, setPostingPlatform] = useState<Platform>("LinkedIn");
+  const [postingFormat, setPostingFormat] = useState<ContentFormat>("Feed-Post");
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -57,8 +67,10 @@ export function ContentStudioPage() {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
               const previous = parseStudioPlan(JSON.parse(raw) as unknown);
-              setLegacyPlan(previous);
-              setNotice("Ein bisheriger Browserplan ist vorhanden. Prüfe und übernimm ihn bei Bedarf. Das Browser-Original bleibt als Sicherung erhalten.");
+              if (previous.content.length > 0 || previous.postings.length > 0) {
+                setLegacyPlan(previous);
+                setNotice("Ein bisheriger Browserplan ist vorhanden. Prüfe und übernimm ihn bei Bedarf. Das Browser-Original bleibt als Sicherung erhalten.");
+              }
             }
           } catch {
             setNotice("Der bisherige Browserplan kann nicht gelesen werden. Der Browser-Speicher bleibt unangetastet; bitte vor Änderungen manuell sichern.");
@@ -108,17 +120,26 @@ export function ContentStudioPage() {
     const group: Platform[] = metaTogether && (target === "Instagram" || target === "Facebook") ? ["Instagram", "Facebook"] : [target];
     setSelectedPlatforms((current) => current.includes(target) ? current.filter((entry) => !group.includes(entry)) : platforms.filter((entry) => current.includes(entry) || group.includes(entry)));
   };
+  const resetIdeaForm = (): void => { setEditingId(null); setTitle(""); setDescription(""); setDate(""); setIdeaStatus("idee"); setFormat("Feed-Post"); setSelectedPlatforms(["LinkedIn"]); };
+  const editIdea = (item: ContentIdea): void => { setEditingId(item.id); setTitle(item.titel); setDescription(item.beschreibung); setDate(item.zieldatum); setIdeaStatus(item.status); setFormat(item.format); setSelectedPlatforms(ideaTargets(item)); document.getElementById("cs-idea-title")?.focus(); };
   const addIdea = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!title.trim() || selectedPlatforms.length === 0) return;
-    const item: ContentIdea = { id: crypto.randomUUID(), titel: title.trim(), plattform: selectedPlatforms[0]!, ziele: selectedPlatforms, format, beschreibung: description.trim(), zieldatum: date, status: "idee" };
-    if (await persist({ ...plan, content: [...plan.content, item] })) { setTitle(""); setDescription(""); setDate(""); }
+    const item: ContentIdea = { id: editingId ?? crypto.randomUUID(), titel: title.trim(), plattform: selectedPlatforms[0]!, ziele: selectedPlatforms, format, beschreibung: description.trim(), zieldatum: date, status: ideaStatus };
+    const content = editingId ? plan.content.map((entry) => entry.id === editingId ? item : entry) : [...plan.content, item];
+    if (await persist({ ...plan, content })) resetIdeaForm();
   };
   const addPosting = (idea: ContentIdea): void => {
     if (!idea.zieldatum) { setNotice("Für einen Posting-Entwurf braucht die Idee ein Zieldatum."); return; }
     const ziele = ideaTargets(idea);
     const posting: Posting = { id: crypto.randomUUID(), titel: idea.titel, datum: idea.zieldatum, uhrzeit: "09:00", plattform: ziele[0]!, ziele, format: idea.format, status: "geplant" };
     updatePlan((current) => ({ ...current, postings: [...current.postings, posting] }));
+  };
+  const addManualPosting = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    if (!postingTitle.trim() || !postingDate) return;
+    const posting: Posting = { id: crypto.randomUUID(), titel: postingTitle.trim(), datum: postingDate, uhrzeit: postingTime || "09:00", plattform: postingPlatform, ziele: [postingPlatform], format: postingFormat, status: "geplant" };
+    if (await persist({ ...plan, postings: [...plan.postings, posting] })) { setPostingTitle(""); setPostingDate(""); setPostingTime("09:00"); }
   };
   const importPlan = async (file: File | undefined): Promise<void> => {
     if (!file) return;
@@ -133,13 +154,19 @@ export function ContentStudioPage() {
   return <main className="cs-page">
     <header className="cs-header"><div><p className="cs-eyebrow">F.R.I.D.A.Y. · Produktion</p><h1>Content Studio</h1><p>Ideen entwickeln, Veröffentlichungen planen und Produktionsschritte vorbereiten.</p></div><div className="cs-actions"><Button type="button" variant="ghost" onClick={() => downloadPlan(plan, "plan.json")}>Plan exportieren</Button><Button type="button" variant="ghost" onClick={() => fileInput.current?.click()}>Plan importieren</Button><input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={(event) => { void importPlan(event.target.files?.[0]); event.target.value = ""; }} /></div></header>
     {notice && <p className="cs-notice" role="status">{notice}</p>}
-    <section className="cs-grid" aria-label="Contentplanung">
-      <HudPanel title="Neue Idee"><form className="cs-form" onSubmit={addIdea}><label>Titel<input required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>Format<select value={format} onChange={(event) => setFormat(event.target.value as ContentFormat)}>{formats.map((name) => <option key={name}>{name}</option>)}</select></label><div className="cs-span"><span>Zielplattformen</span><div className="cs-platforms">{platforms.map((name) => <button key={name} type="button" aria-pressed={selectedPlatforms.includes(name)} onClick={() => togglePlatform(name)}>{name}</button>)}</div><button className="cs-meta-toggle" type="button" aria-pressed={metaTogether} onClick={() => setMetaTogether((value) => !value)}>Instagram und Facebook gemeinsam auswählen: {metaTogether ? "an" : "aus"}</button></div><label>Zieldatum<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label className="cs-span">Beschreibung<textarea maxLength={10000} value={description} onChange={(event) => setDescription(event.target.value)} /></label><Button type="submit" disabled={selectedPlatforms.length === 0}>Idee anlegen</Button></form></HudPanel>
-      <HudPanel title={`Ideen · ${plan.content.length}`}><div className="cs-list">{plan.content.length === 0 ? <p>Noch keine Ideen. Beginne mit einem Titel.</p> : plan.content.map((item) => <article key={item.id} className="cs-card"><div><strong>{item.titel}</strong><p>{ideaTargets(item).join(" + ")} · {item.format}{item.zieldatum ? ` · ${item.zieldatum}` : ""}</p>{item.beschreibung && <p>{item.beschreibung}</p>}</div><div className="cs-card-actions"><label>Status<select value={item.status} onChange={(event) => updatePlan((current) => ({ ...current, content: current.content.map((entry) => entry.id === item.id ? { ...entry, status: event.target.value as ContentIdea["status"] } : entry) }))}><option value="idee">Idee</option><option value="in-arbeit">In Arbeit</option><option value="fertig">Fertig</option></select></label><Button type="button" variant="ghost" onClick={() => addPosting(item)}>Posting planen</Button><Button type="button" variant="ghost" onClick={() => updatePlan((current) => ({ ...current, content: current.content.filter((entry) => entry.id !== item.id) }))}>Entfernen</Button></div></article>)}</div></HudPanel>
+    <nav className="cs-section-nav" aria-label="Content-Studio-Bereiche"><a href="#cs-production">Produktionshilfe</a><a href="#cs-planning">Content-Planer</a><a href="#cs-postings">Posting-Planer</a><a href="#cs-media">Medien-Workshop</a><a href="#cs-publishing">Veröffentlichung</a></nav>
+    <div id="cs-production"><StudioGuide /></div>
+    <section id="cs-planning" className="cs-grid" aria-label="Contentplanung">
+      <HudPanel title={editingId ? "Idee bearbeiten" : "Neue Idee"}><form className="cs-form" onSubmit={addIdea}><label>Titel<input id="cs-idea-title" required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>Format<select value={format} onChange={(event) => setFormat(event.target.value as ContentFormat)}>{formats.map((name) => <option key={name}>{name}</option>)}</select></label><div className="cs-span"><span>Zielplattformen</span><div className="cs-platforms">{platforms.map((name) => <button key={name} type="button" aria-pressed={selectedPlatforms.includes(name)} onClick={() => togglePlatform(name)}>{name}</button>)}</div><button className="cs-meta-toggle" type="button" aria-pressed={metaTogether} onClick={() => setMetaTogether((value) => !value)}>Instagram und Facebook gemeinsam auswählen: {metaTogether ? "an" : "aus"}</button></div><label>Zieldatum<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label>Status<select value={ideaStatus} onChange={(event) => setIdeaStatus(event.target.value as ContentIdea["status"])}><option value="idee">Idee</option><option value="in-arbeit">In Arbeit</option><option value="fertig">Fertig</option></select></label><label className="cs-span">Beschreibung<textarea maxLength={10000} value={description} onChange={(event) => setDescription(event.target.value)} /></label><div className="cs-actions"><Button type="submit" disabled={saving || selectedPlatforms.length === 0}>{editingId ? "Änderungen speichern" : "Idee anlegen"}</Button>{editingId && <Button type="button" variant="ghost" onClick={resetIdeaForm}>Abbrechen</Button>}</div></form></HudPanel>
+      <IdeaKanban ideas={plan.content} disabled={saving} onEdit={editIdea} onPlan={addPosting} onStatus={(id, status) => updatePlan((current) => ({ ...current, content: current.content.map((entry) => entry.id === id ? { ...entry, status } : entry) }))} onRemove={(id) => updatePlan((current) => ({ ...current, content: current.content.filter((entry) => entry.id !== id) }))} />
+    </section>
+    <section id="cs-postings" className="cs-posting-section" aria-label="Posting-Planer">
+      <HudPanel title="Post einplanen"><form className="cs-form" onSubmit={addManualPosting}><label className="cs-span">Titel / Notiz<input required maxLength={200} value={postingTitle} onChange={(event) => setPostingTitle(event.target.value)} /></label><label>Datum<input required type="date" value={postingDate} onChange={(event) => setPostingDate(event.target.value)} /></label><label>Uhrzeit<input required type="time" value={postingTime} onChange={(event) => setPostingTime(event.target.value)} /></label><label>Plattform<select value={postingPlatform} onChange={(event) => setPostingPlatform(event.target.value as Platform)}>{platforms.map((name) => <option key={name}>{name}</option>)}</select></label><label>Format<select value={postingFormat} onChange={(event) => setPostingFormat(event.target.value as ContentFormat)}>{formats.map((name) => <option key={name}>{name}</option>)}</select></label><Button type="submit" disabled={saving}>Post einplanen</Button></form></HudPanel>
+      <PostingCalendar postings={plan.postings} disabled={saving} onStatus={(id, status) => updatePlan((current) => ({ ...current, postings: current.postings.map((entry) => entry.id === id ? { ...entry, status } : entry) }))} />
     </section>
       <HudPanel title={`Postingplan · ${plan.postings.length}`}><div className="cs-list">{plan.postings.length === 0 ? <p>Noch keine Postings geplant.</p> : [...plan.postings].sort((a, b) => `${a.datum}${a.uhrzeit}`.localeCompare(`${b.datum}${b.uhrzeit}`)).map((post) => <article key={post.id} className="cs-card"><div><strong>{post.titel}</strong><p>{post.datum} · {post.uhrzeit} · {postingTargets(post).join(" + ")} · {post.format}</p></div><div className="cs-card-actions"><label>Status<select value={post.status} onChange={(event) => updatePlan((current) => ({ ...current, postings: current.postings.map((entry) => entry.id === post.id ? { ...entry, status: event.target.value as Posting["status"] } : entry) }))}><option value="geplant">Geplant</option><option value="gepostet">Gepostet</option><option value="verpasst">Verpasst</option></select></label><Button type="button" variant="ghost" onClick={() => updatePlan((current) => ({ ...current, postings: current.postings.filter((entry) => entry.id !== post.id) }))}>Entfernen</Button></div></article>)}</div></HudPanel>
-    <MediaWorkshop />
-    <SocialPublishingOnboarding />
+    <div id="cs-media"><MediaWorkshop /></div>
+    <div id="cs-publishing"><SocialPublishingOnboarding /></div>
     <p className="cs-footnote">Der Plan liegt auf diesem F.R.I.D.A.Y.-Server (Revision {revision}). Export und Import verwenden plan.json. Hier wird nichts automatisch veröffentlicht.</p>
   </main>;
 }
