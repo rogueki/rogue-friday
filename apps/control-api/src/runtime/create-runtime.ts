@@ -105,6 +105,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   }
   const serverKey = loadOrCreateServerKey(config.paths.dataDir);
   if (!serverKey.permissionsRestricted) logger.warn("Berechtigungen von auth.key konnten nicht eingeschränkt werden", { path: serverKey.path });
+  const voiceBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "voice-bridge"));
+  if (!voiceBridgeKey.permissionsRestricted) logger.warn("Berechtigungen des Voice-Bridge-Schlüssels konnten nicht eingeschränkt werden", { path: voiceBridgeKey.path });
   const sessions = new SqliteSessionStore(db, {
     defaultTtlMs: config.auth.sessionTtlMinutes * 60_000,
     defaultIdleTimeoutMs: config.auth.idleTimeoutMinutes * 60_000,
@@ -385,6 +387,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     engine,
     stores: { audit, idempotency, commands, library, adapterOverrides },
     auth,
+    voiceBridgeKey: voiceBridgeKey.key,
     approvalTokens,
     settings,
     contentStudioKeys,

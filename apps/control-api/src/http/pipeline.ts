@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { authorize } from "@friday/auth";
 import { CONTRACT_VERSION, type Actor, type ErrorDetail } from "@friday/sdk";
@@ -18,6 +18,9 @@ const CORRELATION_HEADER = "x-correlation-id";
 const CORRELATION_PATTERN = /^corr_[0-9A-Za-z]{26}$/;
 const ROLE_RANK = { none: 0, viewer: 1, operator: 2, owner: 3 } as const;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const VOICE_BRIDGE_OPERATIONS = new Set<OperationId>([
+  "getContentStudioPlan", "createContentProductionJob", "getContentProductionJob", "cancelContentProductionJob",
+]);
 
 const AUTH_AUDIT_ACTIONS: Partial<Record<OperationId, string>> = {
   login: "auth.login",
@@ -95,7 +98,11 @@ export class ApiPipeline {
     const headers: Record<string, string | undefined> = {};
     for (const [name, value] of Object.entries(request.headers)) headers[name.toLowerCase()] = Array.isArray(value) ? value.join(", ") : value;
     const principal = this.runtime.auth.authenticate(headers.cookie);
-    const actor: Actor = principal ? { type: "user", id: principal.userId, name: principal.displayName } : { type: "system", id: "anonymous" };
+    const voiceBridgeAuthorized = VOICE_BRIDGE_OPERATIONS.has(spec.operationId) &&
+      (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
+      verifyVoiceBridgeKey(headers.authorization, this.runtime.voiceBridgeKey);
+    const actor: Actor = voiceBridgeAuthorized ? { type: "system", id: "friday-voice", name: "F.R.I.D.A.Y. Voice" } :
+      principal ? { type: "user", id: principal.userId, name: principal.displayName } : { type: "system", id: "anonymous" };
     const url = new URL(request.url, "http://localhost");
     const idempotencyKey = headers["idempotency-key"];
     const ifMatch = parseIfMatch(headers["if-match"], spec);
@@ -105,6 +112,7 @@ export class ApiPipeline {
       spec,
       correlationId,
       principal,
+      voiceBridgeAuthorized,
       actor,
       pathParams: (request.params ?? {}) as Record<string, string>,
       query: {},
@@ -118,7 +126,7 @@ export class ApiPipeline {
         ...call,
         ...(ifMatch !== undefined ? { ifMatchVersion: ifMatch } : {}),
         ...(idempotencyKey && spec.acceptsIdempotencyKey
-          ? { idempotencyKey: scopedIdempotencyKey(idempotencyKey, spec, request.params as Record<string, string> | undefined, principal?.userId ?? request.ip) }
+          ? { idempotencyKey: scopedIdempotencyKey(idempotencyKey, spec, request.params as Record<string, string> | undefined, voiceBridgeAuthorized ? "friday-voice" : principal?.userId ?? request.ip) }
           : {}),
       },
       idempotencyKey: spec.acceptsIdempotencyKey ? idempotencyKey : undefined,
@@ -145,6 +153,7 @@ export class ApiPipeline {
 
   private authorizeRequest(ctx: RequestContext, spec: RouteSpec): void {
     const { runtime } = this;
+    if (ctx.voiceBridgeAuthorized) return;
     const principal = ctx.principal;
     if (spec.requiresSession && !principal && spec.operationId !== "getSession") {
       throw new ApiError({ code: "UNAUTHENTICATED", message: "Bitte anmelden." });
@@ -197,7 +206,7 @@ export class ApiPipeline {
 
   private async runIdempotent(ctx: RequestContext, spec: RouteSpec, key: string): Promise<Outcome> {
     const { stores } = this.runtime;
-    const actor = ctx.principal?.userId ?? ctx.ip;
+    const actor = ctx.voiceBridgeAuthorized ? "friday-voice" : ctx.principal?.userId ?? ctx.ip;
     const bodyHash = IdempotencyStore.bodyHash({ body: ctx.body, query: ctx.query });
     const lookup = stores.idempotency.lookup(spec.method, requestPath(ctx), key, actor, bodyHash);
     if (lookup.kind === "conflict") {
@@ -273,7 +282,7 @@ export class ApiPipeline {
   private recordAudit(ctx: RequestContext, spec: RouteSpec, outcome: Outcome, durationMs: number): void {
     if (outcome.replayed || SAFE_METHODS.has(spec.method) || NON_AUDITED_POSTS.has(spec.operationId)) return;
     // Anonymous noise (scanners hitting POST routes) is not an audit event, except the login itself.
-    if (!ctx.principal && spec.operationId !== "login") return;
+    if (!ctx.principal && !ctx.voiceBridgeAuthorized && spec.operationId !== "login") return;
     const failed = outcome.status >= 400;
     const result: AuditDraft["result"] = !failed ? "success" : outcome.errorCode && DENIED_CODES.has(outcome.errorCode) ? "denied" : "failure";
     const note = ctx.audit;
@@ -347,6 +356,13 @@ export function scopedIdempotencyKey(key: string, spec: RouteSpec, params: Recor
   const target = spec.path.replace(/\{(\w+)\}/g, (_m, name: string) => params?.[name] ?? name);
   const digest = createHash("sha256").update(`${actor}\0${spec.method} ${target}\0${key}`).digest("hex").toUpperCase();
   return `idem_${digest.slice(0, 26)}`;
+}
+
+function verifyVoiceBridgeKey(authorization: string | undefined, expected: Buffer): boolean {
+  const token = authorization?.match(/^Bearer ([A-Za-z0-9+/]{43}=)$/)?.[1];
+  if (!token || expected.length !== 32) return false;
+  const received = Buffer.from(token, "base64");
+  return received.length === expected.length && timingSafeEqual(received, expected);
 }
 
 function requestPath(ctx: RequestContext): string {

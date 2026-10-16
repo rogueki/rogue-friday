@@ -61,6 +61,22 @@ describe("automatic Content Studio production", () => {
     expect(calls).toHaveLength(0);
   });
 
+  it("allows only the four local Content Studio voice operations with its separate credential", async () => {
+    const authorization = `Bearer ${api.runtime.voiceBridgeKey.toString("base64")}`;
+    const voice = (method: "GET" | "POST", url: string, payload?: unknown, headers: Record<string, string> = {}) =>
+      api.fastify.inject({ method, url, headers: { authorization, ...headers }, ...(payload ? { payload } : {}) });
+    expect((await voice("GET", "/api/v1/content-studio/plan")).statusCode).toBe(200);
+    expect((await voice("GET", "/api/v1/settings")).statusCode).toBe(401);
+    expect((await voice("POST", ROUTE, { ideaId: idea.id, planRevision: 1, confirmed: false }, { "idempotency-key": "voice-rejected-1" })).statusCode).toBe(422);
+    const started = await voice("POST", ROUTE, { ideaId: idea.id, planRevision: 1, voiceId: "voice1", confirmed: true }, { "idempotency-key": "voice-accepted-1" });
+    expect(started.statusCode, started.body).toBe(202);
+    const id = started.json().data.id as string;
+    expect((await voice("GET", `${ROUTE}/${id}`)).statusCode).toBe(200);
+    expect((await voice("GET", `${ROUTE}/${id}/artifact`)).statusCode).toBe(401);
+    expect((await voice("POST", `${ROUTE}/${id}/cancel`)).json().data.state).toBe("cancelled");
+    expect((await api.fastify.inject({ method: "GET", url: "/api/v1/content-studio/plan", headers: { authorization: "Bearer invalid" } })).statusCode).toBe(401);
+  });
+
   it("runs one durable job through Kie, ElevenLabs, render and authorized artifact download", async () => {
     const owner = api.client();
     await owner.loginDev("owner");
