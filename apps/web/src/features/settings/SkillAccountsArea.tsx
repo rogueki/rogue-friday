@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentStudioKeysResponse, HermesSkillKeyCheckResponse, HermesSkillKeysResponse, ObsidianVaultResponse, WikiPathResponse, SkillCatalogEntry } from "@friday/sdk";
+import type { CodingCliStatusResponse, ContentStudioKeysResponse, HermesSkillKeyCheckResponse, HermesSkillKeysResponse, ObsidianVaultResponse, WikiPathResponse, SkillCatalogEntry } from "@friday/sdk";
 import { ErrorState, Skeleton } from "@friday/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -15,6 +15,18 @@ import "@/features/skills/skills.css";
 type Integration = SkillCatalogEntry["integrationDetails"][number] & { requiredBy: string[] };
 type KeyStatus = ContentStudioKeysResponse["data"] | undefined;
 type HermesStatus = HermesSkillKeysResponse["data"] | undefined;
+type CliStatus = CodingCliStatusResponse["data"][number];
+const codingCliNames = { codex: "Codex", opencode: "OpenCode", "claude-code": "Claude Code" } as const;
+
+function codingCliState(item: CliStatus): string {
+  if (!item.installed) return "CLI in Friday-Ubuntu nicht erkannt";
+  if (item.authState === "signed_in") return "Lokale Anmeldung gemeldet; Modellzugriff nicht geprüft";
+  if (item.authState === "stored_credentials") return "Anbieter-Zugangsdaten gespeichert; Gültigkeit nicht geprüft";
+  if (item.authState === "signed_out") return item.cli === "opencode"
+    ? "Keine gespeicherten Anbieter-Zugangsdaten; lokale Modelle können trotzdem funktionieren"
+    : "Keine lokale Anmeldung gemeldet; Umgebungsvariablen nicht geprüft";
+  return "Anmeldestatus unbekannt; CLI-Zugriff nicht geprüft";
+}
 
 const studioProviders = { kie_ai: "kie", elevenlabs: "elevenlabs" } as const;
 const hermesIntegrationKeys = {
@@ -52,7 +64,13 @@ const hermesLocations: Record<string, string> = {
   hermes_claude_code: "Friday-Ubuntu: claude auth status und Anbieter-Anmeldung",
 };
 
-export function accountSetupView(item: Integration, keys: KeyStatus, hermes: HermesStatus = undefined): { href: string | null; action: string | null; state: string; location: string | null } {
+export function accountSetupView(item: Integration, keys: KeyStatus, hermes: HermesStatus = undefined, cliStatuses: CliStatus[] = []): { href: string | null; action: string | null; state: string; location: string | null } {
+  const cliId = ({ hermes_codex: "codex", hermes_opencode: "opencode", hermes_claude_code: "claude-code" } as Record<string, CliStatus["cli"]>)[item.id];
+  if (cliId) {
+    const status = cliStatuses.find((entry) => entry.cli === cliId);
+    return { href: "/settings?area=skillAccounts#coding-cli-setup-title", action: "Coding-CLI-Status ansehen",
+      state: status ? codingCliState(status) : "CLI-Status noch nicht gelesen", location: hermesLocations[item.id] ?? null };
+  }
   if (item.id === "hermes_llm_wiki") return {
     href: "/settings?area=skillAccounts#wiki-path-setup-title",
     action: "Lokalen Wiki-Pfad im Dashboard einrichten",
@@ -123,6 +141,11 @@ export function SkillAccountsArea() {
   const hermesKeys = useQuery({
     queryKey: ["settings", "hermes-skill-keys"],
     queryFn: (): Promise<HermesSkillKeysResponse> => call(getApiClient().GET("/api/v1/settings/hermes-skill-keys")),
+    enabled: role === "owner",
+  });
+  const codingClis = useQuery({
+    queryKey: ["settings", "coding-cli-status"],
+    queryFn: (): Promise<CodingCliStatusResponse> => call(getApiClient().GET("/api/v1/coding-runs/cli-status")),
     enabled: role === "owner",
   });
   async function updateHermesKey(key: HermesKey, value: string) {
@@ -218,6 +241,15 @@ export function SkillAccountsArea() {
     <p>Konten und lokale Voraussetzungen für die Skills. Ein gespeicherter Schlüssel oder aktivierter Skill belegt noch keine erfolgreiche Anmeldung beim Anbieter.</p>
     <p className="sk-warning">Telefonie: Friday enthält derzeit keinen verifizierten Anrufadapter. Hier kann noch kein Telefonkonto eingerichtet oder ein Anruf ausgelöst werden.</p>
     <p><a href="/onboarding">Einführung fortsetzen</a> · <a href="/skills">Alle Skills ansehen</a></p>
+    <section aria-labelledby="coding-cli-setup-title">
+      <h3 id="coding-cli-setup-title">Coding-CLIs in Friday-Ubuntu</h3>
+      <p>Friday prüft hier nur die lokalen Programme und deren eigene Anmeldehinweise. Ein grüner Anmeldestatus bestätigt weder Modellzugriff noch Budget oder Berechtigungen im gewählten Repository. OpenCode kann auch mit einem lokalen Modell ohne externes Konto arbeiten.</p>
+      {role === "owner" ? <>
+        {codingClis.isPending && <p role="status">CLI-Status wird gelesen.</p>}
+        {codingClis.isError && <p role="alert">CLI-Status nicht erreichbar. <button type="button" onClick={() => void codingClis.refetch()}>Erneut prüfen</button></p>}
+        {codingClis.data?.data.map((item) => <p key={item.cli}><strong>{codingCliNames[item.cli]}</strong>{item.version ? ` ${item.version}` : ""}: {codingCliState(item)}. {item.cli === "codex" ? "Einrichtung in Friday-Ubuntu: codex login." : item.cli === "opencode" ? "Anbieter mit opencode auth login einrichten; für lokale Modelle ist das optional." : "Einrichtung in Friday-Ubuntu: claude auth login."}</p>)}
+      </> : <p>Nur der Owner kann den lokalen CLI-Status sehen.</p>}
+    </section>
     <section aria-labelledby="wiki-path-setup-title">
       <h3 id="wiki-path-setup-title">Lokales Markdown-Wiki für Hermes</h3>
       <p>Der Skill llm-wiki liest Markdown in Friday-Ubuntu. Ohne eigenen Pfad verwendet er <code>~/wiki</code>. Gib einen vorhandenen absoluten Linux-Pfad ein; ein Windows-Ordner liegt dort unter <code>/mnt/c/...</code>. Das separate Obsidian-Vault-Feld gilt nicht für diesen Skill. Obsidian Sync ist optional und erfordert obsidian-headless und <code>ob login</code>.</p>
@@ -266,7 +298,7 @@ export function SkillAccountsArea() {
     <label>Integration suchen <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name oder Einrichtung" /></label>
     <p role="status">{filtered.length} von {items.length} Integrationen</p>
     {filtered.map((item) => {
-      const setup = accountSetupView(item, keys.data?.data, hermesKeys.data?.data);
+      const setup = accountSetupView(item, keys.data?.data, hermesKeys.data?.data, codingClis.data?.data);
       const reference = officialReference(item.reference);
       return <article key={item.id}>
         <h3>{item.id.replaceAll("_", " ")}</h3>

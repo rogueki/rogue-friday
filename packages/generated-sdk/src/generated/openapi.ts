@@ -700,6 +700,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/coding-runs/cli-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read local native CLI installation and authentication hints without account details */
+        get: operations["getCodingCliStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/coding-runs/voice": {
         parameters: {
             query?: never;
@@ -3600,6 +3617,21 @@ export interface components {
          * @enum {string}
          */
         ChannelStatus: "online" | "degraded" | "offline" | "read_only" | "not_configured";
+        /** CodingCliStatus */
+        CodingCliStatus: {
+            /** @enum {string} */
+            authState: "signed_in" | "signed_out" | "stored_credentials" | "unknown";
+            /** @enum {string} */
+            cli: "codex" | "opencode" | "claude-code";
+            installed: boolean;
+            version: string | null;
+        };
+        /** CodingCliStatusResponse */
+        CodingCliStatusResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["CodingCliStatus"][];
+            freshness: components["schemas"]["Freshness"];
+        };
         /** CodingRun */
         CodingRun: {
             error: string | null;
@@ -8214,6 +8246,29 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getCodingCliStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Local CLI status; no provider request or model invocation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodingCliStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

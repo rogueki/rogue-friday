@@ -4506,6 +4506,23 @@ paths:
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/coding-runs/cli-status:
+    get:
+      operationId: getCodingCliStatus
+      tags: [skills]
+      summary: Read local native CLI installation and authentication hints without account details
+      responses:
+        "200":
+          description: Local CLI status; no provider request or model invocation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodingCliStatusResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/coding-runs/voice-repository:
     get:
       operationId: getCodingVoiceRepository
@@ -6347,6 +6364,10 @@ components:
       $ref: ../schemas/skills/coding-run.schema.json
     CodingRunResponse:
       $ref: ../schemas/skills/coding-run-response.schema.json
+    CodingCliStatus:
+      $ref: ../schemas/skills/coding-cli-status.schema.json
+    CodingCliStatusResponse:
+      $ref: ../schemas/skills/coding-cli-status-response.schema.json
     SkillActivationRequest:
       $ref: ../schemas/skills/activation-request.schema.json
     SkillResponse:

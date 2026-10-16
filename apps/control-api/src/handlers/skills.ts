@@ -6,6 +6,9 @@ import { validationFailed } from "../util/errors";
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: { state: "fresh" as const, asOf: new Date().toISOString() } });
 
 export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
+  async getCodingCliStatus(ctx) {
+    return { status: 200, body: single(await ctx.runtime.codingRuns.cliStatus()) };
+  },
   async getCodingVoiceRepository(ctx) {
     return { status: 200, body: single(ctx.runtime.codingVoiceRepository.get()) };
   },
