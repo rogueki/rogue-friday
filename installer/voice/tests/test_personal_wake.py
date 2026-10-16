@@ -492,6 +492,16 @@ def test_voice_control_stop_pause_resume_are_authenticated_and_change_state():
         assert svc.control_cancel.is_set() and svc.status["state"] == "listening"
         assert svc.tts.interrupted == 2
 
+        # Stopping while paused must leave the service ready for a fresh manual session.
+        assert post("pause", "a" * 44) == 202
+        paused_generation = svc.control_generation
+        assert post("stop", "a" * 44) == 202
+        assert not svc.control_paused and svc.status["state"] == "listening"
+        assert svc.control_cancel.is_set() and svc.control_generation == paused_generation + 1
+        assert post("start", "a" * 44) == 202
+        assert svc.manual_start.is_set()
+        assert not svc._say_if_current("stale response", paused_generation)
+
 
 def test_pending_hermes_answer_is_suppressed_after_stop():
     jv = load_voice_module()
