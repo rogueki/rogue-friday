@@ -23,6 +23,11 @@ export const configSchema = {
   title: "Lokales System (Hardware, Dienste, Modelle)",
   type: "object",
   properties: {
+    cloudMode: {
+      type: "boolean",
+      default: false,
+      description: "Cloud-Voice ohne lokalen Qwen-Router. Qwen erscheint dann weder als Dienst noch als Modellanbieter.",
+    },
     qwenUrl: {
       type: "string",
       format: "uri",

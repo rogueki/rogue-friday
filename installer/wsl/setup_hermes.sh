@@ -50,9 +50,13 @@ hermes config set agent.reasoning_effort low
 hermes config set stt.language de
 hermes config set terminal.cwd "$ROOT/exchange"
 
-step "Kimi K3 testen"
-OUT="$(timeout 240 hermes -z "Antworte exakt mit: KIMI_K3_OK" </dev/null 2>&1 | tail -5 || true)"
-if printf '%s' "$OUT" | grep -q "KIMI_K3_OK"; then echo "KIMI_OK"; else echo "WARN Kimi-Test fehlgeschlagen: $OUT"; fi
+if [ "${FRIDAY_PAID_PROVIDER_SMOKE_TEST:-0}" = "1" ]; then
+    step "Kimi K3 testen"
+    OUT="$(timeout 240 hermes -z "Antworte exakt mit: KIMI_K3_OK" </dev/null 2>&1 | tail -5 || true)"
+    if printf '%s' "$OUT" | grep -q "KIMI_K3_OK"; then echo "KIMI_OK"; else echo "WARN Kimi-Test fehlgeschlagen: $OUT"; fi
+else
+    echo "Kimi-Live-Test uebersprungen (keine kostenpflichtige Installationsprobe)."
+fi
 
 step "Persoenlichkeit (SOUL.md)"
 [ -f "$H/SOUL.md" ] && cp "$H/SOUL.md" "$HOME/friday/backups/SOUL.md.bak-$(date +%Y%m%d-%H%M%S)"

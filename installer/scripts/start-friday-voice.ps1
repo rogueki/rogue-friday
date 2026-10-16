@@ -21,9 +21,11 @@ $qwenUrl = if ($voiceConfig.qwen_url) { [string]$voiceConfig.qwen_url } else { '
 $qwenHealth = $qwenUrl -replace '/v1/chat/completions$', '/v1/models'
 try { Invoke-RestMethod "http://127.0.0.1:$healthPort" -TimeoutSec 2 | Out-Null; exit 0 } catch {}
 
-# Laut Plan zuerst Qwen, dann Voice.
-foreach ($i in 1..60) {
-    try { Invoke-RestMethod $qwenHealth -TimeoutSec 2 | Out-Null; break } catch { Start-Sleep 2 }
+# Lokale Sprache braucht Qwen; ElevenLabs Cloud startet ohne lokalen Modellserver.
+if ($voiceConfig.voice_mode -ne 'elevenlabs') {
+    foreach ($i in 1..60) {
+        try { Invoke-RestMethod $qwenHealth -TimeoutSec 2 | Out-Null; break } catch { Start-Sleep 2 }
+    }
 }
 
 while (-not (Test-Path $stopFlag)) {

@@ -50,13 +50,15 @@ const stringOr = (value: unknown, fallback: string): string =>
   typeof value === "string" && value.length > 0 ? value : fallback;
 
 function readSettings(config: Readonly<Record<string, unknown>>): AdapterSettings {
+  const cloudMode = config.cloudMode === true;
   return {
+    cloudMode,
     baseUrl: stringOr(config.baseUrl, DEFAULT_BASE_URL),
     localModelUrl: stringOr(config.localModelUrl, DEFAULT_LOCAL_MODEL_URL),
-    localModelName: stringOr(config.localModelName, "qwen3-router"),
+    localModelName: cloudMode ? "Cloud-Routing (Provider ungeprueft)" : stringOr(config.localModelName, "qwen3-router"),
     wakePhrase: stringOr(config.wakePhrase, "Hey Friday"),
-    sttEngine: stringOr(config.sttEngine, "faster-whisper"),
-    ttsEngine: stringOr(config.ttsEngine, "piper"),
+    sttEngine: stringOr(config.sttEngine, cloudMode ? "ElevenLabs Scribe" : "faster-whisper"),
+    ttsEngine: stringOr(config.ttsEngine, cloudMode ? "ElevenLabs" : "piper"),
     timeoutMs: numberOr(config.timeoutMs, 2_000),
     maxAttempts: numberOr(config.maxAttempts, 2),
     retryBaseDelayMs: numberOr(config.retryBaseDelayMs, 200),
@@ -201,10 +203,13 @@ export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
   async getVoiceStatus(_params: Record<string, never>, call: CallContext): Promise<Single<VoiceStatus>> {
     const { voiceHttp, context, settings } = this.ready();
     // A refused/closed port throws ADAPTER_UNAVAILABLE here: no status is invented while the service is loading or off.
-    const [raw, localModel] = await Promise.all([
+    const [raw, probedModel] = await Promise.all([
       this.fetchRawStatus(voiceHttp, true, call),
-      this.probeLocalModel(call),
+      settings.cloudMode ? Promise.resolve(null) : this.probeLocalModel(call),
     ]);
+    // The contract requires localModel even when no local model exists. "ready" reflects the
+    // running voice service and configured cloud route; it does not assert remote provider health.
+    const localModel = probedModel ?? { state: raw.state === "starting" ? "busy" as const : "ready" as const };
     const mapContext = createMapContext({
       adapterId: manifest.id,
       system: PROVIDER_SYSTEM,

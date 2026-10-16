@@ -324,14 +324,14 @@ export const deD = {
 
   // ── Modelle & Routing ───────────────────────────────────────────────────
   "settings.models.defaults": "Standard",
-  "settings.models.defaultsDesc": "Modell für Aufgaben ohne eigene Route.",
+  "settings.models.defaultsDesc": "Standard für Aufgaben ohne eigene Route. Format: anbieter:modell-id, z. B. kimi-coding:kimi-for-coding.",
   "settings.models.defaultModel": "Standardmodell",
   "settings.models.localFirst": "Lokale Modelle zuerst",
   "settings.models.localFirstDesc": "Lokal verfügbare Modelle werden vor Cloud-Modellen genutzt.",
   "settings.models.budget": "Monatsbudget (EUR)",
   "settings.models.budgetHint": "Leer lassen für kein Limit.",
   "settings.models.routes": "Routen",
-  "settings.models.routesDesc": "Welches Modell welche Art von Aufgabe übernimmt.",
+  "settings.models.routesDesc": "Aktuell wirksam für Sprache: voice-routine, voice-complex und voice-critical. Modelle als kimi-coding:modell-id, openai:modell-id oder anthropic:modell-id eintragen. API-Zugänge separat in Hermes einrichten.",
   "settings.models.addRoute": "Route hinzufügen",
   "settings.models.noRoutes": "Keine Routen: Alle Aufgaben nutzen das Standardmodell.",
   "settings.models.taskKind": "Aufgabenart",

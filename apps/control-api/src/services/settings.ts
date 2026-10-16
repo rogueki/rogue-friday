@@ -106,14 +106,14 @@ export function defaultSettingsAreas(config: FridayConfig): SettingsAreas {
     },
     navigation: { order: NAVIGATION_ORDER, hidden: [], defaultPage: "overview", mode: "expanded" },
     modelsRouting: {
-      defaultModel: "Kimi K3",
+      defaultModel: "kimi-coding:kimi-for-coding",
       localFirst: true,
       routes: [
-        { taskKind: "mail-summary", model: "Qwen Local", reasoningLevel: "low", fallbackModel: "Kimi K3" },
-        { taskKind: "research", model: "Kimi K3", reasoningLevel: "medium", fallbackModel: null },
-        { taskKind: "coding", model: "Kimi K3", reasoningLevel: "high", fallbackModel: "Qwen Local" },
+        { taskKind: "voice-routine", model: "kimi-coding:kimi-for-coding", reasoningLevel: "none", fallbackModel: null },
+        { taskKind: "voice-complex", model: "kimi-coding:k3", reasoningLevel: "high", fallbackModel: null },
+        { taskKind: "voice-critical", model: "kimi-coding:k3", reasoningLevel: "max", fallbackModel: null },
       ],
-      monthlyBudgetEur: 150,
+      monthlyBudgetEur: null,
     },
     voice: {
       wakeWordEnabled: true,

@@ -191,6 +191,18 @@ describe("system.read: storage", () => {
 });
 
 describe("system.read: services", () => {
+  it("omits Qwen services and model providers in cloud mode", async () => {
+    rig = await createRig({ config: { cloudMode: true } });
+    const services = await rig.adapter.listServices({}, call());
+    const providers = await rig.adapter.listModelProviders({}, call());
+    expect(services.items.map((s) => s.name)).not.toContain("Qwen lokal (llama-server)");
+    expect(providers.items.map((p) => p.name)).not.toContain("Qwen (lokal, llama.cpp)");
+    expect(rig.qwen.requests).toHaveLength(0);
+    await expectCode(rig.adapter.runServiceHealthcheck({ id: "svc_qwen" as never }, mutation()), "NOT_FOUND", false);
+    assertValidResult("system", "listServices", services);
+    assertValidResult("system", "listModelProviders", providers);
+  });
+
   it("lists Qwen, Hermes API, Hermes dashboard, voice and the Control API - no WSL on Linux", async () => {
     rig = await createRig();
     const page = await rig.adapter.listServices({}, call());

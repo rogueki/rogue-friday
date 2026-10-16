@@ -14,6 +14,19 @@ afterEach(async () => {
 });
 
 describe("FridayVoiceHttpAdapter against the wire-level fake of friday_voice.py", () => {
+  it("shows configured cloud routing without contacting local Qwen", async () => {
+    rig = await createRig({ cloudMode: true });
+    await rig.llama.setOffline(true);
+    const status = await rig.adapter.getVoiceStatus({}, call());
+    expect(status.data.localModel).toEqual({
+      name: "Cloud-Routing (Provider ungeprueft)", state: "ready", latencyMs: null,
+    });
+    expect(status.data.stt.engine).toBe("ElevenLabs Scribe");
+    expect(status.data.tts.engine).toBe("ElevenLabs");
+    expect(rig.llama.requests).toHaveLength(0);
+    assertValidResult("voice", "getVoiceStatus", status);
+  });
+
   it("declares only voice.read and implements neither test, stop nor enroll", async () => {
     rig = await createRig();
     expect(manifest.capabilities).toEqual(["voice.read"]);
