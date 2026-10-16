@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { useSession } from "@/lib/session";
 import { useSetSkillActivation, useSkillsCatalog } from "@/lib/api/domains/skills";
 import { CodingRunsArea } from "./CodingRunsArea";
-import { internalSetupLink, officialReference, selectedVisibleSkill, skillState, visibleSkills } from "./skillPresentation";
+import { integrationSetupLink, officialReference, selectedVisibleSkill, skillState, visibleSkills } from "./skillPresentation";
 import "./skills.css";
 
 function SkillDetails({ skill, canToggle, onToggle, busy, error }: { skill: SkillCatalogEntry; canToggle: boolean; onToggle: () => void; busy: boolean; error: string | null }) {
@@ -19,7 +19,7 @@ function SkillDetails({ skill, canToggle, onToggle, busy, error }: { skill: Skil
     {skill.requiredCapabilities.length > 0 && <section><h3>Benötigte Fähigkeiten</h3><p>{skill.requiredCapabilities.join(" · ")}</p></section>}
     {skill.conditionalCapabilities.length > 0 && <section><h3>Je nach Nutzung</h3><p>{skill.conditionalCapabilities.join(" · ")}</p></section>}
     {skill.integrationDetails.length > 0 && <section><h3>Konten und Einrichtung</h3><ul className="sk-integrations">{skill.integrationDetails.map((item) => {
-      const link = internalSetupLink(item.settingsTarget); const reference = officialReference(item.reference);
+      const link = integrationSetupLink(item); const reference = officialReference(item.reference);
       return <li key={item.id}><strong>{item.id.replaceAll("_", " ")}</strong> <span className="sk-muted">{item.required ? "Erforderlich" : "Optional"} · {item.account === "none" ? "Kein externes Konto" : item.account === "required" ? "Konto erforderlich" : "Konto je nach Nutzung"}</span><p>{item.setupDe}</p><p className="sk-muted">Einrichtung: {item.configured === null ? "nicht geprüft" : item.configured ? "konfiguriert" : "nicht konfiguriert"} · Verbindung: {item.connectionChecked === null ? "nicht geprüft" : item.connectionChecked ? "geprüft" : "nicht geprüft"}</p>{link && <a href={link}>Einstellungen öffnen</a>}{reference && <a href={reference} target="_blank" rel="noopener noreferrer">Anleitung öffnen</a>}{!link && item.settingsTarget && <p className="sk-muted">Ort: {item.settingsTarget}</p>}</li>;
     })}</ul></section>}
     {skill.setupRefs.length > 0 && <section><h3>Weitere Hinweise</h3><ul>{skill.setupRefs.map((ref) => <li key={ref}>{officialReference(ref) ? <a href={ref} target="_blank" rel="noopener noreferrer">{ref}</a> : ref}</li>)}</ul></section>}
