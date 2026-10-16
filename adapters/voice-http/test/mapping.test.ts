@@ -14,6 +14,7 @@ import {
 import { makeVoiceStatus } from "./fake/voice-status-server";
 
 const settings: VoiceSettings = {
+  cloudMode: false,
   wakePhrase: "Hey Jarvis",
   sttEngine: "faster-whisper",
   ttsEngine: "piper",

@@ -492,7 +492,7 @@ function Invoke-MigrationTasks($m, $report) {
         Register-UserTask 'FRIDAY_WSL_Keepalive' "`"$Inst\scripts\wsl-keepalive.vbs`"" 'Hält Ubuntu/WSL für Hermes dauerhaft aktiv'
         Ok 'Aufgabe FRIDAY_WSL_Keepalive eingerichtet.'
     }
-    if ($done -contains 'qwen') {
+    if ($State.voice_mode -ne 'elevenlabs' -and $done -contains 'qwen') {
         Register-UserTask 'FRIDAY_Qwen' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-qwen-server.ps1`"" 'Lokaler Qwen3-4B-Router für F.R.I.D.A.Y.'
         Ok 'Aufgabe FRIDAY_Qwen eingerichtet (wird nach dem Kopieren der Skripte gestartet).'
     }
@@ -571,7 +571,7 @@ function Invoke-MigrationWsl {
         Ok 'Hermes verwendet jetzt /mnt/c/Friday und das Modell "friday".'
     } else { Info 'Hermes war in der alten Installation nicht eingerichtet - nichts umzustellen.' }
     if ((IsDone 'keepalive') -and (Get-ScheduledTask -TaskName 'FRIDAY_WSL_Keepalive' -ErrorAction SilentlyContinue)) { Start-ScheduledTask -TaskName 'FRIDAY_WSL_Keepalive' }
-    if ((IsDone 'qwen') -and (Get-ScheduledTask -TaskName 'FRIDAY_Qwen' -ErrorAction SilentlyContinue)) {
+    if ($State.voice_mode -ne 'elevenlabs' -and (IsDone 'qwen') -and (Get-ScheduledTask -TaskName 'FRIDAY_Qwen' -ErrorAction SilentlyContinue)) {
         Start-ScheduledTask -TaskName 'FRIDAY_Qwen'
         if (Wait-Http "http://127.0.0.1:$($Ports.Qwen)/v1/models" 120) { Ok 'Qwen läuft aus C:\Friday.' }
         else { Warn "Qwen antwortet nicht (C:\Friday\logs\qwen-server.log). Erneut versuchen: Start-ScheduledTask FRIDAY_Qwen" }
@@ -831,6 +831,40 @@ $WP = $State.wake_phrase
 $Slug = $State.wake_slug
 $WakeShort = Get-WakeShort $WP
 
+if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_mode -notin @('local', 'elevenlabs') -or -not (IsDone 'preflight'))) {
+    Title 'Sprachbetrieb wählen'
+    Info '1  Lokal: Sprachmodelle auf NVIDIA-GPU mit mindestens 6 GB VRAM'
+    Info '2  ElevenLabs Cloud: Spracherkennung und Sprachausgabe ohne lokale GPU (API-Schlüssel nötig)'
+    $defaultMode = if ($State.voice_mode -eq 'elevenlabs') { '2' } else { '1' }
+    do {
+        $answer = (Read-Host "  Sprachbetrieb [1/2, Standard $defaultMode]").Trim()
+        if (-not $answer) { $answer = $defaultMode }
+    } while ($answer -notin @('1', '2'))
+    $newMode = if ($answer -eq '2') { 'elevenlabs' } else { 'local' }
+    if ($State.voice_mode -ne $newMode) {
+        $State.voice_mode_changed = $true
+        $redoSteps = if ($newMode -eq 'local') { @('preflight', 'qwen', 'voicepython', 'voiceservice') }
+                     else { @('voicepython', 'voiceservice') }
+        $State.done = @(@($State.done) | Where-Object { $_ -notin $redoSteps })
+        if ($newMode -eq 'elevenlabs') {
+            $qwenTask = Get-ScheduledTask -TaskName 'FRIDAY_Qwen' -ErrorAction SilentlyContinue
+            if ($qwenTask -and (Test-TaskForInstallRoot $qwenTask)) {
+                Stop-LauncherService 'FRIDAY_Qwen' 'start-qwen-server.ps1' "*llama-server*--port $($Ports.Qwen)*" $Root $ProcessRoots
+                Disable-ScheduledTask -TaskName 'FRIDAY_Qwen' | Out-Null
+            }
+        }
+    }
+    $State.voice_mode = $newMode
+    if ($newMode -eq 'elevenlabs') {
+        Info 'ElevenLabs Voice ID: Standardstimme oder eigene Voice ID aus deinem ElevenLabs-Konto.'
+        $voiceId = (Read-Host '  Voice ID (leer = Standardstimme)').Trim()
+        if (-not $voiceId) { $voiceId = if ($State.elevenlabs_voice_id) { $State.elevenlabs_voice_id } else { '21m00Tcm4TlvDq8ikWAM' } }
+        if ($voiceId -notmatch '^[A-Za-z0-9]{10,64}$') { Stop-Install 'ElevenLabs Voice ID ist ungueltig.' }
+        $State.elevenlabs_voice_id = $voiceId
+    }
+    Save-State
+}
+
 if ($CustomRoot -and $ChangeVoice) {
     $voiceBackup = "$Root\backups\voice-change-$(Get-Date -Format yyyyMMdd-HHmmss)"
     try {
@@ -844,7 +878,12 @@ if ($CustomRoot -and $ChangeVoice) {
     } catch { Stop-Install "Stimmen-Sicherung fehlgeschlagen: $($_.Exception.Message)" }
     Ok "Bisherige Stimmkonfiguration gesichert: $voiceBackup"
 }
-if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic'))) {
+if ($State.voice_mode -eq 'elevenlabs' -and $State.voice_choice -notin @('friday-female', 'classic')) {
+    $State.voice_choice = 'friday-female'
+    Save-State
+}
+if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
+    ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic'))) {
     Title 'Ausgabestimme wählen'
     Info '1  F.R.I.D.A.Y.: weibliche Stimme aus eigener 3-30-Sekunden-Referenz (Qwen3-TTS, lokal)'
     Info '2  Klassisch: eigene J.A.R.V.I.S.-Referenz (Qwen3-TTS, lokal), ONNX oder Thorsten'
@@ -858,7 +897,7 @@ if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_choice -notin @('f
     } while ($answer -notin @('1', '2'))
     $newChoice = if ($answer -eq '1') { 'friday-female' } else { 'classic' }
     $reference = ''
-    if ($newChoice -in @('friday-female', 'classic')) {
+    if ($State.voice_mode -eq 'local' -and $newChoice -in @('friday-female', 'classic')) {
         $choiceReference = $State["voice_reference_$newChoice"]
         if (-not $choiceReference -and $State.voice_choice -eq $newChoice) { $choiceReference = $State.voice_reference }
         $savedReference = if ($choiceReference -and (Test-Path -LiteralPath $choiceReference -PathType Leaf)) { $choiceReference } else { '' }
@@ -905,11 +944,16 @@ if (-not (IsDone 'preflight')) {
         }
     }
     Info "Grafikkarte: $($gpu.name) | VRAM $($gpu.vram_mb) MB | Treiber $($gpu.driver) | Compute $($gpu.cc)"
-    if (-not $gpu.nvidia) { Warn "Keine NVIDIA-GPU gefunden: $AN läuft dann komplett auf der CPU (langsamer)." }
+    if ($State.voice_mode -eq 'local' -and (-not $gpu.nvidia -or [int]$gpu.vram_mb -lt 6144)) {
+        Stop-Install 'Lokale Sprache erfordert eine NVIDIA-GPU mit mindestens 6 GB VRAM. Bitte ElevenLabs Cloud wählen.'
+    }
     try { Invoke-WebRequest -UseBasicParsing https://huggingface.co -Method Head -TimeoutSec 15 | Out-Null; Ok 'Internet erreichbar' }
     catch { Stop-Install 'Keine Internetverbindung.' }
     $State.build = $build; $State.ram_gb = $ramGB; $State.cores = $cores; $State.gpu = $gpu
     MarkDone 'preflight'
+}
+if ($State.voice_mode -eq 'local' -and (-not $State.gpu.nvidia -or [int]$State.gpu.vram_mb -lt 6144)) {
+    Stop-Install 'Lokale Sprache erfordert eine NVIDIA-GPU mit mindestens 6 GB VRAM. Bitte ElevenLabs Cloud wählen.'
 }
 
 # ================================================================ 2 Dateien
@@ -1184,6 +1228,10 @@ if (-not $ChangeVoice) {
 
 # ================================================================ 11 Qwen lokal
 if (-not (IsDone 'qwen')) {
+    if ($State.voice_mode -eq 'elevenlabs') {
+        Info 'Cloud-Modus: lokaler Qwen-Download und -Dienst entfallen.'
+        MarkDone 'qwen'
+    } else {
     Title 'Schritt 11/15 – Lokales Sprachmodell (Qwen3-4B) für schnelle Antworten'
     $gpu = $State.gpu
     # Pascal (GTX 10xx) & Co. laufen nur mit dem CUDA-12.4-Build; RTX 50xx braucht CUDA 13.
@@ -1224,6 +1272,7 @@ if (-not (IsDone 'qwen')) {
     Ok ("Qwen antwortet ({0:N1} s): {1}" -f $t.TotalSeconds, $r.choices[0].message.content.Trim())
     Register-UserTask 'FRIDAY_Qwen' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-qwen-server.ps1`"" 'Lokaler Qwen3-4B-Router für F.R.I.D.A.Y.'
     MarkDone 'qwen'
+    }
 }
 
 # ================================================================ 12 Python + Sprachpakete
@@ -1245,20 +1294,34 @@ if (-not (IsDone 'voicepython')) {
     if (-not (Test-Path "$venv\Scripts\python.exe")) { & $py -m venv $venv }
     $vpy = "$venv\Scripts\python.exe"
     $env:PIP_CACHE_DIR = "$Root\cache\pip"
-    Info 'Python-Pakete (ca. 3 GB, 10–20 min) …'
+    Info 'Python-Pakete installieren …'
     & $vpy -m pip install -q --upgrade pip wheel 2>&1 | Out-Null
     & $vpy -m pip install -q torch torchaudio --index-url https://download.pytorch.org/whl/cpu 2>&1 | Out-File "$Root\logs\pip.log" -Append
-    & $vpy -m pip install -q faster-whisper nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*" openwakeword speechbrain silero-vad `
-        piper-tts sounddevice soundfile scipy scikit-learn huggingface_hub tzdata 2>&1 | Out-File "$Root\logs\pip.log" -Append
+    if ($State.voice_mode -eq 'elevenlabs') {
+        & $vpy -m pip install -q openwakeword speechbrain silero-vad sounddevice soundfile scipy scikit-learn `
+            huggingface_hub tzdata av 2>&1 | Out-File "$Root\logs\pip.log" -Append
+        $secretPath = "$Root\config\elevenlabs_api.key.dpapi"
+        if (-not (Test-Path -LiteralPath $secretPath -PathType Leaf)) {
+            Info 'ElevenLabs API-Schlüssel wird verschlüsselt für diesen Windows-Benutzer gespeichert.'
+            $secret = Read-Host '  ElevenLabs API-Schlüssel' -AsSecureString
+            if ($secret.Length -eq 0) { Stop-Install 'ElevenLabs API-Schlüssel fehlt.' }
+            $secret | ConvertFrom-SecureString | Set-Content -LiteralPath $secretPath -Encoding Ascii
+            $secret.Dispose()
+        }
+    } else {
+        & $vpy -m pip install -q faster-whisper nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*" openwakeword speechbrain silero-vad `
+            piper-tts sounddevice soundfile scipy scikit-learn huggingface_hub tzdata av 2>&1 | Out-File "$Root\logs\pip.log" -Append
+    }
     if ($LASTEXITCODE -ne 0) { Stop-Install "Python-Pakete konnten nicht installiert werden ($Root\logs\pip.log)." }
-    Info 'Lade Sprachmodelle und teste die Grafikkarte …'
-    $voiceArgs = @($Root, '--voice-choice', $State.voice_choice,
+    Info 'Richte Sprachsteuerung ein …'
+    $voiceArgs = @($Root, '--voice-mode', $State.voice_mode, '--voice-choice', $State.voice_choice,
                    '--qwen-port', [string]$Ports.Qwen, '--hermes-port', [string]$Ports.HermesApi,
                    '--voice-port', [string]$Ports.Voice)
-    if ($State.voice_reference) { $voiceArgs += @('--voice-reference', $State.voice_reference) }
+    if ($State.voice_mode -eq 'elevenlabs') { $voiceArgs += @('--elevenlabs-voice-id', $State.elevenlabs_voice_id) }
+    if ($State.voice_reference -and $State.voice_mode -eq 'local') { $voiceArgs += @('--voice-reference', $State.voice_reference) }
     $ttsPort = [int]$Ports.Voice + 1
     if ($ttsPort -gt 65535) { Stop-Install 'Kein freier TTS-Port nach dem Sprachdienst-Port vorhanden.' }
-    if ($State.voice_reference -and $State.gpu.nvidia -and [int]$State.gpu.vram_mb -ge 11000) {
+    if ($State.voice_mode -eq 'local' -and $State.voice_reference -and $State.gpu.nvidia -and [int]$State.gpu.vram_mb -ge 11000) {
         $voiceArgs += @('--fast-tts', '--fast-tts-port', [string]$ttsPort)
     }
     $out = & $vpy "$Root\voice\voice_setup.py" @voiceArgs 2>&1 | ForEach-Object { "$_" }
@@ -1350,6 +1413,9 @@ if (-not (IsDone 'voiceservice')) {
     }
     if (-not $ok) { Stop-Install "Sprachdienst startet nicht ($Root\logs\voice-service.log)." }
     Ok "$AN antwortet auf dem Sprachport (state=listening)."
+    if ($State.voice_mode -eq 'elevenlabs') {
+        Info 'Cloud-Stimme wird erst beim ersten Sprachkommando verwendet; kein kostenpflichtiger Installations-Testaufruf.'
+    } else {
     $helloLog = "$Root\logs\say-hello.log"
     $helloOut = @(& "$Root\voice\.venv\Scripts\python.exe" "$Root\voice\say_hello.py" $Root "Guten Tag. $AN ist installiert und bereit." 2>&1 | ForEach-Object { "$_" })
     $helloCode = $LASTEXITCODE
@@ -1359,6 +1425,7 @@ if (-not (IsDone 'voiceservice')) {
         Warn "Die gesprochene Begrüßung ist fehlgeschlagen (Exitcode $helloCode) - Lautsprecher/Stimme prüfen. Details: $helloLog"
         $helloOut | Select-Object -Last 3 | ForEach-Object { Warn $_ }
         Warn "$AN läuft trotzdem; die Installation wird fortgesetzt."
+    }
     }
     MarkDone 'voiceservice'
 }
@@ -1641,6 +1708,7 @@ function Write-DashboardConfig {
     $cfg = "$Dash\config"
     $rootYaml = $Root.Replace('\', '/')
     $storageDrive = $Root.Substring(0, 1)
+    $cloudModeYaml = if ($State.voice_mode -eq 'elevenlabs') { 'true' } else { 'false' }
     # Nur der Anzeigename wird in einer bestehenden dashboard.yaml nachgezogen (Namenswechsel), alles andere bleibt wie es ist.
     if (Test-Path "$cfg\dashboard.yaml") {
         $old = [IO.File]::ReadAllText("$cfg\dashboard.yaml")
@@ -1749,6 +1817,7 @@ adapters:
     config:
       baseUrl: http://127.0.0.1:$($Ports.Voice)
       localModelUrl: http://127.0.0.1:$($Ports.Qwen)
+      cloudMode: $cloudModeYaml
       wakePhrase: "$WP"
   system:
     provider: local-system
@@ -1756,6 +1825,7 @@ adapters:
     timeoutMs: 5000
     config:
       qwenUrl: http://127.0.0.1:$($Ports.Qwen)
+      cloudMode: $cloudModeYaml
       hermesApiUrl: http://127.0.0.1:$($Ports.HermesApi)
       hermesDashboardUrl: http://127.0.0.1:$($Ports.Dashboard)
       voiceUrl: http://127.0.0.1:$($Ports.Voice)
@@ -1917,6 +1987,29 @@ if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
     }
 }
 
+# Ein Moduswechsel muss auch den laufenden Dashboard-Adaptern bekannt sein;
+# sonst melden sie den absichtlich abgeschalteten Qwen-Dienst als Fehler.
+if ($State.voice_mode -in @('local', 'elevenlabs') -and (IsDone 'dashboard')) {
+    $adapterPath = "$Dash\config\adapters.yaml"
+    if (Test-Path -LiteralPath $adapterPath -PathType Leaf) {
+        $adapterText = [IO.File]::ReadAllText($adapterPath)
+        $modeText = if ($State.voice_mode -eq 'elevenlabs') { 'true' } else { 'false' }
+        $pattern = '(?m)^(?<line>      (?:localModelUrl|qwenUrl):[^\r\n]*)(?:\r?\n      cloudMode: (?:true|false))?'
+        $matches = [regex]::Matches($adapterText, $pattern)
+        if ($matches.Count -eq 2) {
+            $updated = [regex]::Replace($adapterText, $pattern, { param($m) "$($m.Groups['line'].Value)`n      cloudMode: $modeText" })
+            if ($updated -ne $adapterText) {
+                Copy-Item -LiteralPath $adapterPath -Destination "$Root\backups\adapters.yaml.bak-$(Get-Date -Format yyyyMMdd-HHmmss)"
+                [IO.File]::WriteAllText($adapterPath, $updated, (New-Object Text.UTF8Encoding $false))
+                Stop-DashboardService
+                Start-ScheduledTask -TaskName $DashTask
+            }
+            $State.voice_mode_changed = $false
+            Save-State
+        } elseif ($State.voice_mode_changed) { Warn 'Dashboard-Adapterkonfiguration hat eine angepasste Struktur; Cloud-Modus dort manuell setzen.' }
+    }
+}
+
 # The API creates this independent read-only key on startup. Transfer it only via stdin
 # after the dashboard is healthy; never put it in WSL command arguments or installer logs.
 if (-not $ChangeVoice -and (IsDone 'skills') -and (IsDone 'dashboard')) {
@@ -1980,6 +2073,7 @@ try {
 $DashProbe = Test-DashboardHealth 3
 $p = Get-Content "$Root\config\persona.json" -Raw | ConvertFrom-Json
 $dashNote = if (IsDone 'dashboard') { '' } else { "ACHTUNG: Command Center nicht eingerichtet - update-dashboard.bat oder install-friday.bat -Resume starten. Log: $DashInstallLog" }
+$qwenReportLine = if ($State.voice_mode -eq 'elevenlabs') { '' } else { "| Qwen3-4B (lokal) | http://127.0.0.1:$($Ports.Qwen)/v1 |" }
 $report = @"
 # F.R.I.D.A.Y. – Installationsstatus
 
@@ -1989,7 +2083,7 @@ Installiert am $(Get-Date -Format 'dd.MM.yyyy HH:mm') für $($p.owner_name). Ass
 |---|---|
 | F.R.I.D.A.Y. Command Center | $DashUrl (Anmeldung im Browser) |
 | Hermes Dashboard | http://127.0.0.1:$($Ports.Dashboard) |
-| Qwen3-4B (lokal) | http://127.0.0.1:$($Ports.Qwen)/v1 |
+$qwenReportLine
 | Hermes API (für Sprache) | http://127.0.0.1:$($Ports.HermesApi)/v1 |
 | Sprachdienst-Status | http://127.0.0.1:$($Ports.Voice) |
 

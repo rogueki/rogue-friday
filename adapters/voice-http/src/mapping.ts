@@ -4,6 +4,7 @@ import { RAW_VOICE_STATES, type RawVoiceState, type RawVoiceStatus } from "./pro
 
 /** Operator-visible settings that the status server does not deliver (see README, "Annahme (unbelegt)"). */
 export interface VoiceSettings {
+  cloudMode: boolean;
   wakePhrase: string;
   sttEngine: string;
   ttsEngine: string;
@@ -125,7 +126,7 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       stt: { engine: settings.sttEngine, state: "ready", latencyMs: null },
       // During the gaming mode the service switches to Piper (JV:565).
       tts: {
-        engine: focusMode ? "piper" : settings.ttsEngine,
+        engine: focusMode && !settings.cloudMode ? "piper" : settings.ttsEngine,
         state: raw.speaking ? "busy" : "ready",
         latencyMs: null,
       },

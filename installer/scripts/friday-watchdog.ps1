@@ -149,7 +149,7 @@ try {
         @{ Key = 'voice';     Name = 'Sprachdienst';   Step = 'voiceservice'; Task = 'FRIDAY_Voice';     Launcher = 'start-friday-voice.ps1'; Child = '*friday_voice.py*';           Port = $voicePort;    Http = $null }
         @{ Key = 'qwen';      Name = 'Qwen';           Step = 'qwen';         Task = 'FRIDAY_Qwen';      Launcher = 'start-qwen-server.ps1';  Child = "*llama-server*--port $qwenPort*"; Port = $qwenPort;    Http = $null }
         @{ Key = 'dashboard'; Name = 'Command Center'; Step = 'dashboard';    Task = 'FRIDAY_Dashboard'; Launcher = 'start-dashboard.ps1';    Child = '*control-api*dist*main.js*';  Port = $dashPort; Http = "http://127.0.0.1:$dashPort/api/v1/health" }
-    ) | Where-Object { $done -contains $_.Step }
+    ) | Where-Object { $done -contains $_.Step -and ($_.Key -ne 'qwen' -or $installedState.voice_mode -ne 'elevenlabs') }
     if (@($services).Count -eq 0) { exit 0 }
 
     $state = Read-WatchdogState
