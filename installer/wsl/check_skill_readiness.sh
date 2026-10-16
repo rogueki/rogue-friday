@@ -1,10 +1,11 @@
 #!/bin/bash
 # Read-only prerequisite inventory. Discovery never means provider/account readiness.
 set -u
-if python3 -c 'import pptx' >/dev/null 2>&1; then
-    echo 'FOUND PowerPoint library: python-pptx imports in WSL (document export not tested)'
+export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+if command -v python >/dev/null 2>&1 && python -c 'import pptx' >/dev/null 2>&1; then
+    echo 'RUNNABLE PowerPoint library: python imports python-pptx in WSL (deck workflow not tested)'
 else
-    echo 'MISSING PowerPoint library: python-pptx does not import in WSL'
+    echo 'MISSING PowerPoint library: python cannot import python-pptx in WSL'
 fi
 for spec in 'PowerPoint renderer:libreoffice' 'PDF preview:pdftoppm' 'OpenCode CLI:opencode' 'Codex CLI:codex' 'Claude CLI:claude'; do
     label="${spec%%:*}"; executable="${spec#*:}"

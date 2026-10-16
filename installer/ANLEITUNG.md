@@ -62,6 +62,10 @@ Wake Word *„Hey Friday“*.
 Dauer gesamt: ca. 45–90 Minuten. Bricht etwas ab: Fehler beheben und **`install-friday.bat` einfach nochmal
 starten** – erledigte Schritte werden übersprungen.
 
+## Präsentationen mit dem Hermes-PowerPoint-Skill
+
+Der Installer legt für den Hermes-Standardskill eine eigene WSL-Python-Umgebung mit `python-pptx` an. Damit kann Friday `.pptx`-Präsentationen erstellen, auslesen und ändern. Prüfe die Voraussetzung in deiner WSL-Distribution mit `python -c "import pptx"`. Falls sie später repariert werden muss, starte `install-friday.ps1 -UpdateDashboard -InstallRoot 'C:\Friday'` erneut (bei einem anderen Installationsordner den Pfad anpassen). Für die optionale Bildvorschau und den PDF-Export werden in WSL zusätzlich LibreOffice und Poppler benötigt; diese größeren Systempakete installiert Friday nicht automatisch. Ein vorhandener eigener `python`-Befehl wird vom Installer nicht überschrieben.
+
 ## Benutzung
 
 - **Dein Wake Word** (z. B. „Hey Friday“) → kurzer Piepton → deine Frage, z. B. *„Wie spät ist es?“*
