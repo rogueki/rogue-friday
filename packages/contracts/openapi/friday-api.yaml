@@ -5145,6 +5145,9 @@ paths:
       responses:
         "200":
           description: Sent or permanently unknown SMTP result; replay never invokes SMTP again
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:

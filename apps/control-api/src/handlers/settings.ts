@@ -16,7 +16,7 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     ctx.audit.action = "communication.himalaya_send";
     ctx.audit.severity = "warning";
     ctx.audit.after = { state: outcome.state, replayed: outcome.replayed };
-    return { status: 200, body: single(outcome) };
+    return { status: 200, body: single(outcome), headers: { "Idempotent-Replayed": String(outcome.replayed) } };
   },
   async listHimalayaMailboxes(ctx) {
     return { status: 200, body: single(await ctx.runtime.himalayaAccount.mailboxes()) };

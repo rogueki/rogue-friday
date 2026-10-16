@@ -9035,6 +9035,7 @@ export interface operations {
             /** @description Sent or permanently unknown SMTP result; replay never invokes SMTP again */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     [name: string]: unknown;
                 };
                 content: {
