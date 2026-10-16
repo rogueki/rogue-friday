@@ -90,6 +90,7 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
   schema: "VoiceStatus",
   toCanonical({ raw, settings, localModel }, context: MapContext) {
     const starting = raw.state === "starting";
+    const paused = raw.state === "paused";
     const inCommand = IN_COMMAND.has(raw.state);
     const focusMode = typeof raw.game_mode === "string" && raw.game_mode.length > 0;
     return {
@@ -98,15 +99,15 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       mode: toVoiceMode(raw),
       // The input stream runs in every state except `starting` (JV:468-472); barge-in keeps it open while speaking.
       microphone: {
-        state: starting ? "off" : inCommand ? "listening" : "idle",
-        active: !starting,
+        state: starting ? "off" : paused ? "muted" : inCommand ? "listening" : "idle",
+        active: !starting && !paused,
         deviceId: null,
         // Smoothed RMS of the last input blocks (`input_level`). Services without the meter report nothing: 0 = no data.
         inputLevel: raw.input_level ?? 0,
       },
       wakeWord: {
-        enabled: !starting,
-        state: starting ? "disabled" : inCommand ? "triggered" : "armed",
+        enabled: !starting && !paused,
+        state: starting || paused ? "disabled" : inCommand ? "triggered" : "armed",
         // The service reports the phrase chosen at install time; older services fall back to the configured value.
         phrase: raw.wake_phrase ?? settings.wakePhrase,
       },

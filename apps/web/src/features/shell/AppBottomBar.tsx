@@ -29,7 +29,7 @@ export function AppBottomBar() {
   const stop = useCommandControl("stop");
   const pause = useCommandControl("pause");
   const resume = useCommandControl("resume");
-  const paused = orb?.status.mode === "paused";
+  const paused = orb?.status.mode === "paused" || voice.voice?.microphone.state === "muted";
   const compact = pathname !== "/";
 
   // PLAN §58: a missing value is never a bare dash; the chip carries the reason (tooltip + accessible name).

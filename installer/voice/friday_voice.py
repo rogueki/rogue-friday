@@ -159,7 +159,9 @@ class Speaker:
         self.tts_config = tts_config or {}
         self.cache: dict[str, tuple[bytes, int]] = {}
         self.qwen_cache: collections.OrderedDict[str, tuple[np.ndarray, int]] = collections.OrderedDict()
-        self.queue: queue.Queue[str] = queue.Queue()
+        self.queue: queue.Queue[tuple[int, str]] = queue.Queue()
+        self.queue_lock = threading.Lock()
+        self.generation = 0
         self.stop_flag = threading.Event()
         self.speaking = threading.Event()
         self.level = LevelMeter()  # nur ein Pegelwert 0..1 fuer das Status-JSON, kein Audio
@@ -314,25 +316,31 @@ class Speaker:
         if text:
             # Flag schon beim Einreihen setzen: sonst startet die Folgefrage-Aufnahme, bevor der Worker
             # losspricht, und der Assistent hoert seine eigene Stimme (live beobachtet, beendete die Trusted Session).
-            self.speaking.set()
-            self.queue.put(text)
+            with self.queue_lock:
+                self.speaking.set()
+                self.queue.put((self.generation, text))
 
     def interrupt(self) -> None:
-        while not self.queue.empty():
-            try:
-                self.queue.get_nowait()
-            except queue.Empty:
-                break
-        self.stop_flag.set()
+        with self.queue_lock:
+            self.generation += 1
+            self.stop_flag.set()
+            while not self.queue.empty():
+                try:
+                    self.queue.get_nowait()
+                except queue.Empty:
+                    break
         sd.stop()
         self.speaking.clear()
         self.level.reset()
 
     def _worker(self) -> None:
         while True:
-            text = self.queue.get()
-            self.stop_flag.clear()
-            self.speaking.set()
+            generation, text = self.queue.get()
+            with self.queue_lock:
+                if generation != self.generation:
+                    continue
+                self.stop_flag.clear()
+                self.speaking.set()
             try:
                 if self.tts_config.get("tts_backend") == "qwen3":
                     try:
@@ -399,6 +407,9 @@ class VoiceService:
         self.audio_q: queue.Queue[np.ndarray] = queue.Queue()
         self.manual_start = threading.Event()
         self.manual_start_lock = threading.Lock()
+        self.control_cancel = threading.Event()
+        self.control_paused = False
+        self.control_generation = 0
         self.input_level = LevelMeter()  # geglaetteter Mikrofonpegel 0..1 (nur die Zahl, das Audio wird nicht gehalten)
         self.ring = collections.deque(maxlen=int(2.0 * SR / CHUNK))  # 2 s Vorlauf fuer Sprecherpruefung
         self.trusted_until = 0.0
@@ -497,11 +508,16 @@ class VoiceService:
         started = False
         silence = 0.0
         t0 = time.monotonic()
+        generation = self.control_generation
         self.vad.reset_states()
         while True:
+            if self.control_cancel.is_set() or generation != self.control_generation:
+                return None
             if self.tts.speaking.is_set():
                 return None  # Hintergrundantwort darf nicht als neue Nutzerfrage aufgenommen werden.
             chunk = self._read_chunk().astype(np.float32) / 32768.0
+            if self.control_cancel.is_set() or generation != self.control_generation:
+                return None
             pending = np.concatenate([pending, chunk])
             while len(pending) >= VAD_FRAME:
                 frame, pending = pending[:VAD_FRAME], pending[VAD_FRAME:]
@@ -576,7 +592,17 @@ class VoiceService:
             log_event(event="hermes_error", task_id=task_id, error=str(exc), success=False)
             return "Der Cloud-Agent ist derzeit nicht verfuegbar. Lokale Funktionen bleiben aktiv."
 
+    def _say_if_current(self, text: str, generation: int) -> bool:
+        with self.manual_start_lock:
+            if self.control_cancel.is_set() or generation != self.control_generation:
+                return False
+            self.tts.say(text)
+            return True
+
     def _handle_command(self, audio: np.ndarray, wake_audio: np.ndarray | None) -> None:
+        generation = self.control_generation
+        if self.control_cancel.is_set():
+            return
         t0 = time.monotonic()
         probe = np.concatenate([wake_audio, audio]) if wake_audio is not None else audio
         combined_score = self.verifier.score(probe)
@@ -599,6 +625,8 @@ class VoiceService:
         self.trusted_until = time.monotonic() + self.cfg["trusted_session_s"]
         t_stt = time.monotonic()
         text = self._transcribe(audio)
+        if self.control_cancel.is_set() or generation != self.control_generation:
+            return
         stt_ms = (time.monotonic() - t_stt) * 1000
         if not text:
             log_event(event="empty_transcript", speaker_score=round(score, 3))
@@ -610,26 +638,35 @@ class VoiceService:
             return answer if not offer else answer + " " + offer
 
         coding_answer = self.coding_voice.handle(text)
+        if self.control_cancel.is_set() or generation != self.control_generation:
+            return
         if coding_answer is not None:
             self.status["commands"] += 1
             log_event(event="coding_voice_command", speaker_score=round(score, 3), success=True)
-            self.tts.say(coding_answer)
+            if not self._say_if_current(coding_answer, generation):
+                return
             self.history += [{"role": "user", "content": text}, {"role": "assistant", "content": coding_answer}]
             return
         studio_answer = self.content_studio_voice.handle(text)
+        if self.control_cancel.is_set() or generation != self.control_generation:
+            return
         if studio_answer is not None:
             self.status["commands"] += 1
             log_event(event="content_studio_command", speaker_score=round(score, 3), success=True)
             studio_answer = with_first_use_offer(studio_answer)
-            self.tts.say(studio_answer)
+            if not self._say_if_current(studio_answer, generation):
+                return
             self.history += [{"role": "user", "content": text}, {"role": "assistant", "content": studio_answer}]
             return
         skills_answer = self.skills_onboarding_voice.handle(text)
+        if self.control_cancel.is_set() or generation != self.control_generation:
+            return
         if skills_answer is not None:
             self.status["commands"] += 1
             log_event(event="skills_onboarding_command", speaker_score=round(score, 3), success=True)
             skills_answer = with_first_use_offer(skills_answer)
-            self.tts.say(skills_answer)
+            if not self._say_if_current(skills_answer, generation):
+                return
             self.history += [{"role": "user", "content": text}, {"role": "assistant", "content": skills_answer}]
             return
         if STOP_WORDS.match(text):
@@ -639,6 +676,8 @@ class VoiceService:
         self.status["commands"] += 1
         t_route = time.monotonic()
         decision = self._route(text)
+        if self.control_cancel.is_set() or generation != self.control_generation:
+            return
         route_ms = (time.monotonic() - t_route) * 1000
         task_id = uuid.uuid4().hex[:8]
         log_event(event="command", task_id=task_id, channel="voice", intent=decision.get("intent"),
@@ -650,35 +689,61 @@ class VoiceService:
         if decision["route"] == "local" and decision.get("answer"):
             print(f"< {decision['answer']}", flush=True)
             answer = with_first_use_offer(decision["answer"])
-            self.tts.say(answer)
+            if not self._say_if_current(answer, generation):
+                return
             self.history += [{"role": "assistant", "content": answer}]
             return
 
         if decision.get("background"):
             acknowledgement = with_first_use_offer(self.cfg.get("ack_background", DEFAULT_ACK_BACKGROUND))
-            self.tts.say(acknowledgement)
+            if not self._say_if_current(acknowledgement, generation):
+                return
             self.background_jobs.add(task_id)
-            threading.Thread(target=self._background, args=(text, decision, task_id), daemon=True).start()
+            threading.Thread(target=self._background, args=(text, decision, task_id, generation), daemon=True).start()
             return
         if decision["route"] != "cloud_low":
-            self.tts.say(self.cfg.get("ack_wait", DEFAULT_ACK_WAIT))
-        answer = self._ask_hermes(text, decision, task_id)
+            if not self._say_if_current(self.cfg.get("ack_wait", DEFAULT_ACK_WAIT), generation):
+                return
+        answer = self._ask_hermes_interruptible(text, decision, task_id, generation)
+        if answer is None:
+            return
         print(f"< {answer}", flush=True)
         answer = with_first_use_offer(answer)
-        self.tts.say(answer)
+        if not self._say_if_current(answer, generation):
+            return
         self.history += [{"role": "assistant", "content": answer}]
 
-    def _background(self, text: str, decision: dict, task_id: str) -> None:
+    def _ask_hermes_interruptible(self, text: str, decision: dict, task_id: str, generation: int) -> str | None:
+        completed = threading.Event()
+        result: list[str] = []
+
+        def request() -> None:
+            try:
+                result.append(self._ask_hermes(text, decision, task_id))
+            finally:
+                completed.set()
+
+        threading.Thread(target=request, daemon=True).start()
+        while not completed.wait(0.1):
+            if self.control_cancel.is_set() or generation != self.control_generation:
+                return None
+        return result[0] if not self.control_cancel.is_set() and generation == self.control_generation else None
+
+    def _background(self, text: str, decision: dict, task_id: str, generation: int) -> None:
         try:
             answer = self._ask_hermes(text, decision, task_id)
+            if self.control_cancel.is_set() or generation != self.control_generation:
+                return
             print(f"< {answer}", flush=True)
-            self.tts.say("Ergebnis zur Aufgabe: " + answer)
+            if not self._say_if_current("Ergebnis zur Aufgabe: " + answer, generation):
+                return
             self.history += [{"role": "assistant", "content": answer}]
             while self.tts.speaking.is_set():
                 time.sleep(0.05)
         finally:
             self.background_jobs.discard(task_id)
-            self.background_reply_ready.set()
+            if not self.control_cancel.is_set() and generation == self.control_generation:
+                self.background_reply_ready.set()
 
     # ---------- Hauptschleife ----------
     def run(self) -> None:
@@ -692,13 +757,18 @@ class VoiceService:
             winsound.Beep(900, 120)
             while True:
                 chunk = self._read_chunk()
+                if self.control_paused:
+                    continue
                 detected = False if self.manual_start.is_set() else self._wake_detected(chunk)
                 with self.manual_start_lock:
+                    if self.control_paused:
+                        continue
                     manual = self.manual_start.is_set()
                     if manual:
                         self.manual_start.clear()
                     if manual or detected:
                         self.status["state"] = "command"
+                        self.control_cancel.clear()
                 if manual or detected:
                     self._session(manual=manual)
 
@@ -789,6 +859,7 @@ class VoiceService:
         """Ein Wake-Ereignis: Befehl, danach Folgefragen ohne Wake Word, solange die Trusted Session laeuft.
         Waehrend der Assistent spricht, laeuft die Wake-Word-Erkennung weiter (Barge-In)."""
         cfg = self.cfg
+        generation = self.control_generation
         self.status["state"] = "command"
         if manual:
             self.preroll = []
@@ -800,20 +871,27 @@ class VoiceService:
         else:
             wake_audio = self._acknowledge_wake()
         audio = self._record_command(cfg["command_start_timeout_s"])
+        if self.control_cancel.is_set() or generation != self.control_generation:
+            self.status["state"] = "paused" if self.control_paused else "listening"
+            return
         if audio is None:
             log_event(event="no_speech_after_wake")
-        else:
+        elif generation == self.control_generation:
             self._handle_command(audio, wake_audio)
         while (self.tts.speaking.is_set() or time.monotonic() < self.trusted_until or
-               self.background_jobs or self.background_reply_ready.is_set()):
+               self.background_jobs or self.background_reply_ready.is_set()) and not self.control_cancel.is_set() and generation == self.control_generation:
             self.status["state"] = "speaking"
             interrupted = False
             self._drain()  # waehrend der Verarbeitung aufgelaufenes Audio nicht als Barge-In auswerten
             while self.tts.speaking.is_set():
+                if self.control_cancel.is_set() or generation != self.control_generation:
+                    break
                 if self._wake_detected(self._read_chunk()):
                     interrupted = True
                     break
             self._drain()
+            if self.control_cancel.is_set() or generation != self.control_generation:
+                break
             if interrupted:
                 wake_audio = self._acknowledge_wake()
                 self.status["state"] = "command"
@@ -826,6 +904,8 @@ class VoiceService:
             self.trusted_until = time.monotonic() + cfg["followup_window_s"]
             self.status["state"] = "followup"
             audio = self._record_command(cfg["followup_window_s"])
+            if self.control_cancel.is_set() or generation != self.control_generation:
+                break
             if audio is None:
                 if self.background_jobs or self.tts.speaking.is_set() or self.background_reply_ready.is_set():
                     self.background_reply_ready.clear()
@@ -833,7 +913,7 @@ class VoiceService:
                 break
             self._handle_command(audio, None)
         self._drain()
-        self.status["state"] = "listening"
+        self.status["state"] = "paused" if self.control_paused else "listening"
 
     def _game_mode_watcher(self) -> None:
         """Gaming-Modus: laeuft ein Spiel aus cfg["game_processes"], wird der GPU-TTS-Server (~3,5 GB VRAM)
@@ -875,7 +955,7 @@ class VoiceService:
 
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_POST(self):
-                if self.path != "/control/start":
+                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume"):
                     self.send_error(404)
                     return
                 key_path = os.path.join(INSTALL_ROOT, "dashboard", "data", "voice-bridge", "auth.key")
@@ -890,10 +970,25 @@ class VoiceService:
                     self.send_error(401)
                     return
                 with service.manual_start_lock:
-                    if service.status["state"] != "listening" or service.manual_start.is_set():
-                        self.send_error(409)
-                        return
-                    service.manual_start.set()
+                    if self.path == "/control/start":
+                        if service.control_paused or service.status["state"] != "listening" or service.manual_start.is_set():
+                            self.send_error(409)
+                            return
+                        service.manual_start.set()
+                    elif self.path == "/control/resume":
+                        service.control_paused = False
+                        service.control_cancel.clear()
+                        service.status["state"] = "listening"
+                    else:
+                        service.control_generation += 1
+                        service.control_cancel.set()
+                        service.manual_start.clear()
+                        service.trusted_until = 0.0
+                        service.background_jobs.clear()
+                        service.background_reply_ready.clear()
+                        service.control_paused = self.path == "/control/pause" or service.control_paused
+                        service.status["state"] = "paused" if service.control_paused else "listening"
+                        service.tts.interrupt()
                 self.send_response(202)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
