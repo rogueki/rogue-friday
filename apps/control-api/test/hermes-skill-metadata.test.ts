@@ -18,6 +18,15 @@ describe("Hermes builtin setup metadata", () => {
       expect(skill?.requiredCapabilities.length, name).toBeGreaterThan(0);
     }
     const unknown = entries.find((entry) => entry.id === "hermes:future-hermes-skill");
-    expect(unknown).toMatchObject({ accounts: [], integrationDetails: [], setupRefs: [expect.stringContaining("noch nicht katalogisiert")] });
+    expect(unknown).toMatchObject({
+      accounts: [], setupRefs: [expect.stringContaining("noch nicht katalogisiert")],
+      integrationDetails: [{
+        id: "hermes_future_hermes_skill", account: "conditional", required: false,
+        setupDe: expect.stringContaining("SKILL.md"), configured: null, connectionChecked: null,
+        permissions: { required_prerequisites: [], optional_prerequisites: [], scope_status: "unknown",
+          scope_notice: expect.stringContaining("nicht vollständig katalogisiert") },
+        cost: { model: "unknown", notice: expect.stringContaining("nicht katalogisiert") },
+      }],
+    });
   });
 });
