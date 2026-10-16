@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/content-studio/production-job-response.schema.json",
+  "title": "ContentProductionJobResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": { "$ref": "../content-studio/production-job.schema.json" },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

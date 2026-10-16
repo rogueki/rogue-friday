@@ -46,10 +46,13 @@ export class ContentStudioProviderService {
     const key = this.key("kie");
     const marker = `content-studio.kie.request.${idempotencyKey}`;
     if (kvGet(this.db, marker)) throw conflict("Dieser Medienauftrag wurde bereits übermittelt oder sein Ausgang ist unbekannt. Status prüfen, nicht erneut senden.");
-    const model = request.kind === "image" ? "grok-imagine/text-to-image" : "kling-2.6/text-to-video";
+    const model = request.kind === "image" ? "grok-imagine/text-to-image" :
+      request.aspectRatio === "9:16" ? "kling-3.0/video" : "kling-2.6/text-to-video";
     const input = request.kind === "image"
       ? { prompt: request.prompt, aspect_ratio: request.aspectRatio }
-      : { prompt: request.prompt, aspect_ratio: request.aspectRatio, duration: "5", sound: false };
+      : request.aspectRatio === "9:16"
+        ? { prompt: request.prompt, aspect_ratio: request.aspectRatio, duration: "5", sound: false, mode: "std", multi_shots: false }
+        : { prompt: request.prompt, aspect_ratio: request.aspectRatio, duration: "5", sound: false };
     // Mark before the external side effect. A timeout must never invite an automatic second paid request.
     kvSet(this.db, marker, JSON.stringify({ state: "unknown", kind: request.kind }));
     const response = await this.request(`${KIE_ORIGIN}/api/v1/jobs/createTask`, {
@@ -62,6 +65,51 @@ export class ContentStudioProviderService {
     kvSet(this.db, marker, JSON.stringify({ state: "accepted", kind: request.kind, taskId }));
     kvSet(this.db, `content-studio.kie.task.${taskId}`, request.kind);
     return { taskId, kind: request.kind, state: "waiting", resultUrls: [], creditsConsumed: null };
+  }
+
+  kieSubmission(idempotencyKey: string): { state: "unknown" | "accepted"; taskId?: string } | null {
+    const saved = kvGet(this.db, `content-studio.kie.request.${idempotencyKey}`);
+    if (!saved) return null;
+    try {
+      const value = JSON.parse(saved) as { state?: unknown; taskId?: unknown };
+      if (value.state === "accepted" && typeof value.taskId === "string" && idPattern.test(value.taskId)) {
+        return { state: "accepted", taskId: value.taskId };
+      }
+    } catch { /* A submission marker still means that the paid request must not be repeated. */ }
+    return { state: "unknown" };
+  }
+
+  registerKieTask(taskId: string, kind: "image" | "video"): void {
+    if (!idPattern.test(taskId)) throw validationFailed("Ungültige Anbieter-Auftrags-ID.");
+    kvSet(this.db, `content-studio.kie.task.${taskId}`, kind);
+  }
+
+  async kieDownloadUrl(resultUrl: string): Promise<string> {
+    const response = await this.request(`${KIE_ORIGIN}/api/v1/common/download-url`, {
+      method: "POST", headers: { Authorization: `Bearer ${this.key("kie")}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url: resultUrl }),
+    });
+    this.checkStatus(response, "kie.ai");
+    let reply: unknown;
+    try { reply = await response.json(); } catch { throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "kie.ai hat keinen Download-Link geliefert." }); }
+    const value = reply as { code?: unknown; data?: unknown };
+    if (value?.code !== 200 || typeof value.data !== "string") throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "kie.ai hat keinen Download-Link geliefert." });
+    return value.data;
+  }
+
+  async chooseElevenVoice(): Promise<string> {
+    for (const query of ["language=de&gender=female", "gender=female"]) {
+      const response = await this.request(`${ELEVEN_ORIGIN}/v2/voices?${query}&page_size=100`, {
+        method: "GET", headers: { "xi-api-key": this.key("elevenlabs") },
+      });
+      this.checkStatus(response, "ElevenLabs");
+      let payload: unknown;
+      try { payload = await response.json(); } catch { throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "ElevenLabs hat keine gültige Stimmenliste geliefert." }); }
+      const voices = (payload as { voices?: Array<{ voice_id?: unknown }> })?.voices;
+      const voiceId = Array.isArray(voices) ? voices.find((voice) => typeof voice.voice_id === "string" && idPattern.test(voice.voice_id))?.voice_id : null;
+      if (typeof voiceId === "string") return voiceId;
+    }
+    throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Keine weibliche ElevenLabs-Stimme für dieses Konto verfügbar." });
   }
 
   async getKie(taskId: string): Promise<KieTask> {

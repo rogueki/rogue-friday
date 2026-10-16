@@ -4304,6 +4304,116 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: audit.export
       x-required-role: owner
+  /api/v1/content-studio/production-jobs:
+    post:
+      operationId: createContentProductionJob
+      tags:
+        - settings
+      summary: Approve and start automatic production for one planned idea
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentProductionRequest"
+      responses:
+        "202":
+          description: Durable production job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentProductionJobResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+      x-max-body-bytes: 4096
+  /api/v1/content-studio/production-jobs/{id}:
+    get:
+      operationId: getContentProductionJob
+      tags:
+        - settings
+      summary: Read the state of an automatic production job
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Job state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentProductionJobResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/content-studio/production-jobs/{id}/artifact:
+    get:
+      operationId: getContentProductionArtifact
+      tags:
+        - settings
+      summary: Download the locally rendered MP4 artifact
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Finished MP4 artifact
+          content:
+            video/mp4:
+              schema:
+                type: string
+                contentMediaType: video/mp4
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/content-studio/production-jobs/{id}/cancel:
+    post:
+      operationId: cancelContentProductionJob
+      tags:
+        - settings
+      summary: Stop further local work and paid requests for a production job
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Cancelled job or already completed job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentProductionJobResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/content-studio/plan:
     get:
       operationId: getContentStudioPlan
@@ -5733,6 +5843,12 @@ components:
       $ref: ../schemas/content-studio/plan-state.schema.json
     ContentPlanStateResponse:
       $ref: ../schemas/content-studio/plan-state-response.schema.json
+    ContentProductionRequest:
+      $ref: ../schemas/content-studio/production-request.schema.json
+    ContentProductionJob:
+      $ref: ../schemas/content-studio/production-job.schema.json
+    ContentProductionJobResponse:
+      $ref: ../schemas/content-studio/production-job-response.schema.json
     KieTaskRequest:
       $ref: ../schemas/content-studio/kie-task-request.schema.json
     KieTask:

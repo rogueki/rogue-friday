@@ -9,7 +9,7 @@ const voiceTools = [
   ["D-ID", "Alternative für sprechende Bilder und Avatare.", "https://www.d-id.com"],
 ] as const;
 const videoTools = [
-  ["CapCut", "Schnitt, Untertitel, Musik und finaler Export. Die Projektbearbeitung erfolgt derzeit in CapCut selbst.", "https://www.capcut.com"],
+  ["CapCut", "Optionale Nachbearbeitung. Der automatische F.R.I.D.A.Y.-Schnitt nutzt lokal FFmpeg, da keine verifizierte CapCut-Schnitt-API angebunden ist.", "https://www.capcut.com"],
   ["Kling AI", "Bild-zu-Video-Clips für bewegte Szenen.", "https://klingai.com"],
   ["Higgsfield", "Kamerabewegungen und visuelle Effekte.", "https://higgsfield.ai"],
   ["Canva", "Grafiken, Thumbnails und Karussell-Slides.", "https://www.canva.com"],
@@ -20,7 +20,7 @@ const formats = [
   ["Instagram Feed / Karussell", "1080 × 1350 · 4:5", "Bild oder Slides; Darstellung vor Upload auf dem Zielgerät prüfen.", "05_Export/Instagram-Posts"],
   ["Facebook Reel / Story", "1080 × 1920 · 9:16", "Vertikales Video; Facebook-Ziel separat prüfen.", "05_Export/Facebook"],
   ["LinkedIn Video", "1920 × 1080 · 16:9 oder 1080 × 1080 · 1:1", "Untertitel und Vorschaubild vorbereiten.", "05_Export/LinkedIn"],
-  ["LinkedIn Bild / Karussell", "1080 × 1350 · 4:5 bzw. PDF-Slides", "Slides als Dokument für den manuellen Upload exportieren.", "05_Export/LinkedIn"],
+  ["LinkedIn Bild / Karussell", "1080 × 1350 · 4:5 bzw. PDF-Slides", "Slides als Dokument vorbereiten; Veröffentlichung erst nach verbundener Zielplattform.", "05_Export/LinkedIn"],
   ["TikTok Video", "1080 × 1920 · 9:16", "Vertikalen Export und Einblendungen in der App prüfen.", "05_Export/TikTok"],
   ["YouTube Short", "1080 × 1920 · 9:16", "Vertikalen Export und Titel vorbereiten.", "05_Export/YouTube-Shorts"],
   ["YouTube Video", "1920 × 1080 · 16:9", "Thumbnail, Beschreibung und Kapitel separat vorbereiten.", "05_Export/YouTube"],
@@ -29,8 +29,8 @@ const workflow = [
   ["Rohmaterial", "Fotos und Clips nach 01_Rohmaterial legen und bei Bedarf in Canva aufbereiten."],
   ["KI-Clips", "Optional einen bewegten Clip mit Kling, Higgsfield oder HeyGen erzeugen und in 03_KI-Clips ablegen."],
   ["Stimme", "Voiceover erzeugen oder aufnehmen und in 02_Stimmen sichern. Die Tonspur vor dem Feinschnitt festlegen."],
-  ["Schnitt", "Clips, Stimme, Musik und Untertitel im Zielformat zusammenführen; Projekt in 04_Projekte-CapCut sichern."],
-  ["Export", "Finaldatei im passenden 05_Export-Unterordner ablegen, prüfen und auf der Zielplattform manuell hochladen."],
+  ["Schnitt", "F.R.I.D.A.Y. fügt Clips, Stimme und Untertitel im Zielformat lokal zusammen. CapCut bleibt für optionale Nachbearbeitung."],
+  ["Export", "Finaldatei prüfen und für die automatische Veröffentlichung vormerken. Ohne verbundenes Zielkonto bleibt sie unveröffentlicht."],
 ] as const;
 
 function ToolGrid({ items }: { items: typeof voiceTools | typeof videoTools }) {
