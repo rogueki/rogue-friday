@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
 import { useSession } from "@/lib/session";
+import { HimalayaCompose } from "./HimalayaCompose";
 
 const KEY = ["himalaya-mail"] as const;
 
@@ -44,8 +45,8 @@ export function HimalayaMailbox() {
     client.removeQueries({ queryKey: KEY });
   }
   return <section className="com-live-mail" aria-label="Live-Postfach über Himalaya">
-    <h2>Live-Postfach (IMAP)</h2>
-    <p>Optionaler Lesezugriff auf das unter Einstellungen → Skill-Konten eingerichtete Friday-Postfach. Die Verbindung wurde erst nach dem Öffnen geprüft. Nachrichten werden beim Lesen nicht als gelesen markiert.</p>
+    <h2>Live-Postfach (IMAP/SMTP)</h2>
+    <p>Optionaler Zugriff auf das unter Einstellungen → Skill-Konten eingerichtete Friday-Postfach. Die Verbindung wird erst nach dem Öffnen geprüft. Lesen markiert Nachrichten nicht als gelesen; Textmails werden erst nach deiner Bestätigung gesendet.</p>
     {!open ? <button type="button" onClick={() => setOpen(true)}>Live-Postfach öffnen</button> : <>
       <button type="button" onClick={close}>Live-Postfach schließen</button>
       {folders.isPending && <p role="status">Postfach wird verbunden …</p>}
@@ -74,6 +75,7 @@ export function HimalayaMailbox() {
         <p>Von: {message.data.data.from}</p>
         <pre>{message.data.data.bodyText}</pre>
       </article>}
+      <HimalayaCompose />
     </>}
   </section>;
 }

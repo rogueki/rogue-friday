@@ -205,7 +205,7 @@ describe("REST route coverage", () => {
     const liveOnly = [
       "cancelContentProductionJob", "checkHermesSkillKey", "createCodingRun", "createContentProductionJob", "createVoiceCodingRun", "getCodingCliStatus", "getCodingRun", "getCodingVoiceRepository",
       "getContentProductionArtifact", "getContentProductionJob", "getContentStudioPlan", "getHermesSkillKeys", "getHimalayaAccount", "getHimalayaMessage", "getObsidianVault", "getOnboarding", "getWikiPath", "listHimalayaEnvelopes", "listHimalayaMailboxes", "listSkills",
-      "putCodingVoiceRepository", "putContentStudioPlan", "putHimalayaAccount", "putObsidianVault", "putOnboarding", "putWikiPath", "setSkillActivation", "stopCodingRun", "updateHermesSkillKey",
+      "putCodingVoiceRepository", "putContentStudioPlan", "putHimalayaAccount", "putObsidianVault", "putOnboarding", "putWikiPath", "sendHimalayaMessage", "setSkillActivation", "stopCodingRun", "updateHermesSkillKey",
     ];
     const mocked = ROUTES.map((route) => route.operationId).sort();
     expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);

@@ -2,6 +2,7 @@ import { CONTRACT_VERSION, type AdapterConfigPatch, type ContentStudioKeyPatch, 
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import type { HimalayaAccountPatch } from "../services/himalaya-account";
+import type { HimalayaSendRequest } from "../services/himalaya-send";
 import { localList } from "./meta";
 
 const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString() });
@@ -9,6 +10,14 @@ const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString()
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: fresh() });
 
 export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
+  async sendHimalayaMessage(ctx) {
+    const outcome = await ctx.runtime.himalayaSend.send(ctx.body as HimalayaSendRequest,
+      ctx.principal!.userId, ctx.idempotencyKey ?? "");
+    ctx.audit.action = "communication.himalaya_send";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { state: outcome.state, replayed: outcome.replayed };
+    return { status: 200, body: single(outcome) };
+  },
   async listHimalayaMailboxes(ctx) {
     return { status: 200, body: single(await ctx.runtime.himalayaAccount.mailboxes()) };
   },

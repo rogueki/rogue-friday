@@ -4,6 +4,11 @@
 .com-live-mail li { margin: 4px 0; }
 .com-live-mail button { cursor: pointer; }
 .com-live-mail__message pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 480px; overflow: auto; font: inherit; }
+.com-live-mail__compose { display: grid; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--friday-border); }
+.com-live-mail__compose label { display: grid; gap: 5px; min-width: 0; }
+.com-live-mail__compose input, .com-live-mail__compose textarea { width: 100%; min-width: 0; }
+.com-live-mail__preview { border: 1px solid var(--friday-border); border-radius: 8px; padding: 12px; min-width: 0; }
+.com-live-mail__preview pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
 .com-layout--wide { grid-template-columns: 290px minmax(380px, 470px) minmax(0, 1fr); }
 .com-detail-panel__body { min-width: 0; }
 
