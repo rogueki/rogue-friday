@@ -19,6 +19,11 @@ export const configSchema = {
   title: "Friday Voice (Status-Endpunkt)",
   type: "object",
   properties: {
+    cloudMode: {
+      type: "boolean",
+      default: false,
+      description: "Cloud-Voice ohne lokalen Qwen-Router. Der Voice-Status prueft dann nur den Voice-Dienst, nicht den externen Modellanbieter.",
+    },
     baseUrl: {
       type: "string",
       format: "uri",

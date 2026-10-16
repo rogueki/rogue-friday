@@ -58,6 +58,7 @@ import {
 } from "./probes";
 
 interface AdapterSettings {
+  cloudMode: boolean;
   qwenUrl: string;
   hermesApiUrl: string;
   hermesDashboardUrl: string;
@@ -81,6 +82,7 @@ function readSettings(config: Readonly<Record<string, unknown>>, host: HostApi):
     ? config.storagePaths.filter((p): p is string => typeof p === "string" && p.length > 0)
     : [];
   return {
+    cloudMode: boolOr(config.cloudMode, false),
     qwenUrl: stringOr(config.qwenUrl, DEFAULT_URLS.qwenUrl),
     hermesApiUrl: stringOr(config.hermesApiUrl, DEFAULT_URLS.hermesApiUrl),
     hermesDashboardUrl: stringOr(config.hermesDashboardUrl, DEFAULT_URLS.hermesDashboardUrl),
@@ -285,8 +287,9 @@ export class LocalSystemAdapter implements SystemPort, FridayAdapter {
   }
 
   async listModelProviders(params: PageParams, _call: CallContext): Promise<Page<ModelProvider>> {
-    const { context, env } = this.ready();
-    const results = await Promise.all(PROVIDERS.map(async (def) => ({ def, probe: await def.probe(env) })));
+    const { context, env, settings } = this.ready();
+    const providers = settings.cloudMode ? PROVIDERS.filter((def) => def.key !== "qwen") : PROVIDERS;
+    const results = await Promise.all(providers.map(async (def) => ({ def, probe: await def.probe(env) })));
     const mapContext = this.mapContext(context);
     return paginate(
       results.map(({ def, probe }) =>
@@ -334,11 +337,12 @@ export class LocalSystemAdapter implements SystemPort, FridayAdapter {
 
   private buildServices(settings: AdapterSettings): ServiceDef[] {
     const defs: ServiceDef[] = [
-      { key: "qwen", name: "Qwen lokal (llama-server)", kind: "llm", probe: probeQwen },
       { key: "hermes-api", name: "Hermes API", kind: "hermes", probe: probeHermesApi },
       { key: "hermes-dashboard", name: "Hermes Dashboard", kind: "hermes", probe: probeHermesDashboard },
       { key: "voice", name: "Voice-Dienst", kind: "voice", probe: probeVoice },
     ];
+    if (!settings.cloudMode)
+      defs.unshift({ key: "qwen", name: "Qwen lokal (llama-server)", kind: "llm", probe: probeQwen });
     if (this.host.platform === "win32" && settings.enableWsl)
       defs.push({ key: "wsl", name: "WSL", kind: "wsl", probe: probeWsl });
     defs.push({

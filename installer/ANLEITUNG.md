@@ -5,7 +5,7 @@ komplett ein. Den **Namen** und das **Wake Word** (mit dem du ihn rufst) **kanns
 Wake Word *„Hey Friday“*.
 
 - **Dein Wake Word** („Hey Friday“, „Computer“, „Guten Morgen Friday“ …) – reagiert nur auf **deine** Stimme
-- schnelle Antworten lokal auf deinem PC (Qwen3-4B), alles Komplexe über **Kimi K3**
+- schnelle lokale Antworten mit Qwen oder Sprachbetrieb ohne dedizierte GPU über ElevenLabs; der Modellrouter wählt nach Aufgabe
 - **Hermes Agent** als „Gehirn“ mit Werkzeugen, Kanban-Board und Dashboard
 - **F.R.I.D.A.Y. Command Center**: dein Dashboard mit Orb, Aufgaben, Aktivität und Systemstatus unter <http://127.0.0.1:3100>
 - startet automatisch bei jeder Anmeldung
@@ -15,7 +15,7 @@ Wake Word *„Hey Friday“*.
 ## Vorher erledigen (5 Minuten)
 
 1. **Windows 11** (Windows 10 geht eingeschränkt), alle Updates installiert.
-2. **NVIDIA-Grafiktreiber** aktuell (GeForce Experience / NVIDIA App). Ohne NVIDIA läuft der Assistent auch, nur langsamer.
+2. Für **lokale Sprache**: aktueller NVIDIA-Treiber und mindestens **6 GB VRAM**. Ohne passende GPU wähle im Installer **ElevenLabs Cloud**; dafür brauchst du einen ElevenLabs-API-Schlüssel und Internet.
 3. Dein Windows-Benutzer muss **Administrator** sein.
 4. **Kimi-API-Schlüssel** bereithalten. Hat eine frühere Kimi-Code-Einrichtung auf diesem PC die Umgebungsvariable
    `KIMI_API_KEY` gesetzt, findet der Installer sie und fragt in Schritt 10 zur Bestätigung (*„Verwenden? (j/n)“*).
@@ -38,7 +38,8 @@ Wake Word *„Hey Friday“*.
    - deinem **Wake Word**: *„Mit welchem Wort oder Satz soll <Name> geweckt werden?“* (Enter = *Hey <Name>*). Das Wake Word wird
      **immer frei gefragt**, nicht aus dem Namen abgeleitet. Erlaubt sind 1–4 Wörter (Buchstaben, auch Umlaute, und Bindestrich),
      zusammen 3–30 Zeichen, z. B. *Hey Friday*, *Computer*, *Guten Morgen Friday*.
-   - der **Ausgabestimme**: weibliche F.R.I.D.A.Y.-Stimme aus einer eigenen 3–30 Sekunden langen MP3/WAV-Referenz
+   - dem **Sprachmodus**: lokal mit mindestens 6 GB NVIDIA-VRAM oder ElevenLabs Cloud ohne dedizierte GPU. Für Cloud gibst du eine Voice ID (optional) und später den verdeckt abgefragten API-Schlüssel ein.
+   - bei lokaler Sprache der **Ausgabestimme**: weibliche F.R.I.D.A.Y.-Stimme aus einer eigenen 3–30 Sekunden langen MP3/WAV-Referenz
      über lokales Qwen3-TTS oder klassische Ausgabe. Die Referenz bleibt nur auf deinem Rechner. Ohne Referenz
      nutzt die weibliche Option Piper Kerstin. Die klassische Ausgabe nutzt `jarvis_de.onnx`, wenn du diese eigene
      Datei samt `.json` bereitstellst; im Paket liegt derzeit keine solche Datei, daher nutzt sie sonst Thorsten mit Filmfilter.
@@ -56,7 +57,7 @@ Wake Word *„Hey Friday“*.
    *Feierabend* – das sind Gegenbeispiele und **nicht** dein Wake Word), 8 kurze Texte vorlesen.
    Danach lernt der Rechner dein Wake Word (außer bei „Hey Jarvis“ einige Minuten Rechenzeit, ohne Internet).
 6. Danach richtet der Installer das **Command Center** ein (Schritt 15: Node.js und pnpm, Kopieren nach `C:\Friday\dashboard`,
-   Bauen, Start; beim ersten Mal einige Minuten und Internet nötig). Am Ende **begrüßt dich dein Assistent** und auf Wunsch
+   Bauen, Start; beim ersten Mal einige Minuten und Internet nötig). Im lokalen Sprachmodus **begrüßt dich dein Assistent**; Cloud-Sprache wird erst beim ersten Sprachkommando kostenpflichtig genutzt. Auf Wunsch
    öffnet sich das Command Center.
 
 Dauer gesamt: ca. 45–90 Minuten. Bricht etwas ab: Fehler beheben und **`install-friday.bat` einfach nochmal
@@ -79,10 +80,9 @@ Bei einem anderen Installationsort ergänze beispielsweise `-InstallRoot 'D:\Kal
 ## Benutzung
 
 - **Dein Wake Word** (z. B. „Hey Friday“) → kurzer Piepton → deine Frage, z. B. *„Wie spät ist es?“*
-- **Folgefragen** gehen 90 Sekunden lang ohne erneutes Wake Word.
+- **Folgefragen** gehen 15 Sekunden nach der Antwort ohne erneutes Wake Word.
 - **Unterbrechen:** während dein Assistent spricht einfach das Wake Word sagen.
-- Einfache Dinge (Uhrzeit, Rechnen, Wissen) beantwortet er sofort lokal. Aufgaben mit Mails, Kalender,
-  Recherche oder Analysen gehen an Kimi K3 – dann sagt er kurz „Einen Moment“ bzw. meldet sich, wenn es fertig ist.
+- Uhrzeit und Datum beantwortet Friday direkt. Bei lokaler Sprache übernimmt Qwen die schnelle Vorauswahl; im Cloud-Modus wählt ein leichter Router zwischen Routine, komplex und kritisch. Standardmäßig nutzt Routine `kimi-for-coding`, anspruchsvolle Aufgaben `k3`. Unter **Einstellungen → Modelle & Routing** kannst du die drei Sprachrouten mit `anbieter:modell-id` ändern; OpenAI- oder Anthropic-Modelle brauchen einen separat eingerichteten Hermes-API-Zugang.
 - **Command Center:** <http://127.0.0.1:3100> – beim ersten Öffnen richtest du deinen Zugang ein. Danach kannst du
   „Angemeldet bleiben“ für 30 Tage wählen oder in den Sicherheitseinstellungen die Anmeldung für rein lokalen Zugriff ausschalten. Startet automatisch bei der
   Anmeldung (Aufgabe `FRIDAY_Dashboard`, ca. 1 Minute nach dem Anmelden). Zeigt Aufgaben, Aktivität und Agenten live aus Hermes,
@@ -97,6 +97,7 @@ Bei einem anderen Installationsort ergänze beispielsweise `-InstallRoot 'D:\Kal
 | Alles vom Assistenten | `C:\Friday` (frühere Version: `C:\Jarvis`, siehe „Frühere Installation übernehmen“) |
 | Persönlichkeit ändern | `C:\Friday\config\persona.json`, danach Schritt erneut: siehe unten |
 | Sprach-Einstellungen (Name, Wake Word, Engine) | `C:\Friday\config\voice.json` (Wake Word: `wake_phrase`; Auswahl in `install-state.json` und `persona.json`) |
+| ElevenLabs-Schlüssel im Cloud-Modus | `C:\Friday\config\elevenlabs_api.key.dpapi` (Windows-DPAPI, nur vom Installationsbenutzer lesbar; nicht in Git übernehmen) |
 | Dein persönliches Wake-Word-Modell | `C:\Friday\models\openwakeword\personal_wake.npz` und `personal_wake.json` (Phrase, Schwelle, Qualität) |
 | Protokolle | `C:\Friday\logs` (Command Center: `dashboard-install.log`, `dashboard-service.log`, `dashboard\`; Watchdog: `watchdog.log`) |
 | Command Center (Programm, Daten, Sicherungen) | `C:\Friday\dashboard` (`data`, `backups`) |
@@ -120,7 +121,7 @@ Der Installer beendet beides; manuell: in der Aufgabenverwaltung den `powershell
 ## Service-Watchdog (startet abgestürzte Dienste neu)
 
 Der Installer richtet am Ende die Aufgabe `FRIDAY_Watchdog` ein. Sie läuft bei der Anmeldung und danach alle 5 Minuten, prüft
-Sprachdienst (Port 43694), Qwen (43692) und Command Center (Port aus `dashboard.yaml`, Standard 3100) und startet einen
+Sprachdienst (Port 43694), im lokalen Modus Qwen (43692) und Command Center (Port aus `dashboard.yaml`, Standard 3100) und startet einen
 Dienst über seine Aufgabe (`FRIDAY_Voice`, `FRIDAY_Qwen`, `FRIDAY_Dashboard`) neu, **wenn** sein Port nicht antwortet **und** kein
 zugehöriger Prozess läuft. Wenn der Prozess noch läuft (z. B. beim Laden der Sprachmodelle, bis zu 3 Minuten), greift der Watchdog
 nie ein und beendet auch nie einen Prozess. Weitere Bremsen: Während der Installer läuft, tut der Watchdog nichts; ein absichtlich
@@ -203,7 +204,7 @@ Wake Word bleiben.
      ~1 Sekunde mit deinem Wake Word (z. B. „Hey Friday“ und der Kurzform „Friday“; deine 44 Aufnahmen, ähnlich klingende Wörter
      bzw. Teile der Phrase und Lesetexte als Gegenbeispiele; mit Piper-Stimme zusätzlich erzeugte Beispiele). Die Schwelle wird beim
      Einlernen an ungesehenen Aufnahmen kalibriert (Ziel: ca. 9 von 10 Aufrufen, möglichst wenige Fehlauslösungen).
-  2. *Stufe 2 – Phrasencheck:* nur wenn Stufe 1 anschlägt, hört die Spracherkennung (faster-whisper) kurz in die letzten
+  2. *Stufe 2 – Phrasencheck:* nur wenn Stufe 1 anschlägt, hört die Spracherkennung (lokal faster-whisper, im Cloud-Modus ElevenLabs Scribe v2) kurz in die letzten
      2 Sekunden und vergleicht das Transkript mit dem **ganzen Wake Word**: Wort für Wort in der richtigen Reihenfolge, tolerant
      gegenüber kleinen Erkennungsfehlern (Umlaute, Groß-/Kleinschreibung, klangliche Varianten wie *Fraidei* für *Friday*,
      getrennt oder zusammen geschriebene Wörter). Beginnt das Wake Word mit einem Grußwort („Hey“, „Hallo“, „OK“ …), genügt auch
@@ -288,11 +289,11 @@ Regel: Lesen/Entwürfe macht der Assistent selbst. **Senden, Löschen, Termine �
 
 ## Deinstallation
 
-Aufgabenplanung: `FRIDAY_Voice`, `FRIDAY_Qwen`, `FRIDAY_WSL_Keepalive`, `FRIDAY_Dashboard`, `FRIDAY_Watchdog` löschen (zuerst `FRIDAY_Watchdog`, sonst startet er Dienste neu) → PowerShell: `wsl --unregister Ubuntu`
+Aufgabenplanung: `FRIDAY_Voice`, im lokalen Modus `FRIDAY_Qwen`, `FRIDAY_WSL_Keepalive`, `FRIDAY_Dashboard`, `FRIDAY_Watchdog` löschen (zuerst `FRIDAY_Watchdog`, sonst startet er Dienste neu) → PowerShell: `wsl --unregister Ubuntu`
 (löscht Ubuntu samt Hermes!) → Ordner `C:\Friday` löschen. Eine frühere Installation `C:\Jarvis` (Sicherung nach der Übernahme) gleichermaßen.
 
 ---
 
-*Technik: Windows 11 + WSL2 (Ubuntu 24.04, systemd) · Hermes Agent · Kimi K3 · llama.cpp + Qwen3-4B ·
+*Technik: Windows 11 + WSL2 (Ubuntu 24.04, systemd) · Hermes Agent · Kimi-Modellrouting · lokal llama.cpp + Qwen3-4B oder ElevenLabs Cloud ·
 openWakeWord („Hey Jarvis“ + Verifier bzw. persönliches Wake Word auf openWakeWord-Features) · SpeechBrain ECAPA
-(Stimmprüfung) · Silero VAD · faster-whisper · Piper + Filmfilter. Alle Dienste nur lokal auf 127.0.0.1 (Ports 43691–43694 und 3100 für das Command Center).*
+(Stimmprüfung) · Silero VAD · lokal faster-whisper/Piper oder ElevenLabs Scribe v2/Flash v2.5. Die Friday-Dienste lauschen nur auf 127.0.0.1 (Ports 43691–43694 und 3100 für das Command Center); der Cloud-Modus stellt zusätzlich ausgehende HTTPS-Verbindungen zu ElevenLabs her.*

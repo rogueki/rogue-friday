@@ -8,7 +8,6 @@ import { useMemo, useState } from "react";
 import { useT } from "@/i18n";
 import { useLogoutAll, useLayouts } from "@/lib/api/domains/settings";
 import { useMeta } from "@/lib/api/domains/core";
-import { useModelProviders } from "@/lib/api/domains/system";
 import { useVoiceDevices } from "@/lib/api/domains/voice";
 import { useSession } from "@/lib/session";
 import { FieldGrid, NumberField, Section, StringListEditor } from "./controls";
@@ -185,13 +184,9 @@ export function DashboardArea() {
 
 /* ── Models & routing ─────────────────────────────────────────────────── */
 
-const REASONING = ["none", "low", "medium", "high", "max"] as const;
-
 export function ModelsRoutingArea() {
   const { t } = useT();
   const { value, update, readOnly } = useAreaDraft("modelsRouting");
-  const providers = useModelProviders();
-  const models = useMemo(() => [...new Set((providers.data?.items ?? []).flatMap((provider) => provider.models))], [providers.data]);
   if (!value) return null;
 
   const setRoute = (index: number, patch: Partial<Settings["modelsRouting"]["routes"][number]>): void =>
@@ -202,23 +197,8 @@ export function ModelsRoutingArea() {
       <Section title={t("settings.models.defaults")} description={t("settings.models.defaultsDesc")}>
         <FieldGrid>
           <div>
-            <TextField label={t("settings.models.defaultModel")} list="st-models" value={value.defaultModel} disabled={readOnly} onChange={(event) => update({ defaultModel: event.target.value })} />
-            <datalist id="st-models">
-              {models.map((model) => (
-                <option key={model} value={model} />
-              ))}
-            </datalist>
+            <TextField label={t("settings.models.defaultModel")} value={value.defaultModel} disabled={readOnly} onChange={(event) => update({ defaultModel: event.target.value })} />
           </div>
-          <NumberField
-            label={t("settings.models.budget")}
-            hint={t("settings.models.budgetHint")}
-            min={0}
-            nullable
-            value={value.monthlyBudgetEur}
-            disabled={readOnly}
-            onValueChange={(monthlyBudgetEur) => update({ monthlyBudgetEur })}
-          />
-          <Switch label={t("settings.models.localFirst")} description={t("settings.models.localFirstDesc")} checked={value.localFirst} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(localFirst) => update({ localFirst })} />
         </FieldGrid>
       </Section>
       <Section
@@ -237,15 +217,7 @@ export function ModelsRoutingArea() {
           {value.routes.map((route, index) => (
             <li key={index} className="st-route">
               <TextField label={t("settings.models.taskKind")} value={route.taskKind} disabled={readOnly} onChange={(event) => setRoute(index, { taskKind: event.target.value })} />
-              <TextField label={t("settings.models.model")} list="st-models" value={route.model} disabled={readOnly} onChange={(event) => setRoute(index, { model: event.target.value })} />
-              <Select
-                label={t("settings.models.reasoning")}
-                value={route.reasoningLevel}
-                disabled={readOnly}
-                options={REASONING.map((level) => ({ value: level, label: t(`settings.models.reasoning.${level}` as MessageKey) }))}
-                onChange={(event) => setRoute(index, { reasoningLevel: event.target.value as (typeof REASONING)[number] })}
-              />
-              <TextField label={t("settings.models.fallback")} list="st-models" value={route.fallbackModel ?? ""} placeholder={t("settings.models.noFallback")} disabled={readOnly} onChange={(event) => setRoute(index, { fallbackModel: event.target.value === "" ? null : event.target.value })} />
+              <TextField label={t("settings.models.model")} value={route.model} disabled={readOnly} onChange={(event) => setRoute(index, { model: event.target.value })} />
               {readOnly ? null : (
                 <button type="button" className="st-iconbtn st-route__remove" aria-label={t("settings.list.remove", { name: route.taskKind || `#${index + 1}` })} onClick={() => update({ routes: value.routes.filter((_, i) => i !== index) })}>
                   <Trash2 size={14} strokeWidth={1.75} aria-hidden="true" />

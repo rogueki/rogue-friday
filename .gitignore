@@ -27,5 +27,6 @@ PROMPT.md
 .openclaw/
 __pycache__/
 *.pyc
+*.dpapi
 apps/web/screenshots/**/*.png
 .pytest_cache/
