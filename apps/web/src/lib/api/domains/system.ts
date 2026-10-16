@@ -50,6 +50,7 @@ export const systemQueries = {
       queryKey: queryKeys.adapters.list({}),
       queryFn: (): Promise<AdapterInfoListResponse> => call(getApiClient().GET("/api/v1/adapters", { params: { query: { limit: 100 } } })),
       staleTime: staleTimes.system,
+      refetchInterval: 10_000,
     }),
 };
 

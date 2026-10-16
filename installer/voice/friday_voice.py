@@ -389,6 +389,11 @@ class VoiceService:
         if meta.get("wake_phrase") and personal_wake.phrase_key(meta["wake_phrase"]) != personal_wake.phrase_key(self.phrase):
             raise SystemExit(f"Wake-Word-Modell gehoert zu '{meta['wake_phrase']}', nicht zu '{self.phrase}'.")
         self.wake_threshold = self.cfg.get("personal_wake_threshold") or meta["threshold"]
+        calibration = meta.get("calibration") or {}
+        false_maxima = (calibration.get("speech_max"), calibration.get("words_max"))
+        # Whisper misses many real short wake clips; bypass it only above the model's measured false-trigger maxima.
+        self.wake_high_confidence = (max(self.wake_threshold, *(value + 1.0 for value in false_maxima))
+                                     if all(isinstance(value, (int, float)) for value in false_maxima) else None)
         self.oww = personal_wake.PersonalWakeDetector(
             personal_wake.WindowModel.load(model_path), os.path.join(oww_dir, "melspectrogram.onnx"),
             os.path.join(oww_dir, "embedding_model.onnx"))
@@ -579,6 +584,9 @@ class VoiceService:
         (bzw. ihrer Kurzform). Die Phrase steht am Ende des Fensters; Rueckgabe (bestaetigt, Dauer in ms)."""
         cfg = self.cfg
         t0 = time.monotonic()
+        # Stage 1 can fire before the final syllable of the wake phrase has reached the ring.
+        for _ in range(cfg.get("wake_confirm_tail_chunks", 5)):
+            self._read_chunk()
         audio = np.concatenate(list(self.ring)).astype(np.float32) / 32768.0
         for language in cfg.get("wake_confirm_languages", ["de", "en"]):
             segs, _ = self.whisper.transcribe(audio, language=language, beam_size=1, vad_filter=False,
@@ -598,8 +606,13 @@ class VoiceService:
         if now - self.last_wake < 1.5 or now < self.stage1_block_until:  # Doppelausloesung auf dasselbe Wake Word
             return False
         stage2_ms = None
+        confirmation = "model"
         if self.engine == "personal" and self.cfg.get("wake_confirm", True):
-            confirmed, stage2_ms = self._confirm_name()
+            high_confidence = getattr(self, "wake_high_confidence", None)
+            confirmed = high_confidence is not None and score >= high_confidence
+            if not confirmed:
+                confirmation = "whisper"
+                confirmed, stage2_ms = self._confirm_name()
             if not confirmed:
                 # Stufe 1 hat sich geirrt (aehnliches Wort, Fernseher, Geraeusch): kurz sperren, Puffer leeren.
                 self.status["wake_rejected"] += 1
@@ -618,7 +631,8 @@ class VoiceService:
         barge_in = self.tts.speaking.is_set()
         if barge_in:
             self.tts.interrupt()
-        log_event(event="wake", score=round(score, 3), barge_in=barge_in, engine=self.engine, stage2_ms=stage2_ms)
+        log_event(event="wake", score=round(score, 3), barge_in=barge_in, engine=self.engine,
+                  confirmation=confirmation, stage2_ms=stage2_ms)
         return True
 
     def _acknowledge_wake(self) -> np.ndarray:
