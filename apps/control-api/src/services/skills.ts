@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import type { SkillCatalogEntry } from "@friday/sdk";
+import type { AdapterConfigSettings, SkillCatalogEntry } from "@friday/sdk";
 import type { CodingCliStatus } from "./coding-runs";
 import { ApiError, notFound, validationFailed } from "../util/errors";
 
@@ -109,6 +109,8 @@ export class SkillsService {
   private readonly wikiPathStatus: (() => Promise<WikiFlags>) | undefined;
   private readonly himalayaAccountStatus: (() => Promise<HimalayaFlags>) | undefined;
   private readonly codingCliStatus: (() => Promise<CodingCliStatus[]>) | undefined;
+  private readonly localCalendarStatus: (() => boolean) | undefined;
+  private readonly calendarAdapterStatus: (() => AdapterConfigSettings[]) | undefined;
   private token: string | undefined;
 
   constructor(options: { catalogPath?: string; dashboardUrl?: string; fetcher?: typeof fetch;
@@ -117,7 +119,9 @@ export class SkillsService {
     obsidianVaultStatus?: () => Promise<VaultFlags>;
     wikiPathStatus?: () => Promise<WikiFlags>;
     himalayaAccountStatus?: () => Promise<HimalayaFlags>;
-    codingCliStatus?: () => Promise<CodingCliStatus[]> }) {
+    codingCliStatus?: () => Promise<CodingCliStatus[]>;
+    localCalendarStatus?: () => boolean;
+    calendarAdapterStatus?: () => AdapterConfigSettings[] }) {
     this.fetcher = options.fetcher ?? fetch;
     this.catalogPath = options.catalogPath;
     this.configuredIntegrations = options.configuredIntegrations;
@@ -126,6 +130,8 @@ export class SkillsService {
     this.wikiPathStatus = options.wikiPathStatus;
     this.himalayaAccountStatus = options.himalayaAccountStatus;
     this.codingCliStatus = options.codingCliStatus;
+    this.localCalendarStatus = options.localCalendarStatus;
+    this.calendarAdapterStatus = options.calendarAdapterStatus;
     if (options.dashboardUrl) {
       const url = new URL(options.dashboardUrl);
       if (url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.username || url.password || url.search || url.hash) {
@@ -257,6 +263,19 @@ export class SkillsService {
     const needsWiki = integrationIds.has("hermes_llm_wiki");
     const needsHimalaya = integrationIds.has("hermes_himalaya");
     const needsCodingCli = Object.keys(CODING_CLI_INTEGRATIONS).some((id) => integrationIds.has(id));
+    let localCalendar: boolean | null = null;
+    if (integrationIds.has("friday_local_calendar") && this.localCalendarStatus) {
+      try { localCalendar = this.localCalendarStatus(); } catch { /* Keep the catalog visible when local storage is unavailable. */ }
+    }
+    let caldav: boolean | null = null;
+    if (integrationIds.has("caldav") && this.calendarAdapterStatus) {
+      try {
+        const adapter = this.calendarAdapterStatus().find((entry) => entry.category === "calendar");
+        caldav = Boolean(adapter?.enabled && adapter.provider === "caldav-calendar" && adapter.config.mode === "caldav"
+          && adapter.secretFields.calendarUrl?.configured && adapter.secretFields.username?.configured
+          && adapter.secretFields.password?.configured);
+      } catch { /* A failed adapter status read is unknown, not unconfigured. */ }
+    }
     const [hermesKeys, vault, wiki, himalaya, codingClis] = await Promise.all([
       needsHermesKeys && this.hermesKeyStatus ? Promise.resolve().then(() => this.hermesKeyStatus!()).catch(() => null) : Promise.resolve(null),
       needsVault && this.obsidianVaultStatus ? Promise.resolve().then(() => this.obsidianVaultStatus!()).catch(() => null) : Promise.resolve(null),
@@ -265,6 +284,8 @@ export class SkillsService {
       needsCodingCli && this.codingCliStatus ? Promise.resolve().then(() => this.codingCliStatus!()).catch(() => null) : Promise.resolve(null),
     ]);
     for (const skill of skills) skill.integrationDetails = skill.integrationDetails.map((detail) => {
+      if (detail.id === "friday_local_calendar") return { ...detail, configured: localCalendar };
+      if (detail.id === "caldav") return { ...detail, configured: caldav };
       const key = HERMES_KEY_INTEGRATIONS[detail.id as keyof typeof HERMES_KEY_INTEGRATIONS];
       if (key) return { ...detail, configured: typeof hermesKeys?.configured[key] === "boolean" ? hermesKeys.configured[key] : null };
       if (detail.id === "hermes_teams_meeting_pipeline") return { ...detail, configured: hermesKeys
