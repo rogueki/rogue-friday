@@ -102,7 +102,7 @@ function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '') {
     # Skriptdateien statt Befehlszeilen: wsl.exe wuerde $VARIABLEN sonst vorzeitig expandieren.
     $wslEnv = @("FRIDAY_INSTALLER=$WslInstPath", "FRIDAY_CONFIG=$WslConfigPath", "FRIDAY_ROOT=$WslRootPath",
                 "FRIDAY_DASH_PORT=$($Ports.Dashboard)", "FRIDAY_API_PORT=$($Ports.HermesApi)",
-                "FRIDAY_QWEN_PORT=$($Ports.Qwen)")
+                "FRIDAY_QWEN_PORT=$($Ports.Qwen)", "FRIDAY_CALENDAR_PORT=$DashPort")
     $out = if ($StdIn) { $StdIn | & wsl.exe -d $Distro -u $User --exec env @wslEnv bash $Script 2>&1 } else { & wsl.exe -d $Distro -u $User --exec env @wslEnv bash $Script 2>&1 }
     $lines = @($out | ForEach-Object { "$_" })
     $lines | ForEach-Object { Write-Host "     $_" -ForegroundColor DarkGray }
@@ -1905,6 +1905,20 @@ if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
         Warn 'Das Command Center ist noch nicht fertig eingerichtet (Details oben). Sprache und Hermes sind davon nicht betroffen.'
         Warn "Erneut versuchen: update-dashboard.bat (im Paketordner) oder install-friday.bat -Resume. Log: $DashInstallLog"
     }
+}
+
+# The API creates this independent read-only key on startup. Transfer it only via stdin
+# after the dashboard is healthy; never put it in WSL command arguments or installer logs.
+if (-not $ChangeVoice -and (IsDone 'skills') -and (IsDone 'dashboard')) {
+    $calendarKeyFile = "$Dash\data\calendar-bridge\auth.key"
+    if (Test-Path -LiteralPath $calendarKeyFile) {
+        $calendarKey = [IO.File]::ReadAllText($calendarKeyFile).Trim()
+        try {
+            $calendarBridgeResult = Wsl-Run $State.linux_user "$WslInstPath/wsl/setup_calendar_bridge.sh" $calendarKey
+            if ($calendarBridgeResult -match 'FRIDAY_CALENDAR_BRIDGE_READY') { Ok 'Hermes-Kalenderleser mit privatem lokalem Schluessel eingerichtet.' }
+            else { Warn 'Hermes-Kalenderleser nicht eingerichtet; Kalender im Dashboard bleibt verfuegbar.' }
+        } finally { $calendarKey = $null }
+    } else { Warn 'Kalender-Dienstschluessel fehlt; Dashboard-Health und API-Start pruefen.' }
 }
 
 # ================================================================ Zusatz: Service-Watchdog (FRIDAY_Watchdog)
