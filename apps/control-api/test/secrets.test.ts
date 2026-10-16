@@ -83,6 +83,9 @@ describe("secret hygiene", () => {
   it("does not leak any secret, password, password hash or server key through any read endpoint", async () => {
     const hash = api.env.FRIDAY_OWNER_PASSWORD_HASH as string;
     expect(hash).toBeTruthy();
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    expect((await owner.patch("/api/v1/settings", { dashboard: { ...settings.dashboard, contentStudioEnabled: true } },
+      { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
     for (const spec of ROUTE_TABLE.filter((candidate) => candidate.method === "GET" && candidate.pathParams.length === 0 && candidate.requiresSession)) {
       if (spec.operationId === "downloadFile") continue;
       const response = record(spec.operationId, await owner.get(pathOf(spec), spec.operationId === "exportAudit" ? { query: { format: "json" } } : {}));

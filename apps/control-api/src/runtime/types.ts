@@ -16,6 +16,7 @@ import type { SettingsService } from "../services/settings";
 import type { ContentStudioKeysService } from "../services/content-studio-keys";
 import type { ContentStudioProviderService } from "../services/content-studio-providers";
 import type { ContentStudioPlanService } from "../services/content-studio-plan";
+import type { ContentStudioProductionService } from "../services/content-studio-production";
 import type { FrontendTelemetryService } from "../services/telemetry";
 import type { AdapterWiring } from "./adapter-wiring";
 
@@ -55,6 +56,7 @@ export interface Runtime {
   contentStudioKeys: ContentStudioKeysService;
   contentStudioProviders: ContentStudioProviderService;
   contentStudioPlan: ContentStudioPlanService;
+  contentStudioProduction: ContentStudioProductionService;
   adapterSettings: AdapterSettingsService;
   status: StatusService;
   orb: OrbService;

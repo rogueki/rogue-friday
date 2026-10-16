@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/content-studio/production-job.schema.json",
+  "title": "ContentProductionJob",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "ideaId": { "type": "string" },
+    "kind": { "type": "string", "enum": ["image", "video"] },
+    "state": { "type": "string", "enum": ["queued", "submitting", "provider_pending", "downloading", "speech_submitting", "editing", "completed", "provider_unknown", "speech_unknown", "failed", "cancelled"] },
+    "providerTaskId": { "type": ["string", "null"] },
+    "artifactReady": { "type": "boolean" },
+    "errorCode": { "type": ["string", "null"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["id", "ideaId", "kind", "state", "providerTaskId", "artifactReady", "errorCode", "createdAt", "updatedAt"],
+  "additionalProperties": false
+}

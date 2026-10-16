@@ -224,6 +224,9 @@ export interface FridayModelMap {
   ContentPlanDocument: ContentPlanDocument;
   ContentPlanState: ContentPlanState;
   ContentPlanStateResponse: ContentPlanStateResponse;
+  ContentProductionJob: ContentProductionJob;
+  ContentProductionJobResponse: ContentProductionJobResponse;
+  ContentProductionRequest: ContentProductionRequest;
   ContentStudioKeyPatch: ContentStudioKeyPatch;
   ContentStudioKeys: ContentStudioKeys;
   ContentStudioKeysResponse: ContentStudioKeysResponse;
@@ -1759,6 +1762,39 @@ export interface ContentPlanStateResponse {
   data: ContentPlanState;
   freshness: Freshness;
 }
+export interface ContentProductionJob {
+  id: string;
+  ideaId: string;
+  kind: "image" | "video";
+  state:
+    | "queued"
+    | "submitting"
+    | "provider_pending"
+    | "downloading"
+    | "speech_submitting"
+    | "editing"
+    | "completed"
+    | "provider_unknown"
+    | "speech_unknown"
+    | "failed"
+    | "cancelled";
+  providerTaskId: string | null;
+  artifactReady: boolean;
+  errorCode: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface ContentProductionJobResponse {
+  contractVersion: ContractVersion;
+  data: ContentProductionJob;
+  freshness: Freshness;
+}
+export interface ContentProductionRequest {
+  ideaId: string;
+  planRevision: number;
+  voiceId?: string;
+  confirmed: true;
+}
 export interface ContentStudioKeyPatch {
   provider: "kie" | "elevenlabs" | "capcut";
   key: string;
@@ -2136,7 +2172,7 @@ export interface KieTask {
 export interface KieTaskRequest {
   kind: "image" | "video";
   prompt: string;
-  aspectRatio: "1:1" | "16:9";
+  aspectRatio: "1:1" | "16:9" | "9:16";
   confirmed: true;
 }
 export interface KieTaskResponse {

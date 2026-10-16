@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- test code reads untyped JSON bodies and frames that the contract validators check */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { writeFile } from "node:fs/promises";
 import { ROUTE_TABLE } from "../src/http/route-table.generated";
+import { ContentStudioProductionService } from "../src/services/content-studio-production";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 import { ContractProbe, specOf } from "./support/contract";
 
@@ -30,6 +32,7 @@ describe("contract: all operations", () => {
       const url = String(input);
       if (url.includes("createTask")) return Response.json({ code: 200, data: { taskId: "contract-kie-task" } });
       if (url.includes("recordInfo")) return Response.json({ code: 200, data: { state: "success", resultJson: JSON.stringify({ resultUrls: ["https://example.invalid/image.png"] }), creditsConsumed: 2 } });
+      if (url.includes("download-url")) return Response.json({ code: 200, data: "https://tempfile.aiquickdraw.com/contract.png" });
       return new Response(new Uint8Array([73, 68, 51, 1]), { headers: { "content-type": "audio/mpeg" } });
     } });
     owner = api.client();
@@ -363,10 +366,33 @@ describe("contract: all operations", () => {
       const empty = await call("getContentStudioPlan");
       expect(empty.json.data).toMatchObject({ revision: 0, plan: null });
       const saved = await call("putContentStudioPlan", {
-        body: { version: 1, content: [], postings: [] },
+        body: { version: 1, content: [{ id: "contract-idea", titel: "Freitag", plattform: "Instagram", format: "Feed-Post", beschreibung: "Kurzer Beitrag.", zieldatum: "", status: "idee" }], postings: [] },
         headers: { "if-match": "0" },
       });
-      expect(saved.json.data).toMatchObject({ revision: 1, plan: { version: 1, content: [], postings: [] } });
+      expect(saved.json.data).toMatchObject({ revision: 1, plan: { version: 1, content: [{ id: "contract-idea" }], postings: [] } });
+    });
+
+    it("starts a planned production job and downloads its locally rendered artifact", async () => {
+      api.runtime.contentStudioProduction = new ContentStudioProductionService(api.runtime.db, api.runtime.contentStudioPlan,
+        api.runtime.contentStudioKeys, api.runtime.contentStudioProviders, api.config.paths.dataDir, {
+          ffmpegAvailable: () => true,
+          download: async () => Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+          render: async ({ outputPath }) => { await writeFile(outputPath, Buffer.from("contract-mp4")); },
+        });
+      const created = await call("createContentProductionJob", {
+        body: { ideaId: "contract-idea", planRevision: 1, voiceId: "voice123", confirmed: true },
+        headers: { "idempotency-key": "contract-production-1" },
+      });
+      await api.runtime.contentStudioProduction.processPending();
+      const job = await call("getContentProductionJob", { params: { id: created.json.data.id } });
+      expect(job.json.data.state).toBe("completed");
+      await call("getContentProductionArtifact", { params: { id: created.json.data.id } });
+      const waiting = await call("createContentProductionJob", {
+        body: { ideaId: "contract-idea", planRevision: 1, confirmed: true },
+        headers: { "idempotency-key": "contract-production-cancel-1" },
+      });
+      const cancelled = await call("cancelContentProductionJob", { params: { id: waiting.json.data.id } });
+      expect(cancelled.json.data.state).toBe("cancelled");
     });
 
     it("configures adapters", async () => {
@@ -426,7 +452,7 @@ describe("contract: all operations", () => {
   });
 
   it("covers every operation of the route table with a contract-valid success response", () => {
-    expect(ROUTE_TABLE).toHaveLength(129);
+    expect(ROUTE_TABLE).toHaveLength(133);
     expect(probe.uncovered(), "Operationen ohne erfolgreichen, vertragsgültigen Aufruf").toEqual([]);
     expect(probe.problems).toEqual([]);
     for (const spec of ROUTE_TABLE) expect(specOf(spec.operationId)).toBe(spec);

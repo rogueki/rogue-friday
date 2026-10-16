@@ -34,6 +34,7 @@ import { SettingsService, seedLibrary } from "../services/settings";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ContentStudioProviderService } from "../services/content-studio-providers";
 import { ContentStudioPlanService } from "../services/content-studio-plan";
+import { ContentStudioProductionService } from "../services/content-studio-production";
 import { LogBuffer, withLogBuffer } from "../services/log-buffer";
 import { FrontendTelemetryService } from "../services/telemetry";
 import { createRuntimeSecrets, createWorld, wireAdapters } from "./adapter-wiring";
@@ -213,6 +214,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   }
   const contentStudioProviders = new ContentStudioProviderService(db, contentStudioKeys, options.providerFetch);
   const contentStudioPlan = new ContentStudioPlanService(db);
+  const contentStudioProduction = new ContentStudioProductionService(db, contentStudioPlan, contentStudioKeys, contentStudioProviders,
+    config.paths.dataDir, { ffmpegPath: env.FRIDAY_FFMPEG_PATH, enabled: () => settings.area("dashboard").contentStudioEnabled === true });
   settingsHolder.current = settings;
 
   const assistantName = (): string => settings.get().profile.assistantName ?? DEFAULT_ASSISTANT_NAME;
@@ -387,6 +390,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     contentStudioKeys,
     contentStudioProviders,
     contentStudioPlan,
+    contentStudioProduction,
     adapterSettings,
     status,
     orb,
@@ -428,6 +432,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
       logger.info("Adapter geladen", { dataMode: config.dataMode, ...overall.summary });
       trackDerivedState();
       if (options.background !== false) {
+        contentStudioProduction.start();
         world?.startTelemetry({ metricsMs: 24 * 3_600_000, heartbeatMs: 10_000 });
         timers.push(setInterval(() => void publishSystemMetrics(), 5_000));
         timers.push(
@@ -442,6 +447,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
       sessions.purgeExpired();
     },
     async close() {
+      await contentStudioProduction.stop();
       for (const timer of timers) clearInterval(timer);
       timers.length = 0;
       for (const unsubscribe of unsubscribers.splice(0)) unsubscribe();

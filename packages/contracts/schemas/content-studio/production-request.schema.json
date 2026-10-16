@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/content-studio/production-request.schema.json",
+  "title": "ContentProductionRequest",
+  "type": "object",
+  "properties": {
+    "ideaId": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "planRevision": { "type": "integer", "minimum": 1 },
+    "voiceId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+    "confirmed": { "const": true }
+  },
+  "required": ["ideaId", "planRevision", "confirmed"],
+  "additionalProperties": false
+}

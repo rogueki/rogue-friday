@@ -24,8 +24,9 @@ Die Produktionskette lautet:
    Auftragsordner speichern. Auch hier gilt: keine erneute kostenpflichtige
    Anfrage nach einem unklaren Ausgang.
 5. Medien kontrolliert herunterladen, Typ und Größe prüfen und lokal mit FFmpeg
-   zu einem MP4 oder Bildpaket im Zielseitenverhältnis zusammenfügen. Untertitel,
-   Ton und Enddauer werden am erzeugten Artefakt geprüft.
+   zu einem MP4 im Zielseitenverhältnis zusammenfügen. Ton und Enddauer werden
+   am erzeugten Artefakt geprüft. Automatische Untertitel sind ein eigenes
+   offenes Abnahme-Gate und dürfen bis dahin nicht als vorhanden gelten.
 6. Das fertige Artefakt mit Herkunft, Auftragsstatus und Fehlern im Dashboard
    anzeigen. Erst ein bestätigtes, verbundenes Zielkonto darf einen getrennten
    Veröffentlichungsauftrag erhalten; jeder Plattformstatus bleibt separat.
@@ -65,6 +66,9 @@ aber gesperrt. [TikTok verlangt eine freigegebene App und `video.publish`](https
   überführt; eine geänderte Planrevision macht die alte Vorschau ungültig.
 - Ein Fake-Provider-Lauf erzeugt nach Kie-Status, ElevenLabs-Audio und FFmpeg
   ein lokal abrufbares Artefakt. Auftragsstatus übersteht einen Serverneustart.
+- Automatische Untertitel werden aus dem Sprechertext mit nachgeprüften
+  Zeitmarken erzeugt und im Zielprofil lesbar eingeblendet; bis dieser Test
+  besteht, meldet das Dashboard den fehlenden Untertitel-Schritt klar.
 - Timeout unmittelbar nach einem bezahlten Sendeschritt führt zu „Ausgang
   unbekannt“ und keiner automatischen Zweitsendung.
 - Fehlender Schlüssel, deaktiviertes Content Studio, ungültiger Zielmix und

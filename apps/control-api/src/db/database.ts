@@ -100,6 +100,26 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    id: 4,
+    name: "content-studio-production-jobs",
+    sql: `
+      CREATE TABLE content_studio_jobs (
+        id TEXT PRIMARY KEY,
+        request_key TEXT NOT NULL UNIQUE,
+        request_hash TEXT NOT NULL,
+        idea_id TEXT NOT NULL,
+        specification_json TEXT NOT NULL,
+        state TEXT NOT NULL,
+        provider_task_id TEXT,
+        result_url TEXT,
+        error_code TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_content_studio_jobs_state ON content_studio_jobs (state, updated_at);
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {
