@@ -92,7 +92,9 @@ describe("partial outage (adapter offline)", () => {
   it("handles several adapters offline and everything offline", async () => {
     for (const category of ["tasks", "calendar"]) await control(owner, { action: "adapter_offline", adapterId: `mock-${category}`, offline: true });
     expect((await owner.get("/api/v1/tasks")).statusCode).toBe(503);
-    expect((await owner.get("/api/v1/calendar/events")).statusCode).toBe(503);
+    const calendar = await owner.get("/api/v1/calendar/events");
+    expect(calendar.statusCode).toBe(200);
+    expect((calendar.json() as { sources: Array<{ adapterId: string }> }).sources.map((source) => source.adapterId)).toContain("friday-local-calendar");
     expect((await owner.get("/api/v1/agents")).statusCode).toBe(200);
     const health = (await owner.get("/api/v1/health")).json();
     expect(health.status).toBe("degraded");
