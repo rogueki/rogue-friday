@@ -76,10 +76,10 @@ export function AppBottomBar() {
       statusText={voice.statusText}
       levels={voice.audio.level > 0 ? voice.audio.levels : undefined}
       onTalk={voice.toggle}
-      onStop={() => (canStop ? stop.mutate({ scope: "all" }) : unavailable())}
+      onStop={() => (canStop ? stop.mutate({ scope: "voice" }) : unavailable())}
       onPause={() => {
-        if (paused) return canResume ? resume.mutate({ scope: "all" }) : unavailable();
-        return canPause ? pause.mutate({ scope: "all" }) : unavailable();
+        if (paused) return canResume ? resume.mutate({ scope: "voice" }) : unavailable();
+        return canPause ? pause.mutate({ scope: "voice" }) : unavailable();
       }}
       paused={paused}
       talkLabel={t("bottom.talk", { assistant: assistantName.toUpperCase() })}
