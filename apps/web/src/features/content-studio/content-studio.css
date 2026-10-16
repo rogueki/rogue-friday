@@ -16,8 +16,10 @@
 .cs-notice { border-left: 3px solid #e3b765; padding: 10px 14px; background: #241d12; }
 .cs-workshop { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .cs-workshop > .cs-notice { grid-column: 1 / -1; }
-.cs-confirm { display: flex !important; align-items: start; }
-.cs-confirm input { width: auto !important; margin-top: 2px; }
 .cs-workshop a { color: #a9dfff; }
+.cs-platforms { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.cs-platforms button, .cs-meta-toggle { border: 1px solid #345064; border-radius: 6px; color: inherit; background: #0c1726; padding: 8px 12px; cursor: pointer; }
+.cs-platforms button[aria-pressed="true"], .cs-meta-toggle[aria-pressed="true"] { border-color: #e3b765; background: #352b1c; }
+.cs-meta-toggle { margin-top: 9px; }
 @media (max-width: 900px) { .cs-grid, .cs-workshop { grid-template-columns: 1fr; } .cs-card { flex-direction: column; } }
 @media (max-width: 520px) { .cs-form { grid-template-columns: 1fr; } }

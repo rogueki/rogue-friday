@@ -8,7 +8,7 @@ import { MediaWorkshop } from "./MediaWorkshop";
 afterEach(() => { setApiClient(null); vi.unstubAllGlobals(); });
 
 describe("Content Studio media controls", () => {
-  it("requires an explicit paid-action check before starting kie.ai and exposes task status", async () => {
+  it("requires a current paid-action preview before starting kie.ai and exposes task status", async () => {
     const requests: Array<{ method: string; url: string; headers: Headers; body: unknown }> = [];
     setApiClient(createFridayClient({ baseUrl: "http://localhost", getCsrfToken: () => "csrf-test", fetch: async (input) => {
       const request = input as Request;
@@ -18,12 +18,12 @@ describe("Content Studio media controls", () => {
     } }));
     const user = userEvent.setup();
     render(<MediaWorkshop />);
-    const start = screen.getByRole("button", { name: "Auftrag starten" });
-    expect(start).toBeDisabled();
+    const preview = screen.getByRole("button", { name: "Auftrag prüfen" });
+    expect(preview).toBeDisabled();
     await user.type(screen.getByLabelText("Prompt"), "A blue room");
-    expect(start).toBeDisabled();
-    await user.click(screen.getByLabelText(/Kosten und Rechte habe ich geprüft/));
-    await user.click(start);
+    expect(screen.queryByRole("button", { name: "Kostenpflichtigen Auftrag starten" })).not.toBeInTheDocument();
+    await user.click(preview);
+    await user.click(screen.getByRole("button", { name: "Kostenpflichtigen Auftrag starten" }));
     await waitFor(() => expect(requests).toHaveLength(1));
     expect(requests[0]?.body).toMatchObject({ prompt: "A blue room", confirmed: true, kind: "image" });
     expect(requests[0]?.headers.get("Idempotency-Key")).toMatch(/^idem_/);
@@ -33,14 +33,16 @@ describe("Content Studio media controls", () => {
     expect(await screen.findByText(/Status: success/)).toBeInTheDocument();
   });
 
-  it("keeps speech generation disabled without explicit confirmation", async () => {
+  it("invalidates a speech preview when the text changes", async () => {
     const user = userEvent.setup();
     render(<MediaWorkshop />);
-    const button = screen.getByRole("button", { name: "MP3 erzeugen" });
+    const button = screen.getByRole("button", { name: "MP3-Auftrag prüfen" });
     await user.type(screen.getByLabelText("Voice-ID"), "voice123");
     await user.type(screen.getByLabelText("Text"), "Hallo");
-    expect(button).toBeDisabled();
-    await user.click(screen.getByLabelText(/Nutzungsrechte der Stimme/));
     expect(button).toBeEnabled();
+    await user.click(button);
+    expect(screen.getByRole("button", { name: "Kostenpflichtige MP3 erzeugen" })).toBeEnabled();
+    await user.type(screen.getByLabelText("Text"), " Friday");
+    expect(screen.queryByRole("button", { name: "Kostenpflichtige MP3 erzeugen" })).not.toBeInTheDocument();
   });
 });

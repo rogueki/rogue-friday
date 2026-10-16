@@ -16,20 +16,20 @@ export function MediaWorkshop() {
   const [task, setTask] = useState<KieTask | null>(null);
   const [voiceId, setVoiceId] = useState("");
   const [script, setScript] = useState("");
-  const [confirmMedia, setConfirmMedia] = useState(false);
-  const [confirmSpeech, setConfirmSpeech] = useState(false);
+  const [mediaPreview, setMediaPreview] = useState("");
+  const [speechPreview, setSpeechPreview] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
   const createMedia = async (): Promise<void> => {
-    if (!confirmMedia || !prompt.trim() || busy) return;
+    if (mediaPreview !== JSON.stringify({ kind, aspectRatio, prompt: prompt.trim() }) || busy) return;
     setBusy(true); setMessage("");
     try {
       const result = await call(getApiClient().POST("/api/v1/content-studio/kie/tasks", {
         body: { kind, aspectRatio, prompt: prompt.trim(), confirmed: true },
         headers: { "Idempotency-Key": createIdempotencyKey() },
       }));
-      setTask(result.data); setTaskId(result.data.taskId); setConfirmMedia(false);
+      setTask(result.data); setTaskId(result.data.taskId); setMediaPreview("");
       setMessage("Auftrag angenommen. Die ID bleibt hier sichtbar; notiere sie für spätere Statusabfragen.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Medienauftrag fehlgeschlagen."); }
     finally { setBusy(false); }
@@ -46,7 +46,7 @@ export function MediaWorkshop() {
   };
 
   const createSpeech = async (): Promise<void> => {
-    if (!confirmSpeech || !voiceId.trim() || !script.trim() || busy) return;
+    if (speechPreview !== JSON.stringify({ voiceId: voiceId.trim(), script: script.trim() }) || busy) return;
     setBusy(true); setMessage("");
     try {
       const response = await fetch(apiPath, {
@@ -63,7 +63,7 @@ export function MediaWorkshop() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a"); link.href = url; link.download = "friday-speech.mp3"; link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setConfirmSpeech(false); setMessage("MP3 heruntergeladen. Bitte anhören und prüfen.");
+      setSpeechPreview(""); setMessage("MP3 heruntergeladen. Bitte anhören und prüfen.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Sprachauftrag fehlgeschlagen."); }
     finally { setBusy(false); }
   };
@@ -73,8 +73,8 @@ export function MediaWorkshop() {
       <label>Medium<select value={kind} onChange={(event) => setKind(event.target.value as "image" | "video")}><option value="image">Bild</option><option value="video">Video · 5 Sekunden</option></select></label>
       <label>Seitenverhältnis<select value={aspectRatio} onChange={(event) => setAspectRatio(event.target.value as "1:1" | "16:9")}><option value="1:1">1:1</option><option value="16:9">16:9</option></select></label>
       <label className="cs-span">Prompt<textarea value={prompt} maxLength={2000} onChange={(event) => setPrompt(event.target.value)} /></label>
-      <label className="cs-span cs-confirm"><input type="checkbox" checked={confirmMedia} onChange={(event) => setConfirmMedia(event.target.checked)} /> Ich bestätige diesen kostenpflichtigen Auftrag. Kosten und Rechte habe ich geprüft.</label>
-      <Button type="button" disabled={busy || !confirmMedia || !prompt.trim()} onClick={() => void createMedia()}>Auftrag starten</Button>
+      <Button type="button" disabled={busy || !prompt.trim()} onClick={() => setMediaPreview(JSON.stringify({ kind, aspectRatio, prompt: prompt.trim() }))}>Auftrag prüfen</Button>
+      {mediaPreview === JSON.stringify({ kind, aspectRatio, prompt: prompt.trim() }) && <div className="cs-span cs-notice" role="status"><p>{kind === "image" ? "Bild" : "Video"} bei kie.ai erzeugen. Dieser Auftrag ist kostenpflichtig. Prüfe Prompt und Nutzungsrechte.</p><Button type="button" disabled={busy} onClick={() => void createMedia()}>Kostenpflichtigen Auftrag starten</Button><Button type="button" variant="ghost" onClick={() => setMediaPreview("")}>Abbrechen</Button></div>}
       <label>Auftrags-ID<input value={taskId} onChange={(event) => setTaskId(event.target.value)} /></label>
       <Button type="button" variant="ghost" disabled={busy || !taskId.trim()} onClick={() => void readStatus()}>Status abrufen</Button>
       {task && <div className="cs-span" role="status"><p>Status: {task.state} · ID: {task.taskId}</p>{task.creditsConsumed !== null && <p>Verbrauch: {task.creditsConsumed} Credits</p>}{task.resultUrls.map((url) => <p key={url}><a href={url} target="_blank" rel="noopener noreferrer">Ergebnis öffnen</a></p>)}</div>}
@@ -82,8 +82,8 @@ export function MediaWorkshop() {
     <HudPanel title="Sprechertext mit ElevenLabs"><div className="cs-form">
       <label className="cs-span">Voice-ID<input value={voiceId} maxLength={128} onChange={(event) => setVoiceId(event.target.value)} /></label>
       <label className="cs-span">Text<textarea value={script} maxLength={2500} onChange={(event) => setScript(event.target.value)} /></label>
-      <label className="cs-span cs-confirm"><input type="checkbox" checked={confirmSpeech} onChange={(event) => setConfirmSpeech(event.target.checked)} /> Ich bestätige diesen kostenpflichtigen Auftrag und die Nutzungsrechte der Stimme.</label>
-      <Button type="button" disabled={busy || !confirmSpeech || !voiceId.trim() || !script.trim()} onClick={() => void createSpeech()}>MP3 erzeugen</Button>
+      <Button type="button" disabled={busy || !voiceId.trim() || !script.trim()} onClick={() => setSpeechPreview(JSON.stringify({ voiceId: voiceId.trim(), script: script.trim() }))}>MP3-Auftrag prüfen</Button>
+      {speechPreview === JSON.stringify({ voiceId: voiceId.trim(), script: script.trim() }) && <div className="cs-span cs-notice" role="status"><p>ElevenLabs-Stimme {voiceId.trim()} verwenden. Dieser Auftrag ist kostenpflichtig. Prüfe Text und Stimmrechte.</p><Button type="button" disabled={busy} onClick={() => void createSpeech()}>Kostenpflichtige MP3 erzeugen</Button><Button type="button" variant="ghost" onClick={() => setSpeechPreview("")}>Abbrechen</Button></div>}
       <p className="cs-span">Die Datei wird heruntergeladen; prüfe Aussprache, Dauer und Ton vor Verwendung. CapCut-Schnitt erfolgt manuell.</p>
     </div></HudPanel>
     {message && <p className="cs-notice" role="status">{message}</p>}
