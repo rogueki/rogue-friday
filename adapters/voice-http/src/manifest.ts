@@ -10,8 +10,8 @@ export const DEFAULT_BASE_URL = "http://127.0.0.1:43694";
 export const DEFAULT_LOCAL_MODEL_URL = "http://127.0.0.1:43692";
 
 /**
- * JSON Schema (draft 2020-12) of the adapter's `config`. The voice status endpoint has no authentication
- * (installer/voice/friday_voice.py, `do_GET`), so the adapter has no secret fields.
+ * JSON Schema (draft 2020-12) of the adapter's `config`. The voice status endpoint has no authentication;
+ * the separate manual-start endpoint uses the Control API's voice bridge key, so the adapter has no secret fields.
  */
 export const configSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -102,7 +102,7 @@ export const manifest: AdapterManifest = {
   contractVersion: CONTRACT_VERSION,
   apiVersion: "v1",
   category: "voice",
-  // Only what the service really exposes. No voice.test / voice.stop / voice.enroll: the service has no control interface.
+  // The manual-start command is handled by the Control API. There is no voice.test / voice.stop / voice.enroll.
   capabilities: ["voice.read"],
   configSchemaRef: CONFIG_SCHEMA_ID,
   secretFields: [],

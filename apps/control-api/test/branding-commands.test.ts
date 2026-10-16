@@ -1,10 +1,39 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FridayEvent } from "@friday/sdk";
 import { brandText, deriveOrb, type OrbInputs } from "../src/services/core-views";
-import { matchBuiltinIntent } from "../src/services/command-intents";
+import { executeBuiltinIntent, matchBuiltinIntent } from "../src/services/command-intents";
+import type { RequestContext } from "../src/http/context";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 
 const errorOf = (response: { json(): unknown }) => (response.json() as { error: { code: string } }).error;
+
+it("routes manual voice start to the live service in a hybrid setup", async () => {
+  const providerFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 202 }));
+  const delegate = vi.fn();
+  const ctx = {
+    runtime: {
+      config: { adapters: { voice: { provider: "friday-voice-http", config: { baseUrl: "http://127.0.0.1:43794" } } } },
+      registry: {
+        getPort: () => ({ getVoiceStatus: async () => ({ data: { focusMode: false } }) }),
+        listAdapters: () => [{ manifest: { category: "commands" }, provider: "mock-commands" }],
+      },
+      world: {},
+      voiceBridgeKey: Buffer.from("test-bridge-key"),
+    },
+    call: {},
+    correlationId: "corr_test",
+    actor: { type: "user", id: "test" },
+  } as unknown as RequestContext;
+  try {
+    const result = await executeBuiltinIntent(ctx, "voice_start", delegate);
+    expect((result.body as { status: string }).status).toBe("executed");
+    expect(delegate).not.toHaveBeenCalled();
+    expect(providerFetch).toHaveBeenCalledOnce();
+    expect(providerFetch.mock.calls[0]?.[0].toString()).toBe("http://127.0.0.1:43794/control/start");
+  } finally {
+    providerFetch.mockRestore();
+  }
+});
 
 describe("branding (assistantName)", () => {
   let api: TestApi;

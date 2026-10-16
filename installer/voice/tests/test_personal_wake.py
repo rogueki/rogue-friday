@@ -9,9 +9,13 @@ import importlib.util
 import json
 import os
 import queue
+import socket
 import sys
+import tempfile
 import threading
 import types
+import urllib.error
+import urllib.request
 
 import numpy as np
 
@@ -393,6 +397,58 @@ def make_service(jv, texts, engine="personal", phrase="Hey Friday"):
     svc.tts = types.SimpleNamespace(speaking=threading.Event(), interrupted=0)
     svc.tts.interrupt = lambda: setattr(svc.tts, "interrupted", svc.tts.interrupted + 1)
     return svc
+
+
+def test_manual_start_uses_command_handler_without_wake_audio(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg["command_start_timeout_s"] = 2
+    recorded = []
+    svc._record_command = lambda timeout: np.ones(jv.SR, dtype=np.float32)
+    svc._handle_command = lambda audio, wake_audio: recorded.append((len(audio), wake_audio))
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+
+    svc._session(manual=True)
+
+    assert recorded == [(jv.SR, None)]
+    assert svc.status["state"] == "listening"
+
+
+def test_manual_start_endpoint_requires_key_and_rejects_duplicate():
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.manual_start = threading.Event()
+    svc.manual_start_lock = threading.Lock()
+    svc.input_level = types.SimpleNamespace(value=lambda: 0)
+    svc.tts.level = types.SimpleNamespace(value=lambda: 0)
+    with tempfile.TemporaryDirectory() as root:
+        key_dir = os.path.join(root, "dashboard", "data", "voice-bridge")
+        os.makedirs(key_dir)
+        with open(os.path.join(key_dir, "auth.key"), "w", encoding="ascii") as key_file:
+            key_file.write("a" * 44)
+        jv.INSTALL_ROOT = root
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            port = sock.getsockname()[1]
+        svc.cfg["health_port"] = port
+        svc._start_health()
+        url = f"http://127.0.0.1:{port}/control/start"
+
+        def post(auth=None):
+            headers = {"Authorization": auth} if auth else {}
+            request = urllib.request.Request(url, data=b"", headers=headers, method="POST")
+            try:
+                with urllib.request.urlopen(request, timeout=2) as response:
+                    return response.status
+            except urllib.error.HTTPError as error:
+                return error.code
+
+        assert post() == 401
+        assert not svc.manual_start.is_set()
+        assert post("Bearer wrong") == 401
+        assert post("Bearer " + "a" * 44) == 202
+        assert svc.manual_start.is_set()
+        assert post("Bearer " + "a" * 44) == 409
 
 
 def test_cloud_routes_select_model_and_reasoning(monkeypatch):
