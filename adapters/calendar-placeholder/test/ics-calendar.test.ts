@@ -1,6 +1,7 @@
 ﻿import { describe, expect, it } from "vitest";
 import { parseEvents } from "../src/ics-calendar";
 import { validateFeedUrl } from "../src/fetch-ics";
+import { parseCalDavResponse } from "../src/fetch-caldav";
 
 const feed = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:weekly-1\r\nDTSTART:20261016T090000Z\r\nDTEND:20261016T100000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nSUMMARY:Planning\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
 
@@ -20,5 +21,19 @@ describe("read-only ICS calendar", () => {
       expect(() => validateFeedUrl(url)).toThrow();
     }
     expect(validateFeedUrl("https://calendar.example/private.ics?token=secret").hostname).toBe("calendar.example");
+  });
+});
+
+describe("read-only CalDAV response", () => {
+  it("extracts calendar-data from a multistatus response", () => {
+    const xml = `<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:response><d:propstat><d:prop><c:calendar-data>${feed.replace(/&/g, "&amp;")}</c:calendar-data></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>`;
+    const documents = parseCalDavResponse(xml);
+    expect(documents).toHaveLength(1);
+    expect(parseEvents(documents[0]!, "2026-10-16T08:00:00.000Z", Date.parse("2026-10-16"), Date.parse("2026-10-20"))).toHaveLength(3);
+  });
+
+  it("rejects error responses and XML entities", () => {
+    expect(() => parseCalDavResponse('<d:multistatus><d:status>HTTP/1.1 403 Forbidden</d:status></d:multistatus>')).toThrow();
+    expect(() => parseCalDavResponse('<!DOCTYPE x [<!ENTITY local SYSTEM "file:///secret">]><d:multistatus/>')).toThrow();
   });
 });

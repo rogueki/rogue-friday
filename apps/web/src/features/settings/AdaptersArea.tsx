@@ -93,7 +93,7 @@ function AdapterForm({ adapter }: { adapter: AdapterConfigSettings }) {
   return (
     <div className="st-adapter" data-adapter-form={adapter.adapterId}>
       <Section
-        title={adapter.provider === "caldav-calendar" ? "iCalendar/ICS (nur lesen)" : adapter.provider}
+        title={adapter.provider === "caldav-calendar" ? "Kalender: ICS oder CalDAV (nur lesen)" : adapter.provider}
         description={t("settings.adapters.formDesc", { category: adapter.category })}
         actions={<Switch label={t("settings.adapters.enabled")} checked={enabled} disabled={readOnly} onCheckedChange={setEnabled} stateLabels={[t("settings.state.on"), t("settings.state.off")]} />}
       >
@@ -154,18 +154,32 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
   const items = query.data?.items ?? [];
   const calendar = items.find((item) => item.category === "calendar");
   const calendarUpdate = useUpdateAdapterSettings();
+  const [calendarMode, setCalendarMode] = useState<"ics" | "caldav">("ics");
   const [feedUrl, setFeedUrl] = useState("");
+  const [calendarUrl, setCalendarUrl] = useState("");
+  const [calendarUsername, setCalendarUsername] = useState("");
+  const [calendarPassword, setCalendarPassword] = useState("");
   const [calendarMessage, setCalendarMessage] = useState("");
   const selected = items.find((item) => item.adapterId === selectedId) ?? items[0];
 
+  useEffect(() => {
+    setCalendarMode(calendar?.config.mode === "caldav" ? "caldav" : "ics");
+  }, [calendar?.config.mode]);
+
   const saveCalendar = async (): Promise<void> => {
-    if (!calendar || !feedUrl.trim()) return;
+    if (!calendar || calendarMode === "ics" && !feedUrl.trim() || calendarMode === "caldav" && (!calendarUrl.trim() || !calendarUsername.trim() || !calendarPassword)) return;
     setCalendarMessage("");
     try {
-      const response = await calendarUpdate.mutateAsync({ id: calendar.adapterId, version: calendar.version ?? 1, patch: { provider: "caldav-calendar", enabled: true, secrets: { feedUrl: feedUrl.trim() } } });
+      const response = await calendarUpdate.mutateAsync({ id: calendar.adapterId, version: calendar.version ?? 1, patch: {
+        provider: "caldav-calendar", enabled: true, config: { mode: calendarMode },
+        secrets: calendarMode === "ics" ? { feedUrl: feedUrl.trim() } : { calendarUrl: calendarUrl.trim(), username: calendarUsername.trim(), password: calendarPassword },
+      } });
       setFeedUrl("");
+      setCalendarUrl("");
+      setCalendarUsername("");
+      setCalendarPassword("");
       onSelect(response.data.adapterId);
-      setCalendarMessage("iCalendar-Feed gespeichert. Termine werden nur gelesen; die private URL bleibt verschluesselt auf diesem Rechner.");
+      setCalendarMessage("Kalenderzugang verschluesselt gespeichert. Die Verbindung ist erst nach einem erfolgreichen Test verifiziert; Friday liest Termine nur.");
     } catch (error) {
       setCalendarMessage(error instanceof Error ? error.message : "Kalender-Feed konnte nicht gespeichert werden.");
     }
@@ -184,12 +198,17 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
   return (
     <PanelFrame state={state} title={t("settings.adapters.title")} subtitle={t("settings.adapters.subtitle")} icon={<Plug size={16} />} skeletonRows={4} className="st-panel">
       {!canRead ? <p className="st-muted">{t("settings.adapters.noCapability")}</p> : null}
-      {calendar ? <section aria-labelledby="ics-setup-title" className="st-adapter">
-        <h3 id="ics-setup-title">Kalender per iCalendar/ICS verbinden</h3>
-        <p>Private HTTPS-ICS-URL eines freigegebenen Google-, Outlook- oder anderen Kalenders eintragen. Friday liest Termine und kann sie hier nicht aendern. Windows Kalender ist eine App, kein eigener Kalenderanbieter.</p>
-        <label>Private ICS-URL <input type="password" autoComplete="off" value={feedUrl} onChange={(event) => setFeedUrl(event.target.value)} placeholder="https://.../calendar.ics" disabled={readOnly} /></label>
-        <Button type="button" disabled={readOnly || !feedUrl.trim() || calendarUpdate.isPending} loading={calendarUpdate.isPending} onClick={() => void saveCalendar()}>iCalendar-Feed speichern</Button>
-        <p role="status">{calendar.provider === "caldav-calendar" && calendar.secretFields.feedUrl?.configured ? "Feed hinterlegt (nur lesen)" : "Noch kein iCalendar-Feed verbunden; Kalenderansicht verwendet Simulation."}</p>
+      {calendar ? <section aria-labelledby="calendar-setup-title" className="st-adapter">
+        <h3 id="calendar-setup-title">Kalender verbinden</h3>
+        <p>ICS liest einen freigegebenen Feed, etwa eine private Google- oder Outlook-ICS-URL. CalDAV liest einen Kalender bei einem kompatiblen Server mit Benutzername und App-Passwort. Google Calendar und private Outlook-Konten benoetigen fuer direkten Kontozugriff OAuth und sind hier nicht per Passwort anschliessbar. Windows Kalender ist eine App, kein eigener Anbieter.</p>
+        <label>Verbindungsart <select value={calendarMode} onChange={(event) => setCalendarMode(event.target.value as "ics" | "caldav")} disabled={readOnly}><option value="ics">iCalendar/ICS</option><option value="caldav">CalDAV</option></select></label>
+        {calendarMode === "ics" ? <label>Private ICS-URL <input type="password" autoComplete="off" value={feedUrl} onChange={(event) => setFeedUrl(event.target.value)} placeholder="https://.../calendar.ics" disabled={readOnly} /></label> : <>
+          <label>CalDAV-Kalendersammlung (HTTPS) <input type="password" autoComplete="off" value={calendarUrl} onChange={(event) => setCalendarUrl(event.target.value)} placeholder="https://.../dav/calendars/.../" disabled={readOnly} /></label>
+          <label>Benutzername <input autoComplete="off" value={calendarUsername} onChange={(event) => setCalendarUsername(event.target.value)} disabled={readOnly} /></label>
+          <label>Passwort oder App-Passwort <input type="password" autoComplete="new-password" value={calendarPassword} onChange={(event) => setCalendarPassword(event.target.value)} disabled={readOnly} /></label>
+        </>}
+        <Button type="button" disabled={readOnly || calendarUpdate.isPending || (calendarMode === "ics" ? !feedUrl.trim() : !calendarUrl.trim() || !calendarUsername.trim() || !calendarPassword)} loading={calendarUpdate.isPending} onClick={() => void saveCalendar()}>Kalenderzugang speichern</Button>
+        <p role="status">{calendar.provider === "caldav-calendar" && (calendar.config.mode === "caldav" ? calendar.secretFields.calendarUrl?.configured && calendar.secretFields.username?.configured && calendar.secretFields.password?.configured : calendar.secretFields.feedUrl?.configured) ? "Zugang hinterlegt (nur lesen); Verbindung separat testen" : "Noch kein Kalenderzugang hinterlegt; Kalenderansicht verwendet Simulation."}</p>
         {calendarMessage ? <p role="status">{calendarMessage}</p> : null}
       </section> : null}
       <div className="st-master">
@@ -203,10 +222,13 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
                   aria-current={selected?.adapterId === item.adapterId ? "true" : undefined}
                   onClick={() => onSelect(item.adapterId)}
                 >
-                  <span className="st-master__name">{item.provider === "caldav-calendar" ? "iCalendar/ICS (nur lesen)" : item.provider}</span>
+                  <span className="st-master__name">{item.provider === "caldav-calendar" ? "Kalender: ICS oder CalDAV (nur lesen)" : item.provider}</span>
                   <span className="st-master__meta">
                     {item.category}
-                    {Object.values(item.secretFields).some((secret) => !secret.configured) ? <StatusChip tone="amber" dot={false}>{t("settings.adapters.secretMissing")}</StatusChip> : null}
+                    {(item.provider === "caldav-calendar"
+                      ? (item.config.mode === "caldav" ? ["calendarUrl", "username", "password"] : ["feedUrl"]).some((field) => !item.secretFields[field]?.configured)
+                      : Object.values(item.secretFields).some((secret) => !secret.configured))
+                      ? <StatusChip tone="amber" dot={false}>{t("settings.adapters.secretMissing")}</StatusChip> : null}
                   </span>
                   <HealthBadge state={item.enabled ? "ok" : "unknown"} labels={{ ok: t("settings.adapters.active"), unknown: t("settings.adapters.inactive") }} />
                 </button>

@@ -117,6 +117,21 @@ export class AdapterSettingsService {
     if (effectiveAdapterId === icsManifest.id && patch.secrets?.feedUrl) {
       try { validateFeedUrl(patch.secrets.feedUrl); } catch { throw validationFailed("Ungueltige private Kalender-URL.", [{ path: "secrets.feedUrl", message: "oeffentliche HTTPS-ICS-URL erforderlich" }]); }
     }
+    if (effectiveAdapterId === icsManifest.id) {
+      if (patch.secrets?.calendarUrl) {
+        try { validateFeedUrl(patch.secrets.calendarUrl); }
+        catch { throw validationFailed("Ungueltige CalDAV-URL.", [{ path: "secrets.calendarUrl", message: "oeffentliche HTTPS-Kalendersammlung erforderlich" }]); }
+      }
+      const mode = patch.config?.mode ?? (switchingCalendar ? undefined : entry.config?.mode) ?? "ics";
+      if (mode !== "ics" && mode !== "caldav") {
+        throw validationFailed("Unbekannter Kalender-Modus.", [{ path: "config.mode", message: "ics oder caldav erforderlich" }]);
+      }
+      if (mode === "caldav" && (patch.enabled ?? entry.enabled)) {
+        const missing = (["calendarUrl", "username", "password"] as const)
+          .filter((field) => !patch.secrets?.[field] && !this.secrets.has(icsManifest.id, field));
+        if (missing.length) throw validationFailed("CalDAV-Zugang ist unvollstaendig.", missing.map((field) => ({ path: `secrets.${field}`, message: "Pflichtfeld fuer CalDAV" })));
+      }
+    }
 
     if (patch.provider !== undefined && patch.provider !== entry.provider) {
       const target = this.wiring.factories.get(patch.provider);
