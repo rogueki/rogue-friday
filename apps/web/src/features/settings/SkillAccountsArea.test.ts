@@ -29,6 +29,15 @@ describe("Skill account setup paths", () => {
     expect(accountSetupView(integration("gmx"), undefined).state).toContain("GMX-Skill-Adapter separat");
     expect(accountSetupView(integration("hermes_himalaya"), undefined).href).toBe(href);
   });
+  it("links the Telegram skill to its owner form and reports only local setup state", () => {
+    for (const [configured, expected] of [[null, "unbekannt"], [false, "noch nicht lokal eingerichtet"], [true, "lokal eingerichtet"]] as const) {
+      const setup = accountSetupView({ ...integration("telegram_gateway"), configured }, undefined);
+      expect(setup.href).toBe("/settings?area=skillAccounts#telegram-gateway-setup-title");
+      expect(setup.action).toContain("Telegram-Bot");
+      expect(setup.state).toContain(expected);
+      expect(setup.state).toContain("Bot-Verbindung nicht geprüft");
+    }
+  });
   it("opens the encrypted Friday key form without claiming a provider login", () => {
     const setup = accountSetupView(integration("kie_ai"), { kie: true, elevenlabs: false, capcut: false });
     expect(setup.href).toBe("/settings?area=contentStudioKeys");
