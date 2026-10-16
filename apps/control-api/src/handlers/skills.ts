@@ -1,10 +1,27 @@
-import { CONTRACT_VERSION, type OnboardingUpdate, type SkillActivationRequest } from "@friday/sdk";
+import { CONTRACT_VERSION, type CodingRunRequest, type OnboardingUpdate, type SkillActivationRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
+import { validationFailed } from "../util/errors";
 
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: { state: "fresh" as const, asOf: new Date().toISOString() } });
 
 export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
+  async createCodingRun(ctx) {
+    if (!ctx.mutation.idempotencyKey) throw validationFailed("Coding-Run erfordert einen Idempotency-Key.");
+    const run = await ctx.runtime.codingRuns.start(ctx.body as CodingRunRequest, ctx.mutation.idempotencyKey ?? "");
+    ctx.audit.action = "skills.coding_run_started";
+    ctx.audit.after = { runId: run.runId, requestedCli: run.requestedCli };
+    return { status: 202, body: single(run) };
+  },
+  async getCodingRun(ctx) {
+    return { status: 200, body: single(await ctx.runtime.codingRuns.status(ctx.pathParams.runId as string)) };
+  },
+  async stopCodingRun(ctx) {
+    const run = await ctx.runtime.codingRuns.stop(ctx.pathParams.runId as string);
+    ctx.audit.action = "skills.coding_run_stopped";
+    ctx.audit.after = { runId: run.runId };
+    return { status: 200, body: single(run) };
+  },
   async listSkills(ctx) {
     const result = await ctx.runtime.skills.list();
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, data: result.skills, catalogError: result.catalogError, hermesError: result.hermesError,

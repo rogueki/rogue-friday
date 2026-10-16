@@ -4475,6 +4475,86 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/coding-runs:
+    post:
+      operationId: createCodingRun
+      tags: [skills]
+      summary: Start the selected native WSL Coding CLI in an owner-selected Git repository
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CodingRunRequest"
+      responses:
+        "202":
+          description: Friday accepted the asynchronous native CLI run
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodingRunResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/coding-runs/{runId}:
+    get:
+      operationId: getCodingRun
+      tags: [skills]
+      summary: Poll a native Coding CLI run
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Current native runner state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodingRunResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/coding-runs/{runId}/stop:
+    post:
+      operationId: stopCodingRun
+      tags: [skills]
+      summary: Stop a running native Coding CLI task
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Stop request acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodingRunResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/onboarding:
     get:
       operationId: getOnboarding
@@ -6024,6 +6104,12 @@ components:
       $ref: ../schemas/skills/skill.schema.json
     SkillCatalogResponse:
       $ref: ../schemas/skills/catalog-response.schema.json
+    CodingRunRequest:
+      $ref: ../schemas/skills/coding-run-request.schema.json
+    CodingRun:
+      $ref: ../schemas/skills/coding-run.schema.json
+    CodingRunResponse:
+      $ref: ../schemas/skills/coding-run-response.schema.json
     SkillActivationRequest:
       $ref: ../schemas/skills/activation-request.schema.json
     SkillResponse:

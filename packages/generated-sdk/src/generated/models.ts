@@ -216,6 +216,9 @@ export interface FridayModelMap {
   ChannelListResponse: ChannelListResponse;
   ChannelResponse: ChannelResponse;
   ChannelStatus: ChannelStatus;
+  CodingRun: CodingRun;
+  CodingRunRequest: CodingRunRequest;
+  CodingRunResponse: CodingRunResponse;
   CommandControlRequest: CommandControlRequest;
   CommandHistoryEntry: CommandHistoryEntry;
   CommandHistoryEntryListResponse: CommandHistoryEntryListResponse;
@@ -1640,6 +1643,27 @@ export interface ChannelListResponse {
 export interface ChannelResponse {
   contractVersion: ContractVersion;
   data: Channel;
+  freshness: Freshness;
+}
+export interface CodingRun {
+  runId: string;
+  status: string;
+  requestedCli: "codex" | "opencode" | "claude-code" | null;
+  requestedWorkdir: string | null;
+  preflightVersion: string | null;
+  executionVerified: boolean;
+  output: string | null;
+  error: string | null;
+  updatedAt: number | null;
+}
+export interface CodingRunRequest {
+  cli: "auto" | "codex" | "opencode" | "claude-code";
+  repository: string;
+  task: string;
+}
+export interface CodingRunResponse {
+  contractVersion: ContractVersion;
+  data: CodingRun;
   freshness: Freshness;
 }
 /**

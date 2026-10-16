@@ -5,6 +5,7 @@ import { Button, EmptyState, ErrorState, Skeleton, StatusChip } from "@friday/ui
 import { useMemo, useState } from "react";
 import { useSession } from "@/lib/session";
 import { useSetSkillActivation, useSkillsCatalog } from "@/lib/api/domains/skills";
+import { CodingRunsArea } from "./CodingRunsArea";
 import { internalSetupLink, officialReference, selectedVisibleSkill, skillState, visibleSkills } from "./skillPresentation";
 import "./skills.css";
 
@@ -40,6 +41,7 @@ export function SkillsPage() {
       {(query.data?.catalogError || query.data?.hermesError) && <p className="sk-warning" role="status">{query.data.catalogError && `Friday-Katalog: ${query.data.catalogError}`} {query.data.hermesError && `Hermes: ${query.data.hermesError}`}</p>}
       <div className="sk-filters"><label>Suche<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, Beschreibung, Kategorie" /></label><label>Herkunft<select value={source} onChange={(event) => setSource(event.target.value)}><option value="all">Alle</option><option value="friday">Friday</option><option value="hermes">Hermes</option></select></label><label>Status<select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}><option value="all">Alle</option><option value="enabled">Aktiviert</option><option value="missing">Nicht gefunden</option><option value="unknown">Unbekannt</option></select></label></div>
       {filtered.length === 0 ? <EmptyState title="Keine passenden Skills" description="Suche oder Filter anpassen." /> : <div className="sk-layout"><ul className="sk-list" aria-label="Skills">{filtered.map((skill) => <li key={skill.id}><button type="button" className="sk-list__item" aria-current={selected?.id === skill.id ? "true" : undefined} onClick={() => { setSelectedId(skill.id); setError(null); }}><span><strong>{skill.name}</strong><small>{skill.category} · {skill.source === "friday" ? "Friday" : "Hermes"}</small></span><StatusChip tone={skillState(skill).tone}>{skillState(skill).label}</StatusChip></button></li>)}</ul>{selected && <SkillDetails skill={selected} canToggle={session.role === "owner" && !session.offline && selected.discovered === true && selected.enabled !== null} onToggle={() => void toggle()} busy={activation.isPending} error={error} />}</div>}
+      {session.role === "owner" && !session.offline && <CodingRunsArea skills={catalog} />}
     </>}
   </div>;
 }

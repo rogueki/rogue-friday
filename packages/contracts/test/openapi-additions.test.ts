@@ -70,7 +70,7 @@ describe("observability operations (PLAN §50.3)", () => {
   });
 
   it("the contract includes the 139 released operations", () => {
-    expect(operations).toHaveLength(139);
+    expect(operations).toHaveLength(142);
   });
 });
 
