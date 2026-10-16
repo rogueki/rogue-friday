@@ -34,6 +34,14 @@ case "${1:-}" in
     [[ "$("$work/himalaya" --version)" == *"$version"* ]] || { echo 'Himalaya-Version stimmt nicht.' >&2; exit 3; }
     mv -f -- "$work/himalaya" "$HOME/.local/bin/himalaya"
     "$HOME/.local/bin/himalaya" --version
+    installer_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+    friday_root=$(dirname -- "$installer_dir")
+    compat_installer="$friday_root/skills/friday-skills/scripts/install_hermes_himalaya_v2.py"
+    if [[ -f "$compat_installer" ]]; then
+      if ! python3 "$compat_installer" --apply; then
+        echo 'FRIDAY_HIMALAYA_COMPAT_WARNING reviewed Hermes skill overlay was not installed' >&2
+      fi
+    fi
     ;;
   *) echo 'Verwendung: setup_himalaya.sh status|install' >&2; exit 2 ;;
 esac

@@ -35,4 +35,10 @@ fi
 PROFILE_MODE=status
 if [ "$MODE" = install ]; then PROFILE_MODE=configure; fi
 python3 "$INST/wsl/skills_profile.py" "$PROFILE_MODE" "$CHECKOUT"
+if [ "$MODE" = install ] && [ -x "$HOME/.local/bin/himalaya" ] &&
+   [ -f "$CHECKOUT/scripts/install_hermes_himalaya_v2.py" ]; then
+    if ! python3 "$CHECKOUT/scripts/install_hermes_himalaya_v2.py" --apply; then
+        echo 'FRIDAY_HIMALAYA_COMPAT_WARNING reviewed Hermes skill overlay was not installed' >&2
+    fi
+fi
 printf 'FRIDAY_SKILLS_COMMIT %s\n' "$(git -C "$CHECKOUT" rev-parse HEAD)"
