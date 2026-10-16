@@ -228,6 +228,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     catalogPath: env.FRIDAY_SKILLS_CATALOG_PATH,
     dashboardUrl: env.FRIDAY_HERMES_DASHBOARD_URL ?? (typeof hermesAdapterConfig.dashboardBaseUrl === "string" ? hermesAdapterConfig.dashboardBaseUrl : undefined),
     fetcher: options.providerFetch,
+    configuredIntegrations: () => contentStudioKeys.status(),
   });
   const codingRuns = new CodingRunsService(config, skills, env);
   const codingVoiceRepository = new CodingVoiceRepositoryService(db, codingRuns);

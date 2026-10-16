@@ -58,11 +58,14 @@ export class SkillsService {
   private readonly fetcher: typeof fetch;
   private readonly baseUrl: string | null;
   private readonly catalogPath: string | undefined;
+  private readonly configuredIntegrations: (() => Readonly<{ kie: boolean; elevenlabs: boolean }>) | undefined;
   private token: string | undefined;
 
-  constructor(options: { catalogPath?: string; dashboardUrl?: string; fetcher?: typeof fetch }) {
+  constructor(options: { catalogPath?: string; dashboardUrl?: string; fetcher?: typeof fetch;
+    configuredIntegrations?: () => Readonly<{ kie: boolean; elevenlabs: boolean }> }) {
     this.fetcher = options.fetcher ?? fetch;
     this.catalogPath = options.catalogPath;
+    this.configuredIntegrations = options.configuredIntegrations;
     if (options.dashboardUrl) {
       const url = new URL(options.dashboardUrl);
       if (url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.username || url.password || url.search || url.hash) {
@@ -85,6 +88,8 @@ export class SkillsService {
       const rawSkills = (registry.skills ?? registry) as Json;
       if (setup.schema_version !== 1 || !setupSkills || typeof setupSkills !== "object" || !rawSkills || typeof rawSkills !== "object") throw new Error("Katalogformat ungültig");
       const entries = Array.isArray(rawSkills) ? rawSkills.map((value, index) => [String(index), value] as const) : Object.entries(rawSkills);
+      // Read on every list request so a saved or removed key is visible without restarting the API.
+      const keyStatus = this.configuredIntegrations?.();
       const skills: SkillCatalogEntry[] = entries.map(([key, raw]) => {
         const meta = raw as Json;
         const name = field(meta, "id", "name", "slug") || key;
@@ -99,7 +104,10 @@ export class SkillsService {
           const account = field(integration, "account");
           return { id: integrationId, account: (account === "required" || account === "conditional" ? account : "none") as "none" | "required" | "conditional",
             required: required.includes(integrationId), setupDe: field(integration, "setup_de"), reference: field(integration, "reference"),
-            settingsTarget: field(integration, "settings_target"), configured: null, connectionChecked: null };
+            settingsTarget: field(integration, "settings_target"),
+            configured: integrationId === "kie_ai" ? keyStatus?.kie ?? null
+              : integrationId === "elevenlabs" ? keyStatus?.elevenlabs ?? null : null,
+            connectionChecked: null };
         });
         return {
           id: `friday:${id}`, source: "friday", name,

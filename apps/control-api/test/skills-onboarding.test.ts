@@ -176,6 +176,56 @@ describe("skills and resumable onboarding", () => {
     expect(byName.get("hermes-agent")).toMatchObject({ accounts: [], integrationDetails: [], requiredCapabilities: [], conditionalCapabilities: [] });
   });
 
+  it("reads locally configured Content Studio keys anew for matching Friday integrations", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "friday-skill-key-status-"));
+    let localApi: TestApi | undefined;
+    try {
+      const registry = join(dir, "registry");
+      mkdirSync(registry);
+      const names = ["kie-skill", "eleven-skill", "other-skill"];
+      writeFileSync(join(registry, "skills.json"), JSON.stringify({ skills: names.map((name) => ({ name })) }));
+      writeFileSync(join(registry, "integration_setup.json"), JSON.stringify({ schema_version: 1, inventory_count: names.length,
+        integrations: { kie_ai: { account: "required" }, elevenlabs: { account: "required" }, unrelated: { account: "required" } },
+        skills: {
+          "kie-skill": { required_integrations: ["kie_ai"] },
+          "eleven-skill": { required_integrations: ["elevenlabs"] },
+          "other-skill": { required_integrations: ["unrelated"] },
+        },
+      }));
+      const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
+        ? Response.json({ skills: [] })
+        : new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
+      localApi = await startTestApi({ dir, providerFetch: fetcher,
+        env: { FRIDAY_SKILLS_CATALOG_PATH: join(registry, "integration_setup.json"), FRIDAY_HERMES_DASHBOARD_URL: "http://127.0.0.1:43791" } });
+      const owner = localApi.client(); await owner.loginDev("owner");
+      const integrations = async () => {
+        const response = await owner.get("/api/v1/skills");
+        expect(response.statusCode, response.body).toBe(200);
+        return new Map<string, { configured: boolean | null; connectionChecked: boolean | null }>(response.json().data.map(
+          (skill: { id: string; integrationDetails: { configured: boolean | null; connectionChecked: boolean | null }[] }) =>
+            [skill.id, skill.integrationDetails[0]!] as const));
+      };
+      let current = await integrations();
+      expect(current.get("friday:kie-skill")).toMatchObject({ configured: false, connectionChecked: null });
+      expect(current.get("friday:eleven-skill")).toMatchObject({ configured: false, connectionChecked: null });
+      expect(current.get("friday:other-skill")).toMatchObject({ configured: null, connectionChecked: null });
+      expect((await owner.patch("/api/v1/settings/content-studio-keys", { provider: "kie", key: "private-kie-status" })).statusCode).toBe(200);
+      expect((await owner.patch("/api/v1/settings/content-studio-keys", { provider: "elevenlabs", key: "private-eleven-status" })).statusCode).toBe(200);
+      current = await integrations();
+      expect(current.get("friday:kie-skill")).toMatchObject({ configured: true, connectionChecked: null });
+      expect(current.get("friday:eleven-skill")).toMatchObject({ configured: true, connectionChecked: null });
+      expect(current.get("friday:other-skill")).toMatchObject({ configured: null, connectionChecked: null });
+      expect((await owner.get("/api/v1/skills")).body).not.toMatch(/private-(kie|eleven)-status/);
+      expect((await owner.patch("/api/v1/settings/content-studio-keys", { provider: "kie", key: "" })).statusCode).toBe(200);
+      current = await integrations();
+      expect(current.get("friday:kie-skill")).toMatchObject({ configured: false, connectionChecked: null });
+      expect(current.get("friday:eleven-skill")).toMatchObject({ configured: true, connectionChecked: null });
+    } finally {
+      await localApi?.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   const realCatalog = resolve(process.cwd(), "..", "..", "Skills", "registry", "integration_setup.json");
   it.runIf(existsSync(realCatalog))("loads every skill from the packaged registry", async () => {
     const result = await new SkillsService({ catalogPath: realCatalog }).list();
