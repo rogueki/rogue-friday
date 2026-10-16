@@ -77,7 +77,16 @@ export class PowerPointService {
 
   download(id: string): Buffer {
     if (!ID.test(id)) throw notFound("Präsentation");
-    try { return readFileSync(join(this.artifacts, `${id}.pptx`)); }
+    try {
+      const path = join(this.artifacts, `${id}.pptx`);
+      const stat = lstatSync(path);
+      if (!stat.isFile()) throw notFound("Präsentation");
+      if (Date.now() - stat.mtimeMs > RETENTION_MS) {
+        unlinkSync(path);
+        throw notFound("Präsentation");
+      }
+      return readFileSync(path);
+    }
     catch { throw notFound("Präsentation"); }
   }
 }
