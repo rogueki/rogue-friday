@@ -34,6 +34,7 @@ import { SettingsService, seedLibrary } from "../services/settings";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
 import { CodingRunsService } from "../services/coding-runs";
+import { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
 import { ContentStudioProviderService } from "../services/content-studio-providers";
 import { ContentStudioPlanService } from "../services/content-studio-plan";
 import { ContentStudioProductionService } from "../services/content-studio-production";
@@ -229,6 +230,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     fetcher: options.providerFetch,
   });
   const codingRuns = new CodingRunsService(config, skills, env);
+  const codingVoiceRepository = new CodingVoiceRepositoryService(db, codingRuns);
   const contentStudioProduction = new ContentStudioProductionService(db, contentStudioPlan, contentStudioKeys, contentStudioProviders,
     config.paths.dataDir, { ffmpegPath: env.FRIDAY_FFMPEG_PATH, enabled: () => settings.area("dashboard").contentStudioEnabled === true });
   settingsHolder.current = settings;
@@ -410,6 +412,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     onboarding,
     obsidianVault,
     codingRuns,
+    codingVoiceRepository,
     contentStudioProduction,
     adapterSettings,
     status,

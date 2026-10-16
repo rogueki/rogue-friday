@@ -203,8 +203,9 @@ describe("REST route coverage", () => {
     const yaml = readFileSync(resolve(__dirname, "../../contracts/openapi/friday-api.yaml"), "utf8");
     const contract = [...yaml.matchAll(/operationId:\s*(\w+)/g)].map((match) => match[1] as string).sort();
     const liveOnly = [
-      "cancelContentProductionJob", "createContentProductionJob", "getContentProductionArtifact", "getContentProductionJob",
-      "getContentStudioPlan", "getObsidianVault", "getOnboarding", "listSkills", "putContentStudioPlan", "putObsidianVault", "putOnboarding", "setSkillActivation",
+      "cancelContentProductionJob", "createCodingRun", "createContentProductionJob", "createVoiceCodingRun", "getCodingRun", "getCodingVoiceRepository",
+      "getContentProductionArtifact", "getContentProductionJob", "getContentStudioPlan", "getObsidianVault", "getOnboarding", "listSkills",
+      "putCodingVoiceRepository", "putContentStudioPlan", "putObsidianVault", "putOnboarding", "setSkillActivation", "stopCodingRun",
     ];
     const mocked = ROUTES.map((route) => route.operationId).sort();
     expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);

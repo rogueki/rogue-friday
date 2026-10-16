@@ -13,6 +13,8 @@ it("sends an idempotency key in the shared SDK format for a coding run", async (
   setApiClient(createFridayClient({ baseUrl: "http://localhost", getCsrfToken: () => "csrf-test", fetch: async (input) => {
     const request = input as Request;
     requests.push(request);
+    if (request.url.endsWith("/api/v1/coding-runs/voice-repository")) return Response.json({ contractVersion: CONTRACT_VERSION,
+      data: { alias: "", repository: "", revision: 0 }, freshness: { state: "fresh", asOf: new Date().toISOString() } });
     return Response.json({ contractVersion: CONTRACT_VERSION, data: {
       runId: "run_" + "a".repeat(32), status: "queued", requestedCli: "codex", requestedWorkdir: "/tmp/repo",
       preflightVersion: "codex 0.163.0", executionVerified: false, output: null, error: null, updatedAt: 1,
@@ -20,7 +22,7 @@ it("sends an idempotency key in the shared SDK format for a coding run", async (
   } }));
   const user = userEvent.setup();
   render(<QueryClientProvider client={new QueryClient()}><CodingRunsArea skills={[]} /></QueryClientProvider>);
-  await user.type(screen.getByLabelText(/Git-Repository/), "C:\\Users\\Test\\repo");
+  await user.type(screen.getByLabelText("Git-Repository unter deinem Benutzerprofil oder Friday-Installationspfad"), "C:\\Users\\Test\\repo");
   await user.type(screen.getByLabelText("Auftrag"), "Bitte diese Datei anpassen");
   await user.click(screen.getByRole("button", { name: "Coding-Auftrag starten" }));
   await waitFor(() => expect(requests.some((request) => request.method === "POST")).toBe(true));

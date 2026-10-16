@@ -21,6 +21,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const VOICE_BRIDGE_OPERATIONS = new Set<OperationId>([
   "getContentStudioPlan", "createContentProductionJob", "getContentProductionJob", "cancelContentProductionJob",
   "listSkills", "getOnboarding", "putOnboarding",
+  "getCodingVoiceRepository", "createVoiceCodingRun",
 ]);
 
 const AUTH_AUDIT_ACTIONS: Partial<Record<OperationId, string>> = {

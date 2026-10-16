@@ -6,6 +6,24 @@ import { validationFailed } from "../util/errors";
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: { state: "fresh" as const, asOf: new Date().toISOString() } });
 
 export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
+  async getCodingVoiceRepository(ctx) {
+    return { status: 200, body: single(ctx.runtime.codingVoiceRepository.get()) };
+  },
+  async putCodingVoiceRepository(ctx) {
+    const saved = await ctx.runtime.codingVoiceRepository.put(ctx.body as { alias: string; repository: string }, ctx.mutation.ifMatchVersion);
+    ctx.audit.action = "skills.coding_voice_repository_updated";
+    ctx.audit.after = { alias: saved.alias, revision: saved.revision };
+    return { status: 200, body: single(saved) };
+  },
+  async createVoiceCodingRun(ctx) {
+    if (!ctx.mutation.idempotencyKey) throw validationFailed("Coding-Run erfordert einen Idempotency-Key.");
+    const body = ctx.body as { alias: string; revision: number; cli: "auto" | "codex" | "opencode" | "claude-code"; task: string };
+    const repository = ctx.runtime.codingVoiceRepository.resolve(body.alias, body.revision);
+    const run = await ctx.runtime.codingRuns.start({ cli: body.cli, repository, task: body.task }, ctx.mutation.idempotencyKey);
+    ctx.audit.action = "skills.voice_coding_run_started";
+    ctx.audit.after = { runId: run.runId, requestedCli: run.requestedCli, alias: body.alias };
+    return { status: 202, body: single(run) };
+  },
   async createCodingRun(ctx) {
     if (!ctx.mutation.idempotencyKey) throw validationFailed("Coding-Run erfordert einen Idempotency-Key.");
     const run = await ctx.runtime.codingRuns.start(ctx.body as CodingRunRequest, ctx.mutation.idempotencyKey ?? "");

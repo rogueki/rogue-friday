@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/coding-voice-repository.schema.json",
+  "title": "CodingVoiceRepository",
+  "type": "object",
+  "properties": {
+    "alias": { "type": "string" },
+    "repository": { "type": "string" },
+    "revision": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["alias", "repository", "revision"],
+  "additionalProperties": false
+}

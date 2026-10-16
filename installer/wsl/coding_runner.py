@@ -43,9 +43,7 @@ def base_env():
     return env
 
 
-def target(cli, windows_path):
-    if cli not in CLI_BIN:
-        die("unknown_cli")
+def repository_target(windows_path):
     try:
         linux_path = (windows_path if os.environ.get("FRIDAY_CODING_TEST_MODE") == "1" and windows_path.startswith("/")
                       else subprocess.check_output(["wslpath", "-u", "--", windows_path], text=True, timeout=5).strip())
@@ -58,6 +56,13 @@ def target(cli, windows_path):
                          text=True, capture_output=True, timeout=5)
     if git.returncode or Path(git.stdout.strip()).resolve() != workdir:
         die("linux_git_unreadable", 3)
+    return str(workdir)
+
+
+def target(cli, windows_path):
+    if cli not in CLI_BIN:
+        die("unknown_cli")
+    workdir = repository_target(windows_path)
     binary = shutil.which(CLI_BIN[cli], path=base_env()["PATH"])
     if not binary:
         die("native_cli_missing", 4)
@@ -67,7 +72,11 @@ def target(cli, windows_path):
     version = subprocess.run([binary, "--version"], text=True, capture_output=True, timeout=8, env=base_env())
     if version.returncode or not version.stdout.strip():
         die("native_cli_unverified", 4)
-    return str(workdir), binary, version.stdout.splitlines()[0][:160]
+    return workdir, binary, version.stdout.splitlines()[0][:160]
+
+
+def repository(windows_path):
+    print(json.dumps({"workdir": repository_target(windows_path)}))
 
 
 def paths(run_id):
@@ -261,6 +270,8 @@ if __name__ == "__main__":
         start(*sys.argv[2:])
     elif len(sys.argv) == 4 and sys.argv[1] == "probe":
         probe(*sys.argv[2:])
+    elif len(sys.argv) == 3 and sys.argv[1] == "repository":
+        repository(sys.argv[2])
     elif len(sys.argv) == 3 and sys.argv[1] in {"worker", "status", "stop"}:
         globals()[sys.argv[1]](sys.argv[2])
     else:

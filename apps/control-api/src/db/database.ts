@@ -132,6 +132,19 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    id: 6,
+    name: "coding-voice-repository",
+    sql: `
+      CREATE TABLE coding_voice_repository (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        revision INTEGER NOT NULL CHECK (revision >= 1),
+        alias TEXT NOT NULL,
+        repository TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

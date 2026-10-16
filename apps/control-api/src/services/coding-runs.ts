@@ -74,6 +74,18 @@ export class CodingRunsService {
     return { root, distro: state.distro_name, user: state.linux_user, script };
   }
 
+  canonicalRepository(requestedPath: string): string {
+    return this.repository(requestedPath, this.install().root);
+  }
+
+  async prepareVoiceRepository(requestedPath: string): Promise<string> {
+    const canonical = this.canonicalRepository(requestedPath);
+    // Reuse the runner's Linux-Git check without selecting a CLI or contacting a model.
+    const checked = await this.call(["repository", canonical]);
+    if (typeof checked.workdir !== "string" || !checked.workdir.startsWith("/")) throw unavailable("Friday-Ubuntu konnte das Git-Repository nicht bestätigen.");
+    return canonical;
+  }
+
   private repository(requestedPath: string, installRoot: string): string {
     if (!isAbsolute(requestedPath) || !/^[a-zA-Z]:\\/.test(requestedPath) || requestedPath.length > 1024) throw validationFailed("Wähle einen absoluten lokalen Windows-Pfad zu einem Git-Repository.");
     let canonical: string;

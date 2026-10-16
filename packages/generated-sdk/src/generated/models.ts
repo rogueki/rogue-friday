@@ -219,6 +219,9 @@ export interface FridayModelMap {
   CodingRun: CodingRun;
   CodingRunRequest: CodingRunRequest;
   CodingRunResponse: CodingRunResponse;
+  CodingVoiceRepository: CodingVoiceRepository;
+  CodingVoiceRepositoryPatch: CodingVoiceRepositoryPatch;
+  CodingVoiceRepositoryResponse: CodingVoiceRepositoryResponse;
   CommandControlRequest: CommandControlRequest;
   CommandHistoryEntry: CommandHistoryEntry;
   CommandHistoryEntryListResponse: CommandHistoryEntryListResponse;
@@ -413,6 +416,7 @@ export interface FridayModelMap {
   ThreadResponse: ThreadResponse;
   User: User;
   VoiceAudioLevel: VoiceAudioLevel;
+  VoiceCodingRunRequest: VoiceCodingRunRequest;
   VoiceDevice: VoiceDevice;
   VoiceDeviceListResponse: VoiceDeviceListResponse;
   VoiceEnrollment: VoiceEnrollment;
@@ -1664,6 +1668,20 @@ export interface CodingRunRequest {
 export interface CodingRunResponse {
   contractVersion: ContractVersion;
   data: CodingRun;
+  freshness: Freshness;
+}
+export interface CodingVoiceRepository {
+  alias: string;
+  repository: string;
+  revision: number;
+}
+export interface CodingVoiceRepositoryPatch {
+  alias: string;
+  repository: string;
+}
+export interface CodingVoiceRepositoryResponse {
+  contractVersion: ContractVersion;
+  data: CodingVoiceRepository;
   freshness: Freshness;
 }
 /**
@@ -3702,6 +3720,12 @@ export interface VoiceAudioLevel {
   level: number;
   peak?: number;
   at: string;
+}
+export interface VoiceCodingRunRequest {
+  alias: string;
+  revision: number;
+  cli: "auto" | "codex" | "opencode" | "claude-code";
+  task: string;
 }
 export interface VoiceDevice {
   id: string;

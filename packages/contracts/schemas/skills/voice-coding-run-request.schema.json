@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/voice-coding-run-request.schema.json",
+  "title": "VoiceCodingRunRequest",
+  "type": "object",
+  "properties": {
+    "alias": { "type": "string", "minLength": 2, "maxLength": 32 },
+    "revision": { "type": "integer", "minimum": 1 },
+    "cli": { "type": "string", "enum": ["auto", "codex", "opencode", "claude-code"] },
+    "task": { "type": "string", "minLength": 10, "maxLength": 4000 }
+  },
+  "required": ["alias", "revision", "cli", "task"],
+  "additionalProperties": false
+}
