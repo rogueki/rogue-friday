@@ -14,6 +14,7 @@ import { useSettingsDrafts } from "./SettingsDrafts";
 import { HimalayaAccountSetup } from "./HimalayaAccountSetup";
 import { TelegramGatewaySetup } from "./TelegramGatewaySetup";
 import { MessagingGatewaySetup } from "./MessagingGatewaySetup";
+import { TelephonySetup } from "./TelephonySetup";
 import "@/features/skills/skills.css";
 
 type Integration = SkillCatalogEntry["integrationDetails"][number] & { requiredBy: string[] };
@@ -85,6 +86,12 @@ export function accountSetupView(item: Integration, keys: KeyStatus, hermes: Her
     href: "/settings?area=skillAccounts#coding-cli-setup-title",
     action: "Coding-CLI-Einrichtung ansehen",
     state: "Installation, Anmeldung und Modellzugriff je CLI prüfen",
+    location: null,
+  };
+  if (item.id === "telephony") return {
+    href: "/settings?area=skillAccounts#telephony-setup-title",
+    action: "SIP-Telefonie im Dashboard einrichten",
+    state: "Asterisk-ARI, SIP-Registrierung und Owner-Nebenstelle im Telefoniebereich prüfen",
     location: null,
   };
   const cliIds = { hermes_codex: "codex", hermes_opencode: "opencode", hermes_claude_code: "claude-code" } as const;
@@ -313,6 +320,7 @@ export function SkillAccountsArea() {
     <TelegramGatewaySetup owner={role === "owner"} />
     <MessagingGatewaySetup owner={role === "owner"} platform="discord" />
     <MessagingGatewaySetup owner={role === "owner"} platform="whatsapp" />
+    <TelephonySetup owner={role === "owner"} />
     <section aria-labelledby="wiki-path-setup-title">
       <h3 id="wiki-path-setup-title">Lokales Markdown-Wiki für Hermes</h3>
       <p>Der Skill llm-wiki liest Markdown in Friday-Ubuntu. Ohne eigenen Pfad verwendet er <code>~/wiki</code>. Gib einen vorhandenen absoluten Linux-Pfad ein; ein Windows-Ordner liegt dort unter <code>/mnt/c/...</code>. Das separate Obsidian-Vault-Feld gilt nicht für diesen Skill. Obsidian Sync ist optional und erfordert obsidian-headless und <code>ob login</code>.</p>

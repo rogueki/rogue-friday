@@ -42,4 +42,14 @@ if command -v hermes >/dev/null 2>&1; then
 else
     echo 'UNKNOWN Computer use: Hermes command unavailable for status/doctor'
 fi
-echo 'UNSUPPORTED Optional telephony: no bundled verified Friday dial adapter; a command or provider alone is insufficient'
+telephony_runner="$(dirname "$0")/telephony_runner.py"
+if [ -f "$telephony_runner" ]; then
+    telephony_status="$(python3 "$telephony_runner" status 2>/dev/null || true)"
+    if printf '%s' "$telephony_status" | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("ready") is True else 1)' 2>/dev/null; then
+        echo 'READY Optional telephony: local Asterisk/ARI, applied configuration, dialplan, owner endpoint and SIP registration observed (destination conversation not tested)'
+    else
+        echo 'NOT_READY Optional telephony: Asterisk/ARI, applied configuration, dialplan, owner endpoint or SIP registration unavailable; no call will be placed'
+    fi
+else
+    echo 'NOT_READY Optional telephony: Friday Asterisk bridge script missing'
+fi

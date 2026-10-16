@@ -433,6 +433,13 @@ export interface FridayModelMap {
   TelegramGateway: TelegramGateway;
   TelegramGatewayPatch: TelegramGatewayPatch;
   TelegramGatewayResponse: TelegramGatewayResponse;
+  TelephonyCallRequest: TelephonyCallRequest;
+  TelephonyCallResponse: TelephonyCallResponse;
+  TelephonyPreviewRequest: TelephonyPreviewRequest;
+  TelephonyPreviewResponse: TelephonyPreviewResponse;
+  TelephonyProfilePatch: TelephonyProfilePatch;
+  TelephonyStatus: TelephonyStatus;
+  TelephonyStatusResponse: TelephonyStatusResponse;
   Theme: Theme;
   ThemeImportRequest: ThemeImportRequest;
   ThemeListResponse: ThemeListResponse;
@@ -3889,6 +3896,65 @@ export interface TelegramGatewayPatch {
 export interface TelegramGatewayResponse {
   contractVersion: ContractVersion;
   data: TelegramGateway;
+  freshness: Freshness;
+}
+export interface TelephonyCallRequest {
+  destination: string;
+  previewToken: string;
+}
+export interface TelephonyCallResponse {
+  contractVersion: ContractVersion;
+  data: {
+    id: string;
+    destination: string;
+    state: "pending" | "requested" | "owner_answered" | "ended" | "failed" | "unknown";
+    adapterStatus: number | null;
+    createdAt: string;
+    updatedAt: string;
+    replayed?: boolean;
+  };
+  freshness: Freshness;
+}
+export interface TelephonyPreviewRequest {
+  destination: string;
+}
+export interface TelephonyPreviewResponse {
+  contractVersion: ContractVersion;
+  data: {
+    destination: string;
+    callerId: string;
+    mode: "local" | "trunk";
+    expiresAt: string;
+    token: string;
+  };
+  freshness: Freshness;
+}
+export interface TelephonyProfilePatch {
+  mode: "local" | "trunk";
+  ariUser: string;
+  ariPassword: string;
+  ariPort: number;
+  ownerEndpoint: string;
+  callerId: string;
+  sipHost?: string;
+  sipUser?: string;
+  sipPassword?: string;
+}
+export interface TelephonyStatus {
+  configured: boolean;
+  mode: "local" | "trunk" | null;
+  ariReachable: boolean;
+  registration: "unavailable" | "unknown" | "unregistered" | "registered" | "not_required";
+  ownerEndpoint: "unknown" | "online" | "offline";
+  configurationApplied: boolean;
+  dialplanLoaded: boolean;
+  ready: boolean;
+  revision: number;
+  callerId: string | null;
+}
+export interface TelephonyStatusResponse {
+  contractVersion: ContractVersion;
+  data: TelephonyStatus;
   freshness: Freshness;
 }
 export interface ThemeImportRequest {

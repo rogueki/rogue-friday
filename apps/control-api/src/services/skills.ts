@@ -14,6 +14,7 @@ type HimalayaFlags = Readonly<{ readyForLocalUse: boolean }>;
 type TelegramFlags = Readonly<{ tokenConfigured: boolean; allowedUserIds: string[]; enabled: boolean | null }>;
 type DiscordFlags = Readonly<{ tokenConfigured?: boolean; allowedUserIds: string[]; enabled: boolean | null }>;
 type WhatsappFlags = Readonly<{ sessionPresent?: boolean; allowedUserIds: string[]; enabled: boolean | null }>;
+type TelephonyFlags = Readonly<{ ready: boolean }>;
 const HERMES_KEY_INTEGRATIONS = {
   hermes_airtable: "AIRTABLE_API_KEY", hermes_notion: "NOTION_API_KEY",
   hermes_gif_search: "TENOR_API_KEY", hermes_blocked_page_recovery: "JINA_API_KEY",
@@ -56,7 +57,7 @@ const HERMES_SETUP: Record<string, { account: "none" | "conditional" | "required
   songsee: { account: "none", setupDe: "Songsee benötigt Go zur Installation. ffmpeg ist optional für Audioformate außer WAV und MP3.", capability: "Go und installierbares songsee-CLI; optional ffmpeg für weitere Audioformate" },
   "manim-video": { account: "none", setupDe: "Für Animationen Python 3.10+, Manim Community Edition 0.20+, LaTeX und ffmpeg installieren. Der Hermes-Skill nennt diese lokalen Programme ausdrücklich als Voraussetzung.", capability: "Python 3.10+, Manim CE 0.20+, LaTeX und ffmpeg" },
   "youtube-content": { account: "none", setupDe: "Der Skill nutzt youtube_transcript_api. Hermes dokumentiert dessen Installation über das optionale `youtube`-Extra in einer PM-vorbereiteten Hermes-Umgebung; nicht ungeprüft in die laufende Hermes-Umgebung pip-installieren. YouTube-Videos müssen öffentlich abrufbare Transkripte bereitstellen.", capability: "Hermes-Python-Umgebung mit youtube extra / youtube_transcript_api und abrufbares YouTube-Transkript" },
-  telephony: { account: "conditional", setupDe: "Für Telefonie ist derzeit kein in Friday verifizierter Anrufadapter eingerichtet. Erst einen unterstützten Provider und einen prüfbaren Adapter anbinden; im Dashboard keinen funktionierenden Anruf versprechen.", capability: "Verifizierter Telefonieadapter und Provider" },
+  telephony: { account: "conditional", setupDe: "Optionaler Asterisk-SIP-Rufpfad unter Einstellungen > Skill-Konten > Telefonie. Friday prueft ARI, SIP-Registrierung und Owner-Nebenstelle. Jede Zielnummer braucht eine separate Owner-Bestaetigung. Friday-Sprachdialog am Telefon und Zielkanal-Verifikation fehlen noch.", capability: "Bereiter Asterisk-ARI-Dienst, SIP-Owner-Nebenstelle und fuer externe Nummern registrierter SIP-Trunk" },
   "architecture-diagram": { account: "none", setupDe: "Erstellt ein eigenständiges HTML-Diagramm mit eingebettetem SVG. Der Hermes-Skill nennt keine externen Werkzeuge oder API-Schlüssel.", capability: "Schreibbarer Ausgabeordner für HTML und SVG" },
   arxiv: { account: "none", setupDe: "Recherchiert über die frei zugängliche arXiv-API mit curl. Dafür ist Netzwerkzugriff erforderlich; ein arXiv-Konto oder API-Key ist laut Skill nicht nötig.", capability: "curl und Netzwerkzugriff auf die arXiv-API" },
   "ascii-video": { account: "none", setupDe: "Wandelt lokale Videos und Audiodateien mit der dokumentierten FFmpeg-Pipeline in ASCII-Video um. Eingabedatei, FFmpeg und ein beschreibbarer Ausgabeordner müssen vorhanden sein.", capability: "Lokale Mediendatei und FFmpeg für die Video-Pipeline" },
@@ -114,6 +115,7 @@ export class SkillsService {
   private readonly telegramGatewayStatus: (() => Promise<TelegramFlags>) | undefined;
   private readonly discordGatewayStatus: (() => Promise<DiscordFlags>) | undefined;
   private readonly whatsappGatewayStatus: (() => Promise<WhatsappFlags>) | undefined;
+  private readonly telephonyStatus: (() => Promise<TelephonyFlags>) | undefined;
   private readonly codingCliStatus: (() => Promise<CodingCliStatus[]>) | undefined;
   private readonly localCalendarStatus: (() => boolean) | undefined;
   private readonly calendarAdapterStatus: (() => AdapterConfigSettings[]) | undefined;
@@ -128,6 +130,7 @@ export class SkillsService {
     telegramGatewayStatus?: () => Promise<TelegramFlags>;
     discordGatewayStatus?: () => Promise<DiscordFlags>;
     whatsappGatewayStatus?: () => Promise<WhatsappFlags>;
+    telephonyStatus?: () => Promise<TelephonyFlags>;
     codingCliStatus?: () => Promise<CodingCliStatus[]>;
     localCalendarStatus?: () => boolean;
     calendarAdapterStatus?: () => AdapterConfigSettings[] }) {
@@ -141,6 +144,7 @@ export class SkillsService {
     this.telegramGatewayStatus = options.telegramGatewayStatus;
     this.discordGatewayStatus = options.discordGatewayStatus;
     this.whatsappGatewayStatus = options.whatsappGatewayStatus;
+    this.telephonyStatus = options.telephonyStatus;
     this.codingCliStatus = options.codingCliStatus;
     this.localCalendarStatus = options.localCalendarStatus;
     this.calendarAdapterStatus = options.calendarAdapterStatus;
@@ -277,6 +281,7 @@ export class SkillsService {
     const needsTelegram = integrationIds.has("telegram_gateway");
     const needsDiscord = integrationIds.has("discord_gateway");
     const needsWhatsapp = integrationIds.has("whatsapp_gateway");
+    const needsTelephony = integrationIds.has("telephony");
     const needsCodingCli = Object.keys(CODING_CLI_INTEGRATIONS).some((id) => integrationIds.has(id));
     let localCalendar: boolean | null = null;
     if (integrationIds.has("friday_local_calendar") && this.localCalendarStatus) {
@@ -291,7 +296,7 @@ export class SkillsService {
           && adapter.secretFields.password?.configured);
       } catch { /* A failed adapter status read is unknown, not unconfigured. */ }
     }
-    const [hermesKeys, vault, wiki, himalaya, codingClis, telegram, discord, whatsapp] = await Promise.all([
+    const [hermesKeys, vault, wiki, himalaya, codingClis, telegram, discord, whatsapp, telephony] = await Promise.all([
       needsHermesKeys && this.hermesKeyStatus ? Promise.resolve().then(() => this.hermesKeyStatus!()).catch(() => null) : Promise.resolve(null),
       needsVault && this.obsidianVaultStatus ? Promise.resolve().then(() => this.obsidianVaultStatus!()).catch(() => null) : Promise.resolve(null),
       needsWiki && this.wikiPathStatus ? Promise.resolve().then(() => this.wikiPathStatus!()).catch(() => null) : Promise.resolve(null),
@@ -300,6 +305,7 @@ export class SkillsService {
       needsTelegram && this.telegramGatewayStatus ? Promise.resolve().then(() => this.telegramGatewayStatus!()).catch(() => null) : Promise.resolve(null),
       needsDiscord && this.discordGatewayStatus ? Promise.resolve().then(() => this.discordGatewayStatus!()).catch(() => null) : Promise.resolve(null),
       needsWhatsapp && this.whatsappGatewayStatus ? Promise.resolve().then(() => this.whatsappGatewayStatus!()).catch(() => null) : Promise.resolve(null),
+      needsTelephony && this.telephonyStatus ? Promise.resolve().then(() => this.telephonyStatus!()).catch(() => null) : Promise.resolve(null),
     ]);
     for (const skill of skills) skill.integrationDetails = skill.integrationDetails.map((detail) => {
       if (detail.id === "friday_local_calendar") return { ...detail, configured: localCalendar };
@@ -321,6 +327,7 @@ export class SkillsService {
         configured: discord ? Boolean(discord.tokenConfigured) && discord.allowedUserIds.length > 0 && discord.enabled === true : null };
       if (detail.id === "whatsapp_gateway") return { ...detail,
         configured: whatsapp ? Boolean(whatsapp.sessionPresent) && whatsapp.allowedUserIds.length > 0 && whatsapp.enabled === true : null };
+      if (detail.id === "telephony") return { ...detail, configured: telephony ? telephony.ready : null };
       const cli = CODING_CLI_INTEGRATIONS[detail.id as keyof typeof CODING_CLI_INTEGRATIONS];
       if (cli) {
         const status = codingClis?.find((entry) => entry.cli === cli);

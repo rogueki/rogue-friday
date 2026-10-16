@@ -37,6 +37,7 @@ import { WikiPathService } from "../services/wiki-path";
 import { HimalayaAccountService } from "../services/himalaya-account";
 import { TelegramGatewayService } from "../services/telegram-gateway";
 import { MessagingGatewayService } from "../services/messaging-gateways";
+import { TelephonyService } from "../services/telephony";
 import { HimalayaSendService } from "../services/himalaya-send";
 import { CalDavCreateService } from "../services/caldav-create";
 import { LocalCalendarService } from "../services/local-calendar";
@@ -247,6 +248,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const telegramGateway = new TelegramGatewayService(config.paths.dataDir);
   const discordGateway = new MessagingGatewayService(config.paths.dataDir, "discord");
   const whatsappGateway = new MessagingGatewayService(config.paths.dataDir, "whatsapp");
+  const telephony = new TelephonyService(db, config.paths.dataDir, deriveKey(serverKey.key, "telephony-preview"), undefined, options.now);
   const himalayaSend = new HimalayaSendService(db, himalayaAccount);
   const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
@@ -262,6 +264,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     telegramGatewayStatus: () => telegramGateway.status(),
     discordGatewayStatus: () => discordGateway.status(),
     whatsappGatewayStatus: () => whatsappGateway.status(),
+    telephonyStatus: () => telephony.status(),
     codingCliStatus: () => codingRuns.cliStatus(),
     localCalendarStatus: () => { new LocalCalendarService(db).list(undefined, undefined, undefined, 1); return true; },
     calendarAdapterStatus: () => adapterSettings.list(),
@@ -455,6 +458,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     telegramGateway,
     discordGateway,
     whatsappGateway,
+    telephony,
     himalayaSend,
     caldavCreate,
     hermesSkillKeys,

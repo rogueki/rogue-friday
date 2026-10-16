@@ -29,6 +29,7 @@ import type { CalDavCreateService } from "../services/caldav-create";
 import type { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import type { CodingRunsService } from "../services/coding-runs";
 import type { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
+import type { TelephonyService } from "../services/telephony";
 import type { FrontendTelemetryService } from "../services/telemetry";
 import type { AdapterWiring } from "./adapter-wiring";
 
@@ -83,6 +84,7 @@ export interface Runtime {
   telegramGateway: TelegramGatewayService;
   discordGateway: MessagingGatewayService;
   whatsappGateway: MessagingGatewayService;
+  telephony: TelephonyService;
   himalayaSend: HimalayaSendService;
   caldavCreate: CalDavCreateService;
   hermesSkillKeys: HermesSkillKeysService;

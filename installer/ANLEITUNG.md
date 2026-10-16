@@ -274,7 +274,7 @@ Die verfügbaren Konten und Nachrichten-Gateways richtest du im Friday Dashboard
 - **WhatsApp:** Öffne über den Link in den Friday-Einstellungen das lokale Hermes-Dashboard und melde dich dort an. Unter **Channels → WhatsApp** koppelst du das Telefon mit dem angezeigten QR-Code. Kehre dann zu Friday zurück und speichere den Modus sowie deine Telefonnummer mit Ländervorwahl, ohne `+`. Eine lokale Session-Datei allein bestätigt keine aktive WhatsApp-Verbindung.
 - **E-Mail:** Für IMAP/SMTP-Setup und den getrennten IMAP-Lesetest siehe oben **Optionales IMAP-/SMTP-Postfach**. Das Speichern prüft die Konfiguration; SMTP und Versand werden dadurch nicht getestet.
 - **Kalender:** Für ICS und CalDAV siehe oben **Kalender aus ICS lesen oder CalDAV verwenden**. Der dort beschriebene Anschluss und seine Schreibgrenzen gelten weiterhin.
-- **Telefonie:** Ein Telefonieanbieter und ein Dial-Adapter sind derzeit nicht eingerichtet; echte Anrufe sind daher noch nicht verfügbar.
+- **Telefonie:** Der optionale [Asterisk-SIP-Einrichtungsweg](wsl/TELEPHONY.md) erlaubt einen vom Owner einzeln bestätigten Ruf von seiner SIP-Nebenstelle zu einer lokalen Nebenstelle oder über einen eigenen registrierten Trunk zu einer externen Nummer. Asterisk und SIP-Konto sind in der Testinstallation nicht eingerichtet; ein echter Anruf und Fridays Sprachdialog im Telefonat sind noch nicht abgenommen.
 
 Regel: Lesen/Entwürfe macht der Assistent selbst. **Senden, Löschen, Termine ändern, Zahlungen nur nach deiner Bestätigung.**
 
