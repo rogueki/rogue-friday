@@ -495,15 +495,22 @@ class VoiceService:
     def _handle_command(self, audio: np.ndarray, wake_audio: np.ndarray | None) -> None:
         t0 = time.monotonic()
         probe = np.concatenate([wake_audio, audio]) if wake_audio is not None else audio
-        score = self.verifier.score(probe)
+        combined_score = self.verifier.score(probe)
+        command_score = self.verifier.score(audio) if wake_audio is not None and len(audio) >= SR else -1.0
+        # A verified question is sufficient when the longer wake window contains stale/noisy audio.
+        score = max(combined_score, command_score)
+        probe_details = {"wake_s": round(len(wake_audio) / SR, 2) if wake_audio is not None else 0,
+                         "command_s": round(len(audio) / SR, 2),
+                         "command_score": round(command_score, 3) if command_score >= 0 else None}
         if score == -1.0:
             # Zu wenig Sprache fuer ein Embedding (Raeuspern, Geraeusch): ignorieren, Session nicht beenden.
-            log_event(event="too_short", followup=wake_audio is None)
+            log_event(event="too_short", followup=wake_audio is None, **probe_details)
             return
         if score < self.cfg["speaker_threshold"]:
             self.status["rejected_speaker"] += 1
             self.trusted_until = 0.0  # Plan: unbekannter Sprecher schliesst die Trusted Session sofort
-            log_event(event="speaker_rejected", score=round(score, 3), followup=wake_audio is None)
+            log_event(event="speaker_rejected", score=round(score, 3), followup=wake_audio is None,
+                      **probe_details)
             return
         self.trusted_until = time.monotonic() + self.cfg["trusted_session_s"]
         t_stt = time.monotonic()
@@ -622,6 +629,12 @@ class VoiceService:
         if self.engine == "personal":
             while not self.audio_q.empty():
                 backlog.append(self.audio_q.get_nowait())
+            # A quick phrase check leaves only the tail of the wake word here. Feeding that
+            # tail to VAD starts a false command and closes it before the user asks a question.
+            if len(backlog) * CHUNK < SR // 2:
+                backlog.clear()
+            else:
+                backlog = backlog[min(len(backlog), 4):]
         winsound.Beep(1200, 80)
         # Waehrend des Pieptons aufgenommene Bloecke verwerfen: sonst startet der Piepton selbst die
         # Befehlsaufnahme und endet nach 0,7 s "Stille" mit leerem Transkript (live beobachtet).
