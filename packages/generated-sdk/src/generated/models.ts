@@ -221,6 +221,9 @@ export interface FridayModelMap {
   CommandHistoryEntryListResponse: CommandHistoryEntryListResponse;
   CommandRequest: CommandRequest;
   CommandResponse: CommandResponse;
+  ContentPlanDocument: ContentPlanDocument;
+  ContentPlanState: ContentPlanState;
+  ContentPlanStateResponse: ContentPlanStateResponse;
   ContentStudioKeyPatch: ContentStudioKeyPatch;
   ContentStudioKeys: ContentStudioKeys;
   ContentStudioKeysResponse: ContentStudioKeysResponse;
@@ -1703,6 +1706,58 @@ export interface CommandResponse {
     targetRoute?: string;
   } | null;
   correlationId: string;
+}
+export interface ContentPlanDocument {
+  version: 1;
+  exportiert_am?: string;
+  content: {
+    id: string;
+    titel: string;
+    plattform: "LinkedIn" | "Instagram" | "Facebook" | "TikTok" | "YouTube" | "Beide";
+    ziele?: ("LinkedIn" | "Instagram" | "Facebook" | "TikTok" | "YouTube")[];
+    format:
+      | "Reel"
+      | "Feed-Post"
+      | "Story"
+      | "Karussell"
+      | "LinkedIn-Video"
+      | "LinkedIn-Karussell"
+      | "TikTok-Video"
+      | "YouTube-Video"
+      | "YouTube-Short";
+    beschreibung: string;
+    zieldatum: string;
+    status: "idee" | "in-arbeit" | "fertig";
+  }[];
+  postings: {
+    id: string;
+    datum: string;
+    uhrzeit: string;
+    plattform: "LinkedIn" | "Instagram" | "Facebook" | "TikTok" | "YouTube";
+    ziele?: ("LinkedIn" | "Instagram" | "Facebook" | "TikTok" | "YouTube")[];
+    format:
+      | "Reel"
+      | "Feed-Post"
+      | "Story"
+      | "Karussell"
+      | "LinkedIn-Video"
+      | "LinkedIn-Karussell"
+      | "TikTok-Video"
+      | "YouTube-Video"
+      | "YouTube-Short";
+    titel: string;
+    status: "geplant" | "gepostet" | "verpasst";
+  }[];
+}
+export interface ContentPlanState {
+  revision: number;
+  plan: ContentPlanDocument | null;
+  updatedAt: string | null;
+}
+export interface ContentPlanStateResponse {
+  contractVersion: ContractVersion;
+  data: ContentPlanState;
+  freshness: Freshness;
 }
 export interface ContentStudioKeyPatch {
   provider: "kie" | "elevenlabs" | "capcut";

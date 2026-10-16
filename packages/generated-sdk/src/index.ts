@@ -10,3 +10,5 @@ export { FridayApiError, isFridayApiError } from "./errors";
 export { createSchemaValidator } from "./validator";
 export type { SchemaValidator, ValidationIssue, ValidationResult } from "./validator";
 export { isControlFrame, isEventOfType, isFridayEvent, isFridayEventType } from "./event-helpers";
+export { parseStudioPlan, ideaTargets, postingTargets, platforms } from "./content-plan";
+export type { StudioPlan, ContentIdea, Posting, Platform, ContentFormat, IdeaStatus, PostingStatus } from "./content-plan";

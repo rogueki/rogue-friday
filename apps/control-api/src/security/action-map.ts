@@ -47,6 +47,8 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   updateSettings: "settings.update",
   getContentStudioKeys: "settings.update",
   updateContentStudioKey: "settings.update",
+  getContentStudioPlan: "settings.update",
+  putContentStudioPlan: "settings.update",
   createKieTask: "settings.update",
   getKieTask: "settings.update",
   createElevenSpeech: "settings.update",

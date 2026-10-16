@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/content-studio/plan-state.schema.json",
+  "title": "ContentPlanState",
+  "type": "object",
+  "properties": {
+    "revision": { "type": "integer", "minimum": 0 },
+    "plan": { "anyOf": [{ "$ref": "../content-studio/plan-document.schema.json" }, { "type": "null" }] },
+    "updatedAt": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] }
+  },
+  "required": ["revision", "plan", "updatedAt"],
+  "additionalProperties": false
+}
