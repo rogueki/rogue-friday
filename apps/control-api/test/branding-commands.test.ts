@@ -59,6 +59,40 @@ it("routes voice stop, pause and resume to the authenticated local voice service
   }
 });
 
+it("controls live voice and the command adapter for the bottom bar's all scope", async () => {
+  const providerFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 202 }));
+  const commandPort = {
+    stopCommand: vi.fn(async () => ({ accepted: true, status: "completed", correlationId: "corr_test", message: "Tasks stopped" })),
+    pauseCommand: vi.fn(async () => ({ accepted: true, status: "completed", correlationId: "corr_test", message: "Tasks paused" })),
+    resumeCommand: vi.fn(async () => ({ accepted: true, status: "completed", correlationId: "corr_test", message: "Tasks resumed" })),
+  };
+  const ctx = {
+    runtime: {
+      config: { adapters: { voice: { provider: "friday-voice-http", config: { baseUrl: "http://127.0.0.1:43794" } } } },
+      voiceBridgeKey: Buffer.from("test-bridge-key"),
+      registry: { getPort: () => commandPort },
+    },
+    spec: { method: "POST", responses: [{ status: 200 }] },
+    body: { scope: "all" },
+    pathParams: {},
+    query: {},
+    mutation: {},
+    correlationId: "corr_test",
+    audit: {},
+  } as unknown as RequestContext;
+  try {
+    for (const [operation, action] of [["stopCommand", "stop"], ["pauseCommand", "pause"], ["resumeCommand", "resume"]] as const) {
+      const response = await commandHandlers[operation]!(ctx);
+      expect((response.body as { accepted: boolean }).accepted).toBe(true);
+      expect(commandPort[operation]).toHaveBeenCalledOnce();
+      expect(providerFetch.mock.calls.at(-1)?.[0].toString()).toBe(`http://127.0.0.1:43794/control/${action}`);
+      commandPort[operation].mockClear();
+    }
+  } finally {
+    providerFetch.mockRestore();
+  }
+});
+
 describe("branding (assistantName)", () => {
   let api: TestApi;
   let owner: ApiClient;
