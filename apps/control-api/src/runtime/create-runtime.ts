@@ -118,7 +118,9 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   if (!serverKey.permissionsRestricted) logger.warn("Berechtigungen von auth.key konnten nicht eingeschränkt werden", { path: serverKey.path });
   const voiceBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "voice-bridge"));
   const calendarBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "calendar-bridge"));
+  const mailBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "mail-bridge"));
   if (!calendarBridgeKey.permissionsRestricted) logger.warn("Calendar bridge key permissions could not be restricted", { path: calendarBridgeKey.path });
+  if (!mailBridgeKey.permissionsRestricted) logger.warn("Mail bridge key permissions could not be restricted", { path: mailBridgeKey.path });
   if (!voiceBridgeKey.permissionsRestricted) logger.warn("Berechtigungen des Voice-Bridge-Schlüssels konnten nicht eingeschränkt werden", { path: voiceBridgeKey.path });
   const sessions = new SqliteSessionStore(db, {
     defaultTtlMs: config.auth.sessionTtlMinutes * 60_000,
@@ -431,6 +433,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     auth,
     voiceBridgeKey: voiceBridgeKey.key,
     calendarBridgeKey: calendarBridgeKey.key,
+    mailBridgeKey: mailBridgeKey.key,
     approvalTokens,
     settings,
     contentStudioKeys,

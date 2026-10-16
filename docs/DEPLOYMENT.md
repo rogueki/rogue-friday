@@ -16,6 +16,7 @@ exportierte Web (`apps/web/out`) auf **einem Port** aus (Standard `127.0.0.1:310
 | Programm (Kopie des Repos, ohne `installer/`, `.git`, `node_modules` der Quelle) | `C:\Friday\dashboard` |
 | Konfiguration | `C:\Friday\dashboard\config\dashboard.yaml`, `adapters.yaml` |
 | Daten (SQLite `dashboard.sqlite`, `auth.key`, `audit-head.json`) | `C:\Friday\dashboard\data` |
+| Mail-Lesebrücke | `C:\Friday\dashboard\data\mail-bridge\auth.key` und `~/.hermes/friday-mail-bridge.{key,json}` in WSL |
 | Sicherungen | `C:\Friday\dashboard\backups` |
 | Logs der Anwendung (JSON-Zeilen, rotierend) | `C:\Friday\logs\dashboard\` |
 | Ausgabe des Dienstes (stdout/stderr, Neustarts) | `C:\Friday\logs\dashboard-service.log` |
@@ -248,6 +249,8 @@ Regeln (PLAN §49.6, `docs/SECURITY.md` §5): Geheimnisse nur serverseitig, nie 
 | Hash des Owner-Passworts | `C:\Friday\config\dashboard_owner.hash`, Referenz `auth.ownerPasswordHash: file:C:/Friday/config/dashboard_owner.hash` | scrypt-Hash (N=2^15, r=8, p=1), `icacls /inheritance:r`, Benutzer RW, SYSTEM R; Passwort selbst wird nirgends gespeichert oder geloggt |
 | Server-Schlüssel (CSRF, Approval-Tokens) | `C:\Friday\dashboard\data\auth.key` | von der Control API beim ersten Start mit Rechten nur für den Benutzer angelegt; Verlust macht nur Tokens ungültig |
 | Weitere Adapter-Secrets (Mail, Kalender, später) | Windows Credential Manager (`wincred:ZIEL`, PowerShell-Modul `CredentialManager`) oder `env:NAME` | nie als Klartext in Dateien; über die API write-only |
+
+Nach einem erfolgreichen Dashboard-Start und der Friday-Skills-Installation kopiert der Installer das Mail-Leseplugin aus `friday-skills` nach Hermes. Der separate lokale Dienstschlüssel geht nur über stdin nach WSL; die dortigen Dateien haben Modus 0600. Das Plugin darf nur Postfachliste und Nachrichtenvorschau lesen, nicht senden oder löschen. Eine ausdrücklich deaktivierte Hermes-Plugin-Konfiguration wird respektiert. Bei einem Plugin-Fehler bleibt das Dashboard-Postfach verfügbar; nach Behebung erneut `-UpdateDashboard` ausführen. Ein eingerichtetes IMAP/SMTP-Konto ist für echte Postfachdaten weiterhin erforderlich.
 
 Begründung der Ablage des Owner-Hashs als Datei statt als Benutzer-Umgebungsvariable: Eine `User`-Umgebungsvariable ist für **jeden**
 Prozess des Benutzers lesbar, wird in Prozessabbildern vererbt und erscheint in Diagnosewerkzeugen; eine Datei mit ACL entspricht dem

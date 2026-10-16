@@ -102,7 +102,7 @@ function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '') {
     # Skriptdateien statt Befehlszeilen: wsl.exe wuerde $VARIABLEN sonst vorzeitig expandieren.
     $wslEnv = @("FRIDAY_INSTALLER=$WslInstPath", "FRIDAY_CONFIG=$WslConfigPath", "FRIDAY_ROOT=$WslRootPath",
                 "FRIDAY_DASH_PORT=$($Ports.Dashboard)", "FRIDAY_API_PORT=$($Ports.HermesApi)",
-                "FRIDAY_QWEN_PORT=$($Ports.Qwen)", "FRIDAY_CALENDAR_PORT=$DashPort")
+                "FRIDAY_QWEN_PORT=$($Ports.Qwen)", "FRIDAY_CALENDAR_PORT=$DashPort", "FRIDAY_MAIL_PORT=$DashPort")
     $out = if ($StdIn) { $StdIn | & wsl.exe -d $Distro -u $User --exec env @wslEnv bash $Script 2>&1 } else { & wsl.exe -d $Distro -u $User --exec env @wslEnv bash $Script 2>&1 }
     $lines = @($out | ForEach-Object { "$_" })
     $lines | ForEach-Object { Write-Host "     $_" -ForegroundColor DarkGray }
@@ -1929,6 +1929,29 @@ if (-not $ChangeVoice -and (IsDone 'skills') -and (IsDone 'dashboard')) {
             else { Warn 'Hermes-Kalenderleser nicht eingerichtet; Kalender im Dashboard bleibt verfuegbar.' }
         } finally { $calendarKey = $null }
     } else { Warn 'Kalender-Dienstschluessel fehlt; Dashboard-Health und API-Start pruefen.' }
+}
+
+# The mail bridge has its own read-only API credential. Keep it out of WSL
+# command arguments, console output, and the general Hermes/voice credentials.
+if (-not $ChangeVoice -and (IsDone 'skills') -and (IsDone 'dashboard')) {
+    $mailKeyFile = "$Dash\data\mail-bridge\auth.key"
+    $mailHealth = Test-DashboardHealth 3
+    if (-not $mailHealth.Up -or $mailHealth.Code -lt 200 -or $mailHealth.Code -ge 300) {
+        Warn 'Mail-Bruecke nicht eingerichtet: Dashboard-Healthcheck ist nicht erfolgreich.'
+    } elseif (Test-Path -LiteralPath $mailKeyFile -PathType Leaf) {
+        $mailKey = [IO.File]::ReadAllText($mailKeyFile).Trim()
+        try {
+            if ($mailKey -notmatch '^[A-Za-z0-9+/]{43}=$') {
+                Warn 'Mail-Dienstschluessel ungueltig; Hermes-Mailleser nicht eingerichtet.'
+            } else {
+                $mailBridgeResult = Wsl-Run $State.linux_user "$WslInstPath/wsl/setup_mail_bridge.sh" $mailKey
+                if ($mailBridgeResult -match 'FRIDAY_MAIL_BRIDGE_READY') { Ok 'Hermes-Mailleser mit privatem lokalem Schluessel eingerichtet.' }
+                else { Warn 'Hermes-Mailleser nicht eingerichtet; Postfach im Dashboard bleibt verfuegbar.' }
+            }
+        } catch {
+            Warn 'Hermes-Mailleser nicht eingerichtet; Postfach im Dashboard bleibt verfuegbar.'
+        } finally { $mailKey = $null }
+    } else { Warn 'Mail-Dienstschluessel fehlt; Dashboard-Health und API-Start pruefen.' }
 }
 
 # ================================================================ Zusatz: Service-Watchdog (FRIDAY_Watchdog)
