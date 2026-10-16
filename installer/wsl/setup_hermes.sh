@@ -15,8 +15,10 @@ XDG_RUNTIME_DIR="/run/user/$(id -u)"
 export XDG_RUNTIME_DIR
 INST="${FRIDAY_INSTALLER:-/mnt/c/Friday/installer}"
 CFG="${FRIDAY_CONFIG:-/mnt/c/Friday/config}"
+ROOT="${FRIDAY_ROOT:-/mnt/c/Friday}"
 DASH_PORT="${FRIDAY_DASH_PORT:-43691}"
 API_PORT="${FRIDAY_API_PORT:-43693}"
+QWEN_PORT="${FRIDAY_QWEN_PORT:-43692}"
 H="$HOME/.hermes"
 step() { printf '\n==> %s\n' "$*"; }
 
@@ -46,7 +48,7 @@ else
 fi
 hermes config set agent.reasoning_effort low
 hermes config set stt.language de
-hermes config set terminal.cwd /mnt/c/Friday/exchange
+hermes config set terminal.cwd "$ROOT/exchange"
 
 step "Kimi K3 testen"
 OUT="$(timeout 240 hermes -z "Antworte exakt mit: KIMI_K3_OK" </dev/null 2>&1 | tail -5 || true)"
@@ -54,7 +56,7 @@ if printf '%s' "$OUT" | grep -q "KIMI_K3_OK"; then echo "KIMI_OK"; else echo "WA
 
 step "Persoenlichkeit (SOUL.md)"
 [ -f "$H/SOUL.md" ] && cp "$H/SOUL.md" "$HOME/friday/backups/SOUL.md.bak-$(date +%Y%m%d-%H%M%S)"
-python3 "$INST/common/persona.py" "$CFG/persona.json" "$H/SOUL.md"
+python3 "$INST/common/persona.py" "$CFG/persona.json" "$H/SOUL.md" "$ROOT" "$QWEN_PORT" "$DASH_PORT"
 
 step "API-Server fuer die Sprachsteuerung (nur 127.0.0.1:$API_PORT)"
 API_KEY="$(tr -d '\r\n' < "$CFG/hermes_api.key")"

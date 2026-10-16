@@ -10,8 +10,8 @@
   C:\Friday\dashboard installiert; -UpdateDashboard (update-dashboard.bat) spielt nur dieses Update ein.
   Start per Doppelklick auf install-friday.bat. Kann jederzeit erneut gestartet werden: erledigte Schritte
   werden uebersprungen (Fortschritt: C:\Friday\config\install-state.json).
-  Ein bestehender abweichender InstallRoot kann gezielt mit -UpdateDashboard oder -ChangeVoice aktualisiert werden;
-  Distribution und Ports werden ausschliesslich aus seinem gespeicherten Zustand uebernommen.
+  Fuer einen frischen abweichenden InstallRoot sind -DistroName und -DistroLocation erforderlich.
+  Bei Folgelaeufen werden Distribution und Ports aus dem gespeicherten Zustand uebernommen.
   Am Ende richtet ein Zusatzschritt den Service-Watchdog ein (Aufgabe FRIDAY_Watchdog, alle 5 Minuten, unsichtbar).
 #>
 param([switch]$Resume, [switch]$ChangeName, [switch]$ChangeVoice, [switch]$UpdateDashboard,
@@ -36,8 +36,11 @@ $Root   = $InstallRoot
 $Inst   = "$Root\installer"
 $Distro = 'Ubuntu'
 $Ports  = @{ Dashboard = 43691; Qwen = 43692; HermesApi = 43693; Voice = 43694; CommandCenter = 3100 }
+$WslRootPath = '/mnt/c/Friday'
+$WslInstPath = "$WslRootPath/installer"
+$WslConfigPath = "$WslRootPath/config"
 $ResumeTask = 'FRIDAY_Installation_fortsetzen'
-# Command Center (Schritt 15). Zielpfad C:\Friday\dashboard weicht bewusst von PLAN §54 (D:\Friday\dashboard) ab, siehe docs/DEPLOYMENT.md.
+# Command Center (Schritt 15) liegt unter dem gewaehlen InstallRoot.
 $Dash       = "$Root\dashboard"
 $DashUrl    = "http://127.0.0.1:$($Ports.CommandCenter)"
 $DashPort   = $Ports.CommandCenter
@@ -97,10 +100,27 @@ function Plain([Security.SecureString]$s) {
 function Native([scriptblock]$cmd) { & $cmd 2>&1 | ForEach-Object { "$_" } }
 function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '') {
     # Skriptdateien statt Befehlszeilen: wsl.exe wuerde $VARIABLEN sonst vorzeitig expandieren.
-    $out = if ($StdIn) { $StdIn | & wsl.exe -d $Distro -u $User --exec bash $Script 2>&1 } else { & wsl.exe -d $Distro -u $User --exec bash $Script 2>&1 }
+    $wslEnv = @("FRIDAY_INSTALLER=$WslInstPath", "FRIDAY_CONFIG=$WslConfigPath", "FRIDAY_ROOT=$WslRootPath",
+                "FRIDAY_DASH_PORT=$($Ports.Dashboard)", "FRIDAY_API_PORT=$($Ports.HermesApi)",
+                "FRIDAY_QWEN_PORT=$($Ports.Qwen)")
+    $out = if ($StdIn) { $StdIn | & wsl.exe -d $Distro -u $User --exec env @wslEnv bash $Script 2>&1 } else { & wsl.exe -d $Distro -u $User --exec env @wslEnv bash $Script 2>&1 }
     $lines = @($out | ForEach-Object { "$_" })
     $lines | ForEach-Object { Write-Host "     $_" -ForegroundColor DarkGray }
     return ($lines -join "`n")
+}
+function Get-WslPath([string]$WindowsPath) {
+    $output = @(& wsl.exe -d $Distro -u root --exec wslpath -a -u $WindowsPath 2>$null)
+    $exitCode = $LASTEXITCODE
+    $linuxPath = $output | Select-Object -First 1
+    if ($exitCode -ne 0 -or -not "$linuxPath".StartsWith('/')) { Stop-Install "WSL kann den Installationspfad nicht einbinden: $WindowsPath" }
+    return "$linuxPath".Trim()
+}
+function Assert-CustomDistroLocation {
+    $registration = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss' -ErrorAction SilentlyContinue |
+        Get-ItemProperty | Where-Object { $_.DistributionName -eq $Distro } | Select-Object -First 1
+    if (-not $registration -or [IO.Path]::GetFullPath($registration.BasePath).TrimEnd('\') -ine $DistroLocation) {
+        Stop-Install "Ablageort der WSL-Distribution '$Distro' stimmt nicht mit $DistroLocation ueberein."
+    }
 }
 function Wait-Http($url, $seconds, $headers = @{}) {
     $until = (Get-Date).AddSeconds($seconds)
@@ -585,11 +605,18 @@ function Show-MigrationSummary {
 
 $CustomRoot = $Root -ine 'C:\Friday'
 if ($CustomRoot) {
-    if (-not ($UpdateDashboard -or $ChangeVoice) -or $ChangeName) {
-        Stop-Install 'Ein bestehender InstallRoot ausserhalb C:\Friday unterstuetzt derzeit nur -UpdateDashboard oder -ChangeVoice. Eine komplette Neuinstallation/Umbenennung hier ist noch nicht freigegeben.'
+    if (-not (Test-Path -LiteralPath "$Root\config\install-state.json" -PathType Leaf) -and
+        ($UpdateDashboard -or $ChangeVoice -or $ChangeName)) {
+        Stop-Install "Keine bestehende Installation in $Root gefunden. Bitte zuerst die vollstaendige Installation ausfuehren."
     }
-    if (-not (Test-Path -LiteralPath "$Root\config\install-state.json" -PathType Leaf)) {
-        Stop-Install "Keine bestehende Installation in $Root gefunden. Fuer diesen Pfad ist nur ein gezieltes Update zulaessig."
+    if (-not (Test-Path -LiteralPath "$Root\config\install-state.json" -PathType Leaf) -and
+        (-not $DistroName -or -not $DistroLocation)) {
+        Stop-Install 'Frische Installation ausserhalb C:\Friday erfordert -DistroName und -DistroLocation.'
+    }
+    if (-not (Test-Path -LiteralPath "$Root\config\install-state.json" -PathType Leaf) -and
+        (Test-Path -LiteralPath $Root -PathType Container) -and
+        (Get-ChildItem -LiteralPath $Root -Force | Select-Object -First 1)) {
+        Stop-Install "Der frische InstallRoot ist nicht leer: $Root. Bestehende Daten werden nicht ueberschrieben."
     }
 } else {
     $legacyItem = Get-Item -LiteralPath $LegacyRoot -Force -ErrorAction SilentlyContinue
@@ -617,7 +644,8 @@ Start-Transcript -Path "$Root\logs\install-$(Get-Date -Format yyyyMMdd-HHmmss).l
 # ---------------------------------------------------------------- Fortschritt
 $StateFile = "$Root\config\install-state.json"
 $State = @{ done = @() }
-if (Test-Path $StateFile) {
+$ExistingState = Test-Path -LiteralPath $StateFile -PathType Leaf
+if ($ExistingState) {
     (Get-Content $StateFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $State[$_.Name] = $_.Value }
 }
 function IsDone($n) { return @($State.done) -contains $n }
@@ -628,31 +656,60 @@ function Test-TaskForInstallRoot($task) {
     return $false
 }
 if ($CustomRoot) {
-    if (-not $State.distro_name -or -not $State.distro_location -or -not $State.ports) {
+    if ($ExistingState -and (-not $State.distro_name -or -not $State.distro_location -or -not $State.ports)) {
         Stop-Install 'Der gespeicherte Zustand enthaelt keine benannte Distribution, deren Ablageort oder Portbelegung. Update abgebrochen.'
     }
-    if (-not $State.assistant_name -or -not $State.wake_phrase) { Stop-Install 'Assistentenname oder Wake Word fehlen im gespeicherten Zustand.' }
-    if ($DistroName -and ($DistroName -ne $State.distro_name -or $DistroLocation -ine $State.distro_location)) {
+    if ($ExistingState -and ($UpdateDashboard -or $ChangeVoice) -and
+        (-not $State.assistant_name -or -not $State.wake_phrase)) {
+        Stop-Install 'Assistentenname oder Wake Word fehlen im gespeicherten Zustand.'
+    }
+    if ($ExistingState -and $DistroName -and ($DistroName -ne $State.distro_name -or $DistroLocation -ine $State.distro_location)) {
         Stop-Install "DistroName/DistroLocation widersprechen dem gespeicherten Zustand ($($State.distro_name), $($State.distro_location))."
     }
-    $Distro = [string]$State.distro_name
-    $DistroLocation = [string]$State.distro_location
+    if ($ExistingState) {
+        $Distro = [string]$State.distro_name
+        $DistroLocation = [string]$State.distro_location
+    } else {
+        $Distro = $DistroName
+        $State.distro_name = $Distro
+        $State.distro_location = $DistroLocation
+        $State.ports = @{ Dashboard = 43791; Qwen = 43792; HermesApi = 43793; Voice = 43794; CommandCenter = 3101 }
+    }
     $rootVolume = [IO.Path]::GetPathRoot($Root)
     if ($rootVolume -ine [IO.Path]::GetPathRoot($DistroLocation)) {
         Stop-Install "InstallRoot und DistroLocation muessen auf demselben Laufwerk liegen ($Root / $DistroLocation)."
     }
-    $requiredSteps = @('preflight','files','wslfeature','power','persona','wslconfig','distro','linuxuser','keepalive','hermes','qwen','voicepython','enroll','voiceservice')
-    $missing = @($requiredSteps | Where-Object { -not (IsDone $_) })
-    if ($missing.Count -gt 0) { Stop-Install "Bestehende Installation ist fuer ein gezieltes Update unvollstaendig: $($missing -join ', ')." }
+    if ($Root.StartsWith("$DistroLocation\", [StringComparison]::OrdinalIgnoreCase) -or
+        $DistroLocation.StartsWith("$Root\", [StringComparison]::OrdinalIgnoreCase) -or $Root -ieq $DistroLocation) {
+        Stop-Install 'InstallRoot und DistroLocation duerfen sich nicht ueberlappen.'
+    }
+    if ($ExistingState -and ($UpdateDashboard -or $ChangeVoice)) {
+        $requiredSteps = @('preflight','files','wslfeature','power','persona','wslconfig','distro','linuxuser','keepalive','hermes','qwen','voicepython','enroll','voiceservice')
+        $missing = @($requiredSteps | Where-Object { -not (IsDone $_) })
+        if ($missing.Count -gt 0) { Stop-Install "Bestehende Installation ist fuer ein gezieltes Update unvollstaendig: $($missing -join ', ')." }
+    }
     $savedPorts = @{}
     foreach ($name in @('Dashboard','Qwen','HermesApi','Voice','CommandCenter')) {
-        $value = $State.ports.$name
+        $value = if ($State.ports -is [System.Collections.IDictionary]) { $State.ports[$name] } else { $State.ports.$name }
         if ($null -eq $value -or [int]$value -lt 1024 -or [int]$value -gt 65535) { Stop-Install "Ungueltiger gespeicherter Port: $name" }
         $savedPorts[$name] = [int]$value
     }
     if (@($savedPorts.Values | Select-Object -Unique).Count -ne 5) { Stop-Install 'Gespeicherte Diensteports ueberschneiden sich.' }
-    foreach ($file in @("$Root\config\persona.json", "$Root\config\voice.json", "$Dash\config\dashboard.yaml", "$Dash\config\adapters.yaml")) {
-        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { Stop-Install "Bestandskonfiguration fehlt: $file" }
+    $candidateTtsPort = $savedPorts.Voice + 1
+    if ($candidateTtsPort -gt 65535 -or $savedPorts.Values -contains $candidateTtsPort) {
+        Stop-Install 'Der TTS-Port nach dem Sprachdienst-Port ist ungueltig oder bereits fuer einen anderen Friday-Dienst reserviert.'
+    }
+    if (-not $ExistingState) {
+        foreach ($port in (@($savedPorts.Values) + @($candidateTtsPort))) {
+            if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) {
+                Stop-Install "Port $port ist belegt. Frische Installation an diesem InstallRoot wurde nicht begonnen."
+            }
+        }
+    }
+    if ($ExistingState -and ($UpdateDashboard -or $ChangeVoice)) {
+        foreach ($file in @("$Root\config\persona.json", "$Root\config\voice.json", "$Dash\config\dashboard.yaml", "$Dash\config\adapters.yaml")) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { Stop-Install "Bestandskonfiguration fehlt: $file" }
+        }
     }
     $Ports = $savedPorts
     $DashPort = $Ports.CommandCenter
@@ -671,6 +728,13 @@ if ($CustomRoot) {
         $voiceTask = Get-ScheduledTask -TaskName 'FRIDAY_Voice' -ErrorAction SilentlyContinue
         if (-not (Test-TaskForInstallRoot $voiceTask)) { Stop-Install 'FRIDAY_Voice fehlt oder gehoert zu einem anderen Installationspfad. Update abgebrochen.' }
     }
+    foreach ($taskName in @('FRIDAY_WSL_Keepalive','FRIDAY_Qwen','FRIDAY_Voice','FRIDAY_Watchdog')) {
+        $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+        if ($task -and -not (Test-TaskForInstallRoot $task)) {
+            Stop-Install "Aufgabe $taskName gehoert zu einem anderen Installationspfad. Keine fremde Aufgabe wird ueberschrieben."
+        }
+    }
+    if (-not $ExistingState) { $State | ConvertTo-Json -Depth 6 | Set-Content $StateFile -Encoding UTF8 }
 }
 function Save-State { $State | ConvertTo-Json -Depth 6 | Set-Content $StateFile -Encoding UTF8 }
 function MarkDone($n) { $State.done = @(@($State.done) + $n | Select-Object -Unique); Save-State }
@@ -707,7 +771,7 @@ function Initialize-WakeSettings {
     Sync-PersonaIdentity $State.assistant_name $State.wake_phrase
 }
 $recordingsExist = (IsDone 'enroll') -or [bool](Get-ChildItem "$Root\voice\profiles\owner\raw" -Recurse -Filter *.wav -ErrorAction SilentlyContinue | Select-Object -First 1)
-if (-not $CustomRoot) { Initialize-WakeSettings }
+if (-not $CustomRoot -or -not $ExistingState) { Initialize-WakeSettings }
 $oldName = $null; $oldPhrase = $null
 if ($ChangeName -and $State.assistant_name) {
     $oldName = $State.assistant_name; $oldPhrase = $State.wake_phrase
@@ -819,10 +883,11 @@ if (-not (IsDone 'preflight')) {
     $build = [Environment]::OSVersion.Version.Build
     $ramGB = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
     $cores = (Get-CimInstance Win32_Processor | Measure-Object NumberOfLogicalProcessors -Sum).Sum
-    $freeGB = [math]::Round((Get-Volume -DriveLetter C).SizeRemaining / 1GB)
-    Info "Windows-Build $build | RAM $ramGB GB | $cores Threads | C: $freeGB GB frei"
+    $installDrive = $Root.Substring(0, 1)
+    $freeGB = [math]::Round((Get-Volume -DriveLetter $installDrive).SizeRemaining / 1GB)
+    Info "Windows-Build $build | RAM $ramGB GB | $cores Threads | ${installDrive}: $freeGB GB frei"
     if ($build -lt 19041) { Stop-Install 'Windows ist zu alt für WSL2. Bitte Windows aktualisieren.' }
-    if ($freeGB -lt 40) { Stop-Install "Auf C: sind nur $freeGB GB frei – mindestens 40 GB werden gebraucht." }
+    if ($freeGB -lt 40) { Stop-Install "Auf ${installDrive}: sind nur $freeGB GB frei – mindestens 40 GB werden gebraucht." }
     $gpu = @{ nvidia = $false; name = 'keine NVIDIA-GPU'; vram_mb = 0; driver = ''; cc = 0.0 }
     if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
         $q = (& nvidia-smi --query-gpu=name,memory.total,driver_version,compute_cap --format=csv,noheader,nounits 2>$null | Select-Object -First 1)
@@ -846,7 +911,7 @@ if (-not (IsDone 'preflight')) {
 }
 
 # ================================================================ 2 Dateien
-# Bei jedem Start synchronisieren, solange das Skript nicht aus C:\Friday\installer laeuft: ein aktualisiertes Paket
+# Bei jedem Start synchronisieren, solange das Skript nicht aus dem Ziel-Installerordner laeuft: ein aktualisiertes Paket
 # muss die dort liegenden Kopien (WSL-Skripte, Voice-Dateien) ersetzen, auch wenn der Schritt schon erledigt ist.
 if (-not (IsDone 'files') -or $PSScriptRoot -ne $Inst) {
     Title "Schritt 2/15 – Installationsdateien nach $Root kopieren"
@@ -859,7 +924,7 @@ if (-not (IsDone 'files') -or $PSScriptRoot -ne $Inst) {
 }
 # Uebernahme einer alten Installation (nur wenn Phasen offen sind): Hermes in Ubuntu umstellen, Qwen starten - braucht die Skripte aus Schritt 2.
 if (-not $CustomRoot) { Invoke-MigrationWsl }
-# Quelle des Command Centers (Ordner ueber installer\) merken: nach einem Neustart laeuft das Skript aus C:\Friday\installer,
+# Quelle des Command Centers (Ordner ueber installer\) merken: nach einem Neustart laeuft das Skript aus dem Ziel-Installerordner,
 # wo die Quellen nicht liegen. Schritt 15 findet sie dann ueber install-state.json (dashboard_source).
 if ($PSScriptRoot -ne $Inst) {
     $repoCand = (Split-Path $PSScriptRoot -Parent).TrimEnd('\')
@@ -869,7 +934,7 @@ if ($PSScriptRoot -ne $Inst) {
 }
 
 # Aktualisierte Voice-Dateien muessen auch eine bestehende Installation erreichen (Schritt 12 laeuft nur einmal): Hash-Vergleich
-# je Datei, geaendert -> nach C:\Friday\voice kopieren (profiles, models, .venv bleiben unberuehrt) und den Sprachdienst neu starten,
+# je Datei, geaendert -> nach $Root\voice kopieren (profiles, models, .venv bleiben unberuehrt) und den Sprachdienst neu starten,
 # falls er lief.
 function Sync-VoiceFiles {
     $src = "$Inst\voice"; $dst = "$Root\voice"
@@ -889,7 +954,7 @@ function Sync-VoiceFiles {
         } else { Warn 'Aufgabe FRIDAY_Voice fehlt - Sprachdienst nicht neu gestartet. install-friday.bat mit entferntem Eintrag "voiceservice" in install-state.json starten.' }
     }
 }
-if (-not $UpdateDashboard -and (-not $CustomRoot -or $ChangeVoice)) { Sync-VoiceFiles }
+if (-not $UpdateDashboard) { Sync-VoiceFiles }
 
 # ================================================================ 3 WSL-Grundlage (ggf. Neustart)
 if (-not (IsDone 'wslfeature')) {
@@ -898,7 +963,9 @@ if (-not (IsDone 'wslfeature')) {
     if ($LASTEXITCODE -ne 0) {
         Info 'WSL wird installiert …'
         Native { wsl.exe --install --no-distribution } | ForEach-Object { Info $_ }
-        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$Inst\install-friday.ps1`" -Resume"
+        $resumeArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$Inst\install-friday.ps1`" -Resume -InstallRoot `"$Root`""
+        if ($CustomRoot) { $resumeArgs += " -DistroName `"$Distro`" -DistroLocation `"$DistroLocation`"" }
+        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $resumeArgs
         $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
         $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
         Register-ScheduledTask -TaskName $ResumeTask -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
@@ -943,7 +1010,7 @@ if (-not (IsDone 'persona')) {
         about      = $about
     }
     [IO.File]::WriteAllText("$Root\config\persona.json", ($persona | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
-    Ok 'Gespeichert (änderbar in C:\Friday\config\persona.json).'
+    Ok "Gespeichert (änderbar in $Root\config\persona.json)."
     MarkDone 'persona'
 }
 
@@ -967,16 +1034,33 @@ if (-not (IsDone 'wslconfig')) {
 # ================================================================ 7 Ubuntu
 if (-not (IsDone 'distro')) {
     Title 'Schritt 7/15 – Ubuntu 24.04 installieren'
-    $existing = @(& wsl.exe -l -q 2>$null | ForEach-Object { "$_".Trim() } | Where-Object { $_ })
+    $existing = @(& wsl.exe -l -q 2>$null | ForEach-Object { ("$_" -replace "`0", '').Trim() } | Where-Object { $_ })
     if ($existing -contains $Distro) {
+        if ($CustomRoot -and -not $State.distro_requested) { Stop-Install "Die WSL-Distribution '$Distro' existiert bereits. Frische Installation darf sie nicht uebernehmen." }
         if (-not (YesNo "Es gibt bereits eine WSL-Distribution '$Distro'. Diese verwenden?")) { Stop-Install "Bitte vorhandenes '$Distro' sichern/entfernen oder umbenennen." }
     } else {
-        Native { wsl.exe --install Ubuntu-24.04 --name $Distro --no-launch --web-download } | ForEach-Object { Info $_ }
-        $existing = @(& wsl.exe -l -q 2>$null | ForEach-Object { "$_".Trim() })
+        if ($CustomRoot) {
+            if ((Test-Path -LiteralPath $DistroLocation -PathType Container) -and
+                (Get-ChildItem -LiteralPath $DistroLocation -Force | Select-Object -First 1)) {
+                Stop-Install "DistroLocation ist nicht leer: $DistroLocation"
+            }
+            $State.distro_requested = $true; Save-State
+            Native { wsl.exe --install Ubuntu-24.04 --name $Distro --location $DistroLocation --no-launch --web-download } | ForEach-Object { Info $_ }
+        } else {
+            Native { wsl.exe --install Ubuntu-24.04 --name $Distro --no-launch --web-download } | ForEach-Object { Info $_ }
+        }
+        $existing = @(& wsl.exe -l -q 2>$null | ForEach-Object { ("$_" -replace "`0", '').Trim() } | Where-Object { $_ })
         if ($existing -notcontains $Distro) { Stop-Install 'Ubuntu konnte nicht installiert werden (siehe Meldung oben).' }
     }
+    if ($CustomRoot) { Assert-CustomDistroLocation }
     Ok 'Ubuntu ist installiert.'
     MarkDone 'distro'
+}
+if ($CustomRoot -and -not ($UpdateDashboard -or $ChangeVoice)) {
+    Assert-CustomDistroLocation
+    $WslRootPath = Get-WslPath $Root
+    $WslInstPath = "$WslRootPath/installer"
+    $WslConfigPath = "$WslRootPath/config"
 }
 
 # ================================================================ 8 Linux-Benutzer
@@ -993,7 +1077,7 @@ if (-not (IsDone 'linuxuser')) {
         Warn 'Passwörter leer oder ungleich – bitte nochmal.'
     }
     Info 'Richte Ubuntu ein (Pakete, Benutzer, systemd) – dauert einige Minuten …'
-    $out = Wsl-Run 'root' "/mnt/c/Friday/installer/wsl/setup_root.sh" "$user`n$p1"
+    $out = Wsl-Run 'root' "$WslInstPath/wsl/setup_root.sh" "$user`n$p1"
     $p1 = $null; $p2 = $null
     if ($out -notmatch 'ROOT_SETUP_DONE') { Stop-Install 'Ubuntu-Grundeinrichtung fehlgeschlagen.' }
     & wsl.exe --terminate $Distro | Out-Null
@@ -1009,7 +1093,7 @@ if (-not (IsDone 'linuxuser')) {
 # ================================================================ 9 WSL wach halten
 if (-not (IsDone 'keepalive')) {
     Title 'Schritt 9/15 – WSL dauerhaft aktiv halten'
-    Register-UserTask 'FRIDAY_WSL_Keepalive' "`"$Inst\scripts\wsl-keepalive.vbs`"" 'Hält Ubuntu/WSL für Hermes dauerhaft aktiv'
+    Register-UserTask 'FRIDAY_WSL_Keepalive' "`"$Inst\scripts\wsl-keepalive.vbs`" `"$Distro`"" 'Hält Ubuntu/WSL für Hermes dauerhaft aktiv'
     Start-ScheduledTask -TaskName 'FRIDAY_WSL_Keepalive'
     Ok 'Aufgabe FRIDAY_WSL_Keepalive eingerichtet (startet bei jeder Anmeldung).'
     MarkDone 'keepalive'
@@ -1037,7 +1121,7 @@ if (-not (IsDone 'hermes')) {
         [IO.File]::WriteAllText($apiKeyFile, (-join ($bytes | ForEach-Object { $_.ToString('x2') })))
     }
     Info 'Installiere Hermes, verbinde Kimi, richte Persönlichkeit, Kanban, Dashboard und Gateway ein (10–20 min) …'
-    $out = Wsl-Run $State.linux_user '/mnt/c/Friday/installer/wsl/setup_hermes.sh' $key
+    $out = Wsl-Run $State.linux_user "$WslInstPath/wsl/setup_hermes.sh" $key
     $key = $null
     if ($out -notmatch 'HERMES_SETUP_DONE') { Stop-Install 'Hermes-Einrichtung fehlgeschlagen (siehe graue Ausgabe oben).' }
     if ($out -match 'KIMI_OK') { Ok 'Kimi K3 antwortet.' } else { Warn 'Kimi-Test nicht bestanden – Key prüfen; später in Ubuntu: hermes model' }
@@ -1079,9 +1163,9 @@ if (-not (IsDone 'qwen')) {
     Ok 'Qwen3-4B geprüft'
     $ctx = if ($gpu.nvidia -and [int]$gpu.vram_mb -gt 7000) { 8192 } else { 4096 }
     $layers = if ($gpu.nvidia) { 99 } else { 0 }
-    @{ ctx_size = $ctx; gpu_layers = $layers } | ConvertTo-Json | Set-Content "$Root\config\qwen.json" -Encoding Ascii
+    @{ ctx_size = $ctx; gpu_layers = $layers; port = $Ports.Qwen } | ConvertTo-Json | Set-Content "$Root\config\qwen.json" -Encoding Ascii
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$Inst\scripts\start-qwen-server.ps1"
-    if (-not (Wait-Http "http://127.0.0.1:$($Ports.Qwen)/v1/models" 120)) { Stop-Install 'Qwen-Server startet nicht (C:\Friday\logs\qwen-server.log).' }
+    if (-not (Wait-Http "http://127.0.0.1:$($Ports.Qwen)/v1/models" 120)) { Stop-Install "Qwen-Server startet nicht ($Root\logs\qwen-server.log)." }
     $body = @{ model = 'qwen3-router'; max_tokens = 10; chat_template_kwargs = @{ enable_thinking = $false }
                messages = @(@{ role = 'user'; content = 'Antworte nur mit LOCAL_OK' }) } | ConvertTo-Json -Depth 5
     $t = Measure-Command { $r = Invoke-RestMethod -Method Post "http://127.0.0.1:$($Ports.Qwen)/v1/chat/completions" -ContentType 'application/json' -Body $body -TimeoutSec 120 }
@@ -1114,9 +1198,11 @@ if (-not (IsDone 'voicepython')) {
     & $vpy -m pip install -q torch torchaudio --index-url https://download.pytorch.org/whl/cpu 2>&1 | Out-File "$Root\logs\pip.log" -Append
     & $vpy -m pip install -q faster-whisper nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*" openwakeword speechbrain silero-vad `
         piper-tts sounddevice soundfile scipy scikit-learn huggingface_hub 2>&1 | Out-File "$Root\logs\pip.log" -Append
-    if ($LASTEXITCODE -ne 0) { Stop-Install 'Python-Pakete konnten nicht installiert werden (C:\Friday\logs\pip.log).' }
+    if ($LASTEXITCODE -ne 0) { Stop-Install "Python-Pakete konnten nicht installiert werden ($Root\logs\pip.log)." }
     Info 'Lade Sprachmodelle und teste die Grafikkarte …'
-    $voiceArgs = @($Root, '--voice-choice', $State.voice_choice)
+    $voiceArgs = @($Root, '--voice-choice', $State.voice_choice,
+                   '--qwen-port', [string]$Ports.Qwen, '--hermes-port', [string]$Ports.HermesApi,
+                   '--voice-port', [string]$Ports.Voice)
     if ($State.voice_reference) { $voiceArgs += @('--voice-reference', $State.voice_reference) }
     $ttsPort = [int]$Ports.Voice + 1
     if ($ttsPort -gt 65535) { Stop-Install 'Kein freier TTS-Port nach dem Sprachdienst-Port vorhanden.' }
@@ -1132,8 +1218,10 @@ if (-not (IsDone 'voicepython')) {
         $windowsPaths = @("$Root\installer\fast_tts\install_wsl.sh", $voiceConfig.tts_reference, $voiceConfig.tts_reference_text_file)
         $linuxPaths = @()
         foreach ($windowsPath in $windowsPaths) {
-            $linuxPath = (& wsl.exe -d $Distro -u $State.linux_user --exec wslpath -a -u $windowsPath 2>&1 | Select-Object -First 1)
-            if ($LASTEXITCODE -ne 0 -or -not $linuxPath) { Stop-Install "WSL-Pfad konnte nicht aufgeloest werden: $windowsPath" }
+            $pathOutput = @(& wsl.exe -d $Distro -u $State.linux_user --exec wslpath -a -u $windowsPath 2>&1)
+            $exitCode = $LASTEXITCODE
+            $linuxPath = $pathOutput | Select-Object -First 1
+            if ($exitCode -ne 0 -or -not "$linuxPath".StartsWith('/')) { Stop-Install "WSL-Pfad konnte nicht aufgeloest werden: $windowsPath" }
             $linuxPaths += [string]$linuxPath
         }
         & wsl.exe -d $Distro -u $State.linux_user --exec bash $linuxPaths[0] $linuxPaths[1] $linuxPaths[2] ([string]$ttsPort) 2>&1 |
@@ -1208,7 +1296,7 @@ if (-not (IsDone 'voiceservice')) {
         try { if ((Invoke-RestMethod "http://127.0.0.1:$($Ports.Voice)" -TimeoutSec 2).state -eq 'listening') { $ok = $true; break } } catch {}
         Start-Sleep 2
     }
-    if (-not $ok) { Stop-Install 'Sprachdienst startet nicht (C:\Friday\logs\voice-service.log).' }
+    if (-not $ok) { Stop-Install "Sprachdienst startet nicht ($Root\logs\voice-service.log)." }
     Ok "$AN antwortet auf dem Sprachport (state=listening)."
     $helloLog = "$Root\logs\say-hello.log"
     $helloOut = @(& "$Root\voice\.venv\Scripts\python.exe" "$Root\voice\say_hello.py" $Root "Guten Tag. $AN ist installiert und bereit." 2>&1 | ForEach-Object { "$_" })
@@ -1224,8 +1312,7 @@ if (-not (IsDone 'voiceservice')) {
 }
 
 # ================================================================ 15 F.R.I.D.A.Y. Command Center (Dashboard + Control API)
-# Zielpfad C:\Friday\dashboard - Entscheidung des Eigentuemers; PLAN §54 nennt D:\Friday\dashboard. Der Installer legt
-# ueberall C:\Friday zugrunde (kein D:-Laufwerk garantiert); der Pfad steht in dashboard.yaml und ist dort aenderbar.
+# Das Dashboard wird in $Root\dashboard eingerichtet; der Pfad steht in dashboard.yaml.
 # Details: docs/DEPLOYMENT.md. Der Schritt ist idempotent; ein Fehler hier laesst Sprache/Hermes/Qwen unangetastet.
 $NodeMin = [version]'22.13.0'
 # Verzeichnisse, die nie ins Ziel kopiert werden (Build-Ausgaben, Abhaengigkeiten, Screenshots/Belege, Metadaten).
@@ -1400,13 +1487,15 @@ function Write-DashFile([string]$path, [string]$content, [string]$label) {
     if ([IO.File]::ReadAllText($path).Replace("`r`n", "`n") -eq $content) { Info "$label ist aktuell: $path"; return }
     if ($UpdateDashboard) { Info "$label bleibt unverändert (deine Änderungen werden behalten): $path"; return }
     Warn "$label existiert bereits und weicht von der Vorgabe des Installers ab: $path"
-    if (YesNo 'Mit der Vorgabe überschreiben? (die alte Datei wird nach C:\Friday\backups gesichert)' $false) {
+    if (YesNo "Mit der Vorgabe überschreiben? (die alte Datei wird nach $Root\backups gesichert)" $false) {
         Copy-Item $path "$Root\backups\$(Split-Path $path -Leaf).bak-$(Get-Date -Format yyyyMMdd-HHmmss)" -Force
         [IO.File]::WriteAllText($path, $content, $enc); Ok "$label überschrieben"
     } else { Info "$label bleibt unverändert (deine Änderungen werden behalten)." }
 }
 function Write-DashboardConfig {
     $cfg = "$Dash\config"
+    $rootYaml = $Root.Replace('\', '/')
+    $storageDrive = $Root.Substring(0, 1)
     # Nur der Anzeigename wird in einer bestehenden dashboard.yaml nachgezogen (Namenswechsel), alles andere bleibt wie es ist.
     if (Test-Path "$cfg\dashboard.yaml") {
         $old = [IO.File]::ReadAllText("$cfg\dashboard.yaml")
@@ -1422,22 +1511,21 @@ dataMode: hybrid # mock | hybrid | live - hybrid: in adapters.yaml genannte Kate
 
 server:
   host: 127.0.0.1 # nur Loopback
-  port: 3100
+  port: $($Ports.CommandCenter)
   allowRemote: false
 
-# Pfade ohne Backslash (YAML). Entscheidung: C:\Friday\dashboard statt D:\Friday\dashboard (PLAN 54), Logs bei den
-# anderen Diensten in C:\Friday\logs.
+# Pfade ohne Backslash (YAML), abgeleitet vom InstallRoot.
 paths:
-  dataDir: C:/Friday/dashboard/data
-  logDir: C:/Friday/logs/dashboard
-  backupDir: C:/Friday/dashboard/backups
-  webRoot: C:/Friday/dashboard/apps/web/out
+  dataDir: "$rootYaml/dashboard/data"
+  logDir: "$rootYaml/logs/dashboard"
+  backupDir: "$rootYaml/dashboard/backups"
+  webRoot: "$rootYaml/dashboard/apps/web/out"
 
 auth:
   mode: local
   ownerUsername: owner
   # Nur der scrypt-Hash, nie das Passwort. Datei mit Zugriff nur fuer den Installationsbenutzer (icacls).
-  ownerPasswordHash: file:C:/Friday/config/dashboard_owner.hash
+  ownerPasswordHash: "file:$rootYaml/config/dashboard_owner.hash"
   sessionTtlMinutes: 720
   reauthWindowMinutes: 5
   idleTimeoutMinutes: 30
@@ -1471,7 +1559,7 @@ logging:
 # Live: Aufgaben/Aktivitaet/Agenten ueber Hermes, Sprache ueber den Voice-Dienst, Systemstatus vom lokalen Rechner.
 # Alle anderen Kategorien (memory, approvals, communication, calendar, automations, research, files, notifications,
 # audit, commands) bleiben im Hybrid-Modus mock-* und sind in der Oberflaeche als Simulation erkennbar.
-# Ports (Installer): 43691 Hermes-Dashboard, 43692 Qwen, 43693 Hermes-API, 43694 Voice-Status.
+# Ports werden aus dem gespeicherten Installationszustand uebernommen.
 # Geheimnisse nie im Klartext: file:<absoluter Pfad> (nur serverseitig gelesen), env:NAME oder wincred:ZIEL.
 
 allowlist:
@@ -1487,7 +1575,7 @@ adapters:
     enabled: true
     timeoutMs: 10000
     config:
-      dashboardBaseUrl: http://127.0.0.1:43691
+      dashboardBaseUrl: http://127.0.0.1:$($Ports.Dashboard)
       dashboardAuth: scrape
       boards: [default]
   activity:
@@ -1495,38 +1583,38 @@ adapters:
     enabled: true
     timeoutMs: 10000
     config:
-      apiBaseUrl: http://127.0.0.1:43693
-      apiKey: "file:C:/Friday/config/hermes_api.key"
-      dashboardBaseUrl: http://127.0.0.1:43691
+      apiBaseUrl: http://127.0.0.1:$($Ports.HermesApi)
+      apiKey: "file:$rootYaml/config/hermes_api.key"
+      dashboardBaseUrl: http://127.0.0.1:$($Ports.Dashboard)
       boards: [default]
   agents:
     provider: hermes-agents
     enabled: true
     timeoutMs: 10000
     config:
-      apiBaseUrl: http://127.0.0.1:43693
-      apiKey: "file:C:/Friday/config/hermes_api.key"
-      dashboardBaseUrl: http://127.0.0.1:43691
+      apiBaseUrl: http://127.0.0.1:$($Ports.HermesApi)
+      apiKey: "file:$rootYaml/config/hermes_api.key"
+      dashboardBaseUrl: http://127.0.0.1:$($Ports.Dashboard)
       boards: [default]
   voice:
     provider: friday-voice-http
     enabled: true
     timeoutMs: 3000
     config:
-      baseUrl: http://127.0.0.1:43694
-      localModelUrl: http://127.0.0.1:43692
+      baseUrl: http://127.0.0.1:$($Ports.Voice)
+      localModelUrl: http://127.0.0.1:$($Ports.Qwen)
       wakePhrase: "$WP"
   system:
     provider: local-system
     enabled: true
     timeoutMs: 5000
     config:
-      qwenUrl: http://127.0.0.1:43692
-      hermesApiUrl: http://127.0.0.1:43693
-      hermesDashboardUrl: http://127.0.0.1:43691
-      voiceUrl: http://127.0.0.1:43694
-      hermesApiKey: "file:C:/Friday/config/hermes_api.key"
-      storagePaths: ["C:/"]
+      qwenUrl: http://127.0.0.1:$($Ports.Qwen)
+      hermesApiUrl: http://127.0.0.1:$($Ports.HermesApi)
+      hermesDashboardUrl: http://127.0.0.1:$($Ports.Dashboard)
+      voiceUrl: http://127.0.0.1:$($Ports.Voice)
+      hermesApiKey: "file:$rootYaml/config/hermes_api.key"
+      storagePaths: ["${storageDrive}:/"]
       wslDistro: $Distro
 "@
     Write-DashFile "$cfg\dashboard.yaml" $dashboardYaml 'dashboard.yaml'
@@ -1669,7 +1757,7 @@ if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
 # powershell.exe-Start mit -WindowStyle Hidden blitzt sonst alle 5 Minuten ein Konsolenfenster auf. Idempotent: wird bei jedem Lauf
 # neu registriert. Ein Fehler hier laesst die Installation unberuehrt (nur Warnung). Andere Aufgaben (z. B. ein altes
 # FRIDAY_Voice_Watchdog frueherer Installer) werden nicht angefasst.
-if (-not $CustomRoot) {
+if (-not $CustomRoot -or -not ($UpdateDashboard -or $ChangeVoice)) {
 Title 'Zusatz – Service-Watchdog einrichten'
 $eapBefore = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
@@ -1678,13 +1766,13 @@ try {
     if (-not (Test-Path $wd)) { throw "$wd fehlt (Installationsdateien unvollständig)." }
     Register-UserTask 'FRIDAY_Watchdog' "`"$Inst\scripts\hidden.vbs`" `"$wd`"" 'F.R.I.D.A.Y. Service-Watchdog: startet abgestürzte Dienste neu (alle 5 Minuten, unsichtbar)' 120 5 2
     if (-not (Get-ScheduledTask -TaskName 'FRIDAY_Watchdog')) { throw 'Aufgabe FRIDAY_Watchdog nach der Registrierung nicht auffindbar.' }
-    Ok 'Aufgabe FRIDAY_Watchdog eingerichtet (alle 5 Minuten und bei Anmeldung, unsichtbar). Log: C:\Friday\logs\watchdog.log'
+    Ok "Aufgabe FRIDAY_Watchdog eingerichtet (alle 5 Minuten und bei Anmeldung, unsichtbar). Log: $Root\logs\watchdog.log"
     MarkDone 'watchdog'
 } catch {
     Warn "Service-Watchdog nicht eingerichtet: $($_.Exception.Message)"
     Warn 'Die Dienste laufen trotzdem; ohne Watchdog werden abgestürzte Dienste nur durch die eigenen Neustartschleifen bzw. bei der nächsten Anmeldung wieder gestartet. Erneut versuchen: install-friday.bat starten.'
 } finally { $ErrorActionPreference = $eapBefore }
-} else { Info 'Bestehender D:-Watchdog bleibt unveraendert; fuer ein gezieltes Update wird keine zweite Aufgabe registriert.' }
+} else { Info 'Watchdog bleibt bei diesem gezielten Update unveraendert.' }
 
 $DashProbe = Test-DashboardHealth 3
 $p = Get-Content "$Root\config\persona.json" -Raw | ConvertFrom-Json
@@ -1703,7 +1791,7 @@ Installiert am $(Get-Date -Format 'dd.MM.yyyy HH:mm') für $($p.owner_name). Ass
 | Sprachdienst-Status | http://127.0.0.1:$($Ports.Voice) |
 
 Grafikkarte: $($State.gpu.name) ($($State.gpu.vram_mb) MB) · Linux-Benutzer: $($State.linux_user)
-Autostart: vorhandene Aufgabenplanung, Dashboard-Aufgabe $DashTask. Watchdog: $(if ($CustomRoot) { 'bestehende Aufgabe unveraendert' } else { 'FRIDAY_Watchdog (alle 5 Minuten)' }). Hermes-Dienste: systemd in $Distro.
+Autostart: vorhandene Aufgabenplanung, Dashboard-Aufgabe $DashTask. Watchdog: FRIDAY_Watchdog (alle 5 Minuten). Hermes-Dienste: systemd in $Distro.
 $dashNote
 Erledigte Schritte: $(@($State.done) -join ', ')
 "@
@@ -1712,7 +1800,7 @@ Remove-Item "$Root\run\installer.active" -Force -ErrorAction SilentlyContinue   
 
 Title "FERTIG – $AN ist einsatzbereit"
 Info "Sag:  ""$WP""  … kurzer Piepton … dann deine Frage, z. B. ""Wie spät ist es?"""
-Info "Folgefragen gehen 90 Sekunden lang ohne erneutes ""$WP""."
+Info "Folgefragen gehen 15 Sekunden lang ohne erneutes ""$WP""."
 if ($DashProbe.Up) { Info "Command Center (Dashboard): $DashUrl" }
 else { Warn "Command Center nicht erreichbar ($DashUrl) - Logs: $Root\logs\dashboard-service.log, $DashInstallLog. Erneut versuchen: update-dashboard.bat oder install-friday.bat -Resume." }
 Info "Hermes-Dashboard (Kanban, Einstellungen): http://127.0.0.1:$($Ports.Dashboard)"
