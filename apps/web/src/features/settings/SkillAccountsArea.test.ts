@@ -17,6 +17,18 @@ describe("Skill account setup paths", () => {
     expect(mail.state).toContain("separat");
     expect(accountSetupView(integration("coding_cli"), undefined).href).toBe("/settings?area=skillAccounts#coding-cli-setup-title");
   });
+  it("links generic Friday IMAP/SMTP skills to the owner form and distinguishes local readiness from a connection", () => {
+    const href = "/settings?area=skillAccounts#himalaya-account-title";
+    for (const [configured, expected] of [[null, "unbekannt"], [false, "noch nicht lokal bereit"], [true, "lokal bereit"]] as const) {
+      const setup = accountSetupView({ ...integration("imap_smtp_mail"), configured }, undefined);
+      expect(setup.href).toBe(href);
+      expect(setup.action).toContain("IMAP/SMTP-Postfach");
+      expect(setup.state).toContain(expected);
+      expect(setup.state).toContain("Verbindung nicht geprüft");
+    }
+    expect(accountSetupView(integration("gmx"), undefined).state).toContain("GMX-Skill-Adapter separat");
+    expect(accountSetupView(integration("hermes_himalaya"), undefined).href).toBe(href);
+  });
   it("opens the encrypted Friday key form without claiming a provider login", () => {
     const setup = accountSetupView(integration("kie_ai"), { kie: true, elevenlabs: false, capcut: false });
     expect(setup.href).toBe("/settings?area=contentStudioKeys");

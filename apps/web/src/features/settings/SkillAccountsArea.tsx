@@ -105,6 +105,14 @@ export function accountSetupView(item: Integration, keys: KeyStatus, hermes: Her
       ? "Profil und CLI vorhanden; Lesen und Senden nicht geprüft" : "Himalaya noch nicht einsatzbereit",
     location: "Friday-Ubuntu: ~/.config/himalaya/config.toml",
   };
+  if (item.id === "imap_smtp_mail") return {
+    href: "/settings?area=skillAccounts#himalaya-account-title",
+    action: "IMAP/SMTP-Postfach im Dashboard einrichten",
+    state: item.configured === null ? "Lokaler Postfachstatus unbekannt; Verbindung nicht geprüft"
+      : item.configured ? "Postfachprofil und Himalaya-CLI lokal bereit; IMAP/SMTP-Verbindung nicht geprüft"
+        : "Postfachprofil oder Himalaya-CLI noch nicht lokal bereit; Verbindung nicht geprüft",
+    location: null,
+  };
   if (item.id === "obsidian" || item.id === "hermes_obsidian") return {
     href: "/settings?area=skillAccounts#obsidian-setup-title",
     action: "Obsidian-Vault im Dashboard einrichten",
