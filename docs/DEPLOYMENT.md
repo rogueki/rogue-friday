@@ -27,8 +27,8 @@ exportierte Web (`apps/web/out`) auf **einem Port** aus (Standard `127.0.0.1:310
 Der gesamte Installer (Sprache, Hermes, Qwen, Modelle, Logs, `install-state.json`) legt alles unter `C:\Friday` ab; ein
 `D:`-Laufwerk ist nicht garantiert (Prüfung, Fehlerfall, zusätzlicher Zustand), und ein einheitlicher Wurzelordner vereinfacht
 Sicherung, Deinstallation und Support. Alle Pfade stehen in `dashboard.yaml` (`paths.*`) und sind dort änderbar; wer das Command
-Center auf `D:` betreiben will, kopiert den Ordner, passt `paths.*` an und die Aufgabe `FRIDAY_Dashboard` (Launcher
-`start-dashboard.ps1` enthält den Pfad `C:\Friday\dashboard`).
+Center auf `D:` betreiben will, benötigt eine dort bereits eingerichtete Installation mit passenden `paths.*` und Aufgaben.
+Der Launcher `start-dashboard.ps1` ermittelt den Root-Pfad aus seinem eigenen Installationsort.
 
 **Logs:** Alle dienstbezogenen Logs liegen wie bei den anderen FRIDAY-Diensten (`voice-service.log`, `qwen-server.log`) in
 `C:\Friday\logs`. **Daten und Sicherungen** gehören zur Anwendung (PLAN §54.4) und bleiben in `C:\Friday\dashboard`, damit ein
@@ -49,6 +49,17 @@ erneutes Einspielen des Programms (`/MIR`) sie nie berührt.
   `packageManager` im Root-`package.json` (derzeit `pnpm@10.28.2`; der Installer liest sie dort aus, nichts ist hartkodiert).
 
 ## 3. Was der Installer tut (Schritt 15 „dashboard“)
+
+### Bestehende Installation an einem anderen Ort gezielt aktualisieren
+
+Für eine bereits vollständig installierte F.R.I.D.A.Y.-Instanz kann der aktuelle Installer ein Dashboard-Update oder einen Stimmenwechsel mit `-InstallRoot` ausführen. Er übernimmt Distribution und Ports aus der vorhandenen `config/install-state.json`, prüft die geplanten Aufgaben und sichert vor dem Update die bestehende Konfiguration und den Dashboard-Build. Beispiel für eine vorhandene Installation unter `D:\Kali\Friday`:
+
+```powershell
+& .\installer\install-friday.ps1 -InstallRoot 'D:\Kali\Friday' -UpdateDashboard
+& .\installer\install-friday.ps1 -InstallRoot 'D:\Kali\Friday' -ChangeVoice
+```
+
+Die beiden Aktionen werden getrennt ausgeführt. Dieser Pfad ist für **gezielte Updates einer bestehenden Installation** gebaut; eine vollständige Neuinstallation auf einem abweichenden Pfad wird derzeit vom Installer abgelehnt. Eine `C:\Jarvis`-Junction auf denselben D:-Ordner darf nicht als Quelle der automatischen Legacy-Migration behandelt werden. Beim Standardpfad `C:\Friday` bleibt der normale Installationslauf bestehen. Der Dashboard-Launcher leitet seinen Root-Pfad aus dem installierten Skript ab.
 
 Der Schritt kommt **nach** `voiceservice` und vor dem Abschlussbericht. Die Namen und die Reihenfolge der Schritte 1 bis 14
 bleiben unverändert; bereits fertig installierte Systeme führen beim nächsten Start nur Schritt 15 aus. Er ist idempotent;
