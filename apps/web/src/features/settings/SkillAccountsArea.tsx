@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentStudioKeysResponse, HermesSkillKeyCheckResponse, HermesSkillKeysResponse, ObsidianVaultResponse, SkillCatalogEntry } from "@friday/sdk";
+import type { ContentStudioKeysResponse, HermesSkillKeyCheckResponse, HermesSkillKeysResponse, ObsidianVaultResponse, WikiPathResponse, SkillCatalogEntry } from "@friday/sdk";
 import { ErrorState, Skeleton } from "@friday/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -45,6 +45,7 @@ const hermesLocations: Record<string, string> = {
   hermes_xurl: "Friday-Ubuntu: ~/.xurl (xurl auth status prüfen)",
   hermes_email_inbox_triage: "Friday-Ubuntu: Himalaya-Konfiguration oder Google-Workspace-OAuth für das gewählte Postfach",
   hermes_llm_wiki: "Friday-Ubuntu: lokaler WIKI_PATH; optional ob login für Obsidian Sync",
+  hermes_llm_wiki_sync: "Friday-Ubuntu: optional obsidian-headless und ob login für Obsidian Sync",
   hermes_blocked_page_recovery: "Friday-Ubuntu: optional JINA_API_KEY in ~/.hermes/.env",
   hermes_opencode: "Friday-Ubuntu: opencode auth list und Anbieter-Anmeldung",
   hermes_codex: "Friday-Ubuntu: codex login oder OPENAI_API_KEY in Hermes' lokaler Umgebung",
@@ -52,6 +53,12 @@ const hermesLocations: Record<string, string> = {
 };
 
 export function accountSetupView(item: Integration, keys: KeyStatus, hermes: HermesStatus = undefined): { href: string | null; action: string | null; state: string; location: string | null } {
+  if (item.id === "hermes_llm_wiki") return {
+    href: "/settings?area=skillAccounts#wiki-path-setup-title",
+    action: "Lokalen Wiki-Pfad im Dashboard einrichten",
+    state: item.configured === null ? "Wiki-Pfadstatus unbekannt" : item.configured ? "Lokaler Wiki-Ordner lesbar; Schreibaktion nicht geprüft" : "Lokaler Wiki-Ordner fehlt oder ist nicht lesbar",
+    location: null,
+  };
   if (item.id === "obsidian" || item.id === "hermes_obsidian") return {
     href: "/settings?area=skillAccounts#obsidian-setup-title",
     action: "Obsidian-Vault im Dashboard einrichten",
@@ -106,6 +113,9 @@ export function SkillAccountsArea() {
   const [vaultPath, setVaultPath] = useState("");
   const [vaultSaving, setVaultSaving] = useState(false);
   const [vaultMessage, setVaultMessage] = useState("");
+  const [wikiPath, setWikiPath] = useState("");
+  const [wikiSaving, setWikiSaving] = useState(false);
+  const [wikiMessage, setWikiMessage] = useState("");
   const [hermesValues, setHermesValues] = useState<Partial<Record<HermesKey, string>>>({});
   const [hermesBusy, setHermesBusy] = useState<HermesKey | null>(null);
   const [hermesMessage, setHermesMessage] = useState("");
@@ -145,6 +155,26 @@ export function SkillAccountsArea() {
     queryFn: (): Promise<ObsidianVaultResponse> => call(getApiClient().GET("/api/v1/settings/obsidian-vault")),
     enabled: role === "owner",
   });
+  const wiki = useQuery({
+    queryKey: ["settings", "wiki-path"],
+    queryFn: (): Promise<WikiPathResponse> => call(getApiClient().GET("/api/v1/settings/wiki-path")),
+    enabled: role === "owner",
+  });
+  useEffect(() => { if (wiki.data) setWikiPath(wiki.data.data.customized ? wiki.data.data.path : ""); }, [wiki.data]);
+  async function saveWikiPath(path: string) {
+    if (!wiki.data) return;
+    setWikiSaving(true);
+    setWikiMessage("");
+    try {
+      const result: WikiPathResponse = await call(getApiClient().PUT("/api/v1/settings/wiki-path", {
+        params: { header: { "If-Match": String(wiki.data.data.revision) } }, body: { path },
+      }));
+      await wiki.refetch();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.skills });
+      setWikiMessage(`${path ? "Wiki-Pfad gespeichert" : "Auf ~/wiki zurückgesetzt"}. ${result.data.readable ? "Ordner in Friday-Ubuntu lesbar." : "Ordner fehlt oder ist nicht lesbar."} ${result.data.applied ? "Hermes-Gateway neu gestartet." : "Gateway-Neustart nicht bestätigt."}`);
+    } catch (error) { setWikiMessage(error instanceof Error ? error.message : "Wiki-Pfad konnte nicht geändert werden."); }
+    finally { setWikiSaving(false); }
+  }
   useEffect(() => {
     if (!vault.data) return;
     const path = vault.data.data.path;
@@ -188,6 +218,18 @@ export function SkillAccountsArea() {
     <p>Konten und lokale Voraussetzungen für die Skills. Ein gespeicherter Schlüssel oder aktivierter Skill belegt noch keine erfolgreiche Anmeldung beim Anbieter.</p>
     <p className="sk-warning">Telefonie: Friday enthält derzeit keinen verifizierten Anrufadapter. Hier kann noch kein Telefonkonto eingerichtet oder ein Anruf ausgelöst werden.</p>
     <p><a href="/onboarding">Einführung fortsetzen</a> · <a href="/skills">Alle Skills ansehen</a></p>
+    <section aria-labelledby="wiki-path-setup-title">
+      <h3 id="wiki-path-setup-title">Lokales Markdown-Wiki für Hermes</h3>
+      <p>Der Skill llm-wiki liest Markdown in Friday-Ubuntu. Ohne eigenen Pfad verwendet er <code>~/wiki</code>. Gib einen vorhandenen absoluten Linux-Pfad ein; ein Windows-Ordner liegt dort unter <code>/mnt/c/...</code>. Das separate Obsidian-Vault-Feld gilt nicht für diesen Skill. Obsidian Sync ist optional und erfordert obsidian-headless und <code>ob login</code>.</p>
+      {role === "owner" ? <>
+        <label>WIKI_PATH <input type="text" value={wikiPath} onChange={(event) => setWikiPath(event.target.value)} placeholder="/home/RogueKI/wiki" /></label>
+        <button type="button" disabled={wikiSaving || wiki.isPending || !wikiPath.trim()} onClick={() => void saveWikiPath(wikiPath.trim())}>Pfad speichern</button>{" "}
+        <button type="button" disabled={wikiSaving || wiki.isPending || !wiki.data?.data.customized} onClick={() => void saveWikiPath("")}>Auf ~/wiki zurücksetzen</button>
+        {wiki.isError && <p role="alert">Wiki-Pfadstatus konnte nicht gelesen werden.</p>}
+        {wiki.data && <p role="status">{wiki.data.data.readable ? "Wiki-Ordner in Friday-Ubuntu lesbar" : "Wiki-Ordner fehlt oder ist nicht lesbar"} · {wiki.data.data.customized ? "Eigener Pfad" : "Standardpfad ~/wiki"}</p>}
+        {wikiMessage && <p role="status">{wikiMessage}</p>}
+      </> : <p>Nur der Owner kann den Wiki-Pfad einrichten.</p>}
+    </section>
     <section aria-labelledby="obsidian-setup-title">
       <h3 id="obsidian-setup-title">Obsidian-Vault für Hermes</h3>
       <p>Wähle einen vorhandenen Windows-Ordner mit <code>.obsidian</code>. Friday prüft den Zugriff in Friday-Ubuntu und trägt den Pfad in Hermes ein.</p>

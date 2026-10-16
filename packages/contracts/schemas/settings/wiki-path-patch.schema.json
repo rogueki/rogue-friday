@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/wiki-path-patch.schema.json",
+  "title": "WikiPathPatch",
+  "type": "object",
+  "properties": { "path": { "type": "string", "maxLength": 1024 } },
+  "required": ["path"],
+  "additionalProperties": false
+}

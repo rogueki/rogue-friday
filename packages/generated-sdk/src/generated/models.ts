@@ -441,6 +441,9 @@ export interface FridayModelMap {
   VoiceTranscript: VoiceTranscript;
   VoiceTtsEnded: VoiceTtsEnded;
   VoiceTtsStarted: VoiceTtsStarted;
+  WikiPath: WikiPath;
+  WikiPathPatch: WikiPathPatch;
+  WikiPathResponse: WikiPathResponse;
 }
 /**
  * Result of an action that returns no resource (delete, stop, ...).
@@ -3948,4 +3951,20 @@ export interface VoiceTtsStarted {
   engine: string;
   voice?: string;
   text?: string;
+}
+export interface WikiPath {
+  path: string;
+  revision: number;
+  configured: boolean;
+  customized: boolean;
+  readable: boolean;
+  applied: boolean | null;
+}
+export interface WikiPathPatch {
+  path: string;
+}
+export interface WikiPathResponse {
+  contractVersion: ContractVersion;
+  data: WikiPath;
+  freshness: Freshness;
 }

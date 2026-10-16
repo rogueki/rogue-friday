@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/wiki-path.schema.json",
+  "title": "WikiPath",
+  "type": "object",
+  "properties": {
+    "path": { "type": "string" },
+    "revision": { "type": "integer", "minimum": 0 },
+    "configured": { "type": "boolean" },
+    "customized": { "type": "boolean" },
+    "readable": { "type": "boolean" },
+    "applied": { "type": ["boolean", "null"] }
+  },
+  "required": ["path", "revision", "configured", "customized", "readable", "applied"],
+  "additionalProperties": false
+}

@@ -20,6 +20,7 @@ import type { ContentStudioProductionService } from "../services/content-studio-
 import type { SkillsService } from "../services/skills";
 import type { OnboardingService } from "../services/onboarding";
 import type { ObsidianVaultService } from "../services/obsidian-vault";
+import type { WikiPathService } from "../services/wiki-path";
 import type { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import type { CodingRunsService } from "../services/coding-runs";
 import type { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
@@ -68,6 +69,7 @@ export interface Runtime {
   skills: SkillsService;
   onboarding: OnboardingService;
   obsidianVault: ObsidianVaultService;
+  wikiPath: WikiPathService;
   hermesSkillKeys: HermesSkillKeysService;
   codingRuns: CodingRunsService;
   codingVoiceRepository: CodingVoiceRepositoryService;

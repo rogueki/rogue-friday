@@ -51,4 +51,11 @@ describe("Skill account setup paths", () => {
       expect(accountSetupView({ ...integration(id), configured: false }, undefined).state).toContain("nicht erreichbar");
     }
   });
+
+  it("links llm-wiki to its own local path without treating optional sync as configured", () => {
+    const setup = accountSetupView({ ...integration("hermes_llm_wiki"), configured: true }, undefined);
+    expect(setup.href).toBe("/settings?area=skillAccounts#wiki-path-setup-title");
+    expect(setup.state).toContain("lesbar");
+    expect(accountSetupView(integration("hermes_llm_wiki_sync"), undefined).href).toBeNull();
+  });
 });

@@ -5052,6 +5052,63 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/wiki-path:
+    get:
+      operationId: getWikiPath
+      tags:
+        - settings
+      summary: Read local Hermes Markdown wiki path and WSL readability
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WikiPathResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+    put:
+      operationId: putWikiPath
+      tags:
+        - settings
+      summary: Set or clear local Hermes Markdown wiki path in Friday-Ubuntu
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WikiPathPatch"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WikiPathResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/obsidian-vault:
     get:
       operationId: getObsidianVault
@@ -6250,6 +6307,12 @@ components:
       $ref: ../schemas/settings/content-studio-keys-response.schema.json
     ObsidianVault:
       $ref: ../schemas/settings/obsidian-vault.schema.json
+    WikiPath:
+      $ref: ../schemas/settings/wiki-path.schema.json
+    WikiPathPatch:
+      $ref: ../schemas/settings/wiki-path-patch.schema.json
+    WikiPathResponse:
+      $ref: ../schemas/settings/wiki-path-response.schema.json
     HermesSkillKeyPatch:
       $ref: ../schemas/settings/hermes-skill-key-patch.schema.json
     HermesSkillKeys:

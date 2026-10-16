@@ -30,6 +30,18 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     return { status: 200, body: single(await ctx.runtime.obsidianVault.status()) };
   },
 
+  async getWikiPath(ctx) {
+    return { status: 200, body: single(await ctx.runtime.wikiPath.status()) };
+  },
+
+  async putWikiPath(ctx) {
+    const { path } = ctx.body as { path: string };
+    const status = await ctx.runtime.wikiPath.update(path, ctx.mutation.ifMatchVersion ?? -1);
+    ctx.audit.action = "settings.wiki_path_updated";
+    ctx.audit.after = { configured: status.configured, customized: status.customized, readable: status.readable, applied: status.applied };
+    return { status: 200, body: single(status) };
+  },
+
   async putObsidianVault(ctx) {
     const body = ctx.body as { path: string };
     const status = await ctx.runtime.obsidianVault.set(body.path, ctx.mutation.ifMatchVersion ?? -1);
