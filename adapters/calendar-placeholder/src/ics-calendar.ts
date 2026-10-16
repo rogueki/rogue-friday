@@ -7,6 +7,7 @@ import {
 } from "@friday/adapter-core";
 import { manifest } from "./index";
 import { fetchIcs, validateFeedUrl } from "./fetch-ics";
+import { fetchCalDav } from "./fetch-caldav";
 
 const CACHE_MS = 5 * 60_000;
 const MAX_COMPONENTS = 5000;
@@ -65,10 +66,19 @@ export function parseEvents(document: string, fetchedAt: string, from: number, t
   return result.sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id));
 }
 
+function parseDocuments(documents: string[], fetchedAt: string, from: number, to: number): SourceEvent[] {
+  const events: SourceEvent[] = [];
+  for (const document of documents) {
+    events.push(...parseEvents(document, fetchedAt, from, to));
+    if (events.length > MAX_OCCURRENCES) throw new Error("Kalender enthaelt zu viele Termine");
+  }
+  return events.sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id));
+}
+
 export class IcsCalendarAdapter implements CalendarPort {
   readonly manifest = manifest;
   private context: AdapterContext | undefined;
-  private cache: { text: string; fetchedAt: string; expires: number } | undefined;
+  private cache: { documents: string[]; fetchedAt: string; expires: number; mode: "ics" | "caldav"; from: number; to: number } | undefined;
 
   async initialize(context: AdapterContext): Promise<void> {
     this.context = context;
@@ -82,23 +92,28 @@ export class IcsCalendarAdapter implements CalendarPort {
       await this.load();
       return { status: "online", latencyMs: Date.now() - start };
     } catch {
-      return { status: "offline", latencyMs: Date.now() - start, errorCode: "ADAPTER_UNAVAILABLE", message: "iCalendar-Feed nicht konfiguriert oder nicht erreichbar" };
+      return { status: "offline", latencyMs: Date.now() - start, errorCode: "ADAPTER_UNAVAILABLE", message: "Kalender nicht konfiguriert oder nicht erreichbar" };
     }
   }
-  private async load(signal?: AbortSignal): Promise<{ text: string; fetchedAt: string }> {
-    const url = this.context?.getSecret("feedUrl");
-    if (!url) throw new AdapterError({ code: "ADAPTER_UNAVAILABLE", message: "iCalendar-Feed nicht konfiguriert" });
+  private async load(signal?: AbortSignal, from = Date.now() - 7 * 86_400_000, to = Date.now() + 60 * 86_400_000): Promise<{ documents: string[]; fetchedAt: string; mode: "ics" | "caldav" }> {
+    const mode = this.context?.config.mode === "caldav" ? "caldav" : "ics";
+    const url = this.context?.getSecret(mode === "caldav" ? "calendarUrl" : "feedUrl");
+    const username = mode === "caldav" ? this.context?.getSecret("username") : undefined;
+    const password = mode === "caldav" ? this.context?.getSecret("password") : undefined;
+    if (!url || mode === "caldav" && (!username || !password)) throw new AdapterError({ code: "ADAPTER_UNAVAILABLE", message: "Kalender-Zugang nicht konfiguriert" });
     try { validateFeedUrl(url); } catch { throw new AdapterError({ code: "VALIDATION_FAILED", message: "Ungueltige private Kalender-URL" }); }
-    if (this.cache && Date.now() < this.cache.expires) return this.cache;
+    if (this.cache && Date.now() < this.cache.expires && this.cache.mode === mode && (mode === "ics" || this.cache.from <= from && this.cache.to >= to)) return this.cache;
     try {
-      const text = await fetchIcs(url, signal ?? this.context?.signal);
+      const documents = mode === "caldav"
+        ? await fetchCalDav(url, username!, password!, from, to, signal ?? this.context?.signal)
+        : [await fetchIcs(url, signal ?? this.context?.signal)];
       // Parse before accepting it into cache; never expose URL in errors.
       const fetchedAt = new Date().toISOString();
-      parseEvents(text, fetchedAt, Date.now() - 86_400_000, Date.now() + 86_400_000);
-      this.cache = { text, fetchedAt, expires: Date.now() + CACHE_MS };
+      parseDocuments(documents, fetchedAt, Date.now() - 86_400_000, Date.now() + 86_400_000);
+      this.cache = { documents, fetchedAt, mode, from, to, expires: Date.now() + CACHE_MS };
       return this.cache;
     } catch {
-      throw new AdapterError({ code: "ADAPTER_UNAVAILABLE", message: "iCalendar-Feed nicht erreichbar oder ungueltig" });
+      throw new AdapterError({ code: "ADAPTER_UNAVAILABLE", message: "Kalender nicht erreichbar oder ungueltig" });
     }
   }
   async listCalendarEvents(params: ListCalendarEventsParams, call: CallContext): Promise<Page<CalendarEvent>> {
@@ -107,9 +122,10 @@ export class IcsCalendarAdapter implements CalendarPort {
     if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from || to - from > 366 * 86_400_000) {
       throw new AdapterError({ code: "VALIDATION_FAILED", message: "Ungueltiger Kalender-Zeitraum" });
     }
-    const { text, fetchedAt } = await this.load(call.signal);
+    const { documents, fetchedAt } = await this.load(call.signal, from, to);
     const query = params.q?.toLocaleLowerCase();
-    const all = parseEvents(text, fetchedAt, from, to).filter((event) => !query || event.title.toLocaleLowerCase().includes(query));
+    const all = parseDocuments(documents, fetchedAt, from, to)
+      .filter((event) => !query || event.title.toLocaleLowerCase().includes(query));
     const offset = params.cursor ? Number(params.cursor) : 0;
     if (!Number.isSafeInteger(offset) || offset < 0) throw new AdapterError({ code: "VALIDATION_FAILED", message: "Ungueltiger Cursor" });
     const limit = Math.max(1, Math.min(MAX_PAGE, params.limit ?? 50));
@@ -117,8 +133,10 @@ export class IcsCalendarAdapter implements CalendarPort {
     return { items, pageInfo: { nextCursor: offset + limit < all.length ? String(offset + limit) : null, hasNextPage: offset + limit < all.length, totalCount: all.length }, freshness: { state: "fresh", asOf: fetchedAt } };
   }
   async getCalendarEvent({ id }: { id: string }, call: CallContext): Promise<Single<CalendarEvent>> {
-    const { text, fetchedAt } = await this.load(call.signal);
-    const item = parseEvents(text, fetchedAt, Date.now() - 366 * 86_400_000, Date.now() + 366 * 86_400_000).find((event) => event.id === id);
+    const from = Date.now() - 366 * 86_400_000;
+    const to = Date.now() + 366 * 86_400_000;
+    const { documents, fetchedAt } = await this.load(call.signal, from, to);
+    const item = parseDocuments(documents, fetchedAt, from, to).find((event) => event.id === id);
     if (!item) throw new AdapterError({ code: "NOT_FOUND", message: "Kalendertermin nicht gefunden" });
     return { data: item, freshness: { state: "fresh", asOf: fetchedAt } };
   }

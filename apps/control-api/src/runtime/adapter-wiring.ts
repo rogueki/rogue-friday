@@ -33,7 +33,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { kvGet, kvSet, type Db } from "../db/database";
 
 export interface RuntimeSecrets {
-  /** Secrets set through settings. Calendar feed URL is encrypted in the local database; other values stay in memory. */
+  /** Secrets set through settings. Calendar credentials are encrypted in the local database. */
   set(adapterId: string, field: string, value: string): void;
   get(adapterId: string, field: string): string | undefined;
   has(adapterId: string, field: string): boolean;
@@ -42,29 +42,35 @@ export interface RuntimeSecrets {
 export function createRuntimeSecrets(db?: Db, calendarKey?: Buffer): RuntimeSecrets {
   const values = new Map<string, string>();
   const key = (adapterId: string, field: string): string => `${adapterId}\u0000${field}`;
-  const calendarSlot = key("caldav-calendar", "feedUrl");
-  const stored = db ? kvGet(db, "calendar.feed-url.v1") : undefined;
-  if (stored && calendarKey) {
-    try {
-      const [nonce, tag, body] = stored.split(":").map((value) => Buffer.from(value, "base64"));
-      if (!nonce || !tag || !body || nonce.length !== 12 || tag.length !== 16) throw new Error("invalid envelope");
-      const decipher = createDecipheriv("aes-256-gcm", calendarKey, nonce);
-      decipher.setAAD(Buffer.from("friday/calendar-feed/v1"));
-      decipher.setAuthTag(tag);
-      values.set(calendarSlot, Buffer.concat([decipher.update(body), decipher.final()]).toString("utf8"));
-    } catch { /* Fail closed for this adapter only: no URL is loaded or exposed. */ }
+  const calendarFields = new Set(["feedUrl", "calendarUrl", "username", "password"]);
+  const storage = (field: string) => field === "feedUrl"
+    ? { slot: "calendar.feed-url.v1", aad: "friday/calendar-feed/v1" }
+    : { slot: `calendar.caldav.${field}.v1`, aad: `friday/calendar-caldav/${field}/v1` };
+  for (const field of calendarFields) {
+    const stored = db ? kvGet(db, storage(field).slot) : undefined;
+    if (stored && calendarKey) {
+      try {
+        const [nonce, tag, body] = stored.split(":").map((value) => Buffer.from(value, "base64"));
+        if (!nonce || !tag || !body || nonce.length !== 12 || tag.length !== 16) throw new Error("invalid envelope");
+        const decipher = createDecipheriv("aes-256-gcm", calendarKey, nonce);
+        decipher.setAAD(Buffer.from(storage(field).aad));
+        decipher.setAuthTag(tag);
+        values.set(key("caldav-calendar", field), Buffer.concat([decipher.update(body), decipher.final()]).toString("utf8"));
+      } catch { /* Fail closed for this field. */ }
+    }
   }
   return {
     set: (adapterId, field, value) => {
-      if (key(adapterId, field) === calendarSlot && db && calendarKey) {
+      if (adapterId === "caldav-calendar" && calendarFields.has(field) && db && calendarKey) {
+        const { slot, aad } = storage(field);
         if (value) {
           const nonce = randomBytes(12);
           const cipher = createCipheriv("aes-256-gcm", calendarKey, nonce);
-          cipher.setAAD(Buffer.from("friday/calendar-feed/v1"));
+          cipher.setAAD(Buffer.from(aad));
           const body = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
-          kvSet(db, "calendar.feed-url.v1", [nonce, cipher.getAuthTag(), body].map((part) => part.toString("base64")).join(":"));
+          kvSet(db, slot, [nonce, cipher.getAuthTag(), body].map((part) => part.toString("base64")).join(":"));
         } else {
-          db.prepare("DELETE FROM kv WHERE key = ?").run("calendar.feed-url.v1");
+          db.prepare("DELETE FROM kv WHERE key = ?").run(slot);
         }
       }
       if (value) values.set(key(adapterId, field), value);

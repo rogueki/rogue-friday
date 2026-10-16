@@ -5,7 +5,7 @@ import { isIP } from "node:net";
 const MAX_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 8000;
 
-function publicIp(address: string): boolean {
+export function publicIp(address: string): boolean {
   if (isIP(address) === 4) {
     const parts = address.split(".").map(Number);
     const [a, b, c] = parts;
