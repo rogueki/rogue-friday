@@ -174,32 +174,46 @@ class Speaker:
 
     def _stream_from_server(self, text: str, play: bool = True) -> None:
         from audio_output import OUTPUT_TAIL_SECONDS
-        from scipy.signal import resample_poly
-        import math
+        import av
+        import itertools
 
         def play_pcm(chunks, source_rate):
             target_rate = round(sd.query_devices(self.output_device, "output")["default_samplerate"])
             if target_rate <= 0:
                 raise ValueError("Ausgabegeraet meldet keine gueltige Abtastrate")
-            common = math.gcd(source_rate, target_rate)
-            up, down = target_rate // common, source_rate // common
+            resampler = (av.AudioResampler(format="flt", layout="mono", rate=target_rate)
+                         if source_rate != target_rate else None)
+            underflows = 0
             with sd.OutputStream(samplerate=target_rate, channels=1, dtype="float32",
                                  device=self.output_device) as out:
                 for block in chunks:
                     if self.stop_flag.is_set():
-                        return
-                    audio = np.frombuffer(block, dtype="<i2").astype(np.float32) / 32768.0
-                    if up != down:
-                        audio = resample_poly(audio, up, down).astype(np.float32)
-                    self.level.update(audio)
-                    out.write(audio.reshape(-1, 1))
+                        return underflows
+                    pcm = np.frombuffer(block, dtype="<i2")
+                    if resampler:
+                        frame = av.AudioFrame.from_ndarray(pcm.reshape(1, -1).copy(), format="s16", layout="mono")
+                        frame.sample_rate = source_rate
+                        frames = resampler.resample(frame)
+                        samples = (output.to_ndarray().reshape(-1) for output in frames)
+                    else:
+                        samples = (pcm.astype(np.float32) / 32768.0,)
+                    for audio in samples:
+                        self.level.update(audio)
+                        underflows += bool(out.write(audio.reshape(-1, 1)))
                 if not self.stop_flag.is_set():
+                    if resampler:
+                        for output in resampler.resample(None):
+                            audio = output.to_ndarray().reshape(-1)
+                            self.level.update(audio)
+                            underflows += bool(out.write(audio.reshape(-1, 1)))
                     out.write(np.zeros((round(target_rate * OUTPUT_TAIL_SECONDS), 1), dtype=np.float32))
+            return underflows
 
         if text in self.cache:
             pcm, sr = self.cache[text]
             if play:
-                play_pcm((pcm[i:i + 4096] for i in range(0, len(pcm), 4096)), sr)
+                underflows = play_pcm((pcm[i:i + 4096] for i in range(0, len(pcm), 4096)), sr)
+                log_event(event="tts_stream", cached=True, underflows=underflows, audio_s=round(len(pcm) / 2 / sr, 2))
             return
         req = urllib.request.Request(self.tts_url, json.dumps({"text": text}).encode("utf-8"),
                                      {"Content-Type": "application/json"})
@@ -221,7 +235,23 @@ class Speaker:
                     if data:
                         yield data
             if play:
-                play_pcm(received(), sr)
+                chunks = received()
+                buffered = []
+                buffered_bytes = 0
+                # Laengere Saetze brauchen Vorlauf: die GPU kann zwischen zwei generierten
+                # Audiobloecken kurz pausieren. Kurze Antworten bleiben direkt hoerbar.
+                target_bytes = int(sr * 2 * (0.55 if len(text) <= 35 else 1.6))
+                while buffered_bytes < target_bytes:
+                    try:
+                        block = next(chunks)
+                    except StopIteration:
+                        break
+                    buffered.append(block)
+                    buffered_bytes += len(block)
+                underflows = play_pcm(itertools.chain(buffered, chunks), sr)
+                log_event(event="tts_stream", cached=False, underflows=underflows,
+                          buffer_s=round(buffered_bytes / 2 / sr, 2),
+                          audio_s=round(len(collected) / 2 / sr, 2))
             else:
                 for _ in received():
                     pass
@@ -366,6 +396,8 @@ class VoiceService:
         self.input_level = LevelMeter()  # geglaetteter Mikrofonpegel 0..1 (nur die Zahl, das Audio wird nicht gehalten)
         self.ring = collections.deque(maxlen=int(2.0 * SR / CHUNK))  # 2 s Vorlauf fuer Sprecherpruefung
         self.trusted_until = 0.0
+        self.background_jobs: set[str] = set()
+        self.background_reply_ready = threading.Event()
         self.last_wake = 0.0
         self.history: list[dict] = []
         self.hermes_key = open(cfg["hermes_key_file"], encoding="utf-8").read().strip()
@@ -457,6 +489,8 @@ class VoiceService:
         t0 = time.monotonic()
         self.vad.reset_states()
         while True:
+            if self.tts.speaking.is_set():
+                return None  # Hintergrundantwort darf nicht als neue Nutzerfrage aufgenommen werden.
             chunk = self._read_chunk().astype(np.float32) / 32768.0
             pending = np.concatenate([pending, chunk])
             while len(pending) >= VAD_FRAME:
@@ -583,6 +617,7 @@ class VoiceService:
 
         if decision.get("background"):
             self.tts.say(self.cfg.get("ack_background", DEFAULT_ACK_BACKGROUND))
+            self.background_jobs.add(task_id)
             threading.Thread(target=self._background, args=(text, decision, task_id), daemon=True).start()
             return
         if decision["route"] != "cloud_low":
@@ -593,8 +628,16 @@ class VoiceService:
         self.history += [{"role": "assistant", "content": answer}]
 
     def _background(self, text: str, decision: dict, task_id: str) -> None:
-        answer = self._ask_hermes(text, decision, task_id)
-        self.tts.say("Ergebnis zur Aufgabe: " + answer)
+        try:
+            answer = self._ask_hermes(text, decision, task_id)
+            print(f"< {answer}", flush=True)
+            self.tts.say("Ergebnis zur Aufgabe: " + answer)
+            self.history += [{"role": "assistant", "content": answer}]
+            while self.tts.speaking.is_set():
+                time.sleep(0.05)
+        finally:
+            self.background_jobs.discard(task_id)
+            self.background_reply_ready.set()
 
     # ---------- Hauptschleife ----------
     def run(self) -> None:
@@ -704,7 +747,8 @@ class VoiceService:
             log_event(event="no_speech_after_wake")
         else:
             self._handle_command(audio, wake_audio)
-        while self.tts.speaking.is_set() or time.monotonic() < self.trusted_until:
+        while (self.tts.speaking.is_set() or time.monotonic() < self.trusted_until or
+               self.background_jobs or self.background_reply_ready.is_set()):
             self.status["state"] = "speaking"
             interrupted = False
             self._drain()  # waehrend der Verarbeitung aufgelaufenes Audio nicht als Barge-In auswerten
@@ -725,6 +769,9 @@ class VoiceService:
             self.status["state"] = "followup"
             audio = self._record_command(cfg["followup_window_s"])
             if audio is None:
+                if self.background_jobs or self.tts.speaking.is_set() or self.background_reply_ready.is_set():
+                    self.background_reply_ready.clear()
+                    continue
                 break
             self._handle_command(audio, None)
         self._drain()

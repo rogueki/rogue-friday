@@ -388,6 +388,7 @@ def make_service(jv, texts, engine="personal", phrase="Hey Friday"):
     svc.audio_q, svc.preroll = queue.Queue(), []
     svc.ring = collections.deque([np.full(pw.CHUNK, 100, dtype=np.int16)] * 25, maxlen=25)
     svc.last_wake, svc.stage1_block_until, svc.trusted_until = 0.0, 0.0, 0.0
+    svc.background_jobs, svc.background_reply_ready = set(), threading.Event()
     svc.whisper, svc.oww, svc.wake_name, svc.wake_threshold = FakeWhisper(texts), FakeDetector(), "personal", 2.0
     svc.tts = types.SimpleNamespace(speaking=threading.Event(), interrupted=0)
     svc.tts.interrupt = lambda: setattr(svc.tts, "interrupted", svc.tts.interrupted + 1)
@@ -435,6 +436,33 @@ def test_followup_window_starts_after_answer(monkeypatch):
     svc._session()
     assert calls == [5.0, 15.0]
     assert 14 <= svc.trusted_until - jv.time.monotonic() <= 15
+    assert svc.status["state"] == "listening"
+
+
+def test_background_reply_reopens_followup_window(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update({"command_start_timeout_s": 5.0, "followup_window_s": 15.0})
+    monkeypatch.setattr(jv, "log_event", lambda **kw: None)
+    svc._acknowledge_wake = lambda: np.zeros(pw.CHUNK, dtype=np.int16)
+    svc._drain = lambda: None
+    svc._wake_detected = lambda chunk: False
+    calls = []
+    def record(timeout):
+        calls.append(timeout)
+        if len(calls) == 1:
+            return np.zeros(pw.CHUNK, dtype=np.int16)
+        if len(calls) == 3:
+            svc.background_jobs.clear()
+            svc.background_reply_ready.set()
+        return None
+    def handle(audio, wake_audio):
+        svc.background_jobs.add("pending-kimi")
+        svc.trusted_until = jv.time.monotonic() - 1
+    svc._record_command = record
+    svc._handle_command = handle
+    svc._session()
+    assert calls == [5.0, 15.0, 15.0, 15.0]
     assert svc.status["state"] == "listening"
 
 
