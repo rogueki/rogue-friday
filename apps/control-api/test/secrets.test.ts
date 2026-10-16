@@ -87,8 +87,9 @@ describe("secret hygiene", () => {
     expect((await owner.patch("/api/v1/settings", { dashboard: { ...settings.dashboard, contentStudioEnabled: true } },
       { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
     for (const spec of ROUTE_TABLE.filter((candidate) => candidate.method === "GET" && candidate.pathParams.length === 0 && candidate.requiresSession)) {
-      // Hermes' Obsidian state requires an installed WSL distro, absent in this isolated test runtime.
-      if (spec.operationId === "downloadFile" || spec.operationId === "getObsidianVault" || spec.operationId === "getWikiPath" || spec.operationId === "getHimalayaAccount" || spec.operationId === "listHimalayaMailboxes" || spec.operationId === "listHimalayaEnvelopes" || spec.operationId === "getHimalayaMessage" || spec.operationId === "getCodingCliStatus" || spec.operationId === "getHermesSkillKeys") continue;
+      // Hermes-backed reads require an installed WSL distro, absent in this isolated test runtime.
+      // Gateway token redaction is covered by the dedicated Telegram/Discord/WhatsApp API tests.
+      if (spec.operationId === "downloadFile" || spec.operationId === "getObsidianVault" || spec.operationId === "getWikiPath" || spec.operationId === "getHimalayaAccount" || spec.operationId === "listHimalayaMailboxes" || spec.operationId === "listHimalayaEnvelopes" || spec.operationId === "getHimalayaMessage" || spec.operationId === "getCodingCliStatus" || spec.operationId === "getHermesSkillKeys" || spec.operationId === "getTelegramGateway" || spec.operationId === "getDiscordGateway" || spec.operationId === "getWhatsappGateway") continue;
       const response = record(spec.operationId, await owner.get(pathOf(spec), spec.operationId === "exportAudit" ? { query: { format: "json" } } : {}));
       expect(response.statusCode, spec.operationId).toBe(200);
       expect(hasCanary(response.body), `${spec.operationId} body`).toBeUndefined();
