@@ -203,9 +203,9 @@ describe("REST route coverage", () => {
     const yaml = readFileSync(resolve(__dirname, "../../contracts/openapi/friday-api.yaml"), "utf8");
     const contract = [...yaml.matchAll(/operationId:\s*(\w+)/g)].map((match) => match[1] as string).sort();
     const liveOnly = [
-      "cancelContentProductionJob", "checkHermesSkillKey", "createCalendarEvent", "createCodingRun", "createContentProductionJob", "createVoiceCodingRun", "getCodingCliStatus", "getCodingRun", "getCodingVoiceRepository",
+      "cancelContentProductionJob", "checkHermesSkillKey", "checkHimalayaSmtp", "createCalendarEvent", "createCodingRun", "createContentProductionJob", "createLocalCalendarEvent", "createVoiceCodingRun", "deleteLocalCalendarEvent", "getCodingCliStatus", "getCodingRun", "getCodingVoiceRepository",
       "getContentProductionArtifact", "getContentProductionJob", "getContentStudioPlan", "getHermesSkillKeys", "getHimalayaAccount", "getHimalayaMessage", "getObsidianVault", "getOnboarding", "getWikiPath", "listHimalayaEnvelopes", "listHimalayaMailboxes", "listSkills",
-      "previewCalDavEvent", "putCodingVoiceRepository", "putContentStudioPlan", "putHimalayaAccount", "putObsidianVault", "putOnboarding", "putWikiPath", "sendHimalayaMessage", "setSkillActivation", "stopCodingRun", "updateHermesSkillKey",
+      "previewCalDavEvent", "putCodingVoiceRepository", "putContentStudioPlan", "putHimalayaAccount", "putObsidianVault", "putOnboarding", "putWikiPath", "sendHimalayaMessage", "setSkillActivation", "stopCodingRun", "updateHermesSkillKey", "updateLocalCalendarEvent",
     ];
     const mocked = ROUTES.map((route) => route.operationId).sort();
     expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);

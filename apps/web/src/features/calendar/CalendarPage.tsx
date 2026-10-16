@@ -20,6 +20,7 @@ import { formatCivil, isView, offsetLabel, VIEWS, viewKey, type CalendarView } f
 import { MonthGrid } from "./MonthGrid";
 import { ProposalDialog, type ProposalDefaults } from "./ProposalDialog";
 import { CalDavCreateDialog } from "./CalDavCreateDialog";
+import { LocalEventDialog } from "./LocalEventDialog";
 import { TimeGrid } from "./TimeGrid";
 import "./calendar.css";
 
@@ -45,6 +46,8 @@ function CalendarPageInner() {
   const [eventId, setEventId] = useUrlParam("event");
   const [proposal, setProposal] = useState<ProposalDefaults | null>(null);
   const [caldavCreateOpen, setCalDavCreateOpen] = useState(false);
+  const [localEditorOpen, setLocalEditorOpen] = useState(false);
+  const [localEvent, setLocalEvent] = useState<CalendarEvent | null>(null);
 
   const timeZone = format.timeZone;
   const today = civilOf(now, timeZone);
@@ -128,14 +131,16 @@ function CalendarPageInner() {
         actions={
           <span className="mk-actions">
             <DataBadges sources={eventsQuery.data?.sources} freshness={effectiveFreshness(eventsQuery)} />
-            <Button size="sm" icon={<CalendarPlus size={14} />} disabled={!canPropose && !canCreateCalDav} title={!canPropose && !canCreateCalDav ? t("calendar.proposal.notAllowed") : t("calendar.proposal.hint")} onClick={() => canCreateCalDav ? setCalDavCreateOpen(true) : setProposal({ type: "create" })}>
-              {canCreateCalDav ? "Termin anlegen" : t("calendar.proposal.open")}
+            {session.role === "owner" && <Button size="sm" icon={<CalendarPlus size={14} />} onClick={() => { setLocalEvent(null); setLocalEditorOpen(true); }}>Jetzt Termin anlegen</Button>}
+            {canCreateCalDav && <Button size="sm" variant="ghost" onClick={() => setCalDavCreateOpen(true)}>CalDAV-Termin anlegen</Button>}
+            <Button size="sm" icon={<CalendarPlus size={14} />} disabled={!canPropose} title={!canPropose ? t("calendar.proposal.notAllowed") : t("calendar.proposal.hint")} onClick={() => setProposal({ type: "create" })}>
+              {t("calendar.proposal.open")}
             </Button>
           </span>
         }
       >
         <div className="mk-stack">
-          <CapabilityNote state={proposeState} readText={t("calendar.kit.readOnly")} writeText={t("calendar.kit.writeUnavailable")} />
+          {session.role === "owner" ? <p className="mk-note">Friday-Kalender ist bereit. Du kannst Termine direkt verwalten und bei Bedarf einen externen Kalender verbinden.</p> : <CapabilityNote state={proposeState} readText={t("calendar.kit.readOnly")} writeText={t("calendar.kit.writeUnavailable")} />}
           <div className="cal-toolbar">
             <div className="cal-seg" role="group" aria-label={t("calendar.views")}>
               {VIEWS.map((value) => (
@@ -191,9 +196,10 @@ function CalendarPageInner() {
         <EmptyState compact icon={<CalendarDays size={20} strokeWidth={1.5} />} title={t("calendar.empty.range")} description={t("calendar.empty.rangeHint")} />
       ) : null}
 
-      <EventDrawer id={eventId} onClose={() => setEventId(null)} onPropose={propose} />
+      <EventDrawer id={eventId} onClose={() => setEventId(null)} onPropose={propose} onEditLocal={(event) => { setLocalEvent(event); setLocalEditorOpen(true); setEventId(null); }} />
       <ProposalDialog open={proposal !== null} onOpenChange={(open) => { if (!open) setProposal(null); }} events={events} defaults={proposal ?? undefined} />
       <CalDavCreateDialog open={caldavCreateOpen} onOpenChange={setCalDavCreateOpen} />
+      <LocalEventDialog open={localEditorOpen} event={localEvent} onOpenChange={setLocalEditorOpen} />
     </div>
   );
 }

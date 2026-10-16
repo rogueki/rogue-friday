@@ -173,6 +173,24 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    id: 9,
+    name: "local-calendar-events",
+    sql: `
+      CREATE TABLE local_calendar_events (
+        id TEXT PRIMARY KEY,
+        owner_id TEXT NOT NULL,
+        version INTEGER NOT NULL CHECK (version >= 1),
+        title TEXT NOT NULL,
+        starts_at TEXT NOT NULL,
+        ends_at TEXT NOT NULL,
+        time_zone TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_local_calendar_range ON local_calendar_events (starts_at, ends_at);
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

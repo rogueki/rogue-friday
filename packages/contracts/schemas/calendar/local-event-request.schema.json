@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/calendar/local-event-request.schema.json",
+  "title": "LocalEventRequest",
+  "type": "object",
+  "properties": {
+    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "start": { "type": "string", "format": "date-time" },
+    "end": { "type": "string", "format": "date-time" },
+    "timeZone": { "type": "string", "minLength": 1, "maxLength": 100 }
+  },
+  "required": ["title", "start", "end", "timeZone"],
+  "additionalProperties": false
+}
