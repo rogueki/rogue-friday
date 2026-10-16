@@ -38,13 +38,17 @@ Wake Word *„Hey Friday“*.
    - deinem **Wake Word**: *„Mit welchem Wort oder Satz soll <Name> geweckt werden?“* (Enter = *Hey <Name>*). Das Wake Word wird
      **immer frei gefragt**, nicht aus dem Namen abgeleitet. Erlaubt sind 1–4 Wörter (Buchstaben, auch Umlaute, und Bindestrich),
      zusammen 3–30 Zeichen, z. B. *Hey Friday*, *Computer*, *Guten Morgen Friday*.
+   - der **Ausgabestimme**: weibliche F.R.I.D.A.Y.-Stimme aus einer eigenen 3–30 Sekunden langen MP3/WAV-Referenz
+     über lokales Qwen3-TTS oder klassische Ausgabe. Die Referenz bleibt nur auf deinem Rechner. Ohne Referenz
+     nutzt die weibliche Option Piper Kerstin. Die klassische Ausgabe nutzt `jarvis_de.onnx`, wenn du diese eigene
+     Datei samt `.json` bereitstellst; im Paket liegt derzeit keine solche Datei, daher nutzt sie sonst Thorsten mit Filmfilter.
    - deinem **Vornamen** und wie dein Assistent dich ansprechen soll (z. B. *„Sir“* wie ein britischer Butler)
    - dem **Charakter** (Butler / freundlich / sachlich) und wie ausführlich er antwortet
    - optional ein paar Infos über dich (Beruf, Interessen …)
    - einem **Linux-Benutzernamen und Passwort** (gut merken!)
    - deinem **Kimi-Schlüssel** (Bestätigung eines gefundenen Schlüssels oder Eingabe)
-   - ganz am Ende (Schritt 15) einem **Passwort für das Command Center** (mindestens 12 Zeichen, zweimal eingeben). Benutzername
-     beim Login ist `owner`. Gespeichert wird nur ein Hash, nie das Passwort selbst.
+   - den **Command-Center-Zugang** richtest du nach der Installation beim ersten Öffnen im Browser selbst ein: Anzeigename,
+     Benutzername und Passwort (mindestens 12 Zeichen). Gespeichert wird nur ein Hash, nie das Passwort selbst.
 4. **Neustart:** Falls WSL noch fehlt, startet Windows einmal neu. Danach geht es **automatisch weiter**.
 5. **Stimmaufnahme (ca. 10 Minuten):** Ein eigenes Fenster öffnet sich. Nach jedem **Piepton** sagst du, was dort
    steht: 26× dein Wake Word (z. B. „Hey Friday“), 18× die Kurzform ohne „Hey“ (z. B. „Friday“; bei Wake Words ohne Grußwort
@@ -65,7 +69,8 @@ starten** – erledigte Schritte werden übersprungen.
 - **Unterbrechen:** während dein Assistent spricht einfach das Wake Word sagen.
 - Einfache Dinge (Uhrzeit, Rechnen, Wissen) beantwortet er sofort lokal. Aufgaben mit Mails, Kalender,
   Recherche oder Analysen gehen an Kimi K3 – dann sagt er kurz „Einen Moment“ bzw. meldet sich, wenn es fertig ist.
-- **Command Center:** <http://127.0.0.1:3100> – Login `owner` mit deinem Command-Center-Passwort. Startet automatisch bei der
+- **Command Center:** <http://127.0.0.1:3100> – beim ersten Öffnen richtest du deinen Zugang ein. Danach kannst du
+  „Angemeldet bleiben“ für 30 Tage wählen oder in den Sicherheitseinstellungen die Anmeldung für rein lokalen Zugriff ausschalten. Startet automatisch bei der
   Anmeldung (Aufgabe `FRIDAY_Dashboard`, ca. 1 Minute nach dem Anmelden). Zeigt Aufgaben, Aktivität und Agenten live aus Hermes,
   Sprachstatus und Systemdaten; alle übrigen Bereiche (z. B. Mail, Kalender) sind noch **simuliert** und als solche gekennzeichnet.
 - **Hermes-Dashboard:** <http://127.0.0.1:43691> (Kanban-Boards, Einstellungen, Verlauf)
@@ -88,6 +93,10 @@ starten** – erledigte Schritte werden übersprungen.
 
 **Persönlichkeit neu einstellen:** In `C:\Friday\config\install-state.json` die Einträge `"persona"`, `"hermes"` und
 `"voicepython"` aus der Liste `done` löschen und `install-friday.bat` erneut starten.
+**Ausgabestimme später wechseln:** `change-voice.bat` starten. Der Installer lädt bei Bedarf die gewählte Stimme und
+startet den Sprachdienst neu; persönliche Wake-Word-Aufnahmen bleiben erhalten.
+Die lokale Qwen3-TTS-Stimme benötigt zwei geprüfte Modelldateien (zusammen etwa 1,5 GB) und `llama-tts.exe`.
+Sie kann mehrere Sekunden Verzögerung pro Antwort verursachen; bei einem Synthesefehler wird die Piper-Basisstimme verwendet.
 **Stimme / Wake Word neu einlernen (gleicher Name und gleiches Wake Word):** Ordner `C:\Friday\voice\profiles\owner` löschen, die Einträge
 `"enroll"` und `"voiceservice"` aus `done` entfernen, `install-friday.bat` erneut starten (der alte Sprachdienst samt Neustartschleife wird dabei beendet).
 **Sprachdienst stoppen:** Nicht nur die Aufgabe `FRIDAY_Voice` beenden – eine Neustartschleife läuft getrennt weiter und startet Python nach 10 s neu.

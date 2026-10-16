@@ -10,14 +10,20 @@ sys.path.insert(0, os.path.join(ROOT, "voice"))
 import numpy as np  # noqa: E402
 import sounddevice as sd  # noqa: E402
 from film_filter import FilmFilter  # noqa: E402
-from piper import PiperVoice  # noqa: E402
+from piper import PiperVoice, SynthesisConfig  # noqa: E402
 
 cfg = json.load(open(os.path.join(ROOT, "config", "voice.json"), encoding="utf-8-sig"))
 name = cfg.get("assistant_name")
 default_text = f"Guten Tag. {name} ist installiert und einsatzbereit." if name else "Guten Tag. Der Assistent ist installiert und einsatzbereit."
 text = sys.argv[2] if len(sys.argv) > 2 else default_text
-voice = PiperVoice.load(cfg["tts_voice"])
-fx = FilmFilter(voice.config.sample_rate, cfg.get("tts_film_filter", True))
-audio = np.concatenate([fx.process(c.audio_float_array) for c in voice.synthesize(text)] + [fx.flush()])
-sd.play(audio, voice.config.sample_rate)
+if cfg.get("tts_backend") == "qwen3":
+    import qwen_tts
+    audio, rate = qwen_tts.synthesize(text, cfg)
+else:
+    voice = PiperVoice.load(cfg["tts_voice"])
+    fx = FilmFilter(voice.config.sample_rate, cfg.get("tts_film_filter", True))
+    audio = np.concatenate([fx.process(c.audio_float_array) for c in voice.synthesize(
+        text, syn_config=SynthesisConfig(speaker_id=cfg.get("tts_speaker_id")))] + [fx.flush()])
+    rate = voice.config.sample_rate
+sd.play(audio, rate)
 sd.wait()
