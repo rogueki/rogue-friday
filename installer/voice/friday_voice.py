@@ -1,7 +1,7 @@
 """Voice Service (Windows) fuer den Assistenten - Name, Persona, Wake Word und Wake-Engine per config/voice.json.
 
 Mikrofon -> Wake Word -> Befehl per Silero-VAD -> ECAPA-Sprecherpruefung
--> faster-whisper (GPU) -> Qwen-Router -> lokale Antwort oder Hermes/Kimi -> gewählte TTS-Stimme.
+-> lokale Whisper-/Qwen-Modelle oder ElevenLabs STT -> Hermes -> lokale oder ElevenLabs-TTS-Stimme.
 
 Wake-Engines (voice.json "wake_engine"):
 - "openwakeword": vortrainiertes hey_jarvis + Owner-Verifier (nur die Wake Phrase "Hey Jarvis").
@@ -51,6 +51,8 @@ from calendar_voice import CalendarVoice  # noqa: E402
 from powerpoint_voice import PowerPointVoice  # noqa: E402
 from cloudtalk_voice import CloudTalkVoice  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
+import elevenlabs_cloud  # noqa: E402
+from model_routing import load_dashboard_voice_routing, route_request  # noqa: E402
 
 SR = 16000
 CHUNK = 1280  # 80 ms, Eingabegroesse von openWakeWord
@@ -152,14 +154,21 @@ class Speaker:
 
     def __init__(self, fallback_voice_path: str, output_device, tts_url: str | None, film_filter: bool = False,
                  speaker_id: int | None = None, tts_config: dict | None = None):
-        from piper import PiperVoice
-        self.voice = PiperVoice.load(fallback_voice_path)
+        self.tts_config = tts_config or {}
+        self.cloud = self.tts_config.get("voice_mode") == "elevenlabs"
+        self._cloud_response = None
+        if self.cloud:
+            self.voice = None
+            self.cloud_key = elevenlabs_cloud.load_key(self.tts_config["elevenlabs_key_file"])
+            self.sr = elevenlabs_cloud.TTS_RATE
+        else:
+            from piper import PiperVoice
+            self.voice = PiperVoice.load(fallback_voice_path)
+            self.sr = self.voice.config.sample_rate
         self.speaker_id = speaker_id
-        self.sr = self.voice.config.sample_rate
         self.film_filter = film_filter  # Filmklang (Chorus + Hall) auf Piper-Ausgabe, laeuft auf der CPU
         self.output_device = output_device
         self.tts_url = tts_url
-        self.tts_config = tts_config or {}
         self.cache: dict[str, tuple[bytes, int]] = {}
         self.qwen_cache: collections.OrderedDict[str, tuple[np.ndarray, int]] = collections.OrderedDict()
         self.queue: queue.Queue[tuple[int, str]] = queue.Queue()
@@ -172,7 +181,7 @@ class Speaker:
 
     def prefetch(self, texts: list[str]) -> None:
         """Feste Kurzsaetze vorab synthetisieren, damit z. B. "Moment." ohne Wartezeit kommt."""
-        if not self.tts_url:
+        if self.cloud or not self.tts_url:
             return  # Piper ist ohnehin schnell genug, kein Server zum Vorladen
         for text in texts:
             try:
@@ -282,6 +291,42 @@ class Speaker:
             if len(tail) and not self.stop_flag.is_set():
                 out.write(tail.reshape(-1, 1))
 
+    def _play_elevenlabs(self, text: str) -> None:
+        import av
+        target_rate = round(sd.query_devices(self.output_device, "output")["default_samplerate"])
+        if target_rate <= 0:
+            raise ValueError("Ausgabegeraet meldet keine gueltige Abtastrate")
+        resampler = (av.AudioResampler(format="flt", layout="mono", rate=target_rate)
+                     if target_rate != elevenlabs_cloud.TTS_RATE else None)
+        pending = b""
+        with sd.OutputStream(samplerate=target_rate, channels=1, dtype="float32",
+                             device=self.output_device) as out:
+            for block in elevenlabs_cloud.stream_speech(text, self.cloud_key,
+                    self.tts_config["elevenlabs_voice_id"],
+                    on_response=lambda response: setattr(self, "_cloud_response", response)):
+                if self.stop_flag.is_set():
+                    return
+                data, pending = pending + block, b""
+                if len(data) % 2:
+                    data, pending = data[:-1], data[-1:]
+                if not data:
+                    continue
+                pcm = np.frombuffer(data, dtype="<i2")
+                if resampler:
+                    frame = av.AudioFrame.from_ndarray(pcm.reshape(1, -1).copy(), format="s16", layout="mono")
+                    frame.sample_rate = elevenlabs_cloud.TTS_RATE
+                    samples = (f.to_ndarray().reshape(-1) for f in resampler.resample(frame))
+                else:
+                    samples = (pcm.astype(np.float32) / 32768.0,)
+                for audio in samples:
+                    self.level.update(audio)
+                    out.write(audio.reshape(-1, 1))
+            if resampler and not self.stop_flag.is_set():
+                for frame in resampler.resample(None):
+                    audio = frame.to_ndarray().reshape(-1)
+                    self.level.update(audio)
+                    out.write(audio.reshape(-1, 1))
+
     def _play_qwen(self, text: str) -> None:
         import qwen_tts
         from audio_output import for_output_device
@@ -333,6 +378,9 @@ class Speaker:
                 except queue.Empty:
                     break
         sd.stop()
+        response = self._cloud_response
+        if response is not None:
+            response.close()
         self.speaking.clear()
         self.level.reset()
 
@@ -345,7 +393,9 @@ class Speaker:
                 self.stop_flag.clear()
                 self.speaking.set()
             try:
-                if self.tts_config.get("tts_backend") == "qwen3":
+                if self.cloud:
+                    self._play_elevenlabs(text)
+                elif self.tts_config.get("tts_backend") == "qwen3":
                     try:
                         self._play_qwen(text)
                     except (OSError, RuntimeError, TimeoutError) as exc:
@@ -434,15 +484,20 @@ class VoiceService:
         self._load_wake(test_wake_model)
         from silero_vad import load_silero_vad
         self.vad = load_silero_vad(onnx=True)
-        from faster_whisper import WhisperModel
-        self.whisper = WhisperModel(cfg["whisper_model"], device=cfg.get("whisper_device", "cuda"),
-                                    compute_type=cfg["whisper_compute_type"],
-                                    download_root=os.path.join(INSTALL_ROOT, "models", "whisper"))
-        self.whisper.transcribe(np.zeros(SR, dtype=np.float32), language="de")  # CUDA-Warmup
+        self.cloud_voice = cfg.get("voice_mode") == "elevenlabs"
+        self.cloud_key = elevenlabs_cloud.load_key(cfg["elevenlabs_key_file"]) if self.cloud_voice else None
+        self.whisper = None
+        if not self.cloud_voice:
+            from faster_whisper import WhisperModel
+            self.whisper = WhisperModel(cfg["whisper_model"], device=cfg.get("whisper_device", "cuda"),
+                                        compute_type=cfg["whisper_compute_type"],
+                                        download_root=os.path.join(INSTALL_ROOT, "models", "whisper"))
+            self.whisper.transcribe(np.zeros(SR, dtype=np.float32), language="de")  # CUDA-Warmup
         self.tts = Speaker(cfg["tts_voice"], cfg["output_device"], cfg.get("tts_url"),
                            cfg.get("tts_film_filter", False), cfg.get("tts_speaker_id"), cfg)
         self.tts.prefetch([cfg.get("ack_wait", DEFAULT_ACK_WAIT), cfg.get("ack_background", DEFAULT_ACK_BACKGROUND)])
-        self._route("Hallo")  # Router-Warmup: erster Aufruf dauerte live 7,2 s statt ~0,4 s
+        if not self.cloud_voice:
+            self._route("Hallo")  # lokaler Router-Warmup
 
     def _load_wake(self, test_wake_model: str | None) -> None:
         oww_dir = os.path.join(INSTALL_ROOT, "models", "openwakeword")
@@ -543,6 +598,8 @@ class VoiceService:
 
     # ---------- Verarbeitung ----------
     def _transcribe(self, audio: np.ndarray) -> str:
+        if self.cloud_voice:
+            return elevenlabs_cloud.transcribe(audio, self.cloud_key)
         segs, _ = self.whisper.transcribe(audio, language="de", beam_size=1, vad_filter=False,
                                           initial_prompt=f"{self.name}, Sprachassistent.")
         return " ".join(s.text.strip() for s in segs).strip()
@@ -552,6 +609,11 @@ class VoiceService:
         if direct:
             return {"route": "local", "background": False, "needs_confirmation": False, "priority": "P4",
                     "intent": "clock", "answer": direct}
+        if self.cfg.get("voice_mode") == "elevenlabs":
+            decision = route_request(text, provider=self.cfg.get("cloud_provider", "kimi-coding"),
+                                     models=self.cfg.get("cloud_models"))
+            decision["intent"] = decision["tier"]
+            return decision
         dt = datetime.datetime.now()
         now = f"{WEEKDAYS[dt.weekday()]}, {dt:%d.%m.%Y}, {dt:%H:%M} Uhr"
         payload = {
@@ -577,9 +639,13 @@ class VoiceService:
 
     def _ask_hermes(self, text: str, decision: dict, task_id: str) -> str:
         route = decision["route"]
-        provider = self.cfg.get("cloud_provider", "kimi-coding")
-        models = self.cfg.get("cloud_models") or (KIMI_MODELS if provider == "kimi-coding" else {})
-        model = models.get(route) or self.cfg.get("hermes_model", "friday")
+        targets = load_dashboard_voice_routing(
+            os.path.join(INSTALL_ROOT, "dashboard", "data", "dashboard.sqlite"),
+            fallback_provider=self.cfg.get("cloud_provider", "kimi-coding"),
+            fallback_models=self.cfg.get("cloud_models"))
+        provider, model = targets[route]
+        if not model:
+            return "Für diesen Anbieter ist noch kein Sprachmodell eingerichtet. Bitte die Modellrouten konfigurieren."
         effort = ROUTE_EFFORT[route]
         payload = {"model": model, "model_options": {"reasoning_effort": effort}, "messages": [
             {"role": "system", "content": HERMES_VOICE_SYSTEM.format(effort=effort)},
@@ -854,9 +920,12 @@ class VoiceService:
             self._read_chunk()
         audio = np.concatenate(list(self.ring)).astype(np.float32) / 32768.0
         for language in cfg.get("wake_confirm_languages", ["de", "en"]):
-            segs, _ = self.whisper.transcribe(audio, language=language, beam_size=1, vad_filter=False,
-                                              condition_on_previous_text=False, temperature=0.0)
-            text = " ".join(seg.text.strip() for seg in segs)
+            if self.cloud_voice:
+                text = elevenlabs_cloud.transcribe(audio, self.cloud_key, language=language)
+            else:
+                segs, _ = self.whisper.transcribe(audio, language=language, beam_size=1, vad_filter=False,
+                                                  condition_on_previous_text=False, temperature=0.0)
+                text = " ".join(seg.text.strip() for seg in segs)
             hit, _, _ = personal_wake.phrase_matches(text, self.phrase, cfg.get("wake_aliases", ()),
                                                      cfg.get("wake_reject_words", ()), cfg.get("wake_match_max_dist"))
             if hit:

@@ -23,7 +23,7 @@ Die Bilder zeigen den aktuellen Desktop-Build im Vollbildformat 1920 × 1080 mit
 
 1. Lade das vollständige Repository als ZIP herunter und entpacke es. Starte nicht nur den Ordner `installer`: Dashboard-Quellordner müssen daneben liegen.
 2. Lies [Installation und Ersteinrichtung](installer/ANLEITUNG.md). Prüfe Windows/WSL2, Speicherplatz, Mikrofon und API-Zugangsdaten, bevor du startest.
-3. Doppelklicke auf `installer/install-friday.bat` und bestätige die Windows-Administratorabfrage. Folge den Fragen zur Assistenten-Persona, Stimme, Wake Word und lokalen Linux-Anmeldung.
+3. Doppelklicke auf `installer/install-friday.bat` und bestätige die Windows-Administratorabfrage. Wähle lokale Sprache (NVIDIA-GPU mit mindestens 6 GB VRAM) oder ElevenLabs Cloud (keine dedizierte GPU), dann Persona, Stimme, Wake Word und lokalen Linux-Zugang.
 4. Nach einem nötigen Windows-Neustart wird die Installation fortgesetzt. Nimm dein Wake Word auf und warte, bis Installer und erster Build abgeschlossen sind.
 5. Öffne das Command Center unter <http://127.0.0.1:3100>. Beim ersten Besuch legst du den lokalen Dashboard-Zugang selbst an und durchläufst die Einführung. Das Hermes-Dashboard liegt standardmäßig unter <http://127.0.0.1:43691>. Bei einer benutzerdefinierten Installation gelten die im Installationsbericht genannten Ports.
 
@@ -35,9 +35,17 @@ Die ausführlichen Voraussetzungen, Dauer, Wiederaufnahme nach Fehlern, Update- 
 
 - Das Dashboard bietet eine gemeinsame Oberfläche für Übersicht, Aufgaben, Aktivität, Agenten, Freigaben, Gedächtnis, Benachrichtigungen, Kommunikation, Kalender, Automationen, Recherche, Dateien, Sprache, System und Audit. Das Verhalten und die verfügbaren Aktionen hängen vom verbundenen Adapter ab.
 - Im Installer-Standardmodus sind Aufgaben, Aktivität und Agenten mit Hermes verbunden; Sprach- und Systemstatus kommen von den lokalen Diensten. Andere Bereiche können als Simulation angezeigt werden. Die Oberfläche kennzeichnet Datenquellen und eingeschränkte Fähigkeiten.
-- Das Dashboard nutzt eine lokale Control API und Adapter. Hermes, Qwen, Sprache und Windows/WSL werden durch den Server angesprochen; der Browser erhält keine Zugangsschlüssel.
+- Das Dashboard nutzt eine lokale Control API und Adapter. Hermes, Sprache und Windows/WSL werden durch den Server angesprochen; Qwen läuft nur im lokalen Sprachmodus. Der Browser erhält keine Zugangsschlüssel.
 - Einstellungen umfassen unter anderem Profil und Sprache, Dashboard-Darstellung, Theme und Orb, Navigation, Modellrouting, Stimme, Benachrichtigungen, Anmeldung/Sicherheit, Freigaben, Aufbewahrung, Backups und Entwickleranzeige. Verfügbare Änderungen hängen vom installierten Stand ab. Eine [Beispieldatei für den Settings-Export](packages/contracts/examples/settings/settings-export.json) zeigt das Datenformat; sie ist kein Versprechen, dass jede Einstellung in der Beta-Oberfläche bereits bearbeitbar ist.
 - Die Sprachsteuerung und persönliche Wake-Word-Einrichtung kommen aus dem Windows-Installer. Ein Kimi-Zugang wird bei der Einrichtung abgefragt; lokale Funktionen und Cloud-Aufgaben haben unterschiedliche Laufzeit- und Kontoanforderungen.
+
+### Sprache ohne dedizierte GPU und Modellrouting
+
+Der Installer fragt den **Sprachmodus** ab. **Lokal** nutzt Whisper, Qwen und Piper beziehungsweise eine eingerichtete lokale Stimme und setzt eine nutzbare NVIDIA-GPU mit mindestens **6 GB VRAM** voraus. **ElevenLabs Cloud** sendet abgeschlossene Sprachäußerungen nach lokaler Sprecherprüfung an [Scribe v2](https://elevenlabs.io/docs/api-reference/speech-to-text/convert) und spielt die Antwort über gestreamtes [Flash v2.5](https://elevenlabs.io/docs/overview/models) ab. Wake Word, Geräuscherkennung und Sprecherprüfung laufen dabei weiterhin auf der CPU. Der ElevenLabs-API-Schlüssel wird während der Installation verdeckt eingegeben und für den Windows-Benutzer verschlüsselt gespeichert; die Voice ID kannst du dort wählen. Cloud-Sprache benötigt Internet und ein ElevenLabs-Konto mit API-Zugang. Es gibt keinen kostenpflichtigen Installations-Testaufruf.
+
+Friday leitet Sprachaufgaben nach Aufwand: Routine nutzt standardmäßig `kimi-for-coding`, komplexe und besonders kritische Aufgaben `k3`. Die aktuellen [Kimi-Code-Modell-IDs](https://www.kimi.com/code/docs/en/kimi-code/models) beschreiben `kimi-for-coding` als K2.8 Preview und `kimi-for-coding-highspeed` als tarifabhängige K2.7-Variante. Unter **Einstellungen → Modelle & Routing** kannst du `voice-routine`, `voice-complex` und `voice-critical` auf `kimi-coding:modell-id`, `openai:modell-id` oder `anthropic:modell-id` setzen. Friday liest diese Routen bei Sprachaufgaben aus den gespeicherten Dashboard-Einstellungen. Für OpenAI oder Anthropic muss der jeweilige API-Zugang zusätzlich in Hermes eingerichtet sein; die Anmeldung bei Codex oder Claude Code für Programmieraufträge ersetzt diesen Zugang nicht.
+
+Die aktuelle Installation ist für Windows/WSL mit einem am Host verfügbaren Mikrofon und Lautsprecher ausgelegt. Ein Windows-Server ohne dedizierte GPU kann den Cloud-Modus verwenden, wenn Audioeingabe und -ausgabe bereitstehen. Eine Mikrofonübertragung aus einem entfernten Browser für einen vollständig kopflosen Server ist noch nicht enthalten.
 
 ### Skills und optionale Werkzeuge
 
