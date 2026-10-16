@@ -5613,7 +5613,7 @@ paths:
     put:
       operationId: putCloudTalk
       tags: [settings]
-      summary: Store CloudTalk API key pair and agent ID encrypted
+      summary: Create or update CloudTalk setup; omit both API keys to retain encrypted credentials
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/IfMatch"
