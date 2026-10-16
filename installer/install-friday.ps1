@@ -674,9 +674,9 @@ $WakeShort = Get-WakeShort $WP
 if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic'))) {
     Title 'Ausgabestimme wählen'
     Info '1  F.R.I.D.A.Y.: weibliche Stimme aus eigener 3-30-Sekunden-Referenz (Qwen3-TTS, lokal)'
-    Info '2  Klassisch: eigene jarvis_de.onnx, falls vorhanden; sonst Thorsten mit Filmfilter'
+    Info '2  Klassisch: eigene J.A.R.V.I.S.-Referenz (Qwen3-TTS, lokal), ONNX oder Thorsten'
     if (-not (Test-Path "$Inst\voice_models\jarvis_de.onnx")) {
-        Warn 'Eine eigene J.A.R.V.I.S.-Stimmdatei liegt diesem Paket derzeit nicht bei. Option 2 verwendet hier Thorsten mit Filmfilter.'
+        Warn 'Ohne eigene J.A.R.V.I.S.-Referenz/ONNX verwendet Option 2 Thorsten mit Filmfilter.'
     }
     $defaultChoice = if ($State.voice_choice -eq 'classic') { '2' } elseif ($State.voice_choice -eq 'friday-female') { '1' } elseif ($AN -eq 'Jarvis') { '2' } else { '1' }
     do {
@@ -685,17 +685,20 @@ if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_choice -notin @('f
     } while ($answer -notin @('1', '2'))
     $newChoice = if ($answer -eq '1') { 'friday-female' } else { 'classic' }
     $reference = ''
-    if ($newChoice -eq 'friday-female') {
-        $savedReference = if ($State.voice_reference -and (Test-Path -LiteralPath $State.voice_reference -PathType Leaf)) { $State.voice_reference } else { '' }
+    if ($newChoice -in @('friday-female', 'classic')) {
+        $choiceReference = $State["voice_reference_$newChoice"]
+        if (-not $choiceReference -and $State.voice_choice -eq $newChoice) { $choiceReference = $State.voice_reference }
+        $savedReference = if ($choiceReference -and (Test-Path -LiteralPath $choiceReference -PathType Leaf)) { $choiceReference } else { '' }
         if ($savedReference) { Info "Bisherige Stimmreferenz: $savedReference" }
         $reference = (Read-Host '  Pfad einer eigenen MP3/WAV-Stimmreferenz (leer = bisherige oder Piper-Basisstimme)').Trim().Trim('"')
         if (-not $reference) { $reference = $savedReference }
         if ($reference -and -not (Test-Path -LiteralPath $reference -PathType Leaf)) { Stop-Install "Stimmreferenz nicht gefunden: $reference" }
-        if (-not $reference) { Warn 'Ohne Referenz wird nur die weibliche Piper-Basisstimme installiert. Du kannst später mit change-voice.bat eine eigene Referenz wählen.' }
+        if (-not $reference) { Warn 'Ohne Referenz wird die passende Piper-Basisstimme installiert. Du kannst später mit change-voice.bat eine eigene Referenz wählen.' }
     }
     $changed = $State.voice_choice -ne $newChoice -or $State.voice_reference -ne $reference
     $State.voice_choice = $newChoice
     $State.voice_reference = $reference
+    $State["voice_reference_$newChoice"] = $reference
     if (($changed -or $ChangeVoice) -and (IsDone 'voicepython')) {
         $State.done = @(@($State.done) | Where-Object { $_ -notin @('voicepython', 'voiceservice') })
         Warn 'Die Ausgabestimme wird neu eingerichtet; vorhandene persönliche Aufnahmen bleiben erhalten.'

@@ -20,6 +20,9 @@ text = sys.argv[2] if len(sys.argv) > 2 else default_text
 if cfg.get("tts_backend") == "qwen3":
     import qwen_tts
     audio, rate = qwen_tts.synthesize(text, cfg)
+    if cfg.get("tts_film_filter", False):
+        fx = FilmFilter(rate, True)
+        audio = np.concatenate((fx.process(audio), fx.flush()))
 else:
     voice = PiperVoice.load(cfg["tts_voice"])
     fx = FilmFilter(voice.config.sample_rate, cfg.get("tts_film_filter", True))

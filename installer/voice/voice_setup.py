@@ -112,15 +112,15 @@ if options.voice_choice == "friday-female" or not os.path.exists(custom):
 qwen_settings = {"tts_backend": "piper", "tts_reference": None, "tts_url": None,
                  "tts_qwen_executable": None, "tts_qwen_model": None,
                  "tts_qwen_projector": None, "tts_gpu_layers": 0}
-if options.voice_choice == "friday-female" and options.voice_reference:
+if options.voice_reference:
     reference = os.path.abspath(options.voice_reference)
     if not os.path.isfile(reference) or os.path.splitext(reference)[1].lower() not in (".mp3", ".wav"):
-        raise FileNotFoundError("Die weibliche Stimmreferenz muss eine vorhandene MP3- oder WAV-Datei sein")
+        raise FileNotFoundError("Die Stimmreferenz muss eine vorhandene MP3- oder WAV-Datei sein")
     import soundfile as sf  # noqa: E402
     duration = sf.info(reference).duration
     if not 3 <= duration <= 30:
         raise ValueError("Die Stimmreferenz muss zwischen 3 und 30 Sekunden lang sein")
-    local_reference = os.path.join(CONFIG, "voice-references", "female-reference" + os.path.splitext(reference)[1].lower())
+    local_reference = os.path.join(CONFIG, "voice-references", options.voice_choice + "-reference" + os.path.splitext(reference)[1].lower())
     os.makedirs(os.path.dirname(local_reference), exist_ok=True)
     if os.path.normcase(reference) != os.path.normcase(local_reference):
         shutil.copy2(reference, local_reference)
@@ -147,7 +147,7 @@ if options.voice_choice == "friday-female" and options.voice_reference:
                      "tts_qwen_model": os.path.join(model_dir, "Qwen3-TTS-12Hz-1.7B-Base-Q4_K_M.gguf"),
                      "tts_qwen_projector": os.path.join(model_dir, "mmproj-Qwen3-TTS-12Hz-1.7B-Base-Q8_0.gguf"),
                      "tts_gpu_layers": 99 if whisper["whisper_device"] == "cuda" else 0}
-    print("   F.R.I.D.A.Y.: lokale Qwen3-TTS-Stimme mit eigener Referenz (keine Cloud-Sprachausgabe)")
+    print("   Lokale Qwen3-TTS-Stimme mit eigener Referenz (keine Cloud-Sprachausgabe)")
 
 step("config/voice.json schreiben")
 voice_config_path = os.path.join(CONFIG, "voice.json")
