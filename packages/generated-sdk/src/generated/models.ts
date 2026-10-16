@@ -3809,9 +3809,24 @@ export interface SkillCatalogEntry {
     setupDe: string;
     reference: string;
     settingsTarget: string;
+    permissions?: {
+      required_prerequisites: Prerequisite[];
+      optional_prerequisites: Prerequisite[];
+      scope_status: "unknown" | "not_required";
+      scope_notice: string;
+    };
+    cost?: {
+      model: "host_resources" | "provider_usage" | "subscription_license" | "none" | "unknown";
+      notice: string;
+    };
     configured: boolean | null;
     connectionChecked: boolean | null;
   }[];
+}
+export interface Prerequisite {
+  kind: string;
+  status: "required" | "optional";
+  notice: string;
 }
 export interface SkillCatalogResponse {
   contractVersion: ContractVersion;
