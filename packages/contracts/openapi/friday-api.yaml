@@ -4630,6 +4630,21 @@ paths:
       x-capability: meta.read
       x-required-role: owner
   /api/v1/skills/powerpoint/decks:
+    get:
+      operationId: listPowerPointDecks
+      tags: [skills]
+      summary: List the owner's recent locally generated PowerPoint decks
+      responses:
+        "200":
+          description: At most 20 available decks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PowerPointDeckListResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-capability: meta.read
+      x-required-role: owner
     post:
       operationId: createPowerPointDeck
       tags: [skills]
@@ -4656,6 +4671,36 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "422":
           description: Invalid presentation content
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/powerpoint/voice:
+    post:
+      operationId: createVoicePowerPointDeck
+      tags: [skills]
+      summary: Create a confirmed speaker-verified PowerPoint through the local voice bridge
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PowerPointDeckRequest"
+      responses:
+        "201":
+          description: Presentation created or idempotently replayed
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PowerPointDeckResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
       x-capability: meta.read
       x-required-role: owner
   /api/v1/skills/powerpoint/decks/{id}/download:
@@ -7066,6 +7111,8 @@ components:
       $ref: ../schemas/skills/powerpoint-deck-request.schema.json
     PowerPointDeckResponse:
       $ref: ../schemas/skills/powerpoint-deck-response.schema.json
+    PowerPointDeckListResponse:
+      $ref: ../schemas/skills/powerpoint-deck-list-response.schema.json
     CodingRunRequest:
       $ref: ../schemas/skills/coding-run-request.schema.json
     CodingVoiceRepository:

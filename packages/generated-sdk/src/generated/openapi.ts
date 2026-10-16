@@ -2158,7 +2158,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List the owner's recent locally generated PowerPoint decks */
+        get: operations["listPowerPointDecks"];
         put?: never;
         /** Create a presentation with the installed Hermes PowerPoint skill */
         post: operations["createPowerPointDeck"];
@@ -2179,6 +2180,23 @@ export interface paths {
         get: operations["downloadPowerPointDeck"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/powerpoint/voice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a confirmed speaker-verified PowerPoint through the local voice bridge */
+        post: operations["createVoicePowerPointDeck"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5683,6 +5701,22 @@ export interface components {
             name: string;
             role?: string;
         };
+        /** PowerPointDeck */
+        "powerpoint-deck.schema": {
+            /** Format: date-time */
+            createdAt: string;
+            downloadUrl: string;
+            /** Format: uuid */
+            id: string;
+            slideCount: number;
+            title: string;
+        };
+        /** PowerPointDeckListResponse */
+        PowerPointDeckListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["powerpoint-deck.schema"][];
+            freshness: components["schemas"]["Freshness"];
+        };
         /** PowerPointDeckRequest */
         PowerPointDeckRequest: {
             slides: {
@@ -5694,12 +5728,7 @@ export interface components {
         /** PowerPointDeckResponse */
         PowerPointDeckResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
-            data: {
-                downloadUrl: string;
-                /** Format: uuid */
-                id: string;
-                slideCount: number;
-            };
+            data: components["schemas"]["powerpoint-deck.schema"];
             freshness: components["schemas"]["Freshness"];
         };
         /**
@@ -12582,6 +12611,28 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    listPowerPointDecks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description At most 20 available decks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerPointDeckListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     createPowerPointDeck: {
         parameters: {
             query?: never;
@@ -12646,6 +12697,40 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    createVoicePowerPointDeck: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PowerPointDeckRequest"];
+            };
+        };
+        responses: {
+            /** @description Presentation created or idempotently replayed */
+            201: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerPointDeckResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getStatus: {

@@ -75,6 +75,8 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   putCodingVoiceRepository: "settings.update",
   createCodingRun: "settings.update",
   createPowerPointDeck: "settings.update",
+  createVoicePowerPointDeck: "settings.update",
+  listPowerPointDecks: "settings.update",
   downloadPowerPointDeck: "settings.update",
   createVoiceCodingRun: "settings.update",
   putObsidianVault: "settings.update",

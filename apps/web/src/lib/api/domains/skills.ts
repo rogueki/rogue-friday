@@ -1,6 +1,6 @@
 "use client";
 
-import type { OnboardingResponse, OnboardingUpdate, SkillCatalogResponse, SkillResponse, PowerPointDeckRequest, PowerPointDeckResponse } from "@friday/sdk";
+import type { OnboardingResponse, OnboardingUpdate, SkillCatalogResponse, SkillResponse, PowerPointDeckRequest, PowerPointDeckResponse, PowerPointDeckListResponse } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
@@ -23,10 +23,15 @@ export const skillsQueries = {
 export const useSkillsCatalog = (enabled = true) => useQuery({ ...skillsQueries.catalog(), enabled });
 export const useOnboarding = (enabled = true) => useQuery({ ...skillsQueries.onboarding(), enabled });
 
+const powerpointDecksKey = ["powerpoint", "decks"] as const;
+export const useRecentPowerPointDecks = () => useQuery({ queryKey: powerpointDecksKey,
+  queryFn: (): Promise<PowerPointDeckListResponse> => call(getApiClient().GET("/api/v1/skills/powerpoint/decks")) });
+
 export function useCreatePowerPointDeck() {
   return useApiMutation<PowerPointDeckResponse, PowerPointDeckRequest & IntentVars>({
     label: "PowerPoint erstellen",
     mutationFn: ({ title, slides }) => call(getApiClient().POST("/api/v1/skills/powerpoint/decks", { body: { title, slides } })),
+    invalidate: [powerpointDecksKey],
   });
 }
 

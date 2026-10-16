@@ -22,6 +22,7 @@ const VOICE_BRIDGE_OPERATIONS = new Set<OperationId>([
   "getContentStudioPlan", "createContentProductionJob", "getContentProductionJob", "cancelContentProductionJob",
   "listSkills", "getOnboarding", "putOnboarding",
   "getCodingVoiceRepository", "createVoiceCodingRun",
+  "createVoicePowerPointDeck",
   "previewVoiceLocalCalendar", "confirmVoiceLocalCalendar",
 ]);
 const MAIL_BRIDGE_OPERATIONS = new Set<OperationId>([
@@ -161,7 +162,7 @@ export class ApiPipeline {
       if (key.length < 8 || key.length > 128) throw validationFailed("Idempotency-Key muss 8 bis 128 Zeichen lang sein.", [{ path: "Idempotency-Key", message: "Länge 8..128" }]);
       // Binary speech is not serializable in the JSON idempotency store. Its service
       // journals the scoped key before the external call and rejects a second request.
-      if (spec.operationId === "createElevenSpeech" || spec.operationId === "sendHimalayaMessage" || spec.operationId === "previewCalDavEvent" || spec.operationId === "createCalendarEvent" || spec.operationId === "originateTelephonyCall") return this.execute(ctx, spec);
+      if (spec.operationId === "createElevenSpeech" || spec.operationId === "sendHimalayaMessage" || spec.operationId === "previewCalDavEvent" || spec.operationId === "createCalendarEvent" || spec.operationId === "originateTelephonyCall" || spec.operationId === "createVoicePowerPointDeck") return this.execute(ctx, spec);
       return this.runIdempotent(ctx, spec, key);
     }
     return this.execute(ctx, spec);

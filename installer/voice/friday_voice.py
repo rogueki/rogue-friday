@@ -48,6 +48,7 @@ from content_studio_voice import ContentStudioVoice  # noqa: E402
 from skills_onboarding_voice import SkillsOnboardingVoice  # noqa: E402
 from coding_voice import CodingVoice  # noqa: E402
 from calendar_voice import CalendarVoice  # noqa: E402
+from powerpoint_voice import PowerPointVoice  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
 
 SR = 16000
@@ -422,6 +423,7 @@ class VoiceService:
         self.content_studio_voice = ContentStudioVoice(INSTALL_ROOT)
         self.coding_voice = CodingVoice(INSTALL_ROOT)
         self.calendar_voice = CalendarVoice(INSTALL_ROOT, zone=cfg.get("calendar_time_zone", "Europe/Berlin"))
+        self.powerpoint_voice = PowerPointVoice(INSTALL_ROOT)
         self.skills_onboarding_voice = SkillsOnboardingVoice(
             INSTALL_ROOT, pending_seconds=cfg.get("followup_window_s", 15))
 
@@ -639,11 +641,29 @@ class VoiceService:
             offer = self.skills_onboarding_voice.offer_first_use()
             return answer if not offer else answer + " " + offer
 
+        powerpoint_answer = self.powerpoint_voice.handle(text)
+        if self.control_cancel.is_set() or generation != self.control_generation:
+            self.powerpoint_voice.pending = None
+            return
+        if powerpoint_answer is not None:
+            self.calendar_voice.pending = None
+            self.coding_voice.pending = None
+            self.content_studio_voice.pending = None
+            self.skills_onboarding_voice.pending = None
+            self.status["commands"] += 1
+            log_event(event="powerpoint_voice_command", speaker_score=round(score, 3), success=True)
+            if not self._say_if_current(powerpoint_answer, generation):
+                self.powerpoint_voice.pending = None
+                return
+            self.history += [{"role": "user", "content": text}, {"role": "assistant", "content": powerpoint_answer}]
+            return
+
         calendar_answer = self.calendar_voice.handle(text)
         if self.control_cancel.is_set() or generation != self.control_generation:
             self.calendar_voice.pending = None
             return
         if calendar_answer is not None:
+            self.powerpoint_voice.pending = None
             # Exactly one spoken confirmation may be armed at a time.
             self.coding_voice.pending = None
             self.content_studio_voice.pending = None
@@ -660,6 +680,7 @@ class VoiceService:
         if self.control_cancel.is_set() or generation != self.control_generation:
             return
         if coding_answer is not None:
+            self.powerpoint_voice.pending = None
             self.status["commands"] += 1
             log_event(event="coding_voice_command", speaker_score=round(score, 3), success=True)
             if not self._say_if_current(coding_answer, generation):
@@ -670,6 +691,7 @@ class VoiceService:
         if self.control_cancel.is_set() or generation != self.control_generation:
             return
         if studio_answer is not None:
+            self.powerpoint_voice.pending = None
             self.status["commands"] += 1
             log_event(event="content_studio_command", speaker_score=round(score, 3), success=True)
             studio_answer = with_first_use_offer(studio_answer)
@@ -681,6 +703,7 @@ class VoiceService:
         if self.control_cancel.is_set() or generation != self.control_generation:
             return
         if skills_answer is not None:
+            self.powerpoint_voice.pending = None
             self.status["commands"] += 1
             log_event(event="skills_onboarding_command", speaker_score=round(score, 3), success=True)
             skills_answer = with_first_use_offer(skills_answer)
@@ -913,6 +936,7 @@ class VoiceService:
                 break
             if interrupted:
                 self.calendar_voice.pending = None
+                self.powerpoint_voice.pending = None
                 wake_audio = self._acknowledge_wake()
                 self.status["state"] = "command"
                 audio = self._record_command(cfg["command_start_timeout_s"])
@@ -921,6 +945,7 @@ class VoiceService:
                 continue
             self.coding_voice.arm_confirmation()
             self.calendar_voice.arm_confirmation()
+            self.powerpoint_voice.arm_confirmation()
             # Berechnung und TTS duerfen die Folgefragezeit nicht aufbrauchen.
             self.trusted_until = time.monotonic() + cfg["followup_window_s"]
             self.status["state"] = "followup"
@@ -935,6 +960,7 @@ class VoiceService:
             self._handle_command(audio, None)
         self._drain()
         self.calendar_voice.pending = None
+        self.powerpoint_voice.pending = None
         self.status["state"] = "paused" if self.control_paused else "listening"
 
     def _game_mode_watcher(self) -> None:
@@ -1008,6 +1034,7 @@ class VoiceService:
                         service.trusted_until = 0.0
                         service.background_jobs.clear()
                         service.calendar_voice.pending = None
+                        service.powerpoint_voice.pending = None
                         service.background_reply_ready.clear()
                         service.control_paused = self.path == "/control/pause"
                         service.status["state"] = "paused" if service.control_paused else "listening"

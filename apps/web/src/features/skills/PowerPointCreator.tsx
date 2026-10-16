@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { Button } from "@friday/ui";
-import { useCreatePowerPointDeck } from "@/lib/api/domains/skills";
+import { useCreatePowerPointDeck, useRecentPowerPointDecks } from "@/lib/api/domains/skills";
 
 export function PowerPointCreator({ canCreate }: { canCreate: boolean }) {
   const create = useCreatePowerPointDeck();
+  const recent = useRecentPowerPointDecks();
   const [title, setTitle] = useState("");
   const [slides, setSlides] = useState([{ title: "", bullets: "" }]);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +22,13 @@ export function PowerPointCreator({ canCreate }: { canCreate: boolean }) {
   return <section className="sk-powerpoint" aria-labelledby="sk-powerpoint-title">
     <h3 id="sk-powerpoint-title">Präsentation erstellen</h3>
     <p>Hermes erstellt die PowerPoint-Datei lokal. Titel und Stichpunkte bleiben auf diesem Gerät.</p>
+    <section aria-labelledby="sk-recent-powerpoint-title">
+      <h4 id="sk-recent-powerpoint-title">Zuletzt erstellt</h4>
+      {recent.isPending ? <p>Lade Präsentationen …</p> : recent.isError ? <p role="alert">Präsentationen konnten nicht geladen werden.</p> :
+        recent.data?.data.length ? <ul>{recent.data.data.map((deck) => <li key={deck.id}>
+          <a href={deck.downloadUrl}>{deck.title}</a> · {deck.slideCount} Folien · {new Date(deck.createdAt).toLocaleString("de-DE")}
+        </li>)}</ul> : <p>Noch keine verfügbaren Präsentationen.</p>}
+    </section>
     <label>Präsentationstitel<input value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} /></label>
     {slides.map((slide, index) => <div className="sk-powerpoint__slide" key={index}>
       <label>Folie {index + 1}: Titel<input value={slide.title} maxLength={120} onChange={(event) => setSlides((current) => current.map((item, i) => i === index ? { ...item, title: event.target.value } : item))} /></label>
