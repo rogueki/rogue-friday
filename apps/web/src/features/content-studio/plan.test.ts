@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseStudioPlan } from "./plan";
+import { ideaTargets, parseStudioPlan, postingTargets } from "./plan";
 
 const valid = {
   version: 1,
@@ -11,10 +11,18 @@ describe("Content Studio plan import", () => {
   it("accepts the existing version-1 export shape", () => {
     expect(parseStudioPlan(valid).content[0]?.titel).toBe("Launch");
   });
+  it("keeps legacy plans and preserves a single post with multiple targets", () => {
+    const legacy = parseStudioPlan({ ...valid, content: [{ ...valid.content[0], plattform: "Beide" }] });
+    expect(ideaTargets(legacy.content[0]!)).toEqual(["LinkedIn", "Instagram"]);
+    const multi = parseStudioPlan({ ...valid, content: [{ ...valid.content[0], plattform: "Instagram", ziele: ["Instagram", "Facebook"] }], postings: [{ ...valid.postings[0], plattform: "Instagram", ziele: ["Instagram", "Facebook", "TikTok", "YouTube"] }] });
+    expect(ideaTargets(multi.content[0]!)).toEqual(["Instagram", "Facebook"]);
+    expect(postingTargets(multi.postings[0]!)).toEqual(["Instagram", "Facebook", "TikTok", "YouTube"]);
+  });
   it("rejects malformed and duplicate records before replacing the current plan", () => {
     expect(() => parseStudioPlan({ ...valid, content: [valid.content[0], valid.content[0]] })).toThrow(/eindeutig/);
     expect(() => parseStudioPlan({ ...valid, postings: [{ ...valid.postings[0], status: "Bereit" }] })).toThrow(/ungültig/);
     expect(() => parseStudioPlan({ ...valid, content: [{ ...valid.content[0], titel: "" }] })).toThrow(/ungültig/);
     expect(() => parseStudioPlan({ ...valid, postings: [{ ...valid.postings[0], datum: "2026-02-30" }] })).toThrow(/ungültig/);
+    expect(() => parseStudioPlan({ ...valid, postings: [{ ...valid.postings[0], ziele: ["Instagram", "Instagram"] }] })).toThrow(/ungültig/);
   });
 });
