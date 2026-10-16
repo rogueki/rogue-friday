@@ -235,6 +235,20 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_cloudtalk_calls_actor_time ON cloudtalk_calls (actor, created_at);
     `,
   },
+  {
+    id: 12,
+    name: "cloudtalk-voice-agent-reminders",
+    sql: `
+      CREATE TABLE cloudtalk_reminder_calls (
+        event_id TEXT NOT NULL, event_version INTEGER NOT NULL,
+        owner_id TEXT NOT NULL, destination TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('pending', 'requested', 'rejected', 'unknown')),
+        provider_status INTEGER, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        PRIMARY KEY (event_id, event_version)
+      );
+      CREATE INDEX idx_cloudtalk_reminder_owner_time ON cloudtalk_reminder_calls (owner_id, created_at);
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

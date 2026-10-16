@@ -1765,9 +1765,14 @@ export interface CloudTalkPreviewResponse {
   freshness: Freshness;
 }
 export interface CloudTalkProfilePatch {
-  agentId: number;
+  agentId?: number;
   accessKeyId: string;
   accessKeySecret: string;
+  ownerPhone?: string;
+  ownerPhoneConfirmed?: boolean;
+  voiceAgentId?: string;
+  remindersEnabled?: boolean;
+  reminderMinutes?: number;
 }
 export interface CloudTalkStatusResponse {
   contractVersion: ContractVersion;
@@ -1776,6 +1781,12 @@ export interface CloudTalkStatusResponse {
     agentId: number | null;
     revision: number;
     note: string;
+    ownerPhone: string | null;
+    voiceAgentId: string | null;
+    remindersEnabled: boolean;
+    reminderMinutes: number;
+    lastReminderState: "pending" | "requested" | "rejected" | "unknown" | null;
+    lastReminderAt: string | null;
   };
   freshness: Freshness;
 }
