@@ -5,6 +5,9 @@ import type { CodingCliStatus } from "./coding-runs";
 import { ApiError, notFound, validationFailed } from "../util/errors";
 
 type Json = Record<string, unknown>;
+type Integration = SkillCatalogEntry["integrationDetails"][number];
+type Permissions = NonNullable<Integration["permissions"]>;
+type Cost = NonNullable<Integration["cost"]>;
 type Catalog = { skills: SkillCatalogEntry[]; error: string | null };
 type Observation = { skills: Map<string, Json>; at: string | null; error: string | null };
 type HermesKeyFlags = Readonly<Record<"AIRTABLE_API_KEY" | "NOTION_API_KEY" | "TENOR_API_KEY" | "JINA_API_KEY" | "MSGRAPH_TENANT_ID" | "MSGRAPH_CLIENT_ID" | "MSGRAPH_CLIENT_SECRET", boolean>>;
@@ -30,6 +33,65 @@ const field = (obj: Json, ...names: string[]): string => {
   for (const name of names) if (typeof obj[name] === "string") return obj[name] as string;
   return "";
 };
+const UNKNOWN_PERMISSIONS: Permissions = {
+  required_prerequisites: [], optional_prerequisites: [], scope_status: "unknown",
+  scope_notice: "Benötigte Berechtigungen und Freigaben sind für diese Integration nicht vollständig katalogisiert. Vor der Nutzung die aktuelle Anbieter- oder Skill-Anleitung prüfen.",
+};
+const UNKNOWN_COST: Cost = { model: "unknown", notice: "Mögliche Anbieter-, Lizenz- oder Betriebskosten sind für diese Integration nicht katalogisiert. Vor der Nutzung beim Anbieter prüfen." };
+const prerequisite = (value: unknown, status: "required" | "optional"): Permissions["required_prerequisites"][number] | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const item = value as Json;
+  return typeof item.kind === "string" && item.kind && item.status === status && typeof item.notice === "string" && item.notice
+    ? { kind: item.kind, status, notice: item.notice } : null;
+};
+function permissionMetadata(value: unknown): Permissions {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return UNKNOWN_PERMISSIONS;
+  const item = value as Json;
+  if (!Array.isArray(item.required_prerequisites) || !Array.isArray(item.optional_prerequisites)
+    || !["unknown", "not_required"].includes(String(item.scope_status)) || typeof item.scope_notice !== "string" || !item.scope_notice) return UNKNOWN_PERMISSIONS;
+  const required = item.required_prerequisites.map((entry) => prerequisite(entry, "required"));
+  const optional = item.optional_prerequisites.map((entry) => prerequisite(entry, "optional"));
+  if (required.some((entry) => !entry) || optional.some((entry) => !entry)) return UNKNOWN_PERMISSIONS;
+  return { required_prerequisites: required as Permissions["required_prerequisites"], optional_prerequisites: optional as Permissions["optional_prerequisites"],
+    scope_status: item.scope_status as Permissions["scope_status"], scope_notice: item.scope_notice };
+}
+function costMetadata(value: unknown): Cost {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return UNKNOWN_COST;
+  const item = value as Json;
+  return ["host_resources", "provider_usage", "subscription_license", "none", "unknown"].includes(String(item.model))
+    && typeof item.notice === "string" && item.notice ? { model: item.model as Cost["model"], notice: item.notice } : UNKNOWN_COST;
+}
+const HERMES_FACTS: Record<string, { permissions: Permissions; cost: Cost }> = {
+  powerpoint: {
+    permissions: { required_prerequisites: [{ kind: "local_execution", status: "required", notice: "Python 3.10+ und python-pptx müssen in der Hermes-Umgebung ausführbar sein; Dateien brauchen einen beschreibbaren Ausgabeort." }], optional_prerequisites: [{ kind: "local_execution", status: "optional", notice: "LibreOffice und Poppler werden nur für Bildvorschau oder PDF-Export benötigt." }], scope_status: "not_required", scope_notice: "Der dokumentierte Offline-Kernablauf benötigt keine Anbieter- oder OAuth-Scopes." },
+    cost: { model: "host_resources", notice: "Der dokumentierte Offline-Kernablauf nutzt lokale Rechen- und Speicherressourcen; mögliche Kosten der Modellnutzung sind davon getrennt." },
+  },
+  "computer-use": {
+    permissions: { required_prerequisites: [{ kind: "host_access", status: "required", notice: "Eine zugängliche WSLg-Linux-Desktop-Sitzung muss Bildschirmaufnahme und Eingabe über X11/AT-SPI erlauben." }], optional_prerequisites: [], scope_status: "not_required", scope_notice: "Für den dokumentierten lokalen Desktop-Pfad sind keine Anbieter- oder OAuth-Scopes vorgesehen." },
+    cost: { model: "host_resources", notice: "Der dokumentierte Desktop-Pfad benötigt lokale Host-Ressourcen; Modellnutzung kann zusätzlich Kosten verursachen." },
+  },
+  "llm-wiki": {
+    permissions: { required_prerequisites: [{ kind: "filesystem", status: "required", notice: "Hermes benötigt Lesezugriff auf WIKI_PATH oder ~/wiki." }], optional_prerequisites: [{ kind: "provider_account", status: "optional", notice: "Headless Obsidian Sync benötigt ein Obsidian-Sync-Abonnement und eine lokale Anmeldung." }], scope_status: "unknown", scope_notice: "Der lokale Wiki-Pfad benötigt keine Anbieter-Scopes; Rechte des optionalen Sync-Pfads sind hier nicht geprüft." },
+    cost: { model: "unknown", notice: "Das lokale Wiki nutzt Host-Ressourcen. Optionaler Obsidian Sync kann ein kostenpflichtiges Abonnement benötigen." },
+  },
+  airtable: {
+    permissions: { required_prerequisites: [{ kind: "provider_account", status: "required", notice: "Ein Airtable Personal Access Token mit Zugriff auf die benötigten Bases ist erforderlich; Schreibrechte nur für gewünschte Änderungen freigeben." }], optional_prerequisites: [], scope_status: "unknown", scope_notice: "Die konkret benötigten Token-Scopes hängen von der Aufgabe ab und sind hier nicht geprüft." },
+    cost: UNKNOWN_COST,
+  },
+  notion: {
+    permissions: { required_prerequisites: [{ kind: "provider_account", status: "required", notice: "Notion-Integrationstoken einrichten und die gewünschten Seiten oder Datenbanken ausdrücklich freigeben." }], optional_prerequisites: [], scope_status: "unknown", scope_notice: "Die für die konkrete Aufgabe nötigen Notion-Rechte sind hier nicht geprüft." },
+    cost: UNKNOWN_COST,
+  },
+  codex: {
+    permissions: { required_prerequisites: [{ kind: "provider_account", status: "required", notice: "Codex CLI benötigt eine gültige ChatGPT- oder API-Anmeldung im Friday-Ubuntu-Konto." }], optional_prerequisites: [], scope_status: "unknown", scope_notice: "Zugriff auf das Ziel-Repository und Modellberechtigung müssen für den konkreten Auftrag geprüft werden." },
+    cost: { model: "unknown", notice: "ChatGPT-Abo und API-Nutzung haben unterschiedliche Abrechnungswege; aktuelle Konditionen beim Anbieter prüfen." },
+  },
+  "claude-code": {
+    permissions: { required_prerequisites: [{ kind: "provider_account", status: "required", notice: "Claude Code benötigt eine gültige Claude-, API- oder SSO-Anmeldung im Friday-Ubuntu-Konto." }], optional_prerequisites: [], scope_status: "unknown", scope_notice: "Zugriff auf das Ziel-Repository und Modellberechtigung müssen für den konkreten Auftrag geprüft werden." },
+    cost: { model: "unknown", notice: "Claude-Abo und Console-API-Nutzung haben unterschiedliche Abrechnungswege; aktuelle Konditionen beim Anbieter prüfen." },
+  },
+};
+const hermesFacts = (name: string) => HERMES_FACTS[slug(name)] ?? { permissions: UNKNOWN_PERMISSIONS, cost: UNKNOWN_COST };
 const unavailable = (message: string): ApiError => new ApiError({ code: "ADAPTER_UNAVAILABLE", message });
 
 const HERMES_SETUP: Record<string, { account: "none" | "conditional" | "required"; setupDe: string; capability: string }> = {
@@ -91,15 +153,19 @@ const HERMES_SETUP: Record<string, { account: "none" | "conditional" | "required
 
 function hermesPrerequisites(name: string) {
   const setup = HERMES_SETUP[slug(name)];
-  if (!setup) return { accounts: [], setupRefs: ["Voraussetzungen dieses Hermes-Skills sind noch nicht katalogisiert. Bitte die installierte SKILL.md und benötigte Werkzeuge oder Konten vor der Nutzung prüfen."], integrationRefs: [], integrationDetails: [], requiredCapabilities: [], conditionalCapabilities: [] };
+  if (!setup) {
+    const id = `hermes_${slug(name).replaceAll("-", "_")}`;
+    return { accounts: [], setupRefs: ["Voraussetzungen dieses Hermes-Skills sind noch nicht katalogisiert. Bitte die installierte SKILL.md und benötigte Werkzeuge oder Konten vor der Nutzung prüfen."], integrationRefs: [id],
+      integrationDetails: [{ id, account: "conditional" as const, required: false, setupDe: "Voraussetzungen in der installierten Hermes-SKILL.md prüfen.", reference: "", settingsTarget: "Hermes-Einstellungen in Friday-Ubuntu", configured: null, connectionChecked: null, permissions: UNKNOWN_PERMISSIONS, cost: UNKNOWN_COST }], requiredCapabilities: [], conditionalCapabilities: [] };
+  }
   const id = `hermes_${slug(name).replaceAll("-", "_")}`;
   if (id === "hermes_llm_wiki") return { accounts: ["hermes_llm_wiki_sync"], setupRefs: [], integrationRefs: [id, "hermes_llm_wiki_sync"],
     integrationDetails: [
-      { id, account: "none" as const, required: true, setupDe: "Lokales Markdown-Wiki: WIKI_PATH auf einen vorhandenen, lesbaren Ordner in Friday-Ubuntu setzen oder ~/wiki verwenden. Ein Obsidian-Vault ist hierfür nicht erforderlich.", reference: "", settingsTarget: "/settings?area=skillAccounts#wiki-path-setup-title", configured: null, connectionChecked: null },
-      { id: "hermes_llm_wiki_sync", account: "conditional" as const, required: false, setupDe: "Nur für optionalen Obsidian Sync: obsidian-headless installieren, ein Sync-Abonnement besitzen und in Friday-Ubuntu mit ob login anmelden. Die lokale Wiki-Nutzung funktioniert ohne Sync.", reference: "", settingsTarget: "Friday-Ubuntu: ob login", configured: null, connectionChecked: null },
+      { id, account: "none" as const, required: true, setupDe: "Lokales Markdown-Wiki: WIKI_PATH auf einen vorhandenen, lesbaren Ordner in Friday-Ubuntu setzen oder ~/wiki verwenden. Ein Obsidian-Vault ist hierfür nicht erforderlich.", reference: "", settingsTarget: "/settings?area=skillAccounts#wiki-path-setup-title", configured: null, connectionChecked: null, ...hermesFacts(name) },
+      { id: "hermes_llm_wiki_sync", account: "conditional" as const, required: false, setupDe: "Nur für optionalen Obsidian Sync: obsidian-headless installieren, ein Sync-Abonnement besitzen und in Friday-Ubuntu mit ob login anmelden. Die lokale Wiki-Nutzung funktioniert ohne Sync.", reference: "", settingsTarget: "Friday-Ubuntu: ob login", configured: null, connectionChecked: null, permissions: UNKNOWN_PERMISSIONS, cost: { model: "subscription_license" as const, notice: "Für diesen optionalen Pfad ist ein aktives Obsidian-Sync-Abonnement erforderlich; aktuelle Konditionen beim Anbieter prüfen." } },
     ], requiredCapabilities: ["Lesbarer lokaler Markdown-Ordner unter WIKI_PATH oder ~/wiki"], conditionalCapabilities: ["Optional: obsidian-headless und Obsidian Sync"] };
   return { accounts: setup.account === "none" ? [] : [id], setupRefs: [], integrationRefs: [id],
-    integrationDetails: [{ id, account: setup.account, required: setup.account !== "conditional", setupDe: setup.setupDe, reference: "", settingsTarget: "Hermes-Einstellungen in Friday-Ubuntu", configured: null, connectionChecked: null }],
+    integrationDetails: [{ id, account: setup.account, required: setup.account !== "conditional", setupDe: setup.setupDe, reference: "", settingsTarget: "Hermes-Einstellungen in Friday-Ubuntu", configured: null, connectionChecked: null, ...hermesFacts(name) }],
     requiredCapabilities: [setup.capability], conditionalCapabilities: [] };
 }
 
@@ -172,7 +238,7 @@ export class SkillsService {
       const setupSkills = setup.skills as Json | undefined;
       const integrationMetadata = (setup.integrations ?? {}) as Json;
       const rawSkills = (registry.skills ?? registry) as Json;
-      if (setup.schema_version !== 1 || !setupSkills || typeof setupSkills !== "object" || !rawSkills || typeof rawSkills !== "object") throw new Error("Katalogformat ungültig");
+      if (![1, 2].includes(Number(setup.schema_version)) || !setupSkills || typeof setupSkills !== "object" || !rawSkills || typeof rawSkills !== "object") throw new Error("Katalogformat ungültig");
       const entries = Array.isArray(rawSkills) ? rawSkills.map((value, index) => [String(index), value] as const) : Object.entries(rawSkills);
       // Read on every list request so a saved or removed key is visible without restarting the API.
       let keyStatus: Readonly<{ kie: boolean; elevenlabs: boolean }> | undefined;
@@ -191,7 +257,7 @@ export class SkillsService {
           const account = field(integration, "account");
           return { id: integrationId, account: (account === "required" || account === "conditional" ? account : "none") as "none" | "required" | "conditional",
             required: required.includes(integrationId), setupDe: field(integration, "setup_de"), reference: field(integration, "reference"),
-            settingsTarget: field(integration, "settings_target"),
+            settingsTarget: field(integration, "settings_target"), permissions: permissionMetadata(integration.permissions), cost: costMetadata(integration.cost),
             configured: integrationId === "kie_ai" ? keyStatus?.kie ?? null
               : integrationId === "elevenlabs" ? keyStatus?.elevenlabs ?? null : null,
             connectionChecked: null };

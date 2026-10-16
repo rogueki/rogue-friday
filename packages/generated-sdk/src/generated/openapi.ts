@@ -5853,6 +5853,12 @@ export interface components {
             data: components["schemas"]["powerpoint-deck.schema"];
             freshness: components["schemas"]["Freshness"];
         };
+        prerequisite: {
+            kind: string;
+            notice: string;
+            /** @enum {unknown} */
+            status: "required" | "optional";
+        };
         /**
          * Priority
          * @description P0 critical, P1 urgent, P2 important, P3 normal, P4 informational.
@@ -6443,7 +6449,19 @@ export interface components {
                 account: "none" | "required" | "conditional";
                 configured: boolean | null;
                 connectionChecked: boolean | null;
+                cost?: {
+                    /** @enum {unknown} */
+                    model: "host_resources" | "provider_usage" | "subscription_license" | "none" | "unknown";
+                    notice: string;
+                };
                 id: string;
+                permissions?: {
+                    optional_prerequisites: components["schemas"]["prerequisite"][];
+                    required_prerequisites: components["schemas"]["prerequisite"][];
+                    scope_notice: string;
+                    /** @enum {unknown} */
+                    scope_status: "unknown" | "not_required";
+                };
                 reference: string;
                 required: boolean;
                 settingsTarget: string;
@@ -6461,6 +6479,14 @@ export interface components {
             /** @enum {unknown} */
             source: "friday" | "hermes";
             version: string | null;
+            $defs: {
+                prerequisite: {
+                    kind: string;
+                    notice: string;
+                    /** @enum {unknown} */
+                    status: "required" | "optional";
+                };
+            };
         };
         /** SkillCatalogResponse */
         SkillCatalogResponse: {
