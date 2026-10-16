@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { ApiError, validationFailed } from "../util/errors";
 import { invokeCodingRunner, type RunnerInvoker } from "./coding-runs";
 
-export const HERMES_SKILL_KEYS = ["AIRTABLE_API_KEY", "NOTION_API_KEY", "TENOR_API_KEY", "JINA_API_KEY"] as const;
+export const HERMES_SKILL_KEYS = ["AIRTABLE_API_KEY", "NOTION_API_KEY", "TENOR_API_KEY", "JINA_API_KEY", "MSGRAPH_TENANT_ID", "MSGRAPH_CLIENT_ID", "MSGRAPH_CLIENT_SECRET"] as const;
 export type HermesSkillKey = typeof HERMES_SKILL_KEYS[number];
 export type CheckableHermesSkillKey = "AIRTABLE_API_KEY" | "NOTION_API_KEY";
 export type HermesSkillKeyCheck = { key: CheckableHermesSkillKey; state: "verified" | "missing" | "rejected" | "permission-limited" | "unavailable"; checkedAt: string };

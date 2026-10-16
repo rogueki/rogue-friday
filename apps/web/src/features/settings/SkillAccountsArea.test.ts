@@ -20,9 +20,19 @@ describe("Skill account setup paths", () => {
     const setup = accountSetupView(integration("hermes_notion"), undefined);
     expect(setup.href).toContain("skillAccounts");
     expect(setup.state).toContain("unbekannt");
-    const configured = accountSetupView(integration("hermes_notion"), undefined, { configured: { AIRTABLE_API_KEY: false, NOTION_API_KEY: true, TENOR_API_KEY: false, JINA_API_KEY: false }, applied: null });
+    const configured = accountSetupView(integration("hermes_notion"), undefined, { configured: { AIRTABLE_API_KEY: false, NOTION_API_KEY: true, TENOR_API_KEY: false, JINA_API_KEY: false, MSGRAPH_TENANT_ID: false, MSGRAPH_CLIENT_ID: false, MSGRAPH_CLIENT_SECRET: false }, applied: null });
     expect(configured.state).toContain("hinterlegt");
     expect(configured.state).toContain("Anbieterzugriff nicht geprüft");
+  });
+
+  it("links Teams setup and counts only present Graph values", () => {
+    const item = integration("hermes_teams_meeting_pipeline");
+    expect(accountSetupView(item, undefined).state).toContain("unbekannt");
+    const setup = accountSetupView(item, undefined, { configured: { AIRTABLE_API_KEY: false, NOTION_API_KEY: false, TENOR_API_KEY: false, JINA_API_KEY: false,
+      MSGRAPH_TENANT_ID: true, MSGRAPH_CLIENT_ID: true, MSGRAPH_CLIENT_SECRET: false }, applied: null });
+    expect(setup.href).toContain("hermes-key-setup-title");
+    expect(setup.state).toContain("2 von 3");
+    expect(setup.state).toContain("Teams nicht geprüft");
   });
 
   it("keeps an unknown integration unsupported instead of inventing a connection", () => {

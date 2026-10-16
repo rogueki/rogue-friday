@@ -4,7 +4,7 @@
   "title": "HermesSkillKeyPatch",
   "type": "object",
   "properties": {
-    "key": { "type": "string", "enum": ["AIRTABLE_API_KEY", "NOTION_API_KEY", "TENOR_API_KEY", "JINA_API_KEY"] },
+    "key": { "type": "string", "enum": ["AIRTABLE_API_KEY", "NOTION_API_KEY", "TENOR_API_KEY", "JINA_API_KEY", "MSGRAPH_TENANT_ID", "MSGRAPH_CLIENT_ID", "MSGRAPH_CLIENT_SECRET"] },
     "value": { "type": "string", "maxLength": 2048 }
   },
   "required": ["key", "value"],

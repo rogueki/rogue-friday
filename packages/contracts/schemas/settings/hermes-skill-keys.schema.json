@@ -10,9 +10,12 @@
         "AIRTABLE_API_KEY": { "type": "boolean" },
         "NOTION_API_KEY": { "type": "boolean" },
         "TENOR_API_KEY": { "type": "boolean" },
-        "JINA_API_KEY": { "type": "boolean" }
+        "JINA_API_KEY": { "type": "boolean" },
+        "MSGRAPH_TENANT_ID": { "type": "boolean" },
+        "MSGRAPH_CLIENT_ID": { "type": "boolean" },
+        "MSGRAPH_CLIENT_SECRET": { "type": "boolean" }
       },
-      "required": ["AIRTABLE_API_KEY", "NOTION_API_KEY", "TENOR_API_KEY", "JINA_API_KEY"],
+      "required": ["AIRTABLE_API_KEY", "NOTION_API_KEY", "TENOR_API_KEY", "JINA_API_KEY", "MSGRAPH_TENANT_ID", "MSGRAPH_CLIENT_ID", "MSGRAPH_CLIENT_SECRET"],
       "additionalProperties": false
     },
     "applied": { "type": ["boolean", "null"] }
