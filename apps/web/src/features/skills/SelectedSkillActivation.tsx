@@ -3,6 +3,7 @@
 import { Button } from "@friday/ui";
 import { useState } from "react";
 import { useSetSkillActivation, useSkillsCatalog } from "@/lib/api/domains/skills";
+import { isCurrentCatalog, unverifiedSkill } from "./catalogFreshness";
 import { skillState } from "./skillPresentation";
 
 export function SelectedSkillActivation({ selectedIds }: { selectedIds: readonly string[] }) {
@@ -14,17 +15,18 @@ export function SelectedSkillActivation({ selectedIds }: { selectedIds: readonly
 
   if (!selectedIds.length) return <p className="sk-muted">Noch keine Skills ausgewählt.</p>;
 
-  const skills = new Map((catalog.data?.data ?? []).map((skill) => [skill.id, skill]));
+  const current = isCurrentCatalog(catalog);
+  const skills = new Map((catalog.data?.data ?? []).map((skill) => [skill.id, current ? skill : unverifiedSkill(skill)]));
   const toggle = async (id: string) => {
     const skill = skills.get(id);
-    if (busyId || !skill || skill.discovered !== true || skill.enabled === null) return;
+    if (!isCurrentCatalog(catalog) || busyId || !skill || skill.discovered !== true || skill.enabled === null) return;
     const enabled = !skill.enabled;
     setBusyId(id); setMessage(null); setError(null);
     try {
       await activation.mutateAsync({ id, enabled });
       const refreshed = await catalog.refetch();
       const confirmed = refreshed.data?.data.find((item) => item.id === id);
-      if (refreshed.isError || confirmed?.discovered !== true || confirmed.enabled !== enabled) {
+      if (!isCurrentCatalog(refreshed) || confirmed?.discovered !== true || confirmed.enabled !== enabled) {
         throw new Error(`Der aktuelle Hermes-Status von ${skill.name} konnte nicht bestätigt werden. Bitte Katalog erneut laden.`);
       }
       setMessage(`${skill.name}: ${enabled ? "Aktivierung" : "Deaktivierung"} von Hermes bestätigt. Die Ausführbarkeit ist noch nicht geprüft.`);
@@ -39,12 +41,13 @@ export function SelectedSkillActivation({ selectedIds }: { selectedIds: readonly
     <h3>Ausgewählte Skills</h3>
     {catalog.isPending && <p role="status">Hermes-Status wird geladen.</p>}
     {catalog.isError && <p role="alert">Hermes-Status nicht verfügbar. Die Auswahl bleibt gespeichert; hier wird nichts aktiviert.</p>}
+    {!catalog.isPending && !catalog.isError && !current && <p role="status" className="sk-warning">Katalogdaten sind nicht mehr aktuell. Der Aktivierungsstatus ist unbekannt. <Button type="button" disabled={catalog.isFetching} onClick={() => void catalog.refetch()}>Jetzt aktualisieren</Button></p>}
     <ul className="sk-selected__list">{selectedIds.map((id) => {
       const skill = skills.get(id);
-      const known = !catalog.isPending && !catalog.isError && skill?.discovered === true && skill.enabled !== null;
+      const known = current && skill?.discovered === true && skill.enabled !== null;
       const state = skill ? skillState(skill) : null;
       return <li key={id}>
-        <span><strong>{skill?.name ?? id}</strong><small>{catalog.isPending || catalog.isError ? "Status unbekannt" : state?.label ?? "Nicht im Katalog"}</small></span>
+        <span><strong>{skill?.name ?? id}</strong><small>{!current ? "Status unbekannt" : state?.label ?? "Nicht im Katalog"}</small></span>
         {known && <Button type="button" disabled={busyId !== null} loading={busyId === id} onClick={() => void toggle(id)} aria-label={`${skill.name} ${skill.enabled ? "deaktivieren" : "aktivieren"}`}>{skill.enabled ? "Deaktivieren" : "Aktivieren"}</Button>}
       </li>;
     })}</ul>
