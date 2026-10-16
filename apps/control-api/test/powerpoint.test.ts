@@ -74,4 +74,15 @@ describe("owner PowerPoint creation", () => {
     expect(existsSync(expired)).toBe(false);
     expect(existsSync(unrelated)).toBe(true);
   });
+
+  it("expires a private download after seven days", async () => {
+    const folder = join(api.dir, "private", "powerpoint");
+    const expired = join(folder, "22222222-2222-4222-8222-222222222222.pptx");
+    writeFileSync(expired, "old");
+    const oldTime = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    utimesSync(expired, oldTime, oldTime);
+    const owner = api.client(); await owner.loginDev("owner");
+    expect((await owner.get("/api/v1/skills/powerpoint/decks/22222222-2222-4222-8222-222222222222/download")).statusCode).toBe(404);
+    expect(existsSync(expired)).toBe(false);
+  });
 });
