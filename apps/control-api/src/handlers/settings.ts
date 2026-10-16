@@ -8,6 +8,17 @@ const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString()
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: fresh() });
 
 export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
+  async getObsidianVault(ctx) {
+    return { status: 200, body: single(await ctx.runtime.obsidianVault.status()) };
+  },
+
+  async putObsidianVault(ctx) {
+    const body = ctx.body as { path: string };
+    const status = await ctx.runtime.obsidianVault.set(body.path, ctx.mutation.ifMatchVersion ?? -1);
+    ctx.audit.action = "settings.obsidian_vault_updated";
+    ctx.audit.after = { configured: status.configured, readable: status.readable, applied: status.applied };
+    return { status: 200, body: single(status) };
+  },
   async getContentStudioKeys(ctx) {
     return { status: 200, body: single(ctx.runtime.contentStudioKeys.status()) };
   },

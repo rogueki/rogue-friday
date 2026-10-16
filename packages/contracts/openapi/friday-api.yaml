@@ -4816,6 +4816,63 @@ paths:
           $ref: "#/components/responses/UnprocessableEntity"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/obsidian-vault:
+    get:
+      operationId: getObsidianVault
+      tags:
+        - settings
+      summary: Read Hermes Obsidian vault path and WSL readiness
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObsidianVaultResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+    put:
+      operationId: putObsidianVault
+      tags:
+        - settings
+      summary: Configure an existing Obsidian vault for Hermes in WSL
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ObsidianVaultPatch"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObsidianVaultResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/schema:
     get:
       operationId: getSettingsSchema
@@ -5955,6 +6012,12 @@ components:
       $ref: ../schemas/settings/content-studio-keys.schema.json
     ContentStudioKeysResponse:
       $ref: ../schemas/settings/content-studio-keys-response.schema.json
+    ObsidianVault:
+      $ref: ../schemas/settings/obsidian-vault.schema.json
+    ObsidianVaultPatch:
+      $ref: ../schemas/settings/obsidian-vault-patch.schema.json
+    ObsidianVaultResponse:
+      $ref: ../schemas/settings/obsidian-vault-response.schema.json
     ContentPlanDocument:
       $ref: ../schemas/content-studio/plan-document.schema.json
     SkillCatalogEntry:

@@ -25,10 +25,11 @@ if [ -f "$coding_setup" ]; then
 else
     echo 'UNKNOWN Coding CLI readiness: installer setup_coding_cli.sh missing'
 fi
-if [ -n "${OBSIDIAN_VAULT_PATH:-}" ] && [ -d "$OBSIDIAN_VAULT_PATH" ] && [ -r "$OBSIDIAN_VAULT_PATH" ]; then
-    printf 'FOUND Obsidian vault: configured path is readable in WSL (file workflow not tested)\n'
+obsidian_status="$(python3 "$(dirname "$0")/configure_obsidian.py" status 2>/dev/null || true)"
+if printf '%s' "$obsidian_status" | python3 -c 'import json,sys; x=json.load(sys.stdin); sys.exit(0 if x["configured"] and x["readable"] else 1)' 2>/dev/null; then
+    printf 'FOUND Obsidian vault: configured path and .obsidian marker are readable in WSL (file workflow not tested)\n'
 else
-    echo 'NOT_CONFIGURED Obsidian vault: OBSIDIAN_VAULT_PATH is absent or unreadable in WSL'
+    echo 'NOT_CONFIGURED Obsidian vault: Hermes OBSIDIAN_VAULT_PATH is absent or unreadable in WSL'
 fi
 if command -v hermes >/dev/null 2>&1; then
     cua_status="$(timeout 12 hermes computer-use status 2>&1 || true)"
