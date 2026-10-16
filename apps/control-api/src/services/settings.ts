@@ -149,6 +149,7 @@ export function defaultSettingsAreas(config: FridayConfig): SettingsAreas {
       sessionTimeoutMinutes: config.auth.sessionTtlMinutes,
       reauthWindowMinutes: config.auth.reauthWindowMinutes,
       allowRemoteAccess: config.server.allowRemote,
+      loginRequired: true,
       auditHashChain: true,
       trustedOrigins: [`http://127.0.0.1:${config.server.port}`, `http://localhost:${config.server.port}`],
     },
@@ -395,6 +396,9 @@ export class SettingsService {
 
   /** A patch may only activate a theme/layout that exists (the UI would otherwise render with no tokens). */
   private assertReferences(patch: SettingsPatch): void {
+    if (patch.security?.loginRequired === false && (this.config.server.allowRemote || patch.security.allowRemoteAccess)) {
+      throw validationFailed("Ohne Anmeldung darf das Dashboard nur lokal erreichbar sein.", [{ path: "security.loginRequired", message: "Fernzugriff ist aktiviert" }]);
+    }
     if (patch.theme && !this.library.get("theme", patch.theme.activeThemeId)) {
       throw validationFailed(`Das Theme ${patch.theme.activeThemeId} existiert nicht.`, [{ path: "theme.activeThemeId", message: "unbekannt" }]);
     }

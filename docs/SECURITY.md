@@ -76,6 +76,11 @@ token `consume()` (single use) -> state recheck -> execute -> audit event with c
   `reauthAt` for sensitive actions, `revokeAll(userId)` for "logout all" (§49.4).
 - **Cookies**: `friday_session` = `HttpOnly; SameSite=Strict; Path=/; Max-Age` (+`Secure` when `auth.secureCookies`).
   `friday_csrf` = readable (no `HttpOnly`), same flags otherwise.
+- **First local setup**: if the owner hash file does not exist, the first login request on a loopback-bound server creates
+  the owner identity and a scrypt hash with restricted file access. The file is created once; later requests cannot repeat setup.
+  The optional “remember me” session lasts at most 30 days and stores no password in the browser. Disabling sign-in in
+  Settings issues a local owner session only while the server remains loopback-bound and remote access is off; re-authentication
+  for sensitive actions still requires the owner password.
 - **CSRF**: token = `HMAC-SHA256(csrfKey, sessionId)`. The SPA copies the `friday_csrf` cookie into `X-CSRF-Token` on every
   mutating request (POST/PUT/PATCH/DELETE). The server checks header == cookie (double submit) **and** header == HMAC of the
   caller's own session id, so a token from another session or a planted cookie fails. `csrfKey` is derived (HKDF) from the

@@ -19,7 +19,7 @@ function actionResult(ctx: RequestContext, message: string, resourceId?: string)
 export const authHandlers: Partial<Record<OperationId, Handler>> = {
   async login(ctx) {
     const body = ctx.body as LoginRequest;
-    const { principal, setCookie } = await ctx.runtime.auth.login(body.username, body.password, ctx.ip);
+    const { principal, setCookie } = await ctx.runtime.auth.login(body.username, body.password, ctx.ip, body.rememberMe === true, body.displayName);
     ctx.principal = principal;
     ctx.actor = asActor(principal);
     return { status: 200, body: ctx.runtime.auth.sessionResponse(principal, new Date().toISOString()), setCookie };
@@ -44,9 +44,9 @@ export const authHandlers: Partial<Record<OperationId, Handler>> = {
     const { auth } = ctx.runtime;
     let principal = ctx.principal;
     let setCookie: string[] | undefined;
-    if (!principal && auth.devMode) {
+    if (!principal && (auth.devMode || auth.localAutoLogin)) {
       // Dev auth: the first bootstrap call signs the browser in as the dev owner (mock data on loopback only).
-      const issued = auth.issueDevSession("owner");
+      const issued = auth.devMode ? auth.issueDevSession("owner") : auth.issueLocalSession();
       principal = issued.principal;
       setCookie = issued.setCookie;
       ctx.principal = principal;

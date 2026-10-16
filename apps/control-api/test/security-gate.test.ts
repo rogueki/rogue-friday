@@ -56,6 +56,7 @@ describe("cookies behind TLS", () => {
 describe("server key loss (auth.key)", () => {
   it("invalidates only CSRF tokens: sessions, data and the audit trail survive; a fresh session read reissues a working token", async () => {
     const dir = mkdtempSync(join(tmpdir(), "friday-keyloss-"));
+    let restarted: TestApi | undefined;
     try {
       const first = await start({ dir });
       const before = first.client();
@@ -70,6 +71,7 @@ describe("server key loss (auth.key)", () => {
 
       unlinkSync(join(first.config.paths.dataDir, "auth.key"));
       const second = await start({ dir });
+      restarted = second;
       const after = second.client();
       for (const [name, value] of cookies) after.cookies.set(name, value);
       after.csrfToken = staleCsrf;
@@ -82,12 +84,17 @@ describe("server key loss (auth.key)", () => {
       expect(second.runtime.stores.audit.count()).toBeGreaterThanOrEqual(auditBefore);
       expect(second.runtime.stores.audit.verify()).toMatchObject({ valid: true });
     } finally {
+      if (restarted) {
+        await restarted.app.close();
+        opened.splice(opened.indexOf(restarted), 1);
+      }
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
   it("still reports a really tampered trail after the key was regenerated", async () => {
     const dir = mkdtempSync(join(tmpdir(), "friday-keyloss-"));
+    let restarted: TestApi | undefined;
     try {
       const first = await start({ dir });
       const client = first.client();
@@ -100,8 +107,13 @@ describe("server key loss (auth.key)", () => {
       opened.splice(opened.indexOf(first), 1);
       unlinkSync(join(first.config.paths.dataDir, "auth.key"));
       const second = await start({ dir });
+      restarted = second;
       expect(second.runtime.stores.audit.verify()).toMatchObject({ valid: false });
     } finally {
+      if (restarted) {
+        await restarted.app.close();
+        opened.splice(opened.indexOf(restarted), 1);
+      }
       rmSync(dir, { recursive: true, force: true });
     }
   });

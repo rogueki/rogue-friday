@@ -27,14 +27,19 @@ export function LoginView() {
   const meta = useMeta();
   const login = useLogin();
   const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (session.status === "authenticated") router.replace("/");
   }, [session.status, router]);
 
-  const submit = (credentials: { username: string; password: string }): void => {
+  const setupRequired = session.session?.setupRequired === true;
+
+  const submit = (credentials: { username: string; password: string; rememberMe?: boolean; displayName?: string }): void => {
     setError(null);
     login.mutate(credentials, {
       onSuccess: () => router.replace("/"),
@@ -44,7 +49,11 @@ export function LoginView() {
 
   const onSubmit = (event: FormEvent): void => {
     event.preventDefault();
-    if (username.trim() && password) submit({ username: username.trim(), password });
+    if (setupRequired && (displayName.trim().length === 0 || password.length < 12 || password !== passwordConfirm)) {
+      setError(t("login.setupInvalid"));
+      return;
+    }
+    if (username.trim() && password) submit({ username: username.trim(), password, rememberMe, ...(setupRequired ? { displayName: displayName.trim() } : {}) });
   };
 
   return (
@@ -53,23 +62,29 @@ export function LoginView() {
         <div className="web-login__brand">
           <BrandMark size={56} />
           <div>
-            <h1 className="web-login__title">{assistantName}</h1>
-            <p className="web-login__subtitle">{t("brand.subtitle")}</p>
+            <h1 className="web-login__title">{setupRequired ? t("login.setupTitle") : assistantName}</h1>
+            <p className="web-login__subtitle">{setupRequired ? t("login.setupDesc") : t("brand.subtitle")}</p>
           </div>
         </div>
         <form className="web-form" onSubmit={onSubmit}>
+          {setupRequired ? <TextField label={t("login.displayName")} value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoComplete="name" autoFocus /> : null}
           <TextField label={t("login.username")} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoFocus />
-          <TextField label={t("login.password")} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+          <TextField label={t("login.password")} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={setupRequired ? "new-password" : "current-password"} />
+          {setupRequired ? <TextField label={t("login.passwordConfirm")} type="password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" /> : null}
+          <label className="web-login__remember">
+            <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
+            <span>{t("login.rememberMe")}</span>
+          </label>
           {error ? (
             <p className="web-form__error" role="alert">
               {error}
             </p>
           ) : null}
           <Button type="submit" variant="primary" icon={<LogIn size={16} />} loading={login.isPending} disabled={!username.trim() || !password}>
-            {t("login.submit")}
+            {t(setupRequired ? "login.setupSubmit" : "login.submit")}
           </Button>
         </form>
-        {meta.data?.dataMode === "mock" ? (
+        {meta.data?.dataMode === "mock" && !setupRequired ? (
           <section className="web-login__dev" aria-label={t("login.dev.title")}>
             <h2>{t("login.dev.title")}</h2>
             <div className="web-login__roles">

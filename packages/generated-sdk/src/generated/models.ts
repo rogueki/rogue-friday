@@ -2147,6 +2147,8 @@ export interface ListEnvelope {
 export interface LoginRequest {
   username: string;
   password: string;
+  rememberMe?: boolean;
+  displayName?: string;
 }
 /**
  * Stored knowledge item (PLAN §30). Nothing is hidden: provenance, usage and history are visible.
@@ -3062,6 +3064,7 @@ export interface SecuritySettings {
   sessionTimeoutMinutes: number;
   reauthWindowMinutes: number;
   allowRemoteAccess: boolean;
+  loginRequired?: boolean;
   auditHashChain: boolean;
   trustedOrigins: string[];
 }
@@ -3106,6 +3109,7 @@ export interface ServiceResponse {
  */
 export interface Session {
   authenticated: boolean;
+  setupRequired?: boolean;
   user: User | null;
   role: Role | null;
   csrfToken: string | null;

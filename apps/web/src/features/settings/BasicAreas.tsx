@@ -395,6 +395,7 @@ export function SecurityArea() {
     <>
       <Section title={t("settings.security.session")} description={t("settings.security.sessionDesc")}>
         <FieldGrid>
+          <Switch label={t("settings.security.loginRequired")} description={t("settings.security.loginRequiredDesc")} checked={value.loginRequired !== false} disabled={readOnly || value.allowRemoteAccess} stateLabels={onOff(t)} onCheckedChange={(loginRequired) => update({ loginRequired })} />
           <NumberField label={t("settings.security.timeout")} hint={t("settings.security.timeoutHint")} integer min={1} value={value.sessionTimeoutMinutes} disabled={readOnly} onValueChange={(next) => next !== null && update({ sessionTimeoutMinutes: Math.round(next) })} />
           <NumberField label={t("settings.security.reauth")} hint={t("settings.security.reauthHint")} integer min={1} value={value.reauthWindowMinutes} disabled={readOnly} onValueChange={(next) => next !== null && update({ reauthWindowMinutes: Math.round(next) })} />
         </FieldGrid>
@@ -421,7 +422,7 @@ export function SecurityArea() {
       </Section>
       <Section title={t("settings.security.network")}>
         <FieldGrid>
-          <Switch label={t("settings.security.remote")} description={t("settings.security.remoteDesc")} checked={value.allowRemoteAccess} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(allowRemoteAccess) => update({ allowRemoteAccess })} />
+          <Switch label={t("settings.security.remote")} description={t("settings.security.remoteDesc")} checked={value.allowRemoteAccess} disabled={readOnly || value.loginRequired === false} stateLabels={onOff(t)} onCheckedChange={(allowRemoteAccess) => update({ allowRemoteAccess })} />
           <Switch label={t("settings.security.hashChain")} description={t("settings.security.hashChainDesc")} checked={value.auditHashChain} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(auditHashChain) => update({ auditHashChain })} />
         </FieldGrid>
         {value.allowRemoteAccess ? <StatusChip tone="amber">{t("settings.security.remoteWarning")}</StatusChip> : null}

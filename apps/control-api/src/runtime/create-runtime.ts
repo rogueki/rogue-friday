@@ -124,6 +124,13 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     env,
     ...(options.now ? { now: options.now } : {}),
     displayName: () => settingsHolder.current?.get().profile.displayName ?? config.auth.ownerUsername,
+    ownerUsername: () => kvGet(db, "auth.ownerUsername") ?? config.auth.ownerUsername,
+    setOwnerIdentity: (username, displayName) => {
+      kvSet(db, "auth.ownerUsername", username);
+      const service = settingsHolder.current;
+      if (service) service.patch({ profile: { ...service.area("profile"), displayName } });
+    },
+    localLoginRequired: () => settingsHolder.current?.area("security").loginRequired !== false || settingsHolder.current?.area("security").allowRemoteAccess === true,
   });
 
   // ---- persistence --------------------------------------------------------------------------------------------

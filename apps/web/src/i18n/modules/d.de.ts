@@ -413,6 +413,8 @@ export const deD = {
   "settings.security.logoutAllConfirm": "Alle Anmeldungen dieses Benutzers werden beendet, auch diese. Danach ist eine neue Anmeldung nötig.",
   "settings.security.network": "Netzwerk und Audit",
   "settings.security.remote": "Fernzugriff erlauben",
+  "settings.security.loginRequired": "Anmeldung erforderlich",
+  "settings.security.loginRequiredDesc": "Nur auf diesem Rechner abschaltbar. Freigaben mit Passwortbestätigung bleiben geschützt.",
   "settings.security.remoteDesc": "Standardmäßig ist nur der lokale Rechner zugelassen.",
   "settings.security.remoteWarning": "Achtung: Fernzugriff vergrößert die Angriffsfläche. Nur mit sicherem Tunnel verwenden.",
   "settings.security.hashChain": "Audit-Hashkette",
