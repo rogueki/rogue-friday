@@ -1,4 +1,6 @@
-Hier kann spaeter die trainierte JARVIS-Stimme abgelegt werden:
+Dieses Paket enthält keine eigene J.A.R.V.I.S.-Stimmdatei. Falls du eine besitzt, lege sie hier ab:
   jarvis_de.onnx und jarvis_de.onnx.json
-Der Installer verwendet sie dann automatisch statt der Standardstimme (Thorsten + Filmfilter).
-Nachtraeglich: Dateien hierher kopieren, in C:\Friday\config\install-state.json den Eintrag "voicepython" aus "done" entfernen und install-friday.bat erneut starten.
+Bei Auswahl „Klassisch“ verwendet der Installer diese Dateien. Ohne sie nutzt er Thorsten mit Filmfilter.
+Für die weibliche F.R.I.D.A.Y.-Ausgabe kannst du bei der Installation eine eigene MP3/WAV-Stimmreferenz wählen.
+Qwen3-TTS verwendet sie nur lokal. Ohne Referenz wird die deutsche Piper-Stimme Kerstin verwendet.
+Nachträglich: Dateien hierher kopieren und change-voice.bat starten.

@@ -5,13 +5,20 @@ Assistentenname und Wake-Phrase kommen aus config/persona.json (assistant_name, 
 waehlbar, Standard "Hey <Name>"). Wake-Engine: "openwakeword" nur fuer die Phrase "Hey Jarvis" (vortrainiertes
 hey_jarvis + Owner-Verifier), sonst "personal" (siehe personal_wake.py).
 """
+import argparse
+import hashlib
 import json
 import os
 import shutil
 import sys
 import time
 
-ROOT = sys.argv[1] if len(sys.argv) > 1 else r"C:\Friday"
+args = argparse.ArgumentParser()
+args.add_argument("root", nargs="?", default=r"C:\Friday")
+args.add_argument("--voice-choice", choices=("friday-female", "classic"), default="classic")
+args.add_argument("--voice-reference", default="")
+options = args.parse_args()
+ROOT = options.root
 VOICE = os.path.join(ROOT, "voice")
 MODELS = os.path.join(ROOT, "models")
 CONFIG = os.path.join(ROOT, "config")
@@ -73,27 +80,86 @@ except Exception as exc:  # Pascal/zu alte Treiber/kein NVIDIA: CPU ist langsame
     print(f"   GPU nicht nutzbar ({str(exc)[:120]}) -> base auf CPU")
     WhisperModel("base", device="cpu", compute_type="int8", download_root=os.path.join(MODELS, "whisper"))
 
-step("Stimme (Piper)")
+step("Ausgabestimme")
 from huggingface_hub import hf_hub_download  # noqa: E402
 
 tts = os.path.join(MODELS, "tts")
 os.makedirs(tts, exist_ok=True)
 custom = os.path.join(ROOT, "installer", "voice_models", "jarvis_de.onnx")
-if os.path.exists(custom):
+if options.voice_choice == "friday-female":
+    name, folder = "de_DE-kerstin-low", "de/de_DE/kerstin/low"
+    film_filter = False
+    print("   F.R.I.D.A.Y.: Kerstin (weiblich, Deutsch)")
+elif os.path.exists(custom):
+    if not os.path.exists(custom + ".json"):
+        raise FileNotFoundError("jarvis_de.onnx.json fehlt neben der eigenen J.A.R.V.I.S.-Stimme")
     for ext in ("", ".json"):
         shutil.copy(custom + ext, os.path.join(tts, "jarvis_de.onnx" + ext))
     voice = os.path.join(tts, "jarvis_de.onnx")
-    print("   eigene Assistenten-Stimme gefunden")
+    film_filter = True
+    print("   eigene J.A.R.V.I.S.-Stimme gefunden")
 else:
-    name = "de_DE-thorsten-medium"
+    name, folder = "de_DE-thorsten-medium", "de/de_DE/thorsten/medium"
+    film_filter = True
+    print("   Klassisch: Thorsten (maennlich) mit Filmfilter; keine eigene J.A.R.V.I.S.-Datei vorhanden")
+if options.voice_choice == "friday-female" or not os.path.exists(custom):
     for ext in (".onnx", ".onnx.json"):
         dst = os.path.join(tts, name + ext)
         if not os.path.exists(dst):
-            shutil.copy(hf_hub_download("rhasspy/piper-voices", f"de/de_DE/thorsten/medium/{name}{ext}"), dst)
+            shutil.copy(hf_hub_download("rhasspy/piper-voices", f"{folder}/{name}{ext}"), dst)
     voice = os.path.join(tts, name + ".onnx")
-    print("   Standardstimme Thorsten (maennlich) + Filmfilter")
+
+qwen_settings = {"tts_backend": "piper", "tts_reference": None, "tts_url": None,
+                 "tts_qwen_executable": None, "tts_qwen_model": None,
+                 "tts_qwen_projector": None, "tts_gpu_layers": 0}
+if options.voice_choice == "friday-female" and options.voice_reference:
+    reference = os.path.abspath(options.voice_reference)
+    if not os.path.isfile(reference) or os.path.splitext(reference)[1].lower() not in (".mp3", ".wav"):
+        raise FileNotFoundError("Die weibliche Stimmreferenz muss eine vorhandene MP3- oder WAV-Datei sein")
+    import soundfile as sf  # noqa: E402
+    duration = sf.info(reference).duration
+    if not 3 <= duration <= 30:
+        raise ValueError("Die Stimmreferenz muss zwischen 3 und 30 Sekunden lang sein")
+    local_reference = os.path.join(CONFIG, "voice-references", "female-reference" + os.path.splitext(reference)[1].lower())
+    os.makedirs(os.path.dirname(local_reference), exist_ok=True)
+    if os.path.normcase(reference) != os.path.normcase(local_reference):
+        shutil.copy2(reference, local_reference)
+    model_dir = os.path.join(MODELS, "tts-qwen")
+    os.makedirs(model_dir, exist_ok=True)
+    repo = "ggml-org/Qwen3-TTS-12Hz-1.7B-Base-GGUF"
+    files = {
+        "Qwen3-TTS-12Hz-1.7B-Base-Q4_K_M.gguf": "8d18c94acb2addd042f97da63c98be144eafa76d0d9495177eab65130cf85129",
+        "mmproj-Qwen3-TTS-12Hz-1.7B-Base-Q8_0.gguf": "6fd65188839bcd6ecc91b277ad471e22a0edfada4699a0fe82f1165c18cfcce2",
+    }
+    for filename, expected_hash in files.items():
+        target = os.path.join(model_dir, filename)
+        if not os.path.isfile(target):
+            shutil.copy2(hf_hub_download(repo_id=repo, filename=filename), target)
+        with open(target, "rb") as source:
+            digest = hashlib.file_digest(source, "sha256").hexdigest()
+        if digest != expected_hash:
+            raise ValueError(f"Prüfsumme des Qwen3-TTS-Modells stimmt nicht: {filename}")
+    executable = os.path.join(ROOT, "llama.cpp", "llama-tts.exe")
+    if not os.path.isfile(executable):
+        raise FileNotFoundError("llama-tts.exe fehlt; zuerst Qwen/llama.cpp installieren")
+    qwen_settings = {"tts_backend": "qwen3", "tts_reference": local_reference,
+                     "tts_qwen_executable": executable,
+                     "tts_qwen_model": os.path.join(model_dir, "Qwen3-TTS-12Hz-1.7B-Base-Q4_K_M.gguf"),
+                     "tts_qwen_projector": os.path.join(model_dir, "mmproj-Qwen3-TTS-12Hz-1.7B-Base-Q8_0.gguf"),
+                     "tts_gpu_layers": 99 if whisper["whisper_device"] == "cuda" else 0}
+    print("   F.R.I.D.A.Y.: lokale Qwen3-TTS-Stimme mit eigener Referenz (keine Cloud-Sprachausgabe)")
 
 step("config/voice.json schreiben")
+voice_config_path = os.path.join(CONFIG, "voice.json")
+previous = {}
+if os.path.exists(voice_config_path):
+    try:
+        with open(voice_config_path, encoding="utf-8-sig") as source:
+            loaded = json.load(source)
+        if isinstance(loaded, dict):
+            previous = loaded
+    except (OSError, ValueError):
+        print("   Vorhandene voice.json ist ungültig; Standardwerte werden verwendet")
 cfg = {
     **persona.voice_settings(p),
     # Weg "Hey Jarvis" (wake_engine "openwakeword"): vortrainiertes Modell + Owner-Verifier, unveraendert
@@ -128,14 +194,21 @@ cfg = {
     "hermes_key_file": os.path.join(CONFIG, "hermes_api.key"),
     "tts_url": None,
     "tts_voice": voice,
-    "tts_film_filter": True,
+    "tts_film_filter": film_filter,
+    "tts_voice_choice": options.voice_choice,
     "health_port": 43694,
     "game_processes": [],
     "game_check_s": 10,
     "input_device": None,
     "output_device": None,
 }
-with open(os.path.join(CONFIG, "voice.json"), "w", encoding="utf-8") as f:
+# A voice change must not reset the user's microphone, local service ports,
+# calibrated wake threshold or other tuning from the running installation.
+cfg.update(previous)
+cfg.update(persona.voice_settings(p))
+cfg.update({"tts_voice": voice, "tts_film_filter": film_filter,
+            "tts_voice_choice": options.voice_choice, "tts_speaker_id": None, **qwen_settings})
+with open(voice_config_path, "w", encoding="utf-8") as f:
     json.dump(cfg, f, ensure_ascii=False, indent=2)
 print(f"   whisper={whisper['whisper_model']}/{whisper['whisper_device']}")
 print(f"   assistant_name={NAME} wake_phrase={PHRASE} wake_engine={ENGINE}")

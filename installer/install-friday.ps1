@@ -12,7 +12,7 @@
   werden uebersprungen (Fortschritt: C:\Friday\config\install-state.json).
   Am Ende richtet ein Zusatzschritt den Service-Watchdog ein (Aufgabe FRIDAY_Watchdog, alle 5 Minuten, unsichtbar).
 #>
-param([switch]$Resume, [switch]$ChangeName, [switch]$UpdateDashboard)
+param([switch]$Resume, [switch]$ChangeName, [switch]$ChangeVoice, [switch]$UpdateDashboard)
 
 $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
@@ -38,6 +38,7 @@ if (-not $admin) {
     $fwd = ''
     if ($Resume) { $fwd += ' -Resume' }
     if ($ChangeName) { $fwd += ' -ChangeName' }
+    if ($ChangeVoice) { $fwd += ' -ChangeVoice' }
     if ($UpdateDashboard) { $fwd += ' -UpdateDashboard' }
     Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"$fwd"
     exit
@@ -670,6 +671,38 @@ $WP = $State.wake_phrase
 $Slug = $State.wake_slug
 $WakeShort = Get-WakeShort $WP
 
+if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic'))) {
+    Title 'Ausgabestimme wählen'
+    Info '1  F.R.I.D.A.Y.: weibliche Stimme aus eigener 3-30-Sekunden-Referenz (Qwen3-TTS, lokal)'
+    Info '2  Klassisch: eigene jarvis_de.onnx, falls vorhanden; sonst Thorsten mit Filmfilter'
+    if (-not (Test-Path "$Inst\voice_models\jarvis_de.onnx")) {
+        Warn 'Eine eigene J.A.R.V.I.S.-Stimmdatei liegt diesem Paket derzeit nicht bei. Option 2 verwendet hier Thorsten mit Filmfilter.'
+    }
+    $defaultChoice = if ($State.voice_choice -eq 'classic') { '2' } elseif ($State.voice_choice -eq 'friday-female') { '1' } elseif ($AN -eq 'Jarvis') { '2' } else { '1' }
+    do {
+        $answer = (Read-Host "  Stimme [1/2, Standard $defaultChoice]").Trim()
+        if (-not $answer) { $answer = $defaultChoice }
+    } while ($answer -notin @('1', '2'))
+    $newChoice = if ($answer -eq '1') { 'friday-female' } else { 'classic' }
+    $reference = ''
+    if ($newChoice -eq 'friday-female') {
+        $savedReference = if ($State.voice_reference -and (Test-Path -LiteralPath $State.voice_reference -PathType Leaf)) { $State.voice_reference } else { '' }
+        if ($savedReference) { Info "Bisherige Stimmreferenz: $savedReference" }
+        $reference = (Read-Host '  Pfad einer eigenen MP3/WAV-Stimmreferenz (leer = bisherige oder Piper-Basisstimme)').Trim().Trim('"')
+        if (-not $reference) { $reference = $savedReference }
+        if ($reference -and -not (Test-Path -LiteralPath $reference -PathType Leaf)) { Stop-Install "Stimmreferenz nicht gefunden: $reference" }
+        if (-not $reference) { Warn 'Ohne Referenz wird nur die weibliche Piper-Basisstimme installiert. Du kannst später mit change-voice.bat eine eigene Referenz wählen.' }
+    }
+    $changed = $State.voice_choice -ne $newChoice -or $State.voice_reference -ne $reference
+    $State.voice_choice = $newChoice
+    $State.voice_reference = $reference
+    if (($changed -or $ChangeVoice) -and (IsDone 'voicepython')) {
+        $State.done = @(@($State.done) | Where-Object { $_ -notin @('voicepython', 'voiceservice') })
+        Warn 'Die Ausgabestimme wird neu eingerichtet; vorhandene persönliche Aufnahmen bleiben erhalten.'
+    }
+    Save-State
+}
+
 # ================================================================ 1 Systemcheck
 if (-not (IsDone 'preflight')) {
     Title 'Schritt 1/15 – Systemcheck'
@@ -973,7 +1006,9 @@ if (-not (IsDone 'voicepython')) {
         piper-tts sounddevice soundfile scipy scikit-learn huggingface_hub 2>&1 | Out-File "$Root\logs\pip.log" -Append
     if ($LASTEXITCODE -ne 0) { Stop-Install 'Python-Pakete konnten nicht installiert werden (C:\Friday\logs\pip.log).' }
     Info 'Lade Sprachmodelle und teste die Grafikkarte …'
-    $out = & $vpy "$Root\voice\voice_setup.py" $Root 2>&1 | ForEach-Object { "$_" }
+    $voiceArgs = @($Root, '--voice-choice', $State.voice_choice)
+    if ($State.voice_reference) { $voiceArgs += @('--voice-reference', $State.voice_reference) }
+    $out = & $vpy "$Root\voice\voice_setup.py" @voiceArgs 2>&1 | ForEach-Object { "$_" }
     $out | Where-Object { $_ -match '==>|^\s{3}|DONE' } | ForEach-Object { Info $_ }
     if (($out -join "`n") -notmatch 'VOICE_SETUP_DONE') { Stop-Install 'Einrichtung der Sprachmodelle fehlgeschlagen.' }
     Ok 'Sprachmodelle bereit.'
@@ -1092,9 +1127,16 @@ function Get-PnpmVersion {
     $v = (& $c.Source --version 2>$null | Select-Object -First 1)
     return "$v".Trim()
 }
+function Set-NodeSessionPath([string]$nodeExe) {
+    # CMD runs pnpm package scripts in child processes. Quoted PATH fragments can
+    # hide node.exe/pnpm.cmd from those children even when PowerShell finds them.
+    $nodeDir = Split-Path $nodeExe
+    $entries = @($nodeDir) + @($env:Path -split ';' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ -and $_ -ine $nodeDir })
+    $env:Path = $entries -join ';'
+}
 function Ensure-Node {
     $node = Find-Node; $ver = Get-NodeVersion $node
-    if ($ver -and $ver -ge $NodeMin) { Ok "Node.js $ver gefunden"; return $node }
+    if ($ver -and $ver -ge $NodeMin) { Set-NodeSessionPath $node; Ok "Node.js $ver gefunden"; return $node }
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
         Stop-Dashboard "Für das Command Center wird Node.js $NodeMin oder neuer gebraucht, aber winget (App-Installer) fehlt. Bitte im Microsoft Store den 'App-Installer' aktualisieren oder Node.js LTS von https://nodejs.org installieren und install-friday.bat erneut starten."
     }
@@ -1108,8 +1150,7 @@ function Ensure-Node {
         if ($ver -and $ver -ge $NodeMin) { break }
     }
     if ($ver -and $ver -ge $NodeMin) {
-        $nd = Split-Path $node
-        if (($env:Path -split ';') -notcontains $nd) { $env:Path = "$nd;$env:Path" }
+        Set-NodeSessionPath $node
         Ok "Node.js $ver bereit"; return $node
     }
     if ($ver) { Stop-Dashboard "Node.js $ver ist zu alt (mindestens $NodeMin) und ließ sich nicht aktualisieren (Log: $DashInstallLog). Bitte Node.js LTS manuell von https://nodejs.org installieren und install-friday.bat erneut starten." }
@@ -1363,33 +1404,10 @@ function Set-DashboardOwnerPassword {
     $have = (Test-Path $DashHashFile) -and ((Get-Item $DashHashFile).Length -gt 0)
     if ($have) {
         Protect-OwnerFile $DashHashFile
-        if ($UpdateDashboard -or -not (YesNo 'Für das Command Center ist bereits ein Owner-Passwort gesetzt. Neu setzen?' $false)) { Ok 'Owner-Passwort bleibt bestehen.'; return }
+        Ok 'Bestehendes Owner-Konto bleibt erhalten.'
+        return
     }
-    Info 'Lege das Passwort für den Login im Command Center fest (Benutzername: owner).'
-    Info 'Mindestens 12 Zeichen. Gespeichert wird nur ein Hash (scrypt), nie das Passwort selbst.'
-    while ($true) {
-        $pw = Plain (Read-Host '  Owner-Passwort' -AsSecureString)
-        $pw2 = Plain (Read-Host '  Passwort wiederholen' -AsSecureString)
-        if ($pw.Length -lt 12) { Warn 'Das Passwort braucht mindestens 12 Zeichen.'; continue }
-        if ($pw -ne $pw2) { Warn 'Die Eingaben sind nicht gleich - bitte nochmal.'; continue }
-        break
-    }
-    $pw2 = $null
-    Push-Location $Dash
-    try { $lines = @($pw | & pnpm.cmd --filter '@friday/auth' hash-password 2>&1 | ForEach-Object { "$_" }) }
-    finally { Pop-Location; $pw = $null }
-    $text = $lines -join "`n"
-    if (-not ($text -match 'FRIDAY_OWNER_PASSWORD_HASH=''(scrypt\$\d+\$\d+\$\d+\$[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+)''')) {
-        Write-DashLog ">>> hash-password fehlgeschlagen:`n$text"
-        Stop-Dashboard "Das Passwort-Hash-Werkzeug (pnpm --filter @friday/auth hash-password) hat keinen Hash geliefert. Log: $DashInstallLog"
-    }
-    $hash = $Matches[1]
-    # Datei zuerst leer anlegen und absichern, dann erst den Hash hineinschreiben (Muster hermes_api.key).
-    if (-not (Test-Path $DashHashFile)) { New-Item -ItemType File -Path $DashHashFile | Out-Null }
-    Protect-OwnerFile $DashHashFile
-    [IO.File]::WriteAllText($DashHashFile, $hash, (New-Object Text.UTF8Encoding $false))
-    $hash = $null; $text = $null; $lines = $null
-    Ok "Owner-Passwort gesetzt (Hash in $DashHashFile, nur für $($env:USERNAME) lesbar)."
+    Info "Öffne nach dem Start $DashUrl. Dort legst du Name, Benutzername und Passwort beim ersten Login selbst fest."
 }
 function Install-Dashboard {
     Write-DashLog "=== Dashboard-Schritt gestartet ($(Get-Date -Format s)) ==="

@@ -1,7 +1,7 @@
 """Voice Service (Windows) fuer den Assistenten - Name, Persona, Wake Word und Wake-Engine per config/voice.json.
 
 Mikrofon -> Wake Word -> Befehl per Silero-VAD -> ECAPA-Sprecherpruefung
--> faster-whisper (GPU) -> Qwen-Router -> lokale Antwort oder Hermes/Kimi -> Piper-TTS.
+-> faster-whisper (GPU) -> Qwen-Router -> lokale Antwort oder Hermes/Kimi -> gewählte TTS-Stimme.
 
 Wake-Engines (voice.json "wake_engine"):
 - "openwakeword": vortrainiertes hey_jarvis + Owner-Verifier (nur die Wake Phrase "Hey Jarvis").
@@ -137,17 +137,20 @@ def post_json(url: str, payload: dict, headers: dict | None = None, timeout: flo
 
 
 class Speaker:
-    """Stimme des Assistenten: Streaming vom Qwen3-TTS-Server (WSL, GPU), Piper als Fallback. Unterbrechbar (Barge-In)."""
+    """Gewählte Stimme mit unterbrechbarer Wiedergabe und Piper als Ausfallreserve."""
 
     CACHE_MAX_CHARS = 80
 
-    def __init__(self, fallback_voice_path: str, output_device, tts_url: str | None, film_filter: bool = False):
+    def __init__(self, fallback_voice_path: str, output_device, tts_url: str | None, film_filter: bool = False,
+                 speaker_id: int | None = None, tts_config: dict | None = None):
         from piper import PiperVoice
         self.voice = PiperVoice.load(fallback_voice_path)
+        self.speaker_id = speaker_id
         self.sr = self.voice.config.sample_rate
         self.film_filter = film_filter  # Filmklang (Chorus + Hall) auf Piper-Ausgabe, laeuft auf der CPU
         self.output_device = output_device
         self.tts_url = tts_url
+        self.tts_config = tts_config or {}
         self.cache: dict[str, tuple[bytes, int]] = {}
         self.queue: queue.Queue[str] = queue.Queue()
         self.stop_flag = threading.Event()
@@ -212,7 +215,8 @@ class Speaker:
         from film_filter import FilmFilter
         fx = FilmFilter(self.sr, self.film_filter)
         with sd.OutputStream(samplerate=self.sr, channels=1, dtype="float32", device=self.output_device) as out:
-            for chunk in self.voice.synthesize(text):
+            from piper import SynthesisConfig
+            for chunk in self.voice.synthesize(text, syn_config=SynthesisConfig(speaker_id=self.speaker_id)):
                 if self.stop_flag.is_set():
                     return
                 shaped = fx.process(chunk.audio_float_array)
@@ -221,6 +225,20 @@ class Speaker:
             tail = fx.flush()
             if len(tail) and not self.stop_flag.is_set():
                 out.write(tail.reshape(-1, 1))
+
+    def _play_qwen(self, text: str) -> None:
+        import qwen_tts
+        result = qwen_tts.synthesize(text, self.tts_config, self.stop_flag)
+        if result is None:
+            return
+        audio, rate = result
+        with sd.OutputStream(samplerate=rate, channels=1, dtype="float32", device=self.output_device) as out:
+            for offset in range(0, len(audio), 4096):
+                if self.stop_flag.is_set():
+                    return
+                block = audio[offset:offset + 4096]
+                self.level.update(block)
+                out.write(block.reshape(-1, 1))
 
     def say(self, text: str) -> None:
         text = clean_for_speech(text)
@@ -247,7 +265,14 @@ class Speaker:
             self.stop_flag.clear()
             self.speaking.set()
             try:
-                if self.tts_url:
+                if self.tts_config.get("tts_backend") == "qwen3":
+                    try:
+                        self._play_qwen(text)
+                    except (OSError, RuntimeError, TimeoutError) as exc:
+                        log_event(event="tts_qwen_fallback", error=str(exc))
+                        if not self.stop_flag.is_set():
+                            self._play_piper(text)
+                elif self.tts_url:
                     try:
                         self._stream_from_server(text)
                     except (urllib.error.URLError, ConnectionError, TimeoutError, KeyError) as exc:
@@ -320,7 +345,8 @@ class VoiceService:
                                     compute_type=cfg["whisper_compute_type"],
                                     download_root=os.path.join(INSTALL_ROOT, "models", "whisper"))
         self.whisper.transcribe(np.zeros(SR, dtype=np.float32), language="de")  # CUDA-Warmup
-        self.tts = Speaker(cfg["tts_voice"], cfg["output_device"], cfg.get("tts_url"), cfg.get("tts_film_filter", False))
+        self.tts = Speaker(cfg["tts_voice"], cfg["output_device"], cfg.get("tts_url"),
+                           cfg.get("tts_film_filter", False), cfg.get("tts_speaker_id"), cfg)
         self.tts.prefetch([cfg.get("ack_wait", DEFAULT_ACK_WAIT), cfg.get("ack_background", DEFAULT_ACK_BACKGROUND)])
         self._route("Hallo")  # Router-Warmup: erster Aufruf dauerte live 7,2 s statt ~0,4 s
 
