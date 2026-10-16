@@ -37,6 +37,7 @@ import { WikiPathService } from "../services/wiki-path";
 import { HimalayaAccountService } from "../services/himalaya-account";
 import { HimalayaSendService } from "../services/himalaya-send";
 import { CalDavCreateService } from "../services/caldav-create";
+import { LocalCalendarService } from "../services/local-calendar";
 import { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import { CodingRunsService } from "../services/coding-runs";
 import { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
@@ -252,6 +253,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     wikiPathStatus: () => wikiPath.status(),
     himalayaAccountStatus: () => himalayaAccount.status(),
     codingCliStatus: () => codingRuns.cliStatus(),
+    localCalendarStatus: () => { new LocalCalendarService(db).list(undefined, undefined, undefined, 1); return true; },
+    calendarAdapterStatus: () => adapterSettings.list(),
   });
   const codingRuns: CodingRunsService = new CodingRunsService(config, skills, env);
   const codingVoiceRepository = new CodingVoiceRepositoryService(db, codingRuns);

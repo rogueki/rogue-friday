@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { startTestApi, type TestApi } from "./helpers";
 import { SkillsService } from "../src/services/skills";
+import type { AdapterConfigSettings } from "@friday/sdk";
 
 const steps = { intro: "completed", profile: "skipped", skills: "completed", accounts: "skipped", finish: "pending" };
 const update = { preferredName: "Alex", steps, goals: ["Recherche"], selectedSkillIds: ["friday:research"] };
@@ -338,6 +339,52 @@ describe("skills and resumable onboarding", () => {
     ]);
     readable = true;
     expect((await details())?.[0]).toMatchObject({ configured: true, connectionChecked: null });
+  });
+
+  it("separates working local calendar storage from optional CalDAV configuration", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "friday-calendar-skill-status-"));
+    try {
+      writeFileSync(join(dir, "skills.json"), JSON.stringify({ skills: [{ name: "friday-calendar-manager" }] }));
+      writeFileSync(join(dir, "integration_setup.json"), JSON.stringify({ schema_version: 1, inventory_count: 1,
+        integrations: { friday_local_calendar: { account: "none" }, caldav: { account: "required" } },
+        skills: { "friday-calendar-manager": { required_integrations: ["friday_local_calendar"], conditional_integrations: ["caldav"] } },
+      }));
+      let localReady = true;
+      let statusFailure = false;
+      const adapter: AdapterConfigSettings = { adapterId: "caldav-calendar", category: "calendar", provider: "caldav-calendar",
+        enabled: false, config: { mode: "caldav" }, configSchema: {}, secretFields: {} };
+      const service = new SkillsService({ catalogPath: join(dir, "integration_setup.json"),
+        localCalendarStatus: () => { if (statusFailure) throw new Error("database unavailable"); return localReady; },
+        calendarAdapterStatus: () => { if (statusFailure) throw new Error("adapter state unavailable"); return [adapter]; },
+      });
+      const details = async () => (await service.list()).skills[0]?.integrationDetails;
+      expect(await details()).toMatchObject([
+        { id: "friday_local_calendar", required: true, configured: true, connectionChecked: null },
+        { id: "caldav", required: false, configured: false, connectionChecked: null },
+      ]);
+      adapter.enabled = true;
+      adapter.secretFields = { calendarUrl: { configured: true }, username: { configured: true }, password: { configured: false } };
+      expect((await details())?.[1]).toMatchObject({ configured: false, connectionChecked: null });
+      adapter.secretFields.password = { configured: true };
+      adapter.config.mode = "ics";
+      expect((await details())?.[1]).toMatchObject({ configured: false, connectionChecked: null });
+      adapter.config.mode = "caldav";
+      expect((await details())?.[1]).toMatchObject({ configured: true, connectionChecked: null });
+      localReady = false;
+      expect((await details())?.[0]).toMatchObject({ configured: false, connectionChecked: null });
+      statusFailure = true;
+      expect(await details()).toMatchObject([
+        { configured: null, connectionChecked: null }, { configured: null, connectionChecked: null },
+      ]);
+      const localApi = await startTestApi({ env: { FRIDAY_SKILLS_CATALOG_PATH: join(dir, "integration_setup.json") } });
+      try {
+        const owner = localApi.client(); await owner.loginDev("owner");
+        const response = await owner.get("/api/v1/skills");
+        expect(response.statusCode, response.body).toBe(200);
+        expect(response.json().data.find((skill: { id: string }) => skill.id === "friday:friday-calendar-manager")?.integrationDetails)
+          .toMatchObject([{ configured: true, connectionChecked: null }, { configured: false, connectionChecked: null }]);
+      } finally { await localApi.close(); }
+    } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 
   const realCatalog = resolve(process.cwd(), "..", "..", "Skills", "registry", "integration_setup.json");
