@@ -23,7 +23,7 @@ class FakeApi:
         self.calls = []
         self.conflict = False
 
-    def request(self, method, path, body=None, revision=None):
+    def request(self, method, path, body=None, revision=None, timeout=12):
         self.calls.append((method, path, copy.deepcopy(body), revision))
         if path == "skills":
             return {"data": copy.deepcopy(self.skills)}, None
@@ -110,6 +110,58 @@ def test_pending_expires_and_unmatched_falls_through(tmp_path):
     assert api.state["revision"] == 0
 
 
+def test_first_use_invitation_is_persisted_and_resumable(tmp_path):
+    api = FakeApi()
+    api.state["preferredName"] = "Alex"
+    api.state["goals"] = ["Termine planen", "E-Mails sortieren"]
+    voice = handler(tmp_path, api)
+    invitation = voice.offer_first_use()
+    assert "Willkommen, Alex" in invitation
+    assert "Termine planen; E-Mails sortieren" in invitation
+    assert "Friday- und Hermes-Skills" in invitation and "Sage ja oder nein" in invitation
+    assert voice.offer_first_use() is None
+    restarted = handler(tmp_path, api)
+    assert restarted.offer_first_use() is None
+
+    assert "erreichen" in voice.handle("ja")
+    assert api.state["steps"]["intro"] == "completed"
+    assert api.state["steps"]["profile"] == "pending"
+
+
+def test_first_use_invite_has_long_window_but_regular_steps_stay_short(tmp_path):
+    api = FakeApi()
+    current = [0]
+    voice = handler(tmp_path, api, lambda: current[0])
+    assert voice.offer_first_use()
+    assert voice.pending["expires"] == 90
+
+    current[0] = 89
+    assert "nennen" in voice.handle("ja")
+    assert voice.pending["expires"] == 104
+
+
+def test_completed_intro_does_not_write_offer_marker(tmp_path):
+    api = FakeApi()
+    api.state["steps"]["intro"] = "completed"
+    voice = handler(tmp_path, api)
+    assert voice.offer_first_use() is None
+    assert not (tmp_path / "dashboard" / "data" / "voice-bridge" / "onboarding-offer.json").exists()
+
+
+def test_first_use_invitation_decline_and_unrelated_command_are_bounded(tmp_path):
+    (tmp_path / "dashboard" / "data" / "voice-bridge").mkdir(parents=True)
+    api = FakeApi()
+    voice = handler(tmp_path, api)
+    assert voice.offer_first_use()
+    assert "jederzeit" in voice.handle("nein")
+    assert api.state["steps"]["intro"] == "pending"
+    assert voice.handle("Wie spät ist es?") is None
+    assert voice.offer_first_use() is None
+
+    second = handler(tmp_path, FakeApi())
+    assert second.offer_first_use() is None
+
+
 def test_dispatcher_keeps_speaker_gate_and_hermes_fallback(tmp_path):
     # Load only the method: the full service imports GPU/audio packages absent in unit tests.
     source = os.path.join(os.path.dirname(os.path.dirname(__file__)), "friday_voice.py")
@@ -124,26 +176,32 @@ def test_dispatcher_keeps_speaker_gate_and_hermes_fallback(tmp_path):
                  "DEFAULT_ACK_WAIT": "warte", "DEFAULT_ACK_BACKGROUND": "warte"}
     exec(compile(ast.Module(body=[method], type_ignores=[]), source, "exec"), namespace)
     calls = []
+    offers = []
     voice = types.SimpleNamespace(
         cfg={"speaker_threshold": 0.4, "trusted_session_s": 15},
         verifier=types.SimpleNamespace(score=lambda audio: 0.2),
         status={"rejected_speaker": 0, "commands": 0}, trusted_until=0,
         _transcribe=lambda audio: "Welche Skills sind aktiv?",
         content_studio_voice=types.SimpleNamespace(handle=lambda text: calls.append("studio") or None),
-        skills_onboarding_voice=types.SimpleNamespace(handle=lambda text: calls.append("skills") or "Kalender ist aktiv."),
+        skills_onboarding_voice=types.SimpleNamespace(
+            handle=lambda text: calls.append("skills") or "Kalender ist aktiv.",
+            offer_first_use=lambda: offers.append("offer") or "",
+        ),
         tts=types.SimpleNamespace(say=lambda answer: calls.append(answer)), history=[],
     )
     namespace["_handle_command"](voice, [0] * 16000, None)
-    assert calls == [] and voice.status["rejected_speaker"] == 1
+    assert calls == [] and offers == [] and voice.status["rejected_speaker"] == 1
     voice.verifier.score = lambda audio: 0.7
     namespace["_handle_command"](voice, [0] * 16000, None)
     assert calls == ["studio", "skills", "Kalender ist aktiv."]
+    assert offers == ["offer"]
     calls.clear()
     voice.skills_onboarding_voice.handle = lambda text: calls.append("skills") or None
     voice._transcribe = lambda audio: "Wie spät ist es?"
     voice._route = lambda text: calls.append("route") or {"route": "local", "answer": "Es ist zwölf Uhr."}
     namespace["_handle_command"](voice, [0] * 16000, None)
     assert calls[:3] == ["studio", "skills", "route"]
+    assert offers == ["offer", "offer"]
     assert "Es ist zwölf Uhr." in calls
 
 
