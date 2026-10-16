@@ -120,6 +120,18 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_content_studio_jobs_state ON content_studio_jobs (state, updated_at);
     `,
   },
+  {
+    id: 5,
+    name: "owner-onboarding",
+    sql: `
+      CREATE TABLE owner_onboarding (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        revision INTEGER NOT NULL CHECK (revision >= 1),
+        json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

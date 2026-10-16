@@ -11,7 +11,7 @@ U="${U#$'\xEF\xBB\xBF'}"; U="${U//$'\r'/}"; PW="${PW//$'\r'/}"
 echo "==> Systempakete"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq curl git ca-certificates libatomic1 python3 python3-venv python3-dev build-essential \
+apt-get install -y -qq curl git ca-certificates libatomic1 python3 python3-yaml python3-venv python3-dev build-essential \
     ffmpeg libsndfile1 jq >/dev/null
 
 echo "==> Benutzer $U"

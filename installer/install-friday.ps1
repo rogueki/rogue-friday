@@ -7,7 +7,7 @@
   Standard-Installationsordner: C:\Friday. Eine vorhandene Installation der J.A.R.V.I.S.-Version in C:\Jarvis (Zustand
   C:\Jarvis\config\install-state.json) wird beim Start zur Uebernahme angeboten (Migration, C:\Jarvis bleibt als Sicherung).
   Zuletzt (Schritt 15) wird das F.R.I.D.A.Y. Command Center (Dashboard + Control API, http://127.0.0.1:3100) nach
-  C:\Friday\dashboard installiert; -UpdateDashboard (update-dashboard.bat) spielt nur dieses Update ein.
+  C:\Friday\dashboard installiert; -UpdateDashboard (update-dashboard.bat) aktualisiert Dashboard und geaenderte Voice-Quelldateien.
   Start per Doppelklick auf install-friday.bat. Kann jederzeit erneut gestartet werden: erledigte Schritte
   werden uebersprungen (Fortschritt: C:\Friday\config\install-state.json).
   Fuer einen frischen abweichenden InstallRoot sind -DistroName und -DistroLocation erforderlich.
@@ -954,7 +954,7 @@ function Sync-VoiceFiles {
         } else { Warn 'Aufgabe FRIDAY_Voice fehlt - Sprachdienst nicht neu gestartet. install-friday.bat mit entferntem Eintrag "voiceservice" in install-state.json starten.' }
     }
 }
-if (-not $UpdateDashboard) { Sync-VoiceFiles }
+Sync-VoiceFiles
 
 # ================================================================ 3 WSL-Grundlage (ggf. Neustart)
 if (-not (IsDone 'wslfeature')) {
@@ -1128,6 +1128,40 @@ if (-not (IsDone 'hermes')) {
     if (Wait-Http "http://127.0.0.1:$($Ports.Dashboard)/" 60) { Ok "Dashboard von Windows erreichbar: http://127.0.0.1:$($Ports.Dashboard)" }
     else { Warn 'Dashboard von Windows nicht erreichbar (mirrored networking?).' }
     MarkDone 'hermes'
+}
+
+# Friday-Skills come from the separate versioned repository. Recheck on updates;
+# a failed fetch leaves the previous checkout and Hermes built-ins untouched.
+if (-not $ChangeVoice -and ((-not (IsDone 'skills')) -or $UpdateDashboard)) {
+    Title 'Friday-Skills einrichten und pruefen'
+    $out = Wsl-Run $State.linux_user "$WslInstPath/wsl/setup_skills.sh"
+    $skillsReady = $out -match 'FRIDAY_SKILLS_READY count=(\d+)'
+    $commitReported = $out -match 'FRIDAY_SKILLS_COMMIT ([0-9a-f]{40})'
+    $skillsCommit = if ($commitReported) { $Matches[1] } else { '' }
+    if ($skillsReady -and $commitReported) {
+        $State.skills_commit = $skillsCommit
+        MarkDone 'skills'
+        Ok "Friday-Skills validiert: $($State.skills_commit). Hermes-Standardskills bleiben bei Hermes."
+    } else {
+        Warn "Friday-Skills fehlen oder sind unvollstaendig. Reparatur: install-friday.ps1 -UpdateDashboard -InstallRoot '$Root' erneut ausfuehren. Diagnose: wsl.exe -d $Distro -u $($State.linux_user) --exec env FRIDAY_ROOT=$WslRootPath FRIDAY_INSTALLER=$WslInstPath bash $WslInstPath/wsl/setup_skills.sh status"
+        $State.done = @($State.done | Where-Object { $_ -ne 'skills' }); Save-State
+    }
+}
+$readiness = 'nicht geprueft (Stimmenwechsel)'
+$vaultStatus = 'nicht geprueft (Stimmenwechsel)'
+if (-not $ChangeVoice) {
+    Title 'Skill-Voraussetzungen (nur Diagnose)'
+    $readiness = Wsl-Run $State.linux_user "$WslInstPath/wsl/check_skill_readiness.sh"
+    $vault = [Environment]::GetEnvironmentVariable('FRIDAY_OBSIDIAN_VAULT', 'User')
+    if ($vault -and (Test-Path -LiteralPath $vault -PathType Container) -and
+        (Test-Path -LiteralPath (Join-Path $vault '.obsidian') -PathType Container)) {
+        $vaultStatus = "gefunden: $vault"
+        Ok "Obsidian-Vault gefunden: $vault"
+    } else {
+        $vaultStatus = 'nicht verifiziert'
+        Warn 'Obsidian-Vault nicht verifiziert: FRIDAY_OBSIDIAN_VAULT muss auf einen Ordner mit .obsidian zeigen.'
+    }
+    Info 'CLI-/Renderer-Fund, Vault-Pfad und Treiberpruefung beweisen keine Kontobindung oder Live-Ausfuehrung.'
 }
 
 # ================================================================ 11 Qwen lokal
@@ -1894,6 +1928,9 @@ Installiert am $(Get-Date -Format 'dd.MM.yyyy HH:mm') für $($p.owner_name). Ass
 Grafikkarte: $($State.gpu.name) ($($State.gpu.vram_mb) MB) · Linux-Benutzer: $($State.linux_user)
 Autostart: vorhandene Aufgabenplanung, Dashboard-Aufgabe $DashTask. Watchdog: FRIDAY_Watchdog (alle 5 Minuten). Hermes-Dienste: systemd in $Distro.
 $dashNote
+Friday-Skills: $(if (IsDone 'skills') { "Registry validiert, Commit $($State.skills_commit)" } else { 'fehlen oder nicht validiert; Installer erneut starten' }). Hermes-Standardskills bleiben in Hermes.
+WSL-Voraussetzungen (Fund, keine Funktionsprobe): $($readiness -replace "`n", '; ')
+Obsidian-Vault: $vaultStatus
 Erledigte Schritte: $(@($State.done) -join ', ')
 "@
 [IO.File]::WriteAllText("$Root\INSTALL_STATE.md", $report, (New-Object Text.UTF8Encoding $false))

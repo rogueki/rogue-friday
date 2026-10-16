@@ -160,3 +160,12 @@ pnpm test:e2e
    real actress). A free female Piper voice remains an option.
 6. Hermes Agent stays unpinned (always the current version).
 7. Warning badges and approval hints use a subtle orb gold (relaxes PLAN §24.2; see `docs/DESIGN_SYSTEM.md`).
+
+## Public beta release: Skills and onboarding (2026-10-16)
+
+- The companion `friday-skills` repository contains 105 Friday procedures and a validated setup catalog. The installer clones it into `<InstallRoot>\skills\friday-skills`, registers its skill directory with Hermes and makes the catalog available to the Control API.
+- The owner-only Control API exposes the combined Friday/Hermes skill catalog, observed discovery/activation, guarded Hermes toggle and revisioned onboarding. A read-only probe of the current Hermes dashboard returned 105 Friday and 53 bundled skills. Discovery or activation is not a live provider check.
+- The web app provides Skills search, filters, details, account setup guidance and resumable first-owner onboarding. The voice bridge can read the catalog and save confirmed onboarding choices after speaker verification; it cannot toggle skills.
+- Targeted contract, API, web, installer and voice checks passed. A full fresh installer run, every provider path and a paid Content Studio job were not run for this beta. See `docs/SKILLS_ONBOARDING_PLAN.md` for scope and remaining limits.
+- Repository-wide `pnpm format:check` currently fails on 649 pre-existing files. CI checks commit whitespace instead; formatting debt remains separate from this beta release. ESLint passes with two React Hook warnings in the new Skills pages.
+- This entry supersedes the older private-repository and missing-onboarding notes above. GitHub visibility, repository settings and the D: deployment are verified separately at release time.

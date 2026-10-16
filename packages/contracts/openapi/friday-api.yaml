@@ -50,6 +50,8 @@ tags:
     description: Audit trail
   - name: settings
     description: Settings, themes, layouts, adapter configuration
+  - name: skills
+    description: Packaged skill catalog, observed Hermes state and owner onboarding
   - name: commands
     description: Global command bar
   - name: dev
@@ -4414,6 +4416,113 @@ paths:
           $ref: "#/components/responses/NotFound"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/skills:
+    get:
+      operationId: listSkills
+      tags: [skills]
+      summary: List packaged Friday skills and freshly observed Hermes skills
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Skill catalog with nullable runtime state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillCatalogResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/{id}/activation:
+    put:
+      operationId: setSkillActivation
+      tags: [skills]
+      summary: Toggle a discovered skill through the Hermes dashboard and read back its state
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkillActivationRequest"
+      responses:
+        "200":
+          description: Freshly observed skill state after Hermes toggle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/onboarding:
+    get:
+      operationId: getOnboarding
+      tags: [skills]
+      summary: Read resumable owner onboarding state
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Current state including first-login defaults
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-capability: meta.read
+      x-required-role: owner
+    put:
+      operationId: putOnboarding
+      tags: [skills]
+      summary: Replace onboarding decisions if revision matches
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingUpdate"
+      responses:
+        "200":
+          description: Saved onboarding state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/content-studio/plan:
     get:
       operationId: getContentStudioPlan
@@ -5839,6 +5948,20 @@ components:
       $ref: ../schemas/settings/content-studio-keys-response.schema.json
     ContentPlanDocument:
       $ref: ../schemas/content-studio/plan-document.schema.json
+    SkillCatalogEntry:
+      $ref: ../schemas/skills/skill.schema.json
+    SkillCatalogResponse:
+      $ref: ../schemas/skills/catalog-response.schema.json
+    SkillActivationRequest:
+      $ref: ../schemas/skills/activation-request.schema.json
+    SkillResponse:
+      $ref: ../schemas/skills/skill-response.schema.json
+    OnboardingUpdate:
+      $ref: ../schemas/skills/onboarding-update.schema.json
+    OnboardingState:
+      $ref: ../schemas/skills/onboarding-state.schema.json
+    OnboardingResponse:
+      $ref: ../schemas/skills/onboarding-response.schema.json
     ContentPlanState:
       $ref: ../schemas/content-studio/plan-state.schema.json
     ContentPlanStateResponse:

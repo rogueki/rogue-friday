@@ -44,6 +44,7 @@ import torch  # noqa: E402
 
 import personal_wake  # noqa: E402
 from content_studio_voice import ContentStudioVoice  # noqa: E402
+from skills_onboarding_voice import SkillsOnboardingVoice  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
 
 SR = 16000
@@ -403,6 +404,8 @@ class VoiceService:
         self.history: list[dict] = []
         self.hermes_key = open(cfg["hermes_key_file"], encoding="utf-8").read().strip()
         self.content_studio_voice = ContentStudioVoice(INSTALL_ROOT)
+        self.skills_onboarding_voice = SkillsOnboardingVoice(
+            INSTALL_ROOT, pending_seconds=cfg.get("followup_window_s", 15))
 
         print("Lade Modelle ...", flush=True)
         self.verifier = SpeakerVerifier(cfg["speaker_profile"], cfg["speaker_threshold"])
@@ -602,6 +605,13 @@ class VoiceService:
             log_event(event="content_studio_command", speaker_score=round(score, 3), success=True)
             self.tts.say(studio_answer)
             self.history += [{"role": "user", "content": text}, {"role": "assistant", "content": studio_answer}]
+            return
+        skills_answer = self.skills_onboarding_voice.handle(text)
+        if skills_answer is not None:
+            self.status["commands"] += 1
+            log_event(event="skills_onboarding_command", speaker_score=round(score, 3), success=True)
+            self.tts.say(skills_answer)
+            self.history += [{"role": "user", "content": text}, {"role": "assistant", "content": skills_answer}]
             return
         if STOP_WORDS.match(text):
             self.tts.interrupt()

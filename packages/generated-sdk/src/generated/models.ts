@@ -313,6 +313,9 @@ export interface FridayModelMap {
   NotificationResponse: NotificationResponse;
   NotificationSettings: NotificationSettings;
   NotificationSnoozeRequest: NotificationSnoozeRequest;
+  OnboardingResponse: OnboardingResponse;
+  OnboardingState: OnboardingState;
+  OnboardingUpdate: OnboardingUpdate;
   OrbHealth: OrbHealth;
   OrbLayers: OrbLayers;
   OrbMode: OrbMode;
@@ -372,6 +375,10 @@ export interface FridayModelMap {
   SettingsSchemaResponse: SettingsSchemaResponse;
   Severity: Severity;
   SingleEnvelope: SingleEnvelope;
+  SkillActivationRequest: SkillActivationRequest;
+  SkillCatalogEntry: SkillCatalogEntry;
+  SkillCatalogResponse: SkillCatalogResponse;
+  SkillResponse: SkillResponse;
   SourceDescriptor: SourceDescriptor;
   StorageVolume: StorageVolume;
   StorageVolumeListResponse: StorageVolumeListResponse;
@@ -2581,6 +2588,38 @@ export interface NotificationSnoozeRequest {
   until?: string;
   durationMinutes?: number;
 }
+export interface OnboardingResponse {
+  contractVersion: ContractVersion;
+  data: OnboardingState;
+  freshness: Freshness;
+}
+export interface OnboardingState {
+  preferredName?: string;
+  revision: number;
+  steps: {
+    intro: "pending" | "completed" | "skipped";
+    profile: "pending" | "completed" | "skipped";
+    skills: "pending" | "completed" | "skipped";
+    accounts: "pending" | "completed" | "skipped";
+    finish: "pending" | "completed" | "skipped";
+  };
+  goals: string[];
+  selectedSkillIds: string[];
+  completedAt: string | null;
+  updatedAt: string | null;
+}
+export interface OnboardingUpdate {
+  preferredName?: string;
+  steps: {
+    intro: "pending" | "completed" | "skipped";
+    profile: "pending" | "completed" | "skipped";
+    skills: "pending" | "completed" | "skipped";
+    accounts: "pending" | "completed" | "skipped";
+    finish: "pending" | "completed" | "skipped";
+  };
+  goals: string[];
+  selectedSkillIds: string[];
+}
 /**
  * Parallel activity layers (PLAN §18.2): the orb can speak while agents work and health is shown on the telemetry ring.
  */
@@ -3344,6 +3383,50 @@ export interface SettingsSchemaResponse {
 export interface SingleEnvelope {
   contractVersion: ContractVersion;
   data: unknown;
+  freshness: Freshness;
+}
+export interface SkillActivationRequest {
+  enabled: boolean;
+}
+export interface SkillCatalogEntry {
+  id: string;
+  source: "friday" | "hermes";
+  name: string;
+  category: string;
+  description: string;
+  version: string | null;
+  packaged: boolean;
+  discovered: boolean | null;
+  enabled: boolean | null;
+  observedAt: string | null;
+  observationSource: string;
+  observationError: string | null;
+  accounts: string[];
+  setupRefs: string[];
+  integrationRefs: string[];
+  requiredCapabilities: string[];
+  conditionalCapabilities: string[];
+  integrationDetails: {
+    id: string;
+    account: "none" | "required" | "conditional";
+    required: boolean;
+    setupDe: string;
+    reference: string;
+    settingsTarget: string;
+    configured: boolean | null;
+    connectionChecked: boolean | null;
+  }[];
+}
+export interface SkillCatalogResponse {
+  contractVersion: ContractVersion;
+  data: SkillCatalogEntry[];
+  catalogError: string | null;
+  hermesError: string | null;
+  freshness: Freshness;
+}
+export interface SkillResponse {
+  contractVersion: ContractVersion;
+  data: SkillCatalogEntry;
   freshness: Freshness;
 }
 export interface StorageVolume {

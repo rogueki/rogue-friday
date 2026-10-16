@@ -18,6 +18,7 @@ import {
   Mic,
   Palette,
   Plug,
+  Sparkles,
   Save,
   Undo2,
   User,
@@ -28,6 +29,7 @@ import { useT, type MessageKey } from "@/i18n";
 import { useThemes } from "@/lib/api/domains/settings";
 import { AdaptersArea } from "./AdaptersArea";
 import { ContentStudioKeysArea } from "./ContentStudioKeysArea";
+import { SkillAccountsArea } from "./SkillAccountsArea";
 import { ApprovalsArea, BackupsArea, DashboardArea, DataRetentionArea, DeveloperArea, ModelsRoutingArea, NotificationsArea, ProfileArea, SecurityArea, VoiceArea } from "./BasicAreas";
 import { LayoutArea } from "./LayoutArea";
 import { NavigationArea } from "./NavigationArea";
@@ -47,6 +49,7 @@ const AREA_ICONS: Record<SettingsAreaId, ReactNode> = {
   orb: <CircleDot {...ICON} />,
   navigation: <Menu {...ICON} />,
   adapters: <Plug {...ICON} />,
+  skillAccounts: <Sparkles {...ICON} />,
   contentStudioKeys: <Clapperboard {...ICON} />,
   modelsRouting: <Cpu {...ICON} />,
   voice: <Mic {...ICON} />,
@@ -82,6 +85,7 @@ const AREA_COMPONENTS: Partial<Record<SettingsAreaId, () => ReactNode>> = {
   orb: () => <OrbArea />,
   navigation: () => <NavigationArea />,
   contentStudioKeys: () => <ContentStudioKeysArea />,
+  skillAccounts: () => <SkillAccountsArea />,
   modelsRouting: () => <ModelsRoutingArea />,
   voice: () => <VoiceArea />,
   notifications: () => <NotificationsArea />,

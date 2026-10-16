@@ -55,7 +55,7 @@ erneutes Einspielen des Programms (`/MIR`) sie nie berührt.
 Der Doppelklick auf `installer/install-friday.bat` verwendet weiter `C:\Friday`. Fuer eine frische Installation an einem anderen Ort muessen Zielordner und eigene WSL-Distribution explizit angegeben werden. Zielordner und WSL-Ablageort muessen auf demselben Laufwerk liegen, duerfen sich nicht ueberlappen und muessen frei sein. Beispiel aus einem PowerShell-Fenster im Repository:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File installer\install-friday.ps1 -InstallRoot 'D:\Kali\Friday' -DistroName Friday-Ubuntu -DistroLocation 'D:\Kali\wsl-friday'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File installer\install-friday.ps1 -InstallRoot 'D:\Friday' -DistroName Friday-Ubuntu -DistroLocation 'D:\Friday-WSL'
 ```
 
 Der Installer prueft die Ports 43791 bis 43795 sowie 3101, registriert die benannte Distribution am angegebenen Ort und schreibt Installationspfad und Ports in `config/install-state.json`. Danach starten dieselben Argumente einen unterbrochenen Lauf wieder. Eine vorhandene nicht leere Installation wird nicht als frische Installation ueberschrieben. Dieser Quellpfad ist durch Syntax-, Konfigurations- und WSL-Pfadproben geprueft; ein vollstaendiger frischer D:-Installationslauf ist noch offen.
@@ -65,8 +65,8 @@ Der Installer prueft die Ports 43791 bis 43795 sowie 3101, registriert die benan
 Fuer eine bereits vollstaendig installierte F.R.I.D.A.Y.-Instanz kann der Installer ein Dashboard-Update oder einen Stimmenwechsel mit `-InstallRoot` ausfuehren. Er uebernimmt Distribution und Ports aus `config/install-state.json`, prueft die geplanten Aufgaben und sichert vor dem Update die bestehende Konfiguration und den Dashboard-Build. Beispiel:
 
 ```powershell
-& .\installer\install-friday.ps1 -InstallRoot 'D:\Kali\Friday' -UpdateDashboard
-& .\installer\install-friday.ps1 -InstallRoot 'D:\Kali\Friday' -ChangeVoice
+& .\installer\install-friday.ps1 -InstallRoot 'D:\Friday' -UpdateDashboard
+& .\installer\install-friday.ps1 -InstallRoot 'D:\Friday' -ChangeVoice
 ```
 
 Die beiden Aktionen werden getrennt ausgefuehrt. Eine `C:\Jarvis`-Junction auf denselben D:-Ordner wird nicht als Quelle der automatischen Legacy-Migration behandelt. Beim Standardpfad `C:\Friday` bleibt der normale Installationslauf bestehen. Der Dashboard-Launcher leitet seinen Root-Pfad aus dem installierten Skript ab.

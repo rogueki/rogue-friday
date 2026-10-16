@@ -13,10 +13,10 @@ import { shouldRetry } from "@/lib/api/queryClient";
 import { FridayApiError } from "@friday/sdk";
 
 describe("navigation", () => {
-  it("has all 16 pages of PLAN §26 with the specified routes", () => {
+  it("includes Skills and existing routes in the dashboard navigation", () => {
     expect(NAV_PAGES.map((p) => p.route)).toEqual([
-      "/", "/tasks", "/activity", "/memory", "/agents", "/approvals", "/communication", "/calendar",
-      "/automations", "/research", "/files", "/voice", "/alerts", "/system", "/audit", "/settings",
+      "/", "/tasks", "/activity", "/memory", "/agents", "/skills", "/approvals", "/communication", "/calendar",
+      "/automations", "/research", "/content-studio", "/files", "/voice", "/alerts", "/system", "/audit", "/settings",
     ]);
   });
 
@@ -25,7 +25,7 @@ describe("navigation", () => {
     expect(ordered[0]?.id).toBe("settings");
     expect(ordered.map((p) => p.id)).not.toContain("tasks");
     expect(ordered.map((p) => p.id)).not.toContain("audit");
-    expect(ordered).toHaveLength(14);
+    expect(ordered).toHaveLength(15);
   });
 
   it("resolves the active page from the pathname", () => {
@@ -33,6 +33,7 @@ describe("navigation", () => {
     expect(activePageId("/tasks")).toBe("tasks");
     expect(activePageId("/tasks/")).toBe("tasks");
     expect(activePageId("/communication")).toBe("communication");
+    expect(activePageId("/skills")).toBe("skills");
   });
 });
 

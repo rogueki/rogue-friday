@@ -32,7 +32,7 @@ Für CapCut ist keine verifizierte öffentliche Schnitt-API angebunden. Der Vide
 
 ## Separate Hermes-Skills
 
-Die vier zugehörigen Skills liegen im separaten Repository `rogueki/friday-skills` auf `main` unter `skills/media/`. Der lokale Arbeitsordner ist `C:\Users\ByteNinja\Downloads\JARVIS_Installer\Skills`:
+Die vier zugehörigen Skills liegen im separaten Repository `rogueki/friday-skills` auf `main` unter `skills/media/`. Der Installer legt dieses Repository unter `<InstallRoot>\skills\friday-skills` ab:
 
 | Skill | Aufgabe |
 | --- | --- |

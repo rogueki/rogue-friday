@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/onboarding-update.schema.json",
+  "title": "OnboardingUpdate",
+  "type": "object",
+  "properties": {
+    "preferredName": { "type": "string", "maxLength": 80 },
+    "steps": {
+      "type": "object",
+      "properties": {
+        "intro": { "enum": ["pending", "completed", "skipped"] },
+        "profile": { "enum": ["pending", "completed", "skipped"] },
+        "skills": { "enum": ["pending", "completed", "skipped"] },
+        "accounts": { "enum": ["pending", "completed", "skipped"] },
+        "finish": { "enum": ["pending", "completed", "skipped"] }
+      },
+      "required": ["intro", "profile", "skills", "accounts", "finish"],
+      "additionalProperties": false
+    },
+    "goals": { "type": "array", "maxItems": 20, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+    "selectedSkillIds": { "type": "array", "maxItems": 200, "uniqueItems": true, "items": { "type": "string", "pattern": "^(friday|hermes):[a-z0-9][a-z0-9_-]*$" } }
+  },
+  "required": ["steps", "goals", "selectedSkillIds"],
+  "additionalProperties": false
+}
