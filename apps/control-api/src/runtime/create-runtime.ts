@@ -35,6 +35,8 @@ import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ContentStudioProviderService } from "../services/content-studio-providers";
 import { ContentStudioPlanService } from "../services/content-studio-plan";
 import { ContentStudioProductionService } from "../services/content-studio-production";
+import { SkillsService } from "../services/skills";
+import { OnboardingService } from "../services/onboarding";
 import { LogBuffer, withLogBuffer } from "../services/log-buffer";
 import { FrontendTelemetryService } from "../services/telemetry";
 import { createRuntimeSecrets, createWorld, wireAdapters } from "./adapter-wiring";
@@ -216,6 +218,13 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   }
   const contentStudioProviders = new ContentStudioProviderService(db, contentStudioKeys, options.providerFetch);
   const contentStudioPlan = new ContentStudioPlanService(db);
+  const onboarding = new OnboardingService(db);
+  const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
+  const skills = new SkillsService({
+    catalogPath: env.FRIDAY_SKILLS_CATALOG_PATH,
+    dashboardUrl: env.FRIDAY_HERMES_DASHBOARD_URL ?? (typeof hermesAdapterConfig.dashboardBaseUrl === "string" ? hermesAdapterConfig.dashboardBaseUrl : undefined),
+    fetcher: options.providerFetch,
+  });
   const contentStudioProduction = new ContentStudioProductionService(db, contentStudioPlan, contentStudioKeys, contentStudioProviders,
     config.paths.dataDir, { ffmpegPath: env.FRIDAY_FFMPEG_PATH, enabled: () => settings.area("dashboard").contentStudioEnabled === true });
   settingsHolder.current = settings;
@@ -393,6 +402,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     contentStudioKeys,
     contentStudioProviders,
     contentStudioPlan,
+    skills,
+    onboarding,
     contentStudioProduction,
     adapterSettings,
     status,

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://friday.local/schemas/skills/onboarding-update.schema.json",
+  "preferredName": "Alex",
+  "steps": { "intro": "completed", "profile": "completed", "skills": "completed", "accounts": "skipped", "finish": "pending" },
+  "goals": ["Research"],
+  "selectedSkillIds": ["friday:friday-research"]
+}

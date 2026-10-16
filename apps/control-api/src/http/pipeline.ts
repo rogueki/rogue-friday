@@ -20,6 +20,7 @@ const ROLE_RANK = { none: 0, viewer: 1, operator: 2, owner: 3 } as const;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const VOICE_BRIDGE_OPERATIONS = new Set<OperationId>([
   "getContentStudioPlan", "createContentProductionJob", "getContentProductionJob", "cancelContentProductionJob",
+  "listSkills", "getOnboarding", "putOnboarding",
 ]);
 
 const AUTH_AUDIT_ACTIONS: Partial<Record<OperationId, string>> = {

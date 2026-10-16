@@ -17,6 +17,7 @@ import {
   Mail,
   Mic,
   Settings,
+  Sparkles,
   ShieldCheck,
   Workflow,
 } from "lucide-react";
@@ -43,7 +44,8 @@ export type NavPageId =
   | "alerts"
   | "system"
   | "audit"
-  | "settings";
+  | "settings"
+  | "skills";
 
 interface NavPage {
   id: NavPageId;
@@ -62,6 +64,7 @@ export const NAV_PAGES: readonly NavPage[] = [
   { id: "activity", route: "/activity", labelKey: "nav.activity", icon: <Activity {...ICON} /> },
   { id: "memory", route: "/memory", labelKey: "nav.memory", icon: <Database {...ICON} /> },
   { id: "agents", route: "/agents", labelKey: "nav.agents", icon: <Bot {...ICON} /> },
+  { id: "skills", route: "/skills", labelKey: "nav.skills", icon: <Sparkles {...ICON} /> },
   { id: "approvals", route: "/approvals", labelKey: "nav.approvals", icon: <ShieldCheck {...ICON} />, badge: "approvals" },
   { id: "communication", route: "/communication", labelKey: "nav.communication", icon: <Mail {...ICON} />, badge: "mail" },
   { id: "calendar", route: "/calendar", labelKey: "nav.calendar", icon: <CalendarDays {...ICON} /> },

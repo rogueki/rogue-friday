@@ -9,6 +9,7 @@ import { useT, type MessageKey } from "@/i18n";
 import { useMeta } from "@/lib/api/domains/core";
 import { useLogin } from "@/lib/api/domains/auth";
 import { useSession } from "@/lib/session";
+import { clearOnboardingSnooze } from "@/features/skills/onboardingSnooze";
 
 const DEV_ROLES: readonly { role: Role; icon: React.ReactNode }[] = [
   { role: "owner", icon: <ShieldCheck size={16} /> },
@@ -42,7 +43,7 @@ export function LoginView() {
   const submit = (credentials: { username: string; password: string; rememberMe?: boolean; displayName?: string }): void => {
     setError(null);
     login.mutate(credentials, {
-      onSuccess: () => router.replace("/"),
+      onSuccess: () => { clearOnboardingSnooze(); router.replace(setupRequired ? "/onboarding" : "/"); },
       onError: (failure) => setError(isFridayApiError(failure) && failure.status === 429 ? t("login.rateLimited") :
         setupRequired && isFridayApiError(failure) && failure.status === 422 ? t("login.setupInvalid") : t("login.failed")),
     });

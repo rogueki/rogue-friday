@@ -17,6 +17,8 @@ import type { ContentStudioKeysService } from "../services/content-studio-keys";
 import type { ContentStudioProviderService } from "../services/content-studio-providers";
 import type { ContentStudioPlanService } from "../services/content-studio-plan";
 import type { ContentStudioProductionService } from "../services/content-studio-production";
+import type { SkillsService } from "../services/skills";
+import type { OnboardingService } from "../services/onboarding";
 import type { FrontendTelemetryService } from "../services/telemetry";
 import type { AdapterWiring } from "./adapter-wiring";
 
@@ -59,6 +61,8 @@ export interface Runtime {
   contentStudioProviders: ContentStudioProviderService;
   contentStudioPlan: ContentStudioPlanService;
   contentStudioProduction: ContentStudioProductionService;
+  skills: SkillsService;
+  onboarding: OnboardingService;
   adapterSettings: AdapterSettingsService;
   status: StatusService;
   orb: OrbService;

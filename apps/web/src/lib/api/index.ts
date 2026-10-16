@@ -19,5 +19,6 @@ export * from "./domains/memory";
 export * from "./domains/files";
 export * from "./domains/automations";
 export * from "./domains/settings";
+export * from "./domains/skills";
 export * from "./domains/dev";
 export * from "./domains/commands";

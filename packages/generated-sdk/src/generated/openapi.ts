@@ -1322,6 +1322,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read resumable owner onboarding state */
+        get: operations["getOnboarding"];
+        /** Replace onboarding decisions if revision matches */
+        put: operations["putOnboarding"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orb/status": {
         parameters: {
             query?: never;
@@ -1641,6 +1659,40 @@ export interface paths {
         put?: never;
         /** Import a theme (schema-validated) */
         post: operations["importTheme"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List packaged Friday skills and freshly observed Hermes skills */
+        get: operations["listSkills"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/{id}/activation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Toggle a discovered skill through the Hermes dashboard and read back its state */
+        put: operations["setSkillActivation"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4548,6 +4600,53 @@ export interface components {
             /** Format: date-time */
             until?: string;
         };
+        /** OnboardingResponse */
+        OnboardingResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["OnboardingState"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** OnboardingState */
+        OnboardingState: {
+            /** Format: date-time */
+            completedAt: string | null;
+            goals: string[];
+            preferredName?: string;
+            revision: number;
+            selectedSkillIds: string[];
+            steps: {
+                /** @enum {unknown} */
+                accounts: "pending" | "completed" | "skipped";
+                /** @enum {unknown} */
+                finish: "pending" | "completed" | "skipped";
+                /** @enum {unknown} */
+                intro: "pending" | "completed" | "skipped";
+                /** @enum {unknown} */
+                profile: "pending" | "completed" | "skipped";
+                /** @enum {unknown} */
+                skills: "pending" | "completed" | "skipped";
+            };
+            /** Format: date-time */
+            updatedAt: string | null;
+        };
+        /** OnboardingUpdate */
+        OnboardingUpdate: {
+            goals: string[];
+            preferredName?: string;
+            selectedSkillIds: string[];
+            steps: {
+                /** @enum {unknown} */
+                accounts: "pending" | "completed" | "skipped";
+                /** @enum {unknown} */
+                finish: "pending" | "completed" | "skipped";
+                /** @enum {unknown} */
+                intro: "pending" | "completed" | "skipped";
+                /** @enum {unknown} */
+                profile: "pending" | "completed" | "skipped";
+                /** @enum {unknown} */
+                skills: "pending" | "completed" | "skipped";
+            };
+        };
         /**
          * OrbHealth
          * @enum {string}
@@ -5305,6 +5404,57 @@ export interface components {
         SingleEnvelope: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: unknown;
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** SkillActivationRequest */
+        SkillActivationRequest: {
+            enabled: boolean;
+        };
+        /** SkillCatalogEntry */
+        SkillCatalogEntry: {
+            accounts: string[];
+            category: string;
+            conditionalCapabilities: string[];
+            description: string;
+            discovered: boolean | null;
+            enabled: boolean | null;
+            id: string;
+            integrationDetails: {
+                /** @enum {unknown} */
+                account: "none" | "required" | "conditional";
+                configured: boolean | null;
+                connectionChecked: boolean | null;
+                id: string;
+                reference: string;
+                required: boolean;
+                settingsTarget: string;
+                setupDe: string;
+            }[];
+            integrationRefs: string[];
+            name: string;
+            observationError: string | null;
+            observationSource: string;
+            /** Format: date-time */
+            observedAt: string | null;
+            packaged: boolean;
+            requiredCapabilities: string[];
+            setupRefs: string[];
+            /** @enum {unknown} */
+            source: "friday" | "hermes";
+            version: string | null;
+        };
+        /** SkillCatalogResponse */
+        SkillCatalogResponse: {
+            catalogError: string | null;
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["SkillCatalogEntry"][];
+            freshness: components["schemas"]["Freshness"];
+            hermesError: string | null;
+        };
+        /** SkillResponse */
+        SkillResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["SkillCatalogEntry"];
             freshness: components["schemas"]["Freshness"];
         };
         /**
@@ -9408,6 +9558,66 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    getOnboarding: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current state including first-login defaults */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    putOnboarding: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved onboarding state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
     getOrbStatus: {
         parameters: {
             query?: never;
@@ -10122,6 +10332,66 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listSkills: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Skill catalog with nullable runtime state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillCatalogResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    setSkillActivation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillActivationRequest"];
+            };
+        };
+        responses: {
+            /** @description Freshly observed skill state after Hermes toggle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

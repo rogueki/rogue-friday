@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/onboarding-state.schema.json",
+  "title": "OnboardingState",
+  "type": "object",
+  "properties": {
+    "preferredName": { "type": "string", "maxLength": 80 },
+    "revision": { "type": "integer", "minimum": 0 },
+    "steps": {
+      "type": "object",
+      "properties": {
+        "intro": { "enum": ["pending", "completed", "skipped"] },
+        "profile": { "enum": ["pending", "completed", "skipped"] },
+        "skills": { "enum": ["pending", "completed", "skipped"] },
+        "accounts": { "enum": ["pending", "completed", "skipped"] },
+        "finish": { "enum": ["pending", "completed", "skipped"] }
+      },
+      "required": ["intro", "profile", "skills", "accounts", "finish"],
+      "additionalProperties": false
+    },
+    "goals": { "type": "array", "items": { "type": "string" } },
+    "selectedSkillIds": { "type": "array", "items": { "type": "string" } },
+    "completedAt": { "type": ["string", "null"], "format": "date-time" },
+    "updatedAt": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "required": ["revision", "steps", "goals", "selectedSkillIds", "completedAt", "updatedAt"],
+  "additionalProperties": false
+}

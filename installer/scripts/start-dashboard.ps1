@@ -7,6 +7,26 @@ $dash = "$root\dashboard"
 $main = "$dash\apps\control-api\dist\main.js"
 $log  = "$root\logs\dashboard-service.log"
 $env:FRIDAY_CONFIG_DIR = "$dash\config"
+$hermesDashboardPort = 43691
+$stateFile = "$root\config\install-state.json"
+if (Test-Path -LiteralPath $stateFile -PathType Leaf) {
+    try {
+        $state = Get-Content -LiteralPath $stateFile -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        if ($null -ne $state.ports) {
+            if ($null -eq $state.ports.Dashboard) { throw 'Missing Hermes dashboard port' }
+            $savedPort = [int]$state.ports.Dashboard
+            if ($savedPort -lt 1024 -or $savedPort -gt 65535) { throw 'Invalid Hermes dashboard port' }
+            $hermesDashboardPort = $savedPort
+        }
+    } catch {
+        throw "Hermes dashboard port could not be read from $stateFile`: $($_.Exception.Message)"
+    }
+}
+$env:FRIDAY_HERMES_DASHBOARD_URL = "http://127.0.0.1:$hermesDashboardPort"
+$skillsCatalog = "$root\skills\friday-skills\registry\integration_setup.json"
+if (Test-Path -LiteralPath $skillsCatalog -PathType Leaf) {
+    $env:FRIDAY_SKILLS_CATALOG_PATH = $skillsCatalog
+}
 $ffmpegPathFile = "$dash\config\ffmpeg.path"
 if (-not $env:FRIDAY_FFMPEG_PATH -and (Test-Path -LiteralPath $ffmpegPathFile -PathType Leaf)) {
     $configuredFFmpeg = ([IO.File]::ReadAllText($ffmpegPathFile)).Trim()

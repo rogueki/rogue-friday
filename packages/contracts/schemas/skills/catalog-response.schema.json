@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/catalog-response.schema.json",
+  "title": "SkillCatalogResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": { "type": "array", "items": { "$ref": "../skills/skill.schema.json" } },
+    "catalogError": { "type": ["string", "null"] },
+    "hermesError": { "type": ["string", "null"] },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "catalogError", "hermesError", "freshness"],
+  "additionalProperties": false
+}

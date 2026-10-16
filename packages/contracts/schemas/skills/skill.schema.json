@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/skill.schema.json",
+  "title": "SkillCatalogEntry",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "pattern": "^(friday|hermes):[a-z0-9][a-z0-9_-]*$" },
+    "source": { "enum": ["friday", "hermes"] },
+    "name": { "type": "string", "minLength": 1 },
+    "category": { "type": "string" },
+    "description": { "type": "string" },
+    "version": { "type": ["string", "null"] },
+    "packaged": { "type": "boolean" },
+    "discovered": { "type": ["boolean", "null"] },
+    "enabled": { "type": ["boolean", "null"] },
+    "observedAt": { "type": ["string", "null"], "format": "date-time" },
+    "observationSource": { "type": "string" },
+    "observationError": { "type": ["string", "null"] },
+    "accounts": { "type": "array", "items": { "type": "string" } },
+    "setupRefs": { "type": "array", "items": { "type": "string" } },
+    "integrationRefs": { "type": "array", "items": { "type": "string" } }
+    ,"requiredCapabilities": { "type": "array", "items": { "type": "string" } }
+    ,"conditionalCapabilities": { "type": "array", "items": { "type": "string" } }
+    ,"integrationDetails": { "type": "array", "items": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "account": { "enum": ["none", "required", "conditional"] },
+        "required": { "type": "boolean" },
+        "setupDe": { "type": "string" },
+        "reference": { "type": "string" },
+        "settingsTarget": { "type": "string" },
+        "configured": { "type": ["boolean", "null"] },
+        "connectionChecked": { "type": ["boolean", "null"] }
+      },
+      "required": ["id", "account", "required", "setupDe", "reference", "settingsTarget", "configured", "connectionChecked"],
+      "additionalProperties": false
+    } }
+  },
+  "required": ["id", "source", "name", "category", "description", "version", "packaged", "discovered", "enabled", "observedAt", "observationSource", "observationError", "accounts", "setupRefs", "integrationRefs", "integrationDetails", "requiredCapabilities", "conditionalCapabilities"],
+  "additionalProperties": false
+}

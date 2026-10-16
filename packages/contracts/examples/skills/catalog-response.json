@@ -1,0 +1,38 @@
+{
+  "$schema": "https://friday.local/schemas/skills/catalog-response.schema.json",
+  "contractVersion": "2.0.0",
+  "data": [
+    {
+      "id": "friday:friday-research",
+      "source": "friday",
+      "name": "friday-research",
+      "category": "research",
+      "description": "Research a topic using available sources.",
+      "version": "0.1.0",
+      "packaged": true,
+      "discovered": null,
+      "enabled": null,
+      "observedAt": null,
+      "observationSource": "unavailable",
+      "observationError": "Hermes-Skills-Status nicht verfügbar",
+      "accounts": ["search"],
+      "setupRefs": ["Suchkonto bei Bedarf einrichten"],
+      "integrationRefs": ["search"],
+      "integrationDetails": [{
+        "id": "search",
+        "account": "required",
+        "required": true,
+        "setupDe": "Suchkonto einrichten",
+        "reference": "docs/SEARCH.md",
+        "settingsTarget": "/settings",
+        "configured": null,
+        "connectionChecked": null
+      }],
+      "requiredCapabilities": ["research.read"],
+      "conditionalCapabilities": []
+    }
+  ],
+  "catalogError": null,
+  "hermesError": "Hermes-Skills-Status nicht verfügbar",
+  "freshness": { "state": "unknown", "asOf": null }
+}

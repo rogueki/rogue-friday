@@ -82,6 +82,8 @@ export const queryKeys = {
     themes: ["settings", "themes"] as const,
     adapters: ["settings", "adapters"] as const,
   },
+  skills: ["skills"] as const,
+  onboarding: ["onboarding"] as const,
   commands: {
     history: ["commands", "history"] as const,
   },

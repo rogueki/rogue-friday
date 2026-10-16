@@ -1,0 +1,14 @@
+{
+  "$schema": "https://friday.local/schemas/skills/onboarding-response.schema.json",
+  "contractVersion": "2.0.0",
+  "data": {
+    "revision": 1,
+    "preferredName": "Alex",
+    "steps": { "intro": "completed", "profile": "completed", "skills": "completed", "accounts": "skipped", "finish": "pending" },
+    "goals": ["Research"],
+    "selectedSkillIds": ["friday:friday-research"],
+    "completedAt": null,
+    "updatedAt": "2026-10-16T08:40:00.000Z"
+  },
+  "freshness": { "state": "fresh", "asOf": "2026-10-16T08:40:00.000Z" }
+}

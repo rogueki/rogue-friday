@@ -1,93 +1,61 @@
-# F.R.I.D.A.Y. Command Center
+# F.R.I.D.A.Y. — persönliches Command Center (öffentliche Beta)
 
-F.R.I.D.A.Y. übernimmt dort, wo J.A.R.V.I.S. aufgehört hat – die nächste Generation, von Grund auf neu gebaut:
-contract-first, adapterbasiert und transparent in allem, was sie tut. Dieses Repository enthält das **Command Center**: ein Dashboard mit
-Next.js-Frontend, NestJS/Fastify Control API, austauschbaren Adaptern, vollständigem Mock-Betrieb und einem goldenen,
-prozedural gerenderten Orb als AI-Core.
+F.R.I.D.A.Y. ist ein lokales Command Center für den Hermes Agent: ein Windows-Installer richtet Sprachsteuerung und Dienste ein; das Dashboard bündelt Aufgaben, Aktivität, Agenten, Freigaben und Systemstatus. Das Projekt ist **Beta-Software**. Einzelne Ansichten können noch simulierte Daten zeigen und optionale Integrationen brauchen eigene Konten und Einrichtung.
 
-## Dokumentation
+## Schnellstart
 
-- **Aktueller Stand und nächste Schritte:** [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md)
-- **Übergabe an einen Kollegen** (Lieferumfang, neue Anbindung in 10 Schritten, echte Dienste, Fehlersuche): [`docs/HANDOFF.md`](docs/HANDOFF.md)
-- **Architektur** (Frontend, Control API, Adapter und Integration): [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-- **Deployment auf Windows 11** (Pfade, Betriebsmodi, Ports, Geheimnisse, Logs): [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
-- **Sprachdialog und Modellrouting** (lokale Antworten, Kimi-Stufen, Folgefragen, gemessene Latenz): [`docs/MODEL_ROUTING.md`](docs/MODEL_ROUTING.md)
-- **Schnelle lokale Stimme** (dauerhaft geladenes Qwen3-TTS, eigene Referenz, Bluetooth-Ausgabe): [`docs/FAST_LOCAL_TTS.md`](docs/FAST_LOCAL_TTS.md)
-- **Optionaler Pascal/GTX-1060-TTS-Fix** (nur bei belegtem CPU-Fallback): [`docs/OPTIONAL_QWENTTS_SM61.md`](docs/OPTIONAL_QWENTTS_SM61.md)
-- **Tests** (Unit, Conformance, Integration, E2E, Visual, Accessibility): [`docs/TESTING.md`](docs/TESTING.md)
-- Adapter: [`docs/ADAPTER_SDK.md`](docs/ADAPTER_SDK.md), Konformität [`docs/ADAPTER_CONFORMANCE.md`](docs/ADAPTER_CONFORMANCE.md), Feldzuordnungen [`docs/MAPPING/`](docs/MAPPING/README.md)
-- Spezifikation: [`docs/PLAN.md`](docs/PLAN.md)
-- Verbindliche technische Entscheidungen: [`docs/IMPLEMENTATION_CONVENTIONS.md`](docs/IMPLEMENTATION_CONVENTIONS.md)
-- Verträge und Codegenerierung: [`docs/CONTRACT_FIRST.md`](docs/CONTRACT_FIRST.md)
+1. Lade das vollständige Repository als ZIP herunter und entpacke es. Starte nicht nur den Ordner `installer`: Dashboard-Quellordner müssen daneben liegen.
+2. Lies [Installation und Ersteinrichtung](installer/ANLEITUNG.md). Prüfe Windows/WSL2, Speicherplatz, Mikrofon und API-Zugangsdaten, bevor du startest.
+3. Doppelklicke auf `installer/install-friday.bat` und bestätige die Windows-Administratorabfrage. Folge den Fragen zur Assistenten-Persona, Stimme, Wake Word und lokalen Linux-Anmeldung.
+4. Nach einem nötigen Windows-Neustart wird die Installation fortgesetzt. Nimm dein Wake Word auf und warte, bis Installer und erster Build abgeschlossen sind.
+5. Öffne das Command Center unter <http://127.0.0.1:3100>. Beim ersten Besuch legst du den lokalen Dashboard-Zugang selbst an und durchläufst die Einführung. Das Hermes-Dashboard liegt standardmäßig unter <http://127.0.0.1:43691>. Bei einer benutzerdefinierten Installation gelten die im Installationsbericht genannten Ports.
 
-## Namen und Bezeichner
+Der Installer lädt das separate Repository `friday-skills` nach `<InstallRoot>\skills\friday-skills`, prüft die 105 Skill-Dateien gegen die Registry und meldet den Ordner bei Hermes an. Für optionale Dienste richte anschließend nur die Konten und lokalen Werkzeuge ein, die du wirklich nutzen willst; der Katalog nennt die jeweiligen Voraussetzungen.
 
-- Der sichtbare Produktname ist **F.R.I.D.A.Y.** (im Fließtext „Friday“). Der Assistentenname ist konfigurierbar
-  (`settings.profile.assistantName`, Standard „F.R.I.D.A.Y.“).
-- Das Standard-Aktivierungswort ist „Hey Friday“. Der Installer fragt den Namen vor den Stimmaufnahmen ab; später lässt er sich
-  mit `installer/change-assistant-name.bat` ändern.
-- Auch die technischen Bezeichner heißen seit 2026-10-15 `friday` (Owner-Entscheidung, bewusster Vertragsbruch,
-  Vertrag Version 2.0.0): Paketnamen `@friday/*`, Event-Typen `friday.*`, Umgebungsvariablen `FRIDAY_*`,
-  CSS-Variablen `--friday-*`, Komponenten wie `FridayOrb` sowie Pfade wie `installer/install-friday.bat` und `C:\Friday`.
-  Alte `JARVIS_*`-Umgebungsvariablen werden vorübergehend noch gelesen und als veraltet gemeldet. Der API-Pfad bleibt `/api/v1`.
-  Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), Abschnitt „Namen und Bezeichner“.
+Die ausführlichen Voraussetzungen, Dauer, Wiederaufnahme nach Fehlern, Update- und Fehlersuchschritte stehen in der [Installationsanleitung](installer/ANLEITUNG.md) und [Deployment-Dokumentation](docs/DEPLOYMENT.md).
 
-## Paketinhalt
+## Was F.R.I.D.A.Y. derzeit kann
 
-| Ordner                            | Inhalt                                                                                                                                                                                                                    |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `installer/`                      | Windows-Komplettinstaller (WSL2, Hermes Agent, Kimi, lokales Qwen, Sprachsteuerung mit Stimmprofil). Start: `installer/install-friday.bat` per Doppelklick, Anleitung: [`installer/ANLEITUNG.md`](installer/ANLEITUNG.md) |
-| `apps/`, `packages/`, `adapters/` | F.R.I.D.A.Y. Command Center (Dashboard, Control API, Adapter) – pnpm-Monorepo                                                                                                                                             |
-| `skills/`                         | Platz für separate Skills (siehe [`skills/README.md`](skills/README.md))                                                                                                                                                  |
-| `docs/`                           | Plan, Konventionen, Architektur, Übergabe, Deployment, Tests, Status                                                                                                                                                      |
+- Das Dashboard bietet eine gemeinsame Oberfläche für Übersicht, Aufgaben, Aktivität, Agenten, Freigaben, Gedächtnis, Benachrichtigungen, Kommunikation, Kalender, Automationen, Recherche, Dateien, Sprache, System und Audit. Das Verhalten und die verfügbaren Aktionen hängen vom verbundenen Adapter ab.
+- Im Installer-Standardmodus sind Aufgaben, Aktivität und Agenten mit Hermes verbunden; Sprach- und Systemstatus kommen von den lokalen Diensten. Andere Bereiche können als Simulation angezeigt werden. Die Oberfläche kennzeichnet Datenquellen und eingeschränkte Fähigkeiten.
+- Das Dashboard nutzt eine lokale Control API und Adapter. Hermes, Qwen, Sprache und Windows/WSL werden durch den Server angesprochen; der Browser erhält keine Zugangsschlüssel.
+- Einstellungen umfassen unter anderem Profil und Sprache, Dashboard-Darstellung, Theme und Orb, Navigation, Modellrouting, Stimme, Benachrichtigungen, Anmeldung/Sicherheit, Freigaben, Aufbewahrung, Backups und Entwickleranzeige. Verfügbare Änderungen hängen vom installierten Stand ab. Eine [Beispieldatei für den Settings-Export](packages/contracts/examples/settings/settings-export.json) zeigt das Datenformat; sie ist kein Versprechen, dass jede Einstellung in der Beta-Oberfläche bereits bearbeitbar ist.
+- Die Sprachsteuerung und persönliche Wake-Word-Einrichtung kommen aus dem Windows-Installer. Ein Kimi-Zugang wird bei der Einrichtung abgefragt; lokale Funktionen und Cloud-Aufgaben haben unterschiedliche Laufzeit- und Kontoanforderungen.
 
-## Voraussetzungen (Dashboard)
+### Skills und optionale Werkzeuge
 
-Node.js >= 22.13 (entwickelt mit Node 24) und pnpm 10.
+Es gibt zwei getrennte Repositories:
 
-```bash
+- Dieses Repository, [rogue-friday](https://github.com/rogueki/rogue-friday), enthält Installer, Command Center, Control API und Integration.
+- [friday-skills](https://github.com/rogueki/friday-skills) enthält **105 eigenständige Friday-Skills**. Sie werden nicht dadurch ausführbar, dass sie im Repository liegen; der jeweilige Hermes-Skill, Host, Konto und nötige Berechtigungen müssen installiert und eingerichtet sein.
+
+Beide Repositories sind MIT-lizenziert. Hermes bringt zusätzlich eigene integrierte Skills mit. Auf dem aktuellen Testrechner meldete Hermes **53 integrierte Skills aktiviert**. Das ist ein Messwert dieser konkreten Installation, keine Anzahl, die der Installer auf jedem Rechner garantiert.
+
+PowerPoint, Computer Use, Obsidian, OpenCode, Codex und Claude Code hängen von konkreten lokalen Voraussetzungen ab. Im aktuellen Testprofil waren die Hermes-Skills für PowerPoint, Computer Use, Obsidian und diese Coding-CLIs gelistet; das bedeutet allein noch keine nutzbare Integration: PowerPoint benötigt eine passende Windows-/Python-Umgebung, Computer Use eine unterstützte grafische Sitzung und Freigaben, Obsidian einen eingerichteten Vault, und Coding-CLIs müssen in derselben WSL-Umgebung tatsächlich installiert und startbar sein. Im Testprofil war OpenCode verfügbar; Codex war nur als nicht ausführbarer Windows-Shim sichtbar und Claude Code fehlte im WSL-PATH. **Telefonie ist nicht installiert und wird derzeit nicht als nutzbare Funktion angeboten.** Konten, Anbieterzugänge und Berechtigungen sind nicht enthalten.
+
+Das Dashboard zeigt unter **Skills** die Friday-Skills und die in der laufenden Hermes-Instanz gefundenen Standardskills. Suche, Filter und Details erklären Aktivierung, Voraussetzungen und Einrichtungsorte. Nach dem ersten Besitzer-Login führt eine fortsetzbare Einführung durch Profil, Ziele, interessante Skills und benötigte Konten. Unter **Einstellungen → Skill-Konten** stehen die Hinweise zu Integrationen. Der Katalog zeigt ehrlich an, wenn Laufzeit oder Verbindung nicht geprüft wurden. Ein aktivierter Skill ist noch kein Nachweis, dass sein externer Dienst funktioniert. Siehe [Einstieg und Bedienung](docs/START_HERE.md) und [Skills-Onboarding-Plan](docs/SKILLS_ONBOARDING_PLAN.md).
+
+## Was noch geplant ist
+
+Die Beta deckt nicht alle Planziele ab. Mail- und Kalender-Provider sind Platzhalter; Telefonie und echte Anbieterintegrationen für alle 105 Friday-Skills sind noch nicht allgemein verfügbar. Die Einführung dokumentiert Interessen und erklärt die Einrichtung, sie verbindet keine Konten automatisch. Auch bei vorhandenen Ansichten können Daten oder Aktionen simuliert sein. Prüfe den Status der jeweiligen Schnittstelle in [Projektstatus](docs/PROJECT_STATUS.md), [Deployment](docs/DEPLOYMENT.md) und der Integrationsdokumentation, bevor du sie für reale Abläufe einsetzt.
+
+## Entwicklung
+
+Für die Dashboard-Entwicklung brauchst du Node.js 22.13 oder neuer und pnpm 10:
+
+```sh
 pnpm install
+pnpm dev
 ```
 
-## Wichtige Befehle
+Das startet Control API und Web im Entwicklungsmodus; Ports und Modi sind in [Deployment](docs/DEPLOYMENT.md) beschrieben. Nützliche Befehle: `pnpm build`, `pnpm typecheck`, `pnpm test`, `pnpm contracts:check`. Weitere technische Einstiegspunkte:
 
-Alle Befehle stammen aus der Root-`package.json`. Die Befehle für Anbindung und Betrieb mit echten Diensten sind in
-[`docs/HANDOFF.md`](docs/HANDOFF.md) beschrieben.
+- [Architektur](docs/ARCHITECTURE.md)
+- [Adapter-SDK](docs/ADAPTER_SDK.md) und [Konformität](docs/ADAPTER_CONFORMANCE.md)
+- [Contract-first und Codegenerierung](docs/CONTRACT_FIRST.md)
+- [Modellrouting](docs/MODEL_ROUTING.md)
+- [Einstieg: Installation und Einstellungen](docs/START_HERE.md)
 
-| Befehl                              | Zweck                                                                                                |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `pnpm dev`                          | Control API (Port 3100) und Web (Port 3000) im Entwicklungsmodus                                     |
-| `pnpm dev:api` / `pnpm dev:web`     | nur Control API (`tsx watch`, Mock-Modus) bzw. nur Web (`next dev`)                                  |
-| `pnpm build`                        | alle Pakete bauen                                                                                    |
-| `pnpm build:app`                    | Web (statischer Export nach `apps/web/out`) und Control API (`apps/control-api/dist/main.js`) bauen  |
-| `pnpm start`                        | Control API aus `dist/main.js` starten, Datenmodus laut `config/dashboard.yaml`                      |
-| `pnpm start:hybrid`                 | wie `pnpm start`, erzwingt `FRIDAY_DATA_MODE=hybrid` (echte Adapter, Rest Mock)                      |
-| `pnpm fake:upstreams`               | fiktive Hermes-, Voice- und llama-Dienste auf den Installer-Ports 43691–43694, Steuerport 43699      |
-| `pnpm contracts:check`              | Lint, Schema-/Beispielvalidierung, SDK aktuell, Breaking-Change-Prüfung                              |
-| `pnpm contracts:generate`           | SDK aus den Verträgen neu erzeugen                                                                   |
-| `pnpm typecheck`                    | TypeScript in allen Paketen                                                                          |
-| `pnpm lint`                         | ESLint                                                                                               |
-| `pnpm format:check` / `pnpm format` | Prettier prüfen bzw. formatieren                                                                     |
-| `pnpm test`                         | Vitest (Unit und Komponenten) über alle Pakete                                                       |
-| `pnpm test:conformance`             | Adapter-Konformitätstests (`adapters/*/test/conformance.test.ts`)                                    |
-| `pnpm test:integration`             | Playwright gegen die Control API im Hybrid-Modus mit Fake-Upstreams; braucht vorher `pnpm build:app` |
-| `pnpm test:e2e`                     | Playwright-E2E-Tests (`playwright.config.ts`, startet den Stack selbst)                              |
-| `pnpm storybook`                    | Komponenten- und Orb-Katalog auf Port 6006                                                           |
-| `pnpm scenario -- <befehl>`         | Mock-Szenario-CLI, z. B. `pnpm scenario -- list` (Hilfe: `pnpm scenario -- --help`)                  |
+## Lizenz
 
-## Aufbau
-
-```text
-installer/  Windows-Installer (PowerShell/Batch, WSL-Skripte, Voice-Service)
-apps/       web, control-api, mock-console, storybook
-packages/   contracts (Quelle der Wahrheit), generated-sdk, design-tokens, ui, orb,
-            adapter-core, adapter-testkit, config, auth, observability, mock-data
-adapters/   mock, example-http, hermes, voice-http, system-local, Platzhalter (*-placeholder)
-config/     Beispielkonfigurationen (dashboard/adapters, mock, hybrid, live), Themes, Layouts
-tests/      e2e (Playwright), integration (Hybrid-Stack mit Fake-Upstreams)
-docs/       Plan, Konventionen, Architektur, Übergabe, Deployment, Tests, Status
-skills/     separate Skills (später)
-```
-
-Jede Änderung an einem Datenmodell beginnt in `packages/contracts`; Typen, Client und Validatoren werden daraus erzeugt
-und nie von Hand gepflegt.
+Dieses Repository steht unter der [MIT-Lizenz](LICENSE). Das separate Repository [friday-skills](https://github.com/rogueki/friday-skills) enthält ebenfalls eine MIT-Lizenz. Drittanbieter, Modelle, Skills und externe Dienste können eigenen Bedingungen unterliegen.

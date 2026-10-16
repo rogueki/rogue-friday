@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/activation-request.schema.json",
+  "title": "SkillActivationRequest",
+  "type": "object",
+  "properties": { "enabled": { "type": "boolean" } },
+  "required": ["enabled"],
+  "additionalProperties": false
+}
