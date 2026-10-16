@@ -128,6 +128,21 @@ desselben Dienstes liegen mindestens 10 Minuten, höchstens 3 pro Stunde (danach
   unangetastet; wird sie nicht mehr gebraucht (besonders wenn sie ein Konsolenfenster aufblitzen lässt), von Hand löschen:
   `schtasks /delete /tn JARVIS_Voice_Watchdog /f`.
 
+## Optionale Coding-CLIs in Friday-Ubuntu
+
+Die Hermes-Skills für OpenCode, Codex und Claude Code benötigen das jeweilige **Linux-Programm** im selben WSL-Benutzer wie Hermes. Ein über WSL sichtbarer Windows-Befehl reicht nicht. Friday installiert diese externen Werkzeuge nicht automatisch und übernimmt keine Windows-Anmeldungen.
+
+Öffne PowerShell im installierten `installer`-Ordner und wähle genau das Werkzeug, das du nutzen willst:
+
+```powershell
+.\setup-coding-cli.ps1 -Cli status
+.\setup-coding-cli.ps1 -Cli opencode
+.\setup-coding-cli.ps1 -Cli codex
+.\setup-coding-cli.ps1 -Cli claude
+```
+
+Bei anderem Installationsort zusätzlich `-InstallRoot 'D:\Kali\Friday'` angeben. Das Skript liest WSL-Distribution und Linux-Benutzer aus dem lokalen Installationszustand. Es lädt Node.js bei Bedarf mit SHA-256-Prüfung in dessen Benutzerprofil und installiert nur die gewählte CLI dort. Es ändert keine Windows-CLI-Konfiguration und fragt keine Zugangsdaten ab. `-Cli status` prüft nur, ob Linux-Befehle starten und eine Version liefern. Öffne für die Anbieteranmeldung anschließend ein Terminal in Friday-Ubuntu und folge der Anleitung des jeweiligen CLI-Anbieters. Erst danach kann ein echter Coding-Auftrag mit deinem Konto geprüft werden.
+
 ## Command Center aktualisieren
 
 Neues Paket entpacken und darin `update-dashboard.bat` doppelklicken (liegt neben `install-friday.bat`). Das Skript kopiert die
