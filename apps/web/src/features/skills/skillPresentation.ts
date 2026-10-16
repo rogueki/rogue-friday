@@ -10,6 +10,7 @@ export function skillState(skill: SkillCatalogEntry): { label: string; tone: "gr
 
 export function internalSetupLink(target: string): string | null {
   if (target.startsWith("/settings?") || target === "/settings") return target;
+  if (target === "Hermes-Einstellungen in Friday-Ubuntu") return "/settings?area=skillAccounts";
   if (target === "Friday Dashboard > Einstellungen > Adapter > CalDAV") return "/settings?area=adapters#calendar-setup-title";
   if (target === "Friday Dashboard > Einstellungen > Skill-Konten > E-Mail") return "/settings?area=skillAccounts#himalaya-account-title";
   if (target === "Hermes-Laufzeit: Coding-CLI und Provider-Anmeldung") return "/settings?area=skillAccounts#coding-cli-setup-title";
