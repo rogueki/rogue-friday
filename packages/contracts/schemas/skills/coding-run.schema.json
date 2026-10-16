@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/coding-run.schema.json",
+  "title": "CodingRun",
+  "type": "object",
+  "properties": {
+    "runId": { "type": "string", "pattern": "^run_[a-f0-9]{32}$" },
+    "status": { "type": "string" },
+    "requestedCli": { "type": ["string", "null"], "enum": ["codex", "opencode", "claude-code", null] },
+    "requestedWorkdir": { "type": ["string", "null"] },
+    "preflightVersion": { "type": ["string", "null"] },
+    "executionVerified": { "type": "boolean" },
+    "output": { "type": ["string", "null"] },
+    "error": { "type": ["string", "null"] },
+    "updatedAt": { "type": ["number", "null"] }
+  },
+  "required": ["runId", "status", "requestedCli", "requestedWorkdir", "preflightVersion", "executionVerified", "output", "error", "updatedAt"],
+  "additionalProperties": false
+}

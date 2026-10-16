@@ -451,9 +451,9 @@ describe("contract: all operations", () => {
   });
 
   it("covers mock-platform operations with contract-valid success responses", () => {
-    expect(ROUTE_TABLE).toHaveLength(139);
+    expect(ROUTE_TABLE).toHaveLength(142);
     // Hermes-backed Skills/Onboarding routes have focused API tests instead of mock-platform success fixtures.
-    const focusedRoutes = new Set(["listSkills", "setSkillActivation", "getOnboarding", "putOnboarding", "getObsidianVault", "putObsidianVault"]);
+    const focusedRoutes = new Set(["listSkills", "setSkillActivation", "getOnboarding", "putOnboarding", "getObsidianVault", "putObsidianVault", "createCodingRun", "getCodingRun", "stopCodingRun"]);
     expect(probe.uncovered().filter((id) => !focusedRoutes.has(id)), "Operationen ohne erfolgreichen, vertragsgültigen Aufruf").toEqual([]);
     expect(probe.problems).toEqual([]);
     for (const spec of ROUTE_TABLE) expect(specOf(spec.operationId)).toBe(spec);

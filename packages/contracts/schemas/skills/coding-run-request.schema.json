@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/coding-run-request.schema.json",
+  "title": "CodingRunRequest",
+  "type": "object",
+  "properties": {
+    "cli": { "type": "string", "enum": ["auto", "codex", "opencode", "claude-code"] },
+    "repository": { "type": "string", "minLength": 4, "maxLength": 1024 },
+    "task": { "type": "string", "minLength": 10, "maxLength": 4000 }
+  },
+  "required": ["cli", "repository", "task"],
+  "additionalProperties": false
+}

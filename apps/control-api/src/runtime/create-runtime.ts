@@ -33,6 +33,7 @@ import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, sum
 import { SettingsService, seedLibrary } from "../services/settings";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
+import { CodingRunsService } from "../services/coding-runs";
 import { ContentStudioProviderService } from "../services/content-studio-providers";
 import { ContentStudioPlanService } from "../services/content-studio-plan";
 import { ContentStudioProductionService } from "../services/content-studio-production";
@@ -227,6 +228,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     dashboardUrl: env.FRIDAY_HERMES_DASHBOARD_URL ?? (typeof hermesAdapterConfig.dashboardBaseUrl === "string" ? hermesAdapterConfig.dashboardBaseUrl : undefined),
     fetcher: options.providerFetch,
   });
+  const codingRuns = new CodingRunsService(config, skills, env);
   const contentStudioProduction = new ContentStudioProductionService(db, contentStudioPlan, contentStudioKeys, contentStudioProviders,
     config.paths.dataDir, { ffmpegPath: env.FRIDAY_FFMPEG_PATH, enabled: () => settings.area("dashboard").contentStudioEnabled === true });
   settingsHolder.current = settings;
@@ -407,6 +409,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     skills,
     onboarding,
     obsidianVault,
+    codingRuns,
     contentStudioProduction,
     adapterSettings,
     status,
