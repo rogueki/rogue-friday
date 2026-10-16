@@ -144,6 +144,26 @@ describe("skills and resumable onboarding", () => {
     await expect(service.toggle("hermes:powerpoint", true)).rejects.toThrow("nicht bestätigt");
   });
 
+  it("shows setup metadata only for Hermes prerequisites documented by the bundled skill", async () => {
+    const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
+      ? Response.json({ skills: [
+        { name: "powerpoint", enabled: true },
+        { name: "airtable", enabled: false },
+        { name: "opencode", enabled: true },
+        { name: "hermes-agent", enabled: true },
+      ] })
+      : new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
+    const result = await new SkillsService({ dashboardUrl: "http://127.0.0.1:43791", fetcher }).list();
+    const byName = new Map(result.skills.map((skill) => [skill.name, skill]));
+    expect(byName.get("powerpoint")).toMatchObject({ accounts: [], integrationDetails: [{ account: "none", required: true }],
+      requiredCapabilities: [expect.stringContaining("python-pptx")] });
+    expect(byName.get("airtable")).toMatchObject({ accounts: ["hermes_airtable"], integrationDetails: [{ account: "required", required: true }],
+      requiredCapabilities: [expect.stringContaining("Personal Access Token")] });
+    expect(byName.get("opencode")).toMatchObject({ accounts: ["hermes_opencode"], integrationDetails: [{ account: "conditional", required: true }],
+      setupRefs: [], requiredCapabilities: [expect.stringContaining("OpenCode CLI")] });
+    expect(byName.get("hermes-agent")).toMatchObject({ accounts: [], integrationDetails: [], requiredCapabilities: [], conditionalCapabilities: [] });
+  });
+
   const realCatalog = resolve(process.cwd(), "..", "..", "Skills", "registry", "integration_setup.json");
   it.runIf(existsSync(realCatalog))("loads every skill from the packaged registry", async () => {
     const result = await new SkillsService({ catalogPath: realCatalog }).list();

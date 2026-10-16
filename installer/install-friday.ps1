@@ -1151,6 +1151,13 @@ if (-not $ChangeVoice -and ((-not (IsDone 'skills')) -or $UpdateDashboard)) {
 $readiness = 'nicht geprueft (Stimmenwechsel)'
 $vaultStatus = 'nicht geprueft (Stimmenwechsel)'
 if (-not $ChangeVoice) {
+    Title 'Hermes-PowerPoint-Voraussetzung einrichten'
+    $powerpointSetup = Wsl-Run $State.linux_user "$WslInstPath/wsl/setup_powerpoint.sh"
+    if ($powerpointSetup -match 'FRIDAY_POWERPOINT_READY') {
+        Ok 'PowerPoint-Bibliothek fuer Hermes in WSL verfuegbar.'
+    } else {
+        Warn 'PowerPoint-Bibliothek nicht einsatzbereit. Deck-Erstellung spaeter nach Anleitung reparieren; optionale Renderer werden nicht automatisch installiert.'
+    }
     Title 'Skill-Voraussetzungen (nur Diagnose)'
     $readiness = Wsl-Run $State.linux_user "$WslInstPath/wsl/check_skill_readiness.sh"
     $vault = [Environment]::GetEnvironmentVariable('FRIDAY_OBSIDIAN_VAULT', 'User')
