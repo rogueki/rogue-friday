@@ -114,6 +114,14 @@ export function accountSetupView(item: Integration, keys: KeyStatus, hermes: Her
         : "Postfachprofil oder Himalaya-CLI noch nicht lokal bereit; Verbindung nicht geprüft",
     location: null,
   };
+  if (item.id === "telegram_gateway") return {
+    href: "/settings?area=skillAccounts#telegram-gateway-setup-title",
+    action: "Telegram-Bot im Dashboard einrichten",
+    state: item.configured === null ? "Lokaler Telegram-Konfigurationsstatus unbekannt; Bot-Verbindung nicht geprüft"
+      : item.configured ? "Bot-Token, Owner-ID und Gateway-Schalter lokal eingerichtet; Bot-Verbindung nicht geprüft"
+        : "Bot-Token, Owner-ID oder Gateway-Schalter noch nicht lokal eingerichtet; Bot-Verbindung nicht geprüft",
+    location: null,
+  };
   if (item.id === "obsidian" || item.id === "hermes_obsidian") return {
     href: "/settings?area=skillAccounts#obsidian-setup-title",
     action: "Obsidian-Vault im Dashboard einrichten",
