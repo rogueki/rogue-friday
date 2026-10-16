@@ -261,7 +261,7 @@ export class SkillsService {
     const needsHermesKeys = Object.keys(HERMES_KEY_INTEGRATIONS).some((id) => integrationIds.has(id)) || integrationIds.has("hermes_teams_meeting_pipeline");
     const needsVault = integrationIds.has("obsidian") || integrationIds.has("hermes_obsidian");
     const needsWiki = integrationIds.has("hermes_llm_wiki");
-    const needsHimalaya = integrationIds.has("hermes_himalaya");
+    const needsHimalaya = integrationIds.has("hermes_himalaya") || integrationIds.has("imap_smtp_mail");
     const needsCodingCli = Object.keys(CODING_CLI_INTEGRATIONS).some((id) => integrationIds.has(id));
     let localCalendar: boolean | null = null;
     if (integrationIds.has("friday_local_calendar") && this.localCalendarStatus) {
@@ -295,7 +295,7 @@ export class SkillsService {
         configured: vault ? vault.configured && vault.readable : null };
       if (detail.id === "hermes_llm_wiki") return { ...detail,
         configured: wiki ? wiki.configured && wiki.readable : null };
-      if (detail.id === "hermes_himalaya") return { ...detail,
+      if (detail.id === "hermes_himalaya" || detail.id === "imap_smtp_mail") return { ...detail,
         configured: himalaya ? himalaya.readyForLocalUse : null };
       const cli = CODING_CLI_INTEGRATIONS[detail.id as keyof typeof CODING_CLI_INTEGRATIONS];
       if (cli) {
