@@ -18,6 +18,12 @@ Status: 2026-10-16, post-release improvement phase. This tracks the acceptance c
 
 The public beta release is valid for the working core. The original full onboarding/integration objective remains active until the partial and incomplete rows have adequate implementation and evidence. Paid media generation, account credentials, calling and external publishing are excluded from acceptance probes unless explicitly needed and authorized.
 
+## PowerPoint action in the installed beta (2026-10-16)
+
+- The owner can select the enabled Hermes PowerPoint skill, enter a title and slide bullets, and create a PPTX through Hermes' bundled `pptx_create.py`. The API requires owner access, CSRF, and a fresh observation that the skill is enabled. Generated files are private, have a protected download route, and are pruned after seven days or when the bounded file budget is reached.
+- A real Friday-Ubuntu runner probe created a valid PPTX. After the D: dashboard update, an authenticated owner browser action created a 29,136-byte PPTX; the protected download returned HTTP 200, the PowerPoint MIME type, `Cache-Control: no-store`, an attachment name and ZIP/PPTX bytes. A catalog refresh during the request initially hid the download link; the UI now keeps the form and link mounted while creation is temporarily disabled on stale activation data. This final UI adjustment still needs its deployed browser recheck.
+- This proves one local PowerPoint creation path. It does not prove every Hermes presentation action, a user-authored deck, or spoken creation.
+
 ## Owner browser and account setup (2026-10-16)
 
 - In the installed D: dashboard, an authenticated owner session showed 158 Skills (105 Friday, 53 Hermes). The Friday phone coordinator's telephony link opened Settings > Skill-Konten with the `telephony` integration selected, its setup requirements visible, and no installed dial adapter claimed. Other integrations now use the same contextual fallback when no direct setup form exists; existing forms remain linked directly. Three focused frontend test files passed 13/13 tests and Web typecheck passed.
