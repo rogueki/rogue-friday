@@ -433,6 +433,63 @@ describe("skills and resumable onboarding", () => {
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 
+  it("reports SIP and CloudTalk API setup independently without claiming a provider connection", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "friday-phone-skill-status-"));
+    try {
+      writeFileSync(join(dir, "skills.json"), JSON.stringify({ skills: [{ name: "friday-phone-call-coordinator" }] }));
+      writeFileSync(join(dir, "integration_setup.json"), JSON.stringify({ schema_version: 1, inventory_count: 1,
+        integrations: { telephony: { account: "required" }, cloudtalk_api: { account: "conditional" } },
+        skills: { "friday-phone-call-coordinator": { required_integrations: ["telephony"], conditional_integrations: ["cloudtalk_api"] } },
+      }));
+      let sipConfigured = false;
+      let sipReady = false;
+      let cloudTalkConfigured = false;
+      let agentId: number | null = null;
+      let failSip = false;
+      let failCloudTalk = false;
+      const service = new SkillsService({ catalogPath: join(dir, "integration_setup.json"),
+        telephonyStatus: async () => { if (failSip) throw new Error("SIP unavailable");
+          return { configured: sipConfigured, ready: sipReady }; },
+        cloudTalkStatus: () => { if (failCloudTalk) throw new Error("CloudTalk profile unavailable");
+          return { configured: cloudTalkConfigured, agentId }; },
+      });
+      const details = async () => (await service.list()).skills[0]?.integrationDetails;
+      expect(await details()).toMatchObject([
+        { id: "telephony", configured: false, connectionChecked: null },
+        { id: "cloudtalk_api", configured: false, connectionChecked: null },
+      ]);
+      cloudTalkConfigured = true;
+      expect((await details())?.[1]).toMatchObject({ configured: false, connectionChecked: null });
+      agentId = 42;
+      expect((await details())?.[1]).toMatchObject({ configured: true, connectionChecked: null });
+      expect((await details())?.[0]).toMatchObject({ configured: false, connectionChecked: null });
+      sipConfigured = true;
+      cloudTalkConfigured = false;
+      expect(await details()).toMatchObject([
+        { configured: true, connectionChecked: null }, { configured: false, connectionChecked: null },
+      ]);
+      sipReady = true;
+      expect((await details())?.[0]).toMatchObject({ configured: true, connectionChecked: null });
+      failSip = true;
+      failCloudTalk = true;
+      expect(await details()).toMatchObject([
+        { configured: null, connectionChecked: null }, { configured: null, connectionChecked: null },
+      ]);
+
+      const localApi = await startTestApi({ env: { FRIDAY_SKILLS_CATALOG_PATH: join(dir, "integration_setup.json") } });
+      try {
+        const owner = localApi.client(); await owner.loginDev("owner");
+        const listed = async () => (await owner.get("/api/v1/skills")).json().data[0].integrationDetails;
+        expect(await listed()).toMatchObject([
+          { configured: null, connectionChecked: null }, { configured: false, connectionChecked: null },
+        ]);
+        const realStatus = localApi.runtime.cloudtalk.status.bind(localApi.runtime.cloudtalk);
+        localApi.runtime.cloudtalk.status = () => ({ ...realStatus(), configured: true, agentId: 42 });
+        expect((await listed())?.[1]).toMatchObject({ configured: true, connectionChecked: null });
+      } finally { await localApi.close(); }
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
   const realCatalog = resolve(process.cwd(), "..", "..", "Skills", "registry", "integration_setup.json");
   it.runIf(existsSync(realCatalog))("loads every skill from the packaged registry", async () => {
     const result = await new SkillsService({ catalogPath: realCatalog }).list();
