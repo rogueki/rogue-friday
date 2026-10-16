@@ -1940,6 +1940,7 @@ Friday-Skills: $(if (IsDone 'skills') { "Registry validiert, Commit $($State.ski
 Erste Einrichtung: Im Command Center Besitzerkonto anlegen oder anmelden. Bei einem neuen Besitzer startet dort die fortsetzbare Einführung mit Profil, Friday- und Hermes-Skills sowie Konto-Voraussetzungen. Ein Skill ist erst nutzbar, wenn Hermes und die nötigen Integrationen ihn tatsächlich bereitstellen.
 WSL-Voraussetzungen (Fund, keine Funktionsprobe): $($readiness -replace "`n", '; ')
 Obsidian-Vault: $vaultStatus
+Optionale Coding-CLIs: Im Installerordner setup-coding-cli.ps1 -Cli opencode|codex|claude ausfuehren; jede CLI wird nur auf ausdrueckliche Auswahl nativ in WSL installiert. Eine Versionspruefung belegt weder Anmeldung noch einen erfolgreichen Coding-Auftrag.
 Erledigte Schritte: $(@($State.done) -join ', ')
 "@
 [IO.File]::WriteAllText("$Root\INSTALL_STATE.md", $report, (New-Object Text.UTF8Encoding $false))
@@ -1953,6 +1954,7 @@ else { Warn "Command Center nicht erreichbar ($DashUrl) - Logs: $Root\logs\dashb
 Info "Hermes-Dashboard (Kanban, Einstellungen): http://127.0.0.1:$($Ports.Dashboard)"
 Info 'Alles startet ab jetzt automatisch bei der Anmeldung.'
 if ($DashProbe.Up) { Info 'Erste Einrichtung: Command Center öffnen, Besitzerkonto anlegen/anmelden und die Einführung durchlaufen. Friday zeigt dort Skills und noch fehlende Konten.' }
+Info 'Optionale native Coding-CLI: installer\setup-coding-cli.ps1 -Cli opencode|codex|claude (einzeln, nach Bedarf).'
 Info 'Nächste Schritte (Telegram, E-Mail, Kalender): siehe ANLEITUNG.md'
 if (-not $CustomRoot) { Show-MigrationSummary }
 if ($DashProbe.Up -and (YesNo 'Command Center jetzt im Browser öffnen?')) { Start-Process $DashUrl }
