@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/coding-voice-repository-patch.schema.json",
+  "title": "CodingVoiceRepositoryPatch",
+  "type": "object",
+  "properties": {
+    "alias": { "type": "string", "minLength": 2, "maxLength": 32 },
+    "repository": { "type": "string", "minLength": 4, "maxLength": 1024 }
+  },
+  "required": ["alias", "repository"],
+  "additionalProperties": false
+}

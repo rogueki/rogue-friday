@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { FridayConfig } from "@friday/config";
 import type { SkillsService } from "../src/services/skills";
 import { CodingRunsService } from "../src/services/coding-runs";
+import { validationFailed } from "../src/util/errors";
 import { startTestApi } from "./helpers";
 
 const runId = `run_${"a".repeat(32)}`;
@@ -79,6 +80,39 @@ describe("CodingRunsService", () => {
       expect(start).toHaveBeenCalledTimes(1);
       expect((await owner.get(`/api/v1/coding-runs/${runId}`)).json().data.output).toBe("Done");
       expect((await owner.post(`/api/v1/coding-runs/${runId}/stop`)).json().data.status).toBe("stopping");
+    } finally { await api.close(); }
+  });
+  it("binds voice runs to the owner-approved alias and revision", async () => {
+    const api = await startTestApi();
+    try {
+      const owner = api.client(); await owner.loginDev("owner");
+      const voice = api.client();
+      const bridge = { authorization: `Bearer ${api.runtime.voiceBridgeKey.toString("base64")}` };
+      const path = "/api/v1/coding-runs/voice-repository";
+      const body = { alias: "Mein Projekt", repository: "C:\\Users\\Test\\repo" };
+      const canonical = vi.spyOn(api.runtime.codingRuns, "canonicalRepository").mockReturnValue(body.repository);
+      const prepare = vi.spyOn(api.runtime.codingRuns, "prepareVoiceRepository").mockResolvedValue(body.repository);
+      expect((await owner.request("PUT", path, { body, headers: { "if-match": "0" }, csrf: false })).statusCode).toBe(403);
+      expect((await owner.request("PUT", path, { body })).statusCode).toBe(422);
+      expect((await voice.request("PUT", path, { body, headers: { ...bridge, "if-match": "0" } })).statusCode).toBe(401);
+      prepare.mockRejectedValueOnce(validationFailed("Das Repository ist für Linux-Git in Friday-Ubuntu nicht lesbar."));
+      expect((await owner.request("PUT", path, { body, headers: { "if-match": "0" } })).statusCode).toBe(422);
+      expect((await owner.get(path)).json().data.revision).toBe(0);
+      expect((await owner.request("PUT", path, { body, headers: { "if-match": "0" } })).statusCode).toBe(200);
+      expect((await owner.request("PUT", path, { body, headers: { "if-match": "0" } })).statusCode).toBe(409);
+      expect((await voice.request("GET", path, { headers: bridge })).json().data).toMatchObject({ alias: body.alias, revision: 1 });
+      const request = { alias: body.alias, revision: 1, cli: "codex", task: "Update the README safely" };
+      const route = "/api/v1/coding-runs/voice";
+      const headers = { ...bridge, "idempotency-key": "voice-coding-test-1" };
+      const start = vi.spyOn(api.runtime.codingRuns, "start").mockResolvedValue({ runId, status: "queued", requestedCli: "codex", requestedWorkdir: "/mnt/c/repo", preflightVersion: "fake", executionVerified: false, output: null, error: null, updatedAt: null });
+      expect((await voice.request("POST", route, { body: request, headers: { "idempotency-key": "voice-coding-test-1" } })).statusCode).toBe(401);
+      expect((await voice.request("POST", route, { body: { ...request, alias: "Wrong" }, headers })).statusCode).toBe(409);
+      expect((await voice.request("POST", route, { body: { ...request, revision: 0 }, headers })).statusCode).toBe(422);
+      expect((await voice.request("POST", route, { body: request, headers })).statusCode).toBe(202);
+      expect((await voice.request("POST", route, { body: request, headers })).statusCode).toBe(202);
+      expect(start).toHaveBeenCalledTimes(1);
+      expect(start).toHaveBeenCalledWith({ cli: "codex", repository: body.repository, task: request.task }, expect.stringMatching(/^idem_[A-F0-9]{26}$/));
+      expect(canonical).toHaveBeenCalled();
     } finally { await api.close(); }
   });
 });

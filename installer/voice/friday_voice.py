@@ -45,6 +45,7 @@ import torch  # noqa: E402
 import personal_wake  # noqa: E402
 from content_studio_voice import ContentStudioVoice  # noqa: E402
 from skills_onboarding_voice import SkillsOnboardingVoice  # noqa: E402
+from coding_voice import CodingVoice  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
 
 SR = 16000
@@ -404,6 +405,7 @@ class VoiceService:
         self.history: list[dict] = []
         self.hermes_key = open(cfg["hermes_key_file"], encoding="utf-8").read().strip()
         self.content_studio_voice = ContentStudioVoice(INSTALL_ROOT)
+        self.coding_voice = CodingVoice(INSTALL_ROOT)
         self.skills_onboarding_voice = SkillsOnboardingVoice(
             INSTALL_ROOT, pending_seconds=cfg.get("followup_window_s", 15))
 
@@ -604,6 +606,13 @@ class VoiceService:
             offer = self.skills_onboarding_voice.offer_first_use()
             return answer if not offer else answer + " " + offer
 
+        coding_answer = self.coding_voice.handle(text)
+        if coding_answer is not None:
+            self.status["commands"] += 1
+            log_event(event="coding_voice_command", speaker_score=round(score, 3), success=True)
+            self.tts.say(coding_answer)
+            self.history += [{"role": "user", "content": text}, {"role": "assistant", "content": coding_answer}]
+            return
         studio_answer = self.content_studio_voice.handle(text)
         if studio_answer is not None:
             self.status["commands"] += 1
@@ -793,6 +802,7 @@ class VoiceService:
                 if audio is not None:
                     self._handle_command(audio, wake_audio)
                 continue
+            self.coding_voice.arm_confirmation()
             # Berechnung und TTS duerfen die Folgefragezeit nicht aufbrauchen.
             self.trusted_until = time.monotonic() + cfg["followup_window_s"]
             self.status["state"] = "followup"

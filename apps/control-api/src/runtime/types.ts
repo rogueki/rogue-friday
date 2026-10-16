@@ -21,6 +21,7 @@ import type { SkillsService } from "../services/skills";
 import type { OnboardingService } from "../services/onboarding";
 import type { ObsidianVaultService } from "../services/obsidian-vault";
 import type { CodingRunsService } from "../services/coding-runs";
+import type { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
 import type { FrontendTelemetryService } from "../services/telemetry";
 import type { AdapterWiring } from "./adapter-wiring";
 
@@ -67,6 +68,7 @@ export interface Runtime {
   onboarding: OnboardingService;
   obsidianVault: ObsidianVaultService;
   codingRuns: CodingRunsService;
+  codingVoiceRepository: CodingVoiceRepositoryService;
   adapterSettings: AdapterSettingsService;
   status: StatusService;
   orb: OrbService;

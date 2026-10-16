@@ -4506,6 +4506,73 @@ paths:
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/coding-runs/voice-repository:
+    get:
+      operationId: getCodingVoiceRepository
+      tags: [skills]
+      summary: Read the owner-selected repository alias for verified voice coding
+      responses:
+        "200":
+          description: Current alias and canonical repository
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodingVoiceRepositoryResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-capability: meta.read
+      x-required-role: owner
+    put:
+      operationId: putCodingVoiceRepository
+      tags: [skills]
+      summary: Save one owner-selected repository alias
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CodingVoiceRepositoryPatch"
+      responses:
+        "200":
+          description: Saved alias
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodingVoiceRepositoryResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/coding-runs/voice:
+    post:
+      operationId: createVoiceCodingRun
+      tags: [skills]
+      summary: Start a confirmed voice coding task in the saved repository alias
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceCodingRunRequest"
+      responses:
+        "202":
+          description: Native CLI run accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodingRunResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/coding-runs/{runId}:
     get:
       operationId: getCodingRun
@@ -6106,6 +6173,14 @@ components:
       $ref: ../schemas/skills/catalog-response.schema.json
     CodingRunRequest:
       $ref: ../schemas/skills/coding-run-request.schema.json
+    CodingVoiceRepository:
+      $ref: ../schemas/skills/coding-voice-repository.schema.json
+    CodingVoiceRepositoryPatch:
+      $ref: ../schemas/skills/coding-voice-repository-patch.schema.json
+    CodingVoiceRepositoryResponse:
+      $ref: ../schemas/skills/coding-voice-repository-response.schema.json
+    VoiceCodingRunRequest:
+      $ref: ../schemas/skills/voice-coding-run-request.schema.json
     CodingRun:
       $ref: ../schemas/skills/coding-run.schema.json
     CodingRunResponse:

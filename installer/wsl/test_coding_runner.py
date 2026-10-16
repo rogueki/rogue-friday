@@ -46,6 +46,7 @@ if 'STOP' in task:
         env = os.environ.copy()
         env.update(FRIDAY_CODING_TEST_MODE="1", FRIDAY_CODING_TEST_BIN_DIR=str(binaries),
                    FRIDAY_CODING_RUN_DIR=str(root / "runs"))
+        assert call(env, "repository", str(repo))["workdir"] == str(repo)
         version = call(env, "probe", "codex", str(repo))
         assert version["version"] == "fake-codex 1.0"
         first = call(env, "start", "codex", str(repo), "idem_" + "A" * 26, task="Change this synthetic repo")

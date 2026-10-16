@@ -700,6 +700,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/coding-runs/voice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a confirmed voice coding task in the saved repository alias */
+        post: operations["createVoiceCodingRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/coding-runs/voice-repository": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the owner-selected repository alias for verified voice coding */
+        get: operations["getCodingVoiceRepository"];
+        /** Save one owner-selected repository alias */
+        put: operations["putCodingVoiceRepository"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/commands": {
         parameters: {
             query?: never;
@@ -3538,6 +3573,23 @@ export interface components {
             data: components["schemas"]["CodingRun"];
             freshness: components["schemas"]["Freshness"];
         };
+        /** CodingVoiceRepository */
+        CodingVoiceRepository: {
+            alias: string;
+            repository: string;
+            revision: number;
+        };
+        /** CodingVoiceRepositoryPatch */
+        CodingVoiceRepositoryPatch: {
+            alias: string;
+            repository: string;
+        };
+        /** CodingVoiceRepositoryResponse */
+        CodingVoiceRepositoryResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["CodingVoiceRepository"];
+            freshness: components["schemas"]["Freshness"];
+        };
         /**
          * CommandControlRequest
          * @description Body of stop/pause/resume.
@@ -6006,6 +6058,14 @@ export interface components {
             stop: boolean;
             test: boolean;
         };
+        /** VoiceCodingRunRequest */
+        VoiceCodingRunRequest: {
+            alias: string;
+            /** @enum {string} */
+            cli: "auto" | "codex" | "opencode" | "claude-code";
+            revision: number;
+            task: string;
+        };
         /** VoiceDevice */
         VoiceDevice: {
             channels?: number;
@@ -8043,6 +8103,92 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createVoiceCodingRun: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceCodingRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Native CLI run accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodingRunResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getCodingVoiceRepository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current alias and canonical repository */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodingVoiceRepositoryResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    putCodingVoiceRepository: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodingVoiceRepositoryPatch"];
+            };
+        };
+        responses: {
+            /** @description Saved alias */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodingVoiceRepositoryResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
         };
     };
     executeCommand: {
