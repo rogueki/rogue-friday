@@ -26,6 +26,48 @@ def _words(value):
     return _normal(value).strip(" .!?,:;")
 
 
+def _skill_question(words):
+    patterns = (
+        r"^was kann (?:der |die |das )?(?:skill )?(.+)$",
+        r"^erklare (?:mir )?(?:den |die |das )?(?:skill )?(.+)$",
+        r"^braucht (?:der |die |das )?(?:skill )?(.+?) (?:ein konto|einen account|eine anmeldung)$",
+        r"^ist (?:der |die |das )?(?:skill )?(.+?) (?:aktiv|aktiviert|eingeschaltet)$",
+    )
+    for pattern in patterns:
+        match = re.fullmatch(pattern, words)
+        if match:
+            return match.group(1).strip()
+    return None
+
+
+def _spoken_field(value, limit=180):
+    if not isinstance(value, str):
+        return ""
+    value = " ".join(value.split())
+    if re.search(r"(?i)(?:api[_ -]?key|token|secret|passwort|password)\s*[:=]|bearer\s+\S+|https?://|[A-Za-z0-9_-]{32,}", value):
+        return ""
+    if len(value) > limit:
+        value = value[:limit].rsplit(" ", 1)[0].rstrip(" ,;:") + " …"
+    return value
+
+
+def _skill_match(skills, subject):
+    subject = re.sub(r"\s+", " ", subject).strip()
+    as_name = re.sub(r"[-_]+", " ", subject)
+    name_of = lambda skill: re.sub(r"[-_]+", " ", _words(skill["name"]))
+    exact = [skill for skill in skills if as_name == name_of(skill) or subject == _words(skill["id"])]
+    if exact:
+        return exact
+    # Match whole skill names only. Short generic names such as "mail" must not
+    # match a longer, unrelated phrase or another skill's name.
+    candidates = [skill for skill in skills if len(name_of(skill)) >= 5
+                  and re.search(r"(?<!\w)" + re.escape(name_of(skill)) + r"(?!\w)", as_name)]
+    if not candidates:
+        return []
+    longest = max(len(name_of(skill)) for skill in candidates)
+    return [skill for skill in candidates if len(name_of(skill)) == longest]
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, newurl):
         return None
@@ -194,6 +236,53 @@ class SkillsOnboardingVoice:
             return "Ich kann dich durch die Einrichtung führen. Der Skills-Katalog ist gerade leer oder nicht verfügbar."
         return "Ich kann dich durch die Einrichtung führen. Im Katalog stehen zum Beispiel " + ", ".join(names) + ". Frage mich, welche Skills aktiv sind."
 
+    def _skill_detail(self, subject):
+        catalog, error = self._safe_request("GET", "skills")
+        if error or not isinstance(catalog, dict) or not isinstance(catalog.get("data"), list):
+            return "Der Skills-Katalog ist gerade nicht erreichbar. Den Zustand dieses Skills kann ich nicht sicher nennen."
+        skills = [skill for skill in catalog["data"] if isinstance(skill, dict)
+                  and isinstance(skill.get("name"), str) and skill["name"]
+                  and isinstance(skill.get("id"), str) and skill["id"]]
+        matches = _skill_match(skills, subject)
+        if not matches:
+            return "Diesen Skill finde ich im aktuellen Katalog nicht. Nenne bitte den genauen Namen aus dem Skills-Menü."
+        if len(matches) > 1:
+            sources = ", ".join(_spoken_field(skill.get("source"), 20) or "unbekannt" for skill in matches[:3])
+            return f"Der Name ist mehrdeutig; ich sehe ihn bei {sources}. Nenne bitte die Skill-ID aus dem Skills-Menü."
+        skill = matches[0]
+        name = _spoken_field(skill["name"], 70) or "Dieser Skill"
+        description = _spoken_field(skill.get("description"))
+        answer = [f"{name}: {description}." if description else f"{name}: Eine sichere Kurzbeschreibung fehlt im Katalog."]
+        enabled = skill.get("enabled")
+        if enabled is True:
+            answer.append("Er wird aktuell als aktiviert angezeigt; das beweist noch keine erfolgreiche Ausführung.")
+        elif enabled is False:
+            answer.append("Er wird aktuell als deaktiviert angezeigt.")
+        else:
+            answer.append("Sein Aktivierungsstatus ist derzeit unbekannt.")
+        details = skill.get("integrationDetails")
+        accounts = [detail for detail in details if isinstance(detail, dict)
+                    and detail.get("account") in ("required", "conditional")
+                    and _spoken_field(detail.get("id"), 45)] if isinstance(details, list) else []
+        if accounts:
+            for detail in accounts[:2]:
+                account = _spoken_field(detail["id"], 45)
+                kind = "Ein Konto ist nötig" if detail["account"] == "required" else "Ein Konto kann je nach Nutzung nötig sein"
+                configured = detail.get("configured")
+                setup = "lokal vorhanden" if configured is True else "noch nicht eingerichtet" if configured is False else "Einrichtungsstand unbekannt"
+                checked = "Verbindung bestätigt" if detail.get("connectionChecked") is True else "Verbindung nicht bestätigt" if detail.get("connectionChecked") is False else "Verbindung nicht geprüft"
+                answer.append(f"{kind} für {account}: {setup}; {checked}.")
+            if len(accounts) > 2:
+                answer.append(f"{len(accounts) - 2} weitere Voraussetzungen stehen im Skills-Menü.")
+            answer.append("Den passenden Einrichtungsweg findest du im Skills-Menü und gegebenenfalls unter Einstellungen.")
+        elif isinstance(details, list) and not details:
+            answer.append("Im Katalog ist kein Konto verzeichnet; lokale Programme können trotzdem nötig sein.")
+        elif isinstance(details, list) and all(isinstance(detail, dict) and detail.get("account") == "none" for detail in details):
+            answer.append("Laut Katalog ist kein externes Konto erforderlich; lokale Programme können trotzdem nötig sein.")
+        else:
+            answer.append("Ob ein Konto nötig ist, ist im Katalog derzeit unbekannt.")
+        return " ".join(answer)
+
     def handle(self, text):
         words = _words(text)
         if self.pending and self.now() > self.pending["expires"]:
@@ -217,6 +306,9 @@ class SkillsOnboardingVoice:
             return self._status()
         if re.search(r"\bwas kannst du\b|\bwelche skills? (hast|gibt)\b", words):
             return self._capabilities()
+        subject = _skill_question(words)
+        if subject:
+            return self._skill_detail(subject)
         if re.search(r"\b(einrichtung|onboarding|skills? einrichten)\b.*\b(starten|fortsetzen|weitermachen|beginnen)\b", words):
             self.pending = None
             state, error = self._safe_request("GET", "onboarding")
