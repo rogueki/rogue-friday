@@ -857,6 +857,7 @@ if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_mode -notin @('loc
     $State.voice_mode = $newMode
     if ($newMode -eq 'elevenlabs') {
         Info 'ElevenLabs Voice ID: Standardstimme oder eigene Voice ID aus deinem ElevenLabs-Konto.'
+        Warn 'Die Standardstimme ist eine Bibliotheksstimme. ElevenLabs sperrt deren API-Nutzung im Free-Tarif; dafuer ist ein geeigneter Tarif erforderlich.'
         $voiceId = (Read-Host '  Voice ID (leer = Standardstimme)').Trim()
         if (-not $voiceId) { $voiceId = if ($State.elevenlabs_voice_id) { $State.elevenlabs_voice_id } else { '21m00Tcm4TlvDq8ikWAM' } }
         if ($voiceId -notmatch '^[A-Za-z0-9]{10,64}$') { Stop-Install 'ElevenLabs Voice ID ist ungueltig.' }
