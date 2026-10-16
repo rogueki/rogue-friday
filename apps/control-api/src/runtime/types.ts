@@ -22,6 +22,7 @@ import type { OnboardingService } from "../services/onboarding";
 import type { ObsidianVaultService } from "../services/obsidian-vault";
 import type { WikiPathService } from "../services/wiki-path";
 import type { HimalayaAccountService } from "../services/himalaya-account";
+import type { TelegramGatewayService } from "../services/telegram-gateway";
 import type { HimalayaSendService } from "../services/himalaya-send";
 import type { CalDavCreateService } from "../services/caldav-create";
 import type { HermesSkillKeysService } from "../services/hermes-skill-keys";
@@ -78,6 +79,7 @@ export interface Runtime {
   obsidianVault: ObsidianVaultService;
   wikiPath: WikiPathService;
   himalayaAccount: HimalayaAccountService;
+  telegramGateway: TelegramGatewayService;
   himalayaSend: HimalayaSendService;
   caldavCreate: CalDavCreateService;
   hermesSkillKeys: HermesSkillKeysService;

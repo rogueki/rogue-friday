@@ -18,6 +18,7 @@ describe("skill status presentation", () => {
     expect(internalSetupLink("/settings?area=adapters#calendar-setup-title")).toBe("/settings?area=adapters#calendar-setup-title");
     expect(internalSetupLink("Friday Dashboard > Einstellungen > Adapter > CalDAV")).toBe("/settings?area=adapters#calendar-setup-title");
     expect(internalSetupLink("Friday Dashboard > Einstellungen > Skill-Konten > E-Mail")).toBe("/settings?area=skillAccounts#himalaya-account-title");
+    expect(internalSetupLink("Friday Dashboard > Einstellungen > Skill-Konten > Telegram")).toBe("/settings?area=skillAccounts#telegram-gateway-setup-title");
     expect(internalSetupLink("Hermes-Laufzeit: Coding-CLI und Provider-Anmeldung")).toBe("/settings?area=skillAccounts#coding-cli-setup-title");
     expect(internalSetupLink("Hermes-Einstellungen in Friday-Ubuntu")).toBe("/settings?area=skillAccounts");
     expect(internalSetupLink("Host: lokaler Editor")).toBeNull();

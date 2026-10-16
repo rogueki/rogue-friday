@@ -11,6 +11,7 @@ type HermesKeyFlags = Readonly<Record<"AIRTABLE_API_KEY" | "NOTION_API_KEY" | "T
 type VaultFlags = Readonly<{ configured: boolean; readable: boolean }>;
 type WikiFlags = Readonly<{ configured: boolean; readable: boolean }>;
 type HimalayaFlags = Readonly<{ readyForLocalUse: boolean }>;
+type TelegramFlags = Readonly<{ tokenConfigured: boolean; allowedUserIds: string[]; enabled: boolean | null }>;
 const HERMES_KEY_INTEGRATIONS = {
   hermes_airtable: "AIRTABLE_API_KEY", hermes_notion: "NOTION_API_KEY",
   hermes_gif_search: "TENOR_API_KEY", hermes_blocked_page_recovery: "JINA_API_KEY",
@@ -108,6 +109,7 @@ export class SkillsService {
   private readonly obsidianVaultStatus: (() => Promise<VaultFlags>) | undefined;
   private readonly wikiPathStatus: (() => Promise<WikiFlags>) | undefined;
   private readonly himalayaAccountStatus: (() => Promise<HimalayaFlags>) | undefined;
+  private readonly telegramGatewayStatus: (() => Promise<TelegramFlags>) | undefined;
   private readonly codingCliStatus: (() => Promise<CodingCliStatus[]>) | undefined;
   private readonly localCalendarStatus: (() => boolean) | undefined;
   private readonly calendarAdapterStatus: (() => AdapterConfigSettings[]) | undefined;
@@ -119,6 +121,7 @@ export class SkillsService {
     obsidianVaultStatus?: () => Promise<VaultFlags>;
     wikiPathStatus?: () => Promise<WikiFlags>;
     himalayaAccountStatus?: () => Promise<HimalayaFlags>;
+    telegramGatewayStatus?: () => Promise<TelegramFlags>;
     codingCliStatus?: () => Promise<CodingCliStatus[]>;
     localCalendarStatus?: () => boolean;
     calendarAdapterStatus?: () => AdapterConfigSettings[] }) {
@@ -129,6 +132,7 @@ export class SkillsService {
     this.obsidianVaultStatus = options.obsidianVaultStatus;
     this.wikiPathStatus = options.wikiPathStatus;
     this.himalayaAccountStatus = options.himalayaAccountStatus;
+    this.telegramGatewayStatus = options.telegramGatewayStatus;
     this.codingCliStatus = options.codingCliStatus;
     this.localCalendarStatus = options.localCalendarStatus;
     this.calendarAdapterStatus = options.calendarAdapterStatus;
@@ -262,6 +266,7 @@ export class SkillsService {
     const needsVault = integrationIds.has("obsidian") || integrationIds.has("hermes_obsidian");
     const needsWiki = integrationIds.has("hermes_llm_wiki");
     const needsHimalaya = integrationIds.has("hermes_himalaya") || integrationIds.has("imap_smtp_mail");
+    const needsTelegram = integrationIds.has("telegram_gateway");
     const needsCodingCli = Object.keys(CODING_CLI_INTEGRATIONS).some((id) => integrationIds.has(id));
     let localCalendar: boolean | null = null;
     if (integrationIds.has("friday_local_calendar") && this.localCalendarStatus) {
@@ -276,12 +281,13 @@ export class SkillsService {
           && adapter.secretFields.password?.configured);
       } catch { /* A failed adapter status read is unknown, not unconfigured. */ }
     }
-    const [hermesKeys, vault, wiki, himalaya, codingClis] = await Promise.all([
+    const [hermesKeys, vault, wiki, himalaya, codingClis, telegram] = await Promise.all([
       needsHermesKeys && this.hermesKeyStatus ? Promise.resolve().then(() => this.hermesKeyStatus!()).catch(() => null) : Promise.resolve(null),
       needsVault && this.obsidianVaultStatus ? Promise.resolve().then(() => this.obsidianVaultStatus!()).catch(() => null) : Promise.resolve(null),
       needsWiki && this.wikiPathStatus ? Promise.resolve().then(() => this.wikiPathStatus!()).catch(() => null) : Promise.resolve(null),
       needsHimalaya && this.himalayaAccountStatus ? Promise.resolve().then(() => this.himalayaAccountStatus!()).catch(() => null) : Promise.resolve(null),
       needsCodingCli && this.codingCliStatus ? Promise.resolve().then(() => this.codingCliStatus!()).catch(() => null) : Promise.resolve(null),
+      needsTelegram && this.telegramGatewayStatus ? Promise.resolve().then(() => this.telegramGatewayStatus!()).catch(() => null) : Promise.resolve(null),
     ]);
     for (const skill of skills) skill.integrationDetails = skill.integrationDetails.map((detail) => {
       if (detail.id === "friday_local_calendar") return { ...detail, configured: localCalendar };
@@ -297,6 +303,8 @@ export class SkillsService {
         configured: wiki ? wiki.configured && wiki.readable : null };
       if (detail.id === "hermes_himalaya" || detail.id === "imap_smtp_mail") return { ...detail,
         configured: himalaya ? himalaya.readyForLocalUse : null };
+      if (detail.id === "telegram_gateway") return { ...detail,
+        configured: telegram ? telegram.tokenConfigured && telegram.allowedUserIds.length > 0 && telegram.enabled === true : null };
       const cli = CODING_CLI_INTEGRATIONS[detail.id as keyof typeof CODING_CLI_INTEGRATIONS];
       if (cli) {
         const status = codingClis?.find((entry) => entry.cli === cli);

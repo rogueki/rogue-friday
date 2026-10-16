@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/telegram-gateway-patch.schema.json",
+  "title": "TelegramGatewayPatch",
+  "type": "object",
+  "properties": {
+    "token": { "type": "string", "maxLength": 128 },
+    "clearToken": { "type": "boolean" },
+    "allowedUserIds": { "type": "array", "maxItems": 10, "uniqueItems": true, "items": { "type": "string", "pattern": "^[1-9][0-9]{0,19}$" } },
+    "enabled": { "type": "boolean" }
+  },
+  "required": ["token", "clearToken", "allowedUserIds", "enabled"],
+  "additionalProperties": false
+}

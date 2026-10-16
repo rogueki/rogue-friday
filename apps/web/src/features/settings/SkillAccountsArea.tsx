@@ -12,6 +12,7 @@ import { useSkillsCatalog } from "@/lib/api/domains/skills";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { useSettingsDrafts } from "./SettingsDrafts";
 import { HimalayaAccountSetup } from "./HimalayaAccountSetup";
+import { TelegramGatewaySetup } from "./TelegramGatewaySetup";
 import "@/features/skills/skills.css";
 
 type Integration = SkillCatalogEntry["integrationDetails"][number] & { requiredBy: string[] };
@@ -291,6 +292,7 @@ export function SkillAccountsArea() {
       </> : <p>Nur der Owner kann den lokalen CLI-Status sehen.</p>}
     </section>
     <HimalayaAccountSetup owner={role === "owner"} />
+    <TelegramGatewaySetup owner={role === "owner"} />
     <section aria-labelledby="wiki-path-setup-title">
       <h3 id="wiki-path-setup-title">Lokales Markdown-Wiki für Hermes</h3>
       <p>Der Skill llm-wiki liest Markdown in Friday-Ubuntu. Ohne eigenen Pfad verwendet er <code>~/wiki</code>. Gib einen vorhandenen absoluten Linux-Pfad ein; ein Windows-Ordner liegt dort unter <code>/mnt/c/...</code>. Das separate Obsidian-Vault-Feld gilt nicht für diesen Skill. Obsidian Sync ist optional und erfordert obsidian-headless und <code>ob login</code>.</p>

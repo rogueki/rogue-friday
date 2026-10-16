@@ -35,6 +35,7 @@ import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
 import { WikiPathService } from "../services/wiki-path";
 import { HimalayaAccountService } from "../services/himalaya-account";
+import { TelegramGatewayService } from "../services/telegram-gateway";
 import { HimalayaSendService } from "../services/himalaya-send";
 import { CalDavCreateService } from "../services/caldav-create";
 import { LocalCalendarService } from "../services/local-calendar";
@@ -242,6 +243,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const obsidianVault = new ObsidianVaultService(config.paths.dataDir);
   const wikiPath = new WikiPathService(config.paths.dataDir);
   const himalayaAccount = new HimalayaAccountService(config.paths.dataDir);
+  const telegramGateway = new TelegramGatewayService(config.paths.dataDir);
   const himalayaSend = new HimalayaSendService(db, himalayaAccount);
   const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
@@ -254,6 +256,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     obsidianVaultStatus: () => obsidianVault.status(),
     wikiPathStatus: () => wikiPath.status(),
     himalayaAccountStatus: () => himalayaAccount.status(),
+    telegramGatewayStatus: () => telegramGateway.status(),
     codingCliStatus: () => codingRuns.cliStatus(),
     localCalendarStatus: () => { new LocalCalendarService(db).list(undefined, undefined, undefined, 1); return true; },
     calendarAdapterStatus: () => adapterSettings.list(),
@@ -444,6 +447,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     obsidianVault,
     wikiPath,
     himalayaAccount,
+    telegramGateway,
     himalayaSend,
     caldavCreate,
     hermesSkillKeys,
