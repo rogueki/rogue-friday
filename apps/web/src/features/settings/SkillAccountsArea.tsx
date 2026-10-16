@@ -66,6 +66,24 @@ const hermesLocations: Record<string, string> = {
 };
 
 export function accountSetupView(item: Integration, keys: KeyStatus, hermes: HermesStatus = undefined, cliStatuses: CliStatus[] = []): { href: string | null; action: string | null; state: string; location: string | null } {
+  if (item.id === "caldav") return {
+    href: "/settings?area=adapters#calendar-setup-title",
+    action: "Kalender im Dashboard einrichten",
+    state: "Zugang und Kalenderabfrage hier nicht geprüft; Skill-Adapter benötigt eigene Host-Bindung",
+    location: null,
+  };
+  if (item.id === "gmx") return {
+    href: "/settings?area=skillAccounts#himalaya-account-title",
+    action: "IMAP/SMTP-Postfach im Dashboard einrichten",
+    state: "Friday-Postfachstatus im Formular; GMX-Skill-Adapter separat und nicht geprüft",
+    location: null,
+  };
+  if (item.id === "coding_cli") return {
+    href: "/settings?area=skillAccounts#coding-cli-setup-title",
+    action: "Coding-CLI-Einrichtung ansehen",
+    state: "Installation, Anmeldung und Modellzugriff je CLI prüfen",
+    location: null,
+  };
   const cliIds = { hermes_codex: "codex", hermes_opencode: "opencode", hermes_claude_code: "claude-code" } as const;
   const cliId = Object.hasOwn(cliIds, item.id) ? cliIds[item.id as keyof typeof cliIds] : undefined;
   if (cliId) {
