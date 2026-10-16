@@ -20,7 +20,7 @@ Das separate Repository [friday-skills](https://github.com/rogueki/friday-skills
 
 ## Was die Bereiche bedeuten
 
-Das Dashboard bündelt Übersicht, Aufgaben, Aktivität, Agenten, Freigaben, Gedächtnis, Benachrichtigungen, Kommunikation, Kalender, Automationen, Recherche, Dateien, Sprache, Systemstatus und Audit. Die Oberfläche soll zeigen, woher Daten kommen und ob ein Adapter eine Aktion tatsächlich unterstützt. Im Installer-Standardmodus sind Aufgaben, Aktivität und Agenten für Hermes vorgesehen; Stimme und Systemstatus kommen von lokalen Diensten. Kommunikation bleibt in der Dashboard-Ansicht simuliert; der Kalender kann nach ausdrücklicher Einrichtung einen echten lesenden ICS-Feed anzeigen.
+Das Dashboard bündelt Übersicht, Aufgaben, Aktivität, Agenten, Freigaben, Gedächtnis, Benachrichtigungen, Kommunikation, Kalender, Automationen, Recherche, Dateien, Sprache, Systemstatus und Audit. Die Oberfläche soll zeigen, woher Daten kommen und ob ein Adapter eine Aktion tatsächlich unterstützt. Im Installer-Standardmodus sind Aufgaben, Aktivität und Agenten für Hermes vorgesehen; Stimme und Systemstatus kommen von lokalen Diensten. In Kommunikation kann der Besitzer ein gesondertes Live-Postfach ausdrücklich öffnen und Textmails nach Vorschau senden; die übrige Ansicht verwendet weiterhin einen Platzhalteradapter. Der Kalender kann nach ausdrücklicher Einrichtung einen echten lesenden ICS- oder CalDAV-Zugang anzeigen.
 
 Der Orb visualisiert den Zustand des Assistenten. Die Stimme und Wake-Word-Erkennung richten sich nach den Installer-Einstellungen. Das lokale Dashboard ist kein eigenständiger Ersatz für Hermes, Kimi oder weitere Anbieterzugänge.
 
