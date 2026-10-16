@@ -39,6 +39,7 @@ export class HealthMonitor {
   private cancelTimer: (() => void) | undefined;
   private running = false;
   private inFlight: Promise<AdapterHealth> | undefined;
+  private inFlightForceRefresh = false;
   private lastEmittedKey: string | undefined;
   private lastCapabilities: string | undefined;
 
@@ -83,12 +84,22 @@ export class HealthMonitor {
     this.cancelTimer = undefined;
   }
 
-  /** Runs one check now (shares the in-flight check if one is running). */
-  checkNow(): Promise<AdapterHealth> {
-    this.inFlight ??= this.runCheck().finally(() => {
-      this.inFlight = undefined;
+  /** Normal checks share an in-flight probe; an explicit refresh waits for a normal probe, then checks again. */
+  checkNow(options: { forceRefresh?: boolean } = {}): Promise<AdapterHealth> {
+    if (this.inFlight && (!options.forceRefresh || this.inFlightForceRefresh)) return this.inFlight;
+    const previous = this.inFlight;
+    const check = previous
+      ? previous.then(() => this.runCheck(options), () => this.runCheck(options))
+      : this.runCheck(options);
+    const tracked = check.finally(() => {
+      if (this.inFlight === tracked) {
+        this.inFlight = undefined;
+        this.inFlightForceRefresh = false;
+      }
     });
-    return this.inFlight;
+    this.inFlight = tracked;
+    this.inFlightForceRefresh = options.forceRefresh === true;
+    return tracked;
   }
 
   private schedule(): void {
@@ -104,13 +115,13 @@ export class HealthMonitor {
     }, this.intervalMs);
   }
 
-  private async runCheck(): Promise<AdapterHealth> {
+  private async runCheck(options: { forceRefresh?: boolean } = {}): Promise<AdapterHealth> {
     const { lifecycle, clock, adapter } = this.options;
     const before = lifecycle.state;
     if (before === "UNREGISTERED" || before === "STOPPING" || before === "STOPPED") return this.snapshot();
     if (before === "OFFLINE") lifecycle.transition("RECOVERING", "health probe");
 
-    const report = await this.probe(adapter);
+    const report = await this.probe(adapter, options);
     this.checkedAt = toIso(clock);
     this.latencyMs = report.latencyMs;
 
@@ -150,10 +161,10 @@ export class HealthMonitor {
     return this.snapshot();
   }
 
-  private async probe(adapter: Pick<FridayAdapter, "healthCheck">): Promise<AdapterHealthReport> {
+  private async probe(adapter: Pick<FridayAdapter, "healthCheck">, options: { forceRefresh?: boolean }): Promise<AdapterHealthReport> {
     const started = this.options.clock.now();
     try {
-      const report = await withTimeout(() => adapter.healthCheck(), {
+      const report = await withTimeout((signal) => adapter.healthCheck({ ...options, signal }), {
         timeoutMs: this.checkTimeoutMs,
         clock: this.options.clock,
         operation: "healthCheck",

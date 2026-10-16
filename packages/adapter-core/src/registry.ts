@@ -563,8 +563,8 @@ export class AdapterRegistry {
     return runtime.monitor.snapshot();
   }
 
-  /** Forces a health check (used by "Verbindung testen"). */
-  async checkHealth(adapterId: string): Promise<AdapterHealth> {
+  /** Runs a health check; an explicit refresh bypasses adapter caches for "Verbindung testen". */
+  async checkHealth(adapterId: string, options?: { forceRefresh?: boolean }): Promise<AdapterHealth> {
     const runtime = this.findByAdapterId(adapterId);
     if (!runtime)
       throw new AdapterError({
@@ -572,7 +572,7 @@ export class AdapterRegistry {
         message: `Adapter '${adapterId}' ist nicht geladen.`,
         retryable: false,
       });
-    return runtime.monitor.checkNow();
+    return runtime.monitor.checkNow(options);
   }
 
   /** Capability document of PLAN §9.2. Only adapters that currently serve (ONLINE/DEGRADED) contribute. */

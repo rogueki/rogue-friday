@@ -194,7 +194,7 @@ export class AdapterSettingsService {
       this.lastTests.set(adapterId, { at: testedAt, success: false });
       return { adapterId, success: false, latencyMs: null, message: "Adapter ist deaktiviert.", testedAt, correlationId };
     }
-    const health = await this.wiring.registry.checkHealth(adapterId);
+    const health = await this.wiring.registry.checkHealth(adapterId, { forceRefresh: true });
     const success = health.status === "online";
     this.lastTests.set(adapterId, { at: testedAt, success });
     return {

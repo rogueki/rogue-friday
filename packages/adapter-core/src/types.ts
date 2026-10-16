@@ -65,7 +65,7 @@ export interface FridayAdapter {
   readonly manifest: AdapterManifest;
   initialize(context: AdapterContext): Promise<void>;
   /** Must never throw: an unreachable upstream is reported as `status: "offline"`. */
-  healthCheck(): Promise<AdapterHealthReport>;
+  healthCheck(options?: { forceRefresh?: boolean; signal?: AbortSignal }): Promise<AdapterHealthReport>;
   getCapabilities(): Promise<CapabilitySet>;
   /** Releases timers, sockets and subscriptions. Port calls afterwards fail with ADAPTER_UNAVAILABLE. */
   shutdown(): Promise<void>;

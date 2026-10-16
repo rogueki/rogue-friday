@@ -179,7 +179,9 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
       setCalendarUsername("");
       setCalendarPassword("");
       onSelect(response.data.adapterId);
-      setCalendarMessage("Kalenderzugang verschluesselt gespeichert. Die Verbindung ist erst nach einem erfolgreichen Test verifiziert; Friday liest Termine nur.");
+      setCalendarMessage(calendarMode === "caldav"
+        ? "CalDAV-Zugang verschluesselt gespeichert. Verbindung separat testen. Friday kann nach ausdruecklicher Bestaetigung Termine anlegen, sofern der Anbieter Schreibzugriff erlaubt."
+        : "ICS-Zugang verschluesselt gespeichert. Verbindung separat testen. Friday liest diesen Kalender nur.");
     } catch (error) {
       setCalendarMessage(error instanceof Error ? error.message : "Kalender-Feed konnte nicht gespeichert werden.");
     }
