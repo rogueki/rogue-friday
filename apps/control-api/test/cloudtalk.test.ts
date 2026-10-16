@@ -9,6 +9,7 @@ describe("CloudTalk API call safeguards", () => {
   it("encrypts credentials and journals before a single external POST", async () => {
     const db = openDatabase(":memory:");
     const request = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      expect(_url).toBe("https://api.cloudtalk.io/api/calls/create.json");
       expect(db.prepare("SELECT state FROM cloudtalk_calls").get()).toMatchObject({ state: "pending" });
       expect(init?.method).toBe("POST");
       expect(init?.redirect).toBe("error");

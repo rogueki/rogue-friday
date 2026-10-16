@@ -115,7 +115,7 @@ export class CloudTalkService {
     let providerStatus: number | null = null;
     try {
       const basic = Buffer.from(`${profile.accessKeyId}:${profile.accessKeySecret}`).toString("base64");
-      const response = await this.request("https://my.cloudtalk.io/api/calls/create.json", {
+      const response = await this.request("https://api.cloudtalk.io/api/calls/create.json", {
         method: "POST", headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/json", Accept: "application/json", "User-Agent": "Friday/1.0" },
         body: JSON.stringify({ agent_id: profile.agentId, callee_number: destination }), signal: AbortSignal.timeout(12000), redirect: "error",
       });
