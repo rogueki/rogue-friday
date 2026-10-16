@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/hermes-skill-key-patch.schema.json",
+  "title": "HermesSkillKeyPatch",
+  "type": "object",
+  "properties": {
+    "key": { "type": "string", "enum": ["AIRTABLE_API_KEY", "NOTION_API_KEY", "TENOR_API_KEY", "JINA_API_KEY"] },
+    "value": { "type": "string", "maxLength": 2048 }
+  },
+  "required": ["key", "value"],
+  "additionalProperties": false
+}

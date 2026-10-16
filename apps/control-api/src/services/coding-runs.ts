@@ -30,15 +30,15 @@ export interface CodingRun {
   updatedAt: number | null;
 }
 
-export type RunnerInvoker = (script: string, distro: string, user: string, args: string[], input?: string) => Promise<Record<string, unknown>>;
+export type RunnerInvoker = (script: string, distro: string, user: string, args: string[], input?: string, timeoutMs?: number) => Promise<Record<string, unknown>>;
 
 /** One short WSL operation. Jobs themselves live in a bounded Linux process group outside this request. */
-export async function invokeCodingRunner(script: string, distro: string, user: string, args: string[], input?: string): Promise<Record<string, unknown>> {
+export async function invokeCodingRunner(script: string, distro: string, user: string, args: string[], input?: string, timeoutMs = 20000): Promise<Record<string, unknown>> {
   return new Promise((resolveResult, reject) => {
     const child = spawn("wsl.exe", ["-d", distro, "-u", user, "--exec", "python3", script, ...args], { windowsHide: true, stdio: ["pipe", "pipe", "pipe"], shell: false });
     let stdout = "";
     let stderr = "";
-    const timer = setTimeout(() => child.kill(), 20000);
+    const timer = setTimeout(() => child.kill(), timeoutMs);
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk: string) => { stdout += chunk; if (stdout.length > 20000) child.kill(); });

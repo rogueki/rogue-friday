@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentStudioKeysResponse, ObsidianVaultResponse, SkillCatalogEntry } from "@friday/sdk";
+import type { ContentStudioKeysResponse, HermesSkillKeysResponse, ObsidianVaultResponse, SkillCatalogEntry } from "@friday/sdk";
 import { ErrorState, Skeleton } from "@friday/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -13,8 +13,20 @@ import "@/features/skills/skills.css";
 
 type Integration = SkillCatalogEntry["integrationDetails"][number] & { requiredBy: string[] };
 type KeyStatus = ContentStudioKeysResponse["data"] | undefined;
+type HermesStatus = HermesSkillKeysResponse["data"] | undefined;
 
 const studioProviders = { kie_ai: "kie", elevenlabs: "elevenlabs" } as const;
+const hermesIntegrationKeys = {
+  hermes_airtable: "AIRTABLE_API_KEY", hermes_notion: "NOTION_API_KEY",
+  hermes_gif_search: "TENOR_API_KEY", hermes_blocked_page_recovery: "JINA_API_KEY",
+} as const;
+const hermesKeyLabels = {
+  AIRTABLE_API_KEY: "Airtable",
+  NOTION_API_KEY: "Notion",
+  TENOR_API_KEY: "Tenor (GIF-Suche)",
+  JINA_API_KEY: "Jina (optionale Seitenwiederherstellung)",
+} as const;
+type HermesKey = keyof typeof hermesKeyLabels;
 
 // These paths belong to Hermes running as the Friday-Ubuntu user, not to the browser or Friday's encrypted key store.
 const hermesLocations: Record<string, string> = {
@@ -35,12 +47,19 @@ const hermesLocations: Record<string, string> = {
   hermes_claude_code: "Friday-Ubuntu: claude auth status und Anbieter-Anmeldung",
 };
 
-export function accountSetupView(item: Integration, keys: KeyStatus): { href: string | null; action: string | null; state: string; location: string | null } {
+export function accountSetupView(item: Integration, keys: KeyStatus, hermes: HermesStatus = undefined): { href: string | null; action: string | null; state: string; location: string | null } {
   const provider = Object.hasOwn(studioProviders, item.id) ? studioProviders[item.id as keyof typeof studioProviders] : undefined;
   if (provider) return {
     href: "/settings?area=contentStudioKeys",
     action: `${provider === "kie" ? "kie.ai" : "ElevenLabs"}-Schlüssel sicher einrichten`,
     state: keys === undefined ? "Schlüsselstatus unbekannt; Anbieterzugriff nicht geprüft" : keys[provider] ? "Schlüssel hinterlegt; Anbieterzugriff nicht geprüft" : "Schlüssel fehlt; Anbieterzugriff nicht geprüft",
+    location: null,
+  };
+  const hermesKey = Object.hasOwn(hermesIntegrationKeys, item.id) ? hermesIntegrationKeys[item.id as keyof typeof hermesIntegrationKeys] : undefined;
+  if (hermesKey) return {
+    href: "/settings?area=skillAccounts#hermes-key-setup-title",
+    action: `${hermesKey} im Dashboard einrichten`,
+    state: hermes === undefined ? "Schlüsselstatus unbekannt; Anbieterzugriff nicht geprüft" : hermes.configured[hermesKey] ? "Schlüssel hinterlegt; Anbieterzugriff nicht geprüft" : "Schlüssel fehlt; Anbieterzugriff nicht geprüft",
     location: null,
   };
   if (item.id.startsWith("hermes_")) return {
@@ -64,6 +83,26 @@ export function SkillAccountsArea() {
   const [vaultPath, setVaultPath] = useState("");
   const [vaultSaving, setVaultSaving] = useState(false);
   const [vaultMessage, setVaultMessage] = useState("");
+  const [hermesValues, setHermesValues] = useState<Partial<Record<HermesKey, string>>>({});
+  const [hermesBusy, setHermesBusy] = useState<HermesKey | null>(null);
+  const [hermesMessage, setHermesMessage] = useState("");
+  const hermesKeys = useQuery({
+    queryKey: ["settings", "hermes-skill-keys"],
+    queryFn: (): Promise<HermesSkillKeysResponse> => call(getApiClient().GET("/api/v1/settings/hermes-skill-keys")),
+    enabled: role === "owner",
+  });
+  async function updateHermesKey(key: HermesKey, value: string) {
+    setHermesBusy(key);
+    setHermesMessage("");
+    try {
+      const result: HermesSkillKeysResponse = await call(getApiClient().PATCH("/api/v1/settings/hermes-skill-keys", { body: { key, value } }));
+      setHermesValues((current) => ({ ...current, [key]: "" }));
+      await hermesKeys.refetch();
+      setHermesMessage(`${hermesKeyLabels[key]}: ${value ? "Schlüssel gespeichert" : "Schlüssel entfernt"}. ${result.data.applied ? "Hermes-Gateway neu gestartet." : "Gateway-Neustart nicht bestätigt; Änderung möglicherweise erst nach Neustart aktiv."} Anbieterzugriff nicht geprüft.`);
+    } catch (error) {
+      setHermesMessage(error instanceof Error ? error.message : "Hermes-Schlüssel konnte nicht geändert werden.");
+    } finally { setHermesBusy(null); }
+  }
   const vault = useQuery({
     queryKey: ["settings", "obsidian-vault"],
     queryFn: (): Promise<ObsidianVaultResponse> => call(getApiClient().GET("/api/v1/settings/obsidian-vault")),
@@ -122,10 +161,28 @@ export function SkillAccountsArea() {
         {vaultMessage && <p role="status">{vaultMessage}</p>}
       </> : <p>Nur der Owner kann den Vault einrichten.</p>}
     </section>
+    <section aria-labelledby="hermes-key-setup-title">
+      <h3 id="hermes-key-setup-title">Hermes-Skill-Schlüssel</h3>
+      <p>Diese vier Schlüssel speichert Friday im installierten Hermes-Konto in Friday-Ubuntu. Der angezeigte Status bestätigt nur, ob ein Wert hinterlegt ist; eine Anmeldung beim Anbieter wird nicht geprüft.</p>
+      {role === "owner" ? <>
+        {hermesKeys.isError && <p role="alert">Hermes-Schlüsselstatus konnte nicht gelesen werden.</p>}
+        {hermesKeys.isPending && <p role="status">Hermes-Schlüsselstatus wird geladen.</p>}
+        {hermesKeys.data && (Object.keys(hermesKeyLabels) as HermesKey[]).map((key) => <div className="sk-accounts__key" key={key}>
+          <label htmlFor={`hermes-key-${key}`}>{hermesKeyLabels[key]} ({key})</label>
+          <input id={`hermes-key-${key}`} type="password" autoComplete="off" value={hermesValues[key] ?? ""}
+            onChange={(event) => setHermesValues((current) => ({ ...current, [key]: event.target.value }))}
+            aria-describedby={`hermes-state-${key}`} />
+          <span id={`hermes-state-${key}`} className="sk-muted">{hermesKeys.data.data.configured[key] ? "Hinterlegt" : "Fehlt"}; Anbieterzugriff nicht geprüft</span>{" "}
+          <button type="button" disabled={hermesBusy !== null || !hermesValues[key]} onClick={() => void updateHermesKey(key, hermesValues[key] ?? "")}>Speichern</button>{" "}
+          <button type="button" disabled={hermesBusy !== null || !hermesKeys.data.data.configured[key]} onClick={() => void updateHermesKey(key, "")}>Entfernen</button>
+        </div>)}
+        {hermesMessage && <p role="status">{hermesMessage}</p>}
+      </> : <p>Nur der Owner kann Hermes-Schlüssel verwalten.</p>}
+    </section>
     <label>Integration suchen <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name oder Einrichtung" /></label>
     <p role="status">{filtered.length} von {items.length} Integrationen</p>
     {filtered.map((item) => {
-      const setup = accountSetupView(item, keys.data?.data);
+      const setup = accountSetupView(item, keys.data?.data, hermesKeys.data?.data);
       const reference = officialReference(item.reference);
       return <article key={item.id}>
         <h3>{item.id.replaceAll("_", " ")}</h3>

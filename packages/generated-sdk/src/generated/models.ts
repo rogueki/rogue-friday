@@ -277,6 +277,9 @@ export interface FridayModelMap {
   HealthcheckResult: HealthcheckResult;
   HealthcheckResultResponse: HealthcheckResultResponse;
   HealthStatus: HealthStatus;
+  HermesSkillKeyPatch: HermesSkillKeyPatch;
+  HermesSkillKeys: HermesSkillKeys;
+  HermesSkillKeysResponse: HermesSkillKeysResponse;
   JsonSchemaObject: JsonSchemaObject;
   KieTask: KieTask;
   KieTaskRequest: KieTaskRequest;
@@ -2212,6 +2215,24 @@ export interface HealthcheckResult {
 export interface HealthcheckResultResponse {
   contractVersion: ContractVersion;
   data: HealthcheckResult;
+  freshness: Freshness;
+}
+export interface HermesSkillKeyPatch {
+  key: "AIRTABLE_API_KEY" | "NOTION_API_KEY" | "TENOR_API_KEY" | "JINA_API_KEY";
+  value: string;
+}
+export interface HermesSkillKeys {
+  configured: {
+    AIRTABLE_API_KEY: boolean;
+    NOTION_API_KEY: boolean;
+    TENOR_API_KEY: boolean;
+    JINA_API_KEY: boolean;
+  };
+  applied: boolean | null;
+}
+export interface HermesSkillKeysResponse {
+  contractVersion: ContractVersion;
+  data: HermesSkillKeys;
   freshness: Freshness;
 }
 export interface KieTask {
