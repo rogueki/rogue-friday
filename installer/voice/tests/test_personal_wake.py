@@ -393,6 +393,8 @@ def make_service(jv, texts, engine="personal", phrase="Hey Friday"):
     svc.ring = collections.deque([np.full(pw.CHUNK, 100, dtype=np.int16)] * 25, maxlen=25)
     svc.last_wake, svc.stage1_block_until, svc.trusted_until = 0.0, 0.0, 0.0
     svc.background_jobs, svc.background_reply_ready = set(), threading.Event()
+    svc.manual_start, svc.manual_start_lock = threading.Event(), threading.Lock()
+    svc.control_cancel, svc.control_paused, svc.control_generation = threading.Event(), False, 0
     svc.whisper, svc.oww, svc.wake_name, svc.wake_threshold = FakeWhisper(texts), FakeDetector(), "personal", 2.0
     svc.tts = types.SimpleNamespace(speaking=threading.Event(), interrupted=0)
     svc.tts.interrupt = lambda: setattr(svc.tts, "interrupted", svc.tts.interrupted + 1)
@@ -449,6 +451,80 @@ def test_manual_start_endpoint_requires_key_and_rejects_duplicate():
         assert post("Bearer " + "a" * 44) == 202
         assert svc.manual_start.is_set()
         assert post("Bearer " + "a" * 44) == 409
+
+
+def test_voice_control_stop_pause_resume_are_authenticated_and_change_state():
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.input_level = types.SimpleNamespace(value=lambda: 0)
+    svc.tts.level = types.SimpleNamespace(value=lambda: 0)
+    with tempfile.TemporaryDirectory() as root:
+        key_dir = os.path.join(root, "dashboard", "data", "voice-bridge")
+        os.makedirs(key_dir)
+        with open(os.path.join(key_dir, "auth.key"), "w", encoding="ascii") as key_file:
+            key_file.write("a" * 44)
+        jv.INSTALL_ROOT = root
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            svc.cfg["health_port"] = sock.getsockname()[1]
+        svc._start_health()
+        base = f"http://127.0.0.1:{svc.cfg['health_port']}/control/"
+
+        def post(action, key=None):
+            request = urllib.request.Request(base + action, data=b"", method="POST",
+                                             headers={"Authorization": "Bearer " + key} if key else {})
+            try:
+                with urllib.request.urlopen(request, timeout=2) as response:
+                    return response.status
+            except urllib.error.HTTPError as error:
+                return error.code
+
+        assert post("pause") == 401
+        assert post("pause", "a" * 44) == 202
+        assert svc.control_paused and svc.control_cancel.is_set()
+        assert svc.status["state"] == "paused"
+        assert post("start", "a" * 44) == 409
+        assert post("resume", "a" * 44) == 202
+        assert not svc.control_paused and not svc.control_cancel.is_set()
+        assert post("start", "a" * 44) == 202
+        assert post("stop", "a" * 44) == 202
+        assert not svc.manual_start.is_set()
+        assert svc.control_cancel.is_set() and svc.status["state"] == "listening"
+        assert svc.tts.interrupted == 2
+
+
+def test_pending_hermes_answer_is_suppressed_after_stop():
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    entered, release = threading.Event(), threading.Event()
+
+    def slow_answer(*args):
+        entered.set()
+        release.wait(2)
+        return "late answer"
+
+    svc._ask_hermes = slow_answer
+    result = []
+    worker = threading.Thread(target=lambda: result.append(svc._ask_hermes_interruptible("x", {}, "job", 0)))
+    worker.start()
+    assert entered.wait(1)
+    svc.control_generation += 1
+    svc.control_cancel.set()
+    worker.join(1)
+    release.set()
+    assert not worker.is_alive()
+    assert result == [None]
+
+
+def test_cancelled_generation_cannot_queue_late_speech():
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    spoken = []
+    svc.tts.say = spoken.append
+    assert svc._say_if_current("before stop", 0)
+    svc.control_generation = 1
+    assert not svc._say_if_current("late answer", 0)
+    assert spoken == ["before stop"]
 
 
 def test_cloud_routes_select_model_and_reasoning(monkeypatch):

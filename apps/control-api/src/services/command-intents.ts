@@ -46,11 +46,11 @@ export async function executeBuiltinIntent(ctx: RequestContext, intent: BuiltinI
   return { status: 200, body: await executeDirectly(ctx, intent, status.data.focusMode) };
 }
 
-async function startLiveVoice(ctx: RequestContext): Promise<string | null> {
+export async function controlLiveVoice(ctx: RequestContext, action: "start" | "stop" | "pause" | "resume"): Promise<string | null> {
   const adapter = ctx.runtime.config.adapters.voice;
   const configured = adapter.config.baseUrl;
   if (adapter.provider !== "friday-voice-http" || typeof configured !== "string")
-    return "Der Voice-Dienst ist nicht für den manuellen Start eingerichtet.";
+    return "Der Voice-Dienst ist nicht für die Steuerung eingerichtet.";
   let endpoint: URL;
   try {
     endpoint = new URL(configured);
@@ -60,7 +60,7 @@ async function startLiveVoice(ctx: RequestContext): Promise<string | null> {
   // The bridge key may only travel to the locally installed voice service.
   if (endpoint.protocol !== "http:" || !["127.0.0.1", "[::1]"].includes(endpoint.hostname) || endpoint.username || endpoint.password)
     return "Der Voice-Dienst muss lokal erreichbar sein.";
-  endpoint.pathname = "/control/start";
+  endpoint.pathname = `/control/${action}`;
   endpoint.search = "";
   endpoint.hash = "";
   try {
@@ -71,9 +71,9 @@ async function startLiveVoice(ctx: RequestContext): Promise<string | null> {
       redirect: "error",
     });
     if (response.status === 202) return null;
-    if (response.status === 409) return "F.R.I.D.A.Y. hört bereits zu oder verarbeitet gerade Sprache.";
+    if (response.status === 409) return "F.R.I.D.A.Y. hört bereits zu oder ist pausiert.";
     if (response.status === 401 || response.status === 503) return "Der lokale Voice-Schlüssel ist nicht verfügbar oder ungültig.";
-    return "Der Voice-Dienst konnte die Sprachaufnahme nicht starten.";
+    return "Der Voice-Dienst konnte den Steuerbefehl nicht ausführen.";
   } catch {
     return "Der Voice-Dienst ist derzeit nicht erreichbar.";
   }
@@ -90,7 +90,7 @@ async function executeDirectly(ctx: RequestContext, intent: BuiltinIntent, focus
       return { ...base, status: "rejected", riskTier: null, result: { message: "Der Fokus-Modus kann derzeit nicht umgeschaltet werden." } };
     if (focusMode)
       return { ...base, status: "rejected", result: { message: "Der Fokus-Modus ist aktiv. Bitte zuerst den Fokus-Modus beenden." } };
-    const error = await startLiveVoice(ctx);
+    const error = await controlLiveVoice(ctx, "start");
     return error
       ? { ...base, status: "rejected", result: { message: error } }
       : { ...base, status: "executed", result: { message: "Sprachaufnahme gestartet.", targetRoute: "/voice" } };

@@ -44,6 +44,13 @@ describe("input_level / output_level", () => {
   });
 });
 
+it("reports a paused voice service as muted with wake-word disabled", () => {
+  const raw = parseRawVoiceStatus(makeVoiceStatus({ state: "paused" }));
+  const status = map(raw);
+  expect(status.microphone).toMatchObject({ state: "muted", active: false });
+  expect(status.wakeWord).toMatchObject({ state: "disabled", enabled: false });
+});
+
 describe("parseRawVoiceStatus", () => {
   it("accepts the exact example of docs/MAPPING/voice.md §0.1", () => {
     const body = {

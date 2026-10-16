@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FridayEvent } from "@friday/sdk";
 import { brandText, deriveOrb, type OrbInputs } from "../src/services/core-views";
 import { executeBuiltinIntent, matchBuiltinIntent } from "../src/services/command-intents";
+import { commandHandlers } from "../src/handlers/commands";
 import type { RequestContext } from "../src/http/context";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 
@@ -30,6 +31,29 @@ it("routes manual voice start to the live service in a hybrid setup", async () =
     expect(delegate).not.toHaveBeenCalled();
     expect(providerFetch).toHaveBeenCalledOnce();
     expect(providerFetch.mock.calls[0]?.[0].toString()).toBe("http://127.0.0.1:43794/control/start");
+  } finally {
+    providerFetch.mockRestore();
+  }
+});
+
+it("routes voice stop, pause and resume to the authenticated local voice service", async () => {
+  const providerFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 202 }));
+  const ctx = {
+    runtime: {
+      config: { adapters: { voice: { provider: "friday-voice-http", config: { baseUrl: "http://127.0.0.1:43794" } } } },
+      voiceBridgeKey: Buffer.from("test-bridge-key"),
+    },
+    body: { scope: "voice" },
+    correlationId: "corr_test",
+    audit: {},
+  } as unknown as RequestContext;
+  try {
+    for (const [operation, action] of [["stopCommand", "stop"], ["pauseCommand", "pause"], ["resumeCommand", "resume"]] as const) {
+      const response = await commandHandlers[operation]!(ctx);
+      expect((response.body as { accepted: boolean }).accepted).toBe(true);
+      expect(providerFetch.mock.calls.at(-1)?.[0].toString()).toBe(`http://127.0.0.1:43794/control/${action}`);
+      expect(providerFetch.mock.calls.at(-1)?.[1]?.headers).toEqual({ Authorization: `Bearer ${Buffer.from("test-bridge-key").toString("base64")}` });
+    }
   } finally {
     providerFetch.mockRestore();
   }

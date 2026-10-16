@@ -216,6 +216,7 @@ export interface OrbInputs {
   criticalOpen: Notification[];
   urgentOpen: Notification[];
   voiceMode: "idle" | "listening" | "transcribing" | "thinking" | "speaking" | "error";
+  voicePaused?: boolean;
   audioLevel: number | undefined;
   degraded: string[];
   assistantName?: string;
@@ -294,6 +295,7 @@ export function deriveOrb(input: OrbInputs, since: string): OrbSnapshot {
   }
   if (input.voiceMode === "transcribing") return done("transcribing", contextBits.length ? { detailText: contextBits.join(" · ") } : {});
   if (input.voiceMode === "thinking") return done("thinking", contextBits.length ? { detailText: contextBits.join(" · ") } : {});
+  if (input.voicePaused) return done("paused", contextBits.length ? { detailText: contextBits.join(" · ") } : {});
   if (input.workingAgentIds.length > 0 || input.runningTasks.length > 0) {
     const determinate = focusTask?.progress.mode === "determinate" && typeof focusTask.progress.value === "number";
     return done("working", {
@@ -382,6 +384,7 @@ export class OrbService {
         criticalOpen: open.filter((n) => n.priority === "P0"),
         urgentOpen: open.filter((n) => n.priority === "P1"),
         voiceMode: voice?.data.mode ?? "idle",
+        voicePaused: voice?.data.microphone.state === "muted",
         audioLevel: voice?.data.microphone.inputLevel,
         degraded: adapters
           .filter((adapter) => adapter.enabled && adapter.health.status !== "online")

@@ -1,12 +1,39 @@
 import { PORT_SPEC } from "@friday/adapter-core";
-import type { CommandRequest, CommandResponse } from "@friday/sdk";
+import { CONTRACT_VERSION, type ActionResult, type CommandControlRequest, type CommandRequest, type CommandResponse } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { CommandHistoryStore } from "../db/stores";
-import { executeBuiltinIntent, matchBuiltinIntent } from "../services/command-intents";
+import { controlLiveVoice, executeBuiltinIntent, matchBuiltinIntent } from "../services/command-intents";
 import { portHandler } from "./ports";
 
 const executeBase = portHandler("commands", "executeCommand", PORT_SPEC.commands.executeCommand);
+
+async function controlCommand(ctx: Parameters<Handler>[0], action: "stop" | "pause" | "resume"): Promise<Awaited<ReturnType<Handler>>> {
+  const request = ctx.body as CommandControlRequest;
+  let voiceError: string | null = null;
+  let controlledVoice = false;
+  if (ctx.runtime.config.adapters.voice.provider === "friday-voice-http" && (request.scope === "all" || request.scope === "voice")) {
+    voiceError = await controlLiveVoice(ctx, action);
+    controlledVoice = voiceError === null;
+    // Keep the command adapter's task controls for scope=all; voice-only is already handled by the live service.
+    if (request.scope === "voice") {
+      const body: ActionResult = { contractVersion: CONTRACT_VERSION, accepted: controlledVoice, status: controlledVoice ? "completed" : "rejected", correlationId: ctx.correlationId, message: voiceError ?? `Voice: ${action}` };
+      return { status: 200, body };
+    }
+  }
+  const method = action === "stop" ? "stopCommand" : action === "pause" ? "pauseCommand" : "resumeCommand";
+  const result = await portHandler("commands", method, PORT_SPEC.commands[method])(ctx);
+  if (!controlledVoice && voiceError === null) return result;
+  const taskResult = result.body as ActionResult;
+  const accepted = controlledVoice && taskResult.accepted;
+  const body: ActionResult = {
+    ...taskResult,
+    accepted,
+    status: accepted ? taskResult.status : "rejected",
+    message: [controlledVoice ? "Voice gesteuert" : voiceError, taskResult.message].filter(Boolean).join("; "),
+  };
+  return { ...result, body };
+}
 
 /**
  * Commands are audited with their risk tier and outcome; the control-plane history stores sensitive texts redacted
@@ -50,16 +77,16 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
 
   async stopCommand(ctx) {
     ctx.audit.action = "command.stopped";
-    return portHandler("commands", "stopCommand", PORT_SPEC.commands.stopCommand)(ctx);
+    return controlCommand(ctx, "stop");
   },
 
   async pauseCommand(ctx) {
     ctx.audit.action = "command.paused";
-    return portHandler("commands", "pauseCommand", PORT_SPEC.commands.pauseCommand)(ctx);
+    return controlCommand(ctx, "pause");
   },
 
   async resumeCommand(ctx) {
     ctx.audit.action = "command.resumed";
-    return portHandler("commands", "resumeCommand", PORT_SPEC.commands.resumeCommand)(ctx);
+    return controlCommand(ctx, "resume");
   },
 };
