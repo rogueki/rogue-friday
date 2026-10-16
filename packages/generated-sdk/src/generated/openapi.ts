@@ -8335,6 +8335,7 @@ export interface operations {
             /** @description MP3 audio */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -8372,6 +8373,7 @@ export interface operations {
             /** @description Accepted by kie.ai; use task ID to read status */
             202: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -8501,6 +8503,7 @@ export interface operations {
             /** @description Durable production job */
             202: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     [name: string]: unknown;
                 };
                 content: {

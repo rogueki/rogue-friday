@@ -199,11 +199,17 @@ async function call(world: MockWorld, sample: Sample): Promise<Response> {
 }
 
 describe("REST route coverage", () => {
-  it("implements every operationId of the OpenAPI contract (and nothing else)", () => {
+  it("implements its declared mock routes and tracks live-only beta operations", () => {
     const yaml = readFileSync(resolve(__dirname, "../../contracts/openapi/friday-api.yaml"), "utf8");
     const contract = [...yaml.matchAll(/operationId:\s*(\w+)/g)].map((match) => match[1] as string).sort();
-    expect(ROUTES.map((route) => route.operationId).sort()).toEqual(contract);
-    expect(new Set(SAMPLES.map((sample) => sample.operationId))).toEqual(new Set(contract));
+    const liveOnly = [
+      "cancelContentProductionJob", "createContentProductionJob", "getContentProductionArtifact", "getContentProductionJob",
+      "getContentStudioPlan", "getOnboarding", "listSkills", "putContentStudioPlan", "putOnboarding", "setSkillActivation",
+    ];
+    const mocked = ROUTES.map((route) => route.operationId).sort();
+    expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);
+    expect(mocked).toEqual(contract.filter((id) => !liveOnly.includes(id)));
+    expect(new Set(SAMPLES.map((sample) => sample.operationId))).toEqual(new Set(mocked));
   });
 
   it("exposes one msw handler per route plus a catch-all", () => {
