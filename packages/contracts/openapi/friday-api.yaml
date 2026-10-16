@@ -4564,6 +4564,9 @@ paths:
       responses:
         "202":
           description: Native CLI run accepted
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
           content:
             application/json:
               schema:

@@ -8126,6 +8126,7 @@ export interface operations {
             /** @description Native CLI run accepted */
             202: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     [name: string]: unknown;
                 };
                 content: {
