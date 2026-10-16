@@ -173,44 +173,58 @@ class Speaker:
                 return
 
     def _stream_from_server(self, text: str, play: bool = True) -> None:
+        from audio_output import OUTPUT_TAIL_SECONDS
+        from scipy.signal import resample_poly
+        import math
+
+        def play_pcm(chunks, source_rate):
+            target_rate = round(sd.query_devices(self.output_device, "output")["default_samplerate"])
+            if target_rate <= 0:
+                raise ValueError("Ausgabegeraet meldet keine gueltige Abtastrate")
+            common = math.gcd(source_rate, target_rate)
+            up, down = target_rate // common, source_rate // common
+            with sd.OutputStream(samplerate=target_rate, channels=1, dtype="float32",
+                                 device=self.output_device) as out:
+                for block in chunks:
+                    if self.stop_flag.is_set():
+                        return
+                    audio = np.frombuffer(block, dtype="<i2").astype(np.float32) / 32768.0
+                    if up != down:
+                        audio = resample_poly(audio, up, down).astype(np.float32)
+                    self.level.update(audio)
+                    out.write(audio.reshape(-1, 1))
+                if not self.stop_flag.is_set():
+                    out.write(np.zeros((round(target_rate * OUTPUT_TAIL_SECONDS), 1), dtype=np.float32))
+
         if text in self.cache:
             pcm, sr = self.cache[text]
             if play:
-                with sd.RawOutputStream(samplerate=sr, channels=1, dtype="int16", device=self.output_device) as out:
-                    for i in range(0, len(pcm), 4096):
-                        if self.stop_flag.is_set():
-                            return
-                        block = pcm[i:i + 4096]
-                        self.level.update(np.frombuffer(block[:len(block) // 2 * 2], dtype=np.int16))
-                        out.write(block)
+                play_pcm((pcm[i:i + 4096] for i in range(0, len(pcm), 4096)), sr)
             return
         req = urllib.request.Request(self.tts_url, json.dumps({"text": text}).encode("utf-8"),
                                      {"Content-Type": "application/json"})
         collected = bytearray()
         with urllib.request.urlopen(req, timeout=60) as resp:
             sr = int(resp.headers["X-Sample-Rate"])
-            out = sd.RawOutputStream(samplerate=sr, channels=1, dtype="int16", device=self.output_device) if play else None
-            try:
-                if out:
-                    out.start()
+            def received():
                 pending = b""
                 while True:
                     if self.stop_flag.is_set():
-                        return  # Verbindung schliesst -> Server bricht die Synthese ab
-                    block = resp.read(4096)
+                        return
+                    block = resp.read1(4096)
                     if not block:
                         break
-                    collected += block
+                    collected.extend(block)
                     data, pending = pending + block, b""
                     if len(data) % 2:
                         data, pending = data[:-1], data[-1:]
-                    if out:
-                        self.level.update(np.frombuffer(data, dtype=np.int16))
-                        out.write(data)
-            finally:
-                if out:
-                    out.stop()
-                    out.close()
+                    if data:
+                        yield data
+            if play:
+                play_pcm(received(), sr)
+            else:
+                for _ in received():
+                    pass
         if len(text) <= self.CACHE_MAX_CHARS:
             self.cache[text] = (bytes(collected), sr)
 
