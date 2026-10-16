@@ -9,6 +9,7 @@ import { createControlApi, type ControlApi } from "../src/app";
 import type { ResponseValidationMode } from "../src/runtime/types";
 
 export interface TestApiOptions {
+  providerFetch?: typeof fetch;
   authMode?: "dev" | "local";
   ownerPassword?: string;
   dataMode?: "mock" | "hybrid";
@@ -86,6 +87,7 @@ ${options.yamlExtra ?? ""}
     : undefined;
   const api = await createControlApi({
     config,
+    ...(options.providerFetch ? { providerFetch: options.providerFetch } : {}),
     env,
     ...(logger ? { logger } : {}),
     responseValidation: options.responseValidation ?? "throw",

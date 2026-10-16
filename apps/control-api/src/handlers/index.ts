@@ -10,6 +10,7 @@ import { metaHandlers } from "./meta";
 import { observabilityHandlers } from "./observability";
 import { buildPortHandlers } from "./ports";
 import { settingsHandlers } from "./settings";
+import { contentStudioHandlers } from "./content-studio";
 
 /** Port-backed operations come from `PORT_SPEC`; the explicit handlers add enforcement or are served locally. */
 export function buildHandlers(): Map<OperationId, Handler> {
@@ -18,6 +19,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     metaHandlers,
     authHandlers,
     settingsHandlers,
+    contentStudioHandlers,
     devHandlers,
     approvalHandlers,
     adapterHandlers,

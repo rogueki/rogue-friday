@@ -26,7 +26,12 @@ describe("contract: all operations", () => {
   };
 
   beforeAll(async () => {
-    api = await startTestApi({ ringBufferSize: 5000 });
+    api = await startTestApi({ ringBufferSize: 5000, env: { KIE_API_KEY: "contract-kie", ELEVENLABS_API_KEY: "contract-eleven" }, providerFetch: async (input) => {
+      const url = String(input);
+      if (url.includes("createTask")) return Response.json({ code: 200, data: { taskId: "contract-kie-task" } });
+      if (url.includes("recordInfo")) return Response.json({ code: 200, data: { state: "success", resultJson: JSON.stringify({ resultUrls: ["https://example.invalid/image.png"] }), creditsConsumed: 2 } });
+      return new Response(new Uint8Array([73, 68, 51, 1]), { headers: { "content-type": "audio/mpeg" } });
+    } });
     owner = api.client();
     await owner.loginDev("owner");
 
@@ -336,8 +341,22 @@ describe("contract: all operations", () => {
       const current = await call("getSettings");
       expect(current.json.data.profile.assistantName).toBe("F.R.I.D.A.Y.");
       await call("getSettingsSchema");
-      const updated = await call("updateSettings", { body: { dashboard: { ...current.json.data.dashboard, compact: true } }, headers: { "if-match": String(current.json.version ?? current.json.data.version) } });
+      const keys = await call("getContentStudioKeys");
+      expect(keys.json.data).toMatchObject({ kie: true, elevenlabs: true, capcut: false });
+      const keyUpdate = await call("updateContentStudioKey", { body: { provider: "kie", key: "contract-value" } });
+      expect(keyUpdate.json.data.kie).toBe(true);
+      expect(keyUpdate.response.body).not.toContain("contract-value");
+      const updated = await call("updateSettings", { body: { dashboard: { ...current.json.data.dashboard, compact: true, contentStudioEnabled: true } }, headers: { "if-match": String(current.json.version ?? current.json.data.version) } });
       expect(updated.json.data.dashboard.compact).toBe(true);
+    });
+
+    it("creates media, reads status and returns speech through server-side provider adapters", async () => {
+      const created = await call("createKieTask", { body: { kind: "image", prompt: "A studio still life", aspectRatio: "1:1", confirmed: true }, headers: { "idempotency-key": "contract-kie-create-1" } });
+      expect(created.json.data.taskId).toBe("contract-kie-task");
+      const status = await call("getKieTask", { params: { id: created.json.data.taskId } });
+      expect(status.json.data.state).toBe("success");
+      const speech = await call("createElevenSpeech", { body: { text: "Hallo", voiceId: "voice123", confirmed: true }, headers: { "idempotency-key": "contract-eleven-1" } });
+      expect(speech.response.headers["content-type"]).toContain("audio/mpeg");
     });
 
     it("configures adapters", async () => {
@@ -397,7 +416,7 @@ describe("contract: all operations", () => {
   });
 
   it("covers every operation of the route table with a contract-valid success response", () => {
-    expect(ROUTE_TABLE).toHaveLength(122);
+    expect(ROUTE_TABLE).toHaveLength(127);
     expect(probe.uncovered(), "Operationen ohne erfolgreichen, vertragsgültigen Aufruf").toEqual([]);
     expect(probe.problems).toEqual([]);
     for (const spec of ROUTE_TABLE) expect(specOf(spec.operationId)).toBe(spec);

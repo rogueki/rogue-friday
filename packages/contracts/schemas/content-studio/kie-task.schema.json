@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/content-studio/kie-task.schema.json",
+  "title": "KieTask",
+  "type": "object",
+  "properties": {
+    "taskId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "kind": { "type": "string", "enum": ["image", "video"] },
+    "state": { "type": "string", "enum": ["waiting", "queuing", "generating", "success", "fail"] },
+    "resultUrls": { "type": "array", "items": { "type": "string", "format": "uri" }, "maxItems": 20 },
+    "creditsConsumed": { "type": ["integer", "null"], "minimum": 0 }
+  },
+  "required": ["taskId", "kind", "state", "resultUrls", "creditsConsumed"],
+  "additionalProperties": false
+}

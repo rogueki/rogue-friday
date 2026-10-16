@@ -28,6 +28,10 @@
     },
     "compact": {
       "type": "boolean"
+    },
+    "contentStudioEnabled": {
+      "type": "boolean",
+      "description": "Enables the optional Content Studio module. Missing on older settings means disabled."
     }
   },
   "required": [

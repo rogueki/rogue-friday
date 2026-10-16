@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/content-studio/eleven-speech-request.schema.json",
+  "title": "ElevenSpeechRequest",
+  "type": "object",
+  "properties": {
+    "text": { "type": "string", "minLength": 1, "maxLength": 2500 },
+    "voiceId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+    "confirmed": { "const": true }
+  },
+  "required": ["text", "voiceId", "confirmed"],
+  "additionalProperties": false
+}

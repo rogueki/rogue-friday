@@ -6,6 +6,7 @@ import {
   Bell,
   Bot,
   CalendarDays,
+  Clapperboard,
   Cpu,
   Database,
   FlaskConical,
@@ -36,6 +37,7 @@ export type NavPageId =
   | "calendar"
   | "automations"
   | "research"
+  | "content-studio"
   | "files"
   | "voice"
   | "alerts"
@@ -65,6 +67,7 @@ export const NAV_PAGES: readonly NavPage[] = [
   { id: "calendar", route: "/calendar", labelKey: "nav.calendar", icon: <CalendarDays {...ICON} /> },
   { id: "automations", route: "/automations", labelKey: "nav.automations", icon: <Workflow {...ICON} /> },
   { id: "research", route: "/research", labelKey: "nav.research", icon: <FlaskConical {...ICON} /> },
+  { id: "content-studio", route: "/content-studio", labelKey: "nav.contentStudio", icon: <Clapperboard {...ICON} /> },
   { id: "files", route: "/files", labelKey: "nav.files", icon: <FolderOpen {...ICON} /> },
   { id: "voice", route: "/voice", labelKey: "nav.voice", icon: <Mic {...ICON} /> },
   { id: "alerts", route: "/alerts", labelKey: "nav.alerts", icon: <Bell {...ICON} />, badge: "alerts" },
@@ -74,7 +77,7 @@ export const NAV_PAGES: readonly NavPage[] = [
 ];
 
 /** Applies the stored order; unknown ids are ignored and pages missing from the list are appended (never lost). */
-export function orderNavPages(order: readonly string[] | undefined, hidden: readonly string[] | undefined): NavPage[] {
+export function orderNavPages(order: readonly string[] | undefined, hidden: readonly string[] | undefined, contentStudioEnabled = false): NavPage[] {
   const byId = new Map(NAV_PAGES.map((page) => [page.id as string, page]));
   const ordered: NavPage[] = [];
   for (const id of order ?? []) {
@@ -83,7 +86,7 @@ export function orderNavPages(order: readonly string[] | undefined, hidden: read
   }
   for (const page of NAV_PAGES) if (!ordered.includes(page)) ordered.push(page);
   // The settings page stays reachable even if someone hid it, otherwise the setting could never be undone.
-  return ordered.filter((page) => page.id === "settings" || !(hidden ?? []).includes(page.id));
+  return ordered.filter((page) => (page.id !== "content-studio" || contentStudioEnabled) && (page.id === "settings" || !(hidden ?? []).includes(page.id)));
 }
 
 export function activePageId(pathname: string): NavPageId {
@@ -106,7 +109,7 @@ export function useNavItems(): { items: NavItem[]; activeId: NavPageId } {
 
   const items = useMemo<NavItem[]>(
     () =>
-      orderNavPages(order, hidden).map((page) => {
+      orderNavPages(order, hidden, settings?.dashboard.contentStudioEnabled === true).map((page) => {
         const count = page.badge ? counters?.[page.badge] : undefined;
         return {
           id: page.id,
@@ -118,7 +121,7 @@ export function useNavItems(): { items: NavItem[]; activeId: NavPageId } {
           badgeTone: page.badge === "alerts" ? "red" : page.badge === "approvals" ? "amber" : undefined,
         };
       }),
-    [order, hidden, counters, t],
+    [order, hidden, settings?.dashboard.contentStudioEnabled, counters, t],
   );
   return { items, activeId: activePageId(pathname) };
 }

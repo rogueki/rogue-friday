@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/content-studio-key-patch.schema.json",
+  "title": "ContentStudioKeyPatch",
+  "type": "object",
+  "properties": {
+    "provider": { "type": "string", "enum": ["kie", "elevenlabs", "capcut"] },
+    "key": { "type": "string", "maxLength": 512 }
+  },
+  "required": ["provider", "key"],
+  "additionalProperties": false
+}

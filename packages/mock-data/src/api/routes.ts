@@ -11,6 +11,7 @@ import {
   type CalendarProposalRequest,
   type CommandControlRequest,
   type CommandRequest,
+  type ContentStudioKeyPatch,
   type DraftCreateRequest,
   type DraftSendRequest,
   type DraftUpdateRequest,
@@ -118,6 +119,13 @@ function prometheusSample(world: MockWorld): string {
   }
   return `${lines.join("\n")}\n`;
 }
+
+const studioKeyFlags = new WeakMap<MockWorld, Set<string>>();
+const studioTasks = new WeakMap<MockWorld, Map<string, "image" | "video">>();
+const studioKeyStatus = (world: MockWorld) => {
+  const flags = studioKeyFlags.get(world);
+  return { kie: flags?.has("kie") ?? false, elevenlabs: flags?.has("elevenlabs") ?? false, capcut: flags?.has("capcut") ?? false };
+};
 
 export const ROUTES: RouteDef[] = [
   // ---- meta / overview / orb
@@ -329,6 +337,29 @@ export const ROUTES: RouteDef[] = [
   // ---- settings
   { operationId: "getSettings", method: "GET", path: "/settings", role: "viewer", run: (w) => single(w, "system", w.settings.get()) },
   { operationId: "updateSettings", method: "PATCH", path: "/settings", role: "owner", run: (w, _e, i) => single(w, "system", w.settings.patch(body<SettingsPatch>(i), i.ctx)) },
+  { operationId: "getContentStudioKeys", method: "GET", path: "/settings/content-studio-keys", role: "owner", run: (w) => single(w, "system", studioKeyStatus(w)) },
+  { operationId: "updateContentStudioKey", method: "PATCH", path: "/settings/content-studio-keys", role: "owner", run: (w, _e, i) => {
+    const { provider, key } = body<ContentStudioKeyPatch>(i);
+    const configured = studioKeyFlags.get(w) ?? new Set<string>();
+    if (key) configured.add(provider);
+    else configured.delete(provider);
+    studioKeyFlags.set(w, configured);
+    return single(w, "system", studioKeyStatus(w));
+  } },
+  { operationId: "createKieTask", method: "POST", path: "/content-studio/kie/tasks", role: "owner", run: (w, _e, i) => {
+    const kind = (i.body as { kind: "image" | "video" }).kind;
+    const taskId = `mock-${kind}-task`;
+    const tasks = studioTasks.get(w) ?? new Map<string, "image" | "video">();
+    tasks.set(taskId, kind);
+    studioTasks.set(w, tasks);
+    return single(w, "system", { taskId, kind, state: "waiting", resultUrls: [], creditsConsumed: null }, 202);
+  } },
+  { operationId: "getKieTask", method: "GET", path: "/content-studio/kie/tasks/:id", role: "owner", run: (w, _e, i) => {
+    const taskId = i.params.id as string;
+    const kind = studioTasks.get(w)?.get(taskId) ?? "image";
+    return single(w, "system", { taskId, kind, state: "success", resultUrls: ["https://example.invalid/media.png"], creditsConsumed: 1 });
+  } },
+  { operationId: "createElevenSpeech", method: "POST", path: "/content-studio/elevenlabs/speech", role: "owner", run: () => ({ category: null, status: 200, text: { contentType: "audio/mpeg", body: "ID3mock" } }) },
   { operationId: "getSettingsSchema", method: "GET", path: "/settings/schema", role: "viewer", run: (w) => single(w, "system", w.settings.schema()) },
   { operationId: "listAdapterSettings", method: "GET", path: "/settings/adapters", role: "owner", run: (w, _e, i) => list(w, "system", w.settings.listAdapters(q(i.query))) },
   { operationId: "updateAdapterSettings", method: "PATCH", path: "/settings/adapters/:id", role: "owner", run: (w, _e, i) => single(w, "system", w.settings.updateAdapter(i.params.id as string, body<AdapterConfigPatch>(i), i.ctx)) },

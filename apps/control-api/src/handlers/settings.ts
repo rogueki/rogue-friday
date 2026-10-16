@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, type AdapterConfigPatch, type Freshness, type LayoutImportRequest, type SettingsExport, type SettingsPatch, type ThemeImportRequest } from "@friday/sdk";
+import { CONTRACT_VERSION, type AdapterConfigPatch, type ContentStudioKeyPatch, type Freshness, type LayoutImportRequest, type SettingsExport, type SettingsPatch, type ThemeImportRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { localList } from "./meta";
@@ -8,6 +8,18 @@ const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString()
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: fresh() });
 
 export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
+  async getContentStudioKeys(ctx) {
+    return { status: 200, body: single(ctx.runtime.contentStudioKeys.status()) };
+  },
+
+  async updateContentStudioKey(ctx) {
+    const { provider, key } = ctx.body as ContentStudioKeyPatch;
+    ctx.runtime.contentStudioKeys.set(provider, key);
+    ctx.audit.action = "settings.content_studio_key_updated";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { provider, configured: Boolean(key) };
+    return { status: 200, body: single(ctx.runtime.contentStudioKeys.status()) };
+  },
   async getSettings(ctx) {
     return { status: 200, body: single(ctx.runtime.settings.get()) };
   },

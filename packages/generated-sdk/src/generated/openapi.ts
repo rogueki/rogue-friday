@@ -837,6 +837,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/content-studio/elevenlabs/speech": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate confirmed paid speech with ElevenLabs */
+        post: operations["createElevenSpeech"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content-studio/kie/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit a confirmed paid image or video task through the server */
+        post: operations["createKieTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content-studio/kie/tasks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read status of a task submitted by this Control API */
+        get: operations["getKieTask"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dev/scenarios": {
         parameters: {
             query?: never;
@@ -1371,6 +1422,24 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/content-studio-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get configured Content Studio provider key flags; values are never returned */
+        get: operations["getContentStudioKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set or clear one runtime-only Content Studio provider key */
+        patch: operations["updateContentStudioKey"];
         trace?: never;
     };
     "/api/v1/settings/export": {
@@ -3336,6 +3405,24 @@ export interface components {
             send: boolean;
             sources: string[];
         };
+        /** ContentStudioKeyPatch */
+        ContentStudioKeyPatch: {
+            key: string;
+            /** @enum {string} */
+            provider: "kie" | "elevenlabs" | "capcut";
+        };
+        /** ContentStudioKeys */
+        ContentStudioKeys: {
+            capcut: boolean;
+            elevenlabs: boolean;
+            kie: boolean;
+        };
+        /** ContentStudioKeysResponse */
+        ContentStudioKeysResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["ContentStudioKeys"];
+            freshness: components["schemas"]["Freshness"];
+        };
         /**
          * ContractVersion
          * @description Semantic version of the wire contract, e.g. 1.0.0.
@@ -3357,6 +3444,8 @@ export interface components {
             autoRefreshSeconds: number;
             backgroundGrid: boolean;
             compact: boolean;
+            /** @description Enables the optional Content Studio module. Missing on older settings means disabled. */
+            contentStudioEnabled?: boolean;
             fontScale: number;
             soundEffects: boolean;
         };
@@ -3450,6 +3539,13 @@ export interface components {
             status?: "draft" | "discarded";
             subject?: string;
             to?: components["schemas"]["Participant"][];
+        };
+        /** ElevenSpeechRequest */
+        ElevenSpeechRequest: {
+            /** @constant */
+            confirmed: true;
+            text: string;
+            voiceId: string;
         };
         /**
          * EntityRef
@@ -3772,6 +3868,32 @@ export interface components {
          */
         JsonSchemaObject: {
             [key: string]: unknown;
+        };
+        /** KieTask */
+        KieTask: {
+            creditsConsumed: number | null;
+            /** @enum {string} */
+            kind: "image" | "video";
+            resultUrls: string[];
+            /** @enum {string} */
+            state: "waiting" | "queuing" | "generating" | "success" | "fail";
+            taskId: string;
+        };
+        /** KieTaskRequest */
+        KieTaskRequest: {
+            /** @enum {string} */
+            aspectRatio: "1:1" | "16:9";
+            /** @constant */
+            confirmed: true;
+            /** @enum {string} */
+            kind: "image" | "video";
+            prompt: string;
+        };
+        /** KieTaskResponse */
+        KieTaskResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["KieTask"];
+            freshness: components["schemas"]["Freshness"];
         };
         /** LatencyStat */
         LatencyStat: {
@@ -7874,6 +7996,111 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    createElevenSpeech: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ElevenSpeechRequest"];
+            };
+        };
+        responses: {
+            /** @description MP3 audio */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/mpeg": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createKieTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KieTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted by kie.ai; use task ID to read status */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KieTaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getKieTask: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Opaque resource id (prefix identifies the type) */
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Task status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KieTaskResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     listScenarios: {
         parameters: {
             query?: {
@@ -9248,6 +9475,64 @@ export interface operations {
             404: components["responses"]["NotFound"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getContentStudioKeys: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentStudioKeysResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateContentStudioKey: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentStudioKeyPatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentStudioKeysResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
         };
     };
     exportSettings: {

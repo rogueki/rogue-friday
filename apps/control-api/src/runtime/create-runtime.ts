@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getContractValidator } from "@friday/adapter-core";
 import {
@@ -5,6 +6,7 @@ import {
   LoginRateLimiter,
   SqliteNonceStore,
   SqliteSessionStore,
+  SERVER_KEY_FILE,
   deriveKey,
   loadOrCreateServerKey,
 } from "@friday/auth";
@@ -28,6 +30,8 @@ import { AuthService } from "../security/auth-service";
 import { AdapterSettingsService } from "../services/adapter-settings";
 import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, summarizeAdapters } from "../services/core-views";
 import { SettingsService, seedLibrary } from "../services/settings";
+import { ContentStudioKeysService } from "../services/content-studio-keys";
+import { ContentStudioProviderService } from "../services/content-studio-providers";
 import { LogBuffer, withLogBuffer } from "../services/log-buffer";
 import { FrontendTelemetryService } from "../services/telemetry";
 import { createRuntimeSecrets, createWorld, wireAdapters } from "./adapter-wiring";
@@ -35,6 +39,7 @@ import type { AuditRecorder, ResponseValidationMode, Runtime } from "./types";
 
 export interface CreateRuntimeOptions {
   config: FridayConfig;
+  providerFetch?: typeof fetch;
   env?: NodeJS.ProcessEnv;
   logger?: Logger;
   /** `:memory:` for tests. Defaults to `<dataDir>/dashboard.sqlite`. */
@@ -91,6 +96,10 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const responseValidation: ResponseValidationMode = options.responseValidation ?? (config.dev.responseValidation ? "log" : "off");
 
   // ---- security primitives ------------------------------------------------------------------------------------
+  if (ContentStudioKeysService.hasPersisted(db) && !existsSync(join(config.paths.dataDir, SERVER_KEY_FILE))) {
+    db.close();
+    throw new Error("Content Studio encrypted keys require the original auth.key; restore it before startup");
+  }
   const serverKey = loadOrCreateServerKey(config.paths.dataDir);
   if (!serverKey.permissionsRestricted) logger.warn("Berechtigungen von auth.key konnten nicht eingeschränkt werden", { path: serverKey.path });
   const sessions = new SqliteSessionStore(db, {
@@ -182,6 +191,14 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
 
   const adapterSettings = new AdapterSettingsService(wiring, adapterOverrides, secrets, config.dataMode);
   const settings = new SettingsService(db, config, validator, library, () => adapterSettings.list());
+  let contentStudioKeys: ContentStudioKeysService;
+  try {
+    contentStudioKeys = new ContentStudioKeysService(db, deriveKey(serverKey.key, "content-studio-keys"), env);
+  } catch (error) {
+    db.close();
+    throw error;
+  }
+  const contentStudioProviders = new ContentStudioProviderService(db, contentStudioKeys, options.providerFetch);
   settingsHolder.current = settings;
 
   const assistantName = (): string => settings.get().profile.assistantName ?? DEFAULT_ASSISTANT_NAME;
@@ -353,6 +370,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     auth,
     approvalTokens,
     settings,
+    contentStudioKeys,
+    contentStudioProviders,
     adapterSettings,
     status,
     orb,

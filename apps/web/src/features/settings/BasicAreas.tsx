@@ -154,6 +154,7 @@ export function DashboardArea() {
           <Switch label={t("settings.dashboard.grid")} description={t("settings.dashboard.gridDesc")} checked={value.backgroundGrid} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(backgroundGrid) => update({ backgroundGrid })} />
           <Switch label={t("settings.dashboard.compact")} description={t("settings.dashboard.compactDesc")} checked={value.compact} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(compact) => update({ compact })} />
           <Switch label={t("settings.dashboard.sound")} description={t("settings.dashboard.soundDesc")} checked={value.soundEffects} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(soundEffects) => update({ soundEffects })} />
+          <Switch label={t("settings.dashboard.contentStudio")} description={t("settings.dashboard.contentStudioDesc")} checked={value.contentStudioEnabled === true} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(contentStudioEnabled) => update({ contentStudioEnabled })} />
         </FieldGrid>
       </Section>
       <Section title={t("settings.dashboard.behaviour")}>
@@ -173,7 +174,7 @@ export function DashboardArea() {
             hint={t("settings.dashboard.defaultPageHint")}
             value={nav.value.defaultPage}
             disabled={readOnly}
-            options={NAV_PAGES.map((page) => ({ value: page.id, label: t(page.labelKey) }))}
+            options={NAV_PAGES.filter((page) => page.id !== "content-studio" || value.contentStudioEnabled === true).map((page) => ({ value: page.id, label: t(page.labelKey) }))}
             onChange={(event) => nav.update({ defaultPage: event.target.value })}
           />
         </FieldGrid>
