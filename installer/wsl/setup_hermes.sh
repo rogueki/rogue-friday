@@ -38,6 +38,9 @@ if grep -q '^KIMI_API_KEY=sk-kimi-' "$H/.env"; then
     # Kimi-Code-Key (wie fuer die Kimi Code CLI): Provider kimi-coding, Modell k3 (bei uns verifiziert).
     hermes config set model.provider kimi-coding
     hermes config set model.default k3
+    # Der Kimi-Coding-Provider verwendet den Anthropic-Client. Die Hermes-Basisinstallation
+    # bringt dieses optionale Paket nicht in jedem Release mit; ohne es antwortet die API mit HTTP 500.
+    hermes pm install --extra anthropic
 else
     echo "WARN Key ist kein Kimi-Code-Key (sk-kimi-...). Bitte danach 'hermes model' ausfuehren und Kimi/Moonshot waehlen."
 fi

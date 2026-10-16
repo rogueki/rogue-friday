@@ -2,7 +2,7 @@
 # Einzelinstanz per benanntem Mutex; Stop: Datei C:\Friday\run\start-dashboard.ps1.stop (siehe Stop-LauncherService im Installer).
 # Installationsort C:\Friday\dashboard (Entscheidung des Eigentuemers, siehe docs/DEPLOYMENT.md). Log: C:\Friday\logs\dashboard-service.log
 param([switch]$Visible)
-$root = 'C:\Friday'
+$root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $dash = "$root\dashboard"
 $main = "$dash\apps\control-api\dist\main.js"
 $log  = "$root\logs\dashboard-service.log"

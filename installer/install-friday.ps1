@@ -4,21 +4,35 @@
   Standardassistent: F.R.I.D.A.Y. ("Friday", Nachfolger von J.A.R.V.I.S.), Wake Word "Hey Friday". Name UND Wake Word werden
   vor der Stimmaufnahme abgefragt und sind frei waehlbar (z. B. Name James, Wake Word "Computer" oder "Guten Morgen James").
   Spaeter aendern: change-assistant-name.bat (= install-friday.ps1 -ChangeName).
-  Installationsordner: C:\Friday. Eine vorhandene Installation der J.A.R.V.I.S.-Version in C:\Jarvis (Zustand
+  Standard-Installationsordner: C:\Friday. Eine vorhandene Installation der J.A.R.V.I.S.-Version in C:\Jarvis (Zustand
   C:\Jarvis\config\install-state.json) wird beim Start zur Uebernahme angeboten (Migration, C:\Jarvis bleibt als Sicherung).
   Zuletzt (Schritt 15) wird das F.R.I.D.A.Y. Command Center (Dashboard + Control API, http://127.0.0.1:3100) nach
   C:\Friday\dashboard installiert; -UpdateDashboard (update-dashboard.bat) spielt nur dieses Update ein.
   Start per Doppelklick auf install-friday.bat. Kann jederzeit erneut gestartet werden: erledigte Schritte
   werden uebersprungen (Fortschritt: C:\Friday\config\install-state.json).
+  Ein bestehender abweichender InstallRoot kann gezielt mit -UpdateDashboard oder -ChangeVoice aktualisiert werden;
+  Distribution und Ports werden ausschliesslich aus seinem gespeicherten Zustand uebernommen.
   Am Ende richtet ein Zusatzschritt den Service-Watchdog ein (Aufgabe FRIDAY_Watchdog, alle 5 Minuten, unsichtbar).
 #>
-param([switch]$Resume, [switch]$ChangeName, [switch]$ChangeVoice, [switch]$UpdateDashboard)
+param([switch]$Resume, [switch]$ChangeName, [switch]$ChangeVoice, [switch]$UpdateDashboard,
+      [string]$InstallRoot = 'C:\Friday', [string]$DistroName = '', [string]$DistroLocation = '')
+
+if ($InstallRoot -notmatch '^[A-Za-z]:\\[^<>:"|?*]+$' -or $InstallRoot -match '[\\/]\.\.?([\\/]|$)|[\x00-\x1F]' -or
+    ([bool]$DistroName -ne [bool]$DistroLocation) -or
+    ($DistroName -and $DistroName -notmatch '^[A-Za-z][A-Za-z0-9_-]{0,31}$') -or
+    ($DistroLocation -and ($DistroLocation -notmatch '^[A-Za-z]:\\[^<>:"|?*]+$' -or
+        $DistroLocation -match '[\\/]\.\.?([\\/]|$)|[\x00-\x1F]'))) {
+    throw 'InstallRoot bzw. DistroName/DistroLocation müssen sichere absolute Windows-Pfade und ein gültiger Distributionsname sein.'
+}
+if ($UpdateDashboard -and $ChangeVoice) { throw '-UpdateDashboard und -ChangeVoice bitte getrennt ausfuehren.' }
+$InstallRoot = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
+if ($DistroLocation) { $DistroLocation = [IO.Path]::GetFullPath($DistroLocation).TrimEnd('\') }
 
 $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
 $env:WSL_UTF8 = '1'
 $OutputEncoding = New-Object Text.UTF8Encoding $false  # Eingaben (z. B. Passwort mit Umlauten) korrekt an wsl.exe
-$Root   = 'C:\Friday'
+$Root   = $InstallRoot
 $Inst   = "$Root\installer"
 $Distro = 'Ubuntu'
 $Ports  = @{ Dashboard = 43691; Qwen = 43692; HermesApi = 43693; Voice = 43694; CommandCenter = 3100 }
@@ -40,6 +54,8 @@ if (-not $admin) {
     if ($ChangeName) { $fwd += ' -ChangeName' }
     if ($ChangeVoice) { $fwd += ' -ChangeVoice' }
     if ($UpdateDashboard) { $fwd += ' -UpdateDashboard' }
+    $fwd += ' -InstallRoot "' + $InstallRoot + '"'
+    if ($DistroName) { $fwd += ' -DistroName "' + $DistroName + '" -DistroLocation "' + $DistroLocation + '"' }
     Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"$fwd"
     exit
 }
@@ -115,13 +131,17 @@ function Register-UserTask($name, $vbsArgs, $description, $delaySeconds = 0, $re
 # Dienst-Launcher (hidden.vbs startet powershell mit Neustartschleife entkoppelt): Stop-ScheduledTask beendet die Schleife nicht.
 # Darum Stop-Flag setzen (Schleife beendet sich selbst), Launcher-Prozess und Kindprozess per CommandLine beenden.
 # Die Launcher halten ausserdem einen benannten Mutex (Einzelinstanz).
-function Get-LauncherProcesses([string]$Launcher, [string]$ChildPattern, [string]$RootFilter = '') {
+function Get-LauncherProcesses([string]$Launcher, [string]$ChildPattern, [string[]]$RootFilter = @()) {
     # $RootFilter (z. B. 'C:\Jarvis\'): nur Prozesse, deren Befehlszeile diesen Pfad nennt (Migration: nie fremde Prozesse beenden)
     return @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='cmd.exe' OR Name='python.exe' OR Name='node.exe' OR Name='llama-server.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.ProcessId -ne $PID -and ($_.CommandLine -like "*$Launcher*" -or $_.CommandLine -like $ChildPattern) -and
-                       (-not $RootFilter -or $_.CommandLine -like "*$RootFilter*") })
+        Where-Object {
+            $commandLine = [string]$_.CommandLine
+            $pathMatches = $RootFilter.Count -eq 0
+            foreach ($filter in $RootFilter) { if ($commandLine -like "*$filter*") { $pathMatches = $true; break } }
+            $_.ProcessId -ne $PID -and ($commandLine -like "*$Launcher*" -or $commandLine -like $ChildPattern) -and $pathMatches
+        })
 }
-function Stop-LauncherService([string]$Task, [string]$Launcher, [string]$ChildPattern, [string]$RunRoot = $Root, [string]$RootFilter = '') {
+function Stop-LauncherService([string]$Task, [string]$Launcher, [string]$ChildPattern, [string]$RunRoot = $Root, [string[]]$RootFilter = @()) {
     New-Item -ItemType Directory -Force "$RunRoot\run" | Out-Null
     $flag = "$RunRoot\run\$Launcher.stop"
     Set-Content -Path $flag -Value 'stop' -Encoding Ascii
@@ -136,8 +156,8 @@ function Stop-LauncherService([string]$Task, [string]$Launcher, [string]$ChildPa
     }
     Remove-Item $flag -Force -ErrorAction SilentlyContinue
 }
-function Stop-VoiceService { Stop-LauncherService 'FRIDAY_Voice' 'start-friday-voice.ps1' '*friday_voice.py*' }
-function Test-VoiceServiceRunning { return ((Get-LauncherProcesses 'start-friday-voice.ps1' '*friday_voice.py*').Count -gt 0) }
+function Stop-VoiceService { Stop-LauncherService 'FRIDAY_Voice' 'start-friday-voice.ps1' '*friday_voice.py*' $Root $ProcessRoots }
+function Test-VoiceServiceRunning { return ((Get-LauncherProcesses 'start-friday-voice.ps1' '*friday_voice.py*' $ProcessRoots).Count -gt 0) }
 function Download($url, $file) {
     & curl.exe -L --fail --retry 5 -C - -s -o $file $url
     return $LASTEXITCODE -eq 0
@@ -220,6 +240,12 @@ function Set-AssistantIdentity($name, $phrase) {
 # Am Ende (Schluss des Installers) steht die Abschlussmeldung mit Hinweis auf die Sicherung.
 $LegacyRoot    = 'C:\Jarvis'
 $MigrationFile = "$LegacyRoot\migrate-to-friday.json"
+$ProcessRoots = @("$Root\")
+$legacyAlias = Get-Item -LiteralPath $LegacyRoot -Force -ErrorAction SilentlyContinue
+if ($legacyAlias -and ($legacyAlias.Attributes -band [IO.FileAttributes]::ReparsePoint) -and
+    ([string](@($legacyAlias.Target) | Select-Object -First 1)).TrimEnd('\') -ieq $Root) {
+    $ProcessRoots += "$LegacyRoot\"
+}
 # Dienste der alten Version: Aufgabe, Launcher-Skript (Name des Stop-Flags), Kindprozess-Muster
 $LegacyServices = @(
     @{ Task = 'JARVIS_Voice';     Launcher = 'start-jarvis-voice.ps1'; Child = '*jarvis_voice.py*' }
@@ -557,7 +583,24 @@ function Show-MigrationSummary {
     Save-Migration $m
 }
 
-Invoke-LegacyMigration
+$CustomRoot = $Root -ine 'C:\Friday'
+if ($CustomRoot) {
+    if (-not ($UpdateDashboard -or $ChangeVoice) -or $ChangeName) {
+        Stop-Install 'Ein bestehender InstallRoot ausserhalb C:\Friday unterstuetzt derzeit nur -UpdateDashboard oder -ChangeVoice. Eine komplette Neuinstallation/Umbenennung hier ist noch nicht freigegeben.'
+    }
+    if (-not (Test-Path -LiteralPath "$Root\config\install-state.json" -PathType Leaf)) {
+        Stop-Install "Keine bestehende Installation in $Root gefunden. Fuer diesen Pfad ist nur ein gezieltes Update zulaessig."
+    }
+} else {
+    $legacyItem = Get-Item -LiteralPath $LegacyRoot -Force -ErrorAction SilentlyContinue
+    if ($legacyItem -and ($legacyItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -and
+        (Test-Path -LiteralPath "$LegacyRoot\config\install-state.json")) {
+        if (-not (Test-Path -LiteralPath "$Root\config\install-state.json")) {
+            Stop-Install "$LegacyRoot ist eine Junction. Automatische Migration nach C:\Friday waere hier unsicher; bestehenden Zielpfad explizit mit -InstallRoot und gezieltem Update waehlen."
+        }
+        Warn "$LegacyRoot ist eine Junction; die bestehende Installation in $Root wird ohne Legacy-Migration fortgesetzt."
+    } else { Invoke-LegacyMigration }
+}
 
 foreach ($d in 'config','exchange','logs','models','scripts','voice','windows-worker','backups','cache','installer') {
     New-Item -ItemType Directory -Force "$Root\$d" | Out-Null
@@ -577,8 +620,59 @@ $State = @{ done = @() }
 if (Test-Path $StateFile) {
     (Get-Content $StateFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $State[$_.Name] = $_.Value }
 }
-function Save-State { $State | ConvertTo-Json -Depth 6 | Set-Content $StateFile -Encoding UTF8 }
 function IsDone($n) { return @($State.done) -contains $n }
+function Test-TaskForInstallRoot($task) {
+    if (-not $task) { return $false }
+    $actions = @($task.Actions | ForEach-Object { "$($_.Execute) $($_.Arguments)" }) -join ' '
+    foreach ($path in $ProcessRoots) { if ($actions -like "*$path*") { return $true } }
+    return $false
+}
+if ($CustomRoot) {
+    if (-not $State.distro_name -or -not $State.distro_location -or -not $State.ports) {
+        Stop-Install 'Der gespeicherte Zustand enthaelt keine benannte Distribution, deren Ablageort oder Portbelegung. Update abgebrochen.'
+    }
+    if (-not $State.assistant_name -or -not $State.wake_phrase) { Stop-Install 'Assistentenname oder Wake Word fehlen im gespeicherten Zustand.' }
+    if ($DistroName -and ($DistroName -ne $State.distro_name -or $DistroLocation -ine $State.distro_location)) {
+        Stop-Install "DistroName/DistroLocation widersprechen dem gespeicherten Zustand ($($State.distro_name), $($State.distro_location))."
+    }
+    $Distro = [string]$State.distro_name
+    $DistroLocation = [string]$State.distro_location
+    $rootVolume = [IO.Path]::GetPathRoot($Root)
+    if ($rootVolume -ine [IO.Path]::GetPathRoot($DistroLocation)) {
+        Stop-Install "InstallRoot und DistroLocation muessen auf demselben Laufwerk liegen ($Root / $DistroLocation)."
+    }
+    $requiredSteps = @('preflight','files','wslfeature','power','persona','wslconfig','distro','linuxuser','keepalive','hermes','qwen','voicepython','enroll','voiceservice')
+    $missing = @($requiredSteps | Where-Object { -not (IsDone $_) })
+    if ($missing.Count -gt 0) { Stop-Install "Bestehende Installation ist fuer ein gezieltes Update unvollstaendig: $($missing -join ', ')." }
+    $savedPorts = @{}
+    foreach ($name in @('Dashboard','Qwen','HermesApi','Voice','CommandCenter')) {
+        $value = $State.ports.$name
+        if ($null -eq $value -or [int]$value -lt 1024 -or [int]$value -gt 65535) { Stop-Install "Ungueltiger gespeicherter Port: $name" }
+        $savedPorts[$name] = [int]$value
+    }
+    if (@($savedPorts.Values | Select-Object -Unique).Count -ne 5) { Stop-Install 'Gespeicherte Diensteports ueberschneiden sich.' }
+    foreach ($file in @("$Root\config\persona.json", "$Root\config\voice.json", "$Dash\config\dashboard.yaml", "$Dash\config\adapters.yaml")) {
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { Stop-Install "Bestandskonfiguration fehlt: $file" }
+    }
+    $Ports = $savedPorts
+    $DashPort = $Ports.CommandCenter
+    $DashUrl = "http://127.0.0.1:$DashPort"
+    # Der alte D:-Installer registrierte den Dashboard-Launcher unter JARVIS_Dashboard.
+    # Diese Aufgabe wird weiterverwendet, damit nicht zwei Launcher um denselben Port konkurrieren.
+    $legacyDashTask = Get-ScheduledTask -TaskName 'JARVIS_Dashboard' -ErrorAction SilentlyContinue
+    $fridayDashTask = Get-ScheduledTask -TaskName 'FRIDAY_Dashboard' -ErrorAction SilentlyContinue
+    if ($fridayDashTask -and -not (Test-TaskForInstallRoot $fridayDashTask)) { Stop-Install 'FRIDAY_Dashboard gehoert zu einem anderen Installationspfad. Update abgebrochen.' }
+    if ($legacyDashTask -and -not (Test-TaskForInstallRoot $legacyDashTask)) { Stop-Install 'JARVIS_Dashboard gehoert zu einem anderen Installationspfad. Update abgebrochen.' }
+    if ($legacyDashTask -and $fridayDashTask) { Stop-Install 'Zwei Dashboard-Aufgaben gefunden. Bitte zuerst die doppelte Registrierung klaeren.' }
+    if ($legacyDashTask -and -not $fridayDashTask) {
+        $DashTask = 'JARVIS_Dashboard'
+    }
+    if ($ChangeVoice) {
+        $voiceTask = Get-ScheduledTask -TaskName 'FRIDAY_Voice' -ErrorAction SilentlyContinue
+        if (-not (Test-TaskForInstallRoot $voiceTask)) { Stop-Install 'FRIDAY_Voice fehlt oder gehoert zu einem anderen Installationspfad. Update abgebrochen.' }
+    }
+}
+function Save-State { $State | ConvertTo-Json -Depth 6 | Set-Content $StateFile -Encoding UTF8 }
 function MarkDone($n) { $State.done = @(@($State.done) + $n | Select-Object -Unique); Save-State }
 
 Title 'F.R.I.D.A.Y. – Installation'
@@ -613,7 +707,7 @@ function Initialize-WakeSettings {
     Sync-PersonaIdentity $State.assistant_name $State.wake_phrase
 }
 $recordingsExist = (IsDone 'enroll') -or [bool](Get-ChildItem "$Root\voice\profiles\owner\raw" -Recurse -Filter *.wav -ErrorAction SilentlyContinue | Select-Object -First 1)
-Initialize-WakeSettings
+if (-not $CustomRoot) { Initialize-WakeSettings }
 $oldName = $null; $oldPhrase = $null
 if ($ChangeName -and $State.assistant_name) {
     $oldName = $State.assistant_name; $oldPhrase = $State.wake_phrase
@@ -671,6 +765,19 @@ $WP = $State.wake_phrase
 $Slug = $State.wake_slug
 $WakeShort = Get-WakeShort $WP
 
+if ($CustomRoot -and $ChangeVoice) {
+    $voiceBackup = "$Root\backups\voice-change-$(Get-Date -Format yyyyMMdd-HHmmss)"
+    try {
+        New-Item -ItemType Directory -Path $voiceBackup -ErrorAction Stop | Out-Null
+        Copy-Item -LiteralPath $StateFile -Destination "$voiceBackup\install-state.json" -ErrorAction Stop
+        Copy-Item -LiteralPath "$Root\config\voice.json" -Destination "$voiceBackup\voice.json" -ErrorAction Stop
+        $referenceDir = "$Root\config\voice-references"
+        if (Test-Path -LiteralPath $referenceDir -PathType Container) {
+            Copy-Item -LiteralPath $referenceDir -Destination "$voiceBackup\voice-references" -Recurse -ErrorAction Stop
+        }
+    } catch { Stop-Install "Stimmen-Sicherung fehlgeschlagen: $($_.Exception.Message)" }
+    Ok "Bisherige Stimmkonfiguration gesichert: $voiceBackup"
+}
 if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic'))) {
     Title 'Ausgabestimme wählen'
     Info '1  F.R.I.D.A.Y.: weibliche Stimme aus eigener 3-30-Sekunden-Referenz (Qwen3-TTS, lokal)'
@@ -742,7 +849,7 @@ if (-not (IsDone 'preflight')) {
 # Bei jedem Start synchronisieren, solange das Skript nicht aus C:\Friday\installer laeuft: ein aktualisiertes Paket
 # muss die dort liegenden Kopien (WSL-Skripte, Voice-Dateien) ersetzen, auch wenn der Schritt schon erledigt ist.
 if (-not (IsDone 'files') -or $PSScriptRoot -ne $Inst) {
-    Title 'Schritt 2/15 – Installationsdateien nach C:\Friday kopieren'
+    Title "Schritt 2/15 – Installationsdateien nach $Root kopieren"
     if ($PSScriptRoot -ne $Inst) {
         & robocopy.exe $PSScriptRoot $Inst /E /NFL /NDL /NJH /NJS /NP | Out-Null
         if ($LASTEXITCODE -ge 8) { Stop-Install "Kopieren der Installationsdateien fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
@@ -751,7 +858,7 @@ if (-not (IsDone 'files') -or $PSScriptRoot -ne $Inst) {
     MarkDone 'files'
 }
 # Uebernahme einer alten Installation (nur wenn Phasen offen sind): Hermes in Ubuntu umstellen, Qwen starten - braucht die Skripte aus Schritt 2.
-Invoke-MigrationWsl
+if (-not $CustomRoot) { Invoke-MigrationWsl }
 # Quelle des Command Centers (Ordner ueber installer\) merken: nach einem Neustart laeuft das Skript aus C:\Friday\installer,
 # wo die Quellen nicht liegen. Schritt 15 findet sie dann ueber install-state.json (dashboard_source).
 if ($PSScriptRoot -ne $Inst) {
@@ -782,7 +889,7 @@ function Sync-VoiceFiles {
         } else { Warn 'Aufgabe FRIDAY_Voice fehlt - Sprachdienst nicht neu gestartet. install-friday.bat mit entferntem Eintrag "voiceservice" in install-state.json starten.' }
     }
 }
-Sync-VoiceFiles
+if (-not $UpdateDashboard -and (-not $CustomRoot -or $ChangeVoice)) { Sync-VoiceFiles }
 
 # ================================================================ 3 WSL-Grundlage (ggf. Neustart)
 if (-not (IsDone 'wslfeature')) {
@@ -1258,7 +1365,7 @@ function Get-PortOwner([int]$port) {
 }
 function Stop-DashboardService {
     # Erst die Neustartschleife (Launcher), dann Node - sonst startet der Launcher den Server sofort neu.
-    Stop-LauncherService $DashTask 'start-dashboard.ps1' '*control-api*dist*main.js*'
+    Stop-LauncherService $DashTask 'start-dashboard.ps1' '*control-api*dist*main.js*' $Root $ProcessRoots
 }
 function Write-DashFile([string]$path, [string]$content, [string]$label) {
     $content = $content.Replace("`r`n", "`n")
@@ -1412,10 +1519,30 @@ function Set-DashboardOwnerPassword {
     }
     Info "Öffne nach dem Start $DashUrl. Dort legst du Name, Benutzername und Passwort beim ersten Login selbst fest."
 }
+function Backup-CustomDashboard {
+    $backup = "$Root\backups\dashboard-update-$(Get-Date -Format yyyyMMdd-HHmmss)"
+    try {
+        New-Item -ItemType Directory -Path $backup -ErrorAction Stop | Out-Null
+        foreach ($entry in @(
+            @{ Source = "$Dash\config\dashboard.yaml"; Relative = 'config\dashboard.yaml' },
+            @{ Source = "$Dash\config\adapters.yaml"; Relative = 'config\adapters.yaml' },
+            @{ Source = $DashHashFile; Relative = 'config\dashboard_owner.hash' },
+            @{ Source = $StateFile; Relative = 'config\install-state.json' },
+            @{ Source = "$Dash\apps\control-api\dist"; Relative = 'apps\control-api\dist' },
+            @{ Source = "$Dash\apps\web\out"; Relative = 'apps\web\out' }
+        )) {
+            if (-not (Test-Path -LiteralPath $entry.Source)) { continue }
+            $target = Join-Path $backup $entry.Relative
+            New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force -ErrorAction Stop | Out-Null
+            Copy-Item -LiteralPath $entry.Source -Destination $target -Recurse -Force -ErrorAction Stop
+        }
+    } catch { Stop-Dashboard "Dashboard-Sicherung vor dem Update fehlgeschlagen: $($_.Exception.Message)" }
+    Ok "Vorheriger Dashboard-Build und Konfiguration gesichert: $backup"
+}
 function Install-Dashboard {
     Write-DashLog "=== Dashboard-Schritt gestartet ($(Get-Date -Format s)) ==="
     Info "Ziel: $Dash  |  URL: $DashUrl  |  Log: $DashInstallLog"
-    Info 'Hinweis: PLAN §54 nennt D:\Friday\dashboard; hier gilt C:\Friday\dashboard (Entscheidung des Eigentümers, siehe docs\DEPLOYMENT.md).'
+    if ($CustomRoot -and $UpdateDashboard) { Backup-CustomDashboard }
 
     # --- Quelle des Command Centers: Ordner neben installer\ (oder der beim ersten Start gemerkte)
     $src = $null
@@ -1516,6 +1643,7 @@ if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
 # powershell.exe-Start mit -WindowStyle Hidden blitzt sonst alle 5 Minuten ein Konsolenfenster auf. Idempotent: wird bei jedem Lauf
 # neu registriert. Ein Fehler hier laesst die Installation unberuehrt (nur Warnung). Andere Aufgaben (z. B. ein altes
 # FRIDAY_Voice_Watchdog frueherer Installer) werden nicht angefasst.
+if (-not $CustomRoot) {
 Title 'Zusatz – Service-Watchdog einrichten'
 $eapBefore = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
@@ -1530,6 +1658,7 @@ try {
     Warn "Service-Watchdog nicht eingerichtet: $($_.Exception.Message)"
     Warn 'Die Dienste laufen trotzdem; ohne Watchdog werden abgestürzte Dienste nur durch die eigenen Neustartschleifen bzw. bei der nächsten Anmeldung wieder gestartet. Erneut versuchen: install-friday.bat starten.'
 } finally { $ErrorActionPreference = $eapBefore }
+} else { Info 'Bestehender D:-Watchdog bleibt unveraendert; fuer ein gezieltes Update wird keine zweite Aufgabe registriert.' }
 
 $DashProbe = Test-DashboardHealth 3
 $p = Get-Content "$Root\config\persona.json" -Raw | ConvertFrom-Json
@@ -1541,14 +1670,14 @@ Installiert am $(Get-Date -Format 'dd.MM.yyyy HH:mm') für $($p.owner_name). Ass
 
 | Komponente | Adresse |
 |---|---|
-| F.R.I.D.A.Y. Command Center | $DashUrl (Login: owner) |
+| F.R.I.D.A.Y. Command Center | $DashUrl (Anmeldung im Browser) |
 | Hermes Dashboard | http://127.0.0.1:$($Ports.Dashboard) |
 | Qwen3-4B (lokal) | http://127.0.0.1:$($Ports.Qwen)/v1 |
 | Hermes API (für Sprache) | http://127.0.0.1:$($Ports.HermesApi)/v1 |
 | Sprachdienst-Status | http://127.0.0.1:$($Ports.Voice) |
 
 Grafikkarte: $($State.gpu.name) ($($State.gpu.vram_mb) MB) · Linux-Benutzer: $($State.linux_user)
-Autostart: FRIDAY_WSL_Keepalive, FRIDAY_Qwen, FRIDAY_Voice, FRIDAY_Dashboard (Aufgabenplanung). Watchdog: FRIDAY_Watchdog (alle 5 Minuten, Log C:\Friday\logs\watchdog.log). Hermes-Dienste: systemd in Ubuntu.
+Autostart: vorhandene Aufgabenplanung, Dashboard-Aufgabe $DashTask. Watchdog: $(if ($CustomRoot) { 'bestehende Aufgabe unveraendert' } else { 'FRIDAY_Watchdog (alle 5 Minuten)' }). Hermes-Dienste: systemd in $Distro.
 $dashNote
 Erledigte Schritte: $(@($State.done) -join ', ')
 "@
@@ -1558,12 +1687,12 @@ Remove-Item "$Root\run\installer.active" -Force -ErrorAction SilentlyContinue   
 Title "FERTIG – $AN ist einsatzbereit"
 Info "Sag:  ""$WP""  … kurzer Piepton … dann deine Frage, z. B. ""Wie spät ist es?"""
 Info "Folgefragen gehen 90 Sekunden lang ohne erneutes ""$WP""."
-if ($DashProbe.Up) { Info "Command Center (Dashboard, Login 'owner'): $DashUrl" }
+if ($DashProbe.Up) { Info "Command Center (Dashboard): $DashUrl" }
 else { Warn "Command Center nicht erreichbar ($DashUrl) - Logs: $Root\logs\dashboard-service.log, $DashInstallLog. Erneut versuchen: update-dashboard.bat oder install-friday.bat -Resume." }
 Info "Hermes-Dashboard (Kanban, Einstellungen): http://127.0.0.1:$($Ports.Dashboard)"
 Info 'Alles startet ab jetzt automatisch bei der Anmeldung.'
 Info 'Nächste Schritte (Telegram, E-Mail, Kalender): siehe ANLEITUNG.md'
-Show-MigrationSummary
+if (-not $CustomRoot) { Show-MigrationSummary }
 if ($DashProbe.Up -and (YesNo 'Command Center jetzt im Browser öffnen?')) { Start-Process $DashUrl }
 elseif (-not $DashProbe.Up) { Start-Process "http://127.0.0.1:$($Ports.Dashboard)" }
 Stop-Transcript | Out-Null
