@@ -96,4 +96,12 @@ export class HimalayaAccountService {
     if (result.mailbox !== mailbox || result.id !== id || typeof result.bodyText !== "string") throw unavailable();
     return result;
   }
+
+  async sendRaw(input: { to: string[]; subject: string; body: string }): Promise<void> {
+    const { script, distro, user } = this.target();
+    const sendScript = script.replace(/configure_himalaya\.py$/, "send_himalaya.py");
+    if (sendScript === script) throw unavailable();
+    const result = await this.invoke(sendScript, distro, user, [], JSON.stringify(input), 30000);
+    if (result.state !== "sent") throw unavailable();
+  }
 }

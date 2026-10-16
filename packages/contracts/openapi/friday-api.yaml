@@ -5126,6 +5126,36 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/communication/himalaya/send:
+    post:
+      operationId: sendHimalayaMessage
+      x-max-body-bytes: 110000
+      tags: [communication]
+      summary: Send one owner-confirmed plain-text message through the managed Friday SMTP account
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HimalayaSendRequest"
+      responses:
+        "200":
+          description: Sent or permanently unknown SMTP result; replay never invokes SMTP again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HimalayaSendResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: communication.requestSend
+      x-required-role: owner
   /api/v1/communication/himalaya/mailboxes:
     get:
       operationId: listHimalayaMailboxes
@@ -6464,6 +6494,10 @@ components:
       $ref: ../schemas/communication/himalaya-envelope-list-response.schema.json
     HimalayaMessageResponse:
       $ref: ../schemas/communication/himalaya-message-response.schema.json
+    HimalayaSendRequest:
+      $ref: ../schemas/communication/himalaya-send-request.schema.json
+    HimalayaSendResponse:
+      $ref: ../schemas/communication/himalaya-send-response.schema.json
     WikiPath:
       $ref: ../schemas/settings/wiki-path.schema.json
     WikiPathPatch:

@@ -28,6 +28,7 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   createDraft: "communication.draft",
   updateDraft: "communication.draft",
   requestDraftSend: "communication.requestSend",
+  sendHimalayaMessage: "communication.requestSend",
   createCalendarProposal: "calendar.propose",
   createAutomation: "automations.create",
   updateAutomation: "automations.update",
