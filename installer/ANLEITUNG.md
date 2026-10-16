@@ -39,6 +39,7 @@ Wake Word *„Hey Friday“*.
      **immer frei gefragt**, nicht aus dem Namen abgeleitet. Erlaubt sind 1–4 Wörter (Buchstaben, auch Umlaute, und Bindestrich),
      zusammen 3–30 Zeichen, z. B. *Hey Friday*, *Computer*, *Guten Morgen Friday*.
    - dem **Sprachmodus**: lokal mit mindestens 6 GB NVIDIA-VRAM oder ElevenLabs Cloud ohne dedizierte GPU. Für Cloud gibst du eine Voice ID (optional) und später den verdeckt abgefragten API-Schlüssel ein. Die voreingestellte ElevenLabs-Bibliotheksstimme braucht für API-Nutzung einen geeigneten Tarif; ein Free-Konto wurde mit `paid_plan_required` abgewiesen.
+     Im Free-Tarif kannst du stattdessen unter **ElevenLabs → Voices → My Voices → Add a new voice → Voice Design** eine synthetische Stimme erstellen, speichern und über **⋯ → Copy voice ID** ihre ID kopieren. Die Erstellung und Nutzung verbrauchen Credits aus deinem Kontingent; prüfe die aktuellen [ElevenLabs-Tarife](https://elevenlabs.io/pricing).
    - bei lokaler Sprache der **Ausgabestimme**: weibliche F.R.I.D.A.Y.-Stimme aus einer eigenen 3–30 Sekunden langen MP3/WAV-Referenz
      über lokales Qwen3-TTS oder klassische Ausgabe. Die Referenz bleibt nur auf deinem Rechner. Ohne Referenz
      nutzt die weibliche Option Piper Kerstin. Die klassische Ausgabe nutzt `jarvis_de.onnx`, wenn du diese eigene
