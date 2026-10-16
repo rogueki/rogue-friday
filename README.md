@@ -54,7 +54,7 @@ Das Dashboard zeigt unter **Skills** die Friday-Skills und die in der laufenden 
 
 Die Sprachführung kann auf „Welche Konten brauche ich für meine Skills?“ die im Katalog verzeichneten Konten für die ausgewählten Skills und deren bekannten Einrichtungsstatus nennen. Sie liest keine Zugangsdaten vor, richtet keine Konten ein und lässt den Kontenschritt bis zur echten Prüfung als ungeprüft stehen.
 
-Der Owner kann einen Telegram-Bot unter **Einstellungen → Skill-Konten → Telegram** mit BotFather-Token und numerischen erlaubten User-IDs für das installierte Hermes-Gateway einrichten. Friday zeigt nur an, ob Token, IDs und Gateway-Schalter gesetzt sind; die erfolgreiche Bot-Verbindung, Absenderidentität und Nachrichtenzustellung sind damit noch nicht geprüft. WhatsApp und Telefonie benötigen jeweils eine eigene Einrichtung.
+Der Owner kann Telegram und Discord unter **Einstellungen → Skill-Konten** mit Bot-Token und numerischen erlaubten User-IDs für die installierten Hermes-Gateways einrichten. Discord benötigt zusätzlich einen Bot mit Message Content Intent und Servereinladung im Developer Portal; optionale Kanal-IDs begrenzen den Zugriff. Für WhatsApp öffnet Friday den lokalen Hermes-QR-Einrichtungsweg und zeigt, ob eine Kopplungsdatei vorhanden ist. Modus und erlaubte Telefonnummern werden danach im Friday-Dashboard eingerichtet. Gespeicherte Werte, Kopplungsdatei und laufender Dienst belegen noch keine aktive Verbindung, berechtigte Absenderidentität oder Nachrichtenzustellung. Telefonie benötigt weiterhin einen eigenen Anbieter und Dial-Adapter.
 
 ### Kalender und E-Mail
 

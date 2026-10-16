@@ -36,6 +36,7 @@ import { ObsidianVaultService } from "../services/obsidian-vault";
 import { WikiPathService } from "../services/wiki-path";
 import { HimalayaAccountService } from "../services/himalaya-account";
 import { TelegramGatewayService } from "../services/telegram-gateway";
+import { MessagingGatewayService } from "../services/messaging-gateways";
 import { HimalayaSendService } from "../services/himalaya-send";
 import { CalDavCreateService } from "../services/caldav-create";
 import { LocalCalendarService } from "../services/local-calendar";
@@ -244,6 +245,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const wikiPath = new WikiPathService(config.paths.dataDir);
   const himalayaAccount = new HimalayaAccountService(config.paths.dataDir);
   const telegramGateway = new TelegramGatewayService(config.paths.dataDir);
+  const discordGateway = new MessagingGatewayService(config.paths.dataDir, "discord");
+  const whatsappGateway = new MessagingGatewayService(config.paths.dataDir, "whatsapp");
   const himalayaSend = new HimalayaSendService(db, himalayaAccount);
   const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
@@ -257,6 +260,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     wikiPathStatus: () => wikiPath.status(),
     himalayaAccountStatus: () => himalayaAccount.status(),
     telegramGatewayStatus: () => telegramGateway.status(),
+    discordGatewayStatus: () => discordGateway.status(),
+    whatsappGatewayStatus: () => whatsappGateway.status(),
     codingCliStatus: () => codingRuns.cliStatus(),
     localCalendarStatus: () => { new LocalCalendarService(db).list(undefined, undefined, undefined, 1); return true; },
     calendarAdapterStatus: () => adapterSettings.list(),
@@ -448,6 +453,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     wikiPath,
     himalayaAccount,
     telegramGateway,
+    discordGateway,
+    whatsappGateway,
     himalayaSend,
     caldavCreate,
     hermesSkillKeys,

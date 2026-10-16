@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/whatsapp-gateway.schema.json",
+  "title": "WhatsappGateway",
+  "type": "object",
+  "properties": {
+    "setupUrl": { "type": "string", "pattern": "^http://127\\.0\\.0\\.1:[0-9]{1,5}/channels$" },
+    "mode": { "type": ["string", "null"], "enum": ["bot", "self-chat", null] },
+    "sessionPresent": { "type": "boolean" },
+    "allowedUserIds": { "type": "array", "items": { "type": "string" } },
+    "enabled": { "type": ["boolean", "null"] },
+    "gatewayRunning": { "type": ["boolean", "null"] },
+    "connectionState": { "type": "string", "enum": ["unknown"] },
+    "applied": { "type": ["boolean", "null"] },
+    "revision": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["setupUrl", "mode", "sessionPresent", "allowedUserIds", "enabled", "gatewayRunning", "connectionState", "applied", "revision"],
+  "additionalProperties": false
+}

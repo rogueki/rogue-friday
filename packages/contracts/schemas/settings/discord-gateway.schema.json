@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/discord-gateway.schema.json",
+  "title": "DiscordGateway",
+  "type": "object",
+  "properties": {
+    "setupUrl": { "type": "string", "pattern": "^http://127\\.0\\.0\\.1:[0-9]{1,5}/channels$" },
+    "tokenConfigured": { "type": "boolean" },
+    "allowedUserIds": { "type": "array", "items": { "type": "string" } },
+    "allowedChannelIds": { "type": "array", "items": { "type": "string" } },
+    "enabled": { "type": ["boolean", "null"] },
+    "gatewayRunning": { "type": ["boolean", "null"] },
+    "connectionState": { "type": "string", "enum": ["unknown"] },
+    "applied": { "type": ["boolean", "null"] },
+    "revision": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["setupUrl", "tokenConfigured", "allowedUserIds", "allowedChannelIds", "enabled", "gatewayRunning", "connectionState", "applied", "revision"],
+  "additionalProperties": false
+}

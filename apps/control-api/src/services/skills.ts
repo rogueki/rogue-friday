@@ -12,6 +12,8 @@ type VaultFlags = Readonly<{ configured: boolean; readable: boolean }>;
 type WikiFlags = Readonly<{ configured: boolean; readable: boolean }>;
 type HimalayaFlags = Readonly<{ readyForLocalUse: boolean }>;
 type TelegramFlags = Readonly<{ tokenConfigured: boolean; allowedUserIds: string[]; enabled: boolean | null }>;
+type DiscordFlags = Readonly<{ tokenConfigured?: boolean; allowedUserIds: string[]; enabled: boolean | null }>;
+type WhatsappFlags = Readonly<{ sessionPresent?: boolean; allowedUserIds: string[]; enabled: boolean | null }>;
 const HERMES_KEY_INTEGRATIONS = {
   hermes_airtable: "AIRTABLE_API_KEY", hermes_notion: "NOTION_API_KEY",
   hermes_gif_search: "TENOR_API_KEY", hermes_blocked_page_recovery: "JINA_API_KEY",
@@ -110,6 +112,8 @@ export class SkillsService {
   private readonly wikiPathStatus: (() => Promise<WikiFlags>) | undefined;
   private readonly himalayaAccountStatus: (() => Promise<HimalayaFlags>) | undefined;
   private readonly telegramGatewayStatus: (() => Promise<TelegramFlags>) | undefined;
+  private readonly discordGatewayStatus: (() => Promise<DiscordFlags>) | undefined;
+  private readonly whatsappGatewayStatus: (() => Promise<WhatsappFlags>) | undefined;
   private readonly codingCliStatus: (() => Promise<CodingCliStatus[]>) | undefined;
   private readonly localCalendarStatus: (() => boolean) | undefined;
   private readonly calendarAdapterStatus: (() => AdapterConfigSettings[]) | undefined;
@@ -122,6 +126,8 @@ export class SkillsService {
     wikiPathStatus?: () => Promise<WikiFlags>;
     himalayaAccountStatus?: () => Promise<HimalayaFlags>;
     telegramGatewayStatus?: () => Promise<TelegramFlags>;
+    discordGatewayStatus?: () => Promise<DiscordFlags>;
+    whatsappGatewayStatus?: () => Promise<WhatsappFlags>;
     codingCliStatus?: () => Promise<CodingCliStatus[]>;
     localCalendarStatus?: () => boolean;
     calendarAdapterStatus?: () => AdapterConfigSettings[] }) {
@@ -133,6 +139,8 @@ export class SkillsService {
     this.wikiPathStatus = options.wikiPathStatus;
     this.himalayaAccountStatus = options.himalayaAccountStatus;
     this.telegramGatewayStatus = options.telegramGatewayStatus;
+    this.discordGatewayStatus = options.discordGatewayStatus;
+    this.whatsappGatewayStatus = options.whatsappGatewayStatus;
     this.codingCliStatus = options.codingCliStatus;
     this.localCalendarStatus = options.localCalendarStatus;
     this.calendarAdapterStatus = options.calendarAdapterStatus;
@@ -267,6 +275,8 @@ export class SkillsService {
     const needsWiki = integrationIds.has("hermes_llm_wiki");
     const needsHimalaya = integrationIds.has("hermes_himalaya") || integrationIds.has("imap_smtp_mail");
     const needsTelegram = integrationIds.has("telegram_gateway");
+    const needsDiscord = integrationIds.has("discord_gateway");
+    const needsWhatsapp = integrationIds.has("whatsapp_gateway");
     const needsCodingCli = Object.keys(CODING_CLI_INTEGRATIONS).some((id) => integrationIds.has(id));
     let localCalendar: boolean | null = null;
     if (integrationIds.has("friday_local_calendar") && this.localCalendarStatus) {
@@ -281,13 +291,15 @@ export class SkillsService {
           && adapter.secretFields.password?.configured);
       } catch { /* A failed adapter status read is unknown, not unconfigured. */ }
     }
-    const [hermesKeys, vault, wiki, himalaya, codingClis, telegram] = await Promise.all([
+    const [hermesKeys, vault, wiki, himalaya, codingClis, telegram, discord, whatsapp] = await Promise.all([
       needsHermesKeys && this.hermesKeyStatus ? Promise.resolve().then(() => this.hermesKeyStatus!()).catch(() => null) : Promise.resolve(null),
       needsVault && this.obsidianVaultStatus ? Promise.resolve().then(() => this.obsidianVaultStatus!()).catch(() => null) : Promise.resolve(null),
       needsWiki && this.wikiPathStatus ? Promise.resolve().then(() => this.wikiPathStatus!()).catch(() => null) : Promise.resolve(null),
       needsHimalaya && this.himalayaAccountStatus ? Promise.resolve().then(() => this.himalayaAccountStatus!()).catch(() => null) : Promise.resolve(null),
       needsCodingCli && this.codingCliStatus ? Promise.resolve().then(() => this.codingCliStatus!()).catch(() => null) : Promise.resolve(null),
       needsTelegram && this.telegramGatewayStatus ? Promise.resolve().then(() => this.telegramGatewayStatus!()).catch(() => null) : Promise.resolve(null),
+      needsDiscord && this.discordGatewayStatus ? Promise.resolve().then(() => this.discordGatewayStatus!()).catch(() => null) : Promise.resolve(null),
+      needsWhatsapp && this.whatsappGatewayStatus ? Promise.resolve().then(() => this.whatsappGatewayStatus!()).catch(() => null) : Promise.resolve(null),
     ]);
     for (const skill of skills) skill.integrationDetails = skill.integrationDetails.map((detail) => {
       if (detail.id === "friday_local_calendar") return { ...detail, configured: localCalendar };
@@ -305,6 +317,10 @@ export class SkillsService {
         configured: himalaya ? himalaya.readyForLocalUse : null };
       if (detail.id === "telegram_gateway") return { ...detail,
         configured: telegram ? telegram.tokenConfigured && telegram.allowedUserIds.length > 0 && telegram.enabled === true : null };
+      if (detail.id === "discord_gateway") return { ...detail,
+        configured: discord ? Boolean(discord.tokenConfigured) && discord.allowedUserIds.length > 0 && discord.enabled === true : null };
+      if (detail.id === "whatsapp_gateway") return { ...detail,
+        configured: whatsapp ? Boolean(whatsapp.sessionPresent) && whatsapp.allowedUserIds.length > 0 && whatsapp.enabled === true : null };
       const cli = CODING_CLI_INTEGRATIONS[detail.id as keyof typeof CODING_CLI_INTEGRATIONS];
       if (cli) {
         const status = codingClis?.find((entry) => entry.cli === cli);
