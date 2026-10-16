@@ -4,10 +4,12 @@ import type { SkillCatalogEntry } from "@friday/sdk";
 import { expect, it, vi } from "vitest";
 import { SkillsPage } from "./SkillsPage";
 
-const mocks = vi.hoisted(() => ({ skills: [] as SkillCatalogEntry[] }));
+const mocks = vi.hoisted(() => ({ skills: [] as SkillCatalogEntry[], stale: false, freshness: "fresh", refetch: vi.fn() }));
 vi.mock("@/lib/session", () => ({ useSession: () => ({ role: "owner", offline: false }) }));
 vi.mock("@/lib/api/domains/skills", () => ({
-  useSkillsCatalog: () => ({ data: { data: mocks.skills, catalogError: null, hermesError: null }, isPending: false, isError: false }),
+  useSkillsCatalog: () => ({ data: { data: mocks.skills, catalogError: null, hermesError: null,
+    freshness: { state: mocks.freshness, asOf: new Date().toISOString() } }, isPending: false, isError: false, isStale: mocks.stale,
+    refetch: mocks.refetch }),
   useSetSkillActivation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock("./CodingRunsArea", () => ({ CodingRunsArea: () => null }));
@@ -29,4 +31,20 @@ it("labels absent skill versions as unknown without inventing a Hermes version",
   expect(screen.getByText("FRIDAY SKILLS · v1.2.3")).toBeTruthy();
   await userEvent.click(screen.getByRole("button", { name: /Friday ohne Version/ }));
   expect(screen.getByText("FRIDAY SKILLS · Version unbekannt")).toBeTruthy();
+});
+
+it.each(["cached", "backend"])("does not present %s stale activation as live and offers refresh", async (caseName) => {
+  mocks.skills = [skill("hermes", null)];
+  mocks.stale = caseName === "cached";
+  mocks.freshness = caseName === "backend" ? "unknown" : "fresh";
+  mocks.refetch.mockClear();
+  render(<SkillsPage />);
+
+  expect(screen.getAllByText("Laufzeit unbekannt")).toHaveLength(2);
+  expect(screen.getAllByText(/Katalogdaten sind nicht mehr aktuell/)).toHaveLength(2);
+  expect(screen.queryByRole("button", { name: "Deaktivieren" })).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Jetzt aktualisieren" }));
+  expect(mocks.refetch).toHaveBeenCalledOnce();
+  mocks.stale = false;
+  mocks.freshness = "fresh";
 });
