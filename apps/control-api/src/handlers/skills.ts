@@ -20,7 +20,14 @@ export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
     return { status: 200, body: single(ctx.runtime.onboarding.get()) };
   },
   async putOnboarding(ctx) {
+    const previousPreferredName = ctx.runtime.onboarding.get().preferredName?.trim();
     const state = ctx.runtime.onboarding.put(ctx.body as OnboardingUpdate, ctx.mutation.ifMatchVersion);
+    // The owner nickname is also the live dashboard/session display name. Keep the existing settings version check.
+    const preferredName = state.preferredName?.trim();
+    if (preferredName && preferredName !== previousPreferredName && preferredName !== ctx.runtime.settings.area("profile").displayName) {
+      ctx.runtime.settings.patch({ profile: { ...ctx.runtime.settings.area("profile"), displayName: preferredName } }, ctx.runtime.settings.version());
+      ctx.runtime.world?.refresh();
+    }
     ctx.audit.action = "onboarding.updated";
     ctx.audit.after = { revision: state.revision, completed: Boolean(state.completedAt) };
     return { status: 200, body: single(state) };

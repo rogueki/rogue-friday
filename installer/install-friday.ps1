@@ -1930,6 +1930,7 @@ Grafikkarte: $($State.gpu.name) ($($State.gpu.vram_mb) MB) · Linux-Benutzer: $(
 Autostart: vorhandene Aufgabenplanung, Dashboard-Aufgabe $DashTask. Watchdog: FRIDAY_Watchdog (alle 5 Minuten). Hermes-Dienste: systemd in $Distro.
 $dashNote
 Friday-Skills: $(if (IsDone 'skills') { "Registry validiert, Commit $($State.skills_commit)" } else { 'fehlen oder nicht validiert; Installer erneut starten' }). Hermes-Standardskills bleiben in Hermes.
+Erste Einrichtung: Im Command Center Besitzerkonto anlegen oder anmelden. Bei einem neuen Besitzer startet dort die fortsetzbare Einführung mit Profil, Friday- und Hermes-Skills sowie Konto-Voraussetzungen. Ein Skill ist erst nutzbar, wenn Hermes und die nötigen Integrationen ihn tatsächlich bereitstellen.
 WSL-Voraussetzungen (Fund, keine Funktionsprobe): $($readiness -replace "`n", '; ')
 Obsidian-Vault: $vaultStatus
 Erledigte Schritte: $(@($State.done) -join ', ')
@@ -1944,6 +1945,7 @@ if ($DashProbe.Up) { Info "Command Center (Dashboard): $DashUrl" }
 else { Warn "Command Center nicht erreichbar ($DashUrl) - Logs: $Root\logs\dashboard-service.log, $DashInstallLog. Erneut versuchen: update-dashboard.bat oder install-friday.bat -Resume." }
 Info "Hermes-Dashboard (Kanban, Einstellungen): http://127.0.0.1:$($Ports.Dashboard)"
 Info 'Alles startet ab jetzt automatisch bei der Anmeldung.'
+if ($DashProbe.Up) { Info 'Erste Einrichtung: Command Center öffnen, Besitzerkonto anlegen/anmelden und die Einführung durchlaufen. Friday zeigt dort Skills und noch fehlende Konten.' }
 Info 'Nächste Schritte (Telegram, E-Mail, Kalender): siehe ANLEITUNG.md'
 if (-not $CustomRoot) { Show-MigrationSummary }
 if ($DashProbe.Up -and (YesNo 'Command Center jetzt im Browser öffnen?')) { Start-Process $DashUrl }

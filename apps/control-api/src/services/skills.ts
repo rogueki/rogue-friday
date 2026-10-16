@@ -15,6 +15,25 @@ const field = (obj: Json, ...names: string[]): string => {
 };
 const unavailable = (message: string): ApiError => new ApiError({ code: "ADAPTER_UNAVAILABLE", message });
 
+const HERMES_SETUP: Record<string, { account: "none" | "conditional"; setupDe: string; capability: string }> = {
+  powerpoint: { account: "none", setupDe: "Der Hermes-Skill bietet pptx_create.py, pptx_read.py, pptx_edit.py, pptx_from_template.py und pptx_render.py. python-pptx in Friday-Ubuntu installieren; LibreOffice und Poppler sind für Vorschau/Rendering optional. Einen Export tatsächlich prüfen.", capability: "python-pptx in Friday-Ubuntu; für Rendering optional LibreOffice/Poppler" },
+  "computer-use": { account: "none", setupDe: "Der Hermes-Skill steuert computer_use mit Bildschirmaufnahme und Klicks. Den separaten lokalen Treiber, eine Desktop-Sitzung und Berechtigungen für Bildschirm und Eingabe einrichten; anschließend eine harmlose Bedienung unter Aufsicht prüfen.", capability: "Computer-Use-Treiber und Desktop-Berechtigungen" },
+  obsidian: { account: "none", setupDe: "OBSIDIAN_VAULT_PATH für einen lokalen Vault setzen und den Dateizugriff aus Friday-Ubuntu auf genau diesen Pfad prüfen. Ohne erreichbaren Vault hat Friday keinen bestätigten Notizzugriff.", capability: "Erreichbarer Obsidian-Vault unter OBSIDIAN_VAULT_PATH" },
+  opencode: { account: "conditional", setupDe: "OpenCode CLI in Friday-Ubuntu installieren, dort einen ausführbaren Befehl prüfen und den gewünschten Modellanbieter in OpenCode authentisieren. Ein gefundenes Binary allein beweist keinen erfolgreichen Coding-Auftrag.", capability: "Ausführbare OpenCode CLI und Modellzugang in Friday-Ubuntu" },
+  codex: { account: "conditional", setupDe: "Codex CLI nativ in Friday-Ubuntu installieren oder einen tatsächlich ausführbaren WSL-Pfad bereitstellen. Dort anmelden und einen kleinen lokalen Auftrag prüfen; ein Windows-Shim im WSL-PATH genügt nicht.", capability: "Ausführbare Codex CLI und Anmeldung in Friday-Ubuntu" },
+  "claude-code": { account: "conditional", setupDe: "Claude Code CLI in Friday-Ubuntu installieren, dort anmelden und einen kleinen lokalen Auftrag prüfen. Ohne CLI und Modellzugang ist der aktivierte Hermes-Skill nicht einsatzbereit.", capability: "Ausführbare Claude Code CLI und Anmeldung in Friday-Ubuntu" },
+  telephony: { account: "conditional", setupDe: "Für Telefonie ist derzeit kein in Friday verifizierter Anrufadapter eingerichtet. Erst einen unterstützten Provider und einen prüfbaren Adapter anbinden; im Dashboard keinen funktionierenden Anruf versprechen.", capability: "Verifizierter Telefonieadapter und Provider" },
+};
+
+function hermesPrerequisites(name: string) {
+  const setup = HERMES_SETUP[slug(name)];
+  if (!setup) return { accounts: [], setupRefs: [], integrationRefs: [], integrationDetails: [], requiredCapabilities: [], conditionalCapabilities: [] };
+  const id = `hermes_${slug(name).replaceAll("-", "_")}`;
+  return { accounts: setup.account === "none" ? [] : [id], setupRefs: [], integrationRefs: [id],
+    integrationDetails: [{ id, account: setup.account, required: true, setupDe: setup.setupDe, reference: "", settingsTarget: "Friday-Ubuntu / lokaler Anbieter", configured: null, connectionChecked: null }],
+    requiredCapabilities: [setup.capability], conditionalCapabilities: [] };
+}
+
 /** The registry is package metadata only. A fresh dashboard request owns discovery and activation. */
 export class SkillsService {
   private readonly fetcher: typeof fetch;
@@ -119,7 +138,7 @@ export class SkillsService {
         if (!raw || typeof raw !== "object") continue;
         const entry = raw as Json;
         const name = field(entry, "name");
-        if (name && typeof entry.enabled === "boolean") skills.set(slug(name), entry);
+        if (name) skills.set(slug(name), entry);
       }
       return { skills, at: new Date().toISOString(), error: null };
     } catch {
@@ -132,7 +151,7 @@ export class SkillsService {
     const observation = await this.observe();
     const skills = catalog.skills.map((skill): SkillCatalogEntry => {
       const observed = observation.skills.get(slug(skill.name));
-      return { ...skill, discovered: observation.error ? null : Boolean(observed), enabled: observed ? observed.enabled as boolean : null,
+      return { ...skill, discovered: observation.error ? null : Boolean(observed), enabled: typeof observed?.enabled === "boolean" ? observed.enabled : null,
         observedAt: observation.at, observationSource: observation.error ? "unavailable" : "hermes-dashboard", observationError: observation.error };
     });
     const known = new Set(skills.map((skill) => slug(skill.name)));
@@ -140,8 +159,8 @@ export class SkillsService {
       if (known.has(name)) continue;
       skills.push({ id: `hermes:${name}`, source: "hermes", name: field(entry, "name"), category: field(entry, "category") || "Hermes",
         description: field(entry, "description"), version: field(entry, "version") || null, packaged: false, discovered: true,
-        enabled: entry.enabled as boolean, observedAt: observation.at, observationSource: "hermes-dashboard", observationError: null,
-        accounts: [], setupRefs: [], integrationRefs: [], integrationDetails: [], requiredCapabilities: [], conditionalCapabilities: [] });
+        enabled: typeof entry.enabled === "boolean" ? entry.enabled : null, observedAt: observation.at, observationSource: "hermes-dashboard", observationError: null,
+        ...hermesPrerequisites(field(entry, "name")) });
     }
     skills.sort((a, b) => a.id.localeCompare(b.id));
     if (catalog.error) for (const skill of skills) skill.observationError = [skill.observationError, catalog.error].filter(Boolean).join("; ");
