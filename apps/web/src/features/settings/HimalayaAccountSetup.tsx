@@ -1,8 +1,8 @@
 "use client";
 
-import type { HimalayaAccountPatch, HimalayaAccountResponse } from "@friday/sdk";
+import type { HimalayaAccountPatch, HimalayaAccountResponse, HimalayaMailboxListResponse } from "@friday/sdk";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/queryKeys";
@@ -18,6 +18,11 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
   const [form, setForm] = useState<HimalayaAccountPatch>(empty);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [formChanged, setFormChanged] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [imapResult, setImapResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const checkInFlight = useRef(false);
+  const checkGeneration = useRef(0);
   const status = useQuery({
     queryKey: ["settings", "himalaya-account"],
     queryFn: (): Promise<HimalayaAccountResponse> => call(getApiClient().GET("/api/v1/settings/himalaya-account")),
@@ -25,19 +30,22 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
   });
   const field = (key: keyof HimalayaAccountPatch, label: string, type = "text") =>
     <label key={key}>{label} <input type={type} required min={type === "number" ? 1 : undefined} max={type === "number" ? 65535 : undefined} autoComplete="off" value={form[key]}
-      onChange={(event) => setForm((old) => ({ ...old, [key]: type === "number" ? Number(event.target.value) : event.target.value }))} /></label>;
+      onChange={(event) => { checkGeneration.current++; setFormChanged(true); setImapResult(null); setForm((old) => ({ ...old, [key]: type === "number" ? Number(event.target.value) : event.target.value })); }} /></label>;
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!status.data) return;
     setBusy(true);
+    checkGeneration.current++;
     setMessage("");
+    setImapResult(null);
     try {
       const result: HimalayaAccountResponse = await call(getApiClient().PUT("/api/v1/settings/himalaya-account", {
         params: { header: { "If-Match": String(status.data.data.revision) } }, body: form,
       }));
       setForm((old) => ({ ...old, imapPassword: "", smtpPassword: "" }));
       await status.refetch();
+      setFormChanged(false);
       await client.invalidateQueries({ queryKey: queryKeys.skills });
       setMessage(result.data.readyForLocalUse
         ? "Profil lokal gespeichert; IMAP- und SMTP-Verbindung noch nicht geprüft."
@@ -45,6 +53,26 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Postfach konnte nicht gespeichert werden.");
     } finally { setBusy(false); }
+  }
+
+  async function checkImap() {
+    if (!owner || !status.data?.data.readyForLocalUse || formChanged || busy || checkInFlight.current) return;
+    checkInFlight.current = true;
+    const generation = ++checkGeneration.current;
+    setChecking(true);
+    setImapResult(null);
+    try {
+      const result: HimalayaMailboxListResponse = await call(getApiClient().GET("/api/v1/communication/himalaya/mailboxes"));
+      const count = result.data.mailboxes.length;
+      if (generation === checkGeneration.current) setImapResult({ ok: true, text: count === 0
+        ? "IMAP-Verbindung erfolgreich; keine Ordner gefunden. SMTP wurde nicht geprüft."
+        : `IMAP-Verbindung erfolgreich; ${count} Ordner gefunden. SMTP wurde nicht geprüft.` });
+    } catch {
+      if (generation === checkGeneration.current) setImapResult({ ok: false, text: "IMAP-Verbindung fehlgeschlagen. Prüfe Server, Zugangsdaten und App-Passwort. SMTP wurde nicht geprüft." });
+    } finally {
+      checkInFlight.current = false;
+      setChecking(false);
+    }
   }
 
   return <section aria-labelledby="himalaya-account-title">
@@ -70,7 +98,7 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
         {field("smtpPort", "SMTP-Port", "number")}
         {field("smtpLogin", "SMTP-Benutzername")}
         {field("smtpPassword", "SMTP-Passwort oder App-Passwort", "password")}
-        <label>SMTP-Verschlüsselung <select value={form.smtpEncryption} onChange={(event) => setForm((old) => ({ ...old, smtpEncryption: event.target.value as "tls" | "start-tls" }))}>
+        <label>SMTP-Verschlüsselung <select value={form.smtpEncryption} onChange={(event) => { checkGeneration.current++; setFormChanged(true); setImapResult(null); setForm((old) => ({ ...old, smtpEncryption: event.target.value as "tls" | "start-tls" })); }}>
           <option value="start-tls">STARTTLS</option><option value="tls">TLS</option>
         </select></label>
         {field("sentFolder", "Gesendet-Ordner")}
@@ -78,6 +106,12 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
         {field("trashFolder", "Papierkorb-Ordner")}
         <button type="submit" disabled={busy || !status.data || (status.data.data.configPresent && !status.data.data.managed)}>Postfach speichern</button>
       </form>
+      {status.data?.data.readyForLocalUse && <div>
+        <button type="button" disabled={busy || checking || formChanged} onClick={() => void checkImap()}>IMAP-Verbindung prüfen</button>
+        {formChanged && <p>Speichere deine Änderungen, bevor du die gespeicherte IMAP-Verbindung prüfst.</p>}
+      </div>}
+      {checking && <p role="status">IMAP-Verbindung wird geprüft …</p>}
+      {imapResult && <p role={imapResult.ok ? "status" : "alert"}>{imapResult.text}</p>}
       {message && <p role="status">{message}</p>}
       <p>Erst nach Installation der Himalaya-CLI sowie getrennten Lese- und Sendeproben ist das Postfach praktisch geprüft. Senden kann Kosten oder andere Folgen auslösen.</p>
     </>}
