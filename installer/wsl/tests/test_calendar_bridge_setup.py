@@ -12,6 +12,17 @@ spec.loader.exec_module(bridge)
 
 
 class CalendarBridgeSetupTests(unittest.TestCase):
+    def test_stdin_key_accepts_plain_and_single_utf8_bom_prefix(self):
+        key = b"A" * 43 + b"="
+        self.assertEqual(bridge.decode_stdin_key(key + b"\r\n"), key.decode("ascii"))
+        self.assertEqual(bridge.decode_stdin_key(b"\xef\xbb\xbf" + key + b"\r\n"), key.decode("ascii"))
+
+    def test_stdin_key_rejects_non_ascii_or_repeated_bom(self):
+        key = b"A" * 43 + b"="
+        for value in (b"\xef\xbb\xbf\xef\xbb\xbf" + key, b"\xff" + key):
+            with self.subTest(value=value[:6]), self.assertRaises(UnicodeDecodeError):
+                bridge.decode_stdin_key(value)
+
     def test_enable_preserves_unrelated_settings_and_comments(self):
         with tempfile.TemporaryDirectory() as root:
             config = Path(root) / "config.yaml"
