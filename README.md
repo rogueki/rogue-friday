@@ -2,6 +2,21 @@
 
 F.R.I.D.A.Y. ist ein lokales Command Center für den Hermes Agent: ein Windows-Installer richtet Sprachsteuerung und Dienste ein; das Dashboard bündelt Aufgaben, Aktivität, Agenten, Freigaben und Systemstatus. Das Projekt ist **Beta-Software**. Einzelne Ansichten können noch simulierte Daten zeigen und optionale Integrationen brauchen eigene Konten und Einrichtung.
 
+## Dashboard im Überblick
+
+Die Bilder zeigen den aktuellen Desktop-Build im Vollbildformat 1920 × 1080 mit synthetischen Beispieldaten. Für die Galerie sind alle Dienste der Demo online; kurzlebige Cache-Hinweise und ein optionaler, nicht eingerichteter Modell-Eintrag sind ausgeblendet. Ein Klick öffnet das jeweilige Bild in voller Auflösung. Die Einführung ist nur auf dem letzten Bild zu sehen.
+
+<table>
+<tr><td><a href="docs/screenshots/uebersicht.jpg"><img src="docs/screenshots/uebersicht.jpg" width="540" alt="Übersicht"><br>Übersicht</a></td><td><a href="docs/screenshots/aufgaben.jpg"><img src="docs/screenshots/aufgaben.jpg" width="540" alt="Aufgaben"><br>Aufgaben</a></td><td><a href="docs/screenshots/live-aktivitaet.jpg"><img src="docs/screenshots/live-aktivitaet.jpg" width="540" alt="Live-Aktivität"><br>Live-Aktivität</a></td></tr>
+<tr><td><a href="docs/screenshots/gedaechtnis.jpg"><img src="docs/screenshots/gedaechtnis.jpg" width="540" alt="Gedächtnis"><br>Gedächtnis</a></td><td><a href="docs/screenshots/agenten.jpg"><img src="docs/screenshots/agenten.jpg" width="540" alt="Agenten"><br>Agenten</a></td><td><a href="docs/screenshots/skills.jpg"><img src="docs/screenshots/skills.jpg" width="540" alt="Skills"><br>Skills</a></td></tr>
+<tr><td><a href="docs/screenshots/freigaben.jpg"><img src="docs/screenshots/freigaben.jpg" width="540" alt="Freigaben"><br>Freigaben</a></td><td><a href="docs/screenshots/kommunikation.jpg"><img src="docs/screenshots/kommunikation.jpg" width="540" alt="Mail und Kommunikation"><br>Mail &amp; Kommunikation</a></td><td><a href="docs/screenshots/kalender.jpg"><img src="docs/screenshots/kalender.jpg" width="540" alt="Kalender"><br>Kalender</a></td></tr>
+<tr><td><a href="docs/screenshots/automationen.jpg"><img src="docs/screenshots/automationen.jpg" width="540" alt="Automationen"><br>Automationen</a></td><td><a href="docs/screenshots/recherche.jpg"><img src="docs/screenshots/recherche.jpg" width="540" alt="Recherche"><br>Recherche</a></td><td><a href="docs/screenshots/content-studio.jpg"><img src="docs/screenshots/content-studio.jpg" width="540" alt="Content Studio"><br>Content Studio</a></td></tr>
+<tr><td><a href="docs/screenshots/dateien.jpg"><img src="docs/screenshots/dateien.jpg" width="540" alt="Dateien und Dokumente"><br>Dateien &amp; Dokumente</a></td><td><a href="docs/screenshots/sprache.jpg"><img src="docs/screenshots/sprache.jpg" width="540" alt="Sprache"><br>Sprache</a></td><td><a href="docs/screenshots/meldungen.jpg"><img src="docs/screenshots/meldungen.jpg" width="540" alt="Meldungen und Alarme"><br>Meldungen &amp; Alarme</a></td></tr>
+<tr><td><a href="docs/screenshots/system.jpg"><img src="docs/screenshots/system.jpg" width="540" alt="System"><br>System</a></td><td><a href="docs/screenshots/audit.jpg"><img src="docs/screenshots/audit.jpg" width="540" alt="Audit und Verlauf"><br>Audit &amp; Verlauf</a></td><td><a href="docs/screenshots/einstellungen.jpg"><img src="docs/screenshots/einstellungen.jpg" width="540" alt="Einstellungen"><br>Einstellungen</a></td></tr>
+</table>
+
+**Einführung:** <a href="docs/screenshots/einrichtung.jpg"><img src="docs/screenshots/einrichtung.jpg" width="720" alt="Einrichtungsassistent im Dashboard"></a>
+
 ## Schnellstart
 
 1. Lade das vollständige Repository als ZIP herunter und entpacke es. Starte nicht nur den Ordner `installer`: Dashboard-Quellordner müssen daneben liegen.
