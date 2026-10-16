@@ -73,7 +73,8 @@ describe("skills and resumable onboarding", () => {
     expect(data).toHaveLength(2);
     expect(data[0]).toMatchObject({ id: "friday:research", packaged: true, discovered: true, enabled: false,
       accounts: ["search"], integrationDetails: [{ configured: null, connectionChecked: null }] });
-    expect(data[1]).toMatchObject({ id: "hermes:powerpoint", packaged: false, discovered: true, enabled: true });
+    expect(data[1]).toMatchObject({ id: "hermes:powerpoint", packaged: false, discovered: true, enabled: true,
+      requiredCapabilities: [expect.stringContaining("python-pptx")], integrationDetails: [{ configured: null, connectionChecked: null }] });
     expect((await owner.request("PUT", "/api/v1/skills/friday:unknown/activation", { body: { enabled: true } })).statusCode).toBe(404);
     expect((await owner.request("PUT", "/api/v1/skills/friday:research/activation", { body: { enabled: true } })).json().data.enabled).toBe(true);
     expect(calls).toBe(1);
@@ -88,13 +89,22 @@ describe("skills and resumable onboarding", () => {
     const owner = api.client(); await owner.loginDev("owner");
     expect((await owner.get("/api/v1/onboarding")).json().data).toMatchObject({ revision: 0, steps: { intro: "pending" }, completedAt: null });
     expect((await owner.request("PUT", "/api/v1/onboarding", { body: update })).statusCode).toBe(422);
+    expect((await owner.request("PUT", "/api/v1/onboarding", { body: { ...update, steps: { ...steps, accounts: "completed" } }, headers: { "if-match": "0" } })).statusCode).toBe(422);
     const first = await owner.request("PUT", "/api/v1/onboarding", { body: update, headers: { "if-match": "0" } });
     expect(first.statusCode, first.body).toBe(200);
     expect(first.json().data).toMatchObject({ revision: 1, preferredName: "Alex", completedAt: null });
+    expect(api.runtime.settings.get().profile.displayName).toBe("Alex");
     expect((await owner.request("PUT", "/api/v1/onboarding", { body: update, headers: { "if-match": "0" } })).statusCode).toBe(409);
+    const settings = api.runtime.settings.get();
+    api.runtime.settings.patch({ profile: { ...settings.profile, displayName: "Anderer Anzeigename" } }, settings.version);
     const done = await owner.request("PUT", "/api/v1/onboarding", { body: { ...update, steps: { ...steps, finish: "completed" } }, headers: { "if-match": "1" } });
     expect(done.json().data.completedAt).toBeTruthy();
+    expect(api.runtime.settings.get().profile.displayName).toBe("Anderer Anzeigename");
     expect((await owner.get("/api/v1/onboarding")).json().data.revision).toBe(2);
+    const legacy = done.json().data;
+    api.runtime.db.prepare("UPDATE owner_onboarding SET json = ? WHERE id = 1")
+      .run(JSON.stringify({ ...legacy, steps: { ...legacy.steps, accounts: "completed" } }));
+    expect((await owner.get("/api/v1/onboarding")).json().data.steps.accounts).toBe("skipped");
   });
 
   it("keeps owner progress after a process restart", async () => {
@@ -122,6 +132,16 @@ describe("skills and resumable onboarding", () => {
       expect(result.skills).toEqual([]);
       expect(result.fresh).toBe(false);
     } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it("keeps a discovered Hermes skill with missing activation as unknown", async () => {
+    const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
+      ? Response.json({ skills: [{ name: "powerpoint", enabled: "yes" }] })
+      : new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
+    const service = new SkillsService({ dashboardUrl: "http://127.0.0.1:43791", fetcher });
+    const listed = await service.list();
+    expect(listed.skills).toMatchObject([{ id: "hermes:powerpoint", discovered: true, enabled: null }]);
+    await expect(service.toggle("hermes:powerpoint", true)).rejects.toThrow("nicht bestätigt");
   });
 
   const realCatalog = resolve(process.cwd(), "..", "..", "Skills", "registry", "integration_setup.json");

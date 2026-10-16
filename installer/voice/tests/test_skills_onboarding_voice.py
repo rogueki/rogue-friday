@@ -63,6 +63,7 @@ def test_resume_and_confirmed_preferences(tmp_path):
     restarted = handler(tmp_path, api)
     assert "Konten" in restarted.handle("Einrichtung fortsetzen")
     assert "abschließen" in restarted.handle("überspringen")
+    assert api.state["steps"]["accounts"] == "skipped"
     assert "abgeschlossen" in restarted.handle("ja")
     assert all(value != "pending" for value in api.state["steps"].values())
 
@@ -73,7 +74,7 @@ def test_status_preserves_unknown_and_does_not_read_onboarding(tmp_path):
     answer = voice.handle("Welche Skills sind aktiv?")
     assert "Kalender" in answer and "Recherche" in answer
     assert "unbekannt" in answer
-    assert "E-Mail" not in answer
+    assert "E-Mail" in answer and "Deaktiviert" in answer
     assert api.calls == [("GET", "skills", None, None)]
     assert "Kalender" in voice.handle("Was kannst du?")
 

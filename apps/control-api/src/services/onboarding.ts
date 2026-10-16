@@ -11,11 +11,15 @@ export class OnboardingService {
     const row = this.db.prepare("SELECT revision, json, updated_at FROM owner_onboarding WHERE id = 1")
       .get() as { revision: number; json: string; updated_at: string } | undefined;
     if (!row) return { revision: 0, steps: { ...initialSteps }, goals: [], selectedSkillIds: [], completedAt: null, updatedAt: null };
-    return { ...JSON.parse(row.json) as OnboardingState, revision: row.revision, updatedAt: row.updated_at };
+    const stored = JSON.parse(row.json) as OnboardingState;
+    // Older beta clients could complete this step without checking any account. Treat that record as unverified.
+    const steps = stored.steps.accounts === "completed" ? { ...stored.steps, accounts: "skipped" as const } : stored.steps;
+    return { ...stored, steps, revision: row.revision, updatedAt: row.updated_at };
   }
 
   put(update: OnboardingUpdate, expectedRevision: number | undefined): OnboardingState {
     if (expectedRevision === undefined) throw validationFailed("If-Match mit der aktuellen Onboarding-Revision ist erforderlich.");
+    if (update.steps.accounts === "completed") throw validationFailed("Konten können erst nach einem echten Verbindungstest als eingerichtet gelten. Diesen Schritt vorerst überspringen.");
     const previous = this.get();
     if (previous.revision !== expectedRevision) throw conflict("Onboarding wurde inzwischen geändert.", { currentRevision: previous.revision });
     const updatedAt = new Date().toISOString();

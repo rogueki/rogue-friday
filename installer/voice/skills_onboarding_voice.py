@@ -106,12 +106,14 @@ class SkillsOnboardingVoice:
             if error:
                 return error
             skills = catalog.get("data", [])
-            names = ", ".join(skill["name"] for skill in skills[:3])
+            examples = [next((skill["name"] for skill in skills if skill.get("source") == source), None)
+                        for source in ("friday", "hermes")]
+            names = ", ".join(name for name in examples if name) or ", ".join(skill["name"] for skill in skills[:3])
             extra = " Zum Beispiel: " + names + "." if names else " Der Katalog ist derzeit leer."
             return self._ask("skills", "Welche Skills interessieren dich? Nenne einen Namen oder sage „überspringen“." + extra,
                              skills=skills, revision=state["revision"])
         if steps["accounts"] == "pending":
-            return self._ask("accounts", "Für manche Skills müssen Konten im Dashboard verbunden werden. Hast du diesen Schritt dort geprüft? Sage ja oder überspringen.", revision=state["revision"])
+            return self._ask("accounts", "Für manche Skills müssen Konten oder Programme im Dashboard eingerichtet werden. Ich kann Verbindungen per Sprache noch nicht prüfen. Sage weiter oder überspringen; der Kontenschritt bleibt als ungeprüft markiert.", revision=state["revision"])
         if steps["finish"] == "pending":
             return self._ask("finish", "Die Grundeinrichtung ist bereit. Soll ich sie abschließen?", revision=state["revision"])
         self.pending = None
@@ -123,10 +125,13 @@ class SkillsOnboardingVoice:
             return "Der Aktivierungsstatus der Skills ist gerade unbekannt. Die Control API antwortet nicht."
         skills = catalog.get("data", [])
         active = [skill["name"] for skill in skills if skill.get("enabled") is True]
+        disabled = [skill["name"] for skill in skills if skill.get("enabled") is False]
         unknown = [skill["name"] for skill in skills if skill.get("enabled") is None]
-        parts = ["Aktiv sind: " + ", ".join(active[:6]) + (" und weitere" if len(active) > 6 else "") + "." if active else "Ich sehe gerade keine als aktiv bestätigten Skills."]
+        parts = ["Aktiv sind: " + ", ".join(active[:6]) + (f" und {len(active) - 6} weitere" if len(active) > 6 else "") + "." if active else "Ich sehe gerade keine als aktiv bestätigten Skills."]
+        if disabled:
+            parts.append("Deaktiviert sind: " + ", ".join(disabled[:3]) + (f" und {len(disabled) - 3} weitere" if len(disabled) > 3 else "") + ".")
         if unknown:
-            parts.append("Bei " + ", ".join(unknown[:3]) + (" und weiteren" if len(unknown) > 3 else "") + " ist der Aktivierungsstatus unbekannt.")
+            parts.append("Bei " + ", ".join(unknown[:3]) + (f" und {len(unknown) - 3} weiteren" if len(unknown) > 3 else "") + " ist der Aktivierungsstatus unbekannt.")
         return " ".join(parts)
 
     def _capabilities(self):
@@ -208,8 +213,8 @@ class SkillsOnboardingVoice:
             saved, error = self._save(state, step="skills", selected_ids=ids)
         elif stage == "accounts":
             if words not in YES and words not in SKIP:
-                return "Bitte sage ja oder überspringen. Konten verbindest du im Dashboard."
-            saved, error = self._save(state, step="accounts", status="skipped" if words in SKIP else "completed")
+                return "Bitte sage weiter oder überspringen. Konten und Programme richtest du im Dashboard ein; ich kann ihren Zustand per Sprache nicht bestätigen."
+            saved, error = self._save(state, step="accounts", status="skipped")
         else:
             self.pending = None
             return None
