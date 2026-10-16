@@ -32,6 +32,12 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
   async getHimalayaAccount(ctx) {
     return { status: 200, body: single(await ctx.runtime.himalayaAccount.status()) };
   },
+  async checkHimalayaSmtp(ctx) {
+    const result = await ctx.runtime.himalayaAccount.checkSmtp();
+    ctx.audit.action = "settings.himalaya_smtp_checked";
+    ctx.audit.after = { ok: result.ok };
+    return { status: 200, body: single(result) };
+  },
   async putHimalayaAccount(ctx) {
     const status = await ctx.runtime.himalayaAccount.update(ctx.body as HimalayaAccountPatch, ctx.mutation.ifMatchVersion ?? -1);
     ctx.audit.action = "settings.himalaya_account_updated";

@@ -1,6 +1,6 @@
 "use client";
 
-import type { HimalayaAccountPatch, HimalayaAccountResponse, HimalayaMailboxListResponse } from "@friday/sdk";
+import type { HimalayaAccountPatch, HimalayaAccountResponse, HimalayaMailboxListResponse, HimalayaSmtpCheckResponse } from "@friday/sdk";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { call } from "@/lib/api/call";
@@ -21,6 +21,7 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
   const [formChanged, setFormChanged] = useState(false);
   const [checking, setChecking] = useState(false);
   const [imapResult, setImapResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [smtpResult, setSmtpResult] = useState<{ ok: boolean; text: string } | null>(null);
   const checkInFlight = useRef(false);
   const checkGeneration = useRef(0);
   const status = useQuery({
@@ -30,7 +31,7 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
   });
   const field = (key: keyof HimalayaAccountPatch, label: string, type = "text") =>
     <label key={key}>{label} <input type={type} required min={type === "number" ? 1 : undefined} max={type === "number" ? 65535 : undefined} autoComplete="off" value={form[key]}
-      onChange={(event) => { checkGeneration.current++; setFormChanged(true); setImapResult(null); setForm((old) => ({ ...old, [key]: type === "number" ? Number(event.target.value) : event.target.value })); }} /></label>;
+      onChange={(event) => { checkGeneration.current++; setFormChanged(true); setImapResult(null); setSmtpResult(null); setForm((old) => ({ ...old, [key]: type === "number" ? Number(event.target.value) : event.target.value })); }} /></label>;
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,6 +40,7 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
     checkGeneration.current++;
     setMessage("");
     setImapResult(null);
+    setSmtpResult(null);
     try {
       const result: HimalayaAccountResponse = await call(getApiClient().PUT("/api/v1/settings/himalaya-account", {
         params: { header: { "If-Match": String(status.data.data.revision) } }, body: form,
@@ -75,6 +77,25 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
     }
   }
 
+  async function checkSmtp() {
+    if (!owner || !status.data?.data.readyForLocalUse || formChanged || busy || checkInFlight.current) return;
+    checkInFlight.current = true;
+    const generation = ++checkGeneration.current;
+    setChecking(true);
+    setSmtpResult(null);
+    try {
+      const result: HimalayaSmtpCheckResponse = await call(getApiClient().POST("/api/v1/settings/himalaya-account/check-smtp"));
+      if (generation === checkGeneration.current) setSmtpResult(result.data.ok
+        ? { ok: true, text: "SMTP-TLS und Anmeldung erfolgreich geprüft. Es wurde keine E-Mail gesendet." }
+        : { ok: false, text: "SMTP-Verbindung oder Anmeldung fehlgeschlagen. Prüfe Server, Verschlüsselung und App-Passwort. Es wurde keine E-Mail gesendet." });
+    } catch {
+      if (generation === checkGeneration.current) setSmtpResult({ ok: false, text: "SMTP-Prüfung nicht verfügbar. Prüfe Server, Zugangsdaten und Friday-Ubuntu. Es wurde keine E-Mail gesendet." });
+    } finally {
+      checkInFlight.current = false;
+      setChecking(false);
+    }
+  }
+
   return <section aria-labelledby="himalaya-account-title">
     <h3 id="himalaya-account-title">E-Mail-Postfach für Himalaya</h3>
     <p>Ein IMAP/SMTP-Postfach für Hermes. Gib Server und Ordnernamen deines Anbieters ein. Gerade der Gesendet-Ordner muss exakt stimmen; bei manchen Anbietern kann sonst eine Wiederholung eine E-Mail doppelt senden. Friday verwaltet ein Postfach namens <code>friday</code> und speichert Passwörter nur in Friday-Ubuntu. Eine vorhandene fremde Himalaya-Konfiguration wird nicht überschrieben. Es erfolgt beim Speichern keine Verbindung zum Anbieter.</p>
@@ -98,7 +119,7 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
         {field("smtpPort", "SMTP-Port", "number")}
         {field("smtpLogin", "SMTP-Benutzername")}
         {field("smtpPassword", "SMTP-Passwort oder App-Passwort", "password")}
-        <label>SMTP-Verschlüsselung <select value={form.smtpEncryption} onChange={(event) => { checkGeneration.current++; setFormChanged(true); setImapResult(null); setForm((old) => ({ ...old, smtpEncryption: event.target.value as "tls" | "start-tls" })); }}>
+        <label>SMTP-Verschlüsselung <select value={form.smtpEncryption} onChange={(event) => { checkGeneration.current++; setFormChanged(true); setImapResult(null); setSmtpResult(null); setForm((old) => ({ ...old, smtpEncryption: event.target.value as "tls" | "start-tls" })); }}>
           <option value="start-tls">STARTTLS</option><option value="tls">TLS</option>
         </select></label>
         {field("sentFolder", "Gesendet-Ordner")}
@@ -108,12 +129,14 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
       </form>
       {status.data?.data.readyForLocalUse && <div>
         <button type="button" disabled={busy || checking || formChanged} onClick={() => void checkImap()}>IMAP-Verbindung prüfen</button>
-        {formChanged && <p>Speichere deine Änderungen, bevor du die gespeicherte IMAP-Verbindung prüfst.</p>}
+        <button type="button" disabled={busy || checking || formChanged} onClick={() => void checkSmtp()}>SMTP-Verbindung prüfen</button>
+        {formChanged && <p>Speichere deine Änderungen, bevor du die gespeicherte Verbindung prüfst.</p>}
       </div>}
-      {checking && <p role="status">IMAP-Verbindung wird geprüft …</p>}
+      {checking && <p role="status">Verbindung wird geprüft …</p>}
       {imapResult && <p role={imapResult.ok ? "status" : "alert"}>{imapResult.text}</p>}
+      {smtpResult && <p role={smtpResult.ok ? "status" : "alert"}>{smtpResult.text}</p>}
       {message && <p role="status">{message}</p>}
-      <p>Erst nach Installation der Himalaya-CLI sowie getrennten Lese- und Sendeproben ist das Postfach praktisch geprüft. Senden kann Kosten oder andere Folgen auslösen.</p>
+      <p>IMAP- und SMTP-Verbindungen lassen sich getrennt prüfen. Der SMTP-Test sendet keine E-Mail. Für den Versand ist danach eine ausdrücklich bestätigte Sendeprobe nötig.</p>
     </>}
   </section>;
 }

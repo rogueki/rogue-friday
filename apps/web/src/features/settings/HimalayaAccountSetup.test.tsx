@@ -13,6 +13,27 @@ const account = {
 afterEach(() => setApiClient(null));
 
 describe("Himalaya IMAP connection check", () => {
+  it("checks SMTP only after an owner click and never calls send", async () => {
+    const paths: string[] = [];
+    renderWithProviders(<HimalayaAccountSetup owner />, { fetchImpl: async (input) => {
+      const path = new URL(input instanceof Request ? input.url : String(input)).pathname;
+      paths.push(path);
+      if (path.endsWith("/settings/himalaya-account")) return jsonResponse(account);
+      if (path.endsWith("/settings/himalaya-account/check-smtp")) return jsonResponse({
+        contractVersion: "2.0.0", data: { ok: true }, freshness: account.freshness,
+      });
+      return jsonResponse({}, 404);
+    } });
+    const button = await screen.findByRole("button", { name: "SMTP-Verbindung prüfen" });
+    expect(paths.filter((path) => path.endsWith("/check-smtp"))).toHaveLength(0);
+    fireEvent.click(button);
+    expect(await screen.findByText("SMTP-TLS und Anmeldung erfolgreich geprüft. Es wurde keine E-Mail gesendet.")).toBeInTheDocument();
+    expect(paths.filter((path) => path.endsWith("/check-smtp"))).toHaveLength(1);
+    expect(paths.filter((path) => path.endsWith("/send"))).toHaveLength(0);
+    fireEvent.change(screen.getByLabelText("SMTP-Server"), { target: { value: "new.example" } });
+    expect(button).toBeDisabled();
+    expect(screen.queryByText(/SMTP-TLS und Anmeldung erfolgreich/)).toBeNull();
+  });
   it("lists folders only on explicit owner click and clears the result after editing", async () => {
     const paths: string[] = [];
     renderWithProviders(<HimalayaAccountSetup owner />, { fetchImpl: async (input) => {

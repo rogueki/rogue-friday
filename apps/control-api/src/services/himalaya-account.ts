@@ -58,6 +58,15 @@ export class HimalayaAccountService {
 
   status(): Promise<HimalayaAccountStatus> { return this.run("status"); }
 
+  async checkSmtp(): Promise<{ ok: boolean }> {
+    const { script, distro, user } = this.target();
+    let result: Record<string, unknown>;
+    try { result = await this.invoke(script, distro, user, ["check-smtp"], undefined, 18000); }
+    catch { throw unavailable(); }
+    if (typeof result.ok !== "boolean") throw unavailable();
+    return { ok: result.ok };
+  }
+
   update(input: HimalayaAccountPatch, revision: number): Promise<HimalayaAccountStatus> {
     if (!Number.isSafeInteger(revision) || !input || typeof input !== "object") throw validationFailed("Ungueltiges IMAP/SMTP-Profil.");
     return this.run("update", { ...input, revision });

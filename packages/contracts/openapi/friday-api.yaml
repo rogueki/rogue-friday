@@ -5183,6 +5183,26 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/himalaya-account/check-smtp:
+    post:
+      operationId: checkHimalayaSmtp
+      tags: [settings]
+      summary: Check Friday-managed SMTP TLS and authentication without sending a message
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Ephemeral connection check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HimalayaSmtpCheckResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/communication/himalaya/send:
     post:
       operationId: sendHimalayaMessage
@@ -6548,6 +6568,8 @@ components:
       $ref: ../schemas/settings/himalaya-account-patch.schema.json
     HimalayaAccountResponse:
       $ref: ../schemas/settings/himalaya-account-response.schema.json
+    HimalayaSmtpCheckResponse:
+      $ref: ../schemas/settings/himalaya-smtp-check-response.schema.json
     HimalayaMailboxListResponse:
       $ref: ../schemas/communication/himalaya-mailbox-list-response.schema.json
     HimalayaEnvelopeListResponse:
