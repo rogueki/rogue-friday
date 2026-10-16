@@ -8,10 +8,50 @@ import re
 import subprocess
 import sys
 import tempfile
+import urllib.error
+import urllib.request
 
 ENV = Path.home() / ".hermes" / ".env"
 KEYS = ("AIRTABLE_API_KEY", "NOTION_API_KEY", "TENOR_API_KEY", "JINA_API_KEY")
 VALUE = re.compile(r'^[\x21-\x7e]{1,2048}$')
+CHECKS = {
+    "AIRTABLE_API_KEY": ("https://api.airtable.com/v0/meta/whoami", {}),
+    "NOTION_API_KEY": ("https://api.notion.com/v1/users/me", {"Notion-Version": "2026-03-11"}),
+}
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
+
+
+def check_connection(key, transport=None):
+    if key not in CHECKS:
+        raise ValueError("unsupported provider")
+    lines, configured = lines_and_status()
+    if not configured[key]:
+        return "missing"
+    value = next((line[len(key) + 1:].strip().strip('"') for line in lines if line.startswith(key + "=")), "")
+    if not value:
+        return "missing"
+    url, extra = CHECKS[key]
+    request = urllib.request.Request(url, headers={"Authorization": "Bearer " + value, **extra}, method="GET")
+    opener = transport or urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    try:
+        with opener.open(request, timeout=6) as response:
+            code = response.status
+    except urllib.error.HTTPError as error:
+        code = error.code
+        error.close()
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return "unavailable"
+    if code == 200:
+        return "verified"
+    if code == 401:
+        return "rejected"
+    if code == 403:
+        return "permission-limited"
+    return "unavailable"
 
 
 def lines_and_status():
@@ -26,8 +66,17 @@ def answer(configured, applied=None):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "check"):
         return 2
+    if sys.argv[1] == "check":
+        request = json.load(sys.stdin)
+        if not isinstance(request, dict) or set(request) != {"key"} or request["key"] not in CHECKS:
+            return 2
+        from datetime import datetime, timezone
+        state = check_connection(request["key"])
+        print(json.dumps({"key": request["key"], "state": state,
+                          "checkedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}))
+        return 0
     ENV.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     # Share Obsidian's lock because both helpers rewrite the same Hermes .env.
     with (ENV.parent / ".obsidian-vault.lock").open("a+") as lock:

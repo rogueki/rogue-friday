@@ -5,6 +5,8 @@ import { invokeCodingRunner, type RunnerInvoker } from "./coding-runs";
 
 export const HERMES_SKILL_KEYS = ["AIRTABLE_API_KEY", "NOTION_API_KEY", "TENOR_API_KEY", "JINA_API_KEY"] as const;
 export type HermesSkillKey = typeof HERMES_SKILL_KEYS[number];
+export type CheckableHermesSkillKey = "AIRTABLE_API_KEY" | "NOTION_API_KEY";
+export type HermesSkillKeyCheck = { key: CheckableHermesSkillKey; state: "verified" | "missing" | "rejected" | "permission-limited" | "unavailable"; checkedAt: string };
 export interface HermesSkillKeysStatus { configured: Record<HermesSkillKey, boolean>; applied: boolean | null }
 const unavailable = () => new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes-Skill-Konten in Friday-Ubuntu sind nicht erreichbar." });
 
@@ -39,6 +41,17 @@ export class HermesSkillKeysService {
   }
 
   status(): Promise<HermesSkillKeysStatus> { return this.run("status"); }
+
+  async check(key: string): Promise<HermesSkillKeyCheck> {
+    if (key !== "AIRTABLE_API_KEY" && key !== "NOTION_API_KEY") throw validationFailed("Für diesen Anbieter ist keine Verbindungsprüfung verfügbar.");
+    const { script, distro, user } = this.target();
+    let data: Record<string, unknown>;
+    try { data = await this.invoke(script, distro, user, ["check"], JSON.stringify({ key }), 12000); }
+    catch { throw unavailable(); }
+    if (data.key !== key || !["verified", "missing", "rejected", "permission-limited", "unavailable"].includes(String(data.state)) ||
+        typeof data.checkedAt !== "string" || !Number.isFinite(Date.parse(data.checkedAt))) throw unavailable();
+    return data as HermesSkillKeyCheck;
+  }
 
   update(key: string, value: string): Promise<HermesSkillKeysStatus> {
     if (!HERMES_SKILL_KEYS.includes(key as HermesSkillKey) || typeof value !== "string" ||

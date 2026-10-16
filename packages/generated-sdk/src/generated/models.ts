@@ -277,6 +277,8 @@ export interface FridayModelMap {
   HealthcheckResult: HealthcheckResult;
   HealthcheckResultResponse: HealthcheckResultResponse;
   HealthStatus: HealthStatus;
+  HermesSkillKeyCheck: HermesSkillKeyCheck;
+  HermesSkillKeyCheckResponse: HermesSkillKeyCheckResponse;
   HermesSkillKeyPatch: HermesSkillKeyPatch;
   HermesSkillKeys: HermesSkillKeys;
   HermesSkillKeysResponse: HermesSkillKeysResponse;
@@ -2215,6 +2217,16 @@ export interface HealthcheckResult {
 export interface HealthcheckResultResponse {
   contractVersion: ContractVersion;
   data: HealthcheckResult;
+  freshness: Freshness;
+}
+export interface HermesSkillKeyCheck {
+  key: "AIRTABLE_API_KEY" | "NOTION_API_KEY";
+  state: "verified" | "missing" | "rejected" | "permission-limited" | "unavailable";
+  checkedAt: string;
+}
+export interface HermesSkillKeyCheckResponse {
+  contractVersion: ContractVersion;
+  data: HermesSkillKeyCheck;
   freshness: Freshness;
 }
 export interface HermesSkillKeyPatch {

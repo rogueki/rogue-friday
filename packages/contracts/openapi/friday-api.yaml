@@ -5020,6 +5020,38 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/hermes-skill-keys/{key}/check:
+    post:
+      operationId: checkHermesSkillKey
+      tags:
+        - settings
+      summary: Check an installed Airtable or Notion token on explicit owner request
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [AIRTABLE_API_KEY, NOTION_API_KEY]
+      responses:
+        "200":
+          description: Transient provider check; does not prove resource access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesSkillKeyCheckResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/obsidian-vault:
     get:
       operationId: getObsidianVault
@@ -6224,6 +6256,10 @@ components:
       $ref: ../schemas/settings/hermes-skill-keys.schema.json
     HermesSkillKeysResponse:
       $ref: ../schemas/settings/hermes-skill-keys-response.schema.json
+    HermesSkillKeyCheck:
+      $ref: ../schemas/settings/hermes-skill-key-check.schema.json
+    HermesSkillKeyCheckResponse:
+      $ref: ../schemas/settings/hermes-skill-key-check-response.schema.json
     ObsidianVaultPatch:
       $ref: ../schemas/settings/obsidian-vault-patch.schema.json
     ObsidianVaultResponse:
