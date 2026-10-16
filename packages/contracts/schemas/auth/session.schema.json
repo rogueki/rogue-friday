@@ -8,6 +8,9 @@
     "authenticated": {
       "type": "boolean"
     },
+    "setupRequired": {
+      "type": "boolean"
+    },
     "user": {
       "anyOf": [
         {

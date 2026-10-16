@@ -12,6 +12,7 @@ export interface TestApiOptions {
   providerFetch?: typeof fetch;
   authMode?: "dev" | "local";
   ownerPassword?: string;
+  firstRunSetup?: boolean;
   dataMode?: "mock" | "hybrid";
   yamlExtra?: string;
   secureCookies?: boolean;
@@ -62,7 +63,7 @@ paths:
 auth:
   mode: ${authMode}
   ownerUsername: owner
-  ownerPasswordHash: env:FRIDAY_OWNER_PASSWORD_HASH
+  ownerPasswordHash: ${options.firstRunSetup ? `file:${join(configDir, "owner.hash").replaceAll("\\", "/")}` : "env:FRIDAY_OWNER_PASSWORD_HASH"}
   secureCookies: ${options.secureCookies ?? false}
 realtime:
   ringBufferSize: ${options.ringBufferSize ?? 5000}

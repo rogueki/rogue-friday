@@ -34,7 +34,7 @@ export function ContentStudioKeysArea() {
     finally { setBusy(null); }
   };
 
-  return <Section title="Anbieterzugänge" description="Schlüssel werden serverseitig mit auth.key verschlüsselt gespeichert und niemals zurückgegeben. Server-Umgebungsvariablen dienen als Fallback. Sichere auth.key gemeinsam mit der Datenbank.">
+  return <Section title="Anbieterzugänge" description="Schlüssel werden serverseitig verschlüsselt gespeichert und niemals zurückgegeben. Server-Umgebungsvariablen dienen als Fallback. Sichere den lokalen Serverschlüssel gemeinsam mit der Datenbank.">
     {query.isError && <p role="alert">Schlüsselstatus konnte nicht geladen werden.</p>}
     {providers.map(({ id, label, env, support }) => <div key={id} className="st-studio-key">
       <div><strong>{label}</strong> <StatusChip tone={query.data?.data[id] ? "green" : "muted"}>{query.data?.data[id] ? "Konfiguriert" : "Nicht konfiguriert"}</StatusChip><p>{support}</p><small>Server-Variable: <code>{env}</code></small></div>

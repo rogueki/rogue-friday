@@ -402,6 +402,8 @@ export const enD: Record<keyof typeof deD, string> = {
   "settings.security.logoutAllConfirm": "All sign-ins of this user are ended, including this one. A new sign-in is required afterwards.",
   "settings.security.network": "Network and audit",
   "settings.security.remote": "Allow remote access",
+  "settings.security.loginRequired": "Require sign-in",
+  "settings.security.loginRequiredDesc": "Can be disabled only on this computer. Password confirmation for approvals remains active.",
   "settings.security.remoteDesc": "By default only the local machine is allowed.",
   "settings.security.remoteWarning": "Warning: remote access enlarges the attack surface. Use it only through a secure tunnel.",
   "settings.security.hashChain": "Audit hash chain",

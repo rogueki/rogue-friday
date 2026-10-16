@@ -71,9 +71,9 @@ der Fortschritt steht in `C:\Friday\config\install-state.json` (`done` enthält 
    und `adapters.yaml` (siehe §6). Existiert eine Datei, bleibt sie; weicht sie von der Vorgabe ab, fragt der Installer, ob er
    überschreiben soll (Standard „nein“, alte Datei wird nach `C:\Friday\backups` gesichert). Bei einem Namenswechsel
    (`change-assistant-name.bat`) wird nur `ui.assistantName` nachgezogen.
-7. **Owner-Passwort:** zweimal per `Read-Host -AsSecureString`, mindestens 12 Zeichen. Der Hash entsteht mit der CLI aus
-   `packages/auth` (`pnpm --filter @friday/auth hash-password`); das Passwort geht **über stdin**, nie über die Befehlszeile. Nur der
-   scrypt-Hash wird in `C:\Friday\config\dashboard_owner.hash` gespeichert (siehe §7).
+7. **Owner-Konto:** Der Installer behält vorhandene Passwort-Hashes. Bei einer Neuinstallation bleibt die Hashdatei zunächst
+   leer bzw. fehlt. Beim ersten lokalen Öffnen des Command Centers legt der Nutzer Anzeigename, Benutzername und Passwort
+   (mindestens 12 Zeichen) selbst fest. Der Server schreibt nur den scrypt-Hash nach `C:\Friday\config\dashboard_owner.hash`.
 8. **Autostart und Start:** Aufgabe `FRIDAY_Dashboard` (bei Anmeldung, 60 s Verzögerung nach `FRIDAY_Voice`, versteckt über
    `hidden.vbs` → `start-dashboard.ps1`, Neustartschleife alle 10 s bei Absturz), sofort gestartet.
 9. **Healthcheck:** bis zu 60 s `GET http://127.0.0.1:3100/api/v1/health`. Antwortet der Server (auch mit 503 bei Teilausfall),
@@ -107,10 +107,9 @@ Copy-Item config\dashboard.hybrid.example.yaml config\dashboard.yaml    # einmal
 Copy-Item config\adapters.hybrid.example.yaml  config\adapters.yaml
 ```
 
-In `dashboard.yaml` muss `auth.ownerPasswordHash: file:C:/Friday/config/dashboard_owner.hash` stehen (die Vorlage nutzt `env:`).
-Den Owner-Hash erzeugt `pnpm --filter @friday/auth hash-password` (fragt interaktiv zweimal, oder Passwort über stdin);
-Ergebnis (`FRIDAY_OWNER_PASSWORD_HASH='scrypt$…'`) ohne die Anführungszeichen in `C:\Friday\config\dashboard_owner.hash`
-schreiben (kein Zeilenumbruch nötig) und die Datei mit `icacls` auf den Benutzer beschränken.
+In `dashboard.yaml` muss für die Browser-Ersteinrichtung `auth.ownerPasswordHash: file:C:/Friday/config/dashboard_owner.hash`
+stehen (die Vorlage nutzt `env:`). Die Datei darf anfangs fehlen. Der Server erlaubt die einmalige Kontoanlage nur auf
+Loopback und setzt eine restriktive Datei-ACL. Eine vorhandene Hashdatei wird nicht überschrieben.
 
 **Starten / Stoppen / Neustart**
 
@@ -251,7 +250,7 @@ wird per stdin an die Hash-CLI übergeben. Passwort vergessen: Eintrag `dashboar
 | Symptom | Prüfen / Lösung |
 |---|---|
 | `http://127.0.0.1:3100` lädt nicht | `Get-ScheduledTask FRIDAY_Dashboard`; `Start-ScheduledTask FRIDAY_Dashboard`; `dashboard-service.log` lesen; im Vordergrund starten (§4) |
-| Login schlägt immer fehl | Benutzername `owner`; nach 5 Fehlversuchen Sperre (`429 Retry-After`); Passwort neu setzen (§8); `auth.ownerPasswordHash` zeigt auf `dashboard_owner.hash`? |
+| Login schlägt immer fehl | Den bei der Ersteinrichtung gewählten Benutzernamen verwenden; nach mehreren Fehlversuchen gilt `429 Retry-After`. Bei vorhandener Installation den Hashdateipfad in `auth.ownerPasswordHash` prüfen. |
 | Start bricht mit Konfigurationsfehler ab | `dashboard-service.log` nennt Datei und Pfad; YAML-Einrückung und Secret-Referenzen prüfen (Credential-Felder müssen `file:`/`env:`/`wincred:` sein) |
 | Bereiche zeigen „eingeschränkt“/offline | Adapter einzeln prüfen: Hermes `curl http://127.0.0.1:43693/health`, Voice `http://127.0.0.1:43694`, Qwen `http://127.0.0.1:43692/v1/models`; WSL läuft (`FRIDAY_WSL_Keepalive`)? Das Command Center bleibt für die übrigen Bereiche nutzbar |
 | Port 3100 belegt | `Get-NetTCPConnection -LocalPort 3100 -State Listen` → `Get-Process -Id <PID>`; Programm beenden oder `server.port` ändern |

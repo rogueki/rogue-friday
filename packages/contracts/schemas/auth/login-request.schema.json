@@ -12,6 +12,14 @@
       "type": "string",
       "minLength": 1,
       "writeOnly": true
+    },
+    "rememberMe": {
+      "type": "boolean"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
     }
   },
   "required": ["username", "password"],

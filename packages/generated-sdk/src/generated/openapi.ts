@@ -3959,7 +3959,9 @@ export interface components {
         };
         /** LoginRequest */
         LoginRequest: {
+            displayName?: string;
             password: string;
+            rememberMe?: boolean;
             username: string;
         };
         /** MailCapability */
@@ -4979,6 +4981,7 @@ export interface components {
             /** @default false */
             allowRemoteAccess: boolean;
             auditHashChain: boolean;
+            loginRequired?: boolean;
             reauthWindowMinutes: number;
             sessionTimeoutMinutes: number;
             trustedOrigins: string[];
@@ -5039,6 +5042,7 @@ export interface components {
             /** Format: date-time */
             reauthUntil: string | null;
             role: components["schemas"]["Role"] | null;
+            setupRequired?: boolean;
             user: components["schemas"]["User"] | null;
         };
         /**

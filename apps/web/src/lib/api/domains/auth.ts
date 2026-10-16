@@ -13,7 +13,7 @@ export function useLogin() {
   return useApiMutation<SessionResponse, LoginRequest & IntentVars>({
     label: "Anmeldung",
     silent: true,
-    mutationFn: ({ username, password }) => call(getApiClient().POST("/api/v1/auth/login", { body: { username, password } })),
+    mutationFn: ({ username, password, rememberMe, displayName }) => call(getApiClient().POST("/api/v1/auth/login", { body: { username, password, rememberMe, ...(displayName ? { displayName } : {}) } })),
     // A new identity invalidates everything that was cached for the previous one.
     invalidate: (data) => {
       queryClient.setQueryData(queryKeys.session, data);

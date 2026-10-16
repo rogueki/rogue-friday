@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { chmodSync, existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { dirname } from "node:path";
 import {
   CSRF_COOKIE,
   CSRF_HEADER,
@@ -9,7 +12,9 @@ import {
   clearCsrfCookie,
   clearSessionCookie,
   hasFreshReauth,
+  hashPassword,
   isRole,
+  isLoopbackHost,
   issueCsrfToken,
   parseCookies,
   serializeCsrfCookie,
@@ -20,7 +25,7 @@ import {
   type Session,
   type SessionStore,
 } from "@friday/auth";
-import { resolveSecret, type FridayConfig } from "@friday/config";
+import { parseSecretRef, resolveSecret, type FridayConfig } from "@friday/config";
 import { CONTRACT_VERSION, type ReauthResponse, type SessionResponse } from "@friday/sdk";
 import { ApiError } from "../util/errors";
 
@@ -46,6 +51,9 @@ export interface AuthServiceDeps {
   limiter: LoginRateLimiter;
   env: NodeJS.ProcessEnv;
   displayName: () => string;
+  ownerUsername?: () => string;
+  setOwnerIdentity?: (username: string, displayName: string) => void;
+  localLoginRequired?: () => boolean;
   now?: () => number;
 }
 
@@ -55,6 +63,8 @@ export function stableUserId(label: string): string {
 }
 
 const OWNER_USER_ID = stableUserId("owner");
+const LOCAL_AUTO_USER_ID = stableUserId("local-auto-owner");
+const REMEMBER_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** Documented password of the dev auth mode; required for re-authentication (login accepts any non-empty password). */
 export const DEV_PASSWORD = "dev";
 
@@ -87,12 +97,18 @@ export class AuthService {
     return this.deps.config.auth.mode === "dev";
   }
 
+  get localAutoLogin(): boolean {
+    return !this.devMode && !this.deps.config.server.allowRemote &&
+      isLoopbackHost(this.deps.config.server.host) && this.deps.localLoginRequired?.() === false;
+  }
+
   /** Resolves the principal from the `Cookie` header; refreshes the sliding idle timeout. */
   authenticate(cookieHeader: string | undefined): Principal | null {
     const sessionId = parseCookies(cookieHeader)[SESSION_COOKIE];
     if (!sessionId) return null;
     const session = this.deps.sessions.get(sessionId);
     if (!session) return null;
+    if (session.userId === LOCAL_AUTO_USER_ID && !this.localAutoLogin) return null;
     return this.principalOf(sessionId, session);
   }
 
@@ -119,8 +135,8 @@ export class AuthService {
     return verifyCsrfToken(this.deps.csrfKey, principal.sessionId, header, cookie);
   }
 
-  private cookiesFor(sessionId: string): string[] {
-    const options = { secureCookies: this.deps.config.auth.secureCookies, maxAgeSeconds: this.deps.config.auth.sessionTtlMinutes * 60 };
+  private cookiesFor(sessionId: string, rememberMe = false): string[] {
+    const options = { secureCookies: this.deps.config.auth.secureCookies, maxAgeSeconds: rememberMe ? REMEMBER_TTL_MS / 1000 : this.deps.config.auth.sessionTtlMinutes * 60 };
     return [serializeSessionCookie(sessionId, options), serializeCsrfCookie(issueCsrfToken(this.deps.csrfKey, sessionId), options)];
   }
 
@@ -129,12 +145,12 @@ export class AuthService {
     return [clearSessionCookie(secure), clearCsrfCookie(secure)];
   }
 
-  private createSession(userId: string, role: Role): { sessionId: string; session: Session } {
+  private createSession(userId: string, role: Role, rememberMe = false): { sessionId: string; session: Session } {
     const { sessionId, session } = this.deps.sessions.create({
       userId,
       role,
-      ttlMs: this.deps.config.auth.sessionTtlMinutes * 60_000,
-      idleTimeoutMs: this.deps.config.auth.idleTimeoutMinutes * 60_000,
+      ttlMs: rememberMe ? REMEMBER_TTL_MS : this.deps.config.auth.sessionTtlMinutes * 60_000,
+      idleTimeoutMs: rememberMe ? REMEMBER_TTL_MS : this.deps.config.auth.idleTimeoutMinutes * 60_000,
     });
     return { sessionId, session };
   }
@@ -146,7 +162,46 @@ export class AuthService {
     return { principal: this.principalOf(sessionId, session), setCookie: this.cookiesFor(sessionId) };
   }
 
-  async login(username: string, password: string, ip: string): Promise<{ principal: Principal } & CookieSet> {
+  issueLocalSession(): { principal: Principal } & CookieSet {
+    if (!this.localAutoLogin) throw new Error("Local automatic login is disabled");
+    const { sessionId, session } = this.createSession(LOCAL_AUTO_USER_ID, "owner");
+    return { principal: this.principalOf(sessionId, session), setCookie: this.cookiesFor(sessionId) };
+  }
+
+  private async setupOwner(username: string, displayName: string | undefined, password: string): Promise<void> {
+    if (this.deps.config.server.allowRemote || !isLoopbackHost(this.deps.config.server.host)) {
+      throw new ApiError({ code: "FORBIDDEN", message: "Die Ersteinrichtung ist nur am lokalen Rechner möglich." });
+    }
+    const name = username.trim();
+    const display = displayName?.trim() ?? "";
+    if (!/^[A-Za-z0-9._-]{2,32}$/.test(name) || display.length < 1 || display.length > 80 || password.length < 12) {
+      throw new ApiError({ code: "VALIDATION_FAILED", message: "Benutzername, Anzeigename oder Passwort sind ungültig. Das Passwort braucht mindestens 12 Zeichen." });
+    }
+    const ref = parseSecretRef(this.deps.config.auth.ownerPasswordHash.ref);
+    if (ref?.scheme !== "file") throw new ApiError({ code: "VALIDATION_FAILED", message: "Für die Ersteinrichtung ist ein lokaler Passwort-Hash-Dateipfad erforderlich." });
+    const hash = await hashPassword(password);
+    if (this.ownerPasswordConfigured() || existsSync(ref.name)) throw new ApiError({ code: "CONFLICT", message: "Das Besitzerkonto wurde bereits eingerichtet." });
+    mkdirSync(dirname(ref.name), { recursive: true, mode: 0o700 });
+    this.deps.setOwnerIdentity?.(name, display);
+    try {
+      writeFileSync(ref.name, hash, { flag: "wx", mode: 0o600 });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new ApiError({ code: "CONFLICT", message: "Das Besitzerkonto wurde bereits eingerichtet." });
+      throw error;
+    }
+    if (process.platform === "win32") {
+      const account = this.deps.env.USERNAME ?? process.env.USERNAME;
+      const acl = account ? spawnSync("icacls.exe", [ref.name, "/inheritance:r", "/grant:r", `${account}:(R,W)`, "/grant:r", "SYSTEM:(R)"], { windowsHide: true }) : null;
+      if (acl?.status !== 0) {
+        unlinkSync(ref.name);
+        throw new ApiError({ code: "VALIDATION_FAILED", message: "Die Zugriffsrechte für den Passwort-Hash konnten nicht gesetzt werden." });
+      }
+    } else {
+      chmodSync(ref.name, 0o600);
+    }
+  }
+
+  async login(username: string, password: string, ip: string, rememberMe = false, displayName?: string): Promise<{ principal: Principal } & CookieSet> {
     if (this.devMode) {
       const role = DEV_USERS[username.trim().toLowerCase()];
       if (!role || password.length === 0) {
@@ -165,8 +220,16 @@ export class AuthService {
         headers: { "Retry-After": String(retryAfterSeconds) },
       });
     }
+    if (!this.ownerPasswordConfigured()) {
+      try {
+        await this.setupOwner(username, displayName, password);
+      } catch (error) {
+        this.deps.limiter.recordFailure(username, ip);
+        throw error;
+      }
+    }
     const hash = this.ownerHash();
-    const isOwner = username.trim().toLowerCase() === this.deps.config.auth.ownerUsername.toLowerCase();
+    const isOwner = username.trim().toLowerCase() === (this.deps.ownerUsername?.() ?? this.deps.config.auth.ownerUsername).toLowerCase();
     // Unknown user and wrong password take the same path (verifyPassword burns one scrypt computation for a missing hash).
     const ok = await verifyPassword(password, isOwner ? hash : undefined);
     if (!ok) {
@@ -174,8 +237,8 @@ export class AuthService {
       throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung fehlgeschlagen." });
     }
     this.deps.limiter.recordSuccess(username, ip);
-    const { sessionId, session } = this.createSession(OWNER_USER_ID, "owner");
-    return { principal: this.principalOf(sessionId, session), setCookie: this.cookiesFor(sessionId) };
+    const { sessionId, session } = this.createSession(OWNER_USER_ID, "owner", rememberMe);
+    return { principal: this.principalOf(sessionId, session), setCookie: this.cookiesFor(sessionId, rememberMe) };
   }
 
   private ownerHash(): string | undefined {
@@ -251,7 +314,7 @@ export class AuthService {
     if (!principal) {
       return {
         contractVersion: CONTRACT_VERSION,
-        data: { authenticated: false, user: null, role: null, csrfToken: null, expiresAt: null, reauthUntil: null },
+        data: { authenticated: false, setupRequired: !this.devMode && !this.ownerPasswordConfigured(), user: null, role: null, csrfToken: null, expiresAt: null, reauthUntil: null },
         freshness: { state: "fresh", asOf: freshnessAsOf },
       };
     }
@@ -262,6 +325,7 @@ export class AuthService {
       contractVersion: CONTRACT_VERSION,
       data: {
         authenticated: true,
+        setupRequired: false,
         user: { id: principal.userId, displayName: principal.displayName, role: principal.role },
         role: principal.role,
         csrfToken: this.csrfTokenFor(principal),
