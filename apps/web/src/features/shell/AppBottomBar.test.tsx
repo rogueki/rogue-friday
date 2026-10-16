@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CommandConfirmHost } from "@/features/palette/commandRunner";
 import { setApiClient } from "@/lib/api/client";
-import { capabilitiesOf, jsonResponse, NEVER_RESOLVES, renderWithProviders } from "@/test/render";
+import { adapterInfoOf, capabilitiesOf, jsonResponse, NEVER_RESOLVES, renderWithProviders } from "@/test/render";
 import { AppBottomBar } from "./AppBottomBar";
 
 vi.mock("next/navigation", () => ({
@@ -64,4 +64,51 @@ describe("AppBottomBar text input", () => {
     expect(screen.getByRole("group", { name: "Wetter: Keine Datenquelle angebunden" })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /Netzwerk: Noch keine Messwerte/ })).toBeInTheDocument();
   });
+});
+
+it("sends voice-only stop, pause and resume controls and reflects the live pause state", async () => {
+  const user = userEvent.setup();
+  const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
+  let voiceState: "speaking" | "paused" | "listening" | "idle" = "speaking";
+  const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = input instanceof Request ? input : null;
+    const url = request?.url ?? String(input);
+    if (url.endsWith("/api/v1/voice/status")) {
+      return jsonResponse({
+        contractVersion: "2.0.0",
+        data: {
+          mode: voiceState === "speaking" ? "speaking" : voiceState === "listening" ? "listening" : "idle",
+          microphone: { state: voiceState === "paused" ? "muted" : "idle", active: voiceState !== "paused", inputLevel: 0 },
+          focusMode: false,
+        },
+      });
+    }
+    const match = url.match(/\/api\/v1\/commands\/(stop|pause|resume)$/);
+    if (!match) return NEVER_RESOLVES(input, init);
+    const body = request ? await request.clone().json() as Record<string, unknown> : JSON.parse(String(init?.body)) as Record<string, unknown>;
+    requests.push({ path: url, body });
+    voiceState = match[1] === "pause" ? "paused" : match[1] === "resume" ? "listening" : "idle";
+    return jsonResponse({ contractVersion: "2.0.0", accepted: true, status: "completed", correlationId: "corr_voice", message: "Voice gesteuert" });
+  }) as typeof fetch;
+  renderWithProviders(<AppBottomBar />, {
+    fetchImpl,
+    adapters: [adapterInfoOf({ id: "friday-voice-http", category: "voice" })],
+    capabilities: capabilitiesOf({ voice: { read: true, stop: true }, commands: { stop: true, pause: true, resume: true, execute: true } }),
+  });
+
+  await screen.findByRole("button", { name: "Pause" });
+  await user.click(screen.getByRole("button", { name: "Pause" }));
+  await waitFor(() => expect(requests).toHaveLength(1));
+  expect(requests[0]).toMatchObject({ path: "http://friday.test/api/v1/commands/pause", body: { scope: "voice" } });
+  await screen.findByRole("button", { name: "Fortsetzen" });
+
+  await user.click(screen.getByRole("button", { name: "Fortsetzen" }));
+  await waitFor(() => expect(requests).toHaveLength(2));
+  expect(requests[1]).toMatchObject({ path: "http://friday.test/api/v1/commands/resume", body: { scope: "voice" } });
+  await screen.findByRole("button", { name: "Pause" });
+
+  await user.click(screen.getByRole("button", { name: "Stopp" }));
+  await waitFor(() => expect(requests).toHaveLength(3));
+  expect(requests[2]).toMatchObject({ path: "http://friday.test/api/v1/commands/stop", body: { scope: "voice" } });
+  expect(requests.every(({ body }) => typeof body.targetId === "undefined")).toBe(true);
 });
