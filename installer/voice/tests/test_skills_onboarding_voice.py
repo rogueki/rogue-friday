@@ -274,6 +274,7 @@ def test_dispatcher_keeps_speaker_gate_and_hermes_fallback(tmp_path):
         verifier=types.SimpleNamespace(score=lambda audio: 0.2),
         status={"rejected_speaker": 0, "commands": 0}, trusted_until=0,
         _transcribe=lambda audio: "Welche Skills sind aktiv?",
+        calendar_voice=types.SimpleNamespace(handle=lambda text: None, pending=None),
         coding_voice=types.SimpleNamespace(handle=lambda text: calls.append("coding") or None),
         content_studio_voice=types.SimpleNamespace(handle=lambda text: calls.append("studio") or None),
         skills_onboarding_voice=types.SimpleNamespace(

@@ -22,6 +22,7 @@ const VOICE_BRIDGE_OPERATIONS = new Set<OperationId>([
   "getContentStudioPlan", "createContentProductionJob", "getContentProductionJob", "cancelContentProductionJob",
   "listSkills", "getOnboarding", "putOnboarding",
   "getCodingVoiceRepository", "createVoiceCodingRun",
+  "previewVoiceLocalCalendar", "confirmVoiceLocalCalendar",
 ]);
 
 const AUTH_AUDIT_ACTIONS: Partial<Record<OperationId, string>> = {

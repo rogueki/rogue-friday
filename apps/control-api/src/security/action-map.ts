@@ -35,6 +35,8 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   createLocalCalendarEvent: "calendar.create",
   updateLocalCalendarEvent: "calendar.create",
   deleteLocalCalendarEvent: "calendar.create",
+  previewVoiceLocalCalendar: "calendar.create",
+  confirmVoiceLocalCalendar: "calendar.create",
   createAutomation: "automations.create",
   updateAutomation: "automations.update",
   testAutomation: "automations.test",

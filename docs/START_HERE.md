@@ -22,6 +22,8 @@ Das separate Repository [friday-skills](https://github.com/rogueki/friday-skills
 
 Das Dashboard bündelt Übersicht, Aufgaben, Aktivität, Agenten, Freigaben, Gedächtnis, Benachrichtigungen, Kommunikation, Kalender, Automationen, Recherche, Dateien, Sprache, Systemstatus und Audit. Die Oberfläche soll zeigen, woher Daten kommen und ob ein Adapter eine Aktion tatsächlich unterstützt. Im Installer-Standardmodus sind Aufgaben, Aktivität und Agenten für Hermes vorgesehen; Stimme und Systemstatus kommen von lokalen Diensten. In Kommunikation kann der Besitzer ein gesondertes Live-Postfach ausdrücklich öffnen und Textmails nach Vorschau senden; die übrige Ansicht verwendet weiterhin einen Platzhalteradapter. Der lokale Friday-Kalender verwaltet Termine sofort nach der Installation: anlegen, anzeigen, bearbeiten und nach Bestätigung löschen. Optional kann er nach ausdrücklicher Einrichtung ICS lesend oder CalDAV lesend und für bestätigte neue externe Termine verwenden.
 
+Nach der Sprecherprüfung lassen sich lokale Termine auch mit „Erstelle Termin Zahnarzt am 20.10.2026 um 14 Uhr für 30 Minuten“, „Verschiebe Termin Zahnarzt auf 21.10.2026 um 15 Uhr“, „Benenne Termin Zahnarzt um in Kontrolle“ und „Lösche Termin Kontrolle“ verwalten. Friday liest die konkrete Vorschau vor und wartet auf ein erneutes „Ja“; „Nein“ verwirft sie. Mehrdeutige Titel werden nicht automatisch gewählt. Externe Kalender werden durch diese Sprachbefehle nicht verändert.
+
 Der Orb visualisiert den Zustand des Assistenten. Die Stimme und Wake-Word-Erkennung richten sich nach den Installer-Einstellungen. Das lokale Dashboard ist kein eigenständiger Ersatz für Hermes, Kimi oder weitere Anbieterzugänge.
 
 ### Skills und Voraussetzungen

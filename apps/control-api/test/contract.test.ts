@@ -451,9 +451,9 @@ describe("contract: all operations", () => {
   });
 
   it("covers mock-platform operations with contract-valid success responses", () => {
-    expect(ROUTE_TABLE).toHaveLength(163);
+    expect(ROUTE_TABLE).toHaveLength(165);
     // Hermes-backed Skills/Onboarding routes have focused API tests instead of mock-platform success fixtures.
-    const focusedRoutes = new Set(["listSkills", "setSkillActivation", "getOnboarding", "putOnboarding", "getObsidianVault", "putObsidianVault", "getWikiPath", "putWikiPath", "getHimalayaAccount", "putHimalayaAccount", "checkHimalayaSmtp", "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage", "sendHimalayaMessage", "previewCalDavEvent", "createCalendarEvent", "createLocalCalendarEvent", "updateLocalCalendarEvent", "deleteLocalCalendarEvent", "getHermesSkillKeys", "updateHermesSkillKey", "checkHermesSkillKey", "createCodingRun", "getCodingRun", "stopCodingRun", "getCodingCliStatus", "getCodingVoiceRepository", "putCodingVoiceRepository", "createVoiceCodingRun"]);
+    const focusedRoutes = new Set(["listSkills", "setSkillActivation", "getOnboarding", "putOnboarding", "getObsidianVault", "putObsidianVault", "getWikiPath", "putWikiPath", "getHimalayaAccount", "putHimalayaAccount", "checkHimalayaSmtp", "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage", "sendHimalayaMessage", "previewCalDavEvent", "createCalendarEvent", "createLocalCalendarEvent", "updateLocalCalendarEvent", "deleteLocalCalendarEvent", "previewVoiceLocalCalendar", "confirmVoiceLocalCalendar", "getHermesSkillKeys", "updateHermesSkillKey", "checkHermesSkillKey", "createCodingRun", "getCodingRun", "stopCodingRun", "getCodingCliStatus", "getCodingVoiceRepository", "putCodingVoiceRepository", "createVoiceCodingRun"]);
     expect(probe.uncovered().filter((id) => !focusedRoutes.has(id)), "Operationen ohne erfolgreichen, vertragsgültigen Aufruf").toEqual([]);
     expect(probe.problems).toEqual([]);
     const smtpCheck = specOf("checkHimalayaSmtp");

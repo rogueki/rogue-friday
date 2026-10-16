@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/calendar/voice-local-preview-response.schema.json",
+  "title": "VoiceLocalPreviewResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "token": { "type": "string" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "targetId": { "type": "string" },
+        "version": { "type": "integer", "minimum": 0 },
+        "action": { "type": "string", "enum": ["create", "update", "delete"] },
+        "event": { "$ref": "../calendar/local-event-request.schema.json" }
+      },
+      "required": ["token", "expiresAt", "targetId", "version", "action", "event"],
+      "additionalProperties": false
+    },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

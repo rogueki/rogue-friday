@@ -398,6 +398,8 @@ def make_service(jv, texts, engine="personal", phrase="Hey Friday"):
     svc.whisper, svc.oww, svc.wake_name, svc.wake_threshold = FakeWhisper(texts), FakeDetector(), "personal", 2.0
     svc.tts = types.SimpleNamespace(speaking=threading.Event(), interrupted=0)
     svc.tts.interrupt = lambda: setattr(svc.tts, "interrupted", svc.tts.interrupted + 1)
+    svc.calendar_voice = types.SimpleNamespace(pending=None, arm_confirmation=lambda: None)
+    svc.coding_voice = types.SimpleNamespace(pending=None, arm_confirmation=lambda: None)
     return svc
 
 

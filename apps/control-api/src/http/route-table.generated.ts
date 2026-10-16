@@ -4579,6 +4579,125 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "previewVoiceLocalCalendar",
+    "method": "POST",
+    "path": "/api/v1/calendar/local/voice/preview",
+    "tag": "calendar",
+    "capability": null,
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "VoiceLocalRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "VoiceLocalPreviewResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "confirmVoiceLocalCalendar",
+    "method": "POST",
+    "path": "/api/v1/calendar/local/voice/confirm",
+    "tag": "calendar",
+    "capability": null,
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": true,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "VoiceLocalConfirmRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "CalendarEventResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 201,
+        "schema": "CalendarEventResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "createLocalCalendarEvent",
     "method": "POST",
     "path": "/api/v1/calendar/local/events",
@@ -4613,6 +4732,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       },
       {
         "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
         "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"
