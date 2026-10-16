@@ -1,6 +1,6 @@
 # Skills und Ersteinrichtung
 
-Stand: 2026-10-16. Auftrag: Friday soll die installierten Hermes-Skills und die 105 Skills aus `friday-skills` im Dashboard erklären, ihren tatsächlichen Zustand anzeigen und den Besitzer bei der ersten Nutzung durch Profil, Fähigkeiten und nötige Konten führen. Diese Datei hält Anforderungen und Prüfkriterien fest; ein grüner Strukturtest allein bedeutet keine funktionierende Anbieterintegration.
+Stand: 2026-10-16. Auftrag: Friday soll die installierten Hermes-Skills und die 106 Skills aus `friday-skills` im Dashboard erklären, ihren tatsächlichen Zustand anzeigen und den Besitzer bei der ersten Nutzung durch Profil, Fähigkeiten und nötige Konten führen. Diese Datei hält Anforderungen und Prüfkriterien fest; ein grüner Strukturtest allein bedeutet keine funktionierende Anbieterintegration.
 
 ## Anforderungen und Nachweise
 
@@ -9,7 +9,7 @@ Stand: 2026-10-16. Auftrag: Friday soll die installierten Hermes-Skills und die 
 | SK-01 | Der Katalog enthält alle aktuell paketierten Friday-Skills sowie die tatsächlich gefundenen Hermes-Standardskills, mit Herkunft und Version. Fehlende Laufzeitdaten werden als unbekannt angezeigt. | Registry-Parität, Hermes-Abgleich und UI-Test für fehlende/alte Laufzeitdaten. |
 | SK-02 | Ein Menüpunkt „Skills“ bietet Suche, Filter, Detailseite, Aktivstatus, Voraussetzungen, verknüpfte Einstellungen und eine verständliche Fehleranzeige. | Desktop-/Mobilansicht und Interaktionstests. |
 | SK-03 | „Paketiert“, „gefunden“, „aktiviert“, „Konto eingerichtet“, „Verbindung geprüft“, „ausführbar“ und „live getestet“ bleiben getrennte Zustände mit Zeit und Quelle. | API-Vertrag, Tests mit widersprüchlichen und ausgefallenen Quellen. |
-| SK-04 | Zu jedem Skill sind nötige und optionale Konten, Berechtigungen, Kostenhinweise und Einrichtungswege strukturiert. Kein Konto wird aus einem Skillnamen abgeleitet. | Metadaten-Parität über 105 IDs und fachliche Stichproben. |
+| SK-04 | Zu jedem Skill sind nötige und optionale Konten, Berechtigungen, Kostenhinweise und Einrichtungswege strukturiert. Kein Konto wird aus einem Skillnamen abgeleitet. | Metadaten-Parität über 106 IDs und fachliche Stichproben. |
 | SK-05 | Einstellungen bieten für tatsächlich unterstützte Integrationen gezielte Einrichtung und lesenden Verbindungstest. Secrets bleiben serverseitig verschlüsselt oder bei Hermes und erscheinen nie im Katalog, Export oder Log. Fehlende Adapter zeigen einen konkreten Einrichtungs- oder Entwicklungsstatus. | Auth-/CSRF-/Secret-Tests und gezielte Laufzeitprobe. |
 | SK-06 | Ein fortsetzbares Onboarding beginnt nach der Besitzeranlage, lernt Name, Ziele und gewünschte Fähigkeiten kennen, erklärt Friday und führt durch vorhandene Skills und Konten. Schritte können übersprungen und später geändert werden. | Neuinstallation/Erstlogin, Wiederaufnahme und bestehendes Konto als Regression. |
 | SK-07 | Friday kennt den aktuellen Skillzustand über dieselbe autoritative Quelle wie das Dashboard und kann Onboarding und Status per Sprache erklären, ohne fehlende Fähigkeiten zu behaupten. Sprachänderungen mit Seiteneffekt benötigen dieselben Rechte wie UI-Aktionen. | isolierter Voice-Test, API-Berechtigungstest und später echter Hörtest. |
@@ -23,11 +23,11 @@ Stand: 2026-10-16. Auftrag: Friday soll die installierten Hermes-Skills und die 
 - Die Control API liefert den Katalog und den beobachteten Hermes-Zustand. Das Frontend verwendet ausschließlich das generierte SDK. Die Skills-Registry ist Paketquelle, kein Beweis für Laufzeitbereitschaft.
 - Aktivieren/Deaktivieren, Kontobindung und Tests sind getrennte Operationen. Keine beliebigen CLI-Befehle oder Pfade aus Browser-Eingaben ausführen.
 - Konten mit fehlenden offiziellen Apps, OAuth-Clients oder Adaptern bleiben als „Einrichtung erforderlich“ beziehungsweise „noch nicht unterstützt“ sichtbar. Sie gelten nicht durch einen gespeicherten API-Key als live geprüft.
-- Ein Onboarding-Abschluss bedeutet, dass die Einführung bearbeitet oder bewusst übersprungen wurde. Er bedeutet nicht, dass alle 105 Skills nutzbar sind.
+- Ein Onboarding-Abschluss bedeutet, dass die Einführung bearbeitet oder bewusst übersprungen wurde. Er bedeutet nicht, dass alle 106 Skills nutzbar sind.
 
 ## Lieferfolge
 
-1. Hermes- und Friday-Inventar mit Versionsstand und Datenvertrag festhalten. Voraussetzungen für die 105 Skills maschinenlesbar und validiert bereitstellen.
+1. Hermes- und Friday-Inventar mit Versionsstand und Datenvertrag festhalten. Voraussetzungen für die 106 Skills maschinenlesbar und validiert bereitstellen.
 2. Control-API-Katalog, Laufzeitabgleich und persistierten Onboarding-Zustand mit Rollen-/Fehlerfällen implementieren; Vertrag zuerst in `packages/contracts`, dann SDK generieren.
 3. Skills-Seite, Einstellungen und Erststartführung auf dem stabilen Vertrag bauen; Desktop/Mobil und Accessibility prüfen.
 4. Sprachführung und konkrete Integrationen für Präsentationen, Computer Use, Obsidian, Telefonie und Coding-CLIs anbinden; jeden fehlenden Host/Account als echten Fehlerzustand behandeln.
@@ -35,9 +35,9 @@ Stand: 2026-10-16. Auftrag: Friday soll die installierten Hermes-Skills und die 
 
 ## Aktuelle Evidenz und Grenzen
 
-- `friday-skills` enthaelt 105 paketierte Skills. Alte Texte nennen teils 101. Laufzeitaktivierung folgt daraus nicht.
+- `friday-skills` enthaelt inzwischen 106 paketierte Skills. Alte Texte und fruehere Laufzeitproben nennen 101 oder 105. Laufzeitaktivierung folgt daraus nicht.
 - `rogue-friday` enthaelt ein Skills-Menue und ein fortsetzbares Onboarding; echte Anbieter- und Coding-Aufgaben muessen getrennt verifiziert werden.
 - Auf der aktuellen Friday-Ubuntu-Installation läuft Hermes v0.22.2. `hermes skills list --source builtin` meldete 53 eingebaute Skills als aktiviert, darunter `powerpoint`, `computer-use`, `obsidian`, `opencode`, `codex` und `claude-code`. Ein authentifizierter Live-Abruf am 2026-10-16 meldete zusätzlich alle 105 Friday-Skills als gefunden und aktiviert; dies belegt keinen Anbieterzugriff. Das Hermes-Dashboard läuft auf Port 43791; `/api/skills` verlangt Authentifizierung.
-- `telephony` ist nicht installiert. Ein erneuter Statuslauf am 2026-10-16 meldete OpenCode 1.19.2, Codex 0.163.0 und Claude Code 2.1.301 als native, ausführbare Linux-CLIs in Friday-Ubuntu. Die ChatGPT-/Claude-Anmeldung und ein echter Coding-Auftrag sind ungetestet. PowerPoint-Erstellen und -Lesen funktionieren mit dem isolierten python-pptx-Venv; Rendering braucht weiter LibreOffice/Poppler. Der Obsidian-Setup-Pfad ist vorhanden, ein reales Nutzer-Vault ist noch nicht gesetzt.
+- Der optionale Asterisk-SIP-Telefoniepfad ist im Dashboard vorhanden, aber Asterisk und ein SIP-Konto fehlen in der D:-Installation; es wurde kein Anruf getestet. Ein Statuslauf am 2026-10-16 meldete OpenCode 1.19.2, Codex 0.163.0 und Claude Code 2.1.301 als native, ausführbare Linux-CLIs in Friday-Ubuntu. Die ChatGPT-/Claude-Anmeldung und ein echter Coding-Auftrag sind ungetestet. PowerPoint-Erstellen, -Lesen und das Rendern eines synthetischen Decks in zwei PNG-Dateien wurden in Friday-Ubuntu mit isoliertem python-pptx-Venv sowie LibreOffice/Poppler geprueft. Der Obsidian-Setup-Pfad ist vorhanden, ein reales Nutzer-Vault ist noch nicht gesetzt.
 - Der Owner-Workflow unter `/skills` startet nach ausdruecklicher Repository- und CLI-Auswahl einen asynchronen nativen WSL-CLI-Run. `auto` waehlt die erste aktivierte, nativ ausfuehrbare CLI. Der Server prueft das Git-Root in einem erlaubten Verzeichnis und startet die gewaehlte CLI mit festem Aufruf und diesem Arbeitsverzeichnis. Status und Stop laufen ueber den privaten lokalen Runner; eine Prozessbestaetigung ist noch kein erfolgreicher Coding-Auftrag. Fuer den Sprachstart kann der Owner einen Projektnamen mit einem kanonischen Git-Root speichern. Bereits beim Speichern wird Linux-Git-Lesbarkeit ohne CLI- oder Modellaufruf geprueft. Friday verlangt CLI, genau diesen Projektnamen, einen konkreten Auftrag und eine zweite sprecherverifizierte Bestaetigung; das 90-Sekunden-Fenster beginnt nach der vollstaendigen Ansage. Ein echter Mikrofonlauf und ein Anbieterauftrag bleiben offen.
 - Offizielle Hermes-Verträge: `GET /api/skills` liefert Name/Beschreibung/Kategorie/Aktivstatus, `PUT /api/skills/toggle` schaltet einen Skill um. Der Control-API-Server verwendet dafür den bereits vorgesehenen serverseitigen Hermes-Dashboard-Tokenpfad, niemals ein Browser-Secret.

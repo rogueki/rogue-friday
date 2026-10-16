@@ -363,6 +363,8 @@ export interface FridayModelMap {
   OverviewResponse: OverviewResponse;
   PageInfo: PageInfo;
   Participant: Participant;
+  PowerPointDeckRequest: PowerPointDeckRequest;
+  PowerPointDeckResponse: PowerPointDeckResponse;
   Priority: Priority;
   ProfileSettings: ProfileSettings;
   Progress: Progress;
@@ -3188,6 +3190,22 @@ export interface QuickCommand {
 export interface OverviewResponse {
   contractVersion: ContractVersion;
   data: Overview;
+  freshness: Freshness;
+}
+export interface PowerPointDeckRequest {
+  title: string;
+  slides: {
+    title: string;
+    bullets: string[];
+  }[];
+}
+export interface PowerPointDeckResponse {
+  contractVersion: ContractVersion;
+  data: {
+    id: string;
+    slideCount: number;
+    downloadUrl: string;
+  };
   freshness: Freshness;
 }
 export interface ProfileSettings {

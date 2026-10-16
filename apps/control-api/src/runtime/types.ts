@@ -18,6 +18,7 @@ import type { ContentStudioProviderService } from "../services/content-studio-pr
 import type { ContentStudioPlanService } from "../services/content-studio-plan";
 import type { ContentStudioProductionService } from "../services/content-studio-production";
 import type { SkillsService } from "../services/skills";
+import type { PowerPointService } from "../services/powerpoint";
 import type { OnboardingService } from "../services/onboarding";
 import type { ObsidianVaultService } from "../services/obsidian-vault";
 import type { WikiPathService } from "../services/wiki-path";
@@ -77,6 +78,7 @@ export interface Runtime {
   contentStudioPlan: ContentStudioPlanService;
   contentStudioProduction: ContentStudioProductionService;
   skills: SkillsService;
+  powerpoint: PowerPointService;
   onboarding: OnboardingService;
   obsidianVault: ObsidianVaultService;
   wikiPath: WikiPathService;

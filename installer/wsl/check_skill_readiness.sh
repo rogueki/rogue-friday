@@ -2,7 +2,10 @@
 # Read-only prerequisite inventory. Discovery never means provider/account readiness.
 set -u
 export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
-if command -v python >/dev/null 2>&1 && python -c 'import pptx' >/dev/null 2>&1; then
+powerpoint_python="$HOME/.local/share/friday/powerpoint-venv/bin/python"
+if [ -x "$powerpoint_python" ] && "$powerpoint_python" -c 'import pptx' >/dev/null 2>&1; then
+    echo 'RUNNABLE PowerPoint library: isolated Friday python-pptx in WSL (deck workflow not tested)'
+elif command -v python >/dev/null 2>&1 && python -c 'import pptx' >/dev/null 2>&1; then
     echo 'RUNNABLE PowerPoint library: python imports python-pptx in WSL (deck workflow not tested)'
 else
     echo 'MISSING PowerPoint library: python cannot import python-pptx in WSL'

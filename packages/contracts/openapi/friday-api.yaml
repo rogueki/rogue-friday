@@ -4629,6 +4629,63 @@ paths:
           $ref: "#/components/responses/Forbidden"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/skills/powerpoint/decks:
+    post:
+      operationId: createPowerPointDeck
+      tags: [skills]
+      summary: Create a presentation with the installed Hermes PowerPoint skill
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PowerPointDeckRequest"
+      responses:
+        "201":
+          description: Presentation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PowerPointDeckResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          description: Invalid presentation content
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/powerpoint/decks/{id}/download:
+    get:
+      operationId: downloadPowerPointDeck
+      tags: [skills]
+      summary: Download a private PowerPoint presentation
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: PowerPoint file
+          content:
+            application/vnd.openxmlformats-officedocument.presentationml.presentation:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/skills/{id}/activation:
     put:
       operationId: setSkillActivation
@@ -7005,6 +7062,10 @@ components:
       $ref: ../schemas/skills/skill.schema.json
     SkillCatalogResponse:
       $ref: ../schemas/skills/catalog-response.schema.json
+    PowerPointDeckRequest:
+      $ref: ../schemas/skills/powerpoint-deck-request.schema.json
+    PowerPointDeckResponse:
+      $ref: ../schemas/skills/powerpoint-deck-response.schema.json
     CodingRunRequest:
       $ref: ../schemas/skills/coding-run-request.schema.json
     CodingVoiceRepository:
