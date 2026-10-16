@@ -8,12 +8,17 @@ export interface HimalayaSendOutcome { state: "sent" | "unknown"; replayed: bool
 
 const ADDRESS = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
 const digest = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
+const hasInvalidControl = (value: string, allowLineBreaks: boolean): boolean =>
+  [...value].some((character) => {
+    const code = character.charCodeAt(0);
+    return code === 127 || (code < 32 && !(allowLineBreaks && (code === 9 || code === 10)));
+  });
 
 function validate(input: HimalayaSendRequest): void {
   if (!input || !Array.isArray(input.to) || input.to.length < 1 || input.to.length > 10 ||
       new Set(input.to).size !== input.to.length || !input.to.every((address) => typeof address === "string" && address.length <= 254 && ADDRESS.test(address)) ||
-      typeof input.subject !== "string" || input.subject.length < 1 || input.subject.length > 200 || /[\x00-\x1f\x7f]/.test(input.subject) ||
-      typeof input.body !== "string" || Buffer.byteLength(input.body, "utf8") < 1 || Buffer.byteLength(input.body, "utf8") > 100000 || /[\x00-\x08\x0b-\x1f\x7f]/.test(input.body)) {
+      typeof input.subject !== "string" || input.subject.length < 1 || input.subject.length > 200 || hasInvalidControl(input.subject, false) ||
+      typeof input.body !== "string" || Buffer.byteLength(input.body, "utf8") < 1 || Buffer.byteLength(input.body, "utf8") > 100000 || hasInvalidControl(input.body, true)) {
     throw validationFailed("E-Mail-Adresse, Betreff oder Nachrichtentext ist ungueltig.");
   }
 }
