@@ -12,7 +12,6 @@ import json
 import os
 import sys
 import time
-import winsound
 
 import numpy as np
 import sounddevice as sd
@@ -86,8 +85,22 @@ PASSAGES = [
 ]
 
 
-def beep() -> None:
-    winsound.Beep(1200, 120)
+def beep(frequency: int = 1200, duration_ms: int = 550) -> None:
+    """Play a Bluetooth-safe cue through the selected default audio output."""
+    sample_rate = int(sd.query_devices(kind="output")["default_samplerate"])
+    duration_ms = max(duration_ms, 550)
+    count = max(1, int(sample_rate * duration_ms / 1000))
+    samples = np.arange(count, dtype=np.float32)
+    tone = 0.35 * np.sin(2 * np.pi * frequency * samples / sample_rate)
+    fade = min(count // 2, int(sample_rate * 0.005))
+    if fade:
+        envelope = np.linspace(0, 1, fade, dtype=np.float32)
+        tone[:fade] *= envelope
+        tone[-fade:] *= envelope[::-1]
+    # A short silent lead keeps Bluetooth headsets from clipping the cue.
+    lead = np.zeros(int(sample_rate * 0.25), dtype=np.float32)
+    tail = np.zeros(int(sample_rate * 0.15), dtype=np.float32)
+    sd.play(np.concatenate((lead, tone.astype(np.float32), tail)), sample_rate, blocking=True)
 
 
 def record(seconds: float) -> np.ndarray:
@@ -153,19 +166,30 @@ def main() -> None:
 
     for block, text, phases in personal_wake.enrollment_blocks(phrase):
         idx = len([f for f in os.listdir(os.path.join(RAW, block))]) if os.path.isdir(os.path.join(RAW, block)) else 0
+        target = 0
         for hint, count in phases:
-            pause(f"SCHRITT Wake Word '{text}' - Variante: {hint}  ({count} Aufnahmen)")
-            for _ in range(count):
+            target += count
+            remaining = max(0, target - idx)
+            if not remaining:
+                continue
+            pause(f"SCHRITT Wake Word '{text}' - Variante: {hint}  ({remaining} Aufnahmen)")
+            for _ in range(remaining):
                 idx += 1
                 capture_short(block, idx, text, hint)
 
-    pause("SCHRITT Gegenbeispiele: aehnlich klingende Woerter bzw. Teile der Phrase, NICHT das Wake Word (je 2 s).")
-    for i, word in enumerate(personal_wake.hard_negatives(phrase), 1):
+    negatives = [(i, word) for i, word in enumerate(personal_wake.hard_negatives(phrase), 1)
+                 if not os.path.isfile(os.path.join(RAW, "negatives", f"negatives_{i:03d}.wav"))]
+    if negatives:
+        pause("SCHRITT Gegenbeispiele: aehnlich klingende Woerter bzw. Teile der Phrase, NICHT das Wake Word (je 2 s).")
+    for i, word in negatives:
         capture_short("negatives", i, word, "Gegenbeispiel")
 
-    pause("SCHRITT Sprecherprofil: 8 Texte vorlesen, je 20 Sekunden. Natuerlich sprechen; "
-          "wenn der Text vor Ablauf fertig ist, einfach frei weiterreden.")
-    for i, text in enumerate(texts, 1):
+    remaining_texts = [(i, text) for i, text in enumerate(texts, 1)
+                       if not os.path.isfile(os.path.join(RAW, "speech", f"speech_{i:03d}.wav"))]
+    if remaining_texts:
+        pause("SCHRITT Sprecherprofil: 8 Texte vorlesen, je 20 Sekunden. Natuerlich sprechen; "
+              "wenn der Text vor Ablauf fertig ist, einfach frei weiterreden.")
+    for i, text in remaining_texts:
         print(f"\n  Text {i}/{len(texts)}:\n\n    {text}\n")
         input("  -> Enter, dann nach dem Piepton vorlesen ... ")
         beep()
@@ -178,8 +202,8 @@ def main() -> None:
     print("\n" + "=" * 70)
     print(" FERTIG - danke! Dieses Fenster kann geschlossen werden.")
     print("=" * 70)
-    winsound.Beep(800, 150)
-    winsound.Beep(1200, 250)
+    beep(800, 150)
+    beep(1200, 250)
     input()
 
 
