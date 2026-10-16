@@ -24,6 +24,9 @@ const VOICE_BRIDGE_OPERATIONS = new Set<OperationId>([
   "getCodingVoiceRepository", "createVoiceCodingRun",
   "previewVoiceLocalCalendar", "confirmVoiceLocalCalendar",
 ]);
+const MAIL_BRIDGE_OPERATIONS = new Set<OperationId>([
+  "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage",
+]);
 
 const AUTH_AUDIT_ACTIONS: Partial<Record<OperationId, string>> = {
   login: "auth.login",
@@ -107,7 +110,11 @@ export class ApiPipeline {
     const calendarBridgeAuthorized = spec.operationId === "listCalendarEvents" && spec.method === "GET" &&
       (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
       verifyVoiceBridgeKey(headers.authorization, this.runtime.calendarBridgeKey);
-    const actor: Actor = calendarBridgeAuthorized ? { type: "system", id: "friday-calendar", name: "F.R.I.D.A.Y. Calendar" } :
+    const mailBridgeAuthorized = MAIL_BRIDGE_OPERATIONS.has(spec.operationId) && spec.method === "GET" &&
+      (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
+      verifyVoiceBridgeKey(headers.authorization, this.runtime.mailBridgeKey);
+    const actor: Actor = mailBridgeAuthorized ? { type: "system", id: "friday-mail", name: "F.R.I.D.A.Y. Mail" } :
+      calendarBridgeAuthorized ? { type: "system", id: "friday-calendar", name: "F.R.I.D.A.Y. Calendar" } :
       voiceBridgeAuthorized ? { type: "system", id: "friday-voice", name: "F.R.I.D.A.Y. Voice" } :
       principal ? { type: "user", id: principal.userId, name: principal.displayName } : { type: "system", id: "anonymous" };
     const url = new URL(request.url, "http://localhost");
@@ -121,6 +128,7 @@ export class ApiPipeline {
       principal,
       voiceBridgeAuthorized,
       calendarBridgeAuthorized,
+      mailBridgeAuthorized,
       actor,
       pathParams: (request.params ?? {}) as Record<string, string>,
       query: {},
@@ -161,6 +169,10 @@ export class ApiPipeline {
 
   private authorizeRequest(ctx: RequestContext, spec: RouteSpec): void {
     const { runtime } = this;
+    if (verifyVoiceBridgeKey(ctx.headers.authorization, runtime.mailBridgeKey)) {
+      if (ctx.mailBridgeAuthorized) return;
+      throw new ApiError({ code: "FORBIDDEN", message: "Mail-Dienstkennung gilt nur fuer lokalen Postfachabruf." });
+    }
     if (verifyVoiceBridgeKey(ctx.headers.authorization, runtime.calendarBridgeKey)) {
       if (ctx.calendarBridgeAuthorized) return;
       throw new ApiError({ code: "FORBIDDEN", message: "Kalender-Dienstkennung gilt nur fuer lokalen Terminabruf." });

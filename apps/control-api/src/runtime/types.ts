@@ -65,6 +65,8 @@ export interface Runtime {
   voiceBridgeKey: Buffer;
   /** Read-only local Hermes calendar bridge; independent of the voice credential. */
   calendarBridgeKey: Buffer;
+  /** Read-only local Hermes mail bridge; independent of owner, voice and calendar credentials. */
+  mailBridgeKey: Buffer;
   approvalTokens: ApprovalTokenService;
   settings: SettingsService;
   contentStudioKeys: ContentStudioKeysService;

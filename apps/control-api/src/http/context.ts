@@ -26,6 +26,7 @@ export interface RequestContext {
   principal: Principal | null;
   voiceBridgeAuthorized: boolean;
   calendarBridgeAuthorized: boolean;
+  mailBridgeAuthorized: boolean;
   actor: Actor;
   pathParams: Record<string, string>;
   /** Query parameters after schema validation and coercion. */
