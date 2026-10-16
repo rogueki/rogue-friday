@@ -269,6 +269,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     discordGatewayStatus: () => discordGateway.status(),
     whatsappGatewayStatus: () => whatsappGateway.status(),
     telephonyStatus: () => telephony.status(),
+    cloudTalkStatus: () => cloudtalk.status(),
     codingCliStatus: () => codingRuns.cliStatus(),
     localCalendarStatus: () => { new LocalCalendarService(db).list(undefined, undefined, undefined, 1); return true; },
     calendarAdapterStatus: () => adapterSettings.list(),
