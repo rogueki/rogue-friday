@@ -252,9 +252,15 @@ Regeln (PLAN §49.6, `docs/SECURITY.md` §5): Geheimnisse nur serverseitig, nie 
 Begründung der Ablage des Owner-Hashs als Datei statt als Benutzer-Umgebungsvariable: Eine `User`-Umgebungsvariable ist für **jeden**
 Prozess des Benutzers lesbar, wird in Prozessabbildern vererbt und erscheint in Diagnosewerkzeugen; eine Datei mit ACL entspricht dem
 bereits genutzten Muster `hermes_api.key` (Review §4.1), und `wincred:` bräuchte ein nicht vorinstalliertes PowerShell-Modul.
-Der Installer gibt das Passwort nie auf der Konsole oder im Transkript aus; es existiert nur im Arbeitsspeicher des Installationsprozesses und
-wird per stdin an die Hash-CLI übergeben. Passwort vergessen: Eintrag `dashboard` aus `done` in `install-state.json` löschen,
-`install-friday.bat` starten und beim Passwort „Neu setzen“ mit `j` antworten (oder die Hash-Datei von Hand ersetzen).
+Bei der Ersteinrichtung setzt der Nutzer Name, Benutzername und Passwort im lokalen Dashboard. Der Installer speichert nur den Hash und
+behält ein bestehendes Konto bei Updates unverändert. Das Passwort lässt sich aus dem Hash nicht wiederherstellen. Für einen lokalen Reset:
+
+1. Die vorhandene Datei `<InstallRoot>\config\dashboard_owner.hash` nach `<InstallRoot>\backups` sichern.
+2. PowerShell im Ordner `<InstallRoot>\dashboard` öffnen und `& "C:\Program Files\nodejs\node.exe" ".\node_modules\tsx\dist\cli.mjs" ".\packages\auth\src\cli\hash-password.ts"` ausführen. Das neue Passwort wird verdeckt abgefragt und bestätigt.
+3. Aus der Ausgabe `FRIDAY_OWNER_PASSWORD_HASH='…'` **nur den Hash zwischen den Anführungszeichen** in `<InstallRoot>\config\dashboard_owner.hash` eintragen. Weder Passwort noch Hash in Chat, Issue, Git oder Logs kopieren.
+4. Im Dashboard mit dem bei der Ersteinrichtung gewählten Benutzernamen und dem neuen Passwort anmelden. Der Server liest die Hash-Datei bei jeder Anmeldung neu; ein Neustart ist nicht erforderlich.
+
+Ein erneuter Installerlauf allein setzt ein vergessenes Passwort nicht zurück. Die frühere Anleitung zum Entfernen von `dashboard` aus `install-state.json` trifft auf den aktuellen Installer nicht mehr zu.
 
 ## 9. Logs
 
