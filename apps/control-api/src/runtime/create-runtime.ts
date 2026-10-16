@@ -242,8 +242,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const himalayaSend = new HimalayaSendService(db, himalayaAccount);
   const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
-  let codingRuns: CodingRunsService;
-  const skills = new SkillsService({
+  const skills: SkillsService = new SkillsService({
     catalogPath: env.FRIDAY_SKILLS_CATALOG_PATH,
     dashboardUrl: env.FRIDAY_HERMES_DASHBOARD_URL ?? (typeof hermesAdapterConfig.dashboardBaseUrl === "string" ? hermesAdapterConfig.dashboardBaseUrl : undefined),
     fetcher: options.providerFetch,
@@ -254,7 +253,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     himalayaAccountStatus: () => himalayaAccount.status(),
     codingCliStatus: () => codingRuns.cliStatus(),
   });
-  codingRuns = new CodingRunsService(config, skills, env);
+  const codingRuns: CodingRunsService = new CodingRunsService(config, skills, env);
   const codingVoiceRepository = new CodingVoiceRepositoryService(db, codingRuns);
   const contentStudioProduction = new ContentStudioProductionService(db, contentStudioPlan, contentStudioKeys, contentStudioProviders,
     config.paths.dataDir, { ffmpegPath: env.FRIDAY_FFMPEG_PATH, enabled: () => settings.area("dashboard").contentStudioEnabled === true });
