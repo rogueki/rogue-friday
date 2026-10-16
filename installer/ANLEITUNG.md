@@ -267,12 +267,14 @@ Aufgaben (auch fremde, die auf `C:\Jarvis` zeigen, nach Rückfrage und mit XML-S
 
 ## Was noch manuell kommt (Schritt für Schritt mit dem Assistenten/Kimi)
 
-Laut Plan erst, wenn alles stabil läuft – jeweils einzeln:
+Die verfügbaren Konten und Nachrichten-Gateways richtest du im Friday Dashboard unter **Einstellungen → Skill-Konten** ein:
 
-1. **Telegram:** Bot bei @BotFather anlegen, dann in Ubuntu `hermes gateway setup`.
-2. **E-Mail (z. B. GMX):** den oben beschriebenen optionalen Himalaya-Installer und die IMAP-/SMTP-Kontomaske nutzen; Zugang mit dem eigenen Anbieter danach getrennt prüfen.
-3. **Kalender:** einen unterstützten Kalenderanschluss mit den Zugangsdaten und Rechten des jeweiligen Anbieters einrichten.
-4. WhatsApp, Office-Steuerung, Smart Home – später.
+- **Telegram:** Erstelle einen Bot bei @BotFather und trage dessen Bot-Token sowie deine numerische Telegram-User-ID ein. Friday speichert die Angaben lokal und startet beim Speichern das Hermes-Gateway neu. Das bestätigt noch keine Verbindung zu Telegram oder erfolgreiche Zustellung.
+- **Discord:** Erstelle im Discord Developer Portal einen Bot, aktiviere den Message Content Intent und lade ihn auf deinen Server ein. Trage Bot-Token und numerische User-ID ein; Kanal-IDs kannst du optional einschränken. Gespeicherte Einstellungen und ein laufendes Gateway belegen noch keine Verbindung oder Zustellung bei Discord.
+- **WhatsApp:** Öffne über den Link in den Friday-Einstellungen das lokale Hermes-Dashboard und melde dich dort an. Unter **Channels → WhatsApp** koppelst du das Telefon mit dem angezeigten QR-Code. Kehre dann zu Friday zurück und speichere den Modus sowie deine Telefonnummer mit Ländervorwahl, ohne `+`. Eine lokale Session-Datei allein bestätigt keine aktive WhatsApp-Verbindung.
+- **E-Mail:** Für IMAP/SMTP-Setup und den getrennten IMAP-Lesetest siehe oben **Optionales IMAP-/SMTP-Postfach**. Das Speichern prüft die Konfiguration; SMTP und Versand werden dadurch nicht getestet.
+- **Kalender:** Für ICS und CalDAV siehe oben **Kalender aus ICS lesen oder CalDAV verwenden**. Der dort beschriebene Anschluss und seine Schreibgrenzen gelten weiterhin.
+- **Telefonie:** Ein Telefonieanbieter und ein Dial-Adapter sind derzeit nicht eingerichtet; echte Anrufe sind daher noch nicht verfügbar.
 
 Regel: Lesen/Entwürfe macht der Assistent selbst. **Senden, Löschen, Termine ändern, Zahlungen nur nach deiner Bestätigung.**
 
