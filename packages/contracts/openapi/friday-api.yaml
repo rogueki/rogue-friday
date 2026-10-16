@@ -5599,6 +5599,67 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/cloudtalk:
+    get:
+      operationId: getCloudTalk
+      tags: [settings]
+      summary: Read CloudTalk API setup state without secrets
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/CloudTalkStatusResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-capability: meta.read
+      x-required-role: owner
+    put:
+      operationId: putCloudTalk
+      tags: [settings]
+      summary: Store CloudTalk API key pair and agent ID encrypted
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CloudTalkProfilePatch" } } } }
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/CloudTalkStatusResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/telephony/cloudtalk/preview:
+    post:
+      operationId: previewCloudTalkCall
+      tags: [communication]
+      summary: Preview an E.164 CloudTalk call without placing it
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CloudTalkPreviewRequest" } } } }
+      responses:
+        "200": { description: Preview, content: { application/json: { schema: { $ref: "#/components/schemas/CloudTalkPreviewResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: telephony.call
+      x-required-role: owner
+  /api/v1/telephony/cloudtalk/calls:
+    post:
+      operationId: originateCloudTalkCall
+      tags: [communication]
+      summary: After owner confirmation, ask CloudTalk to ring the agent first and then the target
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CloudTalkCallRequest" } } } }
+      responses:
+        "200": { description: Journal state, headers: { Idempotent-Replayed: { $ref: "#/components/headers/IdempotentReplayed" } }, content: { application/json: { schema: { $ref: "#/components/schemas/CloudTalkCallResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: telephony.call
+      x-required-role: owner
   /api/v1/settings/telephony:
     get:
       operationId: getTelephony
@@ -7021,6 +7082,18 @@ components:
       $ref: ../schemas/settings/discord-gateway.schema.json
     TelephonyStatusResponse:
       $ref: ../schemas/settings/telephony-status-response.schema.json
+    CloudTalkStatusResponse:
+      $ref: ../schemas/settings/cloudtalk-status-response.schema.json
+    CloudTalkProfilePatch:
+      $ref: ../schemas/settings/cloudtalk-profile-patch.schema.json
+    CloudTalkPreviewRequest:
+      $ref: ../schemas/communication/cloudtalk-preview-request.schema.json
+    CloudTalkPreviewResponse:
+      $ref: ../schemas/communication/cloudtalk-preview-response.schema.json
+    CloudTalkCallRequest:
+      $ref: ../schemas/communication/cloudtalk-call-request.schema.json
+    CloudTalkCallResponse:
+      $ref: ../schemas/communication/cloudtalk-call-response.schema.json
     TelephonyProfilePatch:
       $ref: ../schemas/settings/telephony-profile-patch.schema.json
     TelephonyPreviewRequest:

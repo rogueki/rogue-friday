@@ -217,6 +217,24 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_telephony_previews_expiry ON telephony_previews (expires_at);
     `,
   },
+  {
+    id: 11,
+    name: "cloudtalk-call-journal",
+    sql: `
+      CREATE TABLE cloudtalk_previews (
+        token_hash TEXT PRIMARY KEY, actor TEXT NOT NULL, destination TEXT NOT NULL,
+        expires_at INTEGER NOT NULL, consumed_at INTEGER
+      );
+      CREATE INDEX idx_cloudtalk_previews_expiry ON cloudtalk_previews (expires_at);
+      CREATE TABLE cloudtalk_calls (
+        id TEXT PRIMARY KEY, key_hash TEXT NOT NULL UNIQUE, actor TEXT NOT NULL,
+        request_hash TEXT NOT NULL, destination TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('pending', 'requested', 'rejected', 'unknown')),
+        provider_status INTEGER, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_cloudtalk_calls_actor_time ON cloudtalk_calls (actor, created_at);
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

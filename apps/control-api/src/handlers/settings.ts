@@ -13,6 +13,26 @@ const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString()
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: fresh() });
 
 export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
+  async getCloudTalk(ctx) { return { status: 200, body: single(ctx.runtime.cloudtalk.status()) }; },
+  async putCloudTalk(ctx) {
+    const result = ctx.runtime.cloudtalk.configure(ctx.body as { agentId: number; accessKeyId: string; accessKeySecret: string }, ctx.mutation.ifMatchVersion ?? -1);
+    ctx.audit.action = "settings.cloudtalk_updated";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { configured: result.configured, agentId: result.agentId };
+    return { status: 200, body: single(result) };
+  },
+  async previewCloudTalkCall(ctx) {
+    const { destination } = ctx.body as { destination: string };
+    return { status: 200, body: single(ctx.runtime.cloudtalk.preview(destination, ctx.principal!.userId)) };
+  },
+  async originateCloudTalkCall(ctx) {
+    const { destination, previewToken } = ctx.body as { destination: string; previewToken: string };
+    const result = await ctx.runtime.cloudtalk.originate(destination, previewToken, ctx.principal!.userId, ctx.idempotencyKey ?? "");
+    ctx.audit.action = "telephony.cloudtalk_call_requested";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { callId: result.id, state: result.state, replayed: result.replayed ?? false };
+    return { status: 200, body: single(result), headers: { "Idempotent-Replayed": String(result.replayed === true) } };
+  },
   async getTelephony(ctx) { return { status: 200, body: single(await ctx.runtime.telephony.status()) }; },
   async putTelephony(ctx) {
     const result = await ctx.runtime.telephony.configure(ctx.body as TelephonyProfile, ctx.mutation.ifMatchVersion ?? -1);

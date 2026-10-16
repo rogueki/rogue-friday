@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/cloudtalk-profile-patch.schema.json",
+  "title": "CloudTalkProfilePatch", "type": "object",
+  "properties": {
+    "agentId": { "type": "integer", "minimum": 1 },
+    "accessKeyId": { "type": "string", "minLength": 4, "maxLength": 200 },
+    "accessKeySecret": { "type": "string", "minLength": 8, "maxLength": 500 }
+  }, "required": ["agentId", "accessKeyId", "accessKeySecret"], "additionalProperties": false
+}

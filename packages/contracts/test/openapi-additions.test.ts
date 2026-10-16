@@ -69,8 +69,8 @@ describe("observability operations (PLAN §50.3)", () => {
     expect(Object.keys(telemetry?.op.responses ?? {})).toEqual(expect.arrayContaining(["202", "401", "403", "413", "422", "429"]));
   });
 
-  it("the contract includes the 181 released operations", () => {
-    expect(operations).toHaveLength(181);
+  it("the contract includes the 185 released operations", () => {
+    expect(operations).toHaveLength(185);
   });
 
   it("marks owner telephony actions with a call capability", () => {

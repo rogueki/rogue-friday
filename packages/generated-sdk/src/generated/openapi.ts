@@ -1802,6 +1802,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/cloudtalk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read CloudTalk API setup state without secrets */
+        get: operations["getCloudTalk"];
+        /** Store CloudTalk API key pair and agent ID encrypted */
+        put: operations["putCloudTalk"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/content-studio-keys": {
         parameters: {
             query?: never;
@@ -2508,6 +2526,40 @@ export interface paths {
         put?: never;
         /** Ask Asterisk to hang up the journalled owner channel */
         post: operations["hangupTelephonyCall"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/telephony/cloudtalk/calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** After owner confirmation, ask CloudTalk to ring the agent first and then the target */
+        post: operations["originateCloudTalkCall"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/telephony/cloudtalk/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview an E.164 CloudTalk call without placing it */
+        post: operations["previewCloudTalkCall"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4057,6 +4109,63 @@ export interface components {
          * @enum {string}
          */
         ChannelStatus: "online" | "degraded" | "offline" | "read_only" | "not_configured";
+        /** CloudTalkCallRequest */
+        CloudTalkCallRequest: {
+            destination: string;
+            previewToken: string;
+        };
+        /** CloudTalkCallResponse */
+        CloudTalkCallResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                /** Format: date-time */
+                createdAt: string;
+                destination: string;
+                id: string;
+                note: string;
+                providerStatus: number | null;
+                replayed?: boolean;
+                /** @enum {string} */
+                state: "pending" | "requested" | "rejected" | "unknown";
+                /** Format: date-time */
+                updatedAt: string;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** CloudTalkPreviewRequest */
+        CloudTalkPreviewRequest: {
+            destination: string;
+        };
+        /** CloudTalkPreviewResponse */
+        CloudTalkPreviewResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                agentId: number;
+                destination: string;
+                /** Format: date-time */
+                expiresAt: string;
+                note: string;
+                token: string;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** CloudTalkProfilePatch */
+        CloudTalkProfilePatch: {
+            accessKeyId: string;
+            accessKeySecret: string;
+            agentId: number;
+        };
+        /** CloudTalkStatusResponse */
+        CloudTalkStatusResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                agentId: number | null;
+                configured: boolean;
+                note: string;
+                revision: number;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
         /** CodingCliStatus */
         CodingCliStatus: {
             /** @enum {string} */
@@ -11708,6 +11817,61 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    getCloudTalk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudTalkStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    putCloudTalk: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloudTalkProfilePatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudTalkStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
     getContentStudioKeys: {
         parameters: {
             query?: never;
@@ -13495,6 +13659,72 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    originateCloudTalkCall: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloudTalkCallRequest"];
+            };
+        };
+        responses: {
+            /** @description Journal state */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudTalkCallResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    previewCloudTalkCall: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloudTalkPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudTalkPreviewResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
