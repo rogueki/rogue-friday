@@ -19,6 +19,13 @@ export function internalSetupLink(target: string): string | null {
   return null;
 }
 
+/** Keep real setup forms direct; otherwise open this integration's honest setup/status card. */
+export function integrationSetupLink(item: SkillCatalogEntry["integrationDetails"][number]): string {
+  const direct = internalSetupLink(item.settingsTarget);
+  if (direct && direct !== "/settings?area=skillAccounts") return direct;
+  return `/settings?area=skillAccounts&integration=${encodeURIComponent(item.id)}`;
+}
+
 export function officialReference(value: string): string | null {
   try {
     const url = new URL(value);

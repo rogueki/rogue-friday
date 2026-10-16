@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SkillCatalogEntry } from "@friday/sdk";
-import { internalSetupLink, officialReference, selectedVisibleSkill, skillState, visibleSkills } from "./skillPresentation";
+import { integrationSetupLink, internalSetupLink, officialReference, selectedVisibleSkill, skillState, visibleSkills } from "./skillPresentation";
 import { clearOnboardingSnooze, isOnboardingSnoozed, snoozeOnboarding } from "./onboardingSnooze";
 
 const base = { discovered: true, enabled: true } as SkillCatalogEntry;
@@ -23,6 +23,15 @@ describe("skill status presentation", () => {
     expect(internalSetupLink("Host: lokaler Editor")).toBeNull();
     expect(officialReference("https://example.org/setup")).toBe("https://example.org/setup");
     expect(officialReference("javascript:alert(1)")).toBeNull();
+  });
+
+  it("opens unsupported account prerequisites at their exact Skill-Konten card", () => {
+    const item = (id: string, settingsTarget: string) => ({ id, settingsTarget }) as SkillCatalogEntry["integrationDetails"][number];
+    expect(integrationSetupLink(item("hermes_phone", "Hermes-Einstellungen in Friday-Ubuntu"))).toBe("/settings?area=skillAccounts&integration=hermes_phone");
+    expect(integrationSetupLink(item("custom/provider", "Host: lokaler Editor"))).toBe("/settings?area=skillAccounts&integration=custom%2Fprovider");
+    expect(integrationSetupLink(item("gmx", "Friday Dashboard > Einstellungen > Skill-Konten > E-Mail"))).toBe("/settings?area=skillAccounts#himalaya-account-title");
+    expect(integrationSetupLink(item("caldav", "Friday Dashboard > Einstellungen > Adapter > CalDAV"))).toBe("/settings?area=adapters#calendar-setup-title");
+    expect(integrationSetupLink(item("obsidian", "/settings?area=skillAccounts#obsidian-setup-title"))).toBe("/settings?area=skillAccounts#obsidian-setup-title");
   });
 
   it("keeps every Friday skill selectable and never shows a hidden selection", () => {

@@ -18,5 +18,5 @@ it("shows conditional prerequisites once and keeps untested connections unverifi
   expect(screen.getAllByRole("listitem")).toHaveLength(1);
   expect(within(item).getByText(/Optional · Konto je nach Nutzung/)).toBeTruthy();
   expect(within(item).getByText(/Einrichtung: nicht geprüft · Verbindung: nicht geprüft/)).toBeTruthy();
-  expect(within(item).getByRole("link", { name: /Einstellungen für obsidian sync öffnen/ })).toHaveAttribute("href", "/settings?area=skillAccounts");
+  expect(within(item).getByRole("link", { name: /Einstellungen für obsidian sync öffnen/ })).toHaveAttribute("href", "/settings?area=skillAccounts&integration=obsidian_sync");
 });

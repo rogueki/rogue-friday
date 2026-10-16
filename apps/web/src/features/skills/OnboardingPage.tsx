@@ -8,7 +8,7 @@ import { useOnboarding, useSkillsCatalog, useUpdateOnboarding } from "@/lib/api/
 import { useSession } from "@/lib/session";
 import { snoozeOnboarding } from "./onboardingSnooze";
 import { SelectedSkillActivation } from "./SelectedSkillActivation";
-import { internalSetupLink, visibleSkills } from "./skillPresentation";
+import { integrationSetupLink, visibleSkills } from "./skillPresentation";
 import "./skills.css";
 
 const ORDER = ["intro", "profile", "skills", "accounts", "finish"] as const;
@@ -38,7 +38,7 @@ export function AccountPrerequisites({ skills }: { skills: readonly SkillCatalog
   const integrations = selectedIntegrations(skills);
   if (!integrations.length) return <p>Für die Auswahl sind keine Integrationen verzeichnet, oder es wurden noch keine Skills ausgewählt.</p>;
   return <ul className="sk-integrations">{integrations.map((item) => {
-    const link = internalSetupLink(item.settingsTarget);
+    const link = integrationSetupLink(item);
     return <li key={item.id}><strong>{item.id.replaceAll("_", " ")}</strong> <span className="sk-muted">{item.required ? "Erforderlich" : "Optional"} · {item.account === "none" ? "Kein externes Konto" : item.account === "required" ? "Konto erforderlich" : "Konto je nach Nutzung"}</span><p>{item.setupDe}</p><p className="sk-muted">Einrichtung: {item.configured === null ? "nicht geprüft" : item.configured ? "konfiguriert" : "nicht konfiguriert"} · Verbindung: {item.connectionChecked === true ? "geprüft" : "nicht geprüft"}</p>{link && <a href={link}>Einstellungen für {item.id.replaceAll("_", " ")} öffnen</a>}{!link && item.settingsTarget && <p className="sk-muted">Einrichtungsort: {item.settingsTarget}</p>}</li>;
   })}</ul>;
 }

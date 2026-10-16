@@ -2,6 +2,7 @@
 
 import type { CodingCliStatusResponse, ContentStudioKeysResponse, HermesSkillKeyCheckResponse, HermesSkillKeysResponse, ObsidianVaultResponse, WikiPathResponse, SkillCatalogEntry } from "@friday/sdk";
 import { ErrorState, Skeleton } from "@friday/ui";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { officialReference } from "@/features/skills/skillPresentation";
@@ -151,10 +152,13 @@ export function accountSetupView(item: Integration, keys: KeyStatus, hermes: Her
 }
 
 export function SkillAccountsArea() {
+  const params = useSearchParams();
+  const selectedIntegration = params.get("integration");
   const queryClient = useQueryClient();
   const { role } = useSettingsDrafts();
   const query = useSkillsCatalog();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(selectedIntegration ?? "");
+  useEffect(() => { setSearch(selectedIntegration ?? ""); }, [selectedIntegration]);
   const [vaultPath, setVaultPath] = useState("");
   const [vaultSaving, setVaultSaving] = useState(false);
   const [vaultMessage, setVaultMessage] = useState("");
@@ -266,7 +270,7 @@ export function SkillAccountsArea() {
   if (query.isError) return <ErrorState compact title="Skill-Konten konnten nicht geladen werden" description={query.error?.message} onRetry={() => void query.refetch()} retryLabel="Erneut versuchen" />;
   return <div className="sk-accounts">
     <p>Konten und lokale Voraussetzungen für die Skills. Ein gespeicherter Schlüssel oder aktivierter Skill belegt noch keine erfolgreiche Anmeldung beim Anbieter.</p>
-    <p className="sk-warning">Telefonie: Friday enthält derzeit keinen verifizierten Anrufadapter. Hier kann noch kein Telefonkonto eingerichtet oder ein Anruf ausgelöst werden.</p>
+    <p className="sk-warning">Telefonie lässt sich mit einem passenden Anbieter und einem personalisierten Adapter ergänzen. Für diese Installation ist noch kein Anrufadapter eingerichtet; deshalb sind Kontoeinrichtung und Anrufe derzeit nicht verfügbar. Die unten verzeichneten Anforderungen helfen bei der späteren Anbindung.</p>
     <p><a href="/onboarding">Einführung fortsetzen</a> · <a href="/skills">Alle Skills ansehen</a></p>
     <section aria-labelledby="coding-cli-setup-title">
       <h3 id="coding-cli-setup-title">Coding-CLIs in Friday-Ubuntu</h3>
@@ -325,11 +329,13 @@ export function SkillAccountsArea() {
       </> : <p>Nur der Owner kann Hermes-Schlüssel verwalten.</p>}
     </section>
     <label>Integration suchen <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name oder Einrichtung" /></label>
+    {selectedIntegration && !items.some((item) => item.id === selectedIntegration) && <p role="status">Die angefragte Integration ist im aktuellen Skill-Katalog nicht vorhanden. Bitte Katalog aktualisieren oder eine andere Integration wählen.</p>}
     <p role="status">{filtered.length} von {items.length} Integrationen</p>
     {filtered.map((item) => {
       const setup = accountSetupView(item, keys.data?.data, hermesKeys.data?.data, codingClis.data?.data);
       const reference = officialReference(item.reference);
       return <article key={item.id}>
+        {item.id === selectedIntegration && <p><mark>Ausgewählte Integration</mark></p>}
         <h3>{item.id.replaceAll("_", " ")}</h3>
         <p className="sk-muted">{item.account === "none" ? "Kein externes Konto" : item.account === "required" ? "Konto erforderlich" : "Konto je nach Nutzung"} · {setup.state}</p>
         <p>{item.setupDe}</p>
