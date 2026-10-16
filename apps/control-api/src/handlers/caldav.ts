@@ -8,7 +8,7 @@ const single = (data: unknown) => ({ contractVersion: CONTRACT_VERSION, data, fr
 export const caldavHandlers: Partial<Record<OperationId, Handler>> = {
   async previewCalDavEvent(ctx) {
     const data = ctx.runtime.caldavCreate.preview(ctx.body as CalDavEventInput, ctx.principal!.userId, ctx.idempotencyKey ?? "");
-    return { status: 200, body: single(data) };
+    return { status: 200, body: single(data), headers: { "Idempotent-Replayed": "false" } };
   },
   async createCalendarEvent(ctx) {
     const outcome = await ctx.runtime.caldavCreate.create(ctx.body as CalDavCreateInput, ctx.principal!.userId, ctx.idempotencyKey ?? "", ctx.call);
