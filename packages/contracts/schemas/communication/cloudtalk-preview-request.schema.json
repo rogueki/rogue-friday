@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/communication/cloudtalk-preview-request.schema.json",
+  "title": "CloudTalkPreviewRequest", "type": "object",
+  "properties": { "destination": { "type": "string", "pattern": "^\\+[1-9][0-9]{7,14}$" } },
+  "required": ["destination"], "additionalProperties": false
+}

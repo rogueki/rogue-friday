@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/cloudtalk-status-response.schema.json",
+  "title": "CloudTalkStatusResponse", "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": { "type": "object", "properties": {
+      "configured": { "type": "boolean" }, "agentId": { "type": ["integer", "null"] },
+      "revision": { "type": "integer", "minimum": 0 }, "note": { "type": "string" }
+    }, "required": ["configured", "agentId", "revision", "note"], "additionalProperties": false },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  }, "required": ["contractVersion", "data", "freshness"], "additionalProperties": false
+}

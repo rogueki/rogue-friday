@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/communication/cloudtalk-preview-response.schema.json",
+  "title": "CloudTalkPreviewResponse", "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": { "type": "object", "properties": {
+      "destination": { "type": "string" }, "agentId": { "type": "integer" },
+      "expiresAt": { "type": "string", "format": "date-time" },
+      "token": { "type": "string" }, "note": { "type": "string" }
+    }, "required": ["destination", "agentId", "expiresAt", "token", "note"], "additionalProperties": false },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  }, "required": ["contractVersion", "data", "freshness"], "additionalProperties": false
+}

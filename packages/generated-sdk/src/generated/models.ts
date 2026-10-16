@@ -220,6 +220,12 @@ export interface FridayModelMap {
   ChannelListResponse: ChannelListResponse;
   ChannelResponse: ChannelResponse;
   ChannelStatus: ChannelStatus;
+  CloudTalkCallRequest: CloudTalkCallRequest;
+  CloudTalkCallResponse: CloudTalkCallResponse;
+  CloudTalkPreviewRequest: CloudTalkPreviewRequest;
+  CloudTalkPreviewResponse: CloudTalkPreviewResponse;
+  CloudTalkProfilePatch: CloudTalkProfilePatch;
+  CloudTalkStatusResponse: CloudTalkStatusResponse;
   CodingCliStatus: CodingCliStatus;
   CodingCliStatusResponse: CodingCliStatusResponse;
   CodingRun: CodingRun;
@@ -1724,6 +1730,53 @@ export interface ChannelListResponse {
 export interface ChannelResponse {
   contractVersion: ContractVersion;
   data: Channel;
+  freshness: Freshness;
+}
+export interface CloudTalkCallRequest {
+  destination: string;
+  previewToken: string;
+}
+export interface CloudTalkCallResponse {
+  contractVersion: ContractVersion;
+  data: {
+    id: string;
+    destination: string;
+    state: "pending" | "requested" | "rejected" | "unknown";
+    providerStatus: number | null;
+    createdAt: string;
+    updatedAt: string;
+    replayed?: boolean;
+    note: string;
+  };
+  freshness: Freshness;
+}
+export interface CloudTalkPreviewRequest {
+  destination: string;
+}
+export interface CloudTalkPreviewResponse {
+  contractVersion: ContractVersion;
+  data: {
+    destination: string;
+    agentId: number;
+    expiresAt: string;
+    token: string;
+    note: string;
+  };
+  freshness: Freshness;
+}
+export interface CloudTalkProfilePatch {
+  agentId: number;
+  accessKeyId: string;
+  accessKeySecret: string;
+}
+export interface CloudTalkStatusResponse {
+  contractVersion: ContractVersion;
+  data: {
+    configured: boolean;
+    agentId: number | null;
+    revision: number;
+    note: string;
+  };
   freshness: Freshness;
 }
 export interface CodingCliStatus {

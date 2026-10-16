@@ -15,6 +15,7 @@ import { HimalayaAccountSetup } from "./HimalayaAccountSetup";
 import { TelegramGatewaySetup } from "./TelegramGatewaySetup";
 import { MessagingGatewaySetup } from "./MessagingGatewaySetup";
 import { TelephonySetup } from "./TelephonySetup";
+import { CloudTalkDesktopSetup } from "./CloudTalkDesktopSetup";
 import "@/features/skills/skills.css";
 
 type Integration = SkillCatalogEntry["integrationDetails"][number] & { requiredBy: string[] };
@@ -90,8 +91,8 @@ export function accountSetupView(item: Integration, keys: KeyStatus, hermes: Her
   };
   if (item.id === "telephony") return {
     href: "/settings?area=skillAccounts#telephony-setup-title",
-    action: "SIP-Telefonie im Dashboard einrichten",
-    state: "Asterisk-ARI, SIP-Registrierung und Owner-Nebenstelle im Telefoniebereich prüfen",
+    action: "CloudTalk Desktop oder SIP-Telefonie im Dashboard einrichten",
+    state: "CloudTalk Desktop wählt nach aktivierter Auto-Dial-Option und Sprachbestätigung; Asterisk benötigt ARI und SIP",
     location: null,
   };
   const cliIds = { hermes_codex: "codex", hermes_opencode: "opencode", hermes_claude_code: "claude-code" } as const;
@@ -304,7 +305,7 @@ export function SkillAccountsArea() {
   if (query.isError) return <ErrorState compact title="Skill-Konten konnten nicht geladen werden" description={query.error?.message} onRetry={() => void query.refetch()} retryLabel="Erneut versuchen" />;
   return <div className="sk-accounts">
     <p>Konten und lokale Voraussetzungen für die Skills. Ein gespeicherter Schlüssel oder aktivierter Skill belegt noch keine erfolgreiche Anmeldung beim Anbieter.</p>
-    <p className="sk-warning">Telefonie lässt sich mit einem passenden Anbieter und einem personalisierten Adapter ergänzen. Für diese Installation ist noch kein Anrufadapter eingerichtet; deshalb sind Kontoeinrichtung und Anrufe derzeit nicht verfügbar. Die unten verzeichneten Anforderungen helfen bei der späteren Anbindung.</p>
+    <p className="sk-warning">Für Telefonie stehen CloudTalk Desktop mit aktivierter Auto-Dial-Option, ein CloudTalk-API-Pfad und ein optionaler Asterisk-SIP-Rufpfad bereit. Friday erhält über den Desktop-Link keinen Gesprächsstatus oder Audiozugriff.</p>
     <p><a href="/onboarding">Einführung fortsetzen</a> · <a href="/skills">Alle Skills ansehen</a></p>
     <section aria-labelledby="coding-cli-setup-title">
       <h3 id="coding-cli-setup-title">Coding-CLIs in Friday-Ubuntu</h3>
@@ -320,6 +321,7 @@ export function SkillAccountsArea() {
     <TelegramGatewaySetup owner={role === "owner"} />
     <MessagingGatewaySetup owner={role === "owner"} platform="discord" />
     <MessagingGatewaySetup owner={role === "owner"} platform="whatsapp" />
+    <CloudTalkDesktopSetup owner={role === "owner"} />
     <TelephonySetup owner={role === "owner"} />
     <section aria-labelledby="wiki-path-setup-title">
       <h3 id="wiki-path-setup-title">Lokales Markdown-Wiki für Hermes</h3>
