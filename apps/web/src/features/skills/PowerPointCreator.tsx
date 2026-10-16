@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@friday/ui";
 import { useCreatePowerPointDeck } from "@/lib/api/domains/skills";
 
-export function PowerPointCreator() {
+export function PowerPointCreator({ canCreate }: { canCreate: boolean }) {
   const create = useCreatePowerPointDeck();
   const [title, setTitle] = useState("");
   const [slides, setSlides] = useState([{ title: "", bullets: "" }]);
@@ -29,8 +29,9 @@ export function PowerPointCreator() {
     </div>)}
     <div className="sk-powerpoint__actions">
       <Button type="button" disabled={slides.length >= 12 || create.isPending} onClick={() => setSlides((current) => [...current, { title: "", bullets: "" }])}>Folie hinzufügen</Button>
-      <Button type="button" loading={create.isPending} disabled={create.isPending || !title.trim() || slides.some((slide) => !slide.title.trim())} onClick={() => void submit()}>PowerPoint erstellen</Button>
+      <Button type="button" loading={create.isPending} disabled={!canCreate || create.isPending || !title.trim() || slides.some((slide) => !slide.title.trim())} onClick={() => void submit()}>PowerPoint erstellen</Button>
     </div>
+    {!canCreate && <p className="sk-warning" role="status">Skill-Aktivierung wird geprüft. Ein neuer Auftrag ist danach möglich.</p>}
     {error && <p className="sk-warning" role="alert">{error}</p>}
     {download && <p role="status"><a href={download}>PowerPoint herunterladen</a></p>}
   </section>;
