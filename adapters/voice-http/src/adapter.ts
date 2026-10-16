@@ -73,8 +73,8 @@ const UNREACHABLE_MESSAGE =
   "Voice-Dienst nicht erreichbar (lädt noch Modelle, bis ca. 3 Minuten, oder gestoppt)";
 
 /**
- * Voice adapter over the status endpoint of the installed Friday voice service. Read-only: the service has exactly one
- * HTTP handler (`do_GET`, path ignored, no auth) and no control interface, so only `voice.read` is declared.
+ * Voice adapter over the status endpoint of the installed Friday voice service. The authenticated manual-start
+ * endpoint is used by the Control API command intent; this adapter only exposes `voice.read`.
  */
 export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
   readonly manifest = manifest;

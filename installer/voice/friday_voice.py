@@ -16,6 +16,7 @@ import argparse
 import collections
 import datetime
 import http.server
+import hmac
 import json
 import os
 import queue
@@ -396,6 +397,8 @@ class VoiceService:
         self.preroll: list[np.ndarray] = []   # waehrend Stufe 2 aufgelaufenes Audio (Befehlsanfang)
         self.stage1_block_until = 0.0
         self.audio_q: queue.Queue[np.ndarray] = queue.Queue()
+        self.manual_start = threading.Event()
+        self.manual_start_lock = threading.Lock()
         self.input_level = LevelMeter()  # geglaetteter Mikrofonpegel 0..1 (nur die Zahl, das Audio wird nicht gehalten)
         self.ring = collections.deque(maxlen=int(2.0 * SR / CHUNK))  # 2 s Vorlauf fuer Sprecherpruefung
         self.trusted_until = 0.0
@@ -688,8 +691,16 @@ class VoiceService:
             print(f"{self.name} hoert zu (sag '{self.phrase}').", flush=True)
             winsound.Beep(900, 120)
             while True:
-                if self._wake_detected(self._read_chunk()):
-                    self._session()
+                chunk = self._read_chunk()
+                detected = False if self.manual_start.is_set() else self._wake_detected(chunk)
+                with self.manual_start_lock:
+                    manual = self.manual_start.is_set()
+                    if manual:
+                        self.manual_start.clear()
+                    if manual or detected:
+                        self.status["state"] = "command"
+                if manual or detected:
+                    self._session(manual=manual)
 
     def _wake_score(self, chunk: np.ndarray) -> float:
         if self.engine == "personal":
@@ -774,12 +785,20 @@ class VoiceService:
         self.preroll = backlog
         return wake_audio
 
-    def _session(self) -> None:
+    def _session(self, manual: bool = False) -> None:
         """Ein Wake-Ereignis: Befehl, danach Folgefragen ohne Wake Word, solange die Trusted Session laeuft.
         Waehrend der Assistent spricht, laeuft die Wake-Word-Erkennung weiter (Barge-In)."""
         cfg = self.cfg
-        wake_audio = self._acknowledge_wake()
         self.status["state"] = "command"
+        if manual:
+            self.preroll = []
+            self._drain()
+            winsound.Beep(1200, 80)
+            self._drain()
+            wake_audio = None
+            log_event(event="manual_start")
+        else:
+            wake_audio = self._acknowledge_wake()
         audio = self._record_command(cfg["command_start_timeout_s"])
         if audio is None:
             log_event(event="no_speech_after_wake")
@@ -855,6 +874,31 @@ class VoiceService:
         service = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                if self.path != "/control/start":
+                    self.send_error(404)
+                    return
+                key_path = os.path.join(INSTALL_ROOT, "dashboard", "data", "voice-bridge", "auth.key")
+                try:
+                    with open(key_path, encoding="ascii") as source:
+                        expected = source.read().strip()
+                except (OSError, UnicodeError):
+                    self.send_error(503)
+                    return
+                supplied = self.headers.get("Authorization", "")
+                if not expected or len(supplied) > 100 or not supplied.isascii() or not hmac.compare_digest(supplied, "Bearer " + expected):
+                    self.send_error(401)
+                    return
+                with service.manual_start_lock:
+                    if service.status["state"] != "listening" or service.manual_start.is_set():
+                        self.send_error(409)
+                        return
+                    service.manual_start.set()
+                self.send_response(202)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"accepted":true}')
+
             def do_GET(self):
                 # input_level/output_level: additiv, nur Pegelzahlen 0..1 (kein Audio, nichts gespeichert)
                 body = json.dumps({**service.status, "speaking": service.tts.speaking.is_set(),

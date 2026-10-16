@@ -96,19 +96,21 @@ export function useVoiceUi(): VoiceUi {
       toast({ title: statusText, tone: "amber" });
       return;
     }
-    if (active) {
-      if (!voiceStop) {
-        toast({ title: t("voice.stopUnavailable"), tone: "amber" });
-        return;
-      }
-      stopVoice.mutate({});
+    if (active && voiceStop) {
+      stopVoice.mutate({}, { onError: (error) => toast({ title: error.message, tone: "red" }) });
       return;
     }
     if (!commandsExecute) {
       toast({ title: t("voice.startUnavailable"), tone: "amber" });
       return;
     }
-    execute.mutate({ text: VOICE_START_COMMAND, source: "voice" });
+    execute.mutate({ text: VOICE_START_COMMAND, source: "voice" }, {
+      onSuccess: (response) => {
+        if (response.status === "rejected" || response.status === "failed")
+          toast({ title: response.result?.message ?? t("voice.startUnavailable"), tone: "red" });
+      },
+      onError: (error) => toast({ title: error.message, tone: "red" }),
+    });
   }, [unavailable, statusText, active, voiceStop, commandsExecute, stopVoice, execute, toast, t]);
 
   const toggleFocus = useCallback(() => {
