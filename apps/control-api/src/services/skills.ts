@@ -6,6 +6,12 @@ import { ApiError, notFound, validationFailed } from "../util/errors";
 type Json = Record<string, unknown>;
 type Catalog = { skills: SkillCatalogEntry[]; error: string | null };
 type Observation = { skills: Map<string, Json>; at: string | null; error: string | null };
+type HermesKeyFlags = Readonly<Record<"AIRTABLE_API_KEY" | "NOTION_API_KEY" | "TENOR_API_KEY" | "JINA_API_KEY", boolean>>;
+type VaultFlags = Readonly<{ configured: boolean; readable: boolean }>;
+const HERMES_KEY_INTEGRATIONS = {
+  hermes_airtable: "AIRTABLE_API_KEY", hermes_notion: "NOTION_API_KEY",
+  hermes_gif_search: "TENOR_API_KEY", hermes_blocked_page_recovery: "JINA_API_KEY",
+} as const;
 
 const slug = (value: string): string => value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
 const strings = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
@@ -59,13 +65,19 @@ export class SkillsService {
   private readonly baseUrl: string | null;
   private readonly catalogPath: string | undefined;
   private readonly configuredIntegrations: (() => Readonly<{ kie: boolean; elevenlabs: boolean }>) | undefined;
+  private readonly hermesKeyStatus: (() => Promise<{ configured: HermesKeyFlags }>) | undefined;
+  private readonly obsidianVaultStatus: (() => Promise<VaultFlags>) | undefined;
   private token: string | undefined;
 
   constructor(options: { catalogPath?: string; dashboardUrl?: string; fetcher?: typeof fetch;
-    configuredIntegrations?: () => Readonly<{ kie: boolean; elevenlabs: boolean }> }) {
+    configuredIntegrations?: () => Readonly<{ kie: boolean; elevenlabs: boolean }>;
+    hermesKeyStatus?: () => Promise<{ configured: HermesKeyFlags }>;
+    obsidianVaultStatus?: () => Promise<VaultFlags> }) {
     this.fetcher = options.fetcher ?? fetch;
     this.catalogPath = options.catalogPath;
     this.configuredIntegrations = options.configuredIntegrations;
+    this.hermesKeyStatus = options.hermesKeyStatus;
+    this.obsidianVaultStatus = options.obsidianVaultStatus;
     if (options.dashboardUrl) {
       const url = new URL(options.dashboardUrl);
       if (url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.username || url.password || url.search || url.hash) {
@@ -89,7 +101,8 @@ export class SkillsService {
       if (setup.schema_version !== 1 || !setupSkills || typeof setupSkills !== "object" || !rawSkills || typeof rawSkills !== "object") throw new Error("Katalogformat ungültig");
       const entries = Array.isArray(rawSkills) ? rawSkills.map((value, index) => [String(index), value] as const) : Object.entries(rawSkills);
       // Read on every list request so a saved or removed key is visible without restarting the API.
-      const keyStatus = this.configuredIntegrations?.();
+      let keyStatus: Readonly<{ kie: boolean; elevenlabs: boolean }> | undefined;
+      try { keyStatus = this.configuredIntegrations?.(); } catch { /* Preserve catalog; local setup state is unknown. */ }
       const skills: SkillCatalogEntry[] = entries.map(([key, raw]) => {
         const meta = raw as Json;
         const name = field(meta, "id", "name", "slug") || key;
@@ -189,6 +202,21 @@ export class SkillsService {
         enabled: typeof entry.enabled === "boolean" ? entry.enabled : null, observedAt: observation.at, observationSource: "hermes-dashboard", observationError: null,
         ...hermesPrerequisites(field(entry, "name")) });
     }
+    // One local status read per source per request; a broken installer/WSL never hides the catalog.
+    const integrationIds = new Set(skills.flatMap((skill) => skill.integrationDetails.map((detail) => detail.id)));
+    const needsHermesKeys = Object.keys(HERMES_KEY_INTEGRATIONS).some((id) => integrationIds.has(id));
+    const needsVault = integrationIds.has("obsidian") || integrationIds.has("hermes_obsidian");
+    const [hermesKeys, vault] = await Promise.all([
+      needsHermesKeys && this.hermesKeyStatus ? Promise.resolve().then(() => this.hermesKeyStatus!()).catch(() => null) : Promise.resolve(null),
+      needsVault && this.obsidianVaultStatus ? Promise.resolve().then(() => this.obsidianVaultStatus!()).catch(() => null) : Promise.resolve(null),
+    ]);
+    for (const skill of skills) skill.integrationDetails = skill.integrationDetails.map((detail) => {
+      const key = HERMES_KEY_INTEGRATIONS[detail.id as keyof typeof HERMES_KEY_INTEGRATIONS];
+      if (key) return { ...detail, configured: typeof hermesKeys?.configured[key] === "boolean" ? hermesKeys.configured[key] : null };
+      if (detail.id === "obsidian" || detail.id === "hermes_obsidian") return { ...detail,
+        configured: vault ? vault.configured && vault.readable : null };
+      return detail;
+    });
     skills.sort((a, b) => a.id.localeCompare(b.id));
     if (catalog.error) for (const skill of skills) skill.observationError = [skill.observationError, catalog.error].filter(Boolean).join("; ");
     return { skills, fresh: observation.error === null && catalog.error === null, catalogError: catalog.error, hermesError: observation.error };

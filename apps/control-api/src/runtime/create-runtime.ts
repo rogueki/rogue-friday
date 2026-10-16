@@ -231,6 +231,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     dashboardUrl: env.FRIDAY_HERMES_DASHBOARD_URL ?? (typeof hermesAdapterConfig.dashboardBaseUrl === "string" ? hermesAdapterConfig.dashboardBaseUrl : undefined),
     fetcher: options.providerFetch,
     configuredIntegrations: () => contentStudioKeys.status(),
+    hermesKeyStatus: () => hermesSkillKeys.status(),
+    obsidianVaultStatus: () => obsidianVault.status(),
   });
   const codingRuns = new CodingRunsService(config, skills, env);
   const codingVoiceRepository = new CodingVoiceRepositoryService(db, codingRuns);

@@ -226,6 +226,50 @@ describe("skills and resumable onboarding", () => {
     }
   });
 
+  it("reports local Hermes key and Obsidian readiness without disclosing values or hiding skills on failure", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "friday-local-skill-status-"));
+    try {
+      writeFileSync(join(dir, "skills.json"), JSON.stringify({ skills: [{ name: "vault-skill" }] }));
+      writeFileSync(join(dir, "integration_setup.json"), JSON.stringify({ schema_version: 1, inventory_count: 1,
+        integrations: { obsidian: { account: "none" } },
+        skills: { "vault-skill": { required_integrations: ["obsidian"] } },
+      }));
+      const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
+        ? Response.json({ skills: ["airtable", "notion", "gif-search", "blocked-page-recovery", "obsidian"].map((name) => ({ name, enabled: true })) })
+        : new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
+      let fail = false;
+      let vaultReadable = true;
+      let keyReads = 0;
+      let vaultReads = 0;
+      const service = new SkillsService({ catalogPath: join(dir, "integration_setup.json"), dashboardUrl: "http://127.0.0.1:43791", fetcher,
+        hermesKeyStatus: async () => { keyReads += 1; if (fail) throw new Error("WSL unavailable"); return { configured: {
+          AIRTABLE_API_KEY: true, NOTION_API_KEY: false, TENOR_API_KEY: true, JINA_API_KEY: false,
+        }, secret: "synthetic-private-value" }; },
+        obsidianVaultStatus: async () => { vaultReads += 1; if (fail) throw new Error("Vault unavailable"); return { configured: true, readable: vaultReadable }; },
+      });
+      const configured = await service.list();
+      const status = (id: string, listed = configured) => listed.skills.find((skill) => skill.id === id)?.integrationDetails[0];
+      expect(status("hermes:airtable")).toMatchObject({ configured: true, connectionChecked: null });
+      expect(status("hermes:notion")).toMatchObject({ configured: false, connectionChecked: null });
+      expect(status("hermes:gif-search")).toMatchObject({ configured: true, connectionChecked: null });
+      expect(status("hermes:blocked-page-recovery")).toMatchObject({ configured: false, connectionChecked: null });
+      expect(status("hermes:obsidian")).toMatchObject({ configured: true, connectionChecked: null });
+      expect(status("friday:vault-skill")).toMatchObject({ configured: true, connectionChecked: null });
+      expect(keyReads).toBe(1);
+      expect(vaultReads).toBe(1);
+      expect(JSON.stringify(configured)).not.toContain("synthetic-private-value");
+      vaultReadable = false;
+      const unreadable = await service.list();
+      expect(status("friday:vault-skill", unreadable)).toMatchObject({ configured: false, connectionChecked: null });
+      expect(status("hermes:obsidian", unreadable)).toMatchObject({ configured: false, connectionChecked: null });
+      fail = true;
+      const unknown = await service.list();
+      expect(unknown.skills).toHaveLength(configured.skills.length);
+      expect(status("hermes:airtable", unknown)).toMatchObject({ configured: null, connectionChecked: null });
+      expect(status("friday:vault-skill", unknown)).toMatchObject({ configured: null, connectionChecked: null });
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
   const realCatalog = resolve(process.cwd(), "..", "..", "Skills", "registry", "integration_setup.json");
   it.runIf(existsSync(realCatalog))("loads every skill from the packaged registry", async () => {
     const result = await new SkillsService({ catalogPath: realCatalog }).list();
