@@ -4153,7 +4153,12 @@ export interface components {
         CloudTalkProfilePatch: {
             accessKeyId: string;
             accessKeySecret: string;
-            agentId: number;
+            agentId?: number;
+            ownerPhone?: string;
+            ownerPhoneConfirmed?: boolean;
+            reminderMinutes?: number;
+            remindersEnabled?: boolean;
+            voiceAgentId?: string;
         };
         /** CloudTalkStatusResponse */
         CloudTalkStatusResponse: {
@@ -4161,8 +4166,15 @@ export interface components {
             data: {
                 agentId: number | null;
                 configured: boolean;
+                lastReminderAt: string | null;
+                /** @enum {string|null} */
+                lastReminderState: "pending" | "requested" | "rejected" | "unknown" | null;
                 note: string;
+                ownerPhone: string | null;
+                reminderMinutes: number;
+                remindersEnabled: boolean;
                 revision: number;
+                voiceAgentId: string | null;
             };
             freshness: components["schemas"]["Freshness"];
         };

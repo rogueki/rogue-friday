@@ -251,7 +251,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const discordGateway = new MessagingGatewayService(config.paths.dataDir, "discord");
   const whatsappGateway = new MessagingGatewayService(config.paths.dataDir, "whatsapp");
   const telephony = new TelephonyService(db, config.paths.dataDir, deriveKey(serverKey.key, "telephony-preview"), undefined, options.now);
-  const cloudtalk = new CloudTalkService(db, deriveKey(serverKey.key, "cloudtalk-profile"), options.providerFetch, options.now);
+  const cloudtalk = new CloudTalkService(db, deriveKey(serverKey.key, "cloudtalk-profile"), options.providerFetch, options.now,
+    () => settings.area("profile").displayName);
   const himalayaSend = new HimalayaSendService(db, himalayaAccount);
   const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
@@ -513,6 +514,9 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
       trackDerivedState();
       if (options.background !== false) {
         contentStudioProduction.start();
+        void cloudtalk.tickReminders().catch((error: unknown) => logger.warn("CloudTalk reminder scan failed", { error: String(error) }));
+        timers.push(setInterval(() => void cloudtalk.tickReminders().catch((error: unknown) =>
+          logger.warn("CloudTalk reminder scan failed", { error: String(error) })), 60_000));
         world?.startTelemetry({ metricsMs: 24 * 3_600_000, heartbeatMs: 10_000 });
         timers.push(setInterval(() => void publishSystemMetrics(), 5_000));
         timers.push(
