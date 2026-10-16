@@ -359,6 +359,16 @@ describe("contract: all operations", () => {
       expect(speech.response.headers["content-type"]).toContain("audio/mpeg");
     });
 
+    it("reads and writes the versioned Content Studio plan", async () => {
+      const empty = await call("getContentStudioPlan");
+      expect(empty.json.data).toMatchObject({ revision: 0, plan: null });
+      const saved = await call("putContentStudioPlan", {
+        body: { version: 1, content: [], postings: [] },
+        headers: { "if-match": "0" },
+      });
+      expect(saved.json.data).toMatchObject({ revision: 1, plan: { version: 1, content: [], postings: [] } });
+    });
+
     it("configures adapters", async () => {
       const list = await call("listAdapterSettings");
       const id = list.json.items[0].adapterId ?? list.json.items[0].id;
@@ -416,7 +426,7 @@ describe("contract: all operations", () => {
   });
 
   it("covers every operation of the route table with a contract-valid success response", () => {
-    expect(ROUTE_TABLE).toHaveLength(127);
+    expect(ROUTE_TABLE).toHaveLength(129);
     expect(probe.uncovered(), "Operationen ohne erfolgreichen, vertragsgültigen Aufruf").toEqual([]);
     expect(probe.problems).toEqual([]);
     for (const spec of ROUTE_TABLE) expect(specOf(spec.operationId)).toBe(spec);

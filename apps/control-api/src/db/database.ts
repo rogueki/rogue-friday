@@ -88,6 +88,18 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE adapter_overrides ADD COLUMN version INTEGER NOT NULL DEFAULT 1;
     `,
   },
+  {
+    id: 3,
+    name: "content-studio-plan",
+    sql: `
+      CREATE TABLE content_studio_plan (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        revision INTEGER NOT NULL CHECK (revision >= 1),
+        json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

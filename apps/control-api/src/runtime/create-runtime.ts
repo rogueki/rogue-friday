@@ -33,6 +33,7 @@ import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, sum
 import { SettingsService, seedLibrary } from "../services/settings";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ContentStudioProviderService } from "../services/content-studio-providers";
+import { ContentStudioPlanService } from "../services/content-studio-plan";
 import { LogBuffer, withLogBuffer } from "../services/log-buffer";
 import { FrontendTelemetryService } from "../services/telemetry";
 import { createRuntimeSecrets, createWorld, wireAdapters } from "./adapter-wiring";
@@ -211,6 +212,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     throw error;
   }
   const contentStudioProviders = new ContentStudioProviderService(db, contentStudioKeys, options.providerFetch);
+  const contentStudioPlan = new ContentStudioPlanService(db);
   settingsHolder.current = settings;
 
   const assistantName = (): string => settings.get().profile.assistantName ?? DEFAULT_ASSISTANT_NAME;
@@ -384,6 +386,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     settings,
     contentStudioKeys,
     contentStudioProviders,
+    contentStudioPlan,
     adapterSettings,
     status,
     orb,

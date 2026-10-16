@@ -4304,6 +4304,62 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: audit.export
       x-required-role: owner
+  /api/v1/content-studio/plan:
+    get:
+      operationId: getContentStudioPlan
+      tags:
+        - settings
+      summary: Read the authoritative Content Studio plan
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Current plan, or null when no plan has been saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentPlanStateResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-capability: meta.read
+      x-required-role: owner
+    put:
+      operationId: putContentStudioPlan
+      tags:
+        - settings
+      summary: Replace the plan if its revision still matches
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentPlanDocument"
+      responses:
+        "200":
+          description: Saved plan and new revision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentPlanStateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+      x-capability: meta.read
+      x-required-role: owner
+      x-max-body-bytes: 2000000
   /api/v1/content-studio/kie/tasks:
     post:
       operationId: createKieTask
@@ -5671,6 +5727,12 @@ components:
       $ref: ../schemas/settings/content-studio-keys.schema.json
     ContentStudioKeysResponse:
       $ref: ../schemas/settings/content-studio-keys-response.schema.json
+    ContentPlanDocument:
+      $ref: ../schemas/content-studio/plan-document.schema.json
+    ContentPlanState:
+      $ref: ../schemas/content-studio/plan-state.schema.json
+    ContentPlanStateResponse:
+      $ref: ../schemas/content-studio/plan-state-response.schema.json
     KieTaskRequest:
       $ref: ../schemas/content-studio/kie-task-request.schema.json
     KieTask:
