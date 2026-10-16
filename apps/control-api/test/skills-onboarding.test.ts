@@ -341,6 +341,52 @@ describe("skills and resumable onboarding", () => {
     expect((await details())?.[0]).toMatchObject({ configured: true, connectionChecked: null });
   });
 
+  it("shares one Himalaya status read for generic IMAP/SMTP and Hermes mail without claiming a connection", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "friday-mail-skill-status-"));
+    try {
+      writeFileSync(join(dir, "skills.json"), JSON.stringify({ skills: [
+        { name: "friday-mail-one" }, { name: "friday-mail-two" },
+      ] }));
+      writeFileSync(join(dir, "integration_setup.json"), JSON.stringify({ schema_version: 1, inventory_count: 2,
+        integrations: { imap_smtp_mail: { account: "required" }, gmx: { account: "conditional" } },
+        skills: {
+          "friday-mail-one": { required_integrations: ["imap_smtp_mail"], conditional_integrations: ["gmx"] },
+          "friday-mail-two": { required_integrations: ["imap_smtp_mail"] },
+        },
+      }));
+      const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
+        ? Response.json({ skills: [{ name: "himalaya", enabled: true }] })
+        : new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
+      let ready = false;
+      let fail = false;
+      let reads = 0;
+      const service = new SkillsService({ catalogPath: join(dir, "integration_setup.json"),
+        dashboardUrl: "http://127.0.0.1:43791", fetcher,
+        himalayaAccountStatus: async () => { reads += 1; if (fail) throw new Error("WSL unavailable"); return { readyForLocalUse: ready }; },
+      });
+      const details = async () => new Map((await service.list()).skills.map((skill) => [skill.id, skill.integrationDetails]));
+      const unready = await details();
+      expect(reads).toBe(1);
+      expect(unready.get("friday:friday-mail-one")).toMatchObject([
+        { id: "imap_smtp_mail", configured: false, connectionChecked: null },
+        { id: "gmx", configured: null, connectionChecked: null },
+      ]);
+      expect(unready.get("friday:friday-mail-two")?.[0]).toMatchObject({ configured: false, connectionChecked: null });
+      expect(unready.get("hermes:himalaya")?.[0]).toMatchObject({ configured: false, connectionChecked: null });
+      ready = true;
+      const configured = await details();
+      expect(reads).toBe(2);
+      for (const id of ["friday:friday-mail-one", "friday:friday-mail-two", "hermes:himalaya"])
+        expect(configured.get(id)?.[0]).toMatchObject({ configured: true, connectionChecked: null });
+      expect(configured.get("friday:friday-mail-one")?.[1]).toMatchObject({ configured: null, connectionChecked: null });
+      fail = true;
+      const unknown = await details();
+      expect(reads).toBe(3);
+      for (const id of ["friday:friday-mail-one", "friday:friday-mail-two", "hermes:himalaya"])
+        expect(unknown.get(id)?.[0]).toMatchObject({ configured: null, connectionChecked: null });
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
   it("separates working local calendar storage from optional CalDAV configuration", async () => {
     const dir = mkdtempSync(join(tmpdir(), "friday-calendar-skill-status-"));
     try {
