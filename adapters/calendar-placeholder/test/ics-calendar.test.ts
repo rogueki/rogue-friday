@@ -1,11 +1,38 @@
-﻿import { describe, expect, it } from "vitest";
-import { parseEvents } from "../src/ics-calendar";
+﻿import { describe, expect, it, vi } from "vitest";
+import type { AdapterContext } from "@friday/adapter-core";
+import { IcsCalendarAdapter, parseEvents } from "../src/ics-calendar";
 import { validateFeedUrl } from "../src/fetch-ics";
 import { parseCalDavResponse } from "../src/fetch-caldav";
+
+const mockFetchIcs = vi.hoisted(() => vi.fn());
+vi.mock("../src/fetch-ics", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../src/fetch-ics")>(),
+  fetchIcs: mockFetchIcs,
+}));
 
 const feed = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:weekly-1\r\nDTSTART:20261016T090000Z\r\nDTEND:20261016T100000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nSUMMARY:Planning\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
 
 describe("read-only ICS calendar", () => {
+  it("checks the provider again even when a prior successful response is cached", async () => {
+    mockFetchIcs.mockReset().mockResolvedValueOnce(feed)
+      .mockRejectedValueOnce(new Error("provider offline"))
+      .mockRejectedValueOnce(new Error("provider still offline"));
+    const adapter = new IcsCalendarAdapter();
+    await adapter.initialize({
+      config: { mode: "ics" },
+      getSecret: (field: string) => field === "feedUrl" ? "https://calendar.example/private.ics" : undefined,
+      signal: new AbortController().signal,
+    } as unknown as AdapterContext);
+
+    expect((await adapter.healthCheck()).status).toBe("online");
+    expect((await adapter.healthCheck()).status).toBe("online");
+    expect(mockFetchIcs).toHaveBeenCalledTimes(1);
+    expect((await adapter.healthCheck({ forceRefresh: true })).status).toBe("offline");
+    await expect(adapter.listCalendarEvents({}, { correlationId: "corr_test" })).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+    expect(mockFetchIcs).toHaveBeenCalledTimes(3);
+    await adapter.shutdown();
+  });
+
   it("expands recurring events into canonical calendar records", () => {
     const events = parseEvents(feed, "2026-10-16T08:00:00.000Z", Date.parse("2026-10-16"), Date.parse("2026-10-20"));
     expect(events).toHaveLength(3);

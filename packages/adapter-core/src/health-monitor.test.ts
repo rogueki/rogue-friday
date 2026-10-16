@@ -14,6 +14,8 @@ function setup(options: { failureThreshold?: number; degradedLatencyMs?: number 
     throwOnCheck: false,
     capabilities: ["tasks.read"],
     capabilityChanges: [] as string[][],
+    checkOptions: [] as boolean[],
+    waitForCheck: undefined as Promise<void> | undefined,
   };
   const monitor = new HealthMonitor({
     adapterId: "test-tasks",
@@ -25,7 +27,9 @@ function setup(options: { failureThreshold?: number; degradedLatencyMs?: number 
     intervalMs: 1000,
     ...options,
     adapter: {
-      async healthCheck() {
+      async healthCheck(checkOptions) {
+        state.checkOptions.push(checkOptions?.forceRefresh === true);
+        await state.waitForCheck;
         if (state.throwOnCheck) throw new Error("kaputt");
         return state.report;
       },
@@ -39,6 +43,18 @@ function setup(options: { failureThreshold?: number; degradedLatencyMs?: number 
 }
 
 describe("HealthMonitor", () => {
+  it("waits for a normal in-flight probe before an explicit fresh check", async () => {
+    const { monitor, state } = setup();
+    let release!: () => void;
+    state.waitForCheck = new Promise<void>((resolve) => { release = resolve; });
+    const automatic = monitor.checkNow();
+    const manual = monitor.checkNow({ forceRefresh: true });
+    expect(state.checkOptions).toEqual([false]);
+    release();
+    await Promise.all([automatic, manual]);
+    expect(state.checkOptions).toEqual([false, true]);
+  });
+
   it("INITIALIZING -> ONLINE on the first successful check and records latency / lastSuccessAt", async () => {
     const { monitor, lifecycle, events, clock } = setup();
     const health = await monitor.checkNow();

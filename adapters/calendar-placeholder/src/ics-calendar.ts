@@ -93,23 +93,24 @@ export class IcsCalendarAdapter implements CalendarPort {
     return { capabilities: this.context?.config.mode === "caldav" && collection && this.context.getSecret("username") && this.context.getSecret("password")
       ? ["calendar.read", "calendar.create"] : ["calendar.read"] };
   }
-  async healthCheck(): Promise<AdapterHealthReport> {
+  async healthCheck(options?: { forceRefresh?: boolean; signal?: AbortSignal }): Promise<AdapterHealthReport> {
     const start = Date.now();
     try {
-      await this.load();
+      await this.load(options?.signal, undefined, undefined, options?.forceRefresh === true);
       return { status: "online", latencyMs: Date.now() - start };
     } catch {
+      if (options?.forceRefresh) this.cache = undefined;
       return { status: "offline", latencyMs: Date.now() - start, errorCode: "ADAPTER_UNAVAILABLE", message: "Kalender nicht konfiguriert oder nicht erreichbar" };
     }
   }
-  private async load(signal?: AbortSignal, from = Date.now() - 7 * 86_400_000, to = Date.now() + 60 * 86_400_000): Promise<{ documents: string[]; fetchedAt: string; mode: "ics" | "caldav" }> {
+  private async load(signal?: AbortSignal, from = Date.now() - 7 * 86_400_000, to = Date.now() + 60 * 86_400_000, forceRefresh = false): Promise<{ documents: string[]; fetchedAt: string; mode: "ics" | "caldav" }> {
     const mode = this.context?.config.mode === "caldav" ? "caldav" : "ics";
     const url = this.context?.getSecret(mode === "caldav" ? "calendarUrl" : "feedUrl");
     const username = mode === "caldav" ? this.context?.getSecret("username") : undefined;
     const password = mode === "caldav" ? this.context?.getSecret("password") : undefined;
     if (!url || mode === "caldav" && (!username || !password)) throw new AdapterError({ code: "ADAPTER_UNAVAILABLE", message: "Kalender-Zugang nicht konfiguriert" });
     try { validateFeedUrl(url); } catch { throw new AdapterError({ code: "VALIDATION_FAILED", message: "Ungueltige private Kalender-URL" }); }
-    if (this.cache && Date.now() < this.cache.expires && this.cache.mode === mode && (mode === "ics" || this.cache.from <= from && this.cache.to >= to)) return this.cache;
+    if (!forceRefresh && this.cache && Date.now() < this.cache.expires && this.cache.mode === mode && (mode === "ics" || this.cache.from <= from && this.cache.to >= to)) return this.cache;
     try {
       const documents = mode === "caldav"
         ? await fetchCalDav(url, username!, password!, from, to, signal ?? this.context?.signal)
