@@ -47,9 +47,23 @@ for path in sorted(glob.glob(os.path.join(OWNER, "raw", "speech", "*.wav"))):
 
 profile = np.mean(embs, axis=0)
 profile /= np.linalg.norm(profile)
+wake_embs = []
+for block in WAKE_BLOCKS:
+    for path in sorted(glob.glob(os.path.join(OWNER, "raw", block, "*.wav"))):
+        audio, _ = sf.read(path, dtype="float32")
+        frames = [audio[i:i + 320] for i in range(0, len(audio) - 320, 320)]
+        live_frames = [f for f in frames if np.sqrt(np.mean(f ** 2)) > 0.02]
+        if len(live_frames) >= 25:
+            wake_embs.append(embed(np.concatenate(live_frames)))
+if wake_embs:
+    # Short commands embed differently from 3-s reading windows. Keep both in the owner profile.
+    wake_profile = np.mean(wake_embs, axis=0)
+    wake_profile /= np.linalg.norm(wake_profile)
+    profile += wake_profile
+    profile /= np.linalg.norm(profile)
 os.makedirs(os.path.join(OWNER, "embeddings"), exist_ok=True)
 np.save(os.path.join(OWNER, "embeddings", "owner_ecapa.npy"), profile)
-print(f"Profil aus {len(embs)} Fenstern erstellt")
+print(f"Profil aus {len(embs)} Lesefenstern und {len(wake_embs)} kurzen Wake-Proben erstellt")
 # Kreuzvalidierung: jede Aufnahme gegen Profil aus den uebrigen 7 (Fenster 1,5 s wie im Live-Betrieb)
 paths = sorted(glob.glob(os.path.join(OWNER, "raw", "speech", "*.wav")))
 cv = []

@@ -380,7 +380,7 @@ def make_service(jv, texts, engine="personal", phrase="Hey Friday"):
     svc = jv.VoiceService.__new__(jv.VoiceService)
     svc.cfg = {"wake_confirm": True, "wake_confirm_languages": ["de", "en"], "wake_aliases": pw.default_aliases(phrase),
                "wake_reject_words": pw.default_reject_words(phrase), "wake_match_max_dist": None,
-               "wake_refractory_s": 1.0}
+               "wake_refractory_s": 1.0, "wake_confirm_tail_chunks": 0}
     svc.name, svc.engine, svc.phrase = "Friday", engine, phrase
     svc.status = {"state": "listening", "last_event": None, "wake_count": 0, "rejected_speaker": 0, "commands": 0,
                   "assistant_name": "Friday", "wake_phrase": phrase, "wake_engine": engine, "wake_rejected": 0}
@@ -407,6 +407,12 @@ def test_service_stage2_accepts_and_rejects(monkeypatch):
     assert events[-1]["event"] == "wake" and events[-1]["engine"] == "personal" and events[-1]["stage2_ms"] is not None
     assert svc._wake_detected(chunk) is False and len(svc.whisper.calls) == 1    # 1,5-s-Doppelausloeseschutz
 
+    svc = make_service(jv, {"de": "Heute ist Freitag", "en": "hey freight"})
+    svc.wake_high_confidence = 4.0
+    svc.oww.score = 5.0
+    assert svc._wake_detected(chunk) is True and svc.whisper.calls == []
+    assert events[-1]["confirmation"] == "model"
+
     svc = make_service(jv, {"de": "Heute ist Freitag", "en": "Hey Friday"})       # de verfehlt, en bestaetigt
     svc.oww.score = 5.0
     assert svc._wake_detected(chunk) is True and svc.whisper.calls == ["de", "en"]
@@ -419,6 +425,21 @@ def test_service_stage2_accepts_and_rejects(monkeypatch):
     assert events[-1]["event"] == "wake_rejected" and events[-1]["stage"] == 2
     calls = len(svc.whisper.calls)
     assert svc._wake_detected(chunk) is False and len(svc.whisper.calls) == calls   # Refraktaerzeit: kein Whisper
+
+
+def test_stage2_waits_for_the_end_of_the_wake_phrase(monkeypatch):
+    jv = load_voice_module()
+    monkeypatch.setattr(jv, "log_event", lambda **kw: None)
+    svc = make_service(jv, {"de": "Hey Friday"})
+    svc.cfg["wake_confirm_tail_chunks"] = 5
+    svc.oww.score = 5.0
+    for marker in (1, 2, 3, 4, 5):
+        svc.audio_q.put(np.full(pw.CHUNK, marker, dtype=np.int16))
+
+    assert svc._wake_detected(np.zeros(pw.CHUNK, dtype=np.int16)) is True
+    assert svc.audio_q.empty()
+    assert list(svc.ring)[-1][0] == 5
+    assert svc.status["wake_count"] == 1
 
 
 def test_service_stage2_compares_the_full_phrase(monkeypatch):
@@ -468,18 +489,24 @@ def test_service_barge_in_and_openwakeword_path(monkeypatch):
 def test_service_backlog_becomes_preroll(monkeypatch):
     jv = load_voice_module()
     svc = make_service(jv, {})
-    backlog = [np.full(pw.CHUNK, i, dtype=np.int16) for i in range(1, 4)]
+    backlog = [np.full(pw.CHUNK, i, dtype=np.int16) for i in range(1, 9)]
     for c in backlog:
         svc.audio_q.put(c)
     svc._acknowledge_wake()
-    assert len(svc.preroll) == 3 and svc.audio_q.empty()
+    assert len(svc.preroll) == 4 and svc.audio_q.empty()
     first = svc._read_chunk()
-    assert first[0] == 1 and svc.ring[-1][0] == 1 and len(svc.preroll) == 2        # Rueckstand zuerst, dann Live-Audio
+    assert first[0] == 5 and svc.ring[-1][0] == 5 and len(svc.preroll) == 3        # Wake-Rest entfernt, Befehlsanfang erhalten
     svc.audio_q.put(np.full(pw.CHUNK, 9, dtype=np.int16))
-    assert svc._read_chunk()[0] == 2 and svc._read_chunk()[0] == 3 and svc._read_chunk()[0] == 9
+    assert [svc._read_chunk()[0] for _ in range(4)] == [6, 7, 8, 9]
     svc.preroll = [first]
     svc._drain()
     assert svc.preroll == [] and svc.oww.resets == 1
+
+    svc = make_service(jv, {})
+    for c in backlog[:3]:
+        svc.audio_q.put(c)
+    svc._acknowledge_wake()
+    assert svc.preroll == [] and svc.audio_q.empty()                         # kurzer Wake-Rest verworfen
     svc = make_service(jv, {}, engine="openwakeword")                              # Jarvis-Weg: Rueckstand wird verworfen
     svc.audio_q.put(np.zeros(pw.CHUNK, dtype=np.int16))
     svc._acknowledge_wake()

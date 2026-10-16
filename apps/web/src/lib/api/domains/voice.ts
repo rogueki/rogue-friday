@@ -25,6 +25,7 @@ export const voiceQueries = {
       queryKey: queryKeys.voice.status,
       queryFn: (): Promise<VoiceStatusResponse> => call(getApiClient().GET("/api/v1/voice/status")),
       staleTime: staleTimes.voice,
+      refetchInterval: 10_000,
     }),
   metrics: () =>
     queryOptions({
