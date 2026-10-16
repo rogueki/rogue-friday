@@ -1,11 +1,65 @@
 import { describe, expect, it, vi } from "vitest";
 import { openDatabase } from "../src/db/database";
 import { CloudTalkService } from "../src/services/cloudtalk";
+import { LocalCalendarService } from "../src/services/local-calendar";
 import { startTestApi } from "./helpers";
 
 const profile = { agentId: 1234, accessKeyId: "test-key-id", accessKeySecret: "synthetic-secret-123" };
 
 describe("CloudTalk API call safeguards", () => {
+  it("calls the owner VoiceAgent once for a due local event and journals before POST", async () => {
+    const db = openDatabase(":memory:");
+    const clock = Date.parse("2026-10-17T12:45:00.000Z");
+    const calendar = new LocalCalendarService(db);
+    const due = calendar.create({ title: "Zahnarzt", start: "2026-10-17T13:00:00.000Z",
+      end: "2026-10-17T13:30:00.000Z", timeZone: "Europe/Berlin" }, "owner");
+    calendar.create({ title: "Fremder Termin", start: "2026-10-17T13:00:00.000Z",
+      end: "2026-10-17T13:30:00.000Z", timeZone: "Europe/Berlin" }, "viewer");
+    const request = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      expect(url).toBe("https://api.cloudtalk.io/v1/voice-agent/calls");
+      expect(init?.redirect).toBe("error");
+      expect(db.prepare("SELECT state FROM cloudtalk_reminder_calls WHERE event_id = ?").get(due.id)).toMatchObject({ state: "pending" });
+      expect(JSON.parse(String(init?.body))).toEqual({ call_number: "+491701234567", voice_agent_id: "friday-agent",
+        call_properties: { system_prompt: { variables: { contact_name: "Alex",
+          appointment_time: "Samstag, 17. Oktober 2026 um 15:00 (Zahnarzt)" } } } });
+      return new Response(null, { status: 202 });
+    });
+    const service = new CloudTalkService(db, Buffer.alloc(32, 8), request as typeof fetch, () => clock, () => "Alex");
+    await service.tickReminders();
+    expect(request).not.toHaveBeenCalled();
+    service.configure({ accessKeyId: profile.accessKeyId, accessKeySecret: profile.accessKeySecret,
+      ownerPhone: "+491701234567", ownerPhoneConfirmed: true, voiceAgentId: "friday-agent",
+      remindersEnabled: true, reminderMinutes: 15 }, 0, "owner");
+    await service.tickReminders();
+    await service.tickReminders();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(db.prepare("SELECT state FROM cloudtalk_reminder_calls WHERE event_id = ?").get(due.id)).toMatchObject({ state: "requested" });
+    new CloudTalkService(db, Buffer.alloc(32, 8), request as typeof fetch, () => clock, () => "Alex");
+    await service.tickReminders();
+    expect(request).toHaveBeenCalledTimes(1);
+    db.close();
+  });
+
+  it("does not retry an uncertain VoiceAgent response or call after deleting an event", async () => {
+    const db = openDatabase(":memory:");
+    const clock = Date.parse("2026-10-17T12:45:00.000Z");
+    const calendar = new LocalCalendarService(db);
+    const due = calendar.create({ title: "Besprechung", start: "2026-10-17T13:00:00.000Z",
+      end: "2026-10-17T13:30:00.000Z", timeZone: "Europe/Berlin" }, "owner");
+    const removed = calendar.create({ title: "Abgesagt", start: "2026-10-17T13:00:00.000Z",
+      end: "2026-10-17T13:30:00.000Z", timeZone: "Europe/Berlin" }, "owner");
+    calendar.delete(removed.id, "owner", removed.version);
+    const request = vi.fn(async () => { throw new Error("timeout after send"); });
+    const service = new CloudTalkService(db, Buffer.alloc(32, 9), request as typeof fetch, () => clock);
+    service.configure({ ...profile, ownerPhone: "+491701234567", ownerPhoneConfirmed: true, voiceAgentId: "friday-agent",
+      remindersEnabled: true, reminderMinutes: 15 }, 0, "owner");
+    await service.tickReminders();
+    await service.tickReminders();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(db.prepare("SELECT state FROM cloudtalk_reminder_calls WHERE event_id = ?").get(due.id)).toMatchObject({ state: "unknown" });
+    expect(db.prepare("SELECT state FROM cloudtalk_reminder_calls WHERE event_id = ?").get(removed.id)).toBeUndefined();
+    db.close();
+  });
   it("encrypts credentials and journals before a single external POST", async () => {
     const db = openDatabase(":memory:");
     const request = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
@@ -62,7 +116,14 @@ describe("CloudTalk API call safeguards", () => {
       expect((await guest.get("/api/v1/settings/cloudtalk")).statusCode).toBe(401);
       expect((await viewer.get("/api/v1/settings/cloudtalk")).statusCode).toBe(403);
       expect((await owner.get("/api/v1/settings/cloudtalk")).statusCode).toBe(200);
+      const configured = await owner.request("PUT", "/api/v1/settings/cloudtalk", { headers: { "if-match": "0" },
+        body: { accessKeyId: "synthetic-key", accessKeySecret: "synthetic-secret-123",
+          ownerPhone: "+491701234567", ownerPhoneConfirmed: true, voiceAgentId: "friday-agent",
+          remindersEnabled: true, reminderMinutes: 15 } });
+      expect(configured.statusCode).toBe(200);
+      expect(configured.json()).toMatchObject({ data: { agentId: null, remindersEnabled: true, ownerPhone: "+491701234567" } });
       expect((await owner.post("/api/v1/telephony/cloudtalk/preview", { destination: "+491701234567" }, { csrf: false })).statusCode).toBe(403);
+      expect((await owner.post("/api/v1/telephony/cloudtalk/preview", { destination: "+491701234567" })).statusCode).toBe(503);
       expect((await viewer.post("/api/v1/telephony/cloudtalk/preview", { destination: "+491701234567" })).statusCode).toBe(403);
     } finally { await api.close(); }
   });
