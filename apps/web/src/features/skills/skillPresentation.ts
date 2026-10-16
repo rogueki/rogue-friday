@@ -13,6 +13,7 @@ export function internalSetupLink(target: string): string | null {
   if (target === "Hermes-Einstellungen in Friday-Ubuntu") return "/settings?area=skillAccounts";
   if (target === "Friday Dashboard > Einstellungen > Adapter > CalDAV") return "/settings?area=adapters#calendar-setup-title";
   if (target === "Friday Dashboard > Einstellungen > Skill-Konten > E-Mail") return "/settings?area=skillAccounts#himalaya-account-title";
+  if (target === "Friday Dashboard > Einstellungen > Skill-Konten > Telegram") return "/settings?area=skillAccounts#telegram-gateway-setup-title";
   if (target === "Hermes-Laufzeit: Coding-CLI und Provider-Anmeldung") return "/settings?area=skillAccounts#coding-cli-setup-title";
   if (/^adapter:[a-z0-9_-]+$/i.test(target)) return `/settings?area=adapters&adapter=${encodeURIComponent(target.slice(8))}`;
   if (target.includes("Content Studio")) return "/settings?area=contentStudioKeys";

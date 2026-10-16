@@ -56,6 +56,8 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   getContentStudioKeys: "settings.update",
   updateContentStudioKey: "settings.update",
   getObsidianVault: "settings.update",
+  getTelegramGateway: "settings.update",
+  putTelegramGateway: "settings.update",
   getHermesSkillKeys: "settings.update",
   updateHermesSkillKey: "settings.update",
   checkHermesSkillKey: "settings.update",

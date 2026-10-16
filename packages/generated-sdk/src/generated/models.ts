@@ -427,6 +427,9 @@ export interface FridayModelMap {
   TaskStep: TaskStep;
   TaskToolCall: TaskToolCall;
   TaskUpdateRequest: TaskUpdateRequest;
+  TelegramGateway: TelegramGateway;
+  TelegramGatewayPatch: TelegramGatewayPatch;
+  TelegramGatewayResponse: TelegramGatewayResponse;
   Theme: Theme;
   ThemeImportRequest: ThemeImportRequest;
   ThemeListResponse: ThemeListResponse;
@@ -3838,6 +3841,26 @@ export interface TaskUpdateRequest {
   agentId?: string | null;
   dueAt?: string | null;
   labels?: string[];
+}
+export interface TelegramGateway {
+  tokenConfigured: boolean;
+  allowedUserIds: string[];
+  enabled: boolean | null;
+  gatewayRunning: boolean | null;
+  connectionState: "unknown";
+  applied: boolean | null;
+  revision: number;
+}
+export interface TelegramGatewayPatch {
+  token: string;
+  clearToken: boolean;
+  allowedUserIds: string[];
+  enabled: boolean;
+}
+export interface TelegramGatewayResponse {
+  contractVersion: ContractVersion;
+  data: TelegramGateway;
+  freshness: Freshness;
 }
 export interface ThemeImportRequest {
   theme: Theme;

@@ -54,6 +54,8 @@ Das Dashboard zeigt unter **Skills** die Friday-Skills und die in der laufenden 
 
 Die Sprachführung kann auf „Welche Konten brauche ich für meine Skills?“ die im Katalog verzeichneten Konten für die ausgewählten Skills und deren bekannten Einrichtungsstatus nennen. Sie liest keine Zugangsdaten vor, richtet keine Konten ein und lässt den Kontenschritt bis zur echten Prüfung als ungeprüft stehen.
 
+Der Owner kann einen Telegram-Bot unter **Einstellungen → Skill-Konten → Telegram** mit BotFather-Token und numerischen erlaubten User-IDs für das installierte Hermes-Gateway einrichten. Friday zeigt nur an, ob Token, IDs und Gateway-Schalter gesetzt sind; die erfolgreiche Bot-Verbindung, Absenderidentität und Nachrichtenzustellung sind damit noch nicht geprüft. WhatsApp und Telefonie benötigen jeweils eine eigene Einrichtung.
+
 ### Kalender und E-Mail
 
 **E-Mail-Skills gemeinsam einrichten:** Das IMAP-/SMTP-Postfach unter Einstellungen → Skill-Konten ist anbieterneutral. Ein eingerichtetes lokales Himalaya-Profil erscheint bei den passenden Friday- und Hermes-Skills als „konfiguriert“; das ist noch kein erfolgreicher Verbindungstest. Der gebündelte Hermes-Mail-Zugang nutzt eine gesonderte, nur lesende lokale Brücke für Ordner und Nachrichten. Versand bleibt eine getrennte Owner-Aktion in Kommunikation mit Vorschau und ausdrücklicher Bestätigung. Für OAuth-pflichtige Anbieter ist ein passender Connector nötig.
