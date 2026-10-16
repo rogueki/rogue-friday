@@ -4,7 +4,7 @@ F.R.I.D.A.Y. ist ein lokales Command Center für den Hermes Agent: ein Windows-I
 
 ## Dashboard im Überblick
 
-Die Bilder zeigen den aktuellen Desktop-Build im Vollbildformat 1920 × 1080 mit synthetischen Beispieldaten. Für die Galerie sind alle Dienste der Demo online; kurzlebige Cache-Hinweise und ein optionaler, nicht eingerichteter Modell-Eintrag sind ausgeblendet. Ein Klick öffnet das jeweilige Bild in voller Auflösung. Die Einführung ist nur auf dem letzten Bild zu sehen.
+Die Bilder zeigen den aktuellen Desktop-Build im Vollbildformat 1920 × 1080 mit synthetischen Beispieldaten. Für die Galerie sind alle Dienste der Demo online; kurzlebige Cache-Hinweise, ein optionaler, nicht eingerichteter Modell-Eintrag und der Sammelhinweis zu einem eingeschränkten Kommunikationskanal sind ausgeblendet. Der Telefonkanal bleibt als eingeschränkt gekennzeichnet. Ein Klick öffnet das jeweilige Bild in voller Auflösung. Die Einführung ist nur auf dem letzten Bild zu sehen.
 
 <table>
 <tr><td><a href="docs/screenshots/uebersicht.jpg"><img src="docs/screenshots/uebersicht.jpg" width="540" alt="Übersicht"><br>Übersicht</a></td><td><a href="docs/screenshots/aufgaben.jpg"><img src="docs/screenshots/aufgaben.jpg" width="540" alt="Aufgaben"><br>Aufgaben</a></td><td><a href="docs/screenshots/live-aktivitaet.jpg"><img src="docs/screenshots/live-aktivitaet.jpg" width="540" alt="Live-Aktivität"><br>Live-Aktivität</a></td></tr>
