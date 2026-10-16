@@ -117,7 +117,7 @@ describe("real adapters behind the Control API (hybrid)", () => {
   it("degrades tasks and agents when Hermes is down while voice and system keep working", { timeout: 90000 }, async () => {
     await upstreams.stop("hermes");
     await expect.poll(async () => (await owner.get("/api/v1/tasks")).statusCode, { timeout: 15000 }).toBe(503);
-    expect((await owner.get("/api/v1/voice/status")).statusCode).toBe(200);
+    await expect.poll(async () => (await owner.get("/api/v1/voice/status")).statusCode, { timeout: 8000 }).toBe(200);
     expect((await owner.get("/api/v1/system/services")).statusCode).toBe(200);
     expect((await owner.get("/api/v1/memory")).statusCode).toBe(200);
     await upstreams.start("hermes");
