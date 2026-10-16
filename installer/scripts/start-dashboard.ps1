@@ -7,6 +7,13 @@ $dash = "$root\dashboard"
 $main = "$dash\apps\control-api\dist\main.js"
 $log  = "$root\logs\dashboard-service.log"
 $env:FRIDAY_CONFIG_DIR = "$dash\config"
+$ffmpegPathFile = "$dash\config\ffmpeg.path"
+if (-not $env:FRIDAY_FFMPEG_PATH -and (Test-Path -LiteralPath $ffmpegPathFile -PathType Leaf)) {
+    $configuredFFmpeg = ([IO.File]::ReadAllText($ffmpegPathFile)).Trim()
+    if ($configuredFFmpeg -and (Test-Path -LiteralPath $configuredFFmpeg -PathType Leaf)) {
+        $env:FRIDAY_FFMPEG_PATH = $configuredFFmpeg
+    }
+}
 # Log-Rotation waehrend der Server laeuft: Ausgabe von node geht Zeile fuer Zeile durch Write-AppLog, das alle 30 s die Groesse prueft
 # (dashboard-service.log > 10 MB -> dashboard-service.log.1). Kein cmd-Redirect, der die Datei dauerhaft offen halten wuerde.
 $script:lastRotateCheck = Get-Date
