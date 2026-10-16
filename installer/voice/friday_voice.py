@@ -233,6 +233,10 @@ class Speaker:
         if result is None:
             return
         audio, rate = result
+        if self.film_filter:
+            from film_filter import FilmFilter
+            effect = FilmFilter(rate, True)
+            audio = np.concatenate((effect.process(audio), effect.flush()))
         audio, rate = for_output_device(audio, rate, self.output_device)
         with sd.OutputStream(samplerate=rate, channels=1, dtype="float32", device=self.output_device) as out:
             for offset in range(0, len(audio), 4096):

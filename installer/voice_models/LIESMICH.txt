@@ -1,6 +1,8 @@
 Dieses Paket enthält keine eigene J.A.R.V.I.S.-Stimmdatei. Falls du eine besitzt, lege sie hier ab:
   jarvis_de.onnx und jarvis_de.onnx.json
-Bei Auswahl „Klassisch“ verwendet der Installer diese Dateien. Ohne sie nutzt er Thorsten mit Filmfilter.
+Bei Auswahl „Klassisch“ kannst du alternativ eine eigene MP3/WAV-Referenz angeben,
+beispielsweise jarvis_ref.wav aus deinem lokalen Stimmpaket. Qwen3-TTS klont diese
+Stimme lokal und legt den Filmfilter darüber. Ohne Referenz/ONNX nutzt er Thorsten.
 Für die weibliche F.R.I.D.A.Y.-Ausgabe kannst du bei der Installation eine eigene MP3/WAV-Stimmreferenz wählen.
 Qwen3-TTS verwendet sie nur lokal. Ohne Referenz wird die deutsche Piper-Stimme Kerstin verwendet.
 Nachträglich: Dateien hierher kopieren und change-voice.bat starten.
