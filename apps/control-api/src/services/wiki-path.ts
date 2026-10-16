@@ -22,7 +22,7 @@ export class WikiPathService {
     for (let depth = 0; depth < 5 && !existsSync(join(root, "config", "install-state.json")); depth += 1) root = resolve(root, "..");
     if (!existsSync(join(root, "config", "install-state.json"))) throw unavailable();
     let state: { distro_name?: string; linux_user?: string };
-    try { state = JSON.parse(readFileSync(join(root, "config", "install-state.json"), "utf8")) as typeof state; }
+    try { state = JSON.parse(readFileSync(join(root, "config", "install-state.json"), "utf8").replace(/^\uFEFF/, "")) as typeof state; }
     catch { throw unavailable(); }
     if (!state.distro_name || !state.linux_user || !/^[a-zA-Z0-9_.-]+$/.test(state.distro_name) || !/^[a-zA-Z0-9_-]+$/.test(state.linux_user)) throw unavailable();
     const match = root.match(/^([a-zA-Z]):\\(.*)$/);

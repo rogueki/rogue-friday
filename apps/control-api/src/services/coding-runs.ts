@@ -73,7 +73,7 @@ export class CodingRunsService {
     const file = join(root, "config", "install-state.json");
     if (!existsSync(file)) throw unavailable("Friday-Installationszustand für WSL fehlt.");
     let state: { distro_name?: string; linux_user?: string };
-    try { state = JSON.parse(readFileSync(file, "utf8")) as typeof state; } catch { throw unavailable("Friday-Installationszustand ist ungültig."); }
+    try { state = JSON.parse(readFileSync(file, "utf8").replace(/^\uFEFF/, "")) as typeof state; } catch { throw unavailable("Friday-Installationszustand ist ungültig."); }
     if (!state.distro_name || !state.linux_user || !/^[a-zA-Z0-9_.-]+$/.test(state.distro_name) || !/^[a-zA-Z0-9_-]+$/.test(state.linux_user)) throw unavailable("WSL-Ziel ist nicht konfiguriert.");
     const match = root.match(/^([a-zA-Z]):\\(.*)$/);
     if (!match) throw unavailable("Installationspfad kann WSL nicht zugeordnet werden.");
