@@ -2,12 +2,13 @@
 
 import type { ContentStudioKeysResponse, HermesSkillKeysResponse, ObsidianVaultResponse, SkillCatalogEntry } from "@friday/sdk";
 import { ErrorState, Skeleton } from "@friday/ui";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { officialReference } from "@/features/skills/skillPresentation";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
 import { useSkillsCatalog } from "@/lib/api/domains/skills";
+import { queryKeys } from "@/lib/api/queryKeys";
 import { useSettingsDrafts } from "./SettingsDrafts";
 import "@/features/skills/skills.css";
 
@@ -48,6 +49,13 @@ const hermesLocations: Record<string, string> = {
 };
 
 export function accountSetupView(item: Integration, keys: KeyStatus, hermes: HermesStatus = undefined): { href: string | null; action: string | null; state: string; location: string | null } {
+  if (item.id === "obsidian" || item.id === "hermes_obsidian") return {
+    href: "/settings?area=skillAccounts#obsidian-setup-title",
+    action: "Obsidian-Vault im Dashboard einrichten",
+    state: item.configured === null ? "Vault-Status unbekannt; Zugriff nicht geprüft"
+      : item.configured ? "Vault in Friday-Ubuntu erreichbar; Notizaktion nicht geprüft" : "Vault fehlt oder ist nicht erreichbar",
+    location: null,
+  };
   const provider = Object.hasOwn(studioProviders, item.id) ? studioProviders[item.id as keyof typeof studioProviders] : undefined;
   if (provider) return {
     href: "/settings?area=contentStudioKeys",
@@ -77,6 +85,7 @@ export function accountSetupView(item: Integration, keys: KeyStatus, hermes: Her
 }
 
 export function SkillAccountsArea() {
+  const queryClient = useQueryClient();
   const { role } = useSettingsDrafts();
   const query = useSkillsCatalog();
   const [search, setSearch] = useState("");
@@ -98,6 +107,7 @@ export function SkillAccountsArea() {
       const result: HermesSkillKeysResponse = await call(getApiClient().PATCH("/api/v1/settings/hermes-skill-keys", { body: { key, value } }));
       setHermesValues((current) => ({ ...current, [key]: "" }));
       await hermesKeys.refetch();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.skills });
       setHermesMessage(`${hermesKeyLabels[key]}: ${value ? "Schlüssel gespeichert" : "Schlüssel entfernt"}. ${result.data.applied ? "Hermes-Gateway neu gestartet." : "Gateway-Neustart nicht bestätigt; Änderung möglicherweise erst nach Neustart aktiv."} Anbieterzugriff nicht geprüft.`);
     } catch (error) {
       setHermesMessage(error instanceof Error ? error.message : "Hermes-Schlüssel konnte nicht geändert werden.");
@@ -123,6 +133,7 @@ export function SkillAccountsArea() {
         params: { header: { "If-Match": String(vault.data.data.revision) } }, body: { path: vaultPath.trim() },
       }));
       await vault.refetch();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.skills });
       setVaultMessage(result.data.applied ? "Vault gespeichert und Hermes-Gateway neu gestartet." : "Vault gespeichert; Hermes-Gateway-Neustart nicht bestätigt. Bitte Dienststatus prüfen.");
     } catch (error) {
       setVaultMessage(error instanceof Error ? error.message : "Vault konnte nicht eingerichtet werden.");

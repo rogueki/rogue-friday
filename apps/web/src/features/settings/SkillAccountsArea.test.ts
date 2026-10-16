@@ -31,4 +31,14 @@ describe("Skill account setup paths", () => {
     expect(setup.state).toContain("Keine bestätigte Dashboard-Einrichtung");
     expect(accountSetupView(integration("__proto__"), undefined).href).toBeNull();
   });
+
+  it("links Friday and Hermes Obsidian skills to the local vault form", () => {
+    for (const id of ["obsidian", "hermes_obsidian"]) {
+      const setup = accountSetupView({ ...integration(id), configured: true }, undefined);
+      expect(setup.href).toBe("/settings?area=skillAccounts#obsidian-setup-title");
+      expect(setup.state).toContain("erreichbar");
+      expect(setup.state).toContain("nicht geprüft");
+      expect(accountSetupView({ ...integration(id), configured: false }, undefined).state).toContain("nicht erreichbar");
+    }
+  });
 });
