@@ -18,6 +18,12 @@ Status: 2026-10-16, post-release improvement phase. This tracks the acceptance c
 
 The public beta release is valid for the working core. The original full onboarding/integration objective remains active until the partial and incomplete rows have adequate implementation and evidence. Paid media generation, account credentials, calling and external publishing are excluded from acceptance probes unless explicitly needed and authorized.
 
+## Owner browser and account setup (2026-10-16)
+
+- In the installed D: dashboard, an authenticated owner session showed 158 Skills (105 Friday, 53 Hermes). The Friday phone coordinator's telephony link opened Settings > Skill-Konten with the `telephony` integration selected, its setup requirements visible, and no installed dial adapter claimed. Other integrations now use the same contextual fallback when no direct setup form exists; existing forms remain linked directly. Three focused frontend test files passed 13/13 tests and Web typecheck passed.
+- In that owner browser, the bottom voice Pause button changed to Fortsetzen and Stop returned it to Pause. The Voice health endpoint then reported `listening`. This verifies the actual browser controls and local service transition, not a spoken microphone command or upstream model cancellation.
+- Four owner account status requests initially returned HTTP 503: Hermes skill keys, coding CLI status, wiki path and Himalaya account. The existing `install-state.json` began with a UTF-8 BOM, which four Node readers rejected before invoking their working WSL helpers. Commit `d1fad52` accepts the existing BOM and makes the installer write UTF-8 without BOM. After the D: update, the same four authenticated browser requests returned HTTP 200; dashboard, Skills, Settings, Hermes and Voice health also returned HTTP 200. Focused BOM/no-BOM tests passed 2/2, API Typecheck and PowerShell parser passed. No provider login or message was sent.
+
 ## Follow-up: first-owner browser flow and catalog (2026-10-16)
 
 - The installed D: Control API returned a fresh catalog of 158 entries: 105 Friday and 53 Hermes, all observed as enabled. Every entry included a source and `integrationDetails`; all 56 entries with an account prerequisite included a nonempty `setupDe` explanation. Individual version values were present for the 105 Friday entries and unknown for the 53 Hermes built-ins; no per-skill Hermes version is inferred from the Hermes application version.
