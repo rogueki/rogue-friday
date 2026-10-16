@@ -50,8 +50,8 @@ async function login(setupRequired: boolean): Promise<string[]> {
   return replace.mock.calls.map(([path]) => path as string);
 }
 
-it("opens onboarding after first owner account creation without a competing home redirect", async () => {
-  expect(await login(true)).toEqual(["/onboarding"]);
+it("opens home after first owner account creation without a competing redirect", async () => {
+  expect(await login(true)).toEqual(["/"]);
 });
 
 it("opens home after an ordinary login", async () => {
