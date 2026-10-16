@@ -296,6 +296,7 @@ export interface FridayModelMap {
   HimalayaMessageResponse: HimalayaMessageResponse;
   HimalayaSendRequest: HimalayaSendRequest;
   HimalayaSendResponse: HimalayaSendResponse;
+  HimalayaSmtpCheckResponse: HimalayaSmtpCheckResponse;
   JsonSchemaObject: JsonSchemaObject;
   KieTask: KieTask;
   KieTaskRequest: KieTaskRequest;
@@ -2397,6 +2398,13 @@ export interface HimalayaSendResponse {
   data: {
     state: "sent" | "unknown";
     replayed: boolean;
+  };
+  freshness: Freshness;
+}
+export interface HimalayaSmtpCheckResponse {
+  contractVersion: ContractVersion;
+  data: {
+    ok: boolean;
   };
   freshness: Freshness;
 }

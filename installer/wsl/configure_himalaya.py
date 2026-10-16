@@ -7,9 +7,13 @@ import os
 from pathlib import Path
 import re
 import shutil
+import smtplib
+import ssl
 import subprocess
 import sys
 import tempfile
+import tomllib
+from urllib.parse import urlsplit
 
 CONFIG = Path.home() / ".config" / "himalaya" / "config.toml"
 SECRETS = Path.home() / ".config" / "friday" / "mail"
@@ -84,8 +88,44 @@ def read_status():
             "connectionChecked": False, "revision": revision}
 
 
+def check_smtp():
+    if not read_status()["readyForLocalUse"]:
+        return {"ok": False}
+    try:
+        config = tomllib.loads(safe_file(CONFIG))
+        smtp = config["accounts"]["friday"]["smtp"]
+        server = urlsplit(smtp["server"])
+        if (server.scheme not in ("smtp", "smtps") or not server.hostname or
+                not HOST.fullmatch(server.hostname) or not server.port or server.username or server.password or
+                server.path or server.query or server.fragment or
+                smtp.get("starttls", False) is not (server.scheme == "smtp")):
+            return {"ok": False}
+        secret = SECRETS / "smtp-secret"
+        if secret.is_symlink() or (secret.stat().st_mode & 0o777) != 0o600:
+            return {"ok": False}
+        username = smtp["sasl"]["plain"]["username"]
+        if not isinstance(username, str) or not username:
+            return {"ok": False}
+        password = secret.read_text(encoding="utf-8").rstrip("\n")
+        context = ssl.create_default_context()
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        if server.scheme == "smtps":
+            client = smtplib.SMTP_SSL(server.hostname, server.port, timeout=8, context=context)
+        else:
+            client = smtplib.SMTP(server.hostname, server.port, timeout=8)
+        with client:
+            client.ehlo()
+            if server.scheme == "smtp":
+                client.starttls(context=context)
+                client.ehlo()
+            client.login(username, password)
+        return {"ok": True}
+    except (OSError, ValueError, KeyError, TypeError, tomllib.TOMLDecodeError, smtplib.SMTPException, ssl.SSLError):
+        return {"ok": False}
+
+
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "check-smtp"):
         return 2
     if CONFIG.parent.is_symlink() or SECRETS.is_symlink() or SECRETS.parent.is_symlink():
         raise ValueError("symlink directory")
@@ -98,6 +138,9 @@ def main():
         state = read_status()
         if sys.argv[1] == "status":
             print(json.dumps(state))
+            return 0
+        if sys.argv[1] == "check-smtp":
+            print(json.dumps(check_smtp()))
             return 0
         request = json.load(sys.stdin)
         if not valid(request):

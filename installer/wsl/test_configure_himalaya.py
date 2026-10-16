@@ -2,6 +2,7 @@ import importlib.util
 import io
 import json
 import os
+import ssl
 from pathlib import Path
 import subprocess
 import tempfile
@@ -95,6 +96,30 @@ class HimalayaAccountTests(unittest.TestCase):
         module.CONFIG.symlink_to(target)
         with self.assertRaises(ValueError):
             module.safe_file(module.CONFIG)
+
+    def test_smtp_check_authenticates_over_starttls_without_sending(self):
+        self.profile["revision"] = module.read_status()["revision"]
+        with patch("sys.argv", ["configure_himalaya.py", "update"]), patch("sys.stdin", io.StringIO(json.dumps(self.profile))), patch("sys.stdout", new_callable=io.StringIO):
+            self.assertEqual(module.main(), 0)
+        with patch.object(module, "read_status", return_value={"readyForLocalUse": True}), \
+             patch.object(module.smtplib, "SMTP") as smtp, \
+             patch.object(module.smtplib, "SMTP_SSL") as smtp_ssl:
+            client = smtp.return_value
+            self.assertEqual(module.check_smtp(), {"ok": True})
+            smtp.assert_called_once()
+            smtp_ssl.assert_not_called()
+            client.starttls.assert_called_once()
+            tls_context = client.starttls.call_args.kwargs["context"]
+            self.assertEqual(tls_context.verify_mode, ssl.CERT_REQUIRED)
+            self.assertTrue(tls_context.check_hostname)
+            client.login.assert_called_once_with("user@example.test", "smtp-secret-test")
+            self.assertFalse(client.sendmail.called)
+            self.assertFalse(client.send_message.called)
+            client.login.side_effect = module.smtplib.SMTPAuthenticationError(535, b"synthetic secret")
+            self.assertEqual(module.check_smtp(), {"ok": False})
+            client.login.side_effect = None
+            client.starttls.side_effect = module.smtplib.SMTPNotSupportedError("no TLS")
+            self.assertEqual(module.check_smtp(), {"ok": False})
 
 
 if __name__ == "__main__":
