@@ -88,7 +88,7 @@ describe("secret hygiene", () => {
       { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
     for (const spec of ROUTE_TABLE.filter((candidate) => candidate.method === "GET" && candidate.pathParams.length === 0 && candidate.requiresSession)) {
       // Hermes' Obsidian state requires an installed WSL distro, absent in this isolated test runtime.
-      if (spec.operationId === "downloadFile" || spec.operationId === "getObsidianVault" || spec.operationId === "getWikiPath" || spec.operationId === "getHimalayaAccount" || spec.operationId === "getCodingCliStatus" || spec.operationId === "getHermesSkillKeys") continue;
+      if (spec.operationId === "downloadFile" || spec.operationId === "getObsidianVault" || spec.operationId === "getWikiPath" || spec.operationId === "getHimalayaAccount" || spec.operationId === "listHimalayaMailboxes" || spec.operationId === "listHimalayaEnvelopes" || spec.operationId === "getHimalayaMessage" || spec.operationId === "getCodingCliStatus" || spec.operationId === "getHermesSkillKeys") continue;
       const response = record(spec.operationId, await owner.get(pathOf(spec), spec.operationId === "exportAudit" ? { query: { format: "json" } } : {}));
       expect(response.statusCode, spec.operationId).toBe(200);
       expect(hasCanary(response.body), `${spec.operationId} body`).toBeUndefined();

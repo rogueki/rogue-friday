@@ -204,7 +204,7 @@ describe("REST route coverage", () => {
     const contract = [...yaml.matchAll(/operationId:\s*(\w+)/g)].map((match) => match[1] as string).sort();
     const liveOnly = [
       "cancelContentProductionJob", "checkHermesSkillKey", "createCodingRun", "createContentProductionJob", "createVoiceCodingRun", "getCodingCliStatus", "getCodingRun", "getCodingVoiceRepository",
-      "getContentProductionArtifact", "getContentProductionJob", "getContentStudioPlan", "getHermesSkillKeys", "getHimalayaAccount", "getObsidianVault", "getOnboarding", "getWikiPath", "listSkills",
+      "getContentProductionArtifact", "getContentProductionJob", "getContentStudioPlan", "getHermesSkillKeys", "getHimalayaAccount", "getHimalayaMessage", "getObsidianVault", "getOnboarding", "getWikiPath", "listHimalayaEnvelopes", "listHimalayaMailboxes", "listSkills",
       "putCodingVoiceRepository", "putContentStudioPlan", "putHimalayaAccount", "putObsidianVault", "putOnboarding", "putWikiPath", "setSkillActivation", "stopCodingRun", "updateHermesSkillKey",
     ];
     const mocked = ROUTES.map((route) => route.operationId).sort();
