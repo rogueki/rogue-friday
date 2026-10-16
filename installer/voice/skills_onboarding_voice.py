@@ -68,6 +68,62 @@ def _skill_match(skills, subject):
     return [skill for skill in candidates if len(name_of(skill)) == longest]
 
 
+def _account_guidance(state, catalog):
+    selected = state.get("selectedSkillIds")
+    if not isinstance(selected, list) or not selected:
+        return "Du hast noch keine Skills ausgewählt. Wähle sie im Skills-Menü; dann kann ich dir die passenden Konten nennen."
+    if not isinstance(catalog, dict) or not isinstance(catalog.get("data"), list):
+        return "Der Skills-Katalog ist gerade nicht verfügbar. Welche Konten deine Skills brauchen, kann ich nicht sicher sagen."
+    skills = {skill["id"]: skill for skill in catalog["data"] if isinstance(skill, dict)
+              and isinstance(skill.get("id"), str)}
+    integrations = {}
+    incomplete = False
+    for skill_id in dict.fromkeys(item for item in selected if isinstance(item, str)):
+        skill = skills.get(skill_id)
+        if not skill or not isinstance(skill.get("integrationDetails"), list):
+            incomplete = True
+            continue
+        for detail in skill["integrationDetails"]:
+            if not isinstance(detail, dict) or detail.get("account") not in ("required", "conditional"):
+                continue
+            integration_id = detail.get("id")
+            if not isinstance(integration_id, str) or not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,44}", integration_id):
+                incomplete = True
+                continue
+            previous = integrations.get(integration_id)
+            if previous is None:
+                integrations[integration_id] = dict(detail)
+            else:
+                previous["account"] = "required" if "required" in (previous["account"], detail["account"]) else "conditional"
+                for field in ("configured", "connectionChecked"):
+                    if previous.get(field) != detail.get(field):
+                        previous[field] = None
+    if not integrations:
+        if incomplete:
+            return "Für deine ausgewählten Skills fehlen aktuelle Kontoinformationen im Katalog. Prüfe ihre Details im Skills-Menü."
+        return "Für deine ausgewählten Skills sind im aktuellen Katalog keine externen Konten verzeichnet. Lokale Programme können trotzdem nötig sein."
+
+    parts = []
+    for integration_id, detail in list(integrations.items())[:3]:
+        name = integration_id.replace("_", " ").replace("-", " ")
+        requirement = "erforderlich" if detail["account"] == "required" else "je nach Nutzung"
+        configured = detail.get("configured")
+        setup = "lokal eingerichtet" if configured is True else "nicht eingerichtet" if configured is False else "Einrichtungsstand unbekannt"
+        checked = detail.get("connectionChecked")
+        connection = "Verbindung geprüft" if checked is True else "Verbindung nicht bestätigt" if checked is False else "Verbindung nicht geprüft"
+        parts.append(f"{name}: {requirement}, {setup}, {connection}")
+    extra = f"; {len(integrations) - 3} weitere im Skills-Menü" if len(integrations) > 3 else ""
+    ids = set(integrations)
+    if ids & {"imap", "smtp", "himalaya", "hermes_himalaya"}:
+        section = "Für Mail öffne Einstellungen, Skill-Konten oder Mail und Kommunikation."
+    elif ids & {"caldav", "google_calendar", "outlook_calendar"}:
+        section = "Für Kalender öffne Einstellungen, Adapter und Kalender."
+    else:
+        section = "Den jeweiligen Einrichtungsweg findest du im Skills-Menü und unter Einstellungen, Skill-Konten."
+    caveat = " Für weitere ausgewählte Skills fehlen aktuelle Kontoinformationen." if incomplete else ""
+    return "Für deine ausgewählten Skills sehe ich: " + "; ".join(parts) + extra + ". " + section + caveat
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, newurl):
         return None
@@ -206,7 +262,9 @@ class SkillsOnboardingVoice:
             return self._ask("skills", "Welche Skills interessieren dich? Nenne einen Namen oder sage „überspringen“." + extra,
                              skills=skills, revision=state["revision"])
         if steps["accounts"] == "pending":
-            return self._ask("accounts", "Für manche Skills müssen Konten oder Programme im Dashboard eingerichtet werden. Ich kann Verbindungen per Sprache noch nicht prüfen. Sage weiter oder überspringen; der Kontenschritt bleibt als ungeprüft markiert.", revision=state["revision"])
+            catalog, error = self._safe_request("GET", "skills")
+            guidance = _account_guidance(state, catalog) if not error else "Der Skills-Katalog ist gerade nicht erreichbar. Welche Konten deine Skills brauchen, kann ich nicht sicher sagen."
+            return self._ask("accounts", "Zu Konten: " + guidance + " Sage weiter oder überspringen; der Kontenschritt bleibt ungeprüft.", revision=state["revision"])
         if steps["finish"] == "pending":
             return self._ask("finish", "Die Grundeinrichtung ist bereit. Soll ich sie abschließen?", revision=state["revision"])
         self.pending = None
@@ -235,6 +293,15 @@ class SkillsOnboardingVoice:
         if not names:
             return "Ich kann dich durch die Einrichtung führen. Der Skills-Katalog ist gerade leer oder nicht verfügbar."
         return "Ich kann dich durch die Einrichtung führen. Im Katalog stehen zum Beispiel " + ", ".join(names) + ". Frage mich, welche Skills aktiv sind."
+
+    def _selected_accounts(self):
+        state, error = self._safe_request("GET", "onboarding")
+        if error or not isinstance(state, dict):
+            return "Deine Skill-Auswahl ist gerade nicht erreichbar. Welche Konten du brauchst, kann ich nicht sicher sagen."
+        catalog, error = self._safe_request("GET", "skills")
+        if error:
+            return "Der Skills-Katalog ist gerade nicht erreichbar. Welche Konten deine Skills brauchen, kann ich nicht sicher sagen."
+        return _account_guidance(state, catalog)
 
     def _skill_detail(self, subject):
         catalog, error = self._safe_request("GET", "skills")
@@ -304,6 +371,8 @@ class SkillsOnboardingVoice:
                 return error or self._guide(saved)
         if re.search(r"\b(welche|was fur|zeige|liste)\b.*\bskills?\b.*\b(aktiv|aktiviert|eingeschaltet)\b|\baktive skills?\b", words):
             return self._status()
+        if words in {"welche konten brauche ich fur meine skills", "welche konten brauchen meine skills", "welche accounts brauche ich fur meine skills"}:
+            return self._selected_accounts()
         if re.search(r"\bwas kannst du\b|\bwelche skills? (hast|gibt)\b", words):
             return self._capabilities()
         subject = _skill_question(words)

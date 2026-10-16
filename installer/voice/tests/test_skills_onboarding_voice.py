@@ -119,6 +119,57 @@ def test_spoken_skill_detail_is_bounded_for_unavailable_or_malformed_catalog(tmp
     assert "sk-very-secret-value" not in answer
 
 
+def test_selected_account_guidance_deduplicates_bounds_and_does_not_write(tmp_path):
+    api = FakeApi()
+    api.state["selectedSkillIds"] = ["friday:a", "friday:b", "friday:a"]
+    api.skills = [
+        {"id": "friday:a", "integrationDetails": [
+            {"id": "imap", "account": "required", "configured": True, "connectionChecked": None, "setupDe": "password=secret"},
+            {"id": "caldav", "account": "conditional", "configured": False, "connectionChecked": False},
+            {"id": "third", "account": "required", "configured": None, "connectionChecked": True},
+            {"id": "fourth", "account": "required", "configured": None, "connectionChecked": None},
+            {"id": "fifth", "account": "required", "configured": None, "connectionChecked": None},
+        ]},
+        {"id": "friday:b", "integrationDetails": [{"id": "imap", "account": "conditional", "configured": True, "connectionChecked": None}]},
+    ]
+    voice = handler(tmp_path, api)
+    answer = voice.handle("Welche Konten brauche ich für meine Skills?")
+    assert "imap: erforderlich, lokal eingerichtet, Verbindung nicht geprüft" in answer
+    assert "caldav: je nach Nutzung, nicht eingerichtet, Verbindung nicht bestätigt" in answer
+    assert "third: erforderlich, Einrichtungsstand unbekannt, Verbindung geprüft" in answer
+    assert "2 weitere" in answer and "fourth" not in answer
+    assert "secret" not in answer and "Mail" in answer
+    assert api.calls == [("GET", "onboarding", None, None), ("GET", "skills", None, None)]
+    assert api.state["revision"] == 0
+    assert voice.pending is None
+
+
+def test_account_guidance_handles_no_selection_missing_catalog_and_no_accounts(tmp_path):
+    api = FakeApi()
+    voice = handler(tmp_path, api)
+    assert "noch keine Skills ausgewählt" in voice.handle("Welche Konten brauche ich für meine Skills?")
+    api.state["selectedSkillIds"] = ["friday:calendar"]
+    api.skills[0]["integrationDetails"] = [{"id": "local", "account": "none", "configured": None, "connectionChecked": None}]
+    assert "keine externen Konten" in voice.handle("Welche Konten brauche ich für meine Skills?")
+    voice._safe_request = lambda method, path, **kwargs: (copy.deepcopy(api.state), None) if path == "onboarding" else (None, "unavailable")
+    assert "nicht sicher sagen" in voice.handle("Welche Konten brauche ich für meine Skills?")
+    assert voice.handle("Welche Konten brauche ich für andere Nutzer?") is None
+    assert voice.handle("Welche Skills brauchen Konten?") is None
+
+
+def test_account_step_uses_live_selection_and_stays_unverified(tmp_path):
+    api = FakeApi()
+    api.state["steps"].update(intro="completed", profile="completed", skills="completed")
+    api.state["selectedSkillIds"] = ["friday:mail"]
+    api.skills[2]["integrationDetails"] = [{"id": "smtp", "account": "required", "configured": False, "connectionChecked": None}]
+    voice = handler(tmp_path, api)
+    prompt = voice.handle("Einrichtung fortsetzen")
+    assert "smtp: erforderlich, nicht eingerichtet, Verbindung nicht geprüft" in prompt
+    assert "ungeprüft" in prompt
+    assert "abschließen" in voice.handle("weiter")
+    assert api.state["steps"]["accounts"] == "skipped"
+
+
 def test_conflict_rereads_without_overwrite(tmp_path):
     api = FakeApi()
     voice = handler(tmp_path, api)
@@ -219,6 +270,7 @@ def test_dispatcher_keeps_speaker_gate_and_hermes_fallback(tmp_path):
     offers = []
     voice = types.SimpleNamespace(
         cfg={"speaker_threshold": 0.4, "trusted_session_s": 15},
+        control_generation=0, control_cancel=types.SimpleNamespace(is_set=lambda: False),
         verifier=types.SimpleNamespace(score=lambda audio: 0.2),
         status={"rejected_speaker": 0, "commands": 0}, trusted_until=0,
         _transcribe=lambda audio: "Welche Skills sind aktiv?",
@@ -230,6 +282,7 @@ def test_dispatcher_keeps_speaker_gate_and_hermes_fallback(tmp_path):
         ),
         tts=types.SimpleNamespace(say=lambda answer: calls.append(answer)), history=[],
     )
+    voice._say_if_current = lambda answer, generation: calls.append(answer) or True
     namespace["_handle_command"](voice, [0] * 16000, None)
     assert calls == [] and offers == [] and voice.status["rejected_speaker"] == 1
     voice.verifier.score = lambda audio: 0.7
