@@ -943,6 +943,14 @@ function Sync-VoiceFiles {
         -not (Test-Path "$dst\$($_.Name)") -or (Sha256 $_.FullName) -ne (Sha256 "$dst\$($_.Name)") })
     if ($changed.Count -eq 0) { return }
     Info "Sprachdateien im Paket sind neuer: $(($changed | ForEach-Object { $_.Name }) -join ', ')"
+    if ($changed.Name -contains 'calendar_voice.py' -or $changed.Name -contains 'friday_voice.py') {
+        $voicePython = "$dst\.venv\Scripts\python.exe"
+        & $voicePython -c "from zoneinfo import ZoneInfo; ZoneInfo('Europe/Berlin')" *> $null
+        if ($LASTEXITCODE -ne 0) {
+            & $voicePython -m pip install -q tzdata *> $null
+            if ($LASTEXITCODE -ne 0) { Warn 'Zeitzonendaten fehlen: Sprachtermine koennen bis zur Installation von tzdata nicht angelegt werden.' }
+        }
+    }
     $wasRunning = Test-VoiceServiceRunning
     if ($wasRunning) { Stop-VoiceService }
     $changed | ForEach-Object { Copy-Item $_.FullName "$dst\$($_.Name)" -Force }
@@ -1239,7 +1247,7 @@ if (-not (IsDone 'voicepython')) {
     & $vpy -m pip install -q --upgrade pip wheel 2>&1 | Out-Null
     & $vpy -m pip install -q torch torchaudio --index-url https://download.pytorch.org/whl/cpu 2>&1 | Out-File "$Root\logs\pip.log" -Append
     & $vpy -m pip install -q faster-whisper nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*" openwakeword speechbrain silero-vad `
-        piper-tts sounddevice soundfile scipy scikit-learn huggingface_hub 2>&1 | Out-File "$Root\logs\pip.log" -Append
+        piper-tts sounddevice soundfile scipy scikit-learn huggingface_hub tzdata 2>&1 | Out-File "$Root\logs\pip.log" -Append
     if ($LASTEXITCODE -ne 0) { Stop-Install "Python-Pakete konnten nicht installiert werden ($Root\logs\pip.log)." }
     Info 'Lade Sprachmodelle und teste die Grafikkarte …'
     $voiceArgs = @($Root, '--voice-choice', $State.voice_choice,

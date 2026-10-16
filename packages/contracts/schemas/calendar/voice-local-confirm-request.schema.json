@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/calendar/voice-local-confirm-request.schema.json",
+  "title": "VoiceLocalConfirmRequest",
+  "type": "object",
+  "properties": {
+    "request": { "$ref": "../calendar/voice-local-request.schema.json" },
+    "token": { "type": "string", "minLength": 32, "maxLength": 2000 },
+    "targetId": { "type": "string", "maxLength": 128 },
+    "version": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["request", "token", "targetId", "version"],
+  "additionalProperties": false
+}

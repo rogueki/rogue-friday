@@ -6,7 +6,7 @@ import { conflict, notFound, validationFailed } from "../util/errors";
 export interface LocalEventInput { title: string; start: string; end: string; timeZone: string }
 interface Row { id: string; owner_id: string; version: number; title: string; starts_at: string; ends_at: string; time_zone: string; created_at: string; updated_at: string }
 
-function checked(input: LocalEventInput): LocalEventInput {
+export function checkedLocalEvent(input: LocalEventInput): LocalEventInput {
   if (!input || typeof input.title !== "string" || typeof input.start !== "string" || typeof input.end !== "string" || typeof input.timeZone !== "string") throw validationFailed("Termindaten fehlen.");
   const title = input.title.trim();
   if (!title || [...title].length > 120 || [...title].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)) throw validationFailed("Titel ist ungueltig.");
@@ -52,8 +52,13 @@ export class LocalCalendarService {
     return this.db.prepare("SELECT 1 FROM local_calendar_events WHERE id = ?").get(id) !== undefined;
   }
 
+  findOwnerByTitle(ownerId: string, title: string): CalendarEvent[] {
+    const rows = this.db.prepare("SELECT * FROM local_calendar_events WHERE owner_id = ? AND lower(title) = lower(?) ORDER BY starts_at, id LIMIT 2").all(ownerId, title.trim()) as unknown as Row[];
+    return rows.map(event);
+  }
+
   create(input: LocalEventInput, ownerId: string): CalendarEvent {
-    const data = checked(input);
+    const data = checkedLocalEvent(input);
     const id = createId("cal");
     const now = new Date().toISOString();
     this.db.prepare("INSERT INTO local_calendar_events (id, owner_id, version, title, starts_at, ends_at, time_zone, created_at, updated_at) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)").run(id, ownerId, data.title, data.start, data.end, data.timeZone, now, now);
@@ -62,7 +67,7 @@ export class LocalCalendarService {
 
   update(id: string, input: LocalEventInput, ownerId: string, version: number | undefined): CalendarEvent {
     if (version === undefined || !Number.isSafeInteger(version) || version < 1) throw validationFailed("If-Match mit Terminversion ist erforderlich.");
-    const data = checked(input);
+    const data = checkedLocalEvent(input);
     const updated = this.db.prepare("UPDATE local_calendar_events SET title = ?, starts_at = ?, ends_at = ?, time_zone = ?, version = version + 1, updated_at = ? WHERE id = ? AND owner_id = ? AND version = ?").run(data.title, data.start, data.end, data.timeZone, new Date().toISOString(), id, ownerId, version).changes;
     if (!updated) this.missingOrConflict(id, ownerId);
     return this.get(id);

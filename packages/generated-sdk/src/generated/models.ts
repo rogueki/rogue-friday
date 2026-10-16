@@ -443,6 +443,9 @@ export interface FridayModelMap {
   VoiceEnrollment: VoiceEnrollment;
   VoiceEnrollmentResponse: VoiceEnrollmentResponse;
   VoiceEnrollRequest: VoiceEnrollRequest;
+  VoiceLocalConfirmRequest: VoiceLocalConfirmRequest;
+  VoiceLocalPreviewResponse: VoiceLocalPreviewResponse;
+  VoiceLocalRequest: VoiceLocalRequest;
   VoiceMetrics: VoiceMetrics;
   VoiceMetricsResponse: VoiceMetricsResponse;
   VoiceProfile: VoiceProfile;
@@ -3998,6 +4001,32 @@ export interface VoiceEnrollRequest {
    * Re-run the calibration of the threshold after the samples are captured.
    */
   recalibrate?: boolean;
+}
+export interface VoiceLocalConfirmRequest {
+  request: VoiceLocalRequest;
+  token: string;
+  targetId: string;
+  version: number;
+}
+export interface VoiceLocalRequest {
+  action: "create" | "update" | "delete";
+  targetTitle?: string;
+  title?: string;
+  start?: string;
+  end?: string;
+  timeZone?: string;
+}
+export interface VoiceLocalPreviewResponse {
+  contractVersion: ContractVersion;
+  data: {
+    token: string;
+    expiresAt: string;
+    targetId: string;
+    version: number;
+    action: "create" | "update" | "delete";
+    event: LocalEventRequest;
+  };
+  freshness: Freshness;
 }
 /**
  * Pipeline latencies (PLAN §38.2).
