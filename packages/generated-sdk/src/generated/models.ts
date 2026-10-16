@@ -1766,8 +1766,8 @@ export interface CloudTalkPreviewResponse {
 }
 export interface CloudTalkProfilePatch {
   agentId?: number;
-  accessKeyId: string;
-  accessKeySecret: string;
+  accessKeyId?: string;
+  accessKeySecret?: string;
   ownerPhone?: string;
   ownerPhoneConfirmed?: boolean;
   voiceAgentId?: string;
@@ -1782,6 +1782,7 @@ export interface CloudTalkStatusResponse {
     revision: number;
     note: string;
     ownerPhone: string | null;
+    ownerPhoneConfirmed: boolean;
     voiceAgentId: string | null;
     remindersEnabled: boolean;
     reminderMinutes: number;
