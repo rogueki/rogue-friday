@@ -1118,9 +1118,35 @@ if (-not (IsDone 'voicepython')) {
     Info 'Lade Sprachmodelle und teste die Grafikkarte …'
     $voiceArgs = @($Root, '--voice-choice', $State.voice_choice)
     if ($State.voice_reference) { $voiceArgs += @('--voice-reference', $State.voice_reference) }
+    $ttsPort = [int]$Ports.Voice + 1
+    if ($ttsPort -gt 65535) { Stop-Install 'Kein freier TTS-Port nach dem Sprachdienst-Port vorhanden.' }
+    if ($State.voice_reference -and $State.gpu.nvidia -and [int]$State.gpu.vram_mb -ge 11000) {
+        $voiceArgs += @('--fast-tts', '--fast-tts-port', [string]$ttsPort)
+    }
     $out = & $vpy "$Root\voice\voice_setup.py" @voiceArgs 2>&1 | ForEach-Object { "$_" }
     $out | Where-Object { $_ -match '==>|^\s{3}|DONE' } | ForEach-Object { Info $_ }
     if (($out -join "`n") -notmatch 'VOICE_SETUP_DONE') { Stop-Install 'Einrichtung der Sprachmodelle fehlgeschlagen.' }
+    $voiceConfig = Get-Content -LiteralPath "$Root\config\voice.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($voiceConfig.tts_backend -eq 'streaming_qwen') {
+        Info 'Installiere dauerhaft geladenen lokalen TTS-Dienst in der Friday-Distribution …'
+        $windowsPaths = @("$Root\installer\fast_tts\install_wsl.sh", $voiceConfig.tts_reference, $voiceConfig.tts_reference_text_file)
+        $linuxPaths = @()
+        foreach ($windowsPath in $windowsPaths) {
+            $linuxPath = (& wsl.exe -d $Distro -u $State.linux_user --exec wslpath -a -u $windowsPath 2>&1 | Select-Object -First 1)
+            if ($LASTEXITCODE -ne 0 -or -not $linuxPath) { Stop-Install "WSL-Pfad konnte nicht aufgeloest werden: $windowsPath" }
+            $linuxPaths += [string]$linuxPath
+        }
+        & wsl.exe -d $Distro -u $State.linux_user --exec bash $linuxPaths[0] $linuxPaths[1] $linuxPaths[2] ([string]$ttsPort) 2>&1 |
+            ForEach-Object { Info "$_" }
+        if ($LASTEXITCODE -ne 0) { Stop-Install 'Lokaler TTS-Dienst konnte nicht installiert werden.' }
+        if (-not (Wait-Http "http://127.0.0.1:$ttsPort/health" 240)) {
+            Stop-Install 'Lokaler TTS-Dienst meldet sich nach dem Modellstart nicht bereit.'
+        }
+        Ok "Lokaler TTS-Dienst bereit (Port $ttsPort)."
+    } else {
+        # Beim Stimmenwechsel auf Piper/Legacy bleibt sonst das alte GPU-Modell geladen.
+        & wsl.exe -d $Distro -u $State.linux_user --exec systemctl --user stop friday-tts.service 2>$null | Out-Null
+    }
     Ok 'Sprachmodelle bereit.'
     MarkDone 'voicepython'
 }

@@ -17,6 +17,8 @@ args = argparse.ArgumentParser()
 args.add_argument("root", nargs="?", default=r"C:\Friday")
 args.add_argument("--voice-choice", choices=("friday-female", "classic"), default="classic")
 args.add_argument("--voice-reference", default="")
+args.add_argument("--fast-tts", action="store_true")
+args.add_argument("--fast-tts-port", type=int, default=43795)
 options = args.parse_args()
 ROOT = options.root
 VOICE = os.path.join(ROOT, "voice")
@@ -89,7 +91,7 @@ custom = os.path.join(ROOT, "installer", "voice_models", "jarvis_de.onnx")
 if options.voice_choice == "friday-female":
     name, folder = "de_DE-kerstin-low", "de/de_DE/kerstin/low"
     film_filter = False
-    print("   F.R.I.D.A.Y.: Kerstin (weiblich, Deutsch)")
+    print("   F.R.I.D.A.Y.: Kerstin als lokale Ausfallstimme (weiblich, Deutsch)")
 elif os.path.exists(custom):
     if not os.path.exists(custom + ".json"):
         raise FileNotFoundError("jarvis_de.onnx.json fehlt neben der eigenen J.A.R.V.I.S.-Stimme")
@@ -110,6 +112,7 @@ if options.voice_choice == "friday-female" or not os.path.exists(custom):
     voice = os.path.join(tts, name + ".onnx")
 
 qwen_settings = {"tts_backend": "piper", "tts_reference": None, "tts_url": None,
+                 "tts_reference_text_file": None,
                  "tts_qwen_executable": None, "tts_qwen_model": None,
                  "tts_qwen_projector": None, "tts_gpu_layers": 0}
 if options.voice_reference:
@@ -124,30 +127,57 @@ if options.voice_reference:
     os.makedirs(os.path.dirname(local_reference), exist_ok=True)
     if os.path.normcase(reference) != os.path.normcase(local_reference):
         shutil.copy2(reference, local_reference)
-    model_dir = os.path.join(MODELS, "tts-qwen")
-    os.makedirs(model_dir, exist_ok=True)
-    repo = "ggml-org/Qwen3-TTS-12Hz-1.7B-Base-GGUF"
-    files = {
-        "Qwen3-TTS-12Hz-1.7B-Base-Q4_K_M.gguf": "8d18c94acb2addd042f97da63c98be144eafa76d0d9495177eab65130cf85129",
-        "mmproj-Qwen3-TTS-12Hz-1.7B-Base-Q8_0.gguf": "6fd65188839bcd6ecc91b277ad471e22a0edfada4699a0fe82f1165c18cfcce2",
-    }
-    for filename, expected_hash in files.items():
-        target = os.path.join(model_dir, filename)
-        if not os.path.isfile(target):
-            shutil.copy2(hf_hub_download(repo_id=repo, filename=filename), target)
-        with open(target, "rb") as source:
-            digest = hashlib.file_digest(source, "sha256").hexdigest()
-        if digest != expected_hash:
-            raise ValueError(f"Prüfsumme des Qwen3-TTS-Modells stimmt nicht: {filename}")
-    executable = os.path.join(ROOT, "llama.cpp", "llama-tts.exe")
-    if not os.path.isfile(executable):
-        raise FileNotFoundError("llama-tts.exe fehlt; zuerst Qwen/llama.cpp installieren")
-    qwen_settings = {"tts_backend": "qwen3", "tts_reference": local_reference,
-                     "tts_qwen_executable": executable,
-                     "tts_qwen_model": os.path.join(model_dir, "Qwen3-TTS-12Hz-1.7B-Base-Q4_K_M.gguf"),
-                     "tts_qwen_projector": os.path.join(model_dir, "mmproj-Qwen3-TTS-12Hz-1.7B-Base-Q8_0.gguf"),
-                     "tts_gpu_layers": 99 if whisper["whisper_device"] == "cuda" else 0}
-    print("   Lokale Qwen3-TTS-Stimme mit eigener Referenz (keine Cloud-Sprachausgabe)")
+    if options.fast_tts and whisper["whisper_device"] == "cuda":
+        import math
+        from scipy.signal import resample_poly
+
+        audio, source_rate = sf.read(local_reference, dtype="float32")
+        if audio.ndim > 1:
+            audio = audio.mean(axis=1)
+        target_rate = 24000
+        if source_rate != target_rate:
+            common = math.gcd(source_rate, target_rate)
+            audio = resample_poly(audio, target_rate // common, source_rate // common)
+        local_wav = os.path.join(CONFIG, "voice-references", options.voice_choice + "-reference.wav")
+        sf.write(local_wav, audio, target_rate, subtype="PCM_16")
+        transcript_file = os.path.splitext(local_wav)[0] + ".txt"
+        transcriber = WhisperModel(whisper["whisper_model"], device="cpu", compute_type="int8",
+                                   download_root=os.path.join(MODELS, "whisper"))
+        segments, _ = transcriber.transcribe(local_wav, beam_size=5, vad_filter=True)
+        transcript = " ".join(segment.text.strip() for segment in segments).strip()
+        if not transcript:
+            raise ValueError("Stimmreferenz enthaelt keine erkennbaren gesprochenen Worte")
+        with open(transcript_file, "w", encoding="utf-8") as target:
+            target.write(transcript + "\n")
+        qwen_settings = {**qwen_settings, "tts_backend": "streaming_qwen",
+                         "tts_reference": local_wav, "tts_reference_text_file": transcript_file,
+                         "tts_url": f"http://127.0.0.1:{options.fast_tts_port}/tts/stream"}
+        print("   Lokale Qwen3-TTS-0.6B-Stimme vorbereitet (dauerhaft geladener WSL-Dienst)")
+    else:
+        model_dir = os.path.join(MODELS, "tts-qwen")
+        os.makedirs(model_dir, exist_ok=True)
+        repo = "ggml-org/Qwen3-TTS-12Hz-1.7B-Base-GGUF"
+        files = {
+            "Qwen3-TTS-12Hz-1.7B-Base-Q4_K_M.gguf": "8d18c94acb2addd042f97da63c98be144eafa76d0d9495177eab65130cf85129",
+            "mmproj-Qwen3-TTS-12Hz-1.7B-Base-Q8_0.gguf": "6fd65188839bcd6ecc91b277ad471e22a0edfada4699a0fe82f1165c18cfcce2",
+        }
+        for filename, expected_hash in files.items():
+            target = os.path.join(model_dir, filename)
+            if not os.path.isfile(target):
+                shutil.copy2(hf_hub_download(repo_id=repo, filename=filename), target)
+            with open(target, "rb") as source:
+                digest = hashlib.file_digest(source, "sha256").hexdigest()
+            if digest != expected_hash:
+                raise ValueError(f"Prüfsumme des Qwen3-TTS-Modells stimmt nicht: {filename}")
+        executable = os.path.join(ROOT, "llama.cpp", "llama-tts.exe")
+        if not os.path.isfile(executable):
+            raise FileNotFoundError("llama-tts.exe fehlt; zuerst Qwen/llama.cpp installieren")
+        qwen_settings = {**qwen_settings, "tts_backend": "qwen3", "tts_reference": local_reference,
+                         "tts_qwen_executable": executable,
+                         "tts_qwen_model": os.path.join(model_dir, "Qwen3-TTS-12Hz-1.7B-Base-Q4_K_M.gguf"),
+                         "tts_qwen_projector": os.path.join(model_dir, "mmproj-Qwen3-TTS-12Hz-1.7B-Base-Q8_0.gguf"),
+                         "tts_gpu_layers": 99 if whisper["whisper_device"] == "cuda" else 0}
+        print("   Lokale Qwen3-TTS-Stimme mit eigener Referenz (keine Cloud-Sprachausgabe)")
 
 step("config/voice.json schreiben")
 voice_config_path = os.path.join(CONFIG, "voice.json")
