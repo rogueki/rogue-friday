@@ -8,6 +8,18 @@ const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString()
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: fresh() });
 
 export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
+  async getHermesSkillKeys(ctx) {
+    return { status: 200, body: single(await ctx.runtime.hermesSkillKeys.status()) };
+  },
+
+  async updateHermesSkillKey(ctx) {
+    const { key, value } = ctx.body as { key: string; value: string };
+    const status = await ctx.runtime.hermesSkillKeys.update(key, value);
+    ctx.audit.action = "settings.hermes_skill_key_updated";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { key, configured: status.configured[key as keyof typeof status.configured], applied: status.applied };
+    return { status: 200, body: single(status) };
+  },
   async getObsidianVault(ctx) {
     return { status: 200, body: single(await ctx.runtime.obsidianVault.status()) };
   },

@@ -48,6 +48,8 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   getContentStudioKeys: "settings.update",
   updateContentStudioKey: "settings.update",
   getObsidianVault: "settings.update",
+  getHermesSkillKeys: "settings.update",
+  updateHermesSkillKey: "settings.update",
   getCodingVoiceRepository: "settings.update",
   putCodingVoiceRepository: "settings.update",
   createCodingRun: "settings.update",

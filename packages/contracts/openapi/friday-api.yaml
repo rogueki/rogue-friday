@@ -4966,6 +4966,60 @@ paths:
           $ref: "#/components/responses/UnprocessableEntity"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/hermes-skill-keys:
+    get:
+      operationId: getHermesSkillKeys
+      tags:
+        - settings
+      summary: Read configured flags for supported Hermes skill keys without values
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesSkillKeysResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+    patch:
+      operationId: updateHermesSkillKey
+      tags:
+        - settings
+      summary: Set or remove one supported Hermes skill key in the installed WSL account
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HermesSkillKeyPatch"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesSkillKeysResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/obsidian-vault:
     get:
       operationId: getObsidianVault
@@ -6164,6 +6218,12 @@ components:
       $ref: ../schemas/settings/content-studio-keys-response.schema.json
     ObsidianVault:
       $ref: ../schemas/settings/obsidian-vault.schema.json
+    HermesSkillKeyPatch:
+      $ref: ../schemas/settings/hermes-skill-key-patch.schema.json
+    HermesSkillKeys:
+      $ref: ../schemas/settings/hermes-skill-keys.schema.json
+    HermesSkillKeysResponse:
+      $ref: ../schemas/settings/hermes-skill-keys-response.schema.json
     ObsidianVaultPatch:
       $ref: ../schemas/settings/obsidian-vault-patch.schema.json
     ObsidianVaultResponse:

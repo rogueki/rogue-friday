@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/hermes-skill-keys.schema.json",
+  "title": "HermesSkillKeys",
+  "type": "object",
+  "properties": {
+    "configured": {
+      "type": "object",
+      "properties": {
+        "AIRTABLE_API_KEY": { "type": "boolean" },
+        "NOTION_API_KEY": { "type": "boolean" },
+        "TENOR_API_KEY": { "type": "boolean" },
+        "JINA_API_KEY": { "type": "boolean" }
+      },
+      "required": ["AIRTABLE_API_KEY", "NOTION_API_KEY", "TENOR_API_KEY", "JINA_API_KEY"],
+      "additionalProperties": false
+    },
+    "applied": { "type": ["boolean", "null"] }
+  },
+  "required": ["configured", "applied"],
+  "additionalProperties": false
+}

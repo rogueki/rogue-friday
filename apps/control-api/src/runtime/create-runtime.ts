@@ -33,6 +33,7 @@ import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, sum
 import { SettingsService, seedLibrary } from "../services/settings";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
+import { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import { CodingRunsService } from "../services/coding-runs";
 import { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
 import { ContentStudioProviderService } from "../services/content-studio-providers";
@@ -223,6 +224,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const contentStudioPlan = new ContentStudioPlanService(db);
   const onboarding = new OnboardingService(db);
   const obsidianVault = new ObsidianVaultService(config.paths.dataDir);
+  const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
   const skills = new SkillsService({
     catalogPath: env.FRIDAY_SKILLS_CATALOG_PATH,
@@ -412,6 +414,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     skills,
     onboarding,
     obsidianVault,
+    hermesSkillKeys,
     codingRuns,
     codingVoiceRepository,
     contentStudioProduction,

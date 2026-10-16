@@ -16,11 +16,13 @@ describe("Skill account setup paths", () => {
     expect(accountSetupView(integration("elevenlabs"), { kie: true, elevenlabs: false, capcut: false }).state).toContain("Schlüssel fehlt");
   });
 
-  it("points a Hermes-only account to its WSL configuration without a fake Friday form", () => {
+  it("points a supported Hermes account to its owner form and reports presence only", () => {
     const setup = accountSetupView(integration("hermes_notion"), undefined);
-    expect(setup.href).toBeNull();
-    expect(setup.location).toContain("~/.hermes/.env");
-    expect(setup.state).toContain("nicht durch Friday geprüft");
+    expect(setup.href).toContain("skillAccounts");
+    expect(setup.state).toContain("unbekannt");
+    const configured = accountSetupView(integration("hermes_notion"), undefined, { configured: { AIRTABLE_API_KEY: false, NOTION_API_KEY: true, TENOR_API_KEY: false, JINA_API_KEY: false }, applied: null });
+    expect(configured.state).toContain("hinterlegt");
+    expect(configured.state).toContain("Anbieterzugriff nicht geprüft");
   });
 
   it("keeps an unknown integration unsupported instead of inventing a connection", () => {
