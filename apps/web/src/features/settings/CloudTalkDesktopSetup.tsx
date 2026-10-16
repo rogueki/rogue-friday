@@ -2,7 +2,7 @@
 
 import type { CloudTalkCallResponse, CloudTalkPreviewResponse, CloudTalkStatusResponse } from "@friday/sdk";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
 
@@ -22,6 +22,19 @@ export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
   const [result, setResult] = useState<CloudTalkCallResponse["data"] | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const loadedRevision = useRef<number | null>(null);
+
+  useEffect(() => {
+    const saved = status.data?.data;
+    if (!saved || loadedRevision.current === saved.revision) return;
+    loadedRevision.current = saved.revision;
+    setAgentId(saved.agentId === null ? "" : String(saved.agentId));
+    setOwnerPhone(saved.ownerPhone ?? "");
+    setOwnerPhoneConfirmed(saved.ownerPhoneConfirmed);
+    setVoiceAgentId(saved.voiceAgentId ?? "");
+    setReminderMinutes(String(saved.reminderMinutes));
+    setRemindersEnabled(saved.remindersEnabled);
+  }, [status.data]);
 
   async function save() {
     if (!status.data) return;
@@ -29,8 +42,9 @@ export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
     try {
       await call(getApiClient().PUT("/api/v1/settings/cloudtalk", {
         params: { header: { "If-Match": String(status.data.data.revision) } },
-        body: { ...(agentId ? { agentId: Number(agentId) } : {}), accessKeyId, accessKeySecret,
-          ...(ownerPhone ? { ownerPhone } : {}), ownerPhoneConfirmed, ...(voiceAgentId ? { voiceAgentId } : {}),
+        body: { ...(agentId ? { agentId: Number(agentId) } : {}),
+          ...(accessKeyId.trim() && accessKeySecret.trim() ? { accessKeyId, accessKeySecret } : {}),
+          ownerPhone, ownerPhoneConfirmed, voiceAgentId,
           reminderMinutes: Number(reminderMinutes), remindersEnabled },
       }));
       setAccessKeyId(""); setAccessKeySecret("");
@@ -82,17 +96,18 @@ export function CloudTalkDesktopSetup({ owner }: { owner: boolean }) {
       {status.data && <p role="status">{status.data.data.configured ? "API-Zugang gespeichert" : "Kein API-Zugang gespeichert"} · Agent-ID {status.data.data.agentId ?? "unbekannt"}. Gespeicherte Werte belegen weder API-Freischaltung noch einen möglichen Anruf.</p>}
       {status.data && <p>Erinnerungsanrufe: {status.data.data.remindersEnabled ? "aktiv" : "aus"}. Owner-Nummer {status.data.data.ownerPhone ?? "nicht hinterlegt"}, VoiceAgent-ID {status.data.data.voiceAgentId ?? "nicht hinterlegt"}, Vorlauf {status.data.data.reminderMinutes} Minuten.</p>}
       {status.data?.data.lastReminderState && <p>Letzte Anfrage: {status.data.data.lastReminderState} am {status.data.data.lastReminderAt}. „requested“ bedeutet nur, dass CloudTalk die Anfrage angenommen hat.</p>}
-      <details><summary>API-Zugang einrichten oder ersetzen</summary>
-        <p>Admin: CloudTalk → Account → Settings → API Keys. Erstelle ein eigenes Friday-Schlüsselpaar. Die Schlüssel werden hier verschlüsselt gespeichert und danach nicht mehr angezeigt.</p>
+      <details><summary>CloudTalk-Verbindung und Erinnerungsanrufe einstellen</summary>
+        <p>Admin: CloudTalk → Account → Settings → API Keys. Gib bei der ersten Einrichtung beide Schlüssel ein. Bei späteren Änderungen bleiben die verschlüsselt gespeicherten Schlüssel erhalten, wenn beide Felder leer bleiben. Für einen Schlüsselwechsel müssen wieder beide eingetragen werden.</p>
         <label>Agent-ID (nur für klassische API-Rufe) <input type="number" min="1" step="1" value={agentId} onChange={(event) => setAgentId(event.target.value)} /></label>
         <label>Access Key ID <input autoComplete="off" value={accessKeyId} onChange={(event) => setAccessKeyId(event.target.value)} /></label>
         <label>Access Key Secret <input type="password" autoComplete="new-password" value={accessKeySecret} onChange={(event) => setAccessKeySecret(event.target.value)} /></label>
-        <label>Deine Rufnummer (E.164) <input type="tel" autoComplete="tel" value={ownerPhone} onChange={(event) => setOwnerPhone(event.target.value)} placeholder="+491701234567" /></label>
+        <label>Deine Rufnummer (E.164) <input type="tel" autoComplete="tel" value={ownerPhone} onChange={(event) => { setOwnerPhone(event.target.value); setOwnerPhoneConfirmed(false); }} placeholder="+491701234567" /></label>
         <label><input type="checkbox" checked={ownerPhoneConfirmed} onChange={(event) => setOwnerPhoneConfirmed(event.target.checked)} /> Ich bestätige, dass diese Rufnummer mir gehört und dort Erinnerungsanrufe ankommen dürfen.</label>
         <label>VoiceAgent-ID <input value={voiceAgentId} onChange={(event) => setVoiceAgentId(event.target.value)} /></label>
         <label>Minuten vor dem Termin <input type="number" min="1" max="120" value={reminderMinutes} onChange={(event) => setReminderMinutes(event.target.value)} /></label>
         <label><input type="checkbox" checked={remindersEnabled} onChange={(event) => setRemindersEnabled(event.target.checked)} /> Automatische Anrufe für lokale Owner-Termine einschalten</label>
-        <button type="button" disabled={busy || !status.data || !accessKeyId || !accessKeySecret ||
+        <button type="button" disabled={busy || !status.data || (!status.data.data.configured && (!accessKeyId.trim() || !accessKeySecret.trim())) ||
+          Boolean(accessKeyId.trim()) !== Boolean(accessKeySecret.trim()) ||
           (remindersEnabled && (!/^\+[1-9]\d{7,14}$/.test(ownerPhone) || !voiceAgentId || !ownerPhoneConfirmed))} onClick={() => void save()}>CloudTalk-Zugang speichern</button>
       </details>
       {status.data?.data.configured && status.data.data.agentId && <>

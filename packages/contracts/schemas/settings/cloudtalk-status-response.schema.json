@@ -7,11 +7,11 @@
     "data": { "type": "object", "properties": {
       "configured": { "type": "boolean" }, "agentId": { "type": ["integer", "null"] },
       "revision": { "type": "integer", "minimum": 0 }, "note": { "type": "string" },
-      "ownerPhone": { "type": ["string", "null"] }, "voiceAgentId": { "type": ["string", "null"] },
+      "ownerPhone": { "type": ["string", "null"] }, "ownerPhoneConfirmed": { "type": "boolean" }, "voiceAgentId": { "type": ["string", "null"] },
       "remindersEnabled": { "type": "boolean" }, "reminderMinutes": { "type": "integer", "minimum": 1, "maximum": 120 },
       "lastReminderState": { "type": ["string", "null"], "enum": ["pending", "requested", "rejected", "unknown", null] },
       "lastReminderAt": { "type": ["string", "null"] }
-    }, "required": ["configured", "agentId", "revision", "note", "ownerPhone", "voiceAgentId", "remindersEnabled", "reminderMinutes", "lastReminderState", "lastReminderAt"], "additionalProperties": false },
+    }, "required": ["configured", "agentId", "revision", "note", "ownerPhone", "ownerPhoneConfirmed", "voiceAgentId", "remindersEnabled", "reminderMinutes", "lastReminderState", "lastReminderAt"], "additionalProperties": false },
     "freshness": { "$ref": "../common/freshness.schema.json" }
   }, "required": ["contractVersion", "data", "freshness"], "additionalProperties": false
 }
