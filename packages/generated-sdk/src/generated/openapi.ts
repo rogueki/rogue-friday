@@ -906,6 +906,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/communication/himalaya/envelopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a bounded page of IMAP message headers */
+        get: operations["listHimalayaEnvelopes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/communication/himalaya/mailboxes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List folders in the explicitly configured Friday IMAP account */
+        get: operations["listHimalayaMailboxes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/communication/himalaya/message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one IMAP message without changing its seen flag */
+        get: operations["getHimalayaMessage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/communication/threads": {
         parameters: {
             query?: never;
@@ -4398,6 +4449,49 @@ export interface components {
         HimalayaAccountResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["HimalayaAccount"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HimalayaEnvelopeListResponse */
+        HimalayaEnvelopeListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                items: {
+                    date: string | null;
+                    flags: unknown[] | null;
+                    from: {
+                        [key: string]: unknown;
+                    }[] | null;
+                    id: string;
+                    subject: string | null;
+                }[];
+                mailbox: string;
+                page: number;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HimalayaMailboxListResponse */
+        HimalayaMailboxListResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                mailboxes: {
+                    id: string;
+                    name: string;
+                    role: string | null;
+                }[];
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HimalayaMessageResponse */
+        HimalayaMessageResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                bodyText: string;
+                date: string;
+                from: string;
+                id: string;
+                mailbox: string;
+                subject: string;
+            };
             freshness: components["schemas"]["Freshness"];
         };
         /**
@@ -8805,6 +8899,83 @@ export interface operations {
             409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listHimalayaEnvelopes: {
+        parameters: {
+            query: {
+                mailbox: string;
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HimalayaEnvelopeListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listHimalayaMailboxes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HimalayaMailboxListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getHimalayaMessage: {
+        parameters: {
+            query: {
+                id: string;
+                mailbox: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HimalayaMessageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
