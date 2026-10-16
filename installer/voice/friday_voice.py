@@ -599,10 +599,16 @@ class VoiceService:
             log_event(event="empty_transcript", speaker_score=round(score, 3))
             return
         print(f"> {text}", flush=True)
+
+        def with_first_use_offer(answer: str) -> str:
+            offer = self.skills_onboarding_voice.offer_first_use()
+            return answer if not offer else answer + " " + offer
+
         studio_answer = self.content_studio_voice.handle(text)
         if studio_answer is not None:
             self.status["commands"] += 1
             log_event(event="content_studio_command", speaker_score=round(score, 3), success=True)
+            studio_answer = with_first_use_offer(studio_answer)
             self.tts.say(studio_answer)
             self.history += [{"role": "user", "content": text}, {"role": "assistant", "content": studio_answer}]
             return
@@ -610,6 +616,7 @@ class VoiceService:
         if skills_answer is not None:
             self.status["commands"] += 1
             log_event(event="skills_onboarding_command", speaker_score=round(score, 3), success=True)
+            skills_answer = with_first_use_offer(skills_answer)
             self.tts.say(skills_answer)
             self.history += [{"role": "user", "content": text}, {"role": "assistant", "content": skills_answer}]
             return
@@ -630,12 +637,14 @@ class VoiceService:
 
         if decision["route"] == "local" and decision.get("answer"):
             print(f"< {decision['answer']}", flush=True)
-            self.tts.say(decision["answer"])
-            self.history += [{"role": "assistant", "content": decision["answer"]}]
+            answer = with_first_use_offer(decision["answer"])
+            self.tts.say(answer)
+            self.history += [{"role": "assistant", "content": answer}]
             return
 
         if decision.get("background"):
-            self.tts.say(self.cfg.get("ack_background", DEFAULT_ACK_BACKGROUND))
+            acknowledgement = with_first_use_offer(self.cfg.get("ack_background", DEFAULT_ACK_BACKGROUND))
+            self.tts.say(acknowledgement)
             self.background_jobs.add(task_id)
             threading.Thread(target=self._background, args=(text, decision, task_id), daemon=True).start()
             return
@@ -643,6 +652,7 @@ class VoiceService:
             self.tts.say(self.cfg.get("ack_wait", DEFAULT_ACK_WAIT))
         answer = self._ask_hermes(text, decision, task_id)
         print(f"< {answer}", flush=True)
+        answer = with_first_use_offer(answer)
         self.tts.say(answer)
         self.history += [{"role": "assistant", "content": answer}]
 

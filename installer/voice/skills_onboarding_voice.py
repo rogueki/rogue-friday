@@ -38,8 +38,58 @@ class SkillsOnboardingVoice:
         self.opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
         self.pending_seconds = min(15, pending_seconds)
         self.pending = None
+        self.offer_path = os.path.join(root, "dashboard", "data", "voice-bridge", "onboarding-offer.json")
+        self.offer_shown = self._read_offer_shown()
 
-    def _request(self, method, path, body=None, revision=None):
+    def _read_offer_shown(self):
+        try:
+            with open(self.offer_path, encoding="utf-8") as source:
+                marker = json.load(source)
+            return marker == {"version": 1, "shown": True}
+        except (OSError, ValueError, TypeError):
+            return False
+
+    def _mark_offer_shown(self):
+        self.offer_shown = True
+        temporary = self.offer_path + ".tmp"
+        try:
+            os.makedirs(os.path.dirname(self.offer_path), exist_ok=True)
+            with open(temporary, "w", encoding="utf-8") as target:
+                json.dump({"version": 1, "shown": True}, target)
+                target.flush()
+                os.fsync(target.fileno())
+            os.replace(temporary, self.offer_path)
+        except OSError:
+            try:
+                os.remove(temporary)
+            except OSError:
+                pass
+
+    def offer_first_use(self):
+        """Offer onboarding once, after the caller has verified the speaker."""
+        if self.offer_shown or self.pending is not None:
+            return None
+        # An unavailable dashboard must not delay an unrelated spoken answer.
+        state, error = self._safe_request("GET", "onboarding", timeout=1.5)
+        if error:
+            return None
+        if state.get("steps", {}).get("intro") != "pending":
+            self.offer_shown = True
+            return None
+        self._mark_offer_shown()
+        name = str(state.get("preferredName") or "").strip()
+        goals = state.get("goals")
+        goals = [goal.strip() for goal in goals if isinstance(goal, str) and goal.strip()] if isinstance(goals, list) else []
+        greeting = f"Willkommen, {name}." if name else "Willkommen bei F.R.I.D.A.Y."
+        saved_goals = " Ich habe bisher diese Ziele notiert: " + "; ".join(goals[:2]) + "." if goals else ""
+        return self._ask(
+            "first_use_invite",
+            greeting + saved_goals + " Ich kann dich kurz durch dein Profil, deine Friday- und Hermes-Skills und die Einrichtung begleiten. Sollen wir jetzt gemeinsam anfangen? Sage ja oder nein.",
+            expires_in=90,
+            revision=state["revision"],
+        )
+
+    def _request(self, method, path, body=None, revision=None, timeout=12):
         if (method, path) not in {("GET", "skills"), ("GET", "onboarding"), ("PUT", "onboarding")}:
             raise ValueError("Nicht erlaubte Voice-Bridge-Operation")
         key_path = os.path.join(self.root, "dashboard", "data", "voice-bridge", "auth.key")
@@ -57,7 +107,7 @@ class SkillsOnboardingVoice:
             data=json.dumps(body).encode("utf-8") if body is not None else None,
             headers=headers, method=method,
         )
-        with self.opener.open(request, timeout=12) as response:
+        with self.opener.open(request, timeout=timeout) as response:
             payload = json.load(response)
         return payload if path == "skills" else payload["data"]
 
@@ -89,8 +139,9 @@ class SkillsOnboardingVoice:
             return None, "Die Einrichtung wurde inzwischen geändert. Sage bitte „Einrichtung fortsetzen“, damit ich den aktuellen Stand lese."
         return saved, error
 
-    def _ask(self, stage, prompt, **extra):
-        self.pending = {"stage": stage, "expires": self.now() + self.pending_seconds, **extra}
+    def _ask(self, stage, prompt, *, expires_in=None, **extra):
+        duration = self.pending_seconds if expires_in is None else min(90, max(0, expires_in))
+        self.pending = {"stage": stage, "expires": self.now() + duration, **extra}
         return prompt
 
     def _guide(self, state):
@@ -147,6 +198,21 @@ class SkillsOnboardingVoice:
         words = _words(text)
         if self.pending and self.now() > self.pending["expires"]:
             self.pending = None
+        if self.pending and self.pending["stage"] == "first_use_invite":
+            pending = self.pending
+            self.pending = None
+            if words in NO:
+                return "Alles klar. Du kannst die Einrichtung jederzeit im Dashboard oder mit ‚Einrichtung fortsetzen‘ starten."
+            if words in YES:
+                state, error = self._safe_request("GET", "onboarding")
+                if error:
+                    return error
+                if state["revision"] != pending["revision"]:
+                    return "Die Einrichtung wurde inzwischen geaendert. Sage bitte ‚Einrichtung fortsetzen‘, damit ich den aktuellen Stand lese."
+                if state["steps"].get("intro") != "pending":
+                    return self._guide(state)
+                saved, error = self._save(state, step="intro")
+                return error or self._guide(saved)
         if re.search(r"\b(welche|was fur|zeige|liste)\b.*\bskills?\b.*\b(aktiv|aktiviert|eingeschaltet)\b|\baktive skills?\b", words):
             return self._status()
         if re.search(r"\bwas kannst du\b|\bwelche skills? (hast|gibt)\b", words):
@@ -154,7 +220,11 @@ class SkillsOnboardingVoice:
         if re.search(r"\b(einrichtung|onboarding|skills? einrichten)\b.*\b(starten|fortsetzen|weitermachen|beginnen)\b", words):
             self.pending = None
             state, error = self._safe_request("GET", "onboarding")
-            return error or self._guide(state)
+            if error:
+                return error
+            if state.get("steps", {}).get("intro") == "pending":
+                self._mark_offer_shown()
+            return self._guide(state)
         if not self.pending:
             return None
         pending = self.pending
