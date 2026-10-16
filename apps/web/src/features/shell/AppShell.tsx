@@ -11,7 +11,8 @@ import { useUpdateSettings } from "@/lib/api/domains/settings";
 import { useOnboarding } from "@/lib/api/domains/skills";
 import { useAppSettings } from "@/lib/settings";
 import { useSession } from "@/lib/session";
-import { isOnboardingSnoozed } from "@/features/skills/onboardingSnooze";
+import { isOnboardingSnoozed, snoozeOnboarding } from "@/features/skills/onboardingSnooze";
+import { OnboardingPage } from "@/features/skills/OnboardingPage";
 import { AppBottomBar } from "./AppBottomBar";
 import { AppTopBar } from "./AppTopBar";
 import { OfflineCacheBanner } from "./OfflineCacheBanner";
@@ -29,13 +30,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { settings } = useAppSettings();
   const { items, activeId } = useNavItems();
   const updateSettings = useUpdateSettings();
+  const [onboardingClosed, setOnboardingClosed] = useState(false);
   usePaletteShortcuts();
-
-  useEffect(() => {
-    // The owner can postpone for this browser session; a later login resumes pending steps.
-    const state = onboarding.data?.data;
-    if (pathname !== "/onboarding" && state && state.completedAt === null && Object.values(state.steps).some((step) => step === "pending") && !isOnboardingSnoozed()) router.replace("/onboarding");
-  }, [onboarding.data, pathname, router]);
+  const onboardingState = onboarding.data?.data;
+  const showOnboarding = session.role === "owner" && !session.offline && pathname === "/" && !onboardingClosed && !isOnboardingSnoozed() &&
+    onboardingState?.completedAt === null && Object.values(onboardingState.steps).some((step) => step === "pending");
 
   // The nav width follows settings.navigation.mode; toggling writes it back (reversible, applied optimistically).
   const [collapsed, setCollapsed] = useState(false);
@@ -76,6 +75,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <OfflineCacheBanner />
         {children}
       </FridayShell>
+      {showOnboarding && <aside className="sk-onboarding-popup" aria-labelledby="sk-onboarding-title" onKeyDown={(event) => {
+        if (event.key === "Escape") { event.stopPropagation(); snoozeOnboarding(); setOnboardingClosed(true); }
+      }}><OnboardingPage popup onClose={() => setOnboardingClosed(true)} /></aside>}
       <GlobalCommandPalette />
       <CreateTaskDialog />
       <CommandConfirmHost />

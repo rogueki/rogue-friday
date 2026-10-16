@@ -34,12 +34,11 @@ export function LoginView() {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loginStarted = useRef(false);
-  const firstSetup = useRef(false);
 
   useEffect(() => {
     if (session.status === "authenticated") {
       if (loginStarted.current) clearOnboardingSnooze();
-      router.replace(firstSetup.current ? "/onboarding" : "/");
+      router.replace("/");
     }
   }, [session.status, router]);
 
@@ -48,11 +47,9 @@ export function LoginView() {
   const submit = (credentials: { username: string; password: string; rememberMe?: boolean; displayName?: string }): void => {
     setError(null);
     loginStarted.current = true;
-    firstSetup.current = setupRequired;
     login.mutate(credentials, {
       onError: (failure) => {
         loginStarted.current = false;
-        firstSetup.current = false;
         setError(isFridayApiError(failure) && failure.status === 429 ? t("login.rateLimited") :
           setupRequired && isFridayApiError(failure) && failure.status === 422 ? t("login.setupInvalid") : t("login.failed"));
       },
