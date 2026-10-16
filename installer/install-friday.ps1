@@ -1398,6 +1398,39 @@ function Ensure-Pnpm([string]$wanted) {
     }
     Ok "pnpm $wanted bereit"
 }
+function Find-FFmpeg {
+    if ($env:FRIDAY_FFMPEG_PATH -and (Test-Path -LiteralPath $env:FRIDAY_FFMPEG_PATH -PathType Leaf)) {
+        return (Resolve-Path -LiteralPath $env:FRIDAY_FFMPEG_PATH).Path
+    }
+    $command = Get-Command ffmpeg.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($command) { return $command.Source }
+    return $null
+}
+function Ensure-FFmpeg {
+    $binary = Find-FFmpeg
+    if (-not $binary -and (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Info 'Installiere FFmpeg fuer den automatischen Content-Studio-Schnitt per winget …'
+        Write-DashLog '>>> winget install Gyan.FFmpeg'
+        Native { winget install --id Gyan.FFmpeg -e --silent --scope user --accept-package-agreements --accept-source-agreements } |
+            ForEach-Object { Write-DashLog $_ }
+        Update-SessionPath
+        $binary = Find-FFmpeg
+    }
+    if (-not $binary) {
+        Warn 'FFmpeg fehlt. Content Studio kann Medien noch nicht automatisch schneiden. FFmpeg installieren und das Dashboard-Update erneut ausfuehren.'
+        return $false
+    }
+    $versionOutput = @(& $binary -version 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $versionOutput.Count -eq 0 -or "$($versionOutput[0])" -notmatch '^ffmpeg version ') {
+        Warn "FFmpeg unter $binary antwortet nicht korrekt. Automatischer Content-Studio-Schnitt bleibt deaktiviert."
+        return $false
+    }
+    $pathFile = "$Dash\config\ffmpeg.path"
+    New-Item -ItemType Directory -Force (Split-Path $pathFile -Parent) | Out-Null
+    [IO.File]::WriteAllText($pathFile, $binary + "`n", [Text.UTF8Encoding]::new($false))
+    Ok "FFmpeg fuer Content Studio bereit: $binary"
+    return $true
+}
 function Get-SourceHash([string]$src) {
     # Inhaltshash ueber alles, was ins Ziel kopiert wird (ohne Build-Ausgaben und ohne die lokalen Konfigurationsdateien).
     $files = New-Object System.Collections.Generic.List[string]
@@ -1735,6 +1768,7 @@ function Install-Dashboard {
     if (-not ("$pm" -match '^pnpm@(\d+\.\d+\.\d+)')) { Stop-Dashboard "Im package.json fehlt 'packageManager: pnpm@<Version>' ($src\package.json)." }
     $pnpmVersion = $Matches[1]
     Ensure-Pnpm $pnpmVersion
+    Ensure-FFmpeg | Out-Null
 
     # --- Quellen bereitstellen, installieren, bauen (nur wenn sich etwas geaendert hat)
     Info 'Prüfe Quellstand …'
