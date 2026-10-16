@@ -180,6 +180,6 @@ describe("PORT_SPEC", () => {
       }
     }
     expect(Object.keys(PORT_SPEC)).toHaveLength(15);
-    expect(seen.size).toBe(89);
+    expect(seen.size).toBe(90);
   });
 });

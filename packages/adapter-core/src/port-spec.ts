@@ -116,6 +116,7 @@ export const PORT_SPEC: Spec = {
       "CalendarProposalResponse",
       true,
     ),
+    createCalendarEvent: single("createCalendarEvent", "calendar.create", "CalDavEventCreateResponse", true),
   },
   automations: {
     listAutomations: page("listAutomations", "automations.read", "AutomationListResponse"),

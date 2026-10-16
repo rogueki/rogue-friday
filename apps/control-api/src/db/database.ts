@@ -159,6 +159,20 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    id: 8,
+    name: "caldav-create-journal",
+    sql: `
+      CREATE TABLE caldav_create_journal (
+        key_hash TEXT PRIMARY KEY,
+        actor TEXT NOT NULL,
+        body_hash TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('pending', 'created', 'unknown')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

@@ -93,7 +93,7 @@ function AdapterForm({ adapter }: { adapter: AdapterConfigSettings }) {
   return (
     <div className="st-adapter" data-adapter-form={adapter.adapterId}>
       <Section
-        title={adapter.provider === "caldav-calendar" ? "Kalender: ICS oder CalDAV (nur lesen)" : adapter.provider}
+        title={adapter.provider === "caldav-calendar" ? "Kalender: ICS lesen oder CalDAV anlegen" : adapter.provider}
         description={t("settings.adapters.formDesc", { category: adapter.category })}
         actions={<Switch label={t("settings.adapters.enabled")} checked={enabled} disabled={readOnly} onCheckedChange={setEnabled} stateLabels={[t("settings.state.on"), t("settings.state.off")]} />}
       >
@@ -200,7 +200,7 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
       {!canRead ? <p className="st-muted">{t("settings.adapters.noCapability")}</p> : null}
       {calendar ? <section aria-labelledby="calendar-setup-title" className="st-adapter">
         <h3 id="calendar-setup-title">Kalender verbinden</h3>
-        <p>ICS liest einen freigegebenen Feed, etwa eine private Google- oder Outlook-ICS-URL. CalDAV liest einen Kalender bei einem kompatiblen Server mit Benutzername und App-Passwort. Google Calendar und private Outlook-Konten benoetigen fuer direkten Kontozugriff OAuth und sind hier nicht per Passwort anschliessbar. Windows Kalender ist eine App, kein eigener Anbieter.</p>
+        <p>ICS liest einen freigegebenen Feed, etwa eine private Google- oder Outlook-ICS-URL. CalDAV liest Termine und kann nach ausdrücklicher Bestätigung einen Termin in einer eingerichteten Kalendersammlung anlegen. Die HTTPS-Sammlungsadresse muss mit / enden; der Anbieter muss CalDAV-Schreibzugriff erlauben. Google Calendar und private Outlook-Konten benoetigen fuer direkten Kontozugriff OAuth und sind hier nicht per Passwort anschliessbar. Windows Kalender ist eine App, kein eigener Anbieter.</p>
         <label>Verbindungsart <select value={calendarMode} onChange={(event) => setCalendarMode(event.target.value as "ics" | "caldav")} disabled={readOnly}><option value="ics">iCalendar/ICS</option><option value="caldav">CalDAV</option></select></label>
         {calendarMode === "ics" ? <label>Private ICS-URL <input type="password" autoComplete="off" value={feedUrl} onChange={(event) => setFeedUrl(event.target.value)} placeholder="https://.../calendar.ics" disabled={readOnly} /></label> : <>
           <label>CalDAV-Kalendersammlung (HTTPS) <input type="password" autoComplete="off" value={calendarUrl} onChange={(event) => setCalendarUrl(event.target.value)} placeholder="https://.../dav/calendars/.../" disabled={readOnly} /></label>
@@ -208,7 +208,7 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
           <label>Passwort oder App-Passwort <input type="password" autoComplete="new-password" value={calendarPassword} onChange={(event) => setCalendarPassword(event.target.value)} disabled={readOnly} /></label>
         </>}
         <Button type="button" disabled={readOnly || calendarUpdate.isPending || (calendarMode === "ics" ? !feedUrl.trim() : !calendarUrl.trim() || !calendarUsername.trim() || !calendarPassword)} loading={calendarUpdate.isPending} onClick={() => void saveCalendar()}>Kalenderzugang speichern</Button>
-        <p role="status">{calendar.provider === "caldav-calendar" && (calendar.config.mode === "caldav" ? calendar.secretFields.calendarUrl?.configured && calendar.secretFields.username?.configured && calendar.secretFields.password?.configured : calendar.secretFields.feedUrl?.configured) ? "Zugang hinterlegt (nur lesen); Verbindung separat testen" : "Noch kein Kalenderzugang hinterlegt; Kalenderansicht verwendet Simulation."}</p>
+        <p role="status">{calendar.provider === "caldav-calendar" && (calendar.config.mode === "caldav" ? calendar.secretFields.calendarUrl?.configured && calendar.secretFields.username?.configured && calendar.secretFields.password?.configured : calendar.secretFields.feedUrl?.configured) ? (calendar.config.mode === "caldav" ? "CalDAV-Zugang hinterlegt; Lesen und Terminanlage hängen vom Anbieterzugriff ab. Verbindung separat testen." : "ICS-Zugang hinterlegt (nur lesen); Verbindung separat testen.") : "Noch kein Kalenderzugang hinterlegt; Kalenderansicht verwendet Simulation."}</p>
         {calendarMessage ? <p role="status">{calendarMessage}</p> : null}
       </section> : null}
       <div className="st-master">
@@ -222,7 +222,7 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
                   aria-current={selected?.adapterId === item.adapterId ? "true" : undefined}
                   onClick={() => onSelect(item.adapterId)}
                 >
-                  <span className="st-master__name">{item.provider === "caldav-calendar" ? "Kalender: ICS oder CalDAV (nur lesen)" : item.provider}</span>
+                  <span className="st-master__name">{item.provider === "caldav-calendar" ? "Kalender: ICS lesen oder CalDAV anlegen" : item.provider}</span>
                   <span className="st-master__meta">
                     {item.category}
                     {(item.provider === "caldav-calendar"

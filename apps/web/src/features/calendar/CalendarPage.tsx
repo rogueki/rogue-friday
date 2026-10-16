@@ -8,6 +8,7 @@ import { PanelFrame } from "@/components/PanelFrame";
 import { useT } from "@/i18n";
 import { useCalendarConflicts, useCalendarEvents } from "@/lib/api/domains/calendar";
 import { useCapability, useCapabilityState } from "@/lib/capabilities";
+import { useSession } from "@/lib/session";
 import { CapabilityNote, DataBadges } from "../memory/kit/Badges";
 import { useUrlParam, useFormat } from "../memory/kit/hooks";
 import { effectiveFreshness, usePanelState } from "../memory/kit/panelState";
@@ -18,6 +19,7 @@ import { EventDrawer } from "./EventDrawer";
 import { formatCivil, isView, offsetLabel, VIEWS, viewKey, type CalendarView } from "./labels";
 import { MonthGrid } from "./MonthGrid";
 import { ProposalDialog, type ProposalDefaults } from "./ProposalDialog";
+import { CalDavCreateDialog } from "./CalDavCreateDialog";
 import { TimeGrid } from "./TimeGrid";
 import "./calendar.css";
 
@@ -32,6 +34,7 @@ export function CalendarPage() {
 }
 
 function CalendarPageInner() {
+  const session = useSession();
   const { t } = useT();
   const format = useFormat();
   const now = useNow(30_000);
@@ -41,6 +44,7 @@ function CalendarPageInner() {
   const [dateParam, setDateParam] = useUrlParam("date");
   const [eventId, setEventId] = useUrlParam("event");
   const [proposal, setProposal] = useState<ProposalDefaults | null>(null);
+  const [caldavCreateOpen, setCalDavCreateOpen] = useState(false);
 
   const timeZone = format.timeZone;
   const today = civilOf(now, timeZone);
@@ -68,6 +72,7 @@ function CalendarPageInner() {
   const conflicts = useCalendarConflicts();
   const proposeState = useCapabilityState("calendar", "propose");
   const canPropose = useCapability("calendar", "propose");
+  const canCreateCalDav = useCapability("calendar", "create") && !canPropose && session.role === "owner";
 
   const events: CalendarEvent[] = useMemo(() => eventsQuery.data?.items ?? [], [eventsQuery.data]);
   const conflictEventIds = useMemo(() => new Set((conflicts.data?.items ?? []).flatMap((conflict) => conflict.eventIds)), [conflicts.data]);
@@ -123,8 +128,8 @@ function CalendarPageInner() {
         actions={
           <span className="mk-actions">
             <DataBadges sources={eventsQuery.data?.sources} freshness={effectiveFreshness(eventsQuery)} />
-            <Button size="sm" icon={<CalendarPlus size={14} />} disabled={!canPropose} title={!canPropose ? t("calendar.proposal.notAllowed") : t("calendar.proposal.hint")} onClick={() => setProposal({ type: "create" })}>
-              {t("calendar.proposal.open")}
+            <Button size="sm" icon={<CalendarPlus size={14} />} disabled={!canPropose && !canCreateCalDav} title={!canPropose && !canCreateCalDav ? t("calendar.proposal.notAllowed") : t("calendar.proposal.hint")} onClick={() => canCreateCalDav ? setCalDavCreateOpen(true) : setProposal({ type: "create" })}>
+              {canCreateCalDav ? "Termin anlegen" : t("calendar.proposal.open")}
             </Button>
           </span>
         }
@@ -188,6 +193,7 @@ function CalendarPageInner() {
 
       <EventDrawer id={eventId} onClose={() => setEventId(null)} onPropose={propose} />
       <ProposalDialog open={proposal !== null} onOpenChange={(open) => { if (!open) setProposal(null); }} events={events} defaults={proposal ?? undefined} />
+      <CalDavCreateDialog open={caldavCreateOpen} onOpenChange={setCalDavCreateOpen} />
     </div>
   );
 }

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/calendar/caldav-event-preview-request.schema.json",
+  "title": "CalDavEventPreviewRequest",
+  "type": "object",
+  "properties": {
+    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "start": { "type": "string", "format": "date-time" },
+    "end": { "type": "string", "format": "date-time" }
+  },
+  "required": ["title", "start", "end"],
+  "additionalProperties": false
+}

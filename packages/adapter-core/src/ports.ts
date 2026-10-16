@@ -22,6 +22,7 @@ import type {
   CalendarBriefing,
   CalendarConflict,
   CalendarEvent,
+  CalDavEventCreateResponse,
   CalendarProposal,
   CalendarProposalRequest,
   Channel,
@@ -333,6 +334,7 @@ export interface CalendarPort {
     params: { body: CalendarProposalRequest },
     call: MutationContext,
   ): Promise<Single<CalendarProposal>>;
+  createCalendarEvent?(params: { body: { title: string; start: string; end: string; uid: string } }, call: MutationContext): Promise<Single<CalDavEventCreateResponse["data"]>>;
 }
 
 export interface ListAutomationsParams extends PageParams {

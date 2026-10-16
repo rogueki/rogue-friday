@@ -36,6 +36,7 @@ import { ObsidianVaultService } from "../services/obsidian-vault";
 import { WikiPathService } from "../services/wiki-path";
 import { HimalayaAccountService } from "../services/himalaya-account";
 import { HimalayaSendService } from "../services/himalaya-send";
+import { CalDavCreateService } from "../services/caldav-create";
 import { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import { CodingRunsService } from "../services/coding-runs";
 import { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
@@ -210,6 +211,13 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     ...(options.healthIntervalMs ? { healthIntervalMs: options.healthIntervalMs } : {}),
   });
   const { registry } = wiring;
+  const caldavCreate = new CalDavCreateService(db, registry, deriveKey(serverKey.key, "caldav-create-preview"), () => {
+    const entry = wiring.entries.get("calendar");
+    return JSON.stringify([
+      entry?.provider, entry?.enabled, entry?.config?.mode,
+      secrets.get("caldav-calendar", "calendarUrl"), secrets.get("caldav-calendar", "username"), secrets.get("caldav-calendar", "password"),
+    ]);
+  });
   // Restarting an adapter and reading its log lines are control-plane functions (registry + log buffer), not adapter
   // capabilities. With the scenario console (mock) the capability stays a switch the console can toggle.
   if (!engine) registry.provideControlPlaneCapabilities(["system.restartAdapter", "system.openLogs"]);
@@ -427,6 +435,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     wikiPath,
     himalayaAccount,
     himalayaSend,
+    caldavCreate,
     hermesSkillKeys,
     codingRuns,
     codingVoiceRepository,

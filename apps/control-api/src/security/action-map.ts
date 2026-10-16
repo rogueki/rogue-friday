@@ -30,6 +30,8 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   requestDraftSend: "communication.requestSend",
   sendHimalayaMessage: "communication.requestSend",
   createCalendarProposal: "calendar.propose",
+  previewCalDavEvent: "calendar.create",
+  createCalendarEvent: "calendar.create",
   createAutomation: "automations.create",
   updateAutomation: "automations.update",
   testAutomation: "automations.test",

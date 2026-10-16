@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/calendar/caldav-event-create-request.schema.json",
+  "title": "CalDavEventCreateRequest",
+  "type": "object",
+  "properties": {
+    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "start": { "type": "string", "format": "date-time" },
+    "end": { "type": "string", "format": "date-time" },
+    "confirmationToken": { "type": "string", "minLength": 78, "maxLength": 78 }
+  },
+  "required": ["title", "start", "end", "confirmationToken"],
+  "additionalProperties": false
+}

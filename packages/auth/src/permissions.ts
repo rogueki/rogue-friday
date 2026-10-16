@@ -24,6 +24,7 @@ export const WRITE_ACTIONS = [
   'communication.draft',
   'communication.requestSend',
   'calendar.propose',
+  'calendar.create',
   'automations.create',
   'automations.update',
   'automations.enable',
@@ -94,6 +95,7 @@ const OPERATOR_ACTIONS: ReadonlySet<WriteAction> = new Set<WriteAction>([
 
 /** Owner-only on top of the operator set. */
 const OWNER_ONLY_ACTIONS: ReadonlySet<WriteAction> = new Set<WriteAction>([
+  'calendar.create',
   'system.healthcheck',
   'system.reconnect',
   'system.restartAdapter',

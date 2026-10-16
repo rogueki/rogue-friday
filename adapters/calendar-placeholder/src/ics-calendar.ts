@@ -1,5 +1,5 @@
 ﻿import ICAL from "ical.js";
-import type { CalendarEvent } from "@friday/sdk";
+import type { CalendarEvent, CalDavEventCreateResponse } from "@friday/sdk";
 import {
   AdapterError, createId,
   type AdapterContext, type AdapterHealthReport, type CalendarPort, type CapabilitySet,
@@ -8,6 +8,7 @@ import {
 import { manifest } from "./index";
 import { fetchIcs, validateFeedUrl } from "./fetch-ics";
 import { fetchCalDav } from "./fetch-caldav";
+import { putCalDav } from "./put-caldav";
 
 const CACHE_MS = 5 * 60_000;
 const MAX_COMPONENTS = 5000;
@@ -85,7 +86,13 @@ export class IcsCalendarAdapter implements CalendarPort {
     this.cache = undefined;
   }
   async shutdown(): Promise<void> { this.context = undefined; this.cache = undefined; }
-  async getCapabilities(): Promise<CapabilitySet> { return { capabilities: ["calendar.read"] }; }
+  async getCapabilities(): Promise<CapabilitySet> {
+    const url = this.context?.getSecret("calendarUrl");
+    let collection = false;
+    try { const target = validateFeedUrl(url ?? ""); collection = target.pathname.endsWith("/") && !target.search && !target.hash; } catch { /* invalid saved URL remains read-only */ }
+    return { capabilities: this.context?.config.mode === "caldav" && collection && this.context.getSecret("username") && this.context.getSecret("password")
+      ? ["calendar.read", "calendar.create"] : ["calendar.read"] };
+  }
   async healthCheck(): Promise<AdapterHealthReport> {
     const start = Date.now();
     try {
@@ -142,4 +149,16 @@ export class IcsCalendarAdapter implements CalendarPort {
   }
   async listCalendarConflicts(): Promise<Page<never>> { return { items: [], pageInfo: { nextCursor: null, hasNextPage: false, totalCount: 0 }, freshness: { state: "fresh", asOf: new Date().toISOString() } }; }
   async listCalendarBriefings(): Promise<Page<never>> { return { items: [], pageInfo: { nextCursor: null, hasNextPage: false, totalCount: 0 }, freshness: { state: "fresh", asOf: new Date().toISOString() } }; }
+  async createCalendarEvent({ body }: { body: { title: string; start: string; end: string; uid: string } }, call: CallContext): Promise<Single<CalDavEventCreateResponse["data"]>> {
+    if (this.context?.config.mode !== "caldav") throw new AdapterError({ code: "CAPABILITY_MISSING", message: "Kalender ist nur lesbar" });
+    const url = this.context.getSecret("calendarUrl");
+    const username = this.context.getSecret("username");
+    const password = this.context.getSecret("password");
+    if (!url || !username || !password) throw new AdapterError({ code: "ADAPTER_UNAVAILABLE", message: "CalDAV-Zugang fehlt" });
+    try { await putCalDav(url, username, password, body, call.signal); }
+    catch { throw new AdapterError({ code: "ADAPTER_UNAVAILABLE", message: "CalDAV-Schreibstatus unbekannt; Kalender beim Anbieter pruefen" }); }
+    this.cache = undefined;
+    const now = new Date().toISOString();
+    return { data: { state: "created", replayed: false }, freshness: { state: "fresh", asOf: now } };
+  }
 }
