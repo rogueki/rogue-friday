@@ -247,6 +247,9 @@ export interface FridayModelMap {
   DashboardSettings: DashboardSettings;
   DataRetentionSettings: DataRetentionSettings;
   DeveloperSettings: DeveloperSettings;
+  DiscordGateway: DiscordGateway;
+  DiscordGatewayPatch: DiscordGatewayPatch;
+  DiscordGatewayResponse: DiscordGatewayResponse;
   Draft: Draft;
   DraftCreateRequest: DraftCreateRequest;
   DraftListResponse: DraftListResponse;
@@ -463,6 +466,9 @@ export interface FridayModelMap {
   VoiceTranscript: VoiceTranscript;
   VoiceTtsEnded: VoiceTtsEnded;
   VoiceTtsStarted: VoiceTtsStarted;
+  WhatsappGateway: WhatsappGateway;
+  WhatsappGatewayPatch: WhatsappGatewayPatch;
+  WhatsappGatewayResponse: WhatsappGatewayResponse;
   WikiPath: WikiPath;
   WikiPathPatch: WikiPathPatch;
   WikiPathResponse: WikiPathResponse;
@@ -1968,6 +1974,29 @@ export interface DeveloperSettings {
   scenarioConsole: boolean;
   orbPerfOverlay: boolean;
   logLevel: "error" | "warn" | "info" | "debug";
+}
+export interface DiscordGateway {
+  setupUrl: string;
+  tokenConfigured: boolean;
+  allowedUserIds: string[];
+  allowedChannelIds: string[];
+  enabled: boolean | null;
+  gatewayRunning: boolean | null;
+  connectionState: "unknown";
+  applied: boolean | null;
+  revision: number;
+}
+export interface DiscordGatewayPatch {
+  token: string;
+  clearToken: boolean;
+  allowedUserIds: string[];
+  allowedChannelIds: string[];
+  enabled: boolean;
+}
+export interface DiscordGatewayResponse {
+  contractVersion: ContractVersion;
+  data: DiscordGateway;
+  freshness: Freshness;
 }
 /**
  * Drafts are created automatically; sending always requires approval (PLAN §33.5).
@@ -4158,6 +4187,27 @@ export interface VoiceTtsStarted {
   engine: string;
   voice?: string;
   text?: string;
+}
+export interface WhatsappGateway {
+  setupUrl: string;
+  mode: "bot" | "self-chat" | null;
+  sessionPresent: boolean;
+  allowedUserIds: string[];
+  enabled: boolean | null;
+  gatewayRunning: boolean | null;
+  connectionState: "unknown";
+  applied: boolean | null;
+  revision: number;
+}
+export interface WhatsappGatewayPatch {
+  mode: "bot" | "self-chat";
+  allowedUserIds: string[];
+  enabled: boolean;
+}
+export interface WhatsappGatewayResponse {
+  contractVersion: ContractVersion;
+  data: WhatsappGateway;
+  freshness: Freshness;
 }
 export interface WikiPath {
   path: string;

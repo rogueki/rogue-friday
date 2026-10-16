@@ -5497,6 +5497,70 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/discord-gateway:
+    get:
+      operationId: getDiscordGateway
+      tags: [settings]
+      summary: Read local Hermes Discord gateway configuration without exposing the bot token
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/DiscordGatewayResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+    put:
+      operationId: putDiscordGateway
+      tags: [settings]
+      summary: Configure the local Hermes Discord gateway
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/DiscordGatewayPatch" } } } }
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/DiscordGatewayResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/whatsapp-gateway:
+    get:
+      operationId: getWhatsappGateway
+      tags: [settings]
+      summary: Read local Hermes WhatsApp gateway setup and linked-session presence
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/WhatsappGatewayResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+    put:
+      operationId: putWhatsappGateway
+      tags: [settings]
+      summary: Configure the local Hermes WhatsApp gateway after pairing
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WhatsappGatewayPatch" } } } }
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/WhatsappGatewayResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/telegram-gateway:
     get:
       operationId: getTelegramGateway
@@ -6752,6 +6816,18 @@ components:
       $ref: ../schemas/settings/content-studio-keys-response.schema.json
     TelegramGateway:
       $ref: ../schemas/settings/telegram-gateway.schema.json
+    DiscordGateway:
+      $ref: ../schemas/settings/discord-gateway.schema.json
+    DiscordGatewayPatch:
+      $ref: ../schemas/settings/discord-gateway-patch.schema.json
+    DiscordGatewayResponse:
+      $ref: ../schemas/settings/discord-gateway-response.schema.json
+    WhatsappGateway:
+      $ref: ../schemas/settings/whatsapp-gateway.schema.json
+    WhatsappGatewayPatch:
+      $ref: ../schemas/settings/whatsapp-gateway-patch.schema.json
+    WhatsappGatewayResponse:
+      $ref: ../schemas/settings/whatsapp-gateway-response.schema.json
     TelegramGatewayPatch:
       $ref: ../schemas/settings/telegram-gateway-patch.schema.json
     TelegramGatewayResponse:

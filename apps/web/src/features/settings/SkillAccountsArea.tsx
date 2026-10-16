@@ -13,6 +13,7 @@ import { queryKeys } from "@/lib/api/queryKeys";
 import { useSettingsDrafts } from "./SettingsDrafts";
 import { HimalayaAccountSetup } from "./HimalayaAccountSetup";
 import { TelegramGatewaySetup } from "./TelegramGatewaySetup";
+import { MessagingGatewaySetup } from "./MessagingGatewaySetup";
 import "@/features/skills/skills.css";
 
 type Integration = SkillCatalogEntry["integrationDetails"][number] & { requiredBy: string[] };
@@ -122,6 +123,15 @@ export function accountSetupView(item: Integration, keys: KeyStatus, hermes: Her
         : "Bot-Token, Owner-ID oder Gateway-Schalter noch nicht lokal eingerichtet; Bot-Verbindung nicht geprüft",
     location: null,
   };
+  if (item.id === "discord_gateway" || item.id === "whatsapp_gateway") {
+    const name = item.id === "discord_gateway" ? "Discord" : "WhatsApp";
+    const anchor = item.id === "discord_gateway" ? "discord" : "whatsapp";
+    return { href: `/settings?area=skillAccounts#${anchor}-gateway-setup-title`,
+      action: `${name}-Gateway im Dashboard einrichten`,
+      state: item.configured === null ? "Lokaler Gateway-Status unbekannt; Verbindung nicht geprüft"
+        : item.configured ? "Gateway lokal eingerichtet; Verbindung und Nachrichten nicht geprüft"
+          : "Gateway oder erlaubte Nutzer noch nicht eingerichtet; Verbindung nicht geprüft", location: null };
+  }
   if (item.id === "obsidian" || item.id === "hermes_obsidian") return {
     href: "/settings?area=skillAccounts#obsidian-setup-title",
     action: "Obsidian-Vault im Dashboard einrichten",
@@ -301,6 +311,8 @@ export function SkillAccountsArea() {
     </section>
     <HimalayaAccountSetup owner={role === "owner"} />
     <TelegramGatewaySetup owner={role === "owner"} />
+    <MessagingGatewaySetup owner={role === "owner"} platform="discord" />
+    <MessagingGatewaySetup owner={role === "owner"} platform="whatsapp" />
     <section aria-labelledby="wiki-path-setup-title">
       <h3 id="wiki-path-setup-title">Lokales Markdown-Wiki für Hermes</h3>
       <p>Der Skill llm-wiki liest Markdown in Friday-Ubuntu. Ohne eigenen Pfad verwendet er <code>~/wiki</code>. Gib einen vorhandenen absoluten Linux-Pfad ein; ein Windows-Ordner liegt dort unter <code>/mnt/c/...</code>. Das separate Obsidian-Vault-Feld gilt nicht für diesen Skill. Obsidian Sync ist optional und erfordert obsidian-headless und <code>ob login</code>.</p>

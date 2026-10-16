@@ -3,6 +3,7 @@ import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import type { HimalayaAccountPatch } from "../services/himalaya-account";
 import type { TelegramGatewayPatch } from "../services/telegram-gateway";
+import type { MessagingGatewayPatch } from "../services/messaging-gateways";
 import type { HimalayaSendRequest } from "../services/himalaya-send";
 import { localList } from "./meta";
 
@@ -11,6 +12,24 @@ const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString()
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: fresh() });
 
 export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
+  async getDiscordGateway(ctx) { return { status: 200, body: single(await ctx.runtime.discordGateway.status()) }; },
+  async putDiscordGateway(ctx) {
+    const status = await ctx.runtime.discordGateway.update(ctx.body as MessagingGatewayPatch, ctx.mutation.ifMatchVersion ?? -1);
+    ctx.audit.action = "settings.discord_gateway_updated";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { tokenConfigured: status.tokenConfigured, allowedUserCount: status.allowedUserIds.length,
+      allowedChannelCount: status.allowedChannelIds?.length, enabled: status.enabled, applied: status.applied };
+    return { status: 200, body: single(status) };
+  },
+  async getWhatsappGateway(ctx) { return { status: 200, body: single(await ctx.runtime.whatsappGateway.status()) }; },
+  async putWhatsappGateway(ctx) {
+    const status = await ctx.runtime.whatsappGateway.update(ctx.body as MessagingGatewayPatch, ctx.mutation.ifMatchVersion ?? -1);
+    ctx.audit.action = "settings.whatsapp_gateway_updated";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { mode: status.mode, allowedUserCount: status.allowedUserIds.length,
+      enabled: status.enabled, sessionPresent: status.sessionPresent, applied: status.applied };
+    return { status: 200, body: single(status) };
+  },
   async getTelegramGateway(ctx) {
     return { status: 200, body: single(await ctx.runtime.telegramGateway.status()) };
   },

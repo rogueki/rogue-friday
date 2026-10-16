@@ -1,0 +1,82 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { ApiError, conflict, validationFailed } from "../util/errors";
+import { invokeCodingRunner, type RunnerInvoker } from "./coding-runs";
+
+export type MessagingPlatform = "discord" | "whatsapp";
+export interface MessagingGatewayStatus {
+  setupUrl: string;
+  allowedUserIds: string[];
+  enabled: boolean | null;
+  gatewayRunning: boolean | null;
+  connectionState: "unknown";
+  applied: boolean | null;
+  revision: number;
+  tokenConfigured?: boolean;
+  allowedChannelIds?: string[];
+  mode?: "bot" | "self-chat" | null;
+  sessionPresent?: boolean;
+}
+export type MessagingGatewayPatch = {
+  allowedUserIds: string[]; enabled: boolean;
+} & ({ token: string; clearToken: boolean; allowedChannelIds: string[] } | { mode: "bot" | "self-chat" });
+
+const unavailable = () => new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes-Nachrichten-Gateway in Friday-Ubuntu ist nicht erreichbar." });
+const SNOWFLAKE = /^[1-9][0-9]{0,19}$/;
+const PHONE = /^[1-9][0-9]{5,19}$/;
+const TOKEN = /^[A-Za-z0-9_.-]{30,128}$/;
+const idsValid = (ids: unknown, pattern: RegExp, limit: number): ids is string[] => Array.isArray(ids) && ids.length <= limit &&
+  ids.every((id) => typeof id === "string" && pattern.test(id)) && new Set(ids).size === ids.length;
+
+export class MessagingGatewayService {
+  constructor(private readonly dataDir: string, readonly platform: MessagingPlatform,
+    private readonly invoke: RunnerInvoker = invokeCodingRunner) {}
+
+  private target(): { script: string; distro: string; user: string; setupUrl: string } {
+    let root = resolve(this.dataDir);
+    for (let depth = 0; depth < 5 && !existsSync(join(root, "config", "install-state.json")); depth += 1) root = resolve(root, "..");
+    let state: { distro_name?: string; linux_user?: string; ports?: { Dashboard?: number } };
+    try { state = JSON.parse(readFileSync(join(root, "config", "install-state.json"), "utf8").replace(/^\uFEFF/, "")) as typeof state; }
+    catch { throw unavailable(); }
+    if (!state.distro_name || !state.linux_user || !/^[a-zA-Z0-9_.-]+$/.test(state.distro_name) || !/^[a-zA-Z0-9_-]+$/.test(state.linux_user)) throw unavailable();
+    const match = root.match(/^([a-zA-Z]):\\(.*)$/);
+    if (!match) throw unavailable();
+    const port = state.ports?.Dashboard;
+    return { distro: state.distro_name, user: state.linux_user,
+      setupUrl: `http://127.0.0.1:${Number.isSafeInteger(port) && port! > 0 && port! <= 65535 ? port : 43791}/channels`,
+      script: `/mnt/${match[1]?.toLowerCase()}/${match[2]?.replaceAll("\\", "/")}/installer/wsl/configure_messaging_gateway.py` };
+  }
+
+  private async run(action: "status" | "update", input?: MessagingGatewayPatch & { revision: number }): Promise<MessagingGatewayStatus> {
+    const { script, distro, user, setupUrl } = this.target();
+    let data: Record<string, unknown>;
+    try { data = await this.invoke(script, distro, user, [this.platform, action], input ? JSON.stringify(input) : undefined, action === "update" ? 50000 : 20000); }
+    catch (error) {
+      if (action === "update" && error instanceof Error && error.message.startsWith("runner_3:")) throw conflict("Die Gateway-Konfiguration wurde inzwischen geändert. Bitte neu laden.");
+      if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:")) throw validationFailed("Zum Aktivieren fehlen Bot-Token oder QR-Kopplung und erlaubte Nutzer.");
+      throw unavailable();
+    }
+    if (!idsValid(data.allowedUserIds, this.platform === "discord" ? SNOWFLAKE : PHONE, 10) ||
+        !(data.enabled === null || typeof data.enabled === "boolean") ||
+        !(data.gatewayRunning === null || typeof data.gatewayRunning === "boolean") ||
+        data.connectionState !== "unknown" || !(data.applied === null || typeof data.applied === "boolean") ||
+        !Number.isSafeInteger(data.revision)) throw unavailable();
+    if (this.platform === "discord" && (typeof data.tokenConfigured !== "boolean" || !idsValid(data.allowedChannelIds, SNOWFLAKE, 20))) throw unavailable();
+    if (this.platform === "whatsapp" && (typeof data.sessionPresent !== "boolean" || ![null, "bot", "self-chat"].includes(data.mode as string | null))) throw unavailable();
+    return { ...data, setupUrl } as MessagingGatewayStatus;
+  }
+
+  status(): Promise<MessagingGatewayStatus> { return this.run("status"); }
+
+  update(input: MessagingGatewayPatch, revision: number): Promise<MessagingGatewayStatus> {
+    if (!Number.isSafeInteger(revision) || typeof input.enabled !== "boolean" ||
+        !idsValid(input.allowedUserIds, this.platform === "discord" ? SNOWFLAKE : PHONE, 10)) throw validationFailed("Erlaubte Nutzer-IDs sind ungültig.");
+    if (this.platform === "discord") {
+      const patch = input as Extract<MessagingGatewayPatch, { token: string }>;
+      if (typeof patch.token !== "string" || (patch.token !== "" && !TOKEN.test(patch.token)) ||
+          typeof patch.clearToken !== "boolean" || (patch.clearToken && !!patch.token) ||
+          !idsValid(patch.allowedChannelIds, SNOWFLAKE, 20)) throw validationFailed("Discord-Bot-Token oder Kanal-IDs sind ungültig.");
+    } else if (!(["bot", "self-chat"] as unknown[]).includes((input as { mode?: unknown }).mode)) throw validationFailed("WhatsApp-Modus ist ungültig.");
+    return this.run("update", { ...input, revision });
+  }
+}
