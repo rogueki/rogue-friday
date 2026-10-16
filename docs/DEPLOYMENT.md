@@ -50,16 +50,26 @@ erneutes Einspielen des Programms (`/MIR`) sie nie berührt.
 
 ## 3. Was der Installer tut (Schritt 15 „dashboard“)
 
+### Frische Installation an einem eigenen Ort
+
+Der Doppelklick auf `installer/install-friday.bat` verwendet weiter `C:\Friday`. Fuer eine frische Installation an einem anderen Ort muessen Zielordner und eigene WSL-Distribution explizit angegeben werden. Zielordner und WSL-Ablageort muessen auf demselben Laufwerk liegen, duerfen sich nicht ueberlappen und muessen frei sein. Beispiel aus einem PowerShell-Fenster im Repository:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File installer\install-friday.ps1 -InstallRoot 'D:\Kali\Friday' -DistroName Friday-Ubuntu -DistroLocation 'D:\Kali\wsl-friday'
+```
+
+Der Installer prueft die Ports 43791 bis 43795 sowie 3101, registriert die benannte Distribution am angegebenen Ort und schreibt Installationspfad und Ports in `config/install-state.json`. Danach starten dieselben Argumente einen unterbrochenen Lauf wieder. Eine vorhandene nicht leere Installation wird nicht als frische Installation ueberschrieben. Dieser Quellpfad ist durch Syntax-, Konfigurations- und WSL-Pfadproben geprueft; ein vollstaendiger frischer D:-Installationslauf ist noch offen.
+
 ### Bestehende Installation an einem anderen Ort gezielt aktualisieren
 
-Für eine bereits vollständig installierte F.R.I.D.A.Y.-Instanz kann der aktuelle Installer ein Dashboard-Update oder einen Stimmenwechsel mit `-InstallRoot` ausführen. Er übernimmt Distribution und Ports aus der vorhandenen `config/install-state.json`, prüft die geplanten Aufgaben und sichert vor dem Update die bestehende Konfiguration und den Dashboard-Build. Beispiel für eine vorhandene Installation unter `D:\Kali\Friday`:
+Fuer eine bereits vollstaendig installierte F.R.I.D.A.Y.-Instanz kann der Installer ein Dashboard-Update oder einen Stimmenwechsel mit `-InstallRoot` ausfuehren. Er uebernimmt Distribution und Ports aus `config/install-state.json`, prueft die geplanten Aufgaben und sichert vor dem Update die bestehende Konfiguration und den Dashboard-Build. Beispiel:
 
 ```powershell
 & .\installer\install-friday.ps1 -InstallRoot 'D:\Kali\Friday' -UpdateDashboard
 & .\installer\install-friday.ps1 -InstallRoot 'D:\Kali\Friday' -ChangeVoice
 ```
 
-Die beiden Aktionen werden getrennt ausgeführt. Dieser Pfad ist für **gezielte Updates einer bestehenden Installation** gebaut; eine vollständige Neuinstallation auf einem abweichenden Pfad wird derzeit vom Installer abgelehnt. Eine `C:\Jarvis`-Junction auf denselben D:-Ordner darf nicht als Quelle der automatischen Legacy-Migration behandelt werden. Beim Standardpfad `C:\Friday` bleibt der normale Installationslauf bestehen. Der Dashboard-Launcher leitet seinen Root-Pfad aus dem installierten Skript ab.
+Die beiden Aktionen werden getrennt ausgefuehrt. Eine `C:\Jarvis`-Junction auf denselben D:-Ordner wird nicht als Quelle der automatischen Legacy-Migration behandelt. Beim Standardpfad `C:\Friday` bleibt der normale Installationslauf bestehen. Der Dashboard-Launcher leitet seinen Root-Pfad aus dem installierten Skript ab.
 
 Der Schritt kommt **nach** `voiceservice` und vor dem Abschlussbericht. Die Namen und die Reihenfolge der Schritte 1 bis 14
 bleiben unverändert; bereits fertig installierte Systeme führen beim nächsten Start nur Schritt 15 aus. Er ist idempotent;

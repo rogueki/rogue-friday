@@ -8,7 +8,7 @@
 # -LibraryOnly: nur die Funktionen laden (Unit-Tests der Entscheidungslogik per Dot-Sourcing).
 param([switch]$LibraryOnly)
 
-$root = 'C:\Friday'
+$root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $script:LogFile   = "$root\logs\watchdog.log"
 $script:StateFile = "$root\run\watchdog-state.json"
 $MinIntervalMinutes = 10
@@ -136,12 +136,18 @@ if (-not $created) { exit 0 }
 try {
     # ------------------------------------------------------------ installierte Dienste (Schritt erledigt)
     $done = @()
-    try { $done = @((Get-Content "$root\config\install-state.json" -Raw | ConvertFrom-Json).done) }
+    try {
+        $installedState = Get-Content "$root\config\install-state.json" -Raw | ConvertFrom-Json
+        $done = @($installedState.done)
+    }
     catch { Write-WatchdogLog 'ERROR' "install-state.json nicht lesbar: $($_.Exception.Message)"; exit 0 }
-    $dashPort = Get-ConfiguredPort "$root\dashboard\config\dashboard.yaml" 3100
+    $voicePort = if ($installedState.ports.Voice) { [int]$installedState.ports.Voice } else { 43694 }
+    $qwenPort = if ($installedState.ports.Qwen) { [int]$installedState.ports.Qwen } else { 43692 }
+    $commandCenterPort = if ($installedState.ports.CommandCenter) { [int]$installedState.ports.CommandCenter } else { 3100 }
+    $dashPort = Get-ConfiguredPort "$root\dashboard\config\dashboard.yaml" $commandCenterPort
     $services = @(
-        @{ Key = 'voice';     Name = 'Sprachdienst';   Step = 'voiceservice'; Task = 'FRIDAY_Voice';     Launcher = 'start-friday-voice.ps1'; Child = '*friday_voice.py*';           Port = 43694;    Http = $null }
-        @{ Key = 'qwen';      Name = 'Qwen';           Step = 'qwen';         Task = 'FRIDAY_Qwen';      Launcher = 'start-qwen-server.ps1';  Child = '*llama-server*--port 43692*'; Port = 43692;    Http = $null }
+        @{ Key = 'voice';     Name = 'Sprachdienst';   Step = 'voiceservice'; Task = 'FRIDAY_Voice';     Launcher = 'start-friday-voice.ps1'; Child = '*friday_voice.py*';           Port = $voicePort;    Http = $null }
+        @{ Key = 'qwen';      Name = 'Qwen';           Step = 'qwen';         Task = 'FRIDAY_Qwen';      Launcher = 'start-qwen-server.ps1';  Child = "*llama-server*--port $qwenPort*"; Port = $qwenPort;    Http = $null }
         @{ Key = 'dashboard'; Name = 'Command Center'; Step = 'dashboard';    Task = 'FRIDAY_Dashboard'; Launcher = 'start-dashboard.ps1';    Child = '*control-api*dist*main.js*';  Port = $dashPort; Http = "http://127.0.0.1:$dashPort/api/v1/health" }
     ) | Where-Object { $done -contains $_.Step }
     if (@($services).Count -eq 0) { exit 0 }

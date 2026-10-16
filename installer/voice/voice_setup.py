@@ -19,7 +19,13 @@ args.add_argument("--voice-choice", choices=("friday-female", "classic"), defaul
 args.add_argument("--voice-reference", default="")
 args.add_argument("--fast-tts", action="store_true")
 args.add_argument("--fast-tts-port", type=int, default=43795)
+args.add_argument("--qwen-port", type=int)
+args.add_argument("--hermes-port", type=int)
+args.add_argument("--voice-port", type=int)
 options = args.parse_args()
+for port in (options.qwen_port, options.hermes_port, options.voice_port):
+    if port is not None and not 1 <= port <= 65535:
+        args.error("service ports must be between 1 and 65535")
 ROOT = options.root
 VOICE = os.path.join(ROOT, "voice")
 MODELS = os.path.join(ROOT, "models")
@@ -243,6 +249,12 @@ if cfg.get("followup_window_s") == 8.0:
 cfg.update(persona.voice_settings(p))
 cfg.update({"tts_voice": voice, "tts_film_filter": film_filter,
             "tts_voice_choice": options.voice_choice, "tts_speaker_id": None, **qwen_settings})
+if options.qwen_port is not None:
+    cfg["qwen_url"] = f"http://127.0.0.1:{options.qwen_port}/v1/chat/completions"
+if options.hermes_port is not None:
+    cfg["hermes_url"] = f"http://127.0.0.1:{options.hermes_port}/v1/chat/completions"
+if options.voice_port is not None:
+    cfg["health_port"] = options.voice_port
 with open(voice_config_path, "w", encoding="utf-8") as f:
     json.dump(cfg, f, ensure_ascii=False, indent=2)
 print(f"   whisper={whisper['whisper_model']}/{whisper['whisper_device']}")

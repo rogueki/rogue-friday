@@ -125,7 +125,8 @@ def voice_settings(p: dict) -> dict:
             "ack_background": a["background"]}
 
 
-def soul_md(p: dict) -> str:
+def soul_md(p: dict, *, linux_root: str = "/mnt/c/Friday", qwen_port: int = 43692,
+            dashboard_port: int = 43691) -> str:
     a, name = ADDRESS[p["address"]], p["owner_name"]
     about = p["about"].strip() or "(noch keine Angaben)"
     assistant = p["assistant_name"]
@@ -145,10 +146,10 @@ def soul_md(p: dict) -> str:
 {about}
 
 ## Laufzeitumgebung
-- Du laeufst in WSL2 (Ubuntu) auf einem Windows-PC. Windows-Laufwerke liegen unter `/mnt/c/...`
-  (`C:\\Friday` == `/mnt/c/Friday`). Austauschordner fuer Dateien: `/mnt/c/Friday/exchange`.
+- Du laeufst in WSL2 (Ubuntu) auf einem Windows-PC. Deine Installationsdateien liegen unter `{linux_root}`.
+  Austauschordner fuer Dateien: `{linux_root}/exchange`.
 - Windows-Programme per Interop mit voller `.exe`-Endung starten (z. B. `explorer.exe`, `powershell.exe`).
-- Lokales Schnellmodell (Sprach-Router): Qwen3-4B unter http://127.0.0.1:43692/v1. Dashboard: http://127.0.0.1:43691
+- Lokales Schnellmodell (Sprach-Router): Qwen3-4B unter http://127.0.0.1:{qwen_port}/v1. Dashboard: http://127.0.0.1:{dashboard_port}
 - Kanban (Boards business, personal, home, research, finance): per Terminal `hermes kanban boards list`,
   `hermes kanban --board <slug> list|create|show|complete`. Laengere Aufgaben als Task anlegen.
 - Sprachanfragen kommen ueber den API-Server; deine Antworten werden vorgelesen (kein Markdown, keine Emojis).
@@ -166,7 +167,9 @@ def soul_md(p: dict) -> str:
 
 
 if __name__ == "__main__":
-    # WSL: python3 persona.py <persona.json> <SOUL.md>
+    # WSL: python3 persona.py <persona.json> <SOUL.md> [linux-root] [qwen-port] [dashboard-port]
     with open(sys.argv[2], "w", encoding="utf-8") as f:
-        f.write(soul_md(load(sys.argv[1])))
+        f.write(soul_md(load(sys.argv[1]), linux_root=sys.argv[3] if len(sys.argv) > 3 else "/mnt/c/Friday",
+                        qwen_port=int(sys.argv[4]) if len(sys.argv) > 4 else 43692,
+                        dashboard_port=int(sys.argv[5]) if len(sys.argv) > 5 else 43691))
     print("SOUL.md geschrieben")
