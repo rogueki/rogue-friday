@@ -204,8 +204,8 @@ describe("REST route coverage", () => {
     const contract = [...yaml.matchAll(/operationId:\s*(\w+)/g)].map((match) => match[1] as string).sort();
     const liveOnly = [
       "cancelContentProductionJob", "checkHermesSkillKey", "createCodingRun", "createContentProductionJob", "createVoiceCodingRun", "getCodingRun", "getCodingVoiceRepository",
-      "getContentProductionArtifact", "getContentProductionJob", "getContentStudioPlan", "getHermesSkillKeys", "getObsidianVault", "getOnboarding", "listSkills",
-      "putCodingVoiceRepository", "putContentStudioPlan", "putObsidianVault", "putOnboarding", "setSkillActivation", "stopCodingRun", "updateHermesSkillKey",
+      "getContentProductionArtifact", "getContentProductionJob", "getContentStudioPlan", "getHermesSkillKeys", "getObsidianVault", "getOnboarding", "getWikiPath", "listSkills",
+      "putCodingVoiceRepository", "putContentStudioPlan", "putObsidianVault", "putOnboarding", "putWikiPath", "setSkillActivation", "stopCodingRun", "updateHermesSkillKey",
     ];
     const mocked = ROUTES.map((route) => route.operationId).sort();
     expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);
