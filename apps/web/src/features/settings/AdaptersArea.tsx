@@ -154,6 +154,7 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
   const items = query.data?.items ?? [];
   const calendar = items.find((item) => item.category === "calendar");
   const calendarUpdate = useUpdateAdapterSettings();
+  const [calendarSource, setCalendarSource] = useState<"google" | "outlook" | "windows" | "ics" | "caldav">("ics");
   const [calendarMode, setCalendarMode] = useState<"ics" | "caldav">("ics");
   const [feedUrl, setFeedUrl] = useState("");
   const [calendarUrl, setCalendarUrl] = useState("");
@@ -163,8 +164,16 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
   const selected = items.find((item) => item.adapterId === selectedId) ?? items[0];
 
   useEffect(() => {
-    setCalendarMode(calendar?.config.mode === "caldav" ? "caldav" : "ics");
+    const mode = calendar?.config.mode === "caldav" ? "caldav" : "ics";
+    setCalendarMode(mode);
+    setCalendarSource(mode);
   }, [calendar?.config.mode]);
+
+  const chooseCalendarSource = (source: typeof calendarSource): void => {
+    setCalendarSource(source);
+    setCalendarMode(source === "caldav" ? "caldav" : "ics");
+    setCalendarMessage("");
+  };
 
   const saveCalendar = async (): Promise<void> => {
     if (!calendar || calendarMode === "ics" && !feedUrl.trim() || calendarMode === "caldav" && (!calendarUrl.trim() || !calendarUsername.trim() || !calendarPassword)) return;
@@ -202,14 +211,24 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
       {!canRead ? <p className="st-muted">{t("settings.adapters.noCapability")}</p> : null}
       {calendar ? <section aria-labelledby="calendar-setup-title" className="st-adapter">
         <h3 id="calendar-setup-title">Kalender verbinden</h3>
-        <p>ICS liest einen freigegebenen Feed, etwa eine private Google- oder Outlook-ICS-URL. CalDAV liest Termine und kann nach ausdrücklicher Bestätigung einen Termin in einer eingerichteten Kalendersammlung anlegen. Die HTTPS-Sammlungsadresse muss mit / enden; der Anbieter muss CalDAV-Schreibzugriff erlauben. Google Calendar und private Outlook-Konten benoetigen fuer direkten Kontozugriff OAuth und sind hier nicht per Passwort anschliessbar. Windows Kalender ist eine App, kein eigener Anbieter.</p>
-        <label>Verbindungsart <select value={calendarMode} onChange={(event) => setCalendarMode(event.target.value as "ics" | "caldav")} disabled={readOnly}><option value="ics">iCalendar/ICS</option><option value="caldav">CalDAV</option></select></label>
+        <p>Wähle, wo dein Kalender liegt. Die Auswahl zeigt nur die passende Anleitung; verbunden wird erst über die ICS- oder CalDAV-Daten und den anschließenden Verbindungstest.</p>
+        <label>Anbieterhilfe für Kalender <select value={calendarSource} onChange={(event) => chooseCalendarSource(event.target.value as typeof calendarSource)} disabled={readOnly}>
+          <option value="google">Google Kalender</option><option value="outlook">Outlook.com</option><option value="windows">Windows Kalender</option><option value="ics">Anderer ICS-Kalender</option><option value="caldav">CalDAV-Anbieter</option>
+        </select></label>
+        <p id="calendar-provider-guidance" className="st-muted">
+          {calendarSource === "google" ? "In Google Kalender: Einstellungen → betreffenden Kalender wählen → Kalender integrieren → Geheimadresse im iCal-Format kopieren. Nur lesen; Google-CalDAV per Passwort wird hier nicht unterstützt." : null}
+          {calendarSource === "outlook" ? "Falls dein Outlook.com-Konto einen HTTPS-ICS-Link bereitstellt, füge ihn hier ein. Prüfe die Freigabe des Links: Ein veröffentlichter Kalender kann für Personen mit dem Link lesbar sein. Direktes Microsoft-Login und Graph-Schreibzugriff sind hier nicht verfügbar." : null}
+          {calendarSource === "windows" ? "Windows Kalender ist eine App, kein eigener Kalenderanbieter. Ermittle das dahinterliegende Konto (zum Beispiel Google oder Outlook) und nutze dessen HTTPS-ICS-Link. Lokale Kalender ohne solchen Link lassen sich hier nicht verbinden." : null}
+          {calendarSource === "ics" ? "Kopiere den privaten HTTPS-ICS-Link deines Anbieters. Friday liest Termine daraus, kann sie aber nicht ändern oder anlegen." : null}
+          {calendarSource === "caldav" ? "Trage die HTTPS-Adresse der Kalendersammlung (mit / am Ende), den Benutzernamen und ein geeignetes Passwort oder App-Passwort ein. Ob Lesen und Schreiben möglich sind, hängt vom Anbieter ab. Google und Outlook.com benötigen für direkten Kontozugriff OAuth; dafür gibt es hier keinen Passwort-Login." : null}
+        </p>
         {calendarMode === "ics" ? <label>Private ICS-URL <input type="password" autoComplete="off" value={feedUrl} onChange={(event) => setFeedUrl(event.target.value)} placeholder="https://.../calendar.ics" disabled={readOnly} /></label> : <>
           <label>CalDAV-Kalendersammlung (HTTPS) <input type="password" autoComplete="off" value={calendarUrl} onChange={(event) => setCalendarUrl(event.target.value)} placeholder="https://.../dav/calendars/.../" disabled={readOnly} /></label>
           <label>Benutzername <input autoComplete="off" value={calendarUsername} onChange={(event) => setCalendarUsername(event.target.value)} disabled={readOnly} /></label>
           <label>Passwort oder App-Passwort <input type="password" autoComplete="new-password" value={calendarPassword} onChange={(event) => setCalendarPassword(event.target.value)} disabled={readOnly} /></label>
         </>}
         <Button type="button" disabled={readOnly || calendarUpdate.isPending || (calendarMode === "ics" ? !feedUrl.trim() : !calendarUrl.trim() || !calendarUsername.trim() || !calendarPassword)} loading={calendarUpdate.isPending} onClick={() => void saveCalendar()}>Kalenderzugang speichern</Button>
+        <p className="st-muted">Nach dem Speichern den Kalender in der Adapterliste wählen und „Verbindung testen“ ausführen. Erst ein erfolgreicher Test bestätigt den Zugriff.</p>
         <p role="status">{calendar.provider === "caldav-calendar" && (calendar.config.mode === "caldav" ? calendar.secretFields.calendarUrl?.configured && calendar.secretFields.username?.configured && calendar.secretFields.password?.configured : calendar.secretFields.feedUrl?.configured) ? (calendar.config.mode === "caldav" ? "CalDAV-Zugang hinterlegt; Lesen und Terminanlage hängen vom Anbieterzugriff ab. Verbindung separat testen." : "ICS-Zugang hinterlegt (nur lesen); Verbindung separat testen.") : "Noch kein Kalenderzugang hinterlegt; Kalenderansicht verwendet Simulation."}</p>
         {calendarMessage ? <p role="status">{calendarMessage}</p> : null}
       </section> : null}
