@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentStudioKeysResponse, HermesSkillKeysResponse, ObsidianVaultResponse, SkillCatalogEntry } from "@friday/sdk";
+import type { ContentStudioKeysResponse, HermesSkillKeyCheckResponse, HermesSkillKeysResponse, ObsidianVaultResponse, SkillCatalogEntry } from "@friday/sdk";
 import { ErrorState, Skeleton } from "@friday/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -95,6 +95,7 @@ export function SkillAccountsArea() {
   const [hermesValues, setHermesValues] = useState<Partial<Record<HermesKey, string>>>({});
   const [hermesBusy, setHermesBusy] = useState<HermesKey | null>(null);
   const [hermesMessage, setHermesMessage] = useState("");
+  const [hermesChecks, setHermesChecks] = useState<Partial<Record<HermesKey, HermesSkillKeyCheckResponse["data"]>>>({});
   const hermesKeys = useQuery({
     queryKey: ["settings", "hermes-skill-keys"],
     queryFn: (): Promise<HermesSkillKeysResponse> => call(getApiClient().GET("/api/v1/settings/hermes-skill-keys")),
@@ -103,6 +104,7 @@ export function SkillAccountsArea() {
   async function updateHermesKey(key: HermesKey, value: string) {
     setHermesBusy(key);
     setHermesMessage("");
+    setHermesChecks((current) => ({ ...current, [key]: undefined }));
     try {
       const result: HermesSkillKeysResponse = await call(getApiClient().PATCH("/api/v1/settings/hermes-skill-keys", { body: { key, value } }));
       setHermesValues((current) => ({ ...current, [key]: "" }));
@@ -111,6 +113,17 @@ export function SkillAccountsArea() {
       setHermesMessage(`${hermesKeyLabels[key]}: ${value ? "Schlüssel gespeichert" : "Schlüssel entfernt"}. ${result.data.applied ? "Hermes-Gateway neu gestartet." : "Gateway-Neustart nicht bestätigt; Änderung möglicherweise erst nach Neustart aktiv."} Anbieterzugriff nicht geprüft.`);
     } catch (error) {
       setHermesMessage(error instanceof Error ? error.message : "Hermes-Schlüssel konnte nicht geändert werden.");
+    } finally { setHermesBusy(null); }
+  }
+  async function checkHermesKey(key: "AIRTABLE_API_KEY" | "NOTION_API_KEY") {
+    setHermesBusy(key);
+    setHermesMessage("");
+    setHermesChecks((current) => ({ ...current, [key]: undefined }));
+    try {
+      const result: HermesSkillKeyCheckResponse = await call(getApiClient().POST("/api/v1/settings/hermes-skill-keys/{key}/check", { params: { path: { key } } }));
+      setHermesChecks((current) => ({ ...current, [key]: result.data }));
+    } catch (error) {
+      setHermesMessage(error instanceof Error ? error.message : "Anbieterprüfung nicht verfügbar.");
     } finally { setHermesBusy(null); }
   }
   const vault = useQuery({
@@ -174,7 +187,7 @@ export function SkillAccountsArea() {
     </section>
     <section aria-labelledby="hermes-key-setup-title">
       <h3 id="hermes-key-setup-title">Hermes-Skill-Schlüssel</h3>
-      <p>Diese vier Schlüssel speichert Friday im installierten Hermes-Konto in Friday-Ubuntu. Der angezeigte Status bestätigt nur, ob ein Wert hinterlegt ist; eine Anmeldung beim Anbieter wird nicht geprüft.</p>
+      <p>Diese vier Schlüssel speichert Friday im installierten Hermes-Konto in Friday-Ubuntu. Der Prüfknopf testet bei Airtable und Notion nur, ob der Anbieter den Token an einem Lese-Endpunkt akzeptiert; Zugriff auf Bases oder Seiten bleibt ungeprüft. Das Ergebnis gilt nur für diese Abfrage und wird nicht gespeichert.</p>
       {role === "owner" ? <>
         {hermesKeys.isError && <p role="alert">Hermes-Schlüsselstatus konnte nicht gelesen werden.</p>}
         {hermesKeys.isPending && <p role="status">Hermes-Schlüsselstatus wird geladen.</p>}
@@ -183,9 +196,13 @@ export function SkillAccountsArea() {
           <input id={`hermes-key-${key}`} type="password" autoComplete="off" value={hermesValues[key] ?? ""}
             onChange={(event) => setHermesValues((current) => ({ ...current, [key]: event.target.value }))}
             aria-describedby={`hermes-state-${key}`} />
-          <span id={`hermes-state-${key}`} className="sk-muted">{hermesKeys.data.data.configured[key] ? "Hinterlegt" : "Fehlt"}; Anbieterzugriff nicht geprüft</span>{" "}
+          <span id={`hermes-state-${key}`} className="sk-muted">{hermesKeys.data.data.configured[key] ? "Hinterlegt" : "Fehlt"}; {hermesChecks[key] ? "letzte Anbieterabfrage unten" : "Anbieterzugriff nicht geprüft"}</span>{" "}
           <button type="button" disabled={hermesBusy !== null || !hermesValues[key]} onClick={() => void updateHermesKey(key, hermesValues[key] ?? "")}>Speichern</button>{" "}
           <button type="button" disabled={hermesBusy !== null || !hermesKeys.data.data.configured[key]} onClick={() => void updateHermesKey(key, "")}>Entfernen</button>
+          {(key === "AIRTABLE_API_KEY" || key === "NOTION_API_KEY") && <>
+            {" "}<button type="button" disabled={hermesBusy !== null || !hermesKeys.data.data.configured[key] || Boolean(hermesValues[key])} onClick={() => void checkHermesKey(key)}>Verbindung prüfen</button>
+            {hermesChecks[key] && <span role="status"> {hermesChecks[key].state === "verified" ? "Token akzeptiert" : hermesChecks[key].state === "missing" ? "Schlüssel fehlt" : hermesChecks[key].state === "rejected" ? "Token abgelehnt" : hermesChecks[key].state === "permission-limited" ? "Zugriff verweigert oder Berechtigung fehlt" : "Anbieter derzeit nicht erreichbar"} ({new Date(hermesChecks[key].checkedAt).toLocaleTimeString("de-DE")}). {key === "AIRTABLE_API_KEY" ? "Zugriff auf Bases ist damit nicht geprüft." : "Zugriff auf Seiten ist damit nicht geprüft."}</span>}
+          </>}
         </div>)}
         {hermesMessage && <p role="status">{hermesMessage}</p>}
       </> : <p>Nur der Owner kann Hermes-Schlüssel verwalten.</p>}

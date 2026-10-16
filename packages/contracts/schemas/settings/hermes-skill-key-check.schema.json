@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/hermes-skill-key-check.schema.json",
+  "title": "HermesSkillKeyCheck",
+  "type": "object",
+  "properties": {
+    "key": { "enum": ["AIRTABLE_API_KEY", "NOTION_API_KEY"] },
+    "state": { "enum": ["verified", "missing", "rejected", "permission-limited", "unavailable"] },
+    "checkedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["key", "state", "checkedAt"],
+  "additionalProperties": false
+}

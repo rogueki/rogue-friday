@@ -50,6 +50,7 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   getObsidianVault: "settings.update",
   getHermesSkillKeys: "settings.update",
   updateHermesSkillKey: "settings.update",
+  checkHermesSkillKey: "settings.update",
   getCodingVoiceRepository: "settings.update",
   putCodingVoiceRepository: "settings.update",
   createCodingRun: "settings.update",

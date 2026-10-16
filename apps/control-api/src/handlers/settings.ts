@@ -20,6 +20,12 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     ctx.audit.after = { key, configured: status.configured[key as keyof typeof status.configured], applied: status.applied };
     return { status: 200, body: single(status) };
   },
+  async checkHermesSkillKey(ctx) {
+    const result = await ctx.runtime.hermesSkillKeys.check(ctx.pathParams.key as string);
+    ctx.audit.action = "settings.hermes_skill_key_checked";
+    ctx.audit.after = { key: result.key, state: result.state };
+    return { status: 200, body: single(result) };
+  },
   async getObsidianVault(ctx) {
     return { status: 200, body: single(await ctx.runtime.obsidianVault.status()) };
   },

@@ -203,7 +203,7 @@ describe("REST route coverage", () => {
     const yaml = readFileSync(resolve(__dirname, "../../contracts/openapi/friday-api.yaml"), "utf8");
     const contract = [...yaml.matchAll(/operationId:\s*(\w+)/g)].map((match) => match[1] as string).sort();
     const liveOnly = [
-      "cancelContentProductionJob", "createCodingRun", "createContentProductionJob", "createVoiceCodingRun", "getCodingRun", "getCodingVoiceRepository",
+      "cancelContentProductionJob", "checkHermesSkillKey", "createCodingRun", "createContentProductionJob", "createVoiceCodingRun", "getCodingRun", "getCodingVoiceRepository",
       "getContentProductionArtifact", "getContentProductionJob", "getContentStudioPlan", "getHermesSkillKeys", "getObsidianVault", "getOnboarding", "listSkills",
       "putCodingVoiceRepository", "putContentStudioPlan", "putObsidianVault", "putOnboarding", "setSkillActivation", "stopCodingRun", "updateHermesSkillKey",
     ];
