@@ -10,6 +10,7 @@ import { useCapability } from "@/lib/capabilities";
 import { severityFromWire } from "../shared/presentation";
 import { DataBadges } from "../memory/kit/Badges";
 import { useFormat } from "../memory/kit/hooks";
+import { useSession } from "@/lib/session";
 import { QueryBoundary } from "../memory/kit/QueryBoundary";
 import { conflictKindKey, RESPONSE_TONE, responseKey, STATUS_TONE, statusKey } from "./labels";
 
@@ -17,9 +18,10 @@ export interface EventDrawerProps {
   id: string | null;
   onClose: () => void;
   onPropose: (type: CalendarProposalType, event: CalendarEvent) => void;
+  onEditLocal: (event: CalendarEvent) => void;
 }
 
-export function EventDrawer({ id, onClose, onPropose }: EventDrawerProps) {
+export function EventDrawer({ id, onClose, onPropose, onEditLocal }: EventDrawerProps) {
   const { t } = useT();
   const query = useCalendarEvent(id);
   return (
@@ -33,15 +35,16 @@ export function EventDrawer({ id, onClose, onPropose }: EventDrawerProps) {
       closeLabel={t("common.close")}
       width={540}
     >
-      <QueryBoundary query={query}>{(response) => <EventDetail event={response.data} freshness={response.freshness} onPropose={onPropose} />}</QueryBoundary>
+      <QueryBoundary query={query}>{(response) => <EventDetail event={response.data} freshness={response.freshness} onPropose={onPropose} onEditLocal={onEditLocal} />}</QueryBoundary>
     </Drawer>
   );
 }
 
 const statusLabel = (event: CalendarEvent, t: ReturnType<typeof useT>["t"]): string => t(statusKey(event.status));
 
-function EventDetail({ event, freshness, onPropose }: { event: CalendarEvent; freshness: { state: "fresh" | "stale" | "unknown" | "offline-cache"; asOf: string | null }; onPropose: EventDrawerProps["onPropose"] }) {
+function EventDetail({ event, freshness, onPropose, onEditLocal }: { event: CalendarEvent; freshness: { state: "fresh" | "stale" | "unknown" | "offline-cache"; asOf: string | null }; onPropose: EventDrawerProps["onPropose"]; onEditLocal: EventDrawerProps["onEditLocal"] }) {
   const { t } = useT();
+  const session = useSession();
   const router = useRouter();
   const format = useFormat();
   const conflicts = useCalendarConflicts();
@@ -204,7 +207,9 @@ function EventDetail({ event, freshness, onPropose }: { event: CalendarEvent; fr
         </dl>
       </section>
 
-      <div className="mk-actions" role="group" aria-label={t("calendar.actions")}>
+      {event.source.adapterId === "friday-local-calendar" ? (
+        session.role === "owner" ? <Button size="sm" onClick={() => onEditLocal(event)}>Termin bearbeiten oder löschen</Button> : null
+      ) : <><div className="mk-actions" role="group" aria-label={t("calendar.actions")}>
         <Button size="sm" variant="ghost" icon={<CalendarClock size={14} />} disabled={!can.reschedule || event.status === "cancelled"} title={!can.reschedule ? t("calendar.proposal.notAllowed") : undefined} onClick={() => onPropose("reschedule", event)}>
           {t("calendar.proposal.type.reschedule")}
         </Button>
@@ -218,7 +223,7 @@ function EventDetail({ event, freshness, onPropose }: { event: CalendarEvent; fr
           {t("calendar.proposal.type.respond")}
         </Button>
       </div>
-      <p className="mk-note">{t("calendar.proposal.approvalRule")}</p>
+      <p className="mk-note">{t("calendar.proposal.approvalRule")}</p></>}
     </div>
   );
 }

@@ -2517,6 +2517,81 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: calendar.read
       x-required-role: viewer
+  /api/v1/calendar/local/events:
+    post:
+      operationId: createLocalCalendarEvent
+      tags: [calendar]
+      summary: Create an event in Friday's local calendar
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LocalEventRequest" }
+      responses:
+        "201":
+          description: Created local event
+          headers:
+            Idempotent-Replayed: { $ref: "#/components/headers/IdempotentReplayed" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalendarEventResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-required-role: owner
+  /api/v1/calendar/local/events/{id}:
+    put:
+      operationId: updateLocalCalendarEvent
+      tags: [calendar]
+      summary: Update a local event at its current revision
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LocalEventRequest" }
+      responses:
+        "200":
+          description: Updated local event
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalendarEventResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-required-role: owner
+    delete:
+      operationId: deleteLocalCalendarEvent
+      tags: [calendar]
+      summary: Delete a local event at its current revision
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Deleted local event
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalendarEventResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-required-role: owner
   /api/v1/calendar/caldav/preview:
     post:
       operationId: previewCalDavEvent
@@ -6578,6 +6653,8 @@ components:
       $ref: ../schemas/communication/himalaya-message-response.schema.json
     CalDavEventPreviewRequest:
       $ref: ../schemas/calendar/caldav-event-preview-request.schema.json
+    LocalEventRequest:
+      $ref: ../schemas/calendar/local-event-request.schema.json
     CalDavEventPreviewResponse:
       $ref: ../schemas/calendar/caldav-event-preview-response.schema.json
     CalDavEventCreateRequest:

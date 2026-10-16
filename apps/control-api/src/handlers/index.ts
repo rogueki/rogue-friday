@@ -13,10 +13,12 @@ import { settingsHandlers } from "./settings";
 import { contentStudioHandlers } from "./content-studio";
 import { skillsHandlers } from "./skills";
 import { caldavHandlers } from "./caldav";
+import { localCalendarHandlers, localCalendarReads } from "./local-calendar";
 
 /** Port-backed operations come from `PORT_SPEC`; the explicit handlers add enforcement or are served locally. */
 export function buildHandlers(): Map<OperationId, Handler> {
   const handlers = buildPortHandlers();
+  const localReads = localCalendarReads(handlers.get("listCalendarEvents")!, handlers.get("getCalendarEvent")!);
   const overrides: Array<Partial<Record<OperationId, Handler>>> = [
     metaHandlers,
     authHandlers,
@@ -24,6 +26,8 @@ export function buildHandlers(): Map<OperationId, Handler> {
     contentStudioHandlers,
     skillsHandlers,
     caldavHandlers,
+    localCalendarHandlers,
+    localReads,
     devHandlers,
     approvalHandlers,
     adapterHandlers,

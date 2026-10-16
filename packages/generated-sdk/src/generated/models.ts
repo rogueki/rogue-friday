@@ -308,6 +308,7 @@ export interface FridayModelMap {
   LayoutResponse: LayoutResponse;
   LayoutWidget: LayoutWidget;
   ListEnvelope: ListEnvelope;
+  LocalEventRequest: LocalEventRequest;
   LoginRequest: LoginRequest;
   Memory: Memory;
   MemoryConflict: MemoryConflict;
@@ -2480,6 +2481,12 @@ export interface ListEnvelope {
   pageInfo: PageInfo;
   freshness: Freshness;
   sources: SourceDescriptor[];
+}
+export interface LocalEventRequest {
+  title: string;
+  start: string;
+  end: string;
+  timeZone: string;
 }
 export interface LoginRequest {
   username: string;
