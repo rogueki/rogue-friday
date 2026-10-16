@@ -162,14 +162,15 @@ describe("skills and resumable onboarding", () => {
       requiredCapabilities: [expect.stringContaining("python-pptx")] });
     expect(byName.get("airtable")).toMatchObject({ accounts: ["hermes_airtable"], integrationDetails: [{ account: "required", required: true }],
       requiredCapabilities: [expect.stringContaining("Personal Access Token")] });
-    expect(byName.get("opencode")).toMatchObject({ accounts: ["hermes_opencode"], integrationDetails: [{ account: "conditional", required: true }],
+    expect(byName.get("opencode")).toMatchObject({ accounts: ["hermes_opencode"], integrationDetails: [{ account: "conditional", required: false }],
       setupRefs: [], requiredCapabilities: [expect.stringMatching(/OpenCode.*CLI/)] });
     expect(byName.get("email-inbox-triage")).toMatchObject({ accounts: ["hermes_email_inbox_triage"],
       integrationDetails: [{ account: "conditional", setupDe: expect.stringContaining("Himalaya"), settingsTarget: "Hermes-Einstellungen in Friday-Ubuntu" }],
       requiredCapabilities: [expect.stringContaining("Google-Workspace-Connector")] });
-    expect(byName.get("llm-wiki")).toMatchObject({ accounts: ["hermes_llm_wiki"],
-      integrationDetails: [{ account: "conditional", setupDe: expect.stringContaining("aktivem Sync-Abonnement") }],
-      requiredCapabilities: [expect.stringContaining("Markdown-Pfad")] });
+    expect(byName.get("llm-wiki")).toMatchObject({ accounts: ["hermes_llm_wiki_sync"],
+      integrationDetails: [{ account: "none", required: true, setupDe: expect.stringContaining("Markdown-Wiki") },
+        { account: "conditional", required: false, setupDe: expect.stringContaining("Sync-Abonnement") }],
+      requiredCapabilities: [expect.stringContaining("Markdown-Ordner")] });
     expect(byName.get("blocked-page-recovery")).toMatchObject({ accounts: ["hermes_blocked_page_recovery"],
       integrationDetails: [{ account: "conditional", setupDe: expect.stringContaining("JINA_API_KEY") }],
       requiredCapabilities: [expect.stringContaining("Jina-API-Key")] });
@@ -277,6 +278,22 @@ describe("skills and resumable onboarding", () => {
       expect(status("hermes:teams-meeting-pipeline", unknown)).toMatchObject({ configured: null, connectionChecked: null });
       expect(status("friday:vault-skill", unknown)).toMatchObject({ configured: null, connectionChecked: null });
     } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it("reports llm-wiki local readiness separately from optional Obsidian Sync", async () => {
+    const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
+      ? Response.json({ skills: [{ name: "llm-wiki", enabled: true }] })
+      : new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
+    let readable = false;
+    const service = new SkillsService({ dashboardUrl: "http://127.0.0.1:43791", fetcher,
+      wikiPathStatus: async () => ({ configured: readable, readable }), });
+    const details = async () => (await service.list()).skills.find((entry) => entry.id === "hermes:llm-wiki")?.integrationDetails;
+    expect(await details()).toMatchObject([
+      { id: "hermes_llm_wiki", required: true, account: "none", configured: false, connectionChecked: null },
+      { id: "hermes_llm_wiki_sync", required: false, account: "conditional", configured: null, connectionChecked: null },
+    ]);
+    readable = true;
+    expect((await details())?.[0]).toMatchObject({ configured: true, connectionChecked: null });
   });
 
   const realCatalog = resolve(process.cwd(), "..", "..", "Skills", "registry", "integration_setup.json");

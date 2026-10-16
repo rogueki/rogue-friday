@@ -33,6 +33,7 @@ import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, sum
 import { SettingsService, seedLibrary } from "../services/settings";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
+import { WikiPathService } from "../services/wiki-path";
 import { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import { CodingRunsService } from "../services/coding-runs";
 import { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
@@ -224,6 +225,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const contentStudioPlan = new ContentStudioPlanService(db);
   const onboarding = new OnboardingService(db);
   const obsidianVault = new ObsidianVaultService(config.paths.dataDir);
+  const wikiPath = new WikiPathService(config.paths.dataDir);
   const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
   const skills = new SkillsService({
@@ -233,6 +235,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     configuredIntegrations: () => contentStudioKeys.status(),
     hermesKeyStatus: () => hermesSkillKeys.status(),
     obsidianVaultStatus: () => obsidianVault.status(),
+    wikiPathStatus: () => wikiPath.status(),
   });
   const codingRuns = new CodingRunsService(config, skills, env);
   const codingVoiceRepository = new CodingVoiceRepositoryService(db, codingRuns);
@@ -416,6 +419,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     skills,
     onboarding,
     obsidianVault,
+    wikiPath,
     hermesSkillKeys,
     codingRuns,
     codingVoiceRepository,
