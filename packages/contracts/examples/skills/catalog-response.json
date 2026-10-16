@@ -25,6 +25,13 @@
         "setupDe": "Suchkonto einrichten",
         "reference": "docs/SEARCH.md",
         "settingsTarget": "/settings",
+        "permissions": {
+          "required_prerequisites": [{ "kind": "provider_account", "status": "required", "notice": "Suchkonto und erforderliche Rechte beim Anbieter einrichten." }],
+          "optional_prerequisites": [],
+          "scope_status": "unknown",
+          "scope_notice": "Konkrete Anbieter-Scopes sind für diese Beispielintegration nicht katalogisiert."
+        },
+        "cost": { "model": "unknown", "notice": "Mögliche Anbieterkosten vor der Nutzung prüfen." },
         "configured": null,
         "connectionChecked": null
       }],

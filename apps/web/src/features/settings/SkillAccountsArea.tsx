@@ -1,6 +1,7 @@
 "use client";
 
 import type { CodingCliStatusResponse, ContentStudioKeysResponse, HermesSkillKeyCheckResponse, HermesSkillKeysResponse, ObsidianVaultResponse, WikiPathResponse, SkillCatalogEntry } from "@friday/sdk";
+import { IntegrationRequirements } from "../skills/IntegrationRequirements";
 import { ErrorState, Skeleton } from "@friday/ui";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -379,6 +380,7 @@ export function SkillAccountsArea() {
         <h3>{item.id.replaceAll("_", " ")}</h3>
         <p className="sk-muted">{item.account === "none" ? "Kein externes Konto" : item.account === "required" ? "Konto erforderlich" : "Konto je nach Nutzung"} · {setup.state}</p>
         <p>{item.setupDe}</p>
+        <IntegrationRequirements item={item} />
         {item.requiredBy.length > 0 && <p className="sk-muted">Benötigt von: {item.requiredBy.slice(0, 8).join(", ")}{item.requiredBy.length > 8 ? ` und ${item.requiredBy.length - 8} weiteren` : ""}</p>}
         {setup.href && role === "owner" && <a href={setup.href}>{setup.action}</a>}
         {setup.href && role !== "owner" && <p className="sk-muted">Nur der Owner kann diesen Schlüssel im Dashboard einrichten.</p>}

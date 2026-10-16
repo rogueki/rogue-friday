@@ -30,6 +30,26 @@
         "setupDe": { "type": "string" },
         "reference": { "type": "string" },
         "settingsTarget": { "type": "string" },
+        "permissions": {
+          "type": "object",
+          "properties": {
+            "required_prerequisites": { "type": "array", "items": { "$ref": "#/$defs/prerequisite" } },
+            "optional_prerequisites": { "type": "array", "items": { "$ref": "#/$defs/prerequisite" } },
+            "scope_status": { "enum": ["unknown", "not_required"] },
+            "scope_notice": { "type": "string" }
+          },
+          "required": ["required_prerequisites", "optional_prerequisites", "scope_status", "scope_notice"],
+          "additionalProperties": false
+        },
+        "cost": {
+          "type": "object",
+          "properties": {
+            "model": { "enum": ["host_resources", "provider_usage", "subscription_license", "none", "unknown"] },
+            "notice": { "type": "string" }
+          },
+          "required": ["model", "notice"],
+          "additionalProperties": false
+        },
         "configured": { "type": ["boolean", "null"] },
         "connectionChecked": { "type": ["boolean", "null"] }
       },
@@ -38,5 +58,13 @@
     } }
   },
   "required": ["id", "source", "name", "category", "description", "version", "packaged", "discovered", "enabled", "observedAt", "observationSource", "observationError", "accounts", "setupRefs", "integrationRefs", "integrationDetails", "requiredCapabilities", "conditionalCapabilities"],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "prerequisite": {
+      "type": "object",
+      "properties": { "kind": { "type": "string" }, "status": { "enum": ["required", "optional"] }, "notice": { "type": "string" } },
+      "required": ["kind", "status", "notice"],
+      "additionalProperties": false
+    }
+  }
 }

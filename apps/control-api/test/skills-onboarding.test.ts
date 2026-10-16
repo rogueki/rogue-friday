@@ -497,3 +497,24 @@ describe("skills and resumable onboarding", () => {
     expect(result.skills.every((skill) => skill.source === "friday" && skill.packaged && skill.enabled === null)).toBe(true);
   });
 });
+
+it("preserves version 2 permission and cost metadata and marks legacy gaps unknown", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "friday-skill-rights-"));
+  try {
+    writeFileSync(join(dir, "skills.json"), JSON.stringify({ skills: [{ id: "rights-example", category: "Test", description: "Test" }] }));
+    const metadata = { schema_version: 2, inventory_count: 1,
+      integrations: { provider: { account: "required", setup_de: "Anbieter einrichten", permissions: {
+        required_prerequisites: [{ kind: "provider_account", status: "required", notice: "Konto mit Leserecht" }],
+        optional_prerequisites: [], scope_status: "unknown", scope_notice: "Konkrete Scopes beim Anbieter prüfen"
+      }, cost: { model: "provider_usage", notice: "Nutzung beim Anbieter prüfen" } } },
+      skills: { "rights-example": { required_integrations: ["provider"], conditional_integrations: [] } } };
+    writeFileSync(join(dir, "integration_setup.json"), JSON.stringify(metadata));
+    const service = new SkillsService({ catalogPath: join(dir, "integration_setup.json") });
+    const current = (await service.list()).skills[0]?.integrationDetails[0];
+    expect(current).toMatchObject({ permissions: { required_prerequisites: [{ kind: "provider_account", status: "required", notice: "Konto mit Leserecht" }], scope_status: "unknown" }, cost: { model: "provider_usage", notice: "Nutzung beim Anbieter prüfen" } });
+    writeFileSync(join(dir, "integration_setup.json"), JSON.stringify({ ...metadata, schema_version: 1,
+      integrations: { provider: { account: "required", setup_de: "Anbieter einrichten" } } }));
+    const legacy = (await service.list()).skills[0]?.integrationDetails[0];
+    expect(legacy).toMatchObject({ permissions: { scope_status: "unknown", scope_notice: expect.stringContaining("nicht vollständig katalogisiert") }, cost: { model: "unknown" } });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
