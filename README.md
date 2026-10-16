@@ -11,6 +11,7 @@ prozedural gerenderten Orb als AI-Core.
 - **Übergabe an einen Kollegen** (Lieferumfang, neue Anbindung in 10 Schritten, echte Dienste, Fehlersuche): [`docs/HANDOFF.md`](docs/HANDOFF.md)
 - **Architektur** (Frontend, Control API, Adapter und Integration): [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - **Deployment auf Windows 11** (Pfade, Betriebsmodi, Ports, Geheimnisse, Logs): [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+- **Sprachdialog und Modellrouting** (lokale Antworten, Kimi-Stufen, Folgefragen, gemessene Latenz): [`docs/MODEL_ROUTING.md`](docs/MODEL_ROUTING.md)
 - **Optionaler Pascal/GTX-1060-TTS-Fix** (nur bei belegtem CPU-Fallback): [`docs/OPTIONAL_QWENTTS_SM61.md`](docs/OPTIONAL_QWENTTS_SM61.md)
 - **Tests** (Unit, Conformance, Integration, E2E, Visual, Accessibility): [`docs/TESTING.md`](docs/TESTING.md)
 - Adapter: [`docs/ADAPTER_SDK.md`](docs/ADAPTER_SDK.md), Konformität [`docs/ADAPTER_CONFORMANCE.md`](docs/ADAPTER_CONFORMANCE.md), Feldzuordnungen [`docs/MAPPING/`](docs/MAPPING/README.md)

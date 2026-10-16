@@ -57,9 +57,9 @@ Du bist zugleich der lokale Router. Antworte mit GENAU einer Zeile:
 ROUTE|BG|CONFIRM|PRIO|ANTWORT
 ROUTE:
 - L = lokal: Smalltalk, Uhrzeit/Datum, Rechnen, einfache Wissensfragen. ANTWORT = 1-2 kurze gesprochene Saetze, kein Markdown.
-- K1 = Kimi Routine: braucht Tools/Daten (Mails, Kalender, Dateien, Status, Erinnerungen, Kanban, Notizen).
-- K2 = Kimi komplex: Recherche, Analyse, laengere Texte, Code, Praesentationen.
-- K3 = Kimi maximal: kritisch/sehr komplex mit hohem Risiko.
+- K1 = Cloud Routine: braucht Tools/Daten (Mails, Kalender, Dateien, Status, Erinnerungen, Kanban, Notizen).
+- K2 = Cloud komplex: Recherche, Analyse, laengere Texte, Code, Praesentationen.
+- K3 = Cloud maximal: kritisch/sehr komplex mit hohem Risiko.
 BG = 1 nur wenn die Aufgabe laenger als etwa eine Minute dauert (Recherche, Analyse, Erstellung), sonst 0.
 CONFIRM = 1 bei Senden, Loeschen, Kaufen, Termin aendern, Zahlungen, sonst 0.
 PRIO = P0 (Notfall) bis P4 (Info).
@@ -77,7 +77,9 @@ bit ::= "0" | "1"
 prio ::= "P0" | "P1" | "P2" | "P3" | "P4"
 text ::= [^\n|]*'''
 
-ROUTE_NAMES = {"L": "local", "K1": "kimi_low", "K2": "kimi_high", "K3": "kimi_max"}
+ROUTE_NAMES = {"L": "local", "K1": "cloud_low", "K2": "cloud_high", "K3": "cloud_max"}
+ROUTE_EFFORT = {"cloud_low": "none", "cloud_high": "high", "cloud_max": "max"}
+KIMI_MODELS = {"cloud_low": "kimi-for-coding", "cloud_high": "k3", "cloud_max": "k3"}
 
 # Standardwerte (Friday); der Installer schreibt Name, Persona und Sprachbausteine in config\voice.json.
 DEFAULT_NAME = "Friday"
@@ -152,6 +154,7 @@ class Speaker:
         self.tts_url = tts_url
         self.tts_config = tts_config or {}
         self.cache: dict[str, tuple[bytes, int]] = {}
+        self.qwen_cache: collections.OrderedDict[str, tuple[np.ndarray, int]] = collections.OrderedDict()
         self.queue: queue.Queue[str] = queue.Queue()
         self.stop_flag = threading.Event()
         self.speaking = threading.Event()
@@ -229,10 +232,22 @@ class Speaker:
     def _play_qwen(self, text: str) -> None:
         import qwen_tts
         from audio_output import for_output_device
-        result = qwen_tts.synthesize(text, self.tts_config, self.stop_flag)
-        if result is None:
-            return
-        audio, rate = result
+        cached = text in self.qwen_cache
+        started = time.monotonic()
+        if cached:
+            audio, rate = self.qwen_cache[text]
+            self.qwen_cache.move_to_end(text)
+        else:
+            result = qwen_tts.synthesize(text, self.tts_config, self.stop_flag)
+            if result is None:
+                return
+            audio, rate = result
+            if len(text) <= self.CACHE_MAX_CHARS:
+                self.qwen_cache[text] = (audio, rate)
+                if len(self.qwen_cache) > 32:
+                    self.qwen_cache.popitem(last=False)
+        log_event(event="tts_synthesis", backend="qwen3", cached=cached,
+                  duration_s=round(time.monotonic() - started, 2), audio_s=round(len(audio) / rate, 2))
         if self.film_filter:
             from film_filter import FilmFilter
             effect = FilmFilter(rate, True)
@@ -475,22 +490,28 @@ class VoiceService:
             route, bg, confirm, prio, answer = content.strip().split("|", 4)
             return {"route": ROUTE_NAMES[route], "background": bg == "1", "needs_confirmation": confirm == "1",
                     "priority": prio, "intent": route, "answer": answer.strip()}
-        except Exception as exc:  # Plan: ungueltige Ausgabe / Qwen down -> kimi_low
+        except Exception as exc:  # Ungueltige Ausgabe / Qwen down -> schneller Cloud-Pfad
             log_event(event="router_fallback", error=str(exc))
-            return {"route": "kimi_low", "background": False, "priority": "P3", "needs_confirmation": False,
+            return {"route": "cloud_low", "background": False, "priority": "P3", "needs_confirmation": False,
                     "intent": "fallback", "answer": ""}
 
     def _ask_hermes(self, text: str, decision: dict, task_id: str) -> str:
-        effort = {"kimi_low": "low", "kimi_high": "high", "kimi_max": "max"}[decision["route"]]
-        payload = {"model": self.cfg.get("hermes_model", "friday"), "messages": [
+        route = decision["route"]
+        provider = self.cfg.get("cloud_provider", "kimi-coding")
+        models = self.cfg.get("cloud_models") or (KIMI_MODELS if provider == "kimi-coding" else {})
+        model = models.get(route) or self.cfg.get("hermes_model", "friday")
+        effort = ROUTE_EFFORT[route]
+        payload = {"model": model, "model_options": {"reasoning_effort": effort}, "messages": [
             {"role": "system", "content": HERMES_VOICE_SYSTEM.format(effort=effort)},
             *self.history[-6:], {"role": "user", "content": text}]}
+        if model != self.cfg.get("hermes_model", "friday"):
+            payload["provider"] = provider
         t = time.monotonic()
         try:
             resp = post_json(self.cfg["hermes_url"], payload, {"Authorization": f"Bearer {self.hermes_key}"},
                              timeout=900)
             answer = resp["choices"][0]["message"]["content"].strip()
-            log_event(event="hermes_done", task_id=task_id, route=decision["route"],
+            log_event(event="hermes_done", task_id=task_id, route=route, model=model, provider=provider,
                       duration_s=round(time.monotonic() - t, 2), success=True)
             return answer
         except Exception as exc:
@@ -550,7 +571,8 @@ class VoiceService:
             self.tts.say(self.cfg.get("ack_background", DEFAULT_ACK_BACKGROUND))
             threading.Thread(target=self._background, args=(text, decision, task_id), daemon=True).start()
             return
-        self.tts.say(self.cfg.get("ack_wait", DEFAULT_ACK_WAIT))
+        if decision["route"] != "cloud_low":
+            self.tts.say(self.cfg.get("ack_wait", DEFAULT_ACK_WAIT))
         answer = self._ask_hermes(text, decision, task_id)
         print(f"< {answer}", flush=True)
         self.tts.say(answer)
@@ -668,7 +690,7 @@ class VoiceService:
             log_event(event="no_speech_after_wake")
         else:
             self._handle_command(audio, wake_audio)
-        while time.monotonic() < self.trusted_until:
+        while self.tts.speaking.is_set() or time.monotonic() < self.trusted_until:
             self.status["state"] = "speaking"
             interrupted = False
             self._drain()  # waehrend der Verarbeitung aufgelaufenes Audio nicht als Barge-In auswerten
@@ -684,6 +706,8 @@ class VoiceService:
                 if audio is not None:
                     self._handle_command(audio, wake_audio)
                 continue
+            # Berechnung und TTS duerfen die Folgefragezeit nicht aufbrauchen.
+            self.trusted_until = time.monotonic() + cfg["followup_window_s"]
             self.status["state"] = "followup"
             audio = self._record_command(cfg["followup_window_s"])
             if audio is None:
