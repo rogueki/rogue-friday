@@ -20,8 +20,8 @@ describe("assistant name interpolation", () => {
     expect(resolveAssistantName(" Nova ")).toBe("Nova");
   });
 
-  it("keeps no hardcoded legacy brand in the dictionaries", () => {
+  it("keeps no hardcoded Jarvis brand in the dictionaries", () => {
     for (const dictionary of [de, en])
-      for (const value of Object.values(dictionary)) expect(value).not.toMatch(/friday/i);
+      for (const value of Object.values(dictionary)) expect(value).not.toMatch(/jarvis/i);
   });
 });

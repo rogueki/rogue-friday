@@ -125,8 +125,9 @@ describe("navigation settings", () => {
     await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
     const navigation = (api.find("PATCH", "/settings")[0]?.body as { navigation: { order: string[]; hidden: string[]; defaultPage: string } }).navigation;
     expect(navigation.order.slice(0, 3)).toEqual(["tasks", "overview", "activity"]);
-    expect(navigation.order).toHaveLength(17);
+    expect(navigation.order).toHaveLength(18);
     expect(navigation.order).toContain("content-studio");
+    expect(navigation.order).toContain("skills");
     expect(navigation.hidden).toEqual(["memory"]);
   });
 
