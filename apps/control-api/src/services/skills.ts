@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { SkillCatalogEntry } from "@friday/sdk";
+import type { CodingCliStatus } from "./coding-runs";
 import { ApiError, notFound, validationFailed } from "../util/errors";
 
 type Json = Record<string, unknown>;
@@ -13,6 +14,9 @@ type HimalayaFlags = Readonly<{ readyForLocalUse: boolean }>;
 const HERMES_KEY_INTEGRATIONS = {
   hermes_airtable: "AIRTABLE_API_KEY", hermes_notion: "NOTION_API_KEY",
   hermes_gif_search: "TENOR_API_KEY", hermes_blocked_page_recovery: "JINA_API_KEY",
+} as const;
+const CODING_CLI_INTEGRATIONS = {
+  hermes_codex: "codex", hermes_opencode: "opencode", hermes_claude_code: "claude-code",
 } as const;
 
 const slug = (value: string): string => value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
@@ -104,6 +108,7 @@ export class SkillsService {
   private readonly obsidianVaultStatus: (() => Promise<VaultFlags>) | undefined;
   private readonly wikiPathStatus: (() => Promise<WikiFlags>) | undefined;
   private readonly himalayaAccountStatus: (() => Promise<HimalayaFlags>) | undefined;
+  private readonly codingCliStatus: (() => Promise<CodingCliStatus[]>) | undefined;
   private token: string | undefined;
 
   constructor(options: { catalogPath?: string; dashboardUrl?: string; fetcher?: typeof fetch;
@@ -111,7 +116,8 @@ export class SkillsService {
     hermesKeyStatus?: () => Promise<{ configured: HermesKeyFlags }>;
     obsidianVaultStatus?: () => Promise<VaultFlags>;
     wikiPathStatus?: () => Promise<WikiFlags>;
-    himalayaAccountStatus?: () => Promise<HimalayaFlags> }) {
+    himalayaAccountStatus?: () => Promise<HimalayaFlags>;
+    codingCliStatus?: () => Promise<CodingCliStatus[]> }) {
     this.fetcher = options.fetcher ?? fetch;
     this.catalogPath = options.catalogPath;
     this.configuredIntegrations = options.configuredIntegrations;
@@ -119,6 +125,7 @@ export class SkillsService {
     this.obsidianVaultStatus = options.obsidianVaultStatus;
     this.wikiPathStatus = options.wikiPathStatus;
     this.himalayaAccountStatus = options.himalayaAccountStatus;
+    this.codingCliStatus = options.codingCliStatus;
     if (options.dashboardUrl) {
       const url = new URL(options.dashboardUrl);
       if (url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.username || url.password || url.search || url.hash) {
@@ -249,11 +256,13 @@ export class SkillsService {
     const needsVault = integrationIds.has("obsidian") || integrationIds.has("hermes_obsidian");
     const needsWiki = integrationIds.has("hermes_llm_wiki");
     const needsHimalaya = integrationIds.has("hermes_himalaya");
-    const [hermesKeys, vault, wiki, himalaya] = await Promise.all([
+    const needsCodingCli = Object.keys(CODING_CLI_INTEGRATIONS).some((id) => integrationIds.has(id));
+    const [hermesKeys, vault, wiki, himalaya, codingClis] = await Promise.all([
       needsHermesKeys && this.hermesKeyStatus ? Promise.resolve().then(() => this.hermesKeyStatus!()).catch(() => null) : Promise.resolve(null),
       needsVault && this.obsidianVaultStatus ? Promise.resolve().then(() => this.obsidianVaultStatus!()).catch(() => null) : Promise.resolve(null),
       needsWiki && this.wikiPathStatus ? Promise.resolve().then(() => this.wikiPathStatus!()).catch(() => null) : Promise.resolve(null),
       needsHimalaya && this.himalayaAccountStatus ? Promise.resolve().then(() => this.himalayaAccountStatus!()).catch(() => null) : Promise.resolve(null),
+      needsCodingCli && this.codingCliStatus ? Promise.resolve().then(() => this.codingCliStatus!()).catch(() => null) : Promise.resolve(null),
     ]);
     for (const skill of skills) skill.integrationDetails = skill.integrationDetails.map((detail) => {
       const key = HERMES_KEY_INTEGRATIONS[detail.id as keyof typeof HERMES_KEY_INTEGRATIONS];
@@ -267,6 +276,13 @@ export class SkillsService {
         configured: wiki ? wiki.configured && wiki.readable : null };
       if (detail.id === "hermes_himalaya") return { ...detail,
         configured: himalaya ? himalaya.readyForLocalUse : null };
+      const cli = CODING_CLI_INTEGRATIONS[detail.id as keyof typeof CODING_CLI_INTEGRATIONS];
+      if (cli) {
+        const status = codingClis?.find((entry) => entry.cli === cli);
+        const configured = !status ? null : !status.installed ? false : status.authState === "unknown" ? null
+          : status.authState === "signed_in" || status.authState === "stored_credentials";
+        return { ...detail, configured };
+      }
       return detail;
     });
     skills.sort((a, b) => a.id.localeCompare(b.id));

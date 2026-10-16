@@ -174,7 +174,51 @@ describe("skills and resumable onboarding", () => {
     expect(byName.get("blocked-page-recovery")).toMatchObject({ accounts: ["hermes_blocked_page_recovery"],
       integrationDetails: [{ account: "conditional", setupDe: expect.stringContaining("JINA_API_KEY") }],
       requiredCapabilities: [expect.stringContaining("Jina-API-Key")] });
-    expect(byName.get("hermes-agent")).toMatchObject({ accounts: [], integrationDetails: [], requiredCapabilities: [], conditionalCapabilities: [] });
+    expect(byName.get("hermes-agent")).toMatchObject({ accounts: [],
+      integrationDetails: [{ account: "none", configured: null, connectionChecked: null }],
+      requiredCapabilities: [expect.stringContaining("Hermes-Installation")], conditionalCapabilities: [] });
+  });
+
+  it("reports native coding CLI readiness without conflating it with Hermes activation or exposing status details", async () => {
+    const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
+      ? Response.json({ skills: [
+        { name: "codex", enabled: true }, { name: "opencode", enabled: false }, { name: "claude-code", enabled: true },
+      ] })
+      : new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
+    let failed = false;
+    let unknown = false;
+    let opencodeSignedOut = false;
+    let reads = 0;
+    const service = new SkillsService({ dashboardUrl: "http://127.0.0.1:43791", fetcher,
+      codingCliStatus: async () => {
+        reads += 1;
+        if (failed) throw new Error("private WSL failure detail");
+        return [
+          { cli: "codex", installed: true, version: "1.2.3", authState: unknown ? "unknown" : "signed_in" },
+          { cli: "opencode", installed: true, version: "2.3.4", authState: opencodeSignedOut ? "signed_out" : "stored_credentials" },
+          { cli: "claude-code", installed: false, version: null, authState: "signed_in" },
+        ];
+      },
+    });
+    const status = async () => {
+      const listed = await service.list();
+      expect(listed.skills).toHaveLength(3);
+      expect(JSON.stringify(listed)).not.toMatch(/1\.2\.3|2\.3\.4|private WSL failure detail/);
+      return new Map(listed.skills.map((skill) => [skill.id, skill]));
+    };
+    let entries = await status();
+    expect(entries.get("hermes:codex")).toMatchObject({ enabled: true, integrationDetails: [{ configured: true, connectionChecked: null }] });
+    expect(entries.get("hermes:opencode")).toMatchObject({ enabled: false, integrationDetails: [{ configured: true, connectionChecked: null }] });
+    expect(entries.get("hermes:claude-code")).toMatchObject({ enabled: true, integrationDetails: [{ configured: false, connectionChecked: null }] });
+    unknown = true;
+    opencodeSignedOut = true;
+    entries = await status();
+    expect(entries.get("hermes:codex")?.integrationDetails[0]).toMatchObject({ configured: null, connectionChecked: null });
+    expect(entries.get("hermes:opencode")?.integrationDetails[0]).toMatchObject({ configured: false, connectionChecked: null });
+    failed = true;
+    entries = await status();
+    for (const entry of entries.values()) expect(entry.integrationDetails[0]).toMatchObject({ configured: null, connectionChecked: null });
+    expect(reads).toBe(3);
   });
 
   it("reads locally configured Content Studio keys anew for matching Friday integrations", async () => {
