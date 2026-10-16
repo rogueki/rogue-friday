@@ -196,6 +196,10 @@ export interface FridayModelMap {
   AutomationVersion: AutomationVersion;
   AutomationVersionListResponse: AutomationVersionListResponse;
   BackupSettings: BackupSettings;
+  CalDavEventCreateRequest: CalDavEventCreateRequest;
+  CalDavEventCreateResponse: CalDavEventCreateResponse;
+  CalDavEventPreviewRequest: CalDavEventPreviewRequest;
+  CalDavEventPreviewResponse: CalDavEventPreviewResponse;
   CalendarBriefing: CalendarBriefing;
   CalendarBriefingListResponse: CalendarBriefingListResponse;
   CalendarBriefingResponse: CalendarBriefingResponse;
@@ -1274,6 +1278,36 @@ export interface BackupSettings {
   retentionCount: number;
   lastBackupAt: string | null;
   lastBackupStatus: "success" | "failed" | "never";
+}
+export interface CalDavEventCreateRequest {
+  title: string;
+  start: string;
+  end: string;
+  confirmationToken: string;
+}
+export interface CalDavEventCreateResponse {
+  contractVersion: ContractVersion;
+  data: {
+    state: "created" | "unknown";
+    replayed: boolean;
+  };
+  freshness: Freshness;
+}
+export interface CalDavEventPreviewRequest {
+  title: string;
+  start: string;
+  end: string;
+}
+export interface CalDavEventPreviewResponse {
+  contractVersion: ContractVersion;
+  data: {
+    title: string;
+    start: string;
+    end: string;
+    confirmationToken: string;
+    expiresAt: string;
+  };
+  freshness: Freshness;
 }
 export interface CalendarBriefing {
   id: string;

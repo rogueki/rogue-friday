@@ -2517,6 +2517,61 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: calendar.read
       x-required-role: viewer
+  /api/v1/calendar/caldav/preview:
+    post:
+      operationId: previewCalDavEvent
+      tags: [calendar]
+      summary: Preview a single timed event in the configured CalDAV collection
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalDavEventPreviewRequest" }
+      responses:
+        "200":
+          description: Owner-bound short-lived confirmation token and canonical preview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalDavEventPreviewResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: calendar.create
+      x-required-role: owner
+  /api/v1/calendar/caldav/events:
+    post:
+      operationId: createCalendarEvent
+      tags: [calendar]
+      summary: Create a timed event after owner confirmation; one conditional PUT only
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalDavEventCreateRequest" }
+      responses:
+        "200":
+          description: Confirmed creation or permanently unknown outcome; replay never resends
+          headers:
+            Idempotent-Replayed: { $ref: "#/components/headers/IdempotentReplayed" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalDavEventCreateResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: calendar.create
+      x-required-role: owner
   /api/v1/calendar/proposals:
     post:
       operationId: createCalendarProposal
@@ -6497,6 +6552,14 @@ components:
       $ref: ../schemas/communication/himalaya-envelope-list-response.schema.json
     HimalayaMessageResponse:
       $ref: ../schemas/communication/himalaya-message-response.schema.json
+    CalDavEventPreviewRequest:
+      $ref: ../schemas/calendar/caldav-event-preview-request.schema.json
+    CalDavEventPreviewResponse:
+      $ref: ../schemas/calendar/caldav-event-preview-response.schema.json
+    CalDavEventCreateRequest:
+      $ref: ../schemas/calendar/caldav-event-create-request.schema.json
+    CalDavEventCreateResponse:
+      $ref: ../schemas/calendar/caldav-event-create-response.schema.json
     HimalayaSendRequest:
       $ref: ../schemas/communication/himalaya-send-request.schema.json
     HimalayaSendResponse:

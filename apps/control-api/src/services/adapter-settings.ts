@@ -119,7 +119,7 @@ export class AdapterSettingsService {
     }
     if (effectiveAdapterId === icsManifest.id) {
       if (patch.secrets?.calendarUrl) {
-        try { validateFeedUrl(patch.secrets.calendarUrl); }
+        try { const collection = validateFeedUrl(patch.secrets.calendarUrl); if (!collection.pathname.endsWith("/") || collection.search || collection.hash) throw new Error("collection path"); }
         catch { throw validationFailed("Ungueltige CalDAV-URL.", [{ path: "secrets.calendarUrl", message: "oeffentliche HTTPS-Kalendersammlung erforderlich" }]); }
       }
       const mode = patch.config?.mode ?? (switchingCalendar ? undefined : entry.config?.mode) ?? "ics";

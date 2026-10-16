@@ -10,7 +10,7 @@ export const CONFIG_SCHEMA_ID = "urn:friday:adapter:caldav-calendar:config";
 export const configSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: CONFIG_SCHEMA_ID,
-  title: "ICS oder CalDAV (nur lesen)",
+  title: "ICS lesen oder CalDAV-Termine anlegen",
   type: "object",
   properties: {
     mode: { type: "string", enum: ["ics", "caldav"], default: "ics", description: "ICS: veroeffentlichter Feed; CalDAV: privater Kalender mit Benutzername und App-Passwort." },
@@ -24,12 +24,12 @@ export const configSchema = {
 
 export const manifest: AdapterManifest = {
   id: PROVIDER_ID,
-  name: "ICS oder CalDAV (nur lesen)",
-  adapterVersion: "0.3.0",
+  name: "ICS lesen oder CalDAV-Termine anlegen",
+  adapterVersion: "0.4.0",
   contractVersion: CONTRACT_VERSION,
   apiVersion: "v1",
   category: "calendar",
-  capabilities: ["calendar.read"],
+  capabilities: ["calendar.read", "calendar.create"],
   configSchemaRef: CONFIG_SCHEMA_ID,
   secretFields: ["feedUrl", "calendarUrl", "username", "password"],
 };

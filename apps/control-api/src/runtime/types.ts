@@ -23,6 +23,7 @@ import type { ObsidianVaultService } from "../services/obsidian-vault";
 import type { WikiPathService } from "../services/wiki-path";
 import type { HimalayaAccountService } from "../services/himalaya-account";
 import type { HimalayaSendService } from "../services/himalaya-send";
+import type { CalDavCreateService } from "../services/caldav-create";
 import type { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import type { CodingRunsService } from "../services/coding-runs";
 import type { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
@@ -74,6 +75,7 @@ export interface Runtime {
   wikiPath: WikiPathService;
   himalayaAccount: HimalayaAccountService;
   himalayaSend: HimalayaSendService;
+  caldavCreate: CalDavCreateService;
   hermesSkillKeys: HermesSkillKeysService;
   codingRuns: CodingRunsService;
   codingVoiceRepository: CodingVoiceRepositoryService;
