@@ -11,6 +11,7 @@ import numpy as np  # noqa: E402
 import sounddevice as sd  # noqa: E402
 from film_filter import FilmFilter  # noqa: E402
 from piper import PiperVoice, SynthesisConfig  # noqa: E402
+from audio_output import for_output_device  # noqa: E402
 
 cfg = json.load(open(os.path.join(ROOT, "config", "voice.json"), encoding="utf-8-sig"))
 name = cfg.get("assistant_name")
@@ -25,5 +26,6 @@ else:
     audio = np.concatenate([fx.process(c.audio_float_array) for c in voice.synthesize(
         text, syn_config=SynthesisConfig(speaker_id=cfg.get("tts_speaker_id")))] + [fx.flush()])
     rate = voice.config.sample_rate
-sd.play(audio, rate)
+audio, rate = for_output_device(audio, rate, cfg.get("output_device"))
+sd.play(audio, rate, device=cfg.get("output_device"))
 sd.wait()
