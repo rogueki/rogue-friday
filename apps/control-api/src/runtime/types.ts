@@ -63,6 +63,8 @@ export interface Runtime {
   auth: AuthService;
   /** Separate local credential for the verified Windows voice service; never exposed to browser clients. */
   voiceBridgeKey: Buffer;
+  /** Read-only local Hermes calendar bridge; independent of the voice credential. */
+  calendarBridgeKey: Buffer;
   approvalTokens: ApprovalTokenService;
   settings: SettingsService;
   contentStudioKeys: ContentStudioKeysService;

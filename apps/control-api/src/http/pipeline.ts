@@ -103,7 +103,11 @@ export class ApiPipeline {
     const voiceBridgeAuthorized = VOICE_BRIDGE_OPERATIONS.has(spec.operationId) &&
       (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
       verifyVoiceBridgeKey(headers.authorization, this.runtime.voiceBridgeKey);
-    const actor: Actor = voiceBridgeAuthorized ? { type: "system", id: "friday-voice", name: "F.R.I.D.A.Y. Voice" } :
+    const calendarBridgeAuthorized = spec.operationId === "listCalendarEvents" && spec.method === "GET" &&
+      (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
+      verifyVoiceBridgeKey(headers.authorization, this.runtime.calendarBridgeKey);
+    const actor: Actor = calendarBridgeAuthorized ? { type: "system", id: "friday-calendar", name: "F.R.I.D.A.Y. Calendar" } :
+      voiceBridgeAuthorized ? { type: "system", id: "friday-voice", name: "F.R.I.D.A.Y. Voice" } :
       principal ? { type: "user", id: principal.userId, name: principal.displayName } : { type: "system", id: "anonymous" };
     const url = new URL(request.url, "http://localhost");
     const idempotencyKey = headers["idempotency-key"];
@@ -115,6 +119,7 @@ export class ApiPipeline {
       correlationId,
       principal,
       voiceBridgeAuthorized,
+      calendarBridgeAuthorized,
       actor,
       pathParams: (request.params ?? {}) as Record<string, string>,
       query: {},
@@ -155,6 +160,10 @@ export class ApiPipeline {
 
   private authorizeRequest(ctx: RequestContext, spec: RouteSpec): void {
     const { runtime } = this;
+    if (verifyVoiceBridgeKey(ctx.headers.authorization, runtime.calendarBridgeKey)) {
+      if (ctx.calendarBridgeAuthorized) return;
+      throw new ApiError({ code: "FORBIDDEN", message: "Kalender-Dienstkennung gilt nur fuer lokalen Terminabruf." });
+    }
     if (ctx.voiceBridgeAuthorized) return;
     const principal = ctx.principal;
     if (spec.requiresSession && !principal && spec.operationId !== "getSession") {

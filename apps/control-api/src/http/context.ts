@@ -25,6 +25,7 @@ export interface RequestContext {
   correlationId: string;
   principal: Principal | null;
   voiceBridgeAuthorized: boolean;
+  calendarBridgeAuthorized: boolean;
   actor: Actor;
   pathParams: Record<string, string>;
   /** Query parameters after schema validation and coercion. */
