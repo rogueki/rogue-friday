@@ -24,6 +24,7 @@ export interface RequestContext {
   spec: RouteSpec;
   correlationId: string;
   principal: Principal | null;
+  voiceBridgeAuthorized: boolean;
   actor: Actor;
   pathParams: Record<string, string>;
   /** Query parameters after schema validation and coercion. */

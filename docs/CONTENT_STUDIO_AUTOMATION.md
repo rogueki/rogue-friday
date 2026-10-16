@@ -35,6 +35,26 @@ Der lokale F.R.I.D.A.Y.-Server ist das System of Record für Auftrag, Provider-I
 Artefakt und Zielstatus. Ein Browser-Reload oder Dienstneustart darf den Auftrag
 nicht verlieren. Der exportierte Plan ist nur ein Backup- und Austauschformat.
 
+## Sprachsteuerung
+
+Nach Wake Word und Sprecherprüfung kann der Besitzer eine geplante Idee nennen,
+zum Beispiel „Erstelle die Story Herbstaktion“. F.R.I.D.A.Y. liest den aktuellen
+Serverplan, nennt Format und mögliche Anbieter-Kosten und wartet auf eine
+gesprochene Bestätigung. Erst „Ja“ startet den einen Produktionsjob. „Wie ist
+der Produktionsstatus?“ fragt denselben Job ab; „Brich den Auftrag ab“ stoppt
+weitere Schritte. Bei mehreren passenden Ideen fragt die Stimme nach dem Titel.
+
+Der Sprachdienst nutzt einen eigenen zufällig erzeugten Schlüssel im lokalen
+Dashboard-Datenverzeichnis. Die Control API erlaubt damit nur Planlesen und
+Produktionsjob-Erstellen, -Lesen und -Abbrechen von `127.0.0.1`; Browser-Cookie
+und Hermes-Schlüssel werden dafür nicht verwendet. Eine Wiederholung derselben
+Idee und Planrevision nutzt denselben Idempotency-Key. Das letzte Job-ID wird
+ohne Zugangsdaten im lokalen `run`-Verzeichnis gespeichert.
+
+Live-Sprachabnahme und bezahlte Provideraufrufe sind getrennte offene Gates.
+Ein Veröffentlichungsbefehl meldet bis zur OAuth-Anbindung ausdrücklich, dass
+kein Social-Post ausgelöst wird.
+
 ## Anbieterzugang
 
 kie.ai und ElevenLabs nehmen serverseitige API-Schlüssel an. Das Dashboard

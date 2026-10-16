@@ -43,6 +43,7 @@ import sounddevice as sd  # noqa: E402
 import torch  # noqa: E402
 
 import personal_wake  # noqa: E402
+from content_studio_voice import ContentStudioVoice  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
 
 SR = 16000
@@ -401,6 +402,7 @@ class VoiceService:
         self.last_wake = 0.0
         self.history: list[dict] = []
         self.hermes_key = open(cfg["hermes_key_file"], encoding="utf-8").read().strip()
+        self.content_studio_voice = ContentStudioVoice(INSTALL_ROOT)
 
         print("Lade Modelle ...", flush=True)
         self.verifier = SpeakerVerifier(cfg["speaker_profile"], cfg["speaker_threshold"])
@@ -594,6 +596,13 @@ class VoiceService:
             log_event(event="empty_transcript", speaker_score=round(score, 3))
             return
         print(f"> {text}", flush=True)
+        studio_answer = self.content_studio_voice.handle(text)
+        if studio_answer is not None:
+            self.status["commands"] += 1
+            log_event(event="content_studio_command", speaker_score=round(score, 3), success=True)
+            self.tts.say(studio_answer)
+            self.history += [{"role": "user", "content": text}, {"role": "assistant", "content": studio_answer}]
+            return
         if STOP_WORDS.match(text):
             self.tts.interrupt()
             log_event(event="stop", text=text)

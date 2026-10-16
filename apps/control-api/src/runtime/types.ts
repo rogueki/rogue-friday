@@ -51,6 +51,8 @@ export interface Runtime {
     adapterOverrides: AdapterOverrideStore;
   };
   auth: AuthService;
+  /** Separate local credential for the verified Windows voice service; never exposed to browser clients. */
+  voiceBridgeKey: Buffer;
   approvalTokens: ApprovalTokenService;
   settings: SettingsService;
   contentStudioKeys: ContentStudioKeysService;
