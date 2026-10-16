@@ -50,6 +50,7 @@ export const authHandlers: Partial<Record<OperationId, Handler>> = {
       principal = issued.principal;
       setCookie = issued.setCookie;
       ctx.principal = principal;
+      ctx.actor = asActor(principal);
     }
     return { status: 200, body: auth.sessionResponse(principal, new Date().toISOString()), ...(setCookie ? { setCookie } : {}) };
   },

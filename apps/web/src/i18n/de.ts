@@ -51,7 +51,7 @@ export const de = {
   "login.displayName": "Dein Name",
   "login.passwordConfirm": "Passwort wiederholen",
   "login.setupSubmit": "Konto erstellen und anmelden",
-  "login.setupInvalid": "Bitte Namen eingeben und ein Passwort mit mindestens 12 Zeichen zweimal gleich eingeben.",
+  "login.setupInvalid": "Bitte einen Namen, einen Benutzernamen mit 2–32 Zeichen und ein Passwort mit mindestens 12 Zeichen zweimal gleich eingeben.",
   "login.failed": "Anmeldung fehlgeschlagen. Bitte Zugangsdaten prüfen.",
   "login.rateLimited": "Zu viele Versuche. Bitte später erneut versuchen.",
   "login.dev.title": "Entwicklungs-Anmeldung (Mock-Modus)",

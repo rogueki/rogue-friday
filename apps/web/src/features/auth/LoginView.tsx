@@ -43,7 +43,8 @@ export function LoginView() {
     setError(null);
     login.mutate(credentials, {
       onSuccess: () => router.replace("/"),
-      onError: (failure) => setError(isFridayApiError(failure) && failure.status === 429 ? t("login.rateLimited") : t("login.failed")),
+      onError: (failure) => setError(isFridayApiError(failure) && failure.status === 429 ? t("login.rateLimited") :
+        setupRequired && isFridayApiError(failure) && failure.status === 422 ? t("login.setupInvalid") : t("login.failed")),
     });
   };
 
@@ -68,7 +69,7 @@ export function LoginView() {
         </div>
         <form className="web-form" onSubmit={onSubmit}>
           {setupRequired ? <TextField label={t("login.displayName")} value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoComplete="name" autoFocus /> : null}
-          <TextField label={t("login.username")} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoFocus />
+          <TextField label={t("login.username")} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoFocus={!setupRequired} />
           <TextField label={t("login.password")} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={setupRequired ? "new-password" : "current-password"} />
           {setupRequired ? <TextField label={t("login.passwordConfirm")} type="password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" /> : null}
           <label className="web-login__remember">
