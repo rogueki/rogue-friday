@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname } from "node:path";
 import {
@@ -180,7 +180,11 @@ export class AuthService {
     const ref = parseSecretRef(this.deps.config.auth.ownerPasswordHash.ref);
     if (ref?.scheme !== "file") throw new ApiError({ code: "VALIDATION_FAILED", message: "Für die Ersteinrichtung ist ein lokaler Passwort-Hash-Dateipfad erforderlich." });
     const hash = await hashPassword(password);
-    if (this.ownerPasswordConfigured() || existsSync(ref.name)) throw new ApiError({ code: "CONFLICT", message: "Das Besitzerkonto wurde bereits eingerichtet." });
+    if (this.ownerPasswordConfigured()) throw new ApiError({ code: "CONFLICT", message: "Das Besitzerkonto wurde bereits eingerichtet." });
+    if (existsSync(ref.name)) {
+      if (statSync(ref.name).size !== 0) throw new ApiError({ code: "CONFLICT", message: "Das Besitzerkonto wurde bereits eingerichtet." });
+      unlinkSync(ref.name);
+    }
     mkdirSync(dirname(ref.name), { recursive: true, mode: 0o700 });
     this.deps.setOwnerIdentity?.(name, display);
     try {
