@@ -734,9 +734,11 @@ if ($CustomRoot) {
             Stop-Install "Aufgabe $taskName gehoert zu einem anderen Installationspfad. Keine fremde Aufgabe wird ueberschrieben."
         }
     }
-    if (-not $ExistingState) { $State | ConvertTo-Json -Depth 6 | Set-Content $StateFile -Encoding UTF8 }
+    if (-not $ExistingState) { [IO.File]::WriteAllText($StateFile, ($State | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false))) }
 }
-function Save-State { $State | ConvertTo-Json -Depth 6 | Set-Content $StateFile -Encoding UTF8 }
+function Save-State {
+    [IO.File]::WriteAllText($StateFile, ($State | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false)))
+}
 function MarkDone($n) { $State.done = @(@($State.done) + $n | Select-Object -Unique); Save-State }
 
 Title 'F.R.I.D.A.Y. – Installation'
