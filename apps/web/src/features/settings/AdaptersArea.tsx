@@ -93,7 +93,7 @@ function AdapterForm({ adapter }: { adapter: AdapterConfigSettings }) {
   return (
     <div className="st-adapter" data-adapter-form={adapter.adapterId}>
       <Section
-        title={adapter.provider}
+        title={adapter.provider === "caldav-calendar" ? "iCalendar/ICS (nur lesen)" : adapter.provider}
         description={t("settings.adapters.formDesc", { category: adapter.category })}
         actions={<Switch label={t("settings.adapters.enabled")} checked={enabled} disabled={readOnly} onCheckedChange={setEnabled} stateLabels={[t("settings.state.on"), t("settings.state.off")]} />}
       >
@@ -152,7 +152,24 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
   const ownerOnly = role === "owner";
   const query = useAdapterSettings(ownerOnly);
   const items = query.data?.items ?? [];
+  const calendar = items.find((item) => item.category === "calendar");
+  const calendarUpdate = useUpdateAdapterSettings();
+  const [feedUrl, setFeedUrl] = useState("");
+  const [calendarMessage, setCalendarMessage] = useState("");
   const selected = items.find((item) => item.adapterId === selectedId) ?? items[0];
+
+  const saveCalendar = async (): Promise<void> => {
+    if (!calendar || !feedUrl.trim()) return;
+    setCalendarMessage("");
+    try {
+      const response = await calendarUpdate.mutateAsync({ id: calendar.adapterId, version: calendar.version ?? 1, patch: { provider: "caldav-calendar", enabled: true, secrets: { feedUrl: feedUrl.trim() } } });
+      setFeedUrl("");
+      onSelect(response.data.adapterId);
+      setCalendarMessage("iCalendar-Feed gespeichert. Termine werden nur gelesen; die private URL bleibt verschluesselt auf diesem Rechner.");
+    } catch (error) {
+      setCalendarMessage(error instanceof Error ? error.message : "Kalender-Feed konnte nicht gespeichert werden.");
+    }
+  };
 
   if (!ownerOnly) {
     return <EmptyState icon={<Plug size={22} />} title={t("settings.adapters.ownerOnly.title")} description={t("settings.adapters.ownerOnly.desc")} />;
@@ -167,6 +184,14 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
   return (
     <PanelFrame state={state} title={t("settings.adapters.title")} subtitle={t("settings.adapters.subtitle")} icon={<Plug size={16} />} skeletonRows={4} className="st-panel">
       {!canRead ? <p className="st-muted">{t("settings.adapters.noCapability")}</p> : null}
+      {calendar ? <section aria-labelledby="ics-setup-title" className="st-adapter">
+        <h3 id="ics-setup-title">Kalender per iCalendar/ICS verbinden</h3>
+        <p>Private HTTPS-ICS-URL eines freigegebenen Google-, Outlook- oder anderen Kalenders eintragen. Friday liest Termine und kann sie hier nicht aendern. Windows Kalender ist eine App, kein eigener Kalenderanbieter.</p>
+        <label>Private ICS-URL <input type="password" autoComplete="off" value={feedUrl} onChange={(event) => setFeedUrl(event.target.value)} placeholder="https://.../calendar.ics" disabled={readOnly} /></label>
+        <Button type="button" disabled={readOnly || !feedUrl.trim() || calendarUpdate.isPending} loading={calendarUpdate.isPending} onClick={() => void saveCalendar()}>iCalendar-Feed speichern</Button>
+        <p role="status">{calendar.provider === "caldav-calendar" && calendar.secretFields.feedUrl?.configured ? "Feed hinterlegt (nur lesen)" : "Noch kein iCalendar-Feed verbunden; Kalenderansicht verwendet Simulation."}</p>
+        {calendarMessage ? <p role="status">{calendarMessage}</p> : null}
+      </section> : null}
       <div className="st-master">
         <nav className="st-master__list" aria-label={t("settings.adapters.title")}>
           <ul>
@@ -178,7 +203,7 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
                   aria-current={selected?.adapterId === item.adapterId ? "true" : undefined}
                   onClick={() => onSelect(item.adapterId)}
                 >
-                  <span className="st-master__name">{item.provider}</span>
+                  <span className="st-master__name">{item.provider === "caldav-calendar" ? "iCalendar/ICS (nur lesen)" : item.provider}</span>
                   <span className="st-master__meta">
                     {item.category}
                     {Object.values(item.secretFields).some((secret) => !secret.configured) ? <StatusChip tone="amber" dot={false}>{t("settings.adapters.secretMissing")}</StatusChip> : null}

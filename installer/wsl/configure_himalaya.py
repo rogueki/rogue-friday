@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 import re
-import shlex
 import shutil
 import subprocess
 import sys
@@ -63,18 +62,25 @@ def read_status():
     content = safe_file(CONFIG)
     managed = content.startswith(HEADER)
     revision = int(hashlib.sha256(content.encode()).hexdigest()[:12], 16)
-    cli = shutil.which("himalaya")
+    local_cli = Path.home() / ".local" / "bin" / "himalaya"
+    cli = str(local_cli) if local_cli.is_file() and not local_cli.is_symlink() else shutil.which("himalaya")
     try:
-        installed = bool(cli and not cli.startswith("/mnt/") and
-                         subprocess.run([cli, "--version"], stdout=subprocess.DEVNULL,
-                                        stderr=subprocess.DEVNULL, timeout=3, check=False).returncode == 0)
+        version = subprocess.run([cli, "--version"], capture_output=True, text=True, timeout=3, check=False) if cli and not cli.startswith("/mnt/") else None
+        installed = bool(version and version.returncode == 0 and re.search(r"\bv2\.2\.1\b", version.stdout))
     except (OSError, subprocess.TimeoutExpired):
         installed = False
     credentials = all((SECRETS / name).is_file() and not (SECRETS / name).is_symlink() and
                       ((SECRETS / name).stat().st_mode & 0o777) == 0o600
                       for name in ("imap-secret", "smtp-secret"))
+    current_config = managed and "imap.server = " in content and "smtp.server = " in content
+    try:
+        valid_config = bool(current_config and installed and subprocess.run(
+            [cli, "--config", str(CONFIG), "account", "list", "--json"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3, check=False).returncode == 0)
+    except (OSError, subprocess.TimeoutExpired):
+        valid_config = False
     return {"managed": managed, "configPresent": bool(content), "credentialsPresent": managed and credentials,
-            "cliInstalled": installed, "readyForLocalUse": managed and credentials and installed,
+            "cliInstalled": installed, "readyForLocalUse": credentials and valid_config,
             "connectionChecked": False, "revision": revision}
 
 
@@ -109,22 +115,22 @@ def main():
         atomic(imap_secret, request["imapPassword"] + "\n")
         atomic(smtp_secret, request["smtpPassword"] + "\n")
         quote = lambda value: json.dumps(value, ensure_ascii=False)
+        imap_server = f'imaps://{request["imapHost"]}:{request["imapPort"]}'
+        smtp_scheme = "smtps" if request["smtpEncryption"] == "tls" else "smtp"
+        smtp_server = f'{smtp_scheme}://{request["smtpHost"]}:{request["smtpPort"]}'
         lines = [HEADER, "[accounts.friday]\n", f'email = {quote(request["email"])}\n',
                  f'display-name = {quote(request["displayName"])}\n', "default = true\n",
-                 'backend.type = "imap"\n', f'backend.host = {quote(request["imapHost"])}\n',
-                 f'backend.port = {request["imapPort"]}\n', 'backend.encryption.type = "tls"\n',
-                 f'backend.login = {quote(request["imapLogin"])}\n', 'backend.auth.type = "password"\n',
-                 f'backend.auth.cmd = {quote("cat -- " + shlex.quote(str(imap_secret)))}\n',
-                 'message.send.backend.type = "smtp"\n', f'message.send.backend.host = {quote(request["smtpHost"])}\n',
-                 f'message.send.backend.port = {request["smtpPort"]}\n',
-                 f'message.send.backend.encryption.type = {quote(request["smtpEncryption"])}\n',
-                 f'message.send.backend.login = {quote(request["smtpLogin"])}\n',
-                 'message.send.backend.auth.type = "password"\n',
-                 f'message.send.backend.auth.cmd = {quote("cat -- " + shlex.quote(str(smtp_secret)))}\n',
-                 'folder.aliases.inbox = "INBOX"\n',
-                 f'folder.aliases.sent = {quote(request["sentFolder"])}\n',
-                 f'folder.aliases.drafts = {quote(request["draftsFolder"])}\n',
-                 f'folder.aliases.trash = {quote(request["trashFolder"])}\n']
+                 f'imap.server = {quote(imap_server)}\n',
+                 f'imap.sasl.plain.username = {quote(request["imapLogin"])}\n',
+                 f'imap.sasl.plain.password.command = {quote(["cat", str(imap_secret)])}\n',
+                 f'smtp.server = {quote(smtp_server)}\n',
+                 *( ['smtp.starttls = true\n'] if smtp_scheme == "smtp" else [] ),
+                 f'smtp.sasl.plain.username = {quote(request["smtpLogin"])}\n',
+                 f'smtp.sasl.plain.password.command = {quote(["cat", str(smtp_secret)])}\n',
+                 'mailbox.alias.inbox = "INBOX"\n',
+                 f'mailbox.alias.sent = {quote(request["sentFolder"])}\n',
+                 f'mailbox.alias.drafts = {quote(request["draftsFolder"])}\n',
+                 f'mailbox.alias.trash = {quote(request["trashFolder"])}\n']
         atomic(CONFIG, "".join(lines))
         print(json.dumps(read_status()))
         return 0

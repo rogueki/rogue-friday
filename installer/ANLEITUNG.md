@@ -147,9 +147,25 @@ Die Hermes-Skills für OpenCode, Codex und Claude Code benötigen das jeweilige 
 .\setup-coding-cli.ps1 -Cli opencode
 .\setup-coding-cli.ps1 -Cli codex
 .\setup-coding-cli.ps1 -Cli claude
+.\setup-coding-cli.ps1 -Cli codex -Login
+.\setup-coding-cli.ps1 -Cli claude -Login
 ```
 
-Bei anderem Installationsort zusätzlich `-InstallRoot 'D:\Kali\Friday'` angeben. Das Skript liest WSL-Distribution und Linux-Benutzer aus dem lokalen Installationszustand. Es lädt Node.js bei Bedarf mit SHA-256-Prüfung in dessen Benutzerprofil und installiert nur die gewählte CLI dort. Es ändert keine Windows-CLI-Konfiguration und fragt keine Zugangsdaten ab. `-Cli status` prüft nur, ob Linux-Befehle starten und eine Version liefern. Öffne für die Anbieteranmeldung anschließend ein Terminal in Friday-Ubuntu und folge der Anleitung des jeweiligen CLI-Anbieters. Erst danach kann ein echter Coding-Auftrag mit deinem Konto geprüft werden.
+Bei anderem Installationsort zusätzlich `-InstallRoot 'D:\Kali\Friday'` angeben. Das Skript liest WSL-Distribution und Linux-Benutzer aus dem lokalen Installationszustand. Es lädt Node.js bei Bedarf mit SHA-256-Prüfung in dessen Benutzerprofil und installiert nur die gewählte CLI dort. Es ändert keine Windows-CLI-Konfiguration und fragt keine Zugangsdaten ab. `-Cli status` prüft nur, ob Linux-Befehle starten und eine Version liefern. Mit `-Login` startest du die interaktive Anbieteranmeldung in Friday-Ubuntu: Codex über dein unterstütztes ChatGPT-Konto, Claude Code über dein Claude-Pro-/Max-Konto. Folge dem angezeigten Browser- oder Gerätecode auf deinem eigenen Rechner; Friday speichert kein Abo-Passwort. Ein Abo-Login für diese CLIs ist kein allgemeiner API-Zugang für Friday. Danach kann ein kleiner Coding-Auftrag mit deinem Konto geprüft werden; gehostete Nutzung unterliegt den jeweiligen Limits und möglichen Kosten.
+
+## Optionales IMAP-/SMTP-Postfach
+
+Installiere die geprüfte Himalaya-CLI für den Friday-Linux-Benutzer aus dem installierten Friday-Ordner:
+
+```powershell
+.\installer\setup-himalaya.ps1 -Action install -InstallRoot 'C:\Friday'
+```
+
+Bei anderem Installationsort den Pfad anpassen. Danach unter **Einstellungen → Skill-Konten → E-Mail-Postfach für Himalaya** E-Mail-Adresse, IMAP-/SMTP-Server und Ports, Benutzername, Passwort oder App-Passwort sowie die Ordnernamen eintragen. Das Speichern legt eine lokale Konfiguration mit getrennten 0600-Passwortdateien an. Es prüft nur die Konfigurationssyntax; die Verbindung zum Anbieter und Senden/Empfangen müssen mit dem eigenen Konto getrennt geprüft werden. Konten mit verpflichtendem OAuth, darunter viele Microsoft-Konten, lassen sich mit dieser Passwortmaske nicht anmelden. Die Dashboard-Kommunikationsansicht ist weiterhin ein separater Adapter.
+
+## Kalender aus einem ICS-Link lesen
+
+Öffne als Besitzer **Einstellungen → Adapter → Kalender per iCalendar/ICS verbinden** und gib die private HTTPS-ICS-URL deines Kalenders ein. Bei Google steht sie unter „Kalender integrieren → Geheimadresse im iCal-Format“, bei Outlook.com unter „Freigegebene Kalender → Kalender veröffentlichen → ICS“. Die URL ist wie ein Passwort zu behandeln; besonders ein veröffentlichter Outlook-Link kann von jedem mit dem Link gelesen werden. Friday speichert sie verschlüsselt und zeigt Termine im Kalender an, sobald der Feed erreichbar ist. Die Verbindung liest nur; Termine erstellen oder ändern benötigt eine separate Anbieteranbindung. Die frühere Windows-Kalender-App ist kein eigener Kalenderdienst.
 
 ## Command Center aktualisieren
 
@@ -252,8 +268,8 @@ Aufgaben (auch fremde, die auf `C:\Jarvis` zeigen, nach Rückfrage und mit XML-S
 Laut Plan erst, wenn alles stabil läuft – jeweils einzeln:
 
 1. **Telegram:** Bot bei @BotFather anlegen, dann in Ubuntu `hermes gateway setup`.
-2. **E-Mail (z. B. GMX):** IMAP/SMTP mit App-Passwort.
-3. **Kalender:** CalDAV.
+2. **E-Mail (z. B. GMX):** den oben beschriebenen optionalen Himalaya-Installer und die IMAP-/SMTP-Kontomaske nutzen; Zugang mit dem eigenen Anbieter danach getrennt prüfen.
+3. **Kalender:** einen unterstützten Kalenderanschluss mit den Zugangsdaten und Rechten des jeweiligen Anbieters einrichten.
 4. WhatsApp, Office-Steuerung, Smart Home – später.
 
 Regel: Lesen/Entwürfe macht der Assistent selbst. **Senden, Löschen, Termine ändern, Zahlungen nur nach deiner Bestätigung.**

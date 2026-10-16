@@ -252,11 +252,12 @@ export function SkillAccountsArea() {
     <p><a href="/onboarding">Einführung fortsetzen</a> · <a href="/skills">Alle Skills ansehen</a></p>
     <section aria-labelledby="coding-cli-setup-title">
       <h3 id="coding-cli-setup-title">Coding-CLIs in Friday-Ubuntu</h3>
+      <p>ChatGPT Plus/Pro kann Codex CLI anmelden; Claude Pro/Max kann Claude Code anmelden. PowerShell im Friday-Installationsordner: <code>.\installer\setup-coding-cli.ps1 -Cli codex -Login -InstallRoot 'C:\Friday'</code> oder <code>.\installer\setup-coding-cli.ps1 -Cli claude -Login -InstallRoot 'C:\Friday'</code>. Den tatsächlichen Installationspfad einsetzen. Die Anmeldung erfolgt interaktiv beim Anbieter; Friday fragt kein Abo-Passwort ab. Diese CLI-Anmeldung gilt für Coding-Skills, nicht automatisch für Fridays allgemeinen Modellanbieter.</p>
       <p>Friday prüft hier nur die lokalen Programme und deren eigene Anmeldehinweise. Ein grüner Anmeldestatus bestätigt weder Modellzugriff noch Budget oder Berechtigungen im gewählten Repository. OpenCode kann auch mit einem lokalen Modell ohne externes Konto arbeiten.</p>
       {role === "owner" ? <>
         {codingClis.isPending && <p role="status">CLI-Status wird gelesen.</p>}
         {codingClis.isError && <p role="alert">CLI-Status nicht erreichbar. <button type="button" onClick={() => void codingClis.refetch()}>Erneut prüfen</button></p>}
-        {codingClis.data?.data.map((item) => <p key={item.cli}><strong>{codingCliNames[item.cli]}</strong>{item.version ? ` ${item.version}` : ""}: {codingCliState(item)}. {item.cli === "codex" ? "Einrichtung in Friday-Ubuntu: codex login." : item.cli === "opencode" ? "Anbieter mit opencode auth login einrichten; für lokale Modelle ist das optional." : "Einrichtung in Friday-Ubuntu: claude auth login."}</p>)}
+        {codingClis.data?.data.map((item) => <p key={item.cli}><strong>{codingCliNames[item.cli]}</strong>{item.version ? ` ${item.version}` : ""}: {codingCliState(item)}. {item.cli === "codex" ? "ChatGPT-Abo: codex login --device-auth in Friday-Ubuntu." : item.cli === "opencode" ? "Anbieter mit opencode auth login einrichten; für lokale Modelle ist das optional." : "Claude-Abo: claude auth login --claudeai in Friday-Ubuntu."}</p>)}
       </> : <p>Nur der Owner kann den lokalen CLI-Status sehen.</p>}
     </section>
     <HimalayaAccountSetup owner={role === "owner"} />

@@ -6,6 +6,7 @@ import type { AdapterOverrideStore } from "../db/stores";
 import type { AdapterWiring, RuntimeSecrets } from "../runtime/adapter-wiring";
 import { ApiError, conflict, notFound, validationFailed } from "../util/errors";
 import { createCorrelationId } from "../util/ids";
+import { manifest as icsManifest, validateFeedUrl } from "@friday/adapter-calendar-placeholder";
 
 interface JsonSchemaObject {
   properties?: Record<string, unknown>;
@@ -110,6 +111,12 @@ export class AdapterSettingsService {
     if (!entry) throw notFound("Adapter", adapterId);
     const factory = this.wiring.factories.get(info.provider);
     const changed: string[] = [];
+    const switchingCalendar = category === "calendar" && patch.provider === icsManifest.id && manifest.id !== icsManifest.id;
+    const effectiveManifest = switchingCalendar ? icsManifest : manifest;
+    const effectiveAdapterId = effectiveManifest.id;
+    if (effectiveAdapterId === icsManifest.id && patch.secrets?.feedUrl) {
+      try { validateFeedUrl(patch.secrets.feedUrl); } catch { throw validationFailed("Ungueltige private Kalender-URL.", [{ path: "secrets.feedUrl", message: "oeffentliche HTTPS-ICS-URL erforderlich" }]); }
+    }
 
     if (patch.provider !== undefined && patch.provider !== entry.provider) {
       const target = this.wiring.factories.get(patch.provider);
@@ -122,6 +129,7 @@ export class AdapterSettingsService {
         throw new ApiError({ code: "CONFLICT", message: "Im Mock-Modus kann der Provider nicht gewechselt werden.", details: { dataMode: this.dataMode } });
       }
       entry.provider = patch.provider;
+      if (switchingCalendar) entry.config = {};
       changed.push("provider");
     }
     if (patch.enabled !== undefined && patch.enabled !== entry.enabled) {
@@ -131,27 +139,27 @@ export class AdapterSettingsService {
     let mergedConfig = entry.config ?? {};
     if (patch.config) {
       const schema = (this.wiring.factories.get(entry.provider)?.configSchema ?? factory?.configSchema ?? {}) as JsonSchemaObject;
-      const unknownKeys = Object.keys(patch.config).filter((key) => manifest.secretFields.includes(key));
+      const unknownKeys = Object.keys(patch.config).filter((key) => effectiveManifest.secretFields.includes(key));
       if (unknownKeys.length > 0) {
         throw validationFailed(`Secrets gehören nicht in config: ${unknownKeys.join(", ")}.`, unknownKeys.map((key) => ({ path: `config.${key}`, message: "nur über secrets setzbar" })));
       }
-      mergedConfig = this.validateConfig(schema, manifest.secretFields, { ...mergedConfig, ...patch.config });
+      mergedConfig = this.validateConfig(schema, effectiveManifest.secretFields, { ...mergedConfig, ...patch.config });
       entry.config = mergedConfig;
       changed.push(...Object.keys(patch.config).map((key) => `config.${key}`));
     }
     if (patch.secrets) {
-      const unknownSecrets = Object.keys(patch.secrets).filter((key) => !manifest.secretFields.includes(key));
+      const unknownSecrets = Object.keys(patch.secrets).filter((key) => !effectiveManifest.secretFields.includes(key));
       if (unknownSecrets.length > 0) {
         throw validationFailed(`Unbekannte Secret-Felder: ${unknownSecrets.join(", ")}.`, unknownSecrets.map((key) => ({ path: `secrets.${key}`, message: "kein Secret-Feld" })));
       }
       for (const [field, value] of Object.entries(patch.secrets)) {
-        this.secrets.set(adapterId, field, value);
+        this.secrets.set(effectiveAdapterId, field, value);
         changed.push(`secrets.${field}`);
       }
     }
     if (changed.length > 0) {
-      this.overrides.save({
-        adapterId,
+      this.overrides.replaceCategory({
+        adapterId: effectiveAdapterId,
         category,
         provider: entry.provider === this.wiring.resolved.get(category)?.provider ? null : entry.provider,
         enabled: entry.enabled,
@@ -159,7 +167,7 @@ export class AdapterSettingsService {
       });
       await this.wiring.registry.restart(adapterId);
     }
-    return { settings: this.get(adapterId), changed };
+    return { settings: this.get(effectiveAdapterId), changed };
   }
 
   /** "Test connection": forces a real health check through the registry. Never returns secret material. */

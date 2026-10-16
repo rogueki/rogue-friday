@@ -116,7 +116,7 @@ From the adapter-core report:
 
 ## Cloud sessions (claude.ai/code)
 
-- Repo: `github.com/rogueki/rogue-friday` (private). The Claude GitHub App must be installed on it (or `/web-setup`).
+- Repo: `github.com/rogueki/rogue-friday` (public, MIT). Cloud sessions using Claude Code still need their own account sign-in and repository access.
 - `CLAUDE.md` (project rules) and `.claude/settings.json` (SessionStart hook → `scripts/cloud-setup.sh`: Node ≥ 22.13
   check, `pnpm install --frozen-lockfile` with lockfile-hash skip, Playwright Chromium best-effort) are versioned for
   cloud sessions. Subagents: `.claude/agents/implementer.md` (Sonnet), `.claude/agents/doc-writer.md` (Haiku).

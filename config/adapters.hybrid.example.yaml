@@ -19,6 +19,7 @@ allowlist:
   hermes-agents: "@friday/adapter-hermes"
   friday-voice-http: "@friday/adapter-voice-http"
   local-system: "@friday/adapter-system-local"
+  caldav-calendar: "@friday/adapter-calendar-placeholder"
 
 adapters:
   tasks:
