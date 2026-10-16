@@ -15,6 +15,14 @@ import yaml
 PLUGIN_NAME = "friday-dashboard-calendar"
 
 
+def decode_stdin_key(line: bytes) -> str:
+    """Decode a PowerShell-piped key, allowing its single UTF-8 BOM prefix."""
+    value = line.strip()
+    if value.startswith(b"\xef\xbb\xbf"):
+        value = value[3:]
+    return value.decode("ascii", errors="strict")
+
+
 def private_write(path: Path, value: bytes) -> bool:
     if path.is_symlink():
         raise ValueError("bridge target is a symlink")
@@ -118,7 +126,7 @@ def main() -> int:
         return 2
     checkout = Path(sys.argv[1]).resolve(strict=True)
     port = int(sys.argv[2])
-    key = sys.stdin.readline().strip()
+    key = decode_stdin_key(sys.stdin.buffer.readline())
     changed = configure(checkout, port, key, Path.home())
     if changed:
         result = subprocess.run(["systemctl", "--user", "restart", "hermes-gateway.service"],
