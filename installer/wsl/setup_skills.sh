@@ -22,7 +22,13 @@ if [ "$MODE" = install ]; then
         if [ -n "$(git -C "$CHECKOUT" status --porcelain)" ]; then
             echo 'FRIDAY_SKILLS_ERROR local checkout modified; preserving edits' >&2; exit 1
         fi
-        git -C "$CHECKOUT" fetch --depth 1 origin main
+        # A depth-1 fetch can hide the common ancestor of two normal releases.
+        # Deepen the initial shallow clone once so --ff-only can verify ancestry.
+        if [ "$(git -C "$CHECKOUT" rev-parse --is-shallow-repository)" = true ]; then
+            git -C "$CHECKOUT" fetch --unshallow origin main
+        else
+            git -C "$CHECKOUT" fetch origin main
+        fi
         git -C "$CHECKOUT" merge --ff-only FETCH_HEAD
     fi
 fi
