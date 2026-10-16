@@ -163,8 +163,8 @@ pnpm test:e2e
 
 ## Public beta release: Skills and onboarding (2026-10-16)
 
-- The companion `friday-skills` repository contains 105 Friday procedures and a validated setup catalog. The installer clones it into `<InstallRoot>\skills\friday-skills`, registers its skill directory with Hermes and makes the catalog available to the Control API.
-- The owner-only Control API exposes the combined Friday/Hermes skill catalog, observed discovery/activation, guarded Hermes toggle and revisioned onboarding. A read-only probe of the current Hermes dashboard returned 105 Friday and 53 bundled skills. Discovery or activation is not a live provider check.
+- The companion `friday-skills` repository contains 106 Friday procedures and a validated setup catalog. The installer clones it into `<InstallRoot>\skills\friday-skills`, registers its skill directory with Hermes and makes the catalog available to the Control API.
+- The owner-only Control API exposes the combined Friday/Hermes skill catalog, observed discovery/activation, guarded Hermes toggle and revisioned onboarding. An authenticated read-only API probe of the installed runtime returned 106 Friday and 53 bundled skills. Discovery or activation is not a live provider check.
 - The web app provides Skills search, filters, details, account setup guidance and resumable first-owner onboarding. The voice bridge can read the catalog and save confirmed onboarding choices after speaker verification; it cannot toggle skills.
 - Targeted contract, API, web, installer and voice checks passed. A full fresh installer run, every provider path and a paid Content Studio job were not run for this beta. See `docs/SKILLS_ONBOARDING_PLAN.md` for scope and remaining limits.
 - Repository-wide `pnpm format:check` currently fails on 649 pre-existing files. CI checks commit whitespace instead; formatting debt remains separate from this beta release. ESLint passes with two React Hook warnings in the new Skills pages.
@@ -173,6 +173,16 @@ pnpm test:e2e
 ### Public beta release verification
 
 - Both `rogueki/rogue-friday` and `rogueki/friday-skills` are public GitHub repositories with MIT licenses, updated descriptions/READMEs, secret scanning, push protection, Dependabot security updates, private vulnerability reporting, and protection against force-pushing/deleting `main`.
-- A targeted update of the existing `D:\Kali\Friday` installation succeeded. The dashboard and voice status responded with HTTP 200. The owner-authorized voice bridge returned HTTP 200 for `/api/v1/skills`: 158 enabled catalog entries, including all 105 Friday Skills and 53 bundled Hermes Skills, with no catalog or Hermes error.
+- A targeted update of the existing `D:\Kali\Friday` installation succeeded. The dashboard and voice status responded with HTTP 200. The authenticated owner API returned HTTP 200 for `/api/v1/skills`: 159 catalog entries, including all 106 Friday Skills and 53 bundled Hermes Skills, with no catalog or Hermes error. Activation is a separate observed field and does not prove skill execution.
 - The update exposed and fixed three integration issues: WSL paths for a custom install root during dashboard updates, duplicate complete Friday Skills directories in Hermes configuration, and a cold catalog request exceeding the API's previous 8-second timeout.
 - This is a beta acceptance of the installed core and catalog. A fresh-machine install, every external account/provider, paid Content Studio generation, and a spoken end-to-end voice command remain unverified.
+
+### Messaging gateways in the installed beta
+
+- The owner dashboard exposes Telegram and Discord bot settings plus a WhatsApp setup link to the authenticated local Hermes QR flow. The owner settings API returned HTTP 200 for all three gateways after the targeted D: update. The shared Hermes gateway process was running, but all three channels remained unconfigured and the WhatsApp session was absent.
+- Bot tokens, allowed sender identities, QR pairing and actual message delivery require the respective provider setup. Friday reports local configuration separately from a verified connection. No provider-backed message was sent or received during this beta acceptance.
+
+### Optional SIP telephony path
+
+- The dashboard source now includes an owner-only Asterisk-SIP setup and a separate call preview, confirmation, journal, status and hangup flow. It checks local ARI reachability, owner endpoint, loaded dialplan and trunk registration before allowing a call request. Asterisk configuration is applied manually; it is not installed by the Friday installer.
+- The D: test installation has no Asterisk service or SIP account. No local or external call, remote answer, or Friday voice dialogue over the call has been verified. The Hermes phone skill remains unable to dial autonomously.

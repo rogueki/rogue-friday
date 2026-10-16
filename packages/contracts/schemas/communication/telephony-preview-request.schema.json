@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/communication/telephony-preview-request.schema.json",
+  "title": "TelephonyPreviewRequest",
+  "type": "object",
+  "properties": { "destination": { "type": "string", "minLength": 3, "maxLength": 16 } },
+  "required": ["destination"], "additionalProperties": false
+}

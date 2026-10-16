@@ -191,6 +191,32 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_local_calendar_range ON local_calendar_events (starts_at, ends_at);
     `,
   },
+  {
+    id: 10,
+    name: "telephony-call-journal",
+    sql: `
+      CREATE TABLE telephony_calls (
+        id TEXT PRIMARY KEY,
+        key_hash TEXT NOT NULL UNIQUE,
+        actor TEXT NOT NULL,
+        request_hash TEXT NOT NULL,
+        destination TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('pending', 'requested', 'owner_answered', 'ended', 'failed', 'unknown')),
+        adapter_status INTEGER,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_telephony_calls_actor_time ON telephony_calls (actor, created_at);
+      CREATE TABLE telephony_previews (
+        token_hash TEXT PRIMARY KEY,
+        actor TEXT NOT NULL,
+        destination TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        consumed_at INTEGER
+      );
+      CREATE INDEX idx_telephony_previews_expiry ON telephony_previews (expires_at);
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

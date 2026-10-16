@@ -88,6 +88,7 @@ describe('permission matrix', () => {
       'system.reconnect',
       'system.restartAdapter',
       'settings.update',
+      'telephony.call',
       'settings.import',
       'settings.export',
       'adapters.configure',
@@ -103,6 +104,12 @@ describe('permission matrix', () => {
     expect(can('owner', 'dev.scenarios')).toBe(false);
     expect(authorize('owner', 'dev.scenarios')).toEqual({ allowed: false, reason: 'dev_only' });
     expect(can('owner', 'dev.scenarios', { devMode: true })).toBe(true);
+  });
+
+  it('reserves telephony.call for the owner', () => {
+    expect(authorize('owner', 'telephony.call')).toEqual({ allowed: true });
+    expect(authorize('operator', 'telephony.call')).toEqual({ allowed: false, reason: 'forbidden_role' });
+    expect(authorize('viewer', 'telephony.call')).toEqual({ allowed: false, reason: 'forbidden_role' });
   });
 
   it('tier-3 approval needs owner + fresh re-auth and never voice', () => {

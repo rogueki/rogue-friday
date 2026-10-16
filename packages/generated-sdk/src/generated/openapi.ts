@@ -2029,6 +2029,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/telephony": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read observed Asterisk and SIP registration status without secrets */
+        get: operations["getTelephony"];
+        /** Store private owner SIP and local Asterisk ARI configuration */
+        put: operations["putTelephony"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/themes": {
         parameters: {
             query?: never;
@@ -2387,6 +2405,74 @@ export interface paths {
          * @description Body limit 32 KiB, at most 20 errors and 60 orb samples per request, 30 requests per minute per session. Messages are redacted server-side; only aggregated metrics and a redacted log line are kept.
          */
         post: operations["submitFrontendTelemetry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/telephony/calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** After explicit owner confirmation, request a call from owner extension to destination */
+        post: operations["originateTelephonyCall"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/telephony/calls/{callId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Observe the owner channel without inferring remote connection */
+        get: operations["getTelephonyCall"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/telephony/calls/{callId}/hangup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask Asterisk to hang up the journalled owner channel */
+        post: operations["hangupTelephonyCall"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/telephony/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a short-lived owner-bound call preview without dialing */
+        post: operations["previewTelephonyCall"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6485,11 +6571,86 @@ export interface components {
             data: components["schemas"]["TelegramGateway"];
             freshness: components["schemas"]["Freshness"];
         };
+        /** TelephonyStatus */
+        "telephony-status.schema": {
+            ariReachable: boolean;
+            callerId: string | null;
+            configurationApplied: boolean;
+            configured: boolean;
+            dialplanLoaded: boolean;
+            /** @enum {string|null} */
+            mode: "local" | "trunk" | null;
+            /** @enum {string} */
+            ownerEndpoint: "unknown" | "online" | "offline";
+            ready: boolean;
+            /** @enum {string} */
+            registration: "unavailable" | "unknown" | "unregistered" | "registered" | "not_required";
+            revision: number;
+        };
+        /** TelephonyCallRequest */
+        TelephonyCallRequest: {
+            destination: string;
+            previewToken: string;
+        };
+        /** TelephonyCallResponse */
+        TelephonyCallResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                adapterStatus: number | null;
+                /** Format: date-time */
+                createdAt: string;
+                destination: string;
+                id: string;
+                replayed?: boolean;
+                /** @enum {string} */
+                state: "pending" | "requested" | "owner_answered" | "ended" | "failed" | "unknown";
+                /** Format: date-time */
+                updatedAt: string;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
         /** TelephonyCapability */
         TelephonyCapability: {
             call: boolean;
             read: boolean;
             sources: string[];
+        };
+        /** TelephonyPreviewRequest */
+        TelephonyPreviewRequest: {
+            destination: string;
+        };
+        /** TelephonyPreviewResponse */
+        TelephonyPreviewResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                callerId: string;
+                destination: string;
+                /** Format: date-time */
+                expiresAt: string;
+                /** @enum {string} */
+                mode: "local" | "trunk";
+                token: string;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** TelephonyProfilePatch */
+        TelephonyProfilePatch: {
+            ariPassword: string;
+            ariPort: number;
+            ariUser: string;
+            callerId: string;
+            /** @enum {string} */
+            mode: "local" | "trunk";
+            ownerEndpoint: string;
+            sipHost?: string;
+            sipPassword?: string;
+            sipUser?: string;
+        };
+        /** TelephonyStatusResponse */
+        TelephonyStatusResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["telephony-status.schema"];
+            freshness: components["schemas"]["Freshness"];
         };
         /**
          * Theme
@@ -12055,6 +12216,63 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    getTelephony: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelephonyStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    putTelephony: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelephonyProfilePatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelephonyStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     listThemes: {
         parameters: {
             query?: {
@@ -12984,6 +13202,126 @@ export interface operations {
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    originateTelephonyCall: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelephonyCallRequest"];
+            };
+        };
+        responses: {
+            /** @description Journal state */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelephonyCallResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getTelephonyCall: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                callId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Journal state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelephonyCallResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    hangupTelephonyCall: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                callId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Journal state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelephonyCallResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    previewTelephonyCall: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelephonyPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelephonyPreviewResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

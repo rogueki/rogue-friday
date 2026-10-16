@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/communication/telephony-preview-response.schema.json",
+  "title": "TelephonyPreviewResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": { "type": "object", "properties": {
+      "destination": { "type": "string" }, "callerId": { "type": "string" },
+      "mode": { "type": "string", "enum": ["local", "trunk"] },
+      "expiresAt": { "type": "string", "format": "date-time" }, "token": { "type": "string" }
+    }, "required": ["destination", "callerId", "mode", "expiresAt", "token"], "additionalProperties": false },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"], "additionalProperties": false
+}

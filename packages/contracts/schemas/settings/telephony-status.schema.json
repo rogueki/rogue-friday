@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/telephony-status.schema.json",
+  "title": "TelephonyStatus",
+  "type": "object",
+  "properties": {
+    "configured": { "type": "boolean" },
+    "mode": { "type": ["string", "null"], "enum": ["local", "trunk", null] },
+    "ariReachable": { "type": "boolean" },
+    "registration": { "type": "string", "enum": ["unavailable", "unknown", "unregistered", "registered", "not_required"] },
+    "ownerEndpoint": { "type": "string", "enum": ["unknown", "online", "offline"] },
+    "configurationApplied": { "type": "boolean" },
+    "dialplanLoaded": { "type": "boolean" },
+    "ready": { "type": "boolean" },
+    "revision": { "type": "integer", "minimum": 0 },
+    "callerId": { "type": ["string", "null"] }
+  },
+  "required": ["configured", "mode", "ariReachable", "registration", "ownerEndpoint", "configurationApplied", "dialplanLoaded", "ready", "revision", "callerId"],
+  "additionalProperties": false
+}

@@ -23,6 +23,7 @@ export const WRITE_ACTIONS = [
   'memory.delete',
   'communication.draft',
   'communication.requestSend',
+  'telephony.call',
   'calendar.propose',
   'calendar.create',
   'automations.create',
@@ -95,6 +96,7 @@ const OPERATOR_ACTIONS: ReadonlySet<WriteAction> = new Set<WriteAction>([
 
 /** Owner-only on top of the operator set. */
 const OWNER_ONLY_ACTIONS: ReadonlySet<WriteAction> = new Set<WriteAction>([
+  'telephony.call',
   'calendar.create',
   'system.healthcheck',
   'system.reconnect',

@@ -69,8 +69,16 @@ describe("observability operations (PLAN §50.3)", () => {
     expect(Object.keys(telemetry?.op.responses ?? {})).toEqual(expect.arrayContaining(["202", "401", "403", "413", "422", "429"]));
   });
 
-  it("the contract includes the 171 released operations", () => {
-    expect(operations).toHaveLength(171);
+  it("the contract includes the 177 released operations", () => {
+    expect(operations).toHaveLength(177);
+  });
+
+  it("marks owner telephony actions with a call capability", () => {
+    for (const operationId of ["previewTelephonyCall", "originateTelephonyCall", "hangupTelephonyCall"]) {
+      const operation = operations.find(({ op }) => op.operationId === operationId);
+      expect(operation?.op["x-required-role"], operationId).toBe("owner");
+      expect(operation?.op["x-capability"], operationId).toBe("telephony.call");
+    }
   });
 });
 

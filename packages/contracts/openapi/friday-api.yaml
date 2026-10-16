@@ -5497,6 +5497,105 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/telephony:
+    get:
+      operationId: getTelephony
+      tags: [settings]
+      summary: Read observed Asterisk and SIP registration status without secrets
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/TelephonyStatusResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+    put:
+      operationId: putTelephony
+      tags: [settings]
+      summary: Store private owner SIP and local Asterisk ARI configuration
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/TelephonyProfilePatch" } } } }
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/TelephonyStatusResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/telephony/preview:
+    post:
+      operationId: previewTelephonyCall
+      tags: [communication]
+      summary: Create a short-lived owner-bound call preview without dialing
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/TelephonyPreviewRequest" } } } }
+      responses:
+        "200": { description: Preview, content: { application/json: { schema: { $ref: "#/components/schemas/TelephonyPreviewResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: telephony.call
+      x-required-role: owner
+  /api/v1/telephony/calls:
+    post:
+      operationId: originateTelephonyCall
+      tags: [communication]
+      summary: After explicit owner confirmation, request a call from owner extension to destination
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/TelephonyCallRequest" } } } }
+      responses:
+        "200": { description: Journal state, headers: { Idempotent-Replayed: { $ref: "#/components/headers/IdempotentReplayed" } }, content: { application/json: { schema: { $ref: "#/components/schemas/TelephonyCallResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: telephony.call
+      x-required-role: owner
+  /api/v1/telephony/calls/{callId}:
+    get:
+      operationId: getTelephonyCall
+      tags: [communication]
+      summary: Observe the owner channel without inferring remote connection
+      parameters:
+        - name: callId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Journal state, content: { application/json: { schema: { $ref: "#/components/schemas/TelephonyCallResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-capability: telephony.read
+      x-required-role: owner
+  /api/v1/telephony/calls/{callId}/hangup:
+    post:
+      operationId: hangupTelephonyCall
+      tags: [communication]
+      summary: Ask Asterisk to hang up the journalled owner channel
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - name: callId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Journal state, content: { application/json: { schema: { $ref: "#/components/schemas/TelephonyCallResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: telephony.call
+      x-required-role: owner
   /api/v1/settings/discord-gateway:
     get:
       operationId: getDiscordGateway
@@ -6818,6 +6917,18 @@ components:
       $ref: ../schemas/settings/telegram-gateway.schema.json
     DiscordGateway:
       $ref: ../schemas/settings/discord-gateway.schema.json
+    TelephonyStatusResponse:
+      $ref: ../schemas/settings/telephony-status-response.schema.json
+    TelephonyProfilePatch:
+      $ref: ../schemas/settings/telephony-profile-patch.schema.json
+    TelephonyPreviewRequest:
+      $ref: ../schemas/communication/telephony-preview-request.schema.json
+    TelephonyPreviewResponse:
+      $ref: ../schemas/communication/telephony-preview-response.schema.json
+    TelephonyCallRequest:
+      $ref: ../schemas/communication/telephony-call-request.schema.json
+    TelephonyCallResponse:
+      $ref: ../schemas/communication/telephony-call-response.schema.json
     DiscordGatewayPatch:
       $ref: ../schemas/settings/discord-gateway-patch.schema.json
     DiscordGatewayResponse:

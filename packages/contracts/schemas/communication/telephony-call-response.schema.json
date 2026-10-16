@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/communication/telephony-call-response.schema.json",
+  "title": "TelephonyCallResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": { "type": "object", "properties": {
+      "id": { "type": "string", "pattern": "^call_[a-f0-9]{32}$" },
+      "destination": { "type": "string" },
+      "state": { "type": "string", "enum": ["pending", "requested", "owner_answered", "ended", "failed", "unknown"] },
+      "adapterStatus": { "type": ["integer", "null"] },
+      "createdAt": { "type": "string", "format": "date-time" },
+      "updatedAt": { "type": "string", "format": "date-time" },
+      "replayed": { "type": "boolean" }
+    }, "required": ["id", "destination", "state", "adapterStatus", "createdAt", "updatedAt"], "additionalProperties": false },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"], "additionalProperties": false
+}
