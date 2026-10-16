@@ -986,7 +986,7 @@ class VoiceService:
                         service.trusted_until = 0.0
                         service.background_jobs.clear()
                         service.background_reply_ready.clear()
-                        service.control_paused = self.path == "/control/pause" or service.control_paused
+                        service.control_paused = self.path == "/control/pause"
                         service.status["state"] = "paused" if service.control_paused else "listening"
                         service.tts.interrupt()
                 self.send_response(202)
