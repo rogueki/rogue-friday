@@ -1,57 +1,38 @@
 import { CONTRACT_VERSION, type AdapterManifest } from "@friday/sdk";
-import { createPlaceholderAdapter, type AdapterFactory } from "@friday/adapter-core";
+import type { AdapterFactory } from "@friday/adapter-core";
+import { IcsCalendarAdapter } from "./ics-calendar";
+export { validateFeedUrl } from "./fetch-ics";
 
 export const PROVIDER_ID = "caldav-calendar";
 export const CONFIG_SCHEMA_ID = "urn:friday:adapter:caldav-calendar:config";
 
+// Keep the historic provider id for existing allowlists. This adapter supports ICS read-only.
 export const configSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: CONFIG_SCHEMA_ID,
-  title: "Kalender (CalDAV / ICS)",
+  title: "iCalendar-Feed (nur lesen)",
   type: "object",
   properties: {
-    sourceType: {
-      type: "string",
-      enum: ["caldav", "ics"],
-      default: "caldav",
-      description: "CalDAV-Server (lesen/schreiben) oder ICS-Abo-URL (nur lesen).",
-    },
-    url: { type: "string", format: "uri", description: "CalDAV-Kalender-URL bzw. ICS-Feed-URL." },
-    username: { type: "string", description: "Benutzername (nur CalDAV mit Basic-Auth)." },
-    password: {
-      type: "string",
-      minLength: 1,
-      writeOnly: true,
-      description: "Passwort bzw. App-Passwort (Secret; für ICS-Feeds mit Token in der URL entfällt es).",
-    },
-    timezone: { type: "string", default: "Europe/Berlin" },
-    syncIntervalSeconds: { type: "integer", minimum: 30, default: 300 },
-    lookaheadDays: { type: "integer", minimum: 1, maximum: 365, default: 60 },
-    timeoutMs: { type: "integer", minimum: 100, maximum: 120000, default: 15000 },
+    feedUrl: { type: "string", minLength: 1, writeOnly: true, description: "Private HTTPS-ICS-URL." },
   },
   additionalProperties: false,
 } as const;
 
 export const manifest: AdapterManifest = {
   id: PROVIDER_ID,
-  name: "Kalender (CalDAV/ICS)",
-  adapterVersion: "0.1.0",
+  name: "iCalendar-Feed (nur lesen)",
+  adapterVersion: "0.2.0",
   contractVersion: CONTRACT_VERSION,
   apiVersion: "v1",
   category: "calendar",
-  capabilities: [],
+  capabilities: ["calendar.read"],
   configSchemaRef: CONFIG_SCHEMA_ID,
-  secretFields: ["password"],
+  secretFields: ["feedUrl"],
 };
 
 export const calendarFactory: AdapterFactory<"calendar"> = {
   providerId: PROVIDER_ID,
   category: "calendar",
   configSchema,
-  create: () =>
-    createPlaceholderAdapter({
-      manifest: { ...manifest, category: "calendar" },
-      systemName: "Kalender",
-      isConfigured: (config) => typeof config.url === "string" && config.url.length > 0,
-    }),
+  create: () => new IcsCalendarAdapter(),
 };

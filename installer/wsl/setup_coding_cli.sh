@@ -9,7 +9,7 @@ BIN_ROOT="$HOME/.local/bin"
 export PATH="$BIN_ROOT:$NODE_ROOT/bin:$NPM_ROOT/bin:/usr/local/bin:/usr/bin:/bin"
 
 usage() {
-    echo 'usage: setup_coding_cli.sh status|install opencode|codex|claude' >&2
+    echo 'usage: setup_coding_cli.sh status | install opencode|codex|claude | login codex|claude' >&2
     exit 2
 }
 
@@ -82,6 +82,21 @@ link_node() {
 mode="${1:-status}"
 case "$mode" in
     status) [ "$#" -eq 1 ] || usage; status ;;
+    login)
+        [ "$#" -eq 2 ] || usage
+        case "$2" in codex|claude) ;; *) usage ;; esac
+        resolved="$(native_command "$2" || true)"
+        [ -n "$resolved" ] || { echo "FRIDAY_CLI_ERROR $2 is not installed natively in Linux" >&2; exit 1; }
+        if [ "$2" = codex ]; then
+            echo 'ChatGPT-Anmeldung: URL und einmaligen Code nur im eigenen Browser eingeben; Code nicht weitergeben.'
+            "$resolved" login --device-auth
+            "$resolved" login status
+        else
+            echo 'Claude-Pro/Max-Anmeldung: Im Browser Claude-Subscription auswaehlen; keine Console-API-Abrechnung.'
+            "$resolved" auth login --claudeai
+            "$resolved" auth status
+        fi
+        ;;
     install)
         [ "$#" -eq 2 ] || usage
         case "$2" in

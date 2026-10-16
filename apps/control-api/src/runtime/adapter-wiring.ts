@@ -29,19 +29,47 @@ import type { Logger } from "@friday/observability";
 import { MockWorld } from "@friday/mock-data";
 import type { AdapterOverrideStore } from "../db/stores";
 import type { EventHub } from "../realtime/hub";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { kvGet, kvSet, type Db } from "../db/database";
 
 export interface RuntimeSecrets {
-  /** Secret values set through the settings UI. Kept in memory only: nothing secret is persisted (PLAN §49.6). */
+  /** Secrets set through settings. Calendar feed URL is encrypted in the local database; other values stay in memory. */
   set(adapterId: string, field: string, value: string): void;
   get(adapterId: string, field: string): string | undefined;
   has(adapterId: string, field: string): boolean;
 }
 
-export function createRuntimeSecrets(): RuntimeSecrets {
+export function createRuntimeSecrets(db?: Db, calendarKey?: Buffer): RuntimeSecrets {
   const values = new Map<string, string>();
   const key = (adapterId: string, field: string): string => `${adapterId}\u0000${field}`;
+  const calendarSlot = key("caldav-calendar", "feedUrl");
+  const stored = db ? kvGet(db, "calendar.feed-url.v1") : undefined;
+  if (stored && calendarKey) {
+    try {
+      const [nonce, tag, body] = stored.split(":").map((value) => Buffer.from(value, "base64"));
+      if (!nonce || !tag || !body || nonce.length !== 12 || tag.length !== 16) throw new Error("invalid envelope");
+      const decipher = createDecipheriv("aes-256-gcm", calendarKey, nonce);
+      decipher.setAAD(Buffer.from("friday/calendar-feed/v1"));
+      decipher.setAuthTag(tag);
+      values.set(calendarSlot, Buffer.concat([decipher.update(body), decipher.final()]).toString("utf8"));
+    } catch { /* Fail closed for this adapter only: no URL is loaded or exposed. */ }
+  }
   return {
-    set: (adapterId, field, value) => void values.set(key(adapterId, field), value),
+    set: (adapterId, field, value) => {
+      if (key(adapterId, field) === calendarSlot && db && calendarKey) {
+        if (value) {
+          const nonce = randomBytes(12);
+          const cipher = createCipheriv("aes-256-gcm", calendarKey, nonce);
+          cipher.setAAD(Buffer.from("friday/calendar-feed/v1"));
+          const body = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+          kvSet(db, "calendar.feed-url.v1", [nonce, cipher.getAuthTag(), body].map((part) => part.toString("base64")).join(":"));
+        } else {
+          db.prepare("DELETE FROM kv WHERE key = ?").run("calendar.feed-url.v1");
+        }
+      }
+      if (value) values.set(key(adapterId, field), value);
+      else values.delete(key(adapterId, field));
+    },
     get: (adapterId, field) => values.get(key(adapterId, field)),
     has: (adapterId, field) => values.has(key(adapterId, field)),
   };
@@ -142,7 +170,7 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
     const saved = savedOverrides.get(category);
     const { values, refs } = splitConfig(resolved.config);
     const mock = isMockProvider(resolved.provider);
-    const provider = saved?.provider && !mock && config.dataMode !== "mock" ? saved.provider : resolved.provider;
+    const provider = saved?.provider && (!mock || category === "calendar") && config.dataMode !== "mock" ? saved.provider : resolved.provider;
     const entry: AdapterEntryConfig = {
       provider,
       enabled: saved?.enabled ?? resolved.enabled,

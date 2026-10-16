@@ -50,6 +50,7 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
   return <section aria-labelledby="himalaya-account-title">
     <h3 id="himalaya-account-title">E-Mail-Postfach für Himalaya</h3>
     <p>Ein IMAP/SMTP-Postfach für Hermes. Gib Server und Ordnernamen deines Anbieters ein. Gerade der Gesendet-Ordner muss exakt stimmen; bei manchen Anbietern kann sonst eine Wiederholung eine E-Mail doppelt senden. Friday verwaltet ein Postfach namens <code>friday</code> und speichert Passwörter nur in Friday-Ubuntu. Eine vorhandene fremde Himalaya-Konfiguration wird nicht überschrieben. Es erfolgt beim Speichern keine Verbindung zum Anbieter.</p>
+    <p>Diese Einrichtung verwendet IMAP und SMTP mit Passwort oder App-Passwort über TLS. Gmail benötigt ein App-Passwort statt des normalen Kontopassworts. Konten, die nur OAuth erlauben, etwa viele Microsoft-Postfächer, benötigen eine gesonderte Anmeldung und funktionieren mit diesem Formular nicht.</p>
     {!owner ? <p>Nur der Owner kann das Postfach einrichten.</p> : <>
       {status.isPending && <p role="status">Postfachstatus wird geladen.</p>}
       {status.isError && <p role="alert">Postfachstatus nicht erreichbar. <button type="button" onClick={() => void status.refetch()}>Erneut prüfen</button></p>}

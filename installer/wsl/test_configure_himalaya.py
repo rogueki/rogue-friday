@@ -3,6 +3,7 @@ import io
 import json
 import os
 from pathlib import Path
+import subprocess
 import tempfile
 import tomllib
 import unittest
@@ -44,8 +45,12 @@ class HimalayaAccountTests(unittest.TestCase):
         self.assertFalse(status["connectionChecked"])
         config = module.CONFIG.read_text()
         parsed = tomllib.loads(config)
-        self.assertEqual(parsed["accounts"]["friday"]["backend"]["host"], "imap.example.test")
-        self.assertEqual(parsed["accounts"]["friday"]["folder"]["aliases"]["sent"], "Sent")
+        self.assertEqual(parsed["accounts"]["friday"]["imap"]["server"], "imaps://imap.example.test:993")
+        self.assertEqual(parsed["accounts"]["friday"]["smtp"]["server"], "smtp://smtp.example.test:587")
+        self.assertTrue(parsed["accounts"]["friday"]["smtp"]["starttls"])
+        self.assertEqual(parsed["accounts"]["friday"]["mailbox"]["alias"]["sent"], "Sent")
+        self.assertEqual(parsed["accounts"]["friday"]["imap"]["sasl"]["plain"]["password"]["command"],
+                         ["cat", str(module.SECRETS / "imap-secret")])
         self.assertNotIn("imap-secret-test", config)
         self.assertNotIn("smtp-secret-test", config)
         self.assertEqual(os.stat(module.CONFIG).st_mode & 0o777, 0o600)
@@ -53,6 +58,27 @@ class HimalayaAccountTests(unittest.TestCase):
         self.assertEqual(os.stat(module.SECRETS / "smtp-secret").st_mode & 0o777, 0o600)
         self.assertFalse(module.valid({**self.profile, "imapHost": "imap.example.test; evil"}))
         self.assertFalse(module.valid({**self.profile, "smtpEncryption": "none"}))
+        binary = os.environ.get("HIMALAYA_CLI_TEST_BINARY")
+        if binary:
+            result = subprocess.run([binary, "--config", str(module.CONFIG), "account", "list", "--json"],
+                                    capture_output=True, text=True, timeout=5, check=False)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_legacy_managed_profile_is_not_ready(self):
+        module.CONFIG.parent.mkdir(parents=True)
+        module.CONFIG.write_text(module.HEADER + '[accounts.friday]\nbackend.type = "imap"\n')
+        for name in ("imap-secret", "smtp-secret"):
+            module.atomic(module.SECRETS / name, "synthetic\n")
+        with patch.object(module.shutil, "which", return_value="/usr/bin/himalaya"), patch.object(module.subprocess, "run") as run:
+            run.return_value.returncode = 0
+            run.return_value.stdout = "himalaya v2.2.1"
+            status = module.read_status()
+        self.assertTrue(status["managed"])
+        self.assertFalse(status["readyForLocalUse"])
+        self.profile["revision"] = status["revision"]
+        with patch("sys.argv", ["configure_himalaya.py", "update"]), patch("sys.stdin", io.StringIO(json.dumps(self.profile))), patch("sys.stdout", new_callable=io.StringIO):
+            self.assertEqual(module.main(), 0)
+        self.assertIn('imap.server = "imaps://imap.example.test:993"', module.CONFIG.read_text())
 
     def test_existing_user_config_is_preserved(self):
         module.CONFIG.parent.mkdir(parents=True)

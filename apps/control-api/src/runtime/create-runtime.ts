@@ -197,7 +197,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   // Seeded activity is numbered before the hub existed; keep every live event above it.
   if (world) hub.ensureSequenceAtLeast(world.state.sequence);
   const engine = world && config.dataMode === "mock" ? ScenarioEngine.for(world) : undefined;
-  const secrets = createRuntimeSecrets();
+  const secrets = createRuntimeSecrets(db, deriveKey(serverKey.key, "calendar-feed"));
   const wiring = wireAdapters({
     config,
     logger,

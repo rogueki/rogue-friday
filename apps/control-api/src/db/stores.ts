@@ -259,4 +259,17 @@ export class AdapterOverrideStore {
       );
     return this.version(entry.adapterId);
   }
+
+  replaceCategory(entry: Omit<AdapterOverride, "version">): number {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db.prepare("DELETE FROM adapter_overrides WHERE category = ? AND adapter_id != ?").run(entry.category, entry.adapterId);
+      const version = this.save(entry);
+      this.db.exec("COMMIT");
+      return version;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
 }

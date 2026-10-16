@@ -12,8 +12,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@friday/adapter-core": "workspace:*",
     "@friday/sdk": "workspace:*",
-    "@friday/adapter-core": "workspace:*"
+    "ical.js": "2.2.1"
   },
   "devDependencies": {
     "@friday/adapter-testkit": "workspace:*"

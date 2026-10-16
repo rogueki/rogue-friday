@@ -1703,6 +1703,7 @@ allowlist:
   hermes-agents: "@friday/adapter-hermes"
   friday-voice-http: "@friday/adapter-voice-http"
   local-system: "@friday/adapter-system-local"
+  caldav-calendar: "@friday/adapter-calendar-placeholder"
 
 adapters:
   tasks:
@@ -1754,6 +1755,18 @@ adapters:
 "@
     Write-DashFile "$cfg\dashboard.yaml" $dashboardYaml 'dashboard.yaml'
     Write-DashFile "$cfg\adapters.yaml" $adaptersYaml 'adapters.yaml'
+    # Existing installations keep their adapter choices. Only add the dormant ICS provider to the allowlist.
+    if ($UpdateDashboard -and (Test-Path -LiteralPath "$cfg\adapters.yaml")) {
+        $adapterPath = "$cfg\adapters.yaml"
+        $adapterText = [System.IO.File]::ReadAllText($adapterPath)
+        if ($adapterText -notmatch '(?m)^  caldav-calendar:') {
+            $marker = '(?m)^(  local-system:[ \t]*"@friday/adapter-system-local")\r?\n'
+            if ($adapterText -match $marker) {
+                $adapterText = [regex]::Replace($adapterText, $marker, '$1' + "`r`n" + '  caldav-calendar: "@friday/adapter-calendar-placeholder"' + "`r`n", 1)
+                [System.IO.File]::WriteAllText($adapterPath, $adapterText, (New-Object System.Text.UTF8Encoding($false)))
+            } else { Warn 'Kalender-Provider konnte nicht automatisch in die angepasste Adapter-Allowlist eingetragen werden.' }
+        }
+    }
 }
 function Protect-OwnerFile([string]$file) {
     & icacls.exe $file /inheritance:r /grant:r "$($env:USERNAME):(R,W)" /grant:r 'SYSTEM:(R)' | Out-Null
@@ -1940,7 +1953,8 @@ Friday-Skills: $(if (IsDone 'skills') { "Registry validiert, Commit $($State.ski
 Erste Einrichtung: Im Command Center Besitzerkonto anlegen oder anmelden. Bei einem neuen Besitzer startet dort die fortsetzbare Einführung mit Profil, Friday- und Hermes-Skills sowie Konto-Voraussetzungen. Ein Skill ist erst nutzbar, wenn Hermes und die nötigen Integrationen ihn tatsächlich bereitstellen.
 WSL-Voraussetzungen (Fund, keine Funktionsprobe): $($readiness -replace "`n", '; ')
 Obsidian-Vault: $vaultStatus
-Optionale Coding-CLIs: Im Installerordner setup-coding-cli.ps1 -Cli opencode|codex|claude ausfuehren; jede CLI wird nur auf ausdrueckliche Auswahl nativ in WSL installiert. Eine Versionspruefung belegt weder Anmeldung noch einen erfolgreichen Coding-Auftrag.
+Optionale Coding-CLIs: Im Installerordner setup-coding-cli.ps1 -Cli opencode|codex|claude ausfuehren; ChatGPT-/Claude-Abo-Anmeldung danach interaktiv mit -Cli codex|claude -Login. Jede CLI wird nur auf ausdrueckliche Auswahl nativ in WSL installiert. Eine Versionspruefung belegt weder Anmeldung noch einen erfolgreichen Coding-Auftrag.
+Optionale E-Mail-CLI: installer\setup-himalaya.ps1 -Action install; IMAP-/SMTP-Konto danach unter Einstellungen > Skill-Konten anlegen. Anbieterzugriff bleibt bis zur echten Kontopruefung offen.
 Erledigte Schritte: $(@($State.done) -join ', ')
 "@
 [IO.File]::WriteAllText("$Root\INSTALL_STATE.md", $report, (New-Object Text.UTF8Encoding $false))
@@ -1955,6 +1969,8 @@ Info "Hermes-Dashboard (Kanban, Einstellungen): http://127.0.0.1:$($Ports.Dashbo
 Info 'Alles startet ab jetzt automatisch bei der Anmeldung.'
 if ($DashProbe.Up) { Info 'Erste Einrichtung: Command Center öffnen, Besitzerkonto anlegen/anmelden und die Einführung durchlaufen. Friday zeigt dort Skills und noch fehlende Konten.' }
 Info 'Optionale native Coding-CLI: installer\setup-coding-cli.ps1 -Cli opencode|codex|claude (einzeln, nach Bedarf).'
+Info 'ChatGPT-/Claude-Abo fuer Coding-CLI: installer\setup-coding-cli.ps1 -Cli codex|claude -Login (interaktiv).'
+Info 'Optionales IMAP/SMTP: installer\setup-himalaya.ps1 -Action install; Postfach im Dashboard unter Skill-Konten.'
 Info 'Nächste Schritte (Telegram, E-Mail, Kalender): siehe ANLEITUNG.md'
 if (-not $CustomRoot) { Show-MigrationSummary }
 if ($DashProbe.Up -and (YesNo 'Command Center jetzt im Browser öffnen?')) { Start-Process $DashUrl }
