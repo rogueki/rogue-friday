@@ -228,10 +228,12 @@ class Speaker:
 
     def _play_qwen(self, text: str) -> None:
         import qwen_tts
+        from audio_output import for_output_device
         result = qwen_tts.synthesize(text, self.tts_config, self.stop_flag)
         if result is None:
             return
         audio, rate = result
+        audio, rate = for_output_device(audio, rate, self.output_device)
         with sd.OutputStream(samplerate=rate, channels=1, dtype="float32", device=self.output_device) as out:
             for offset in range(0, len(audio), 4096):
                 if self.stop_flag.is_set():
