@@ -715,7 +715,7 @@ if ($CustomRoot) {
     $DashPort = $Ports.CommandCenter
     $DashUrl = "http://127.0.0.1:$DashPort"
     # Der alte D:-Installer registrierte den Dashboard-Launcher unter JARVIS_Dashboard.
-    # Diese Aufgabe wird weiterverwendet, damit nicht zwei Launcher um denselben Port konkurrieren.
+    # Bis zum erfolgreichen Healthcheck bleibt diese Aufgabe als Rueckfall erhalten.
     $legacyDashTask = Get-ScheduledTask -TaskName 'JARVIS_Dashboard' -ErrorAction SilentlyContinue
     $fridayDashTask = Get-ScheduledTask -TaskName 'FRIDAY_Dashboard' -ErrorAction SilentlyContinue
     if ($fridayDashTask -and -not (Test-TaskForInstallRoot $fridayDashTask)) { Stop-Install 'FRIDAY_Dashboard gehoert zu einem anderen Installationspfad. Update abgebrochen.' }
@@ -1480,6 +1480,66 @@ function Stop-DashboardService {
     # Erst die Neustartschleife (Launcher), dann Node - sonst startet der Launcher den Server sofort neu.
     Stop-LauncherService $DashTask 'start-dashboard.ps1' '*control-api*dist*main.js*' $Root $ProcessRoots
 }
+function Move-LegacyDashboardTask {
+    if ($DashTask -ne 'JARVIS_Dashboard') { return $true }
+    $oldTask = Get-ScheduledTask -TaskName 'JARVIS_Dashboard' -ErrorAction SilentlyContinue
+    if (-not $oldTask -or -not (Test-TaskForInstallRoot $oldTask) -or $oldTask.TaskPath -ne '\') {
+        Stop-Dashboard 'Die bisherige Dashboard-Aufgabe fehlt oder gehoert nicht zu dieser Installation.'
+    }
+    $oldAction = @($oldTask.Actions | ForEach-Object { "$($_.Execute) $($_.Arguments)" }) -join ' '
+    $launcherMatches = $false
+    foreach ($path in $ProcessRoots) {
+        if ($oldAction -like "*$($path)installer\scripts\start-dashboard.ps1*") { $launcherMatches = $true; break }
+    }
+    if (-not $launcherMatches) { Stop-Dashboard 'Die bisherige Dashboard-Aufgabe startet keinen bekannten Dashboard-Launcher.' }
+    if (Get-ScheduledTask -TaskName 'FRIDAY_Dashboard' -ErrorAction SilentlyContinue) {
+        Stop-Dashboard 'FRIDAY_Dashboard existiert bereits. Eine fremde oder doppelte Aufgabe wird nicht ueberschrieben.'
+    }
+
+    # Erst neue Autostart-Aufgabe anlegen, dann den alten Launcher beenden. Bis dahin bleibt der alte Autostart erhalten.
+    $oldEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Stop'
+    $newTaskCreated = $false
+    $oldStopped = $false
+    $newStarted = $false
+    try {
+        Register-UserTask 'FRIDAY_Dashboard' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-dashboard.ps1`"" 'F.R.I.D.A.Y. Command Center (Dashboard + Control API)' 60
+        $newTaskCreated = $true
+        $newTask = Get-ScheduledTask -TaskName 'FRIDAY_Dashboard' -ErrorAction Stop
+        if (-not (Test-TaskForInstallRoot $newTask) -or $newTask.TaskPath -ne '\') { throw 'Neue Dashboard-Aufgabe hat einen unerwarteten Pfad.' }
+        $oldStopped = $true
+        Stop-DashboardService
+        if (Get-PortOwner $DashPort) { throw "Port $DashPort ist nach dem Stopp des alten Dashboard-Launchers weiterhin belegt." }
+        $newStarted = $true
+        Start-ScheduledTask -TaskName 'FRIDAY_Dashboard' -ErrorAction Stop
+        $healthy = $false
+        foreach ($i in 1..30) {
+            $check = Test-DashboardHealth 3
+            if ($check.Up -and $check.Code -ge 200 -and $check.Code -lt 300) { $healthy = $true; break }
+            Start-Sleep 2
+        }
+        if (-not $healthy) { throw 'Neue Dashboard-Aufgabe erreichte keinen erfolgreichen Healthcheck.' }
+        Unregister-ScheduledTask -TaskName 'JARVIS_Dashboard' -Confirm:$false -ErrorAction Stop
+        $script:DashTask = 'FRIDAY_Dashboard'
+        Ok 'Dashboard-Autostart von JARVIS_Dashboard auf FRIDAY_Dashboard umgestellt.'
+        return $true
+    } catch {
+        $cause = $_.Exception.Message
+        if ($newStarted) {
+            try { Stop-LauncherService 'FRIDAY_Dashboard' 'start-dashboard.ps1' '*control-api*dist*main.js*' $Root $ProcessRoots }
+            catch { Warn "Neuer Dashboard-Launcher konnte nicht sauber gestoppt werden: $($_.Exception.Message)" }
+        }
+        if ($newTaskCreated -or (Get-ScheduledTask -TaskName 'FRIDAY_Dashboard' -ErrorAction SilentlyContinue)) {
+            try { Unregister-ScheduledTask -TaskName 'FRIDAY_Dashboard' -Confirm:$false -ErrorAction Stop }
+            catch { Warn "FRIDAY_Dashboard konnte nicht entfernt werden: $($_.Exception.Message)" }
+        }
+        if ($oldStopped) {
+            try { Start-ScheduledTask -TaskName 'JARVIS_Dashboard' -ErrorAction Stop }
+            catch { Warn "Bisheriger Dashboard-Launcher konnte nicht sofort neu gestartet werden: $($_.Exception.Message)" }
+        }
+        Stop-Dashboard "Dashboard-Aufgabenmigration fehlgeschlagen ($cause). JARVIS_Dashboard bleibt fuer den naechsten Login erhalten."
+    } finally { $ErrorActionPreference = $oldEap }
+}
 function Write-DashFile([string]$path, [string]$content, [string]$label) {
     $content = $content.Replace("`r`n", "`n")
     $enc = New-Object Text.UTF8Encoding $false
@@ -1731,6 +1791,13 @@ function Install-Dashboard {
     }
     if ($h.Code -ge 200 -and $h.Code -lt 300) { Ok "Command Center läuft: $DashUrl (Health $($h.Code))" }
     else { Warn "Command Center läuft, meldet aber HTTP $($h.Code) (einzelne Adapter eingeschränkt? Siehe $Root\logs\dashboard-service.log). Es bleibt eingerichtet." }
+    if ($DashTask -eq 'JARVIS_Dashboard') {
+        if ($h.Code -lt 200 -or $h.Code -ge 300) {
+            Warn 'Legacy-Dashboard-Autostart bleibt erhalten, bis das Command Center einen erfolgreichen Healthcheck liefert.'
+            return
+        }
+        Move-LegacyDashboardTask | Out-Null
+    }
     $script:DashOk = $true
 }
 
