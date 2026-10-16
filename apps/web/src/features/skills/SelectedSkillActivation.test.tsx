@@ -1,38 +1,62 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SkillCatalogEntry } from "@friday/sdk";
-import { afterEach, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { SelectedSkillActivation } from "./SelectedSkillActivation";
 
-const mocks = vi.hoisted(() => ({ mutateAsync: vi.fn(), refetch: vi.fn(), skills: [] as SkillCatalogEntry[] }));
+const mocks = vi.hoisted(() => ({ stale: false, freshness: "fresh", refetch: vi.fn(), mutate: vi.fn(), skills: [] as SkillCatalogEntry[] }));
 vi.mock("@/lib/api/domains/skills", () => ({
-  useSkillsCatalog: () => ({ data: { data: mocks.skills }, isPending: false, isError: false, refetch: mocks.refetch }),
-  useSetSkillActivation: () => ({ mutateAsync: mocks.mutateAsync }),
+  useSkillsCatalog: () => ({ data: { data: mocks.skills, freshness: { state: mocks.freshness } },
+    isPending: false, isError: false, isStale: mocks.stale, isFetching: false, refetch: mocks.refetch }),
+  useSetSkillActivation: () => ({ mutateAsync: mocks.mutate }),
 }));
 
-const skill = (id: string, discovered: boolean | null, enabled: boolean | null) => ({
-  id, name: id, discovered, enabled,
-}) as SkillCatalogEntry;
+const skill: SkillCatalogEntry = {
+  id: "hermes:test", source: "hermes", name: "Test Skill", category: "Test", description: "Test",
+  version: null, packaged: false, discovered: true, enabled: false, observedAt: null, observationSource: "test",
+  observationError: null, accounts: [], setupRefs: [], integrationRefs: [], integrationDetails: [],
+  requiredCapabilities: [], conditionalCapabilities: [],
+};
 
-afterEach(() => { mocks.skills = []; mocks.mutateAsync.mockReset(); mocks.refetch.mockReset(); });
+beforeEach(() => { mocks.stale = false; mocks.freshness = "fresh"; mocks.skills = [skill]; mocks.refetch.mockReset(); mocks.mutate.mockReset(); });
 
-it("changes only the explicitly selected skill and reports Hermes confirmation after refresh", async () => {
-  mocks.skills = [skill("friday:notes", true, false), skill("hermes:other", true, false)];
-  mocks.mutateAsync.mockResolvedValue({});
-  mocks.refetch.mockResolvedValue({ data: { data: [skill("friday:notes", true, true), skill("hermes:other", true, false)] }, isError: false });
-  render(<SelectedSkillActivation selectedIds={["friday:notes"]} />);
-  expect(mocks.mutateAsync).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByRole("button", { name: "friday:notes aktivieren" }));
-  await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Aktivierung von Hermes bestätigt"));
-  expect(mocks.mutateAsync).toHaveBeenCalledOnce();
-  expect(mocks.mutateAsync).toHaveBeenCalledWith({ id: "friday:notes", enabled: true });
+it.each(["stale", "unknown"])("blocks activation for %s catalog state and offers refresh", async (state) => {
+  mocks.stale = state === "stale";
+  mocks.freshness = state === "unknown" ? "unknown" : "fresh";
+  render(<SelectedSkillActivation selectedIds={[skill.id]} />);
+  expect(screen.getByText("Status unbekannt")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Test Skill aktivieren" })).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Jetzt aktualisieren" }));
   expect(mocks.refetch).toHaveBeenCalledOnce();
+  expect(mocks.mutate).not.toHaveBeenCalled();
+});
+
+it("allows activation only with fresh catalog and confirms a fresh response", async () => {
+  mocks.refetch.mockResolvedValue({ data: { data: [{ ...skill, enabled: true }], freshness: { state: "fresh" } },
+    isPending: false, isError: false, isStale: false });
+  mocks.mutate.mockResolvedValue({});
+  render(<SelectedSkillActivation selectedIds={[skill.id]} />);
+  await userEvent.click(screen.getByRole("button", { name: "Test Skill aktivieren" }));
+  expect(mocks.mutate).toHaveBeenCalledWith({ id: skill.id, enabled: true });
+  expect(await screen.findByText(/Aktivierung von Hermes bestätigt/)).toBeTruthy();
+});
+
+it("changes only the explicitly selected skill", async () => {
+  mocks.mutate.mockResolvedValue({});
+  mocks.refetch.mockResolvedValue({ data: { data: [{ ...skill, enabled: true }, { ...skill, id: "hermes:other", enabled: false }], freshness: { state: "fresh" } },
+    isPending: false, isError: false, isStale: false });
+  render(<SelectedSkillActivation selectedIds={[skill.id]} />);
+  await userEvent.click(screen.getByRole("button", { name: "Test Skill aktivieren" }));
+  expect(mocks.mutate).toHaveBeenCalledOnce();
+  expect(mocks.mutate).toHaveBeenCalledWith({ id: skill.id, enabled: true });
 });
 
 it("does not offer activation for unknown, missing, or undiscovered skills", () => {
-  mocks.skills = [skill("friday:unknown", true, null), skill("friday:missing", false, false)];
-  render(<SelectedSkillActivation selectedIds={["friday:unknown", "friday:missing", "friday:absent"]} />);
-  expect(screen.queryByRole("button", { name: /aktivieren|deaktivieren/i })).toBeNull();
+  const unknown = { ...skill, id: "friday:unknown", discovered: true, enabled: null };
+  const missing = { ...skill, id: "friday:missing", discovered: false };
+  mocks.skills = [unknown, missing];
+  render(<SelectedSkillActivation selectedIds={[unknown.id, missing.id, "friday:absent"]} />);
   expect(screen.getByText("Nicht im Katalog")).toBeTruthy();
-  expect(mocks.mutateAsync).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: /aktivieren|deaktivieren/i })).toBeNull();
+  expect(mocks.mutate).not.toHaveBeenCalled();
 });
