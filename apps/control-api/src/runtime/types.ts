@@ -19,6 +19,7 @@ import type { ContentStudioPlanService } from "../services/content-studio-plan";
 import type { ContentStudioProductionService } from "../services/content-studio-production";
 import type { SkillsService } from "../services/skills";
 import type { OnboardingService } from "../services/onboarding";
+import type { ObsidianVaultService } from "../services/obsidian-vault";
 import type { FrontendTelemetryService } from "../services/telemetry";
 import type { AdapterWiring } from "./adapter-wiring";
 
@@ -63,6 +64,7 @@ export interface Runtime {
   contentStudioProduction: ContentStudioProductionService;
   skills: SkillsService;
   onboarding: OnboardingService;
+  obsidianVault: ObsidianVaultService;
   adapterSettings: AdapterSettingsService;
   status: StatusService;
   orb: OrbService;

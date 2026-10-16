@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/obsidian-vault-patch.schema.json",
+  "title": "ObsidianVaultPatch",
+  "type": "object",
+  "properties": { "path": { "type": "string", "minLength": 3, "maxLength": 1024 } },
+  "required": ["path"],
+  "additionalProperties": false
+}

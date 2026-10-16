@@ -1,9 +1,9 @@
 "use client";
 
-import type { ContentStudioKeysResponse, SkillCatalogEntry } from "@friday/sdk";
+import type { ContentStudioKeysResponse, ObsidianVaultResponse, SkillCatalogEntry } from "@friday/sdk";
 import { ErrorState, Skeleton } from "@friday/ui";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { officialReference } from "@/features/skills/skillPresentation";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
@@ -61,6 +61,34 @@ export function SkillAccountsArea() {
   const { role } = useSettingsDrafts();
   const query = useSkillsCatalog();
   const [search, setSearch] = useState("");
+  const [vaultPath, setVaultPath] = useState("");
+  const [vaultSaving, setVaultSaving] = useState(false);
+  const [vaultMessage, setVaultMessage] = useState("");
+  const vault = useQuery({
+    queryKey: ["settings", "obsidian-vault"],
+    queryFn: (): Promise<ObsidianVaultResponse> => call(getApiClient().GET("/api/v1/settings/obsidian-vault")),
+    enabled: role === "owner",
+  });
+  useEffect(() => {
+    if (!vault.data) return;
+    const path = vault.data.data.path;
+    const match = /^\/mnt\/([a-z])\/(.*)$/i.exec(path);
+    setVaultPath(match ? `${match[1]?.toUpperCase()}:\\${match[2]?.replaceAll("/", "\\")}` : path);
+  }, [vault.data]);
+  async function saveVault() {
+    if (!vault.data || !vaultPath.trim()) return;
+    setVaultSaving(true);
+    setVaultMessage("");
+    try {
+      const result: ObsidianVaultResponse = await call(getApiClient().PUT("/api/v1/settings/obsidian-vault", {
+        params: { header: { "If-Match": String(vault.data.data.revision) } }, body: { path: vaultPath.trim() },
+      }));
+      await vault.refetch();
+      setVaultMessage(result.data.applied ? "Vault gespeichert und Hermes-Gateway neu gestartet." : "Vault gespeichert; Hermes-Gateway-Neustart nicht bestätigt. Bitte Dienststatus prüfen.");
+    } catch (error) {
+      setVaultMessage(error instanceof Error ? error.message : "Vault konnte nicht eingerichtet werden.");
+    } finally { setVaultSaving(false); }
+  }
   const items = useMemo(() => {
     const grouped = new Map<string, Integration>();
     for (const skill of query.data?.data ?? []) for (const detail of skill.integrationDetails) {
@@ -83,6 +111,17 @@ export function SkillAccountsArea() {
     <p>Konten und lokale Voraussetzungen für die Skills. Ein gespeicherter Schlüssel oder aktivierter Skill belegt noch keine erfolgreiche Anmeldung beim Anbieter.</p>
     <p className="sk-warning">Telefonie: Friday enthält derzeit keinen verifizierten Anrufadapter. Hier kann noch kein Telefonkonto eingerichtet oder ein Anruf ausgelöst werden.</p>
     <p><a href="/onboarding">Einführung fortsetzen</a> · <a href="/skills">Alle Skills ansehen</a></p>
+    <section aria-labelledby="obsidian-setup-title">
+      <h3 id="obsidian-setup-title">Obsidian-Vault für Hermes</h3>
+      <p>Wähle einen vorhandenen Windows-Ordner mit <code>.obsidian</code>. Friday prüft den Zugriff in Friday-Ubuntu und trägt den Pfad in Hermes ein.</p>
+      {role === "owner" ? <>
+        <label>Vault-Ordner <input type="text" value={vaultPath} onChange={(event) => setVaultPath(event.target.value)} placeholder="C:\\Users\\Name\\Documents\\Mein Vault" /></label>
+        <button type="button" disabled={vaultSaving || vault.isPending || !vaultPath.trim()} onClick={() => void saveVault()}>Vault verbinden</button>
+        {vault.isError && <p role="alert">Vault-Status konnte nicht gelesen werden.</p>}
+        {vault.data && <p role="status">{vault.data.data.configured ? vault.data.data.readable ? "Vault in WSL erreichbar" : "Vault konfiguriert, derzeit nicht erreichbar" : "Noch kein Vault konfiguriert"}</p>}
+        {vaultMessage && <p role="status">{vaultMessage}</p>}
+      </> : <p>Nur der Owner kann den Vault einrichten.</p>}
+    </section>
     <label>Integration suchen <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name oder Einrichtung" /></label>
     <p role="status">{filtered.length} von {items.length} Integrationen</p>
     {filtered.map((item) => {

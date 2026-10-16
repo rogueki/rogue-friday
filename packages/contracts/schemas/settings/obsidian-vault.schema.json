@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/obsidian-vault.schema.json",
+  "title": "ObsidianVault",
+  "type": "object",
+  "properties": {
+    "path": { "type": "string" },
+    "revision": { "type": "integer", "minimum": 0 },
+    "configured": { "type": "boolean" },
+    "readable": { "type": "boolean" },
+    "applied": { "type": "boolean" }
+  },
+  "required": ["path", "revision", "configured", "readable", "applied"],
+  "additionalProperties": false
+}

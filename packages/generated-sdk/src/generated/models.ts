@@ -313,6 +313,9 @@ export interface FridayModelMap {
   NotificationResponse: NotificationResponse;
   NotificationSettings: NotificationSettings;
   NotificationSnoozeRequest: NotificationSnoozeRequest;
+  ObsidianVault: ObsidianVault;
+  ObsidianVaultPatch: ObsidianVaultPatch;
+  ObsidianVaultResponse: ObsidianVaultResponse;
   OnboardingResponse: OnboardingResponse;
   OnboardingState: OnboardingState;
   OnboardingUpdate: OnboardingUpdate;
@@ -2587,6 +2590,21 @@ export interface NotificationSettings {
 export interface NotificationSnoozeRequest {
   until?: string;
   durationMinutes?: number;
+}
+export interface ObsidianVault {
+  path: string;
+  revision: number;
+  configured: boolean;
+  readable: boolean;
+  applied: boolean;
+}
+export interface ObsidianVaultPatch {
+  path: string;
+}
+export interface ObsidianVaultResponse {
+  contractVersion: ContractVersion;
+  data: ObsidianVault;
+  freshness: Freshness;
 }
 export interface OnboardingResponse {
   contractVersion: ContractVersion;
