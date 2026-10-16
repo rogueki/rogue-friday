@@ -8,7 +8,7 @@ const E164 = /^\+[1-9]\d{7,14}$/;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 type Profile = { revision: number; agentId?: number; accessKeyId: string; accessKeySecret: string;
   ownerId?: string; ownerPhone?: string; ownerPhoneConfirmed?: boolean; voiceAgentId?: string; remindersEnabled?: boolean; reminderMinutes?: number };
-type ConfigureInput = { agentId?: number; accessKeyId: string; accessKeySecret: string;
+type ConfigureInput = { agentId?: number; accessKeyId?: string; accessKeySecret?: string;
   ownerPhone?: string; ownerPhoneConfirmed?: boolean; voiceAgentId?: string; remindersEnabled?: boolean; reminderMinutes?: number };
 type ReminderEvent = { id: string; owner_id: string; version: number; title: string; starts_at: string; time_zone: string };
 type CallRow = { id: string; key_hash: string; request_hash: string; actor: string; destination: string;
@@ -51,7 +51,8 @@ export class CloudTalkService {
     const last = profile?.ownerId ? this.db.prepare("SELECT state, created_at FROM cloudtalk_reminder_calls WHERE owner_id = ? ORDER BY created_at DESC LIMIT 1")
       .get(profile.ownerId) as { state: string; created_at: string } | undefined : undefined;
     return { configured: profile !== null, agentId: profile?.agentId ?? null, revision: profile?.revision ?? 0,
-      ownerPhone: profile?.ownerPhone ?? null, voiceAgentId: profile?.voiceAgentId ?? null,
+      ownerPhone: profile?.ownerPhone ?? null, ownerPhoneConfirmed: profile?.ownerPhoneConfirmed === true,
+      voiceAgentId: profile?.voiceAgentId ?? null,
       remindersEnabled: profile?.remindersEnabled === true, reminderMinutes: profile?.reminderMinutes ?? 15,
       lastReminderState: last?.state ?? null, lastReminderAt: last?.created_at ?? null,
       note: "API-Zugang gespeichert; Agentenstatus, Rufnummer und tatsächlicher Anruf sind nicht geprüft." };
@@ -60,21 +61,30 @@ export class CloudTalkService {
   configure(input: ConfigureInput, revision: number, ownerId?: string) {
     const current = this.readProfile();
     if (revision !== (current?.revision ?? 0)) throw conflict("CloudTalk-Konfiguration wurde geändert. Bitte neu laden.");
+    const accessKeyId = input.accessKeyId?.trim() || undefined;
+    const accessKeySecret = input.accessKeySecret?.trim() ? input.accessKeySecret : undefined;
+    if ((accessKeyId === undefined) !== (accessKeySecret === undefined)) {
+      throw validationFailed("CloudTalk Access Key ID und Secret muessen zusammen angegeben werden.");
+    }
     if ((input.agentId !== undefined && (!Number.isSafeInteger(input.agentId) || input.agentId <= 0 || input.agentId > 2147483647)) ||
-      typeof input.accessKeyId !== "string" || input.accessKeyId.length < 4 || input.accessKeyId.length > 200 ||
-      typeof input.accessKeySecret !== "string" || input.accessKeySecret.length < 8 || input.accessKeySecret.length > 500) {
+      (!current && !accessKeyId) || (accessKeyId !== undefined && (accessKeyId.length < 4 || accessKeyId.length > 200)) ||
+      (accessKeySecret !== undefined && (accessKeySecret.length < 8 || accessKeySecret.length > 500))) {
       throw validationFailed("CloudTalk Agent-ID oder API-Schlüssel sind ungültig.");
     }
-    const ownerPhone = input.ownerPhone?.trim();
-    const voiceAgentId = input.voiceAgentId?.trim();
-    const reminderMinutes = input.reminderMinutes ?? 15;
+    const ownerPhone = input.ownerPhone === undefined ? current?.ownerPhone : input.ownerPhone.trim() || undefined;
+    const voiceAgentId = input.voiceAgentId === undefined ? current?.voiceAgentId : input.voiceAgentId.trim() || undefined;
+    const reminderMinutes = input.reminderMinutes ?? current?.reminderMinutes ?? 15;
+    const ownerPhoneConfirmed = input.ownerPhoneConfirmed ??
+      (ownerPhone !== current?.ownerPhone ? false : current?.ownerPhoneConfirmed ?? false);
+    const remindersEnabled = input.remindersEnabled ?? current?.remindersEnabled ?? false;
     if ((ownerPhone && !E164.test(ownerPhone)) || (voiceAgentId && !/^[A-Za-z0-9_-]{1,100}$/.test(voiceAgentId)) ||
       !Number.isSafeInteger(reminderMinutes) || reminderMinutes < 1 || reminderMinutes > 120 ||
-      (input.remindersEnabled === true && (!ownerId || !ownerPhone || !voiceAgentId || input.ownerPhoneConfirmed !== true))) {
+      (remindersEnabled && (!ownerId || !ownerPhone || !voiceAgentId || ownerPhoneConfirmed !== true))) {
       throw validationFailed("Fuer Erinnerungsanrufe sind Owner, E.164-Rufnummer, VoiceAgent-ID und 1-120 Minuten Vorlauf erforderlich.");
     }
-    const profile: Profile = { ...input, ownerId, ownerPhone, voiceAgentId, reminderMinutes,
-      remindersEnabled: input.remindersEnabled === true, revision: revision + 1 };
+    const profile: Profile = { revision: revision + 1, agentId: input.agentId ?? current?.agentId,
+      accessKeyId: accessKeyId ?? current!.accessKeyId, accessKeySecret: accessKeySecret ?? current!.accessKeySecret,
+      ownerId, ownerPhone, ownerPhoneConfirmed, voiceAgentId, reminderMinutes, remindersEnabled };
     const nonce = randomBytes(12);
     const cipher = createCipheriv("aes-256-gcm", this.key, nonce);
     cipher.setAAD(Buffer.from(PROFILE_KEY));

@@ -1811,7 +1811,7 @@ export interface paths {
         };
         /** Read CloudTalk API setup state without secrets */
         get: operations["getCloudTalk"];
-        /** Store CloudTalk API key pair and agent ID encrypted */
+        /** Create or update CloudTalk setup; omit both API keys to retain encrypted credentials */
         put: operations["putCloudTalk"];
         post?: never;
         delete?: never;
@@ -4151,8 +4151,8 @@ export interface components {
         };
         /** CloudTalkProfilePatch */
         CloudTalkProfilePatch: {
-            accessKeyId: string;
-            accessKeySecret: string;
+            accessKeyId?: string;
+            accessKeySecret?: string;
             agentId?: number;
             ownerPhone?: string;
             ownerPhoneConfirmed?: boolean;
@@ -4171,6 +4171,7 @@ export interface components {
                 lastReminderState: "pending" | "requested" | "rejected" | "unknown" | null;
                 note: string;
                 ownerPhone: string | null;
+                ownerPhoneConfirmed: boolean;
                 reminderMinutes: number;
                 remindersEnabled: boolean;
                 revision: number;
