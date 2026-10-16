@@ -54,10 +54,26 @@ def reconcile_config(config_path: Path, skills_dir: Path) -> None:
     if not isinstance(external, list) or any(not isinstance(item, str) for item in external):
         raise ValueError("Hermes skills.external_dirs must be a path list")
     target = str(skills_dir.resolve())
-    if target in external:
+    target_names = {path.parent.name for path in skills_dir.rglob("SKILL.md")}
+    updated = []
+    for entry in external:
+        if entry == target:
+            if entry not in updated:
+                updated.append(entry)
+            continue
+        previous = Path(entry)
+        # Two complete Friday copies in one external tier are ambiguous to Hermes.
+        # Retire only an existing directory with exactly the same skill IDs.
+        if (not previous.is_symlink() and previous.is_dir()
+                and (previous / "core/friday-executive-orchestrator/SKILL.md").is_file()
+                and {path.parent.name for path in previous.rglob("SKILL.md")} == target_names):
+            continue
+        updated.append(entry)
+    if target not in updated:
+        updated.append(target)
+    if updated == external:
         return
-    external.append(target)
-    skills["external_dirs"] = external
+    skills["external_dirs"] = updated
     # Hermes owns its built-in skills. Only add this external checkout.
     config_path.parent.mkdir(parents=True, exist_ok=True)
     if original:

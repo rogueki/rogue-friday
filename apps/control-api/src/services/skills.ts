@@ -87,7 +87,7 @@ export class SkillsService {
     if (!this.baseUrl) throw unavailable("Hermes-Dashboard nicht konfiguriert");
     const send = (token: string) => this.fetcher(`${this.baseUrl}${path}`, {
       method, headers: { "x-hermes-session-token": token, accept: "application/json", ...(body ? { "content-type": "application/json" } : {}) },
-      ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(8000),
+      ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(15000),
     });
     if (!this.token) await this.refreshToken();
     let response = await send(this.token!);

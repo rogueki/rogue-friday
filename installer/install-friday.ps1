@@ -1056,8 +1056,9 @@ if (-not (IsDone 'distro')) {
     Ok 'Ubuntu ist installiert.'
     MarkDone 'distro'
 }
-if ($CustomRoot -and -not ($UpdateDashboard -or $ChangeVoice)) {
-    Assert-CustomDistroLocation
+if ($CustomRoot) {
+    if (-not ($UpdateDashboard -or $ChangeVoice)) { Assert-CustomDistroLocation }
+    # Updates also run WSL helpers; derive their paths from this install root.
     $WslRootPath = Get-WslPath $Root
     $WslInstPath = "$WslRootPath/installer"
     $WslConfigPath = "$WslRootPath/config"

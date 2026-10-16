@@ -169,3 +169,10 @@ pnpm test:e2e
 - Targeted contract, API, web, installer and voice checks passed. A full fresh installer run, every provider path and a paid Content Studio job were not run for this beta. See `docs/SKILLS_ONBOARDING_PLAN.md` for scope and remaining limits.
 - Repository-wide `pnpm format:check` currently fails on 649 pre-existing files. CI checks commit whitespace instead; formatting debt remains separate from this beta release. ESLint passes with two React Hook warnings in the new Skills pages.
 - This entry supersedes the older private-repository and missing-onboarding notes above. GitHub visibility, repository settings and the D: deployment are verified separately at release time.
+
+### Public beta release verification
+
+- Both `rogueki/rogue-friday` and `rogueki/friday-skills` are public GitHub repositories with MIT licenses, updated descriptions/READMEs, secret scanning, push protection, Dependabot security updates, private vulnerability reporting, and protection against force-pushing/deleting `main`.
+- A targeted update of the existing `D:\Kali\Friday` installation succeeded. The dashboard and voice status responded with HTTP 200. The owner-authorized voice bridge returned HTTP 200 for `/api/v1/skills`: 158 enabled catalog entries, including all 105 Friday Skills and 53 bundled Hermes Skills, with no catalog or Hermes error.
+- The update exposed and fixed three integration issues: WSL paths for a custom install root during dashboard updates, duplicate complete Friday Skills directories in Hermes configuration, and a cold catalog request exceeding the API's previous 8-second timeout.
+- This is a beta acceptance of the installed core and catalog. A fresh-machine install, every external account/provider, paid Content Studio generation, and a spoken end-to-end voice command remain unverified.
