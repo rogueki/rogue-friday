@@ -5126,6 +5126,77 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/communication/himalaya/mailboxes:
+    get:
+      operationId: listHimalayaMailboxes
+      tags: [communication]
+      summary: List folders in the explicitly configured Friday IMAP account
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HimalayaMailboxListResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/communication/himalaya/envelopes:
+    get:
+      operationId: listHimalayaEnvelopes
+      tags: [communication]
+      summary: Read a bounded page of IMAP message headers
+      parameters:
+        - name: mailbox
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 20, default: 1 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HimalayaEnvelopeListResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/communication/himalaya/message:
+    get:
+      operationId: getHimalayaMessage
+      tags: [communication]
+      summary: Read one IMAP message without changing its seen flag
+      parameters:
+        - name: mailbox
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: id
+          in: query
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,17}$' }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HimalayaMessageResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/wiki-path:
     get:
       operationId: getWikiPath
@@ -6387,6 +6458,12 @@ components:
       $ref: ../schemas/settings/himalaya-account-patch.schema.json
     HimalayaAccountResponse:
       $ref: ../schemas/settings/himalaya-account-response.schema.json
+    HimalayaMailboxListResponse:
+      $ref: ../schemas/communication/himalaya-mailbox-list-response.schema.json
+    HimalayaEnvelopeListResponse:
+      $ref: ../schemas/communication/himalaya-envelope-list-response.schema.json
+    HimalayaMessageResponse:
+      $ref: ../schemas/communication/himalaya-message-response.schema.json
     WikiPath:
       $ref: ../schemas/settings/wiki-path.schema.json
     WikiPathPatch:

@@ -287,6 +287,9 @@ export interface FridayModelMap {
   HimalayaAccount: HimalayaAccount;
   HimalayaAccountPatch: HimalayaAccountPatch;
   HimalayaAccountResponse: HimalayaAccountResponse;
+  HimalayaEnvelopeListResponse: HimalayaEnvelopeListResponse;
+  HimalayaMailboxListResponse: HimalayaMailboxListResponse;
+  HimalayaMessageResponse: HimalayaMessageResponse;
   JsonSchemaObject: JsonSchemaObject;
   KieTask: KieTask;
   KieTaskRequest: KieTaskRequest;
@@ -2304,6 +2307,48 @@ export interface HimalayaAccountPatch {
 export interface HimalayaAccountResponse {
   contractVersion: ContractVersion;
   data: HimalayaAccount;
+  freshness: Freshness;
+}
+export interface HimalayaEnvelopeListResponse {
+  contractVersion: ContractVersion;
+  data: {
+    mailbox: string;
+    page: number;
+    items: {
+      id: string;
+      subject: string | null;
+      from:
+        | {
+            [k: string]: unknown;
+          }[]
+        | null;
+      date: string | null;
+      flags: unknown[] | null;
+    }[];
+  };
+  freshness: Freshness;
+}
+export interface HimalayaMailboxListResponse {
+  contractVersion: ContractVersion;
+  data: {
+    mailboxes: {
+      id: string;
+      name: string;
+      role: string | null;
+    }[];
+  };
+  freshness: Freshness;
+}
+export interface HimalayaMessageResponse {
+  contractVersion: ContractVersion;
+  data: {
+    mailbox: string;
+    id: string;
+    subject: string;
+    from: string;
+    date: string;
+    bodyText: string;
+  };
   freshness: Freshness;
 }
 export interface KieTask {

@@ -1,4 +1,9 @@
 .com-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; }
+.com-live-mail { margin: 10px 0; padding: 14px; border: 1px solid var(--friday-border); border-radius: 10px; }
+.com-live-mail ul { max-height: 320px; overflow: auto; padding-left: 20px; }
+.com-live-mail li { margin: 4px 0; }
+.com-live-mail button { cursor: pointer; }
+.com-live-mail__message pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 480px; overflow: auto; font: inherit; }
 .com-layout--wide { grid-template-columns: 290px minmax(380px, 470px) minmax(0, 1fr); }
 .com-detail-panel__body { min-width: 0; }
 

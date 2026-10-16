@@ -62,4 +62,38 @@ export class HimalayaAccountService {
     if (!Number.isSafeInteger(revision) || !input || typeof input !== "object") throw validationFailed("Ungueltiges IMAP/SMTP-Profil.");
     return this.run("update", { ...input, revision });
   }
+
+  private async read(request: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const state = await this.status();
+    if (!state.readyForLocalUse) throw unavailable();
+    const { script, distro, user } = this.target();
+    const readScript = script.replace(/configure_himalaya\.py$/, "read_himalaya.py");
+    if (readScript === script) throw unavailable();
+    try { return await this.invoke(readScript, distro, user, [], JSON.stringify(request), 20000, 512000); }
+    catch (error) {
+      if (String(error).includes("runner_4:")) throw validationFailed("Ungueltige Postfach-Auswahl.");
+      throw unavailable();
+    }
+  }
+
+  async mailboxes(): Promise<{ mailboxes: Array<{ id: string; name: string; role: string | null }> }> {
+    const result = await this.read({ action: "mailboxes" });
+    if (!Array.isArray(result.mailboxes) || !result.mailboxes.every((row) => row && typeof row === "object" &&
+      typeof row.id === "string" && typeof row.name === "string" && (row.role === null || typeof row.role === "string"))) throw unavailable();
+    return result as { mailboxes: Array<{ id: string; name: string; role: string | null }> };
+  }
+
+  async envelopes(mailbox: string, page: number): Promise<Record<string, unknown>> {
+    if (!mailbox || mailbox.length > 200 || !Number.isSafeInteger(page) || page < 1 || page > 20) throw validationFailed("Ungueltige Postfach-Auswahl.");
+    const result = await this.read({ action: "envelopes", mailbox, page });
+    if (!Array.isArray(result.items) || result.mailbox !== mailbox || result.page !== page) throw unavailable();
+    return result;
+  }
+
+  async message(mailbox: string, id: string): Promise<Record<string, unknown>> {
+    if (!mailbox || mailbox.length > 200 || !/^[1-9][0-9]{0,17}$/.test(id)) throw validationFailed("Ungueltige Nachricht.");
+    const result = await this.read({ action: "message", mailbox, id });
+    if (result.mailbox !== mailbox || result.id !== id || typeof result.bodyText !== "string") throw unavailable();
+    return result;
+  }
 }

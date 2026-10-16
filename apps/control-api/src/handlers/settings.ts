@@ -9,6 +9,17 @@ const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString()
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: fresh() });
 
 export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
+  async listHimalayaMailboxes(ctx) {
+    return { status: 200, body: single(await ctx.runtime.himalayaAccount.mailboxes()) };
+  },
+  async listHimalayaEnvelopes(ctx) {
+    return { status: 200, body: single(await ctx.runtime.himalayaAccount.envelopes(
+      String(ctx.query.mailbox ?? ""), Number(ctx.query.page ?? 1))) };
+  },
+  async getHimalayaMessage(ctx) {
+    return { status: 200, body: single(await ctx.runtime.himalayaAccount.message(
+      String(ctx.query.mailbox ?? ""), String(ctx.query.id ?? ""))) };
+  },
   async getHimalayaAccount(ctx) {
     return { status: 200, body: single(await ctx.runtime.himalayaAccount.status()) };
   },

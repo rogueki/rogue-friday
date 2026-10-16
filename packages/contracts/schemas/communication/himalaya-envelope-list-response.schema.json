@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/communication/himalaya-envelope-list-response.schema.json",
+  "title": "HimalayaEnvelopeListResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": { "type": "object", "properties": {
+      "mailbox": { "type": "string" }, "page": { "type": "integer" },
+      "items": { "type": "array", "items": { "type": "object", "properties": {
+        "id": { "type": "string" }, "subject": { "type": ["string", "null"] },
+        "from": { "type": ["array", "null"], "items": { "type": "object", "additionalProperties": true } },
+        "date": { "type": ["string", "null"] },
+        "flags": { "type": ["array", "null"], "items": {} }
+      }, "required": ["id", "subject", "from", "date", "flags"], "additionalProperties": false } }
+    }, "required": ["mailbox", "page", "items"], "additionalProperties": false },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"], "additionalProperties": false
+}

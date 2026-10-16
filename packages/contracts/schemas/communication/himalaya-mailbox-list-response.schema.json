@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/communication/himalaya-mailbox-list-response.schema.json",
+  "title": "HimalayaMailboxListResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": {
+      "type": "object",
+      "properties": { "mailboxes": { "type": "array", "items": { "type": "object", "properties": {
+        "id": { "type": "string" }, "name": { "type": "string" }, "role": { "type": ["string", "null"] }
+      }, "required": ["id", "name", "role"], "additionalProperties": false } } },
+      "required": ["mailboxes"], "additionalProperties": false
+    },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"], "additionalProperties": false
+}
