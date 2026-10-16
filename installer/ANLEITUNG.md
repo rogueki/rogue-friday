@@ -64,7 +64,15 @@ starten** – erledigte Schritte werden übersprungen.
 
 ## Präsentationen mit dem Hermes-PowerPoint-Skill
 
-Der Installer legt für den Hermes-Standardskill eine eigene WSL-Python-Umgebung mit `python-pptx` an. Damit kann Friday `.pptx`-Präsentationen erstellen, auslesen und ändern. Prüfe die Voraussetzung in deiner WSL-Distribution mit `python -c "import pptx"`. Falls sie später repariert werden muss, starte `install-friday.ps1 -UpdateDashboard -InstallRoot 'C:\Friday'` erneut (bei einem anderen Installationsordner den Pfad anpassen). Für die optionale Bildvorschau und den PDF-Export werden in WSL zusätzlich LibreOffice und Poppler benötigt; diese größeren Systempakete installiert Friday nicht automatisch. Ein vorhandener eigener `python`-Befehl wird vom Installer nicht überschrieben.
+Der Installer legt für den Hermes-Standardskill eine eigene WSL-Python-Umgebung mit `python-pptx` an. Damit kann Friday `.pptx`-Präsentationen erstellen, auslesen und ändern. Prüfe die Voraussetzung in deiner WSL-Distribution mit `python -c "import pptx"`. Falls sie später repariert werden muss, starte `install-friday.ps1 -UpdateDashboard -InstallRoot 'C:\Friday'` erneut (bei einem anderen Installationsordner den Pfad anpassen). Ein vorhandener eigener `python`-Befehl wird vom Installer nicht überschrieben.
+
+Für Bildvorschau und PDF-Export kannst du **optional** LibreOffice Impress und Poppler in der gespeicherten Friday-WSL-Distribution installieren. Öffne PowerShell im `installer`-Ordner und starte:
+
+```powershell
+.\setup-powerpoint-renderer.ps1
+```
+
+Bei einem anderen Installationsort ergänze beispielsweise `-InstallRoot 'D:\Kali\Friday'`. Das Skript liest Distribution und Linux-Benutzer aus `config\install-state.json`, prüft das Ziel und installiert mit WSL-root nur `libreoffice-impress` und `poppler-utils` samt notwendigen Abhängigkeiten, ohne empfohlene Zusatzpakete. Dafür sind Internetzugang und zusätzlicher Speicherplatz nötig; bestehende Pakete werden nicht entfernt. Prüfe danach in der Friday-Distribution `soffice --version` und `pdftoppm -v`. Diese Befehle bestätigen nur die Werkzeuge; einen konkreten Foliensatz solltest du bei Bedarf rendern und ansehen.
 
 ## Benutzung
 
