@@ -26,6 +26,9 @@ const hermesKeyLabels = {
   NOTION_API_KEY: "Notion",
   TENOR_API_KEY: "Tenor (GIF-Suche)",
   JINA_API_KEY: "Jina (optionale Seitenwiederherstellung)",
+  MSGRAPH_TENANT_ID: "Microsoft Entra Tenant-ID",
+  MSGRAPH_CLIENT_ID: "Microsoft Entra Client-ID",
+  MSGRAPH_CLIENT_SECRET: "Microsoft Entra Client-Secret",
 } as const;
 type HermesKey = keyof typeof hermesKeyLabels;
 
@@ -70,6 +73,17 @@ export function accountSetupView(item: Integration, keys: KeyStatus, hermes: Her
     state: hermes === undefined ? "Schlüsselstatus unbekannt; Anbieterzugriff nicht geprüft" : hermes.configured[hermesKey] ? "Schlüssel hinterlegt; Anbieterzugriff nicht geprüft" : "Schlüssel fehlt; Anbieterzugriff nicht geprüft",
     location: null,
   };
+  if (item.id === "hermes_teams_meeting_pipeline") {
+    const graphKeys = ["MSGRAPH_TENANT_ID", "MSGRAPH_CLIENT_ID", "MSGRAPH_CLIENT_SECRET"] as const;
+    const present = graphKeys.filter((key) => hermes?.configured[key]).length;
+    return {
+      href: "/settings?area=skillAccounts#hermes-key-setup-title",
+      action: "Microsoft Graph im Dashboard einrichten",
+      state: hermes === undefined ? "Wertestatus unbekannt; Microsoft Graph und Teams nicht geprüft"
+        : `${present} von 3 Werten hinterlegt; Microsoft Graph und Teams nicht geprüft`,
+      location: null,
+    };
+  }
   if (item.id.startsWith("hermes_")) return {
     href: null,
     action: null,
@@ -110,7 +124,7 @@ export function SkillAccountsArea() {
       setHermesValues((current) => ({ ...current, [key]: "" }));
       await hermesKeys.refetch();
       await queryClient.invalidateQueries({ queryKey: queryKeys.skills });
-      setHermesMessage(`${hermesKeyLabels[key]}: ${value ? "Schlüssel gespeichert" : "Schlüssel entfernt"}. ${result.data.applied ? "Hermes-Gateway neu gestartet." : "Gateway-Neustart nicht bestätigt; Änderung möglicherweise erst nach Neustart aktiv."} Anbieterzugriff nicht geprüft.`);
+      setHermesMessage(`${hermesKeyLabels[key]}: ${value ? "Wert gespeichert" : "Wert entfernt"}. ${result.data.applied ? "Hermes-Gateway neu gestartet." : "Gateway-Neustart nicht bestätigt; Änderung möglicherweise erst nach Neustart aktiv."} Anbieterzugriff nicht geprüft.`);
     } catch (error) {
       setHermesMessage(error instanceof Error ? error.message : "Hermes-Schlüssel konnte nicht geändert werden.");
     } finally { setHermesBusy(null); }
@@ -187,13 +201,13 @@ export function SkillAccountsArea() {
     </section>
     <section aria-labelledby="hermes-key-setup-title">
       <h3 id="hermes-key-setup-title">Hermes-Skill-Schlüssel</h3>
-      <p>Diese vier Schlüssel speichert Friday im installierten Hermes-Konto in Friday-Ubuntu. Der Prüfknopf testet bei Airtable und Notion nur, ob der Anbieter den Token an einem Lese-Endpunkt akzeptiert; Zugriff auf Bases oder Seiten bleibt ungeprüft. Das Ergebnis gilt nur für diese Abfrage und wird nicht gespeichert.</p>
+      <p>Friday speichert diese Skill-Werte im installierten Hermes-Konto in Friday-Ubuntu. Für Teams brauchst du eine Microsoft Entra-Appregistrierung und administrativ genehmigte Microsoft Graph-Anwendungsrechte. Tenant-ID und Client-ID sind Kennungen; das Client-Secret ist vertraulich. Die drei Werte allein bestätigen weder Graph-Berechtigungen noch Teams-Zugriff. Der Prüfknopf testet bei Airtable und Notion nur, ob der Anbieter den Token an einem Lese-Endpunkt akzeptiert; Zugriff auf Bases oder Seiten bleibt ungeprüft. Das Ergebnis gilt nur für diese Abfrage und wird nicht gespeichert.</p>
       {role === "owner" ? <>
         {hermesKeys.isError && <p role="alert">Hermes-Schlüsselstatus konnte nicht gelesen werden.</p>}
         {hermesKeys.isPending && <p role="status">Hermes-Schlüsselstatus wird geladen.</p>}
         {hermesKeys.data && (Object.keys(hermesKeyLabels) as HermesKey[]).map((key) => <div className="sk-accounts__key" key={key}>
           <label htmlFor={`hermes-key-${key}`}>{hermesKeyLabels[key]} ({key})</label>
-          <input id={`hermes-key-${key}`} type="password" autoComplete="off" value={hermesValues[key] ?? ""}
+          <input id={`hermes-key-${key}`} type={key === "MSGRAPH_TENANT_ID" || key === "MSGRAPH_CLIENT_ID" ? "text" : "password"} autoComplete="off" value={hermesValues[key] ?? ""}
             onChange={(event) => setHermesValues((current) => ({ ...current, [key]: event.target.value }))}
             aria-describedby={`hermes-state-${key}`} />
           <span id={`hermes-state-${key}`} className="sk-muted">{hermesKeys.data.data.configured[key] ? "Hinterlegt" : "Fehlt"}; {hermesChecks[key] ? "letzte Anbieterabfrage unten" : "Anbieterzugriff nicht geprüft"}</span>{" "}

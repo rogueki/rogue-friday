@@ -12,7 +12,8 @@ import urllib.error
 import urllib.request
 
 ENV = Path.home() / ".hermes" / ".env"
-KEYS = ("AIRTABLE_API_KEY", "NOTION_API_KEY", "TENOR_API_KEY", "JINA_API_KEY")
+KEYS = ("AIRTABLE_API_KEY", "NOTION_API_KEY", "TENOR_API_KEY", "JINA_API_KEY",
+        "MSGRAPH_TENANT_ID", "MSGRAPH_CLIENT_ID", "MSGRAPH_CLIENT_SECRET")
 VALUE = re.compile(r'^[\x21-\x7e]{1,2048}$')
 CHECKS = {
     "AIRTABLE_API_KEY": ("https://api.airtable.com/v0/meta/whoami", {}),

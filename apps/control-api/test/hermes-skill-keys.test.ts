@@ -6,7 +6,8 @@ import { HermesSkillKeysService } from "../src/services/hermes-skill-keys";
 import { startTestApi } from "./helpers";
 
 const PATH = "/api/v1/settings/hermes-skill-keys";
-const flags = { AIRTABLE_API_KEY: false, NOTION_API_KEY: true, TENOR_API_KEY: false, JINA_API_KEY: false };
+const flags = { AIRTABLE_API_KEY: false, NOTION_API_KEY: true, TENOR_API_KEY: false, JINA_API_KEY: false,
+  MSGRAPH_TENANT_ID: false, MSGRAPH_CLIENT_ID: false, MSGRAPH_CLIENT_SECRET: false };
 
 describe("Hermes skill key settings", () => {
   it("passes key values only through child stdin", async () => {
@@ -22,6 +23,18 @@ describe("Hermes skill key settings", () => {
     expect(args).toEqual(["update"]);
     expect(JSON.parse(input!)).toEqual({ key: "NOTION_API_KEY", value: "synthetic-private-value" });
     expect([script, distro, user, ...args].join(" ")).not.toContain("synthetic-private-value");
+  });
+
+  it("accepts the three Graph values through stdin without exposing them in status", async () => {
+    const invoke = vi.fn(async (_script: string, _distro: string, _user: string, _args: string[], _input?: string) =>
+      ({ configured: { ...flags, MSGRAPH_TENANT_ID: true }, applied: true }));
+    const service = new HermesSkillKeysService("unused", invoke);
+    vi.spyOn(service as unknown as { target: () => { script: string; distro: string; user: string } }, "target")
+      .mockReturnValue({ script: "/mnt/d/Friday/installer/wsl/configure_skill_keys.py", distro: "Friday-Ubuntu", user: "friday" });
+    const result = await service.update("MSGRAPH_TENANT_ID", "synthetic-tenant-id");
+    expect(invoke.mock.calls[0]?.[3]).toEqual(["update"]);
+    expect(JSON.parse(invoke.mock.calls[0]?.[4] as string)).toEqual({ key: "MSGRAPH_TENANT_ID", value: "synthetic-tenant-id" });
+    expect(JSON.stringify(result)).not.toContain("synthetic-tenant-id");
   });
 
   it.skipIf(process.platform !== "win32")("uses the installed WSL identity on Windows", async () => {

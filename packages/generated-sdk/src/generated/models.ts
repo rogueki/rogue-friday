@@ -2230,7 +2230,14 @@ export interface HermesSkillKeyCheckResponse {
   freshness: Freshness;
 }
 export interface HermesSkillKeyPatch {
-  key: "AIRTABLE_API_KEY" | "NOTION_API_KEY" | "TENOR_API_KEY" | "JINA_API_KEY";
+  key:
+    | "AIRTABLE_API_KEY"
+    | "NOTION_API_KEY"
+    | "TENOR_API_KEY"
+    | "JINA_API_KEY"
+    | "MSGRAPH_TENANT_ID"
+    | "MSGRAPH_CLIENT_ID"
+    | "MSGRAPH_CLIENT_SECRET";
   value: string;
 }
 export interface HermesSkillKeys {
@@ -2239,6 +2246,9 @@ export interface HermesSkillKeys {
     NOTION_API_KEY: boolean;
     TENOR_API_KEY: boolean;
     JINA_API_KEY: boolean;
+    MSGRAPH_TENANT_ID: boolean;
+    MSGRAPH_CLIENT_ID: boolean;
+    MSGRAPH_CLIENT_SECRET: boolean;
   };
   applied: boolean | null;
 }

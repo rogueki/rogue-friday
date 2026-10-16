@@ -235,7 +235,7 @@ describe("skills and resumable onboarding", () => {
         skills: { "vault-skill": { required_integrations: ["obsidian"] } },
       }));
       const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
-        ? Response.json({ skills: ["airtable", "notion", "gif-search", "blocked-page-recovery", "obsidian"].map((name) => ({ name, enabled: true })) })
+        ? Response.json({ skills: ["airtable", "notion", "gif-search", "blocked-page-recovery", "obsidian", "teams-meeting-pipeline"].map((name) => ({ name, enabled: true })) })
         : new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
       let fail = false;
       let vaultReadable = true;
@@ -244,6 +244,7 @@ describe("skills and resumable onboarding", () => {
       const service = new SkillsService({ catalogPath: join(dir, "integration_setup.json"), dashboardUrl: "http://127.0.0.1:43791", fetcher,
         hermesKeyStatus: async () => { keyReads += 1; if (fail) throw new Error("WSL unavailable"); return { configured: {
           AIRTABLE_API_KEY: true, NOTION_API_KEY: false, TENOR_API_KEY: true, JINA_API_KEY: false,
+          MSGRAPH_TENANT_ID: true, MSGRAPH_CLIENT_ID: true, MSGRAPH_CLIENT_SECRET: false,
         }, secret: "synthetic-private-value" }; },
         obsidianVaultStatus: async () => { vaultReads += 1; if (fail) throw new Error("Vault unavailable"); return { configured: true, readable: vaultReadable }; },
       });
@@ -253,11 +254,18 @@ describe("skills and resumable onboarding", () => {
       expect(status("hermes:notion")).toMatchObject({ configured: false, connectionChecked: null });
       expect(status("hermes:gif-search")).toMatchObject({ configured: true, connectionChecked: null });
       expect(status("hermes:blocked-page-recovery")).toMatchObject({ configured: false, connectionChecked: null });
+      expect(status("hermes:teams-meeting-pipeline")).toMatchObject({ configured: false, connectionChecked: null });
       expect(status("hermes:obsidian")).toMatchObject({ configured: true, connectionChecked: null });
       expect(status("friday:vault-skill")).toMatchObject({ configured: true, connectionChecked: null });
       expect(keyReads).toBe(1);
       expect(vaultReads).toBe(1);
       expect(JSON.stringify(configured)).not.toContain("synthetic-private-value");
+      const allGraphValues = new SkillsService({ catalogPath: join(dir, "integration_setup.json"), dashboardUrl: "http://127.0.0.1:43791", fetcher,
+        hermesKeyStatus: async () => ({ configured: { AIRTABLE_API_KEY: false, NOTION_API_KEY: false, TENOR_API_KEY: false, JINA_API_KEY: false,
+          MSGRAPH_TENANT_ID: true, MSGRAPH_CLIENT_ID: true, MSGRAPH_CLIENT_SECRET: true } }),
+      });
+      expect((await allGraphValues.list()).skills.find((skill) => skill.id === "hermes:teams-meeting-pipeline")?.integrationDetails[0])
+        .toMatchObject({ configured: true, connectionChecked: null });
       vaultReadable = false;
       const unreadable = await service.list();
       expect(status("friday:vault-skill", unreadable)).toMatchObject({ configured: false, connectionChecked: null });
@@ -266,6 +274,7 @@ describe("skills and resumable onboarding", () => {
       const unknown = await service.list();
       expect(unknown.skills).toHaveLength(configured.skills.length);
       expect(status("hermes:airtable", unknown)).toMatchObject({ configured: null, connectionChecked: null });
+      expect(status("hermes:teams-meeting-pipeline", unknown)).toMatchObject({ configured: null, connectionChecked: null });
       expect(status("friday:vault-skill", unknown)).toMatchObject({ configured: null, connectionChecked: null });
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });

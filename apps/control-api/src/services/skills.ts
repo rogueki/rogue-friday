@@ -6,7 +6,7 @@ import { ApiError, notFound, validationFailed } from "../util/errors";
 type Json = Record<string, unknown>;
 type Catalog = { skills: SkillCatalogEntry[]; error: string | null };
 type Observation = { skills: Map<string, Json>; at: string | null; error: string | null };
-type HermesKeyFlags = Readonly<Record<"AIRTABLE_API_KEY" | "NOTION_API_KEY" | "TENOR_API_KEY" | "JINA_API_KEY", boolean>>;
+type HermesKeyFlags = Readonly<Record<"AIRTABLE_API_KEY" | "NOTION_API_KEY" | "TENOR_API_KEY" | "JINA_API_KEY" | "MSGRAPH_TENANT_ID" | "MSGRAPH_CLIENT_ID" | "MSGRAPH_CLIENT_SECRET", boolean>>;
 type VaultFlags = Readonly<{ configured: boolean; readable: boolean }>;
 const HERMES_KEY_INTEGRATIONS = {
   hermes_airtable: "AIRTABLE_API_KEY", hermes_notion: "NOTION_API_KEY",
@@ -36,7 +36,7 @@ const HERMES_SETUP: Record<string, { account: "none" | "conditional" | "required
   "google-workspace": { account: "required", setupDe: "Für Google-Dienste Google OAuth einmalig über das Setup-Skript im Hermes-Skill einrichten und nur die benötigten Dienste/Berechtigungen auswählen. Client-Credentials und Token verbleiben lokal; für Gmail allein nennt der Skill Himalaya als einfachere Alternative.", capability: "Google-OAuth-Credentials und autorisierte Hermes-Verbindung" },
   himalaya: { account: "required", setupDe: "Himalaya-CLI installieren, `~/.config/himalaya/config.toml` anlegen und IMAP/SMTP-Zugangsdaten über einen sicheren Passwortspeicher konfigurieren. Senden und Lesen vor dem Einsatz getrennt prüfen.", capability: "Himalaya-CLI, E-Mail-Konto sowie IMAP/SMTP-Konfiguration" },
   notion: { account: "required", setupDe: "Ein Notion-Integrationstoken erstellen, lokal in Hermes' `.env` hinterlegen und die gewünschten Seiten/Datenbanken ausdrücklich mit der Integration teilen. Das optionale `ntn`-CLI ist unter Linux/WSL nutzbar; ohne CLI verwendet der Skill curl.", capability: "Notion-Integrationstoken und freigegebene Zielseiten; curl, optional ntn-CLI" },
-  "teams-meeting-pipeline": { account: "required", setupDe: "Erfordert eine Microsoft Entra/Azure-Appregistrierung mit administrativ genehmigten Microsoft Graph-Anwendungsrechten. Tenant-ID, Client-ID und Client-Secret lokal in Hermes' `.env` setzen. Der Hermes-Skill ist nur für Teams- und Cron-Sitzungen vorgesehen.", capability: "Microsoft Graph App-Registrierung, genehmigte Berechtigungen und drei lokale MSGRAPH_* Variablen" },
+  "teams-meeting-pipeline": { account: "required", setupDe: "Eine Microsoft Entra-App registrieren und die benötigten Microsoft Graph-Anwendungsrechte durch einen Administrator genehmigen lassen. Unter Einstellungen > Skill-Konten Tenant-ID, Client-ID und Client-Secret für das installierte Hermes-Konto in Friday-Ubuntu speichern. Drei hinterlegte Werte belegen weder ein gültiges Zugriffstoken noch Graph-Berechtigungen oder Zugriff auf Teams-Sitzungen. Der Hermes-Skill ist nur für Teams- und Cron-Sitzungen vorgesehen.", capability: "Microsoft Graph App-Registrierung, genehmigte Berechtigungen und drei lokale MSGRAPH_* Variablen" },
   github: { account: "conditional", setupDe: "Für authentifizierte GitHub-Aktionen die gh-CLI installieren und `gh auth login` ausführen. Öffentliches Lesen bzw. lokale Git-Arbeit kann ohne Anmeldung funktionieren; private Repositories und schreibende/API-Aktionen benötigen passende Rechte. Zugang im gewünschten WSL-Konto prüfen.", capability: "gh-CLI; GitHub-Anmeldung und ausreichende Repository-Rechte für private oder schreibende Aktionen" },
   xurl: { account: "required", setupDe: "Der X-API-Skill benötigt xurl, manuell registrierte X-App-Credentials und OAuth 2.0. Zugangsdaten ausschließlich lokal in `~/.xurl` konfigurieren und `xurl auth status` prüfen. API-Nutzung unterliegt X-Entwicklerlimits und möglichen Tarifkosten; Credentials nicht in Friday-Chat oder Hermes-Kontext einfügen.", capability: "xurl-CLI, X-Developer-App und OAuth-Anmeldung; API-Zugriff und mögliche Kosten beim Anbieter prüfen" },
   "gif-search": { account: "required", setupDe: "Für die Tenor-Suche einen kostenlosen API-Key laut Hermes-Skill erstellen und `TENOR_API_KEY` lokal in Hermes' `.env` setzen. Benötigt außerdem curl und jq.", capability: "Kostenloser Tenor-API-Key sowie curl und jq" },
@@ -204,7 +204,7 @@ export class SkillsService {
     }
     // One local status read per source per request; a broken installer/WSL never hides the catalog.
     const integrationIds = new Set(skills.flatMap((skill) => skill.integrationDetails.map((detail) => detail.id)));
-    const needsHermesKeys = Object.keys(HERMES_KEY_INTEGRATIONS).some((id) => integrationIds.has(id));
+    const needsHermesKeys = Object.keys(HERMES_KEY_INTEGRATIONS).some((id) => integrationIds.has(id)) || integrationIds.has("hermes_teams_meeting_pipeline");
     const needsVault = integrationIds.has("obsidian") || integrationIds.has("hermes_obsidian");
     const [hermesKeys, vault] = await Promise.all([
       needsHermesKeys && this.hermesKeyStatus ? Promise.resolve().then(() => this.hermesKeyStatus!()).catch(() => null) : Promise.resolve(null),
@@ -213,6 +213,9 @@ export class SkillsService {
     for (const skill of skills) skill.integrationDetails = skill.integrationDetails.map((detail) => {
       const key = HERMES_KEY_INTEGRATIONS[detail.id as keyof typeof HERMES_KEY_INTEGRATIONS];
       if (key) return { ...detail, configured: typeof hermesKeys?.configured[key] === "boolean" ? hermesKeys.configured[key] : null };
+      if (detail.id === "hermes_teams_meeting_pipeline") return { ...detail, configured: hermesKeys
+        ? hermesKeys.configured.MSGRAPH_TENANT_ID && hermesKeys.configured.MSGRAPH_CLIENT_ID && hermesKeys.configured.MSGRAPH_CLIENT_SECRET
+        : null };
       if (detail.id === "obsidian" || detail.id === "hermes_obsidian") return { ...detail,
         configured: vault ? vault.configured && vault.readable : null };
       return detail;

@@ -4276,7 +4276,7 @@ export interface components {
         /** HermesSkillKeyPatch */
         HermesSkillKeyPatch: {
             /** @enum {string} */
-            key: "AIRTABLE_API_KEY" | "NOTION_API_KEY" | "TENOR_API_KEY" | "JINA_API_KEY";
+            key: "AIRTABLE_API_KEY" | "NOTION_API_KEY" | "TENOR_API_KEY" | "JINA_API_KEY" | "MSGRAPH_TENANT_ID" | "MSGRAPH_CLIENT_ID" | "MSGRAPH_CLIENT_SECRET";
             value: string;
         };
         /** HermesSkillKeys */
@@ -4285,6 +4285,9 @@ export interface components {
             configured: {
                 AIRTABLE_API_KEY: boolean;
                 JINA_API_KEY: boolean;
+                MSGRAPH_CLIENT_ID: boolean;
+                MSGRAPH_CLIENT_SECRET: boolean;
+                MSGRAPH_TENANT_ID: boolean;
                 NOTION_API_KEY: boolean;
                 TENOR_API_KEY: boolean;
             };
