@@ -1,22 +1,45 @@
 import { CONTRACT_VERSION, type CodingRunRequest, type OnboardingUpdate, type SkillActivationRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
-import { ApiError, validationFailed } from "../util/errors";
+import { ApiError, forbidden, validationFailed } from "../util/errors";
 import type { PowerPointRequest } from "../services/powerpoint";
 
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: { state: "fresh" as const, asOf: new Date().toISOString() } });
 
+async function requirePowerPoint(ctx: Parameters<Handler>[0]): Promise<void> {
+  const observed = await ctx.runtime.skills.list();
+  const powerpoint = observed.skills.find((skill) => skill.id === "hermes:powerpoint");
+  if (!observed.fresh || !powerpoint?.discovered || powerpoint.enabled !== true) {
+    throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes PowerPoint ist nicht aktuell als aktiviert und verfügbar bestätigt." });
+  }
+}
+
 export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
   async createPowerPointDeck(ctx) {
-    const observed = await ctx.runtime.skills.list();
-    const powerpoint = observed.skills.find((skill) => skill.id === "hermes:powerpoint");
-    if (!observed.fresh || !powerpoint?.discovered || powerpoint.enabled !== true) {
-      throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes PowerPoint ist nicht aktuell als aktiviert und verfügbar bestätigt." });
-    }
+    await requirePowerPoint(ctx);
     const deck = await ctx.runtime.powerpoint.create(ctx.body as PowerPointRequest);
     ctx.audit.action = "skills.powerpoint_created";
     ctx.audit.after = { deckId: deck.id, slideCount: deck.slideCount };
     return { status: 201, body: single(deck) };
+  },
+  async createVoicePowerPointDeck(ctx) {
+    if (!ctx.voiceBridgeAuthorized || !ctx.runtime.auth.ownerPasswordConfigured() ||
+      ctx.runtime.auth.devMode && ctx.runtime.config.server.allowRemote) {
+      throw forbidden("PowerPoint-Sprachaktionen erfordern den lokalen Voice-Dienst und ein eingerichtetes Besitzerkonto.");
+    }
+    if (!ctx.idempotencyKey) throw validationFailed("Ein Idempotency-Key ist für den Sprachauftrag erforderlich.");
+    const request = ctx.body as PowerPointRequest;
+    if (request.slides.length !== 1 || request.slides[0]!.bullets.length < 1 || request.slides[0]!.bullets.length > 5) {
+      throw validationFailed("Sprach-PowerPoint erlaubt genau eine Folie und ein bis fünf Stichpunkte.");
+    }
+    await requirePowerPoint(ctx);
+    const { replayed, ...deck } = await ctx.runtime.powerpoint.createVoice(request, ctx.idempotencyKey);
+    ctx.audit.action = "skills.voice_powerpoint_created";
+    ctx.audit.after = { deckId: deck.id, slideCount: deck.slideCount };
+    return { status: 201, body: single(deck), headers: { "Idempotent-Replayed": String(replayed) } };
+  },
+  async listPowerPointDecks(ctx) {
+    return { status: 200, body: single(ctx.runtime.powerpoint.recent()) };
   },
   async downloadPowerPointDeck(ctx) {
     const id = ctx.pathParams.id as string;

@@ -363,6 +363,8 @@ export interface FridayModelMap {
   OverviewResponse: OverviewResponse;
   PageInfo: PageInfo;
   Participant: Participant;
+  PowerPointDeck: PowerPointDeck;
+  PowerPointDeckListResponse: PowerPointDeckListResponse;
   PowerPointDeckRequest: PowerPointDeckRequest;
   PowerPointDeckResponse: PowerPointDeckResponse;
   Priority: Priority;
@@ -3192,6 +3194,18 @@ export interface OverviewResponse {
   data: Overview;
   freshness: Freshness;
 }
+export interface PowerPointDeck {
+  id: string;
+  title: string;
+  slideCount: number;
+  createdAt: string;
+  downloadUrl: string;
+}
+export interface PowerPointDeckListResponse {
+  contractVersion: ContractVersion;
+  data: PowerPointDeck[];
+  freshness: Freshness;
+}
 export interface PowerPointDeckRequest {
   title: string;
   slides: {
@@ -3201,11 +3215,7 @@ export interface PowerPointDeckRequest {
 }
 export interface PowerPointDeckResponse {
   contractVersion: ContractVersion;
-  data: {
-    id: string;
-    slideCount: number;
-    downloadUrl: string;
-  };
+  data: PowerPointDeck;
   freshness: Freshness;
 }
 export interface ProfileSettings {

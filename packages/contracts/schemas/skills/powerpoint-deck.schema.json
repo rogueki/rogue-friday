@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/powerpoint-deck.schema.json",
+  "title": "PowerPointDeck",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "slideCount": { "type": "integer", "minimum": 2, "maximum": 13 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "downloadUrl": { "type": "string" }
+  },
+  "required": ["id", "title", "slideCount", "createdAt", "downloadUrl"],
+  "additionalProperties": false
+}

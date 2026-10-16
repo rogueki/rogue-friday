@@ -5,11 +5,7 @@
   "type": "object",
   "properties": {
     "contractVersion": { "$ref": "../common/contract-version.schema.json" },
-    "data": { "type": "object", "properties": {
-      "id": { "type": "string", "format": "uuid" },
-      "slideCount": { "type": "integer", "minimum": 2, "maximum": 13 },
-      "downloadUrl": { "type": "string" }
-    }, "required": ["id", "slideCount", "downloadUrl"], "additionalProperties": false },
+    "data": { "$ref": "../skills/powerpoint-deck.schema.json" },
     "freshness": { "$ref": "../common/freshness.schema.json" }
   },
   "required": ["contractVersion", "data", "freshness"],

@@ -8762,6 +8762,45 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "listPowerPointDecks",
+    "method": "GET",
+    "path": "/api/v1/skills/powerpoint/decks",
+    "tag": "skills",
+    "capability": "meta.read",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": false,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "PowerPointDeckListResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "createPowerPointDeck",
     "method": "POST",
     "path": "/api/v1/skills/powerpoint/decks",
@@ -8805,6 +8844,62 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         "status": 422,
         "schema": null,
         "contentTypes": []
+      }
+    ]
+  },
+  {
+    "operationId": "createVoicePowerPointDeck",
+    "method": "POST",
+    "path": "/api/v1/skills/powerpoint/voice",
+    "tag": "skills",
+    "capability": "meta.read",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": true,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "PowerPointDeckRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 201,
+        "schema": "PowerPointDeckResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
       }
     ]
   },

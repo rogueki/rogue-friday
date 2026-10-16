@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/powerpoint-deck-list-response.schema.json",
+  "title": "PowerPointDeckListResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": { "type": "array", "maxItems": 20, "items": { "$ref": "../skills/powerpoint-deck.schema.json" } },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}
