@@ -1,11 +1,28 @@
 import { CONTRACT_VERSION, type CodingRunRequest, type OnboardingUpdate, type SkillActivationRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
-import { validationFailed } from "../util/errors";
+import { ApiError, validationFailed } from "../util/errors";
+import type { PowerPointRequest } from "../services/powerpoint";
 
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: { state: "fresh" as const, asOf: new Date().toISOString() } });
 
 export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
+  async createPowerPointDeck(ctx) {
+    const observed = await ctx.runtime.skills.list();
+    const powerpoint = observed.skills.find((skill) => skill.id === "hermes:powerpoint");
+    if (!observed.fresh || !powerpoint?.discovered || powerpoint.enabled !== true) {
+      throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes PowerPoint ist nicht aktuell als aktiviert und verfügbar bestätigt." });
+    }
+    const deck = await ctx.runtime.powerpoint.create(ctx.body as PowerPointRequest);
+    ctx.audit.action = "skills.powerpoint_created";
+    ctx.audit.after = { deckId: deck.id, slideCount: deck.slideCount };
+    return { status: 201, body: single(deck) };
+  },
+  async downloadPowerPointDeck(ctx) {
+    const id = ctx.pathParams.id as string;
+    return { status: 200, raw: { contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      data: ctx.runtime.powerpoint.download(id), disposition: `attachment; filename="friday-${id}.pptx"` } };
+  },
   async getCodingCliStatus(ctx) {
     return { status: 200, body: single(await ctx.runtime.codingRuns.cliStatus()) };
   },

@@ -6,10 +6,11 @@ import { useMemo, useState } from "react";
 import { useSession } from "@/lib/session";
 import { useSetSkillActivation, useSkillsCatalog } from "@/lib/api/domains/skills";
 import { CodingRunsArea } from "./CodingRunsArea";
+import { PowerPointCreator } from "./PowerPointCreator";
 import { integrationSetupLink, officialReference, selectedVisibleSkill, skillState, visibleSkills } from "./skillPresentation";
 import "./skills.css";
 
-function SkillDetails({ skill, canToggle, onToggle, busy, error }: { skill: SkillCatalogEntry; canToggle: boolean; onToggle: () => void; busy: boolean; error: string | null }) {
+function SkillDetails({ skill, canToggle, onToggle, busy, error, canCreate }: { skill: SkillCatalogEntry; canToggle: boolean; onToggle: () => void; busy: boolean; error: string | null; canCreate: boolean }) {
   const state = skillState(skill);
   return <section className="sk-detail" aria-labelledby="sk-detail-title">
     <div className="sk-detail__head"><div><p className="sk-eyebrow">{skill.source === "friday" ? "FRIDAY SKILLS" : "HERMES STANDARD"} · {skill.version ? `v${skill.version}` : "Version unbekannt"}</p><h2 id="sk-detail-title">{skill.name}</h2></div><StatusChip tone={state.tone}>{state.label}</StatusChip></div>
@@ -24,6 +25,7 @@ function SkillDetails({ skill, canToggle, onToggle, busy, error }: { skill: Skil
     })}</ul></section>}
     {skill.setupRefs.length > 0 && <section><h3>Weitere Hinweise</h3><ul>{skill.setupRefs.map((ref) => <li key={ref}>{officialReference(ref) ? <a href={ref} target="_blank" rel="noopener noreferrer">{ref}</a> : ref}</li>)}</ul></section>}
     {canToggle && <Button type="button" loading={busy} disabled={busy} onClick={onToggle}>{skill.enabled ? "Deaktivieren" : "Aktivieren"}</Button>}
+    {skill.id === "hermes:powerpoint" && canCreate && <PowerPointCreator />}
     {error && <p role="alert" className="sk-warning">{error}</p>}
   </section>;
 }
@@ -45,7 +47,7 @@ export function SkillsPage() {
       <div className="sk-summary" role="status"><strong>{catalog.length}</strong> Skills im Katalog · <strong>{catalog.filter((item) => item.source === "friday").length}</strong> Friday · <strong>{catalog.filter((item) => item.source === "hermes").length}</strong> Hermes · <strong>{catalog.filter((item) => item.enabled === true).length}</strong> aktiviert <span>Aktiviert bedeutet nicht automatisch ausführbar.</span></div>
       {(query.isStale || query.data?.freshness?.state === "unknown" || query.data?.freshness?.state === "stale" || query.data?.catalogError || query.data?.hermesError) && <p className="sk-warning" role="status">{(query.isStale || query.data?.freshness?.state === "unknown" || query.data?.freshness?.state === "stale") && "Katalogdaten sind nicht mehr aktuell. "}{query.data?.catalogError && `Friday-Katalog: ${query.data.catalogError}`} {query.data?.hermesError && `Hermes: ${query.data.hermesError}`} <Button type="button" disabled={query.isFetching} onClick={() => void query.refetch()}>Jetzt aktualisieren</Button></p>}
       <div className="sk-filters"><label>Suche<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, Beschreibung, Kategorie" /></label><label>Herkunft<select value={source} onChange={(event) => setSource(event.target.value)}><option value="all">Alle</option><option value="friday">Friday</option><option value="hermes">Hermes</option></select></label><label>Status<select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}><option value="all">Alle</option><option value="enabled">Aktiviert</option><option value="missing">Nicht gefunden</option><option value="unknown">Unbekannt</option></select></label></div>
-      {filtered.length === 0 ? <EmptyState title="Keine passenden Skills" description="Suche oder Filter anpassen." /> : <div className="sk-layout"><ul className="sk-list" aria-label="Skills">{filtered.map((skill) => <li key={skill.id}><button type="button" className="sk-list__item" aria-current={selected?.id === skill.id ? "true" : undefined} onClick={() => { setSelectedId(skill.id); setError(null); }}><span><strong>{skill.name}</strong><small>{skill.category} · {skill.source === "friday" ? "Friday" : "Hermes"}</small></span><StatusChip tone={skillState(skill).tone}>{skillState(skill).label}</StatusChip></button></li>)}</ul>{selected && <SkillDetails skill={selected} canToggle={session.role === "owner" && !session.offline && selected.discovered === true && selected.enabled !== null} onToggle={() => void toggle()} busy={activation.isPending} error={error} />}</div>}
+      {filtered.length === 0 ? <EmptyState title="Keine passenden Skills" description="Suche oder Filter anpassen." /> : <div className="sk-layout"><ul className="sk-list" aria-label="Skills">{filtered.map((skill) => <li key={skill.id}><button type="button" className="sk-list__item" aria-current={selected?.id === skill.id ? "true" : undefined} onClick={() => { setSelectedId(skill.id); setError(null); }}><span><strong>{skill.name}</strong><small>{skill.category} · {skill.source === "friday" ? "Friday" : "Hermes"}</small></span><StatusChip tone={skillState(skill).tone}>{skillState(skill).label}</StatusChip></button></li>)}</ul>{selected && <SkillDetails skill={selected} canToggle={session.role === "owner" && !session.offline && selected.discovered === true && selected.enabled !== null} canCreate={session.role === "owner" && !session.offline && selected.enabled === true} onToggle={() => void toggle()} busy={activation.isPending} error={error} />}</div>}
       {session.role === "owner" && !session.offline && <CodingRunsArea skills={catalog} />}
     </>}
   </div>;

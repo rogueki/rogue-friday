@@ -7,10 +7,10 @@ export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 if command -v python >/dev/null 2>&1; then
     if python -c 'import pptx' >/dev/null 2>&1; then
         echo 'FRIDAY_POWERPOINT_READY existing Python imports python-pptx'
+        exit 0
     else
-        echo 'FRIDAY_POWERPOINT_UNVERIFIED existing Python lacks python-pptx; preserving user command' >&2
+        echo 'FRIDAY_POWERPOINT_SETUP existing Python lacks python-pptx; installing isolated runtime' >&2
     fi
-    exit 0
 fi
 
 VENV="$HOME/.local/share/friday/powerpoint-venv"

@@ -48,6 +48,7 @@ import { ContentStudioProviderService } from "../services/content-studio-provide
 import { ContentStudioPlanService } from "../services/content-studio-plan";
 import { ContentStudioProductionService } from "../services/content-studio-production";
 import { SkillsService } from "../services/skills";
+import { PowerPointService } from "../services/powerpoint";
 import { OnboardingService } from "../services/onboarding";
 import { LogBuffer, withLogBuffer } from "../services/log-buffer";
 import { FrontendTelemetryService } from "../services/telemetry";
@@ -270,6 +271,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     calendarAdapterStatus: () => adapterSettings.list(),
   });
   const codingRuns: CodingRunsService = new CodingRunsService(config, skills, env);
+  const powerpoint = new PowerPointService(config.paths.dataDir);
   const codingVoiceRepository = new CodingVoiceRepositoryService(db, codingRuns);
   const contentStudioProduction = new ContentStudioProductionService(db, contentStudioPlan, contentStudioKeys, contentStudioProviders,
     config.paths.dataDir, { ffmpegPath: env.FRIDAY_FFMPEG_PATH, enabled: () => settings.area("dashboard").contentStudioEnabled === true });
@@ -451,6 +453,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     contentStudioProviders,
     contentStudioPlan,
     skills,
+    powerpoint,
     onboarding,
     obsidianVault,
     wikiPath,
