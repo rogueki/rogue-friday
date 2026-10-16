@@ -343,8 +343,9 @@ def test_window_matrix_and_segments():
 def load_voice_module():
     """friday_voice.py mit Stubs fuer die Windows-/GPU-Abhaengigkeiten importieren."""
     stubs = {"winsound": types.SimpleNamespace(Beep=lambda *a: None),
-             "sounddevice": types.ModuleType("sounddevice"),
-             "torch": types.ModuleType("torch")}
+             "sounddevice": types.ModuleType("sounddevice")}
+    if importlib.util.find_spec("torch") is None:
+        stubs["torch"] = types.ModuleType("torch")
     for name, module in stubs.items():
         sys.modules.setdefault(name, module)
     sys.modules.pop("friday_voice", None)
@@ -391,6 +392,50 @@ def make_service(jv, texts, engine="personal", phrase="Hey Friday"):
     svc.tts = types.SimpleNamespace(speaking=threading.Event(), interrupted=0)
     svc.tts.interrupt = lambda: setattr(svc.tts, "interrupted", svc.tts.interrupted + 1)
     return svc
+
+
+def test_cloud_routes_select_model_and_reasoning(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update({"hermes_url": "http://127.0.0.1/test", "hermes_model": "friday"})
+    svc.hermes_key, svc.history = "test", []
+    requests = []
+    monkeypatch.setattr(jv, "post_json", lambda url, payload, headers, timeout: (
+        requests.append(payload) or {"choices": [{"message": {"content": "Bereit."}}]}))
+    monkeypatch.setattr(jv, "log_event", lambda **kw: None)
+    for route, model, effort in (("cloud_low", "kimi-for-coding", "none"),
+                                 ("cloud_high", "k3", "high"), ("cloud_max", "k3", "max")):
+        assert svc._ask_hermes("Test", {"route": route}, "test") == "Bereit."
+        assert requests[-1]["model"] == model
+        assert requests[-1]["provider"] == "kimi-coding"
+        assert requests[-1]["model_options"]["reasoning_effort"] == effort
+    svc.cfg.update({"cloud_provider": "anthropic", "cloud_models": {"cloud_low": "small-model"}})
+    svc._ask_hermes("Test", {"route": "cloud_low"}, "test")
+    assert requests[-1]["model"] == "small-model" and requests[-1]["provider"] == "anthropic"
+
+
+def test_followup_window_starts_after_answer(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update({"command_start_timeout_s": 5.0, "followup_window_s": 15.0})
+    monkeypatch.setattr(jv, "log_event", lambda **kw: None)
+    svc._acknowledge_wake = lambda: np.zeros(pw.CHUNK, dtype=np.int16)
+    svc._drain = lambda: None
+    svc._wake_detected = lambda chunk: False
+    svc._read_chunk = lambda: (svc.tts.speaking.clear() or np.zeros(pw.CHUNK, dtype=np.int16))
+    calls = []
+    def record(timeout):
+        calls.append(timeout)
+        return np.zeros(pw.CHUNK, dtype=np.int16) if len(calls) == 1 else None
+    def handle(audio, wake_audio):
+        svc.trusted_until = jv.time.monotonic() - 10  # cloud + speech outlast the original deadline
+        svc.tts.speaking.set()
+    svc._record_command = record
+    svc._handle_command = handle
+    svc._session()
+    assert calls == [5.0, 15.0]
+    assert 14 <= svc.trusted_until - jv.time.monotonic() <= 15
+    assert svc.status["state"] == "listening"
 
 
 def test_service_stage2_accepts_and_rejects(monkeypatch):

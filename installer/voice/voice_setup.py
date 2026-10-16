@@ -185,12 +185,14 @@ cfg = {
     "command_start_timeout_s": 5.0,
     "command_end_silence_s": 0.7,
     "command_max_s": 12.0,
-    "followup_window_s": 8.0,
+    "followup_window_s": 15.0,
     "trusted_session_s": 90,
     **whisper,
     "qwen_url": "http://127.0.0.1:43692/v1/chat/completions",
     "hermes_url": "http://127.0.0.1:43693/v1/chat/completions",
     "hermes_model": "friday",
+    "cloud_provider": "kimi-coding",
+    "cloud_models": {"cloud_low": "kimi-for-coding", "cloud_high": "k3", "cloud_max": "k3"},
     "hermes_key_file": os.path.join(CONFIG, "hermes_api.key"),
     "tts_url": None,
     "tts_voice": voice,
@@ -205,6 +207,9 @@ cfg = {
 # A voice change must not reset the user's microphone, local service ports,
 # calibrated wake threshold or other tuning from the running installation.
 cfg.update(previous)
+# The conversation window starts after playback. Upgrade old eight-second installs.
+if cfg.get("followup_window_s") == 8.0:
+    cfg["followup_window_s"] = 15.0
 cfg.update(persona.voice_settings(p))
 cfg.update({"tts_voice": voice, "tts_film_filter": film_filter,
             "tts_voice_choice": options.voice_choice, "tts_speaker_id": None, **qwen_settings})
