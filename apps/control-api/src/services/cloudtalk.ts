@@ -6,16 +6,24 @@ import { ApiError, conflict, validationFailed } from "../util/errors";
 const PROFILE_KEY = "telephony.cloudtalk.profile";
 const E164 = /^\+[1-9]\d{7,14}$/;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
-type Profile = { revision: number; agentId: number; accessKeyId: string; accessKeySecret: string };
+type Profile = { revision: number; agentId?: number; accessKeyId: string; accessKeySecret: string;
+  ownerId?: string; ownerPhone?: string; ownerPhoneConfirmed?: boolean; voiceAgentId?: string; remindersEnabled?: boolean; reminderMinutes?: number };
+type ConfigureInput = { agentId?: number; accessKeyId: string; accessKeySecret: string;
+  ownerPhone?: string; ownerPhoneConfirmed?: boolean; voiceAgentId?: string; remindersEnabled?: boolean; reminderMinutes?: number };
+type ReminderEvent = { id: string; owner_id: string; version: number; title: string; starts_at: string; time_zone: string };
 type CallRow = { id: string; key_hash: string; request_hash: string; actor: string; destination: string;
   state: "pending" | "requested" | "rejected" | "unknown"; provider_status: number | null; created_at: string; updated_at: string };
 
 export class CloudTalkService {
+  private remindersRunning = false;
   constructor(private readonly db: Db, private readonly key: Buffer,
-    private readonly request: typeof fetch = fetch, private readonly now: () => number = Date.now) {
+    private readonly request: typeof fetch = fetch, private readonly now: () => number = Date.now,
+    private readonly ownerName: () => string = () => "Owner") {
     if (key.length !== 32) throw new Error("CloudTalk encryption key is invalid");
     this.readProfile();
     this.db.prepare("UPDATE cloudtalk_calls SET state = 'unknown', updated_at = ? WHERE state = 'pending'")
+      .run(new Date(now()).toISOString());
+    this.db.prepare("UPDATE cloudtalk_reminder_calls SET state = 'unknown', updated_at = ? WHERE state = 'pending'")
       .run(new Date(now()).toISOString());
   }
 
@@ -32,7 +40,7 @@ export class CloudTalkService {
       decipher.setAAD(Buffer.from(PROFILE_KEY));
       decipher.setAuthTag(tag);
       const profile = JSON.parse(Buffer.concat([decipher.update(Buffer.from(cipher64, "base64")), decipher.final()]).toString("utf8")) as Profile;
-      if (!Number.isSafeInteger(profile.revision) || !Number.isSafeInteger(profile.agentId) ||
+      if (!Number.isSafeInteger(profile.revision) || (profile.agentId !== undefined && !Number.isSafeInteger(profile.agentId)) ||
         !profile.accessKeyId || !profile.accessKeySecret) throw new Error("invalid profile");
       return profile;
     } catch { throw new Error("CloudTalk profile cannot be decrypted; restore the original auth.key"); }
@@ -40,19 +48,33 @@ export class CloudTalkService {
 
   status() {
     const profile = this.readProfile();
+    const last = profile?.ownerId ? this.db.prepare("SELECT state, created_at FROM cloudtalk_reminder_calls WHERE owner_id = ? ORDER BY created_at DESC LIMIT 1")
+      .get(profile.ownerId) as { state: string; created_at: string } | undefined : undefined;
     return { configured: profile !== null, agentId: profile?.agentId ?? null, revision: profile?.revision ?? 0,
+      ownerPhone: profile?.ownerPhone ?? null, voiceAgentId: profile?.voiceAgentId ?? null,
+      remindersEnabled: profile?.remindersEnabled === true, reminderMinutes: profile?.reminderMinutes ?? 15,
+      lastReminderState: last?.state ?? null, lastReminderAt: last?.created_at ?? null,
       note: "API-Zugang gespeichert; Agentenstatus, Rufnummer und tatsächlicher Anruf sind nicht geprüft." };
   }
 
-  configure(input: { agentId: number; accessKeyId: string; accessKeySecret: string }, revision: number) {
+  configure(input: ConfigureInput, revision: number, ownerId?: string) {
     const current = this.readProfile();
     if (revision !== (current?.revision ?? 0)) throw conflict("CloudTalk-Konfiguration wurde geändert. Bitte neu laden.");
-    if (!Number.isSafeInteger(input.agentId) || input.agentId <= 0 || input.agentId > 2147483647 ||
+    if ((input.agentId !== undefined && (!Number.isSafeInteger(input.agentId) || input.agentId <= 0 || input.agentId > 2147483647)) ||
       typeof input.accessKeyId !== "string" || input.accessKeyId.length < 4 || input.accessKeyId.length > 200 ||
       typeof input.accessKeySecret !== "string" || input.accessKeySecret.length < 8 || input.accessKeySecret.length > 500) {
       throw validationFailed("CloudTalk Agent-ID oder API-Schlüssel sind ungültig.");
     }
-    const profile: Profile = { ...input, revision: revision + 1 };
+    const ownerPhone = input.ownerPhone?.trim();
+    const voiceAgentId = input.voiceAgentId?.trim();
+    const reminderMinutes = input.reminderMinutes ?? 15;
+    if ((ownerPhone && !E164.test(ownerPhone)) || (voiceAgentId && !/^[A-Za-z0-9_-]{1,100}$/.test(voiceAgentId)) ||
+      !Number.isSafeInteger(reminderMinutes) || reminderMinutes < 1 || reminderMinutes > 120 ||
+      (input.remindersEnabled === true && (!ownerId || !ownerPhone || !voiceAgentId || input.ownerPhoneConfirmed !== true))) {
+      throw validationFailed("Fuer Erinnerungsanrufe sind Owner, E.164-Rufnummer, VoiceAgent-ID und 1-120 Minuten Vorlauf erforderlich.");
+    }
+    const profile: Profile = { ...input, ownerId, ownerPhone, voiceAgentId, reminderMinutes,
+      remindersEnabled: input.remindersEnabled === true, revision: revision + 1 };
     const nonce = randomBytes(12);
     const cipher = createCipheriv("aes-256-gcm", this.key, nonce);
     cipher.setAAD(Buffer.from(PROFILE_KEY));
@@ -61,9 +83,69 @@ export class CloudTalkService {
     return this.status();
   }
 
+  /** One pass over due owner events. A durable reservation precedes every external POST. */
+  async tickReminders(): Promise<void> {
+    if (this.remindersRunning) return;
+    this.remindersRunning = true;
+    try {
+      const profile = this.readProfile();
+      if (!profile?.remindersEnabled || profile.ownerPhoneConfirmed !== true || !profile.ownerId || !profile.ownerPhone || !profile.voiceAgentId ||
+        !E164.test(profile.ownerPhone)) return;
+      const now = this.now();
+      const rows = this.db.prepare(`SELECT id, owner_id, version, title, starts_at, time_zone FROM local_calendar_events
+        WHERE owner_id = ? AND starts_at > ? AND starts_at <= ? ORDER BY starts_at, id LIMIT 10`)
+        .all(profile.ownerId, new Date(now).toISOString(), new Date(now + (profile.reminderMinutes ?? 15) * 60_000).toISOString()) as unknown as ReminderEvent[];
+      for (const row of rows) {
+        const localHour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: row.time_zone, hour: "2-digit", hourCycle: "h23" }).format(now));
+        if (localHour < 8 || localHour >= 20) continue;
+        const time = new Date(this.now()).toISOString();
+        this.db.exec("BEGIN IMMEDIATE");
+        let reserved = false;
+        try {
+          const recent = this.db.prepare("SELECT count(*) AS n FROM cloudtalk_reminder_calls WHERE owner_id = ? AND created_at >= ?")
+            .get(profile.ownerId, new Date(this.now() - 3_600_000).toISOString()) as { n: number };
+          if (recent.n < 5) {
+            reserved = this.db.prepare(`INSERT OR IGNORE INTO cloudtalk_reminder_calls
+              (event_id,event_version,owner_id,destination,state,created_at,updated_at)
+              SELECT id,version,owner_id,?,'pending',?,? FROM local_calendar_events
+              WHERE id = ? AND owner_id = ? AND version = ? AND starts_at = ?`)
+              .run(profile.ownerPhone, time, time, row.id, profile.ownerId, row.version, row.starts_at).changes === 1;
+          }
+          this.db.exec("COMMIT");
+        } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+        if (!reserved) continue;
+        let state: "requested" | "rejected" | "unknown" = "unknown";
+        let providerStatus: number | null = null;
+        try {
+          const current = this.db.prepare("SELECT 1 FROM local_calendar_events WHERE id = ? AND owner_id = ? AND version = ? AND starts_at = ?")
+            .get(row.id, row.owner_id, row.version, row.starts_at);
+          if (!current || Date.parse(row.starts_at) <= this.now() || this.readProfile()?.revision !== profile.revision) state = "rejected";
+          else {
+            const appointmentTime = new Intl.DateTimeFormat("de-DE", { timeZone: row.time_zone,
+              dateStyle: "full", timeStyle: "short" }).format(new Date(row.starts_at));
+            const basic = Buffer.from(`${profile.accessKeyId}:${profile.accessKeySecret}`).toString("base64");
+            const response = await this.request("https://api.cloudtalk.io/v1/voice-agent/calls", {
+              method: "POST", redirect: "error", signal: AbortSignal.timeout(12_000),
+              headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({ call_number: profile.ownerPhone, voice_agent_id: profile.voiceAgentId,
+                call_properties: { system_prompt: { variables: { contact_name: this.ownerName(),
+                  appointment_time: `${appointmentTime} (${row.title})` } } } }),
+            });
+            providerStatus = response.status;
+            if (response.ok) state = "requested";
+            else if (response.status >= 400 && response.status < 500) state = "rejected";
+          }
+        } catch { /* The provider may have accepted the request; never retry an unknown outcome. */ }
+        this.db.prepare("UPDATE cloudtalk_reminder_calls SET state = ?, provider_status = ?, updated_at = ? WHERE event_id = ? AND event_version = ?")
+          .run(state, providerStatus, new Date(this.now()).toISOString(), row.id, row.version);
+      }
+    } finally { this.remindersRunning = false; }
+  }
+
   preview(destination: string, actor: string) {
     const profile = this.readProfile();
     if (!profile) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "CloudTalk-API-Zugang fehlt." });
+    if (!profile.agentId) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "CloudTalk Agent-ID fuer den klassischen API-Ruf fehlt." });
     if (!E164.test(destination)) throw validationFailed("Zielnummer muss im E.164-Format sein.");
     const expires = this.now() + 120000;
     const body = Buffer.from(JSON.stringify({ actor, destination, revision: profile.revision, expires })).toString("base64url");
@@ -83,6 +165,7 @@ export class CloudTalkService {
     if (existing) return this.replay(existing, requestHash);
     const profile = this.readProfile();
     if (!profile) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "CloudTalk-API-Zugang fehlt." });
+    if (!profile.agentId) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "CloudTalk Agent-ID fuer den klassischen API-Ruf fehlt." });
     if (!E164.test(destination)) throw validationFailed("Zielnummer muss im E.164-Format sein.");
     const [body, signature, extra] = token.split(".");
     if (!body || !signature || extra || body.length > 1024 || signature.length > 100) throw validationFailed("CloudTalk-Vorschau ist ungültig.");
