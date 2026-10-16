@@ -1,6 +1,7 @@
 import { CONTRACT_VERSION, type AdapterConfigPatch, type ContentStudioKeyPatch, type Freshness, type LayoutImportRequest, type SettingsExport, type SettingsPatch, type ThemeImportRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
+import type { HimalayaAccountPatch } from "../services/himalaya-account";
 import { localList } from "./meta";
 
 const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString() });
@@ -8,6 +9,16 @@ const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString()
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: fresh() });
 
 export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
+  async getHimalayaAccount(ctx) {
+    return { status: 200, body: single(await ctx.runtime.himalayaAccount.status()) };
+  },
+  async putHimalayaAccount(ctx) {
+    const status = await ctx.runtime.himalayaAccount.update(ctx.body as HimalayaAccountPatch, ctx.mutation.ifMatchVersion ?? -1);
+    ctx.audit.action = "settings.himalaya_account_updated";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { configured: status.managed && status.credentialsPresent, cliInstalled: status.cliInstalled };
+    return { status: 200, body: single(status) };
+  },
   async getHermesSkillKeys(ctx) {
     return { status: 200, body: single(await ctx.runtime.hermesSkillKeys.status()) };
   },

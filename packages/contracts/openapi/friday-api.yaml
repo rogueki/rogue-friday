@@ -5069,6 +5069,63 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/himalaya-account:
+    get:
+      operationId: getHimalayaAccount
+      tags:
+        - settings
+      summary: Read local Himalaya account readiness without exposing credentials
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HimalayaAccountResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+    put:
+      operationId: putHimalayaAccount
+      tags:
+        - settings
+      summary: Save Friday-owned IMAP and SMTP account in Friday-Ubuntu
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HimalayaAccountPatch"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HimalayaAccountResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/wiki-path:
     get:
       operationId: getWikiPath
@@ -6324,6 +6381,12 @@ components:
       $ref: ../schemas/settings/content-studio-keys-response.schema.json
     ObsidianVault:
       $ref: ../schemas/settings/obsidian-vault.schema.json
+    HimalayaAccount:
+      $ref: ../schemas/settings/himalaya-account.schema.json
+    HimalayaAccountPatch:
+      $ref: ../schemas/settings/himalaya-account-patch.schema.json
+    HimalayaAccountResponse:
+      $ref: ../schemas/settings/himalaya-account-response.schema.json
     WikiPath:
       $ref: ../schemas/settings/wiki-path.schema.json
     WikiPathPatch:
