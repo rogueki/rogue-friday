@@ -79,6 +79,46 @@ def test_status_preserves_unknown_and_does_not_read_onboarding(tmp_path):
     assert "Kalender" in voice.handle("Was kannst du?")
 
 
+def test_spoken_skill_detail_reports_status_account_and_connection_limits(tmp_path):
+    api = FakeApi()
+    api.skills = [{"id": "hermes:notion", "source": "hermes", "name": "notion", "description": "Verwaltet freigegebene Notion-Seiten.",
+                   "enabled": True, "integrationDetails": [{"id": "notion", "account": "required", "configured": True, "connectionChecked": None}]}]
+    voice = handler(tmp_path, api)
+    answer = voice.handle("Was kann Skill Notion?")
+    assert "freigegebene Notion-Seiten" in answer
+    assert "aktiviert" in answer and "keine erfolgreiche Ausführung" in answer
+    assert "Konto ist nötig" in answer and "lokal vorhanden" in answer and "Verbindung nicht geprüft" in answer
+    assert api.calls == [("GET", "skills", None, None)]
+    assert "Konto ist nötig" in voice.handle("Braucht Notion ein Konto?")
+    assert "aktiviert" in voice.handle("Ist Notion aktiviert?")
+
+
+def test_spoken_skill_detail_resolves_exact_id_but_rejects_ambiguous_name(tmp_path):
+    api = FakeApi()
+    api.skills = [{"id": "friday:research", "source": "friday", "name": "research", "description": "Friday recherche.", "enabled": False, "integrationDetails": []},
+                  {"id": "hermes:research", "source": "hermes", "name": "research", "description": "Hermes recherche.", "enabled": None, "integrationDetails": []},
+                  {"id": "hermes:powerpoint", "source": "hermes", "name": "powerpoint", "description": "Erstellt Folien.", "enabled": True, "integrationDetails": []}]
+    voice = handler(tmp_path, api)
+    assert "mehrdeutig" in voice.handle("Erkläre Research")
+    assert "Friday recherche" in voice.handle("Erkläre Friday:Research")
+    assert "deaktiviert" in voice.handle("Erkläre Friday:Research")
+    assert "Erstellt Folien" in voice.handle("Was kann PowerPoint erstellen?")
+    assert "kein Konto verzeichnet" in voice.handle("Braucht PowerPoint ein Konto?")
+    assert "nicht" in voice.handle("Erkläre mail")
+
+
+def test_spoken_skill_detail_is_bounded_for_unavailable_or_malformed_catalog(tmp_path):
+    api = FakeApi()
+    voice = handler(tmp_path, api)
+    api.request = lambda *args, **kwargs: (None, "unavailable")
+    voice._safe_request = api.request
+    assert "nicht erreichbar" in voice.handle("Erkläre Notion")
+    voice._safe_request = lambda *args, **kwargs: ({"data": [None, {}, {"id": "hermes:notion", "name": "notion", "description": "Token=sk-very-secret-value", "enabled": None}]}, None)
+    answer = voice.handle("Erkläre Notion")
+    assert "unbekannt" in answer and "Ob ein Konto nötig ist" in answer
+    assert "sk-very-secret-value" not in answer
+
+
 def test_conflict_rereads_without_overwrite(tmp_path):
     api = FakeApi()
     voice = handler(tmp_path, api)
@@ -182,6 +222,7 @@ def test_dispatcher_keeps_speaker_gate_and_hermes_fallback(tmp_path):
         verifier=types.SimpleNamespace(score=lambda audio: 0.2),
         status={"rejected_speaker": 0, "commands": 0}, trusted_until=0,
         _transcribe=lambda audio: "Welche Skills sind aktiv?",
+        coding_voice=types.SimpleNamespace(handle=lambda text: calls.append("coding") or None),
         content_studio_voice=types.SimpleNamespace(handle=lambda text: calls.append("studio") or None),
         skills_onboarding_voice=types.SimpleNamespace(
             handle=lambda text: calls.append("skills") or "Kalender ist aktiv.",
@@ -193,14 +234,14 @@ def test_dispatcher_keeps_speaker_gate_and_hermes_fallback(tmp_path):
     assert calls == [] and offers == [] and voice.status["rejected_speaker"] == 1
     voice.verifier.score = lambda audio: 0.7
     namespace["_handle_command"](voice, [0] * 16000, None)
-    assert calls == ["studio", "skills", "Kalender ist aktiv."]
+    assert calls == ["coding", "studio", "skills", "Kalender ist aktiv."]
     assert offers == ["offer"]
     calls.clear()
     voice.skills_onboarding_voice.handle = lambda text: calls.append("skills") or None
     voice._transcribe = lambda audio: "Wie spät ist es?"
     voice._route = lambda text: calls.append("route") or {"route": "local", "answer": "Es ist zwölf Uhr."}
     namespace["_handle_command"](voice, [0] * 16000, None)
-    assert calls[:3] == ["studio", "skills", "route"]
+    assert calls[:4] == ["coding", "studio", "skills", "route"]
     assert offers == ["offer", "offer"]
     assert "Es ist zwölf Uhr." in calls
 
