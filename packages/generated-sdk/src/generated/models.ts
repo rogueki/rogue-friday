@@ -216,6 +216,8 @@ export interface FridayModelMap {
   ChannelListResponse: ChannelListResponse;
   ChannelResponse: ChannelResponse;
   ChannelStatus: ChannelStatus;
+  CodingCliStatus: CodingCliStatus;
+  CodingCliStatusResponse: CodingCliStatusResponse;
   CodingRun: CodingRun;
   CodingRunRequest: CodingRunRequest;
   CodingRunResponse: CodingRunResponse;
@@ -1655,6 +1657,17 @@ export interface ChannelListResponse {
 export interface ChannelResponse {
   contractVersion: ContractVersion;
   data: Channel;
+  freshness: Freshness;
+}
+export interface CodingCliStatus {
+  cli: "codex" | "opencode" | "claude-code";
+  installed: boolean;
+  version: string | null;
+  authState: "signed_in" | "signed_out" | "stored_credentials" | "unknown";
+}
+export interface CodingCliStatusResponse {
+  contractVersion: ContractVersion;
+  data: CodingCliStatus[];
   freshness: Freshness;
 }
 export interface CodingRun {

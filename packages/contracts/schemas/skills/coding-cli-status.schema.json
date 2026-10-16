@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/skills/coding-cli-status.schema.json",
+  "title": "CodingCliStatus",
+  "type": "object",
+  "properties": {
+    "cli": { "type": "string", "enum": ["codex", "opencode", "claude-code"] },
+    "installed": { "type": "boolean" },
+    "version": { "type": ["string", "null"], "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "authState": { "type": "string", "enum": ["signed_in", "signed_out", "stored_credentials", "unknown"] }
+  },
+  "required": ["cli", "installed", "version", "authState"],
+  "additionalProperties": false
+}

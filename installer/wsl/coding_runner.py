@@ -6,6 +6,7 @@ import json
 import os
 import re
 import resource
+import selectors
 import shutil
 import signal
 import subprocess
@@ -22,6 +23,39 @@ ROOT = (Path(os.environ["FRIDAY_CODING_RUN_DIR"]) if os.environ.get("FRIDAY_CODI
 MAX_OUTPUT = 1024 * 1024
 MAX_SECONDS = 900
 RETENTION_SECONDS = 7 * 24 * 60 * 60
+
+
+def read_status_command(argv, env):
+    """Bound time and captured bytes for local CLI metadata commands."""
+    proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    selector = selectors.DefaultSelector()
+    try:
+        for stream in (proc.stdout, proc.stderr):
+            os.set_blocking(stream.fileno(), False)
+            selector.register(stream, selectors.EVENT_READ)
+        chunks = {proc.stdout: bytearray(), proc.stderr: bytearray()}
+        deadline = time.monotonic() + 5
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(argv, 5)
+            for key, _ in selector.select(remaining):
+                data = os.read(key.fileobj.fileno(), 1024)
+                if not data:
+                    selector.unregister(key.fileobj)
+                    continue
+                chunks[key.fileobj].extend(data)
+                if sum(map(len, chunks.values())) > 8192:
+                    raise ValueError("status_output_limit")
+        proc.wait(timeout=max(0.1, deadline - time.monotonic()))
+        return proc.returncode, chunks[proc.stdout].decode("utf-8", "replace"), chunks[proc.stderr].decode("utf-8", "replace")
+    finally:
+        selector.close()
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+        proc.stdout.close()
+        proc.stderr.close()
 
 
 def die(message, code=2):
@@ -67,7 +101,8 @@ def target(cli, windows_path):
     if not binary:
         die("native_cli_missing", 4)
     binary = str(Path(binary).resolve(strict=True))
-    if binary.startswith("/mnt/") or binary.endswith((".exe", ".cmd")):
+    # Native npm Linux packages can legitimately name their binaries *.exe.
+    if binary.startswith("/mnt/") or binary.endswith(".cmd"):
         die("native_cli_missing", 4)
     version = subprocess.run([binary, "--version"], text=True, capture_output=True, timeout=8, env=base_env())
     if version.returncode or not version.stdout.strip():
@@ -183,6 +218,56 @@ def probe(cli, windows_path):
     print(json.dumps({"workdir": workdir, "binary": binary, "version": version}), flush=True)
 
 
+def cli_status():
+    """Return only local readiness flags; never expose CLI output or account identifiers."""
+    env = base_env()
+    results = []
+    for cli, name in CLI_BIN.items():
+        item = {"cli": cli, "installed": False, "version": None, "authState": "unknown"}
+        binary = shutil.which(name, path=env["PATH"])
+        if not binary:
+            results.append(item)
+            continue
+        binary = str(Path(binary).resolve())
+        if binary.startswith("/mnt/") or binary.endswith(".cmd"):
+            results.append(item)
+            continue
+        try:
+            version_code, version_out, _ = read_status_command([binary, "--version"], env)
+            if version_code or not version_out.strip():
+                results.append(item)
+                continue
+            item["installed"] = True
+            # Versions are not needed to prove account readiness; emit only a safe semver if present.
+            match = re.search(r"\b\d+\.\d+\.\d+\b", version_out[:160])
+            item["version"] = match.group(0) if match else None
+            args = {"codex": ["login", "status"], "opencode": ["auth", "list"],
+                    "claude-code": ["auth", "status"]}[cli]
+            status_code, status_out, status_err = read_status_command([binary, *args], env)
+            if cli == "claude-code":
+                try:
+                    logged_in = json.loads(status_out).get("loggedIn")
+                    if isinstance(logged_in, bool):
+                        item["authState"] = "signed_in" if logged_in else "signed_out"
+                except ValueError:
+                    pass
+            elif cli == "codex":
+                output = (status_out + status_err).lower()
+                if re.search(r"\bnot logged in\b", output):
+                    item["authState"] = "signed_out"
+                elif status_code == 0 and re.search(r"\blogged in\b", output):
+                    item["authState"] = "signed_in"
+            elif status_code == 0:
+                output = re.sub(r"\x1b\[[0-9;]*m", "", status_out)
+                count = re.search(r"\b(\d+) credentials?\b", output, re.I)
+                if count:
+                    item["authState"] = "stored_credentials" if int(count.group(1)) > 0 else "signed_out"
+        except (OSError, ValueError, subprocess.SubprocessError):
+            pass
+        results.append(item)
+    print(json.dumps({"clis": results}), flush=True)
+
+
 def worker(run_id):
     meta_path, output_path, task_path = paths(run_id)
     for _ in range(50):
@@ -266,7 +351,9 @@ def stop(run_id):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 5 and sys.argv[1] == "start":
+    if len(sys.argv) == 2 and sys.argv[1] == "cli-status":
+        cli_status()
+    elif len(sys.argv) == 5 and sys.argv[1] == "start":
         start(*sys.argv[2:])
     elif len(sys.argv) == 4 and sys.argv[1] == "probe":
         probe(*sys.argv[2:])

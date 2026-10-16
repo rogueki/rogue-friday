@@ -30,6 +30,13 @@ export interface CodingRun {
   updatedAt: number | null;
 }
 
+export interface CodingCliStatus {
+  cli: CodingCli;
+  installed: boolean;
+  version: string | null;
+  authState: "signed_in" | "signed_out" | "stored_credentials" | "unknown";
+}
+
 export type RunnerInvoker = (script: string, distro: string, user: string, args: string[], input?: string, timeoutMs?: number) => Promise<Record<string, unknown>>;
 
 /** One short WSL operation. Jobs themselves live in a bounded Linux process group outside this request. */
@@ -97,9 +104,9 @@ export class CodingRunsService {
     return canonical;
   }
 
-  private async call(args: string[], input?: string): Promise<Record<string, unknown>> {
+  private async call(args: string[], input?: string, timeoutMs?: number): Promise<Record<string, unknown>> {
     const { script, distro, user } = this.install();
-    try { return await this.invoke(script, distro, user, args, input); }
+    try { return await this.invoke(script, distro, user, args, input, timeoutMs); }
     catch (error) {
       const message = error instanceof Error ? error.message : "";
       if (message.includes("runner_3:")) throw validationFailed("Das Repository ist für Linux-Git in Friday-Ubuntu nicht lesbar. Verwende einen normalen Git-Clone.");
@@ -149,6 +156,21 @@ export class CodingRunsService {
   async status(runId: string): Promise<CodingRun> {
     if (!RUN_ID.test(runId)) throw validationFailed("Ungültige Run-ID.");
     return this.map(await this.call(["status", runId]));
+  }
+
+  async cliStatus(): Promise<CodingCliStatus[]> {
+    const payload = await this.call(["cli-status"], undefined, 35000);
+    if (!Array.isArray(payload.clis) || payload.clis.length !== CLI_IDS.length) throw unavailable("Coding-CLI-Status ist nicht verfügbar.");
+    const validStates = ["signed_in", "signed_out", "stored_credentials", "unknown"];
+    const statuses = payload.clis as CodingCliStatus[];
+    if (!CLI_IDS.every((cli) => statuses.some((item) => item.cli === cli && typeof item.installed === "boolean" &&
+      (item.version === null || (typeof item.version === "string" && /^\d+\.\d+\.\d+$/.test(item.version))) && validStates.includes(item.authState)))) {
+      throw unavailable("Coding-CLI-Status ist ungültig.");
+    }
+    return CLI_IDS.map((cli) => {
+      const item = statuses.find((entry) => entry.cli === cli)!;
+      return { cli, installed: item.installed, version: item.version, authState: item.authState };
+    });
   }
 
   async stop(runId: string): Promise<CodingRun> {
