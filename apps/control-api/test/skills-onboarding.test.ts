@@ -144,13 +144,16 @@ describe("skills and resumable onboarding", () => {
     await expect(service.toggle("hermes:powerpoint", true)).rejects.toThrow("nicht bestätigt");
   });
 
-  it("shows setup metadata only for Hermes prerequisites documented by the bundled skill", async () => {
+  it("shows account setup metadata for Hermes built-ins with connector or optional credential prerequisites", async () => {
     const fetcher: typeof fetch = async (input) => String(input).endsWith("/api/skills")
       ? Response.json({ skills: [
         { name: "powerpoint", enabled: true },
         { name: "airtable", enabled: false },
         { name: "opencode", enabled: true },
         { name: "hermes-agent", enabled: true },
+        { name: "email-inbox-triage", enabled: true },
+        { name: "llm-wiki", enabled: false },
+        { name: "blocked-page-recovery", enabled: true },
       ] })
       : new Response('<script>window.__HERMES_SESSION_TOKEN__="test-token-123456"</script>');
     const result = await new SkillsService({ dashboardUrl: "http://127.0.0.1:43791", fetcher }).list();
@@ -161,6 +164,15 @@ describe("skills and resumable onboarding", () => {
       requiredCapabilities: [expect.stringContaining("Personal Access Token")] });
     expect(byName.get("opencode")).toMatchObject({ accounts: ["hermes_opencode"], integrationDetails: [{ account: "conditional", required: true }],
       setupRefs: [], requiredCapabilities: [expect.stringContaining("OpenCode CLI")] });
+    expect(byName.get("email-inbox-triage")).toMatchObject({ accounts: ["hermes_email_inbox_triage"],
+      integrationDetails: [{ account: "conditional", setupDe: expect.stringContaining("Himalaya"), settingsTarget: "Hermes-Einstellungen in Friday-Ubuntu" }],
+      requiredCapabilities: [expect.stringContaining("Google-Workspace-Connector")] });
+    expect(byName.get("llm-wiki")).toMatchObject({ accounts: ["hermes_llm_wiki"],
+      integrationDetails: [{ account: "conditional", setupDe: expect.stringContaining("aktivem Sync-Abonnement") }],
+      requiredCapabilities: [expect.stringContaining("Markdown-Pfad")] });
+    expect(byName.get("blocked-page-recovery")).toMatchObject({ accounts: ["hermes_blocked_page_recovery"],
+      integrationDetails: [{ account: "conditional", setupDe: expect.stringContaining("JINA_API_KEY") }],
+      requiredCapabilities: [expect.stringContaining("Jina-API-Key")] });
     expect(byName.get("hermes-agent")).toMatchObject({ accounts: [], integrationDetails: [], requiredCapabilities: [], conditionalCapabilities: [] });
   });
 
