@@ -15,6 +15,10 @@ describe("skill status presentation", () => {
 
   it("only turns known settings targets and HTTPS references into links", () => {
     expect(internalSetupLink("adapter:hermes")).toBe("/settings?area=adapters&adapter=hermes");
+    expect(internalSetupLink("/settings?area=adapters#calendar-setup-title")).toBe("/settings?area=adapters#calendar-setup-title");
+    expect(internalSetupLink("Friday Dashboard > Einstellungen > Adapter > CalDAV")).toBe("/settings?area=adapters#calendar-setup-title");
+    expect(internalSetupLink("Friday Dashboard > Einstellungen > Skill-Konten > E-Mail")).toBe("/settings?area=skillAccounts#himalaya-account-title");
+    expect(internalSetupLink("Hermes-Laufzeit: Coding-CLI und Provider-Anmeldung")).toBe("/settings?area=skillAccounts#coding-cli-setup-title");
     expect(internalSetupLink("Host: lokaler Editor")).toBeNull();
     expect(officialReference("https://example.org/setup")).toBe("https://example.org/setup");
     expect(officialReference("javascript:alert(1)")).toBeNull();

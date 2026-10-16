@@ -8,6 +8,15 @@ const integration = (id: string) => ({
 }) satisfies SkillCatalogEntry["integrationDetails"][number] & { requiredBy: string[] };
 
 describe("Skill account setup paths", () => {
+  it("opens actual calendar, mail and coding CLI setup sections without claiming a live connection", () => {
+    const calendar = accountSetupView(integration("caldav"), undefined);
+    expect(calendar.href).toBe("/settings?area=adapters#calendar-setup-title");
+    expect(calendar.state).toContain("nicht geprüft");
+    const mail = accountSetupView(integration("gmx"), undefined);
+    expect(mail.href).toBe("/settings?area=skillAccounts#himalaya-account-title");
+    expect(mail.state).toContain("separat");
+    expect(accountSetupView(integration("coding_cli"), undefined).href).toBe("/settings?area=skillAccounts#coding-cli-setup-title");
+  });
   it("opens the encrypted Friday key form without claiming a provider login", () => {
     const setup = accountSetupView(integration("kie_ai"), { kie: true, elevenlabs: false, capcut: false });
     expect(setup.href).toBe("/settings?area=contentStudioKeys");
