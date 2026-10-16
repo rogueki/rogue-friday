@@ -108,7 +108,7 @@ export function HimalayaAccountSetup({ owner }: { owner: boolean }) {
         : status.data.data.readyForLocalUse ? "Profil und CLI vorhanden; Anbieterzugriff nicht geprüft."
         : status.data.data.managed ? "Profil gespeichert, aber die Himalaya-CLI oder Zugangsdaten fehlen."
         : "Noch kein Friday-Postfach eingerichtet."} {status.data.data.cliInstalled ? "CLI erkannt." : "Himalaya-CLI fehlt in Friday-Ubuntu."}</p>}
-      <form onSubmit={(event) => void save(event)}>
+      <form className="sk-mail-setup__form" onSubmit={(event) => void save(event)}>
         {field("email", "E-Mail-Adresse", "email")}
         {field("displayName", "Anzeigename")}
         {field("imapHost", "IMAP-Server")}

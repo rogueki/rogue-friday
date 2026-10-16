@@ -47,6 +47,10 @@
 .sk-accounts article { padding: 12px; border: 1px solid var(--jv-line-soft); background: var(--jv-row-bg); }
 .sk-accounts h3 { margin: 0 0 5px; }
 .sk-accounts p { margin: 4px 0; }
+.sk-mail-setup__form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin: 14px 0; }
+.sk-mail-setup__form label { display: grid; align-content: start; gap: 5px; min-width: 0; color: var(--friday-muted); font-size: var(--jv-fs-xs); }
+.sk-mail-setup__form input, .sk-mail-setup__form select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 38px; padding: 7px 10px; border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-sm); background: var(--friday-panel-0); color: var(--friday-text-strong); font: inherit; font-size: var(--jv-fs-sm); }
+.sk-mail-setup__form button { grid-column: 1 / -1; justify-self: start; padding: 8px 12px; }
 .sk-onboarding { display: flex; flex-direction: column; gap: 14px; max-width: 860px; }
 .sk-onboarding__steps { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; list-style: none; }
 .sk-onboarding__steps li { padding: 6px 10px; border: 1px solid var(--jv-line-soft); }
