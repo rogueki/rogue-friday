@@ -284,6 +284,9 @@ export interface FridayModelMap {
   HermesSkillKeyPatch: HermesSkillKeyPatch;
   HermesSkillKeys: HermesSkillKeys;
   HermesSkillKeysResponse: HermesSkillKeysResponse;
+  HimalayaAccount: HimalayaAccount;
+  HimalayaAccountPatch: HimalayaAccountPatch;
+  HimalayaAccountResponse: HimalayaAccountResponse;
   JsonSchemaObject: JsonSchemaObject;
   KieTask: KieTask;
   KieTaskRequest: KieTaskRequest;
@@ -2271,6 +2274,36 @@ export interface HermesSkillKeys {
 export interface HermesSkillKeysResponse {
   contractVersion: ContractVersion;
   data: HermesSkillKeys;
+  freshness: Freshness;
+}
+export interface HimalayaAccount {
+  managed: boolean;
+  configPresent: boolean;
+  credentialsPresent: boolean;
+  cliInstalled: boolean;
+  readyForLocalUse: boolean;
+  connectionChecked: boolean;
+  revision: number;
+}
+export interface HimalayaAccountPatch {
+  email: string;
+  displayName: string;
+  imapHost: string;
+  imapPort: number;
+  imapLogin: string;
+  imapPassword: string;
+  smtpHost: string;
+  smtpPort: number;
+  smtpLogin: string;
+  smtpPassword: string;
+  smtpEncryption: "tls" | "start-tls";
+  sentFolder: string;
+  draftsFolder: string;
+  trashFolder: string;
+}
+export interface HimalayaAccountResponse {
+  contractVersion: ContractVersion;
+  data: HimalayaAccount;
   freshness: Freshness;
 }
 export interface KieTask {

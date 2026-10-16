@@ -10,6 +10,7 @@ import { getApiClient } from "@/lib/api/client";
 import { useSkillsCatalog } from "@/lib/api/domains/skills";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { useSettingsDrafts } from "./SettingsDrafts";
+import { HimalayaAccountSetup } from "./HimalayaAccountSetup";
 import "@/features/skills/skills.css";
 
 type Integration = SkillCatalogEntry["integrationDetails"][number] & { requiredBy: string[] };
@@ -65,7 +66,8 @@ const hermesLocations: Record<string, string> = {
 };
 
 export function accountSetupView(item: Integration, keys: KeyStatus, hermes: HermesStatus = undefined, cliStatuses: CliStatus[] = []): { href: string | null; action: string | null; state: string; location: string | null } {
-  const cliId = ({ hermes_codex: "codex", hermes_opencode: "opencode", hermes_claude_code: "claude-code" } as Record<string, CliStatus["cli"]>)[item.id];
+  const cliIds = { hermes_codex: "codex", hermes_opencode: "opencode", hermes_claude_code: "claude-code" } as const;
+  const cliId = Object.hasOwn(cliIds, item.id) ? cliIds[item.id as keyof typeof cliIds] : undefined;
   if (cliId) {
     const status = cliStatuses.find((entry) => entry.cli === cliId);
     return { href: "/settings?area=skillAccounts#coding-cli-setup-title", action: "Coding-CLI-Status ansehen",
@@ -76,6 +78,13 @@ export function accountSetupView(item: Integration, keys: KeyStatus, hermes: Her
     action: "Lokalen Wiki-Pfad im Dashboard einrichten",
     state: item.configured === null ? "Wiki-Pfadstatus unbekannt" : item.configured ? "Lokaler Wiki-Ordner lesbar; Schreibaktion nicht geprüft" : "Lokaler Wiki-Ordner fehlt oder ist nicht lesbar",
     location: null,
+  };
+  if (item.id === "hermes_himalaya") return {
+    href: "/settings?area=skillAccounts#himalaya-account-title",
+    action: "E-Mail-Postfach im Dashboard einrichten",
+    state: item.configured === null ? "Himalaya-Status unbekannt" : item.configured
+      ? "Profil und CLI vorhanden; Lesen und Senden nicht geprüft" : "Himalaya noch nicht einsatzbereit",
+    location: "Friday-Ubuntu: ~/.config/himalaya/config.toml",
   };
   if (item.id === "obsidian" || item.id === "hermes_obsidian") return {
     href: "/settings?area=skillAccounts#obsidian-setup-title",
@@ -250,6 +259,7 @@ export function SkillAccountsArea() {
         {codingClis.data?.data.map((item) => <p key={item.cli}><strong>{codingCliNames[item.cli]}</strong>{item.version ? ` ${item.version}` : ""}: {codingCliState(item)}. {item.cli === "codex" ? "Einrichtung in Friday-Ubuntu: codex login." : item.cli === "opencode" ? "Anbieter mit opencode auth login einrichten; für lokale Modelle ist das optional." : "Einrichtung in Friday-Ubuntu: claude auth login."}</p>)}
       </> : <p>Nur der Owner kann den lokalen CLI-Status sehen.</p>}
     </section>
+    <HimalayaAccountSetup owner={role === "owner"} />
     <section aria-labelledby="wiki-path-setup-title">
       <h3 id="wiki-path-setup-title">Lokales Markdown-Wiki für Hermes</h3>
       <p>Der Skill llm-wiki liest Markdown in Friday-Ubuntu. Ohne eigenen Pfad verwendet er <code>~/wiki</code>. Gib einen vorhandenen absoluten Linux-Pfad ein; ein Windows-Ordner liegt dort unter <code>/mnt/c/...</code>. Das separate Obsidian-Vault-Feld gilt nicht für diesen Skill. Obsidian Sync ist optional und erfordert obsidian-headless und <code>ob login</code>.</p>

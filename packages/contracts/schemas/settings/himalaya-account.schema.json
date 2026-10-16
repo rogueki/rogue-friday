@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/himalaya-account.schema.json",
+  "title": "HimalayaAccount",
+  "type": "object",
+  "properties": {
+    "managed": { "type": "boolean" },
+    "configPresent": { "type": "boolean" },
+    "credentialsPresent": { "type": "boolean" },
+    "cliInstalled": { "type": "boolean" },
+    "readyForLocalUse": { "type": "boolean" },
+    "connectionChecked": { "type": "boolean" },
+    "revision": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["managed", "configPresent", "credentialsPresent", "cliInstalled", "readyForLocalUse", "connectionChecked", "revision"],
+  "additionalProperties": false
+}

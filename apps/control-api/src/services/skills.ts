@@ -9,6 +9,7 @@ type Observation = { skills: Map<string, Json>; at: string | null; error: string
 type HermesKeyFlags = Readonly<Record<"AIRTABLE_API_KEY" | "NOTION_API_KEY" | "TENOR_API_KEY" | "JINA_API_KEY" | "MSGRAPH_TENANT_ID" | "MSGRAPH_CLIENT_ID" | "MSGRAPH_CLIENT_SECRET", boolean>>;
 type VaultFlags = Readonly<{ configured: boolean; readable: boolean }>;
 type WikiFlags = Readonly<{ configured: boolean; readable: boolean }>;
+type HimalayaFlags = Readonly<{ readyForLocalUse: boolean }>;
 const HERMES_KEY_INTEGRATIONS = {
   hermes_airtable: "AIRTABLE_API_KEY", hermes_notion: "NOTION_API_KEY",
   hermes_gif_search: "TENOR_API_KEY", hermes_blocked_page_recovery: "JINA_API_KEY",
@@ -74,19 +75,22 @@ export class SkillsService {
   private readonly hermesKeyStatus: (() => Promise<{ configured: HermesKeyFlags }>) | undefined;
   private readonly obsidianVaultStatus: (() => Promise<VaultFlags>) | undefined;
   private readonly wikiPathStatus: (() => Promise<WikiFlags>) | undefined;
+  private readonly himalayaAccountStatus: (() => Promise<HimalayaFlags>) | undefined;
   private token: string | undefined;
 
   constructor(options: { catalogPath?: string; dashboardUrl?: string; fetcher?: typeof fetch;
     configuredIntegrations?: () => Readonly<{ kie: boolean; elevenlabs: boolean }>;
     hermesKeyStatus?: () => Promise<{ configured: HermesKeyFlags }>;
     obsidianVaultStatus?: () => Promise<VaultFlags>;
-    wikiPathStatus?: () => Promise<WikiFlags> }) {
+    wikiPathStatus?: () => Promise<WikiFlags>;
+    himalayaAccountStatus?: () => Promise<HimalayaFlags> }) {
     this.fetcher = options.fetcher ?? fetch;
     this.catalogPath = options.catalogPath;
     this.configuredIntegrations = options.configuredIntegrations;
     this.hermesKeyStatus = options.hermesKeyStatus;
     this.obsidianVaultStatus = options.obsidianVaultStatus;
     this.wikiPathStatus = options.wikiPathStatus;
+    this.himalayaAccountStatus = options.himalayaAccountStatus;
     if (options.dashboardUrl) {
       const url = new URL(options.dashboardUrl);
       if (url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.username || url.password || url.search || url.hash) {
@@ -216,10 +220,12 @@ export class SkillsService {
     const needsHermesKeys = Object.keys(HERMES_KEY_INTEGRATIONS).some((id) => integrationIds.has(id)) || integrationIds.has("hermes_teams_meeting_pipeline");
     const needsVault = integrationIds.has("obsidian") || integrationIds.has("hermes_obsidian");
     const needsWiki = integrationIds.has("hermes_llm_wiki");
-    const [hermesKeys, vault, wiki] = await Promise.all([
+    const needsHimalaya = integrationIds.has("hermes_himalaya");
+    const [hermesKeys, vault, wiki, himalaya] = await Promise.all([
       needsHermesKeys && this.hermesKeyStatus ? Promise.resolve().then(() => this.hermesKeyStatus!()).catch(() => null) : Promise.resolve(null),
       needsVault && this.obsidianVaultStatus ? Promise.resolve().then(() => this.obsidianVaultStatus!()).catch(() => null) : Promise.resolve(null),
       needsWiki && this.wikiPathStatus ? Promise.resolve().then(() => this.wikiPathStatus!()).catch(() => null) : Promise.resolve(null),
+      needsHimalaya && this.himalayaAccountStatus ? Promise.resolve().then(() => this.himalayaAccountStatus!()).catch(() => null) : Promise.resolve(null),
     ]);
     for (const skill of skills) skill.integrationDetails = skill.integrationDetails.map((detail) => {
       const key = HERMES_KEY_INTEGRATIONS[detail.id as keyof typeof HERMES_KEY_INTEGRATIONS];
@@ -231,6 +237,8 @@ export class SkillsService {
         configured: vault ? vault.configured && vault.readable : null };
       if (detail.id === "hermes_llm_wiki") return { ...detail,
         configured: wiki ? wiki.configured && wiki.readable : null };
+      if (detail.id === "hermes_himalaya") return { ...detail,
+        configured: himalaya ? himalaya.readyForLocalUse : null };
       return detail;
     });
     skills.sort((a, b) => a.id.localeCompare(b.id));

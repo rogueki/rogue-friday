@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/himalaya-account-patch.schema.json",
+  "title": "HimalayaAccountPatch",
+  "type": "object",
+  "properties": {
+    "email": { "type": "string", "maxLength": 1024 },
+    "displayName": { "type": "string", "maxLength": 1024 },
+    "imapHost": { "type": "string", "maxLength": 253 },
+    "imapPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "imapLogin": { "type": "string", "maxLength": 1024 },
+    "imapPassword": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "smtpHost": { "type": "string", "maxLength": 253 },
+    "smtpPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "smtpLogin": { "type": "string", "maxLength": 1024 },
+    "smtpPassword": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "smtpEncryption": { "type": "string", "enum": ["tls", "start-tls"] },
+    "sentFolder": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "draftsFolder": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "trashFolder": { "type": "string", "minLength": 1, "maxLength": 1024 }
+  },
+  "required": ["email", "displayName", "imapHost", "imapPort", "imapLogin", "imapPassword", "smtpHost", "smtpPort", "smtpLogin", "smtpPassword", "smtpEncryption", "sentFolder", "draftsFolder", "trashFolder"],
+  "additionalProperties": false
+}
