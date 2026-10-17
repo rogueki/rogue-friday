@@ -1,5 +1,6 @@
 import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { ApiClient } from "./api";
+import { API_ORIGIN } from "./constants";
 
 type Settings = Record<string, unknown> & { version: number };
 
@@ -14,6 +15,8 @@ interface TestFixtures {
   cleanWorld: void;
   /** Fails the test on uncaught page exceptions (auto). Console errors are not fatal: reconnect tests provoke them on purpose. */
   pageErrors: string[];
+  /** Keeps the optional first-run popup out of unrelated flows and visual baselines. */
+  snoozedOnboarding: void;
 }
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
@@ -51,6 +54,20 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       page.on("pageerror", (error) => errors.push(error.message));
       await use(errors);
       expect(errors, "uncaught page exceptions").toEqual([]);
+    },
+    { auto: true },
+  ],
+  snoozedOnboarding: [
+    async ({ page }, use) => {
+      await page.addInitScript((origin) => {
+        if (location.origin !== origin) return;
+        try {
+          sessionStorage.setItem("friday-onboarding-later", "1");
+        } catch {
+          // Storage can be unavailable in opaque documents during security and iframe tests.
+        }
+      }, API_ORIGIN);
+      await use();
     },
     { auto: true },
   ],

@@ -37,10 +37,12 @@ test.describe("high load (profile highLoad: 1 000 tasks, 10 000 activity events,
     const idle = await measureFrames(page, () => page.waitForTimeout(3000));
     const box = (await page.getByRole("main").boundingBox())!;
     const stats = await measureFrames(page, () => wheelScroll(page, box.x + box.width / 2, box.y + box.height / 2, 40, 600, 30));
-    note(`idle p50=${idle.p50.toFixed(1)}ms p95=${idle.p95.toFixed(1)}ms | scroll frames=${stats.frames} p50=${stats.p50.toFixed(1)}ms p95=${stats.p95.toFixed(1)}ms max=${stats.max.toFixed(0)}ms longTasks=${stats.longTaskMs.toFixed(0)}ms`);
+    const longTaskShare = stats.longTaskMs / stats.durationMs;
+    note(`idle p50=${idle.p50.toFixed(1)}ms p95=${idle.p95.toFixed(1)}ms | scroll frames=${stats.frames} p50=${stats.p50.toFixed(1)}ms p95=${stats.p95.toFixed(1)}ms max=${stats.max.toFixed(0)}ms longTasks=${stats.longTaskMs.toFixed(0)}ms over ${stats.durationMs.toFixed(0)}ms (${(longTaskShare * 100).toFixed(1)}%)`);
     expect(stats.frames).toBeGreaterThan(20);
     expect(stats.p95, "scroll p95 frame time vs idle (x2.5 + 150 ms slack)").toBeLessThan(idle.p95 * 2.5 + 150);
-    expect(stats.longTaskMs, "main-thread long tasks during 40 wheel steps").toBeLessThan(4000);
+    // The action can stretch by tens of seconds on a software-rendered runner; compare blocking time to that same window.
+    expect(longTaskShare, "main-thread long-task share during 40 wheel steps").toBeLessThan(0.3);
     expect(stats.max, "no single frame stalls for several seconds").toBeLessThan(4000);
     expect(await domNodes(page), "still bounded after scrolling").toBeLessThan(6000);
   });

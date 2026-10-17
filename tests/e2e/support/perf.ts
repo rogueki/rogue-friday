@@ -2,6 +2,7 @@ import type { CDPSession, Page } from "@playwright/test";
 
 export interface FrameStats {
   frames: number;
+  durationMs: number;
   p50: number;
   p95: number;
   max: number;
@@ -13,7 +14,7 @@ export interface FrameStats {
 export async function measureFrames(page: Page, action: () => Promise<void>): Promise<FrameStats> {
   await page.evaluate(() => {
     const w = window as unknown as { __frames?: { deltas: number[]; long: number; stop: boolean } };
-    const state = { deltas: [] as number[], long: 0, stop: false };
+    const state = { deltas: [] as number[], long: 0, stop: false, startedAt: performance.now() };
     w.__frames = state;
     let last = performance.now();
     const tick = (now: number): void => {
@@ -32,11 +33,11 @@ export async function measureFrames(page: Page, action: () => Promise<void>): Pr
   });
   await action();
   return page.evaluate(() => {
-    const state = (window as unknown as { __frames: { deltas: number[]; long: number; stop: boolean } }).__frames;
+    const state = (window as unknown as { __frames: { deltas: number[]; long: number; stop: boolean; startedAt: number } }).__frames;
     state.stop = true;
     const sorted = [...state.deltas].slice(1).sort((a, b) => a - b);
     const at = (q: number): number => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))] ?? 0;
-    return { frames: sorted.length, p50: at(0.5), p95: at(0.95), max: sorted.at(-1) ?? 0, longTaskMs: state.long };
+    return { frames: sorted.length, durationMs: performance.now() - state.startedAt, p50: at(0.5), p95: at(0.95), max: sorted.at(-1) ?? 0, longTaskMs: state.long };
   });
 }
 
