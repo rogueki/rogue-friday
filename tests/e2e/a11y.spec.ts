@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { test, expect, open, patchSettings } from "./support/fixtures";
+import { test, expect, open, patchSettings, freezeDate } from "./support/fixtures";
 
 /**
  * PLAN §51.7 Accessibility: axe-core (WCAG 2.0/2.1 A + AA) on every page and every overlay, keyboard-only
@@ -71,6 +71,8 @@ test.describe("axe: overlays and states", () => {
   });
 
   test("approval drawer, approve dialog and tier-3 re-auth dialog", async ({ page }) => {
+    test.setTimeout(180_000); // Three complete axe scans take close to the 90-second default on the mock dashboard.
+    await freezeDate(page);
     await open(page, "/approvals");
     await page.getByRole("article", { name: /Freigabe: Rechnung 2026-1142/ }).getByRole("button", { name: "Prüfen" }).click();
     const drawer = page.getByRole("dialog", { name: "Freigabe" });
