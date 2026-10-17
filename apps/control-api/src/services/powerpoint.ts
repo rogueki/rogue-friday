@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { ApiError, conflict, notFound, validationFailed } from "../util/errors";
-import { invokeCodingRunner, type RunnerInvoker } from "./coding-runs";
+import { invokeCodingRunner, nativeRunnerScript, type RunnerInvoker } from "./coding-runs";
 
 export interface PowerPointRequest { title: string; slides: Array<{ title: string; bullets: string[] }> }
 export interface RecentPowerPointDeck { id: string; title: string; slideCount: number; createdAt: string; downloadUrl: string }
@@ -15,7 +15,8 @@ const MAX_BYTES = 100_000_000;
 const VOICE_JOURNAL_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_VOICE_JOURNALS = 256;
 const VOICE_JOURNAL = /^voice-[a-f0-9]{64}\.json$/;
-const unavailable = () => new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes PowerPoint ist in Friday-Ubuntu nicht bereit." });
+const unavailable = () => new ApiError({ code: "ADAPTER_UNAVAILABLE",
+  message: process.platform === "win32" ? "Hermes PowerPoint ist in Friday-Ubuntu nicht bereit." : "Hermes PowerPoint ist unter Linux nicht bereit." });
 
 export class PowerPointService {
   private readonly artifacts: string;
@@ -24,6 +25,7 @@ export class PowerPointService {
   }
 
   private target() {
+    if (process.platform !== "win32") return { ...nativeRunnerScript(this.dataDir, "powerpoint_runner.py"), distro: "", user: "" };
     let root = resolve(this.dataDir);
     for (let depth = 0; depth < 5 && !existsSync(join(root, "config", "install-state.json")); depth += 1) root = resolve(root, "..");
     let state: { distro_name?: string; linux_user?: string };
