@@ -45,7 +45,17 @@ test("a single adapter can be switched offline and online again from the console
   const adapters = page.getByRole("region", { name: "Adapter" });
   await adapters.getByRole("combobox", { name: "Ziel" }).selectOption("mock-calendar");
   await adapters.getByRole("button", { name: "Offline schalten" }).click();
-  await expect.poll(async () => (await api.get("/calendar/events")).status).toBe(503);
+  await expect.poll(async () => {
+    const list = (await api.get("/adapters")).body.items as Array<{ manifest: { id: string }; health: { status: string } }>;
+    return list.find((item) => item.manifest.id === "mock-calendar")?.health.status;
+  }).toBe("offline");
+  const localCalendar = await api.get("/calendar/events");
+  expect(localCalendar.status).toBe(200);
+  expect((localCalendar.body.sources as Array<{ adapterId: string }>).map((source) => source.adapterId)).toContain("friday-local-calendar");
   await adapters.getByRole("button", { name: "Online schalten" }).click();
-  await expect.poll(async () => (await api.get("/calendar/events")).status).toBe(200);
+  await expect.poll(async () => {
+    const list = (await api.get("/adapters")).body.items as Array<{ manifest: { id: string }; health: { status: string } }>;
+    return list.find((item) => item.manifest.id === "mock-calendar")?.health.status;
+  }).toBe("online");
+  expect((await api.get("/calendar/events")).status).toBe(200);
 });

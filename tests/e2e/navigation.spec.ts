@@ -1,12 +1,13 @@
 import { test, expect, open } from "./support/fixtures";
 
-/** PLAN §51.5 Navigation, §26 (16 pages), §43.1 (palette, shortcuts), §44.6 (/dev/scenarios). */
+/** PLAN §51.5 Navigation, §26, §43.1 (palette, shortcuts), §44.6 (/dev/scenarios). */
 const PAGES = [
   ["Übersicht", "/"],
   ["Aufgaben", "/tasks"],
   ["Live-Aktivität", "/activity"],
   ["Gedächtnis", "/memory"],
   ["Agenten", "/agents"],
+  ["Skills", "/skills"],
   ["Freigaben", "/approvals"],
   ["Mail & Kommunikation", "/communication"],
   ["Kalender", "/calendar"],
@@ -20,7 +21,7 @@ const PAGES = [
   ["Einstellungen", "/settings"],
 ] as const;
 
-test("all 16 menu entries are reachable by click and mark the current page", async ({ page }) => {
+test("all menu entries are reachable by click and mark the current page", async ({ page }) => {
   await open(page, "/");
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await expect(nav.getByRole("link")).toHaveCount(PAGES.length);
