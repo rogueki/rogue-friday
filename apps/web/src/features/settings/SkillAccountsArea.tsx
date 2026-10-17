@@ -96,6 +96,14 @@ export function accountSetupView(item: Integration, keys: KeyStatus, hermes: Her
     state: "CloudTalk Desktop wählt nach aktivierter Auto-Dial-Option und Sprachbestätigung; Asterisk benötigt ARI und SIP",
     location: null,
   };
+  if (item.id === "cloudtalk_api") return {
+    href: "/settings?area=skillAccounts#cloudtalk-setup-title",
+    action: "CloudTalk-API-Zugang im Dashboard einrichten",
+    state: item.configured === null ? "Lokaler API-Zugangsstatus unbekannt; API-Berechtigung und Verbindung nicht geprüft"
+      : item.configured ? "API-Schlüssel und Agent-ID lokal hinterlegt; API-Berechtigung und Verbindung nicht geprüft"
+        : "API-Schlüssel oder Agent-ID fehlen; API-Berechtigung und Verbindung nicht geprüft",
+    location: null,
+  };
   const cliIds = { hermes_codex: "codex", hermes_opencode: "opencode", hermes_claude_code: "claude-code" } as const;
   const cliId = Object.hasOwn(cliIds, item.id) ? cliIds[item.id as keyof typeof cliIds] : undefined;
   if (cliId) {
