@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write native Linux voice settings without starting a headless voice service."""
+"""Write private native Linux voice settings for the browser audio service."""
 
 import argparse
 import getpass
@@ -15,6 +15,7 @@ import tempfile
 
 SECRET_PATH = Path("/etc/friday/secrets/elevenlabs.key")
 CONFIG_PATH = Path("/etc/friday/voice.json")
+STATE_PATH = Path("/var/lib/friday")
 VOICE_ID = re.compile(r"[A-Za-z0-9]{10,128}\Z")
 
 
@@ -111,7 +112,9 @@ def reusable_cloud_config(config: dict, service_uid: int, service_gid: int) -> b
     return True
 
 
-def configure(mode: str, voice_id: str | None, key_source: str | None, key_file: str | None) -> None:
+def configure(mode: str, voice_id: str | None, key_source: str | None, key_file: str | None,
+              voice_port: int = 43694, hermes_api_port: int = 43693,
+              dashboard_port: int = 3100) -> None:
     if os.geteuid() != 0:
         raise ValueError("Voice configuration requires root")
     service_uid, service_gid = ensure_secret_directory()
@@ -129,10 +132,43 @@ def configure(mode: str, voice_id: str | None, key_source: str | None, key_file:
             raise ValueError("Cloud mode requires --key-stdin, --key-file or --key-prompt")
     elif voice_id or key_source or key_file:
         raise ValueError("ElevenLabs options require --voice-mode elevenlabs")
+    if any(not 1024 <= port <= 65534 for port in (voice_port, hermes_api_port, dashboard_port)):
+        raise ValueError("Service ports must be 1024..65534")
+    if len({voice_port, voice_port + 1, hermes_api_port, dashboard_port}) != 4:
+        raise ValueError("Voice, browser audio, Hermes API and dashboard ports must differ")
+    models = STATE_PATH / "models" / "openwakeword"
+    defaults = {
+        "assistant_name": "Friday", "wake_phrase": "Hey Friday", "wake_engine": "personal",
+        "wake_model": str(models / "hey_jarvis_v0.1.onnx"),
+        "wake_verifier": str(models / "hey_jarvis_owner_verifier.joblib"),
+        "wake_threshold": 0.5, "wake_verifier_threshold": 0.3,
+        "personal_wake_model": str(models / "personal_wake.npz"),
+        "personal_wake_meta": str(models / "personal_wake.json"),
+        "wake_confirm": True, "wake_confirm_languages": ["de", "en"],
+        "speaker_profile": str(STATE_PATH / "voice" / "profiles" / "owner" / "embeddings" / "owner_ecapa.npy"),
+        "speaker_threshold": 0.4, "vad_threshold": 0.5,
+        "command_start_timeout_s": 5.0, "command_end_silence_s": 0.7,
+        "command_max_s": 12.0, "followup_window_s": 15.0,
+        "trusted_session_s": 90,
+        "hermes_model": "friday", "cloud_provider": "kimi-coding",
+        "cloud_models": {"cloud_low": "kimi-for-coding", "cloud_high": "k3", "cloud_max": "k3"},
+        "tts_backend": "elevenlabs" if mode == "elevenlabs" else "streaming_qwen",
+        "health_port": voice_port, "browser_audio_port": voice_port + 1,
+        "data_dir": str(STATE_PATH / "data"),
+        "audio_transport": "browser" if mode == "elevenlabs" else "device",
+    }
+    existing = {**defaults, **existing}
     existing.update({
         "voice_mode": "elevenlabs" if mode == "elevenlabs" else "streaming_qwen",
         "elevenlabs_key_file": str(SECRET_PATH) if mode == "elevenlabs" else None,
         "elevenlabs_voice_id": voice_id if mode == "elevenlabs" else None,
+        "hermes_key_file": str(SECRET_PATH.parent / "hermes-api.key"),
+        "hermes_url": f"http://127.0.0.1:{hermes_api_port}/v1/chat/completions",
+        "health_port": voice_port,
+        "browser_audio_port": voice_port + 1,
+        "audio_transport": "browser" if mode == "elevenlabs" else "device",
+        "data_dir": str(STATE_PATH / "data"),
+        "tts_backend": "elevenlabs" if mode == "elevenlabs" else "streaming_qwen",
     })
     try:
         atomic_private_write(CONFIG_PATH, (json.dumps(existing, indent=2, ensure_ascii=False) + "\n").encode(), 0, service_gid, 0o640)
@@ -150,6 +186,9 @@ def main() -> None:
     parser.add_argument("--voice-mode", choices=("local", "elevenlabs"), required=True)
     parser.add_argument("--inspect-existing", action="store_true")
     parser.add_argument("--elevenlabs-voice-id")
+    parser.add_argument("--voice-port", type=int, default=43694)
+    parser.add_argument("--hermes-api-port", type=int, default=43693)
+    parser.add_argument("--dashboard-port", type=int, default=3100)
     sources = parser.add_mutually_exclusive_group()
     sources.add_argument("--key-file")
     sources.add_argument("--key-stdin", action="store_true")
@@ -164,11 +203,12 @@ def main() -> None:
             config = existing_config(gid)
             print("valid" if reusable_cloud_config(config, uid, gid) else "none")
             return
-        configure(options.voice_mode, options.elevenlabs_voice_id, source, options.key_file)
+        configure(options.voice_mode, options.elevenlabs_voice_id, source, options.key_file,
+                  options.voice_port, options.hermes_api_port, options.dashboard_port)
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as error:
         # Error messages intentionally never contain the key or its contents.
         parser.exit(1, f"Voice setup failed: {error}\n")
-    print(f"Voice configuration written ({options.voice_mode}); audio transport/service not installed")
+    print(f"Voice configuration written ({options.voice_mode})")
 
 
 if __name__ == "__main__":
