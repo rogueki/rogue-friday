@@ -1,3 +1,4 @@
+/* global AudioWorkletProcessor, registerProcessor */
 class FridayCapture extends AudioWorkletProcessor {
   process(inputs) {
     const channel = inputs[0]?.[0];
