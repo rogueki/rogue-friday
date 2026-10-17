@@ -19,6 +19,13 @@ def call(env, *args, task=None):
     return json.loads(process.stdout)
 
 
+def rejected(env, *args):
+    process = subprocess.run([sys.executable, str(SCRIPT), *args], text=True,
+                             capture_output=True, env=env, timeout=15)
+    assert process.returncode == 3, process.stdout + process.stderr
+    return json.loads(process.stdout)
+
+
 def main():
     with tempfile.TemporaryDirectory(prefix="friday-coding-test-") as root:
         root = Path(root)
@@ -45,8 +52,20 @@ if 'STOP' in task:
             clone.chmod(0o700)
         env = os.environ.copy()
         env.update(FRIDAY_CODING_TEST_MODE="1", FRIDAY_CODING_TEST_BIN_DIR=str(binaries),
-                   FRIDAY_CODING_RUN_DIR=str(root / "runs"))
+                   FRIDAY_CODING_RUN_DIR=str(root / "runs"), FRIDAY_CODING_ROOTS=str(root))
         assert call(env, "repository", str(repo))["workdir"] == str(repo)
+        native_env = os.environ.copy()
+        native_env.pop("FRIDAY_CODING_TEST_MODE", None)
+        native_env["FRIDAY_CODING_ROOTS"] = str(root)
+        assert call(native_env, "repository", str(repo))["workdir"] == str(repo)
+        assert rejected(native_env, "repository", "relative/repo")["error"] == "repository_path_invalid"
+        assert rejected(native_env, "repository", str(root))["error"] == "git_root_missing"
+        with tempfile.TemporaryDirectory(prefix="friday-coding-outside-") as outside:
+            escaped = Path(outside) / "repo"
+            escaped.mkdir()
+            subprocess.run(["git", "init", "-q", str(escaped)], check=True)
+            (root / "escape").symlink_to(escaped, target_is_directory=True)
+            assert rejected(native_env, "repository", str(root / "escape"))["error"] == "repository_outside_allowed_roots"
         version = call(env, "probe", "codex", str(repo))
         assert version["version"] == "fake-codex 1.0"
         first = call(env, "start", "codex", str(repo), "idem_" + "A" * 26, task="Change this synthetic repo")
