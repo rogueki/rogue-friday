@@ -3620,6 +3620,24 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: voice.read
       x-required-role: viewer
+  /api/v1/voice/browser-audio-availability:
+    get:
+      operationId: getBrowserAudioAvailability
+      tags:
+        - voice
+      summary: Browser audio bridge readiness
+      responses:
+        "200":
+          description: Browser audio bridge readiness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserAudioAvailability"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
   /api/v1/voice/devices:
     get:
       operationId: listVoiceDevices
@@ -7582,6 +7600,8 @@ components:
       $ref: ../schemas/voice/voice-status.schema.json
     VoiceStatusResponse:
       $ref: ../schemas/voice/voice-status-response.schema.json
+    BrowserAudioAvailability:
+      $ref: ../schemas/voice/browser-audio-availability.schema.json
     VoiceTestKind:
       $ref: ../schemas/voice/voice-test-kind.schema.json
     VoiceTestRequest:

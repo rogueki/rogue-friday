@@ -11,7 +11,8 @@ import urllib.request
 import uuid
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from content_studio_voice import _dashboard_port
+from content_studio_voice import dashboard_port
+from voice_runtime_paths import voice_bridge_key_path
 
 
 DATE_TIME = r"(?P<day>\d{1,2})\.(?P<month>\d{1,2})\.(?P<year>\d{4})\s+um\s+(?P<hour>\d{1,2})(?:[:.](?P<minute>\d{2}))?\s*Uhr"
@@ -42,14 +43,14 @@ class CalendarVoice:
             self.pending["armed"] = True
 
     def _request(self, path, body, request_key=None):
-        with open(os.path.join(self.root, "dashboard", "data", "voice-bridge", "auth.key"), encoding="ascii") as source:
+        with open(voice_bridge_key_path(self.root), encoding="ascii") as source:
             raw_key = source.read().strip()
         if len(base64.b64decode(raw_key, validate=True)) != 32:
             raise ValueError("Voice-Bridge-Schluessel ungueltig")
         headers = {"Authorization": "Bearer " + raw_key, "Content-Type": "application/json", "Accept": "application/json"}
         if request_key:
             headers["Idempotency-Key"] = request_key
-        req = urllib.request.Request(f"http://127.0.0.1:{_dashboard_port(self.root)}/api/v1/calendar/local/voice/{path}",
+        req = urllib.request.Request(f"http://127.0.0.1:{dashboard_port(self.root)}/api/v1/calendar/local/voice/{path}",
                                      data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
         with self.opener.open(req, timeout=12) as response:
             return json.load(response)["data"]

@@ -14,6 +14,8 @@ import urllib.error
 import urllib.request
 import uuid
 
+from voice_runtime_paths import content_studio_state_path, dashboard_port, voice_bridge_key_path
+
 
 SUPPORTED = {"Feed-Post", "LinkedIn-Video", "YouTube-Video", "Story", "Reel", "TikTok-Video", "YouTube-Short"}
 CREATE = re.compile(r"\b(erstelle|produziere|generiere|mach|starte)\b.*\b(story|reel|video|post|content|inhalt)\b", re.I)
@@ -28,19 +30,6 @@ def _normal(value):
     return "".join(ch for ch in unicodedata.normalize("NFKD", value.casefold()) if not unicodedata.combining(ch))
 
 
-def _dashboard_port(root):
-    path = os.path.join(root, "dashboard", "config", "dashboard.yaml")
-    try:
-        content = open(path, encoding="utf-8-sig").read()
-        section = re.search(r"(?ms)^server:\s*\n((?:^[ \t]+[^\n]*\n?)*)", content)
-        port = re.search(r"(?m)^\s+port:\s*(\d{2,5})\b", section.group(1)) if section else None
-        if port and 1 <= int(port.group(1)) <= 65535:
-            return int(port.group(1))
-    except OSError:
-        pass
-    return 3100
-
-
 class ContentStudioVoice:
     def __init__(self, root, now=time.monotonic, opener=None):
         self.root = root
@@ -48,7 +37,7 @@ class ContentStudioVoice:
         self.opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}))
         self.pending = None
         self.last_job_id = None
-        self.state_file = os.path.join(root, "run", "content-studio-voice.json")
+        self.state_file = content_studio_state_path(root)
         try:
             with open(self.state_file, encoding="utf-8") as source:
                 saved_id = json.load(source).get("last_job_id")
@@ -69,8 +58,7 @@ class ContentStudioVoice:
             pass  # The current session still knows the job; the dashboard remains the source of truth.
 
     def _request(self, method, path, body=None, request_key=None):
-        key_path = os.path.join(self.root, "dashboard", "data", "voice-bridge", "auth.key")
-        with open(key_path, encoding="ascii") as source:
+        with open(voice_bridge_key_path(self.root), encoding="ascii") as source:
             raw_key = source.read().strip()
         if len(base64.b64decode(raw_key, validate=True)) != 32:
             raise ValueError("Ungültiger Voice-Bridge-Schlüssel")
@@ -80,7 +68,7 @@ class ContentStudioVoice:
         if request_key:
             headers["Idempotency-Key"] = request_key
         request = urllib.request.Request(
-            f"http://127.0.0.1:{_dashboard_port(self.root)}/api/v1/content-studio/{path}",
+            f"http://127.0.0.1:{dashboard_port(self.root)}/api/v1/content-studio/{path}",
             data=json.dumps(body).encode("utf-8") if body is not None else None,
             headers=headers, method=method,
         )

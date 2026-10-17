@@ -8,6 +8,7 @@ import { configureHttp } from "./http/server";
 import { ApiPipeline } from "./http/pipeline";
 import { createRuntime, type CreateRuntimeOptions } from "./runtime/create-runtime";
 import type { Runtime } from "./runtime/types";
+import { BrowserVoiceGateway } from "./realtime/browser-voice";
 
 /** Injection tokens. Every provider is wired with explicit tokens so the app runs unchanged under tsx and tsup. */
 export const RUNTIME = Symbol("RUNTIME");
@@ -28,6 +29,7 @@ class HttpLayer {
 
   async onModuleInit(): Promise<void> {
     const fastify = this.adapterHost.httpAdapter.getInstance() as FastifyInstance;
+    this.runtime.hub.setBrowserVoice(new BrowserVoiceGateway(this.runtime));
     const guards = configureHttp(fastify, this.runtime, this.pipeline);
     this.runtime.hub.attach(this.adapterHost.httpAdapter.getHttpServer() as Server, {
       hostAllowed: (request) => guards.hostAllowed(request.headers),
