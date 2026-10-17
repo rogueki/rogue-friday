@@ -38,12 +38,19 @@ def missing_prerequisites(config: dict) -> list[str]:
         endpoint = urllib.parse.urlsplit(config["hermes_url"])
         if endpoint.hostname != "127.0.0.1" or endpoint.scheme != "http" or not endpoint.port:
             raise ValueError("invalid Hermes API URL")
+        key = Path(config["hermes_key_file"]).read_text(encoding="utf-8").strip()
+        if not key or "\n" in key or "\r" in key:
+            raise ValueError("invalid Hermes API key")
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{endpoint.port}/v1/models",
+            headers={"Authorization": f"Bearer {key}"},
+        )
         loopback = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        with loopback.open(f"http://127.0.0.1:{endpoint.port}/health", timeout=1) as response:
+        with loopback.open(request, timeout=2) as response:
             if response.status != 200:
                 raise ValueError("Hermes API unhealthy")
     except (OSError, ValueError, KeyError):
-        missing.append("healthy loopback Hermes API server")
+        missing.append("authenticated loopback Hermes API server")
     if not private_file(Path(config.get("speaker_profile") or "")):
         missing.append("private trained owner speaker profile")
     models = STATE / "models/openwakeword"

@@ -28,7 +28,7 @@ Ubuntu 22.04/24.04 or Debian 12/13 on x86_64/aarch64; local loopback services on
 --validate exits nonzero if host prerequisites or the existing Friday Hermes binary are missing.
 Install requires Node >=22.13, pnpm 10.28.2, rsync, curl, git, python3 with PyYAML, systemd, a local friday-skills checkout and a preinstalled Hermes CLI at /var/lib/friday/.local/bin/hermes.
 On a first run the installer creates the locked friday user, then stops with instructions if Hermes is missing. Install Hermes as that user and rerun. A model provider is configured with 'hermes model'; no Kimi key is required by this installer.
-ElevenLabs mode prepares a private browser-audio voice service. It starts only after owner speaker/wake enrollment and a Hermes API key are present; see docs/LINUX_VOICE.md. Local mode requires >=6 GiB NVIDIA VRAM but the native Linux device/TTS service is not installed yet. Never put the key in a command argument.
+ElevenLabs mode prepares a private browser-audio voice service. It starts only after owner speaker/wake enrollment and an authenticated Hermes API are ready; see docs/LINUX_VOICE.md. Local mode requires >=6 GiB NVIDIA VRAM but the native Linux device/TTS service is not installed yet. Never put the key in a command argument.
 EOF
 }
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
@@ -258,11 +258,35 @@ voice_backup=
 voice_unit_backup=
 voice_was_active=0
 voice_was_enabled=0
+gateway_backup=
+gateway_was_active=0
+gateway_was_enabled=0
 systemctl is-active --quiet friday-voice.service && voice_was_active=1 || true
 systemctl is-enabled --quiet friday-voice.service && voice_was_enabled=1 || true
+systemctl is-active --quiet friday-hermes-gateway.service && gateway_was_active=1 || true
+systemctl is-enabled --quiet friday-hermes-gateway.service && gateway_was_enabled=1 || true
 cleanup() {
   local status=$?
   set +e
+  if (( status != 0 )) && [[ -n "$gateway_backup" ]]; then
+    for file in hermes.env hermes-api.key friday-hermes-gateway.service; do
+      case "$file" in
+        hermes.env) target="$STATE/.hermes/.env" ;;
+        hermes-api.key) target="$CONFIG/secrets/hermes-api.key" ;;
+        *) target=/etc/systemd/system/friday-hermes-gateway.service ;;
+      esac
+      if [[ -f "$gateway_backup/$file" ]]; then
+        cp -p -- "$gateway_backup/$file" "$target" || note "Could not restore $file" >&2
+      elif [[ -f "$gateway_backup/$file.absent" ]]; then
+        rm -f -- "$target" || note "Could not remove new $file" >&2
+      fi
+    done
+    systemctl daemon-reload || true
+    if (( gateway_was_active )); then systemctl restart friday-hermes-gateway.service || true
+    else systemctl stop friday-hermes-gateway.service || true; fi
+    if (( !gateway_was_enabled )); then systemctl disable friday-hermes-gateway.service >/dev/null 2>&1 || true; fi
+    note "Hermes API rollback snapshot retained at $gateway_backup" >&2
+  fi
   if (( status != 0 )) && [[ -n "$voice_unit_backup" ]]; then
     if [[ -f "$voice_unit_backup/friday-voice.service" ]]; then
       cp -p -- "$voice_unit_backup/friday-voice.service" /etc/systemd/system/friday-voice.service
@@ -347,6 +371,18 @@ chown -R root:root "$release"
 chmod -R go-w "$release"
 
 node_bin=$(command -v node)
+gateway_backup=$(mktemp -d "$CONFIG/.hermes-rollback.XXXXXX")
+chmod 0700 "$gateway_backup"
+for file in hermes.env hermes-api.key friday-hermes-gateway.service; do
+  case "$file" in
+    hermes.env) original="$STATE/.hermes/.env" ;;
+    hermes-api.key) original="$CONFIG/secrets/hermes-api.key" ;;
+    *) original=/etc/systemd/system/friday-hermes-gateway.service ;;
+  esac
+  [[ ! -L "$original" ]] || fail "Unsafe symlink at $original"
+  if [[ -f "$original" ]]; then cp -p -- "$original" "$gateway_backup/$file"; else touch "$gateway_backup/$file.absent"; fi
+done
+python3 "$release/installer/linux/configure_hermes_api.py" --port "$HERMES_API_PORT" || fail 'Hermes API configuration failed.'
 voice_unit_backup=$(mktemp -d "$CONFIG/.voice-unit-rollback.XXXXXX")
 chmod 0700 "$voice_unit_backup"
 if [[ -f /etc/systemd/system/friday-voice.service ]]; then
@@ -415,11 +451,41 @@ TasksMax=256
 [Install]
 WantedBy=multi-user.target
 UNIT
+cat > /etc/systemd/system/friday-hermes-gateway.service <<UNIT
+[Unit]
+Description=Hermes local API gateway for Friday
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=$SERVICE
+Group=$SERVICE
+WorkingDirectory=$STATE
+Environment=HOME=$STATE
+Environment=PATH=$STATE/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=$STATE/.local/bin/hermes gateway run --external-supervisor
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=$STATE
+LimitNOFILE=4096
+TasksMax=256
+
+[Install]
+WantedBy=multi-user.target
+UNIT
 if [[ "$VOICE_MODE" == elevenlabs ]]; then
 cat > /etc/systemd/system/friday-voice.service <<UNIT
 [Unit]
 Description=Friday private browser audio voice service
-After=network-online.target friday-dashboard.service
+After=network-online.target friday-dashboard.service friday-hermes-gateway.service
 Wants=network-online.target
 StartLimitIntervalSec=120
 StartLimitBurst=3
@@ -455,12 +521,32 @@ WantedBy=multi-user.target
 UNIT
 fi
 systemctl daemon-reload
-systemctl enable friday-dashboard.service friday-hermes-dashboard.service >/dev/null
+systemctl enable friday-dashboard.service friday-hermes-dashboard.service friday-hermes-gateway.service >/dev/null
 ln -s "$release" "$CURRENT.next"
 mv -Tf "$CURRENT.next" "$CURRENT"
 promoted=1
 systemctl restart friday-hermes-dashboard.service
 curl -fsS --max-time 3 --retry 10 --retry-connrefused --retry-delay 2 -o /dev/null "http://127.0.0.1:$HERMES_PORT/" || fail 'Hermes dashboard did not become healthy.'
+systemctl restart friday-hermes-gateway.service
+hermes_api_ok=0
+for ((attempt=0; attempt<15; attempt++)); do
+  if python3 - "$HERMES_API_PORT" "$CONFIG/secrets/hermes-api.key" <<'PY'
+import pathlib, sys, urllib.request
+port, key_path = sys.argv[1:]
+key = pathlib.Path(key_path).read_text(encoding="utf-8").strip()
+request = urllib.request.Request(f"http://127.0.0.1:{port}/v1/models",
+                                 headers={"Authorization": f"Bearer {key}"})
+try:
+    with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(request, timeout=2) as response:
+        if response.status != 200:
+            raise SystemExit(1)
+except (OSError, ValueError):
+    raise SystemExit(1)
+PY
+  then hermes_api_ok=1; break; fi
+  sleep 2
+done
+(( hermes_api_ok )) || fail 'Authenticated Hermes API did not become healthy.'
 systemctl restart friday-dashboard.service
 curl -fsS --max-time 3 --retry 15 --retry-connrefused --retry-delay 2 -o /dev/null "http://127.0.0.1:$FRIDAY_PORT/api/v1/health" || fail 'Friday dashboard did not become healthy.'
 voice_backup=$(mktemp -d "$CONFIG/.voice-rollback.XXXXXX")
@@ -508,7 +594,7 @@ if [[ "$VOICE_MODE" == elevenlabs ]]; then
     curl -fsS --max-time 3 --retry 15 --retry-connrefused --retry-delay 2 -o /dev/null \
       "http://127.0.0.1:$FRIDAY_PORT/api/v1/health" || fail 'Dashboard did not recover with pending voice.'
     note "$readiness"
-    note 'VOICE_PENDING: complete private enrollment and Hermes API setup, then rerun the installer.'
+    note 'VOICE_PENDING: complete private owner speaker/wake enrollment, then rerun the installer.'
   fi
 else
   systemctl disable --now friday-voice.service >/dev/null 2>&1 || true
@@ -527,6 +613,11 @@ if [[ -n "$voice_unit_backup" ]]; then
   rm -f -- "$voice_unit_backup/friday-voice.service"
   rmdir -- "$voice_unit_backup"
   voice_unit_backup=
+fi
+if [[ -n "$gateway_backup" ]]; then
+  rm -f -- "$gateway_backup/hermes.env" "$gateway_backup/hermes.env.absent" "$gateway_backup/hermes-api.key" "$gateway_backup/hermes-api.key.absent" "$gateway_backup/friday-hermes-gateway.service" "$gateway_backup/friday-hermes-gateway.service.absent"
+  rmdir -- "$gateway_backup"
+  gateway_backup=
 fi
 promoted=0
 note "INSTALL_OK release=$release dashboard=http://127.0.0.1:$FRIDAY_PORT hermes=http://127.0.0.1:$HERMES_PORT"
