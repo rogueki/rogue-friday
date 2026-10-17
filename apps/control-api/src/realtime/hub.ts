@@ -14,6 +14,7 @@ import {
 import { getCorrelationId, type FridayMetrics, type Logger } from "@friday/observability";
 import { createCorrelationId } from "@friday/observability";
 import { newEventId } from "../util/ids";
+import { BROWSER_AUDIO_PATH, type BrowserVoiceGateway } from "./browser-voice";
 
 export const EVENTS_PATH = "/api/v1/events";
 
@@ -72,6 +73,18 @@ export interface HubStats {
 export type UpgradeAuthenticator = (request: IncomingMessage) => HubPrincipal | null;
 export type OriginGuard = (request: IncomingMessage) => boolean;
 
+/** Browser audio is a write-capable stream: its Origin must be one serialized, secure origin matching Host. */
+export function browserAudioOriginAllowed(request: IncomingMessage): boolean {
+  const value = request.headers.origin;
+  if (typeof value !== "string" || !value || !request.headers.host) return false;
+  try {
+    const origin = new URL(value);
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname.toLowerCase());
+    return value === origin.origin && origin.host.toLowerCase() === request.headers.host.toLowerCase() &&
+      (origin.protocol === "https:" || (local && origin.protocol === "http:"));
+  } catch { return false; }
+}
+
 /**
  * Realtime hub (PLAN §12, conventions §4): wraps adapter and core events into CloudEvents-style envelopes with a global
  * monotonic sequence, keeps a replay ring buffer and fans out to WebSocket clients on `GET /api/v1/events`.
@@ -89,11 +102,15 @@ export class EventHub {
   private lastAt: string | null = null;
   private readonly listeners = new Set<(event: FridayEvent) => void>();
   private readonly now: () => number;
+  private browserVoice: BrowserVoiceGateway | undefined;
 
   constructor(private readonly options: HubOptions) {
     this.sequence = options.startSequence;
     this.now = options.now ?? Date.now;
   }
+
+  setBrowserVoice(gateway: BrowserVoiceGateway): void { this.browserVoice = gateway; }
+  browserAudioAvailable(): Promise<boolean> { return this.browserVoice?.available() ?? Promise.resolve(false); }
 
   // ---- publishing -----------------------------------------------------------------------------------------------
 
@@ -230,7 +247,7 @@ export class EventHub {
   attach(server: Server, guards: { authenticate: UpgradeAuthenticator; originAllowed: OriginGuard; hostAllowed: OriginGuard }): void {
     const onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer): void => {
       const url = new URL(request.url ?? "/", "http://localhost");
-      if (url.pathname !== EVENTS_PATH) {
+      if (url.pathname !== EVENTS_PATH && url.pathname !== BROWSER_AUDIO_PATH) {
         socket.destroy(); // no other upgrade endpoints exist
         return;
       }
@@ -240,8 +257,17 @@ export class EventHub {
       };
       if (!guards.hostAllowed(request)) return reject(403, "Forbidden");
       if (!guards.originAllowed(request)) return reject(403, "Forbidden");
+      if (url.pathname === BROWSER_AUDIO_PATH) {
+        if (!browserAudioOriginAllowed(request)) return reject(403, "Forbidden");
+      }
       const principal = guards.authenticate(request);
       if (!principal) return reject(401, "Unauthorized");
+      if (url.pathname === BROWSER_AUDIO_PATH) {
+        if (principal.role !== "owner" || url.search) return reject(403, "Forbidden");
+        if (!this.browserVoice) return reject(503, "Service Unavailable");
+        void this.browserVoice.upgrade(request, socket, head, principal);
+        return;
+      }
       this.wss.handleUpgrade(request, socket, head, (ws) => this.accept(ws, principal, url));
     };
     server.on("upgrade", onUpgrade);
@@ -338,7 +364,7 @@ export class EventHub {
 
   /** Closes the sockets of a revoked session ("logout all"). */
   closeSession(sessionIdHash: string): number {
-    let closed = 0;
+    let closed = this.browserVoice?.closeSession(sessionIdHash) ?? 0;
     for (const client of [...this.clients]) {
       if (client.principal.sessionIdHash !== sessionIdHash) continue;
       client.socket.close(4401, "session ended");
@@ -349,7 +375,7 @@ export class EventHub {
   }
 
   closeUser(userId: string): number {
-    let closed = 0;
+    let closed = this.browserVoice?.closeUser(userId) ?? 0;
     for (const client of [...this.clients]) {
       if (client.principal.userId !== userId) continue;
       client.socket.close(4401, "session ended");
@@ -375,6 +401,7 @@ export class EventHub {
    * Must run before the HTTP server closes: upgraded sockets keep `server.close()` pending until they are gone.
    */
   async disconnectAll(graceMs = 1_000): Promise<void> {
+    await this.browserVoice?.close();
     const sockets = [...this.clients].map((client) => client.socket);
     this.clients.clear();
     this.options.metrics.wsConnections.set(0);

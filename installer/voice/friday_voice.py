@@ -28,19 +28,26 @@ import time
 import urllib.error
 import urllib.request
 import uuid
-import winsound
+try:
+    import winsound
+except ImportError:  # Linux has no host speaker in browser transport mode.
+    winsound = None
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-INSTALL_ROOT = os.path.dirname(ROOT)
+INSTALL_ROOT = os.environ.get("FRIDAY_INSTALL_ROOT", os.path.dirname(ROOT))
+STATE_ROOT = os.environ.get("FRIDAY_STATE_ROOT", "/var/lib/friday" if os.name == "posix" else INSTALL_ROOT)
 sys.path.insert(0, ROOT)
-os.environ.setdefault("HF_HOME", os.path.join(INSTALL_ROOT, "cache", "huggingface"))
+os.environ.setdefault("HF_HOME", os.path.join(STATE_ROOT, "cache", "huggingface"))
 
-import cuda_dlls  # noqa: E402
-
-cuda_dlls.register()
+if os.name == "nt":
+    import cuda_dlls  # noqa: E402
+    cuda_dlls.register()
 
 import numpy as np  # noqa: E402
-import sounddevice as sd  # noqa: E402
+try:
+    import sounddevice as sd  # noqa: E402
+except (ImportError, OSError):
+    sd = None
 import torch  # noqa: E402
 
 import personal_wake  # noqa: E402
@@ -57,7 +64,17 @@ from model_routing import load_dashboard_voice_routing, route_request  # noqa: E
 SR = 16000
 CHUNK = 1280  # 80 ms, Eingabegroesse von openWakeWord
 VAD_FRAME = 512
-LOG_PATH = os.path.join(INSTALL_ROOT, "logs", "voice.jsonl")
+LOG_PATH = os.path.join(STATE_ROOT, "logs", "voice.jsonl")
+
+
+def voice_bridge_key_path(cfg: dict) -> str:
+    """Prefer the configured Control API data directory; preserve old Windows installs."""
+    if cfg.get("voice_bridge_key_file"):
+        return cfg["voice_bridge_key_file"]
+    data_dir = cfg.get("data_dir") or os.environ.get("FRIDAY_DATA_DIR")
+    if data_dir:
+        return os.path.join(data_dir, "voice-bridge", "auth.key")
+    return os.path.join(INSTALL_ROOT, "dashboard", "data", "voice-bridge", "auth.key")
 
 # Kompaktes Zeilenformat statt JSON: Qwen erzeugt ~40 tok/s, ein JSON-Objekt kostete ~1,2 s, diese Zeile ~0,3 s.
 ROUTER_PROMPT = """JETZT IST: {now}. Nutze fuer Uhrzeit/Datum ausschliesslich diesen Wert.
@@ -153,8 +170,9 @@ class Speaker:
     CACHE_MAX_CHARS = 80
 
     def __init__(self, fallback_voice_path: str, output_device, tts_url: str | None, film_filter: bool = False,
-                 speaker_id: int | None = None, tts_config: dict | None = None):
+                 speaker_id: int | None = None, tts_config: dict | None = None, browser_audio=None):
         self.tts_config = tts_config or {}
+        self.browser_audio = browser_audio
         self.cloud = self.tts_config.get("voice_mode") == "elevenlabs"
         self._cloud_response = None
         if self.cloud:
@@ -292,6 +310,27 @@ class Speaker:
                 out.write(tail.reshape(-1, 1))
 
     def _play_elevenlabs(self, text: str) -> None:
+        if self.browser_audio is not None:
+            if not self.browser_audio.connected():
+                return
+            pending = b""
+            for block in elevenlabs_cloud.stream_speech(text, self.cloud_key,
+                    self.tts_config["elevenlabs_voice_id"],
+                    on_response=lambda response: setattr(self, "_cloud_response", response)):
+                if self.stop_flag.is_set():
+                    return
+                pending += block
+                complete = len(pending) // 2560 * 2560
+                if complete:
+                    data, pending = pending[:complete], pending[complete:]
+                    self.level.update(np.frombuffer(data, dtype="<i2"))
+                    if not self.browser_audio.send_pcm(data, self.stop_flag):
+                        return
+            if len(pending) % 2:
+                pending = pending[:-1]
+            if pending and not self.stop_flag.is_set():
+                self.browser_audio.send_pcm(pending, self.stop_flag)
+            return
         import av
         target_rate = round(sd.query_devices(self.output_device, "output")["default_samplerate"])
         if target_rate <= 0:
@@ -377,7 +416,10 @@ class Speaker:
                     self.queue.get_nowait()
                 except queue.Empty:
                     break
-        sd.stop()
+        if self.browser_audio is not None:
+            self.browser_audio.clear()
+        elif sd is not None:
+            sd.stop()
         response = self._cloud_response
         if response is not None:
             response.close()
@@ -393,6 +435,8 @@ class Speaker:
                 self.stop_flag.clear()
                 self.speaking.set()
             try:
+                if self.browser_audio is not None:
+                    self.browser_audio.audio_start()
                 if self.cloud:
                     self._play_elevenlabs(text)
                 elif self.tts_config.get("tts_backend") == "qwen3":
@@ -413,6 +457,8 @@ class Speaker:
             except Exception as exc:  # Wiedergabefehler duerfen den Dienst nicht beenden
                 log_event(event="tts_error", error=str(exc))
             finally:
+                if self.browser_audio is not None:
+                    self.browser_audio.audio_end()
                 if self.queue.empty():
                     time.sleep(0.35)  # Nachhall aus den Lautsprechern abklingen lassen
                     if self.queue.empty():
@@ -429,7 +475,7 @@ class SpeakerVerifier:
         self.threshold = threshold
         # COPY statt Symlink: Windows-Symlinks brauchen Sonderrechte und erzeugen sonst eine Warnung.
         self.enc = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
-                                                  savedir=os.path.join(INSTALL_ROOT, "models", "ecapa"),
+                                                  savedir=os.path.join(STATE_ROOT, "models", "ecapa"),
                                                   local_strategy=LocalStrategy.COPY)
 
     def score(self, audio: np.ndarray) -> float:
@@ -445,6 +491,14 @@ class SpeakerVerifier:
 class VoiceService:
     def __init__(self, cfg: dict, test_wake_model: str | None):
         self.cfg = cfg
+        self.audio_transport = cfg.get("audio_transport", "device")
+        if self.audio_transport not in ("device", "browser"):
+            raise SystemExit("audio_transport muss device oder browser sein")
+        if self.audio_transport == "browser" and cfg.get("voice_mode") != "elevenlabs":
+            raise SystemExit("Browser-Audio erfordert voice_mode=elevenlabs")
+        if self.audio_transport == "device" and sd is None:
+            raise SystemExit("sounddevice ist fuer lokale Audio-Geraete erforderlich")
+        self.browser_audio = None
         self.name = cfg.get("assistant_name") or DEFAULT_NAME
         self.engine = "openwakeword" if test_wake_model else cfg.get("wake_engine", "openwakeword")
         if self.engine not in ("openwakeword", "personal"):
@@ -491,16 +545,21 @@ class VoiceService:
             from faster_whisper import WhisperModel
             self.whisper = WhisperModel(cfg["whisper_model"], device=cfg.get("whisper_device", "cuda"),
                                         compute_type=cfg["whisper_compute_type"],
-                                        download_root=os.path.join(INSTALL_ROOT, "models", "whisper"))
+                                        download_root=os.path.join(STATE_ROOT, "models", "whisper"))
             self.whisper.transcribe(np.zeros(SR, dtype=np.float32), language="de")  # CUDA-Warmup
-        self.tts = Speaker(cfg["tts_voice"], cfg["output_device"], cfg.get("tts_url"),
-                           cfg.get("tts_film_filter", False), cfg.get("tts_speaker_id"), cfg)
+        if self.audio_transport == "browser":
+            from browser_audio import BrowserAudioBridge
+            self.browser_audio = BrowserAudioBridge(
+                self, voice_bridge_key_path(cfg), cfg.get("browser_audio_port", cfg["health_port"] + 1))
+        self.tts = Speaker(cfg.get("tts_voice", ""), cfg.get("output_device"), cfg.get("tts_url"),
+                           cfg.get("tts_film_filter", False), cfg.get("tts_speaker_id"), cfg,
+                           browser_audio=self.browser_audio)
         self.tts.prefetch([cfg.get("ack_wait", DEFAULT_ACK_WAIT), cfg.get("ack_background", DEFAULT_ACK_BACKGROUND)])
         if not self.cloud_voice:
             self._route("Hallo")  # lokaler Router-Warmup
 
     def _load_wake(self, test_wake_model: str | None) -> None:
-        oww_dir = os.path.join(INSTALL_ROOT, "models", "openwakeword")
+        oww_dir = os.path.join(STATE_ROOT, "models", "openwakeword")
         if self.engine == "personal":
             self._load_personal_wake(oww_dir)
             return
@@ -551,9 +610,47 @@ class VoiceService:
         self.audio_q.put(indata[:, 0].copy())
 
     def _read_chunk(self) -> np.ndarray:
-        chunk = self.preroll.pop(0) if self.preroll else self.audio_q.get()
+        if self.preroll:
+            chunk = self.preroll.pop(0)
+        elif getattr(self, "audio_transport", "device") == "browser":
+            try:
+                chunk = self.audio_q.get(timeout=CHUNK / SR)
+            except queue.Empty:
+                chunk = np.zeros(CHUNK, dtype=np.int16)
+        else:
+            chunk = self.audio_q.get()
         self.ring.append(chunk)
         return chunk
+
+    def browser_disconnected(self) -> None:
+        self.browser_control("stop")
+        self.status["state"] = "waiting_audio"
+        self.preroll.clear()
+        while not self.audio_q.empty():
+            try:
+                self.audio_q.get_nowait()
+            except queue.Empty:
+                break
+
+    def browser_control(self, action: str) -> None:
+        with self.manual_start_lock:
+            if action == "resume":
+                self.control_paused = False
+                self.control_cancel.clear()
+                self.status["state"] = "listening"
+                return
+            self.control_generation += 1
+            self.control_cancel.set()
+            self.manual_start.clear()
+            self.trusted_until = 0.0
+            self.background_jobs.clear()
+            self.calendar_voice.pending = None
+            self.powerpoint_voice.pending = None
+            self.cloudtalk_voice.pending = None
+            self.background_reply_ready.clear()
+            self.control_paused = action == "pause"
+            self.status["state"] = "paused" if self.control_paused else "listening"
+            self.tts.interrupt()
 
     def _drain(self) -> None:
         self.preroll.clear()
@@ -640,7 +737,8 @@ class VoiceService:
     def _ask_hermes(self, text: str, decision: dict, task_id: str) -> str:
         route = decision["route"]
         targets = load_dashboard_voice_routing(
-            os.path.join(INSTALL_ROOT, "dashboard", "data", "dashboard.sqlite"),
+            os.path.join(self.cfg.get("data_dir") or os.environ.get("FRIDAY_DATA_DIR") or
+                         os.path.join(INSTALL_ROOT, "dashboard", "data"), "dashboard.sqlite"),
             fallback_provider=self.cfg.get("cloud_provider", "kimi-coding"),
             fallback_models=self.cfg.get("cloud_models"))
         provider, model = targets[route]
@@ -882,13 +980,28 @@ class VoiceService:
     def run(self) -> None:
         cfg = self.cfg
         self._start_health()
-        threading.Thread(target=self._game_mode_watcher, daemon=True).start()
-        with sd.InputStream(samplerate=SR, channels=1, dtype="int16", blocksize=CHUNK,
-                            device=cfg["input_device"], callback=self._on_audio):
+        if self.browser_audio is not None:
+            self.browser_audio.start()
+            from contextlib import nullcontext
+            audio_source = nullcontext()
+        else:
+            threading.Thread(target=self._game_mode_watcher, daemon=True).start()
+            audio_source = sd.InputStream(samplerate=SR, channels=1, dtype="int16", blocksize=CHUNK,
+                                          device=cfg["input_device"], callback=self._on_audio)
+        with audio_source:
             self.status["state"] = "listening"
             print(f"{self.name} hoert zu (sag '{self.phrase}').", flush=True)
-            winsound.Beep(900, 120)
+            if self.browser_audio is not None:
+                self.browser_audio.status("listening")
+            self._beep(900, 120)
             while True:
+                if self.browser_audio is not None and not self.browser_audio.connected():
+                    self.status["state"] = "waiting_audio"
+                    self._read_chunk()
+                    continue
+                if self.status["state"] == "waiting_audio":
+                    self.status["state"] = "listening"
+                    self.browser_audio.status("listening")
                 chunk = self._read_chunk()
                 if self.control_paused:
                     continue
@@ -904,6 +1017,12 @@ class VoiceService:
                         self.control_cancel.clear()
                 if manual or detected:
                     self._session(manual=manual)
+
+    def _beep(self, frequency: int, duration_ms: int) -> None:
+        if getattr(self, "browser_audio", None) is not None:
+            self.browser_audio.beep(frequency, duration_ms)
+        elif winsound is not None:
+            winsound.Beep(frequency, duration_ms)
 
     def _wake_score(self, chunk: np.ndarray) -> float:
         if self.engine == "personal":
@@ -983,7 +1102,7 @@ class VoiceService:
                 backlog.clear()
             else:
                 backlog = backlog[min(len(backlog), 4):]
-        winsound.Beep(1200, 80)
+        self._beep(1200, 80)
         # Waehrend des Pieptons aufgenommene Bloecke verwerfen: sonst startet der Piepton selbst die
         # Befehlsaufnahme und endet nach 0,7 s "Stille" mit leerem Transkript (live beobachtet).
         while not self.audio_q.empty():
@@ -1000,7 +1119,7 @@ class VoiceService:
         if manual:
             self.preroll = []
             self._drain()
-            winsound.Beep(1200, 80)
+            self._beep(1200, 80)
             self._drain()
             wake_audio = None
             log_event(event="manual_start")
@@ -1063,6 +1182,8 @@ class VoiceService:
     def _game_mode_watcher(self) -> None:
         """Gaming-Modus: laeuft ein Spiel aus cfg["game_processes"], wird der GPU-TTS-Server (~3,5 GB VRAM)
         gestoppt und der Assistent spricht mit Piper (CPU). Nach Spielende wird Stimme 3 wieder hochgefahren."""
+        if os.name != "nt":
+            return
         games = [g.lower() for g in self.cfg.get("game_processes", [])]
         tts_url = self.cfg.get("tts_url")
         if not games or not tts_url:
@@ -1103,7 +1224,7 @@ class VoiceService:
                 if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume"):
                     self.send_error(404)
                     return
-                key_path = os.path.join(INSTALL_ROOT, "dashboard", "data", "voice-bridge", "auth.key")
+                key_path = voice_bridge_key_path(service.cfg)
                 try:
                     with open(key_path, encoding="ascii") as source:
                         expected = source.read().strip()
@@ -1147,7 +1268,8 @@ class VoiceService:
                 body = json.dumps({**service.status, "speaking": service.tts.speaking.is_set(),
                                    "trusted": time.monotonic() < service.trusted_until,
                                    "input_level": service.input_level.value(),
-                                   "output_level": service.tts.level.value()}).encode()
+                                   "output_level": service.tts.level.value(),
+                                   "audio_transport": getattr(service, "audio_transport", service.cfg.get("audio_transport", "device"))}).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()

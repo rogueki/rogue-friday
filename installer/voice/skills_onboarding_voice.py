@@ -9,7 +9,8 @@ import unicodedata
 import urllib.error
 import urllib.request
 
-from content_studio_voice import _dashboard_port
+from content_studio_voice import dashboard_port
+from voice_runtime_paths import onboarding_offer_path, voice_bridge_key_path
 
 
 STEPS = ("intro", "profile", "skills", "accounts", "finish")
@@ -196,7 +197,7 @@ class SkillsOnboardingVoice:
         self.opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
         self.pending_seconds = min(15, pending_seconds)
         self.pending = None
-        self.offer_path = os.path.join(root, "dashboard", "data", "voice-bridge", "onboarding-offer.json")
+        self.offer_path = onboarding_offer_path(root)
         self.offer_shown = self._read_offer_shown()
 
     def _read_offer_shown(self):
@@ -250,8 +251,7 @@ class SkillsOnboardingVoice:
     def _request(self, method, path, body=None, revision=None, timeout=12):
         if (method, path) not in {("GET", "skills"), ("GET", "onboarding"), ("PUT", "onboarding")}:
             raise ValueError("Nicht erlaubte Voice-Bridge-Operation")
-        key_path = os.path.join(self.root, "dashboard", "data", "voice-bridge", "auth.key")
-        with open(key_path, encoding="ascii") as source:
+        with open(voice_bridge_key_path(self.root), encoding="ascii") as source:
             key = source.read().strip()
         if len(base64.b64decode(key, validate=True)) != 32:
             raise ValueError("Ungültiger Voice-Bridge-Schlüssel")
@@ -261,7 +261,7 @@ class SkillsOnboardingVoice:
         if revision is not None:
             headers["If-Match"] = str(revision)
         request = urllib.request.Request(
-            f"http://127.0.0.1:{_dashboard_port(self.root)}/api/v1/{path}",
+            f"http://127.0.0.1:{dashboard_port(self.root)}/api/v1/{path}",
             data=json.dumps(body).encode("utf-8") if body is not None else None,
             headers=headers, method=method,
         )

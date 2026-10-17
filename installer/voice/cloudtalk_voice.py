@@ -25,7 +25,7 @@ def normalize_number(raw):
 class CloudTalkVoice:
     def __init__(self, now=time.monotonic, open_url=None):
         self.now = now
-        self.open_url = open_url or os.startfile
+        self.open_url = open_url if open_url is not None else getattr(os, "startfile", None)
         self.pending = None
 
     def arm_confirmation(self):
@@ -47,6 +47,8 @@ class CloudTalkVoice:
             self.pending = None
             if pending["expires"] is None:
                 return "Die Vorschau wurde unterbrochen. Bitte nenne die Nummer erneut."
+            if self.open_url is None:
+                return "CloudTalk Desktop-Anwahl ist unter Linux nicht verfuegbar."
             try:
                 self.open_url("ct+tel:" + pending["number"])
             except OSError:
@@ -58,6 +60,8 @@ class CloudTalkVoice:
         match = COMMAND.fullmatch(words)
         if not match:
             return None
+        if self.open_url is None:
+            return "CloudTalk Desktop-Anwahl ist unter Linux nicht verfuegbar."
         try:
             number = normalize_number(match.group(1))
         except ValueError:
