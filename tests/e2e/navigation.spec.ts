@@ -34,8 +34,10 @@ test("all menu entries are reachable by click and mark the current page", async 
 });
 
 test("every route also loads directly (static export + SPA fallback)", async ({ page }) => {
+  test.setTimeout(180_000); // 17 full document loads on the CI software renderer.
   for (const [label, route] of PAGES) {
-    await open(page, route);
+    await page.goto(route);
+    await expect(page.getByRole("main", { name: "Hauptinhalt" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: label })).toHaveAttribute("aria-current", "page");
   }
 });

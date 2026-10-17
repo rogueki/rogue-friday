@@ -55,7 +55,7 @@ test("voice-pipeline scenario drives the orb listening -> transcribing -> thinki
 
 test("the voice page follows the pipeline: Hört zu -> Transkribiert -> Denkt -> Spricht", async ({ page, api }) => {
   await open(page, "/voice");
-  await api.play("voice-pipeline", 0.5);
+  await api.play("voice-pipeline", 0.25);
   for (const mode of ["Hört zu", "Transkribiert", "Denkt", "Spricht"]) {
     await expect(page.getByRole("main").getByText(`Modus: ${mode}`)).toBeVisible({ timeout: 20_000 });
   }
