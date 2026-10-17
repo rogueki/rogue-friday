@@ -317,6 +317,8 @@ export interface FridayModelMap {
   LayoutListResponse: LayoutListResponse;
   LayoutResponse: LayoutResponse;
   LayoutWidget: LayoutWidget;
+  LinuxEnrollmentSample: LinuxEnrollmentSample;
+  LinuxEnrollmentStatus: LinuxEnrollmentStatus;
   ListEnvelope: ListEnvelope;
   LocalEventRequest: LocalEventRequest;
   LoginRequest: LoginRequest;
@@ -2590,6 +2592,30 @@ export interface LayoutResponse {
   contractVersion: ContractVersion;
   data: Layout;
   freshness: Freshness;
+}
+export interface LinuxEnrollmentSample {
+  kind: "wake" | "short" | "negatives" | "speech";
+  pcmBase64: string;
+}
+export interface LinuxEnrollmentStatus {
+  contractVersion: ContractVersion;
+  available: boolean;
+  state: "pending" | "training" | "activating" | "complete" | "failed";
+  phrase: string;
+  shortPhrase: string | null;
+  required: {
+    wake: number;
+    short: number;
+    negatives: number;
+    speech: number;
+  };
+  counts: {
+    wake: number;
+    short: number;
+    negatives: number;
+    speech: number;
+  };
+  error: string | null;
 }
 /**
  * Generic cursor-paginated list envelope.

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/linux-enrollment-status.schema.json",
+  "title": "LinuxEnrollmentStatus",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "available": { "type": "boolean" },
+    "state": { "type": "string", "enum": ["pending", "training", "activating", "complete", "failed"] },
+    "phrase": { "type": "string" },
+    "shortPhrase": { "type": ["string", "null"] },
+    "required": { "$ref": "#/$defs/counts" },
+    "counts": { "$ref": "#/$defs/counts" },
+    "error": { "type": ["string", "null"] }
+  },
+  "required": ["contractVersion", "available", "state", "phrase", "shortPhrase", "required", "counts", "error"],
+  "additionalProperties": false,
+  "$defs": {
+    "counts": {
+      "type": "object",
+      "properties": {
+        "wake": { "type": "integer", "minimum": 0 },
+        "short": { "type": "integer", "minimum": 0 },
+        "negatives": { "type": "integer", "minimum": 0 },
+        "speech": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["wake", "short", "negatives", "speech"],
+      "additionalProperties": false
+    }
+  }
+}

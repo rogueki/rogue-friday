@@ -258,11 +258,13 @@ voice_backup=
 voice_unit_backup=
 voice_was_active=0
 voice_was_enabled=0
+activate_was_enabled=0
 gateway_backup=
 gateway_was_active=0
 gateway_was_enabled=0
 systemctl is-active --quiet friday-voice.service && voice_was_active=1 || true
 systemctl is-enabled --quiet friday-voice.service && voice_was_enabled=1 || true
+systemctl is-enabled --quiet friday-voice-activate.path && activate_was_enabled=1 || true
 systemctl is-active --quiet friday-hermes-gateway.service && gateway_was_active=1 || true
 systemctl is-enabled --quiet friday-hermes-gateway.service && gateway_was_enabled=1 || true
 cleanup() {
@@ -288,12 +290,13 @@ cleanup() {
     note "Hermes API rollback snapshot retained at $gateway_backup" >&2
   fi
   if (( status != 0 )) && [[ -n "$voice_unit_backup" ]]; then
-    if [[ -f "$voice_unit_backup/friday-voice.service" ]]; then
-      cp -p -- "$voice_unit_backup/friday-voice.service" /etc/systemd/system/friday-voice.service
-    else
-      rm -f -- /etc/systemd/system/friday-voice.service
-    fi
+    systemctl disable --now friday-voice-activate.path >/dev/null 2>&1 || true
+    for unit in friday-voice.service friday-voice-activate.path friday-voice-activate.service; do
+      if [[ -f "$voice_unit_backup/$unit" ]]; then cp -p -- "$voice_unit_backup/$unit" "/etc/systemd/system/$unit"
+      else rm -f -- "/etc/systemd/system/$unit"; fi
+    done
     systemctl daemon-reload || true
+    if (( activate_was_enabled )); then systemctl enable --now friday-voice-activate.path >/dev/null 2>&1 || true; fi
     if (( !voice_was_enabled )); then systemctl disable --now friday-voice.service >/dev/null 2>&1 || true; fi
   fi
   if (( status != 0 && promoted == 1 )); then
@@ -344,9 +347,7 @@ install -d -o "$SERVICE" -g "$SERVICE" -m 0750 "$release/skills/friday-skills"
 rsync -a --delete --exclude='.git/' --exclude='.env' --exclude='.env.*' --exclude='.venv/' --exclude='*.key' --exclude='*.pem' --exclude='*.sqlite' --exclude='*.db' --exclude='MEMORY.md' --exclude='SCOPE.md' --exclude='AGENTS.md' --exclude='CLAUDE.md' "$SKILLS_SOURCE/" "$release/skills/friday-skills/"
 chown -R "$SERVICE:$SERVICE" "$release/skills/friday-skills"
 runuser -u "$SERVICE" -- python3 "$release/installer/linux/configure_skills.py" "$release/skills/friday-skills" "$CURRENT/skills/friday-skills/skills"
-if [[ "$VOICE_MODE" == elevenlabs && -f "$STATE/voice/profiles/owner/embeddings/owner_ecapa.npy" &&
-      -f "$STATE/models/openwakeword/personal_wake.npz" && -f "$STATE/models/openwakeword/personal_wake.json" &&
-      -f "$CONFIG/secrets/hermes-api.key" ]]; then
+if [[ "$VOICE_MODE" == elevenlabs ]]; then
   voice_venv="$STATE/voice/.venv"
   venv_created=0
   if [[ ! -x "$voice_venv/bin/python" ]]; then
@@ -385,9 +386,9 @@ done
 python3 "$release/installer/linux/configure_hermes_api.py" --port "$HERMES_API_PORT" || fail 'Hermes API configuration failed.'
 voice_unit_backup=$(mktemp -d "$CONFIG/.voice-unit-rollback.XXXXXX")
 chmod 0700 "$voice_unit_backup"
-if [[ -f /etc/systemd/system/friday-voice.service ]]; then
-  cp -p -- /etc/systemd/system/friday-voice.service "$voice_unit_backup/friday-voice.service"
-fi
+for unit in friday-voice.service friday-voice-activate.path friday-voice-activate.service; do
+  if [[ -f "/etc/systemd/system/$unit" ]]; then cp -p -- "/etc/systemd/system/$unit" "$voice_unit_backup/$unit"; fi
+done
 cat > /etc/systemd/system/friday-dashboard.service <<UNIT
 [Unit]
 Description=Friday local Command Center
@@ -404,6 +405,7 @@ WorkingDirectory=$CURRENT
 Environment=HOME=$STATE
 Environment=FRIDAY_CONFIG_DIR=$CONFIG
 Environment=FRIDAY_INSTALL_ROOT=$CURRENT
+Environment=FRIDAY_STATE_ROOT=$STATE
 Environment=FRIDAY_HERMES_DASHBOARD_URL=http://127.0.0.1:$HERMES_PORT
 Environment=FRIDAY_SKILLS_CATALOG_PATH=$CURRENT/skills/friday-skills/registry/integration_setup.json
 ExecStart=$node_bin $CURRENT/apps/control-api/dist/main.js
@@ -519,6 +521,27 @@ TasksMax=256
 [Install]
 WantedBy=multi-user.target
 UNIT
+cat > /etc/systemd/system/friday-voice-activate.path <<UNIT
+[Unit]
+Description=Activate Friday voice after private owner enrollment
+
+[Path]
+PathExists=$STATE/voice/enrollment/activate
+Unit=friday-voice-activate.service
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+cat > /etc/systemd/system/friday-voice-activate.service <<UNIT
+[Unit]
+Description=Check and activate Friday browser voice
+After=friday-dashboard.service friday-hermes-gateway.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash $CURRENT/installer/linux/activate_voice.sh $CURRENT $STATE $CONFIG $VOICE_PORT $FRIDAY_PORT
+TimeoutStartSec=180
+UNIT
 fi
 systemctl daemon-reload
 systemctl enable friday-dashboard.service friday-hermes-dashboard.service friday-hermes-gateway.service >/dev/null
@@ -585,19 +608,26 @@ if [[ "$VOICE_MODE" == elevenlabs ]]; then
     systemctl restart friday-dashboard.service
     curl -fsS --max-time 3 --retry 15 --retry-connrefused --retry-delay 2 -o /dev/null \
       "http://127.0.0.1:$FRIDAY_PORT/api/v1/health" || fail 'Dashboard did not recover with the live voice adapter.'
+    install -d -o "$SERVICE" -g "$SERVICE" -m 0700 "$STATE/voice/enrollment"
+    install -o "$SERVICE" -g "$SERVICE" -m 0600 /dev/null "$STATE/voice/enrollment/active"
     note "VOICE_OK browser audio on loopback $VOICE_PORT/$((VOICE_PORT + 1))"
+    systemctl disable --now friday-voice-activate.path >/dev/null 2>&1 || true
   else
     if (( voice_was_active )); then fail "Previously active voice no longer ready: $readiness"; fi
     systemctl disable --now friday-voice.service >/dev/null 2>&1 || true
+    rm -f -- "$STATE/voice/enrollment/active"
     python3 "$release/installer/linux/enable_voice_adapter.py" --voice-port "$VOICE_PORT" --wake-phrase 'Hey Friday' --disable
     systemctl restart friday-dashboard.service
     curl -fsS --max-time 3 --retry 15 --retry-connrefused --retry-delay 2 -o /dev/null \
       "http://127.0.0.1:$FRIDAY_PORT/api/v1/health" || fail 'Dashboard did not recover with pending voice.'
     note "$readiness"
-    note 'VOICE_PENDING: complete private owner speaker/wake enrollment, then rerun the installer.'
+    systemctl enable --now friday-voice-activate.path >/dev/null
+    note 'VOICE_PENDING: complete private owner speaker/wake enrollment on the Voice page; activation follows automatically.'
   fi
 else
+  systemctl disable --now friday-voice-activate.path >/dev/null 2>&1 || true
   systemctl disable --now friday-voice.service >/dev/null 2>&1 || true
+  rm -f -- "$STATE/voice/enrollment/active"
   python3 "$release/installer/linux/enable_voice_adapter.py" --voice-port "$VOICE_PORT" --wake-phrase 'Hey Friday' --disable
   systemctl restart friday-dashboard.service
   curl -fsS --max-time 3 --retry 15 --retry-connrefused --retry-delay 2 -o /dev/null \
@@ -610,7 +640,7 @@ if [[ -n "$voice_backup" ]]; then
   voice_backup=
 fi
 if [[ -n "$voice_unit_backup" ]]; then
-  rm -f -- "$voice_unit_backup/friday-voice.service"
+  rm -f -- "$voice_unit_backup/friday-voice.service" "$voice_unit_backup/friday-voice-activate.path" "$voice_unit_backup/friday-voice-activate.service"
   rmdir -- "$voice_unit_backup"
   voice_unit_backup=
 fi

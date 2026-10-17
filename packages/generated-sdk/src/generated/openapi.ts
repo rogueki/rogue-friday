@@ -2651,6 +2651,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/linux-enrollment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read private Linux owner enrollment progress */
+        get: operations["getLinuxVoiceEnrollment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/linux-enrollment/samples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload one bounded browser microphone PCM sample */
+        post: operations["addLinuxVoiceSample"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/linux-enrollment/train": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Train the private owner speaker and wake models */
+        post: operations["startLinuxVoiceTraining"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/metrics": {
         parameters: {
             query?: never;
@@ -4471,6 +4522,12 @@ export interface components {
             /** @description Sender clock, epoch milliseconds. */
             ts: number;
         };
+        counts: {
+            negatives: number;
+            short: number;
+            speech: number;
+            wake: number;
+        };
         /** DashboardSettings */
         DashboardSettings: {
             activeLayoutId: string;
@@ -5146,6 +5203,32 @@ export interface components {
             w: number;
             x: number;
             y: number;
+        };
+        /** LinuxEnrollmentSample */
+        LinuxEnrollmentSample: {
+            /** @enum {string} */
+            kind: "wake" | "short" | "negatives" | "speech";
+            pcmBase64: string;
+        };
+        /** LinuxEnrollmentStatus */
+        LinuxEnrollmentStatus: {
+            available: boolean;
+            contractVersion: components["schemas"]["ContractVersion"];
+            counts: components["schemas"]["counts"];
+            error: string | null;
+            phrase: string;
+            required: components["schemas"]["counts"];
+            shortPhrase: string | null;
+            /** @enum {string} */
+            state: "pending" | "training" | "activating" | "complete" | "failed";
+            $defs: {
+                counts: {
+                    negatives: number;
+                    short: number;
+                    speech: number;
+                    wake: number;
+                };
+            };
         };
         /**
          * ListEnvelope
@@ -13951,6 +14034,84 @@ export interface operations {
             422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getLinuxVoiceEnrollment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Enrollment progress */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinuxEnrollmentStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    addLinuxVoiceSample: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinuxEnrollmentSample"];
+            };
+        };
+        responses: {
+            /** @description Enrollment progress */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinuxEnrollmentStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    startLinuxVoiceTraining: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Enrollment progress */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinuxEnrollmentStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getVoiceMetrics: {
