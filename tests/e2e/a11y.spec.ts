@@ -57,6 +57,7 @@ test.describe("axe: overlays and states", () => {
   });
 
   test("task drawer, create dialog and cancel confirmation", async ({ page }) => {
+    test.setTimeout(180_000); // Three axe scans of full overlays can exceed the default on SwiftShader CI.
     await open(page, "/tasks");
     await page.getByRole("button", { name: "Neue Aufgabe" }).click();
     await expect(page.getByRole("dialog", { name: "Neue Aufgabe" })).toBeVisible();

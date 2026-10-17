@@ -5,8 +5,8 @@ import { API_ORIGIN } from "./tests/e2e/support/constants";
 export default defineConfig({
   testDir: "tests/e2e",
   testMatch: "**/*.spec.ts",
-  // One shared Control API instance whose world state (scenarios, settings) the specs mutate -> strictly serial.
-  fullyParallel: false,
+  // Each CI shard owns an isolated Control API; one worker keeps each shard's mutable world strictly serial.
+  fullyParallel: true,
   workers: 1,
   timeout: 90_000,
   expect: {

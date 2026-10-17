@@ -67,14 +67,14 @@ jobs:
           retention-days: 3
 
   e2e:
-    name: End-to-end (Playwright ${{ matrix.shard }}/4)
+    name: End-to-end (Playwright ${{ matrix.shard }}/8)
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -98,7 +98,7 @@ jobs:
         run: pnpm build
 
       - name: E2E tests
-        run: pnpm test:e2e --shard=${{ matrix.shard }}/4 --workers=1
+        run: pnpm test:e2e --shard=${{ matrix.shard }}/8 --workers=1
 
       - name: Upload Playwright report
         if: failure()

@@ -43,6 +43,11 @@ async function settle(page: Page): Promise<void> {
 
 async function shot(page: Page, name: string, opts: { fullPage?: boolean } = {}): Promise<void> {
   await settle(page);
+  // The settings revision depends on how many earlier scenarios ran in this shard.
+  const settingsRevision = page.getByText(/^Alle Änderungen gespeichert.*Version \d+$/);
+  if (await settingsRevision.count()) {
+    await settingsRevision.evaluate((element) => { element.textContent = "Alle Änderungen gespeichert · Version"; });
+  }
   await expect(page).toHaveScreenshot(`${name}.png`, { mask: MASK_LIVE(page), fullPage: opts.fullPage ?? false, timeout: 90_000 });
 }
 

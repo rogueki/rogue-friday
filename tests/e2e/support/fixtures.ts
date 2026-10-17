@@ -1,5 +1,6 @@
 import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { ApiClient } from "./api";
+import { API_ORIGIN } from "./constants";
 
 type Settings = Record<string, unknown> & { version: number };
 
@@ -58,7 +59,14 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   ],
   snoozedOnboarding: [
     async ({ page }, use) => {
-      await page.addInitScript(() => sessionStorage.setItem("friday-onboarding-later", "1"));
+      await page.addInitScript((origin) => {
+        if (location.origin !== origin) return;
+        try {
+          sessionStorage.setItem("friday-onboarding-later", "1");
+        } catch {
+          // Storage can be unavailable in opaque documents during security and iframe tests.
+        }
+      }, API_ORIGIN);
       await use();
     },
     { auto: true },
