@@ -88,7 +88,8 @@ Bei einem anderen Installationsort ergänze beispielsweise `-InstallRoot 'D:\Kal
   „Angemeldet bleiben“ für 30 Tage wählen oder in den Sicherheitseinstellungen die Anmeldung für rein lokalen Zugriff ausschalten. Startet automatisch bei der
   Anmeldung (Aufgabe `FRIDAY_Dashboard`, ca. 1 Minute nach dem Anmelden). Zeigt Aufgaben, Aktivität und Agenten live aus Hermes,
   Sprachstatus und Systemdaten. Weitere Bereiche verwenden Simulation, bis der jeweilige reale Adapter eingerichtet und ausdrücklich aktiviert ist; Mail-Lesen und Kalender-Lesen haben unten beschriebene optionale Zugänge.
-- **Hermes-Dashboard:** <http://127.0.0.1:43691> (Kanban-Boards, Einstellungen, Verlauf)
+- **Hermes-Dashboard:** <http://127.0.0.1:43791> (Kanban-Boards, Einstellungen, Verlauf)
+- **Sprach-Onboarding:** Beim ersten Start kann Friday nach deiner Zustimmung Profil, Ziele und mehrere Friday- sowie Hermes-Skills gemeinsam mit dir durchgehen. Nenne Skills einzeln und sage "fertig" oder "weiter", wenn die Auswahl abgeschlossen ist. Anschliessend nennt Friday die Konto-Voraussetzungen der ausgewaehlten Skills nacheinander, jeweils nur einmal pro Integration. Fuer die Einrichtung verweist sie auf den bekannten Bereich in **Einstellungen > Skill-Konten** oder auf die Details des Skills. Das gesprochene "Spaeter" beendet den aktuellen Dialog, ohne gespeicherte Onboarding-Daten zu aendern; du kannst die Einfuehrung spaeter fortsetzen. Friday liest keine Zugangsdaten vor und richtet Konten nicht selbst per Sprache ein. Beim Weitergehen wird der Kontenschritt als uebersprungen und ungeprueft gespeichert. Eine spaetere Anbieter-Verbindung aendert diesen Onboarding-Status nicht automatisch.
 - Fremde Stimmen, Kinder oder der Fernseher werden ignoriert (Stimmprüfung).
 
 ## Wichtige Orte
