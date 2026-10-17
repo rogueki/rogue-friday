@@ -3079,6 +3079,10 @@ export interface OrbStatus {
   health?: OrbHealth;
   activeAgentCount?: number;
   currentAgentId?: string;
+  /**
+   * Display name of the agent behind currentAgentId (optional; absent when unknown).
+   */
+  currentAgentName?: string;
   taskId?: string;
   approvalId?: string;
   since: string;
@@ -4179,10 +4183,16 @@ export interface ThreadResponse {
   data: Thread;
   freshness: Freshness;
 }
+/**
+ * Real audio level of one direction (input = microphone, output = TTS playback). Only numbers, never audio. level = smoothed RMS, peak = peak level, low/mid/high = frequency bands (< 250 Hz, 250-2000 Hz, > 2000 Hz), all normalized 0..1. Bands are optional because not every source can analyse the spectrum.
+ */
 export interface VoiceAudioLevel {
   direction: "input" | "output";
   level: number;
   peak?: number;
+  low?: number;
+  mid?: number;
+  high?: number;
   at: string;
 }
 export interface VoiceCodingRunRequest {

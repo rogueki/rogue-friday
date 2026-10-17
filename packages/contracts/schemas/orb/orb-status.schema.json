@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://friday.local/schemas/orb/orb-status.schema.json",
   "title": "OrbStatus",
-  "description": "Semantic orb state (PLAN §17). Backends emit semantics only, never shader parameters.",
+  "description": "Semantic orb state (PLAN \u00a717). Backends emit semantics only, never shader parameters.",
   "type": "object",
   "properties": {
     "mode": {
@@ -40,6 +40,10 @@
     "currentAgentId": {
       "type": "string",
       "pattern": "^agent_[0-9A-Za-z]{26}$"
+    },
+    "currentAgentName": {
+      "type": "string",
+      "description": "Display name of the agent behind currentAgentId (optional; absent when unknown)."
     },
     "taskId": {
       "type": "string",

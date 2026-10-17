@@ -1,6 +1,13 @@
 import type { VoiceMetrics, VoiceStatus } from "@friday/sdk";
 import { AdapterError, defineMapper, type MapContext } from "@friday/adapter-core";
-import { RAW_VOICE_STATES, type RawVoiceState, type RawVoiceStatus } from "./provider-types";
+import {
+  RAW_VOICE_PHASES,
+  RAW_VOICE_STATES,
+  type RawAudioLevels,
+  type RawVoicePhase,
+  type RawVoiceState,
+  type RawVoiceStatus,
+} from "./provider-types";
 
 /** Operator-visible settings that the status server does not deliver (see README, "Annahme (unbelegt)"). */
 export interface VoiceSettings {
@@ -28,6 +35,24 @@ export const clampLevel = (value: number): number => Math.min(1, Math.max(0, val
 const isCount = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= 0;
 
+const BAND_KEYS = ["peak", "low", "mid", "high"] as const;
+
+/**
+ * Additive diagnostics are tolerated, never fatal: an object that is not `{ level: number, ... }` is dropped, optional
+ * members that are not finite numbers are dropped, valid ones are clamped to 0..1.
+ */
+function parseAudioLevels(value: unknown): RawAudioLevels | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  if (typeof record.level !== "number" || !Number.isFinite(record.level)) return undefined;
+  const result: RawAudioLevels = { level: clampLevel(record.level) };
+  for (const key of BAND_KEYS) {
+    const member = record[key];
+    if (typeof member === "number" && Number.isFinite(member)) result[key] = clampLevel(member);
+  }
+  return result;
+}
+
 /**
  * Validates the body of the status server. Unknown keys are ignored (never forwarded); a missing or mistyped
  * known key rejects the whole answer, so nothing half-valid reaches the canonical model.
@@ -51,6 +76,8 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
       throw invalid(key);
   for (const key of ["assistant_name", "wake_phrase"] as const)
     if (raw[key] !== undefined && (typeof raw[key] !== "string" || raw[key] === "")) throw invalid(key);
+  const input = parseAudioLevels(raw.input_audio);
+  const output = parseAudioLevels(raw.output_audio);
   return {
     state: state as RawVoiceState,
     started: raw.started,
@@ -65,6 +92,14 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
     ...(typeof raw.wake_phrase === "string" ? { wake_phrase: raw.wake_phrase } : {}),
     ...(typeof raw.input_level === "number" ? { input_level: clampLevel(raw.input_level) } : {}),
     ...(typeof raw.output_level === "number" ? { output_level: clampLevel(raw.output_level) } : {}),
+    // Unknown phase names (newer services) are ignored: the phase is then derived from `state`.
+    ...(typeof raw.phase === "string" && (RAW_VOICE_PHASES as readonly string[]).includes(raw.phase)
+      ? { phase: raw.phase as RawVoicePhase }
+      : {}),
+    ...(typeof raw.tts_active === "boolean" ? { tts_active: raw.tts_active } : {}),
+    ...(input ? { input_audio: input } : {}),
+    ...(output ? { output_audio: output } : {}),
+    ...(raw.audio_transport === "device" || raw.audio_transport === "browser" ? { audio_transport: raw.audio_transport } : {}),
   };
 }
 
@@ -77,13 +112,18 @@ export interface VoiceStatusInput {
 const IN_COMMAND: ReadonlySet<RawVoiceState> = new Set(["command", "followup"]);
 
 /**
- * Orb-relevant semantic mode (docs/MAPPING/voice.md §2). `state == command` also covers speaker check, STT, routing
- * and the wait for Hermes (JV:409-459), so the finer modes `transcribing`/`thinking` are not derivable from the
- * status server and are never reported.
+ * Orb-relevant pipeline phase (docs/MAPPING/voice.md §2). Newer services report `phase` (listening, transcribing,
+ * thinking, speaking, idle); `state == command` alone also covers speaker check, STT, routing and the wait for Hermes
+ * (JV:409-459), which is why older services can only ever yield listening/speaking/idle. TTS playback always wins.
  */
-export function toVoiceMode(raw: RawVoiceStatus): VoiceStatus["mode"] {
-  if (raw.speaking || raw.state === "speaking") return "speaking";
+export function toVoicePhase(raw: RawVoiceStatus): RawVoicePhase {
+  if (raw.speaking || raw.tts_active === true || raw.state === "speaking") return "speaking";
+  if (raw.phase !== undefined) return raw.phase;
   return IN_COMMAND.has(raw.state) ? "listening" : "idle";
+}
+
+export function toVoiceMode(raw: RawVoiceStatus): VoiceStatus["mode"] {
+  return toVoicePhase(raw);
 }
 
 export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
@@ -93,6 +133,8 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
     const starting = raw.state === "starting";
     const paused = raw.state === "paused";
     const inCommand = IN_COMMAND.has(raw.state);
+    const phase = toVoicePhase(raw);
+    const waiting = raw.state === "waiting_audio";
     const focusMode = typeof raw.game_mode === "string" && raw.game_mode.length > 0;
     return {
       updatedAt: context.syncedAt,
@@ -100,15 +142,23 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       mode: toVoiceMode(raw),
       // The input stream runs in every state except `starting` (JV:468-472); barge-in keeps it open while speaking.
       microphone: {
-        state: starting ? "off" : paused ? "muted" : inCommand ? "listening" : "idle",
-        active: !starting && !paused,
+        // The mic stays open while the command is processed (barge-in), but the user is no longer being recorded.
+        state:
+          starting || waiting
+            ? "off"
+            : paused
+              ? "muted"
+              : phase === "listening" || (inCommand && phase === "speaking")
+                ? "listening"
+                : "idle",
+        active: !starting && !waiting && !paused,
         deviceId: null,
         // Smoothed RMS of the last input blocks (`input_level`). Services without the meter report nothing: 0 = no data.
         inputLevel: raw.input_level ?? 0,
       },
       wakeWord: {
-        enabled: !starting && !paused,
-        state: starting || paused ? "disabled" : inCommand ? "triggered" : "armed",
+        enabled: !starting && !waiting && !paused,
+        state: starting || waiting || paused ? "disabled" : inCommand ? "triggered" : "armed",
         // The service reports the phrase chosen at install time; older services fall back to the configured value.
         phrase: raw.wake_phrase ?? settings.wakePhrase,
       },
@@ -123,11 +173,11 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       // Remaining time is not exposed (window `trusted_session_s`, VS:98), so no expiry is invented.
       trustedSession: { active: raw.trusted, expiresAt: null },
       // Models load before the server opens its port (JV:285-297): reachable means loaded.
-      stt: { engine: settings.sttEngine, state: "ready", latencyMs: null },
+      stt: { engine: settings.sttEngine, state: phase === "transcribing" ? "busy" : "ready", latencyMs: null },
       // During the gaming mode the service switches to Piper (JV:565).
       tts: {
         engine: focusMode && !settings.cloudMode ? "piper" : settings.ttsEngine,
-        state: raw.speaking ? "busy" : "ready",
+        state: phase === "speaking" ? "busy" : "ready",
         latencyMs: null,
       },
       localModel: { name: settings.localModelName, state: localModel.state, latencyMs: null },

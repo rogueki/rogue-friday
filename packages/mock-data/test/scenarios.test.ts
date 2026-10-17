@@ -108,6 +108,33 @@ describe("scenario details", () => {
     expect(types).toContain("friday.voice.tts_ended");
   });
 
+  it("voice-pipeline walks the phases in order and tags audio levels with direction and bands", () => {
+    const world = new MockWorld();
+    const engine = ScenarioEngine.for(world);
+    const modes: string[] = [];
+    const levels: Array<{ direction: string; level: number; peak?: number; low?: number; mid?: number; high?: number }> = [];
+    world.events.subscribe((event) => {
+      if (event.type === "friday.voice.state_changed") modes.push(event.data.mode);
+      if (event.type === "friday.voice.audio_level") levels.push(event.data);
+    });
+    engine.play("voice-pipeline");
+    engine.runToCompletion(20_000);
+    const order = ["listening", "transcribing", "thinking", "speaking"].map((mode) => modes.indexOf(mode));
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    const input = levels.filter((entry) => entry.direction === "input");
+    const output = levels.filter((entry) => entry.direction === "output");
+    expect(input.length).toBeGreaterThan(0);
+    expect(output.length).toBeGreaterThan(0);
+    for (const entry of levels) {
+      for (const key of ["level", "peak", "low", "mid", "high"] as const) {
+        expect(entry[key], key).toBeGreaterThanOrEqual(0);
+        expect(entry[key], key).toBeLessThanOrEqual(1);
+      }
+    }
+    expect(Math.max(...output.map((entry) => entry.low ?? 0))).toBeGreaterThan(0.2);
+  });
+
   it("multi-agent-working shows 3 agents, 2 tasks, one determinate and one indeterminate progress", () => {
     const world = new MockWorld();
     const engine = ScenarioEngine.for(world);

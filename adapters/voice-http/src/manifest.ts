@@ -86,15 +86,15 @@ export const configSchema = {
       maximum: 5000,
       default: 250,
       description:
-        "Abfrageintervall (ms) für Audio-Pegel-Ereignisse (friday.voice.audio_level), solange der Dienst aufnimmt oder spricht. 0 schaltet die Pegel-Ereignisse ab. Es wird nur eine Pegelzahl übertragen, nie Audio.",
+        "Abfrageintervall (ms) für Sprach-Ereignisse (state_changed, tts_started/ended, audio_level), solange eine Phase aktiv ist (Aufnahme, Transkription, Analyse, Sprechen). 0 schaltet alle Ereignisse ab. Es werden nur Zahlen übertragen, nie Audio oder Text.",
     },
     idlePollIntervalMs: {
       type: "integer",
       minimum: 100,
       maximum: 60000,
-      default: 1000,
+      default: 500,
       description:
-        "Abfrageintervall (ms) in allen anderen Zuständen; erkennt nur den Wechsel in Aufnahme/Sprechen und sendet nichts.",
+        "Abfrageintervall (ms) im Leerlauf; erkennt nur den Wechsel in eine Phase (sendet dann state_changed) und sendet sonst nichts.",
     },
   },
   additionalProperties: false,

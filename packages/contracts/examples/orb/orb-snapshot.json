@@ -11,6 +11,7 @@
     "health": "online",
     "activeAgentCount": 3,
     "currentAgentId": "agent_01JCW5E9R2Q7T4M8N3B6V00002",
+    "currentAgentName": "Recherche-Agent",
     "taskId": "task_01JCW5E9R2Q7T4M8N3B6V00001",
     "since": "2026-10-14T08:12:00Z",
     "sourceEventId": "evt_01JCW5E9R2Q7T4M8N3B6V01842"

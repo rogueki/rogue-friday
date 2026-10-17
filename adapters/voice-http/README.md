@@ -22,8 +22,8 @@ JSON Schema: `configSchema` in `src/manifest.ts` (`$id` `urn:friday:adapter:frid
 | `timeoutMs`        | `2000`                   | je Versuch (der Installer wartet ebenfalls 2 s)                                                        |
 | `maxAttempts`      | `2`                      | nur Lesezugriffe; die Health-Prüfung macht immer genau einen Versuch                                   |
 | `retryBaseDelayMs` | `200`                    | Backoff-Basis                                                                                          |
-| `levelPollIntervalMs` | `250`                 | Abfrage für `friday.voice.audio_level`, solange der Dienst aufnimmt oder spricht (4 Hz). `0` = keine Pegel-Ereignisse |
-| `idlePollIntervalMs` | `1000`                 | Abfrage in allen anderen Zuständen (sendet nichts, erkennt nur den Wechsel)                            |
+| `levelPollIntervalMs` | `250`                 | Abfrage solange eine Phase aktiv ist (listening/transcribing/thinking/speaking): `state_changed`, TTS-Events, `audio_level` (4 Hz). `0` = keine Ereignisse |
+| `idlePollIntervalMs` | `500`                  | Abfrage im Leerlauf (sendet nichts, erkennt nur den Wechsel in eine Phase)                             |
 
 Registry-Eintrag (Beispiel): `adapters.voice: { provider: friday-voice-http, enabled: true, config: {} }`, Factory `voiceHttpFactory`.
 
@@ -107,3 +107,12 @@ Listenaufruf bei Ausfall `ADAPTER_UNAVAILABLE` wirft. Der Voice-Dienst liefert e
 sind ehrlich leer, daher scheitern "pagination", "schema mapping" (Items > 0) und "no provider-specific fields" der Standard-Suite zwangsläufig.
 `test/conformance.test.ts` führt deshalb dieselben Prüfungen mit denselben Namen für den Ein-Dokument-Fall aus (Hilfen in `test/support/conformance-kit.ts`). Eine
 Erweiterung des Testkits um ein Profil `single-resource` würde diese Hilfen ersetzen (siehe Übergabebericht).
+
+## Ereignisse (Stand 2026-10-17)
+
+Der Adapter fragt den Status-Server selbst ab (`pollEvents`) und sendet, nur bei Änderung bzw. nur während einer Phase:
+`friday.voice.state_changed` (vollständiges `VoiceStatus`; `mode` aus dem Dienst-Schlüssel `phase`: listening, transcribing, thinking, speaking, idle),
+`friday.voice.tts_started` / `tts_ended` (Flanken der Phase `speaking`, `interrupted` bei Barge-In/Pause/Verbindungsverlust) und
+`friday.voice.audio_level` (`direction`, `level`, `peak`, `low`, `mid`, `high`). Transkripttext wird nie gesendet (der Status-Server liefert keinen).
+Meldet der Dienst `audio_transport: "browser"` (Linux), kommen Pegel und TTS-Events aus dem Browser-Audio-Gateway des Control API; der Adapter sendet dann nur die Phasen.
+Details und Phasentabelle: `docs/MAPPING/voice.md` §2, §0.6.

@@ -319,12 +319,28 @@ export class VoiceService {
     if (emit) this.w.emitFor("voice", "friday.voice.state_changed", status, "voice/status");
   }
 
-  /** Publishes one audio level sample (0..1). Input while listening, output while speaking. */
+  /**
+   * Publishes one audio level sample (0..1). Input while listening, output while speaking. The fixtures carry level and
+   * peak only; the low/mid/high bands are derived deterministically from them with a spectral tilt typical for
+   * speech (microphone: mid-heavy; TTS: low-heavy), so consumers can exercise the band path without a real analyser.
+   */
   emitAudioLevel(level: number, direction: "input" | "output", peak?: number): void {
     const value = Math.round(clamp(level, 0, 1) * 1000) / 1000;
     this.w.state.audioLevel = value;
     if (direction === "input") this.w.state.voice.status.microphone.inputLevel = value;
-    this.w.emitFor("voice", "friday.voice.audio_level", { direction, level: value, ...(peak !== undefined ? { peak: Math.round(clamp(peak, 0, 1) * 1000) / 1000 } : {}), at: this.w.nowIso() }, "voice/audio");
+    const top = Math.max(value, clamp(peak ?? value, 0, 1));
+    const spike = top - value;
+    const band = (weight: number, spikeWeight: number): number => Math.round(clamp(value * weight + spike * spikeWeight, 0, 1) * 1000) / 1000;
+    const bands =
+      direction === "input"
+        ? { low: band(0.8, 0.2), mid: band(1, 0.5), high: band(0.4, 0.6) }
+        : { low: band(1, 0.3), mid: band(0.85, 0.5), high: band(0.35, 0.8) };
+    this.w.emitFor(
+      "voice",
+      "friday.voice.audio_level",
+      { direction, level: value, ...(peak !== undefined ? { peak: Math.round(top * 1000) / 1000 } : {}), ...bands, at: this.w.nowIso() },
+      "voice/audio",
+    );
   }
 
   emitTranscript(text: string, final: boolean, confidence?: number): void {

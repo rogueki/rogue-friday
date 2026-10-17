@@ -234,13 +234,13 @@ class Speaker:
                     else:
                         samples = (pcm.astype(np.float32) / 32768.0,)
                     for audio in samples:
-                        self.level.update(audio)
+                        self.level.update(audio, target_rate)
                         underflows += bool(out.write(audio.reshape(-1, 1)))
                 if not self.stop_flag.is_set():
                     if resampler:
                         for output in resampler.resample(None):
                             audio = output.to_ndarray().reshape(-1)
-                            self.level.update(audio)
+                            self.level.update(audio, target_rate)
                             underflows += bool(out.write(audio.reshape(-1, 1)))
                     out.write(np.zeros((round(target_rate * OUTPUT_TAIL_SECONDS), 1), dtype=np.float32))
             return underflows
@@ -303,7 +303,7 @@ class Speaker:
                 if self.stop_flag.is_set():
                     return
                 shaped = fx.process(chunk.audio_float_array)
-                self.level.update(shaped)
+                self.level.update(shaped, self.sr)
                 out.write(shaped.reshape(-1, 1))
             tail = fx.flush()
             if len(tail) and not self.stop_flag.is_set():
@@ -323,7 +323,7 @@ class Speaker:
                 complete = len(pending) // 2560 * 2560
                 if complete:
                     data, pending = pending[:complete], pending[complete:]
-                    self.level.update(np.frombuffer(data, dtype="<i2"))
+                    self.level.update(np.frombuffer(data, dtype="<i2"), elevenlabs_cloud.TTS_RATE)
                     if not self.browser_audio.send_pcm(data, self.stop_flag):
                         return
             if len(pending) % 2:
@@ -358,12 +358,12 @@ class Speaker:
                 else:
                     samples = (pcm.astype(np.float32) / 32768.0,)
                 for audio in samples:
-                    self.level.update(audio)
+                    self.level.update(audio, target_rate)
                     out.write(audio.reshape(-1, 1))
             if resampler and not self.stop_flag.is_set():
                 for frame in resampler.resample(None):
                     audio = frame.to_ndarray().reshape(-1)
-                    self.level.update(audio)
+                    self.level.update(audio, target_rate)
                     out.write(audio.reshape(-1, 1))
 
     def _play_qwen(self, text: str) -> None:
@@ -395,7 +395,7 @@ class Speaker:
                 if self.stop_flag.is_set():
                     return
                 block = audio[offset:offset + 4096]
-                self.level.update(block)
+                self.level.update(block, rate)
                 out.write(block.reshape(-1, 1))
 
     def say(self, text: str) -> None:
@@ -516,6 +516,8 @@ class VoiceService:
         self.manual_start_lock = threading.Lock()
         self.control_cancel = threading.Event()
         self.control_paused = False
+        # Kurzlebige Verarbeitungsphase einer Aeusserung: None | "transcribing" | "thinking" (siehe voice_phase()).
+        self.processing = None
         self.control_generation = 0
         self.input_level = LevelMeter()  # geglaetteter Mikrofonpegel 0..1 (nur die Zahl, das Audio wird nicht gehalten)
         self.ring = collections.deque(maxlen=int(2.0 * SR / CHUNK))  # 2 s Vorlauf fuer Sprecherpruefung
@@ -773,6 +775,7 @@ class VoiceService:
         generation = self.control_generation
         if self.control_cancel.is_set():
             return
+        self.processing = "transcribing"  # Sprecherpruefung + STT; das Ende setzt der Aufrufer (_session) zurueck
         t0 = time.monotonic()
         probe = np.concatenate([wake_audio, audio]) if wake_audio is not None else audio
         combined_score = self.verifier.score(probe)
@@ -802,6 +805,7 @@ class VoiceService:
             log_event(event="empty_transcript", speaker_score=round(score, 3))
             return
         print(f"> {text}", flush=True)
+        self.processing = "thinking"  # Routing und Wartezeit auf Hermes/Modell (der Text selbst wird nie veroeffentlicht)
 
         def with_first_use_offer(answer: str) -> str:
             offer = self.skills_onboarding_voice.offer_first_use()
@@ -1127,12 +1131,14 @@ class VoiceService:
             wake_audio = self._acknowledge_wake()
         audio = self._record_command(cfg["command_start_timeout_s"])
         if self.control_cancel.is_set() or generation != self.control_generation:
+            self.processing = None
             self.status["state"] = "paused" if self.control_paused else "listening"
             return
         if audio is None:
             log_event(event="no_speech_after_wake")
         elif generation == self.control_generation:
             self._handle_command(audio, wake_audio)
+        self.processing = None
         while (self.tts.speaking.is_set() or time.monotonic() < self.trusted_until or
                self.background_jobs or self.background_reply_ready.is_set()) and not self.control_cancel.is_set() and generation == self.control_generation:
             self.status["state"] = "speaking"
@@ -1156,6 +1162,7 @@ class VoiceService:
                 audio = self._record_command(cfg["command_start_timeout_s"])
                 if audio is not None:
                     self._handle_command(audio, wake_audio)
+                self.processing = None
                 continue
             self.coding_voice.arm_confirmation()
             self.calendar_voice.arm_confirmation()
@@ -1173,10 +1180,12 @@ class VoiceService:
                     continue
                 break
             self._handle_command(audio, None)
+            self.processing = None
         self._drain()
         self.calendar_voice.pending = None
         self.powerpoint_voice.pending = None
         self.cloudtalk_voice.pending = None
+        self.processing = None
         self.status["state"] = "paused" if self.control_paused else "listening"
 
     def _game_mode_watcher(self) -> None:
@@ -1215,6 +1224,30 @@ class VoiceService:
             except Exception as exc:
                 log_event(event="game_mode_error", error=str(exc))
             time.sleep(self.cfg.get("game_check_s", 10))
+
+    def voice_phase(self) -> str:
+        """Orb-relevante Phase fuer das Status-JSON: idle | listening | transcribing | thinking | speaking.
+        Der bisherige `state` bleibt unveraendert (`command` umfasst Aufnahme, STT, Routing und Hermes-Wartezeit)."""
+        if self.tts.speaking.is_set() or self.status.get("state") == "speaking":
+            return "speaking"
+        processing = getattr(self, "processing", None)
+        if processing in ("transcribing", "thinking"):
+            return processing
+        return "listening" if self.status.get("state") in ("command", "followup") else "idle"
+
+    def status_payload(self) -> dict:
+        """Antwort des lokalen Status-Servers. Additive Schluessel (nur Zahlen/Flags, nie Audio oder Text):
+        `phase`, `tts_active`, `input_audio`/`output_audio` = {level, peak, low, mid, high} 0..1."""
+        speaking = self.tts.speaking.is_set()
+        return {**self.status, "speaking": speaking,
+                "trusted": time.monotonic() < self.trusted_until,
+                "input_level": self.input_level.value(),
+                "output_level": self.tts.level.value(),
+                "phase": self.voice_phase(),
+                "tts_active": speaking,
+                "input_audio": self.input_level.snapshot(),
+                "output_audio": self.tts.level.snapshot(),
+                "audio_transport": getattr(self, "audio_transport", self.cfg.get("audio_transport", "device"))}
 
     def _start_health(self) -> None:
         service = self
@@ -1256,6 +1289,7 @@ class VoiceService:
                         service.cloudtalk_voice.pending = None
                         service.background_reply_ready.clear()
                         service.control_paused = self.path == "/control/pause"
+                        service.processing = None
                         service.status["state"] = "paused" if service.control_paused else "listening"
                         service.tts.interrupt()
                 self.send_response(202)
@@ -1264,12 +1298,7 @@ class VoiceService:
                 self.wfile.write(b'{"accepted":true}')
 
             def do_GET(self):
-                # input_level/output_level: additiv, nur Pegelzahlen 0..1 (kein Audio, nichts gespeichert)
-                body = json.dumps({**service.status, "speaking": service.tts.speaking.is_set(),
-                                   "trusted": time.monotonic() < service.trusted_until,
-                                   "input_level": service.input_level.value(),
-                                   "output_level": service.tts.level.value(),
-                                   "audio_transport": getattr(service, "audio_transport", service.cfg.get("audio_transport", "device"))}).encode()
+                body = json.dumps(service.status_payload()).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()

@@ -5,8 +5,7 @@ import type { RawVoiceStatus } from "../../src/provider-types";
  * Wire-level replica of the status server in installer/voice/friday_voice.py (`_start_health`, JV:576-592):
  * - exactly one handler: every GET path returns the same JSON, other methods get Python's `501 Unsupported method`;
  * - HTTP/1.0, `Content-Type: application/json`, no `Content-Length`, connection closed after the body;
- * - key order of the JSON as written by `json.dumps({**status, "speaking": ..., "trusted": ..., "input_level": ..., "output_level": ...})`
- *   (the two level keys are optional in the fake: older services do not send them);
+ * - key order of the JSON as written by `json.dumps(VoiceService.status_payload())` (the additive keys `phase`, `tts_active`, `input_audio`, `output_audio` are optional in the fake: older services do not send them);
  * - the port is closed while the service loads its models (`setOffline(true)`).
  */
 

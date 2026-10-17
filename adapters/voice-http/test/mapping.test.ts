@@ -116,12 +116,74 @@ describe("toVoiceMode (docs/MAPPING/voice.md §2)", () => {
     expect(toVoiceMode(makeVoiceStatus(patch))).toBe(mode);
   });
 
-  it("never derives transcribing/thinking/error from the status server", () => {
+  it("never derives transcribing/thinking/error from a service without the phase key", () => {
     for (const state of RAW_VOICE_STATES)
       for (const speaking of [false, true])
         expect(["idle", "listening", "speaking"]).toContain(
           toVoiceMode(makeVoiceStatus({ state, speaking })),
         );
+  });
+
+  const phaseTable: Array<[Partial<RawVoiceStatus>, string]> = [
+    [{ state: "command", phase: "listening" }, "listening"],
+    [{ state: "command", phase: "transcribing" }, "transcribing"],
+    [{ state: "command", phase: "thinking" }, "thinking"],
+    [{ state: "followup", phase: "thinking" }, "thinking"],
+    [{ state: "command", phase: "thinking", speaking: true }, "speaking"], // acknowledgement while waiting for Hermes
+    [{ state: "command", phase: "thinking", tts_active: true }, "speaking"],
+    [{ state: "followup", phase: "listening" }, "listening"],
+    [{ state: "speaking", phase: "speaking" }, "speaking"],
+    [{ state: "listening", phase: "idle" }, "idle"],
+    [{ state: "waiting_audio", phase: "idle" }, "idle"],
+    [{ state: "paused", phase: "idle" }, "idle"],
+  ];
+  it.each(phaseTable)("phase %j -> %s", (patch, mode) => {
+    expect(toVoiceMode(makeVoiceStatus(patch))).toBe(mode);
+  });
+
+  it("transcribing: STT busy, microphone no longer recording; thinking keeps the stream open but idle", () => {
+    const transcribing = map(makeVoiceStatus({ state: "command", phase: "transcribing" }));
+    expect(transcribing.mode).toBe("transcribing");
+    expect(transcribing.stt.state).toBe("busy");
+    expect(transcribing.microphone).toMatchObject({ state: "idle", active: true });
+    const thinking = map(makeVoiceStatus({ state: "command", phase: "thinking" }));
+    expect(thinking.mode).toBe("thinking");
+    expect(thinking.stt.state).toBe("ready");
+    const speaking = map(makeVoiceStatus({ state: "speaking", speaking: true, phase: "speaking" }));
+    expect(speaking.tts.state).toBe("busy");
+  });
+
+  it("waiting_audio (Linux browser transport): microphone off, wake word disabled", () => {
+    const status = map(makeVoiceStatus({ state: "waiting_audio", phase: "idle" }));
+    expect(status.microphone).toMatchObject({ state: "off", active: false });
+    expect(status.wakeWord).toMatchObject({ enabled: false, state: "disabled" });
+    expect(status.mode).toBe("idle");
+  });
+
+  it("parses the additive phase / band keys leniently and clamps them", () => {
+    const base = makeVoiceStatus();
+    const parsed = parseRawVoiceStatus({
+      ...base,
+      phase: "thinking",
+      tts_active: false,
+      audio_transport: "browser",
+      input_audio: { level: 0.4, peak: 2, low: 0.3, mid: 0.2, high: "x" },
+      output_audio: { level: 0.1 },
+    });
+    expect(parsed).toMatchObject({
+      phase: "thinking",
+      tts_active: false,
+      audio_transport: "browser",
+      input_audio: { level: 0.4, peak: 1, low: 0.3, mid: 0.2 },
+      output_audio: { level: 0.1 },
+    });
+    expect(parsed.input_audio).not.toHaveProperty("high");
+    const junk = parseRawVoiceStatus({ ...base, phase: "dreaming", tts_active: "yes", input_audio: "loud", output_audio: { peak: 1 }, audio_transport: "usb" });
+    expect(junk).not.toHaveProperty("phase");
+    expect(junk).not.toHaveProperty("tts_active");
+    expect(junk).not.toHaveProperty("input_audio");
+    expect(junk).not.toHaveProperty("output_audio");
+    expect(junk).not.toHaveProperty("audio_transport");
   });
 });
 

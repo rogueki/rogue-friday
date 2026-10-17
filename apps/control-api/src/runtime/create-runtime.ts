@@ -20,7 +20,7 @@ import {
   type FridayMetrics,
   type Logger,
 } from "@friday/observability";
-import type { AdapterHealth, FridayEvent } from "@friday/sdk";
+import type { AdapterHealth, FridayEvent, VoiceStatus } from "@friday/sdk";
 import { kvGet, kvSet, openDatabase } from "../db/database";
 import { AuditAnchor } from "../db/audit-anchor";
 import { migrateLegacyAuditAnchor } from "../db/audit-anchor-migration";
@@ -382,9 +382,14 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     let timer: NodeJS.Timeout | undefined;
     let orbSignature = "";
     let statusSignature = "";
-    const evaluate = async (): Promise<void> => {
+    let generation = 0;
+    const evaluate = async (fast = false): Promise<void> => {
+      // Evaluations overlap (ports answer at different speeds): only the newest one may publish, an older answer would
+      // otherwise overwrite a newer phase.
+      const mine = ++generation;
       try {
-        const snapshot = await orb.snapshot();
+        const snapshot = await orb.snapshot(undefined, { reuseSlowSources: fast });
+        if (mine !== generation) return;
         const { since: _since, audioLevel: _audio, sourceEventId: _source, ...stable } = snapshot.status;
         const signature = canonicalJson({ status: stable, layers: snapshot.layers });
         if (signature !== orbSignature) {
@@ -404,6 +409,20 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     unsubscribers.push(
       hub.subscribe((event) => {
         if (event.source === "control-api://core" && (event.type === "friday.orb.status_changed" || event.type === "friday.status.changed")) return;
+        // Real audio levels only feed the orb's level value; at 4-12 Hz they would also starve the trailing debounce.
+        if (event.type === "friday.voice.audio_level") {
+          const level = event.data as { direction: "input" | "output"; level: number };
+          orb.observeAudioLevel(level.direction, level.level);
+          return;
+        }
+        // Pipeline phases (listening -> transcribing -> thinking -> speaking) are short: remember the payload and
+        // derive at once instead of after the debounce and another status request.
+        if (event.type === "friday.voice.state_changed") {
+          orb.observeVoiceStatus(event.data as VoiceStatus);
+          clearTimeout(timer);
+          void evaluate(true);
+          return;
+        }
         clearTimeout(timer);
         timer = setTimeout(() => void evaluate(), 150);
         timer.unref?.();

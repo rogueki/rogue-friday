@@ -1,9 +1,10 @@
-import type { AdapterError, AdapterRegistry, CallContext, PortCategory } from "@friday/adapter-core";
+import type { AdapterError, AdapterRegistry, CallContext, Page, PortCategory } from "@friday/adapter-core";
 import { normalizeError } from "@friday/adapter-core";
 import {
   CONTRACT_VERSION,
   type AdapterCategory,
   type AdapterInfo,
+  type Agent,
   type Approval,
   type AttentionItem,
   type CalendarEvent,
@@ -11,6 +12,7 @@ import {
   type HealthStatus,
   type FridayStatus,
   type Notification,
+  type VoiceStatus,
   type OrbHealth,
   type OrbMode,
   type OrbSnapshot,
@@ -211,6 +213,8 @@ export interface OrbInputs {
   health: OrbHealth;
   nowMs: number;
   workingAgentIds: string[];
+  /** The agent that currently leads the work (first working agent); its name is shown next to the orb. */
+  currentAgent?: { id: string; name: string };
   runningTasks: Task[];
   pendingApprovals: Approval[];
   criticalOpen: Notification[];
@@ -224,7 +228,12 @@ export interface OrbInputs {
 
 /**
  * Derives the semantic orb state from live data (PLAN §17/§18.3). Priority: error > offline > waiting_approval >
- * listening/speaking > transcribing/thinking > working > warning > idle. Never guesses from free text.
+ * listening/speaking > transcribing/thinking > paused > working > warning > idle. Never guesses from free text.
+ *
+ * Inputs come from real event paths only: `voiceMode` is the pipeline phase reported by the voice service
+ * (listening, transcribing, thinking, speaking; see docs/MAPPING/voice.md), agents/tasks/approvals/notifications from
+ * their ports, `health` from the adapter registry. Parallel layers keep running underneath (the orb can speak while
+ * agents work and an approval waits).
  */
 export function deriveOrb(input: OrbInputs, since: string): OrbSnapshot {
   const { health } = input;
@@ -298,7 +307,10 @@ export function deriveOrb(input: OrbInputs, since: string): OrbSnapshot {
   if (input.voicePaused) return done("paused", contextBits.length ? { detailText: contextBits.join(" · ") } : {});
   if (input.workingAgentIds.length > 0 || input.runningTasks.length > 0) {
     const determinate = focusTask?.progress.mode === "determinate" && typeof focusTask.progress.value === "number";
+    const agentCount = input.workingAgentIds.length;
     return done("working", {
+      ...(agentCount > 1 ? { activityText: brandText(`${agentCount} AGENTEN AKTIV`, input.assistantName ?? DEFAULT_ASSISTANT_NAME) } : {}),
+      ...(input.currentAgent ? { currentAgentId: input.currentAgent.id, currentAgentName: input.currentAgent.name } : {}),
       detailText: [focusTask?.title, input.runningTasks.length > 1 ? `${input.runningTasks.length} Aufgaben laufen` : null].filter(Boolean).join(" · "),
       progress: determinate ? (focusTask?.progress.value ?? null) : null,
       progressMode: determinate ? "determinate" : "indeterminate",
@@ -324,21 +336,58 @@ export interface OrbServiceDeps {
   assistantName?: () => string;
 }
 
+/** A voice status delivered by `friday.voice.state_changed` is trusted for this long before the port is asked again. */
+export const VOICE_EVENT_TTL_MS = 4_000;
+/** Audio levels older than this are treated as silence (the service stopped sending). */
+export const AUDIO_LEVEL_TTL_MS = 800;
+/** Phase-triggered derivations reuse the agent/task/approval/notification answers of the last full run this long. */
+export const SLOW_SOURCE_REUSE_MS = 5_000;
+
+interface SlowSources {
+  atMs: number;
+  agents: Page<Agent> | null;
+  tasks: Page<Task> | null;
+  approvals: Page<Approval> | null;
+  notifications: Page<Notification> | null;
+}
+
 export class OrbService {
   private lastMode: OrbMode = "idle";
   private since = new Date().toISOString();
+  private observedVoice: { status: VoiceStatus; atMs: number } | undefined;
+  private slowSources: SlowSources | undefined;
+  private readonly observedLevels: Partial<Record<"input" | "output", { level: number; atMs: number }>> = {};
 
   constructor(private readonly deps: OrbServiceDeps) {}
+
+  /**
+   * Remembers the latest `friday.voice.state_changed` payload, so short phases (transcribing, thinking) reach the orb
+   * without waiting for another status request. Falls back to the voice port once the event is older than
+   * `VOICE_EVENT_TTL_MS` (a vanished service must not leave the orb in `speaking`).
+   */
+  observeVoiceStatus(status: VoiceStatus, atMs: number = (this.deps.now ?? Date.now)()): void {
+    this.observedVoice = { status, atMs };
+  }
+
+  /** Remembers the latest real audio level per direction (`friday.voice.audio_level`); it never changes the mode. */
+  observeAudioLevel(direction: "input" | "output", level: number, atMs: number = (this.deps.now ?? Date.now)()): void {
+    this.observedLevels[direction] = { level, atMs };
+  }
+
+  private freshLevel(direction: "input" | "output", nowMs: number): number | undefined {
+    const seen = this.observedLevels[direction];
+    return seen && nowMs - seen.atMs <= AUDIO_LEVEL_TTL_MS ? seen.level : undefined;
+  }
 
   get mode(): OrbMode {
     return this.lastMode;
   }
 
   /** Prefers an adapter-provided snapshot (mock world today); otherwise derives it from the other ports. */
-  async snapshot(call: CallContext = currentCall()): Promise<OrbSnapshot> {
+  async snapshot(call: CallContext = currentCall(), options: { reuseSlowSources?: boolean } = {}): Promise<OrbSnapshot> {
     const { world, dataMode } = this.deps;
     const assistantName = this.deps.assistantName?.() ?? DEFAULT_ASSISTANT_NAME;
-    const raw = world && dataMode === "mock" ? world.orbSnapshot() : await this.derive(call, assistantName);
+    const raw = world && dataMode === "mock" ? world.orbSnapshot() : await this.derive(call, assistantName, options.reuseSlowSources === true);
     const snapshot: OrbSnapshot = {
       ...raw,
       status: {
@@ -353,7 +402,7 @@ export class OrbService {
     return snapshot;
   }
 
-  private async derive(call: CallContext, assistantName: string): Promise<OrbSnapshot> {
+  private async derive(call: CallContext, assistantName: string, reuseSlowSources: boolean): Promise<OrbSnapshot> {
     const { registry } = this.deps;
     const adapters = registry.listAdapters();
     const overall = summarizeAdapters(adapters);
@@ -364,14 +413,31 @@ export class OrbService {
         return fallback;
       }
     };
-    const [agents, tasks, approvals, notifications, voice] = await Promise.all([
-      safe(() => registry.getPort("agents").listAgents({ status: ["working"], limit: 50 }, call), null),
-      safe(() => registry.getPort("tasks").listTasks({ status: ["running"], limit: 50 }, call), null),
-      safe(() => registry.getPort("approvals").listApprovals({ status: ["pending"], limit: 50 }, call), null),
-      safe(() => registry.getPort("notifications").listNotifications({ priority: ["P0", "P1"], status: ["open"], limit: 50 }, call), null),
-      safe(() => registry.getPort("voice").getVoiceStatus({}, call), null),
-    ]);
     const nowMs = (this.deps.now ?? Date.now)();
+    const observed = this.observedVoice && nowMs - this.observedVoice.atMs <= VOICE_EVENT_TTL_MS ? this.observedVoice.status : undefined;
+    // A voice phase change must reach the orb within a frame or two, not after four more port requests: for those
+    // evaluations the (slower) agent/task/approval/notification answers of the last full derivation are reused.
+    const cached: SlowSources | undefined = reuseSlowSources && this.slowSources && nowMs - this.slowSources.atMs <= SLOW_SOURCE_REUSE_MS ? this.slowSources : undefined;
+    const slow: SlowSources =
+      cached ??
+      (await Promise.all([
+        safe(() => registry.getPort("agents").listAgents({ status: ["working"], limit: 50 }, call), null),
+        safe(() => registry.getPort("tasks").listTasks({ status: ["running"], limit: 50 }, call), null),
+        safe(() => registry.getPort("approvals").listApprovals({ status: ["pending"], limit: 50 }, call), null),
+        safe(() => registry.getPort("notifications").listNotifications({ priority: ["P0", "P1"], status: ["open"], limit: 50 }, call), null),
+      ]).then(([agents, tasks, approvals, notifications]) => ({ atMs: nowMs, agents, tasks, approvals, notifications })));
+    this.slowSources = slow;
+    const { agents, tasks, approvals, notifications } = slow;
+    const polledVoice = observed ? null : await safe(() => registry.getPort("voice").getVoiceStatus({}, call), null);
+    const voice = observed ? { data: observed } : polledVoice;
+    const voiceMode = voice?.data.mode ?? "idle";
+    // Real level of the active direction: microphone while listening, TTS output while speaking.
+    const audioLevel =
+      voiceMode === "speaking"
+        ? this.freshLevel("output", nowMs)
+        : voiceMode === "listening"
+          ? (this.freshLevel("input", nowMs) ?? voice?.data.microphone.inputLevel)
+          : undefined;
     const open = notifications?.items ?? [];
     const snapshot = deriveOrb(
       {
@@ -379,13 +445,14 @@ export class OrbService {
         nowMs,
         assistantName,
         workingAgentIds: (agents?.items ?? []).map((agent) => agent.id),
+        ...(agents?.items[0] ? { currentAgent: { id: agents.items[0].id, name: agents.items[0].name } } : {}),
         runningTasks: tasks?.items ?? [],
         pendingApprovals: (approvals?.items ?? []).filter((approval) => approval.expiresAt === null || Date.parse(approval.expiresAt) > nowMs),
         criticalOpen: open.filter((n) => n.priority === "P0"),
         urgentOpen: open.filter((n) => n.priority === "P1"),
-        voiceMode: voice?.data.mode ?? "idle",
+        voiceMode,
         voicePaused: voice?.data.microphone.state === "muted",
-        audioLevel: voice?.data.microphone.inputLevel,
+        audioLevel,
         degraded: adapters
           .filter((adapter) => adapter.enabled && adapter.health.status !== "online")
           .map((adapter) => `${CATEGORY_LABEL[adapter.manifest.category]} ${adapter.health.status === "offline" ? "offline" : "eingeschränkt"}`),

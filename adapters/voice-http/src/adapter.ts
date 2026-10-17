@@ -20,11 +20,12 @@ import { DEFAULT_BASE_URL, DEFAULT_LOCAL_MODEL_URL, PROVIDER_SYSTEM, manifest } 
 import {
   emptyVoiceMetricsMapper,
   parseRawVoiceStatus,
+  toVoicePhase,
   voiceStatusMapper,
   type LocalModelProbe,
   type VoiceSettings,
 } from "./mapping";
-import type { RawVoiceStatus } from "./provider-types";
+import type { RawAudioLevels, RawVoiceStatus } from "./provider-types";
 
 interface AdapterSettings extends VoiceSettings {
   baseUrl: string;
@@ -32,15 +33,17 @@ interface AdapterSettings extends VoiceSettings {
   timeoutMs: number;
   maxAttempts: number;
   retryBaseDelayMs: number;
-  /** Poll interval while the service is in a command/followup/speaking state (audio level events). 0 = off. */
+  /** Poll interval while the service is in a command/followup/speaking state (phase and audio level events). 0 = off. */
   levelPollIntervalMs: number;
-  /** Poll interval in every other state; only detects the switch into an active state, emits nothing. */
+  /** Poll interval in every other state; detects the switch into an active state (phase events only on change). */
   idlePollIntervalMs: number;
 }
 
 const DEFAULT_LEVEL_POLL_MS = 250;
-const DEFAULT_IDLE_POLL_MS = 1_000;
+const DEFAULT_IDLE_POLL_MS = 500;
 const AUDIO_LEVEL_SUBJECT = "voice/audio";
+const STATE_SUBJECT = "voice/status";
+const TTS_SUBJECT = "voice/tts";
 
 type LevelDirection = "input" | "output";
 
@@ -90,6 +93,13 @@ export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
   private cancelLevelTimer: (() => void) | undefined;
   /** Directions that currently show a non-zero level, so a final 0 is emitted when the service goes quiet. */
   private activeDirections = new Set<LevelDirection>();
+  /** Last reported voice mode; the adapter assumes `idle` at start so a quiet service emits nothing. */
+  private lastMode: VoiceStatus["mode"] = "idle";
+  /** The TTS utterance currently reported as started (`friday.voice.tts_started`), if any. */
+  private utterance: { id: string; startedAtMs: number } | undefined;
+  private utteranceCounter = 0;
+  /** Reachability of the router model as last seen by `getVoiceStatus`; state events reuse it without a new probe. */
+  private lastLocalModel: LocalModelProbe = { state: "ready" };
 
   async initialize(context: AdapterContext): Promise<void> {
     const settings = readSettings(context.config);
@@ -119,6 +129,8 @@ export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
     this.modelHttp = createHttpClient({ ...common, baseUrl: settings.localModelUrl, retry: false });
     context.signal.addEventListener("abort", () => this.abort.abort(context.signal.reason), { once: true });
     this.activeDirections.clear();
+    this.lastMode = "idle";
+    this.utterance = undefined;
     if (settings.levelPollIntervalMs > 0) this.scheduleLevelPoll(settings.idlePollIntervalMs);
   }
 
@@ -210,6 +222,7 @@ export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
     // The contract requires localModel even when no local model exists. "ready" reflects the
     // running voice service and configured cloud route; it does not assert remote provider health.
     const localModel = probedModel ?? { state: raw.state === "starting" ? "busy" as const : "ready" as const };
+    if (probedModel) this.lastLocalModel = probedModel;
     const mapContext = createMapContext({
       adapterId: manifest.id,
       system: PROVIDER_SYSTEM,
@@ -245,42 +258,120 @@ export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
     };
   }
 
-  // ---- events (audio level, `friday.voice.audio_level`) -----------------------------------------------------------
+  // ---- events (voice phases, TTS, audio level) ----------------------------------------------------------------------
 
   /**
-   * One poll cycle: reads the status and emits the current level while the service is in an active state, i.e.
-   * `command`/`followup` (microphone is recording the user, direction `input`) or speaking (TTS, direction `output`).
-   * In every other state nothing is emitted, except one final level 0 per direction when it goes quiet. Only the
-   * level number travels; the service never exposes audio. The adapter cannot know whether a WebSocket client is
-   * connected, so the state gate is what keeps the load low (idle: one local GET per `idlePollIntervalMs`).
+   * One poll cycle over the status endpoint. Every cycle emits, in this order and only when there is something to say:
+   * - `friday.voice.state_changed` (full `VoiceStatus`) when the pipeline mode changed (listening, transcribing,
+   *   thinking, speaking, idle). The mode comes from the service `phase` key; services without it only yield
+   *   listening/speaking/idle.
+   * - `friday.voice.tts_started` / `friday.voice.tts_ended` around TTS playback (`speaking`); the utterance id is
+   *   generated here, `interrupted` is true when the service left `speaking` for a new command (barge-in) or paused.
+   * - `friday.voice.audio_level` while the user is recorded (`listening`, direction `input`) or the assistant speaks
+   *   (direction `output`), with peak and low/mid/high bands when the service reports them; one final 0 per
+   *   direction when it ends. No input level during `transcribing`/`thinking` (the microphone is not being "used").
+   * Transcript text is never emitted: the status endpoint does not expose it (privacy by design), so
+   * `friday.voice.transcript_partial/final` stay reserved for sources that may legitimately carry text.
+   * With `audio_transport: "browser"` (Linux) audio levels and TTS events come from the browser audio gateway, which sees
+   * the real PCM frames; this adapter then only reports the phases.
+   * The adapter cannot know whether a WebSocket client is connected, so the state gate keeps the load low (idle:
+   * one local GET per `idlePollIntervalMs`).
    */
   async pollEvents(): Promise<number> {
-    if (this.stopped || !this.voiceHttp || !this.context) return 0;
+    if (this.stopped || !this.voiceHttp || !this.context || !this.settings) return 0;
     const context = this.context;
+    const settings = this.settings;
     const raw = await this.fetchRawStatus(this.voiceHttp, false);
-    const speaking = raw.speaking || raw.state === "speaking";
-    const recording = raw.state === "command" || raw.state === "followup";
-    const levels: Array<[LevelDirection, number]> = [];
-    if (recording) levels.push(["input", raw.input_level ?? 0]);
-    if (speaking) levels.push(["output", raw.output_level ?? 0]);
-    const now = new Date(context.clock.now()).toISOString();
+    const phase = toVoicePhase(raw);
+    const browserTransport = raw.audio_transport === "browser";
+    const nowMs = context.clock.now();
+    const now = new Date(nowMs).toISOString();
     let emitted = 0;
-    const emit = (direction: LevelDirection, level: number): void => {
+
+    if (phase !== this.lastMode) {
+      const mapContext = createMapContext({ adapterId: manifest.id, system: PROVIDER_SYSTEM, clock: context.clock });
+      context.emit({
+        type: "friday.voice.state_changed",
+        subject: STATE_SUBJECT,
+        data: voiceStatusMapper.map({ raw, settings, localModel: this.lastLocalModel }, mapContext),
+      });
+      emitted += 1;
+      this.lastMode = phase;
+    }
+
+    if (!browserTransport) {
+      const speaking = phase === "speaking";
+      if (speaking && !this.utterance) {
+        this.utteranceCounter += 1;
+        this.utterance = { id: `utt_${nowMs.toString(36)}_${this.utteranceCounter}`, startedAtMs: nowMs };
+        context.emit({
+          type: "friday.voice.tts_started",
+          subject: TTS_SUBJECT,
+          data: { utteranceId: this.utterance.id, engine: settings.ttsEngine },
+        });
+        emitted += 1;
+      } else if (!speaking && this.utterance) {
+        context.emit({
+          type: "friday.voice.tts_ended",
+          subject: TTS_SUBJECT,
+          data: {
+            utteranceId: this.utterance.id,
+            durationMs: Math.max(0, Math.round(nowMs - this.utterance.startedAtMs)),
+            // `command` right after speaking = barge-in (wake word during playback); `paused` = stop/pause control.
+            interrupted: raw.state === "command" || raw.state === "paused",
+          },
+        });
+        emitted += 1;
+        this.utterance = undefined;
+      }
+    }
+
+    const levels: Array<[LevelDirection, RawAudioLevels]> = [];
+    if (!browserTransport) {
+      if (phase === "listening") levels.push(["input", raw.input_audio ?? { level: raw.input_level ?? 0 }]);
+      if (phase === "speaking") levels.push(["output", raw.output_audio ?? { level: raw.output_level ?? 0 }]);
+    }
+    const current = new Set<LevelDirection>();
+    const emit = (direction: LevelDirection, levels: RawAudioLevels | null): void => {
       context.emit({
         type: "friday.voice.audio_level",
         subject: AUDIO_LEVEL_SUBJECT,
-        data: { direction, level, at: now },
+        data: {
+          direction,
+          level: levels?.level ?? 0,
+          ...(levels?.peak !== undefined ? { peak: levels.peak } : {}),
+          ...(levels?.low !== undefined ? { low: levels.low } : {}),
+          ...(levels?.mid !== undefined ? { mid: levels.mid } : {}),
+          ...(levels?.high !== undefined ? { high: levels.high } : {}),
+          at: now,
+        },
       });
       emitted += 1;
     };
-    const current = new Set<LevelDirection>();
-    for (const [direction, level] of levels) {
+    for (const [direction, measured] of levels) {
       current.add(direction);
-      emit(direction, level);
+      emit(direction, measured);
     }
-    for (const direction of this.activeDirections) if (!current.has(direction)) emit(direction, 0);
+    for (const direction of this.activeDirections) if (!current.has(direction)) emit(direction, null);
     this.activeDirections = current;
     return emitted;
+  }
+
+  /** Closes a reported TTS utterance when the service becomes unreachable, so no `tts_started` stays open. */
+  private endUtterance(interrupted: boolean): void {
+    const context = this.context;
+    const utterance = this.utterance;
+    this.utterance = undefined;
+    if (!context || !utterance) return;
+    context.emit({
+      type: "friday.voice.tts_ended",
+      subject: TTS_SUBJECT,
+      data: {
+        utteranceId: utterance.id,
+        durationMs: Math.max(0, Math.round(context.clock.now() - utterance.startedAtMs)),
+        interrupted,
+      },
+    });
   }
 
   private scheduleLevelPoll(delayMs: number): void {
@@ -291,10 +382,13 @@ export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
       if (this.stopped) return;
       this.pollEvents()
         .then(
-          () => (this.activeDirections.size > 0 ? settings.levelPollIntervalMs : settings.idlePollIntervalMs),
+          () => (this.lastMode !== "idle" || this.activeDirections.size > 0 ? settings.levelPollIntervalMs : settings.idlePollIntervalMs),
           () => {
             // Unreachable or malformed: the health monitor reports it; stay quiet and fall back to the slow rate.
+            // The next successful poll reports whatever the service says then (state_changed on any difference to idle).
             this.activeDirections.clear();
+            this.lastMode = "idle";
+            this.endUtterance(true);
             return settings.idlePollIntervalMs;
           },
         )

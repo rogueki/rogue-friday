@@ -18,11 +18,27 @@
       "minimum": 0,
       "maximum": 1
     },
+    "low": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "mid": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "high": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
     "at": {
       "type": "string",
       "format": "date-time"
     }
   },
   "required": ["direction", "level", "at"],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "description": "Real audio level of one direction (input = microphone, output = TTS playback). Only numbers, never audio. level = smoothed RMS, peak = peak level, low/mid/high = frequency bands (< 250 Hz, 250-2000 Hz, > 2000 Hz), all normalized 0..1. Bands are optional because not every source can analyse the spectrum."
 }

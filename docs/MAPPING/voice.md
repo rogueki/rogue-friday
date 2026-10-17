@@ -135,17 +135,54 @@ Der Statusserver liefert zwei zusätzliche Schlüssel (`installer/voice/audio_le
 - Kosten: eine RMS-Berechnung je 80-ms-Block im Audio-Callback bzw. je Wiedergabeblock.
 
 Adapter (`adapters/voice-http`): `input_level` -> `VoiceStatus.microphone.inputLevel` (Werte außerhalb 0..1 werden geklemmt; fehlendes Feld = `0` = „keine Daten“).
-Zusätzlich fragt der Adapter den Statusserver selbst ab und sendet `friday.voice.audio_level` (`{ direction, level, at }`, Subject `voice/audio`):
+Zusätzlich fragt der Adapter den Statusserver selbst ab und sendet `friday.voice.audio_level` (`{ direction, level, peak?, low?, mid?, high?, at }`, Subject `voice/audio`):
 
 | Dienstzustand | Richtung | Quelle | Abfrage |
 | --- | --- | --- | --- |
-| `command`, `followup` (Aufnahme des Befehls) | `input` | `input_level` | alle `levelPollIntervalMs` (Standard 250 ms = 4 Hz) |
+| `phase == listening` (bzw. `command`/`followup` ohne `phase`: Aufnahme des Befehls) | `input` | `input_level` | alle `levelPollIntervalMs` (Standard 250 ms = 4 Hz) |
 | `speaking` oder `speaking == true` (TTS) | `output` | `output_level` | alle `levelPollIntervalMs` |
-| sonst (`listening` auf Wake Word, `starting`) | – | – | alle `idlePollIntervalMs` (Standard 1000 ms), nur zur Erkennung des Wechsels, es wird nichts gesendet |
+| sonst (`listening` auf Wake Word, `starting`) | – | – | alle `idlePollIntervalMs` (Standard 500 ms), nur zur Erkennung des Wechsels (dann `state_changed`), Pegel werden nicht gesendet |
 
 Beim Verlassen eines aktiven Zustands wird je Richtung genau ein Pegel `0` gesendet. `levelPollIntervalMs: 0` schaltet die Ereignisse ab. Ob ein WebSocket-Client
 verbunden ist, kennt der Adapter nicht; die Last ist durch das Zustands-Gate begrenzt (im Leerlauf ein lokaler GET je Sekunde). Das Web nutzt die Ereignisse über
 `audioStore` (kein React-State je Frame); die Orb-Reaktion auf die echte Stimme ist damit ohne Mock möglich. Nicht geprüft: echtes Mikrofon und Lautsprecher (Windows).
+
+### 0.6 Orb-Phasen, Bänder und TTS-Flag (Stand 2026-10-17, additiv)
+
+Zusätzliche Schlüssel im Statusserver (alle optional für Adapter/Clients, bestehende Schlüssel und Werte unverändert; `VoiceService.status_payload()`):
+
+| Schlüssel | Typ | Bedeutung |
+| --- | --- | --- |
+| `phase` | `idle` \| `listening` \| `transcribing` \| `thinking` \| `speaking` | Pipeline-Phase (Tabelle in §2); aus `state`, `processing` und `tts.speaking` berechnet (`VoiceService.voice_phase()`) |
+| `tts_active` | bool | TTS spielt (gleiche Wahrheit wie `speaking`) |
+| `input_audio` | `{level, peak, low, mid, high}` | Mikrofon: geglätteter RMS, Spitze (langsamer Abfall), Frequenzbänder < 250 Hz / 250–2000 Hz / > 2000 Hz, jeweils 0..1 |
+| `output_audio` | `{level, peak, low, mid, high}` | dito für die TTS-Ausgabe (Abtastrate des jeweiligen Streams) |
+
+`input_level`/`output_level` bleiben bestehen (= `input_audio.level`/`output_audio.level`). Die Bänder entstehen aus einer FFT des zuletzt gelieferten Blocks
+(`audio_level.band_levels`); das Spektrum wird sofort verworfen. **Datenschutz:** nur Zahlen, nie Audio und nie Transkripttext; `phase` enthält keinen Inhalt.
+
+### Event-Vertrag (Echtpfad, Stand 2026-10-17)
+
+| Event | Quelle | Auslöser | Payload |
+| --- | --- | --- | --- |
+| `friday.voice.state_changed` | Adapter `voice-http` (Subject `voice/status`) | `mode` hat sich seit der letzten Abfrage geändert | vollständiges `VoiceStatus` (`mode` = listening, transcribing, thinking, speaking, idle) |
+| `friday.voice.tts_started` | Adapter (Windows/Gerät) bzw. Control-API-Browser-Gateway (Linux) | Flanke `phase -> speaking` bzw. `audio_start` des Dienstes | `{ utteranceId, engine }` (kein `text`) |
+| `friday.voice.tts_ended` | dito | Flanke `speaking -> *`, `audio_end`, `clear`, Dienst weg/Sitzungsende | `{ utteranceId, durationMs, interrupted }`; `interrupted` bei Barge-In (`state == command`), Pause/Stop, `clear`, Verbindungsverlust |
+| `friday.voice.audio_level` | Adapter (Gerät) bzw. Browser-Gateway (Linux) | `listening` -> `input`, `speaking` -> `output` | `{ direction, level, peak?, low?, mid?, high?, at }`; je Richtung am Ende ein Pegel `0` |
+| `friday.voice.transcript_partial/final` | **nicht** auf dem Echtpfad | Statusserver und Gateway kennen den Text nicht (Datenschutz-Standard); nur der Mock sendet sie | – |
+
+Das Control API leitet `friday.orb.status_changed` daraus ab (`OrbService`): ein `state_changed` wird sofort (ohne 150-ms-Debounce) ausgewertet und für 4 s
+ohne erneute Statusabfrage verwendet; Agenten/Aufgaben/Freigaben/Benachrichtigungen werden dabei höchstens 5 s alt wiederverwendet. Der `audioLevel` des Orb-Status
+ist der frische Pegel der aktiven Richtung (Mikrofon bei `listening`, TTS bei `speaking`; älter als 0,8 s = nicht gesetzt). Pegel verändern nie den Modus und
+starten keine Neuableitung.
+
+### 0.7 Linux: Browser-Audio-Gateway
+
+Mit `audio_transport: "browser"` (Linux, ElevenLabs) fließt das Audio durch `apps/control-api/src/realtime/browser-voice.ts`. Das Gateway sieht jeden PCM-Rahmen
+beider Richtungen und veröffentlicht daher selbst `audio_level` (mit Bändern, ca. 6–7 Hz, Mikrofon nur während `listening`) sowie `tts_started`/`tts_ended`
+(Grenzen = die Textnachrichten `audio_start`/`audio_end`/`clear` des Dienstes, Ersatz: 700 ms ohne TTS-Rahmen). Die Phasen
+(`listening`/`transcribing`/`thinking`) kennt nur der Dienst: sie kommen aus `phase` über den Adapter, der in diesem Modus keine Pegel/TTS-Events sendet
+(sonst doppelt). Das Gateway leitet nichts aus Text ab und veröffentlicht nur Zahlen (`BrowserVoiceTelemetry`).
 
 ## 1. Schnittstellen des Dienstes heute
 
@@ -174,6 +211,21 @@ Der Adapter deklariert deshalb zunächst nur `voice.read`; `voice.test`/`voice.s
 
 Regel: `OrbLayers.voice` darf nur aus diesen semantischen Zuständen entstehen, nie aus Textinhalten (PLAN §1.1 Nr. 12).
 
+**Stand 2026-10-17 (Orb-Rework WP-C): `transcribing`/`thinking` sind jetzt echt.** Der Dienst meldet den zusätzlichen Schlüssel `phase` (siehe 0.6);
+`state` behält seine Bedeutung. Mit `phase` ersetzt der Adapter die obige „nur aus dem Log ableitbar“-Heuristik:
+
+| `phase` (Dienst) | gesetzt, solange … | `VoiceStatus.mode` | Besonderheiten |
+| --- | --- | --- | --- |
+| `listening` | `state` ∈ {`command`, `followup`} und keine Verarbeitung läuft (Befehl wird aufgenommen) | `listening` | `microphone.state = "listening"`; Eingangspegel fließt |
+| `transcribing` | `_handle_command`: Sprecherprüfung + STT (`processing = "transcribing"`) | `transcribing` | `stt.state = "busy"`, `microphone.state = "idle"`, **kein** Eingangspegel |
+| `thinking` | nach dem Transkript: lokale Intent-Handler, Router, Wartezeit auf Hermes/Modell (`processing = "thinking"`) | `thinking` | `OrbLayers.work = thinking` |
+| `speaking` | `tts.speaking` gesetzt oder `state == speaking` (hat Vorrang, z. B. Quittung „Moment.“ während der Wartezeit) | `speaking` | `tts.state = "busy"`; Ausgangspegel fließt |
+| `idle` | sonst (`starting`, `waiting_audio`, `listening`, `paused`) | `idle` | |
+
+Ältere Dienste ohne `phase` liefern weiter nur `listening`/`speaking`/`idle` (Tabelle oben). Neu im Adapter: `state == waiting_audio` (Linux, Browser noch nicht
+verbunden) -> `microphone.state = "off"`, Wake Word `disabled`, Modus `idle`. Kurze Phasen können zwischen zwei Abfragen (250 ms aktiv / 500 ms Leerlauf)
+übersprungen werden (z. B. ein sehr schnelles lokales `thinking`); der Orb erfindet sie nicht.
+
 ## 3. Log-Ereignisse (`voice.jsonl`) -> `friday.voice.*`
 
 | `event` im Log                     | Felder                                                                                                     | Kanonisches Ereignis                                             | Payload / Hinweis                                                                                                                                                                             |
@@ -194,8 +246,8 @@ Regel: `OrbLayers.voice` darf nur aus diesen semantischen Zuständen entstehen, 
 | `game_mode_on` / `game_mode_off`   | `game`                                                                                                     | `friday.system.service_status_changed`                           | Service `kira-tts` -> `paused` / `online`; Voice-Status `tts.engine = "piper"`                                                                                                                |
 | `game_mode_error`                  | `error`                                                                                                    | `friday.activity.appended` (severity `warning`)                  |                                                                                                                                                                                               |
 
-`friday.voice.tts_started` / `tts_ended` entstehen aus dem Health-Feld `speaking` (Flanken `false -> true` / `true -> false`);
-`engine` = `qwen3-tts` solange `tts_url` aktiv ist, sonst `piper`. `friday.voice.audio_level` entsteht aus den Statusfeldern
+`friday.voice.tts_started` / `tts_ended` entstehen aus der Phase `speaking` (Flanken, siehe Event-Vertrag in 0.6; Stand 2026-10-17 real, vorher nur Mock);
+`engine` = konfigurierte `ttsEngine` des Adapters (Standard `piper`, Cloud `ElevenLabs`). `friday.voice.audio_level` entsteht aus den Statusfeldern
 `input_level`/`output_level` (siehe 0.5), nicht aus `voice.jsonl`.
 
 ## 4. `VoiceStatus` (Felder -> Quelle)

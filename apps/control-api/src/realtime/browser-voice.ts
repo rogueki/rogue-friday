@@ -3,6 +3,7 @@ import type { Duplex } from "node:stream";
 import WebSocket, { WebSocketServer } from "ws";
 import type { Runtime } from "../runtime/types";
 import type { HubPrincipal } from "./hub";
+import { BrowserVoiceTelemetry } from "./browser-voice-telemetry";
 
 export const BROWSER_AUDIO_PATH = "/api/v1/voice/browser-audio";
 const FRAME_BYTES = 2_560;
@@ -86,7 +87,30 @@ export class BrowserVoiceGateway {
     this.active = pair;
     let lastFrame = performance.now();
     let tokens = 4;
+    // Real frame-level telemetry (audio levels with bands, TTS start/end). Phases come from the voice adapter.
+    const configured = this.runtime.config.adapters.voice.config.ttsEngine;
+    const telemetry = new BrowserVoiceTelemetry({
+      now: Date.now,
+      ttsEngine: typeof configured === "string" && configured.length > 0 ? configured : "ElevenLabs",
+      publish: (event) => {
+        switch (event.type) {
+          case "friday.voice.audio_level": this.runtime.hub.publish("control-api://browser-voice", event); break;
+          case "friday.voice.tts_started": this.runtime.hub.publish("control-api://browser-voice", event); break;
+          case "friday.voice.tts_ended": this.runtime.hub.publish("control-api://browser-voice", event); break;
+        }
+      },
+    });
+    const unsubscribe = this.runtime.hub.subscribe((event) => {
+      if (event.type === "friday.voice.state_changed") telemetry.setVoiceMode((event.data as { mode: string }).mode);
+    });
+    let cleaned = false;
     const stop = (): void => {
+      // Runs for every close path (also when closeSession/closeUser/close already cleared `active`).
+      if (!cleaned) {
+        cleaned = true;
+        unsubscribe();
+        telemetry.close();
+      }
       if (this.active !== pair) return;
       this.active = null;
       if (voice.readyState === WebSocket.OPEN) voice.send('{"type":"stop"}');
@@ -104,6 +128,7 @@ export class BrowserVoiceGateway {
         lastFrame = now;
         if (tokens < 1) return stop();
         tokens -= 1;
+        telemetry.onInputFrame(frame);
         voice.send(frame, { binary: true });
       } else {
         let command: unknown;
@@ -115,6 +140,8 @@ export class BrowserVoiceGateway {
     voice.on("message", (data, binary) => {
       if (browser.readyState !== WebSocket.OPEN || browser.bufferedAmount > MAX_BUFFERED) return stop();
       if (binary && Buffer.byteLength(data as Buffer) !== FRAME_BYTES) return stop();
+      if (binary) telemetry.onOutputFrame(data as Buffer);
+      else if (Buffer.byteLength(data as Buffer) <= 512) telemetry.onVoiceControl(data.toString());
       browser.send(data, { binary });
     });
     browser.on("close", stop);

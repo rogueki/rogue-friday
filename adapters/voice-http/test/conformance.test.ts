@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { assertCanonicalEvent } from "@friday/adapter-core";
 import { createFakeUpstream, type FakeUpstream } from "@friday/adapter-testkit";
 import { FridayVoiceHttpAdapter, configSchema } from "../src";
 import { installLlamaServer } from "./fake/llama-server";
@@ -259,14 +260,15 @@ describe(`Conformance: friday-voice-http [${CATEGORY}, single-resource]`, () => 
     );
   });
 
-  it("the only events are audio levels, and none while the service idles", async () => {
+  it("emits only phase, TTS and audio-level events, canonical, and none while the service idles", async () => {
     const { session, upstream } = await open();
     // The poll cycle on an idle service emits nothing.
     expect(await session.adapter.pollEvents?.()).toBe(0);
     expect(session.emitted).toEqual([]);
-    upstream.route("GET", "/", { body: makeVoiceStatus({ state: "command", input_level: 0.4 }) });
-    expect(await session.adapter.pollEvents?.()).toBe(1);
-    expect(session.emitted.map((event) => event.type)).toEqual(["friday.voice.audio_level"]);
+    upstream.route("GET", "/", { body: makeVoiceStatus({ state: "command", phase: "listening", input_level: 0.4 }) });
+    expect(await session.adapter.pollEvents?.()).toBe(2);
+    expect(session.emitted.map((event) => event.type)).toEqual(["friday.voice.state_changed", "friday.voice.audio_level"]);
+    for (const event of session.emitted) assertCanonicalEvent(event, "voice-http event");
   });
 
   it("no provider-specific fields in canonical models", async () => {

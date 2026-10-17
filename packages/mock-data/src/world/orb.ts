@@ -141,7 +141,7 @@ export function deriveOrbSnapshot(source: OrbSource, since?: string): OrbSnapsho
     ...partial,
     health,
     activeAgentCount: workingAgents.length,
-    ...(focusAgent && partial.mode !== "idle" ? { currentAgentId: focusAgent.id } : {}),
+    ...(focusAgent && partial.mode !== "idle" ? { currentAgentId: focusAgent.id, currentAgentName: focusAgent.name } : {}),
     since: since ?? nowIso,
   });
 

@@ -36,8 +36,9 @@ class HeadlessCompatibilityTests(unittest.TestCase):
         service = voice_module.VoiceService.__new__(voice_module.VoiceService)
         service.status = {"state": "waiting_audio"}
         service.audio_transport = "browser"
-        service.tts = types.SimpleNamespace(speaking=threading.Event(), level=types.SimpleNamespace(value=lambda: 0))
-        service.input_level = types.SimpleNamespace(value=lambda: 0)
+        import audio_level
+        service.tts = types.SimpleNamespace(speaking=threading.Event(), level=audio_level.LevelMeter())
+        service.input_level = audio_level.LevelMeter()
         service.trusted_until = 0
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
@@ -48,3 +49,6 @@ class HeadlessCompatibilityTests(unittest.TestCase):
             status = json.load(response)
         self.assertEqual(status["audio_transport"], "browser")
         self.assertEqual(status["state"], "waiting_audio")
+        self.assertEqual(status["phase"], "idle")
+        self.assertIs(status["tts_active"], False)
+        self.assertEqual(status["input_audio"], {"level": 0.0, "peak": 0.0, "low": 0.0, "mid": 0.0, "high": 0.0})

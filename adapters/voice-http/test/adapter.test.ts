@@ -301,6 +301,123 @@ describe("FridayVoiceHttpAdapter against the wire-level fake of friday_voice.py"
     });
   });
 
+  describe("voice phases, TTS and bands (friday.voice.state_changed / tts_started / tts_ended)", () => {
+    const events = (r: Rig) => r.session.emitted.map((event) => ({ type: event.type, data: event.data as unknown as Record<string, unknown> }));
+    const of = (r: Rig, type: string) => events(r).filter((event) => event.type === type);
+
+    it("walks listening -> transcribing -> thinking -> speaking -> idle and reports each change exactly once", async () => {
+      rig = await createRig();
+      const r = rig;
+      const steps = [
+        makeVoiceStatus({ state: "command", phase: "listening", input_level: 0.6 }),
+        makeVoiceStatus({ state: "command", phase: "listening", input_level: 0.5 }), // no change: no state event
+        makeVoiceStatus({ state: "command", phase: "transcribing" }),
+        makeVoiceStatus({ state: "command", phase: "thinking" }),
+        makeVoiceStatus({ state: "speaking", speaking: true, tts_active: true, phase: "speaking", output_level: 0.7 }),
+        makeVoiceStatus({ state: "followup", phase: "listening" }),
+        makeVoiceStatus({ state: "listening", phase: "idle" }),
+      ];
+      for (const status of steps) {
+        r.voice.setStatus(status);
+        await r.adapter.pollEvents();
+      }
+      const modes = of(r, "friday.voice.state_changed").map((event) => event.data.mode);
+      expect(modes).toEqual(["listening", "transcribing", "thinking", "speaking", "listening", "idle"]);
+      for (const event of r.session.emitted) assertCanonicalEvent(event, "voice-http event");
+    });
+
+    it("carries the full VoiceStatus in state_changed (stt busy while transcribing)", async () => {
+      rig = await createRig();
+      const r = rig;
+      r.voice.setStatus(makeVoiceStatus({ state: "command", phase: "transcribing" }));
+      await r.adapter.pollEvents();
+      expect(of(r, "friday.voice.state_changed")[0]?.data).toMatchObject({
+        mode: "transcribing",
+        stt: { state: "busy" },
+        microphone: { state: "idle", active: true },
+      });
+    });
+
+    it("emits tts_started once and tts_ended with duration; barge-in is flagged interrupted", async () => {
+      rig = await createRig();
+      const r = rig;
+      r.voice.setStatus(makeVoiceStatus({ state: "speaking", speaking: true, phase: "speaking" }));
+      await r.adapter.pollEvents();
+      await r.adapter.pollEvents();
+      expect(of(r, "friday.voice.tts_started")).toHaveLength(1);
+      expect(of(r, "friday.voice.tts_started")[0]?.data).toMatchObject({ engine: "piper" });
+      r.voice.setStatus(makeVoiceStatus({ state: "followup", phase: "listening" }));
+      await r.adapter.pollEvents();
+      const ended = of(r, "friday.voice.tts_ended");
+      expect(ended).toHaveLength(1);
+      expect(ended[0]?.data).toMatchObject({ interrupted: false });
+      expect(ended[0]?.data.utteranceId).toBe(of(r, "friday.voice.tts_started")[0]?.data.utteranceId);
+      expect(ended[0]?.data.durationMs).toBeGreaterThanOrEqual(0);
+
+      r.voice.setStatus(makeVoiceStatus({ state: "speaking", speaking: true, phase: "speaking" }));
+      await r.adapter.pollEvents();
+      r.voice.setStatus(makeVoiceStatus({ state: "command", phase: "listening" })); // wake word during playback
+      await r.adapter.pollEvents();
+      expect(of(r, "friday.voice.tts_ended")[1]?.data).toMatchObject({ interrupted: true });
+      expect(of(r, "friday.voice.tts_started")[1]?.data.utteranceId).not.toBe(of(r, "friday.voice.tts_started")[0]?.data.utteranceId);
+    });
+
+    it("sends peak and bands with the audio level and no input level while transcribing or thinking", async () => {
+      rig = await createRig();
+      const r = rig;
+      r.voice.setStatus(makeVoiceStatus({ state: "command", phase: "listening", input_level: 0.5, input_audio: { level: 0.5, peak: 0.8, low: 0.6, mid: 0.4, high: 0.1 } }));
+      await r.adapter.pollEvents();
+      expect(of(r, "friday.voice.audio_level")[0]?.data).toMatchObject({ direction: "input", level: 0.5, peak: 0.8, low: 0.6, mid: 0.4, high: 0.1 });
+      r.voice.setStatus(makeVoiceStatus({ state: "command", phase: "transcribing", input_level: 0.5 }));
+      await r.adapter.pollEvents();
+      const levels = of(r, "friday.voice.audio_level");
+      expect(levels).toHaveLength(2);
+      expect(levels[1]?.data).toMatchObject({ direction: "input", level: 0 }); // single final 0, then silence
+      await r.adapter.pollEvents();
+      expect(of(r, "friday.voice.audio_level")).toHaveLength(2);
+      r.voice.setStatus(makeVoiceStatus({ state: "speaking", speaking: true, phase: "speaking", output_audio: { level: 0.7, peak: 0.9, low: 0.8, mid: 0.3, high: 0.2 } }));
+      await r.adapter.pollEvents();
+      expect(of(r, "friday.voice.audio_level").at(-1)?.data).toMatchObject({ direction: "output", level: 0.7, low: 0.8, mid: 0.3, high: 0.2 });
+    });
+
+    it("browser transport: only phases here; audio levels and TTS events belong to the browser audio gateway", async () => {
+      rig = await createRig();
+      const r = rig;
+      r.voice.setStatus(makeVoiceStatus({ state: "speaking", speaking: true, phase: "speaking", audio_transport: "browser", output_level: 0.7 }));
+      await r.adapter.pollEvents();
+      expect(events(r).map((event) => event.type)).toEqual(["friday.voice.state_changed"]);
+    });
+
+    it("never publishes transcript text", async () => {
+      rig = await createRig();
+      const r = rig;
+      for (const phase of ["listening", "transcribing", "thinking"] as const) {
+        r.voice.setStatus(makeVoiceStatus({ state: "command", phase }));
+        await r.adapter.pollEvents();
+      }
+      expect(events(r).some((event) => event.type.startsWith("friday.voice.transcript"))).toBe(false);
+    });
+
+    it("an unreachable service closes an open utterance (interrupted) and a restart is reported again", async () => {
+      rig = await createRig({ levelPollIntervalMs: 20, idlePollIntervalMs: 20 });
+      const r = rig;
+      const waitFor = async (check: () => boolean): Promise<void> => {
+        const end = Date.now() + 3_000;
+        while (!check()) {
+          if (Date.now() > end) throw new Error("timeout waiting for condition");
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+      };
+      r.voice.setStatus(makeVoiceStatus({ state: "speaking", speaking: true, phase: "speaking" }));
+      await waitFor(() => of(r, "friday.voice.tts_started").length === 1);
+      await r.voice.setOffline(true);
+      await waitFor(() => of(r, "friday.voice.tts_ended").length === 1);
+      expect(of(r, "friday.voice.tts_ended")[0]?.data).toMatchObject({ interrupted: true });
+      await r.voice.setOffline(false);
+      await waitFor(() => of(r, "friday.voice.tts_started").length === 2);
+    });
+  });
+
   it("config schema defaults equal the installer configuration (voice.md §0.3)", () => {
     expect(configSchema.properties.baseUrl.default).toBe("http://127.0.0.1:43694");
     expect(configSchema.properties.localModelUrl.default).toBe("http://127.0.0.1:43692");

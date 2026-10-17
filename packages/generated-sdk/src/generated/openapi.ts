@@ -5837,6 +5837,8 @@ export interface components {
             approvalId?: string;
             audioLevel?: number;
             currentAgentId?: string;
+            /** @description Display name of the agent behind currentAgentId (optional; absent when unknown). */
+            currentAgentName?: string;
             detailText?: string;
             health?: components["schemas"]["OrbHealth"];
             mode: components["schemas"]["OrbMode"];
@@ -7126,13 +7128,19 @@ export interface components {
             id: string;
             role: components["schemas"]["Role"];
         };
-        /** VoiceAudioLevel */
+        /**
+         * VoiceAudioLevel
+         * @description Real audio level of one direction (input = microphone, output = TTS playback). Only numbers, never audio. level = smoothed RMS, peak = peak level, low/mid/high = frequency bands (< 250 Hz, 250-2000 Hz, > 2000 Hz), all normalized 0..1. Bands are optional because not every source can analyse the spectrum.
+         */
         VoiceAudioLevel: {
             /** Format: date-time */
             at: string;
             /** @enum {string} */
             direction: "input" | "output";
+            high?: number;
             level: number;
+            low?: number;
+            mid?: number;
             peak?: number;
         };
         /** VoiceCapability */

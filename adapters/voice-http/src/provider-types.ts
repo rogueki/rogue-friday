@@ -1,6 +1,28 @@
 /** `state` values written by installer/voice/friday_voice.py (JV:276, 472, 511, 518, 528, 533, 539). */
-export const RAW_VOICE_STATES = ["starting", "listening", "command", "speaking", "followup", "paused"] as const;
+export const RAW_VOICE_STATES = [
+  "starting",
+  // Linux browser transport: the service waits until the owner's browser opens the audio WebSocket.
+  "waiting_audio",
+  "listening",
+  "command",
+  "speaking",
+  "followup",
+  "paused",
+] as const;
 export type RawVoiceState = (typeof RAW_VOICE_STATES)[number];
+
+/** Orb-relevant pipeline phase reported by newer services (`phase` key); `state` keeps its old meaning. */
+export const RAW_VOICE_PHASES = ["idle", "listening", "transcribing", "thinking", "speaking"] as const;
+export type RawVoicePhase = (typeof RAW_VOICE_PHASES)[number];
+
+/** Smoothed levels 0..1 of one audio direction (`input_audio` / `output_audio`); numbers only, never audio. */
+export interface RawAudioLevels {
+  level: number;
+  peak?: number;
+  low?: number;
+  mid?: number;
+  high?: number;
+}
 
 /**
  * Body of the status server: `{**status, "speaking": bool, "trusted": bool}` (JV:581-582).
@@ -27,4 +49,16 @@ export interface RawVoiceStatus {
    */
   input_level?: number;
   output_level?: number;
+  /**
+   * Additive pipeline phase (listening = recording the command, transcribing = speaker check + STT, thinking = routing
+   * and waiting for Hermes/the model, speaking = TTS). Absent on older services: the adapter then derives it from `state`.
+   */
+  phase?: RawVoicePhase;
+  /** TTS audio is playing (same truth as `speaking`, kept separate for clarity of the new keys). */
+  tts_active?: boolean;
+  /** Level, peak and low/mid/high band levels of the microphone / the TTS output. */
+  input_audio?: RawAudioLevels;
+  output_audio?: RawAudioLevels;
+  /** `device` (host microphone/speaker) or `browser` (Linux: audio travels through the dashboard WebSocket). */
+  audio_transport?: "device" | "browser";
 }

@@ -25,3 +25,7 @@ sudo -u friday python3 /opt/friday/current/installer/linux/prepare_voice.py --ch
 ```
 
 The installer keeps the previous release symlink and private configuration until dashboard and voice health checks pass. A failed update restores them and restarts the prior services. A full fresh native Linux install with enrollment and the Hermes API gateway has not yet been exercised on a VPS. Native Linux **local GPU voice** is still configuration only; the browser voice transport currently requires ElevenLabs and there is no native GPU TTS service.
+
+## Orb events from the voice path
+
+The dashboard orb is driven by real events, not by guesses. The Python service reports a pipeline `phase` (`listening`, `transcribing`, `thinking`, `speaking`, `idle`) in the status JSON on `127.0.0.1:43694`; the Control API's voice adapter turns each change into `friday.voice.state_changed`. In browser transport the Control API's audio gateway additionally sees every PCM frame and publishes `friday.voice.audio_level` (direction `input` while the service listens, `output` for TTS, with peak and low/mid/high bands) and `friday.voice.tts_started` / `friday.voice.tts_ended`. Only numbers are published; no audio and no transcript text leave the voice service through these events. Details: `docs/MAPPING/voice.md` §0.6/0.7.
