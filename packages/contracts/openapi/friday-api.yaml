@@ -3638,6 +3638,72 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
       x-required-role: owner
+  /api/v1/voice/linux-enrollment:
+    get:
+      operationId: getLinuxVoiceEnrollment
+      tags: [voice]
+      summary: Read private Linux owner enrollment progress
+      responses:
+        "200":
+          description: Enrollment progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinuxEnrollmentStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/linux-enrollment/samples:
+    post:
+      operationId: addLinuxVoiceSample
+      tags: [voice]
+      summary: Upload one bounded browser microphone PCM sample
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinuxEnrollmentSample"
+      responses:
+        "200":
+          description: Enrollment progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinuxEnrollmentStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+      x-max-body-bytes: 260000
+  /api/v1/voice/linux-enrollment/train:
+    post:
+      operationId: startLinuxVoiceTraining
+      tags: [voice]
+      summary: Train the private owner speaker and wake models
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Enrollment progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinuxEnrollmentStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
   /api/v1/voice/devices:
     get:
       operationId: listVoiceDevices
@@ -7602,6 +7668,10 @@ components:
       $ref: ../schemas/voice/voice-status-response.schema.json
     BrowserAudioAvailability:
       $ref: ../schemas/voice/browser-audio-availability.schema.json
+    LinuxEnrollmentStatus:
+      $ref: ../schemas/voice/linux-enrollment-status.schema.json
+    LinuxEnrollmentSample:
+      $ref: ../schemas/voice/linux-enrollment-sample.schema.json
     VoiceTestKind:
       $ref: ../schemas/voice/voice-test-kind.schema.json
     VoiceTestRequest:

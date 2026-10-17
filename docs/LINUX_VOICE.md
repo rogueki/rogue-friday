@@ -8,19 +8,11 @@ Install from a local checkout with a matching `friday-skills` checkout:
 sudo bash installer/install-friday-linux.sh --skills-source /absolute/path/friday-skills --voice-mode elevenlabs --elevenlabs-voice-id YOUR_OWN_VOICE_ID --key-prompt
 ```
 
-`--dry-run` lists host prerequisites without changes. Python needs the distribution's `python3-venv` package. Once the owner profile, wake model and Hermes key exist, the installer creates `/var/lib/friday/voice/.venv`, downloads CPU wake/speaker/VAD assets and stores `pip freeze` in `/var/lib/friday/voice/pip-freeze.txt`. It writes `/etc/systemd/system/friday-voice.service`; the service starts and the dashboard voice adapter becomes live only when the private readiness check passes. If it reports `VOICE_PENDING`, the dashboard remains available and the voice adapter remains in mock mode. Rerun the installer after completing the missing prerequisites; it reuses a valid existing Voice ID and key.
+`--dry-run` lists host prerequisites without changes. Python needs the distribution's `python3-venv` package. In ElevenLabs mode the installer creates `/var/lib/friday/voice/.venv`, downloads CPU wake/speaker/VAD assets and stores `pip freeze` in `/var/lib/friday/voice/pip-freeze.txt` **before** enrollment. It writes `/etc/systemd/system/friday-voice.service`; the service starts and the dashboard voice adapter becomes live only when the private readiness check passes. If it reports `VOICE_PENDING`, the dashboard stays available. Sign in as owner, open **Stimme → Browser-Stimme einrichten**, and record the guided activation phrase, short form if shown, other words and reading samples. The optional dialog can be closed at any time; the rest of the dashboard stays usable. After training, `friday-voice-activate.path` checks readiness, starts the voice service and enables its dashboard adapter. No manual file transfer or installer rerun is needed. A valid existing Voice ID and key are reused on later installs.
 
-## What a fresh server still needs
+## Private enrollment
 
-The browser audio transport does not yet collect the many owner enrollment recordings needed to train the ECAPA speaker profile and personal wake word. For this beta, copy **your own** existing enrollment artifacts from a Friday Windows installation, with the same wake phrase as `/etc/friday/voice.json`:
-
-| Existing artifact | Native Linux destination |
-| --- | --- |
-| `voice/profiles/owner/embeddings/owner_ecapa.npy` | `/var/lib/friday/voice/profiles/owner/embeddings/owner_ecapa.npy` |
-| `models/openwakeword/personal_wake.npz` | `/var/lib/friday/models/openwakeword/personal_wake.npz` |
-| `models/openwakeword/personal_wake.json` | `/var/lib/friday/models/openwakeword/personal_wake.json` |
-
-Create the destination directories as `friday` with mode `0700`, copy only these artifacts, assign owner `friday:friday`, and restrict files to `0600`. Do not publish recordings or biometrics. The installer checks that the wake metadata phrase matches the configured phrase. A fresh browser-only enrollment flow remains unfinished; without an existing profile and wake model the service deliberately stays off.
+The browser submits one bounded 16-kHz PCM sample at a time through owner-session and CSRF-protected Control API routes. Recordings are written with private permissions under `/var/lib/friday/voice/profiles/owner/raw`, then removed after successful training; incomplete recordings expire after seven days while the dashboard runs. ECAPA speaker and personal wake models remain private on the server. The service remains off if training, model files, the Hermes API, or the voice key fail readiness. A failed activation can be retried from the same dialog without repeating the recordings. Training can take several minutes on CPU. Keep the browser on `localhost` or HTTPS so microphone access is allowed.
 
 The installer also starts the Hermes API gateway as `friday-hermes-gateway.service` on `127.0.0.1` (default port `43693`). It generates or reuses a private key at `/etc/friday/secrets/hermes-api.key`, writes matching `API_SERVER_*` settings to `/var/lib/friday/.hermes/.env`, and checks authenticated `GET /v1/models` before continuing. Both key-bearing files are owned by `friday` with mode `0600`. Existing model/provider settings are preserved. Configure the provider account inside Hermes separately with `hermes model`; the installer does not require Kimi or make a paid model call. On a failed update it restores the previous Hermes API settings, service unit and release.
 

@@ -14,16 +14,18 @@ from speechbrain.inference.speaker import EncoderClassifier
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
-OWNER = os.path.join(ROOT, "profiles", "owner")
+STATE = os.environ.get("FRIDAY_STATE_ROOT", os.path.dirname(ROOT)) if sys.platform == "linux" else os.path.dirname(ROOT)
+CONFIG = os.environ.get("FRIDAY_CONFIG_DIR", "/etc/friday") if sys.platform == "linux" else os.path.join(ROOT, "..", "config")
+OWNER = os.path.join(STATE, "voice", "profiles", "owner") if sys.platform == "linux" else os.path.join(ROOT, "profiles", "owner")
 SR = 16000
 
 import personal_wake  # noqa: E402
 
-PHRASE = personal_wake.resolve_wake_phrase(os.path.join(ROOT, "..", "config"))
+PHRASE = personal_wake.resolve_wake_phrase(CONFIG)
 WAKE_BLOCKS = [block for block, _, _ in personal_wake.enrollment_blocks(PHRASE)]
 
 enc = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
-                                     savedir=os.path.join(ROOT, "..", "models", "ecapa"))
+                                     savedir=os.path.join(STATE, "models", "ecapa"))
 
 
 def embed(audio: np.ndarray) -> np.ndarray:
@@ -45,6 +47,8 @@ for path in sorted(glob.glob(os.path.join(OWNER, "raw", "speech", "*.wav"))):
     for start in range(0, len(audio) - 3 * SR, int(1.5 * SR)):
         embs.append(embed(audio[start:start + 3 * SR]))
 
+if len(embs) < 4:
+    raise SystemExit("Zu wenige verwertbare Lesefenster fuer das Sprecherprofil")
 profile = np.mean(embs, axis=0)
 profile /= np.linalg.norm(profile)
 wake_embs = []
@@ -81,6 +85,8 @@ for i, p in enumerate(paths):
     a = voiced(a)
     cv += [float(np.dot(embed(a[s:s + int(1.5 * SR)]), prof)) for s in range(0, len(a) - int(1.5 * SR), int(1.5 * SR))]
 cv = np.array(cv)
+if not len(cv):
+    raise SystemExit("Zu wenige verwertbare Lesefenster fuer die Kreuzvalidierung")
 print(f"Kreuzvalidierung 1,5-s-Fenster: n={len(cv)} min={cv.min():.3f} p10={np.percentile(cv, 10):.3f} median={np.median(cv):.3f}")
 
 # Wake-Blocks heissen wake_<slug der Phrase> (+ wake_<slug der Kurzform>), z. B. wake_hey_friday / wake_friday.
