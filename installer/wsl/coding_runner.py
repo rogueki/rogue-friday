@@ -77,13 +77,23 @@ def base_env():
     return env
 
 
-def repository_target(windows_path):
+def repository_target(requested_path):
+    native = requested_path.startswith("/")
     try:
-        linux_path = (windows_path if os.environ.get("FRIDAY_CODING_TEST_MODE") == "1" and windows_path.startswith("/")
-                      else subprocess.check_output(["wslpath", "-u", "--", windows_path], text=True, timeout=5).strip())
+        if native:
+            linux_path = requested_path
+        elif re.fullmatch(r"[A-Za-z]:\\.*", requested_path):
+            linux_path = subprocess.check_output(["wslpath", "-u", "--", requested_path], text=True, timeout=5).strip()
+        else:
+            die("repository_path_invalid", 3)
         workdir = Path(linux_path).resolve(strict=True)
     except (OSError, subprocess.SubprocessError):
         die("repository_unavailable", 3)
+    if native:
+        roots = [Path.home(), Path(__file__).resolve().parents[2]]
+        roots.extend(Path(value) for value in os.environ.get("FRIDAY_CODING_ROOTS", "").split(":") if value.startswith("/"))
+        if not any(workdir.is_relative_to(root.resolve()) for root in roots):
+            die("repository_outside_allowed_roots", 3)
     if not workdir.is_dir() or not (workdir / ".git").exists():
         die("git_root_missing", 3)
     git = subprocess.run(["git", "-c", f"safe.directory={workdir}", "-C", str(workdir), "rev-parse", "--show-toplevel"],

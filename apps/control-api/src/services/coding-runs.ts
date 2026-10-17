@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { FridayConfig } from "@friday/config";
 import { ApiError, conflict, notFound, validationFailed } from "../util/errors";
 import type { SkillsService } from "./skills";
@@ -13,8 +13,41 @@ const RUN_ID = /^run_[a-f0-9]{32}$/;
 const unavailable = (message: string) => new ApiError({ code: "ADAPTER_UNAVAILABLE", message });
 
 function under(path: string, root: string): boolean {
-  const remainder = relative(root.toLowerCase(), path.toLowerCase());
-  return remainder === "" || (remainder !== ".." && !remainder.startsWith("..\\") && !remainder.startsWith("../") && !isAbsolute(remainder));
+  const remainder = relative(process.platform === "win32" ? root.toLowerCase() : root,
+    process.platform === "win32" ? path.toLowerCase() : path);
+  return remainder === "" || (remainder !== ".." && !remainder.startsWith(`..${sep}`) && !isAbsolute(remainder));
+}
+
+/** Resolve only a bundled script below Friday's trusted installation root. */
+export function nativeRunnerScript(dataDir: string, filename: "coding_runner.py" | "powerpoint_runner.py",
+  env: NodeJS.ProcessEnv = process.env): { root: string; script: string } {
+  const atRoot = (root: string): { root: string; script: string } | null => {
+    try {
+      const canonicalRoot = realpathSync.native(root);
+      const candidate = join(canonicalRoot, "installer", "wsl", filename);
+      const script = realpathSync.native(candidate);
+      if (under(script, join(canonicalRoot, "installer", "wsl")) && lstatSync(candidate).isFile()) return { root: canonicalRoot, script };
+    } catch { /* Missing or escaping bundled script. */ }
+    return null;
+  };
+  if (env.FRIDAY_INSTALL_ROOT !== undefined) {
+    const configuredRoot = env.FRIDAY_INSTALL_ROOT;
+    if (!configuredRoot || !isAbsolute(configuredRoot) || (process.platform !== "win32" && !configuredRoot.startsWith("/"))) {
+      throw unavailable("FRIDAY_INSTALL_ROOT muss ein absoluter Installationspfad sein.");
+    }
+    const target = atRoot(configuredRoot);
+    if (!target) throw unavailable("Der native Friday-Runner fehlt unter FRIDAY_INSTALL_ROOT.");
+    return target;
+  }
+  let root = resolve(dataDir);
+  for (let depth = 0; depth < 6; depth += 1) {
+    const target = atRoot(root);
+    if (target) return target;
+    const parent = resolve(root, "..");
+    if (parent === root) break;
+    root = parent;
+  }
+  throw unavailable("Der native Friday-Runner fehlt im Installationsverzeichnis.");
 }
 
 export interface CodingRun {
@@ -39,17 +72,25 @@ export interface CodingCliStatus {
 
 export type RunnerInvoker = (script: string, distro: string, user: string, args: string[], input?: string, timeoutMs?: number, maxOutputBytes?: number) => Promise<Record<string, unknown>>;
 
-/** One short WSL operation. Jobs themselves live in a bounded Linux process group outside this request. */
+export function codingRunnerCommand(script: string, distro: string, user: string, args: string[], platform: NodeJS.Platform = process.platform) {
+  return platform === "win32"
+    ? { file: "wsl.exe", args: ["-d", distro, "-u", user, "--exec", "python3", script, ...args] }
+    : { file: "python3", args: [script, ...args] };
+}
+
+/** One short runner operation. Jobs themselves live outside this request. */
 export async function invokeCodingRunner(script: string, distro: string, user: string, args: string[], input?: string, timeoutMs = 20000, maxOutputBytes = 20000): Promise<Record<string, unknown>> {
+  if (Buffer.byteLength(input ?? "", "utf8") > 64_000 || timeoutMs < 1 || timeoutMs > 35_000 || maxOutputBytes < 1 || maxOutputBytes > 5_500_000) throw new Error("runner_limits");
   return new Promise((resolveResult, reject) => {
-    const child = spawn("wsl.exe", ["-d", distro, "-u", user, "--exec", "python3", script, ...args], { windowsHide: true, stdio: ["pipe", "pipe", "pipe"], shell: false });
+    const command = codingRunnerCommand(script, distro, user, args);
+    const child = spawn(command.file, command.args, { windowsHide: true, stdio: ["pipe", "pipe", "pipe"], shell: false });
     let stdout = "";
     let stderr = "";
     const timer = setTimeout(() => child.kill(), timeoutMs);
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => { stdout += chunk; if (stdout.length > maxOutputBytes) child.kill(); });
-    child.stderr.on("data", (chunk: string) => { stderr += chunk; if (stderr.length > 2000) child.kill(); });
+    child.stdout.on("data", (chunk: string) => { stdout += chunk; if (Buffer.byteLength(stdout, "utf8") > maxOutputBytes) child.kill(); });
+    child.stderr.on("data", (chunk: string) => { stderr += chunk; if (Buffer.byteLength(stderr, "utf8") > 2000) child.kill(); });
     child.on("error", (error) => { clearTimeout(timer); reject(error); });
     child.on("close", (code) => {
       clearTimeout(timer);
@@ -68,6 +109,7 @@ export class CodingRunsService {
     private readonly invoke: RunnerInvoker = invokeCodingRunner) {}
 
   private install(): { script: string; distro: string; user: string; root: string } {
+    if (process.platform !== "win32") return { ...nativeRunnerScript(this.config.paths.dataDir, "coding_runner.py", this.env), distro: "", user: "" };
     let root = resolve(this.config.paths.dataDir);
     for (let i = 0; i < 5 && !existsSync(join(root, "config", "install-state.json")); i += 1) root = resolve(root, "..");
     const file = join(root, "config", "install-state.json");
@@ -89,15 +131,19 @@ export class CodingRunsService {
     const canonical = this.canonicalRepository(requestedPath);
     // Reuse the runner's Linux-Git check without selecting a CLI or contacting a model.
     const checked = await this.call(["repository", canonical]);
-    if (typeof checked.workdir !== "string" || !checked.workdir.startsWith("/")) throw unavailable("Friday-Ubuntu konnte das Git-Repository nicht bestätigen.");
+    if (typeof checked.workdir !== "string" || !checked.workdir.startsWith("/")) throw unavailable("Linux konnte das Git-Repository nicht bestätigen.");
     return canonical;
   }
 
   private repository(requestedPath: string, installRoot: string): string {
-    if (!isAbsolute(requestedPath) || !/^[a-zA-Z]:\\/.test(requestedPath) || requestedPath.length > 1024) throw validationFailed("Wähle einen absoluten lokalen Windows-Pfad zu einem Git-Repository.");
+    const linux = process.platform !== "win32";
+    if (!isAbsolute(requestedPath) || (linux ? !requestedPath.startsWith("/") : !/^[a-zA-Z]:\\/.test(requestedPath)) || requestedPath.length > 1024) {
+      throw validationFailed(linux ? "Wähle einen absoluten lokalen Linux-Pfad zu einem Git-Repository." : "Wähle einen absoluten lokalen Windows-Pfad zu einem Git-Repository.");
+    }
     let canonical: string;
     try { canonical = realpathSync.native(requestedPath); } catch { throw validationFailed("Das ausgewählte Repository existiert nicht."); }
-    const roots = [homedir(), installRoot, ...(this.env.FRIDAY_CODING_ROOTS ?? "").split(";").filter(Boolean)]
+    const roots = [homedir(), installRoot, ...(this.env.FRIDAY_CODING_ROOTS ?? "").split(linux ? ":" : ";").filter(Boolean)]
+      .filter((path) => isAbsolute(path) && (!linux || path.startsWith("/")))
       .map((path) => { try { return realpathSync.native(path); } catch { return ""; } });
     if (!roots.some((root) => root && under(canonical, root))) throw validationFailed("Das Repository liegt außerhalb der freigegebenen Coding-Verzeichnisse.");
     if (!existsSync(join(canonical, ".git"))) throw validationFailed("Der gewählte Ordner ist kein Git-Repository-Root.");
@@ -106,15 +152,16 @@ export class CodingRunsService {
 
   private async call(args: string[], input?: string, timeoutMs?: number): Promise<Record<string, unknown>> {
     const { script, distro, user } = this.install();
+    const runtime = process.platform === "win32" ? "Friday-Ubuntu" : "Linux";
     try { return await this.invoke(script, distro, user, args, input, timeoutMs); }
     catch (error) {
       const message = error instanceof Error ? error.message : "";
-      if (message.includes("runner_3:")) throw validationFailed("Das Repository ist für Linux-Git in Friday-Ubuntu nicht lesbar. Verwende einen normalen Git-Clone.");
-      if (message.includes("runner_4:")) throw unavailable("Die ausgewählte native Coding-CLI ist in Friday-Ubuntu nicht ausführbar.");
+      if (message.includes("runner_3:")) throw validationFailed(`Das Repository ist für Linux-Git in ${runtime} nicht lesbar. Verwende einen normalen Git-Clone.`);
+      if (message.includes("runner_4:")) throw unavailable(`Die ausgewählte native Coding-CLI ist in ${runtime} nicht ausführbar.`);
       if (message.includes("runner_5:")) throw notFound("Coding-Run");
       if (message.includes("runner_6:")) throw conflict("Idempotency-Key wurde für einen anderen Coding-Auftrag verwendet.");
       if (message.includes("runner_7:")) throw conflict("Es läuft bereits ein Coding-Auftrag. Warte oder stoppe ihn zuerst.");
-      throw unavailable("Der native Coding-Runner in Friday-Ubuntu ist nicht erreichbar.");
+      throw unavailable(`Der native Coding-Runner in ${runtime} ist nicht erreichbar.`);
     }
   }
 

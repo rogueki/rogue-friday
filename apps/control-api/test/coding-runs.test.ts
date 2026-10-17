@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { FridayConfig } from "@friday/config";
 import type { SkillsService } from "../src/services/skills";
-import { CodingRunsService } from "../src/services/coding-runs";
+import { CodingRunsService, codingRunnerCommand, nativeRunnerScript } from "../src/services/coding-runs";
 import { validationFailed } from "../src/util/errors";
 import { startTestApi } from "./helpers";
 
@@ -13,6 +16,37 @@ const config = {
 const idem = `idem_${"A".repeat(26)}`;
 
 describe("CodingRunsService", () => {
+  it("uses fixed native Python argv on Linux and retains WSL argv on Windows", () => {
+    expect(codingRunnerCommand("/opt/friday/installer/wsl/coding_runner.py", "", "", ["status", runId], "linux"))
+      .toEqual({ file: "python3", args: ["/opt/friday/installer/wsl/coding_runner.py", "status", runId] });
+    expect(codingRunnerCommand("/mnt/c/Friday/installer/wsl/coding_runner.py", "Friday-Ubuntu", "friday", ["status", runId], "win32"))
+      .toEqual({ file: "wsl.exe", args: ["-d", "Friday-Ubuntu", "-u", "friday", "--exec", "python3",
+        "/mnt/c/Friday/installer/wsl/coding_runner.py", "status", runId] });
+  });
+
+  it("resolves only a regular bundled script and rejects a symlink escaping the install root", () => {
+    const root = mkdtempSync(join(tmpdir(), "friday-native-runner-"));
+    const dataDir = mkdtempSync(join(tmpdir(), "friday-native-data-"));
+    try {
+      const scripts = join(root, "installer", "wsl");
+      mkdirSync(scripts, { recursive: true });
+      mkdirSync(join(root, "dashboard", "data"), { recursive: true });
+      const outside = join(root, "outside.py");
+      writeFileSync(outside, "pass\n");
+      symlinkSync(outside, join(scripts, "coding_runner.py"));
+      expect(() => nativeRunnerScript(dataDir, "coding_runner.py", { FRIDAY_INSTALL_ROOT: root })).toThrow("Runner fehlt");
+      writeFileSync(join(scripts, "powerpoint_runner.py"), "pass\n");
+      expect(nativeRunnerScript(dataDir, "powerpoint_runner.py", { FRIDAY_INSTALL_ROOT: root }).script)
+        .toBe(realpathSync.native(join(scripts, "powerpoint_runner.py")));
+      expect(nativeRunnerScript(join(root, "dashboard", "data"), "powerpoint_runner.py", {}).script)
+        .toBe(realpathSync.native(join(scripts, "powerpoint_runner.py")));
+      expect(() => nativeRunnerScript(join(root, "dashboard", "data"), "powerpoint_runner.py",
+        { FRIDAY_INSTALL_ROOT: join(root, "missing") })).toThrow("FRIDAY_INSTALL_ROOT");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(dataDir, { recursive: true, force: true });
+    }
+  });
   it("selects one enabled native CLI, passes fixed runner arguments, polls and stops", async () => {
     const skills = { list: vi.fn(async () => ({ skills: [{ id: "hermes:codex", discovered: true, enabled: true }] })) } as unknown as SkillsService;
     const invoke = vi.fn(async (_script: string, _distro: string, _user: string, args: string[], _input?: string) => {
