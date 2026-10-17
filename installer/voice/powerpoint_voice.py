@@ -9,7 +9,8 @@ import urllib.error
 import urllib.request
 import uuid
 
-from content_studio_voice import _dashboard_port
+from content_studio_voice import dashboard_port
+from voice_runtime_paths import voice_bridge_key_path
 
 
 # Spoken syntax: "Erstelle eine PowerPoint mit Titel X und Folie Y mit Punkt eins A
@@ -61,12 +62,12 @@ class PowerPointVoice:
             self.pending["expires"] = self.now() + 90
 
     def _request(self, body, key):
-        with open(os.path.join(self.root, "dashboard", "data", "voice-bridge", "auth.key"), encoding="ascii") as source:
+        with open(voice_bridge_key_path(self.root), encoding="ascii") as source:
             raw_key = source.read().strip()
         if len(base64.b64decode(raw_key, validate=True)) != 32:
             raise ValueError("Voice-Bridge-Schlüssel ungültig")
         request = urllib.request.Request(
-            f"http://127.0.0.1:{_dashboard_port(self.root)}/api/v1/skills/powerpoint/voice",
+            f"http://127.0.0.1:{dashboard_port(self.root)}/api/v1/skills/powerpoint/voice",
             data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
             headers={"Authorization": "Bearer " + raw_key, "Content-Type": "application/json",
                      "Accept": "application/json", "Idempotency-Key": key})

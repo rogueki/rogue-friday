@@ -3,7 +3,8 @@
 import type { OrbMode, OrbSnapshot, VoiceStatus } from "@friday/sdk";
 import type { VoiceState } from "@friday/ui";
 import { useToast } from "@friday/ui";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { browserAudio } from "./browserAudio";
 import { useAudioSamples, type AudioSample } from "@/features/orb/audioStore";
 import { useOrbSnapshot } from "@/features/orb/useOrbSnapshot";
 import { useExecuteCommand } from "@/lib/api/domains/commands";
@@ -67,6 +68,11 @@ export interface VoiceUi {
   toggle: () => void;
   toggleFocus: () => void;
   canToggle: boolean;
+  browserAudioActive: boolean;
+  browserAudioPaused: boolean;
+  stopBrowserAudio: () => void;
+  pauseBrowserAudio: () => void;
+  resumeBrowserAudio: () => void;
 }
 
 export function useVoiceUi(): VoiceUi {
@@ -81,19 +87,30 @@ export function useVoiceUi(): VoiceUi {
   const commandsExecute = useCapability("commands", "execute");
   const execute = useExecuteCommand();
   const stopVoice = useStopVoice();
+  const browser = useSyncExternalStore(browserAudio.subscribe, browserAudio.snapshot, browserAudio.snapshot);
+  useEffect(() => {
+    void browserAudio.check();
+    const timer = window.setInterval(() => { void browserAudio.check(); }, 10_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const availability = useModuleAvailability("voice", { error: voiceQuery.error });
   const outage = availability.kind === "outage" ? availability.outage : null;
   const unavailable = outage !== null || availability.kind === "not-configured";
   // A voice outage must show as such, not as the orb's last mode ("Wartet auf Freigabe") or a missing capability.
-  const state: VoiceState = outage ? "error" : unavailable ? "disabled" : deriveVoiceState(snapshot, voice, voiceRead || commandsExecute);
-  const statusText = outage ? t(outage.recovering ? "voice.nav.recovering" : "voice.nav.offline") : unavailable ? t("voice.nav.notConfigured") : t(orbStatusKey(snapshot?.status.mode));
+  const state: VoiceState = browser.active ? (browser.paused ? "muted" : browser.speaking ? "speaking" : "listening") : outage ? "error" : unavailable ? "disabled" : deriveVoiceState(snapshot, voice, voiceRead || commandsExecute);
+  const statusText = browser.error ?? (browser.active ? (browser.paused ? "Sprachaufnahme pausiert" : browser.speaking ? "F.R.I.D.A.Y. spricht …" : "Ich höre zu …") : outage ? t(outage.recovering ? "voice.nav.recovering" : "voice.nav.offline") : unavailable ? t("voice.nav.notConfigured") : t(orbStatusKey(snapshot?.status.mode)));
   const active = state === "listening" || state === "speaking";
   const audio = useAudioSamples(active);
 
   const toggle = useCallback(() => {
+    if (browser.active) { browserAudio.stop(); return; }
     if (unavailable) {
       toast({ title: statusText, tone: "amber" });
+      return;
+    }
+    if (browser.available) {
+      void browserAudio.start().catch((error: unknown) => toast({ title: error instanceof Error ? error.message : "Mikrofon konnte nicht gestartet werden.", tone: "red" }));
       return;
     }
     if (active && voiceStop) {
@@ -111,7 +128,7 @@ export function useVoiceUi(): VoiceUi {
       },
       onError: (error) => toast({ title: error.message, tone: "red" }),
     });
-  }, [unavailable, statusText, active, voiceStop, commandsExecute, stopVoice, execute, toast, t]);
+  }, [browser.active, browser.available, unavailable, statusText, active, voiceStop, commandsExecute, stopVoice, execute, toast, t]);
 
   const toggleFocus = useCallback(() => {
     if (!commandsExecute) {
@@ -132,7 +149,12 @@ export function useVoiceUi(): VoiceUi {
       toggle,
       toggleFocus,
       canToggle: !unavailable && state !== "disabled",
+      browserAudioActive: browser.active,
+      browserAudioPaused: browser.paused,
+      stopBrowserAudio: browserAudio.stop,
+      pauseBrowserAudio: browserAudio.pause,
+      resumeBrowserAudio: browserAudio.resume,
     }),
-    [availability, state, statusText, unavailable, voice, audio, toggle, toggleFocus],
+    [availability, state, statusText, unavailable, voice, audio, toggle, toggleFocus, browser.active, browser.paused],
   );
 }

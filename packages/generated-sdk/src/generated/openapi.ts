@@ -2583,6 +2583,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/browser-audio-availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Browser audio bridge readiness */
+        get: operations["getBrowserAudioAvailability"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/devices": {
         parameters: {
             query?: never;
@@ -3612,6 +3629,14 @@ export interface components {
             /** @description Cron expression. */
             schedule: string;
             targetPath: string;
+        };
+        /**
+         * BrowserAudioAvailability
+         * @description Whether the local Linux browser voice bridge is ready for one owner session.
+         */
+        BrowserAudioAvailability: {
+            available: boolean;
+            contractVersion: components["schemas"]["ContractVersion"];
         };
         /** CalDavEventCreateRequest */
         CalDavEventCreateRequest: {
@@ -13796,6 +13821,28 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getBrowserAudioAvailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Browser audio bridge readiness */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrowserAudioAvailability"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     listVoiceDevices: {

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/browser-audio-availability.schema.json",
+  "title": "BrowserAudioAvailability",
+  "description": "Whether the local Linux browser voice bridge is ready for one owner session.",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "available": { "type": "boolean" }
+  },
+  "required": ["contractVersion", "available"],
+  "additionalProperties": false
+}

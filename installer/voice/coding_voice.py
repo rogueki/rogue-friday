@@ -10,7 +10,8 @@ import urllib.error
 import urllib.request
 import uuid
 
-from content_studio_voice import _dashboard_port
+from content_studio_voice import dashboard_port
+from voice_runtime_paths import voice_bridge_key_path
 
 
 CODING = re.compile(r"\b(codex|opencode|open\s+code|claude\s*code|coding|programmier\w*|codeauftrag|code-auftrag)\b", re.I)
@@ -44,8 +45,7 @@ class CodingVoice:
     def _request(self, method, path, body=None, request_key=None):
         if (method, path) not in {("GET", "voice-repository"), ("POST", "voice")}:
             raise ValueError("Nicht erlaubte Coding-Bridge-Operation")
-        key_path = os.path.join(self.root, "dashboard", "data", "voice-bridge", "auth.key")
-        with open(key_path, encoding="ascii") as source:
+        with open(voice_bridge_key_path(self.root), encoding="ascii") as source:
             key = source.read().strip()
         if len(base64.b64decode(key, validate=True)) != 32:
             raise ValueError("Ungültiger Voice-Bridge-Schlüssel")
@@ -55,7 +55,7 @@ class CodingVoice:
         if request_key:
             headers["Idempotency-Key"] = request_key
         request = urllib.request.Request(
-            f"http://127.0.0.1:{_dashboard_port(self.root)}/api/v1/coding-runs/{path}",
+            f"http://127.0.0.1:{dashboard_port(self.root)}/api/v1/coding-runs/{path}",
             data=json.dumps(body).encode("utf-8") if body is not None else None,
             headers=headers, method=method,
         )

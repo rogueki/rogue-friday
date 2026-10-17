@@ -29,7 +29,7 @@ export function AppBottomBar() {
   const stop = useCommandControl("stop");
   const pause = useCommandControl("pause");
   const resume = useCommandControl("resume");
-  const paused = orb?.status.mode === "paused" || voice.voice?.microphone.state === "muted";
+  const paused = voice.browserAudioActive ? voice.browserAudioPaused : orb?.status.mode === "paused" || voice.voice?.microphone.state === "muted";
   const compact = pathname !== "/";
 
   // PLAN §58: a missing value is never a bare dash; the chip carries the reason (tooltip + accessible name).
@@ -76,8 +76,9 @@ export function AppBottomBar() {
       statusText={voice.statusText}
       levels={voice.audio.level > 0 ? voice.audio.levels : undefined}
       onTalk={voice.toggle}
-      onStop={() => (canStop ? stop.mutate({ scope: "voice" }) : unavailable())}
+      onStop={() => (voice.browserAudioActive ? voice.stopBrowserAudio() : canStop ? stop.mutate({ scope: "voice" }) : unavailable())}
       onPause={() => {
+        if (voice.browserAudioActive) return paused ? voice.resumeBrowserAudio() : voice.pauseBrowserAudio();
         if (paused) return canResume ? resume.mutate({ scope: "voice" }) : unavailable();
         return canPause ? pause.mutate({ scope: "voice" }) : unavailable();
       }}

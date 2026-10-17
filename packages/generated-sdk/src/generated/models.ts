@@ -196,6 +196,7 @@ export interface FridayModelMap {
   AutomationVersion: AutomationVersion;
   AutomationVersionListResponse: AutomationVersionListResponse;
   BackupSettings: BackupSettings;
+  BrowserAudioAvailability: BrowserAudioAvailability;
   CalDavEventCreateRequest: CalDavEventCreateRequest;
   CalDavEventCreateResponse: CalDavEventCreateResponse;
   CalDavEventPreviewRequest: CalDavEventPreviewRequest;
@@ -1309,6 +1310,13 @@ export interface BackupSettings {
   retentionCount: number;
   lastBackupAt: string | null;
   lastBackupStatus: "success" | "failed" | "never";
+}
+/**
+ * Whether the local Linux browser voice bridge is ready for one owner session.
+ */
+export interface BrowserAudioAvailability {
+  contractVersion: ContractVersion;
+  available: boolean;
 }
 export interface CalDavEventCreateRequest {
   title: string;
