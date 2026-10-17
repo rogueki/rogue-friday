@@ -72,7 +72,7 @@ test("the palette sends free text as a command (\"F.R.I.D.A.Y. fragen\") and a t
   await page.keyboard.press("Control+k");
   const palette = page.getByRole("dialog", { name: "Befehlspalette" });
   await palette.getByRole("combobox").fill("Lege eine neue Aufgabe an: Reisekosten Oktober prüfen");
-  await page.keyboard.press("Enter");
+  await palette.getByRole("option", { name: /F.R.I.D.A.Y. fragen/ }).click();
   const dialog = preview(page);
   await expect(dialog).toContainText("Reisekosten Oktober prüfen");
   await dialog.getByRole("button", { name: "Bestätigen" }).click();
