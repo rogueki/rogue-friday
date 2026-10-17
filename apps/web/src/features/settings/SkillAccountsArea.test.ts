@@ -38,6 +38,16 @@ describe("Skill account setup paths", () => {
       expect(setup.state).toContain("Bot-Verbindung nicht geprüft");
     }
   });
+  it("links CloudTalk API to its owner form without treating stored values as API access", () => {
+    const href = "/settings?area=skillAccounts#cloudtalk-setup-title";
+    for (const [configured, expected] of [[null, "unbekannt"], [false, "fehlen"], [true, "hinterlegt"]] as const) {
+      const setup = accountSetupView({ ...integration("cloudtalk_api"), configured }, undefined);
+      expect(setup.href).toBe(href);
+      expect(setup.action).toContain("CloudTalk-API-Zugang");
+      expect(setup.state).toContain(expected);
+      expect(setup.state).toContain("API-Berechtigung und Verbindung nicht geprüft");
+    }
+  });
   it("opens the encrypted Friday key form without claiming a provider login", () => {
     const setup = accountSetupView(integration("kie_ai"), { kie: true, elevenlabs: false, capcut: false });
     expect(setup.href).toBe("/settings?area=contentStudioKeys");
