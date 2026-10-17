@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/linux-enrollment-sample.schema.json",
+  "title": "LinuxEnrollmentSample",
+  "type": "object",
+  "properties": {
+    "kind": { "type": "string", "enum": ["wake", "short", "negatives", "speech"] },
+    "pcmBase64": { "type": "string", "minLength": 21336, "maxLength": 256000, "pattern": "^[A-Za-z0-9+/]+={0,2}$" }
+  },
+  "required": ["kind", "pcmBase64"],
+  "additionalProperties": false
+}

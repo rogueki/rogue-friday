@@ -45,6 +45,7 @@ import { useDeleteVoiceHistory, useStopVoice, useVoiceDevices, useVoiceMetrics, 
 import { useModuleAvailability, useModulePanelGate } from "@/features/shared/useAvailability";
 import { useCapability } from "@/lib/capabilities";
 import { EnrollmentControls } from "./EnrollmentFlow";
+import { LinuxEnrollment } from "./LinuxEnrollment";
 import "./voice-page.css";
 
 const ICON = { size: 18, strokeWidth: 1.5 } as const;
@@ -639,6 +640,7 @@ export function VoicePage() {
   return (
     <div className="mc-page vp-page">
       <MicActivityBanner />
+      <LinuxEnrollment />
       <div className="mc-grid vp-top">
         <StatusPanel />
         <div className="mc-stack">

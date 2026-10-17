@@ -23,8 +23,10 @@ import negative_texts  # noqa: E402
 import personal_wake as pw  # noqa: E402
 
 INSTALL_ROOT = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else os.path.dirname(ROOT)
-RAW = os.path.join(ROOT, "profiles", "owner", "raw")
-OWW = os.path.join(INSTALL_ROOT, "models", "openwakeword")
+STATE = os.environ.get("FRIDAY_STATE_ROOT", "/var/lib/friday") if sys.platform == "linux" else INSTALL_ROOT
+CONFIG = os.environ.get("FRIDAY_CONFIG_DIR", "/etc/friday") if sys.platform == "linux" else os.path.join(INSTALL_ROOT, "config")
+RAW = os.path.join(STATE, "voice", "profiles", "owner", "raw") if sys.platform == "linux" else os.path.join(ROOT, "profiles", "owner", "raw")
+OWW = os.path.join(STATE, "models", "openwakeword")
 MIN_HEY, MIN_BARE = 12, 8   # MIN_BARE gilt nur bei Phrasen mit Kurzform
 REAL_WEIGHT = 3.0   # eigene Aufnahmen zaehlen dreifach gegenueber den mit Piper erzeugten Zusatzbeispielen
 
@@ -56,7 +58,7 @@ def piper_extras(embedder, phrase: str):
     und neutrale Saetze ohne Wort der Phrase). Fehlt die Stimme oder scheitert die Synthese, laeuft das Training nur mit den eigenen
     Aufnahmen weiter - mit sichtbarem Hinweis."""
     try:
-        with open(os.path.join(INSTALL_ROOT, "config", "voice.json"), encoding="utf-8-sig") as f:
+        with open(os.path.join(CONFIG, "voice.json"), encoding="utf-8-sig") as f:
             voice_path = json.load(f)["tts_voice"]
         print("   Erzeuge Zusatzbeispiele mit der lokalen Piper-Stimme ...", flush=True)
         synth = pw.PiperSynth(voice_path)
@@ -68,8 +70,8 @@ def piper_extras(embedder, phrase: str):
 
 
 def main() -> None:
-    name = pw.resolve_assistant_name(os.path.join(INSTALL_ROOT, "config"))
-    phrase = pw.resolve_wake_phrase(os.path.join(INSTALL_ROOT, "config"))
+    name = pw.resolve_assistant_name(CONFIG)
+    phrase = pw.resolve_wake_phrase(CONFIG)
     if pw.is_pretrained_phrase(phrase):
         raise SystemExit("Die Phrase 'Hey Jarvis' nutzt das vortrainierte Modell (train_owner_verifier.py), nicht dieses Skript.")
     slug, short = pw.phrase_slug(phrase), pw.short_form(phrase)
