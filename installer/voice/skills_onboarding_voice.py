@@ -16,6 +16,7 @@ STEPS = ("intro", "profile", "skills", "accounts", "finish")
 YES = {"ja", "jep", "genau", "bestatigen", "bestatige", "okay", "ok", "weiter"}
 NO = {"nein", "abbrechen", "stopp", "stop"}
 SKIP = {"uberspringen", "spater", "weiter ohne"}
+DONE = {"weiter", "fertig", "abschliessen"}
 
 
 def _normal(value):
@@ -87,7 +88,7 @@ def _account_guidance(state, catalog):
             if not isinstance(detail, dict) or detail.get("account") not in ("required", "conditional"):
                 continue
             integration_id = detail.get("id")
-            if not isinstance(integration_id, str) or not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,44}", integration_id):
+            if not isinstance(integration_id, str) or not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,44}", integration_id) or not _spoken_field(integration_id, 45):
                 incomplete = True
                 continue
             previous = integrations.get(integration_id)
@@ -122,6 +123,65 @@ def _account_guidance(state, catalog):
         section = "Den jeweiligen Einrichtungsweg findest du im Skills-Menü und unter Einstellungen, Skill-Konten."
     caveat = " Für weitere ausgewählte Skills fehlen aktuelle Kontoinformationen." if incomplete else ""
     return "Für deine ausgewählten Skills sehe ich: " + "; ".join(parts) + extra + ". " + section + caveat
+
+
+def _account_items(state, catalog):
+    if not isinstance(catalog, dict) or not isinstance(catalog.get("data"), list):
+        return None
+    selected = state.get("selectedSkillIds")
+    if not isinstance(selected, list):
+        return None
+    skills = {skill["id"]: skill for skill in catalog["data"] if isinstance(skill, dict)
+              and isinstance(skill.get("id"), str)}
+    accounts = {}
+    for skill_id in dict.fromkeys(item for item in selected if isinstance(item, str)):
+        skill = skills.get(skill_id)
+        if not skill or not isinstance(skill.get("integrationDetails"), list):
+            return None
+        for detail in skill["integrationDetails"]:
+            if not isinstance(detail, dict) or detail.get("account") not in ("required", "conditional"):
+                continue
+            integration_id = detail.get("id")
+            if (not isinstance(integration_id, str)
+                    or not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,44}", integration_id)
+                    or not _spoken_field(integration_id, 45)):
+                return None
+            previous = accounts.get(integration_id)
+            if previous is None:
+                accounts[integration_id] = dict(detail)
+            else:
+                previous["account"] = "required" if "required" in (previous["account"], detail["account"]) else "conditional"
+                for field in ("configured", "connectionChecked"):
+                    if previous.get(field) != detail.get(field):
+                        previous[field] = None
+    return list(accounts.values())
+
+
+def _account_prompt(detail, index, count):
+    name = detail["id"].replace("_", " ").replace("-", " ")
+    requirement = "erforderlich" if detail["account"] == "required" else "je nach Nutzung erforderlich"
+    configured = detail.get("configured")
+    setup = "lokal eingerichtet" if configured is True else "nicht eingerichtet" if configured is False else "Einrichtungsstand unbekannt"
+    checked = detail.get("connectionChecked")
+    connection = "Verbindung laut Katalog geprueft" if checked is True else "Verbindung nicht bestaetigt" if checked is False else "Verbindung nicht geprueft"
+    target = detail.get("settingsTarget")
+    if (target == "Friday Dashboard > Einstellungen > Adapter > CalDAV"
+            or isinstance(target, str) and (re.fullmatch(r"adapter:[a-z0-9_-]+", target)
+                                            or re.fullmatch(r"/settings\?area=adapters(?:#[a-z0-9_-]+)?", target))):
+        location = "Den Einrichtungsbereich findest du im Dashboard unter Einstellungen, Adapter."
+    elif target in {"Friday Dashboard > Einstellungen > Skill-Konten > E-Mail",
+                    "Friday Dashboard > Einstellungen > Skill-Konten > Telegram",
+                    "Friday Dashboard > Einstellungen > Skill-Konten > Discord",
+                    "Friday Dashboard > Einstellungen > Skill-Konten > WhatsApp"} or (
+                        isinstance(target, str)
+                        and re.fullmatch(r"/settings\?area=skillAccounts(?:#[a-z0-9_-]+)?", target)):
+        location = "Den Einrichtungsbereich findest du im Dashboard unter Einstellungen, Skill-Konten."
+    elif target == "/settings?area=contentStudioKeys":
+        location = "Den Einrichtungsbereich findest du im Dashboard unter Einstellungen, Content Studio."
+    else:
+        location = "Den genauen Einrichtungsort findest du im Skills-Menue beim Skill-Detail."
+    return (f"Konto {index + 1} von {count}: {name}, {requirement}; {setup}; {connection}. "
+            f"{location} Sage weiter fuer das naechste Konto, fertig zum Beenden oder ueberspringen. Der Kontenschritt bleibt ungeprueft.")
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -253,18 +313,29 @@ class SkillsOnboardingVoice:
         if steps["skills"] == "pending":
             catalog, error = self._safe_request("GET", "skills")
             if error:
+                self.pending = None
                 return error
-            skills = catalog.get("data", [])
-            examples = [next((skill["name"] for skill in skills if skill.get("source") == source), None)
+            if not isinstance(catalog, dict) or not isinstance(catalog.get("data"), list):
+                self.pending = None
+                return "Der Skills-Katalog ist gerade nicht verfuegbar. Sage spaeter Einrichtung fortsetzen."
+            skills = [skill for skill in catalog["data"] if isinstance(skill, dict)
+                      and isinstance(skill.get("id"), str) and isinstance(skill.get("name"), str)
+                      and _spoken_field(skill["name"], 70)]
+            examples = [next((_spoken_field(skill["name"], 70) for skill in skills if skill.get("source") == source), None)
                         for source in ("friday", "hermes")]
-            names = ", ".join(name for name in examples if name) or ", ".join(skill["name"] for skill in skills[:3])
+            names = ", ".join(name for name in examples if name) or ", ".join(_spoken_field(skill["name"], 70) for skill in skills[:3])
             extra = " Zum Beispiel: " + names + "." if names else " Der Katalog ist derzeit leer."
-            return self._ask("skills", "Welche Skills interessieren dich? Nenne einen Namen oder sage „überspringen“." + extra,
+            return self._ask("skills", "Welche Skills interessieren dich? Nenne einen Namen, dann weitere Skills, oder sage fertig. Ueberspringen ist auch moeglich." + extra,
                              skills=skills, revision=state["revision"])
         if steps["accounts"] == "pending":
             catalog, error = self._safe_request("GET", "skills")
-            guidance = _account_guidance(state, catalog) if not error else "Der Skills-Katalog ist gerade nicht erreichbar. Welche Konten deine Skills brauchen, kann ich nicht sicher sagen."
-            return self._ask("accounts", "Zu Konten: " + guidance + " Sage weiter oder überspringen; der Kontenschritt bleibt ungeprüft.", revision=state["revision"])
+            accounts = _account_items(state, catalog) if not error else None
+            if accounts is None:
+                self.pending = None
+                return "Der Skills-Katalog ist gerade nicht erreichbar oder unvollstaendig. Konten kann ich nicht sicher erklaeren. Sage spaeter Einrichtung fortsetzen."
+            if not accounts:
+                return self._ask("accounts", "Fuer deine Auswahl sind keine externen Konten verzeichnet. Sage weiter oder ueberspringen; der Kontenschritt bleibt ungeprueft.", revision=state["revision"], accounts=accounts, index=0)
+            return self._ask("accounts", _account_prompt(accounts[0], 0, len(accounts)), revision=state["revision"], accounts=accounts, index=0)
         if steps["finish"] == "pending":
             return self._ask("finish", "Die Grundeinrichtung ist bereit. Soll ich sie abschließen?", revision=state["revision"])
         self.pending = None
@@ -354,6 +425,9 @@ class SkillsOnboardingVoice:
         words = _words(text)
         if self.pending and self.now() > self.pending["expires"]:
             self.pending = None
+        if words == "spater" and self.pending:
+            self.pending = None
+            return "In Ordnung. Sage Einrichtung fortsetzen, wenn du weitermachen moechtest."
         if self.pending and self.pending["stage"] == "first_use_invite":
             pending = self.pending
             self.pending = None
@@ -432,20 +506,34 @@ class SkillsOnboardingVoice:
         elif stage == "skills":
             if words in SKIP:
                 saved, error = self._save(state, step="skills", status="skipped")
+            elif words in DONE:
+                saved, error = self._save(state, step="skills")
             else:
                 matches = [skill for skill in pending["skills"] if _normal(skill["name"]) in words]
                 if len(matches) != 1:
-                    return "Bitte nenne genau einen Skill aus dem Katalog oder sage „überspringen“."
-                return self._ask("confirm_skills", f"Soll ich {matches[0]['name']} als Interesse speichern? Das aktiviert den Skill nicht.", value=matches[0]["id"], revision=state["revision"])
+                    return "Bitte nenne genau einen Skill aus dem Katalog oder sage fertig."
+                name = _spoken_field(matches[0]["name"], 70)
+                return self._ask("confirm_skills", f"Soll ich {name} als Interesse speichern? Das aktiviert den Skill nicht.", value=matches[0]["id"], revision=state["revision"])
         elif stage == "confirm_skills":
             if words not in YES:
                 return self._guide(state)
             ids = list(dict.fromkeys([*state["selectedSkillIds"], pending["value"]]))[:200]
-            saved, error = self._save(state, step="skills", selected_ids=ids)
+            saved, error = self._save(state, selected_ids=ids)
         elif stage == "accounts":
-            if words not in YES and words not in SKIP:
-                return "Bitte sage weiter oder überspringen. Konten und Programme richtest du im Dashboard ein; ich kann ihren Zustand per Sprache nicht bestätigen."
-            saved, error = self._save(state, step="accounts", status="skipped")
+            catalog, catalog_error = self._safe_request("GET", "skills")
+            current_accounts = _account_items(state, catalog) if not catalog_error else None
+            if current_accounts is None or current_accounts != pending["accounts"]:
+                self.pending = None
+                return "Der Skills-Katalog hat sich geaendert oder ist nicht erreichbar. Sage Einrichtung fortsetzen, damit ich die Konten neu lese."
+            if (words in SKIP or (words in DONE and words != "weiter")
+                    or (words == "weiter" and pending["index"] + 1 >= len(pending["accounts"]))):
+                saved, error = self._save(state, step="accounts", status="skipped")
+            elif words == "weiter":
+                index = pending["index"] + 1
+                return self._ask("accounts", _account_prompt(pending["accounts"][index], index, len(pending["accounts"])),
+                                 revision=state["revision"], accounts=pending["accounts"], index=index)
+            else:
+                return "Bitte sage weiter, fertig oder ueberspringen. Konten richtest du im Dashboard ein; ich kann sie per Sprache nicht bestaetigen."
         else:
             self.pending = None
             return None
