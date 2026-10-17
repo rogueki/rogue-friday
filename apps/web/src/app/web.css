@@ -81,6 +81,8 @@ body { min-height: 100dvh; }
 .ov-orb__stage { position: absolute; inset: 0 0 var(--ov-orb-strip) 0; min-height: 0; }
 /* The state label is part of the page (status strip below); the orb's own caption would duplicate it. */
 .ov-orb__stage .friday-orb__label { display: none; }
+/* The orb host pads itself (clamp(24px,4vh,52px)); with content-box sizing it overflowed the stage by twice the padding and sat off-centre. */
+.ov-orb__stage .friday-orb { box-sizing: border-box; }
 .ov-orb__brand { position: absolute; z-index: 1; top: 12px; left: 18px; display: grid; grid-template-columns: auto auto; justify-content: start; align-items: baseline; column-gap: 8px; row-gap: 3px; max-width: 46%; text-align: left; line-height: 1; pointer-events: none; }
 .ov-orb__name { font-family: var(--jv-font-display); font-size: var(--jv-fs-lg); font-weight: 600; letter-spacing: 0.28em; color: var(--friday-text-strong); white-space: nowrap; }
 .ov-orb__sub { font-family: var(--jv-font-display); font-size: var(--jv-fs-2xs); letter-spacing: 0.32em; color: var(--friday-orb-gold); white-space: nowrap; }
@@ -156,3 +158,6 @@ body { min-height: 100dvh; }
   .jv-nav__scroll { padding-block: 8px 4px; }
 }
 .web-voicenav__flags { gap: 6px; }
+
+/* Development-only floating orb lab (`/?orbDebug=1`), see features/orb/debug/OrbDebugOverlay.tsx. */
+.orb-debug-overlay { position: fixed; z-index: 60; right: 12px; bottom: 12px; width: min(360px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; }

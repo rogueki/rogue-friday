@@ -1,5 +1,6 @@
 // Deterministic orb screenshots + frame-time measurement.
-// Usage: node scripts/screenshot.mjs [--only=idle,error] [--dsf=2] [--quality=high] [--perf]
+// Usage: node scripts/screenshot.mjs [--only=idle,error] [--dsf=2] [--quality=high] [--perf] [--out=<dir>]
+// Env: ORB_CHROMIUM = path of a Chromium/Chrome binary (default: Playwright's own).
 // Starts the demo (Vite) itself, renders every mode on the fixed test clock and writes PNGs to ../screenshots.
 import { chromium } from "@playwright/test";
 import { createServer } from "vite";
@@ -8,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const outDir = path.resolve(here, "..", "screenshots");
+const defaultOut = path.resolve(here, "..", "screenshots");
 const args = Object.fromEntries(
   process.argv.slice(2).map((a) => {
     const [k, v] = a.replace(/^--/, "").split("=");
@@ -16,6 +17,7 @@ const args = Object.fromEntries(
   }),
 );
 const only = args.only ? new Set(args.only.split(",")) : null;
+const outArg = args.out ? path.resolve(args.out) : null;
 const dsf = Number(args.dsf ?? 2);
 const quality = args.quality ?? "high";
 const T = "t=12.5";
@@ -24,6 +26,7 @@ const common = `shot=1&quality=${quality}&${T}`;
 /** name -> query. Every mode, plus the stories' variants (reduced motion, low quality, 2D fallback). */
 const SHOTS = [
   ["idle", `mode=idle&${common}`],
+  ["idle-t2", `mode=idle&shot=1&quality=${quality}&t=31.7`],
   ["booting", `mode=booting&${common}&ap=0.62`],
   ["listening-low", `mode=listening&audio=0.15&${common}`],
   ["listening-high", `mode=listening&audio=0.9&${common}`],
@@ -35,6 +38,7 @@ const SHOTS = [
   ["speaking", `mode=speaking&audio=0.6&${common}`],
   ["speaking-3agents-working", `mode=parallel&progress=62&agents=3&audio=0.6&${common}`],
   ["waiting-approval", `mode=waiting_approval&${common}`],
+  ["approval-while-speaking", `scene=approvalSpeaking&audio=0.6&${common}`],
   ["success", `mode=success&${common}&ap=0.35`],
   ["warning", `mode=warning&${common}`],
   ["error", `mode=error&${common}&ap=0.7`],
@@ -43,6 +47,9 @@ const SHOTS = [
   ["reduced-motion", `mode=working&progress=62&agents=3&anim=reduced&${common}`],
   ["low-quality", `mode=working&progress=62&agents=3&shot=1&quality=low&${T}`],
   ["fallback-2d", `mode=working&progress=62&agents=3&renderer=2d&${common}`],
+  ["fallback-2d-speaking", `mode=parallel&progress=62&agents=3&audio=0.6&renderer=2d&${common}`],
+  ["fallback-2d-thinking", `mode=thinking&renderer=2d&${common}`],
+  ["reduced-motion-speaking", `mode=parallel&audio=0.6&anim=reduced&${common}`],
   ["idle-large", `mode=idle&size=large&${common}`],
   ["listening-high-large", `mode=listening&audio=1&size=large&${common}`],
   ["speaking-large", `mode=speaking&audio=1&size=large&${common}`],
@@ -50,12 +57,14 @@ const SHOTS = [
 ];
 
 async function main() {
+  const outDir = outArg ?? defaultOut;
   await mkdir(outDir, { recursive: true });
   const server = await createServer({ configFile: path.resolve(here, "..", "demo", "vite.config.ts"), logLevel: "error" });
   await server.listen();
   const base = `http://127.0.0.1:${server.config.server.port}`;
   const browser = await chromium.launch({
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl", "--use-gl=angle"],
+    ...(process.env.ORB_CHROMIUM ? { executablePath: process.env.ORB_CHROMIUM } : {}),
+    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl", "--use-gl=angle", ...(process.env.ORB_CHROMIUM ? ["--no-sandbox"] : [])],
   });
   const results = [];
   try {

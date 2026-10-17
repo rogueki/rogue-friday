@@ -3,10 +3,12 @@
 import type { AdapterInfo, HealthStatus, Overview } from "@friday/sdk";
 import { ActivityFeed, ActivityRow, HudPanel, PanelLink, StatusChip, type ActivityItem, type Tone } from "@friday/ui";
 import { Bot, Brain, CheckCircle2, Database, Mic, ShieldCheck, Sparkles } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { OrbSlot } from "@/features/orb/OrbSlot";
+import { useOrbControllerStatus } from "@/features/orb/orbHub";
 import { useOrbSnapshot } from "@/features/orb/useOrbSnapshot";
 import { attentionVisual, severityFromWire, toneFromHealth } from "@/features/shared/presentation";
 import { formatClockTime } from "@/features/shared/time";
@@ -18,6 +20,9 @@ import { adapterNotConfigured, isUnconfiguredEntry } from "@/features/shared/ava
 import { sectionStatus, useOverviewPanel } from "./useOverviewPanel";
 
 const ICON = { size: 18, strokeWidth: 1.5 } as const;
+
+// Development-only floating orb lab (`/?orbDebug=1`); the build-time condition removes it from production builds.
+const OrbDebugOverlay = process.env.NODE_ENV !== "production" ? dynamic(() => import("@/features/orb/debug/OrbDebugOverlay"), { ssr: false }) : null;
 
 function formatCount(value: number, locale: string): string {
   return new Intl.NumberFormat(locale === "de" ? "de-DE" : "en-GB").format(value);
@@ -146,9 +151,6 @@ export function CoreOverviewPanel({ className, style }: { className?: string; st
 
 /* ── AI Core / orb panel (center) ─────────────────────────────────────── */
 
-/** The globe fills the stage like in the reference (PLAN §27.3); see `OrbSlotProps.sizeBoost`. */
-const ORB_PANEL_SIZE_BOOST = 1.25;
-
 export function OrbPanel({ className, style }: { className?: string; style?: React.CSSProperties }) {
   const { t, locale, assistantName } = useT();
   const { timeZone, hour12 } = useAppSettings();
@@ -156,20 +158,24 @@ export function OrbPanel({ className, style }: { className?: string; style?: Rea
   const [renderer, setRenderer] = useState<"3d" | "2d">("3d");
   const orb = useOrbSnapshot().snapshot ?? overview?.orb;
   const status = orb?.status;
-  const mode = status?.mode;
+  // The arbitrated orb mode (server truth + local voice facts) once the orb runtime is up, else the server snapshot.
+  const controllerStatus = useOrbControllerStatus();
+  const mode = controllerStatus?.mode ?? status?.mode;
   const agent = overview?.activeAgents.find((a) => a.id === (overview.currentActivity?.agentId ?? status?.currentAgentId));
-  const activity = overview?.currentActivity?.text ?? status?.activityText;
+  const activity = overview?.currentActivity?.text ?? controllerStatus?.activityText ?? status?.activityText;
   const dataMode = overview?.friday.dataMode;
   const version = overview?.friday.version;
-  const progress = status?.progressMode === "determinate" && typeof status.progress === "number" ? Math.round(Math.min(1, Math.max(0, status.progress)) * 100) : null;
+  const progressValue = controllerStatus ? controllerStatus.progress : status?.progressMode === "determinate" && typeof status.progress === "number" ? status.progress : null;
+  const progress = typeof progressValue === "number" ? Math.round(Math.min(1, Math.max(0, progressValue)) * 100) : null;
   const tone: Tone = mode === "error" ? "red" : mode === "offline" ? "muted" : mode === "waiting_approval" || mode === "warning" ? "amber" : "gold";
 
   return (
     <HudPanel className={className} style={style} tone="gold" glow cut="all" cutSize="lg" brackets={["tl", "tr", "bl", "br"]} padding="none" aria-label={t("overview.orb.label")}>
       <div className="ov-orb">
         <div className="ov-orb__stage">
-          <OrbSlot sizeBoost={ORB_PANEL_SIZE_BOOST} onRendererChange={setRenderer} />
+          <OrbSlot onRendererChange={setRenderer} />
         </div>
+        {OrbDebugOverlay ? <OrbDebugOverlay /> : null}
         <div className="ov-orb__brand">
           <span className="ov-orb__name">{assistantName}</span>
           <span className="ov-orb__sub">{t("brand.aiCore")}</span>

@@ -1,17 +1,20 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import type { Group } from "three";
+import { SphereGeometry, type Group } from "three";
 import { buildPlateGeometry, buildSpriteGeometry, type PlateInstance, type SpriteInstance } from "../geometry/buffers";
 import { buildCircuitTraces, buildPlates } from "../geometry/circuit";
 import { buildArcs } from "../geometry/structures";
 import { useGeometry, useLineLayer, useMaterial } from "../hooks";
-import { makePlateMaterial, makeSpriteMaterial } from "../materials";
+import { makePlateMaterial, makeShellMaterial, makeSpriteMaterial } from "../materials";
 import { useOrb } from "../OrbContext";
 import { registerStat } from "../stats";
 
 export const SEED = 20260615;
 
-/** Instanced chip plates; graphics are drawn in the fragment shader. Pass the instances that belong to this layer. */
+/**
+ * FloatingFragments / HolographicPanels: instanced chip plates; graphics are drawn in the fragment shader. Every plate
+ * floats on its own phase with a small radial/tangential drift and a minimal rotation. Pass the instances of this layer.
+ */
 export function FloatingDataFragments({ plates, revealStart = 0.2 }: { plates: PlateInstance[]; revealStart?: number }) {
   const { shared } = useOrb();
   const geometry = useGeometry(() => buildPlateGeometry(plates), [plates]);
@@ -30,6 +33,35 @@ export function CircuitNodes({ nodes, revealStart = 0.12 }: { nodes: SpriteInsta
     material.uniforms.uNodeBoost!.value = Math.min(1, live.current.packetRate * 0.7);
   });
   return <mesh geometry={geometry} material={material} frustumCulled={false} renderOrder={3} />;
+}
+
+export { CircuitNodes as DataNodes };
+
+/** Two transparent holographic sphere shells (r 1.28 / 1.82) with fresnel rim, faint grid and a slow scan band. */
+export function HolographicShells() {
+  const { live, shared, profile } = useOrb();
+  const inner = useRef<Group>(null);
+  const outer = useRef<Group>(null);
+  const geometry = useGeometry(() => new SphereGeometry(1, profile.shellSegments, Math.round(profile.shellSegments * 0.75)), [profile.shellSegments]);
+  const innerMat = useMaterial(() => makeShellMaterial(shared, 0.0, 14), [shared]);
+  const outerMat = useMaterial(() => makeShellMaterial(shared, 0.37, 22), [shared]);
+  useFrame(() => {
+    const l = live.current;
+    innerMat.uniforms.uShells!.value = l.shells;
+    outerMat.uniforms.uShells!.value = l.shells * 0.8;
+    if (inner.current) inner.current.rotation.set(0.3, l.midAngle * 1.6, 0.1);
+    if (outer.current) outer.current.rotation.set(-0.25, -l.outerAngle * 2.2, 0.2);
+  });
+  return (
+    <group name="HolographicShells">
+      <group ref={inner} scale={1.28}>
+        <mesh geometry={geometry} material={innerMat} frustumCulled={false} renderOrder={1} />
+      </group>
+      <group ref={outer} scale={1.82}>
+        <mesh geometry={geometry} material={outerMat} frustumCulled={false} renderOrder={1} />
+      </group>
+    </group>
+  );
 }
 
 /** Splits a plate set by radius so inner plates travel with the mid sphere and outer ones with the fragment shell. */
@@ -101,8 +133,8 @@ export function MidCircuitSphere({ plates }: { plates: PlateInstance[] }) {
   });
 
   return (
-    <group ref={group}>
-      <mesh geometry={mid.geometry} material={mid.material} frustumCulled={false} renderOrder={2} />
+    <group ref={group} name="CircuitSphere">
+      <mesh name="CircuitLines" geometry={mid.geometry} material={mid.material} frustumCulled={false} renderOrder={2} />
       <mesh geometry={great.geometry} material={great.material} frustumCulled={false} renderOrder={2} />
       <CircuitNodes nodes={nodesLimited} />
       <FloatingDataFragments plates={plates} />
@@ -111,8 +143,9 @@ export function MidCircuitSphere({ plates }: { plates: PlateInstance[] }) {
 }
 
 /**
- * OuterFragmentShell: partial arcs on radii 1.75..2.25, protruding fragments, outer traces and plates. This is the
- * layer that follows the work layer (Working/Syncing push it radially, Error scatters it).
+ * FragmentGroup: BrokenArcs (arcs r 1.75..2.25 with protruding fragments), TechnicalPanels (outer traces and nodes) and
+ * FloatingFragments (outer plates). Follows the work layer (Working/Syncing push it radially, Error scatters it) and
+ * turns against the outer rings.
  */
 export function OuterFragmentShell({ plates }: { plates: PlateInstance[] }) {
   const { live, profile } = useOrb();
@@ -159,12 +192,13 @@ export function OuterFragmentShell({ plates }: { plates: PlateInstance[] }) {
     const g = group.current;
     if (!g) return;
     g.rotation.set(-0.18, -l.outerAngle, 0.14 + Math.sin(l.outerAngle * 0.7) * 0.03);
+    arcs.material.uniforms.uOpacity!.value = 1 - 0.3 * l.outerReduce;
   });
 
   return (
-    <group ref={group}>
-      <mesh geometry={arcs.geometry} material={arcs.material} frustumCulled={false} renderOrder={2} />
-      <mesh geometry={outer.geometry} material={outer.material} frustumCulled={false} renderOrder={2} />
+    <group ref={group} name="FragmentGroup">
+      <mesh name="BrokenArcs" geometry={arcs.geometry} material={arcs.material} frustumCulled={false} renderOrder={2} />
+      <mesh name="TechnicalPanels" geometry={outer.geometry} material={outer.material} frustumCulled={false} renderOrder={2} />
       <CircuitNodes nodes={nodes} revealStart={0.35} />
       <FloatingDataFragments plates={plates} revealStart={0.3} />
     </group>

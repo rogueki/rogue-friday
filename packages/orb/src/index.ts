@@ -72,3 +72,36 @@ export type { OrbDebugProbe } from "./scene/OrbScene";
 
 export { resolveAudioLevel, toAudioLevelReader } from "./audio/audioSource";
 export type { OrbAudioLevelReader, OrbAudioSourceRef } from "./audio/audioSource";
+
+// ---- orb rework: controller, bridge, audio ----------------------------------------------------------------------
+export type {
+  ApprovalState,
+  BackgroundWork,
+  CreateOrbControllerOptions,
+  OrbAudioFrame,
+  OrbAudioFrameSource,
+  OrbAudioLevels,
+  OrbAudioSourceKind,
+  OrbController,
+  OrbControllerState,
+  OrbFrameInputs,
+  OrbLayerState,
+  OrbProgressMode,
+  OrbRuntimeStatus,
+  OrbSeverity,
+  PrimaryInteraction,
+  SystemHealthState,
+} from "./controller/types";
+export type { OrbDerivedInfo, OrbErrorInfo, OrbEventBridge, OrbTaskInfo } from "./bridge/OrbEventBridge";
+export { createOrbController } from "./controller/createOrbController";
+export { createOrbEventBridge } from "./bridge/createOrbEventBridge";
+export { createAudioAnalyzer } from "./audio/analyzer";
+export type { AudioAnalyzer, AudioAnalyzerOptions } from "./audio/analyzer";
+export { createServiceLevelSource } from "./audio/serviceLevelSource";
+export type { ServiceLevelSource } from "./audio/serviceLevelSource";
+export { createSpeechEnvelopeSource } from "./audio/speechEnvelope";
+export type { SpeechEnvelopeSource } from "./audio/speechEnvelope";
+export { createOrbDemo } from "./controller/demo";
+export type { OrbDemo, OrbDemoName } from "./controller/demo";
+export { createAudioFrame, createInputs as createOrbFrameInputs } from "./audio/frame";
+export { AUDIO_MAPPING } from "./audio/audioMapping";

@@ -11,7 +11,8 @@ pnpm build:app                 # nur nötig, wenn apps/web/out oder apps/control
 pnpm test:e2e                  # komplette Suite (serieller Lauf, siehe Laufzeit in der Ausgabe)
 pnpm test:e2e tests/e2e/tasks.spec.ts          # einzelne Spec
 pnpm test:e2e:update           # Visual-Baselines neu erzeugen (nach jeder UI-Änderung!)
-E2E_SOAK=1 pnpm test:e2e tests/e2e/performance.spec.ts -g soak   # 30-Minuten-Orb-Soak (Standard: 2 Minuten)
+E2E_SOAK=1 pnpm test:e2e tests/e2e/performance.spec.ts -g soak   # 30-Minuten-Orb-Soak (Standard: 2 Minuten; E2E_SOAK=1 setzt in orb-voice.spec auch 200 statt 25 Mikrofon-Zyklen)
+ORB_EVIDENCE=1 pnpm test:e2e tests/e2e/orb-evidence.spec.ts   # Orb-Screenshots + Auto-Demo-Video
 ```
 
 - `playwright.config.ts` startet den Stack selbst (`webServer` -> `tests/e2e/stack.ts`). Fehlt der Build, läuft `pnpm build:app`
@@ -40,6 +41,8 @@ E2E_SOAK=1 pnpm test:e2e tests/e2e/performance.spec.ts -g soak   # 30-Minuten-Or
 | `offline-cache.spec.ts` | Offline-Cache (Phase 11): Reload bei gesperrter API zeigt die letzten Daten mit Offline-Cache-Banner/-Badge, nichts Geheimes im Speicher, automatische Rückkehr |
 | `security.spec.ts` | Security-Gate im Browser (docs/SECURITY.md §9): Cookie-Flags, CSP ohne Verstöße auf allen Seiten, kein ungehashtes Inline-Skript, kein Framing, Host-/Origin-Prüfung |
 | `performance.spec.ts`                                                                                                                     | 10 000 Aktivitäten, 1 000 Tasks, Reconnect unter Last, Hintergrund-Tab, Orb-Soak (§51.6)                                                                       |
+| `orb-layout`, `orb-idle`, `orb-voice`, `orb-flows`, `orb-debug-build` `.spec.ts` | Orb-Abnahme (Owner-Auftrag 22.1-22.9): Position/Größe bei 4 Auflösungen x 3 Zoomstufen, Idle-Bewegung, Mikrofon (Chromium-Fake-Device mit WAV-Fixtures) und TTS (Playwright-WebSocket als Sprachdienst) durch den echten Browser-Voice-Pfad, Events -> Controller (Transcribing/Thinking/Working/Approval/Error), Production-Build ohne Debug-Panel; Hilfen in `support/orb.ts` |
+| `orb-evidence.spec.ts` | Nur mit `ORB_EVIDENCE=1`: Screenshots der Kernzustände und Video der Auto-Demo nach `test-results/orb-evidence/` |
 
 ## Modul-Flows (`activity`, `agents`, `memory`, `alerts`)
 

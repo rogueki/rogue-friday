@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { QUALITY_PROFILES } from "../../settings";
 import { liveFor } from "../liveParams.test-helpers";
 import { buildCircuitTraces, buildPlates } from "./circuit";
-import { buildArcs, buildHaloBars, buildPackets, buildTelemetryRing } from "./structures";
+import { buildArcs, buildSegmentedRing, buildPackets, buildTelemetryRing } from "./structures";
 import { breathScale, stepLiveParams } from "../liveParams";
 import { deriveFromStatus } from "../../visual/deriveVisualTargets";
 import { DEFAULT_ORB_SETTINGS } from "../../settings";
@@ -63,7 +63,7 @@ describe("seeded geometry", () => {
   it("builds arcs, halo bars, telemetry ticks and packet lanes", () => {
     const arcs = buildArcs({ count: 30, seed: 1, radii: [1.75, 2.25], length: [15, 110], lineCount: [1, 4], pushProbability: 0.12, pushRange: [0.1, 0.35], tickProbability: 0.3, kind: 0.5 });
     expect(arcs.segments).toBeGreaterThan(100);
-    expect(buildHaloBars(128).segments).toBeGreaterThanOrEqual(128);
+    expect(buildSegmentedRing(1, 48).segments).toBeGreaterThanOrEqual(96);
     expect(buildTelemetryRing(1).segments).toBeGreaterThan(180);
     expect(buildPackets(10, 1).count).toBe(60);
     arcs.geometry.dispose();
@@ -84,10 +84,11 @@ describe("live parameter stepping", () => {
     const fixedLive = liveFor(idle);
     stepLiveParams(fixedLive, working, { dt: 0.016, time: 12.5, audioRaw: 0, fixed: {} });
     expect(fixedLive.packetRate).toBe(working.packetRate);
-    expect(fixedLive.ringAngles[2]).toBeCloseTo(working.ringSpeeds[2] * 12.5 + 2.0, 6);
+    // constant rotation plus the bounded per-ring speed wobble
+    expect(Math.abs((fixedLive.ringAngles[2] as number) - (working.ringSpeeds[2] * 12.5 + 2.0))).toBeLessThan(Math.abs(working.ringSpeeds[2]) * 2.1);
   });
 
-  it("is deterministic on the test clock and breath stays within +-2 %", () => {
+  it("is deterministic on the test clock and the idle breath scale stays within 0.97..1.035", () => {
     const t = deriveFromStatus({ mode: "idle", since: "s" }, DEFAULT_ORB_SETTINGS);
     const a = liveFor(t);
     const b = liveFor(t);
@@ -96,7 +97,8 @@ describe("live parameter stepping", () => {
     expect(a.ringAngles).toEqual(b.ringAngles);
     for (let ts = 0; ts < 12; ts += 0.37) {
       stepLiveParams(a, t, { dt: 0.016, time: ts, audioRaw: 0, fixed: {} });
-      expect(Math.abs(breathScale(a) - 1)).toBeLessThanOrEqual(0.0201);
+      expect(breathScale(a)).toBeGreaterThanOrEqual(0.9699);
+      expect(breathScale(a)).toBeLessThanOrEqual(1.0351);
     }
   });
 

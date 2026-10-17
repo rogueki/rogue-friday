@@ -234,17 +234,31 @@ export function buildEnergyArcs(count: number, seed: number): BuiltLines {
   return finish(lines);
 }
 
-/** Radial bars of the audio halo. t = angle/2pi; the vertex shader scales each bar by the audio level. */
-export function buildHaloBars(count: number): BuiltLines {
+/**
+ * SegmentedRing: 48 short arcs at r 1.12 with double lines. `kind` carries the frequency band of the segment
+ * (0.05 low, 0.5 mid, 0.95 high); the shader pushes each segment radially by its band level.
+ */
+export function buildSegmentedRing(seed: number, count = 48): BuiltLines {
+  const rand = new Rand(seed);
   const lines = new LineBuilder();
-  const r = 2.8;
-  const rand = new Rand(41);
+  const gap = 1.4;
   for (let i = 0; i < count; i++) {
-    const a = (i / count) * TAU;
-    lines.segment([Math.cos(a) * r, Math.sin(a) * r, 0], [Math.cos(a) * (r + 0.42), Math.sin(a) * (r + 0.42), 0], a / TAU, a / TAU, rand.float(), 0.8);
+    const a0 = (i / count) * 360 + gap;
+    const a1 = ((i + 1) / count) * 360 - gap;
+    const kind = 0.05 + 0.45 * (i % 3);
+    const s = rand.float();
+    const steps = Math.max(2, Math.ceil((a1 - a0) / 2.5));
+    const arc = (r: number, from: number, to: number, k: number) => {
+      const pts: V3[] = [];
+      for (let j = 0; j <= steps; j++) {
+        const a = (from + ((to - from) * j) / steps) * DEG;
+        pts.push([Math.cos(a) * r, Math.sin(a) * r, 0]);
+      }
+      lines.polyline(pts, s + k, kind, a0 / 360, a1 / 360);
+    };
+    arc(1.12, a0, a1, 0);
+    arc(1.145, a0 + (a1 - a0) * 0.18, a1 - (a1 - a0) * 0.18, 0.013);
   }
-  // thin inner baseline
-  ringLines(lines, rand, r - 0.025, { kind: 0.25, step: 3 });
   return finish(lines);
 }
 
@@ -354,6 +368,20 @@ export function buildParticles(count: number, seed: number): PointCloud {
   return { positions, info, count };
 }
 
+/** Energy particles: a thin shell (r 0.9..2.6) whose points are pushed, kicked or streamed to the core by the shader. */
+export function buildEnergyParticles(count: number, seed: number): PointCloud {
+  const rand = new Rand(seed);
+  const positions = new Float32Array(count * 3);
+  const info = new Float32Array(count * 4);
+  for (let i = 0; i < count; i++) {
+    const d = rand.unitVector();
+    const r = 0.9 + Math.pow(rand.float(), 1.3) * 1.7;
+    positions.set([d[0] * r, d[1] * r, d[2] * r], i * 3);
+    info.set([rand.float(), rand.range(1.5, 3.6), rand.float(), rand.float()], i * 4);
+  }
+  return { positions, info, count };
+}
+
 /** Larger, fainter depth dust spread through a wide volume (parallax cue). */
 export function buildDust(count: number, seed: number): PointCloud {
   const rand = new Rand(seed);
@@ -361,8 +389,8 @@ export function buildDust(count: number, seed: number): PointCloud {
   const info = new Float32Array(count * 4);
   for (let i = 0; i < count; i++) {
     const d = rand.unitVector();
-    const r = rand.range(2.2, 5.2);
-    positions.set([d[0] * r * 1.25, d[1] * r * 0.85, d[2] * r], i * 3);
+    const r = rand.range(2.2, 3.6);
+    positions.set([d[0] * r * 1.1, d[1] * r * 0.85, d[2] * r], i * 3);
     info.set([rand.float(), rand.range(2.5, 6), rand.float(), rand.float()], i * 4);
   }
   return { positions, info, count };

@@ -19,6 +19,13 @@ uniform float uReveal;
 uniform float uConverge;
 uniform float uAudio;
 uniform float uBackFade;
+uniform float uCircuitSeq;
+uniform float uPeakKick;
+uniform float uForce;
+uniform float uInward;
+uniform float uSegDrive;
+uniform float uCalm;
+uniform vec4 uBands;
 `;
 
 export const COMMON_FUNCS = /* glsl */ `
@@ -78,9 +85,30 @@ float aperture(vec2 relXY) {
   return mix(0.2, 1.0, smoothstep(0.08, 0.78, r));
 }
 
+// Canvas-edge fade: everything that is not the orb itself dies out inside the canvas (nothing is ever cut off).
+float edgeFadeNdc(vec2 ndc) {
+  vec2 a = abs(ndc);
+  float m = max(a.x, a.y);
+  return 1.0 - smoothstep(0.78, 0.985, m);
+}
+
+// Comet window: 1 at the head, falling to 0 over len behind it (x = head - position, wrapped).
+float cometAt(float x, float len) {
+  float b = fract(x);
+  return b < len ? pow(1.0 - b / len, 2.0) : 0.0;
+}
+
 mat2 rot2(float a) {
   float c = cos(a);
   float s = sin(a);
   return mat2(c, -s, s, c);
+}
+`;
+
+/** Fragment-only helpers (gl_FragCoord does not exist in vertex shaders). */
+export const COMMON_FRAG_FUNCS = /* glsl */ `
+float edgeFadeFrag() {
+  vec2 ndc = gl_FragCoord.xy / uViewport * 2.0 - 1.0;
+  return edgeFadeNdc(ndc);
 }
 `;

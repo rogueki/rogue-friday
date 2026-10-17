@@ -3,6 +3,7 @@ import { breathScale } from "../scene/liveParams";
 import { buildCircuitTraces, buildPlates } from "../scene/geometry/circuit";
 import { DEG, Rand, smoothstep } from "../scene/rng";
 import type { PlateInstance } from "../scene/geometry/buffers";
+import { VISIBLE_RADIUS } from "../scene/fit";
 
 /** Canvas-2D rendition of the orb: same palette, same circuit data, orthographic projection. */
 
@@ -96,6 +97,8 @@ const css = (c: RGB3, a: number): string => `rgba(${Math.round(Math.min(255, c[0
 
 export interface Draw2DOptions {
   size: number;
+  /** Fraction of the short side covered by the nominal visible orb (default 0.72). */
+  fill: number;
 }
 
 class Projector {
@@ -250,19 +253,20 @@ function ring(
 
 export function drawOrb2D(ctx: CanvasRenderingContext2D, w: number, h: number, live: LiveParams, data: Fallback2DData, opts: Draw2DOptions): void {
   ctx.clearRect(0, 0, w, h);
-  const unit = (Math.min(w, h) / (2 * 3.45)) * opts.size * (w / h < 0.8 ? 1 : 1);
+  const unit = ((Math.min(w, h) * opts.fill) / (2 * VISIBLE_RADIUS)) * opts.size;
   const cx = w / 2;
-  const cy = h * 0.46;
+  const cy = h / 2;
   const p = new Projector(cx, cy, unit, live.midAngle, 0.32);
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
   const breath = breathScale(live);
+  const calmK = 1 - live.calm;
   const E = live.emission;
   const sat = (c: RGB3) => saturate(c, live.saturation);
 
   // backdrop glow
   const g0 = ctx.createRadialGradient(cx, cy, 0, cx, cy, unit * 2.3);
-  g0.addColorStop(0, css(sat(GOLD), 0.14 * E * live.coreIntensity));
+  g0.addColorStop(0, css(sat(GOLD), 0.14 * E * live.coreLevel));
   g0.addColorStop(0.5, css(sat(ORANGE), 0.04 * E));
   g0.addColorStop(1, css(sat(ORANGE), 0));
   ctx.fillStyle = g0;
@@ -313,12 +317,11 @@ export function drawOrb2D(ctx: CanvasRenderingContext2D, w: number, h: number, l
   const reactorR = [0.19, 0.3, 0.42];
   const keys = ["reactor0", "reactor1", "reactor2"];
   reactorR.forEach((r, i) => {
-    const dir = i % 2 === 0 ? 1 : -1;
-    ring(ctx, p, data.dashes[keys[i] as string] as [number, number][], r, 0.5 + i * 0.18, 0.3 * i, dir * live.innerAngle * (1 + 0.45 * i), 0.95 - i * 0.1, 1.2, i === 0 ? HOT : GOLD, live);
+    ring(ctx, p, data.dashes[keys[i] as string] as [number, number][], r, 0.5 + i * 0.18, 0.3 * i, (i % 2 === 0 ? (live.ringAngles[0] as number) : (live.ringAngles[1] as number)), 0.95 - i * 0.1, 1.2, i === 0 ? HOT : GOLD, live);
   });
   // gyro rings
   ring(ctx, p, data.dashes.gyroA as [number, number][], 0.66, 0.9, 0.5, live.ringAngles[1] as number, 0.8, 1.3, GOLD, live);
-  ring(ctx, p, data.dashes.gyroB as [number, number][], 0.78, 1.1, -0.6, live.gyroBAngle, 0.7, 1.3, GOLD, live);
+  ring(ctx, p, data.dashes.gyroB as [number, number][], 0.78, 1.1, -0.6, (live.ringAngles[0] as number) * 0.9 + 1.3, 0.7, 1.3, GOLD, live);
   // primary / secondary
   const k = 1 - 0.72 * live.align;
   const flatPrimary = 1.18 * k;
@@ -382,7 +385,7 @@ export function drawOrb2D(ctx: CanvasRenderingContext2D, w: number, h: number, l
   }
 
   // core
-  const coreA = Math.min(1.4, live.coreIntensity * (1 + live.successPulse * 0.5) + live.audio * 0.35) * E;
+  const coreA = Math.min(1.4, live.coreLevel) * E;
   const cr = unit * 0.85 * breath;
   const g1 = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr);
   const white = Math.min(1, live.coreWhite + live.successPulse * 0.6);
@@ -399,46 +402,161 @@ export function drawOrb2D(ctx: CanvasRenderingContext2D, w: number, h: number, l
   ctx.arc(cx, cy, unit * 0.1 * breath, 0, TAU);
   ctx.fill();
 
-  // speaking waves
-  if (live.speakWaves > 0.02) {
-    for (let i = 0; i < 3; i++) {
-      const f = (live.time * 0.5 + i / 3) % 1;
-      ctx.strokeStyle = css(sat(HOT), (1 - f) * live.speakWaves * (0.2 + 0.6 * live.audio) * E);
-      ctx.lineWidth = 1.5;
+  // core energy noise: a few drifting soft blobs inside the core
+  if (live.coreNoise > 0.02) {
+    ctx.fillStyle = css(sat(HOT), 0.09 * live.coreNoise * E);
+    for (let i = 0; i < 5; i++) {
+      const a = live.time * (0.4 + i * 0.13) + i * 1.9;
+      const rr = unit * (0.05 + 0.07 * ((i * 0.37) % 1));
       ctx.beginPath();
-      ctx.arc(cx, cy, unit * (0.25 + f * 1.45), 0, TAU);
+      ctx.arc(cx + Math.cos(a) * rr, cy + Math.sin(a * 1.2) * rr, unit * 0.075, 0, TAU);
+      ctx.fill();
+    }
+  }
+
+  // segmented ring: arcs pushed radially by the bands
+  {
+    const segs = 36;
+    const bands = [live.inLow + live.outLow, live.inMid + live.outMid, live.inHigh + live.outHigh];
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < segs; i++) {
+      const band = Math.min(1, bands[i % 3] as number);
+      const push = (band * 0.22 + live.segDrive * 0.05) * (1 - 0.85 * live.align);
+      const a0 = (i / segs) * TAU + (live.ringAngles[1] as number) * 0.6;
+      const a1 = a0 + (TAU / segs) * 0.9;
+      ctx.strokeStyle = css(sat(mixRgb(GOLD, HOT, band)), Math.min(1, 0.4 + band * 0.9) * E);
+      ctx.beginPath();
+      for (let k = 0; k <= 4; k++) {
+        const a = a0 + ((a1 - a0) * k) / 4;
+        const rr = (1.12 + push) * unit;
+        const x = cx + Math.cos(a) * rr;
+        const y = cy - Math.sin(a) * rr * 0.82;
+        if (k === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
       ctx.stroke();
     }
   }
 
-  // scan plane
-  if (live.scanPlane > 0.02) {
-    const y = Math.sin(live.time * 1.1) * 1.75;
-    const rr = Math.sqrt(Math.max(0.2, 2.05 * 2.05 - y * y));
-    ctx.strokeStyle = css([90, 240, 255], 0.7 * live.scanPlane * E);
-    ctx.lineWidth = 1.4;
+  // holographic shells: faint outlines with a rim
+  if (live.shells > 0.02) {
+    ctx.lineWidth = 1;
+    for (const [rad, k] of [[1.28, 1], [1.82, 0.8]] as const) {
+      ctx.strokeStyle = css(sat(mixRgb(ORANGE, GOLD, 0.6)), 0.2 * live.shells * k * E);
+      ctx.beginPath();
+      ctx.arc(cx, cy, unit * rad, 0, TAU);
+      ctx.stroke();
+    }
+  }
+
+  // voice reaction: input / output wave rings and radial pulse rings
+  const waveRing = (open: number, level: number, low: number, mid: number, high: number, input: boolean) => {
+    if (open < 0.02) return;
+    const amp = (0.03 + 0.21 * level) * (1 - 0.45 * live.calm);
+    const R0 = input ? 0.32 + (2.02 - 0.32) * open : 1.92 + 0.22 * level;
+    const col = sat(input ? mixRgb(HOT, CYAN, 0.2) : mixRgb(GOLD, HOT, 0.55));
+    ctx.lineWidth = 1.6 + level * 1.2;
+    ctx.strokeStyle = css(col, Math.min(1, (0.25 + 1.4 * level) * open) * E);
     ctx.beginPath();
-    ctx.ellipse(cx, cy - y * unit, rr * unit, rr * unit * 0.2, 0, 0, TAU);
+    const n = 120;
+    for (let i = 0; i <= n; i++) {
+      const th = (i / n) * TAU;
+      const wave = low * Math.sin(th * 3 + live.time * 1.4) + mid * 0.75 * Math.sin(th * 8 - live.time * 2.3 + 1.7) + high * 0.55 * Math.sin(th * 17 + live.time * 3.7 + 0.6);
+      const rr = (R0 + wave * amp) * unit;
+      const x = cx + Math.cos(th) * rr;
+      const y = cy - Math.sin(th) * rr;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  };
+  waveRing(live.waveIn * Math.min(1, 0.05 + live.gainIn), live.inRms, live.inLow, live.inMid, live.inHigh, true);
+  waveRing(live.waveOut * Math.min(1, 0.05 + live.gainOut), live.outRms, live.outLow, live.outMid, live.outHigh, false);
+  for (let i = 0; i < live.radialAge.length; i++) {
+    const age = live.radialAge[i] as number;
+    if (age < 0) continue;
+    const rr = 0.2 + (2.35 - 0.2) * (1 - (1 - age) * (1 - age));
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = css(sat(HOT), Math.pow(1 - age, 1.3) * (live.radialAmp[i] as number) * E);
+    ctx.beginPath();
+    ctx.arc(cx, cy, unit * rr, 0, TAU);
+    ctx.stroke();
+  }
+  if (live.focus * live.approval > 0.02) {
+    for (const off of [0, 0.5]) {
+      const ph = (live.time * 0.3 + off) % 1;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = css([255, 160, 14], Math.pow(1 - ph, 1.2) * live.focus * live.approval * (off === 0 ? 0.8 : 0.4) * E);
+      ctx.beginPath();
+      ctx.arc(cx, cy, unit * (0.5 + 1.8 * ph), 0, TAU);
+      ctx.stroke();
+    }
+  }
+  if (live.warnPulse * live.warning > 0.02) {
+    const ph = (live.time * 0.19 + 0.1) % 1;
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = css([255, 110, 14], Math.pow(1 - ph, 1.5) * live.warnPulse * live.warning * 0.6 * E);
+    ctx.beginPath();
+    ctx.arc(cx, cy, unit * (0.4 + 2.05 * ph), 0, TAU);
     ctx.stroke();
   }
 
-  // audio halo
-  if (live.haloLevel > 0.02) {
-    const n = 96;
-    const lvl = live.haloLevel * (0.25 + 0.95 * live.audio);
-    const col = sat(mixRgb(mixRgb(GOLD, HOT, 0.45 + 0.4 * lvl), CYAN, live.haloCyan));
-    ctx.lineWidth = 2;
-    for (let i = 0; i < n; i++) {
-      const bin = i / n;
-      const a = bin * TAU + (live.ringAngles[4] as number) * 0.4;
-      const spectrum = 0.35 + 0.65 * Math.abs(Math.sin(bin * 23 + hash(i) * 6) * Math.cos(bin * 7 - live.time * 0.35 * (1 - live.haloFreeze)));
-      const len = Math.max(0.05, 0.12 + lvl * (0.2 + 0.8 * spectrum) * 1.6) * 0.42;
-      const r0 = 2.8;
-      ctx.strokeStyle = css(col, Math.min(1, live.haloLevel * 1.25) * 0.85);
+  // radial scan wedge (transcribing), analysis sweep (thinking), sync sweep rings (syncing)
+  if (live.radialScan > 0.02) {
+    const head = -live.time * 1.5;
+    const g = ctx.createConicGradient(head, cx, cy);
+    g.addColorStop(0, css(mixRgb(GOLD, CYAN, 0.4), 0.55 * live.radialScan * E));
+    g.addColorStop(0.0001, css(mixRgb(GOLD, CYAN, 0.4), 0));
+    g.addColorStop(0.8, css(mixRgb(GOLD, CYAN, 0.4), 0));
+    g.addColorStop(1, css(mixRgb(GOLD, CYAN, 0.4), 0.3 * live.radialScan * E));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, unit * 2.0, 0, TAU);
+    ctx.fill();
+  }
+  if (live.analysisSweep > 0.02) {
+    for (let k = 0; k < 3; k++) {
+      const ph = (live.time * 0.27 + k / 3) % 1;
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = css(sat(mixRgb(GOLD, [160, 110, 255], 0.28)), Math.sin(Math.PI * ph) * 0.8 * live.analysisSweep * E);
+      ctx.setLineDash([unit * 0.5, unit * 0.2]);
+      ctx.lineDashOffset = -live.time * unit * 0.4 * (k + 1);
       ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(a) * r0 * unit, cy - Math.sin(a) * r0 * unit);
-      ctx.lineTo(cx + Math.cos(a) * (r0 + len) * unit, cy - Math.sin(a) * (r0 + len) * unit);
+      ctx.arc(cx, cy, unit * (1.95 + (0.34 - 1.95) * Math.pow(ph, 1.15)), 0, TAU);
       ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+  if (live.syncSweep > 0.02) {
+    for (const [rad, dir] of [[1.62, -0.9], [1.94, 0.7]] as const) {
+      const a = live.time * dir;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = css(sat(mixRgb(GOLD, CYAN, 0.3)), 0.8 * live.syncSweep * E);
+      ctx.beginPath();
+      ctx.arc(cx, cy, unit * rad, a - 1.1, a, dir < 0);
+      ctx.stroke();
+      ctx.strokeStyle = css(sat(GOLD), 0.2 * live.syncSweep * E);
+      ctx.beginPath();
+      ctx.arc(cx, cy, unit * rad, 0, TAU);
+      ctx.stroke();
+    }
+  }
+
+  // energy particles: pushed out by the audio force, streaming in while transcribing
+  {
+    const n = 48;
+    const force = live.particleForce * live.particleDrive;
+    for (let i = 0; i < n; i++) {
+      const r0 = hash(i * 3.1 + 1) * 1.6 + 0.9;
+      const ang = hash(i * 7.3 + 2) * TAU + live.time * 0.04 * (hash(i + 5) - 0.3);
+      const cyc = (live.time * (0.07 + 0.09 * hash(i + 9)) + hash(i + 11)) % 1;
+      let rr = r0 + force * (0.18 + 0.5 * hash(i + 3)) + live.peakKick * 0.3 * calmK;
+      rr = rr + (0.24 - rr) * live.particleInward * Math.pow(cyc, 1.6);
+      const act = Math.max(0.22, Math.max(force * 1.2, live.particleInward));
+      ctx.fillStyle = css(sat(hash(i + 13) > 0.82 ? HOT : GOLD), (0.3 + 0.7 * hash(i + 17)) * act * E);
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(ang) * rr * unit, cy - Math.sin(ang) * rr * unit, 1.1 + 1.4 * hash(i + 19), 0, TAU);
+      ctx.fill();
     }
   }
 
@@ -473,6 +591,29 @@ export function drawOrb2D(ctx: CanvasRenderingContext2D, w: number, h: number, l
     ctx.lineWidth = 1.8;
     ctx.strokeStyle = css([255, 176, 10], live.approval * pulse * E);
     for (let i = 0; i < 6; i++) strokeArc(ctx, p, 2.32, (i / 6) * TAU + 6 * DEG, ((i + 1) / 6) * TAU - 6 * DEG, 0.3, 0.4, 0);
+  }
+  if (live.approval > 0.02) {
+    // approval glyph: shield with an exclamation mark above the core
+    const gx = cx;
+    const gy = cy - unit * 0.72;
+    const gs = unit * 0.2;
+    const pulse = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(live.time * 1.25 - 0.8));
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = css([255, 178, 20], live.approval * pulse * E);
+    ctx.fillStyle = css([255, 178, 20], live.approval * pulse * E);
+    ctx.beginPath();
+    ctx.moveTo(gx, gy - gs * 0.92);
+    ctx.lineTo(gx + gs * 0.78, gy - gs * 0.58);
+    ctx.lineTo(gx + gs * 0.78, gy + gs * 0.12);
+    ctx.lineTo(gx, gy + gs * 0.95);
+    ctx.lineTo(gx - gs * 0.78, gy + gs * 0.12);
+    ctx.lineTo(gx - gs * 0.78, gy - gs * 0.58);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fillRect(gx - gs * 0.07, gy - gs * 0.5, gs * 0.14, gs * 0.62);
+    ctx.beginPath();
+    ctx.arc(gx, gy + gs * 0.4, gs * 0.085, 0, TAU);
+    ctx.fill();
   }
   if (live.warning > 0.02) {
     ctx.lineWidth = 1.6;

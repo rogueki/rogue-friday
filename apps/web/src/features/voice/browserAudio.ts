@@ -1,4 +1,7 @@
 "use client";
+import { createBrowserVoiceBridge } from "@/features/orb/bridge/browserVoiceBridge";
+import { loadOrbRuntime, orbAudioHandle, orbBridgeHandle } from "@/features/orb/orbHub";
+import { isStandaloneMock } from "@/lib/mock/runtime";
 import { BrowserAudioResampler } from "./browserAudioResampler";
 
 type AudioState = { available: boolean; active: boolean; paused: boolean; speaking: boolean; error: string | null };
@@ -17,6 +20,22 @@ let pending: number[] = [];
 let playbackSources = new Set<AudioBufferSourceNode>();
 let readiness: Promise<void> | null = null;
 let lastCheck = 0;
+let outputBus: GainNode | null = null;
+let micSource: MediaStreamAudioSourceNode | null = null;
+let passiveProbe: () => boolean = () => false;
+
+/** Orb taps: microphone/TTS analysers and lifecycle facts (docs/ORB_REWORK_ANALYSIS.md §8). Best effort, never blocks voice. */
+const orbVoice = createBrowserVoiceBridge({ bridge: orbBridgeHandle.proxy, audio: orbAudioHandle.proxy, loadRuntime: loadOrbRuntime });
+
+/** The orb stays idle while the wake word is armed and nothing was said; the realtime layer supplies that fact. */
+export function setBrowserAudioPassiveProbe(probe: () => boolean): void {
+  passiveProbe = probe;
+}
+
+/** Milliseconds of already scheduled TTS audio that still has to play. */
+function remainingPlaybackMs(): number {
+  return context ? Math.max(0, (nextPlayback - context.currentTime) * 1000) : 0;
+}
 
 function publish(update: Partial<AudioState>): void {
   state = { ...state, ...update };
@@ -27,6 +46,7 @@ export const browserAudio = {
   subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
   snapshot() { return state; },
   async check() {
+    if (isStandaloneMock()) return; // the in-browser mock has no Control API (and no gateway) behind the availability route
     if (readiness) return readiness;
     if (Date.now() - lastCheck < 10_000) return;
     readiness = (async () => {
@@ -49,6 +69,13 @@ export const browserAudio = {
     try {
       const audio = new AudioContext();
       context = audio;
+      // The microphone is open as soon as the stream exists: tell the orb now instead of after the worklet and socket setup.
+      const source = audio.createMediaStreamSource(media);
+      micSource = source;
+      outputBus = audio.createGain();
+      outputBus.connect(audio.destination);
+      orbVoice.attachOutput(audio, outputBus);
+      orbVoice.microphoneOpened(audio, source, { passive: passiveProbe() });
       await audio.resume();
       await audio.audioWorklet.addModule("/browser-audio-worklet.js");
       const protocol = location.protocol === "https:" ? "wss:" : "ws:";
@@ -60,7 +87,6 @@ export const browserAudio = {
         ws.onerror = () => reject(new Error("Der Browser-Sprachdienst ist nicht erreichbar."));
         ws.onclose = () => reject(new Error("Der Browser-Sprachdienst hat die Verbindung beendet."));
       });
-      const source = audio.createMediaStreamSource(media);
       const node = new AudioWorkletNode(audio, "friday-capture");
       capture = node;
       const silent = audio.createGain();
@@ -85,11 +111,16 @@ export const browserAudio = {
         else if (typeof event.data === "string") {
           try {
             const message = JSON.parse(event.data) as { type?: string; frequency?: number; durationMs?: number; state?: string };
-            if (message.type === "clear") { clearPlayback(); publish({ speaking: false }); }
+            if (message.type === "clear") { clearPlayback(); orbVoice.ttsInterrupted(); publish({ speaking: false }); }
             if (message.type === "beep") playBeep(message.frequency ?? 650, message.durationMs ?? 90);
-            if (message.type === "audio_start") { nextPlayback = Math.max(audio.currentTime, nextPlayback); publish({ speaking: true }); }
-            if (message.type === "audio_end") publish({ speaking: false });
-            if (message.type === "status") publish({ paused: message.state === "paused", speaking: message.state === "speaking" });
+            if (message.type === "audio_start") { nextPlayback = Math.max(audio.currentTime, nextPlayback); orbVoice.ttsStarted(); publish({ speaking: true }); }
+            if (message.type === "audio_end") { orbVoice.ttsFinished(remainingPlaybackMs()); publish({ speaking: false }); }
+            if (message.type === "status") {
+              if (message.state === "speaking") orbVoice.ttsStarted();
+              else if (orbVoice.speaking) orbVoice.ttsFinished(remainingPlaybackMs());
+              if (message.state === "paused") orbVoice.microphoneClosed();
+              publish({ paused: message.state === "paused", speaking: message.state === "speaking" });
+            }
           } catch { /* Invalid service message cannot change capture state. */ }
         }
       };
@@ -114,13 +145,27 @@ export const browserAudio = {
     stream?.getTracks().forEach((track) => track.stop());
     stream = null;
     clearPlayback();
+    orbVoice.dispose(); // barge-in: speaking and microphone facts end before the context is released
+    orbVoice.microphoneClosed();
+    outputBus = null;
+    micSource = null;
     void context?.close();
     context = null;
     pending = [];
     publish({ active: false, paused: false, speaking: false });
   },
-  pause() { if (socket?.readyState === WebSocket.OPEN) socket.send('{"type":"pause"}'); clearPlayback(); publish({ paused: true, speaking: false }); },
-  resume() { if (socket?.readyState === WebSocket.OPEN) socket.send('{"type":"resume"}'); publish({ paused: false }); },
+  pause() {
+    if (socket?.readyState === WebSocket.OPEN) socket.send('{"type":"pause"}');
+    clearPlayback();
+    orbVoice.ttsInterrupted();
+    orbVoice.microphoneClosed();
+    publish({ paused: true, speaking: false });
+  },
+  resume() {
+    if (socket?.readyState === WebSocket.OPEN) socket.send('{"type":"resume"}');
+    if (context && micSource) orbVoice.microphoneOpened(context, micSource, { passive: passiveProbe() });
+    publish({ paused: false });
+  },
 };
 
 function clearPlayback(): void {
@@ -137,7 +182,7 @@ function playPcm(pcm: ArrayBuffer): void {
   for (let i = 0; i < FRAME_SAMPLES; i++) channel[i] = view.getInt16(i * 2, true) / 32768;
   const source = context.createBufferSource();
   source.buffer = buffer;
-  source.connect(context.destination);
+  source.connect(outputBus ?? context.destination);
   source.onended = () => playbackSources.delete(source);
   playbackSources.add(source);
   nextPlayback = Math.max(context.currentTime + 0.02, nextPlayback);

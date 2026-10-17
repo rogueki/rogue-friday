@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OrbSnapshot, OrbStatus } from "./contract-types";
+import { createOrbController } from "./controller/createOrbController";
 import { FridayOrb } from "./FridayOrb";
 
 const status = (extra: Partial<OrbStatus> = {}): OrbStatus => ({ mode: "idle", since: "2026-06-15T10:00:00Z", ...extra });
@@ -104,5 +105,48 @@ describe("<FridayOrb> audio input", () => {
     await vi.waitFor(() => expect(reader.mock.calls.length).toBeGreaterThan(before + 1), { timeout: 2000 });
     expect(reader.mock.results.at(-1)?.value).toBe(0.8);
     vi.unstubAllGlobals();
+  });
+});
+
+describe("<FridayOrb controller> (2D fallback path)", () => {
+  it("renders the controller's mode, activity and parallel agents without a snapshot", async () => {
+    const controller = createOrbController({ seed: 1 });
+    render(<FridayOrb controller={controller} settings={{ renderer: "2d" }} />);
+    expect(await screen.findByTestId("orb-state-label")).toHaveTextContent("BEREIT");
+    act(() => {
+      controller.bridge.onAgentActivity(3, ["A", "B", "C"]);
+      controller.bridge.onTtsStarted({ hasAudioAnalysis: false });
+    });
+    expect(screen.getByTestId("orb-state-label")).toHaveTextContent("F.R.I.D.A.Y. SPRICHT");
+    expect(screen.getByTestId("orb-activity")).toHaveTextContent("3 AGENTEN AKTIV");
+    act(() => controller.bridge.onApprovalRequired("appr_77"));
+    expect(screen.getByTestId("orb-state-label")).toHaveTextContent("FREIGABE ERFORDERLICH");
+    expect(document.querySelector("[data-orb-mode]")?.getAttribute("data-orb-mode")).toBe("waiting_approval");
+  });
+
+  it("clicking the orb activates the concrete approval of the controller", async () => {
+    const controller = createOrbController({ seed: 1 });
+    const onActivate = vi.fn();
+    render(<FridayOrb controller={controller} settings={{ renderer: "2d" }} onActivate={onActivate} />);
+    act(() => controller.bridge.onApprovalRequired("appr_77"));
+    fireEvent.click(screen.getByRole("button"));
+    expect(onActivate).toHaveBeenCalledWith({ kind: "approval", approvalId: "appr_77" });
+  });
+
+  it("unsubscribes from the controller on unmount", () => {
+    const controller = createOrbController({ seed: 1 });
+    const { unmount } = render(<FridayOrb controller={controller} settings={{ renderer: "2d" }} />);
+    unmount();
+    expect(() => act(() => controller.bridge.onWarning("x"))).not.toThrow();
+  });
+
+  it("host layout follows the order: grid, centred, padded, canvas wrapper without negative offsets", async () => {
+    const controller = createOrbController({ seed: 1 });
+    render(<FridayOrb controller={controller} settings={{ renderer: "2d" }} />);
+    const css = document.querySelector("style")?.textContent ?? "";
+    expect(css).toMatch(/\.friday-orb\{[^}]*display:grid[^}]*place-items:center[^}]*overflow:hidden[^}]*padding:clamp\(24px,4vh,52px\)/);
+    expect(css).toMatch(/\.friday-orb__canvas\{[^}]*position:absolute;inset:0;display:grid;place-items:center;pointer-events:none/);
+    expect(css).not.toMatch(/top:46%/);
+    expect(css).not.toMatch(/translate\(-50%,-50%\)/);
   });
 });

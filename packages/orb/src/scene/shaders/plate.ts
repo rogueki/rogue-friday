@@ -27,15 +27,21 @@ void main() {
   float h2 = hash11(seed * 7.77 + 3.0);
   vec3 radial = normalize(iCenter);
   vec3 d = radial * (uRadialOffset * (0.4 + h1 * 1.4) * step(0.45, h2) + sin(uTime * (0.3 + h2 * 0.7) + seed * 30.0) * 0.022 * uShellActivity);
-  vec3 pos = iCenter + d + iU * position.x * iSize.x + iV * position.y * iSize.y;
+  // Individual floating: own phase, a small radial and tangential drift and a minimal rotation inside the plate plane.
+  float fl = sin(uTime * (0.11 + h2 * 0.16) + seed * 37.0);
+  vec3 drift = radial * fl * 0.035 * (0.5 + h1) + iU * sin(uTime * (0.07 + h1 * 0.09) + seed * 13.0) * 0.02;
+  float rot = 0.12 * sin(uTime * (0.05 + h2 * 0.08) + seed * 29.0);
+  vec2 q = vec2(cos(rot) * position.x - sin(rot) * position.y, sin(rot) * position.x + cos(rot) * position.y);
+  vec3 pos = iCenter + d + drift + iU * q.x * iSize.x + iV * q.y * iSize.y;
   vec4 mv = modelViewMatrix * vec4(pos, 1.0);
   float centerZ = modelViewMatrix[3].z;
   mv.z = mix(mv.z, centerZ, uAlign * 0.32);
   gl_Position = projectionMatrix * mv;
+  float edge = edgeFadeNdc(gl_Position.xy / gl_Position.w);
   vUv = position.xy + 0.5;
   vSize = iSize;
   vMeta = iMeta;
-  vFade = depthFade(mv.z, centerZ);
+  vFade = depthFade(mv.z, centerZ) * edge;
   vAperture = aperture(mv.xy - modelViewMatrix[3].xy);
   vReveal = revealVisibility(length(iCenter), uRevealStart);
 }

@@ -10,7 +10,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const server = await createServer({ configFile: path.resolve(here, "..", "demo", "vite.config.ts"), logLevel: "error" });
 await server.listen();
 const base = `http://127.0.0.1:${server.config.server.port}`;
-const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
+const browser = await chromium.launch({
+  ...(process.env.ORB_CHROMIUM ? { executablePath: process.env.ORB_CHROMIUM } : {}),
+  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", ...(process.env.ORB_CHROMIUM ? ["--no-sandbox"] : [])],
+});
 const results = [];
 const check = (name, ok, detail = "") => {
   results.push(ok);
@@ -23,6 +26,14 @@ try {
   await page.waitForFunction(() => (window.__ORB_DEBUG__?.frames ?? 0) >= 10, undefined, { timeout: 120_000 });
   const renderer = () => page.evaluate(() => document.querySelector("[data-orb-root]").getAttribute("data-orb-renderer"));
   check("starts in 3d", (await renderer()) === "3d");
+
+  // layout: the visible orb is centred exactly in the canvas and covers 65-78 % of its short side
+  const fit = await page.evaluate(() => ({ b: window.__ORB_DEBUG__.bboxPx, c: window.__ORB_DEBUG__.canvasPx }));
+  const cx = fit.b.x + fit.b.w / 2;
+  const cy = fit.b.y + fit.b.h / 2;
+  check("orb centre equals canvas centre (+-1 px)", Math.abs(cx - fit.c.w / 2) <= 1 && Math.abs(cy - fit.c.h / 2) <= 1, JSON.stringify(fit));
+  const fill = fit.b.h / Math.min(fit.c.w, fit.c.h);
+  check("visible orb covers 65-78 % of the panel height", fill >= 0.65 && fill <= 0.78, `fill ${fill.toFixed(3)}`);
 
   // hidden tab pauses the loop
   await page.evaluate(() => {

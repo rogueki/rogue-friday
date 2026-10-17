@@ -3,6 +3,7 @@
 import type { OrbMode, ScenarioControlRequest, ScenarioState } from "@friday/sdk";
 import { Button, EmptyState, HudPanel, Select, Skeleton, Slider, StatusChip, Switch, TagPill, TextField } from "@friday/ui";
 import { Clock, FlaskConical, Play, Plug, RotateCcw, ShieldCheck, Sparkles, Unlock, Zap } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NumberField } from "@/features/settings/controls";
@@ -18,6 +19,10 @@ import { EVENT_MODES, EVENT_SEQUENCES, SPEEDS, TIME_UNITS, forceOrbRequest, step
 import "./dev-scenarios.css";
 
 const ICON = { size: 16, strokeWidth: 1.5 } as const;
+
+// The orb lab drives the controller directly and is development-only: the condition is a build-time constant, so a
+// production build contains neither the panel nor its chunk (checked by tests/e2e/orb-debug-build.spec.ts).
+const OrbDebugPanel = process.env.NODE_ENV !== "production" ? dynamic(() => import("@/features/orb/debug/OrbDebugPanel"), { ssr: false }) : null;
 const modeLabel = (t: (key: MessageKey) => string, mode: string): string => t(`settings.orb.mode.${mode}` as MessageKey);
 
 function NotFoundView() {
@@ -310,6 +315,7 @@ function ScenarioConsole() {
         </div>
 
         <div className="ds-col">
+          {OrbDebugPanel ? <OrbDebugPanel /> : null}
           <HudPanel title={t("devScenarios.orb.title")} subtitle={t("devScenarios.orb.subtitle")} icon={<Zap {...ICON} />} tone="gold" level={2} live className="ds-panel">
             <div className="ds-orbstatus" role="status" aria-live="polite" aria-label={t("devScenarios.orb.live")}>
               <span className="jv-field__label">{t("devScenarios.orb.live")}</span>

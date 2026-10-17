@@ -1,4 +1,4 @@
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import type { Group, Mesh } from "three";
 import { pointsGeometry } from "../geometry/buffers";
@@ -6,7 +6,7 @@ import {
   buildAgentMarkers,
   buildDust,
   buildEnergyArcs,
-  buildHaloBars,
+  buildEnergyParticles,
   buildPackets,
   buildParticles,
   buildScanRing,
@@ -17,13 +17,22 @@ import { useOrb } from "../OrbContext";
 import { registerStat } from "../stats";
 import { SEED } from "./circuit";
 
-/** Fine twinkling particles in a halo shell around the orb (count = quality x particleDensity). */
-export function MicroParticleHalo() {
+/** AmbientParticles: fine twinkling particles in a halo shell; slow individual drift, some brighter, some dimmer. */
+export function AmbientParticles() {
   const { shared, profile } = useOrb();
   const geometry = useGeometry(() => pointsGeometry(buildParticles(profile.particles, SEED + 101)), [profile.particles]);
   useEffect(() => registerStat("points", profile.particles), [profile.particles]);
   const material = useMaterial(() => makePointsMaterial("PARTICLES", shared, { base: 0.75 }), [shared]);
-  return <points geometry={geometry} material={material} frustumCulled={false} renderOrder={1} />;
+  return <points name="AmbientParticles" geometry={geometry} material={material} frustumCulled={false} renderOrder={1} />;
+}
+
+/** EnergyParticles: pushed outwards by the audio force and peaks (listening/speaking), streaming to the core (transcribing). */
+export function EnergyParticles() {
+  const { shared, profile } = useOrb();
+  const geometry = useGeometry(() => pointsGeometry(buildEnergyParticles(profile.energyParticles, SEED + 151)), [profile.energyParticles]);
+  useEffect(() => registerStat("points", profile.energyParticles), [profile.energyParticles]);
+  const material = useMaterial(() => makePointsMaterial("ENERGY", shared, { base: 0.9, size: 1 }), [shared]);
+  return <points name="EnergyParticles" geometry={geometry} material={material} frustumCulled={false} renderOrder={3} />;
 }
 
 /** Larger, fainter dust in a wide volume; the slight parallax against the orb sells depth. */
@@ -32,10 +41,10 @@ export function DepthDust() {
   const geometry = useGeometry(() => pointsGeometry(buildDust(profile.dust, SEED + 111)), [profile.dust]);
   useEffect(() => registerStat("points", profile.dust), [profile.dust]);
   const material = useMaterial(() => makePointsMaterial("DUST", shared, { base: 0.55, size: 1.1 }), [shared]);
-  return <points geometry={geometry} material={material} frustumCulled={false} renderOrder={0} />;
+  return <points name="DepthDust" geometry={geometry} material={material} frustumCulled={false} renderOrder={0} />;
 }
 
-/** Bright packets (with fading tails) travelling on orbital lanes; rate follows the state. */
+/** DataPackets: bright packets (with fading tails) travelling on orbital lanes; rate follows the state. */
 export function DataPackets() {
   const { live, shared, profile } = useOrb();
   const packets = useMemo(() => buildPackets(profile.packets, SEED + 121), [profile.packets]);
@@ -44,10 +53,10 @@ export function DataPackets() {
   useFrame(() => {
     material.uniforms.uPacketRate!.value = live.current.packetRate;
   });
-  return <points geometry={packets.geometry} material={material} frustumCulled={false} renderOrder={4} />;
+  return <points name="DataPackets" geometry={packets.geometry} material={material} frustumCulled={false} renderOrder={4} />;
 }
 
-/** 4-8 curved arcs core -> shell; pulses run outwards, or inwards while thinking. */
+/** InnerDataArcs: 4-8 curved arcs core -> shell; pulses run outwards, or inwards while thinking. */
 export function EnergyArcs() {
   const { live, profile } = useOrb();
   const group = useRef<Group>(null);
@@ -59,13 +68,13 @@ export function EnergyArcs() {
     if (group.current) group.current.rotation.y = l.midAngle * 0.6;
   });
   return (
-    <group ref={group}>
+    <group ref={group} name="InnerDataArcs">
       <mesh geometry={arcs.geometry} material={arcs.material} frustumCulled={false} renderOrder={3} />
     </group>
   );
 }
 
-/** Thin cyan-gold ring sweeping vertically through the orb while transcribing. */
+/** HorizontalScan: thin cyan-gold ring sweeping vertically through the orb while transcribing. */
 export function ScanPlane() {
   const { live, fixedClock, shared } = useOrb();
   const lead = useRef<Mesh>(null);
@@ -85,48 +94,25 @@ export function ScanPlane() {
     if (lead.current) {
       lead.current.position.y = y;
       lead.current.scale.set(r, 1, r);
+      lead.current.visible = l.scanPlane > 0.01;
     }
     if (trail.current) {
       const ty = y - Math.cos(phase * 1.1) * 0.16;
       trail.current.position.y = ty;
       const tr = Math.sqrt(Math.max(0.2, 2.05 * 2.05 - ty * ty));
       trail.current.scale.set(tr, 1, tr);
+      trail.current.visible = l.scanPlane > 0.01;
     }
   });
   return (
     <>
-      <mesh ref={lead} geometry={ring.geometry} material={ring.material} frustumCulled={false} renderOrder={3} />
+      <mesh ref={lead} name="HorizontalScan" geometry={ring.geometry} material={ring.material} frustumCulled={false} renderOrder={3} />
       <mesh ref={trail} geometry={ring.geometry} material={trailMat} frustumCulled={false} renderOrder={3} />
     </>
   );
 }
 
-/** 96-160 radial bars at r ~2.8; cyan while listening, gold/white while speaking; smoothed level. */
-export function AudioReactiveHalo() {
-  const { live, profile } = useOrb();
-  const camera = useThree((s) => s.camera);
-  const group = useRef<Group>(null);
-  const bars = useLineLayer(() => buildHaloBars(profile.haloBars), "BARS", { width: 1.1, base: 0.5, revealStart: 0.7 }, [profile.haloBars]);
-  useFrame(() => {
-    const l = live.current;
-    const u = bars.material.uniforms;
-    u.uLevel!.value = l.haloLevel * (0.25 + 0.95 * l.audio);
-    u.uHaloCyan!.value = l.haloCyan;
-    u.uHaloFreeze!.value = l.haloFreeze;
-    u.uOpacity!.value = Math.min(1, l.haloLevel * 1.1);
-    if (group.current) {
-      group.current.quaternion.copy(camera.quaternion);
-      group.current.rotateZ(l.ringAngles[4] * 0.4);
-    }
-  });
-  return (
-    <group ref={group}>
-      <mesh geometry={bars.geometry} material={bars.material} frustumCulled={false} renderOrder={3} />
-    </group>
-  );
-}
-
-/** Small diamonds orbiting at r ~2.3; count = active agents (capped by quality), fade in/out smoothly. */
+/** AgentMarkers: small diamonds orbiting at r ~2.3; count = active agents (capped by quality), fade in/out smoothly. */
 export function AgentMarkers() {
   const { live, shared, profile } = useOrb();
   const markers = useMemo(() => buildAgentMarkers(profile.agentMarkersMax), [profile.agentMarkersMax]);
@@ -135,5 +121,5 @@ export function AgentMarkers() {
   useFrame(() => {
     material.uniforms.uAgents!.value = Math.min(profile.agentMarkersMax, live.current.agentCount);
   });
-  return <points geometry={markers.geometry} material={material} frustumCulled={false} renderOrder={5} />;
+  return <points name="AgentMarkers" geometry={markers.geometry} material={material} frustumCulled={false} renderOrder={5} />;
 }

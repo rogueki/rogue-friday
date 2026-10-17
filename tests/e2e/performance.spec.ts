@@ -198,36 +198,66 @@ test.describe("GPU quality scaling", () => {
 });
 
 /**
- * Orb soak (PLAN §51.6 "30 Minuten Orb ohne Memory Leak"): the orb runs on the overview while the orb mode changes every
- * few seconds (state transitions are where per-state resources could leak). The JS heap is sampled after a forced GC.
+ * Orb soak (PLAN §51.6 "30 Minuten Orb ohne Memory Leak", owner order 22.10): the orb runs on the overview while the orb mode
+ * changes every few seconds (state transitions are where per-state resources could leak) and the local voice path (microphone
+ * facts, simulated speech envelope, service levels) is exercised through the event bridge on every round. The JS heap is
+ * sampled after a forced GC; the render probe provides draw calls, geometries and textures. Console errors fail the run
+ * (acceptance 22.10 "keine Console Errors").
  * Default run: 2 minutes. `E2E_SOAK=1`: 30 minutes. The budget compares the second half of the run with the first
  * stable sample, so one-off warm-up allocations do not count as growth.
  */
 const SOAK_MINUTES = process.env.E2E_SOAK === "1" ? 30 : 2;
 const MODES = ["working", "listening", "thinking", "speaking", "waiting_approval", "success", "warning", "idle"] as const;
+const DRAW_CALL_BUDGET = 70;
 
-test(`orb soak: ${SOAK_MINUTES} min of state changes keep JS heap and DOM bounded`, async ({ page, api }) => {
+test(`orb soak: ${SOAK_MINUTES} min of state changes keep JS heap, DOM, draw calls and GPU resources bounded, no console errors`, async ({ page, api }) => {
   test.setTimeout((SOAK_MINUTES + 4) * 60_000);
+  const consoleErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
   await open(page, "/");
   await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
+  await page.waitForFunction(() => Boolean((window as unknown as { __FRIDAY_ORB__?: unknown }).__FRIDAY_ORB__));
   const cdp = await page.context().newCDPSession(page);
-  const samples: Array<{ t: number; heap: number; nodes: number }> = [];
+  const samples: Array<{ t: number; heap: number; nodes: number; draws: number; geometries: number; textures: number }> = [];
   const started = Date.now();
   const warmup = 20_000;
   let next = 0;
   let i = 0;
+  const sample = async (): Promise<void> => {
+    const p = await probe(page);
+    samples.push({ t: Date.now() - started, heap: await heapUsed(cdp), nodes: await domNodes(page), draws: p?.draws ?? 0, geometries: (p as unknown as { geometries?: number })?.geometries ?? 0, textures: (p as unknown as { textures?: number })?.textures ?? 0 });
+  };
   while (Date.now() - started < SOAK_MINUTES * 60_000) {
     await api.forceOrb(MODES[i % MODES.length]!, { audioLevel: (i % 5) / 5 });
+    // local voice facts: microphone open/close, speech envelope start/stop, service levels
+    await page.evaluate((round) => {
+      const hook = (window as unknown as { __FRIDAY_ORB__: { bridge: Record<string, (...a: unknown[]) => void>; sources: Record<string, (...a: unknown[]) => void> } }).__FRIDAY_ORB__;
+      hook.bridge.onMicrophoneOpened!({ source: "browser", passive: false });
+      hook.sources.pushServiceInput!({ level: (round % 7) / 7, low: 0.3, mid: 0.2, high: 0.1 });
+      hook.bridge.onTtsStarted!({ engine: "soak", hasAudioAnalysis: false });
+      hook.sources.beginSpeech!({ hasAudioAnalysis: false });
+      hook.sources.pushServiceOutput!({ level: (round % 5) / 5 });
+    }, i);
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => {
+      const hook = (window as unknown as { __FRIDAY_ORB__: { bridge: Record<string, (...a: unknown[]) => void>; sources: Record<string, (...a: unknown[]) => void> } }).__FRIDAY_ORB__;
+      hook.sources.endSpeech!(true);
+      hook.bridge.onTtsEnded!({ interrupted: true });
+      hook.bridge.onMicrophoneClosed!();
+    });
     i += 1;
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(1500);
     if (Date.now() - started >= next) {
-      samples.push({ t: Date.now() - started, heap: await heapUsed(cdp), nodes: await domNodes(page) });
+      await sample();
       next += SOAK_MINUTES === 30 ? 60_000 : 10_000;
     }
   }
-  samples.push({ t: Date.now() - started, heap: await heapUsed(cdp), nodes: await domNodes(page) });
+  await sample();
   const mb = (bytes: number): number => Math.round((bytes / 1024 / 1024) * 10) / 10;
   note(`soak ${SOAK_MINUTES} min heap MB: ${samples.map((s) => mb(s.heap)).join(" ")}; DOM nodes: ${samples.map((s) => s.nodes).join(" ")}`);
+  note(`draw calls: ${samples.map((s) => s.draws).join(" ")}; geometries: ${samples.map((s) => s.geometries).join(" ")}; textures: ${samples.map((s) => s.textures).join(" ")}`);
 
   const baseline = samples.find((sample) => sample.t >= warmup) ?? samples[0]!;
   const last = samples.at(-1)!;
@@ -237,4 +267,10 @@ test(`orb soak: ${SOAK_MINUTES} min of state changes keep JS heap and DOM bounde
   expect(growthMb, "JS heap growth after warm-up").toBeLessThan(SOAK_MINUTES === 30 ? 60 : 20);
   expect(slopeMbPerMin, "no sustained growth rate").toBeLessThan(1.5);
   expect(last.nodes - baseline.nodes, "DOM node count stays flat").toBeLessThan(200);
+  const settled = samples.filter((s) => s.t >= warmup);
+  expect(Math.max(...settled.map((s) => s.draws)), `draw calls stay within the budget of ${DRAW_CALL_BUDGET}`).toBeLessThanOrEqual(DRAW_CALL_BUDGET);
+  expect(last.draws, "draw calls do not climb over the run").toBeLessThanOrEqual(Math.max(...settled.slice(0, Math.ceil(settled.length / 2)).map((s) => s.draws)) + 5);
+  expect(last.geometries, "no geometry is leaked").toBeLessThanOrEqual(baseline.geometries);
+  expect(last.textures, "no texture is leaked").toBeLessThanOrEqual(baseline.textures);
+  expect(consoleErrors, "no console errors during the soak").toEqual([]);
 });

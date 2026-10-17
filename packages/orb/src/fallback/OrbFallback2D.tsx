@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef } from "react";
 import type { OrbLayers, OrbStatus } from "../contract-types";
 import { layersFromStatus } from "../machine/orbMachine";
 import { resolveAudioLevel, type OrbAudioSourceRef } from "../audio/audioSource";
+import { createInputs } from "../audio/frame";
+import type { OrbFrameInputs } from "../controller/types";
 import { audioFixtureLevel } from "../audio/fixtures";
 import { createLiveParams, stepLiveParams, type LiveParams } from "../scene/liveParams";
 import { resolveSettings, type OrbSettings } from "../settings";
@@ -19,6 +21,16 @@ export interface OrbFallback2DProps {
   active?: boolean;
   /** Live audio level reader polled inside the animation loop (no React updates). */
   audioSourceRef?: OrbAudioSourceRef;
+  /**
+   * Derived visual targets of the parent (`FridayOrb` shares its targets with the fallback, so parallel controller layers
+   * render identically). When given, `status`/`layers` are only used for the accessible name.
+   */
+  targetsRef?: { readonly current: VisualTargets };
+  /** Controller frame reader (analysed audio frames), polled in the animation loop. */
+  readFrames?: (nowMs: number, inputs: OrbFrameInputs) => void;
+  /** Fraction of the short side covered by the nominal visible orb (default 0.72). */
+  fillRatio?: number;
+  seed?: number;
 }
 
 let sharedData: Fallback2DData | null = null;
@@ -29,17 +41,20 @@ const getData = (): Fallback2DData => (sharedData ??= createFallbackData());
  * orthographically. Shares the live-parameter damping with the WebGL scene, so state changes cross-fade identically.
  * With `animations: "off"` it draws a single static frame per state change.
  */
-export function OrbFallback2D({ status, layers, settings, className, reducedMotion, active = true, audioSourceRef }: OrbFallback2DProps) {
+export function OrbFallback2D({ status, layers, settings, className, reducedMotion, active = true, audioSourceRef, targetsRef: externalTargets, readFrames, fillRatio = 0.72, seed }: OrbFallback2DProps) {
   const resolved = useMemo(() => resolveSettings(settings), [settings]);
   const effectiveLayers = useMemo(() => layers ?? layersFromStatus(status), [layers, status]);
   const targets = useMemo<VisualTargets>(
     () => deriveVisualTargets({ layers: effectiveLayers, status, settings: resolved, reducedMotion }),
     [effectiveLayers, status, resolved, reducedMotion],
   );
-  const targetsRef = useRef(targets);
+  const ownTargets = useRef(targets);
   useEffect(() => {
-    targetsRef.current = targets;
+    ownTargets.current = targets;
   }, [targets]);
+  const targetsRef = externalTargets ?? ownTargets;
+  const inputsRef = useRef<OrbFrameInputs>(null as unknown as OrbFrameInputs);
+  inputsRef.current ??= createInputs();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const liveRef = useRef<LiveParams | null>(null);
   const settingsRef = useRef(resolved);
@@ -87,9 +102,15 @@ export function OrbFallback2D({ status, layers, settings, className, reducedMoti
         clock += dt;
         time = clock;
       }
-      const raw = t.audioGain > 0 ? (s.audioFixture ? audioFixtureLevel(s.audioFixture, time) : resolveAudioLevel(audioSourceRef, t.audioLevel)) : 0;
-      stepLiveParams(live, t, { dt, time, audioRaw: raw, fixed: useFixed ? { animationProgress: s.testClock?.animationProgress } : undefined });
-      drawOrb2D(ctx, cssW, cssH, live, data, { size: s.size });
+      const fixedOpt = useFixed ? { animationProgress: s.testClock?.animationProgress } : undefined;
+      if (readFrames && !s.audioFixture) {
+        readFrames(now, inputsRef.current);
+        stepLiveParams(live, t, { dt, time, audioIn: inputsRef.current.input, audioOut: inputsRef.current.output, fixed: fixedOpt, seed });
+      } else {
+        const raw = t.audioGain > 0 ? (s.audioFixture ? audioFixtureLevel(s.audioFixture, time) : resolveAudioLevel(audioSourceRef, t.audioLevel)) : 0;
+        stepLiveParams(live, t, { dt, time, audioRaw: raw, fixed: fixedOpt, seed });
+      }
+      drawOrb2D(ctx, cssW, cssH, live, data, { size: s.size, fill: fillRatio });
       if (!single && !useFixed && active) raf = window.setTimeout(() => frame(performance.now(), false), 33);
     };
 
@@ -109,7 +130,7 @@ export function OrbFallback2D({ status, layers, settings, className, reducedMoti
       ro.disconnect();
       window.clearTimeout(raf);
     };
-  }, [active, useFixed, fixedTime, audioSourceRef]);
+  }, [active, useFixed, fixedTime, audioSourceRef, targetsRef, readFrames, fillRatio, seed]);
 
   useEffect(() => {
     if (useFixed) redrawRef.current?.();

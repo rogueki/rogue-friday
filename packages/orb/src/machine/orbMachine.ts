@@ -95,7 +95,8 @@ export function normalizeProgress(p: number | null | undefined): number | null {
 }
 
 /**
- * Primary mode by PLAN §18.3. Layers are never dropped, only ranked.
+ * Primary mode by owner order section 7 (critical error > offline > waiting approval > listening > speaking >
+ * transcribing > thinking > working > syncing > idle). Layers are never dropped, only ranked.
  * Deviations (documented in ORB_SPECIFICATION): booting outranks everything; `paused` outranks the activity
  * tiers 3-5 because pausing is an explicit operator override; `warning` sits just above idle so it never hides
  * listening/working labels (the warning overlay stays visible through the layers).
@@ -103,8 +104,8 @@ export function normalizeProgress(p: number | null | undefined): number | null {
 export function arbitrateOrbState(context: { layers: OrbInternalLayers; flashSuccess?: boolean }): OrbMode {
   const { layers, flashSuccess } = context;
   if (layers.connectivity === "booting") return "booting";
-  if (layers.connectivity === "offline") return "offline";
   if (layers.attention === "error") return "error";
+  if (layers.connectivity === "offline") return "offline";
   if (layers.attention === "approval") return "waiting_approval";
   if (layers.connectivity === "paused") return "paused";
   if (flashSuccess) return "success";

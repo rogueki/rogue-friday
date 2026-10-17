@@ -4,6 +4,7 @@ import type { ActivityEvent } from "@friday/sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, type ReactNode } from "react";
 import { pushAudioLevel, resetAudioLevels } from "@/features/orb/audioStore";
+import { createRealtimeOrbRouter } from "@/features/orb/bridge/realtimeOrb";
 import { fetchActivitySince } from "../api/domains/activity";
 import { useMeta } from "../api/domains/core";
 import { SNAPSHOT_ROOT_KEYS } from "../api/queryKeys";
@@ -35,18 +36,23 @@ export function RealtimeProvider({ enabled, children }: { enabled: boolean; chil
       for (const key of SNAPSHOT_ROOT_KEYS) void queryClient.invalidateQueries({ queryKey: key, refetchType: "active" });
     };
 
+    // Routes events to the orb controller (after the cache update, so cache-backed facts such as working agents are current).
+    const orbRouter = createRealtimeOrbRouter(queryClient);
+
     const client = new RealtimeClient({
       getUrl: (since) => buildEventsUrl({ eventsPath, eventsOrigin }, since),
       transportFactory: mockFactory ?? webSocketTransportFactory,
       callbacks: {
         onEvent: (event) => {
-          if (event.type === "friday.voice.audio_level") {
-            pushAudioLevel(event.data.direction, event.data.level);
-            return;
+          try {
+            if (event.type === "friday.voice.audio_level") pushAudioLevel(event.data.direction, event.data.level);
+            else applyEvent(queryClient, event);
+          } finally {
+            orbRouter.route(event);
           }
-          applyEvent(queryClient, event);
         },
         onGap: ({ lastApplied }) => {
+          orbRouter.resync();
           // Missed events: refetch the snapshots (covers every domain) and replay the activity tail (covers the feed).
           refreshSnapshots();
           fetchActivitySince(lastApplied)
@@ -54,11 +60,15 @@ export function RealtimeProvider({ enabled, children }: { enabled: boolean; chil
             .catch(() => undefined); // the snapshot refresh above already restores consistency
         },
         onResync: () => {
+          orbRouter.resync();
           resetAudioLevels();
           refreshSnapshots();
         },
         onPoll: refreshSnapshots,
-        onStateChange: (snapshot) => useRealtimeStore.getState().set(snapshot),
+        onStateChange: (snapshot) => {
+          useRealtimeStore.getState().set(snapshot);
+          orbRouter.setConnection(snapshot.state);
+        },
       },
     });
     clientRef.current = client;
@@ -77,6 +87,7 @@ export function RealtimeProvider({ enabled, children }: { enabled: boolean; chil
       window.removeEventListener("offline", onOffline);
       document.removeEventListener("visibilitychange", onVisibility);
       client.stop();
+      orbRouter.dispose();
       clientRef.current = null;
     };
   }, [enabled, eventsPath, eventsOrigin, queryClient]);

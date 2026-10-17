@@ -17,7 +17,7 @@ export interface OrbTestClock {
 
 export interface OrbSettings {
   preset: OrbPreset;
-  /** Orb scale inside its container, 0.5..1.5 (1 = orb + rings fill ~80 % of the panel). */
+  /** Orb scale inside its container, 0.5..1.5 (1 = the configured fill ratio of the usable panel height). */
   size: number;
   /** 0..100, global emission. */
   intensity: number;
@@ -28,6 +28,8 @@ export interface OrbSettings {
   audioReactive: boolean;
   mouseParallax: boolean;
   bloom: boolean;
+  /** Bloom strength multiplier 0..1.5 (default 1); only effective while `bloom` is on. */
+  bloomStrength: number;
   quality: OrbQualitySetting;
   animations: OrbAnimations;
   renderer: OrbRenderer;
@@ -52,6 +54,7 @@ export const DEFAULT_ORB_SETTINGS: OrbSettings = {
   audioReactive: true,
   mouseParallax: true,
   bloom: true,
+  bloomStrength: 1,
   quality: "auto",
   animations: "full",
   renderer: "auto",
@@ -83,6 +86,7 @@ export function resolveSettings(partial?: Partial<OrbSettings>): OrbSettings {
   merged.particleDensity = clamp(merged.particleDensity, 0, 100);
   merged.speed = clamp(merged.speed, 0.25, 2);
   merged.size = clamp(merged.size, 0.5, 1.5);
+  merged.bloomStrength = clamp(merged.bloomStrength, 0, 1.5);
   return merged;
 }
 
@@ -96,7 +100,11 @@ export interface QualityProfile {
   particles: number;
   dust: number;
   packets: number;
-  haloBars: number;
+  /** Energy particles (audio driven) and segments of the SegmentedRing. */
+  energyParticles: number;
+  ringSegments: number;
+  /** Sphere tessellation of the holographic shells. */
+  shellSegments: number;
   agentMarkersMax: number;
   circuitNodes: number;
   bloom: boolean;
@@ -109,22 +117,22 @@ export interface QualityProfile {
 export const QUALITY_PROFILES: Record<OrbQualityLevel, QualityProfile> = {
   low: {
     level: "low", dpr: 1, circuitTraces: 260, plates: 80, outerTraces: 100, outerArcs: 5, particles: 300,
-    dust: 60, packets: 24, haloBars: 96, agentMarkersMax: 4, circuitNodes: 250, bloom: false,
+    dust: 60, packets: 24, energyParticles: 80, ringSegments: 36, shellSegments: 24, agentMarkersMax: 4, circuitNodes: 250, bloom: false,
     bloomResolutionScale: 0.25, noiseOctaves: 1, lineWidthPx: 1.5,
   },
   medium: {
     level: "medium", dpr: 1.25, circuitTraces: 560, plates: 130, outerTraces: 210, outerArcs: 7, particles: 600,
-    dust: 120, packets: 50, haloBars: 128, agentMarkersMax: 6, circuitNodes: 450, bloom: true,
+    dust: 120, packets: 50, energyParticles: 160, ringSegments: 42, shellSegments: 32, agentMarkersMax: 6, circuitNodes: 450, bloom: true,
     bloomResolutionScale: 0.35, noiseOctaves: 2, lineWidthPx: 1.5,
   },
   high: {
     level: "high", dpr: 1.75, circuitTraces: 820, plates: 190, outerTraces: 320, outerArcs: 10, particles: 900,
-    dust: 200, packets: 80, haloBars: 144, agentMarkersMax: 8, circuitNodes: 700, bloom: true,
+    dust: 200, packets: 80, energyParticles: 260, ringSegments: 48, shellSegments: 40, agentMarkersMax: 8, circuitNodes: 700, bloom: true,
     bloomResolutionScale: 0.5, noiseOctaves: 3, lineWidthPx: 1.5,
   },
   ultra: {
     level: "ultra", dpr: 2, circuitTraces: 1250, plates: 300, outerTraces: 480, outerArcs: 14, particles: 1400,
-    dust: 300, packets: 120, haloBars: 160, agentMarkersMax: 12, circuitNodes: 1000, bloom: true,
+    dust: 300, packets: 120, energyParticles: 420, ringSegments: 60, shellSegments: 56, agentMarkersMax: 12, circuitNodes: 1000, bloom: true,
     bloomResolutionScale: 0.75, noiseOctaves: 4, lineWidthPx: 1.5,
   },
 };

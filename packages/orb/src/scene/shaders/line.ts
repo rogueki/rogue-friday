@@ -2,8 +2,8 @@ import { COMMON_FUNCS, COMMON_UNIFORMS } from "./common";
 
 /**
  * Screen-space line material. One instance = one segment (iA, iB); the quad corner (side, end) sits in position.xy.
- * Roles (compile-time defines) specialise the same code: MID, OUTER, REACTOR, RING, TELEMETRY, PROGRESS, BARS, ARCS,
- * FRACTURE, OVERLAY, SCAN.
+ * Roles (compile-time defines) specialise the same code: MID, OUTER, REACTOR, RING, TELEMETRY, PROGRESS, ARCS,
+ * FRACTURE, OVERLAY, SCAN, SEGRING.
  */
 export const lineVertexShader = /* glsl */ `
 ${COMMON_UNIFORMS}
@@ -24,8 +24,10 @@ uniform float uLevel;
 uniform float uProgress;
 uniform float uProgressMode;
 uniform float uGap;
-uniform float uHaloCyan;
-uniform float uHaloFreeze;
+uniform float uPulseHead;
+uniform float uPulseAmp;
+uniform float uDual;
+uniform vec3 uPulseTint;
 
 varying vec3 vColor;
 varying float vAlpha;
@@ -47,15 +49,14 @@ void main() {
   float rmid = length(mid);
   vec3 radial = mid / max(rmid, 1e-3);
 
-  #ifdef ROLE_BARS
-    // Audio bars: length follows the smoothed level with a per-bar pseudo spectrum (no jitter, only seeded shape).
-    float bin = iT.x;
-    float spectrum = 0.35 + 0.65 * abs(sin(bin * 23.0 + seed * 6.0) * cos(bin * 7.0 - uTime * 0.35 * (1.0 - uHaloFreeze)));
-    float lvl = uLevel * (0.2 + 0.8 * spectrum) * (0.55 + 0.9 * uAudio);
-    float breathe = 0.12 + 0.05 * sin(uTime * 0.8 + seed * 20.0) * (1.0 - uHaloFreeze);
-    // Bar length: ~0.05 at silence, ~0.22 at full level (orb units); the base geometry is 0.42 long.
-    float lenScale = clamp(0.12 + breathe * 0.25 + lvl * 0.4, 0.1, 0.55);
-    pB = pA + (iB - iA) * lenScale;
+  #ifdef ROLE_SEGRING
+    // Segmented ring: each segment follows one frequency band (low / mid / high) radially; transcribing aligns them.
+    float bandIdx = floor(iMeta.y * 3.0);
+    float bandVal = bandIdx < 0.5 ? uBands.x : (bandIdx < 1.5 ? uBands.y : uBands.z);
+    float segPush = (bandVal * 0.22 + uSegDrive * 0.05 + 0.012 * sin(uTime * (0.6 + h2) + seed * 40.0)) * (1.0 - 0.85 * uAlign);
+    vec3 segRadial = normalize(0.5 * (pA + pB));
+    pA += segRadial * segPush;
+    pB += segRadial * segPush;
   #endif
 
   vec3 d = vec3(0.0);
@@ -72,6 +73,11 @@ void main() {
     vec3 tang = normalize(cross(radial, vec3(0.0, 0.0, 1.0)) + vec3(1e-4));
     float fr = uFracture + uImpulse * 0.9;
     d += radial * (h1 - 0.35) * 0.3 * fr + tang * (h2 - 0.5) * 0.26 * fr;
+  #endif
+  #if defined(ROLE_MID) || defined(ROLE_OUTER) || defined(ROLE_RING) || defined(ROLE_REACTOR)
+    // Error entry glitch: a short jitter that decays within ~0.45 s, then the structure rests.
+    vec3 gTang = normalize(cross(radial, vec3(0.0, 1.0, 0.3)) + vec3(1e-4));
+    d += gTang * (h1 - 0.5) * 0.16 * uImpulse + radial * (h2 - 0.5) * 0.08 * uImpulse;
   #endif
   pA += d;
   pB += d;
@@ -126,6 +132,17 @@ void main() {
     intensity *= 0.55 + 1.15 * smoothstep(0.35, 0.8, kind);
   #endif
 
+  #if defined(ROLE_MID) || defined(ROLE_OUTER) || defined(ROLE_REACTOR)
+    // Thinking: circuit segments light up one after the other (stable pseudo order per segment).
+    float seqHead = fract(uTime * 0.32);
+    intensity += uCircuitSeq * cometAt(seqHead - h1, 0.16) * 2.4;
+  #endif
+  #if defined(ROLE_RING) || defined(ROLE_REACTOR) || defined(ROLE_TELEMETRY) || defined(ROLE_SEGRING)
+    // Occasional data impulse travelling along this ring layer (scheduled deterministically on the CPU).
+    if (uPulseHead >= 0.0) {
+      intensity += uPulseAmp * cometAt(uPulseHead - t, 0.2) * 2.6;
+    }
+  #endif
   #ifdef ROLE_TELEMETRY
     float g0 = abs(fract(t - 0.07 + 0.5) - 0.5);
     float g1 = abs(fract(t - 0.31 + 0.5) - 0.5);
@@ -134,6 +151,10 @@ void main() {
     float gapD = min(min(g0, g1), min(g2, g3));
     vis *= smoothstep(uGap * 0.5, uGap * 0.5 + 0.012, gapD);
     intensity = 0.55 + 0.45 * bright + 0.5 * kind * smoothstep(0.7, 0.9, kind);
+    // Syncing: outgoing data (gold-white) and incoming data (cyan) run in opposite directions.
+    float outgoing = cometAt(fract(uTime * 0.2) - t, 0.14);
+    float incoming = cometAt(t - (1.0 - fract(uTime * 0.16)), 0.14);
+    intensity += uDual * (outgoing + incoming) * 2.2;
   #endif
   #ifdef ROLE_PROGRESS
     float track = 0.12;
@@ -150,9 +171,8 @@ void main() {
     intensity = mix(track, 1.0, clamp(lit, 0.0, 1.0)) + lit * 0.9;
     vis *= step(0.5, uProgressMode);
   #endif
-  #ifdef ROLE_BARS
-    intensity = 0.55 + 0.6 * lenScale + uLevel * 0.35;
-    vis *= smoothstep(0.0, 0.05, uLevel + 0.001);
+  #ifdef ROLE_SEGRING
+    intensity = 0.55 + 0.35 * bright + bandVal * 1.3 + uSegDrive * 0.4;
   #endif
   #ifdef ROLE_ARCS
     float dirT = mix(t, 1.0 - t, uConverge);
@@ -176,11 +196,8 @@ void main() {
   col = applySaturation(col);
   col = applyAccent(col, seed);
   col = mix(col, uTint, uTintMix);
-  #ifdef ROLE_BARS
-    vec3 cyan = vec3(0.12, 0.62, 0.82);
-    vec3 goldW = mix(ORB_GOLD, ORB_HOT, 0.35 + 0.3 * uLevel);
-    col = mix(goldW, cyan, uHaloCyan);
-    col = applySaturation(col);
+  #ifdef ROLE_TELEMETRY
+    col = mix(col, vec3(0.2, 0.8, 1.0), uDual * 0.35 * step(0.5, fract(t * 3.0)));
   #endif
   col = depthTint(col, fade);
   col *= 1.0 + hot * 0.4 + flow * 0.5;
@@ -190,6 +207,7 @@ void main() {
   vColor = col;
   // thin strokes lose energy instead of aliasing: scale by (width / 1.3px)
   vAlpha *= clamp(wPx / 1.3, 0.35, 1.0);
+  vAlpha *= edgeFadeNdc(c.xy / c.w);
 }
 `;
 

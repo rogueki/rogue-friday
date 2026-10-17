@@ -3,7 +3,7 @@ import { QUALITY_ORDER, QUALITY_PROFILES, getQualityProfile } from "./settings";
 
 /** PLAN §51.6 GPU quality scaling: every step up draws more (and never less) of each countable element. */
 describe("quality profiles", () => {
-  const counts = ["circuitTraces", "plates", "outerTraces", "outerArcs", "particles", "dust", "packets", "haloBars", "agentMarkersMax", "circuitNodes"] as const;
+  const counts = ["circuitTraces", "plates", "outerTraces", "outerArcs", "particles", "dust", "packets", "energyParticles", "ringSegments", "shellSegments", "agentMarkersMax", "circuitNodes"] as const;
 
   it.each(counts)("%s strictly grows from low to ultra", (key) => {
     const values = QUALITY_ORDER.map((level) => QUALITY_PROFILES[level][key]);

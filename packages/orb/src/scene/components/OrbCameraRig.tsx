@@ -1,21 +1,31 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { PerspectiveCamera } from "three";
+import { cameraDistance, hostPaddingPx, orbDiameterPx } from "../fit";
 import { useOrb } from "../OrbContext";
 
-/** Radius (orb units) that must stay inside the panel at settings.size = 1. */
-const FIT_RADIUS = 3.55;
-/** Fraction of the panel height the orb is lifted by, so the state label has its own band below the sphere. */
-const LIFT = 0.045;
 const MAX_YAW = (3 * Math.PI) / 180;
 const MAX_PITCH = (2 * Math.PI) / 180;
 
+export { VISIBLE_RADIUS, hostPaddingPx, orbDiameterPx } from "../fit";
+
 /**
- * Fits the orb + outer rings into the panel (~80 %), and applies a very subtle mouse parallax (max 3 deg yaw, 2 deg
- * pitch, damped). The pointer is read from the window so HTML overlays above the canvas cannot swallow it.
+ * Pure camera fit: distance such that a sphere of `VISIBLE_RADIUS` covers `fill` of the usable panel height (the canvas =
+ * the stage), capped so that the host padding always remains free for the glow; centred exactly on the canvas centre.
+ * No lift, no view offset.
+ */
+export function fitCamera(width: number, height: number, fill: number, size: number, paddingPx: number): { distance: number; radiusPx: number } {
+  const radiusPx = Math.max(8, orbDiameterPx(width, height, fill, size, paddingPx) / 2);
+  return { distance: cameraDistance(height, radiusPx), radiusPx };
+}
+
+/**
+ * Centres the orb at (0,0,0) with the camera on the z axis, fits the nominal visible orb to the configured fraction of
+ * the usable panel height, and applies a very subtle mouse parallax (max 3 deg yaw, 2 deg pitch, damped). The pointer
+ * is read from the window so HTML overlays above the canvas cannot swallow it.
  */
 export function OrbCameraRig() {
-  const { live, settings, fixedClock } = useOrb();
+  const { live, settings, fixedClock, fillRatio, fit } = useOrb();
   const gl = useThree((s) => s.gl);
   const pointer = useRef({ x: 0, y: 0 });
   const smooth = useRef({ x: 0, y: 0 });
@@ -36,10 +46,12 @@ export function OrbCameraRig() {
   useFrame((state, delta) => {
     const camera = state.camera as PerspectiveCamera;
     const { width, height } = state.size;
-    const aspect = width / Math.max(1, height);
-    const tanHalf = Math.tan((camera.fov * Math.PI) / 360);
-    const fit = FIT_RADIUS / settings.size;
-    const dist = Math.max(fit / tanHalf, fit / (tanHalf * aspect));
+    const { distance, radiusPx } = fitCamera(width, height, fillRatio, settings.size, hostPaddingPx(window.innerHeight));
+    fit.radiusPx = radiusPx;
+    fit.centerX = width / 2;
+    fit.centerY = height / 2;
+    fit.width = width;
+    fit.height = height;
 
     const k = fixedClock ? 0 : live.current.parallax;
     const dt = Math.min(delta, 0.1);
@@ -48,15 +60,10 @@ export function OrbCameraRig() {
     smooth.current.y += (pointer.current.y * k - smooth.current.y) * follow;
     const yaw = smooth.current.x * MAX_YAW;
     const pitch = smooth.current.y * MAX_PITCH;
-    camera.position.set(
-      Math.sin(yaw) * Math.cos(pitch) * dist,
-      Math.sin(pitch) * dist,
-      Math.cos(yaw) * Math.cos(pitch) * dist,
-    );
+    camera.position.set(Math.sin(yaw) * Math.cos(pitch) * distance, Math.sin(pitch) * distance, Math.cos(yaw) * Math.cos(pitch) * distance);
     camera.lookAt(0, 0, 0);
     camera.near = 0.1;
-    camera.far = dist + 40;
-    camera.setViewOffset(width, height, 0, height * LIFT, width, height);
+    camera.far = distance + 40;
     camera.updateProjectionMatrix();
   });
   return null;

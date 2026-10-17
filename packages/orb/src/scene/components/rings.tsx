@@ -1,23 +1,36 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import type { Group } from "three";
+import type { Group, ShaderMaterial } from "three";
 import {
   buildGyroRings,
   buildInnerReactor,
   buildPrimaryRing,
   buildProgressOrbit,
   buildSecondaryRing,
+  buildSegmentedRing,
   buildTelemetryRing,
 } from "../geometry/structures";
 import { useLineLayer } from "../hooks";
 import { makeLineMaterial } from "../materials";
+import type { LiveParams } from "../liveParams";
 import { useOrb } from "../OrbContext";
 import { SEED } from "./circuit";
 
-/** Rings turn towards the camera plane when `align` rises (listening/syncing/success). */
+/** Ring layer index in `LiveParams.pulseHead` (the scheduler's targets). */
+const PULSE = { reactorA: 0, reactorB: 1, gyro: 2, primary: 3, secondary: 4, telemetry: 5, segmented: 6 } as const;
+
+/** Rings turn towards the camera plane when `align` rises (listening/transcribing/syncing/success). */
 const alignK = (align: number): number => 1 - 0.72 * align;
 
-/** InnerReactor: four mini rings (r 0.19..0.55) + radial spokes. Faster than every outer layer. */
+function setPulse(material: ShaderMaterial, l: LiveParams, ring: number): void {
+  material.uniforms.uPulseHead!.value = l.pulseHead[ring];
+  material.uniforms.uPulseAmp!.value = l.pulseAmp[ring];
+}
+
+/**
+ * InnerRingA / InnerRingB: four mini rings (r 0.19..0.55) + radial spokes. Rings 0 and 2 are ring A (clockwise), rings 1
+ * and 3 are ring B (counter-clockwise); each pair keeps its own phase offsets so they never look locked together.
+ */
 export function InnerReactor() {
   const { live } = useOrb();
   const root = useRef<Group>(null);
@@ -28,18 +41,21 @@ export function InnerReactor() {
   useFrame(() => {
     const l = live.current;
     const k = alignK(l.align);
+    const a = l.ringAngles[0] as number;
+    const b = l.ringAngles[1] as number;
     if (root.current) root.current.rotation.set(0.55 * k, 0.28 * k, 0);
     reactor.rings.forEach((_, i) => {
       const g = ringGroups.current[i];
       if (!g) return;
-      const dir = i % 2 === 0 ? 1 : -1;
-      g.rotation.set(0.16 * i - 0.28, 0.1 * i, dir * l.innerAngle * (1 + 0.45 * i) + i);
+      const isA = i % 2 === 0;
+      g.rotation.set(0.16 * i - 0.28, 0.1 * i, (isA ? a * (1 - 0.07 * (i / 2)) : b * (1 + 0.1 * ((i - 1) / 2))) + i);
+      setPulse(reactor.materials[i] as ShaderMaterial, l, isA ? PULSE.reactorA : PULSE.reactorB);
     });
-    if (spokeGroup.current) spokeGroup.current.rotation.z = -l.innerAngle * 0.6;
+    if (spokeGroup.current) spokeGroup.current.rotation.z = a * 0.6;
   });
 
   return (
-    <group ref={root} scale={1.35}>
+    <group ref={root} name="InnerRings" scale={1.35}>
       {reactor.rings.map((r, i) => (
         <group key={i} ref={(g) => void (ringGroups.current[i] = g)}>
           <mesh geometry={r.geometry} material={reactor.materials[i]} frustumCulled={false} renderOrder={4} />
@@ -72,7 +88,7 @@ function useReactorParts() {
   return { rings: parts.rings, spokes: parts.spokes, materials, spokeMaterial };
 }
 
-/** Two tilted gyro rings (r 0.66 / 0.78) that counter-rotate while thinking. */
+/** Two tilted gyro rings (r 0.66 / 0.78): they follow inner ring B and A, so thinking turns them against each other. */
 export function InnerGyroRings() {
   const { live, shared } = useOrb();
   const a = useRef<Group>(null);
@@ -92,18 +108,37 @@ export function InnerGyroRings() {
   useFrame(() => {
     const l = live.current;
     const k = alignK(l.align);
-    if (a.current) a.current.rotation.set(0.95 * k, 0.3, l.ringAngles[1]);
-    if (b.current) b.current.rotation.set(-0.55 * k, 0.85, l.gyroBAngle);
+    if (a.current) a.current.rotation.set(0.95 * k, 0.3, l.ringAngles[1] as number);
+    if (b.current) b.current.rotation.set(-0.55 * k, 0.85, (l.ringAngles[0] as number) * 0.9 + 1.3);
+    materials.forEach((m) => setPulse(m, l, PULSE.gyro));
   });
   return (
     <>
-      <group ref={a}>
+      <group ref={a} name="GyroRingB">
         <mesh geometry={layers[0]!.geometry} material={materials[0]} frustumCulled={false} renderOrder={4} />
       </group>
-      <group ref={b}>
+      <group ref={b} name="GyroRingA">
         <mesh geometry={layers[1]!.geometry} material={materials[1]} frustumCulled={false} renderOrder={4} />
       </group>
     </>
+  );
+}
+
+/** SegmentedRing: 36-60 arcs at r 1.12 whose radial offset follows the low/mid/high bands; transcribing lines them up. */
+export function SegmentedRing() {
+  const { live, profile } = useOrb();
+  const group = useRef<Group>(null);
+  const ring = useLineLayer(() => buildSegmentedRing(SEED + 141, profile.ringSegments), "SEGRING", { width: 1.3, base: 0.7, revealStart: 0.1 }, [profile.ringSegments]);
+  useFrame(() => {
+    const l = live.current;
+    const k = alignK(l.align);
+    if (group.current) group.current.rotation.set(0.75 * k + 0.1, -0.2, (l.ringAngles[1] as number) * 0.6);
+    setPulse(ring.material, l, PULSE.segmented);
+  });
+  return (
+    <group ref={group} name="SegmentedRing">
+      <mesh geometry={ring.geometry} material={ring.material} frustumCulled={false} renderOrder={4} />
+    </group>
   );
 }
 
@@ -111,7 +146,7 @@ function useSingleRing(build: () => ReturnType<typeof buildPrimaryRing>, role: "
   return useLineLayer(build, role, opts, []);
 }
 
-/** Band of three concentric dashed lines at r ~1.95. */
+/** OuterRingA: band of three concentric dashed lines at r ~1.95 (22-35 s per revolution in idle). */
 export function PrimaryOrbitalRing() {
   const { live } = useOrb();
   const group = useRef<Group>(null);
@@ -119,17 +154,18 @@ export function PrimaryOrbitalRing() {
   useFrame(() => {
     const l = live.current;
     const k = alignK(l.align);
-    if (group.current) group.current.rotation.set(1.18 * k, 0.12, l.ringAngles[2]);
-    ring.material.uniforms.uOpacity!.value = 1 - l.approval * 0.25;
+    if (group.current) group.current.rotation.set(1.18 * k, 0.12, l.ringAngles[2] as number);
+    ring.material.uniforms.uOpacity!.value = 1 - l.approval * 0.2;
+    setPulse(ring.material, l, PULSE.primary);
   });
   return (
-    <group ref={group}>
+    <group ref={group} name="OuterRingA">
       <mesh geometry={ring.geometry} material={ring.material} frustumCulled={false} renderOrder={2} />
     </group>
   );
 }
 
-/** r ~2.15 ring tilted ~62 degrees, segmented. */
+/** OuterRingB: r ~2.15 ring tilted ~62 degrees, segmented. One of the rings that fade in degraded operation. */
 export function SecondaryTiltedRing() {
   const { live } = useOrb();
   const group = useRef<Group>(null);
@@ -137,16 +173,18 @@ export function SecondaryTiltedRing() {
   useFrame(() => {
     const l = live.current;
     const k = alignK(l.align);
-    if (group.current) group.current.rotation.set((62 * Math.PI) / 180 * k + 0.1, 0.5, l.ringAngles[3]);
+    if (group.current) group.current.rotation.set((62 * Math.PI) / 180 * k + 0.1, 0.5, l.ringAngles[3] as number);
+    ring.material.uniforms.uOpacity!.value = 1 - 0.66 * l.outerReduce;
+    setPulse(ring.material, l, PULSE.secondary);
   });
   return (
-    <group ref={group}>
+    <group ref={group} name="OuterRingB">
       <mesh geometry={ring.geometry} material={ring.material} frustumCulled={false} renderOrder={2} />
     </group>
   );
 }
 
-/** r ~2.45 ruler ring; the gaps widen with degraded health. */
+/** TelemetryRing: r ~2.45 ruler ring; gaps widen with degraded health; shows incoming/outgoing data while syncing. */
 export function TelemetryRing() {
   const { live } = useOrb();
   const group = useRef<Group>(null);
@@ -154,17 +192,21 @@ export function TelemetryRing() {
   useFrame(() => {
     const l = live.current;
     const k = alignK(l.align * 0.5);
-    if (group.current) group.current.rotation.set(0.38 * k, -0.16, l.ringAngles[4] + 0.2);
-    ring.material.uniforms.uGap!.value = l.telemetryGap;
+    if (group.current) group.current.rotation.set(0.38 * k, -0.16, (l.ringAngles[4] as number) + 0.2);
+    const u = ring.material.uniforms;
+    u.uGap!.value = l.telemetryGap;
+    u.uDual!.value = l.telemetryDual;
+    u.uOpacity!.value = 1 - 0.45 * l.outerReduce;
+    setPulse(ring.material, l, PULSE.telemetry);
   });
   return (
-    <group ref={group}>
+    <group ref={group} name="TelemetryRing">
       <mesh geometry={ring.geometry} material={ring.material} frustumCulled={false} renderOrder={2} />
     </group>
   );
 }
 
-/** r ~2.64 progress arc: determinate 0..progress, indeterminate = rotating comet; hidden without real progress. */
+/** ProgressRing r ~2.64: determinate 0..progress, indeterminate = wandering segment; hidden without real progress. */
 export function ProgressOrbit() {
   const { live } = useOrb();
   const group = useRef<Group>(null);
@@ -178,7 +220,7 @@ export function ProgressOrbit() {
     u.uOpacity!.value = l.progressVisible * (1 + l.successPulse * 0.6);
   });
   return (
-    <group ref={group}>
+    <group ref={group} name="ProgressRing">
       <mesh geometry={ring.geometry} material={ring.material} frustumCulled={false} renderOrder={2} />
     </group>
   );

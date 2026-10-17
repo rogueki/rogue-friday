@@ -1,9 +1,11 @@
-import { AdditiveBlending, DoubleSide, ShaderMaterial, Vector2, Vector3, type IUniform } from "three";
+import { AdditiveBlending, DoubleSide, ShaderMaterial, Vector2, Vector3, Vector4, type IUniform } from "three";
 import type { LiveParams } from "./liveParams";
 import { lineFragmentShader, lineVertexShader } from "./shaders/line";
 import { plateFragmentShader, plateVertexShader } from "./shaders/plate";
 import { pointsFragmentShader, pointsVertexShader } from "./shaders/points";
 import { spriteFragmentShader, spriteVertexShader } from "./shaders/sprite";
+import { coreNoiseFragmentShader, sweepFragmentShader, voiceFragmentShader } from "./shaders/voice";
+import { glyphFragmentShader, shellFragmentShader, shellVertexShader } from "./shaders/shell";
 import {
   coreGlowFragmentShader,
   coreSphereFragmentShader,
@@ -36,6 +38,13 @@ export interface SharedUniforms {
   uConverge: U<number>;
   uAudio: U<number>;
   uBackFade: U<number>;
+  uCircuitSeq: U<number>;
+  uPeakKick: U<number>;
+  uForce: U<number>;
+  uInward: U<number>;
+  uSegDrive: U<number>;
+  uCalm: U<number>;
+  uBands: U<Vector4>;
 }
 
 export function createSharedUniforms(): SharedUniforms {
@@ -58,6 +67,13 @@ export function createSharedUniforms(): SharedUniforms {
     uConverge: { value: 0 },
     uAudio: { value: 0 },
     uBackFade: { value: 0.2 },
+    uCircuitSeq: { value: 0 },
+    uPeakKick: { value: 0 },
+    uForce: { value: 0 },
+    uInward: { value: 0 },
+    uSegDrive: { value: 0 },
+    uCalm: { value: 0 },
+    uBands: { value: new Vector4(0, 0, 0, 0) },
   };
 }
 
@@ -83,6 +99,14 @@ export function syncSharedUniforms(
   u.uReveal.value = live.reveal;
   u.uConverge.value = live.convergence;
   u.uAudio.value = live.audio;
+  u.uCircuitSeq.value = live.circuitSeq;
+  u.uPeakKick.value = live.peakKick;
+  u.uForce.value = live.particleForce * live.particleDrive;
+  u.uInward.value = live.particleInward;
+  u.uSegDrive.value = live.segDrive;
+  u.uCalm.value = live.calm;
+  // bands of the open channel (the other one is gated to zero): low / mid / high / rms
+  u.uBands.value.set(Math.max(live.inLow, live.outLow), Math.max(live.inMid, live.outMid), Math.max(live.inHigh, live.outHigh), live.audio);
 }
 
 function baseMaterial(vertexShader: string, fragmentShader: string, uniforms: Record<string, IUniform>, defines?: Record<string, string>) {
@@ -106,7 +130,7 @@ export type LineRole =
   | "RING"
   | "TELEMETRY"
   | "PROGRESS"
-  | "BARS"
+  | "SEGRING"
   | "ARCS"
   | "FRACTURE"
   | "OVERLAY"
@@ -139,8 +163,10 @@ export function makeLineMaterial(role: LineRole, shared: SharedUniforms, o: Line
       uProgress: { value: 0 },
       uProgressMode: { value: 0 },
       uGap: { value: 0.05 },
-      uHaloCyan: { value: 0 },
-      uHaloFreeze: { value: 0 },
+      uPulseHead: { value: -1 },
+      uPulseAmp: { value: 0 },
+      uDual: { value: 0 },
+      uPulseTint: { value: new Vector3(1, 0.85, 0.5) },
     },
     { [`ROLE_${role}`]: "" },
   );
@@ -165,7 +191,7 @@ export function makeSpriteMaterial(shared: SharedUniforms, o: { base?: number; r
   });
 }
 
-export type PointsRole = "PARTICLES" | "DUST" | "PACKETS" | "MARKERS";
+export type PointsRole = "PARTICLES" | "ENERGY" | "DUST" | "PACKETS" | "MARKERS";
 
 export function makePointsMaterial(role: PointsRole, shared: SharedUniforms, o: { base?: number; size?: number } = {}): ShaderMaterial {
   return baseMaterial(
@@ -197,9 +223,56 @@ export function makeCoronaMaterial(shared: SharedUniforms): ShaderMaterial {
   return baseMaterial(glowVertexShader, coronaFragmentShader, {
     ...shared,
     uCore: { value: 0.6 },
-    uSpeak: { value: 0 },
+    uShell: { value: 1 },
     uThink: { value: 0 },
+    uBreathU: { value: 0.5 },
+    uDrive: { value: 0 },
   });
+}
+
+export type VoiceRingMode = "INPUT" | "OUTPUT" | "RADIAL" | "FOCUS" | "WARN";
+
+/** Billboard ring material of the VoiceReactionGroup (+ approval focus and warning pulse). `half` = billboard half size in orb units. */
+export function makeVoiceRingMaterial(mode: VoiceRingMode, shared: SharedUniforms, half: number): ShaderMaterial {
+  return baseMaterial(
+    glowVertexShader,
+    voiceFragmentShader,
+    {
+      ...shared,
+      uHalf: { value: half },
+      uOpen: { value: 0 },
+      uLevel: { value: 0 },
+      uWaveBands: { value: new Vector4(0, 0, 0, 0) },
+      uAmt: { value: 0 },
+      uPulseAge: { value: new Float32Array(6).fill(-1) },
+      uPulseAmp: { value: new Float32Array(6) },
+    },
+    { [`MODE_${mode}`]: "" },
+  );
+}
+
+export type SweepMode = "RADIAL" | "ANALYSIS" | "SYNC";
+
+export function makeSweepMaterial(mode: SweepMode, shared: SharedUniforms, half: number): ShaderMaterial {
+  return baseMaterial(glowVertexShader, sweepFragmentShader, { ...shared, uHalf: { value: half }, uAmt: { value: 0 } }, { [`MODE_${mode}`]: "" });
+}
+
+export function makeCoreNoiseMaterial(shared: SharedUniforms): ShaderMaterial {
+  return baseMaterial(glowVertexShader, coreNoiseFragmentShader, {
+    ...shared,
+    uNoise: { value: 0.3 },
+    uCoreLevel: { value: 0.8 },
+    uDrive: { value: 0 },
+    uSwirl: { value: 0 },
+  });
+}
+
+export function makeShellMaterial(shared: SharedUniforms, phase: number, lines: number): ShaderMaterial {
+  return baseMaterial(shellVertexShader, shellFragmentShader, { ...shared, uShells: { value: 0.3 }, uPhase: { value: phase }, uLines: { value: lines } });
+}
+
+export function makeGlyphMaterial(shared: SharedUniforms): ShaderMaterial {
+  return baseMaterial(glowVertexShader, glyphFragmentShader, { ...shared, uAmt: { value: 0 }, uPulse: { value: 0 } });
 }
 
 export function makeCoreSphereMaterial(shared: SharedUniforms): ShaderMaterial {
@@ -219,6 +292,6 @@ export interface SceneStats {
   profile: QualityProfile["level"];
 }
 
-export function makeSphereGlowMaterial(shared: SharedUniforms): ShaderMaterial {
-  return baseMaterial(glowVertexShader, sphereGlowFragmentShader, { ...shared, uCore: { value: 0.6 } });
+export function makeSphereGlowMaterial(shared: SharedUniforms, spread = 2.4, amp = 0.12): ShaderMaterial {
+  return baseMaterial(glowVertexShader, sphereGlowFragmentShader, { ...shared, uCore: { value: 0.6 }, uSpread: { value: spread }, uAmp: { value: amp } });
 }

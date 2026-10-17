@@ -1,6 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useRef, type MutableRefObject } from "react";
 import type { OrbAudioSourceRef } from "../audio/audioSource";
+import type { OrbFrameInputs } from "../controller/types";
 import type { OrbQualityLevel, OrbSettings } from "../settings";
 import { getQualityProfile } from "../settings";
 import type { VisualTargets } from "../visual/deriveVisualTargets";
@@ -15,6 +16,9 @@ export interface OrbCanvasProps {
   /** `false` pauses the render loop completely (hidden tab / off-screen). */
   active: boolean;
   onQualityChange?: (level: OrbQualityLevel) => void;
+  readFrames?: (nowMs: number, inputs: OrbFrameInputs) => void;
+  fillRatio?: number;
+  seed?: number;
   onContextLost?: () => void;
   onContextRestored?: () => void;
   /** Fired once the WebGL context exists. */
@@ -22,7 +26,7 @@ export interface OrbCanvasProps {
 }
 
 /** Transparent R3F canvas filling its container. Mounted once; state changes never remount the scene. */
-export function OrbCanvas({ targetsRef, audioSourceRef, settings, quality, adaptive, active, onQualityChange, onContextLost, onContextRestored, onReady }: OrbCanvasProps) {
+export function OrbCanvas({ targetsRef, audioSourceRef, settings, quality, adaptive, active, onQualityChange, readFrames, fillRatio, seed, onContextLost, onContextRestored, onReady }: OrbCanvasProps) {
   const lost = useRef(onContextLost);
   const restored = useRef(onContextRestored);
   const ready = useRef(onReady);
@@ -49,7 +53,7 @@ export function OrbCanvas({ targetsRef, audioSourceRef, settings, quality, adapt
       flat
       camera={{ fov: 35, position: [0, 0, 10.5], near: 0.1, far: 60 }}
       gl={{ alpha: true, antialias: false, powerPreference: "high-performance", premultipliedAlpha: true, stencil: false, depth: false }}
-      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", background: "transparent" }}
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", background: "transparent", pointerEvents: "none" }}
       onCreated={({ gl }) => {
         gl.setClearColor(0x000000, 0);
         const canvas = gl.domElement;
@@ -63,7 +67,7 @@ export function OrbCanvas({ targetsRef, audioSourceRef, settings, quality, adapt
         ready.current?.();
       }}
     >
-      <OrbScene targetsRef={targetsRef} audioSourceRef={audioSourceRef} settings={settings} quality={quality} adaptive={adaptive} onQualityChange={onQualityChange} />
+      <OrbScene targetsRef={targetsRef} audioSourceRef={audioSourceRef} settings={settings} quality={quality} adaptive={adaptive} onQualityChange={onQualityChange} readFrames={readFrames} fillRatio={fillRatio} seed={seed} />
     </Canvas>
   );
 }

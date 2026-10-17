@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type KeyboardEvent,
 } from "react";
@@ -13,11 +14,15 @@ import type { OrbLayers, OrbSnapshot, OrbStatus } from "./contract-types";
 import { OrbPerfOverlay } from "./debug/OrbPerfOverlay";
 import { OrbFallback2D } from "./fallback/OrbFallback2D";
 import { DEFAULT_ASSISTANT_NAME, activationTarget, buildAriaSentence, formatRuntime, resolveLabels, type OrbActivationTarget, type OrbLabelLocale, type OrbLabels } from "./labels";
+import { toWireLayers, toWireStatus } from "./controller/layers";
+import type { OrbController } from "./controller/types";
 import { layersFromStatus } from "./machine/orbMachine";
 import { ORB_CSS, OrbOverlay } from "./OrbOverlay";
 import { OrbCanvas } from "./scene/OrbCanvas";
+import { hostPaddingPx, orbDiameterPx } from "./scene/fit";
 import { resolveQuality, resolveSettings, type OrbQualityLevel, type OrbSettings } from "./settings";
-import { deriveVisualTargets } from "./visual/deriveVisualTargets";
+import { deriveVisualTargets, deriveVisualTargetsFromController } from "./visual/deriveVisualTargets";
+import type { OrbFrameInputs } from "./controller/types";
 
 interface FridayOrbBaseProps {
   settings?: Partial<OrbSettings>;
@@ -42,6 +47,18 @@ interface FridayOrbBaseProps {
   getAudioLevel?: OrbAudioLevelReader;
   /** Same as `getAudioLevel`, for a ref the caller writes to (e.g. from an audio analyser callback). */
   audioLevelRef?: { readonly current: number | null };
+  /**
+   * Typed runtime controller (docs/ORB_REWORK_ANALYSIS.md section 8). When given it wins over `snapshot`, `status`,
+   * `layers`, `getAudioLevel` and `audioLevelRef`, which remain for stories and tests.
+   */
+  controller?: OrbController;
+  /**
+   * Fraction of the usable panel height (the stage this component fills) covered by the visible orb including its outer
+   * rings. Default 0.72; the owner order asks for 0.65-0.78. Glow, dust and particles fade out inside the canvas.
+   */
+  fillRatio?: number;
+  /** Seed of the deterministic data-impulse scheduler (tests, screenshots). */
+  seed?: number;
 }
 
 /**
@@ -52,7 +69,17 @@ export type FridayOrbProps = FridayOrbBaseProps &
   (
     | { snapshot: OrbSnapshot; status?: undefined; layers?: undefined }
     | { status: OrbStatus; layers?: OrbLayers; snapshot?: undefined }
+    | { controller: OrbController; snapshot?: OrbSnapshot; status?: OrbStatus; layers?: OrbLayers }
   );
+
+const NO_SUBSCRIBE = (): (() => void) => () => undefined;
+
+/** Low-rate controller state (mode, texts, progress steps); the scene reads the per-frame data itself. */
+function useControllerState(controller: OrbController | undefined) {
+  const subscribe = useCallback((onChange: () => void) => (controller ? controller.subscribe(onChange) : NO_SUBSCRIBE()), [controller]);
+  const getSnapshot = useCallback(() => (controller ? controller.getState() : null), [controller]);
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
 
 let webglSupport: boolean | undefined;
 
@@ -69,6 +96,27 @@ export function detectWebGL(): boolean {
     webglSupport = false;
   }
   return webglSupport;
+}
+
+/** Diameter (px) of the visible orb inside the host, for the hit target; follows resizes through a ResizeObserver. */
+function useOrbDiameter(ref: React.RefObject<HTMLElement | null>, fill: number, size: number): string | undefined {
+  const [px, setPx] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return;
+      const d = Math.round(orbDiameterPx(rect.width, rect.height, fill, size, hostPaddingPx(window.innerHeight)));
+      setPx((prev) => (prev === d ? prev : d));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref, fill, size]);
+  return px === undefined ? undefined : `${px}px`;
 }
 
 function usePrefersReducedMotion(): boolean {
@@ -148,9 +196,22 @@ export function FridayOrb({
   onRendererChange,
   getAudioLevel,
   audioLevelRef,
+  controller,
+  fillRatio = 0.72,
+  seed,
 }: FridayOrbProps) {
-  const status = (snapshot?.status ?? statusProp) as OrbStatus;
-  const layers = snapshot?.layers ?? layersProp;
+  const controllerState = useControllerState(controller);
+  const controllerWire = useMemo(() => {
+    if (!controllerState) return null;
+    const count = controllerState.status.activeAgentCount ?? 0;
+    const layers = toWireLayers(controllerState.layers, count);
+    return {
+      layers,
+      status: toWireStatus(controllerState.status, { health: layers.health, approvalId: controllerState.layers.approval.approvalId }),
+    };
+  }, [controllerState]);
+  const status = (controllerWire?.status ?? snapshot?.status ?? statusProp) as OrbStatus;
+  const layers = controllerWire?.layers ?? snapshot?.layers ?? layersProp;
   const settings = useStableSettings(settingsInput);
   const labels = useMemo(() => resolveLabels(labelsInput, { assistantName, locale }), [labelsInput, assistantName, locale]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -159,9 +220,18 @@ export function FridayOrb({
 
   const effectiveLayers = useMemo(() => layers ?? layersFromStatus(status), [layers, status]);
   const targets = useMemo(
-    () => deriveVisualTargets({ layers: effectiveLayers, status, settings, reducedMotion: osReduced }),
-    [effectiveLayers, status, settings, osReduced],
+    () =>
+      controllerState
+        ? deriveVisualTargetsFromController(controllerState, settings, osReduced)
+        : deriveVisualTargets({ layers: effectiveLayers, status, settings, reducedMotion: osReduced }),
+    [controllerState, effectiveLayers, status, settings, osReduced],
   );
+  // The scene pulls the controller's analysed audio frames once per rendered frame (no React involved).
+  const readFrames = useMemo(
+    () => (controller ? (nowMs: number, inputs: OrbFrameInputs) => controller.readFrame(nowMs, inputs) : undefined),
+    [controller],
+  );
+  const diameter = useOrbDiameter(containerRef, fillRatio, settings.size);
   const targetsRef = useRef(targets);
   useLayoutEffect(() => {
     targetsRef.current = targets;
@@ -249,7 +319,7 @@ export function FridayOrb({
     <div
       ref={containerRef}
       className={["friday-orb", className].filter(Boolean).join(" ")}
-      style={style}
+      style={diameter ? ({ ...style, "--orb-diameter": diameter } as CSSProperties) : style}
       data-orb-root=""
       data-orb-mode={status.mode}
       data-orb-renderer={renderer}
@@ -260,7 +330,7 @@ export function FridayOrb({
     >
       <style>{ORB_CSS}</style>
       {show3d ? (
-        <div style={{ position: "absolute", inset: 0, visibility: contextLost ? "hidden" : "visible" }}>
+        <div className="friday-orb__canvas" style={{ visibility: contextLost ? "hidden" : "visible" }}>
           <OrbCanvas
             key={canvasKey}
             targetsRef={targetsRef}
@@ -270,13 +340,16 @@ export function FridayOrb({
             adaptive={adaptive}
             active={active && !contextLost}
             onQualityChange={setMeasured}
+            readFrames={readFrames}
+            fillRatio={fillRatio}
+            seed={seed}
             onContextLost={handleLost}
             onContextRestored={handleRestored}
             onReady={handleReady}
           />
         </div>
       ) : null}
-      {showFallback ? <OrbFallback2D status={status} layers={effectiveLayers} settings={settings} reducedMotion={osReduced} active={active} audioSourceRef={audioSourceRef} /> : null}
+      {showFallback ? <OrbFallback2D status={status} layers={effectiveLayers} settings={settings} reducedMotion={osReduced} active={active} audioSourceRef={audioSourceRef} targetsRef={targetsRef} readFrames={readFrames} fillRatio={fillRatio} seed={seed} /> : null}
       <OrbOverlay status={status} layers={effectiveLayers} labels={labels} />
       <button
         type="button"

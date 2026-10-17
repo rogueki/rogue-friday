@@ -32,9 +32,10 @@ void main() {
   vec2 rc = rot2(ang) * corner;
   c.xy += rc * sizePx / uViewport * c.w;
   gl_Position = c;
+  float edge = edgeFadeNdc(c.xy / c.w);
   vCorner = corner;
   vInfo = iInfo;
-  vFade = depthFade(mv.z, centerZ);
+  vFade = depthFade(mv.z, centerZ) * edge;
   vAperture = aperture(mv.xy - modelViewMatrix[3].xy);
   vReveal = revealVisibility(length(iPos), uRevealStart);
 }

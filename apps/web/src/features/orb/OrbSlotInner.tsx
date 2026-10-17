@@ -6,7 +6,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/i18n";
 import { useMeta } from "@/lib/api/domains/core";
 import { useAppSettings } from "@/lib/settings";
-import { readAudioLevel } from "./audioStore";
+import { useOrbDebugSettings } from "./debug/orbDebugStore";
+import { installOrbDevHook } from "./orbDevHook";
+import { createOrbFrameInputs } from "./orbApi";
+import { getOrbRuntime } from "./orbRuntime";
 import { ORB_TEST_EVENT, orbSettingsFromTestOverrides, readOrbTestOverrides, type OrbTestOverrides } from "./orbTestHook";
 import { useOrbActions } from "./useOrbActions";
 import { useOrbSnapshot } from "./useOrbSnapshot";
@@ -34,20 +37,15 @@ function useOrbTestOverrides(enabled: boolean): OrbTestOverrides | undefined {
 
 export interface OrbSlotProps {
   className?: string;
-  /**
-   * Multiplier on `settings.orb.size` for panels that give the sphere the whole stage (AI-core panel). The orb's camera
-   * fits its outer rings into the shorter canvas side; the globe itself then only fills ~60 % of it.
-   */
-  sizeBoost?: number;
   /** Reports the effective renderer (3d, or 2d when WebGL is unavailable/disabled) so the panel can say so. */
   onRendererChange?: (renderer: "3d" | "2d") => void;
 }
 
 /**
- * The single place where the app mounts `@friday/orb`: wires the snapshot (query cache + realtime), `settings.orb`, the
- * audio level feed and the click/Space routing (PLAN §21).
+ * The single place where the app mounts `@friday/orb`: wires the controller singleton (fed by the realtime router, the
+ * browser audio path and the server snapshot), `settings.orb` and the click/Space routing (PLAN §21).
  */
-export function OrbSlotInner({ className, sizeBoost = 1, onRendererChange }: OrbSlotProps) {
+export function OrbSlotInner({ className, onRendererChange }: OrbSlotProps) {
   const { snapshot: live, isError } = useOrbSnapshot();
   const { settings } = useAppSettings();
   const { locale, assistantName } = useT();
@@ -57,15 +55,22 @@ export function OrbSlotInner({ className, sizeBoost = 1, onRendererChange }: Orb
 
   // Scenario hint (PLAN §45.14 "WebGL Failure"): the server may force the 2D fallback through a meta feature flag.
   const forceFallback2D = Boolean(features?.["forceOrbFallback2D"] ?? features?.["uiHints.forceOrbFallback2D"]);
-  // The audio feed is pulled by the orb inside its animation loop (display rate, no React state, no re-render).
+  const debugSettings = useOrbDebugSettings(Boolean(features?.["devScenarios"]));
+
+  // The controller is the orb's single source of truth. The server snapshot (query cache, also updated by realtime
+  // events) is the truth for work, approvals and health; local voice facts arrive through the event bridge.
+  const runtime = useMemo(() => getOrbRuntime(), []);
   const snapshot = useMemo<OrbSnapshot | undefined>(() => live ?? (isError ? offlineSnapshot() : undefined), [live, isError]);
+  useEffect(() => {
+    if (snapshot) runtime.controller.applySnapshot(snapshot);
+  }, [runtime, snapshot]);
+  useEffect(() => (features?.["devScenarios"] ? installOrbDevHook(runtime, createOrbFrameInputs) : undefined), [runtime, features]);
 
   const orbSettings = useMemo<FridayOrbProps["settings"]>(() => {
     const base = settings?.orb ? orbSettingsFromWire(settings.orb) : {};
-    const size = Math.min(1.5, (base.size ?? 1) * sizeBoost); // the orb clamps to 0.5..1.5 as well
-    return { ...base, size, ...(forceFallback2D ? { renderer: "2d" as const } : {}), ...orbSettingsFromTestOverrides(testOverrides) };
-  }, [settings?.orb, forceFallback2D, sizeBoost, testOverrides]);
+    return { ...base, ...(forceFallback2D ? { renderer: "2d" as const } : {}), ...orbSettingsFromTestOverrides(testOverrides), ...debugSettings };
+  }, [settings?.orb, forceFallback2D, testOverrides, debugSettings]);
 
   if (!snapshot) return null;
-  return <FridayOrb snapshot={snapshot} settings={orbSettings} onActivate={onActivate} onVoiceToggle={onVoiceToggle} assistantName={assistantName} getAudioLevel={readAudioLevel} onRendererChange={onRendererChange} locale={locale} className={className} />;
+  return <FridayOrb controller={runtime.controller} settings={orbSettings} onActivate={onActivate} onVoiceToggle={onVoiceToggle} assistantName={assistantName} onRendererChange={onRendererChange} locale={locale} className={className} />;
 }

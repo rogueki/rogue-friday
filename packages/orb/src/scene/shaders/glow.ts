@@ -1,4 +1,4 @@
-import { COMMON_FUNCS, COMMON_UNIFORMS } from "./common";
+import { COMMON_FRAG_FUNCS, COMMON_FUNCS, COMMON_UNIFORMS } from "./common";
 
 /** Camera-facing billboard used for the core glow and the corona. */
 export const glowVertexShader = /* glsl */ `
@@ -33,24 +33,27 @@ void main() {
 }
 `;
 
-/** Corona: faint radial gradient with expanding speak waves and inward thinking rings. */
+/**
+ * CorePulseShell: faint radial gradient, a thin shell that swells with the breath and the core audio drive, and inward
+ * rings while thinking. (The outgoing speaking/listening waves live in the VoiceReactionGroup.)
+ */
 export const coronaFragmentShader = /* glsl */ `
 ${COMMON_UNIFORMS}
 ${COMMON_FUNCS}
 uniform float uCore;
-uniform float uSpeak;
+uniform float uShell;
 uniform float uThink;
+uniform float uBreathU;
+uniform float uDrive;
 varying vec2 vP;
 
 void main() {
   float r = length(vP);
   float base = exp(-r * 3.0) * 0.03 * (0.5 + uCore);
   float waves = 0.0;
-  if (uSpeak > 0.001) {
-    float phase = r * 3.2 - uTime * 0.55;
-    float band = pow(max(0.0, sin(phase * 6.2831853)), 8.0);
-    waves += band * (1.0 - smoothstep(0.1, 1.0, r)) * uSpeak * (0.18 + 0.55 * uAudio) * smoothstep(0.08, 0.2, r);
-  }
+  float shellR = 0.17 + 0.05 * uBreathU + 0.12 * uDrive;
+  waves += exp(-pow((r - shellR) / 0.016, 2.0)) * (0.16 + 0.34 * uBreathU + 0.4 * uDrive) * uShell;
+  waves += exp(-pow((r - shellR * 1.9) / 0.03, 2.0)) * 0.07 * uShell * (0.4 + uBreathU);
   if (uThink > 0.001) {
     float phase = r * 2.4 + uTime * 0.4;
     float band = pow(max(0.0, sin(phase * 6.2831853)), 12.0);
@@ -95,18 +98,21 @@ void main() {
 }
 `;
 
-/** Very soft additive glow behind the sphere (alpha ~0.12 at the centre): emitted-light feel around dense clusters. */
+/** Very soft additive glow behind the sphere: emitted-light feel; fades to zero well inside the canvas. */
 export const sphereGlowFragmentShader = /* glsl */ `
 ${COMMON_UNIFORMS}
 ${COMMON_FUNCS}
+${COMMON_FRAG_FUNCS}
 uniform float uCore;
+uniform float uSpread;
+uniform float uAmp;
 varying vec2 vP;
 void main() {
   float r = length(vP);
-  float g = exp(-r * r * 2.4) * 0.12 * (0.55 + 0.45 * uCore);
+  float g = exp(-r * r * uSpread) * uAmp * (0.55 + 0.45 * uCore) * (1.0 - smoothstep(0.62, 1.0, r));
   vec3 col = mix(ORB_ORANGE, ORB_GOLD, 0.6);
   col = applySaturation(col);
-  float a = g * uEmission;
+  float a = g * uEmission * edgeFadeFrag();
   if (a < 0.002) discard;
   gl_FragColor = vec4(col * a, a);
   #include <colorspace_fragment>
