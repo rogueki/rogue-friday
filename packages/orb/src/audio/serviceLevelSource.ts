@@ -66,7 +66,7 @@ export function createServiceLevelSource(options: ServiceLevelOptions = {}): Ser
       lastSample = nowMs;
       const fresh = nowMs - lastPush <= staleMs;
       const t = nowMs / 1000;
-      let tr = fresh ? target.rms : 0;
+      const tr = fresh ? target.rms : 0;
       let tp = fresh ? target.peak : 0;
       let tl = fresh ? target.low : 0;
       let tm = fresh ? target.mid : 0;

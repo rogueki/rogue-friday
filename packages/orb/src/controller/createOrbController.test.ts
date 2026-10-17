@@ -376,7 +376,7 @@ describe("audio frames", () => {
   });
 
   it("TTS without audio analysis uses the speech envelope fallback with pauses, and stops with the TTS", () => {
-    const { controller, bridge, inputs, advance } = setup();
+    const { bridge, inputs, advance } = setup();
     bridge.onTtsStarted({ hasAudioAnalysis: false });
     const levels: number[] = [];
     for (let i = 0; i < 400; i++) {
