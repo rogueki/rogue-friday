@@ -1,0 +1,37 @@
+{
+  "capturedAt": "2026-10-17",
+  "setup": "standalone mock (next dev --mock, port 3021), Chromium 1194 headless, SwiftShader, DPR 1, motion full, quality auto -> medium",
+  "caveats": [
+    "SwiftShader renders ~0.6 s/frame (avg 576 ms, p95 1367 ms at 1920x1080 idle) - animation is wall-clock based so frame diffs are valid, but fps numbers are not representative of a GPU",
+    "orb pixels = |screenshot with canvas - screenshot with canvas hidden| (HTML overlays hidden in both), so panel frame and background do not contaminate the box",
+    "release_orb_state falls back to the mock-derived mode (waiting_approval), idle must be forced explicitly"
+  ],
+  "layout1920x1080": {
+    "panel": [807, 410], "stage_equals_canvas": [807, 368], "status_strip_px": 42, "canvasBuffer": [806, 368],
+    "orb_visible_bbox_diff_gt24": {"x": [187, 613], "y": [0, 359], "width": 427, "height": 360},
+    "orb_bbox_height_vs_stage": "360/368 = 98 %", "orb_bbox_height_vs_panel": "360/410 = 88 %",
+    "white_hot_core_center": [402.5, 167.0], "stage_center": [403.5, 184.0], "panel_center": [403.5, 205.0],
+    "core_above_stage_center_px": 17, "core_above_panel_center_px": 38,
+    "extent_below_core_px": 192, "core_distance_to_canvas_top_px": 167, "implied_cut_at_top_px_min": 25,
+    "pixels_changed_in_first_3_canvas_rows_gt24": {"idle_waiting_approval_state": 75, "listening": 134, "thinking": 29, "working": 36, "speaking": 48, "error": 40},
+    "hit_target_button": {"x": 829.7, "y": -5.0, "w": 532.6, "h": 532.6, "note": "taller than the stage (368), centre at 46 %"}
+  },
+  "layout1366x768": {
+    "panel": [530, 293], "stage_equals_canvas": [530, 251],
+    "orb_visible_bbox_diff_gt24": {"x": [117, 408], "y": [0, 245]},
+    "orb_bbox_height_vs_stage": "246/251 = 98 %", "core_expected_y": 114.2, "stage_center_y": 125.5, "panel_center_y": 146.5,
+    "pixels_changed_in_first_3_canvas_rows_gt24": 341, "extent_below_core_px": 131, "implied_cut_at_top_px_min": 17,
+    "orb_overlaps_brand_label": true
+  },
+  "idle_motion_1920x1080_forced_idle": {
+    "note": "frames 0-2 were brighter (core 114 vs 57, probably a mock-driven transition right after force); steady idle = frames 3-7",
+    "steady_1s_raw_pixels_changed_gt24_pct_of_orb_pixels": [42.8, 41.7, 42.7, 42.7],
+    "steady_1s_lowpass_24px_mean_abs_diff_rel_pct": [7.3, 7.6, 6.8, 8.3],
+    "steady_150ms_raw_changed_pct": [26.2, 38.4, 41.8, 38.1, 42.5],
+    "core_region_r_lt_25_mean_brightness_steady": [55.9, 56.9, 57.7, 57.5, 57.0], "core_brightness_max_over_min": 1.03,
+    "inner_25_90": [23.7, 24.2, 24.2, 24.3, 24.2], "mid_90_150": [10.3, 10.2, 10.0, 9.6, 9.8], "outer_gt150": [1.1, 1.1, 1.1, 1.1, 1.1],
+    "interpretation": "fine-line shimmer (flow/twinkle) is visible at pixel level, but coarse structure (rings, shells) moves only ~7 % per second and the core brightness varies ~3 %"
+  },
+  "render_probe_1920_idle_medium_swiftshader": {"draws": 48, "triangles": 18449, "segments": 7252, "plates": 130, "points": 828, "geometries": 33, "textures": 13},
+  "console_noise_mock_mode": ["404 /api/v1/voice/browser-audio-availability (browserAudio.check)", "404 /api/v1/onboarding"]
+}
