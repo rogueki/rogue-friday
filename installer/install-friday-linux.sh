@@ -14,15 +14,20 @@ CURRENT=/opt/friday/current
 STATE=/var/lib/friday
 CONFIG=/etc/friday
 SERVICE=friday
+VOICE_MODE=
+ELEVENLABS_VOICE_ID=
+KEY_SOURCE=
+KEY_FILE=
 
 usage() {
   cat <<'EOF'
-Usage: sudo bash installer/install-friday-linux.sh --skills-source ABS_PATH [--validate|--dry-run] [--source ABS_PATH] [--dashboard-port PORT] [--hermes-port PORT]
+Usage: sudo bash installer/install-friday-linux.sh --skills-source ABS_PATH [--validate|--dry-run] [--source ABS_PATH] [--dashboard-port PORT] [--hermes-port PORT] [--voice-mode local|elevenlabs] [--elevenlabs-voice-id ID] [--key-stdin|--key-file ABS_PATH|--key-prompt]
 Ubuntu 22.04/24.04 or Debian 12/13 on x86_64/aarch64; local loopback services only.
 --dry-run prints the plan and missing prerequisites without changing the system.
 --validate exits nonzero if host prerequisites or the existing Friday Hermes binary are missing.
 Install requires Node >=22.13, pnpm 10.28.2, rsync, curl, git, python3 with PyYAML, systemd, a local friday-skills checkout and a preinstalled Hermes CLI at /var/lib/friday/.local/bin/hermes.
 On a first run the installer creates the locked friday user, then stops with instructions if Hermes is missing. Install Hermes as that user and rerun. A model provider is configured with 'hermes model'; no Kimi key is required by this installer.
+Voice mode is configured only; headless audio transport and voice service are not installed yet. Local mode requires >=6 GiB NVIDIA VRAM. ElevenLabs mode requires your own Voice ID and private key input. Never put the key in a command argument.
 EOF
 }
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
@@ -37,13 +42,39 @@ while (($#)); do
     --skills-source) (($# >= 2)) || fail '--skills-source needs a path'; SKILLS_SOURCE=$2; shift 2 ;;
     --dashboard-port) (($# >= 2)) || fail '--dashboard-port needs a value'; FRIDAY_PORT=$2; shift 2 ;;
     --hermes-port) (($# >= 2)) || fail '--hermes-port needs a value'; HERMES_PORT=$2; shift 2 ;;
+    --voice-mode) (($# >= 2)) || fail '--voice-mode needs local or elevenlabs'; VOICE_MODE=$2; shift 2 ;;
+    --elevenlabs-voice-id) (($# >= 2)) || fail '--elevenlabs-voice-id needs a value'; ELEVENLABS_VOICE_ID=$2; shift 2 ;;
+    --key-stdin) [[ -z "$KEY_SOURCE" ]] || fail 'Choose one key input'; KEY_SOURCE=stdin; shift ;;
+    --key-file) (($# >= 2)) || fail '--key-file needs an absolute path'; [[ -z "$KEY_SOURCE" ]] || fail 'Choose one key input'; KEY_SOURCE=file; KEY_FILE=$2; shift 2 ;;
+    --key-prompt) [[ -z "$KEY_SOURCE" ]] || fail 'Choose one key input'; KEY_SOURCE=prompt; shift ;;
     -h|--help) usage; exit 0 ;;
     *) fail "Unknown option: $1" ;;
   esac
 done
+if [[ "$KEY_SOURCE" == stdin && "$MODE" == install ]]; then
+  # Keep the bounded input only in this shell; child build processes must not
+  # inherit an open descriptor to the credential stream.
+  KEY_STDIN_VALUE=$(head -c 4097)
+  exec </dev/null
+fi
 valid_port "$FRIDAY_PORT" || fail 'Dashboard port must be 1024..65535'
 valid_port "$HERMES_PORT" || fail 'Hermes port must be 1024..65535'
 [[ "$FRIDAY_PORT" != "$HERMES_PORT" ]] || fail 'Dashboard and Hermes ports must differ'
+[[ -z "$VOICE_MODE" || "$VOICE_MODE" == local || "$VOICE_MODE" == elevenlabs ]] || fail '--voice-mode must be local or elevenlabs'
+[[ -z "$KEY_FILE" || "$KEY_FILE" = /* ]] || fail '--key-file must be absolute'
+if [[ "$MODE" == install && -z "$VOICE_MODE" ]]; then
+  if [[ -r "$CONFIG/voice.json" ]]; then
+    [[ ! -L "$CONFIG/voice.json" ]] || fail 'Existing voice.json must not be a symlink'
+    VOICE_MODE=$(python3 -c 'import json,sys; m=json.load(open(sys.argv[1])).get("voice_mode"); print("elevenlabs" if m=="elevenlabs" else "local" if m=="streaming_qwen" else "")' "$CONFIG/voice.json")
+  fi
+  if [[ -z "$VOICE_MODE" ]]; then
+    [[ -r /dev/tty ]] || fail 'Specify --voice-mode local|elevenlabs for unattended installation'
+    read -r -p 'Voice mode (local/elevenlabs): ' VOICE_MODE </dev/tty
+  fi
+fi
+[[ -z "$VOICE_MODE" || "$VOICE_MODE" == local || "$VOICE_MODE" == elevenlabs ]] || fail '--voice-mode must be local or elevenlabs'
+if [[ "$VOICE_MODE" == local && ( -n "$ELEVENLABS_VOICE_ID" || -n "$KEY_SOURCE" ) ]]; then fail 'ElevenLabs options require --voice-mode elevenlabs'; fi
+if [[ "$VOICE_MODE" == elevenlabs && -n "$ELEVENLABS_VOICE_ID" && ! "$ELEVENLABS_VOICE_ID" =~ ^[A-Za-z0-9]{10,128}$ ]]; then fail 'Invalid ElevenLabs Voice ID'; fi
 [[ "$SOURCE" = /* && -f "$SOURCE/pnpm-lock.yaml" && -f "$SOURCE/apps/control-api/package.json" ]] || fail "--source must be an absolute Friday monorepo path: $SOURCE"
 SOURCE=$(cd -- "$SOURCE" && pwd -P)
 if [[ -n "$SKILLS_SOURCE" ]]; then
@@ -87,10 +118,21 @@ if [[ -L "$CONFIG" || -L /opt/friday || -L "$STATE" ]]; then problems+=("Install
 if id "$SERVICE" >/dev/null 2>&1; then
   [[ "$(getent passwd "$SERVICE" | cut -d: -f6)" == "$STATE" ]] || problems+=("Existing friday user must have home $STATE")
 fi
+if [[ "$VOICE_MODE" == local ]]; then
+  if ! command -v nvidia-smi >/dev/null 2>&1; then
+    problems+=("Local voice requires NVIDIA GPU with >=6 GiB VRAM; nvidia-smi is unavailable. Use --voice-mode elevenlabs on GPU-free hosts")
+  else
+    gpu_memory=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null || true)
+    if ! awk 'BEGIN{ok=0} /^[[:space:]]*[0-9]+[[:space:]]*$/ {if ($1>=6144) ok=1} END {exit !ok}' <<<"$gpu_memory"; then
+      problems+=("Local voice requires at least one NVIDIA GPU with >=6 GiB VRAM; use --voice-mode elevenlabs")
+    fi
+  fi
+fi
 
 note "Mode: $MODE | source: $SOURCE"
 note "Plan: $RELEASES/<revision> -> $CURRENT; config $CONFIG; persistent state $STATE; 127.0.0.1:$FRIDAY_PORT and 127.0.0.1:$HERMES_PORT"
 note "Friday skills source: ${SKILLS_SOURCE:-missing}"
+note "Voice selection: ${VOICE_MODE:-choose at install}; no browser audio service is installed by this foundation"
 [[ "$MODE" != dry-run ]] || note 'Dry-run does not invoke pnpm/Corepack; its exact version is checked by --validate/install.'
 if ((${#problems[@]})); then printf 'Prerequisite: %s\n' "${problems[@]}" >&2; fi
 if [[ "$MODE" == dry-run ]]; then
@@ -123,7 +165,22 @@ install -d -o root -g root -m 0755 /opt/friday "$RELEASES"
 install -d -o "$SERVICE" -g "$SERVICE" -m 0700 "$STATE/data" "$STATE/backups"
 install -d -o "$SERVICE" -g "$SERVICE" -m 0750 "$STATE/logs"
 install -d -o root -g "$SERVICE" -m 0750 "$CONFIG"
-install -d -o "$SERVICE" -g "$SERVICE" -m 0700 "$CONFIG/secrets"
+if [[ -e "$CONFIG/secrets" || -L "$CONFIG/secrets" ]]; then
+  [[ -d "$CONFIG/secrets" && ! -L "$CONFIG/secrets" ]] || fail 'Existing secret directory must be a real directory'
+else
+  install -d -o "$SERVICE" -g "$SERVICE" -m 0700 "$CONFIG/secrets"
+fi
+if [[ "$VOICE_MODE" == elevenlabs ]]; then
+  reuse_state=$(python3 "$SOURCE/installer/linux/configure_voice.py" --voice-mode elevenlabs --inspect-existing) || fail 'Existing cloud voice configuration is unsafe; correct it before reinstalling.'
+  if [[ "$reuse_state" != valid ]]; then
+    if [[ -z "$ELEVENLABS_VOICE_ID" && -r /dev/tty ]]; then
+      read -r -p 'Your ElevenLabs Voice ID: ' ELEVENLABS_VOICE_ID </dev/tty
+    fi
+    if [[ -z "$KEY_SOURCE" && -r /dev/tty ]]; then KEY_SOURCE=prompt; fi
+    [[ -n "$ELEVENLABS_VOICE_ID" ]] || fail 'ElevenLabs mode requires --elevenlabs-voice-id YOUR_VOICE_ID'
+    [[ -n "$KEY_SOURCE" ]] || fail 'ElevenLabs mode requires --key-stdin, --key-file or --key-prompt'
+  fi
+fi
 if [[ ! -e "$CONFIG/dashboard.yaml" ]]; then
   cat > "$CONFIG/dashboard.yaml" <<YAML
 dataMode: hybrid
@@ -169,6 +226,15 @@ PY
 fi
 if [[ ! -e "$CONFIG/adapters.yaml" ]]; then
   install -o root -g "$SERVICE" -m 0640 "$SOURCE/config/adapters.example.yaml" "$CONFIG/adapters.yaml"
+fi
+voice_args=(--voice-mode "$VOICE_MODE")
+if [[ "$VOICE_MODE" == elevenlabs ]]; then
+  voice_args+=(--elevenlabs-voice-id "$ELEVENLABS_VOICE_ID")
+  case "$KEY_SOURCE" in
+    stdin) voice_args+=(--key-stdin) ;;
+    file) voice_args+=(--key-file "$KEY_FILE") ;;
+    prompt) voice_args+=(--key-prompt) ;;
+  esac
 fi
 
 revision=$(git -C "$SOURCE" rev-parse --short=12 HEAD 2>/dev/null || echo source)
@@ -280,5 +346,11 @@ systemctl restart friday-hermes-dashboard.service
 curl -fsS --max-time 3 --retry 10 --retry-connrefused --retry-delay 2 -o /dev/null "http://127.0.0.1:$HERMES_PORT/" || fail 'Hermes dashboard did not become healthy.'
 systemctl restart friday-dashboard.service
 curl -fsS --max-time 3 --retry 15 --retry-connrefused --retry-delay 2 -o /dev/null "http://127.0.0.1:$FRIDAY_PORT/api/v1/health" || fail 'Friday dashboard did not become healthy.'
+if [[ "$KEY_SOURCE" == stdin ]]; then
+  printf '%s' "$KEY_STDIN_VALUE" | python3 "$SOURCE/installer/linux/configure_voice.py" "${voice_args[@]}" || fail 'Voice configuration could not be written.'
+  unset KEY_STDIN_VALUE
+else
+  python3 "$SOURCE/installer/linux/configure_voice.py" "${voice_args[@]}" || fail 'Voice configuration could not be written.'
+fi
 promoted=0
 note "INSTALL_OK release=$release dashboard=http://127.0.0.1:$FRIDAY_PORT hermes=http://127.0.0.1:$HERMES_PORT"

@@ -1,11 +1,12 @@
-"""ElevenLabs speech I/O for the Windows voice client.
+"""ElevenLabs speech I/O for the Friday voice client.
 
-The API key is stored by the installer with Windows DPAPI for the current user.
+Windows uses per-user DPAPI; Linux uses a private service-owned key file.
 Audio is held in memory and sent only when the cloud voice mode is selected.
 """
 
 import json
 import os
+import stat
 import subprocess
 import urllib.parse
 import urllib.request
@@ -16,9 +17,35 @@ import numpy as np
 STT_URL = "https://api.elevenlabs.io/v1/speech-to-text"
 TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream?output_format=pcm_16000"
 TTS_RATE = 16000
+LINUX_SECRET_FILE = "/etc/friday/secrets/elevenlabs.key"
 
 
 def load_key(secret_file: str) -> str:
+    if os.name == "posix":
+        # No arbitrary path references: the installer owns this directory and
+        # never places the credential under a release or web root.
+        if secret_file != LINUX_SECRET_FILE:
+            raise RuntimeError("Ungueltiger ElevenLabs-Schluesselpfad")
+        config_dir = os.stat(os.path.dirname(os.path.dirname(LINUX_SECRET_FILE)), follow_symlinks=False)
+        if (not stat.S_ISDIR(config_dir.st_mode) or config_dir.st_mode & 0o022
+                or config_dir.st_uid not in (0, os.geteuid())):
+            raise RuntimeError("ElevenLabs-Konfigurationsverzeichnis hat unsichere Rechte")
+        parent = os.stat(os.path.dirname(LINUX_SECRET_FILE), follow_symlinks=False)
+        if not stat.S_ISDIR(parent.st_mode) or parent.st_mode & 0o077 or parent.st_uid not in (0, os.geteuid()):
+            raise RuntimeError("ElevenLabs-Secret-Verzeichnis hat unsichere Rechte")
+        descriptor = os.open(secret_file, os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0))
+        try:
+            info = os.fstat(descriptor)
+            if (not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077
+                    or info.st_uid not in (0, os.geteuid()) or info.st_size > 4096):
+                raise RuntimeError("ElevenLabs-Schluesseldatei hat unsichere Rechte")
+            with os.fdopen(descriptor, "rb", closefd=False) as source:
+                key = source.read(4097).decode("ascii").strip()
+            if not key or len(key) > 4096 or "\n" in key or "\r" in key:
+                raise RuntimeError("ElevenLabs-Schluesseldatei ist ungueltig")
+            return key
+        finally:
+            os.close(descriptor)
     if os.name != "nt" or not os.path.isfile(secret_file):
         raise RuntimeError("ElevenLabs-Schluessel fuer diesen Windows-Benutzer fehlt")
     script = ("$s=ConvertTo-SecureString (Get-Content -LiteralPath $env:FRIDAY_ELEVENLABS_SECRET_FILE -Raw);"

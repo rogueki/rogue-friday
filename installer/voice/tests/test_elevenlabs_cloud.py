@@ -2,6 +2,8 @@ import io
 import json
 import pathlib
 import sys
+import os
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -29,6 +31,29 @@ class Response:
 
 
 class ElevenLabsCloudTest(unittest.TestCase):
+    @unittest.skipUnless(os.name == "posix", "Linux secret permissions")
+    def test_linux_key_requires_private_regular_file_and_directory(self):
+        with tempfile.TemporaryDirectory() as root:
+            directory = pathlib.Path(root) / "secrets"
+            directory.mkdir(mode=0o700)
+            key = directory / "elevenlabs.key"
+            key.write_text("test-key\n", encoding="ascii")
+            key.chmod(0o600)
+            with patch.object(elevenlabs_cloud, "LINUX_SECRET_FILE", str(key)):
+                self.assertEqual(elevenlabs_cloud.load_key(str(key)), "test-key")
+                key.chmod(0o644)
+                with self.assertRaisesRegex(RuntimeError, "unsichere Rechte"):
+                    elevenlabs_cloud.load_key(str(key))
+                key.chmod(0o600)
+                directory.chmod(0o755)
+                with self.assertRaisesRegex(RuntimeError, "unsichere Rechte"):
+                    elevenlabs_cloud.load_key(str(key))
+                directory.chmod(0o700)
+                key.unlink()
+                key.symlink_to(pathlib.Path(root) / "other")
+                with self.assertRaises(OSError):
+                    elevenlabs_cloud.load_key(str(key))
+
     def test_stt_posts_raw_pcm_without_writing_recording(self):
         with patch.object(elevenlabs_cloud.urllib.request, "urlopen", return_value=Response(
                 json.dumps({"text": "Hallo Friday"}).encode())) as opener:
