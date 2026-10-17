@@ -47,7 +47,7 @@ Für einen Test im Free-Tarif kannst du unter **ElevenLabs → Voices → My Voi
 
 Friday leitet Sprachaufgaben nach Aufwand: Routine nutzt standardmäßig `kimi-for-coding`, komplexe und besonders kritische Aufgaben `k3`. Die aktuellen [Kimi-Code-Modell-IDs](https://www.kimi.com/code/docs/en/kimi-code/models) beschreiben `kimi-for-coding` als K2.8 Preview und `kimi-for-coding-highspeed` als tarifabhängige K2.7-Variante. Unter **Einstellungen → Modelle & Routing** kannst du `voice-routine`, `voice-complex` und `voice-critical` auf `kimi-coding:modell-id`, `openai:modell-id` oder `anthropic:modell-id` setzen. Friday liest diese Routen bei Sprachaufgaben aus den gespeicherten Dashboard-Einstellungen. Für OpenAI oder Anthropic muss der jeweilige API-Zugang zusätzlich in Hermes eingerichtet sein; die Anmeldung bei Codex oder Claude Code für Programmieraufträge ersetzt diesen Zugang nicht.
 
-Die aktuelle Installation ist für Windows/WSL mit einem am Host verfügbaren Mikrofon und Lautsprecher ausgelegt. Ein Windows-Server ohne dedizierte GPU kann den Cloud-Modus verwenden, wenn Audioeingabe und -ausgabe bereitstehen. Eine Mikrofonübertragung aus einem entfernten Browser für einen vollständig kopflosen Server ist noch nicht enthalten.
+Die Windows/WSL-Installation nutzt Mikrofon und Lautsprecher des Hosts. Fuer native Linux-Server ist ein [Browser-Audiotransport im ElevenLabs-Modus](docs/LINUX_VOICE.md) vorhanden. Der Dienst startet erst mit einem trainierten Owner-Sprecherprofil, passendem Wake-Modell und einer erreichbaren Hermes-API. Die Browser-Einrichtung fuer neue Stimmprofile und ein vollstaendiger frischer VPS-Lauf stehen noch aus.
 
 ### Skills und optionale Werkzeuge
 

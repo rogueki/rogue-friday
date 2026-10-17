@@ -1,0 +1,13 @@
+# CPU torch/torchaudio are installed from the official PyTorch CPU index first.
+# The installed versions are recorded in /var/lib/friday/voice/pip-freeze.txt.
+numpy
+openwakeword
+speechbrain
+silero-vad
+soundfile
+scipy
+scikit-learn
+huggingface-hub
+onnxruntime
+websockets>=15,<17
+tzdata

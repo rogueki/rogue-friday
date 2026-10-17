@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Native Ubuntu/Debian foundation: local Dashboard and Hermes dashboard only.
-# Voice, browser microphone, gateway bridges and remote TLS are separate phases.
+# Native Ubuntu/Debian installer. Services bind to loopback only.
 set -Eeuo pipefail
 umask 027
 
@@ -9,6 +8,8 @@ SOURCE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 SKILLS_SOURCE=
 FRIDAY_PORT=3100
 HERMES_PORT=43691
+HERMES_API_PORT=43693
+VOICE_PORT=43694
 RELEASES=/opt/friday/releases
 CURRENT=/opt/friday/current
 STATE=/var/lib/friday
@@ -21,13 +22,13 @@ KEY_FILE=
 
 usage() {
   cat <<'EOF'
-Usage: sudo bash installer/install-friday-linux.sh --skills-source ABS_PATH [--validate|--dry-run] [--source ABS_PATH] [--dashboard-port PORT] [--hermes-port PORT] [--voice-mode local|elevenlabs] [--elevenlabs-voice-id ID] [--key-stdin|--key-file ABS_PATH|--key-prompt]
+Usage: sudo bash installer/install-friday-linux.sh --skills-source ABS_PATH [--validate|--dry-run] [--source ABS_PATH] [--dashboard-port PORT] [--hermes-port PORT] [--hermes-api-port PORT] [--voice-port PORT] [--voice-mode local|elevenlabs] [--elevenlabs-voice-id ID] [--key-stdin|--key-file ABS_PATH|--key-prompt]
 Ubuntu 22.04/24.04 or Debian 12/13 on x86_64/aarch64; local loopback services only.
 --dry-run prints the plan and missing prerequisites without changing the system.
 --validate exits nonzero if host prerequisites or the existing Friday Hermes binary are missing.
 Install requires Node >=22.13, pnpm 10.28.2, rsync, curl, git, python3 with PyYAML, systemd, a local friday-skills checkout and a preinstalled Hermes CLI at /var/lib/friday/.local/bin/hermes.
 On a first run the installer creates the locked friday user, then stops with instructions if Hermes is missing. Install Hermes as that user and rerun. A model provider is configured with 'hermes model'; no Kimi key is required by this installer.
-Voice mode is configured only; headless audio transport and voice service are not installed yet. Local mode requires >=6 GiB NVIDIA VRAM. ElevenLabs mode requires your own Voice ID and private key input. Never put the key in a command argument.
+ElevenLabs mode prepares a private browser-audio voice service. It starts only after owner speaker/wake enrollment and a Hermes API key are present; see docs/LINUX_VOICE.md. Local mode requires >=6 GiB NVIDIA VRAM but the native Linux device/TTS service is not installed yet. Never put the key in a command argument.
 EOF
 }
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
@@ -42,6 +43,8 @@ while (($#)); do
     --skills-source) (($# >= 2)) || fail '--skills-source needs a path'; SKILLS_SOURCE=$2; shift 2 ;;
     --dashboard-port) (($# >= 2)) || fail '--dashboard-port needs a value'; FRIDAY_PORT=$2; shift 2 ;;
     --hermes-port) (($# >= 2)) || fail '--hermes-port needs a value'; HERMES_PORT=$2; shift 2 ;;
+    --hermes-api-port) (($# >= 2)) || fail '--hermes-api-port needs a value'; HERMES_API_PORT=$2; shift 2 ;;
+    --voice-port) (($# >= 2)) || fail '--voice-port needs a value'; VOICE_PORT=$2; shift 2 ;;
     --voice-mode) (($# >= 2)) || fail '--voice-mode needs local or elevenlabs'; VOICE_MODE=$2; shift 2 ;;
     --elevenlabs-voice-id) (($# >= 2)) || fail '--elevenlabs-voice-id needs a value'; ELEVENLABS_VOICE_ID=$2; shift 2 ;;
     --key-stdin) [[ -z "$KEY_SOURCE" ]] || fail 'Choose one key input'; KEY_SOURCE=stdin; shift ;;
@@ -59,7 +62,13 @@ if [[ "$KEY_SOURCE" == stdin && "$MODE" == install ]]; then
 fi
 valid_port "$FRIDAY_PORT" || fail 'Dashboard port must be 1024..65535'
 valid_port "$HERMES_PORT" || fail 'Hermes port must be 1024..65535'
-[[ "$FRIDAY_PORT" != "$HERMES_PORT" ]] || fail 'Dashboard and Hermes ports must differ'
+valid_port "$HERMES_API_PORT" || fail 'Hermes API port must be 1024..65535'
+valid_port "$VOICE_PORT" || fail 'Voice port must be 1024..65534'
+FRIDAY_PORT=$((10#$FRIDAY_PORT)); HERMES_PORT=$((10#$HERMES_PORT))
+HERMES_API_PORT=$((10#$HERMES_API_PORT)); VOICE_PORT=$((10#$VOICE_PORT))
+(( VOICE_PORT < 65535 )) || fail 'Voice port must be 1024..65534'
+ports=("$FRIDAY_PORT" "$HERMES_PORT" "$HERMES_API_PORT" "$VOICE_PORT" "$((VOICE_PORT + 1))")
+[[ "$(printf '%s\n' "${ports[@]}" | sort -u | wc -l)" -eq 5 ]] || fail 'Dashboard, Hermes, Hermes API, voice and browser-audio ports must differ'
 [[ -z "$VOICE_MODE" || "$VOICE_MODE" == local || "$VOICE_MODE" == elevenlabs ]] || fail '--voice-mode must be local or elevenlabs'
 [[ -z "$KEY_FILE" || "$KEY_FILE" = /* ]] || fail '--key-file must be absolute'
 if [[ "$MODE" == install && -z "$VOICE_MODE" ]]; then
@@ -94,7 +103,7 @@ else
   esac
 fi
 case "$(uname -m)" in x86_64|aarch64) ;; *) problems+=("Unsupported architecture $(uname -m)") ;; esac
-for cmd in node pnpm rsync curl git python3 systemctl runuser flock install useradd getent; do
+for cmd in node pnpm rsync curl git python3 systemctl runuser flock install useradd getent sha256sum; do
   command -v "$cmd" >/dev/null 2>&1 || problems+=("Missing $cmd; install it using your distribution's package manager")
 done
 if [[ "$MODE" != dry-run ]] && command -v python3 >/dev/null 2>&1; then
@@ -130,9 +139,9 @@ if [[ "$VOICE_MODE" == local ]]; then
 fi
 
 note "Mode: $MODE | source: $SOURCE"
-note "Plan: $RELEASES/<revision> -> $CURRENT; config $CONFIG; persistent state $STATE; 127.0.0.1:$FRIDAY_PORT and 127.0.0.1:$HERMES_PORT"
+note "Plan: $RELEASES/<revision> -> $CURRENT; config $CONFIG; persistent state $STATE; dashboard 127.0.0.1:$FRIDAY_PORT, Hermes 127.0.0.1:$HERMES_PORT, Hermes API 127.0.0.1:$HERMES_API_PORT, voice 127.0.0.1:$VOICE_PORT"
 note "Friday skills source: ${SKILLS_SOURCE:-missing}"
-note "Voice selection: ${VOICE_MODE:-choose at install}; no browser audio service is installed by this foundation"
+note "Voice selection: ${VOICE_MODE:-choose at install}; ElevenLabs voice starts after private enrollment and Hermes API prerequisites"
 [[ "$MODE" != dry-run ]] || note 'Dry-run does not invoke pnpm/Corepack; its exact version is checked by --validate/install.'
 if ((${#problems[@]})); then printf 'Prerequisite: %s\n' "${problems[@]}" >&2; fi
 if [[ "$MODE" == dry-run ]]; then
@@ -163,6 +172,7 @@ runuser -u "$SERVICE" -- "$STATE/.local/bin/hermes" --version >/dev/null || fail
 
 install -d -o root -g root -m 0755 /opt/friday "$RELEASES"
 install -d -o "$SERVICE" -g "$SERVICE" -m 0700 "$STATE/data" "$STATE/backups"
+install -d -o "$SERVICE" -g "$SERVICE" -m 0700 "$STATE/voice" "$STATE/models" "$STATE/cache"
 install -d -o "$SERVICE" -g "$SERVICE" -m 0750 "$STATE/logs"
 install -d -o root -g "$SERVICE" -m 0750 "$CONFIG"
 if [[ -e "$CONFIG/secrets" || -L "$CONFIG/secrets" ]]; then
@@ -227,7 +237,7 @@ fi
 if [[ ! -e "$CONFIG/adapters.yaml" ]]; then
   install -o root -g "$SERVICE" -m 0640 "$SOURCE/config/adapters.example.yaml" "$CONFIG/adapters.yaml"
 fi
-voice_args=(--voice-mode "$VOICE_MODE")
+voice_args=(--voice-mode "$VOICE_MODE" --voice-port "$VOICE_PORT" --hermes-api-port "$HERMES_API_PORT" --dashboard-port "$FRIDAY_PORT")
 if [[ "$VOICE_MODE" == elevenlabs ]]; then
   voice_args+=(--elevenlabs-voice-id "$ELEVENLABS_VOICE_ID")
   case "$KEY_SOURCE" in
@@ -244,18 +254,58 @@ release="$RELEASES/$revision-$(date -u +%Y%m%d%H%M%S)"
 install -d -o "$SERVICE" -g "$SERVICE" -m 0750 "$release"
 old=$(readlink -f "$CURRENT" 2>/dev/null || true)
 promoted=0
+voice_backup=
+voice_unit_backup=
+voice_was_active=0
+voice_was_enabled=0
+systemctl is-active --quiet friday-voice.service && voice_was_active=1 || true
+systemctl is-enabled --quiet friday-voice.service && voice_was_enabled=1 || true
 cleanup() {
   local status=$?
+  set +e
+  if (( status != 0 )) && [[ -n "$voice_unit_backup" ]]; then
+    if [[ -f "$voice_unit_backup/friday-voice.service" ]]; then
+      cp -p -- "$voice_unit_backup/friday-voice.service" /etc/systemd/system/friday-voice.service
+    else
+      rm -f -- /etc/systemd/system/friday-voice.service
+    fi
+    systemctl daemon-reload || true
+    if (( !voice_was_enabled )); then systemctl disable --now friday-voice.service >/dev/null 2>&1 || true; fi
+  fi
   if (( status != 0 && promoted == 1 )); then
     note 'Health check failed; restoring previous release symlink.' >&2
+    if [[ -n "$voice_backup" ]]; then
+      restore_failed=0
+      for file in voice.json elevenlabs.key adapters.yaml; do
+        if [[ -f "$voice_backup/$file" ]]; then
+          case "$file" in
+            voice.json|adapters.yaml) cp -p -- "$voice_backup/$file" "$CONFIG/$file" || restore_failed=1 ;;
+            elevenlabs.key) cp -p -- "$voice_backup/$file" "$CONFIG/secrets/$file" || restore_failed=1 ;;
+          esac
+        elif [[ -f "$voice_backup/$file.absent" ]]; then
+          case "$file" in
+            voice.json|adapters.yaml) rm -f -- "$CONFIG/$file" || restore_failed=1 ;;
+            elevenlabs.key) rm -f -- "$CONFIG/secrets/$file" || restore_failed=1 ;;
+          esac
+        fi
+      done
+      if (( restore_failed )); then
+        note "Private rollback snapshot retained at $voice_backup; inspect manually." >&2
+      else
+        rm -f -- "$voice_backup"/*
+        rmdir -- "$voice_backup"
+      fi
+    fi
     if [[ -n "$old" && -d "$old" ]]; then
       ln -s "$old" "$CURRENT.rollback"
       mv -Tf "$CURRENT.rollback" "$CURRENT"
       systemctl restart friday-dashboard.service || true
       systemctl restart friday-hermes-dashboard.service || true
+      if (( voice_was_active )); then systemctl restart friday-voice.service || true; fi
     else
       systemctl stop friday-dashboard.service || true
       systemctl stop friday-hermes-dashboard.service || true
+      systemctl disable --now friday-voice.service >/dev/null 2>&1 || true
       rm -f -- "$CURRENT"
     fi
   fi
@@ -270,10 +320,38 @@ install -d -o "$SERVICE" -g "$SERVICE" -m 0750 "$release/skills/friday-skills"
 rsync -a --delete --exclude='.git/' --exclude='.env' --exclude='.env.*' --exclude='.venv/' --exclude='*.key' --exclude='*.pem' --exclude='*.sqlite' --exclude='*.db' --exclude='MEMORY.md' --exclude='SCOPE.md' --exclude='AGENTS.md' --exclude='CLAUDE.md' "$SKILLS_SOURCE/" "$release/skills/friday-skills/"
 chown -R "$SERVICE:$SERVICE" "$release/skills/friday-skills"
 runuser -u "$SERVICE" -- python3 "$release/installer/linux/configure_skills.py" "$release/skills/friday-skills" "$CURRENT/skills/friday-skills/skills"
+if [[ "$VOICE_MODE" == elevenlabs && -f "$STATE/voice/profiles/owner/embeddings/owner_ecapa.npy" &&
+      -f "$STATE/models/openwakeword/personal_wake.npz" && -f "$STATE/models/openwakeword/personal_wake.json" &&
+      -f "$CONFIG/secrets/hermes-api.key" ]]; then
+  voice_venv="$STATE/voice/.venv"
+  venv_created=0
+  if [[ ! -x "$voice_venv/bin/python" ]]; then
+    runuser -u "$SERVICE" -- python3 -m venv "$voice_venv" || fail 'Python venv unavailable; install python3-venv and rerun.'
+    venv_created=1
+  fi
+  requirements="$release/installer/linux/requirements-voice-cloud.txt"
+  requirements_hash=$(sha256sum "$requirements" | cut -d' ' -f1)
+  if (( venv_created )) || [[ ! -f "$STATE/voice/requirements.sha256" || "$(cat "$STATE/voice/requirements.sha256")" != "$requirements_hash" ]]; then
+    runuser -u "$SERVICE" -- env HOME="$STATE" PIP_CACHE_DIR="$STATE/cache/pip" \
+      "$voice_venv/bin/python" -m pip install -q torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+    runuser -u "$SERVICE" -- env HOME="$STATE" PIP_CACHE_DIR="$STATE/cache/pip" \
+      "$voice_venv/bin/python" -m pip install -q -r "$requirements"
+    runuser -u "$SERVICE" -- "$voice_venv/bin/python" -m pip freeze > "$STATE/voice/pip-freeze.txt"
+    printf '%s\n' "$requirements_hash" > "$STATE/voice/requirements.sha256"
+    chown "$SERVICE:$SERVICE" "$STATE/voice/pip-freeze.txt" "$STATE/voice/requirements.sha256"
+  fi
+  runuser -u "$SERVICE" -- env HOME="$STATE" HF_HOME="$STATE/cache/huggingface" \
+    "$voice_venv/bin/python" "$release/installer/linux/prepare_voice.py" --prepare-assets
+fi
 chown -R root:root "$release"
 chmod -R go-w "$release"
 
 node_bin=$(command -v node)
+voice_unit_backup=$(mktemp -d "$CONFIG/.voice-unit-rollback.XXXXXX")
+chmod 0700 "$voice_unit_backup"
+if [[ -f /etc/systemd/system/friday-voice.service ]]; then
+  cp -p -- /etc/systemd/system/friday-voice.service "$voice_unit_backup/friday-voice.service"
+fi
 cat > /etc/systemd/system/friday-dashboard.service <<UNIT
 [Unit]
 Description=Friday local Command Center
@@ -337,6 +415,45 @@ TasksMax=256
 [Install]
 WantedBy=multi-user.target
 UNIT
+if [[ "$VOICE_MODE" == elevenlabs ]]; then
+cat > /etc/systemd/system/friday-voice.service <<UNIT
+[Unit]
+Description=Friday private browser audio voice service
+After=network-online.target friday-dashboard.service
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=$SERVICE
+Group=$SERVICE
+WorkingDirectory=$CURRENT
+Environment=HOME=$STATE
+Environment=HF_HOME=$STATE/cache/huggingface
+Environment=FRIDAY_INSTALL_ROOT=$CURRENT
+Environment=FRIDAY_STATE_ROOT=$STATE
+Environment=FRIDAY_DATA_DIR=$STATE/data
+Environment=FRIDAY_CONFIG_DIR=$CONFIG
+Environment=FRIDAY_DASHBOARD_PORT=$FRIDAY_PORT
+ExecStartPre=$STATE/voice/.venv/bin/python $CURRENT/installer/linux/prepare_voice.py --check-ready
+ExecStart=$STATE/voice/.venv/bin/python $CURRENT/installer/voice/friday_voice.py --config $CONFIG/voice.json
+Restart=on-failure
+RestartSec=15
+TimeoutStartSec=180
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=$STATE
+LimitNOFILE=4096
+TasksMax=256
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+fi
 systemctl daemon-reload
 systemctl enable friday-dashboard.service friday-hermes-dashboard.service >/dev/null
 ln -s "$release" "$CURRENT.next"
@@ -346,11 +463,70 @@ systemctl restart friday-hermes-dashboard.service
 curl -fsS --max-time 3 --retry 10 --retry-connrefused --retry-delay 2 -o /dev/null "http://127.0.0.1:$HERMES_PORT/" || fail 'Hermes dashboard did not become healthy.'
 systemctl restart friday-dashboard.service
 curl -fsS --max-time 3 --retry 15 --retry-connrefused --retry-delay 2 -o /dev/null "http://127.0.0.1:$FRIDAY_PORT/api/v1/health" || fail 'Friday dashboard did not become healthy.'
+voice_backup=$(mktemp -d "$CONFIG/.voice-rollback.XXXXXX")
+chmod 0700 "$voice_backup"
+for file in voice.json elevenlabs.key adapters.yaml; do
+  case "$file" in
+    elevenlabs.key) original="$CONFIG/secrets/$file" ;;
+    *) original="$CONFIG/$file" ;;
+  esac
+  if [[ -f "$original" ]]; then cp -p -- "$original" "$voice_backup/$file"; else touch "$voice_backup/$file.absent"; fi
+done
 if [[ "$KEY_SOURCE" == stdin ]]; then
   printf '%s' "$KEY_STDIN_VALUE" | python3 "$SOURCE/installer/linux/configure_voice.py" "${voice_args[@]}" || fail 'Voice configuration could not be written.'
   unset KEY_STDIN_VALUE
 else
   python3 "$SOURCE/installer/linux/configure_voice.py" "${voice_args[@]}" || fail 'Voice configuration could not be written.'
+fi
+if [[ "$VOICE_MODE" == elevenlabs ]]; then
+  voice_python="$STATE/voice/.venv/bin/python"
+  [[ -x "$voice_python" ]] || voice_python=python3
+  if readiness=$(runuser -u "$SERVICE" -- env HOME="$STATE" HF_HOME="$STATE/cache/huggingface" \
+      "$voice_python" "$release/installer/linux/prepare_voice.py" --check-ready 2>&1); then
+    systemctl enable friday-voice.service >/dev/null
+    systemctl restart friday-voice.service
+    voice_ok=0
+    for ((attempt=0; attempt<60; attempt++)); do
+      if curl -fsS --max-time 3 "http://127.0.0.1:$VOICE_PORT/" 2>/dev/null | \
+          python3 -c 'import json,sys; s=json.load(sys.stdin); assert s["state"] in ("listening", "waiting_audio") and s["audio_transport"] == "browser"' 2>/dev/null; then
+        voice_ok=1; break
+      fi
+      sleep 3
+    done
+    (( voice_ok )) || fail 'Voice service did not reach browser-audio standby state.'
+    wake_phrase=$(python3 -c 'import json; print(json.load(open("/etc/friday/voice.json"))["wake_phrase"])')
+    python3 "$release/installer/linux/enable_voice_adapter.py" --voice-port "$VOICE_PORT" --wake-phrase "$wake_phrase"
+    systemctl restart friday-dashboard.service
+    curl -fsS --max-time 3 --retry 15 --retry-connrefused --retry-delay 2 -o /dev/null \
+      "http://127.0.0.1:$FRIDAY_PORT/api/v1/health" || fail 'Dashboard did not recover with the live voice adapter.'
+    note "VOICE_OK browser audio on loopback $VOICE_PORT/$((VOICE_PORT + 1))"
+  else
+    if (( voice_was_active )); then fail "Previously active voice no longer ready: $readiness"; fi
+    systemctl disable --now friday-voice.service >/dev/null 2>&1 || true
+    python3 "$release/installer/linux/enable_voice_adapter.py" --voice-port "$VOICE_PORT" --wake-phrase 'Hey Friday' --disable
+    systemctl restart friday-dashboard.service
+    curl -fsS --max-time 3 --retry 15 --retry-connrefused --retry-delay 2 -o /dev/null \
+      "http://127.0.0.1:$FRIDAY_PORT/api/v1/health" || fail 'Dashboard did not recover with pending voice.'
+    note "$readiness"
+    note 'VOICE_PENDING: complete private enrollment and Hermes API setup, then rerun the installer.'
+  fi
+else
+  systemctl disable --now friday-voice.service >/dev/null 2>&1 || true
+  python3 "$release/installer/linux/enable_voice_adapter.py" --voice-port "$VOICE_PORT" --wake-phrase 'Hey Friday' --disable
+  systemctl restart friday-dashboard.service
+  curl -fsS --max-time 3 --retry 15 --retry-connrefused --retry-delay 2 -o /dev/null \
+    "http://127.0.0.1:$FRIDAY_PORT/api/v1/health" || fail 'Dashboard did not recover after changing voice mode.'
+  note 'VOICE_PENDING: native Linux local voice needs a dedicated GPU/TTS and local audio path; cloud browser voice is available with --voice-mode elevenlabs.'
+fi
+if [[ -n "$voice_backup" ]]; then
+  rm -f -- "$voice_backup/voice.json" "$voice_backup/voice.json.absent" "$voice_backup/elevenlabs.key" "$voice_backup/elevenlabs.key.absent" "$voice_backup/adapters.yaml" "$voice_backup/adapters.yaml.absent"
+  rmdir -- "$voice_backup"
+  voice_backup=
+fi
+if [[ -n "$voice_unit_backup" ]]; then
+  rm -f -- "$voice_unit_backup/friday-voice.service"
+  rmdir -- "$voice_unit_backup"
+  voice_unit_backup=
 fi
 promoted=0
 note "INSTALL_OK release=$release dashboard=http://127.0.0.1:$FRIDAY_PORT hermes=http://127.0.0.1:$HERMES_PORT"
