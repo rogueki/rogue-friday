@@ -336,7 +336,7 @@ export function SkillAccountsArea() {
       <h3 id="wiki-path-setup-title">Lokales Markdown-Wiki für Hermes</h3>
       <p>Der Skill llm-wiki liest Markdown in Friday-Ubuntu. Ohne eigenen Pfad verwendet er <code>~/wiki</code>. Gib einen vorhandenen absoluten Linux-Pfad ein; ein Windows-Ordner liegt dort unter <code>/mnt/c/...</code>. Das separate Obsidian-Vault-Feld gilt nicht für diesen Skill. Obsidian Sync ist optional und erfordert obsidian-headless und <code>ob login</code>.</p>
       {role === "owner" ? <>
-        <label>WIKI_PATH <input type="text" value={wikiPath} onChange={(event) => setWikiPath(event.target.value)} placeholder="/home/RogueKI/wiki" /></label>
+        <label>WIKI_PATH <input type="text" value={wikiPath} onChange={(event) => setWikiPath(event.target.value)} placeholder="/home/benutzer/wiki" /></label>
         <button type="button" disabled={wikiSaving || wiki.isPending || !wikiPath.trim()} onClick={() => void saveWikiPath(wikiPath.trim())}>Pfad speichern</button>{" "}
         <button type="button" disabled={wikiSaving || wiki.isPending || !wiki.data?.data.customized} onClick={() => void saveWikiPath("")}>Auf ~/wiki zurücksetzen</button>
         {wiki.isError && <p role="alert">Wiki-Pfadstatus konnte nicht gelesen werden.</p>}
