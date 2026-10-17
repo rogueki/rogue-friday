@@ -8,6 +8,7 @@ export default defineConfig({
   // Each CI shard owns an isolated Control API; one worker keeps each shard's mutable world strictly serial.
   fullyParallel: true,
   workers: 1,
+  retries: process.env.CI ? 1 : 0, // Recover once from transient Chromium context setup/teardown stalls on CI runners.
   timeout: 90_000,
   expect: {
     timeout: 15_000,
