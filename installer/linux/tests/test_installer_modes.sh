@@ -8,6 +8,15 @@ output=$(bash "$script" --dry-run)
 [[ "$output" == *'Dry-run: no user, files, build, provider call or systemd service changed.'* ]]
 [[ "$output" == *'127.0.0.1:3100'* ]]
 [[ "$output" == *'Dry-run does not invoke pnpm/Corepack'* ]]
+cloud=$(bash "$script" --dry-run --voice-mode elevenlabs --elevenlabs-voice-id SyntheticVoiceId12345 --key-stdin)
+[[ "$cloud" == *'Voice selection: elevenlabs'* ]]
+[[ "$cloud" == *'Dry-run: no user, files, build, provider call or systemd service changed.'* ]]
+if command -v nvidia-smi >/dev/null 2>&1; then
+  : # GPU-equipped CI hosts may accept local mode.
+else
+  local_plan=$(bash "$script" --dry-run --voice-mode local 2>&1)
+  [[ "$local_plan" == *'Local voice requires NVIDIA GPU with >=6 GiB VRAM'* ]]
+fi
 
 generated=$(awk '/^  cat > "\$CONFIG\/dashboard.yaml" <<YAML$/ {p=1; next} p && /^YAML$/ {exit} p {print}' "$script")
 [[ "$generated" == *'dataMode: hybrid'* ]]
