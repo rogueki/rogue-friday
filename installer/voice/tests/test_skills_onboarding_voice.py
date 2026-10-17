@@ -17,9 +17,9 @@ class FakeApi:
     def __init__(self):
         self.state = {"revision": 0, "steps": {step: "pending" for step in ("intro", "profile", "skills", "accounts", "finish")},
                       "goals": [], "selectedSkillIds": [], "completedAt": None, "updatedAt": None}
-        self.skills = [{"id": "friday:calendar", "name": "Kalender", "enabled": True},
-                       {"id": "friday:research", "name": "Recherche", "enabled": None},
-                       {"id": "friday:mail", "name": "E-Mail", "enabled": False}]
+        self.skills = [{"id": "friday:calendar", "name": "Kalender", "enabled": True, "integrationDetails": []},
+                       {"id": "friday:research", "name": "Recherche", "enabled": None, "integrationDetails": []},
+                       {"id": "friday:mail", "name": "E-Mail", "enabled": False, "integrationDetails": []}]
         self.calls = []
         self.conflict = False
 
@@ -57,7 +57,8 @@ def test_resume_and_confirmed_preferences(tmp_path):
     assert api.state["goals"] == ["Meine Termine planen"]
     assert "aktiviert den Skill nicht" in voice.handle("Kalender")
     assert api.state["selectedSkillIds"] == []
-    assert "Konten" in voice.handle("ja")
+    assert "Skills" in voice.handle("ja")
+    assert "Konten" in voice.handle("fertig")
     assert api.state["selectedSkillIds"] == ["friday:calendar"]
     assert api.skills[0]["enabled"] is True
     restarted = handler(tmp_path, api)
@@ -164,8 +165,8 @@ def test_account_step_uses_live_selection_and_stays_unverified(tmp_path):
     api.skills[2]["integrationDetails"] = [{"id": "smtp", "account": "required", "configured": False, "connectionChecked": None}]
     voice = handler(tmp_path, api)
     prompt = voice.handle("Einrichtung fortsetzen")
-    assert "smtp: erforderlich, nicht eingerichtet, Verbindung nicht geprüft" in prompt
-    assert "ungeprüft" in prompt
+    assert "Konto 1 von 1: smtp, erforderlich; nicht eingerichtet" in prompt
+    assert "ungeprueft" in prompt
     assert "abschließen" in voice.handle("weiter")
     assert api.state["steps"]["accounts"] == "skipped"
 
@@ -275,6 +276,8 @@ def test_dispatcher_keeps_speaker_gate_and_hermes_fallback(tmp_path):
         status={"rejected_speaker": 0, "commands": 0}, trusted_until=0,
         _transcribe=lambda audio: "Welche Skills sind aktiv?",
         calendar_voice=types.SimpleNamespace(handle=lambda text: None, pending=None),
+        cloudtalk_voice=types.SimpleNamespace(handle=lambda text: None, pending=None),
+        powerpoint_voice=types.SimpleNamespace(handle=lambda text: None, pending=None),
         coding_voice=types.SimpleNamespace(handle=lambda text: calls.append("coding") or None),
         content_studio_voice=types.SimpleNamespace(handle=lambda text: calls.append("studio") or None),
         skills_onboarding_voice=types.SimpleNamespace(
@@ -327,3 +330,119 @@ def test_bridge_uses_only_loopback_bearer_and_revision(tmp_path):
         pass
     else:
         raise AssertionError("activation must remain outside the voice allowlist")
+
+
+def test_voice_selects_two_skills_before_explicit_finish(tmp_path):
+    api = FakeApi()
+    api.state["steps"].update(intro="completed", profile="completed")
+    voice = handler(tmp_path, api)
+    assert "Skills" in voice.handle("Einrichtung fortsetzen")
+    assert "aktiviert den Skill nicht" in voice.handle("Kalender")
+    assert "Skills" in voice.handle("ja")
+    assert api.state["steps"]["skills"] == "pending"
+    assert "aktiviert den Skill nicht" in voice.handle("Recherche")
+    assert "Skills" in voice.handle("ja")
+    assert api.state["selectedSkillIds"] == ["friday:calendar", "friday:research"]
+    assert "Konten" in voice.handle("fertig")
+    assert api.state["steps"]["skills"] == "completed"
+
+
+def test_account_walkthrough_covers_all_deduplicated_accounts(tmp_path):
+    api = FakeApi()
+    api.state["steps"].update(intro="completed", profile="completed", skills="completed")
+    api.state["selectedSkillIds"] = ["friday:calendar", "friday:research"]
+    api.skills[0]["integrationDetails"] = [
+        {"id": f"service_{index}", "account": "required", "configured": False,
+         "connectionChecked": None, "settingsTarget": "/settings?area=skillAccounts",
+         "setupDe": "api_key=do-not-speak"} for index in range(1, 6)
+    ]
+    api.skills[1]["integrationDetails"] = [
+        {"id": "service_1", "account": "conditional", "configured": False,
+         "connectionChecked": None, "settingsTarget": "/settings?area=skillAccounts"}
+    ]
+    voice = handler(tmp_path, api)
+    prompts = [voice.handle("Einrichtung fortsetzen")]
+    for _ in range(4):
+        prompts.append(voice.handle("weiter"))
+        assert api.state["steps"]["accounts"] == "pending"
+    for index, prompt in enumerate(prompts, 1):
+        assert f"Konto {index} von 5: service {index}" in prompt
+        assert "Einstellungen, Skill-Konten" in prompt
+        assert "do-not-speak" not in prompt
+    assert "Grundeinrichtung" in voice.handle("weiter")
+    assert api.state["steps"]["accounts"] == "skipped"
+
+
+def test_voice_catalog_unavailable_does_not_advance_or_echo_secrets(tmp_path):
+    api = FakeApi()
+    api.state["steps"].update(intro="completed", profile="completed", skills="completed")
+    api.state["selectedSkillIds"] = ["friday:mail"]
+    voice = handler(tmp_path, api)
+    voice._safe_request = lambda method, path, **kwargs: (None, "unavailable") if path == "skills" else api.request(method, path, **kwargs)
+    assert "nicht erreichbar" in voice.handle("Einrichtung fortsetzen")
+    assert api.state["steps"]["accounts"] == "pending"
+    assert voice.pending is None
+
+
+def test_later_dismisses_without_changing_steps(tmp_path):
+    api = FakeApi()
+    api.state["steps"].update(intro="completed", profile="completed")
+    voice = handler(tmp_path, api)
+    assert voice.handle("Einrichtung fortsetzen")
+    assert "Einrichtung fortsetzen" in voice.handle("spater")
+    assert voice.pending is None
+    assert api.state["steps"]["skills"] == "pending"
+    assert voice.handle("weiter") is None
+
+
+def test_account_catalog_change_requires_resume(tmp_path):
+    api = FakeApi()
+    api.state["steps"].update(intro="completed", profile="completed", skills="completed")
+    api.state["selectedSkillIds"] = ["friday:mail"]
+    api.skills[2]["integrationDetails"] = [
+        {"id": "smtp", "account": "required", "configured": False,
+         "connectionChecked": None}
+    ]
+    voice = handler(tmp_path, api)
+    assert "smtp" in voice.handle("Einrichtung fortsetzen")
+    api.skills[2]["integrationDetails"] = []
+    assert "neu lese" in voice.handle("weiter")
+    assert voice.pending is None
+    assert api.state["steps"]["accounts"] == "pending"
+
+
+def test_account_location_distinguishes_anchored_cloudtalk_and_hermes_host(tmp_path):
+    api = FakeApi()
+    api.state["steps"].update(intro="completed", profile="completed", skills="completed")
+    api.state["selectedSkillIds"] = ["friday:mail"]
+    api.skills[2]["integrationDetails"] = [
+        {"id": "cloudtalk", "account": "required", "configured": False,
+         "connectionChecked": None, "settingsTarget": "/settings?area=skillAccounts#cloudtalk-setup-title"},
+        {"id": "hermes_host", "account": "required", "configured": None,
+         "connectionChecked": None, "settingsTarget": "Hermes-Einstellungen in Friday-Ubuntu"},
+    ]
+    voice = handler(tmp_path, api)
+    direct = voice.handle("Einrichtung fortsetzen")
+    assert "cloudtalk" in direct
+    assert "Einstellungen, Skill-Konten" in direct
+    host = voice.handle("weiter")
+    assert "Skills-Menue beim Skill-Detail" in host
+    assert "Skill-Konten" not in host
+    assert "Friday-Ubuntu" not in host
+
+
+def test_account_step_never_speaks_token_like_integration_id(tmp_path):
+    api = FakeApi()
+    api.state["steps"].update(intro="completed", profile="completed", skills="completed")
+    api.state["selectedSkillIds"] = ["friday:mail"]
+    token_like_id = "a" * 40
+    api.skills[2]["integrationDetails"] = [
+        {"id": token_like_id, "account": "required", "configured": False,
+         "connectionChecked": None, "settingsTarget": "/settings?area=skillAccounts"},
+    ]
+    voice = handler(tmp_path, api)
+    response = voice.handle("Einrichtung fortsetzen")
+    assert "unvollstaendig" in response
+    assert token_like_id not in response
+    assert voice.pending is None
+    assert api.state["steps"]["accounts"] == "pending"
