@@ -13620,6 +13620,142 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "listMessengerTargets",
+    "method": "GET",
+    "path": "/api/v1/messenger/targets",
+    "tag": "communication",
+    "capability": "meta.read",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": false,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "MessengerTargetsResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "registerMessengerTarget",
+    "method": "POST",
+    "path": "/api/v1/messenger/targets",
+    "tag": "communication",
+    "capability": "meta.read",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "MessengerTargetRequest"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "MessengerTargetResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "removeMessengerTarget",
+    "method": "DELETE",
+    "path": "/api/v1/messenger/targets/{id}",
+    "tag": "communication",
+    "capability": "meta.read",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [
+      "id"
+    ],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": true,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "MessengerTargetResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "previewMessengerMessage",
     "method": "POST",
     "path": "/api/v1/messenger/preview",

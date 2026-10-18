@@ -395,6 +395,10 @@ export interface FridayModelMap {
   MessengerReceipt: MessengerReceipt;
   MessengerReceiptResponse: MessengerReceiptResponse;
   MessengerReceiptsResponse: MessengerReceiptsResponse;
+  MessengerTarget: MessengerTarget;
+  MessengerTargetRequest: MessengerTargetRequest;
+  MessengerTargetResponse: MessengerTargetResponse;
+  MessengerTargetsResponse: MessengerTargetsResponse;
   Meta: Meta;
   ModelProvider: ModelProvider;
   ModelProviderListResponse: ModelProviderListResponse;
@@ -3470,11 +3474,7 @@ export interface MessengerDraft {
     | "irc"
     | "line"
     | "feishu"
-    | "teams"
-    | "google_chat"
     | "wecom"
-    | "dingtalk"
-    | "simplex"
     | "photon"
     | "buzz"
     | "ntfy";
@@ -3511,6 +3511,45 @@ export interface MessengerReceiptsResponse {
   contractVersion: ContractVersion;
   data: {
     items: MessengerReceipt[];
+  };
+  freshness: Freshness;
+}
+export interface MessengerTarget {
+  id: string;
+  accountId: "default";
+  platform: string;
+  recipient: string;
+  createdAt: string;
+}
+export interface MessengerTargetRequest {
+  accountId: "default";
+  platform:
+    | "telegram"
+    | "discord"
+    | "whatsapp"
+    | "slack"
+    | "signal"
+    | "matrix"
+    | "mattermost"
+    | "sms"
+    | "irc"
+    | "line"
+    | "feishu"
+    | "wecom"
+    | "photon"
+    | "buzz"
+    | "ntfy";
+  recipient: string;
+}
+export interface MessengerTargetResponse {
+  contractVersion: ContractVersion;
+  data: MessengerTarget;
+  freshness: Freshness;
+}
+export interface MessengerTargetsResponse {
+  contractVersion: ContractVersion;
+  data: {
+    items: MessengerTarget[];
   };
   freshness: Freshness;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { MessengerDraft, MessengerPreviewResponse, MessengerReceiptResponse, MessengerReceiptsResponse } from "@friday/sdk";
+import type { MessengerDraft, MessengerPreviewResponse, MessengerReceiptResponse, MessengerReceiptsResponse, MessengerTargetsResponse } from "@friday/sdk";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { call } from "@/lib/api/call";
@@ -8,7 +8,7 @@ import { getApiClient } from "@/lib/api/client";
 import { useSession } from "@/lib/session";
 
 const platforms = ["telegram", "discord", "whatsapp", "slack", "signal", "matrix", "mattermost", "sms",
-  "irc", "line", "feishu", "teams", "google_chat", "wecom", "dingtalk", "simplex", "photon", "buzz", "ntfy"] as const;
+  "irc", "line", "feishu", "wecom", "photon", "buzz", "ntfy"] as const;
 
 export function MessengerCompose() {
   const { role } = useSession();
@@ -21,9 +21,30 @@ export function MessengerCompose() {
   const sendKey = useRef<string | null>(null);
   const receipts = useQuery({ queryKey: ["messenger", "receipts"], enabled: role === "owner",
     queryFn: (): Promise<MessengerReceiptsResponse> => call(getApiClient().GET("/api/v1/messenger/receipts")), retry: false });
+  const targets = useQuery({ queryKey: ["messenger", "targets"], enabled: role === "owner",
+    queryFn: (): Promise<MessengerTargetsResponse> => call(getApiClient().GET("/api/v1/messenger/targets")), retry: false });
   if (role !== "owner") return null;
   const draft = (): MessengerDraft => ({ accountId: "default", platform, recipient: recipient.trim(), text });
   const change = (update: () => void) => { update(); setPreview(null); sendKey.current = null; setMessage(""); };
+  async function registerTarget() {
+    setBusy(true); setMessage("");
+    try {
+      await call(getApiClient().POST("/api/v1/messenger/targets", { body: {
+        accountId: "default", platform, recipient: recipient.trim(),
+      } }));
+      await targets.refetch();
+      setMessage("Exakte Empfänger-ID für dieses Konto registriert. Die Registrierung prüft keine Zustellung.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Empfänger konnte nicht registriert werden."); }
+    finally { setBusy(false); }
+  }
+  async function removeTarget(id: string) {
+    setBusy(true); setMessage(""); setPreview(null);
+    try {
+      await call(getApiClient().DELETE("/api/v1/messenger/targets/{id}", { params: { path: { id } } }));
+      await targets.refetch();
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Empfänger konnte nicht entfernt werden."); }
+    finally { setBusy(false); }
+  }
   async function prepare() {
     setBusy(true); setMessage("");
     try {
@@ -49,11 +70,19 @@ export function MessengerCompose() {
   }
   return <section className="mk-panel" aria-label="Messenger-Nachricht">
     <h2>Messenger-Nachricht</h2>
-    <p>Nur exakt eingerichtete Empfänger-IDs sind zulässig. Eine Vorschau sendet noch nichts.</p>
+    <p>Ausgehende Ziele werden hier ausdrücklich registriert. Hermes’ Listen erlaubter Absender gelten nur für eingehende Nachrichten. Eine Vorschau sendet noch nichts.</p>
     <label>Kanal <select value={platform} onChange={(event) => change(() => setPlatform(event.target.value as typeof platform))}>
       {platforms.map((item) => <option key={item} value={item}>{item}</option>)}
     </select></label>
     <label>Empfänger-ID <input value={recipient} onChange={(event) => change(() => setRecipient(event.target.value))} /></label>
+    <button type="button" disabled={busy || !recipient.trim()} onClick={() => void registerTarget()}>Empfänger-ID registrieren</button>
+    {targets.data?.data.items.length ? <ul aria-label="Registrierte Empfänger">
+      {targets.data.data.items.map((item) => <li key={item.id}>
+        <button type="button" onClick={() => change(() => { setPlatform(item.platform as typeof platform); setRecipient(item.recipient); })}>
+          {item.platform}: {item.recipient}
+        </button>{" "}<button type="button" disabled={busy} onClick={() => void removeTarget(item.id)}>Entfernen</button>
+      </li>)}
+    </ul> : null}
     <label>Nachricht <textarea value={text} onChange={(event) => change(() => setText(event.target.value))} /></label>
     <button type="button" disabled={busy || !recipient.trim() || !text.trim()} onClick={() => void prepare()}>Vorschau prüfen</button>
     {preview ? <div role="group" aria-label="Versandfreigabe">

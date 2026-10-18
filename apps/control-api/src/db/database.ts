@@ -293,6 +293,27 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_messenger_send_actor ON messenger_send_journal (actor, created_at);
     `,
   },
+  {
+    id: 16,
+    name: "messenger-outbound-targets",
+    sql: `
+      CREATE TABLE messenger_outbound_targets (
+        id TEXT PRIMARY KEY,
+        actor TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        recipient TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE(actor,account_id,platform,recipient)
+      );
+      CREATE INDEX idx_messenger_targets_actor ON messenger_outbound_targets (actor,platform);
+    `,
+  },
+  {
+    id: 17,
+    name: "messenger-send-draft-hash",
+    sql: "ALTER TABLE messenger_send_journal ADD COLUMN draft_hash TEXT;",
+  },
 ];
 
 export function openDatabase(path: string): Db {

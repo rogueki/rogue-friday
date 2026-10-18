@@ -7041,6 +7041,53 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/messenger/targets:
+    get:
+      operationId: listMessengerTargets
+      tags: [communication]
+      summary: List owner-enrolled exact outbound targets
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200": { description: Targets, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerTargetsResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-capability: meta.read
+      x-required-role: owner
+    post:
+      operationId: registerMessengerTarget
+      tags: [communication]
+      summary: Enroll an exact outbound destination for the owner
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerTargetRequest" } } } }
+      responses:
+        "200": { description: Target, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerTargetResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/messenger/targets/{id}:
+    delete:
+      operationId: removeMessengerTarget
+      tags: [communication]
+      summary: Remove one exact outbound destination
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[a-f0-9]{64}$" }
+      responses:
+        "200": { description: Removed target, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerTargetResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/messenger/preview:
     post:
       operationId: previewMessengerMessage
@@ -8768,6 +8815,12 @@ components:
       $ref: ../schemas/integrations/mail-send-request.schema.json
     MessengerDraft:
       $ref: ../schemas/integrations/messenger-draft.schema.json
+    MessengerTargetRequest:
+      $ref: ../schemas/integrations/messenger-target-request.schema.json
+    MessengerTargetResponse:
+      $ref: ../schemas/integrations/messenger-target-response.schema.json
+    MessengerTargetsResponse:
+      $ref: ../schemas/integrations/messenger-targets-response.schema.json
     MessengerConfirmRequest:
       $ref: ../schemas/integrations/messenger-confirm-request.schema.json
     MessengerPreviewResponse:

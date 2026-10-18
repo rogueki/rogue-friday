@@ -11,14 +11,38 @@ function fixture() {
   const db = openDatabase(":memory:");
   const approvals = new ApprovalTokenService({ key: Buffer.alloc(32, 4), nonceStore: new SqliteNonceStore(db) });
   const invoke = vi.fn(async (_script: string, _distro: string, _user: string, _args: string[], input?: string) =>
-    JSON.parse(input ?? "{}").action === "check" ? { state: "ready" } : { state: "sent", externalId: "synthetic-1" });
+    JSON.parse(input ?? "{}").action === "check" ? { state: "configured", revision: "r1" } : { state: "sent", externalId: "synthetic-1" });
   const service = new MessengerSendService(db, "unused", approvals, invoke);
+  service.register("owner", draft);
   vi.spyOn(service as unknown as { target: () => { script: string; distro: string; user: string } }, "target")
     .mockReturnValue({ script: "/fixed/messaging_send.py", distro: "Friday-Ubuntu", user: "friday" });
   return { db, service, invoke, approvals };
 }
 
 describe("messenger preview and durable send", () => {
+  it("invalidates approval after connector or target enrollment changes", async () => {
+    const { db, service, invoke } = fixture();
+    const preview = await service.preview("owner", draft);
+    invoke.mockImplementation(async (_script, _distro, _user, _args, input) =>
+      JSON.parse(input ?? "{}").action === "check" ? { state: "configured", revision: "r2" } : { state: "sent", externalId: "synthetic-2" });
+    await expect(service.confirm("owner", draft, preview.token, "account-change-key")).rejects.toThrow();
+    expect(invoke.mock.calls.filter((call) => JSON.parse(call[4] as string).action === "send")).toHaveLength(0);
+    const second = await service.preview("owner", draft);
+    const target = service.targets("owner")[0]!;
+    service.remove("owner", target.id);
+    service.register("owner", draft);
+    await expect(service.confirm("owner", draft, second.token, "target-change-key")).rejects.toThrow();
+    db.close();
+  });
+
+  it("accepts an explicit Matrix user with a colon in its identifier", async () => {
+    const { db, service } = fixture();
+    const matrix = { ...draft, platform: "matrix", recipient: "@alice:example.org" };
+    service.register("owner", matrix);
+    const preview = await service.preview("owner", matrix);
+    expect(await service.confirm("owner", matrix, preview.token, "matrix-message-key")).toMatchObject({ state: "sent" });
+    db.close();
+  });
   it("binds actor, account, transport, recipient and text; corrections invalidate approval", async () => {
     const { db, service, invoke } = fixture();
     const preview = await service.preview("owner", draft);
@@ -36,7 +60,7 @@ describe("messenger preview and durable send", () => {
   it("reserves before external send and never repeats ambiguous outcome", async () => {
     const { db, service, invoke } = fixture();
     invoke.mockImplementation(async (_script, _distro, _user, _args, input) => {
-      if (JSON.parse(input ?? "{}").action === "check") return { state: "ready" };
+      if (JSON.parse(input ?? "{}").action === "check") return { state: "configured", revision: "r1" };
       expect(service.receipts("owner")[0]?.state).toBe("pending");
       throw new Error("timeout after possible delivery");
     });
@@ -67,13 +91,15 @@ describe("messenger preview and durable send", () => {
       const db = openDatabase(path);
       const approvals = new ApprovalTokenService({ key: Buffer.alloc(32, 5), nonceStore: new SqliteNonceStore(db) });
       const invoke = vi.fn(async (_script: string, _distro: string, _user: string, _args: string[], input?: string) =>
-        JSON.parse(input ?? "{}").action === "check" ? { state: "ready" } : { state: "uncertain" });
+        JSON.parse(input ?? "{}").action === "check" ? { state: "configured", revision: "r1" } : { state: "uncertain" });
       const first = new MessengerSendService(db, "unused", approvals, invoke);
+      first.register("owner", draft);
       vi.spyOn(first as unknown as { target: () => { script: string; distro: string; user: string } }, "target")
         .mockReturnValue({ script: "/fixed/messaging_send.py", distro: "Friday-Ubuntu", user: "friday" });
       await expect(first.preview("owner", { ...draft, accountId: "other" } as never)).rejects.toThrow();
       const preview = await first.preview("owner", draft);
       expect(await first.confirm("owner", draft, preview.token, "restart-key-123")).toMatchObject({ state: "uncertain" });
+      db.prepare("UPDATE messenger_send_journal SET state='pending'").run();
       db.close();
       const reopened = openDatabase(path);
       const second = new MessengerSendService(reopened, "unused", new ApprovalTokenService({

@@ -7,6 +7,22 @@ import { validationFailed } from "../util/errors";
 const single = (data: unknown) => ({ contractVersion: CONTRACT_VERSION, data, freshness: { state: "fresh" as const, asOf: new Date().toISOString() } });
 
 export const messengerSendHandlers: Partial<Record<OperationId, Handler>> = {
+  async listMessengerTargets(ctx) {
+    return { status: 200, body: single({ items: ctx.runtime.messengerSend.targets(ctx.principal!.userId) }) };
+  },
+  async registerMessengerTarget(ctx) {
+    const target = ctx.runtime.messengerSend.register(ctx.principal!.userId,
+      ctx.body as Pick<MessengerDraft, "accountId" | "platform" | "recipient">);
+    ctx.audit.action = "messenger.target.register";
+    ctx.audit.after = { platform: target.platform, targetId: target.id };
+    return { status: 200, body: single(target) };
+  },
+  async removeMessengerTarget(ctx) {
+    const target = ctx.runtime.messengerSend.remove(ctx.principal!.userId, ctx.pathParams.id!);
+    ctx.audit.action = "messenger.target.remove";
+    ctx.audit.after = { platform: target.platform, targetId: target.id };
+    return { status: 200, body: single(target) };
+  },
   async previewMessengerMessage(ctx) {
     const draft = ctx.body as MessengerDraft;
     return { status: 200, body: single(await ctx.runtime.messengerSend.preview(ctx.principal!.userId, draft)),

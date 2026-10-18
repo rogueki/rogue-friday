@@ -21,9 +21,8 @@ class MessengerSendTest(unittest.TestCase):
         (root / "hermes_cli" / "send_cmd.py").write_text("# pinned fake\n")
         cli = home / "hermes"
         cli.write_text("# fake\n")
-        env = home / ".env"
-        env.write_text('TELEGRAM_ALLOWED_USERS="12345678"\n')
-        self.patches = [patch.object(bridge, "ROOT", root), patch.object(bridge, "CLI", cli), patch.object(bridge, "ENV", env)]
+        self.patches = [patch.object(bridge, "ROOT", root), patch.object(bridge, "CLI", cli),
+                        patch.object(bridge, "configured_revision", return_value="config-revision")]
         for item in self.patches:
             item.start()
             self.addCleanup(item.stop)
@@ -39,7 +38,8 @@ class MessengerSendTest(unittest.TestCase):
         return {"action": "send", "platform": "telegram", "recipient": "12345678", "text": "Synthetic hello", **changes}
 
     def test_check_never_sends_and_send_uses_exact_argv_with_body_only_on_stdin(self):
-        self.assertEqual(bridge.send(self.request(action="check"), self.runner), {"state": "ready"})
+        self.assertEqual(bridge.send(self.request(action="check"), self.runner),
+                         {"state": "configured", "revision": "config-revision"})
         self.assertEqual(len(self.calls), 1)
         self.assertEqual(bridge.send(self.request(), self.runner), {"state": "sent", "externalId": "provider-1"})
         argv, kwargs = self.calls[-1]
@@ -47,10 +47,15 @@ class MessengerSendTest(unittest.TestCase):
         self.assertEqual(kwargs["input"], "Synthetic hello")
         self.assertNotIn("Synthetic hello", " ".join(argv))
 
-    def test_unadmitted_target_or_media_is_rejected_before_send(self):
-        self.assertEqual(bridge.send(self.request(recipient="87654321"), self.runner)["reason"], "recipient_not_admitted")
+    def test_invalid_target_or_media_is_rejected_before_send(self):
+        self.assertEqual(bridge.send(self.request(recipient="room/unsafe"), self.runner)["reason"], "invalid_target_or_text")
         self.assertEqual(bridge.send(self.request(text="MEDIA:/private/file"), self.runner)["reason"], "invalid_target_or_text")
         self.assertEqual(self.calls, [])
+
+    def test_matrix_colon_target_and_missing_configuration(self):
+        self.assertEqual(bridge.send(self.request(platform="matrix", recipient="@user:example.org"), self.runner)["state"], "sent")
+        with patch.object(bridge, "configured_revision", return_value=None):
+            self.assertEqual(bridge.send(self.request(action="check"), self.runner)["reason"], "platform_not_configured")
 
     def test_timeout_and_malformed_receipt_are_uncertain(self):
         def timeout(argv, **kwargs):

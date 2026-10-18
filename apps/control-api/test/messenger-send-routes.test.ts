@@ -12,6 +12,15 @@ describe("owner messenger delivery routes", () => {
       const anonymous = api.client();
       const viewer = api.client(); await viewer.loginDev("viewer");
       const owner = api.client(); await owner.loginDev("owner");
+      expect((await viewer.request("GET", "/api/v1/messenger/targets")).statusCode).toBe(403);
+      expect((await owner.request("POST", "/api/v1/messenger/targets", {
+        body: { accountId: "default", platform: "telegram", recipient: "12345678" }, csrf: false,
+      })).statusCode).toBe(403);
+      const registered = await owner.request("POST", "/api/v1/messenger/targets", {
+        body: { accountId: "default", platform: "telegram", recipient: "12345678" },
+      });
+      expect(registered.statusCode, registered.body).toBe(200);
+      expect((await owner.request("GET", "/api/v1/messenger/targets")).body).toContain("12345678");
       const preview = vi.spyOn(api.runtime.messengerSend, "preview").mockResolvedValue({
         token: "synthetic-token-123", expiresAt: new Date(Date.now() + 10000).toISOString(), fingerprint: "a".repeat(64), draft,
       });
