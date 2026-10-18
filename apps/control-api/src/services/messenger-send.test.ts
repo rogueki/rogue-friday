@@ -10,7 +10,8 @@ const draft: MessengerDraft = { accountId: "default", platform: "telegram", reci
 function fixture() {
   const db = openDatabase(":memory:");
   const approvals = new ApprovalTokenService({ key: Buffer.alloc(32, 4), nonceStore: new SqliteNonceStore(db) });
-  const invoke = vi.fn(async (_script: string, _distro: string, _user: string, _args: string[], input?: string) =>
+  const invoke = vi.fn(async (_script: string, _distro: string, _user: string, _args: string[], input?: string,
+    _timeoutMs?: number): Promise<Record<string, unknown>> =>
     JSON.parse(input ?? "{}").action === "check" ? { state: "configured", revision: "r1" } : { state: "sent", externalId: "synthetic-1" });
   const service = new MessengerSendService(db, "unused", approvals, invoke);
   service.register("owner", draft);
@@ -50,6 +51,16 @@ describe("messenger preview and durable send", () => {
     db.close();
   });
 
+  it("separates unavailable configuration probing from absent channel configuration", async () => {
+    const { db, service, invoke } = fixture();
+    invoke.mockResolvedValue({ state: "rejected", reason: "config_probe_unavailable" });
+    await expect(service.preview("owner", draft)).rejects.toThrow("Konfigurationsprüfung ist nicht erreichbar");
+    invoke.mockResolvedValue({ state: "rejected", reason: "platform_not_configured" });
+    await expect(service.preview("owner", draft)).rejects.toThrow("nicht konfiguriert");
+    expect(invoke.mock.calls.every((call) => call[5] === 15000)).toBe(true);
+    db.close();
+  });
+
   it("accepts an explicit Matrix user with a colon in its identifier", async () => {
     const { db, service } = fixture();
     const matrix = { ...draft, platform: "matrix", recipient: "@alice:example.org" };
@@ -71,6 +82,7 @@ describe("messenger preview and durable send", () => {
     expect(invoke.mock.calls.filter((call) => JSON.parse(call[4] as string).action === "send")).toHaveLength(1);
     expect(JSON.parse(invoke.mock.calls.find((call) => JSON.parse(call[4] as string).action === "send")![4] as string)
       .expectedConfigRevision).toBe("r1");
+    expect(invoke.mock.calls.find((call) => JSON.parse(call[4] as string).action === "send")![5]).toBe(35000);
     db.close();
   });
 

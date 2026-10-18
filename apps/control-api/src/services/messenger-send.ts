@@ -114,9 +114,9 @@ export class MessengerSendService {
     try {
       return await this.invoke(script, distro, user, [], JSON.stringify({ action, platform: draft.platform,
         recipient: draft.recipient, text: draft.text,
-        ...(action === "send" ? { expectedConfigRevision } : {}) }), action === "check" ? 10000 : 45000) as RunnerResult;
+        ...(action === "send" ? { expectedConfigRevision } : {}) }), action === "check" ? 15000 : 35000) as RunnerResult;
     } catch {
-      return { state: action === "send" ? "uncertain" : "rejected" };
+      return { state: action === "send" ? "uncertain" : "rejected", reason: "bridge_unavailable" };
     }
   }
 
@@ -134,7 +134,8 @@ export class MessengerSendService {
     const targetId = this.admitted(actor, draft);
     if (!targetId) throw validationFailed("Empfänger ist für dieses Konto nicht registriert.");
     const ready = await this.run("check", draft);
-    if (ready.state !== "configured" || !ready.revision) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes-Kanal ist nicht konfiguriert." });
+    if (ready.state !== "configured" || !ready.revision) throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+      message: ready.reason === "platform_not_configured" ? "Hermes-Kanal ist nicht konfiguriert." : "Hermes-Konfigurationsprüfung ist nicht erreichbar." });
     if (this.admitted(actor, draft) !== targetId) throw conflict("Empfängerfreigabe wurde geändert; bitte erneut prüfen.");
     const fingerprint = this.fingerprint(actor, draft, ready.revision, targetId);
     const { token, claims } = this.approvals.issue({ approvalId: fingerprint, userId: actor, action: "messenger.send" });
@@ -150,7 +151,8 @@ export class MessengerSendService {
     const targetId = this.admitted(actor, draft);
     if (!targetId) throw validationFailed("Empfänger ist für dieses Konto nicht registriert.");
     const ready = await this.run("check", draft);
-    if (ready.state !== "configured" || !ready.revision) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes-Kanal ist nicht konfiguriert." });
+    if (ready.state !== "configured" || !ready.revision) throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+      message: ready.reason === "platform_not_configured" ? "Hermes-Kanal ist nicht konfiguriert." : "Hermes-Konfigurationsprüfung ist nicht erreichbar." });
     if (this.admitted(actor, draft) !== targetId) throw conflict("Empfängerfreigabe wurde geändert; bitte erneut prüfen.");
     const payloadHash = this.fingerprint(actor, draft, ready.revision, targetId);
     const valid = this.approvals.consume(token, { approvalId: payloadHash, userId: actor, action: "messenger.send" });

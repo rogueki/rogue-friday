@@ -73,6 +73,10 @@ class MessengerSendTest(unittest.TestCase):
         with patch.object(bridge, "configured_revision", return_value=None):
             self.assertEqual(bridge.send(self.request(action="check"), self.runner),
                              {"state": "rejected", "reason": "platform_not_configured"})
+        def pin_timeout(argv, **_kwargs):
+            raise subprocess.TimeoutExpired(argv, 3)
+        self.assertEqual(bridge.send(self.request(action="check"), pin_timeout),
+                         {"state": "rejected", "reason": "hermes_pin_unavailable"})
 
     def test_timeout_and_malformed_receipt_are_uncertain(self):
         def timeout(argv, **kwargs):

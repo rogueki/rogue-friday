@@ -44,7 +44,7 @@ def configured_revision(platform):
     from hermes_cli._launchers import runtime_command
     path = Path(__file__).with_name("messaging_config_probe.py")
     command = runtime_command(ROOT, [platform], code=f"import runpy; runpy.run_path({str(path)!r}, run_name='__main__')")
-    result = subprocess.run(command, capture_output=True, text=True, timeout=20, check=False)
+    result = subprocess.run(command, capture_output=True, text=True, timeout=8, check=False)
     if result.returncode != 0:
         raise RuntimeError("Hermes config probe unavailable")
     try:
@@ -73,8 +73,11 @@ def send(request, runner=subprocess.run):
         return {"state": "rejected", "reason": "invalid_target_or_text"}
     if not CLI.is_file() or not (ROOT / "hermes_cli" / "send_cmd.py").is_file():
         return {"state": "rejected", "reason": "hermes_unavailable"}
-    pin = runner(["git", "-C", str(ROOT), "rev-parse", "--short=8", "HEAD"],
-                 capture_output=True, text=True, timeout=3, check=False)
+    try:
+        pin = runner(["git", "-C", str(ROOT), "rev-parse", "--short=8", "HEAD"],
+                     capture_output=True, text=True, timeout=3, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return {"state": "rejected", "reason": "hermes_pin_unavailable"}
     if pin.returncode != 0 or pin.stdout.strip() != PINNED:
         return {"state": "rejected", "reason": "hermes_version_changed"}
     try:
@@ -93,7 +96,7 @@ def send(request, runner=subprocess.run):
     # timeout/parse failure may follow delivery and must never be retried blindly.
     try:
         result = runner([str(CLI), "send", "--to", f"{platform}:{recipient}", "--file", "-", "--json"],
-                        input=message, capture_output=True, text=True, timeout=30, check=False)
+                        input=message, capture_output=True, text=True, timeout=20, check=False)
     except subprocess.TimeoutExpired:
         return {"state": "uncertain"}
     try:
