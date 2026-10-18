@@ -6,7 +6,7 @@ import type { OperationId } from "../http/route-types";
 import { LocalCalendarService, type LocalEventInput } from "../services/local-calendar";
 import { ApiError, validationFailed } from "../util/errors";
 
-const single = (data: CalendarEvent) => ({ contractVersion: CONTRACT_VERSION, data, freshness: { state: "fresh" as const, asOf: new Date().toISOString() } });
+const single = (data: CalendarEvent, nowMs: number) => ({ contractVersion: CONTRACT_VERSION, data, freshness: { state: "fresh" as const, asOf: new Date(nowMs).toISOString() } });
 interface CalendarCursor { localOffset: number; connectedOffset: number; remoteCursor: string | null; remoteDone: boolean; filter: string }
 const cursorPrefix = "friday-calendar:";
 const filterHash = (query: Record<string, unknown>) => createHash("sha256").update(JSON.stringify([query.from ?? null, query.to ?? null, query.q ?? null])).digest("hex").slice(0, 16);
@@ -31,8 +31,9 @@ const unavailable = (error: unknown) => {
 };
 
 async function connectedEvents(ctx: Parameters<Handler>[0], from?: string, to?: string): Promise<{ items: CalendarEvent[]; failed: boolean }> {
-  const start = from ?? new Date(Date.now() - 30 * 86_400_000).toISOString();
-  const end = to ?? new Date(Date.now() + 365 * 86_400_000).toISOString();
+  const nowMs = ctx.runtime.nowMs();
+  const start = from ?? new Date(nowMs - 30 * 86_400_000).toISOString();
+  const end = to ?? new Date(nowMs + 365 * 86_400_000).toISOString();
   let accounts: Awaited<ReturnType<typeof ctx.runtime.calendarAccounts.list>>;
   try { accounts = await ctx.runtime.calendarAccounts.list(); }
   catch { return { items: [], failed: true }; }
@@ -50,13 +51,13 @@ export const localCalendarHandlers: Partial<Record<OperationId, Handler>> = {
     const data = new LocalCalendarService(ctx.runtime.db).create(ctx.body as LocalEventInput, ctx.principal!.userId);
     ctx.audit.action = "calendar.local_create";
     ctx.audit.after = { id: data.id, version: data.version };
-    return { status: 201, body: single(data), headers: { "Idempotent-Replayed": "false" } };
+    return { status: 201, body: single(data, ctx.runtime.nowMs()), headers: { "Idempotent-Replayed": "false" } };
   },
   async updateLocalCalendarEvent(ctx) {
     const data = new LocalCalendarService(ctx.runtime.db).update(ctx.pathParams.id!, ctx.body as LocalEventInput, ctx.principal!.userId, ctx.mutation.ifMatchVersion);
     ctx.audit.action = "calendar.local_update";
     ctx.audit.after = { id: data.id, version: data.version };
-    return { status: 200, body: single(data) };
+    return { status: 200, body: single(data, ctx.runtime.nowMs()) };
   },
   async deleteLocalCalendarEvent(ctx) {
     const service = new LocalCalendarService(ctx.runtime.db);
@@ -64,7 +65,7 @@ export const localCalendarHandlers: Partial<Record<OperationId, Handler>> = {
     service.delete(data.id, ctx.principal!.userId, ctx.mutation.ifMatchVersion);
     ctx.audit.action = "calendar.local_delete";
     ctx.audit.before = { id: data.id, version: data.version };
-    return { status: 200, body: single(data) };
+    return { status: 200, body: single(data, ctx.runtime.nowMs()) };
   },
 };
 
@@ -112,23 +113,25 @@ export function localCalendarReads(listRemote: Handler, getRemote: Handler): Par
       const hasNextPage = localRemains || connectedRemains || remoteRemains;
       const nextCursor = hasNextPage ? encodeCursor({ localOffset: cursor.localOffset + localUsed,
         connectedOffset: cursor.connectedOffset + connectedUsed, remoteCursor: nextRemoteCursor, remoteDone: !remoteRemains, filter: cursor.filter }) : null;
-      const localSource = local[0]?.source ?? { adapterId: "friday-local-calendar", system: "friday-local", lastSyncedAt: new Date().toISOString() };
+      const asOf = new Date(ctx.runtime.nowMs()).toISOString();
+      const localSource = local[0]?.source ?? { adapterId: "friday-local-calendar", system: "friday-local", lastSyncedAt: asOf };
       const sources = [localSource, ...(connected.items.length ? [{ adapterId: "friday-calendar-account", system: "friday-connected", lastSyncedAt: connected.items[0]!.source.lastSyncedAt }] : []), ...(remote?.sources ?? [])];
       const body: CalendarEventListResponse = {
         contractVersion: CONTRACT_VERSION, items, sources,
-        freshness: { state: connected.failed ? "stale" : remote?.freshness.state ?? "fresh", asOf: new Date().toISOString() },
+        freshness: { state: connected.failed ? "stale" : remote?.freshness.state ?? "fresh", asOf },
         pageInfo: { nextCursor, hasNextPage },
       };
       return { status: 200, body };
     },
     async getCalendarEvent(ctx) {
-      if (ctx.pathParams.id && new LocalCalendarService(ctx.runtime.db).has(ctx.pathParams.id)) return { status: 200, body: single(new LocalCalendarService(ctx.runtime.db).get(ctx.pathParams.id)) };
+      if (ctx.pathParams.id && new LocalCalendarService(ctx.runtime.db).has(ctx.pathParams.id)) return { status: 200, body: single(new LocalCalendarService(ctx.runtime.db).get(ctx.pathParams.id), ctx.runtime.nowMs()) };
       const cached = ctx.pathParams.id ? ctx.runtime.calendarAccounts.getCachedEvent(ctx.pathParams.id) : undefined;
-      if (cached) return { status: 200, body: single(cached) };
+      if (cached) return { status: 200, body: single(cached, ctx.runtime.nowMs()) };
       if (ctx.pathParams.id?.startsWith("cal_")) {
-        const connected = await connectedEvents(ctx, new Date(Date.now() - 365 * 86_400_000).toISOString(), new Date(Date.now() + 730 * 86_400_000).toISOString());
+        const nowMs = ctx.runtime.nowMs();
+        const connected = await connectedEvents(ctx, new Date(nowMs - 365 * 86_400_000).toISOString(), new Date(nowMs + 730 * 86_400_000).toISOString());
         const item = connected.items.find((event) => event.id === ctx.pathParams.id);
-        if (item) return { status: 200, body: single(item) };
+        if (item) return { status: 200, body: single(item, ctx.runtime.nowMs()) };
       }
       return getRemote(ctx);
     },
