@@ -34,14 +34,18 @@ async function expectNoHorizontalScroll(page: Page): Promise<void> {
 }
 
 /** The command bar is entirely inside the viewport and every control of it is reachable. */
-async function expectCommandBar(page: Page): Promise<void> {
+async function expectCommandBar(page: Page, overview: boolean): Promise<void> {
   const bar = page.locator(".jv-bottombar");
   const box = await bar.boundingBox();
   expect(box, "command bar rendered").not.toBeNull();
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(390.5);
   expect(box!.y + box!.height).toBeLessThanOrEqual(844.5);
-  for (const control of [bar.getByRole("textbox"), bar.getByRole("button", { name: /MIT .* SPRECHEN/ }), bar.getByRole("button", { name: "Stopp" }), bar.getByRole("button", { name: /Pause|Fortsetzen/ })]) {
+  const pause = bar.getByRole("button", { name: /Pause|Fortsetzen/ });
+  if (overview) await expect(pause).toHaveCount(0);
+  const controls = [bar.getByRole("textbox"), bar.getByRole("button", { name: /MIT .* SPRECHEN/ }), bar.getByRole("button", { name: "Stopp" })];
+  if (!overview) controls.push(pause);
+  for (const control of controls) {
     await expect(control).toBeVisible();
     const b = await control.boundingBox();
     expect(b!.x).toBeGreaterThanOrEqual(0);
@@ -61,7 +65,7 @@ for (const [name, path] of PAGES) {
     test("fits the phone: no horizontal scroll, command bar prominent and complete", async ({ page }) => {
       await load(page, path);
       await expectNoHorizontalScroll(page);
-      await expectCommandBar(page);
+      await expectCommandBar(page, path === "/");
     });
 
     test("complex data is shown as cards, not as tables", async ({ page }) => {
