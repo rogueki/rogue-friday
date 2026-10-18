@@ -81,9 +81,7 @@ export async function runMicrophoneLevelCheck(page: Page, kind: MicFixture): Pro
     expect(maxOf(await sampleAudio(page, "input", "peak", 1500, 50))).toBeLessThan(0.2);
   } else if (kind === "quiet") {
     expect(stats.max, "quiet speech is visible").toBeGreaterThan(0.04);
-    // NOTE: the analyser normalises against a tracked peak, so quiet speech still reaches a high level (measured ~0.8);
-    // only an absolute sanity bound is asserted here and the value is reported.
-    expect(stats.max, "quiet speech stays below full scale").toBeLessThan(0.97);
+    expect(stats.max, "quiet speech stays small").toBeLessThan(0.6);
   } else {
     expect(stats.max, "loud speech is clearly bigger").toBeGreaterThan(0.45);
   }
