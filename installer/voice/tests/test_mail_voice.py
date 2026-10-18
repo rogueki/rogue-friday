@@ -62,3 +62,40 @@ def test_spoken_address_is_normalized_and_read_back_before_confirmation():
     answer = voice.handle("Schreibe Mail an max punkt mustermann at example punkt test Betreff Test Text Hallo")
     assert "An max.mustermann@example.test" in answer
     assert voice.pending["armed"] is False
+
+
+def test_search_sentence_punctuation_and_quoted_phrase_select_same_message():
+    voice = MailVoice("/synthetic")
+    def fake(method, path, body=None, key=None):
+        if path == "mailboxes":
+            return {"mailboxes": [{"id": "Inbox", "name": "Inbox", "role": "inbox"}]}, None
+        if path.startswith("envelopes?"):
+            return {"items": [{"id": "504", "subject": "Friday Sprachtest intern", "from": [], "flags": []}]}, None
+        raise AssertionError(path)
+    voice._safe = fake
+    for utterance in ("Suche Mails mit Friday Sprachtest", "Suche Mails mit Friday Sprachtest.",
+                      "Suche Mails mit Friday Sprachtest?", 'Suche Mails mit "Friday Sprachtest".',
+                      "Suche Mails mit „Friday Sprachtest“."):
+        assert "Friday Sprachtest intern" in voice.handle(utterance)
+        assert voice.results == [{"mailbox": "Inbox", "id": "504"}]
+    assert "Suchbegriff" in voice.handle("Suche Mails mit ...")
+
+
+def test_move_folder_sentence_punctuation_does_not_change_destination():
+    voice = MailVoice("/synthetic")
+    voice.results = [{"mailbox": "Inbox", "id": "504"}]
+    voice.results_expires = voice.now() + 120
+    requests = []
+    def fake(method, path, body=None, key=None):
+        if path == "mailboxes":
+            return {"mailboxes": [{"id": "Archive", "name": "Archiv", "role": None}]}, None
+        if path == "voice/preview":
+            requests.append(body)
+            return {"token": "a" * 40, "fingerprint": "f" * 64,
+                    "expiresAt": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=60)).isoformat(),
+                    "action": "move", "to": [], "subject": "Synthetic", "body": "", "mailbox": "Inbox",
+                    "id": "504", "destination": "Archive"}, None
+        raise AssertionError(path)
+    voice._safe = fake
+    assert "Sage Ja oder Nein" in voice.handle("Verschiebe Mail eins in Archiv.")
+    assert requests == [{"action": "move", "mailbox": "Inbox", "id": "504", "destination": "Archive"}]

@@ -97,6 +97,14 @@ class MailVoice:
         value = re.sub(r"\s*(?:\.|\bpunkt\b|\bdot\b)\s*", ".", value)
         return re.sub(r"\s+", "", value)
 
+    @staticmethod
+    def _spoken_label(words):
+        # ASR often adds sentence punctuation to a search term or folder name.
+        value = words.strip().rstrip(".!? ").strip()
+        if len(value) >= 2 and (value[0], value[-1]) in (("\"", "\""), ("„", "“"), ("«", "»")):
+            value = value[1:-1].strip()
+        return value
+
     def _preview(self, request):
         preview, error = self._safe("POST", "voice/preview", request)
         if error:
@@ -154,7 +162,9 @@ class MailVoice:
                 if len(data["items"]) < 25:
                     break
             kind = (match["kind"] or "").lower()
-            term = (match["term"] or "").strip().casefold()
+            term = self._spoken_label(match["term"] or "").casefold()
+            if match["term"] and not term:
+                return "Bitte nenne einen Suchbegriff."
             def matches(row):
                 flags = {str(flag).casefold() for flag in row.get("flags") or []}
                 if kind == "ungelesene" and "seen" in flags:
@@ -198,7 +208,8 @@ class MailVoice:
                     boxes, error = self._safe("GET", "mailboxes")
                     if error:
                         return error
-                    folders = [row for row in boxes["mailboxes"] if row["name"].casefold() == match["folder"].casefold()]
+                    folder_name = self._spoken_label(match["folder"])
+                    folders = [row for row in boxes["mailboxes"] if folder_name and row["name"].casefold() == folder_name.casefold()]
                     if len(folders) != 1:
                         return "Der Zielordner ist nicht eindeutig. Bitte nenne den genauen Ordnernamen."
                     request["destination"] = folders[0]["id"]
