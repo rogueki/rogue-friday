@@ -20,8 +20,13 @@ $lockHandle = [IO.File]::Open($lock, [IO.FileMode]::CreateNew, [IO.FileAccess]::
 $backup = $null
 $stopped = $false
 function Git([string[]]$arguments) {
-    $result = & git.exe @arguments 2>> $log
-    if ($LASTEXITCODE -ne 0) { throw "Git-Operation fehlgeschlagen: $($arguments[0])" }
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $result = & git.exe @arguments 2>> $log
+        $gitExit = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $previousErrorActionPreference }
+    if ($gitExit -ne 0) { throw "Git-Operation fehlgeschlagen: $($arguments[0])" }
     return $result
 }
 function Start-Dashboard {
