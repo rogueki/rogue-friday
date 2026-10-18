@@ -7091,6 +7091,20 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/messenger/catalog:
+    get:
+      operationId: getMessengerCatalog
+      tags: [communication]
+      summary: Inspect pinned Hermes native messaging prerequisites and observed gateway state
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200": { description: Native transport catalog, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerCatalogResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/messenger/targets:
     get:
       operationId: listMessengerTargets
@@ -8865,6 +8879,8 @@ components:
       $ref: ../schemas/integrations/mail-send-request.schema.json
     MessengerDraft:
       $ref: ../schemas/integrations/messenger-draft.schema.json
+    MessengerCatalogResponse:
+      $ref: ../schemas/integrations/messenger-catalog-response.schema.json
     MessengerTargetRequest:
       $ref: ../schemas/integrations/messenger-target-request.schema.json
     MessengerTargetResponse:

@@ -480,6 +480,7 @@ export interface FridayModelMap {
   Message: Message;
   MessageListResponse: MessageListResponse;
   MessageResponse: MessageResponse;
+  MessengerCatalogResponse: MessengerCatalogResponse;
   MessengerConfirmRequest: MessengerConfirmRequest;
   MessengerDraft: MessengerDraft;
   MessengerPreviewResponse: MessengerPreviewResponse;
@@ -3644,6 +3645,28 @@ export interface MessageListResponse {
 export interface MessageResponse {
   contractVersion: ContractVersion;
   data: Message;
+  freshness: Freshness;
+}
+export interface MessengerCatalogResponse {
+  contractVersion: ContractVersion;
+  data: {
+    pin: "d923a5eb";
+    items: {
+      platform: string;
+      source: "builtin" | "bundled_plugin";
+      fields: {
+        name: string;
+        secret: boolean;
+        required: boolean;
+        present: boolean;
+      }[];
+      configured: boolean;
+      gatewayRunning: boolean;
+      connectionState: "connected" | "disconnected" | "unknown";
+      exactSendSupported: boolean;
+      nativeSetupAvailable: boolean;
+    }[];
+  };
   freshness: Freshness;
 }
 export interface MessengerConfirmRequest {

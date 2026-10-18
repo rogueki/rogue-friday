@@ -5,6 +5,26 @@ import type { MessengerDraft } from "../src/services/messenger-send";
 const draft: MessengerDraft = { accountId: "default", platform: "telegram", recipient: "12345678", text: "Synthetic only" };
 
 describe("owner messenger delivery routes", () => {
+  it("restricts the pinned 24-provider catalog to the owner without exposing credentials", async () => {
+    const api = await startTestApi();
+    try {
+      const viewer = api.client(); await viewer.loginDev("viewer");
+      const owner = api.client(); await owner.loginDev("owner");
+      const names = ["telegram", "discord", "whatsapp", "whatsapp_cloud", "slack", "signal", "mattermost",
+        "matrix", "sms", "dingtalk", "feishu", "wecom", "weixin", "bluebubbles", "qqbot", "yuanbao",
+        "teams", "buzz", "google_chat", "irc", "line", "ntfy", "photon", "simplex"];
+      vi.spyOn(api.runtime.messengerCatalog, "list").mockResolvedValue({ pin: "d923a5eb",
+        items: names.map((platform) => ({ platform, source: "bundled_plugin", configured: false,
+          gatewayRunning: false, connectionState: "unknown", exactSendSupported: false,
+          nativeSetupAvailable: false, fields: [{ name: "SYNTHETIC_SECRET", secret: true, required: true, present: true }] })) });
+      expect((await viewer.request("GET", "/api/v1/messenger/catalog")).statusCode).toBe(403);
+      const result = await owner.request("GET", "/api/v1/messenger/catalog");
+      expect(result.statusCode, result.body).toBe(200);
+      expect(result.body).toContain("SYNTHETIC_SECRET");
+      expect(result.body).not.toContain("synthetic-secret-value");
+    } finally { await api.close(); }
+  });
+
   it("requires owner and CSRF and keeps payload out of audit logs", async () => {
     const logs: string[] = [];
     const api = await startTestApi({ logs });

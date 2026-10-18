@@ -7,6 +7,10 @@ import { validationFailed } from "../util/errors";
 const single = (data: unknown) => ({ contractVersion: CONTRACT_VERSION, data, freshness: { state: "fresh" as const, asOf: new Date().toISOString() } });
 
 export const messengerSendHandlers: Partial<Record<OperationId, Handler>> = {
+  async getMessengerCatalog(ctx) {
+    return { status: 200, body: single(await ctx.runtime.messengerCatalog.list()),
+      headers: { "Cache-Control": "no-store" } };
+  },
   async listMessengerTargets(ctx) {
     return { status: 200, body: single({ items: ctx.runtime.messengerSend.targets(ctx.principal!.userId) }) };
   },

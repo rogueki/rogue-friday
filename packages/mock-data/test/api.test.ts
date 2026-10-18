@@ -217,7 +217,7 @@ describe("REST route coverage", () => {
       "saveMailDraft", "searchDurableMemory", "searchMailEnvelopes", "sendMailMessage", "setDefaultMailAccount",
       "startMailOAuth", "startWhatsappPairing", "updateMailAccount",
       "previewMessengerMessage", "confirmMessengerMessage", "listMessengerReceipts",
-      "listMessengerTargets", "registerMessengerTarget", "removeMessengerTarget",
+      "listMessengerTargets", "registerMessengerTarget", "removeMessengerTarget", "getMessengerCatalog",
     ].sort();
     const mocked = ROUTES.map((route) => route.operationId).sort();
     expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);
