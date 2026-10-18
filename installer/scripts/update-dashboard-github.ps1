@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory=$true)][string]$InstallRoot,
     [Parameter(Mandatory=$true)][string]$ExpectedCommit,
-    [string]$RunId = ''
+    [string]$RunId = '',
+    [string]$TaskName = ''
 )
 $ErrorActionPreference = 'Stop'
 if ($ExpectedCommit -cnotmatch '^[0-9a-f]{40}$') { throw 'Ungültige Commit-ID.' }
@@ -25,6 +26,7 @@ $runStartedAt = (Get-Date).ToUniversalTime().ToString('o')
 $processStartedAt = (Get-Process -Id $PID).StartTime.ToUniversalTime().ToString('o')
 if (-not $RunId) { $RunId = [guid]::NewGuid().ToString('N') }
 if ($RunId -notmatch '^[0-9a-f]{32}$') { throw 'Ungültige Lauf-ID.' }
+if ($TaskName -and $TaskName -cne ('FRIDAY_Update_' + $RunId)) { throw 'Ungültiger Update-Aufgabenname.' }
 $step = 0
 $phase = 'starting'
 function Write-UpdateState([string]$phase, [string]$message, [string]$state = 'running') {
@@ -113,6 +115,21 @@ function Assert-NoReparse([string]$path) {
         $current = $next
     }
 }
+function Set-UpdateToolPath {
+    # pnpm's build scripts run through cmd.exe, which cannot resolve tools in quoted PATH entries.
+    $entries = @([Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User'), $env:Path) |
+        Where-Object { $_ } | ForEach-Object { $_ -split ';' } |
+        ForEach-Object { [Environment]::ExpandEnvironmentVariables($_.Trim().Trim('"')) } |
+        Where-Object { $_ }
+    foreach ($directory in @("$env:ProgramFiles\nodejs", "$env:LOCALAPPDATA\Programs\nodejs", "$env:APPDATA\npm")) {
+        if ($directory -and (Test-Path -LiteralPath $directory -PathType Container)) { $entries += $directory }
+    }
+    $env:Path = (@($entries | Select-Object -Unique)) -join ';'
+    if (-not (Get-Command node.exe -ErrorAction SilentlyContinue) -or
+        -not (Get-Command pnpm.cmd -ErrorAction SilentlyContinue)) {
+        throw 'Node.js oder pnpm fehlt im Suchpfad. Bitte die grafische Installation erneut ausführen.'
+    }
+}
 function Sync-BuildOutput([string]$source, [string]$destination) {
     if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw "Build-Ausgabe fehlt: $source" }
     New-Item -ItemType Directory -Force $destination | Out-Null
@@ -141,6 +158,7 @@ function Sync-BuildOutput([string]$source, [string]$destination) {
 }
 try {
     "$(Get-Date -Format o) Update $ExpectedCommit gestartet" | Add-Content $log
+    Set-UpdateToolPath
     if (-not (Test-Path $marker)) { throw 'Installierter Git-Stand fehlt.' }
     $installed = (Get-Content $marker -Raw | ConvertFrom-Json).commit
     if ($installed -cnotmatch '^[0-9a-f]{40}$') { throw 'Installierter Git-Stand ist ungültig.' }
@@ -304,4 +322,5 @@ try {
 } finally {
     if ($lockHandle) { $lockHandle.Dispose() }
     Remove-Item -LiteralPath $lock -Force -ErrorAction SilentlyContinue
+    if ($TaskName) { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue }
 }

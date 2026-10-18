@@ -4,7 +4,7 @@ $tokens = $null
 $errors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($scriptFile, [ref]$tokens, [ref]$errors)
 if ($errors.Count) { throw "Updater hat PowerShell-Parserfehler: $($errors[0].Message)" }
-foreach ($name in @('Write-UpdateState', 'Set-UpdatePhase')) {
+foreach ($name in @('Write-UpdateState', 'Set-UpdatePhase', 'Set-UpdateToolPath')) {
     $definition = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
     if (-not $definition) { throw "$name fehlt" }
     Invoke-Expression $definition.Extent.Text
@@ -30,6 +30,16 @@ try {
     if ($failed.runId -cne $RunId -or $failed.phase -cne 'failed' -or
         $failed.state -cne 'failed' -or $failed.step -ne 7) { throw 'Fehlerstatus ist falsch.' }
     if (Get-ChildItem -LiteralPath $fixture -Filter '*.tmp') { throw 'Temporäre Statusdatei blieb liegen.' }
+    $node = Get-Command node.exe -ErrorAction Stop | Select-Object -First 1
+    $pnpm = Get-Command pnpm.cmd -ErrorAction Stop | Select-Object -First 1
+    $originalPath = $env:Path
+    try {
+        $env:Path = '"' + (Split-Path $node.Source) + '";"' + (Split-Path $pnpm.Source) + '"'
+        Set-UpdateToolPath
+        if ($env:Path -match '"') { throw 'Zitierte PATH-Eintraege blieben erhalten.' }
+        & cmd.exe /d /c 'pnpm --version >nul 2>&1'
+        if ($LASTEXITCODE -ne 0) { throw 'pnpm ist fuer Build-Skripte nicht aufloesbar.' }
+    } finally { $env:Path = $originalPath }
     Write-Output 'Dashboard-Update-Fortschritt: PASS'
 } finally {
     $resolvedFixture = [IO.Path]::GetFullPath($fixture)

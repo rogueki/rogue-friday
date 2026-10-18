@@ -156,18 +156,19 @@ it("rejects an early child exit and never accepts another run's status as acknow
   }) as unknown as typeof spawn;
   const fx = await fixture(launch);
   try {
-    await expect(fx.service.install(target)).rejects.toThrow("vor dem ersten Arbeitsschritt");
+    await expect(fx.service.install(target)).rejects.toThrow("Windows-Update-Aufgabe konnte nicht gestartet werden");
     expect(existsSync(join(fx.root, "updates", "dashboard-update-start.guard"))).toBe(false);
     const progress = JSON.parse(await readFile(join(fx.dataDir, "dashboard-update-progress.json"), "utf8"));
     expect(progress.state).toBe("failed");
     expect(progress.runId).not.toBe("f".repeat(32));
+    expect(existsSync(join(fx.root, "updates", `launch-dashboard-${progress.runId}.log`))).toBe(true);
   } finally { await cleanup(fx.root); }
 });
 
 it("accepts only its own first step and prevents a concurrent second start", async () => {
   const launch = vi.fn((_file: string, args: readonly string[]) => {
     const proc = child();
-    queueMicrotask(() => proc.emit("spawn"));
+    queueMicrotask(() => { proc.emit("spawn"); proc.emit("exit", 0); });
     setTimeout(async () => {
       const runId = args[args.indexOf("-RunId") + 1];
       const now = new Date().toISOString();

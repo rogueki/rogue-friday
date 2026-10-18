@@ -12,6 +12,25 @@ const REPOSITORY = "https://github.com/rogueki/rogue-friday.git";
 const SHA = /^[0-9a-f]{40}$/;
 const RUN_ID = /^[0-9a-f]{32}$/;
 const SCRIPT_PATH = "installer/scripts/update-dashboard-github.ps1";
+export const TASK_LAUNCHER = `param([string]$Updater,[string]$InstallRoot,[string]$ExpectedCommit,[string]$RunId)
+$ErrorActionPreference = 'Stop'
+if ($RunId -cnotmatch '^[0-9a-f]{32}$' -or $ExpectedCommit -cnotmatch '^[0-9a-f]{40}$' -or
+    -not (Test-Path -LiteralPath $Updater -PathType Leaf)) { throw 'Ungueltige Update-Aufgabe.' }
+$name = 'FRIDAY_Update_' + $RunId
+$arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + $Updater + '"' +
+    ' -InstallRoot "' + $InstallRoot + '" -ExpectedCommit ' + $ExpectedCommit +
+    ' -RunId ' + $RunId + ' -TaskName ' + $name
+try {
+    $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments
+    $principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
+    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Hours 3) -Hidden -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    Register-ScheduledTask -TaskName $name -Action $action -Principal $principal -Settings $settings | Out-Null
+    Start-ScheduledTask -TaskName $name
+} catch {
+    Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
+    throw
+}
+`;
 const PHASES = ["starting", "download", "verify", "dependencies", "build", "backup", "install", "health", "rollback", "success", "failed"] as const;
 type Phase = typeof PHASES[number];
 
@@ -82,7 +101,7 @@ export class DashboardUpdateService {
   private inflight: Promise<string> | null = null;
   private starting = false;
   constructor(private readonly config: FridayConfig, private readonly launch: typeof spawn = spawn,
-    private readonly startAckTimeoutMs = 10_000) {}
+    private readonly startAckTimeoutMs = 30_000) {}
 
   private get root(): string { return resolve(this.config.paths.dataDir, "..", ".."); }
   private get marker(): string { return join(this.config.paths.dataDir, "dashboard-revision.json"); }
@@ -288,10 +307,17 @@ export class DashboardUpdateService {
       await guard.writeFile(JSON.stringify({ pid: process.pid, processStartedAt: new Date(Date.now() - process.uptime() * 1000).toISOString() }));
       await this.writeProgress(starting);
       const script = await this.stageUpdater(expectedCommit);
-      const child = this.launch("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
+      const launcher = join(this.root, "updates", `launch-dashboard-${runId}.ps1`);
+      await writeFile(launcher, TASK_LAUNCHER, { flag: "wx" });
+      const child = this.launch("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", launcher,
+        "-Updater", script,
         "-InstallRoot", this.root, "-ExpectedCommit", expectedCommit, "-RunId", runId], {
-        cwd: this.root, detached: true, stdio: "ignore", windowsHide: true,
+        cwd: this.root, detached: false, stdio: ["ignore", "pipe", "pipe"], windowsHide: true,
         env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+      });
+      let launcherOutput = "";
+      for (const stream of [child.stdout, child.stderr]) stream?.on("data", (chunk: Buffer) => {
+        if (launcherOutput.length < 16_000) launcherOutput += String(chunk).slice(0, 16_000 - launcherOutput.length);
       });
       await new Promise<void>((resolveSpawn, rejectSpawn) => {
         child.once("spawn", () => resolveSpawn());
@@ -308,15 +334,25 @@ export class DashboardUpdateService {
           acknowledged = true;
           break;
         }
-        if (exitCode !== null) throw new Error("PowerShell-Update wurde vor dem ersten Arbeitsschritt beendet.");
+        if (exitCode !== null && exitCode !== 0) {
+          await writeFile(join(this.root, "updates", `launch-dashboard-${runId}.log`), launcherOutput.slice(0, 16_000));
+          throw new Error("Windows-Update-Aufgabe konnte nicht gestartet werden. Details im lokalen Startprotokoll.");
+        }
         await delay(250);
       }
       if (!acknowledged) {
-        child.kill();
+        if (exitCode === null) child.kill();
         throw new Error("PowerShell-Update hat den Start nicht bestätigt.");
       }
       child.unref();
     } catch (error) {
+      if (process.platform === "win32") {
+        // A parser or host failure can happen before the script reaches its own finally block.
+        // Only remove this run's completed task; a still-running update must keep its launcher.
+        const name = `FRIDAY_Update_${runId}`;
+        const cleanup = `$task = Get-ScheduledTask -TaskName '${name}' -ErrorAction SilentlyContinue; if ($task -and $task.State -ne 'Running') { Unregister-ScheduledTask -TaskName '${name}' -Confirm:$false -ErrorAction SilentlyContinue }`;
+        await exec("powershell.exe", ["-NoProfile", "-Command", cleanup], { timeout: 5_000, windowsHide: true }).catch(() => {});
+      }
       await this.writeProgress({ ...starting, state: "failed", phase: "failed", updatedAt: new Date().toISOString(),
         message: error instanceof Error ? error.message.slice(0, 200) : "Update konnte nicht gestartet werden." }).catch(() => {});
       throw error;
