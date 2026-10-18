@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/current-weather-response.schema.json",
+  "title": "CurrentWeatherResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "object",
+              "properties": {
+                "label": { "type": "string" },
+                "countryCode": { "type": "string" },
+                "latitude": { "type": "number" },
+                "longitude": { "type": "number" }
+              },
+              "required": ["label", "latitude", "longitude"],
+              "additionalProperties": false
+            },
+            "temperatureC": { "type": "number" },
+            "weatherCode": { "type": "integer" },
+            "observedAt": { "type": "string", "format": "date-time" },
+            "fetchedAt": { "type": "string", "format": "date-time" },
+            "stale": { "type": "boolean" },
+            "provider": { "const": "Open-Meteo" }
+          },
+          "required": ["location", "temperatureC", "weatherCode", "observedAt", "fetchedAt", "stale", "provider"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

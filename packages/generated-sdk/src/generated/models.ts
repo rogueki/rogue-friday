@@ -251,6 +251,7 @@ export interface FridayModelMap {
   ContentStudioKeysResponse: ContentStudioKeysResponse;
   ContractVersion: ContractVersion;
   ControlFrame: ControlFrame;
+  CurrentWeatherResponse: CurrentWeatherResponse;
   DashboardSettings: DashboardSettings;
   DataRetentionSettings: DataRetentionSettings;
   DeveloperSettings: DeveloperSettings;
@@ -321,6 +322,8 @@ export interface FridayModelMap {
   LinuxEnrollmentStatus: LinuxEnrollmentStatus;
   ListEnvelope: ListEnvelope;
   LocalEventRequest: LocalEventRequest;
+  LocationCandidate: LocationCandidate;
+  LocationSearchResponse: LocationSearchResponse;
   LoginRequest: LoginRequest;
   Memory: Memory;
   MemoryConflict: MemoryConflict;
@@ -2038,6 +2041,24 @@ export interface ControlFrame {
    */
   ts: number;
 }
+export interface CurrentWeatherResponse {
+  contractVersion: ContractVersion;
+  data: null | {
+    location: {
+      label: string;
+      countryCode?: string;
+      latitude: number;
+      longitude: number;
+    };
+    temperatureC: number;
+    weatherCode: number;
+    observedAt: string;
+    fetchedAt: string;
+    stale: boolean;
+    provider: "Open-Meteo";
+  };
+  freshness: Freshness;
+}
 export interface DashboardSettings {
   activeLayoutId: string;
   fontScale: number;
@@ -2049,6 +2070,15 @@ export interface DashboardSettings {
    * Enables the optional Content Studio module. Missing on older settings means disabled.
    */
   contentStudioEnabled?: boolean;
+  /**
+   * Confirmed coarse dashboard location; absent or null means no location was chosen.
+   */
+  location?: null | {
+    label: string;
+    latitude: number;
+    longitude: number;
+    countryCode?: string;
+  };
 }
 export interface DataRetentionSettings {
   activityDays: number;
@@ -2639,6 +2669,22 @@ export interface LocalEventRequest {
   start: string;
   end: string;
   timeZone: string;
+}
+export interface LocationCandidate {
+  label: string;
+  region?: string;
+  country: string;
+  countryCode: string;
+  latitude: number;
+  longitude: number;
+}
+export interface LocationSearchResponse {
+  contractVersion: ContractVersion;
+  data: {
+    items: LocationCandidate[];
+    provider: "Open-Meteo";
+  };
+  freshness: Freshness;
 }
 export interface LoginRequest {
   username: string;

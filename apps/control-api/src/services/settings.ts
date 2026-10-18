@@ -395,6 +395,11 @@ export class SettingsService {
 
   /** A patch may only activate a theme/layout that exists (the UI would otherwise render with no tokens). */
   private assertReferences(patch: SettingsPatch): void {
+    const location = patch.dashboard?.location;
+    if (location && ([location.latitude, location.longitude].some((value) => Math.abs(value - Math.round(value * 100) / 100) > 1e-9))) {
+      throw validationFailed("Standortkoordinaten müssen vor dem Speichern auf zwei Dezimalstellen gerundet sein.",
+        [{ path: "dashboard.location", message: "höchstens zwei Dezimalstellen" }]);
+    }
     if (patch.security?.loginRequired === false && (this.config.server.allowRemote || patch.security.allowRemoteAccess)) {
       throw validationFailed("Ohne Anmeldung darf das Dashboard nur lokal erreichbar sein.", [{ path: "security.loginRequired", message: "Fernzugriff ist aktiviert" }]);
     }

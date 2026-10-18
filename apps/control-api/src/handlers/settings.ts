@@ -6,14 +6,40 @@ import type { TelegramGatewayPatch } from "../services/telegram-gateway";
 import type { MessagingGatewayPatch } from "../services/messaging-gateways";
 import type { TelephonyProfile } from "../services/telephony";
 import type { HimalayaSendRequest } from "../services/himalaya-send";
-import { forbidden } from "../util/errors";
+import { ApiError, forbidden, validationFailed } from "../util/errors";
+import { LocationWeatherService } from "../services/location-weather";
+import type { SettingsService } from "../services/settings";
 import { localList } from "./meta";
 
 const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString() });
 
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: fresh() });
+const weatherServices = new WeakMap<SettingsService, LocationWeatherService>();
+function weatherService(settings: SettingsService): LocationWeatherService {
+  let service = weatherServices.get(settings);
+  if (!service) { service = new LocationWeatherService(settings); weatherServices.set(settings, service); }
+  return service;
+}
 
 export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
+  async searchLocations(ctx) {
+    try {
+      const items = await weatherService(ctx.runtime.settings).search(String(ctx.query.q ?? ""), ctx.query.language === "en" ? "en" : "de");
+      return { status: 200, body: single({ items, provider: "Open-Meteo" }) };
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Bitte")) throw validationFailed(error.message);
+      throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Ortssuche ist derzeit nicht erreichbar.", cause: error });
+    }
+  },
+  async getCurrentWeather(ctx) {
+    try {
+      const data = await weatherService(ctx.runtime.settings).current();
+      return { status: 200, body: { contractVersion: CONTRACT_VERSION, data,
+        freshness: data?.stale ? { state: "stale", asOf: data.fetchedAt } : fresh() } };
+    } catch (error) {
+      throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Wetterdaten sind derzeit nicht erreichbar.", cause: error });
+    }
+  },
   async getCloudTalk(ctx) { return { status: 200, body: single(ctx.runtime.cloudtalk.status()) }; },
   async putCloudTalk(ctx) {
     const result = ctx.runtime.cloudtalk.configure(ctx.body as { agentId?: number; accessKeyId?: string; accessKeySecret?: string;

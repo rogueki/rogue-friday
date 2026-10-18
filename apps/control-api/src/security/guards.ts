@@ -16,7 +16,7 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   "Referrer-Policy": "no-referrer",
   "Cross-Origin-Opener-Policy": "same-origin",
   "X-Frame-Options": "DENY",
-  "Permissions-Policy": "microphone=(self), camera=(), geolocation=(), payment=()",
+  "Permissions-Policy": "microphone=(self), camera=(), geolocation=(self), payment=()",
 };
 
 const hostnameOf = (hostHeader: string): string => {

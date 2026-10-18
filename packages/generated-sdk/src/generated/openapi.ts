@@ -1437,6 +1437,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/location/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search city or postal code for a confirmed dashboard location
+         * @description Owner only. Returns up to eight disambiguated GeoNames results through Open-Meteo. Does not save a location.
+         */
+        get: operations["searchLocations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/memory": {
         parameters: {
             query?: never;
@@ -2832,6 +2852,26 @@ export interface paths {
         put?: never;
         /** Run a voice pipeline test */
         post: operations["runVoiceTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/weather/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Current weather for the locally saved dashboard location
+         * @description Authenticated read. Null data means that no location was saved. The upstream is Open-Meteo; stale data is explicitly marked.
+         */
+        get: operations["getCurrentWeather"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4562,6 +4602,28 @@ export interface components {
             speech: number;
             wake: number;
         };
+        /** CurrentWeatherResponse */
+        CurrentWeatherResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: null | {
+                /** Format: date-time */
+                fetchedAt: string;
+                location: {
+                    countryCode?: string;
+                    label: string;
+                    latitude: number;
+                    longitude: number;
+                };
+                /** Format: date-time */
+                observedAt: string;
+                /** @constant */
+                provider: "Open-Meteo";
+                stale: boolean;
+                temperatureC: number;
+                weatherCode: number;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
         /** DashboardSettings */
         DashboardSettings: {
             activeLayoutId: string;
@@ -4571,6 +4633,13 @@ export interface components {
             /** @description Enables the optional Content Studio module. Missing on older settings means disabled. */
             contentStudioEnabled?: boolean;
             fontScale: number;
+            /** @description Confirmed coarse dashboard location; absent or null means no location was chosen. */
+            location?: null | {
+                countryCode?: string;
+                label: string;
+                latitude: number;
+                longitude: number;
+            };
             soundEffects: boolean;
         };
         /** DataRetentionSettings */
@@ -5286,6 +5355,25 @@ export interface components {
             start: string;
             timeZone: string;
             title: string;
+        };
+        /** LocationCandidate */
+        LocationCandidate: {
+            country: string;
+            countryCode: string;
+            label: string;
+            latitude: number;
+            longitude: number;
+            region?: string;
+        };
+        /** LocationSearchResponse */
+        LocationSearchResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                items: components["schemas"]["LocationCandidate"][];
+                /** @constant */
+                provider: "Open-Meteo";
+            };
+            freshness: components["schemas"]["Freshness"];
         };
         /** LoginRequest */
         LoginRequest: {
@@ -11090,6 +11178,33 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    searchLocations: {
+        parameters: {
+            query: {
+                language?: "de" | "en";
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching places, possibly empty */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationSearchResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     listMemory: {
         parameters: {
             query?: {
@@ -14480,6 +14595,29 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getCurrentWeather: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current or marked stale weather */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentWeatherResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

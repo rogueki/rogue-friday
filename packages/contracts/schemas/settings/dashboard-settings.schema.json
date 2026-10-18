@@ -32,6 +32,23 @@
     "contentStudioEnabled": {
       "type": "boolean",
       "description": "Enables the optional Content Studio module. Missing on older settings means disabled."
+    },
+    "location": {
+      "description": "Confirmed coarse dashboard location; absent or null means no location was chosen.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "properties": {
+            "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+            "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+            "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+            "countryCode": { "type": "string", "pattern": "^[A-Z]{2}$" }
+          },
+          "required": ["label", "latitude", "longitude"],
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "required": [

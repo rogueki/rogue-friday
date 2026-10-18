@@ -125,6 +125,7 @@
 .jv-bottombar__chips { display: flex; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .jv-ctxchip { display: flex; align-items: center; gap: 9px; height: 42px; padding: 0 12px 0 10px; background: var(--jv-row-bg); border: 1px solid var(--jv-line-soft); border-radius: var(--jv-radius-md); }
 .jv-ctxchip__inner { display: flex; align-items: center; gap: 9px; height: 100%; border-radius: var(--jv-radius-sm); cursor: help; }
+.jv-ctxchip__inner:is(button) { padding: 0; color: inherit; font: inherit; text-align: left; background: transparent; border: 0; cursor: pointer; }
 .jv-ctxchip__inner:focus-visible { outline: 2px solid var(--friday-cyan); outline-offset: 4px; }
 .jv-ctxchip--unavailable .jv-ctxchip__value { color: var(--friday-muted); }
 .jv-ctxchip__icon { display: inline-flex; color: var(--friday-cyan); }

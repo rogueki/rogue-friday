@@ -49,6 +49,7 @@ Die ausführlichen Voraussetzungen, Dauer, Wiederaufnahme nach Fehlern, Update- 
 - Die Sprachsteuerung und persönliche Wake-Word-Einrichtung kommen aus dem Windows-Installer. Ein Kimi-Zugang wird bei der Einrichtung abgefragt; lokale Funktionen und Cloud-Aufgaben haben unterschiedliche Laufzeit- und Kontoanforderungen.
 - Der Orb reagiert auf die laufende Sprachausgabe und zeigt Zustände animiert an. Für die klassische lokale Stimme liegt eine J.A.R.V.I.S.-Referenz im Installationspaket; im Assistenten kann sie ohne Dateipfad ausgewählt werden.
 - Unter **Einstellungen → Dashboard → Dashboard-Updates** prüft das Dashboard GitHub auf eine neue Version. Während der Installation zeigt es den erreichten Schritt, die letzte Aktivität, den Neustart und das Ergebnis an; die Anzeige bleibt nach einem Neuladen erhalten. Geänderte Dashboard-Dateien und Builds werden übernommen; lokale Konfiguration, Geheimnisse und Daten bleiben erhalten. [Technische Details](docs/DASHBOARD_UPDATES.md).
+- Unter **Einstellungen → Dashboard → Standort & Wetter** kannst du nach Zustimmung den Browser-Standort einmalig ermitteln oder Stadt/Postleitzahl suchen und einen eindeutigen Treffer wählen. Erst nach „Ort übernehmen“ und „Einstellungen speichern“ zeigt die Dashboard-Leiste den Ort und dessen Wetter. Das Netzwerkfeld misst die Verbindung dieses Browsers zur lokalen Dashboard-API. [Datennutzung und Fehlersuche](docs/LOCATION_WEATHER.md).
 
 ### Sprache ohne dedizierte GPU und Modellrouting
 

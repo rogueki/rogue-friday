@@ -3,14 +3,16 @@
 import { BottomCommandBar, useToast, type ContextChip } from "@friday/ui";
 import { Cloud, MapPin, Wifi, Zap } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { EXECUTIVE_BRIEFING_COMMAND, useVoiceUi } from "@/features/voice/useVoiceUi";
 import { useRunCommand } from "@/features/palette/commandRunner";
 import { useOrbSnapshot } from "@/features/orb/useOrbSnapshot";
 import { useT } from "@/i18n";
 import { useCommandControl } from "@/lib/api/domains/commands";
-import { useSystemMetrics } from "@/lib/api/domains/system";
 import { useCapability } from "@/lib/capabilities";
+import { useSettings } from "@/lib/api/domains/settings";
 
 const CHIP_ICON = { size: 16, strokeWidth: 1.5 } as const;
 
@@ -18,10 +20,39 @@ export function AppBottomBar() {
   const { t, assistantName } = useT();
   const { toast } = useToast();
   const pathname = usePathname();
+  const router = useRouter();
   const voice = useVoiceUi();
   const run = useRunCommand();
   const orb = useOrbSnapshot().snapshot;
-  const metrics = useSystemMetrics().data?.data;
+  const location = useSettings().data?.data.dashboard.location;
+  const weather = useQuery({
+    queryKey: ["context-weather", location?.latitude, location?.longitude],
+    enabled: !!location && pathname === "/",
+    queryFn: async () => {
+      const response = await fetch("/api/v1/weather/current", { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(7_000) });
+      if (!response.ok) throw new Error("Wetterdienst nicht erreichbar");
+      const data = (await response.json() as { data: { location: { latitude: number; longitude: number }; temperatureC: number; weatherCode: number;
+        observedAt: string; fetchedAt: string; stale: boolean; provider: string } | null }).data;
+      if (!data || data.location.latitude !== location?.latitude || data.location.longitude !== location?.longitude)
+        throw new Error("Wetter wird nach dem Speichern des Standorts geladen");
+      return data;
+    },
+    retry: false,
+    staleTime: 5 * 60_000,
+    refetchInterval: 10 * 60_000,
+  });
+  const network = useQuery({
+    queryKey: ["dashboard-network-ping"],
+    enabled: pathname === "/",
+    queryFn: async () => {
+      const start = performance.now();
+      const response = await fetch("/api/v1/health", { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(5_000) });
+      if (!response.ok) throw new Error("Dashboard nicht erreichbar");
+      return Math.max(0, Math.round(performance.now() - start));
+    },
+    retry: false,
+    refetchInterval: 30_000,
+  });
   const canStop = useCapability("commands", "stop");
   const canPause = useCapability("commands", "pause");
   const canResume = useCapability("commands", "resume");
@@ -34,16 +65,21 @@ export function AppBottomBar() {
 
   // PLAN §58: a missing value is never a bare dash; the chip carries the reason (tooltip + accessible name).
   const chips = useMemo<ContextChip[]>(() => {
-    const noSource = t("context.noSource");
-    const latency = metrics?.network.latencyMs;
+    const noSource = t("context.locationSet");
+    const weatherHint = weather.isError ? t("context.weatherUnavailable") : weather.data?.stale ?
+      t("context.weatherStaleObserved", { time: weather.data.fetchedAt }) :
+      weather.data ? t("context.weatherObserved", { provider: weather.data.provider, time: weather.data.observedAt }) : t("context.weatherLoading");
     return [
-      { id: "location", icon: <MapPin {...CHIP_ICON} />, label: t("context.location"), value: "—", hint: noSource },
-      { id: "weather", icon: <Cloud {...CHIP_ICON} />, label: t("context.weather"), value: "—", hint: noSource },
-      latency !== null && latency !== undefined
-        ? { id: "network", icon: <Wifi {...CHIP_ICON} />, label: t("context.network"), value: `${Math.round(latency)} ms` }
-        : { id: "network", icon: <Wifi {...CHIP_ICON} />, label: t("context.network"), value: "—", hint: t("context.noMeasurement") },
+      { id: "location", icon: <MapPin {...CHIP_ICON} />, label: t("context.location"), value: location?.label ?? "—", hint: location ? t("context.locationChange") : noSource,
+        onClick: () => router.push("/settings?area=dashboard") },
+      { id: "weather", icon: <Cloud {...CHIP_ICON} />, label: t("context.weather"),
+        value: location && weather.data && !weather.isError ? `${Math.round(weather.data.temperatureC)} °C${weather.data.stale ? ` · ${t("context.weatherStaleShort")}` : ""}` : "—",
+        hint: location ? weatherHint : noSource, onClick: () => router.push("/settings?area=dashboard") },
+      { id: "network", icon: <Wifi {...CHIP_ICON} />, label: t("context.network"),
+        value: network.isError ? t("context.networkDisconnected") : network.data === undefined ? t("context.networkChecking") : t("context.networkConnected", { ms: network.data }),
+        hint: t("context.networkHint") },
     ];
-  }, [metrics?.network.latencyMs, t]);
+  }, [location, weather.data, weather.isError, network.data, network.isError, router, t]);
 
   const unavailableToast = useCallback((): void => {
     toast({ title: t("command.capabilityMissing"), tone: "amber" });

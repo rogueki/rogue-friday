@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CommandConfirmHost } from "@/features/palette/commandRunner";
 import { setApiClient } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/queryKeys";
 import { adapterInfoOf, capabilitiesOf, jsonResponse, NEVER_RESOLVES, renderWithProviders } from "@/test/render";
 import { AppBottomBar } from "./AppBottomBar";
 
@@ -11,7 +12,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/",
 }));
 
-afterEach(() => setApiClient(null));
+afterEach(() => { setApiClient(null); vi.unstubAllGlobals(); });
 
 const COMMAND_ID = "cmd_01HZZZZZZZZZZZZZZZZZZZZZZZ";
 
@@ -60,9 +61,48 @@ describe("AppBottomBar text input", () => {
 
   it("explains missing location/weather data instead of showing a bare dash", () => {
     renderWithProviders(<AppBottomBar />, { capabilities: capabilitiesOf({ commands: { execute: true } }) });
-    expect(screen.getByRole("group", { name: "Standort: Keine Datenquelle angebunden" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Wetter: Keine Datenquelle angebunden" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: /Netzwerk: Noch keine Messwerte/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Standort: —. Standort in Einstellungen/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Wetter: —. Standort in Einstellungen/ })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /Netzwerk: .*Verbindung dieses Browsers/ })).toBeInTheDocument();
+  });
+
+  it("shows measured dashboard connectivity and reports a failed health request", async () => {
+    let connected = true;
+    vi.stubGlobal("fetch", vi.fn(async () => connected ? jsonResponse({ status: "ok" }) : jsonResponse({}, 503)));
+    const { queryClient } = renderWithProviders(<AppBottomBar />, { capabilities: capabilitiesOf({ commands: { execute: false } }) });
+    expect(await screen.findByText(/Verbunden · \d+ ms/)).toBeInTheDocument();
+    connected = false;
+    await queryClient.invalidateQueries({ queryKey: ["dashboard-network-ping"] });
+    await waitFor(() => expect(screen.getByText("Getrennt")).toBeInTheDocument());
+  });
+
+  it("does not display weather returned for a different saved location", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/weather/current")) return jsonResponse({ data: { location: { latitude: 48.86, longitude: 2.35 },
+        temperatureC: 25, weatherCode: 0, observedAt: "2026-10-18T12:00:00Z", fetchedAt: "2026-10-18T12:01:00Z", stale: false, provider: "Open-Meteo" } });
+      return jsonResponse({ status: "ok" });
+    }));
+    const { queryClient } = renderWithProviders(<AppBottomBar />, { capabilities: capabilitiesOf({ commands: { execute: false } }) });
+    queryClient.setQueryData(queryKeys.settings.root, { data: { dashboard: { location: { label: "Berlin", latitude: 52.52, longitude: 13.41 } } } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Wetter: —. Wetterdienst nicht erreichbar" })).toBeInTheDocument());
+    expect(screen.queryByText("25 °C")).toBeNull();
+  });
+
+  it("shows current weather and visibly marks a later stale result", async () => {
+    let stale = false;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/weather/current")) return jsonResponse({ data: { location: { latitude: 52.52, longitude: 13.41 },
+        temperatureC: 17.4, weatherCode: 2, observedAt: "2026-10-18T12:00:00Z", fetchedAt: "2026-10-18T12:01:00Z", stale, provider: "Open-Meteo" } });
+      return jsonResponse({ status: "ok" });
+    }));
+    const { queryClient } = renderWithProviders(<AppBottomBar />, { capabilities: capabilitiesOf({ commands: { execute: false } }) });
+    queryClient.setQueryData(queryKeys.settings.root, { data: { dashboard: { location: { label: "Berlin", latitude: 52.52, longitude: 13.41 } } } });
+    expect(await screen.findByText("17 °C")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Standort: Berlin. Standort ändern/ })).toBeInTheDocument();
+    stale = true;
+    await queryClient.invalidateQueries({ queryKey: ["context-weather"] });
+    expect(await screen.findByText("17 °C · alt")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Wetter: 17 °C · alt. Älterer Open-Meteo-Wert/ })).toBeInTheDocument();
   });
 });
 

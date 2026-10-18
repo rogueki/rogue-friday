@@ -72,7 +72,7 @@ export function useUpdateSettings() {
         ...old,
         data: { ...old.data, ...(patch as Partial<Settings>) },
       })),
-    invalidate: [queryKeys.settings.root],
+    invalidate: [queryKeys.settings.root, ["context-weather"]],
     conflictKeys: [queryKeys.settings.root],
   });
 }

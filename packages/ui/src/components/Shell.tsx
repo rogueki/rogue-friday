@@ -513,6 +513,7 @@ export interface ContextChip {
   value: string;
   /** Why there is no real value ("keine Datenquelle"): shown as tooltip and read by screen readers instead of a bare dash. */
   hint?: string;
+  onClick?: () => void;
 }
 
 const TEXT_HISTORY_LIMIT = 30;
@@ -713,9 +714,15 @@ export const BottomCommandBar = forwardRef<HTMLElement, BottomCommandBarProps>(f
             );
             return (
               <li key={chip.id} className={cx('jv-ctxchip', chip.hint && 'jv-ctxchip--unavailable')}>
-                {chip.hint ? (
+                {chip.onClick ? (
+                  <button type="button" className="jv-ctxchip__inner" onClick={chip.onClick}
+                    title={`${chip.value}${chip.hint ? ` · ${chip.hint}` : ""}`} aria-label={`${chip.label}: ${chip.value}${chip.hint ? `. ${chip.hint}` : ""}`}>
+                    {body}
+                  </button>
+                ) : chip.hint ? (
                   <Tooltip content={chip.hint}>
-                    <span className="jv-ctxchip__inner" role="group" tabIndex={0} aria-label={`${chip.label}: ${chip.hint}`}>
+                    <span className="jv-ctxchip__inner" role="group" tabIndex={0}
+                      title={`${chip.value} · ${chip.hint}`} aria-label={`${chip.label}: ${chip.value}. ${chip.hint}`}>
                       {body}
                     </span>
                   </Tooltip>
@@ -778,4 +785,3 @@ export const BottomCommandBar = forwardRef<HTMLElement, BottomCommandBarProps>(f
     </HudPanel>
   );
 });
-

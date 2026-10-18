@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/location-search-response.schema.json",
+  "title": "LocationSearchResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "items": { "type": "array", "items": { "$ref": "../settings/location-candidate.schema.json" } },
+        "provider": { "const": "Open-Meteo" }
+      },
+      "required": ["items", "provider"],
+      "additionalProperties": false
+    },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

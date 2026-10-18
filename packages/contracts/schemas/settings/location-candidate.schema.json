@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/location-candidate.schema.json",
+  "title": "LocationCandidate",
+  "type": "object",
+  "properties": {
+    "label": { "type": "string" },
+    "region": { "type": "string" },
+    "country": { "type": "string" },
+    "countryCode": { "type": "string", "pattern": "^[A-Z]{2}$" },
+    "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+    "longitude": { "type": "number", "minimum": -180, "maximum": 180 }
+  },
+  "required": ["label", "country", "countryCode", "latitude", "longitude"],
+  "additionalProperties": false
+}

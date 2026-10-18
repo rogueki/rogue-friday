@@ -5236,6 +5236,59 @@ paths:
       x-capability: meta.read
       x-required-role: owner
       x-max-body-bytes: 4096
+  /api/v1/location/search:
+    get:
+      operationId: searchLocations
+      tags: [settings]
+      summary: Search city or postal code for a confirmed dashboard location
+      description: Owner only. Returns up to eight disambiguated GeoNames results through Open-Meteo. Does not save a location.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 80 }
+        - name: language
+          in: query
+          required: false
+          schema: { type: string, enum: [de, en] }
+      responses:
+        "200":
+          description: Matching places, possibly empty
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationSearchResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/weather/current:
+    get:
+      operationId: getCurrentWeather
+      tags: [settings]
+      summary: Current weather for the locally saved dashboard location
+      description: Authenticated read. Null data means that no location was saved. The upstream is Open-Meteo; stale data is explicitly marked.
+      responses:
+        "200":
+          description: Current or marked stale weather
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentWeatherResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: viewer
   /api/v1/settings:
     get:
       operationId: getSettings
@@ -7205,6 +7258,12 @@ components:
       $ref: ../schemas/events/control-frame.schema.json
     DashboardSettings:
       $ref: ../schemas/settings/dashboard-settings.schema.json
+    LocationCandidate:
+      $ref: ../schemas/settings/location-candidate.schema.json
+    LocationSearchResponse:
+      $ref: ../schemas/settings/location-search-response.schema.json
+    CurrentWeatherResponse:
+      $ref: ../schemas/settings/current-weather-response.schema.json
     ContentStudioKeyPatch:
       $ref: ../schemas/settings/content-studio-key-patch.schema.json
     ContentStudioKeys:
