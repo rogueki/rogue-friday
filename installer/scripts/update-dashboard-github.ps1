@@ -1,7 +1,8 @@
 ﻿#Requires -Version 5.1
 param(
     [Parameter(Mandatory=$true)][string]$InstallRoot,
-    [Parameter(Mandatory=$true)][string]$ExpectedCommit
+    [Parameter(Mandatory=$true)][string]$ExpectedCommit,
+    [string]$RunId = ''
 )
 $ErrorActionPreference = 'Stop'
 if ($ExpectedCommit -cnotmatch '^[0-9a-f]{40}$') { throw 'Ungültige Commit-ID.' }
@@ -12,13 +13,49 @@ $updates = Join-Path $root 'updates'
 $cache = Join-Path $updates 'rogue-friday-main'
 $marker = Join-Path $data 'dashboard-revision.json'
 $resultFile = Join-Path $data 'dashboard-update-result.json'
+$progressFile = Join-Path $data 'dashboard-update-progress.json'
 $lock = Join-Path $updates 'dashboard-update.lock'
 $log = Join-Path $root 'logs\dashboard-update.log'
 $repository = 'https://github.com/rogueki/rogue-friday.git'
 New-Item -ItemType Directory -Force $updates, (Split-Path $log -Parent) | Out-Null
-$lockHandle = [IO.File]::Open($lock, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+$lockHandle = $null
 $backup = $null
 $stopped = $false
+$runStartedAt = (Get-Date).ToUniversalTime().ToString('o')
+$processStartedAt = (Get-Process -Id $PID).StartTime.ToUniversalTime().ToString('o')
+if (-not $RunId) { $RunId = [guid]::NewGuid().ToString('N') }
+if ($RunId -notmatch '^[0-9a-f]{32}$') { throw 'Ungültige Lauf-ID.' }
+$step = 0
+$phase = 'starting'
+function Write-UpdateState([string]$phase, [string]$message, [string]$state = 'running') {
+    $value = @{ schema = 1; runId = $RunId; targetCommit = $ExpectedCommit; state = $state; phase = $phase;
+        step = $step; totalSteps = 8; message = $message; startedAt = $runStartedAt;
+        updatedAt = (Get-Date).ToUniversalTime().ToString('o'); pid = $PID; processStartedAt = $processStartedAt }
+    $temporary = "$progressFile.$RunId.tmp"
+    [IO.File]::WriteAllText($temporary, ($value | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
+    if ([IO.File]::Exists($progressFile)) {
+        $previous = "$progressFile.$RunId.previous"
+        [IO.File]::Replace($temporary, $progressFile, $previous)
+        Remove-Item -LiteralPath $previous -Force -ErrorAction SilentlyContinue
+    }
+    else { [IO.File]::Move($temporary, $progressFile) }
+}
+function Set-UpdatePhase([int]$number, [string]$phase, [string]$message) {
+    $script:step = $number
+    $script:phase = $phase
+    Write-UpdateState $phase $message
+}
+try {
+    $lockHandle = [IO.File]::Open($lock, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    $lockInfo = @{ runId = $RunId; pid = $PID; processStartedAt = $processStartedAt } | ConvertTo-Json -Compress
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes($lockInfo)
+    $lockHandle.Write($bytes, 0, $bytes.Length)
+    $lockHandle.Flush()
+    Set-UpdatePhase 1 'download' 'GitHub-Quellstand wird geladen.'
+} catch {
+    if ($lockHandle) { $lockHandle.Dispose(); Remove-Item -LiteralPath $lock -Force -ErrorAction SilentlyContinue }
+    throw
+}
 function Git([string[]]$arguments) {
     $previousErrorActionPreference = $ErrorActionPreference
     try {
@@ -113,6 +150,7 @@ try {
     $remote = (Git -arguments @('-C', $cache, 'config', '--get', 'remote.origin.url') | Select-Object -First 1).Trim()
     if ($remote -ne $repository) { throw 'Update-Cache hat eine unerwartete Git-Quelle.' }
     Git -arguments @('-C', $cache, 'fetch', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main') | Out-Null
+    Set-UpdatePhase 2 'verify' 'Quellstand und Änderungen werden geprüft.'
     $target = (Git -arguments @('-C', $cache, 'rev-parse', 'refs/remotes/origin/main') | Select-Object -First 1).Trim()
     if ($target -cne $ExpectedCommit) { throw 'GitHub main hat sich geändert. Bitte Update erneut prüfen.' }
     & git.exe -C $cache merge-base --is-ancestor $installed $target 2>$null
@@ -152,18 +190,23 @@ try {
     if ($changes.Count -eq 0) {
         [IO.File]::WriteAllText($marker, (@{ commit = $target; installedAt = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
         [IO.File]::WriteAllText($resultFile, (@{ commit = $target; status = 'success'; time = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+        Set-UpdatePhase 8 'success' 'Dashboard ist aktuell.'
+        Write-UpdateState 'success' 'Dashboard ist aktuell.' 'success'
         "$(Get-Date -Format o) Keine Dashboard-Dateien geändert; Revisionsstand aktualisiert" | Add-Content $log
         return
     }
     # Build in the dedicated cache while the installed service keeps running.
     Push-Location $cache
     try {
+        Set-UpdatePhase 3 'dependencies' 'Abhängigkeiten im Update-Cache werden vorbereitet.'
         & pnpm.cmd install --frozen-lockfile 2>&1 | Out-File $log -Append -Encoding utf8
         if ($LASTEXITCODE -ne 0) { throw 'pnpm install im Update-Cache fehlgeschlagen.' }
+        Set-UpdatePhase 4 'build' 'Dashboard wird gebaut.'
         & pnpm.cmd build:app 2>&1 | Out-File $log -Append -Encoding utf8
         if ($LASTEXITCODE -ne 0) { throw 'Dashboard-Build im Update-Cache fehlgeschlagen.' }
     } finally { Pop-Location }
     $backup = Join-Path $updates ("backup-" + (Get-Date -Format yyyyMMdd-HHmmss))
+    Set-UpdatePhase 5 'backup' 'Installierte Dateien werden gesichert.'
     New-Item -ItemType Directory -Force $backup | Out-Null
     foreach ($change in $changes) {
         $source = Join-Path $dash $change.Path
@@ -184,6 +227,7 @@ try {
     Copy-Item -LiteralPath $marker -Destination (Join-Path $backup 'dashboard-revision.json') -Force
     Stop-Dashboard
     $stopped = $true
+    Set-UpdatePhase 6 'install' 'Geänderte Dashboard-Dateien werden installiert.'
     foreach ($name in @('dashboard.sqlite','dashboard.sqlite-wal','dashboard.sqlite-shm')) {
         $databaseFile = Join-Path $data $name
         if (Test-Path -LiteralPath $databaseFile -PathType Leaf) { Copy-Item -LiteralPath $databaseFile -Destination (Join-Path $backup $name) -Force }
@@ -207,14 +251,18 @@ try {
         finally { Pop-Location }
     }
     Start-Dashboard
+    Set-UpdatePhase 7 'health' 'Dashboard startet neu; Verbindung wird geprüft.'
     if (-not (Health-Ready)) { throw 'Dashboard-Healthcheck nach Update fehlgeschlagen.' }
     [IO.File]::WriteAllText($marker, (@{ commit = $target; installedAt = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText($resultFile, (@{ commit = $target; status = 'success'; time = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+    Set-UpdatePhase 8 'success' 'Update installiert und Dashboard erreichbar.'
+    Write-UpdateState 'success' 'Update installiert und Dashboard erreichbar.' 'success'
     "$(Get-Date -Format o) Update erfolgreich; Backup: $backup" | Add-Content $log
 } catch {
     $failureMessage = $_.Exception.Message
-    $failureJson = @{ commit = $ExpectedCommit; status = 'failed'; time = (Get-Date -Format o); message = $failureMessage } | ConvertTo-Json
-    [IO.File]::WriteAllText($resultFile, $failureJson, [Text.UTF8Encoding]::new($false))
+    if ($stopped -and $backup) {
+        Write-UpdateState 'rollback' 'Update fehlgeschlagen; Wiederherstellung wird geprüft.' 'running'
+    }
     "$(Get-Date -Format o) FEHLER: $failureMessage" | Add-Content $log
     if ($stopped -and $backup) {
         try {
@@ -242,11 +290,18 @@ try {
                 finally { Pop-Location }
             }
             Start-Dashboard
+            if (-not (Health-Ready)) { throw 'Dashboard nach Rollback nicht erreichbar.' }
             "$(Get-Date -Format o) Rollback abgeschlossen" | Add-Content $log
-        } catch { "$(Get-Date -Format o) Rollback fehlgeschlagen: $($_.Exception.Message)" | Add-Content $log }
+            $failureMessage = "Update in Phase $phase fehlgeschlagen; vorheriger Stand wiederhergestellt."
+        } catch {
+            $failureMessage = "Update in Phase $phase fehlgeschlagen; Rollback konnte nicht bestätigt werden."
+            "$(Get-Date -Format o) Rollback fehlgeschlagen: $($_.Exception.Message)" | Add-Content $log
+        }
     }
+    [IO.File]::WriteAllText($resultFile, (@{ commit = $ExpectedCommit; status = 'failed'; time = (Get-Date -Format o); message = $failureMessage } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+    Write-UpdateState 'failed' $failureMessage 'failed'
     throw "Dashboard-Update fehlgeschlagen: $failureMessage"
 } finally {
-    $lockHandle.Dispose()
+    if ($lockHandle) { $lockHandle.Dispose() }
     Remove-Item -LiteralPath $lock -Force -ErrorAction SilentlyContinue
 }

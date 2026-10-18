@@ -40,6 +40,12 @@
 .st-muted { margin: 0; font-size: var(--jv-fs-xs); color: var(--friday-muted); line-height: 1.5; }
 .st-mono { font-family: var(--jv-font-mono); font-size: var(--jv-fs-xs); }
 .st-error { margin: 0; font-size: var(--jv-fs-sm); color: var(--friday-tone-red); }
+.st-update-progress { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--jv-line-soft); background: var(--friday-panel-0); }
+.st-update-progress__heading { margin: 0; font-size: var(--jv-fs-sm); color: var(--friday-text-strong); }
+.st-update-progress__bar { width: 100%; height: 8px; accent-color: var(--friday-cyan); }
+.st-update-progress__steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 5px 14px; margin: 0; padding-left: 20px; font-size: var(--jv-fs-xs); color: var(--friday-muted); }
+.st-update-progress__step--active { color: var(--friday-text-strong); font-weight: 600; }
+.st-update-progress__step--done { color: var(--friday-tone-green); }
 .st-success { margin: 0; font-size: var(--jv-fs-sm); color: var(--friday-tone-green); }
 .st-warning { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0; padding: 8px 12px; font-size: var(--jv-fs-sm); color: var(--friday-tone-amber); border: 1px solid var(--friday-tint-amber-border); background: var(--friday-tint-amber-bg); }
 .st-errorlist { padding: 10px 12px; font-size: var(--jv-fs-sm); color: var(--friday-tone-red); border: 1px solid var(--friday-tint-red-border); background: var(--friday-tint-red-bg); }

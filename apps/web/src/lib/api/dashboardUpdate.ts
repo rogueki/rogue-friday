@@ -9,6 +9,11 @@ export interface DashboardUpdateStatus {
   available: boolean;
   installing: boolean;
   error: string | null;
+  progress: {
+    runId: string; targetCommit: string; state: "running" | "success" | "failed";
+    phase: string; step: number; totalSteps: number; message: string;
+    startedAt: string; updatedAt: string;
+  } | null;
   lastResult: { commit: string; status: "success" | "failed"; time: string; message?: string } | null;
 }
 
@@ -18,13 +23,14 @@ async function responseJson<T>(response: Response): Promise<T> {
   return body as T;
 }
 
-export function useDashboardUpdateStatus(enabled: boolean) {
+export function useDashboardUpdateStatus(enabled: boolean, starting = false) {
   return useQuery({
     queryKey: ["dashboard-update"],
     queryFn: async () => responseJson<DashboardUpdateStatus>(await fetch("/api/v1/dashboard-update", { credentials: "same-origin", cache: "no-store" })),
     enabled,
-    staleTime: 60_000,
-    refetchInterval: 30_000,
+    staleTime: 0,
+    refetchInterval: (query) => starting || query.state.data?.installing ? 2_000 : 30_000,
+    retry: false,
   });
 }
 

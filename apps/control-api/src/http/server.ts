@@ -101,8 +101,12 @@ export function configureHttp(fastify: FastifyInstance, runtime: Runtime, pipeli
         if (!runtime.auth.verifyCsrf(principal, { cookie: request.headers.cookie,
           "x-csrf-token": typeof request.headers["x-csrf-token"] === "string" ? request.headers["x-csrf-token"] : undefined }))
           return sendError(reply, new ApiError({ code: "CSRF_INVALID", message: "Das CSRF-Token fehlt oder ist ungültig." }));
-        let commit: unknown;
-        try { commit = JSON.parse(String(request.body ?? "")).commit; } catch { /* validated below */ }
+        let body: unknown = request.body;
+        if (typeof body === "string") {
+          try { body = JSON.parse(body); } catch { body = null; }
+        }
+        const commit: unknown = body && typeof body === "object" && !Array.isArray(body)
+          ? (body as Record<string, unknown>).commit : undefined;
         if (typeof commit !== "string") return sendError(reply, new ApiError({ code: "VALIDATION_FAILED", message: "Commit-ID fehlt." }));
         try { await dashboardUpdates.install(commit); }
         catch (error) { return sendError(reply, new ApiError({ code: "CONFLICT", message: error instanceof Error ? error.message : "Update konnte nicht gestartet werden." })); }
