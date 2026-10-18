@@ -34,6 +34,8 @@ export interface SettingsDraftsValue {
   conflicts: DraftAreaId[];
   resolveConflicts: (keep: "server" | "mine") => void;
   save: () => Promise<boolean>;
+  /** Persist only the selected location; keep unrelated unsaved draft edits intact. */
+  saveLocation: (location: Settings["dashboard"]["location"]) => Promise<void>;
   saving: boolean;
   saveError: string | null;
   clearSaveError: () => void;
@@ -157,6 +159,27 @@ export function SettingsDraftsProvider({ children }: { children: ReactNode }) {
     }
   }, [settings, dirtyAreas, drafts, update, t]);
 
+  const saveLocation = useCallback(async (location: Settings["dashboard"]["location"]): Promise<void> => {
+    if (!settings || role !== "owner") throw new Error("Location settings unavailable");
+    const before = settings.dashboard;
+    const result = await update.mutateAsync({
+      version: settings.version,
+      patch: { dashboard: { ...before, location } },
+    });
+    const saved = result.data.dashboard;
+    setDrafts((current) => {
+      const entry = current.dashboard;
+      if (!entry) return current;
+      return {
+        ...current,
+        dashboard: {
+          base: jsonEqual(entry.base, before) ? saved : entry.base,
+          value: { ...(entry.value as Settings["dashboard"]), location },
+        },
+      };
+    });
+  }, [settings, role, update]);
+
   const setExternalDirty = useCallback((key: string, dirty: boolean): void => {
     setExternal((current) => (Boolean(current[key]) === dirty ? current : { ...current, [key]: dirty }));
   }, []);
@@ -190,12 +213,13 @@ export function SettingsDraftsProvider({ children }: { children: ReactNode }) {
       conflicts,
       resolveConflicts,
       save,
+      saveLocation,
       saving,
       saveError,
       clearSaveError: () => setSaveError(null),
       setExternalDirty,
     }),
-    [settings, query, role, dirtyAreas, externalDirty, isDirty, getValue, setValue, discard, conflicts, resolveConflicts, save, saving, saveError, setExternalDirty],
+    [settings, query, role, dirtyAreas, externalDirty, isDirty, getValue, setValue, discard, conflicts, resolveConflicts, save, saveLocation, saving, saveError, setExternalDirty],
   );
 
   return <DraftsContext.Provider value={value}>{children}</DraftsContext.Provider>;

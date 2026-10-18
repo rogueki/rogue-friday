@@ -4,13 +4,21 @@ import { afterEach, expect, it, vi } from "vitest";
 import { LocationWeatherArea } from "./LocationWeatherArea";
 
 const mocks = vi.hoisted(() => ({
-  update: vi.fn(),
-  value: { activeLayoutId: "default", location: null } as { activeLayoutId: string; location: null | { label: string } },
+  saveLocation: vi.fn(async () => undefined),
+  settings: { dashboard: { location: null as null | { label: string; latitude: number; longitude: number } } },
 }));
-vi.mock("./SettingsDrafts", () => ({ useAreaDraft: () => ({ value: mocks.value, update: mocks.update, readOnly: false }) }));
-afterEach(() => { mocks.update.mockReset(); vi.unstubAllGlobals(); });
+vi.mock("./SettingsDrafts", () => ({
+  useAreaDraft: () => ({ value: mocks.settings.dashboard, readOnly: false }),
+  useSettingsDrafts: () => ({ settings: mocks.settings, saveLocation: mocks.saveLocation, conflicts: [] }),
+}));
+afterEach(() => { mocks.saveLocation.mockClear(); mocks.settings.dashboard.location = null; vi.unstubAllGlobals(); });
 
-it("asks in the app before browser geolocation and offers manual fallback when denied", async () => {
+const confirm = () => {
+  fireEvent.click(screen.getByRole("button", { name: "Standort aktivieren" }));
+  fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Ja, Standort ermitteln" }));
+};
+
+it("asks before browser geolocation and leaves manual search available after denial", async () => {
   const getCurrentPosition = vi.fn((_success: unknown, error: (reason: { code: number }) => void) => error({ code: 1 }));
   Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
   Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition } });
@@ -22,24 +30,45 @@ it("asks in the app before browser geolocation and offers manual fallback when d
   await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(1));
   expect(await screen.findByText(/Standortzugriff abgelehnt/)).toBeInTheDocument();
   expect(screen.getByRole("textbox", { name: "Stadt oder Postleitzahl" })).toBeInTheDocument();
-  expect(mocks.update).not.toHaveBeenCalled();
+  expect(mocks.saveLocation).not.toHaveBeenCalled();
 });
 
-it("rounds browser coordinates before showing them and waits for explicit acceptance", async () => {
-  const getCurrentPosition = vi.fn((success: (position: { coords: { latitude: number; longitude: number } }) => void) =>
-    success({ coords: { latitude: 52.52437, longitude: 13.41053 } }));
+it("explains a browser location timeout and leaves settings unchanged", async () => {
+  Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
+  Object.defineProperty(navigator, "geolocation", { configurable: true, value: {
+    getCurrentPosition: (_success: unknown, error: (reason: { code: number }) => void) => error({ code: 3 }),
+  } });
+  render(<LocationWeatherArea />);
+  confirm();
+  expect(await screen.findByText(/Standort konnte nicht ermittelt werden/)).toBeInTheDocument();
+  expect(mocks.saveLocation).not.toHaveBeenCalled();
+});
+
+it("shows progress, resolves an actual city, then persists only on the explicit save action", async () => {
+  let complete!: (position: { coords: { latitude: number; longitude: number } }) => void;
+  const getCurrentPosition = vi.fn((success: typeof complete) => { complete = success; });
   Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
   Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition } });
+  const provider = vi.fn(async (_url: string, _init?: RequestInit) => Response.json({ lookupSource: "reverseGeocoding", latitude: 52.52, longitude: 13.41,
+    city: "Berlin", countryName: "Deutschland", countryCode: "DE" }));
+  vi.stubGlobal("fetch", provider);
   render(<LocationWeatherArea />);
-  fireEvent.click(screen.getByRole("button", { name: "Standort aktivieren" }));
-  fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Ja, Standort ermitteln" }));
-  expect(await screen.findByText(/52.52°, 13.41°/)).toBeInTheDocument();
-  expect(mocks.update).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Ort übernehmen" }));
-  expect(mocks.update).toHaveBeenCalledWith({ location: { label: "Aktueller Standort (52.52°, 13.41°)", latitude: 52.52, longitude: 13.41 } });
+  confirm();
+  expect(screen.getByText(/Browserstandort wird ermittelt/)).toBeInTheDocument();
+  complete({ coords: { latitude: 52.52437, longitude: 13.41053 } });
+  expect(await screen.findByText("Ausgewählt: Berlin, Deutschland")).toBeInTheDocument();
+  expect(provider).toHaveBeenCalledTimes(1);
+  const url = new URL(provider.mock.calls[0]![0] as string);
+  expect(url.hostname).toBe("api.bigdatacloud.net");
+  expect(url.searchParams.get("latitude")).toBe("52.52");
+  expect(url.searchParams.get("longitude")).toBe("13.41");
+  expect(mocks.saveLocation).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Standort übernehmen und speichern" }));
+  await waitFor(() => expect(mocks.saveLocation).toHaveBeenCalledWith({ label: "Berlin, Deutschland", countryCode: "DE", latitude: 52.52, longitude: 13.41 }));
+  expect(await screen.findByText(/Standort gespeichert\. Das Wetter/)).toBeInTheDocument();
 });
 
-it("shows disambiguated search results and only edits the draft after explicit selection", async () => {
+it("saves a selected postal-code result directly without requiring the global settings button", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ data: { items: [
     { label: "Paris", region: "Texas", country: "USA", countryCode: "US", latitude: 33.66, longitude: -95.56 },
   ] } })));
@@ -47,7 +76,19 @@ it("shows disambiguated search results and only edits the draft after explicit s
   fireEvent.change(screen.getByRole("textbox", { name: "Stadt oder Postleitzahl" }), { target: { value: "Paris" } });
   fireEvent.click(screen.getByRole("button", { name: "Ort suchen" }));
   fireEvent.click(await screen.findByRole("button", { name: "Paris, Texas, USA" }));
-  expect(mocks.update).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Ort übernehmen" }));
-  expect(mocks.update).toHaveBeenCalledWith({ location: { label: "Paris, Texas, USA", countryCode: "US", latitude: 33.66, longitude: -95.56 } });
+  expect(mocks.saveLocation).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Standort übernehmen und speichern" }));
+  await waitFor(() => expect(mocks.saveLocation).toHaveBeenCalledWith({ label: "Paris, Texas, USA", countryCode: "US", latitude: 33.66, longitude: -95.56 }));
+});
+
+it("keeps previous settings if reverse lookup fails", async () => {
+  mocks.settings.dashboard.location = { label: "Vorheriger Ort", latitude: 50, longitude: 8 };
+  Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
+  Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: (success: (position: unknown) => void) => success({ coords: { latitude: 52.52, longitude: 13.41 } }) } });
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ lookupSource: "ipGeolocation", latitude: 52.52, longitude: 13.41, city: "Berlin", countryName: "Deutschland", countryCode: "DE" })));
+  render(<LocationWeatherArea />);
+  confirm();
+  expect(await screen.findByText(/Ortsname konnte nicht ermittelt/)).toBeInTheDocument();
+  expect(screen.getByText("Gespeichert: Vorheriger Ort")).toBeInTheDocument();
+  expect(mocks.saveLocation).not.toHaveBeenCalled();
 });

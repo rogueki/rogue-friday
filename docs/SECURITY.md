@@ -114,7 +114,7 @@ The Control API sends on every HTML response (and API responses, harmlessly):
 
 ```
 default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;
-connect-src 'self' ws: wss:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'
+connect-src 'self' https://api.bigdatacloud.net ws: wss:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'
 ```
 
 Plus `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin`,
@@ -127,7 +127,9 @@ is blocked. **Scripts stay strict**: `script-src 'self'` means no inline scripts
 export must therefore be built without inline bootstrap scripts (use hashed/external chunks - verify in Phase 12; if Next
 emits inline scripts, add per-build `sha256-` hashes to `script-src`, never `'unsafe-inline'`).
 
-Other directives: `connect-src ws: wss:` covers the same-origin event socket (`/api/v1/events`); `worker-src blob:` is for
+Other directives: `connect-src ws: wss:` covers the event socket (`/api/v1/events`); the single external origin
+`https://api.bigdatacloud.net` is used only after explicit browser location permission to resolve a fresh coarse point to a city name.
+`worker-src blob:` is for
 the Three.js/Orb worker; `img-src data: blob:` for generated textures and file previews; `frame-ancestors 'none'` and
 `base-uri 'none'` close clickjacking and base-tag injection; `form-action 'self'` limits form posts.
 

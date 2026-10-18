@@ -42,7 +42,54 @@ beforeEach(() => {
   nav.replace.mockClear();
   nav.push.mockClear();
 });
-afterEach(() => setApiClient(null));
+afterEach(() => { setApiClient(null); vi.unstubAllGlobals(); });
+
+it("saves only the selected city and preserves other unsaved dashboard changes", async () => {
+  const user = userEvent.setup();
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    const url = new URL(String(input), "http://friday.test");
+    if (url.pathname === "/api/v1/location/search") return Response.json({ data: { items: [
+      { label: "Berlin", region: "Berlin", country: "Deutschland", countryCode: "DE", latitude: 52.52, longitude: 13.41 },
+    ] } });
+    throw new Error(`Unexpected raw fetch: ${url}`);
+  }));
+  const { api, unmount } = setup({ area: "area=dashboard" });
+  await user.click(await screen.findByRole("switch", { name: "Kompakte Darstellung" }));
+  await user.type(screen.getByRole("textbox", { name: "Stadt oder Postleitzahl" }), "10115");
+  await user.click(screen.getByRole("button", { name: "Ort suchen" }));
+  await user.click(await screen.findByRole("button", { name: "Berlin, Berlin, Deutschland" }));
+  await user.click(screen.getByRole("button", { name: "Standort übernehmen und speichern" }));
+  await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
+  expect(api.find("PATCH", "/settings")[0]?.ifMatch).toBe("3");
+  expect(api.find("PATCH", "/settings")[0]?.body).toMatchObject({ dashboard: { compact: false, location: { label: "Berlin, Berlin, Deutschland", latitude: 52.52, longitude: 13.41 } } });
+  expect(api.state.settings.dashboard.compact).toBe(false);
+  expect(screen.getByRole("switch", { name: "Kompakte Darstellung" })).toHaveAttribute("aria-checked", "true");
+  expect(screen.getByRole("button", { name: "Speichern" })).toBeEnabled();
+  await user.click(screen.getByRole("button", { name: "Speichern" }));
+  await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(2));
+  expect(api.find("PATCH", "/settings")[1]?.ifMatch).toBe("4");
+  expect(api.state.settings.dashboard).toMatchObject({ compact: true, location: { label: "Berlin, Berlin, Deutschland" } });
+  unmount();
+  setup({ area: "area=dashboard", settings: api.state.settings });
+  expect(await screen.findByText("Gespeichert: Berlin, Berlin, Deutschland")).toBeInTheDocument();
+});
+
+it("keeps a chosen city available after a version conflict and saves it on retry", async () => {
+  const user = userEvent.setup();
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ data: { items: [
+    { label: "Köln", country: "Deutschland", countryCode: "DE", latitude: 50.94, longitude: 6.96 },
+  ] } })));
+  const { api } = setup({ area: "area=dashboard", conflictOnce: true });
+  await user.type(await screen.findByRole("textbox", { name: "Stadt oder Postleitzahl" }), "Köln");
+  await user.click(screen.getByRole("button", { name: "Ort suchen" }));
+  await user.click(await screen.findByRole("button", { name: "Köln, Deutschland" }));
+  await user.click(screen.getByRole("button", { name: "Standort übernehmen und speichern" }));
+  expect(await screen.findByText(/zwischenzeitlich geändert/)).toBeInTheDocument();
+  expect(screen.getByText("Ausgewählt: Köln, Deutschland")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Standort übernehmen und speichern" }));
+  await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(2));
+  expect(api.state.settings.dashboard.location?.label).toBe("Köln, Deutschland");
+});
 
 describe("profile and assistant name", () => {
   it("renames the assistant live: the brand reads the saved name without a reload, PATCH carries If-Match", async () => {

@@ -4,7 +4,7 @@ import type { Runtime } from "../runtime/types";
 
 /** CSP exactly as specified in docs/SECURITY.md §4. Hashes of inline bootstrap scripts are added per HTML file. */
 export const CSP_BASE =
-  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://api.bigdatacloud.net ws: wss:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
 
 export function contentSecurityPolicy(scriptHashes: readonly string[] = []): string {
   if (scriptHashes.length === 0) return CSP_BASE;
