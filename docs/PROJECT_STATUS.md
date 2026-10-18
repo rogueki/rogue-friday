@@ -186,3 +186,26 @@ pnpm test:e2e
 
 - The dashboard source now includes an owner-only Asterisk-SIP setup and a separate call preview, confirmation, journal, status and hangup flow. It checks local ARI reachability, owner endpoint, loaded dialplan and trunk registration before allowing a call request. Asterisk configuration is applied manually; it is not installed by the Friday installer.
 - The D: test installation has no Asterisk service or SIP account. No local or external call, remote answer, or Friday voice dialogue over the call has been verified. The Hermes phone skill remains unable to dial autonomously.
+
+## Orb rework: live, audio-reactive orb (2026-10-17/18)
+
+Order: "JARVIS-Orb vollständig beleben und audio-reaktiv machen". Analysis and plan: `docs/ORB_REWORK_ANALYSIS.md`;
+specification: `docs/ORB_SPECIFICATION.md`; evidence: `docs/evidence/orb-rework/{before,after,after-package}/`.
+
+- **Real event path (backend):** voice service phases, `friday.voice.tts_started` / `tts_ended`, banded
+  `friday.voice.audio_level {direction, level, peak?, low?, mid?, high?}`, immediate orb derivation, `currentAgentName`.
+- **`@friday/orb`:** layered `OrbController` (primary interaction / background work / system health / approval,
+  priority error > offline > approval > listening > speaking > transcribing > thinking > working > syncing > idle),
+  `OrbEventBridge`, Web Audio analyser (fixed dBFS mapping −60 → 0, −12 → 1, noise gate, attack/release),
+  service-level source, speech-envelope fallback, demos, degraded-mode visuals, 2D fallback with all layers.
+  Orb centred exactly in the panel (offset 0 px), visible fill 72 % of the stage height, no lift/boost.
+- **Web:** realtime → orb router, real mic and TTS analysers in `browserAudio.ts`, AI-core status text from the
+  controller, dev-only debug panel (`/dev/scenarios`, `/?orbDebug=1`; absent from the production build).
+- **Verified (lead, 2026-10-18):** all gates green (`contracts:check`, typecheck, lint, 2877 unit tests,
+  conformance, build); orb package 211 tests; E2E with `--ignore-snapshots` 196 passed before the booting fix,
+  the remaining orb/booting specs pass after it; orb-layout 13/13 at 1366×768–3840×2160 × 80/100/125 %;
+  mic silence/quiet/loud, TTS barge-in, 25 mic cycles without leaks, 2-min soak with a flat heap.
+- **Open:** visual baselines (`tests/e2e/__screenshots__`) were produced on GitHub CI and differ from this
+  container's font rendering → regenerate the orb/overview baselines on CI and review them (as in #23);
+  real-GPU frame times; 30-min soak (`E2E_SOAK=1`); the evidence video is rendered from test-clock frames (2 fps)
+  because the Playwright recorder does not work in this container; `syncing` still has no real event source.

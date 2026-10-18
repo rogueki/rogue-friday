@@ -202,7 +202,7 @@ export function createOrbController(options: CreateOrbControllerOptions = {}): O
         ? "offline"
         : localPaused || server?.connectivity === "paused" || healthPatch.connectivity === "paused"
           ? "paused"
-          : booting && (server === null || server.connectivity === "booting") && healthPatch.connectivity !== "online"
+          : ((booting && server === null) || server?.connectivity === "booting") && healthPatch.connectivity !== "online"
             ? "booting"
             : "online";
     const serverHealth = server?.health ?? "unknown";

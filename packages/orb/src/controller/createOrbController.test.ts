@@ -256,6 +256,14 @@ describe("work layer and texts", () => {
     expect(s.status.activeAgentCount).toBe(4);
   });
 
+  it("a server snapshot in booting mode shows booting until the server reports online", () => {
+    const { controller } = setup();
+    controller.applySnapshot(snapshot({}, { mode: "booting" }));
+    expect(controller.getState().status.mode).toBe("booting");
+    controller.applySnapshot(snapshot({}, { mode: "idle" }));
+    expect(controller.getState().status.mode).toBe("idle");
+  });
+
   it("speaking, transcribing and listening never show a stale server text", () => {
     const { controller, bridge } = setup();
     controller.applySnapshot(snapshot({}, { mode: "idle", activityText: "BEREIT" }));
