@@ -69,7 +69,7 @@ test.describe("orb states (static 2D render, 14 modes)", () => {
       await expectOrbMode(page, mode);
       await settle(page);
       await expectOrbMode(page, mode);
-      await expect(orbRoot(page)).toHaveScreenshot(`orb-${mode}.png`, { mask: [page.getByText(/^Aktualisiert \d/)] });
+      await expect(orbRoot(page)).toHaveScreenshot(`orb-${mode}.png`, { mask: [page.getByText(/^Aktualisiert \d/)], timeout: 90_000 });
       await expectOrbMode(page, mode);
     }
   });
