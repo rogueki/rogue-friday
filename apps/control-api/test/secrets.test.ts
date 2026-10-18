@@ -99,6 +99,10 @@ describe("secret hygiene", () => {
     const calendarList = vi.spyOn(api.runtime.calendarAccounts, "list").mockResolvedValue({ revision: 1, defaultAccountId: null, accounts: [] });
     const calendarPending = vi.spyOn(api.runtime.calendarAccounts, "pendingMemory").mockResolvedValue({ events: [] });
     const mailList = vi.spyOn(api.runtime.mailAccounts, "list").mockResolvedValue({ revision: 1, defaultAccountId: null, accounts: [] });
+    const hermesConfig = vi.spyOn(api.runtime.hermesConfig, "status").mockResolvedValue({ installed: true,
+      sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8", revision: 1, checkedAt: new Date().toISOString(),
+      fields: [], secretStates: [{ key: "model.api_key", configFileSet: true, effectiveConfigured: null }],
+      families: [], skills: [], plugins: [], write: null } as never);
     const memorySearch = vi.spyOn(api.runtime.durableMemory, "search").mockReturnValue([]);
     const whatsappPairing = vi.spyOn(api.runtime.whatsappGateway, "pairing").mockResolvedValue({ id: null, state: "idle",
       qr: null, expiresAt: null, linkedIdentity: null, connectionState: "disconnected" });
@@ -121,6 +125,7 @@ describe("secret hygiene", () => {
       calendarList.mockRestore();
       calendarPending.mockRestore();
       mailList.mockRestore();
+      hermesConfig.mockRestore();
       memorySearch.mockRestore();
       whatsappPairing.mockRestore();
     }

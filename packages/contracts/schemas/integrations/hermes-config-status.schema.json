@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-config-status.schema.json",
+  "title": "HermesConfigStatus",
+  "type": "object",
+  "properties": {
+    "installed": { "type": "boolean" },
+    "sourceRevision": { "type": ["string", "null"] },
+    "revision": { "type": ["integer", "null"], "minimum": 1 },
+    "checkedAt": { "type": "string", "format": "date-time" },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "enum": [
+              "agent.max_turns",
+              "agent.gateway_timeout",
+              "agent.api_max_retries",
+              "session.terminal_continue",
+              "max_live_sessions"
+            ]
+          },
+          "type": { "enum": ["integer", "boolean"] },
+          "family": { "const": "agent" },
+          "consumer": { "type": "string" },
+          "value": { "type": ["integer", "boolean", "null"] },
+          "explicit": { "type": "boolean" },
+          "writable": { "type": "boolean" },
+          "verification": { "const": "unverified" },
+          "reasonCode": { "const": "runtime_receipt_unavailable" }
+        },
+        "required": [
+          "key",
+          "type",
+          "family",
+          "consumer",
+          "value",
+          "explicit",
+          "writable",
+          "verification",
+          "reasonCode"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "secretStates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": { "const": "model.api_key" },
+          "configFileSet": { "type": "boolean" },
+          "effectiveConfigured": { "type": ["boolean", "null"] }
+        },
+        "required": ["key", "configFileSet", "effectiveConfigured"],
+        "additionalProperties": false
+      }
+    },
+    "families": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "enum": ["models", "agent", "execution", "extensions", "operations"] },
+          "roots": { "type": "array", "items": { "type": "string" } },
+          "followup": { "type": "string" },
+          "installed": { "type": ["boolean", "null"] },
+          "enabled": { "type": ["boolean", "null"] },
+          "configFileSet": { "type": "boolean" },
+          "configured": { "type": ["boolean", "null"] },
+          "authenticated": { "type": ["boolean", "null"] },
+          "available": { "type": ["boolean", "null"] },
+          "needsSetup": { "type": ["boolean", "null"] },
+          "unsupported": { "type": ["boolean", "null"] },
+          "coverage": { "const": "followup" }
+        },
+        "required": [
+          "id",
+          "roots",
+          "followup",
+          "installed",
+          "enabled",
+          "configFileSet",
+          "configured",
+          "authenticated",
+          "available",
+          "needsSetup",
+          "unsupported",
+          "coverage"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "skills": { "type": "array", "items": { "$ref": "#/$defs/extension" } },
+    "plugins": { "type": "array", "items": { "$ref": "#/$defs/extension" } },
+    "write": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "properties": {
+            "key": { "type": "string" },
+            "persisted": { "type": "boolean" },
+            "applied": { "type": ["boolean", "null"] },
+            "verification": { "const": "unverified" },
+            "reasonCode": { "enum": ["runtime_receipt_unavailable", "readback_mismatch"] }
+          },
+          "required": ["key", "persisted", "applied", "verification", "reasonCode"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "extension": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "installed": { "const": true },
+        "enabled": { "type": "boolean" },
+        "configured": { "type": ["boolean", "null"] },
+        "authenticated": { "type": ["boolean", "null"] },
+        "available": { "type": ["boolean", "null"] },
+        "needsSetup": { "type": ["boolean", "null"] },
+        "unsupported": { "type": ["boolean", "null"] }
+      },
+      "required": [
+        "id",
+        "installed",
+        "enabled",
+        "configured",
+        "authenticated",
+        "available",
+        "needsSetup",
+        "unsupported"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "installed",
+    "sourceRevision",
+    "revision",
+    "checkedAt",
+    "fields",
+    "secretStates",
+    "families",
+    "skills",
+    "plugins",
+    "write"
+  ],
+  "additionalProperties": false
+}

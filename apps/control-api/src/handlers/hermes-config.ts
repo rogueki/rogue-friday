@@ -1,0 +1,25 @@
+import { CONTRACT_VERSION, type HermesConfigPatch } from "@friday/sdk";
+import type { Handler } from "../http/context";
+import type { OperationId } from "../http/route-types";
+import { validationFailed } from "../util/errors";
+
+const single = <T>(data: T) => ({
+  contractVersion: CONTRACT_VERSION,
+  data,
+  freshness: { state: "fresh" as const, asOf: new Date().toISOString() },
+});
+
+export const hermesConfigHandlers: Partial<Record<OperationId, Handler>> = {
+  async getHermesConfig(ctx) {
+    return { status: 200, body: single(await ctx.runtime.hermesConfig.status()) };
+  },
+  async patchHermesConfig(ctx) {
+    if (ctx.mutation.ifMatchVersion === undefined)
+      throw validationFailed("If-Match ist für Hermes-Konfiguration erforderlich.");
+    const patch = ctx.body as HermesConfigPatch;
+    const status = await ctx.runtime.hermesConfig.update(patch, ctx.mutation.ifMatchVersion);
+    ctx.audit.action = "settings.hermes_config_updated";
+    ctx.audit.after = { key: patch.key, persisted: status.write?.persisted, revision: status.revision };
+    return { status: 200, body: single(status) };
+  },
+};

@@ -17,6 +17,8 @@ import type {
   ThemeImportRequest,
   ThemeListResponse,
   ThemeResponse,
+  HermesConfigPatch,
+  HermesConfigStatusResponse,
 } from "@friday/sdk";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { call } from "../call";
@@ -55,6 +57,21 @@ export const settingsQueries = {
 export const useSettings = (enabled = true) => useQuery({ ...settingsQueries.root(), enabled });
 export const useLayouts = (enabled = true) => useQuery({ ...settingsQueries.layouts(), enabled });
 export const useThemes = (enabled = true) => useQuery({ ...settingsQueries.themes(), enabled });
+export const useHermesConfig = (enabled = true) => useQuery({
+  queryKey: ["settings", "hermes-config"],
+  queryFn: (): Promise<HermesConfigStatusResponse> => call(getApiClient().GET("/api/v1/settings/hermes-config")),
+  enabled,
+  staleTime: 15000,
+});
+export function usePatchHermesConfig() {
+  return useApiMutation<HermesConfigStatusResponse, { revision: number; patch: HermesConfigPatch } & IntentVars>({
+    label: "Hermes-Konfiguration speichern",
+    mutationFn: ({ revision, patch }) => call(getApiClient().PATCH("/api/v1/settings/hermes-config", {
+      params: { header: { "If-Match": String(revision) } }, body: patch,
+    })),
+    invalidate: [["settings", "hermes-config"]],
+  });
+}
 /** Adapter configuration (GET /settings/adapters is owner-only, so callers pass `enabled`). Secrets arrive masked only. */
 export const useAdapterSettings = (enabled = true) => useQuery({ ...settingsQueries.adapters(), enabled });
 

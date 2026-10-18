@@ -69,6 +69,7 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   restartAdapter: "system.restartAdapter",
   exportAudit: "audit.export",
   updateSettings: "settings.update",
+  patchHermesConfig: "settings.update",
   getContentStudioKeys: "settings.update",
   updateContentStudioKey: "settings.update",
   getObsidianVault: "settings.update",

@@ -80,6 +80,8 @@ export const en: Record<keyof typeof de, string> = {
   "nav.audit": "Audit & History",
   "nav.settings": "Settings",
   "settings.area.skillAccounts": "Skill accounts",
+  "settings.area.hermesConfig": "Hermes configuration",
+  "settings.area.hermesConfig.desc": "Effective Hermes values and installed extensions",
   "settings.area.skillAccounts.desc": "Accounts and prerequisites for Friday skills",
   "nav.badge.tasks": "{count} open tasks",
   "nav.badge.approvals": "{count} open approvals",

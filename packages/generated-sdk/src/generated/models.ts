@@ -93,6 +93,27 @@ export type OrbMode =
   | "error"
   | "offline"
   | "paused";
+export type HermesConfigPatch =
+  | {
+      key: "agent.max_turns";
+      value: number;
+    }
+  | {
+      key: "agent.gateway_timeout";
+      value: number;
+    }
+  | {
+      key: "agent.api_max_retries";
+      value: number;
+    }
+  | {
+      key: "session.terminal_continue";
+      value: boolean;
+    }
+  | {
+      key: "max_live_sessions";
+      value: number;
+    };
 export type MemoryType =
   | "profile"
   | "preference"
@@ -312,6 +333,9 @@ export interface FridayModelMap {
   HealthcheckResult: HealthcheckResult;
   HealthcheckResultResponse: HealthcheckResultResponse;
   HealthStatus: HealthStatus;
+  HermesConfigPatch: HermesConfigPatch;
+  HermesConfigStatus: HermesConfigStatus;
+  HermesConfigStatusResponse: HermesConfigStatusResponse;
   HermesSkillKeyCheck: HermesSkillKeyCheck;
   HermesSkillKeyCheckResponse: HermesSkillKeyCheckResponse;
   HermesSkillKeyPatch: HermesSkillKeyPatch;
@@ -2676,6 +2700,71 @@ export interface HealthcheckResult {
 export interface HealthcheckResultResponse {
   contractVersion: ContractVersion;
   data: HealthcheckResult;
+  freshness: Freshness;
+}
+export interface HermesConfigStatus {
+  installed: boolean;
+  sourceRevision: string | null;
+  revision: number | null;
+  checkedAt: string;
+  fields: {
+    key:
+      | "agent.max_turns"
+      | "agent.gateway_timeout"
+      | "agent.api_max_retries"
+      | "session.terminal_continue"
+      | "max_live_sessions";
+    type: "integer" | "boolean";
+    family: "agent";
+    consumer: string;
+    value: number | boolean | null;
+    explicit: boolean;
+    writable: boolean;
+    verification: "unverified";
+    reasonCode: "runtime_receipt_unavailable";
+  }[];
+  secretStates: {
+    key: "model.api_key";
+    configFileSet: boolean;
+    effectiveConfigured: boolean | null;
+  }[];
+  families: {
+    id: "models" | "agent" | "execution" | "extensions" | "operations";
+    roots: string[];
+    followup: string;
+    installed: boolean | null;
+    enabled: boolean | null;
+    configFileSet: boolean;
+    configured: boolean | null;
+    authenticated: boolean | null;
+    available: boolean | null;
+    needsSetup: boolean | null;
+    unsupported: boolean | null;
+    coverage: "followup";
+  }[];
+  skills: Extension[];
+  plugins: Extension[];
+  write: null | {
+    key: string;
+    persisted: boolean;
+    applied: boolean | null;
+    verification: "unverified";
+    reasonCode: "runtime_receipt_unavailable" | "readback_mismatch";
+  };
+}
+export interface Extension {
+  id: string;
+  installed: true;
+  enabled: boolean;
+  configured: boolean | null;
+  authenticated: boolean | null;
+  available: boolean | null;
+  needsSetup: boolean | null;
+  unsupported: boolean | null;
+}
+export interface HermesConfigStatusResponse {
+  contractVersion: ContractVersion;
+  data: HermesConfigStatus;
   freshness: Freshness;
 }
 export interface HermesSkillKeyCheck {

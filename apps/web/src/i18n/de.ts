@@ -84,6 +84,8 @@ export const de = {
   "nav.audit": "Audit & Verlauf",
   "nav.settings": "Einstellungen",
   "settings.area.skillAccounts": "Skill-Konten",
+  "settings.area.hermesConfig": "Hermes-Konfiguration",
+  "settings.area.hermesConfig.desc": "Wirksame Hermes-Werte und installierte Erweiterungen",
   "settings.area.skillAccounts.desc": "Konten und Voraussetzungen für Friday-Skills",
   "nav.badge.tasks": "{count} offene Aufgaben",
   "nav.badge.approvals": "{count} offene Freigaben",

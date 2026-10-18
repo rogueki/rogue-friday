@@ -2577,6 +2577,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/hermes-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read effective allowlisted Hermes config and installed extension inventory */
+        get: operations["getHermesConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Write one allowlisted typed Hermes config leaf */
+        patch: operations["patchHermesConfig"];
+        trace?: never;
+    };
     "/api/v1/settings/hermes-skill-keys": {
         parameters: {
             query?: never;
@@ -5734,6 +5752,17 @@ export interface components {
             time: string;
             type: string;
         };
+        extension: {
+            authenticated: boolean | null;
+            available: boolean | null;
+            configured: boolean | null;
+            enabled: boolean;
+            id: string;
+            /** @constant */
+            installed: true;
+            needsSetup: boolean | null;
+            unsupported: boolean | null;
+        };
         /**
          * FileCategory
          * @enum {string}
@@ -5980,6 +6009,104 @@ export interface components {
          * @enum {string}
          */
         HealthStatus: "online" | "degraded" | "offline" | "unknown" | "paused";
+        /** HermesConfigPatch */
+        HermesConfigPatch: {
+            /** @constant */
+            key: "agent.max_turns";
+            value: number;
+        } | {
+            /** @constant */
+            key: "agent.gateway_timeout";
+            value: number;
+        } | {
+            /** @constant */
+            key: "agent.api_max_retries";
+            value: number;
+        } | {
+            /** @constant */
+            key: "session.terminal_continue";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "max_live_sessions";
+            value: number;
+        };
+        /** HermesConfigStatus */
+        HermesConfigStatus: {
+            /** Format: date-time */
+            checkedAt: string;
+            families: {
+                authenticated: boolean | null;
+                available: boolean | null;
+                configFileSet: boolean;
+                configured: boolean | null;
+                /** @constant */
+                coverage: "followup";
+                enabled: boolean | null;
+                followup: string;
+                /** @enum {unknown} */
+                id: "models" | "agent" | "execution" | "extensions" | "operations";
+                installed: boolean | null;
+                needsSetup: boolean | null;
+                roots: string[];
+                unsupported: boolean | null;
+            }[];
+            fields: {
+                consumer: string;
+                explicit: boolean;
+                /** @constant */
+                family: "agent";
+                /** @enum {unknown} */
+                key: "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions";
+                /** @constant */
+                reasonCode: "runtime_receipt_unavailable";
+                /** @enum {unknown} */
+                type: "integer" | "boolean";
+                value: number | boolean | null;
+                /** @constant */
+                verification: "unverified";
+                writable: boolean;
+            }[];
+            installed: boolean;
+            plugins: components["schemas"]["extension"][];
+            revision: number | null;
+            secretStates: {
+                configFileSet: boolean;
+                effectiveConfigured: boolean | null;
+                /** @constant */
+                key: "model.api_key";
+            }[];
+            skills: components["schemas"]["extension"][];
+            sourceRevision: string | null;
+            write: null | {
+                applied: boolean | null;
+                key: string;
+                persisted: boolean;
+                /** @enum {unknown} */
+                reasonCode: "runtime_receipt_unavailable" | "readback_mismatch";
+                /** @constant */
+                verification: "unverified";
+            };
+            $defs: {
+                extension: {
+                    authenticated: boolean | null;
+                    available: boolean | null;
+                    configured: boolean | null;
+                    enabled: boolean;
+                    id: string;
+                    /** @constant */
+                    installed: true;
+                    needsSetup: boolean | null;
+                    unsupported: boolean | null;
+                };
+            };
+        };
+        /** HermesConfigStatusResponse */
+        HermesConfigStatusResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["HermesConfigStatus"];
+            freshness: components["schemas"]["Freshness"];
+        };
         /** HermesSkillKeyCheck */
         HermesSkillKeyCheck: {
             /** Format: date-time */
@@ -15001,6 +15128,62 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getHermesConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Effective Hermes configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesConfigStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    patchHermesConfig: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HermesConfigPatch"];
+            };
+        };
+        responses: {
+            /** @description Persisted readback; live runtime application is unverified */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesConfigStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

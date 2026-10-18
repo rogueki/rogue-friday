@@ -6259,6 +6259,56 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/hermes-config:
+    get:
+      operationId: getHermesConfig
+      tags: [settings]
+      summary: Read effective allowlisted Hermes config and installed extension inventory
+      responses:
+        "200":
+          description: Effective Hermes configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesConfigStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+    patch:
+      operationId: patchHermesConfig
+      tags: [settings]
+      summary: Write one allowlisted typed Hermes config leaf
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HermesConfigPatch"
+      responses:
+        "200":
+          description: Persisted readback; live runtime application is unverified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesConfigStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/content-studio-keys:
     get:
       operationId: getContentStudioKeys
@@ -8845,6 +8895,12 @@ components:
       $ref: ../schemas/integrations/mail-change-request.schema.json
     MailResultResponse:
       $ref: ../schemas/integrations/mail-result-response.schema.json
+    HermesConfigPatch:
+      $ref: ../schemas/integrations/hermes-config-patch.schema.json
+    HermesConfigStatus:
+      $ref: ../schemas/integrations/hermes-config-status.schema.json
+    HermesConfigStatusResponse:
+      $ref: ../schemas/integrations/hermes-config-status-response.schema.json
     DurableMemoryStatus:
       $ref: ../schemas/integrations/durable-memory-status.schema.json
     DurableMemoryStatusResponse:

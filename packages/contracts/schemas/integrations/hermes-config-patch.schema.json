@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-config-patch.schema.json",
+  "title": "HermesConfigPatch",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "key": { "const": "agent.max_turns" },
+        "value": { "type": "integer", "minimum": 1, "maximum": 100000 }
+      },
+      "required": ["key", "value"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "key": { "const": "agent.gateway_timeout" },
+        "value": { "type": "integer", "minimum": 60, "maximum": 86400 }
+      },
+      "required": ["key", "value"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "key": { "const": "agent.api_max_retries" },
+        "value": { "type": "integer", "minimum": 1, "maximum": 10 }
+      },
+      "required": ["key", "value"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": { "key": { "const": "session.terminal_continue" }, "value": { "type": "boolean" } },
+      "required": ["key", "value"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "key": { "const": "max_live_sessions" },
+        "value": { "type": "integer", "minimum": 0, "maximum": 10000 }
+      },
+      "required": ["key", "value"],
+      "additionalProperties": false
+    }
+  ]
+}

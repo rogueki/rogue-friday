@@ -33,6 +33,7 @@ import type { MailSendService } from "../services/mail-send";
 import type { MessengerSendService } from "../services/messenger-send";
 import type { CalDavCreateService } from "../services/caldav-create";
 import type { HermesSkillKeysService } from "../services/hermes-skill-keys";
+import type { HermesConfigService } from "../services/hermes-config";
 import type { CodingRunsService } from "../services/coding-runs";
 import type { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
 import type { TelephonyService } from "../services/telephony";
@@ -103,6 +104,7 @@ export interface Runtime {
   messengerSend: MessengerSendService;
   caldavCreate: CalDavCreateService;
   hermesSkillKeys: HermesSkillKeysService;
+  hermesConfig: HermesConfigService;
   codingRuns: CodingRunsService;
   codingVoiceRepository: CodingVoiceRepositoryService;
   adapterSettings: AdapterSettingsService;

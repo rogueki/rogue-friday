@@ -48,6 +48,7 @@ import { CalDavCreateService } from "../services/caldav-create";
 import { LocalCalendarService } from "../services/local-calendar";
 import { CalendarAccountsService } from "../services/calendar-accounts";
 import { HermesSkillKeysService } from "../services/hermes-skill-keys";
+import { HermesConfigService } from "../services/hermes-config";
 import { CodingRunsService } from "../services/coding-runs";
 import { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
 import { ContentStudioProviderService } from "../services/content-studio-providers";
@@ -268,6 +269,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const mailSend = new MailSendService(db, mailAccounts);
   const messengerSend = new MessengerSendService(db, config.paths.dataDir, approvalTokens);
   const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
+  const hermesConfig = new HermesConfigService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
   const skills: SkillsService = new SkillsService({
     catalogPath: env.FRIDAY_SKILLS_CATALOG_PATH,
@@ -508,6 +510,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     messengerSend,
     caldavCreate,
     hermesSkillKeys,
+    hermesConfig,
     codingRuns,
     codingVoiceRepository,
     contentStudioProduction,
