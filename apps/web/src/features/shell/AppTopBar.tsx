@@ -1,7 +1,7 @@
 "use client";
 
 import { TopStatusBar, useMediaQuery, useNow, type ConnectionState, type TopBarAction } from "@friday/ui";
-import { Bell, LayoutGrid, Settings } from "lucide-react";
+import { Bell, Download, LayoutGrid, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { formatRelative } from "@/features/shared/time";
@@ -13,6 +13,7 @@ import { useRealtimeStatus, type RealtimeStatus } from "@/lib/realtime/store";
 import { useSession } from "@/lib/session";
 import { useAppSettings } from "@/lib/settings";
 import { useUiStore } from "@/lib/uiStore";
+import { useDashboardUpdateStatus } from "@/lib/api/dashboardUpdate";
 
 const STREAM_KEYS: Record<RealtimeStatus["state"], MessageKey> = {
   online: "stream.online",
@@ -48,6 +49,7 @@ export function AppTopBar() {
   const status = useFridayStatus();
   const meta = useMeta();
   const session = useSession();
+  const dashboardUpdate = useDashboardUpdateStatus(session.role === "owner");
   const realtime = useRealtimeStatus();
   const now = useNow(1000);
   const notifications = useNotifications({ status: ["open"], limit: 20 });
@@ -68,13 +70,16 @@ export function AppTopBar() {
       badge: notificationCount,
       onClick: () => setNotificationsOpen(true),
     };
-    if (narrow) return [bell];
+    const update: TopBarAction = { id: "dashboard-update", label: t("settings.update.available"), icon: <Download size={17} strokeWidth={1.5} />, badge: 1,
+      onClick: () => router.push("/settings?area=dashboard#dashboard-update-title") };
+    if (narrow) return dashboardUpdate.data?.available ? [update, bell] : [bell];
     return [
+      ...(dashboardUpdate.data?.available ? [update] : []),
       { id: "layout", label: t("top.layout"), icon: <LayoutGrid size={17} strokeWidth={1.5} />, onClick: () => router.push("/settings") },
       bell,
       { id: "settings", label: t("top.settings"), icon: <Settings size={17} strokeWidth={1.5} />, onClick: () => router.push("/settings") },
     ];
-  }, [t, router, notificationCount, setNotificationsOpen, narrow]);
+  }, [t, router, notificationCount, setNotificationsOpen, narrow, dashboardUpdate.data?.available]);
 
   const statusLabel = friday ? friday.label.toUpperCase() : status.isError ? t("top.status.unknown") : "…";
   const statusTone = friday ? toneFromHealth(friday.status) : "muted";

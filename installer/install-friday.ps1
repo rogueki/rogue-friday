@@ -1981,8 +1981,17 @@ if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
         Write-Host ""; Write-Host "  [FEHLER] Command Center: $($_.Exception.Message)" -ForegroundColor Red
         Warn "Log: $DashInstallLog"
     }
-    if ($script:DashOk) { MarkDone 'dashboard' }
-    else {
+    if ($script:DashOk) {
+        MarkDone 'dashboard'
+        if ($State.dashboard_source -and (Test-Path (Join-Path $State.dashboard_source '.git'))) {
+            $revision = (& git.exe -C $State.dashboard_source rev-parse HEAD 2>$null | Select-Object -First 1)
+            if ($LASTEXITCODE -eq 0 -and "$revision" -cmatch '^[0-9a-f]{40}$') {
+                $revisionFile = "$Dash\data\dashboard-revision.json"
+                $revisionJson = @{ commit = "$revision"; installedAt = (Get-Date -Format o) } | ConvertTo-Json
+                [IO.File]::WriteAllText($revisionFile, $revisionJson, [Text.UTF8Encoding]::new($false))
+            }
+        }
+    } else {
         Warn 'Das Command Center ist noch nicht fertig eingerichtet (Details oben). Sprache und Hermes sind davon nicht betroffen.'
         Warn "Erneut versuchen: update-dashboard.bat (im Paketordner) oder install-friday.bat -Resume. Log: $DashInstallLog"
     }

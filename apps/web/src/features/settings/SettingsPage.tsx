@@ -37,6 +37,7 @@ import { OrbArea } from "./OrbArea";
 import { SettingsDraftsProvider, useSettingsDrafts } from "./SettingsDrafts";
 import { SettingsTransfer } from "./SettingsTransfer";
 import { ThemeArea } from "./ThemeArea";
+import { DashboardUpdateArea } from "./DashboardUpdateArea";
 import { SETTINGS_AREAS, isSettingsArea, previewTheme, type DraftAreaId, type SettingsAreaId } from "./settingsLogic";
 import "./settings.css";
 
@@ -80,7 +81,7 @@ const AREA_DRAFTS: Partial<Record<SettingsAreaId, readonly DraftAreaId[]>> = {
 
 const AREA_COMPONENTS: Partial<Record<SettingsAreaId, () => ReactNode>> = {
   profile: () => <ProfileArea />,
-  dashboard: () => <DashboardArea />,
+  dashboard: () => <><DashboardArea /><DashboardUpdateArea /></>,
   theme: () => <ThemeArea />,
   orb: () => <OrbArea />,
   navigation: () => <NavigationArea />,

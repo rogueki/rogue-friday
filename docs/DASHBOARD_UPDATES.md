@@ -1,0 +1,11 @@
+# Dashboard-Updates aus GitHub
+
+Unter **Einstellungen → Dashboard → Dashboard-Updates** prüft das Command Center alle fünf Minuten den `main`-Branch des Repositories `rogueki/rogue-friday`. Ein Hinweis erscheint auch in der oberen Leiste. Nur der angemeldete Besitzer kann nach CSRF-Prüfung die Installation starten. Die Ansicht zeigt installierten und aktuellen Commit sowie einen GitHub-Vergleich der Änderungen.
+
+Beim ersten Installationslauf mit dieser Version schreibt der Installer nach bestandenem Dashboard-Healthcheck `dashboard/data/dashboard-revision.json`. Ältere Installationen ohne diese Datei müssen einmal mit dem aktuellen Installer und `-UpdateDashboard` aktualisiert werden. Der Ordner `dashboard` braucht selbst kein Git-Repository.
+
+Das Update-Skript nutzt ausschließlich die fest eingetragene GitHub-Quelle und `main`. Es hält einen separaten Checkout in `<InstallRoot>/updates/rogue-friday-main`, verlangt eine fortlaufende Git-Historie und prüft jede betroffene lokale Quelldatei gegen den vorherigen Git-Blob. Lokale Änderungen werden dann nicht überschrieben. Im Checkout werden die Abhängigkeiten mit Lockfile installiert und die App gebaut, während das laufende Dashboard noch verfügbar bleibt.
+
+Vor dem Umschalten sichert das Skript nur betroffene Dateien sowie `apps/control-api/dist`, `apps/web/out` und den Revisionsmarker unter `<InstallRoot>/updates/backup-<Zeit>`. Nach dem Stoppen des Dienstes sichert es außerdem die SQLite-Datei samt WAL. Danach kopiert oder entfernt es ausschließlich geänderte Dateien aus `apps`, `packages`, `adapters`, `scripts`, ungeschützten `config`-Dateien und definierten Root-Dateien. Bei Paketänderungen führt es `pnpm install --frozen-lockfile` im installierten Dashboard aus. Nach dem Neustart muss der Healthcheck erfolgreich sein; andernfalls stellt das Skript die Sicherung samt Datenbank wieder her und startet den vorherigen Build. Benutzerkonfiguration, Schlüssel und übrige Daten bleiben unberührt. Ergebnis und Fehler stehen in `<InstallRoot>/logs/dashboard-update.log`.
+
+Die Funktion aktualisiert den Dashboard-Quellbaum. Windows-Voice-Dateien, WSL-Dienste und Installerabläufe werden weiterhin über `install-friday.ps1 -UpdateDashboard` aktualisiert. Für Änderungen an diesen Komponenten ist ein separater Lauf erforderlich.
