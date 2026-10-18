@@ -23,9 +23,15 @@ function Git([string[]]$arguments) {
     $previousErrorActionPreference = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
-        $result = & git.exe @arguments 2>> $log
+        $records = & git.exe @arguments 2>&1
         $gitExit = $LASTEXITCODE
     } finally { $ErrorActionPreference = $previousErrorActionPreference }
+    $result = @()
+    foreach ($record in @($records)) {
+        if ($record -is [Management.Automation.ErrorRecord]) {
+            $record.ToString() | Out-File -FilePath $log -Append -Encoding utf8
+        } else { $result += [string]$record }
+    }
     if ($gitExit -ne 0) { throw "Git-Operation fehlgeschlagen: $($arguments[0])" }
     return $result
 }
@@ -206,9 +212,10 @@ try {
     [IO.File]::WriteAllText($resultFile, (@{ commit = $target; status = 'success'; time = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
     "$(Get-Date -Format o) Update erfolgreich; Backup: $backup" | Add-Content $log
 } catch {
-    $failureJson = @{ commit = $ExpectedCommit; status = 'failed'; time = (Get-Date -Format o); message = $_.Exception.Message } | ConvertTo-Json
+    $failureMessage = $_.Exception.Message
+    $failureJson = @{ commit = $ExpectedCommit; status = 'failed'; time = (Get-Date -Format o); message = $failureMessage } | ConvertTo-Json
     [IO.File]::WriteAllText($resultFile, $failureJson, [Text.UTF8Encoding]::new($false))
-    "$(Get-Date -Format o) FEHLER: $($_.Exception.Message)" | Add-Content $log
+    "$(Get-Date -Format o) FEHLER: $failureMessage" | Add-Content $log
     if ($stopped -and $backup) {
         try {
             Stop-Dashboard
@@ -238,6 +245,7 @@ try {
             "$(Get-Date -Format o) Rollback abgeschlossen" | Add-Content $log
         } catch { "$(Get-Date -Format o) Rollback fehlgeschlagen: $($_.Exception.Message)" | Add-Content $log }
     }
+    throw "Dashboard-Update fehlgeschlagen: $failureMessage"
 } finally {
     $lockHandle.Dispose()
     Remove-Item -LiteralPath $lock -Force -ErrorAction SilentlyContinue
