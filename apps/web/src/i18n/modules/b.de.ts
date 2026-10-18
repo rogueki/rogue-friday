@@ -207,6 +207,7 @@ export const deB = {
   "alerts.category.voice": "Sprache",
   "alerts.category.adapter": "Adapter",
   "alerts.escalation.state.pending": "Geplant",
+  "alerts.escalation.state.awaiting_approval": "Freigabe erforderlich",
   "alerts.escalation.state.sent": "Gesendet",
   "alerts.escalation.state.acknowledged": "Bestätigt",
   "alerts.escalation.state.failed": "Fehlgeschlagen",

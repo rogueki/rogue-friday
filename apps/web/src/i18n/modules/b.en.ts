@@ -209,6 +209,7 @@ export const enB: Record<keyof typeof deB, string> = {
   "alerts.category.voice": "Voice",
   "alerts.category.adapter": "Adapter",
   "alerts.escalation.state.pending": "Scheduled",
+  "alerts.escalation.state.awaiting_approval": "Owner approval required",
   "alerts.escalation.state.sent": "Sent",
   "alerts.escalation.state.acknowledged": "Acknowledged",
   "alerts.escalation.state.failed": "Failed",

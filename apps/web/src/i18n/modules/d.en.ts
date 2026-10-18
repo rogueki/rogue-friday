@@ -425,6 +425,8 @@ export const enD: Record<keyof typeof deD, string> = {
   "settings.notifications.channel.sms": "SMS",
   "settings.notifications.channel.phone": "Phone call",
   "settings.notifications.channel.email": "Email",
+  "settings.notifications.accountId": "Account ID",
+  "settings.notifications.recipient": "Recipient",
   "settings.notifications.minPriority": "From priority",
   "settings.notifications.priority.P0": "P0 · critical",
   "settings.notifications.priority.P1": "P1 · urgent",

@@ -314,6 +314,23 @@ export const MIGRATIONS: readonly Migration[] = [
     name: "messenger-send-draft-hash",
     sql: "ALTER TABLE messenger_send_journal ADD COLUMN draft_hash TEXT;",
   },
+  {
+    id: 18,
+    name: "durable-notifications",
+    sql: `
+      CREATE TABLE notifications (
+        id TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        resolved_at TEXT,
+        status TEXT NOT NULL CHECK (status IN ('open', 'acknowledged', 'snoozed', 'resolved')),
+        pending_dispatch INTEGER NOT NULL DEFAULT 0 CHECK (pending_dispatch IN (0, 1)),
+        json TEXT NOT NULL
+      );
+      CREATE INDEX idx_notifications_status_created ON notifications (status, created_at DESC, id DESC);
+      CREATE INDEX idx_notifications_retention ON notifications (resolved_at) WHERE status = 'resolved' AND pending_dispatch = 0;
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

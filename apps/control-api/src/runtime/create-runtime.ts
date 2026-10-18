@@ -26,6 +26,7 @@ import { AuditAnchor } from "../db/audit-anchor";
 import { migrateLegacyAuditAnchor } from "../db/audit-anchor-migration";
 import { AuditStore, type AuditVerification } from "../db/audit-store";
 import { AdapterOverrideStore, CommandHistoryStore, IdempotencyStore, LibraryStore } from "../db/stores";
+import { NotificationStore } from "../services/notification-store";
 import { EventHub } from "../realtime/hub";
 import { AuthService } from "../security/auth-service";
 import { AdapterSettingsService } from "../services/adapter-settings";
@@ -182,6 +183,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   // verified any more, but the data is intact. Re-seal them (only if the chain verifies) instead of reporting tampering.
   if (serverKey.created && audit.reanchorAfterKeyLoss()) logger.warn("auth.key wurde neu erzeugt: Audit-Anker mit dem neuen Schlüssel neu versiegelt; angemeldete Clients holen ein neues CSRF-Token");
   const idempotency = new IdempotencyStore(db);
+  const notifications = new NotificationStore(db);
   const commands = new CommandHistoryStore(db);
   const library = new LibraryStore(db);
   const adapterOverrides = new AdapterOverrideStore(db);
@@ -207,6 +209,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     // One global sequence: the mock world numbers its events (and `ActivityEvent.sequence`) with the hub's counter, so
     // an activity item's sequence equals the envelope sequence of its `friday.activity.appended` event.
     assistantName: () => settingsHolder.current?.area("profile").assistantName ?? DEFAULT_ASSISTANT_NAME,
+    notifications,
     nextSequence: (floor) => {
       hub.ensureSequenceAtLeast(floor);
       return hub.latestSequence + 1;

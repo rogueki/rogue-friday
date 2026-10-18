@@ -7199,8 +7199,10 @@ export interface components {
                 /** Format: date-time */
                 sentAt: string | null;
                 /** @enum {string} */
-                state: "pending" | "sent" | "acknowledged" | "failed" | "skipped";
+                state: "pending" | "awaiting_approval" | "sent" | "acknowledged" | "failed" | "skipped";
                 step: number;
+                /** @default true */
+                stopOnAcknowledge: boolean;
             }[];
             id: string;
             labels?: string[];
@@ -7257,10 +7259,14 @@ export interface components {
         /** NotificationSettings */
         NotificationSettings: {
             channels: {
+                /** @description Configured provider account used for owner-reviewed sends. */
+                accountId?: string;
                 enabled: boolean;
                 /** @enum {string} */
                 kind: "dashboard" | "telegram" | "whatsapp" | "sms" | "phone" | "email";
                 minPriority: components["schemas"]["Priority"];
+                /** @description Exact owner-approved destination. Empty means external delivery is not configured. */
+                recipient?: string;
             }[];
             defaultEscalation: components["schemas"]["EscalationStep"][];
             quietHours: {

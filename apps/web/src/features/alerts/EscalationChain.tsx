@@ -13,6 +13,7 @@ type Step = Notification["escalation"][number];
 
 const STATE_ICON: Record<EscalationState, LucideIcon> = {
   pending: Clock3,
+  awaiting_approval: TriangleAlert,
   sent: Check,
   acknowledged: Check,
   failed: TriangleAlert,

@@ -18,6 +18,17 @@
           },
           "minPriority": {
             "$ref": "../common/priority.schema.json"
+          },
+          "accountId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Configured provider account used for owner-reviewed sends."
+          },
+          "recipient": {
+            "type": "string",
+            "maxLength": 320,
+            "description": "Exact owner-approved destination. Empty means external delivery is not configured."
           }
         },
         "required": ["kind", "enabled", "minPriority"],

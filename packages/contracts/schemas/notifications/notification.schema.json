@@ -81,7 +81,7 @@
           },
           "state": {
             "type": "string",
-            "enum": ["pending", "sent", "acknowledged", "failed", "skipped"]
+            "enum": ["pending", "awaiting_approval", "sent", "acknowledged", "failed", "skipped"]
           },
           "scheduledAt": {
             "type": "string",
@@ -94,6 +94,10 @@
           "acknowledgedAt": {
             "type": ["string", "null"],
             "format": "date-time"
+          },
+          "stopOnAcknowledge": {
+            "type": "boolean",
+            "default": true
           }
         },
         "required": ["step", "channel", "state", "scheduledAt", "sentAt", "acknowledgedAt"],

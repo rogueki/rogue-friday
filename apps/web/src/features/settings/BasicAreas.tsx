@@ -317,6 +317,24 @@ export function NotificationsArea() {
                 options={PRIORITIES.map((p) => ({ value: p, label: t(`settings.notifications.priority.${p}` as MessageKey) }))}
                 onChange={(event) => setChannel(channel.kind, { minPriority: event.target.value as (typeof PRIORITIES)[number] })}
               />
+              {channel.kind !== "dashboard" ? (
+                <>
+                  <TextField
+                    label={t("settings.notifications.accountId")}
+                    value={channel.accountId ?? "default"}
+                    disabled={readOnly || !channel.enabled}
+                    maxLength={64}
+                    onChange={(event) => setChannel(channel.kind, { accountId: event.target.value })}
+                  />
+                  <TextField
+                    label={t("settings.notifications.recipient")}
+                    value={channel.recipient ?? ""}
+                    disabled={readOnly || !channel.enabled}
+                    maxLength={320}
+                    onChange={(event) => setChannel(channel.kind, { recipient: event.target.value })}
+                  />
+                </>
+              ) : null}
             </li>
           ))}
         </ul>

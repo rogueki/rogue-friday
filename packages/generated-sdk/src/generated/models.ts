@@ -3748,10 +3748,11 @@ export interface Notification {
   escalation: {
     step: number;
     channel: "dashboard" | "telegram" | "whatsapp" | "sms" | "phone" | "email";
-    state: "pending" | "sent" | "acknowledged" | "failed" | "skipped";
+    state: "pending" | "awaiting_approval" | "sent" | "acknowledged" | "failed" | "skipped";
     scheduledAt: string;
     sentAt: string | null;
     acknowledgedAt: string | null;
+    stopOnAcknowledge?: boolean;
   }[];
   sourceRef: EntityRef | null;
   /**
@@ -3785,6 +3786,14 @@ export interface NotificationSettings {
     kind: "dashboard" | "telegram" | "whatsapp" | "sms" | "phone" | "email";
     enabled: boolean;
     minPriority: Priority;
+    /**
+     * Configured provider account used for owner-reviewed sends.
+     */
+    accountId?: string;
+    /**
+     * Exact owner-approved destination. Empty means external delivery is not configured.
+     */
+    recipient?: string;
   }[];
   quietHours: {
     enabled: boolean;

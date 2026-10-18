@@ -435,6 +435,8 @@ export const deD = {
   "settings.notifications.channel.sms": "SMS",
   "settings.notifications.channel.phone": "Anruf",
   "settings.notifications.channel.email": "E-Mail",
+  "settings.notifications.accountId": "Konto-ID",
+  "settings.notifications.recipient": "Empfänger",
   "settings.notifications.minPriority": "Ab Priorität",
   "settings.notifications.priority.P0": "P0 · kritisch",
   "settings.notifications.priority.P1": "P1 · dringend",
