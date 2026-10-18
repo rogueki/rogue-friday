@@ -21,7 +21,6 @@ export function createRealtimeOrbRouter(queryClient: QueryClient): OrbRealtimeRo
     bridge: orbBridgeHandle.proxy,
     audio: orbAudioHandle.proxy,
     browserVoiceActive: () => browserAudio.snapshot().active,
-    workingAgents: () => (overview()?.activeAgents ?? []).filter((agent) => agent.status === "working" || agent.status === "starting").map((agent) => ({ id: agent.id, name: agent.name })),
     pendingApprovalIds: () => (overview()?.openApprovals ?? []).filter((approval) => approval.status === "pending").map((approval) => approval.id),
   });
   return {

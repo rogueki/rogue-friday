@@ -98,7 +98,7 @@ export function OrbOverlay({ status, layers, labels }: OrbOverlayProps) {
       {activity ? (
         <span className="friday-orb__activity" data-testid="orb-activity">
           {activity}
-          {mode === "working" && agents > 0 && status.activityText ? `  ·  ${labels.agentsShort(agents)}` : ""}
+          {(mode === "working" || mode === "speaking") && agents > 0 && status.activityText ? `  ·  ${labels.agentsShort(agents)}` : ""}
         </span>
       ) : null}
     </div>

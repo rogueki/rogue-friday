@@ -225,3 +225,22 @@ export async function installFakeGateway(page: Page): Promise<FakeGateway> {
     },
   };
 }
+
+/** Mean absolute per-channel difference (0..255) between two PNG screenshots, computed in the page (no image library needed). */
+export async function imageDiff(page: Page, a: Buffer, b: Buffer): Promise<number> {
+  return page.evaluate(async ([first, second]) => {
+    const load = async (base64: string): Promise<ImageData> => {
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const context = canvas.getContext("2d")!;
+      context.drawImage(bitmap, 0, 0);
+      return context.getImageData(0, 0, bitmap.width, bitmap.height);
+    };
+    const [x, y] = await Promise.all([load(first!), load(second!)]);
+    if (x.width !== y.width || x.height !== y.height) return 255;
+    let sum = 0;
+    for (let i = 0; i < x.data.length; i += 4) sum += Math.abs(x.data[i]! - y.data[i]!) + Math.abs(x.data[i + 1]! - y.data[i + 1]!) + Math.abs(x.data[i + 2]! - y.data[i + 2]!);
+    return sum / (x.data.length / 4) / 3;
+  }, [a.toString("base64"), b.toString("base64")] as const);
+}

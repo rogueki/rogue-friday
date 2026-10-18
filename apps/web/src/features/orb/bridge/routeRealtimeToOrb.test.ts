@@ -5,7 +5,7 @@ import { TASK_ERROR_HOLD_MS, createOrbRealtimeRouter, isMicrophonePassive } from
 
 type Call = [string, ...unknown[]];
 
-function setup(options: { browser?: boolean; agents?: { id: string; name: string }[]; approvals?: string[] } = {}) {
+function setup(options: { browser?: boolean; approvals?: string[] } = {}) {
   const calls: Call[] = [];
   const bridge = new Proxy({} as OrbEventBridge, {
     get: (_target, name) => (...args: unknown[]) => { calls.push([String(name), ...args]); },
@@ -15,12 +15,11 @@ function setup(options: { browser?: boolean; agents?: { id: string; name: string
     get: (_target, name) => (...args: unknown[]) => { audioCalls.push([String(name), ...args]); },
   });
   const timers: { callback: () => void; ms: number; id: number }[] = [];
-  const state = { browser: options.browser ?? false, agents: options.agents ?? [], approvals: options.approvals ?? [] };
+  const state = { browser: options.browser ?? false, approvals: options.approvals ?? [] };
   const router = createOrbRealtimeRouter({
     bridge,
     audio,
     browserVoiceActive: () => state.browser,
-    workingAgents: () => state.agents,
     pendingApprovalIds: () => state.approvals,
     setTimer: (callback, ms) => {
       timers.push({ callback, ms, id: timers.length });
@@ -200,7 +199,10 @@ describe("tasks", () => {
   it("an update of a known task becomes progress, tasks that are not running are ignored", () => {
     const { router, calls } = setup();
     router.route(event("friday.task.created", task({ status: "todo" })));
-    router.route(event("friday.task.updated", task({ progress: { mode: "determinate", value: 0.2 } })));
+    router.route(event("friday.task.updated", task({ progress: { mode: "determinate", value: 0.2 } }))); // chatter for an unseen task: server truth
+    router.route(event("friday.task.progress", { taskId: "t1", progress: { mode: "determinate", value: 0.3 } }));
+    expect(calls).toEqual([]);
+    router.route(event("friday.task.created", task({ progress: { mode: "determinate", value: 0.2 } })));
     router.route(event("friday.task.updated", task({ progress: { mode: "determinate", value: 0.5 } })));
     expect(calls).toEqual([
       ["onTaskStarted", { taskId: "t1", title: "Recherche", agentName: "Atlas", progress: 0.2 }],
@@ -228,12 +230,11 @@ describe("tasks", () => {
 });
 
 describe("agents and approvals", () => {
-  it("reports the working agents from the cache", () => {
-    const { router, calls, state } = setup();
-    state.agents = [{ id: "a", name: "Atlas" }, { id: "b", name: "Nova" }];
+  it("leaves agent counts to the server snapshot (no local agent fact from heartbeats)", () => {
+    const { router, calls } = setup();
     router.route(event("friday.agent.status_changed", { id: "a" }));
     router.route(event("friday.agent.heartbeat", { agentId: "b" }));
-    expect(calls).toEqual([["onAgentActivity", 2, ["Atlas", "Nova"]], ["onAgentActivity", 2, ["Atlas", "Nova"]]]);
+    expect(calls).toEqual([]);
   });
 
   it("requested -> required; resolved -> resolved and the next pending approval stays visible", () => {

@@ -99,7 +99,7 @@ Phases that a source had to **infer** (no real event exists) are passed with `de
 | `createSpeechEnvelopeSource({seed})` | TTS without analysis | irregular syllables (140–260 ms), word gaps (60–140 ms), sentence pauses (350–700 ms), per-syllable intensity, fricative bursts for `high` |
 
 Analyser: side branch only (no output connection, cannot block capture or playback), `fftSize` 1024, own attack 70 ms / release 200 ms per band (peak release
-120 ms), dB normalisation between an adaptive noise floor and a decaying peak tracker, output 0..1. **Noise gate**: the first 600 ms measure the median RMS as
+120 ms), fixed calibrated dB mapping (−60 dBFS, or the measured noise floor + 5 dB if higher → 0; −12 dBFS → 1; no peak tracking, so quiet speech stays small and loud speech strong), output 0..1. **Noise gate**: the first 600 ms measure the median RMS as
 floor (`recalibrate()` repeats it, `noiseFloorDb` fixes it; the TTS bus uses −60 dBFS), the floor then follows the quietest level (+0.5 dB/s); the gate opens
 at floor + 9 dB, closes at floor + 5 dB with an 80 ms hold; closed gate = exact 0. All buffers are allocated once.
 

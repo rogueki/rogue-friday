@@ -270,7 +270,9 @@ test(`orb soak: ${SOAK_MINUTES} min of state changes keep JS heap, DOM, draw cal
   const settled = samples.filter((s) => s.t >= warmup);
   expect(Math.max(...settled.map((s) => s.draws)), `draw calls stay within the budget of ${DRAW_CALL_BUDGET}`).toBeLessThanOrEqual(DRAW_CALL_BUDGET);
   expect(last.draws, "draw calls do not climb over the run").toBeLessThanOrEqual(Math.max(...settled.slice(0, Math.ceil(settled.length / 2)).map((s) => s.draws)) + 5);
-  expect(last.geometries, "no geometry is leaked").toBeLessThanOrEqual(baseline.geometries);
-  expect(last.textures, "no texture is leaked").toBeLessThanOrEqual(baseline.textures);
+  // (a sample is 0 while the probe is re-created after a renderer swap, so compare with the largest settled early value)
+  const early = settled.slice(0, Math.ceil(settled.length / 2));
+  expect(last.geometries, "no geometry is leaked").toBeLessThanOrEqual(Math.max(...early.map((s) => s.geometries)));
+  expect(last.textures, "no texture is leaked").toBeLessThanOrEqual(Math.max(...early.map((s) => s.textures)));
   expect(consoleErrors, "no console errors during the soak").toEqual([]);
 });

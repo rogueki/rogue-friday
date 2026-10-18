@@ -42,8 +42,9 @@ export interface AnalyserSourceLike {
 const SILENCE_DB = -120;
 const CAL_SAMPLES = 48;
 const FLOOR_RISE_DB_PER_S = 0.5;
-const CEIL_START_DB = -12;
-const CEIL_DECAY_DB_PER_S = 3;
+/** Fixed calibrated mapping: FLOOR_DB (or the measured noise floor + gate, if higher) -> 0, CEIL_DB -> 1. No peak tracking, so quiet speech stays small. */
+const MAP_FLOOR_DB = -60;
+const MAP_CEIL_DB = -12;
 const LOW_BAND: readonly [number, number] = [60, 250];
 const MID_BAND: readonly [number, number] = [250, 2000];
 const HIGH_BAND: readonly [number, number] = [2000, 6000];
@@ -91,7 +92,6 @@ export function createAudioAnalyzer(context: AnalyserContextLike, source: Analys
   let floorDb = manualFloor ?? Number.NaN;
   let calStart = Number.NaN;
   let calCount = 0;
-  let ceilDb = CEIL_START_DB;
   let lastSample = Number.NaN;
   let gate = false;
   let belowSince = Number.NaN;
@@ -182,10 +182,6 @@ export function createAudioAnalyzer(context: AnalyserContextLike, source: Analys
       const calibrating = Number.isNaN(floorDb);
       const floor = calibrating ? SILENCE_DB : floorDb;
 
-      // Peak tracker: jumps up with loud input, decays slowly (does not follow below floor + 24 dB).
-      ceilDb = Math.max(rmsDb, ceilDb - CEIL_DECAY_DB_PER_S * dt, floor + 24);
-      if (ceilDb > 0) ceilDb = 0;
-
       // Hysteresis gate with hold.
       if (!calibrating) {
         if (gate) {
@@ -206,8 +202,8 @@ export function createAudioAnalyzer(context: AnalyserContextLike, source: Analys
         gate = false;
       }
 
-      const lo = floor + gateCloseDb; // just under the open threshold: speech starts above 0
-      const hi = Math.max(ceilDb, lo + 24);
+      const lo = Math.max(MAP_FLOOR_DB, floor + gateCloseDb); // a noisy room raises the bottom, never the top
+      const hi = MAP_CEIL_DB;
       const norm = (db: number): number => (gate ? clamp01((db - lo) / (hi - lo)) : 0);
       const tRms = norm(rmsDb);
       const tPeak = norm(peakDb);

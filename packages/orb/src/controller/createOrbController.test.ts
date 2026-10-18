@@ -246,6 +246,33 @@ describe("server truth", () => {
   });
 });
 
+describe("work layer and texts", () => {
+  it("server agent counts never create a work layer (server work idle + 4 agents stays idle)", () => {
+    const { controller } = setup();
+    controller.applySnapshot(snapshot({ work: "idle", activeAgentIds: ["agent_a", "agent_b", "agent_c", "agent_d"] }, { mode: "idle", activeAgentCount: 4 }));
+    const s = controller.getState();
+    expect(s.layers.backgroundWork).toBe("idle");
+    expect(s.status.mode).toBe("idle");
+    expect(s.status.activeAgentCount).toBe(4);
+  });
+
+  it("speaking, transcribing and listening never show a stale server text", () => {
+    const { controller, bridge } = setup();
+    controller.applySnapshot(snapshot({}, { mode: "idle", activityText: "BEREIT" }));
+    bridge.onTtsStarted();
+    expect(controller.getState().status.activityText).toBe("ANTWORT WIRD GESPROCHEN");
+    bridge.onTtsEnded();
+    bridge.onTranscriptionStarted();
+    expect(controller.getState().status.activityText).toBe("SPRACHE WIRD VERARBEITET");
+    bridge.onTranscriptionCompleted();
+    bridge.onMicrophoneOpened({ source: "browser" });
+    expect(controller.getState().status.activityText).toBeUndefined();
+    controller.setActivity("EIGEN");
+    bridge.onTtsStarted();
+    expect(controller.getState().status.activityText).toBe("EIGEN");
+  });
+});
+
 describe("progress is never invented", () => {
   it("indeterminate until a real value arrives; null again falls back to indeterminate", () => {
     const { controller, bridge } = setup();

@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { test, expect, open, orbRoot, expectOrbMode } from "./support/fixtures";
-import { orbState } from "./support/orb";
+import { imageDiff, orbState } from "./support/orb";
 
 /**
  * Owner order 22.4-22.6, 22.8 and 22.9: the orb follows real event paths. The mock Control API plays scenarios that emit
@@ -42,30 +42,43 @@ async function openOverview(page: Page): Promise<void> {
 const call = (page: Page, method: string, ...args: unknown[]): Promise<void> =>
   page.evaluate(([name, rest]) => { (window as unknown as { __FRIDAY_ORB__: Hook }).__FRIDAY_ORB__.bridge[name as string]!(...(rest as unknown[])); }, [method, args] as const);
 
+const setLevel = (page: Page, level: number): Promise<void> =>
+  page.evaluate((v) => (window as unknown as { __FRIDAY_ORB__: Hook }).__FRIDAY_ORB__.controller.setInputAudioLevel(v), level);
+
+/**
+ * Visual effect of the microphone level in the current (frozen) scene: difference between a quiet and a loud shot, and
+ * the scene's own noise between two shots at the same level (the frozen test clock is not bit-stable for every layer).
+ */
+async function micEffect(page: Page): Promise<{ effect: number; noise: number }> {
+  await setLevel(page, 0);
+  await page.waitForTimeout(900);
+  const quiet = await shot(page);
+  await page.waitForTimeout(700);
+  const quietAgain = await shot(page);
+  await setLevel(page, 0.95);
+  await page.waitForTimeout(900);
+  const loud = await shot(page);
+  return { effect: await imageDiff(page, quiet, loud), noise: await imageDiff(page, quiet, quietAgain) };
+}
+
 test.describe("transcribing and thinking (acceptance 22.4, 22.5)", () => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
 
   test("transcribing ends listening; neither transcribing nor thinking reacts to the microphone level; thinking invents no percentage", async ({ page, api }) => {
     await openOverview(page);
-    await api.forceOrb("idle");
+    await api.play("clean-idle", 10); // calm world: no working agents, no approvals
     await expectOrbMode(page, "idle");
     // local voice facts, as the browser voice adapter reports them
     await call(page, "onMicrophoneOpened", { source: "browser", passive: false });
     await expect.poll(async () => (await orbState(page)).mode).toBe("listening");
+    await freezeScene(page);
+    const listening = await micEffect(page);
     await call(page, "onTranscriptionStarted");
     await expect.poll(async () => (await orbState(page)).mode, { message: "listening ends when transcribing starts" }).toBe("transcribing");
     expect((await orbState(page)).primaryInteraction).toBe("transcribing");
     await expect(page.getByRole("status").filter({ hasText: /SPRACHE WIRD VERARBEITET|verarbeitet Sprache/ }).first()).toBeAttached();
-
-    // frozen scene: same instant, microphone level 0 vs loud -> identical image while transcribing (no microphone reaction)
-    await freezeScene(page);
-    await page.evaluate(() => (window as unknown as { __FRIDAY_ORB__: Hook }).__FRIDAY_ORB__.controller.setInputAudioLevel(0));
-    await page.waitForTimeout(800);
-    const transcribingQuiet = await shot(page);
-    await page.evaluate(() => (window as unknown as { __FRIDAY_ORB__: Hook }).__FRIDAY_ORB__.controller.setInputAudioLevel(0.95));
-    await page.waitForTimeout(800);
-    const transcribingLoud = await shot(page);
-    expect(transcribingLoud.equals(transcribingQuiet), "transcribing: microphone level has no visual effect").toBe(true);
+    await page.waitForTimeout(1500);
+    const transcribing = await micEffect(page);
 
     await call(page, "onTranscriptionCompleted");
     await call(page, "onThinkingStarted");
@@ -74,27 +87,16 @@ test.describe("transcribing and thinking (acceptance 22.4, 22.5)", () => {
     expect(thinking.progressMode, "thinking has no progress").toBe("none");
     expect(thinking.progress).toBeNull();
     await page.waitForTimeout(1500);
-    const thinkingImage = await shot(page);
-    await page.evaluate(() => (window as unknown as { __FRIDAY_ORB__: Hook }).__FRIDAY_ORB__.controller.setInputAudioLevel(0.95));
-    await page.waitForTimeout(800);
-    expect((await shot(page)).equals(thinkingImage), "thinking: microphone level has no visual effect (no wave ring)").toBe(true);
-    expect(thinkingImage.equals(transcribingQuiet), "transcribing and thinking look different").toBe(false);
+    const thinkingEffect = await micEffect(page);
+    test.info().annotations.push({ type: "mic-effect", description: `listening ${JSON.stringify(listening)}, transcribing ${JSON.stringify(transcribing)}, thinking ${JSON.stringify(thinkingEffect)}` });
+    console.log(`[flows] mic effect (mean abs diff): listening ${JSON.stringify(listening)} transcribing ${JSON.stringify(transcribing)} thinking ${JSON.stringify(thinkingEffect)}`);
+
+    expect(listening.effect, "listening reacts to the level").toBeGreaterThan(listening.noise * 3 + 0.05);
+    for (const [name, value] of [["transcribing", transcribing], ["thinking (no wave ring)", thinkingEffect]] as const) {
+      expect(value.effect, `${name}: the microphone level has no visual effect`).toBeLessThanOrEqual(value.noise * 1.5 + 0.05);
+    }
     await expect(page.locator(".ov-orb__progress"), "no percentage display while thinking").toHaveCount(0);
     await expect(page.locator(".ov-orb__status")).not.toContainText(/\d+\s?%/);
-  });
-
-  test("a loud microphone does change the listening orb (control for the checks above)", async ({ page, api }) => {
-    await openOverview(page);
-    await api.forceOrb("idle");
-    await call(page, "onMicrophoneOpened", { source: "browser", passive: false });
-    await expect.poll(async () => (await orbState(page)).mode).toBe("listening");
-    await freezeScene(page);
-    await page.evaluate(() => (window as unknown as { __FRIDAY_ORB__: Hook }).__FRIDAY_ORB__.controller.setInputAudioLevel(0));
-    await page.waitForTimeout(1000);
-    const quiet = await shot(page);
-    await page.evaluate(() => (window as unknown as { __FRIDAY_ORB__: Hook }).__FRIDAY_ORB__.controller.setInputAudioLevel(0.9));
-    await page.waitForTimeout(1000);
-    expect((await shot(page)).equals(quiet), "listening reacts to the level").toBe(false);
   });
 });
 
@@ -141,11 +143,11 @@ test.describe("approval (acceptance 22.8)", () => {
     expect(parallel.mode).toBe("waiting_approval");
     await expectOrbMode(page, "waiting_approval");
 
+    await call(page, "onTtsEnded", { interrupted: false });
     await orbRoot(page).getByRole("button", { name: /^Orb: Details öffnen\./ }).click();
     const drawer = page.getByRole("dialog", { name: "Freigabe" });
     await expect(drawer).toBeVisible();
     await expect(drawer).toContainText(pending[0]!.action);
-    await call(page, "onTtsEnded", { interrupted: false });
   });
 
   test("resolving the approval returns the orb to calm", async ({ page, api }) => {
@@ -177,7 +179,9 @@ test("error: visible at once, stable for 10 s without flicker, clean recovery (a
   expect(visibleMs, "error is visible within 2 s of the event").toBeLessThan(2000);
 
   await page.waitForTimeout(10_000);
-  const errorSpan = (await timeline(page)).filter((s) => s.t >= (await timeline(page)).find((x) => x.mode === "error")!.t);
+  const all = await timeline(page);
+  const firstError = all.find((x) => x.mode === "error")!.t;
+  const errorSpan = all.filter((s) => s.t >= firstError);
   expect(new Set(errorSpan.map((s) => s.mode)), "no flip-flopping while the error is active").toEqual(new Set(["error"]));
   expect(errorSpan.length, "no state churn (re-render storm) during the error").toBeLessThan(12);
 

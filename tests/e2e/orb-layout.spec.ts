@@ -85,9 +85,13 @@ test.describe("orb position (acceptance 22.1)", () => {
     const orb: Rect = { x: canvas.x + bb.x, y: canvas.y + bb.y, width: bb.w, height: bb.h };
     for (const selector of [".ov-orb__brand", ".ov-orb__status"]) {
       const box = (await page.locator(selector).first().boundingBox()) as Rect;
-      const overlapY = Math.min(box.y + box.height, orb.y + orb.height) - Math.max(box.y, orb.y);
-      const overlapX = Math.min(box.x + box.width, orb.x + orb.width) - Math.max(box.x, orb.x);
-      expect(overlapX > 0 && overlapY > 0, `${selector} overlaps the visible orb (${JSON.stringify(box)} vs ${JSON.stringify(orb)})`).toBe(false);
+      // the visible orb is round: compare the label box with the circle, not with its square bounding box
+      const cx = orb.x + orb.width / 2;
+      const cy = orb.y + orb.height / 2;
+      const nearestX = Math.max(box.x, Math.min(cx, box.x + box.width));
+      const nearestY = Math.max(box.y, Math.min(cy, box.y + box.height));
+      const distance = Math.hypot(cx - nearestX, cy - nearestY);
+      expect(distance, `${selector} overlaps the visible orb (${JSON.stringify(box)} vs ${JSON.stringify(orb)})`).toBeGreaterThan(orb.width / 2);
     }
   });
 });

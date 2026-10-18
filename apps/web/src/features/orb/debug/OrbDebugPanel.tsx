@@ -71,7 +71,7 @@ export default function OrbDebugPanel() {
       </p>
       <div className="ds-chips" role="group" aria-label={t("devScenarios.orbLab.modes")}>
         {ORB_MODES.map((mode) => (
-          <button key={mode} type="button" className="ds-chip" aria-pressed={state.status.mode === mode} data-mode={mode} onClick={() => { stopDemo(); controller.setMode(mode); }}>
+          <button key={mode} type="button" className="ds-chip" aria-pressed={state.status.mode === mode} data-mode={mode} aria-label={`${t("devScenarios.orbLab.modes")}: ${t(`settings.orb.mode.${mode}` as MessageKey)}`} onClick={() => { stopDemo(); controller.setMode(mode); }}>
             {t(`settings.orb.mode.${mode}` as MessageKey)}
           </button>
         ))}

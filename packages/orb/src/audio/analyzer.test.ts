@@ -63,6 +63,8 @@ describe("createAudioAnalyzer", () => {
     const loud = run(analyzer, clock, 600);
     expect(quiet.gateOpen).toBe(true);
     expect(quiet.rms).toBeGreaterThan(0.05);
+    expect(quiet.rms).toBeLessThanOrEqual(0.5);
+    expect(loud.rms).toBeGreaterThanOrEqual(0.75);
     expect(loud.rms).toBeGreaterThan(quiet.rms * 1.5);
     expect(loud.rms).toBeLessThanOrEqual(1);
     expect(loud.peak).toBeLessThanOrEqual(1);

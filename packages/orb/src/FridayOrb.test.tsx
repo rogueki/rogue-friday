@@ -118,7 +118,7 @@ describe("<FridayOrb controller> (2D fallback path)", () => {
       controller.bridge.onTtsStarted({ hasAudioAnalysis: false });
     });
     expect(screen.getByTestId("orb-state-label")).toHaveTextContent("F.R.I.D.A.Y. SPRICHT");
-    expect(screen.getByTestId("orb-activity")).toHaveTextContent("3 AGENTEN AKTIV");
+    expect(screen.getByTestId("orb-activity")).toHaveTextContent("ANTWORT WIRD GESPROCHEN · 3 AGENTEN");
     act(() => controller.bridge.onApprovalRequired("appr_77"));
     expect(screen.getByTestId("orb-state-label")).toHaveTextContent("FREIGABE ERFORDERLICH");
     expect(document.querySelector("[data-orb-mode]")?.getAttribute("data-orb-mode")).toBe("waiting_approval");

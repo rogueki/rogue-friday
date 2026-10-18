@@ -158,6 +158,3 @@ body { min-height: 100dvh; }
   .jv-nav__scroll { padding-block: 8px 4px; }
 }
 .web-voicenav__flags { gap: 6px; }
-
-/* Development-only floating orb lab (`/?orbDebug=1`), see features/orb/debug/OrbDebugOverlay.tsx. */
-.orb-debug-overlay { position: fixed; z-index: 60; right: 12px; bottom: 12px; width: min(360px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; }

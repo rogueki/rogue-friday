@@ -191,7 +191,8 @@ export function createOrbController(options: CreateOrbControllerOptions = {}): O
 
     // background work: working outranks syncing
     const localWorking = tasks.size > 0 || localAgentCount > 0;
-    const working = localWorking || server?.work === "working" || agentCount > 0;
+    // the server agent count only feeds the agent visuals, never the work layer
+    const working = localWorking || server?.work === "working";
     const syncing = syncOn || server?.work === "syncing";
     const work: BackgroundWork = working ? "working" : syncing ? "syncing" : "idle";
 
@@ -272,14 +273,19 @@ export function createOrbController(options: CreateOrbControllerOptions = {}): O
       case "listening":
         if (voiceDetected) out.activityText = "SPRACHE ERKANNT";
         break;
+      case "transcribing":
+        out.activityText = "SPRACHE WIRD VERARBEITET";
+        break;
       case "thinking":
         out.activityText = thinkingText ?? serverStatus?.activityText ?? "ANFRAGE WIRD ANALYSIERT";
         break;
       case "syncing":
         out.activityText = syncText(syncSource) ?? serverStatus?.activityText;
         break;
-      case "working":
-      case "speaking": {
+      case "speaking":
+        out.activityText = "ANTWORT WIRD GESPROCHEN";
+        break;
+      case "working": {
         const only = tasks.size === 1 ? [...tasks.values()][0] : undefined;
         out.activityText = only?.title ? only.title.toUpperCase() : serverStatus?.activityText;
         break;

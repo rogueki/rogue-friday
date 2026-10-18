@@ -18,7 +18,7 @@ describe("OrbDebugPanel", () => {
     const { controller } = getOrbRuntime();
     const modes = screen.getAllByRole("button").filter((button) => button.hasAttribute("data-mode")).map((button) => button.getAttribute("data-mode"));
     expect(modes).toEqual(["booting", "idle", "listening", "transcribing", "thinking", "syncing", "working", "speaking", "waiting_approval", "success", "warning", "error", "offline", "paused"]);
-    await user.click(screen.getByRole("button", { name: "Hört zu" }));
+    await user.click(screen.getByRole("button", { name: "Modus: Hört zu" }));
     expect(controller.getState().status.mode).toBe("listening");
     expect(controller.getState().overrideMode).toBe("listening");
     expect(screen.getByTestId("orb-lab-state")).toHaveTextContent("listening");

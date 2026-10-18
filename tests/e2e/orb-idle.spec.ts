@@ -10,7 +10,7 @@ import { flatPhases, orbProbe, orbState } from "./support/orb";
 test("idle orb: at least five groups move independently and the core pulses", async ({ page, api }) => {
   test.setTimeout(120_000);
   await open(page, "/");
-  await api.forceOrb("idle");
+  await api.play("clean-idle", 10); // calm world: no working agents, no approvals
   await expectOrbMode(page, "idle");
   await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
   expect((await orbState(page)).mode).toBe("idle");
@@ -50,7 +50,7 @@ test("idle orb: at least five groups move independently and the core pulses", as
 test("idle orb: the rendered image keeps changing (no frozen picture)", async ({ page, api }) => {
   test.setTimeout(120_000);
   await open(page, "/");
-  await api.forceOrb("idle");
+  await api.play("clean-idle", 10); // calm world: no working agents, no approvals
   await expectOrbMode(page, "idle");
   await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
   await expect.poll(async () => (await orbProbe(page))?.frames ?? 0, { timeout: 90_000, intervals: [500] }).toBeGreaterThan(20);

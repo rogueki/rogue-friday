@@ -17,8 +17,6 @@ export interface OrbRouterDeps {
   audio: Pick<OrbAudioSources, "pushServiceInput" | "pushServiceOutput" | "beginSpeech" | "endSpeech" | "reset">;
   /** The browser voice path (local microphone analyser + real TTS playback) owns mic/TTS facts while it is active. */
   browserVoiceActive(): boolean;
-  /** Agents with status working/starting according to the cache (names resolved there). */
-  workingAgents(): readonly { id: string; name: string }[];
   pendingApprovalIds(): readonly string[];
   /** Timers are injectable for tests. */
   setTimer?: (callback: () => void, ms: number) => unknown;
@@ -181,16 +179,15 @@ export function createOrbRealtimeRouter(deps: OrbRouterDeps): OrbRealtimeRouter 
       return;
     }
     if (task.status !== "running") return;
+    // Only a task CREATED as running starts a local work fact (immediate feedback). Updates of tasks we never saw start
+    // are periodic server chatter: the snapshot (server truth) already reports that work, and a local fact started from
+    // them would outlive a forced or recovered server state.
     const known = tasks.has(task.id);
+    if (!known && type !== "friday.task.created") return;
     tasks.set(task.id, { title: task.title, ...(task.agentName ? { agentName: task.agentName } : {}) });
     currentTaskId = task.id;
     if (!known) bridge.onTaskStarted({ taskId: task.id, title: task.title, ...(task.agentName ? { agentName: task.agentName } : {}), progress });
     else bridge.onTaskProgress(progress);
-  };
-
-  const syncAgents = (): void => {
-    const agents = deps.workingAgents();
-    bridge.onAgentActivity(agents.length, agents.map((agent) => agent.name));
   };
 
   return {
@@ -241,19 +238,14 @@ export function createOrbRealtimeRouter(deps: OrbRouterDeps): OrbRealtimeRouter 
         case "friday.task.progress": {
           const { taskId, progress } = event.data;
           const value = progress.mode === "determinate" ? progress.value : null;
-          if (!tasks.has(taskId)) {
-            tasks.set(taskId, { title: taskId });
-            currentTaskId = taskId;
-            bridge.onTaskStarted({ taskId, progress: value });
-          } else if (currentTaskId === taskId) {
-            bridge.onTaskProgress(value);
-          }
+          if (tasks.has(taskId) && currentTaskId === taskId) bridge.onTaskProgress(value);
           return;
         }
 
+        // Agent counts and names are server truth (the snapshot's activeAgentIds): routing every heartbeat here would
+        // pin a local "agents working" fact that outlives a forced or recovered server state.
         case "friday.agent.status_changed":
         case "friday.agent.heartbeat":
-          syncAgents();
           return;
 
         case "friday.approval.requested":
