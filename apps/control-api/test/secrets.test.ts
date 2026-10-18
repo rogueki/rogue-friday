@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- test code reads untyped JSON bodies and frames that the contract validators check */
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { FridayEvent } from "@friday/sdk";
 import { ROUTE_TABLE } from "../src/http/route-table.generated";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
@@ -86,15 +86,29 @@ describe("secret hygiene", () => {
     const settings = (await owner.get("/api/v1/settings")).json().data;
     expect((await owner.patch("/api/v1/settings", { dashboard: { ...settings.dashboard, contentStudioEnabled: true } },
       { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
-    for (const spec of ROUTE_TABLE.filter((candidate) => candidate.method === "GET" && candidate.pathParams.length === 0 && candidate.requiresSession)) {
-      // Hermes-backed reads require an installed WSL distro, absent in this isolated test runtime.
-      // Gateway token redaction is covered by the dedicated Telegram/Discord/WhatsApp API tests.
-      if (spec.operationId === "downloadFile" || spec.operationId === "getObsidianVault" || spec.operationId === "getWikiPath" || spec.operationId === "getHimalayaAccount" || spec.operationId === "listHimalayaMailboxes" || spec.operationId === "listHimalayaEnvelopes" || spec.operationId === "getHimalayaMessage" || spec.operationId === "getCodingCliStatus" || spec.operationId === "getHermesSkillKeys" || spec.operationId === "getTelegramGateway" || spec.operationId === "getDiscordGateway" || spec.operationId === "getWhatsappGateway" || spec.operationId === "getTelephony") continue;
-      const response = record(spec.operationId, await owner.get(pathOf(spec), spec.operationId === "exportAudit" ? { query: { format: "json" } } : {}));
-      expect(response.statusCode, spec.operationId).toBe(200);
-      expect(hasCanary(response.body), `${spec.operationId} body`).toBeUndefined();
-      expect(response.body, `${spec.operationId} body`).not.toContain(hash);
-      expect(response.body, `${spec.operationId} body`).not.toMatch(/scrypt\$|-----BEGIN [A-Z ]*PRIVATE KEY-----/);
+    const originalFetch = globalThis.fetch;
+    const providerFetch = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      if (String(input).startsWith("https://geocoding-api.open-meteo.com/v1/search?")) {
+        return Promise.resolve(Response.json({ results: [{ name: "Berlin", country: "Deutschland", country_code: "DE",
+          latitude: 52.52437, longitude: 13.41053 }] }));
+      }
+      return originalFetch(input, init);
+    });
+    try {
+      for (const spec of ROUTE_TABLE.filter((candidate) => candidate.method === "GET" && candidate.pathParams.length === 0 && candidate.requiresSession)) {
+        // Hermes-backed reads require an installed WSL distro, absent in this isolated test runtime.
+        // Gateway token redaction is covered by the dedicated Telegram/Discord/WhatsApp API tests.
+        if (spec.operationId === "downloadFile" || spec.operationId === "getObsidianVault" || spec.operationId === "getWikiPath" || spec.operationId === "getHimalayaAccount" || spec.operationId === "listHimalayaMailboxes" || spec.operationId === "listHimalayaEnvelopes" || spec.operationId === "getHimalayaMessage" || spec.operationId === "getCodingCliStatus" || spec.operationId === "getHermesSkillKeys" || spec.operationId === "getTelegramGateway" || spec.operationId === "getDiscordGateway" || spec.operationId === "getWhatsappGateway" || spec.operationId === "getTelephony") continue;
+        const response = record(spec.operationId, await owner.get(pathOf(spec), spec.operationId === "exportAudit" ? { query: { format: "json" } } :
+          spec.operationId === "searchLocations" ? { query: { q: "Berlin" } } : {}));
+        expect(response.statusCode, spec.operationId).toBe(200);
+        expect(hasCanary(response.body), `${spec.operationId} body`).toBeUndefined();
+        expect(response.body, `${spec.operationId} body`).not.toContain(hash);
+        expect(response.body, `${spec.operationId} body`).not.toMatch(/scrypt\$|-----BEGIN [A-Z ]*PRIVATE KEY-----/);
+      }
+      expect(providerFetch).toHaveBeenCalledWith(expect.objectContaining({ hostname: "geocoding-api.open-meteo.com" }), expect.any(Object));
+    } finally {
+      providerFetch.mockRestore();
     }
   });
 

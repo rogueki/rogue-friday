@@ -91,7 +91,7 @@ describe('BottomCommandBar context chips', () => {
   it('explains a missing value through accessible name and tooltip instead of a bare dash', async () => {
     const user = userEvent.setup();
     render(<BottomCommandBar chips={[{ id: 'weather', icon: null, label: 'Wetter', value: '—', hint: 'Keine Datenquelle angebunden' }, { id: 'net', icon: null, label: 'Netzwerk', value: '12 ms' }]} />);
-    const unavailable = screen.getByRole('group', { name: 'Wetter: Keine Datenquelle angebunden' });
+    const unavailable = screen.getByRole('group', { name: 'Wetter: —. Keine Datenquelle angebunden' });
     expect(unavailable).toHaveAttribute('tabindex', '0');
     await user.tab();
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Keine Datenquelle angebunden');
