@@ -30,6 +30,7 @@ import type { HimalayaSendService } from "../services/himalaya-send";
 import type { MailAccountsService } from "../services/mail-accounts";
 import type { CalendarAccountsService } from "../services/calendar-accounts";
 import type { MailSendService } from "../services/mail-send";
+import type { MessengerSendService } from "../services/messenger-send";
 import type { CalDavCreateService } from "../services/caldav-create";
 import type { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import type { CodingRunsService } from "../services/coding-runs";
@@ -99,6 +100,7 @@ export interface Runtime {
   mailAccounts: MailAccountsService;
   calendarAccounts: CalendarAccountsService;
   mailSend: MailSendService;
+  messengerSend: MessengerSendService;
   caldavCreate: CalDavCreateService;
   hermesSkillKeys: HermesSkillKeysService;
   codingRuns: CodingRunsService;

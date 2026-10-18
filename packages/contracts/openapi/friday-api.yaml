@@ -7041,6 +7041,59 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/messenger/preview:
+    post:
+      operationId: previewMessengerMessage
+      tags: [communication]
+      summary: Preview an exact admitted messenger target and message
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerDraft" } } } }
+      responses:
+        "200": { description: Preview, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerPreviewResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/messenger/confirm:
+    post:
+      operationId: confirmMessengerMessage
+      tags: [communication]
+      summary: Confirm and reserve an exact messenger delivery once
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerConfirmRequest" } } } }
+      responses:
+        "200":
+          description: Delivery receipt
+          headers:
+            Idempotent-Replayed: { $ref: "#/components/headers/IdempotentReplayed" }
+          content: { application/json: { schema: { $ref: "#/components/schemas/MessengerReceiptResponse" } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/messenger/receipts:
+    get:
+      operationId: listMessengerReceipts
+      tags: [communication]
+      summary: Read durable messenger delivery states for the owner
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200": { description: Receipts, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerReceiptsResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/obsidian-vault:
     get:
       operationId: getObsidianVault
@@ -8713,6 +8766,16 @@ components:
       $ref: ../schemas/integrations/mail-attachment-response.schema.json
     MailSendRequest:
       $ref: ../schemas/integrations/mail-send-request.schema.json
+    MessengerDraft:
+      $ref: ../schemas/integrations/messenger-draft.schema.json
+    MessengerConfirmRequest:
+      $ref: ../schemas/integrations/messenger-confirm-request.schema.json
+    MessengerPreviewResponse:
+      $ref: ../schemas/integrations/messenger-preview-response.schema.json
+    MessengerReceiptResponse:
+      $ref: ../schemas/integrations/messenger-receipt-response.schema.json
+    MessengerReceiptsResponse:
+      $ref: ../schemas/integrations/messenger-receipts-response.schema.json
     MailDraftRequest:
       $ref: ../schemas/integrations/mail-draft-request.schema.json
     MailDraftResponse:

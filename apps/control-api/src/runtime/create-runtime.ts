@@ -43,6 +43,7 @@ import { CloudTalkService } from "../services/cloudtalk";
 import { HimalayaSendService } from "../services/himalaya-send";
 import { MailAccountsService } from "../services/mail-accounts";
 import { MailSendService } from "../services/mail-send";
+import { MessengerSendService } from "../services/messenger-send";
 import { CalDavCreateService } from "../services/caldav-create";
 import { LocalCalendarService } from "../services/local-calendar";
 import { CalendarAccountsService } from "../services/calendar-accounts";
@@ -265,6 +266,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const mailAccounts = new MailAccountsService(config.paths.dataDir);
   const calendarAccounts = new CalendarAccountsService(config.paths.dataDir);
   const mailSend = new MailSendService(db, mailAccounts);
+  const messengerSend = new MessengerSendService(db, config.paths.dataDir, approvalTokens);
   const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
   const skills: SkillsService = new SkillsService({
@@ -503,6 +505,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     mailAccounts,
     calendarAccounts,
     mailSend,
+    messengerSend,
     caldavCreate,
     hermesSkillKeys,
     codingRuns,

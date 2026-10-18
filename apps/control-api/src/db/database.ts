@@ -274,6 +274,25 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE mail_send_journal ADD COLUMN message_id TEXT;
     `,
   },
+  {
+    id: 15,
+    name: "messenger-send-journal",
+    sql: `
+      CREATE TABLE messenger_send_journal (
+        key_hash TEXT PRIMARY KEY,
+        actor TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        recipient TEXT NOT NULL,
+        payload_hash TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('pending', 'sent', 'uncertain')),
+        external_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_messenger_send_actor ON messenger_send_journal (actor, created_at);
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

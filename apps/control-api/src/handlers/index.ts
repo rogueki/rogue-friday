@@ -22,6 +22,7 @@ import { durableMemoryHandlers } from "./durable-memory";
 import { mailAccountHandlers } from "./mail-accounts";
 import { calendarAccountHandlers } from "./calendar-accounts";
 import { connectedCalendarVoiceHandlers } from "./connected-calendar-voice";
+import { messengerSendHandlers } from "./messenger-send";
 
 /** Port-backed operations come from `PORT_SPEC`; the explicit handlers add enforcement or are served locally. */
 export function buildHandlers(): Map<OperationId, Handler> {
@@ -43,6 +44,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     mailAccountHandlers,
     calendarAccountHandlers,
     connectedCalendarVoiceHandlers,
+    messengerSendHandlers,
     localReads,
     devHandlers,
     approvalHandlers,

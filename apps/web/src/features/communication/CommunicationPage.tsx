@@ -18,6 +18,7 @@ import { THREAD_STATUSES, threadStatusKey, type ThreadStatus } from "./labels";
 import { ThreadDetail } from "./ThreadDetail";
 import { ThreadRow } from "./ThreadRow";
 import { HimalayaMailbox } from "./HimalayaMailbox";
+import { MessengerCompose } from "./MessengerCompose";
 import { useChannelAccess } from "./useChannelAccess";
 import "./communication.css";
 
@@ -142,6 +143,7 @@ function CommunicationPageInner() {
       </HudPanel>
 
       <HimalayaMailbox />
+      <MessengerCompose />
 
       <div className={`com-layout${wide && !fullOutage ? " com-layout--wide" : ""}`}>
         {fullOutage ? null : <ChannelRail channels={channelItems} state={channelState} selectedId={channelId} totalUnread={totalUnread} onSelect={(id) => { setChannelId(id); setLimit(PAGE_SIZE); }} compact={!wide} />}

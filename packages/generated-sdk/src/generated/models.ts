@@ -389,6 +389,12 @@ export interface FridayModelMap {
   Message: Message;
   MessageListResponse: MessageListResponse;
   MessageResponse: MessageResponse;
+  MessengerConfirmRequest: MessengerConfirmRequest;
+  MessengerDraft: MessengerDraft;
+  MessengerPreviewResponse: MessengerPreviewResponse;
+  MessengerReceipt: MessengerReceipt;
+  MessengerReceiptResponse: MessengerReceiptResponse;
+  MessengerReceiptsResponse: MessengerReceiptsResponse;
   Meta: Meta;
   ModelProvider: ModelProvider;
   ModelProviderListResponse: ModelProviderListResponse;
@@ -3444,6 +3450,68 @@ export interface MessageListResponse {
 export interface MessageResponse {
   contractVersion: ContractVersion;
   data: Message;
+  freshness: Freshness;
+}
+export interface MessengerConfirmRequest {
+  draft: MessengerDraft;
+  token: string;
+}
+export interface MessengerDraft {
+  accountId: "default";
+  platform:
+    | "telegram"
+    | "discord"
+    | "whatsapp"
+    | "slack"
+    | "signal"
+    | "matrix"
+    | "mattermost"
+    | "sms"
+    | "irc"
+    | "line"
+    | "feishu"
+    | "teams"
+    | "google_chat"
+    | "wecom"
+    | "dingtalk"
+    | "simplex"
+    | "photon"
+    | "buzz"
+    | "ntfy";
+  recipient: string;
+  text: string;
+}
+export interface MessengerPreviewResponse {
+  contractVersion: ContractVersion;
+  data: {
+    token: string;
+    expiresAt: string;
+    fingerprint: string;
+    draft: MessengerDraft;
+  };
+  freshness: Freshness;
+}
+export interface MessengerReceipt {
+  receiptId: string;
+  accountId: string;
+  platform: string;
+  recipient: string;
+  state: "pending" | "sent" | "uncertain";
+  externalId: string | null;
+  createdAt: string;
+  replayed: boolean;
+  memoryCapture?: "written" | "pending" | "skipped" | "error";
+}
+export interface MessengerReceiptResponse {
+  contractVersion: ContractVersion;
+  data: MessengerReceipt;
+  freshness: Freshness;
+}
+export interface MessengerReceiptsResponse {
+  contractVersion: ContractVersion;
+  data: {
+    items: MessengerReceipt[];
+  };
   freshness: Freshness;
 }
 /**
