@@ -2,7 +2,7 @@
 
 import { FridayShell, LeftCommandNav } from "@friday/ui";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CommandConfirmHost } from "@/features/palette/commandRunner";
 import { CreateTaskDialog } from "@/features/palette/CreateTaskDialog";
@@ -19,7 +19,8 @@ import { AppBottomBar } from "./AppBottomBar";
 import { AppTopBar } from "./AppTopBar";
 import { OfflineCacheBanner } from "./OfflineCacheBanner";
 import { ErrorDetailDrawer, LiveActivityDrawer, NotificationsDrawer } from "./drawers";
-import { defaultPageRedirect, pageRoute, useNavItems } from "./navModel";
+import { pageRoute, useNavItems } from "./navModel";
+import { resolveDefaultPageStartup, type DefaultPageStartupState } from "./defaultPageStartup";
 import { VoiceNavPanel } from "./VoiceNavPanel";
 import { useRealtimeStatus } from "@/lib/realtime/store";
 import { startDashboardRefreshFallback } from "./dashboardRefresh";
@@ -31,6 +32,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const session = useSession();
   const onboarding = useOnboarding(session.role === "owner" && !session.offline && !isStandaloneMock()); // the in-browser mock serves no onboarding route
+  const onboardingRequired = session.role === "owner" && !session.offline && !isStandaloneMock();
   const { settings } = useAppSettings();
   const { items, activeId } = useNavItems();
   const updateSettings = useUpdateSettings();
@@ -38,6 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const realtime = useRealtimeStatus();
   const autoRefreshSeconds = settings?.dashboard.autoRefreshSeconds;
   const [onboardingClosed, setOnboardingClosed] = useState(false);
+  const startupRoute = useRef<DefaultPageStartupState>({ initialPathname: pathname, handled: false });
   usePaletteShortcuts();
   const onboardingState = onboarding.data?.data;
   const showOnboarding = session.role === "owner" && !session.offline && pathname === "/" && !onboardingClosed && !isOnboardingSnoozed() &&
@@ -48,10 +51,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [queryClient, autoRefreshSeconds, realtime.state]);
 
   useEffect(() => {
-    if (showOnboarding) return;
-    const target = defaultPageRedirect(pathname, settings?.navigation.defaultPage, settings?.dashboard.contentStudioEnabled === true);
-    if (target) router.replace(target);
-  }, [pathname, router, settings?.navigation.defaultPage, settings?.dashboard.contentStudioEnabled, showOnboarding]);
+    const decision = resolveDefaultPageStartup(startupRoute.current, {
+      pathname,
+      settingsReady: Boolean(settings),
+      onboardingRequired,
+      onboardingPending: onboarding.isPending,
+      onboardingVisible: showOnboarding,
+      defaultPage: settings?.navigation.defaultPage,
+      contentStudioEnabled: settings?.dashboard.contentStudioEnabled === true,
+    });
+    startupRoute.current = decision.state;
+    if (decision.redirectTo) router.replace(decision.redirectTo);
+  }, [pathname, router, settings, onboardingRequired, onboarding.isPending, showOnboarding]);
 
   // The nav width follows settings.navigation.mode; toggling writes it back (reversible, applied optimistically).
   const [collapsed, setCollapsed] = useState(false);
