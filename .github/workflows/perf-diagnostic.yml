@@ -23,8 +23,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:app
       - run: pnpm exec playwright install --with-deps chromium
-      - name: Focused visibility lifecycle with frame/draw diagnostics
-        run: pnpm test:e2e --grep "a background tab stops the orb" --workers=1
+      - name: High-load context and visibility lifecycle with frame/draw diagnostics
+        run: pnpm test:e2e tests/e2e/performance.spec.ts --grep 'high load|orb render loop' --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
