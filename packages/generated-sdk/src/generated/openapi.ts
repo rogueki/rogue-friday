@@ -10269,6 +10269,7 @@ export interface operations {
             /** @description Sent, changed, or unknown outcome */
             200: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     [name: string]: unknown;
                 };
                 content: {

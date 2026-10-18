@@ -5667,6 +5667,8 @@ paths:
       responses:
         "200":
           description: Sent, changed, or unknown outcome
+          headers:
+            Idempotent-Replayed: { $ref: "#/components/headers/IdempotentReplayed" }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/VoiceMailConfirmResponse" }
