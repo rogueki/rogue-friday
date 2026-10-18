@@ -109,6 +109,7 @@ class BrowserAudioBridge:
                 samples = np.frombuffer(message, dtype="<i2").copy()
                 self.service.input_level.update(samples)
                 self.service.audio_q.put_nowait(samples)
+                self.service._queue_stop_audio(samples)
         except ConnectionClosed:
             pass
         finally:

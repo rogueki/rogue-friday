@@ -10,7 +10,7 @@
     "allowedUserIds": { "type": "array", "items": { "type": "string" } },
     "enabled": { "type": ["boolean", "null"] },
     "gatewayRunning": { "type": ["boolean", "null"] },
-    "connectionState": { "type": "string", "enum": ["unknown"] },
+    "connectionState": { "type": "string", "enum": ["connected", "disconnected", "unknown"] },
     "applied": { "type": ["boolean", "null"] },
     "revision": { "type": "integer", "minimum": 0 }
   },

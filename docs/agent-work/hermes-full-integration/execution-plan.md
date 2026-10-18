@@ -1,0 +1,40 @@
+﻿# Execution plan — Friday / Hermes full integration
+
+## Authority and baseline
+
+This is the execution companion to `implementation-spec.md`. The requested implementation supersedes that plan's Astra/Flash routing: use economical Sol/Luna/Terra workers for bounded packages; no Astra Flash, Astra builder or Kourier/DeepSeek. Root owns architecture decisions, integration review, test selection and authorized `main` publication. Workers own explicit file/package scopes and do not commit, push, deploy, mutate the live install or delegate. Concurrent edits are coordinated by ownership and shared-tree awareness.
+
+Baseline checkout: `rogue-friday-clean`, `841f0771f52c81b78ea57fd4012161c11c4efbf3`. Capture the actual baseline/worktree before package implementation. Existing live installation must not be reset or reinstalled tonight. Use isolated fixtures and disposable environments for clean-install testing; tomorrow's full install exercise is a separate planned gate after backup and preservation review. Keep settings, custom voice references, Vault and user data intact. This plan makes no claim that live settings, providers, hardware, costs or quota limits are already verified.
+
+## Phase and dependency order
+
+| Phase | Package and acceptance scope | Depends on | Deliverable / gate |
+|---|---|---|---|
+| P0 | Inventory Hermes pinned version, plugins/config keys and Friday dashboard; complete `hermes-feature-inventory.json`, `dashboard-coverage.csv`, `settings-runtime-map.csv`, `mock-gap-register.md`; establish external prerequisites and actual install state. | Current baseline and read-only source/runtime access. | Every inventory row has source/revision, UI/API/consumer/apply/test mapping or explicit unsupported reason; derive exact P1 contracts. |
+| P1 | Shared typed capability/account/settings/action contracts, safe secret references, optimistic revisions, apply/read-back/status/errors and native Settings shell. | P0 complete. | Contract checks, migration/backward compatibility, redaction and concurrent-change tests; no cosmetic success status. Freeze interfaces for subsequent packages. |
+| P2 | Global Stop semantics and overview UI cleanup. STOP-01..08, UI-STOP-01..03. | P1 action/config foundation; coordinate with P2b. | Cancellation generation reaches model/tool/TTS and approvals; no late callback; wake-only reactivation; no Pause UI/keyboard residue. Measure specified latency separately on reference hardware. |
+| P2b | Real audio device enumeration → API/SDK → independent input/output selection → persistent stable IDs → runtime apply/status/hotplug/error path. AUDIO-01..09. | P1; coordinate API/runtime with P2. | Synthetic loopback and device-error tests; physical headset evidence is a separate hardware gate. Do not run install or switch live voice as part of this phase. |
+| P3a | Obsidian/Vault discovery/default setup, Windows/WSL path mapping, durable outbox/writer, identity/event schema, migration. MEM-01/02/05/06/08/09. | P1. | Fault/restart/storage/privacy tests; isolated Vault fixture. Existing Vault/user data remains preserved. |
+| P3b | Retrieval, correction/delete/tombstone semantics, Memory UI, Hermes context, backup/restore/rebuild. MEM-03/04/07. | P3a. | Source-backed cross-session retrieval, deleted-content exclusion, isolated restore/reindex. |
+| P4 | Generic multi-account IMAP/SMTP and communication UI/actions; migrate GMX labels without overwriting custom names. MAIL-01..07. | P1 and P3a event contract. | Controlled provider integration plus synthetic error/retry tests; without credentials mark `BLOCKED_EXTERNAL`. |
+| P5 | Calendar discovery/permissions, multi-calendar CRUD, conflict/timezone/recurrence and language flow. CAL-01..06. | P1 and P3a. | Controlled writable and read-only calendars; no changes to personal calendars; without access mark `BLOCKED_EXTERNAL`. |
+| P6a | Native Telegram and WhatsApp setup, status, allowlist/identity, QR/session recovery, send/receive and approval binding. MSG-01..06. | P1 and P3a. | Controlled accounts and synthetic messages; QR/provider/account consent remains external evidence. |
+| P6b | Every additional communications connector present in pinned Hermes inventory, one coherent connector family per package. | P6a pattern and each connector contract. | No communication inventory row remains unmapped; provider-gated rows stay explicit. |
+| P7 | Hermes feature/config parity: models/providers, routing/fallback/budgets, auth, sessions/persona, tools/skills/plugins/MCP, browser/terminal/sandbox/permissions, schedules/hooks/gateway/logging/backup/import-export as actually inventoried. | P0/P1 and stable domain contracts. | Native setting/action or documented constrained/unsupported mapping for every inventoried row; SETTINGS-ALL-01..03. |
+| P8 | Remaining dashboard modules and real consumers; complete all field-by-field settings proof including responsiveness/accessibility, errors, parallel changes, discard/compensation and language coverage. | P7 plus relevant domain packages. | SETTINGS-ALL-04 and complete matrix; no field marked healthy from persistence alone. |
+| P9 | Cross-channel natural language/action catalog, context, disambiguation, corrections and status claims across all implemented domains. NLP-01..06. | Contracts from P1; domain actions P4–P8; Memory P3a. | Synthetic text/audio-fixture tests; separately gated microphone/device evidence. No repeated manual user test loop as routine development prerequisite. |
+| P10 | Integrated regressions, mock exclusion, clean install in isolated Windows/WSL, upgrade preservation and rollback, docs and release evidence. All DoD-01..16. | P2/P2b/P3–P9 accepted. | Relevant contracts/typecheck/lint/unit/conformance/build/E2E/integration checks, actual clean install and rollback evidence, final reviewed diff and CI. Any missing external/hardware evidence remains visibly blocked; no blanket 100% claim. |
+
+## Package controls
+
+- Assign one writer per overlapping package/fileset; root reviews the combined diff and all untracked files. Workers report changed paths, criteria IDs, exact commands/results, unresolved issues and evidence references.
+- Keep bounded packages; use Sol for broad repository/runtime work, Luna/Terra for discrete independent UI/test/docs or connector slices where interfaces are frozen. No worker claims entire-plan completion from its package.
+- Start with targeted checks from real package manifests; at integration boundaries run contracts, typecheck, lint, unit/conformance, app build and relevant E2E/integration suites. Add Python/PowerShell parser/runtime checks for installer and voice paths. Push the reviewed work to a task/feature branch to start its CI workflow; a push is allowed before CI is green. Merge/fast-forward to `main` only after required CI checks pass and root completes review. Do not push directly to `main` as a way to trigger CI.
+- Provider tests use controlled test accounts and synthetic messages/events. Never use personal inbox/calendar content as fixtures. Never auto-buy a provider plan, authorize external messaging, or assume a quota/cost.
+- Keep automated evidence and provider/hardware evidence distinct. Provider setup/consent, WhatsApp QR/device pairing, calendar write permission, mail credentials, microphone permissions, actual headset endpoint, Bluetooth behavior and 30-sample stop-latency runs cannot be inferred from mocks, source inspection or HTTP health.
+- Back up before later migration/install work; the live Friday installation is preserved during tonight's feature work. Clean install is isolated, then a separately scheduled full-system exercise follows backup and data-preservation checks.
+- Update `acceptance-ledger.md` and project memory as evidence lands. A criterion stays `NOT_RUN` until exercised; use `FAIL`, `BLOCKED_EXTERNAL`, `BLOCKED_HARDWARE` or `PASS` with evidence rather than inferred success.
+
+
+
+

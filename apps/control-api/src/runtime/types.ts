@@ -21,11 +21,15 @@ import type { SkillsService } from "../services/skills";
 import type { PowerPointService } from "../services/powerpoint";
 import type { OnboardingService } from "../services/onboarding";
 import type { ObsidianVaultService } from "../services/obsidian-vault";
+import type { DurableMemoryService } from "../services/durable-memory";
 import type { WikiPathService } from "../services/wiki-path";
 import type { HimalayaAccountService } from "../services/himalaya-account";
 import type { TelegramGatewayService } from "../services/telegram-gateway";
 import type { MessagingGatewayService } from "../services/messaging-gateways";
 import type { HimalayaSendService } from "../services/himalaya-send";
+import type { MailAccountsService } from "../services/mail-accounts";
+import type { CalendarAccountsService } from "../services/calendar-accounts";
+import type { MailSendService } from "../services/mail-send";
 import type { CalDavCreateService } from "../services/caldav-create";
 import type { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import type { CodingRunsService } from "../services/coding-runs";
@@ -72,6 +76,7 @@ export interface Runtime {
   calendarBridgeKey: Buffer;
   /** Read-only local Hermes mail bridge; independent of owner, voice and calendar credentials. */
   mailBridgeKey: Buffer;
+  hermesMemoryBridgeKey: Buffer;
   approvalTokens: ApprovalTokenService;
   settings: SettingsService;
   contentStudioKeys: ContentStudioKeysService;
@@ -82,6 +87,7 @@ export interface Runtime {
   powerpoint: PowerPointService;
   onboarding: OnboardingService;
   obsidianVault: ObsidianVaultService;
+  durableMemory: DurableMemoryService;
   wikiPath: WikiPathService;
   himalayaAccount: HimalayaAccountService;
   telegramGateway: TelegramGatewayService;
@@ -90,6 +96,9 @@ export interface Runtime {
   telephony: TelephonyService;
   cloudtalk: CloudTalkService;
   himalayaSend: HimalayaSendService;
+  mailAccounts: MailAccountsService;
+  calendarAccounts: CalendarAccountsService;
+  mailSend: MailSendService;
   caldavCreate: CalDavCreateService;
   hermesSkillKeys: HermesSkillKeysService;
   codingRuns: CodingRunsService;

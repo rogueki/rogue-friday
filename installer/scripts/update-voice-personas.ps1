@@ -14,7 +14,8 @@ $resultFile = Join-Path $run 'result.json'
 $backupDir = Join-Path $run 'backup'
 $pairs = @('friday-female','classic')
 $files = @(
-    'voice\audio_level.py', 'voice\audio_output.py', 'voice\browser_audio.py',
+    'voice\audio_devices.py', 'voice\audio_level.py', 'voice\audio_output.py', 'voice\browser_audio.py',
+    'voice\memory_outbox.py',
     'voice\calendar_voice.py', 'voice\cloudtalk_voice.py', 'voice\coding_voice.py',
     'voice\content_studio_voice.py', 'voice\cuda_dlls.py', 'voice\elevenlabs_cloud.py',
     'voice\film_filter.py', 'voice\friday_voice.py', 'voice\mail_voice.py',
@@ -137,8 +138,29 @@ function Invoke-WslVoice([string]$action, [object]$state) {
     $result = Invoke-NativeCaptured 'wsl.exe' (@('-d', $state.distro, '-u', $state.user, '--exec', 'bash') + $args)
     if ($result.ExitCode -ne 0) { throw "WSL-TTS $action fehlgeschlagen (Exit $($result.ExitCode)): $(($result.Lines | Select-Object -Last 8) -join ' ')" }
 }
+function Invoke-MemoryUpgrade([string]$action) {
+    $relative = 'installer/scripts/update-memory-bridge.ps1'
+    $helper = Join-Path $source 'installer\scripts\update-memory-bridge.ps1'
+    Assert-Ordinary $helper
+    Assert-PathSafe $helper $source
+    $tree = (& git.exe -C $source ls-tree HEAD -- $relative | Select-Object -First 1)
+    if ($LASTEXITCODE -ne 0 -or $tree -notmatch '^100(644|755) blob ([0-9a-f]{40})\s') { throw 'Verifizierter Memory-Updater fehlt.' }
+    $expected = $Matches[2]
+    $actual = (& git.exe -C $source hash-object --path=$relative -- $helper | Select-Object -First 1)
+    if ($LASTEXITCODE -ne 0 -or $actual.Trim() -cne $expected) { throw 'Memory-Updater entspricht nicht dem Git-Stand.' }
+    $invoke = Invoke-NativeCaptured 'powershell.exe' @('-NoProfile','-ExecutionPolicy','Bypass','-File',$helper,
+        '-InstallRoot',$root,'-SourceRoot',$source,'-RunId',$RunId,'-Mode',$action)
+    if ($invoke.ExitCode -ne 0) { throw "Memory-Upgrade $action fehlgeschlagen." }
+    $resultPath = Join-Path $root "updates\memory-bridge-$RunId\result.json"
+    $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+    $accepted = if ($action -eq 'Apply') { @('applied','runtimeNotConfigured') } else { @('rolledBack') }
+    if ($result.status -notin $accepted) { throw "Memory-Upgrade $action ohne bestätigten Status." }
+}
 function Restore([object]$state) {
     $errors = [Collections.Generic.List[string]]::new()
+    if ($state.memoryAttempted -and (Test-Path -LiteralPath (Join-Path $root "updates\memory-bridge-$RunId\manifest.json") -PathType Leaf)) {
+        try { Invoke-MemoryUpgrade 'Rollback' } catch { $errors.Add("Memory: $($_.Exception.Message)") }
+    }
     if ($state.wslAttempted -or $state.wslChanged) {
         try { Invoke-WslVoice 'Rollback' $state } catch { $errors.Add("WSL: $($_.Exception.Message)") }
     }
@@ -179,7 +201,7 @@ if ($Mode -eq 'Rollback') {
 if (Test-Path -LiteralPath $resultFile -PathType Leaf) { throw 'Voice-Update-Lauf-ID wurde bereits verwendet.' }
 if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw 'Installationsordner fehlt.' }
 Assert-PathSafe $run $root
-$state = [pscustomobject]@{ status='starting'; voice=''; wasRunning=$false; wsl=$false; wslAttempted=$false; distro=''; user=''; files=@(); windowsChanged=$false; wslChanged=$false }
+$state = [pscustomobject]@{ status='starting'; voice=''; wasRunning=$false; wsl=$false; wslAttempted=$false; distro=''; user=''; files=@(); windowsChanged=$false; wslChanged=$false; memoryAttempted=$false }
 $configured = Test-Path -LiteralPath (Join-Path $root 'config\voice.json') -PathType Leaf
 if (-not $configured) { $files = @($files | Where-Object { $_ -like 'installer\voice_models\*' }) }
 if ($configured) {
@@ -268,6 +290,9 @@ try {
         $state.wslChanged = $true
     }
     if ($state.wasRunning) { Start-OwnVoice $state.voice }
+    $state.memoryAttempted = $true
+    Write-Result $state
+    Invoke-MemoryUpgrade 'Apply'
     $state.status = 'applied'
     Write-Result $state
 } catch {

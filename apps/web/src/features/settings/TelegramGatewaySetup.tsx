@@ -53,7 +53,9 @@ export function TelegramGatewaySetup({ owner }: { owner: boolean }) {
       {status.isPending && <p role="status">Telegram-Konfiguration wird gelesen.</p>}
       {status.isError && <p role="alert">Telegram-Status nicht erreichbar. <button type="button" onClick={() => void status.refetch()}>Erneut prüfen</button></p>}
       {current && <>
-        <p role="status">{current.tokenConfigured ? "Bot-Token hinterlegt" : "Kein Bot-Token hinterlegt"} · {current.enabled ? "Gateway aktiviert" : current.enabled === false ? "Gateway deaktiviert" : "Aktivierung unbekannt"} · {current.gatewayRunning ? "Gateway-Dienst läuft" : "Gateway-Dienst nicht bestätigt"}. Verbindung und Identität nicht geprüft.</p>
+        <p role="status">{current.tokenConfigured ? "Bot-Token hinterlegt" : "Kein Bot-Token hinterlegt"} · {current.enabled ? "Gateway aktiviert" : current.enabled === false ? "Gateway deaktiviert" : "Aktivierung unbekannt"} · {current.gatewayRunning ? "Gateway-Dienst läuft" : "Gateway-Dienst nicht bestätigt"} · Laufzeitverbindung: {current.connectionState}.</p>
+        <p role="status">Bot-Authentisierung: {current.botAuthentication === "verified" ? `bestätigt (${current.botUsername ?? current.botId})` : current.botAuthentication} · Empfangsmodus: {current.receiveMode}.
+          {current.receiveMode === "webhook" ? " Ein vorhandener Webhook muss vor Hermes-Polling entfernt werden." : ""}</p>
         <label>Bot-Token <input type="password" autoComplete="off" value={token} disabled={clearToken || busy} onChange={(event) => setToken(event.target.value)} placeholder="Neues BotFather-Token" /></label>
         <label>Erlaubte numerische User-IDs <input type="text" value={ids} onChange={(event) => setIds(event.target.value)} placeholder={current.allowedUserIds.join(", ") || "123456789"} /></label>
         <label><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> Telegram aktivieren</label>

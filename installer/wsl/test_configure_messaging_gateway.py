@@ -48,6 +48,15 @@ class MessagingGatewayTests(unittest.TestCase):
                 (legacy / "creds.json").write_text("{}")
                 self.assertTrue(gateway.linked())
 
+    def test_self_chat_identity_is_derived_from_linked_credentials(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            session = root / "platforms" / "whatsapp" / "session"
+            session.mkdir(parents=True)
+            (session / "creds.json").write_text('{"me":{"id":"491701234567:5@s.whatsapp.net"}}')
+            with patch.object(gateway, "HERMES", root):
+                self.assertEqual(gateway.linked_phone(), "491701234567")
+
 
 if __name__ == "__main__":
     unittest.main()

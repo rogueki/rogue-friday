@@ -234,9 +234,24 @@ export class FridayVoiceHttpAdapter implements VoicePort, FridayAdapter {
     };
   }
 
-  async listVoiceDevices(_params: PageParams, _call: CallContext): Promise<Page<VoiceDevice>> {
-    // No data source: the service exposes no audio devices (`input_device` lives in voice.json, not in the status).
-    return this.emptyPage<VoiceDevice>();
+  async listVoiceDevices(_params: PageParams, call: CallContext): Promise<Page<VoiceDevice>> {
+    const { voiceHttp, context } = this.ready();
+    const response = await voiceHttp.request<unknown>({ method: "GET", path: "/devices", operation: "listVoiceDevices",
+      correlationId: call.correlationId, ...(call.signal ? { signal: call.signal } : {}) });
+    const body = response.body as { transport?: unknown; items?: unknown };
+    if (!body || !Array.isArray(body.items)) throw new AdapterError({ code: "VALIDATION_FAILED", message: "Ungültige Audiogeräteliste", retryable: false });
+    const now = new Date(context.clock.now()).toISOString();
+    const items = body.items.map((raw): VoiceDevice => {
+      const item = raw as Record<string, unknown>;
+      if (typeof item.id !== "string" || !/^vdev_[0-9a-f]{26}$/.test(item.id) || typeof item.name !== "string" ||
+          (item.kind !== "input" && item.kind !== "output") || typeof item.isDefault !== "boolean" ||
+          typeof item.channels !== "number" || typeof item.sampleRateHz !== "number")
+        throw new AdapterError({ code: "VALIDATION_FAILED", message: "Ungültiges Audiogerät", retryable: false });
+      return { id: item.id, name: item.name, kind: item.kind, isDefault: item.isDefault, channels: item.channels,
+        sampleRateHz: item.sampleRateHz, version: 1, createdAt: now, updatedAt: now, labels: [String(item.hostApi ?? "")],
+        source: { adapterId: manifest.id, system: PROVIDER_SYSTEM, externalId: item.id, lastSyncedAt: now }, status: "online" };
+    });
+    return { items, pageInfo: { nextCursor: null, hasNextPage: false }, freshness: { state: "fresh", asOf: now } };
   }
 
   async listVoiceProfiles(_params: PageParams, _call: CallContext): Promise<Page<VoiceProfile>> {

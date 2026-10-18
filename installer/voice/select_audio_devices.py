@@ -7,6 +7,7 @@ import unicodedata
 from pathlib import Path
 
 import sounddevice as sd
+from audio_devices import legacy_id
 
 
 def normalized(value: str) -> str:
@@ -50,6 +51,8 @@ def main() -> None:
     selected_output = resolve(args.output_name, "output") if args.output_name else config.get("output_device")
     config["input_device"] = selected_input
     config["output_device"] = selected_output
+    config["input_device_id"] = legacy_id(sd, selected_input, "input")
+    config["output_device_id"] = legacy_id(sd, selected_output, "output")
     with args.config.open("w", encoding="utf-8") as handle:
         json.dump(config, handle, ensure_ascii=False, indent=2)
         handle.write("\n")

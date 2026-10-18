@@ -1,0 +1,16 @@
+{
+  "$schema": "https://friday.local/schemas/integrations/integration-status-response.schema.json",
+  "contractVersion": "2.0.0",
+  "data": {
+    "kind": "voice", "id": null, "installed": true, "configured": true,
+    "authenticated": null, "connected": true, "canRead": true, "canWrite": null,
+    "checkedAt": "2026-10-19T00:00:00Z", "errorCode": null,
+    "persistedRevision": 5, "appliedRevision": null, "verification": "unverified",
+    "settings": {
+      "ttsVoice": { "verification": "unverified", "reasonCode": "VOICE_ACK_NOT_AVAILABLE" },
+      "inputDeviceId": { "verification": "unverified", "reasonCode": "AUDIO_DEVICE_ACK_NOT_AVAILABLE" },
+      "outputDeviceId": { "verification": "unverified", "reasonCode": "AUDIO_DEVICE_ACK_NOT_AVAILABLE" }
+    }
+  },
+  "freshness": { "state": "fresh", "asOf": "2026-10-19T00:00:00Z" }
+}

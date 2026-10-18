@@ -10,9 +10,18 @@ describe('BottomCommandBar text input', () => {
     render(<BottomCommandBar talkLabel="MIT F.R.I.D.A.Y. SPRECHEN" quickAction={{ label: 'Executive Briefing' }} />);
     expect(screen.getByRole('button', { name: /MIT F\.R\.I\.D\.A\.Y\. SPRECHEN/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Stopp' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Executive Briefing' })).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('shows and invokes pause only when a pause handler is provided', async () => {
+    const user = userEvent.setup();
+    const onPause = vi.fn();
+    render(<BottomCommandBar onPause={onPause} />);
+    const pause = screen.getByRole('button', { name: 'Pause' });
+    await user.click(pause);
+    expect(onPause).toHaveBeenCalledTimes(1);
   });
 
   it('has an accessible name and submits trimmed text on Enter, then clears', async () => {

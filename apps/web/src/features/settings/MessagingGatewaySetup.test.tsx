@@ -28,15 +28,24 @@ describe("messaging gateway setup", () => {
     expect(screen.queryByText(token)).toBeNull();
   });
 
-  it("shows WhatsApp QR handoff and submits mode and owner phone", async () => {
+  it("starts native WhatsApp pairing and submits mode and owner phone", async () => {
     const requests: Array<{ method: string; body: unknown }> = [];
+    let pairing = false;
     renderWithProviders(<MessagingGatewaySetup owner platform="whatsapp" />, { fetchImpl: async (input, init) => {
       const request = input instanceof Request ? input : new Request(String(input), init);
+      if (new URL(request.url).pathname.endsWith("whatsapp-pairing")) {
+        if (request.method === "POST") pairing = true;
+        return jsonResponse(envelope({ id: pairing ? "abcdefghijklmnopqrstuvwx" : null, state: pairing ? "waiting" : "idle",
+          qr: pairing ? "FAKE_PAIRING_PAYLOAD" : null, expiresAt: pairing ? Date.now() + 60000 : null,
+          linkedIdentity: null, connectionState: "unknown", mode: "bot" }));
+      }
       requests.push({ method: request.method, body: request.method === "PUT" ? await request.json() : null });
       return jsonResponse(envelope({ setupUrl: "http://127.0.0.1:43791/channels", mode: null, sessionPresent: false, allowedUserIds: [],
         enabled: false, gatewayRunning: true, connectionState: "unknown", applied: null, revision: 2 }));
     } });
-    await screen.findByRole("link", { name: "Kopplung im lokalen Hermes-Dashboard abschließen" });
+    await screen.findByRole("button", { name: "Kopplung starten / QR erneuern" });
+    fireEvent.click(screen.getByRole("button", { name: "Kopplung starten / QR erneuern" }));
+    expect(await screen.findByAltText("WhatsApp-Kopplungs-QR-Code")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Erlaubte Telefonnummern (Ländervorwahl, ohne +)"), { target: { value: "491701234567" } });
     fireEvent.click(screen.getByRole("button", { name: "WhatsApp-Konfiguration speichern" }));
     await waitFor(() => expect(requests.some((entry) => entry.method === "PUT")).toBe(true));

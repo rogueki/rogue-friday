@@ -3,6 +3,7 @@ import ast
 import base64
 import http.server
 import os
+import re
 import sys
 import threading
 import time
@@ -21,7 +22,8 @@ def test_dispatcher_discards_calendar_preview_if_cancelled_or_not_spoken():
     method.returns = None
     for arg in method.args.args:
         arg.annotation = None
-    namespace = {"time": time, "SR": 16000, "log_event": lambda **kwargs: None}
+    namespace = {"time": time, "SR": 16000, "STOP_WORDS": re.compile(r"^stopp?$", re.I),
+                 "log_event": lambda **kwargs: None}
     exec(compile(ast.Module(body=[method], type_ignores=[]), source, "exec"), namespace)
 
     def make_voice():

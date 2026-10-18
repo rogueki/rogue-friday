@@ -161,6 +161,7 @@ export interface FridayModelMap {
   AgentPerformance: AgentPerformance;
   AgentResponse: AgentResponse;
   AgentStatus: AgentStatus;
+  ApplyResult: ApplyResult;
   Approval: Approval;
   ApprovalContextRequest: ApprovalContextRequest;
   ApprovalDecisionRequest: ApprovalDecisionRequest;
@@ -201,6 +202,8 @@ export interface FridayModelMap {
   CalDavEventCreateResponse: CalDavEventCreateResponse;
   CalDavEventPreviewRequest: CalDavEventPreviewRequest;
   CalDavEventPreviewResponse: CalDavEventPreviewResponse;
+  CalendarAccountAction: CalendarAccountAction;
+  CalendarAccountActionResponse: CalendarAccountActionResponse;
   CalendarBriefing: CalendarBriefing;
   CalendarBriefingListResponse: CalendarBriefingListResponse;
   CalendarBriefingResponse: CalendarBriefingResponse;
@@ -216,6 +219,8 @@ export interface FridayModelMap {
   CalendarProposalType: CalendarProposalType;
   CanonicalResource: CanonicalResource;
   Capabilities: Capabilities;
+  CapabilityCatalogResponse: CapabilityCatalogResponse;
+  CapabilityDescriptor: CapabilityDescriptor;
   Channel: Channel;
   ChannelKind: ChannelKind;
   ChannelListResponse: ChannelListResponse;
@@ -265,6 +270,19 @@ export interface FridayModelMap {
   DraftSendRequest: DraftSendRequest;
   DraftStatus: DraftStatus;
   DraftUpdateRequest: DraftUpdateRequest;
+  DurableMemoryBackupResponse: DurableMemoryBackupResponse;
+  DurableMemoryCaptureResponse: DurableMemoryCaptureResponse;
+  DurableMemoryCorrectRequest: DurableMemoryCorrectRequest;
+  DurableMemoryCorrectResponse: DurableMemoryCorrectResponse;
+  DurableMemoryForgetResponse: DurableMemoryForgetResponse;
+  DurableMemoryRestoreRequest: DurableMemoryRestoreRequest;
+  DurableMemoryRestoreResponse: DurableMemoryRestoreResponse;
+  DurableMemorySearchResponse: DurableMemorySearchResponse;
+  DurableMemorySettings: DurableMemorySettings;
+  DurableMemorySettingsPatch: DurableMemorySettingsPatch;
+  DurableMemorySettingsResponse: DurableMemorySettingsResponse;
+  DurableMemoryStatus: DurableMemoryStatus;
+  DurableMemoryStatusResponse: DurableMemoryStatusResponse;
   ElevenSpeechRequest: ElevenSpeechRequest;
   EntityRef: EntityRef;
   ErrorCode: ErrorCode;
@@ -308,6 +326,12 @@ export interface FridayModelMap {
   HimalayaSendRequest: HimalayaSendRequest;
   HimalayaSendResponse: HimalayaSendResponse;
   HimalayaSmtpCheckResponse: HimalayaSmtpCheckResponse;
+  IntegrationAccount: IntegrationAccount;
+  IntegrationActionRequest: IntegrationActionRequest;
+  IntegrationActionResult: IntegrationActionResult;
+  IntegrationEvent: IntegrationEvent;
+  IntegrationStatus: IntegrationStatus;
+  IntegrationStatusResponse: IntegrationStatusResponse;
   JsonSchemaObject: JsonSchemaObject;
   KieTask: KieTask;
   KieTaskRequest: KieTaskRequest;
@@ -325,6 +349,27 @@ export interface FridayModelMap {
   LocationCandidate: LocationCandidate;
   LocationSearchResponse: LocationSearchResponse;
   LoginRequest: LoginRequest;
+  MailAccount: MailAccount;
+  MailAccountResponse: MailAccountResponse;
+  MailAccountsResponse: MailAccountsResponse;
+  MailAccountWrite: MailAccountWrite;
+  MailAttachmentResponse: MailAttachmentResponse;
+  MailChangeRequest: MailChangeRequest;
+  MailCheckResponse: MailCheckResponse;
+  MailDraftRequest: MailDraftRequest;
+  MailDraftResponse: MailDraftResponse;
+  MailEnvelopesResponse: MailEnvelopesResponse;
+  MailFolderResponse: MailFolderResponse;
+  MailMessageResponse: MailMessageResponse;
+  MailOAuthPoll: MailOAuthPoll;
+  MailOAuthResultResponse: MailOAuthResultResponse;
+  MailOAuthStartResponse: MailOAuthStartResponse;
+  MailReceipt: MailReceipt;
+  MailReceiptResponse: MailReceiptResponse;
+  MailReceiptsResponse: MailReceiptsResponse;
+  MailResultResponse: MailResultResponse;
+  MailSendRequest: MailSendRequest;
+  MailSendResponse: MailSendResponse;
   Memory: Memory;
   MemoryConflict: MemoryConflict;
   MemoryConflictResolveRequest: MemoryConflictResolveRequest;
@@ -467,6 +512,8 @@ export interface FridayModelMap {
   User: User;
   VoiceAudioLevel: VoiceAudioLevel;
   VoiceCodingRunRequest: VoiceCodingRunRequest;
+  VoiceConnectedCalendarConfirm: VoiceConnectedCalendarConfirm;
+  VoiceConnectedCalendarRequest: VoiceConnectedCalendarRequest;
   VoiceDevice: VoiceDevice;
   VoiceDeviceListResponse: VoiceDeviceListResponse;
   VoiceEnrollment: VoiceEnrollment;
@@ -496,6 +543,9 @@ export interface FridayModelMap {
   WhatsappGateway: WhatsappGateway;
   WhatsappGatewayPatch: WhatsappGatewayPatch;
   WhatsappGatewayResponse: WhatsappGatewayResponse;
+  WhatsappPairing: WhatsappPairing;
+  WhatsappPairingResponse: WhatsappPairingResponse;
+  WhatsappPairingStart: WhatsappPairingStart;
   WikiPath: WikiPath;
   WikiPathPatch: WikiPathPatch;
   WikiPathResponse: WikiPathResponse;
@@ -853,6 +903,16 @@ export interface AgentResponse {
   contractVersion: ContractVersion;
   data: Agent;
   freshness: Freshness;
+}
+export interface ApplyResult {
+  persisted: boolean;
+  applied: boolean;
+  verified: boolean;
+  requiresRestart: boolean;
+  errorCode: string | null;
+  compensation: "not_needed" | "restored" | "failed";
+  persistedRevision: number | null;
+  appliedRevision: number | null;
 }
 /**
  * Human approval gate (PLAN §32). Decisions are checked again server-side before execution.
@@ -1357,6 +1417,55 @@ export interface CalDavEventPreviewResponse {
   };
   freshness: Freshness;
 }
+export interface CalendarAccountAction {
+  action:
+    | "upsert"
+    | "delete"
+    | "discover"
+    | "select"
+    | "default"
+    | "check"
+    | "events"
+    | "create"
+    | "update"
+    | "delete-event";
+  accountId?: string;
+  calendarId?: string;
+  expectedRevision?: number | null;
+  account?: {
+    id?: string;
+    kind: "caldav" | "ics";
+    displayName: string;
+    baseUrl: string;
+    username: string;
+    syncMinutes: number;
+  };
+  password?: string;
+  selectedIds?: string[];
+  defaultCalendarId?: string | null;
+  from?: string;
+  to?: string;
+  eventId?: string;
+  etag?: string;
+  scope?: "single" | "series" | "occurrence";
+  recurrenceId?: string;
+  event?: {
+    title: string;
+    start: string;
+    end: string;
+    allDay?: boolean;
+    description?: string;
+    location?: string;
+    rrule?: string;
+  };
+}
+export interface CalendarAccountActionResponse {
+  contractVersion: ContractVersion;
+  data: {
+    [k: string]: unknown;
+  };
+  freshness: Freshness;
+}
 export interface CalendarBriefing {
   id: string;
   /**
@@ -1535,6 +1644,7 @@ export interface CanonicalResource {
  */
 export interface Capabilities {
   contractVersion: ContractVersion;
+  integrations?: CapabilityDescriptor[];
   modules: {
     tasks: TasksCapability;
     activity: ActivityCapability;
@@ -1554,6 +1664,16 @@ export interface Capabilities {
     commands: CommandsCapability;
     telephony: TelephonyCapability;
   };
+}
+export interface CapabilityDescriptor {
+  id: string;
+  contractVersion: ContractVersion;
+  actions: string[];
+  settingsArea: string;
+  requires: string[];
+  roles: ("viewer" | "operator" | "owner")[];
+  availability: "available" | "needs_setup" | "unsupported" | "offline";
+  reasonCode: string | null;
 }
 export interface TasksCapability {
   read: boolean;
@@ -1705,6 +1825,13 @@ export interface TelephonyCapability {
   read: boolean;
   call: boolean;
   sources: string[];
+}
+export interface CapabilityCatalogResponse {
+  contractVersion: ContractVersion;
+  data: {
+    items: CapabilityDescriptor[];
+  };
+  freshness: Freshness;
 }
 /**
  * Communication channel (PLAN §33.1). Address is an account hint, never a credential.
@@ -2102,7 +2229,7 @@ export interface DiscordGateway {
   allowedChannelIds: string[];
   enabled: boolean | null;
   gatewayRunning: boolean | null;
-  connectionState: "unknown";
+  connectionState: "connected" | "disconnected" | "unknown";
   applied: boolean | null;
   revision: number;
 }
@@ -2183,6 +2310,113 @@ export interface DraftUpdateRequest {
   subject?: string;
   body?: string;
   status?: "draft" | "discarded";
+}
+export interface DurableMemoryBackupResponse {
+  contractVersion: ContractVersion;
+  data: {
+    path: string;
+    eventCount: number;
+    createdAt: string;
+  };
+  freshness: Freshness;
+}
+export interface DurableMemoryCaptureResponse {
+  contractVersion: ContractVersion;
+  data: {
+    eventId: string;
+    accepted: boolean;
+    pending: boolean;
+  };
+  freshness: Freshness;
+}
+export interface DurableMemoryCorrectRequest {
+  text: string;
+}
+export interface DurableMemoryCorrectResponse {
+  contractVersion: ContractVersion;
+  data: {
+    eventId: string;
+    replacementEventId: string;
+    corrected: boolean;
+  };
+  freshness: Freshness;
+}
+export interface DurableMemoryForgetResponse {
+  contractVersion: ContractVersion;
+  data: {
+    eventId: string;
+    deleted: boolean;
+  };
+  freshness: Freshness;
+}
+export interface DurableMemoryRestoreRequest {
+  backupPath: string;
+  targetVaultPath: string;
+}
+export interface DurableMemoryRestoreResponse {
+  contractVersion: ContractVersion;
+  data: {
+    targetVaultPath: string;
+    eventCount: number;
+    restoredAt: string;
+  };
+  freshness: Freshness;
+}
+export interface DurableMemorySearchResponse {
+  contractVersion: ContractVersion;
+  data: {
+    items: {
+      eventId: string;
+      text: string;
+      occurredAt: string;
+      source: string;
+      channel: string;
+      identityId: string | null;
+      sessionId: string | null;
+      score: number;
+    }[];
+  };
+  freshness: Freshness;
+}
+export interface DurableMemorySettings {
+  enabled: boolean;
+  privateMode: boolean;
+  channels: {
+    dashboard: boolean;
+    voice: boolean;
+    hermes: boolean;
+  };
+  retention: "unlimited";
+  exclusions: string[];
+}
+export interface DurableMemorySettingsPatch {
+  enabled: boolean;
+  privateMode: boolean;
+  channels: {
+    dashboard: boolean;
+    voice: boolean;
+    hermes: boolean;
+  };
+}
+export interface DurableMemorySettingsResponse {
+  contractVersion: ContractVersion;
+  data: DurableMemorySettings;
+  freshness: Freshness;
+}
+export interface DurableMemoryStatus {
+  vaultPath: string;
+  ready: boolean;
+  pending: number;
+  lastWrittenAt: string | null;
+  lastRestoreTestAt: string | null;
+  lastError: string | null;
+  indexState: "ready" | "unavailable" | "error";
+  settings?: DurableMemorySettings;
+}
+export interface DurableMemoryStatusResponse {
+  contractVersion: ContractVersion;
+  data: DurableMemoryStatus;
+  freshness: Freshness;
 }
 export interface ElevenSpeechRequest {
   text: string;
@@ -2567,6 +2801,91 @@ export interface HimalayaSmtpCheckResponse {
   };
   freshness: Freshness;
 }
+export interface IntegrationAccount {
+  id: string;
+  kind: string;
+  displayName: string;
+  ownerId: string;
+  configRevision: number;
+  secretState: {
+    [k: string]: boolean;
+  };
+}
+/**
+ * A later typed family endpoint must replace the bounded input schema for its own action; this common identity envelope is not a generic dispatch route.
+ */
+export interface IntegrationActionRequest {
+  accountId: string | null;
+  targetId: string | null;
+  dialogId: string | null;
+  cancellationGeneration: number | null;
+}
+export interface IntegrationActionResult {
+  status: "completed" | "pending" | "rejected" | "uncertain";
+  externalId: string | null;
+  eventId: string | null;
+  reasonCode: string | null;
+}
+/**
+ * Capture candidate. A durable writer must enforce captureEligibility and redact sensitive text before storage.
+ */
+export interface IntegrationEvent {
+  eventId: string;
+  contractVersion: ContractVersion;
+  eventType: "user_utterance" | "assistant_response" | "action_result";
+  actor: {
+    type: "user" | "assistant" | "system" | "provider";
+    id: string;
+    role: string | null;
+  };
+  identityId: string | null;
+  channel: string;
+  sessionId: string | null;
+  dialogId: string | null;
+  correlationId: string | null;
+  source: string;
+  occurredAt: string;
+  outcome: "completed" | "aborted" | "uncertain";
+  captureEligibility: "eligible" | "private" | "do_not_store";
+  redaction: "complete" | "required";
+  payload:
+    | {
+        kind: "text";
+        text: string;
+      }
+    | {
+        kind: "action";
+        actionId: string;
+        targetId: string | null;
+        externalId: string | null;
+      };
+}
+export interface IntegrationStatus {
+  kind: string;
+  id: string | null;
+  installed: boolean;
+  configured: boolean;
+  authenticated: boolean | null;
+  connected: boolean | null;
+  canRead: boolean | null;
+  canWrite: boolean | null;
+  checkedAt: string;
+  errorCode: string | null;
+  persistedRevision: number;
+  appliedRevision: number | null;
+  verification: "verified" | "unverified" | "failed" | "requires_restart";
+  settings: {
+    [k: string]: {
+      verification: "verified" | "unverified" | "failed" | "requires_restart";
+      reasonCode: string | null;
+    };
+  };
+}
+export interface IntegrationStatusResponse {
+  contractVersion: ContractVersion;
+  data: IntegrationStatus;
+  freshness: Freshness;
+}
 export interface KieTask {
   taskId: string;
   kind: "image" | "video";
@@ -2691,6 +3010,251 @@ export interface LoginRequest {
   password: string;
   rememberMe?: boolean;
   displayName?: string;
+}
+export interface MailAccount {
+  id: string;
+  displayName: string;
+  email: string;
+  senderName: string;
+  aliases: string[];
+  signature: string;
+  imapHost: string;
+  imapPort: number;
+  imapSecurity: "tls" | "start-tls";
+  imapLogin: string;
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecurity: "tls" | "start-tls";
+  smtpLogin: string;
+  sentFolder: string;
+  draftsFolder: string;
+  trashFolder: string;
+  archiveFolder: string;
+  spamFolder: string;
+  authMode: "password" | "google-oauth" | "microsoft-oauth";
+  oauthClientId: string;
+  oauthTenant: string;
+  revision: number;
+  secretState: {
+    imapPassword: boolean;
+    smtpPassword: boolean;
+    oauthRefreshToken: boolean;
+  };
+}
+export interface MailAccountResponse {
+  contractVersion: ContractVersion;
+  data: MailAccount;
+  freshness: Freshness;
+}
+export interface MailAccountsResponse {
+  contractVersion: ContractVersion;
+  data: {
+    revision: number;
+    defaultAccountId: string | null;
+    accounts: MailAccount[];
+  };
+  freshness: Freshness;
+}
+export interface MailAccountWrite {
+  displayName: string;
+  email: string;
+  senderName: string;
+  aliases: string[];
+  signature: string;
+  imapHost: string;
+  imapPort: number;
+  imapSecurity: "tls" | "start-tls";
+  imapLogin: string;
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecurity: "tls" | "start-tls";
+  smtpLogin: string;
+  sentFolder: string;
+  draftsFolder: string;
+  trashFolder: string;
+  archiveFolder: string;
+  spamFolder: string;
+  authMode?: "password" | "google-oauth" | "microsoft-oauth";
+  oauthClientId?: string;
+  oauthTenant?: string;
+  secrets?: {
+    imapPassword?: string | null;
+    smtpPassword?: string | null;
+  };
+}
+export interface MailAttachmentResponse {
+  contractVersion: ContractVersion;
+  data: {
+    filename: string;
+    contentType: string;
+    size: number;
+    data: string;
+  };
+  freshness: Freshness;
+}
+export interface MailChangeRequest {
+  mailbox: string;
+  uid: string;
+  uidValidity: string;
+  kind: "move" | "flag";
+  destination?: string;
+}
+export interface MailCheckResponse {
+  contractVersion: ContractVersion;
+  data: {
+    ok: boolean;
+    folders?: {
+      id: string;
+      name: string;
+      role: string | null;
+    }[];
+  };
+  freshness: Freshness;
+}
+export interface MailDraftRequest {
+  to?: string[];
+  from?: string;
+  subject?: string;
+  body?: string;
+  inReplyTo?: string;
+  references?: string;
+  attachments?: {
+    filename: string;
+    data: string;
+  }[];
+}
+export interface MailDraftResponse {
+  contractVersion: ContractVersion;
+  data: {
+    state: "drafted";
+    messageId: string;
+    alreadyPresent: boolean;
+  };
+  freshness: Freshness;
+}
+export interface MailEnvelopesResponse {
+  contractVersion: ContractVersion;
+  data: {
+    mailbox: string;
+    uidValidity: string | null;
+    page: number;
+    items: {
+      id: string;
+      subject: string;
+      from: string;
+      date: string;
+      flags: string[];
+    }[];
+  };
+  freshness: Freshness;
+}
+export interface MailFolderResponse {
+  contractVersion: ContractVersion;
+  data: {
+    folders: {
+      id: string;
+      name: string;
+      role: string | null;
+    }[];
+  };
+  freshness: Freshness;
+}
+export interface MailMessageResponse {
+  contractVersion: ContractVersion;
+  data: {
+    mailbox: string;
+    uid: string;
+    uidValidity: string | null;
+    subject: string;
+    from: string;
+    to: string;
+    date: string;
+    messageId: string;
+    replyTo: string;
+    references: string;
+    bodyText: string;
+    attachments: {
+      filename: string;
+      contentType: string;
+      size: number;
+    }[];
+  };
+  freshness: Freshness;
+}
+export interface MailOAuthPoll {
+  flowId: string;
+}
+export interface MailOAuthResultResponse {
+  contractVersion: ContractVersion;
+  data: {
+    authorized: boolean;
+    pending: boolean;
+    accountId: string;
+  };
+  freshness: Freshness;
+}
+export interface MailOAuthStartResponse {
+  contractVersion: ContractVersion;
+  data: {
+    flowId: string;
+    authorizationUrl: string | null;
+    verificationUri: string | null;
+    userCode: string | null;
+    expiresAt: string;
+  };
+  freshness: Freshness;
+}
+export interface MailReceipt {
+  receiptId: string;
+  accountId: string;
+  state: "pending" | "sent" | "uncertain";
+  archivePending: boolean;
+  createdAt: string;
+}
+export interface MailReceiptResponse {
+  contractVersion: ContractVersion;
+  data: MailReceipt;
+  freshness: Freshness;
+}
+export interface MailReceiptsResponse {
+  contractVersion: ContractVersion;
+  data: {
+    items: MailReceipt[];
+  };
+  freshness: Freshness;
+}
+export interface MailResultResponse {
+  contractVersion: ContractVersion;
+  data: {
+    deleted?: boolean;
+    changed?: boolean;
+    revision?: number;
+    defaultAccountId?: string;
+  };
+  freshness: Freshness;
+}
+export interface MailSendRequest {
+  to: string[];
+  from?: string;
+  subject: string;
+  body: string;
+  inReplyTo?: string;
+  references?: string;
+  attachments?: {
+    filename: string;
+    data: string;
+  }[];
+}
+export interface MailSendResponse {
+  contractVersion: ContractVersion;
+  data: {
+    state: "sent" | "uncertain";
+    archivePending: boolean;
+    replayed: boolean;
+    receiptId: string;
+    memoryCapture: "written" | "pending" | "skipped" | "error";
+  };
+  freshness: Freshness;
 }
 /**
  * Stored knowledge item (PLAN §30). Nothing is hidden: provenance, usage and history are visible.
@@ -3316,6 +3880,8 @@ export interface VoiceStatus {
     latencyMs: number | null;
   };
   audioInputDeviceId: string | null;
+  ttsVoiceChoice?: string | null;
+  serviceStartedAt?: string | null;
   audioOutputDeviceId: string | null;
   pushToTalk: {
     enabled: boolean;
@@ -4079,10 +4645,14 @@ export interface TaskUpdateRequest {
 }
 export interface TelegramGateway {
   tokenConfigured: boolean;
+  botAuthentication: "missing" | "verified" | "invalid" | "unknown";
+  botId: string | null;
+  botUsername: string | null;
+  receiveMode: "polling" | "webhook" | "unknown";
   allowedUserIds: string[];
   enabled: boolean | null;
   gatewayRunning: boolean | null;
-  connectionState: "unknown";
+  connectionState: "connected" | "disconnected" | "unknown";
   applied: boolean | null;
   revision: number;
 }
@@ -4254,6 +4824,23 @@ export interface VoiceCodingRunRequest {
   cli: "auto" | "codex" | "opencode" | "claude-code";
   task: string;
 }
+export interface VoiceConnectedCalendarConfirm {
+  request: VoiceConnectedCalendarRequest;
+  token: string;
+  accountId: string;
+  calendarId: string;
+  eventId: string;
+  etag: string;
+}
+export interface VoiceConnectedCalendarRequest {
+  action: "create" | "update" | "delete";
+  calendarName: string;
+  targetTitle?: string;
+  title?: string;
+  start?: string;
+  end?: string;
+  timeZone?: string;
+}
 export interface VoiceDevice {
   id: string;
   /**
@@ -4358,8 +4945,10 @@ export interface VoiceMailConfirmRequest {
 }
 export interface VoiceMailRequest {
   action: "compose" | "reply" | "move" | "flag";
+  accountId?: string;
   mailbox?: string;
   id?: string;
+  uidValidity?: string;
   destination?: string;
   to?: string[];
   subject?: string;
@@ -4379,6 +4968,8 @@ export interface VoiceMailPreviewResponse {
     token: string;
     expiresAt: string;
     fingerprint: string;
+    accountId: string;
+    accountName: string;
     action: "compose" | "reply" | "move" | "flag";
     to: string[];
     subject: string;
@@ -4504,7 +5095,7 @@ export interface WhatsappGateway {
   allowedUserIds: string[];
   enabled: boolean | null;
   gatewayRunning: boolean | null;
-  connectionState: "unknown";
+  connectionState: "connected" | "disconnected" | "unknown";
   applied: boolean | null;
   revision: number;
 }
@@ -4517,6 +5108,32 @@ export interface WhatsappGatewayResponse {
   contractVersion: ContractVersion;
   data: WhatsappGateway;
   freshness: Freshness;
+}
+export interface WhatsappPairing {
+  id: string | null;
+  state:
+    | "idle"
+    | "starting"
+    | "waiting"
+    | "qr_expired"
+    | "connected"
+    | "unverified"
+    | "expired"
+    | "cancelled"
+    | "error";
+  mode?: "bot" | "self-chat";
+  qr: string | null;
+  expiresAt: number | null;
+  linkedIdentity: string | null;
+  connectionState: "connected" | "disconnected" | "unknown";
+}
+export interface WhatsappPairingResponse {
+  contractVersion: ContractVersion;
+  data: WhatsappPairing;
+  freshness: Freshness;
+}
+export interface WhatsappPairingStart {
+  mode: "bot" | "self-chat";
 }
 export interface WikiPath {
   path: string;

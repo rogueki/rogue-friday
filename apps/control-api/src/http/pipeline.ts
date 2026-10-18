@@ -24,8 +24,11 @@ const VOICE_BRIDGE_OPERATIONS = new Set<OperationId>([
   "getCodingVoiceRepository", "createVoiceCodingRun",
   "createVoicePowerPointDeck",
   "previewVoiceLocalCalendar", "confirmVoiceLocalCalendar",
+  "previewVoiceConnectedCalendar", "confirmVoiceConnectedCalendar",
   "previewVoiceMail", "confirmVoiceMail",
   "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage",
+  "listMailAccounts", "listMailFolders", "listMailEnvelopes", "getMailMessage",
+  "captureDurableMemoryEvent", "searchDurableMemory",
 ]);
 const MAIL_BRIDGE_OPERATIONS = new Set<OperationId>([
   "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage",
@@ -116,7 +119,13 @@ export class ApiPipeline {
     const mailBridgeAuthorized = MAIL_BRIDGE_OPERATIONS.has(spec.operationId) && spec.method === "GET" &&
       (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
       verifyVoiceBridgeKey(headers.authorization, this.runtime.mailBridgeKey);
-    const actor: Actor = mailBridgeAuthorized ? { type: "system", id: "friday-mail", name: "F.R.I.D.A.Y. Mail" } :
+    const hermesMemoryBridgeAuthorized = (spec.operationId === "captureDurableMemoryEvent" && spec.method === "POST" ||
+      spec.operationId === "searchDurableMemory" && spec.method === "GET") &&
+      (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
+      !this.runtime.config.server.allowRemote &&
+      verifyVoiceBridgeKey(headers.authorization, this.runtime.hermesMemoryBridgeKey);
+    const actor: Actor = hermesMemoryBridgeAuthorized ? { type: "system", id: "friday-hermes-memory", name: "F.R.I.D.A.Y. Hermes Memory" } :
+      mailBridgeAuthorized ? { type: "system", id: "friday-mail", name: "F.R.I.D.A.Y. Mail" } :
       calendarBridgeAuthorized ? { type: "system", id: "friday-calendar", name: "F.R.I.D.A.Y. Calendar" } :
       voiceBridgeAuthorized ? { type: "system", id: "friday-voice", name: "F.R.I.D.A.Y. Voice" } :
       principal ? { type: "user", id: principal.userId, name: principal.displayName } : { type: "system", id: "anonymous" };
@@ -132,6 +141,7 @@ export class ApiPipeline {
       voiceBridgeAuthorized,
       calendarBridgeAuthorized,
       mailBridgeAuthorized,
+      hermesMemoryBridgeAuthorized,
       actor,
       pathParams: (request.params ?? {}) as Record<string, string>,
       query: {},
@@ -145,7 +155,8 @@ export class ApiPipeline {
         ...call,
         ...(ifMatch !== undefined ? { ifMatchVersion: ifMatch } : {}),
         ...(idempotencyKey && spec.acceptsIdempotencyKey
-          ? { idempotencyKey: scopedIdempotencyKey(idempotencyKey, spec, request.params as Record<string, string> | undefined, voiceBridgeAuthorized ? "friday-voice" : principal?.userId ?? request.ip) }
+          ? { idempotencyKey: scopedIdempotencyKey(idempotencyKey, spec, request.params as Record<string, string> | undefined,
+            hermesMemoryBridgeAuthorized ? "friday-hermes-memory" : voiceBridgeAuthorized ? "friday-voice" : principal?.userId ?? request.ip) }
           : {}),
       },
       idempotencyKey: spec.acceptsIdempotencyKey ? idempotencyKey : undefined,
@@ -164,7 +175,7 @@ export class ApiPipeline {
       if (key.length < 8 || key.length > 128) throw validationFailed("Idempotency-Key muss 8 bis 128 Zeichen lang sein.", [{ path: "Idempotency-Key", message: "Länge 8..128" }]);
       // Binary speech is not serializable in the JSON idempotency store. Its service
       // journals the scoped key before the external call and rejects a second request.
-      if (spec.operationId === "createElevenSpeech" || spec.operationId === "sendHimalayaMessage" || spec.operationId === "previewCalDavEvent" || spec.operationId === "createCalendarEvent" || spec.operationId === "originateTelephonyCall" || spec.operationId === "originateCloudTalkCall" || spec.operationId === "createVoicePowerPointDeck") return this.execute(ctx, spec);
+      if (spec.operationId === "createElevenSpeech" || spec.operationId === "sendHimalayaMessage" || spec.operationId === "sendMailMessage" || spec.operationId === "previewCalDavEvent" || spec.operationId === "createCalendarEvent" || spec.operationId === "originateTelephonyCall" || spec.operationId === "originateCloudTalkCall" || spec.operationId === "createVoicePowerPointDeck") return this.execute(ctx, spec);
       return this.runIdempotent(ctx, spec, key);
     }
     return this.execute(ctx, spec);
@@ -172,6 +183,10 @@ export class ApiPipeline {
 
   private authorizeRequest(ctx: RequestContext, spec: RouteSpec): void {
     const { runtime } = this;
+    if (verifyVoiceBridgeKey(ctx.headers.authorization, runtime.hermesMemoryBridgeKey)) {
+      if (ctx.hermesMemoryBridgeAuthorized) return;
+      throw new ApiError({ code: "FORBIDDEN", message: "Hermes-Gedächtniskennung gilt nur für lokalen Ereignisabruf und Aufnahme." });
+    }
     if (verifyVoiceBridgeKey(ctx.headers.authorization, runtime.mailBridgeKey)) {
       if (ctx.mailBridgeAuthorized) return;
       throw new ApiError({ code: "FORBIDDEN", message: "Mail-Dienstkennung gilt nur fuer lokalen Postfachabruf." });
@@ -233,7 +248,8 @@ export class ApiPipeline {
 
   private async runIdempotent(ctx: RequestContext, spec: RouteSpec, key: string): Promise<Outcome> {
     const { stores } = this.runtime;
-    const actor = ctx.voiceBridgeAuthorized ? "friday-voice" : ctx.principal?.userId ?? ctx.ip;
+    const actor = ctx.hermesMemoryBridgeAuthorized ? "friday-hermes-memory" :
+      ctx.voiceBridgeAuthorized ? "friday-voice" : ctx.principal?.userId ?? ctx.ip;
     const bodyHash = IdempotencyStore.bodyHash({ body: ctx.body, query: ctx.query });
     const lookup = stores.idempotency.lookup(spec.method, requestPath(ctx), key, actor, bodyHash);
     if (lookup.kind === "conflict") {
@@ -288,7 +304,10 @@ export class ApiPipeline {
   private async execute(ctx: RequestContext, spec: RouteSpec): Promise<Outcome> {
     const handler = this.handlers.get(spec.operationId);
     if (!handler) throw new ApiError({ code: "INTERNAL", message: `Für ${spec.operationId} ist kein Handler registriert.` });
-    const result = await handler(ctx);
+    const handled = await handler(ctx);
+    const result = handled.status >= 200 && handled.status < 300 && spec.acceptsIdempotencyKey && ctx.idempotencyKey &&
+      !handled.headers?.["Idempotent-Replayed"]
+      ? { ...handled, headers: { ...handled.headers, "Idempotent-Replayed": "false" } } : handled;
     return { status: result.status, result, errorCode: null };
   }
 

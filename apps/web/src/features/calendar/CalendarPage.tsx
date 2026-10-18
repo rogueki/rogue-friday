@@ -20,6 +20,7 @@ import { formatCivil, isView, offsetLabel, VIEWS, viewKey, type CalendarView } f
 import { MonthGrid } from "./MonthGrid";
 import { ProposalDialog, type ProposalDefaults } from "./ProposalDialog";
 import { CalDavCreateDialog } from "./CalDavCreateDialog";
+import { CalendarAccounts } from "./CalendarAccounts";
 import { LocalEventDialog } from "./LocalEventDialog";
 import { TimeGrid } from "./TimeGrid";
 import "./calendar.css";
@@ -191,6 +192,7 @@ function CalendarPageInner() {
         </PanelFrame>
         <CalendarSide focusDay={focus} events={events} now={now} onOpenEvent={(id) => setEventId(id, { push: true })} onPropose={setProposal} />
       </div>
+      {session.role === "owner" && <CalendarAccounts />}
 
       {events.length === 0 && state.kind === "ready" && view !== "agenda" ? (
         <EmptyState compact icon={<CalendarDays size={20} strokeWidth={1.5} />} title={t("calendar.empty.range")} description={t("calendar.empty.rangeHint")} />

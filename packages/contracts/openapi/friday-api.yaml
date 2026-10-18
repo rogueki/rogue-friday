@@ -2517,6 +2517,52 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: calendar.read
       x-required-role: viewer
+  /api/v1/calendar/connected/voice/preview:
+    post:
+      operationId: previewVoiceConnectedCalendar
+      tags: [calendar]
+      summary: Preview an explicitly named connected calendar voice action
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VoiceConnectedCalendarRequest" }
+      responses:
+        "200":
+          description: Preview and confirmation token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalendarAccountActionResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+      x-required-role: owner
+  /api/v1/calendar/connected/voice/confirm:
+    post:
+      operationId: confirmVoiceConnectedCalendar
+      tags: [calendar]
+      summary: Execute the exact confirmed connected calendar voice action once
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VoiceConnectedCalendarConfirm" }
+      responses:
+        "200":
+          description: Provider result, including explicitly uncertain writes
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalendarAccountActionResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+      x-required-role: owner
   /api/v1/calendar/local/voice/preview:
     post:
       operationId: previewVoiceLocalCalendar
@@ -3620,6 +3666,859 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: voice.read
       x-required-role: viewer
+  /api/v1/integrations/voice/status:
+    get:
+      operationId: getVoiceIntegrationStatus
+      tags: [voice]
+      summary: Persisted and verified voice integration state
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-capability: voice.read
+      x-required-role: viewer
+  /api/v1/integrations/calendar/accounts:
+    get:
+      operationId: listCalendarAccounts
+      tags: [calendar]
+      summary: List Friday-managed calendar accounts and discovered permissions
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarAccountActionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: calendar.read
+      x-required-role: owner
+  /api/v1/integrations/calendar/accounts/actions:
+    post:
+      operationId: actOnCalendarAccount
+      tags: [calendar]
+      summary: Configure, discover, read or conditionally mutate a connected calendar
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalendarAccountAction"
+      responses:
+        "200":
+          description: Success or explicitly uncertain provider write
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarAccountActionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-capability: calendar.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts:
+    get:
+      operationId: listMailAccounts
+      tags: [communication]
+      summary: List Friday-managed mail accounts without secrets
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailAccountsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+    post:
+      operationId: createMailAccount
+      tags: [communication]
+      summary: Create one IMAP and SMTP mail account
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailAccountWrite"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailAccountResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}:
+    put:
+      operationId: updateMailAccount
+      tags: [communication]
+      summary: Replace account configuration at expected revision
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailAccountWrite"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailAccountResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-capability: communication.read
+      x-required-role: owner
+    delete:
+      operationId: deleteMailAccount
+      tags: [communication]
+      summary: Remove one Friday-managed account locally
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailResultResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/default:
+    post:
+      operationId: setDefaultMailAccount
+      tags: [communication]
+      summary: Choose the default account with catalog revision
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailResultResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/check:
+    post:
+      operationId: checkMailAccount
+      tags: [communication]
+      summary: Check IMAP or SMTP authentication without sending mail
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - name: protocol
+          in: query
+          required: true
+          schema: { type: string, enum: [imap, smtp] }
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailCheckResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/oauth/start:
+    post:
+      operationId: startMailOAuth
+      tags: [communication]
+      summary: Start local Google PKCE or Microsoft device authorization
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Authorization instructions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailOAuthStartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/oauth/poll:
+    post:
+      operationId: pollMailOAuth
+      tags: [communication]
+      summary: Poll a Microsoft device authorization once
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailOAuthPoll"
+      responses:
+        "200":
+          description: Pending or connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailOAuthResultResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/oauth/revoke:
+    post:
+      operationId: revokeMailOAuth
+      tags: [communication]
+      summary: Remove locally stored OAuth grant; provider consent may require separate revocation
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Local grant removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailAccountResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/oauth/google/callback:
+    get:
+      operationId: completeGoogleMailOAuth
+      tags: [communication]
+      summary: Local loopback PKCE callback bound to a short-lived random state
+      security: []
+      parameters:
+        - name: state
+          in: query
+          required: true
+          schema: { type: string, minLength: 16, maxLength: 128 }
+        - name: code
+          in: query
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 4096 }
+      responses:
+        "200":
+          description: OAuth connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailOAuthResultResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+      x-required-role: none
+  /api/v1/integrations/mail/accounts/{accountId}/folders:
+    get:
+      operationId: listMailFolders
+      tags: [communication]
+      summary: Discover folders in one account
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailFolderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/envelopes:
+    get:
+      operationId: listMailEnvelopes
+      tags: [communication]
+      summary: Read one mailbox page bound to account and UIDVALIDITY
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - name: mailbox
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 20 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailEnvelopesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/search:
+    get:
+      operationId: searchMailEnvelopes
+      tags: [communication]
+      summary: Search message text in one source mailbox
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - name: mailbox
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 20 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailEnvelopesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/message:
+    get:
+      operationId: getMailMessage
+      tags: [communication]
+      summary: Read a UID from its source account and UIDVALIDITY
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - name: mailbox
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: uid
+          in: query
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,17}$' }
+        - name: uidValidity
+          in: query
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailMessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/attachment:
+    get:
+      operationId: getMailAttachment
+      tags: [communication]
+      summary: Download one bounded attachment from its source UID and UIDVALIDITY
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - name: mailbox
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: uid
+          in: query
+          required: true
+          schema: { type: string, pattern: '^[1-9][0-9]{0,17}$' }
+        - name: uidValidity
+          in: query
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: index
+          in: query
+          required: true
+          schema: { type: integer, minimum: 0, maximum: 19 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailAttachmentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/change:
+    post:
+      operationId: changeMailMessage
+      tags: [communication]
+      summary: Flag or move one UID from its source account
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailChangeRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailResultResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/send:
+    post:
+      operationId: sendMailMessage
+      tags: [communication]
+      summary: Send with durable journal and separate Sent copy state
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailSendRequest"
+      responses:
+        "200":
+          description: Success or uncertain outcome
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailSendResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/draft:
+    post:
+      operationId: saveMailDraft
+      tags: [communication]
+      summary: Save an idempotent draft to the account Drafts folder without SMTP
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailDraftRequest"
+      responses:
+        "200":
+          description: Draft present in IMAP Drafts
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailDraftResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/receipts:
+    get:
+      operationId: listMailReceipts
+      tags: [communication]
+      summary: Review bounded mail send journal without message contents
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailReceiptsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/receipts/{receiptId}/review:
+    post:
+      operationId: reviewMailReceipt
+      tags: [communication]
+      summary: Check Sent for an uncertain send without sending
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - name: receiptId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-f0-9]{64}$' }
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Current receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailReceiptResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/mail/accounts/{accountId}/receipts/{receiptId}/archive:
+    post:
+      operationId: reconcileMailArchive
+      tags: [communication]
+      summary: Append exact confirmed SMTP send to Sent only, with dedupe; never sends SMTP
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - name: receiptId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-f0-9]{64}$' }
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailSendRequest"
+      responses:
+        "200":
+          description: Current receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailReceiptResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: communication.read
+      x-required-role: owner
+  /api/v1/integrations/memory/status:
+    get:
+      operationId: getDurableMemoryStatus
+      tags: [memory]
+      summary: Durable memory writer and vault status
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DurableMemoryStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: memory.read
+      x-required-role: owner
+  /api/v1/integrations/memory/settings:
+    put:
+      operationId: putDurableMemorySettings
+      tags: [memory]
+      summary: Set native memory capture policy
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DurableMemorySettingsPatch"
+      responses:
+        "200":
+          description: Applied settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DurableMemorySettingsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: memory.read
+      x-required-role: owner
+  /api/v1/integrations/memory/reindex:
+    post:
+      operationId: reindexDurableMemory
+      tags: [memory]
+      summary: Rebuild native memory search index from owned Vault notes
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Current writer and index status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DurableMemoryStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: memory.read
+      x-required-role: owner
+  /api/v1/integrations/memory/events:
+    post:
+      operationId: captureDurableMemoryEvent
+      tags: [memory]
+      summary: Capture an eligible redacted event
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntegrationEvent"
+      responses:
+        "200":
+          description: Captured or already recorded
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DurableMemoryCaptureResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: memory.read
+      x-required-role: owner
+  /api/v1/integrations/memory/search:
+    get:
+      operationId: searchDurableMemory
+      tags: [memory]
+      summary: Search durable memory for one identity
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: identityId
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DurableMemorySearchResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: memory.read
+      x-required-role: owner
+  /api/v1/integrations/memory/events/{eventId}:
+    patch:
+      operationId: correctDurableMemoryEvent
+      tags: [memory]
+      summary: Correct one memory event atomically
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DurableMemoryCorrectRequest"
+      responses:
+        "200":
+          description: Corrected event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DurableMemoryCorrectResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: memory.read
+      x-required-role: owner
+    delete:
+      operationId: forgetDurableMemoryEvent
+      tags: [memory]
+      summary: Tombstone one stored event
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DurableMemoryForgetResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: memory.read
+      x-required-role: owner
+  /api/v1/integrations/memory/backup:
+    post:
+      operationId: backupDurableMemory
+      tags: [memory]
+      summary: Create an isolated memory backup
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DurableMemoryBackupResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: memory.read
+      x-required-role: owner
+  /api/v1/integrations/memory/restore:
+    post:
+      operationId: restoreDurableMemory
+      tags: [memory]
+      summary: Restore into a separate target vault
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DurableMemoryRestoreRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DurableMemoryRestoreResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: memory.read
+      x-required-role: owner
+  /api/v1/integrations/memory/retry:
+    post:
+      operationId: retryDurableMemory
+      tags: [memory]
+      summary: Retry pending memory writes
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Current writer status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DurableMemoryStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: memory.read
+      x-required-role: owner
   /api/v1/voice/browser-audio-availability:
     get:
       operationId: getBrowserAudioAvailability
@@ -6011,6 +6910,80 @@ paths:
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/whatsapp-pairing:
+    get:
+      operationId: getWhatsappPairing
+      tags: [settings]
+      summary: Read short-lived local WhatsApp QR pairing status
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/WhatsappPairingResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+    post:
+      operationId: startWhatsappPairing
+      tags: [settings]
+      summary: Start or replace the local Hermes Baileys pairing session
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WhatsappPairingStart" } } } }
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/WhatsappPairingResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+    delete:
+      operationId: cancelWhatsappPairing
+      tags: [settings]
+      summary: Cancel pending WhatsApp QR pairing without logging out an existing account
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/WhatsappPairingResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/whatsapp-session:
+    delete:
+      operationId: logoutWhatsappGateway
+      tags: [settings]
+      summary: Revoke the linked Baileys WhatsApp session and disable its Hermes adapter
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200": { description: Remote logout confirmed, content: { application/json: { schema: { $ref: "#/components/schemas/WhatsappPairingResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/whatsapp-session/reconnect:
+    post:
+      operationId: reconnectWhatsappGateway
+      tags: [settings]
+      summary: Restart the linked Hermes gateway to reconnect its WhatsApp adapter
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200": { description: Restart requested, content: { application/json: { schema: { $ref: "#/components/schemas/WhatsappPairingResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/telegram-gateway:
     get:
       operationId: getTelegramGateway
@@ -7308,6 +8281,12 @@ components:
       $ref: ../schemas/settings/whatsapp-gateway-patch.schema.json
     WhatsappGatewayResponse:
       $ref: ../schemas/settings/whatsapp-gateway-response.schema.json
+    WhatsappPairing:
+      $ref: ../schemas/settings/whatsapp-pairing.schema.json
+    WhatsappPairingResponse:
+      $ref: ../schemas/settings/whatsapp-pairing-response.schema.json
+    WhatsappPairingStart:
+      $ref: ../schemas/settings/whatsapp-pairing-start.schema.json
     TelegramGatewayPatch:
       $ref: ../schemas/settings/telegram-gateway-patch.schema.json
     TelegramGatewayResponse:
@@ -7690,6 +8669,92 @@ components:
       $ref: ../schemas/auth/session-response.schema.json
     Settings:
       $ref: ../schemas/settings/settings.schema.json
+    CapabilityDescriptor:
+      $ref: ../schemas/integrations/capability-descriptor.schema.json
+    CapabilityCatalogResponse:
+      $ref: ../schemas/integrations/capability-catalog-response.schema.json
+    IntegrationStatus:
+      $ref: ../schemas/integrations/integration-status.schema.json
+    IntegrationStatusResponse:
+      $ref: ../schemas/integrations/integration-status-response.schema.json
+    IntegrationEvent:
+      $ref: ../schemas/integrations/integration-event.schema.json
+    CalendarAccountAction:
+      $ref: ../schemas/integrations/calendar-account-action.schema.json
+    CalendarAccountActionResponse:
+      $ref: ../schemas/integrations/calendar-account-action-response.schema.json
+    VoiceConnectedCalendarRequest:
+      $ref: ../schemas/integrations/voice-connected-calendar-request.schema.json
+    VoiceConnectedCalendarConfirm:
+      $ref: ../schemas/integrations/voice-connected-calendar-confirm.schema.json
+    MailAccount:
+      $ref: ../schemas/integrations/mail-account.schema.json
+    MailAccountWrite:
+      $ref: ../schemas/integrations/mail-account-write.schema.json
+    MailAccountsResponse:
+      $ref: ../schemas/integrations/mail-accounts-response.schema.json
+    MailAccountResponse:
+      $ref: ../schemas/integrations/mail-account-response.schema.json
+    MailOAuthStartResponse:
+      $ref: ../schemas/integrations/mail-oauth-start-response.schema.json
+    MailOAuthPoll:
+      $ref: ../schemas/integrations/mail-oauth-poll.schema.json
+    MailOAuthResultResponse:
+      $ref: ../schemas/integrations/mail-oauth-result-response.schema.json
+    MailFolderResponse:
+      $ref: ../schemas/integrations/mail-folder-response.schema.json
+    MailCheckResponse:
+      $ref: ../schemas/integrations/mail-check-response.schema.json
+    MailEnvelopesResponse:
+      $ref: ../schemas/integrations/mail-envelopes-response.schema.json
+    MailMessageResponse:
+      $ref: ../schemas/integrations/mail-message-response.schema.json
+    MailAttachmentResponse:
+      $ref: ../schemas/integrations/mail-attachment-response.schema.json
+    MailSendRequest:
+      $ref: ../schemas/integrations/mail-send-request.schema.json
+    MailDraftRequest:
+      $ref: ../schemas/integrations/mail-draft-request.schema.json
+    MailDraftResponse:
+      $ref: ../schemas/integrations/mail-draft-response.schema.json
+    MailSendResponse:
+      $ref: ../schemas/integrations/mail-send-response.schema.json
+    MailReceipt:
+      $ref: ../schemas/integrations/mail-receipt.schema.json
+    MailReceiptResponse:
+      $ref: ../schemas/integrations/mail-receipt-response.schema.json
+    MailReceiptsResponse:
+      $ref: ../schemas/integrations/mail-receipts-response.schema.json
+    MailChangeRequest:
+      $ref: ../schemas/integrations/mail-change-request.schema.json
+    MailResultResponse:
+      $ref: ../schemas/integrations/mail-result-response.schema.json
+    DurableMemoryStatus:
+      $ref: ../schemas/integrations/durable-memory-status.schema.json
+    DurableMemoryStatusResponse:
+      $ref: ../schemas/integrations/durable-memory-status-response.schema.json
+    DurableMemorySettings:
+      $ref: ../schemas/integrations/durable-memory-settings.schema.json
+    DurableMemorySettingsPatch:
+      $ref: ../schemas/integrations/durable-memory-settings-patch.schema.json
+    DurableMemorySettingsResponse:
+      $ref: ../schemas/integrations/durable-memory-settings-response.schema.json
+    DurableMemoryCaptureResponse:
+      $ref: ../schemas/integrations/durable-memory-capture-response.schema.json
+    DurableMemorySearchResponse:
+      $ref: ../schemas/integrations/durable-memory-search-response.schema.json
+    DurableMemoryForgetResponse:
+      $ref: ../schemas/integrations/durable-memory-forget-response.schema.json
+    DurableMemoryCorrectRequest:
+      $ref: ../schemas/integrations/durable-memory-correct-request.schema.json
+    DurableMemoryCorrectResponse:
+      $ref: ../schemas/integrations/durable-memory-correct-response.schema.json
+    DurableMemoryBackupResponse:
+      $ref: ../schemas/integrations/durable-memory-backup-response.schema.json
+    DurableMemoryRestoreRequest:
+      $ref: ../schemas/integrations/durable-memory-restore-request.schema.json
+    DurableMemoryRestoreResponse:
+      $ref: ../schemas/integrations/durable-memory-restore-response.schema.json
     SettingsExport:
       $ref: ../schemas/settings/settings-export.schema.json
     SettingsPatch:

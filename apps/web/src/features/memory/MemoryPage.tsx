@@ -13,6 +13,7 @@ import { downloadJson, stamp } from "./kit/download";
 import { useDebounced, useUrlParam } from "./kit/hooks";
 import { effectiveFreshness, usePanelState } from "./kit/panelState";
 import { MemoryDrawer } from "./MemoryDrawer";
+import { DurableMemoryPanel } from "./DurableMemoryPanel";
 import { MemoryFormDialog } from "./MemoryFormDialog";
 import { MemoryRow } from "./MemoryRow";
 import { hasPendingConflict, MEMORY_SENSITIVITIES, MEMORY_TYPES, sensitivityKey, typeKey } from "./labels";
@@ -140,6 +141,8 @@ function MemoryPageInner() {
 
   return (
     <div className="mk-page mem-page">
+      <DurableMemoryPanel />
+      <p className="mem-source-note">Die folgende Wissensliste stammt aus dem verbundenen Adapter. Das Obsidian-Gesprächsarchiv steht oben.</p>
       <HudPanel
         title={t("nav.memory")}
         subtitle={t("page.memory.description")}

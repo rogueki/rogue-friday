@@ -3,7 +3,7 @@ import type { RawVoiceStatus } from "../../src/provider-types";
 
 /**
  * Wire-level replica of the status server in installer/voice/friday_voice.py (`_start_health`, JV:576-592):
- * - exactly one handler: every GET path returns the same JSON, other methods get Python's `501 Unsupported method`;
+ * - GET / returns status and GET /devices returns the host inventory; other methods get Python's `501 Unsupported method`;
  * - HTTP/1.0, `Content-Type: application/json`, no `Content-Length`, connection closed after the body;
  * - key order of the JSON as written by `json.dumps(VoiceService.status_payload())` (the additive keys `phase`, `tts_active`, `input_audio`, `output_audio` are optional in the fake: older services do not send them);
  * - the port is closed while the service loads its models (`setOffline(true)`).
@@ -104,7 +104,7 @@ export async function createFakeVoiceService(): Promise<FakeVoiceService> {
       else if (active === "invalid-json") socket.end(response(200, "{state: listening"));
       else if (active === "invalid-shape")
         socket.end(response(200, JSON.stringify({ ...status, state: "booting-up" })));
-      else socket.end(response(200, JSON.stringify(status)));
+      else socket.end(response(200, requestLine.startsWith("GET /devices ") ? JSON.stringify({ transport: "device", items: [] }) : JSON.stringify(status)));
     });
   };
 

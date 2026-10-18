@@ -4,7 +4,8 @@ import { startTestApi } from "./helpers";
 
 const PATH = "/api/v1/settings/telegram-gateway";
 const TOKEN = `123456789:${"a".repeat(35)}`;
-const status = { tokenConfigured: true, allowedUserIds: ["123456789"], enabled: true,
+const status = { tokenConfigured: true, botAuthentication: "verified" as const, botId: "123456789", botUsername: "fake_bot", receiveMode: "polling" as const,
+  allowedUserIds: ["123456789"], enabled: true,
   gatewayRunning: true, connectionState: "unknown" as const, applied: true, revision: 42 };
 
 describe("Telegram gateway settings", () => {

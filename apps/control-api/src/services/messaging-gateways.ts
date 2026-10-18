@@ -9,7 +9,7 @@ export interface MessagingGatewayStatus {
   allowedUserIds: string[];
   enabled: boolean | null;
   gatewayRunning: boolean | null;
-  connectionState: "unknown";
+  connectionState: "connected" | "disconnected" | "unknown";
   applied: boolean | null;
   revision: number;
   tokenConfigured?: boolean;
@@ -20,6 +20,15 @@ export interface MessagingGatewayStatus {
 export type MessagingGatewayPatch = {
   allowedUserIds: string[]; enabled: boolean;
 } & ({ token: string; clearToken: boolean; allowedChannelIds: string[] } | { mode: "bot" | "self-chat" });
+export interface WhatsappPairing {
+  id: string | null;
+  state: "idle" | "starting" | "waiting" | "qr_expired" | "connected" | "unverified" | "expired" | "cancelled" | "error";
+  mode?: "bot" | "self-chat";
+  qr: string | null;
+  expiresAt: number | null;
+  linkedIdentity: string | null;
+  connectionState: "connected" | "disconnected" | "unknown";
+}
 
 const unavailable = () => new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes-Nachrichten-Gateway in Friday-Ubuntu ist nicht erreichbar." });
 const SNOWFLAKE = /^[1-9][0-9]{0,19}$/;
@@ -59,7 +68,7 @@ export class MessagingGatewayService {
     if (!idsValid(data.allowedUserIds, this.platform === "discord" ? SNOWFLAKE : PHONE, 10) ||
         !(data.enabled === null || typeof data.enabled === "boolean") ||
         !(data.gatewayRunning === null || typeof data.gatewayRunning === "boolean") ||
-        data.connectionState !== "unknown" || !(data.applied === null || typeof data.applied === "boolean") ||
+        !["connected", "disconnected", "unknown"].includes(String(data.connectionState)) || !(data.applied === null || typeof data.applied === "boolean") ||
         !Number.isSafeInteger(data.revision)) throw unavailable();
     if (this.platform === "discord" && (typeof data.tokenConfigured !== "boolean" || !idsValid(data.allowedChannelIds, SNOWFLAKE, 20))) throw unavailable();
     if (this.platform === "whatsapp" && (typeof data.sessionPresent !== "boolean" || ![null, "bot", "self-chat"].includes(data.mode as string | null))) throw unavailable();
@@ -78,5 +87,27 @@ export class MessagingGatewayService {
           !idsValid(patch.allowedChannelIds, SNOWFLAKE, 20)) throw validationFailed("Discord-Bot-Token oder Kanal-IDs sind ungültig.");
     } else if (!(["bot", "self-chat"] as unknown[]).includes((input as { mode?: unknown }).mode)) throw validationFailed("WhatsApp-Modus ist ungültig.");
     return this.run("update", { ...input, revision });
+  }
+
+  async pairing(action: "status" | "start" | "refresh" | "cancel" | "logout" | "reconnect", mode?: "bot" | "self-chat"): Promise<WhatsappPairing> {
+    if (this.platform !== "whatsapp" || ((action === "start" || action === "refresh") && mode !== "bot" && mode !== "self-chat")) {
+      throw validationFailed("WhatsApp-Kopplung ist ungültig.");
+    }
+    const { script: configScript, distro, user } = this.target();
+    const script = configScript.replace(/configure_messaging_gateway\.py$/, "messaging_pairing.py");
+    let data: Record<string, unknown>;
+    try { data = await this.invoke(script, distro, user, [action, ...(mode ? [mode] : [])], undefined, 10000); }
+    catch { throw unavailable(); }
+    const states = ["idle", "starting", "waiting", "qr_expired", "connected", "unverified", "expired", "cancelled", "error"];
+    if (!states.includes(String(data.state)) ||
+      !(data.id === null || typeof data.id === "string" && /^[A-Za-z0-9_-]{20,64}$/.test(data.id)) ||
+      !(data.qr === null || typeof data.qr === "string" && data.qr.length <= 4096) ||
+      !(data.expiresAt === null || typeof data.expiresAt === "number" && Number.isFinite(data.expiresAt)) ||
+      !(data.linkedIdentity === null || typeof data.linkedIdentity === "string" && data.linkedIdentity.length <= 128) ||
+      !["connected", "disconnected", "unknown"].includes(String(data.connectionState))) throw unavailable();
+    return { id: data.id as string | null, state: data.state as WhatsappPairing["state"],
+      mode: data.mode as WhatsappPairing["mode"], qr: data.qr as string | null,
+      expiresAt: data.expiresAt as number | null, linkedIdentity: data.linkedIdentity as string | null,
+      connectionState: data.connectionState as WhatsappPairing["connectionState"] };
   }
 }

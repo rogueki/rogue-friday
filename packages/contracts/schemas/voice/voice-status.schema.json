@@ -148,6 +148,8 @@
     "audioInputDeviceId": {
       "type": ["string", "null"]
     },
+    "ttsVoiceChoice": { "type": ["string", "null"] },
+    "serviceStartedAt": { "type": ["string", "null"], "format": "date-time" },
     "audioOutputDeviceId": {
       "type": ["string", "null"]
     },

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/integration-status.schema.json",
+  "title": "IntegrationStatus",
+  "type": "object",
+  "properties": {
+    "kind": { "type": "string" },
+    "id": { "type": ["string", "null"] },
+    "installed": { "type": "boolean" },
+    "configured": { "type": "boolean" },
+    "authenticated": { "type": ["boolean", "null"] },
+    "connected": { "type": ["boolean", "null"] },
+    "canRead": { "type": ["boolean", "null"] },
+    "canWrite": { "type": ["boolean", "null"] },
+    "checkedAt": { "type": "string", "format": "date-time" },
+    "errorCode": { "type": ["string", "null"] },
+    "persistedRevision": { "type": "integer", "minimum": 1 },
+    "appliedRevision": { "type": ["integer", "null"], "minimum": 1 },
+    "verification": { "enum": ["verified", "unverified", "failed", "requires_restart"] },
+    "settings": { "type": "object", "additionalProperties": { "type": "object", "properties": { "verification": { "enum": ["verified", "unverified", "failed", "requires_restart"] }, "reasonCode": { "type": ["string", "null"] } }, "required": ["verification", "reasonCode"], "additionalProperties": false } }
+  },
+  "required": ["kind", "id", "installed", "configured", "authenticated", "connected", "canRead", "canWrite", "checkedAt", "errorCode", "persistedRevision", "appliedRevision", "verification", "settings"],
+  "additionalProperties": false
+}

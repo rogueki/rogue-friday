@@ -3,10 +3,30 @@ import { CONTRACT_VERSION, type ActionResult, type CommandControlRequest, type C
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { CommandHistoryStore } from "../db/stores";
+import type { IntegrationEvent } from "../services/durable-memory";
 import { controlLiveVoice, executeBuiltinIntent, matchBuiltinIntent } from "../services/command-intents";
 import { portHandler } from "./ports";
 
 const executeBase = portHandler("commands", "executeCommand", PORT_SPEC.commands.executeCommand);
+
+function captureCommand(ctx: Parameters<Handler>[0], eventId: string, eventType: "user_utterance" | "assistant_response",
+  text: string, outcome: IntegrationEvent["outcome"], privateInput: boolean): void {
+  if (!ctx.principal) return;
+  ctx.runtime.durableMemory.capture({
+    eventId, contractVersion: CONTRACT_VERSION, eventType,
+    actor: eventType === "user_utterance" ? { type: "user", id: ctx.principal.userId, role: null }
+      : { type: "assistant", id: "friday", role: null },
+    identityId: ctx.principal.userId, channel: requestChannel(ctx), sessionId: null,
+    dialogId: ctx.correlationId, correlationId: ctx.correlationId,
+    source: "dashboard/command", occurredAt: new Date().toISOString(), outcome,
+    captureEligibility: privateInput ? "private" : "eligible", redaction: "required", payload: { kind: "text", text },
+  });
+}
+
+function requestChannel(ctx: Parameters<Handler>[0]): string {
+  const source = (ctx.body as CommandRequest).source;
+  return source === "voice" ? "dashboard_voice" : "dashboard";
+}
 
 async function controlCommand(ctx: Parameters<Handler>[0], action: "stop" | "pause" | "resume"): Promise<Awaited<ReturnType<Handler>>> {
   const request = ctx.body as CommandControlRequest;
@@ -43,6 +63,8 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
   async executeCommand(ctx) {
     const request = ctx.body as CommandRequest;
     const sensitive = CommandHistoryStore.isSensitive(request.text);
+    const privateInput = sensitive || /(?:dieses gespräch nicht speichern|nicht merken|do not store|private mode)/i.test(request.text);
+    captureCommand(ctx, `${ctx.correlationId}-u`, "user_utterance", request.text, "completed", privateInput);
     ctx.audit.action = "command.executed";
     let status = "failed";
     try {
@@ -61,6 +83,9 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         ...(sensitive ? {} : { text: request.text.slice(0, 200) }),
       };
       if (response.approvalId) ctx.audit.approvalId = response.approvalId;
+      const answer = response.result?.message ?? response.previewText;
+      if (answer) captureCommand(ctx, `${ctx.correlationId}-a`, "assistant_response", answer,
+        response.status === "executed" ? "completed" : "uncertain", privateInput);
       return result;
     } finally {
       ctx.runtime.stores.commands.record({

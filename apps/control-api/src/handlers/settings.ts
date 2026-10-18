@@ -6,17 +6,25 @@ import type { TelegramGatewayPatch } from "../services/telegram-gateway";
 import type { MessagingGatewayPatch } from "../services/messaging-gateways";
 import type { TelephonyProfile } from "../services/telephony";
 import type { HimalayaSendRequest } from "../services/himalaya-send";
-import { ApiError, forbidden, validationFailed } from "../util/errors";
+import { ApiError, conflict, forbidden, validationFailed } from "../util/errors";
 import { LocationWeatherService } from "../services/location-weather";
 import { applyVoicePersona, VOICE_PERSONAS, type VoicePersona } from "../services/voice-persona";
+import { recordAudioAck, recordVoiceAck } from "../services/integration-status";
+import { applyVoiceAudio, voiceRuntimeStatus } from "../services/voice-audio";
 import type { SettingsService } from "../services/settings";
 import { localList } from "./meta";
+import { captureMailSend } from "./mail-memory";
 
 const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString() });
 
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: fresh() });
 const weatherServices = new WeakMap<SettingsService, LocationWeatherService>();
 const voiceChanges = new WeakSet<SettingsService>();
+async function legacyMail(ctx: Parameters<Handler>[0]) {
+  const catalog = await ctx.runtime.mailAccounts.list();
+  const account = catalog.accounts.find((item) => item.id === catalog.defaultAccountId);
+  return { catalog, account };
+}
 function weatherService(settings: SettingsService): LocationWeatherService {
   let service = weatherServices.get(settings);
   if (!service) { service = new LocationWeatherService(settings); weatherServices.set(settings, service); }
@@ -104,6 +112,37 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     return { status: 200, body: single(status) };
   },
   async getWhatsappGateway(ctx) { return { status: 200, body: single(await ctx.runtime.whatsappGateway.status()) }; },
+  async getWhatsappPairing(ctx) { return { status: 200, body: single(await ctx.runtime.whatsappGateway.pairing("status")),
+    headers: { "Cache-Control": "no-store" } }; },
+  async startWhatsappPairing(ctx) {
+    const { mode } = ctx.body as { mode: "bot" | "self-chat" };
+    const pairing = await ctx.runtime.whatsappGateway.pairing("start", mode);
+    ctx.audit.action = "settings.whatsapp_pairing_started";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { state: pairing.state };
+    return { status: 200, body: single(pairing), headers: { "Cache-Control": "no-store" } };
+  },
+  async cancelWhatsappPairing(ctx) {
+    const pairing = await ctx.runtime.whatsappGateway.pairing("cancel");
+    ctx.audit.action = "settings.whatsapp_pairing_cancelled";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { state: pairing.state };
+    return { status: 200, body: single(pairing), headers: { "Cache-Control": "no-store" } };
+  },
+  async reconnectWhatsappGateway(ctx) {
+    const pairing = await ctx.runtime.whatsappGateway.pairing("reconnect");
+    ctx.audit.action = "settings.whatsapp_gateway_reconnected";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { state: pairing.state, connectionState: pairing.connectionState };
+    return { status: 200, body: single(pairing), headers: { "Cache-Control": "no-store" } };
+  },
+  async logoutWhatsappGateway(ctx) {
+    const pairing = await ctx.runtime.whatsappGateway.pairing("logout");
+    ctx.audit.action = "settings.whatsapp_gateway_logged_out";
+    ctx.audit.severity = "warning";
+    ctx.audit.after = { state: pairing.state };
+    return { status: 200, body: single(pairing), headers: { "Cache-Control": "no-store" } };
+  },
   async putWhatsappGateway(ctx) {
     const status = await ctx.runtime.whatsappGateway.update(ctx.body as MessagingGatewayPatch, ctx.mutation.ifMatchVersion ?? -1);
     ctx.audit.action = "settings.whatsapp_gateway_updated";
@@ -124,38 +163,78 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     return { status: 200, body: single(status) };
   },
   async sendHimalayaMessage(ctx) {
-    const outcome = await ctx.runtime.himalayaSend.send(ctx.body as HimalayaSendRequest,
+    const { account } = await legacyMail(ctx);
+    if (!account) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Mail Postfach ist nicht eingerichtet." });
+    const result = await ctx.runtime.mailSend.send(account.id, ctx.body as HimalayaSendRequest,
       ctx.principal!.userId, ctx.idempotencyKey ?? "");
+    const memoryCapture = captureMailSend(ctx, account.id, ctx.principal!.userId, ctx.principal!.userId, "dashboard", result.state);
+    const outcome = { state: result.state === "uncertain" ? "unknown" as const : "sent" as const, replayed: result.replayed };
     ctx.audit.action = "communication.himalaya_send";
     ctx.audit.severity = "warning";
-    ctx.audit.after = { state: outcome.state, replayed: outcome.replayed };
+    ctx.audit.after = { state: outcome.state, replayed: outcome.replayed, memoryCapture };
     return { status: 200, body: single(outcome), headers: { "Idempotent-Replayed": String(outcome.replayed) } };
   },
   async listHimalayaMailboxes(ctx) {
     if (ctx.voiceBridgeAuthorized && !ctx.runtime.auth.ownerPasswordConfigured()) throw forbidden("Besitzerkonto fehlt.");
-    return { status: 200, body: single(await ctx.runtime.himalayaAccount.mailboxes()) };
+    const { account } = await legacyMail(ctx);
+    if (!account) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Mail Postfach ist nicht eingerichtet." });
+    const result = await ctx.runtime.mailAccounts.folders(account.id);
+    return { status: 200, body: single({ mailboxes: result.folders.map((item) => ({ ...item, role: item.role ?? (item.id.toLowerCase() === "inbox" ? "inbox" : null) })) }) };
   },
   async listHimalayaEnvelopes(ctx) {
     if (ctx.voiceBridgeAuthorized && !ctx.runtime.auth.ownerPasswordConfigured()) throw forbidden("Besitzerkonto fehlt.");
-    return { status: 200, body: single(await ctx.runtime.himalayaAccount.envelopes(
-      String(ctx.query.mailbox ?? ""), Number(ctx.query.page ?? 1))) };
+    const { account } = await legacyMail(ctx);
+    if (!account) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Mail Postfach ist nicht eingerichtet." });
+    const result = await ctx.runtime.mailAccounts.envelopes(account.id, String(ctx.query.mailbox ?? ""), Number(ctx.query.page ?? 1));
+    return { status: 200, body: single({ mailbox: result.mailbox, page: result.page, items: result.items.map((row) => {
+      const item = row as { id: string; subject: string; from: string; date: string; flags?: string[] };
+      return { id: item.id, subject: item.subject, from: [{ address: item.from }], date: item.date, flags: item.flags ?? [] };
+    }) }) };
   },
   async getHimalayaMessage(ctx) {
     if (ctx.voiceBridgeAuthorized && !ctx.runtime.auth.ownerPasswordConfigured()) throw forbidden("Besitzerkonto fehlt.");
-    return { status: 200, body: single(await ctx.runtime.himalayaAccount.message(
-      String(ctx.query.mailbox ?? ""), String(ctx.query.id ?? ""))) };
+    const { account } = await legacyMail(ctx);
+    if (!account) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Mail Postfach ist nicht eingerichtet." });
+    const mailbox = String(ctx.query.mailbox ?? "");
+    const selection = await ctx.runtime.mailAccounts.envelopes(account.id, mailbox, 1);
+    if (!selection.uidValidity) throw conflict("Ordnerkennung fehlt. Bitte erneut laden.");
+    const result = await ctx.runtime.mailAccounts.message(account.id, mailbox, String(ctx.query.id ?? ""), selection.uidValidity);
+    const { attachments: _attachments, uid: id, uidValidity: _uidValidity, to: _to, ...compatible } = result;
+    return { status: 200, body: single({ ...compatible, id }) };
   },
   async getHimalayaAccount(ctx) {
-    return { status: 200, body: single(await ctx.runtime.himalayaAccount.status()) };
+    const { account } = await legacyMail(ctx);
+    const configured = !!account;
+    const credentialsPresent = account?.authMode === "password"
+      ? !!account.secretState.imapPassword && !!account.secretState.smtpPassword
+      : !!account?.secretState.oauthRefreshToken;
+    const cliInstalled = await ctx.runtime.himalayaAccount.status().then((status) => status.cliInstalled, () => false);
+    return { status: 200, body: single({ managed: configured, configPresent: configured, credentialsPresent,
+      cliInstalled, readyForLocalUse: account?.authMode === "password" && configured && credentialsPresent,
+      connectionChecked: false, revision: account?.revision ?? 0 }) };
   },
   async checkHimalayaSmtp(ctx) {
-    const result = await ctx.runtime.himalayaAccount.checkSmtp();
+    const { account } = await legacyMail(ctx);
+    if (!account) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Mail Postfach ist nicht eingerichtet." });
+    const result = await ctx.runtime.mailAccounts.check(account.id, "smtp");
     ctx.audit.action = "settings.himalaya_smtp_checked";
     ctx.audit.after = { ok: result.ok };
     return { status: 200, body: single(result) };
   },
   async putHimalayaAccount(ctx) {
-    const status = await ctx.runtime.himalayaAccount.update(ctx.body as HimalayaAccountPatch, ctx.mutation.ifMatchVersion ?? -1);
+    const input = ctx.body as HimalayaAccountPatch;
+    const { account } = await legacyMail(ctx);
+    if ((account?.revision ?? 0) !== ctx.mutation.ifMatchVersion) throw conflict("Das Mail Postfach wurde inzwischen geaendert. Bitte neu laden.");
+    const created = await ctx.runtime.mailAccounts.upsert({ id: account?.id ?? "friday", displayName: input.displayName,
+      email: input.email, senderName: input.displayName, aliases: account?.aliases ?? [], signature: account?.signature ?? "",
+      imapHost: input.imapHost, imapPort: input.imapPort, imapSecurity: "tls", imapLogin: input.imapLogin,
+      smtpHost: input.smtpHost, smtpPort: input.smtpPort, smtpSecurity: input.smtpEncryption, smtpLogin: input.smtpLogin,
+      sentFolder: input.sentFolder, draftsFolder: input.draftsFolder, trashFolder: input.trashFolder,
+      archiveFolder: account?.archiveFolder ?? "Archive", spamFolder: account?.spamFolder ?? "Spam" },
+    { imapPassword: input.imapPassword, smtpPassword: input.smtpPassword }, account?.revision ?? null);
+    const cliInstalled = await ctx.runtime.himalayaAccount.status().then((status) => status.cliInstalled, () => false);
+    const status = { managed: true, configPresent: true, credentialsPresent: true, cliInstalled,
+      readyForLocalUse: true, connectionChecked: false, revision: created.revision };
     ctx.audit.action = "settings.himalaya_account_updated";
     ctx.audit.severity = "warning";
     ctx.audit.after = { configured: status.managed && status.credentialsPresent, cliInstalled: status.cliInstalled };
@@ -197,7 +276,13 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
 
   async putObsidianVault(ctx) {
     const body = ctx.body as { path: string };
+    try { ctx.runtime.durableMemory.prepareVaultSwitch(body.path); }
+    catch { throw conflict("Der neue Vault ist nicht bereit oder enthält widersprüchliche Friday-Notizen."); }
     const status = await ctx.runtime.obsidianVault.set(body.path, ctx.mutation.ifMatchVersion ?? -1);
+    if (status.readable && status.applied) {
+      try { ctx.runtime.durableMemory.switchVault(body.path); }
+      catch { throw conflict("Hermes nutzt den neuen Vault, Friday konnte seine Notizen nicht sicher übernehmen. Bitte Vault prüfen."); }
+    }
     ctx.audit.action = "settings.obsidian_vault_updated";
     ctx.audit.after = { configured: status.configured, readable: status.readable, applied: status.applied };
     return { status: 200, body: single(status) };
@@ -221,13 +306,17 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
   async updateSettings(ctx) {
     const patch = ctx.body as SettingsPatch;
     const requested = patch.voice?.ttsVoice;
-    const previous = ctx.runtime.settings.area("voice").ttsVoice;
+    const previousVoice = ctx.runtime.settings.area("voice");
+    const previous = previousVoice.ttsVoice;
     const changeVoice = requested !== undefined && requested !== previous;
+    const input = patch.voice?.inputDeviceId !== undefined ? patch.voice.inputDeviceId : previousVoice.inputDeviceId;
+    const output = patch.voice?.outputDeviceId !== undefined ? patch.voice.outputDeviceId : previousVoice.outputDeviceId;
+    const changeAudio = patch.voice !== undefined && (input !== previousVoice.inputDeviceId || output !== previousVoice.outputDeviceId);
     if (patch.voice && voiceChanges.has(ctx.runtime.settings)) {
       throw new ApiError({ code: "CONFLICT", message: "Eine Stimmenänderung läuft bereits." });
     }
-    if (changeVoice) {
-      if (!VOICE_PERSONAS.includes(requested as VoicePersona)) {
+    if (changeVoice || changeAudio) {
+      if (changeVoice && !VOICE_PERSONAS.includes(requested as VoicePersona)) {
         throw validationFailed("Bitte F.R.I.D.A.Y. oder J.A.R.V.I.S. wählen.", [{ path: "voice.ttsVoice", message: "unbekannte Stimme" }]);
       }
       const originalVersion = ctx.runtime.settings.version();
@@ -237,19 +326,33 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
       ctx.runtime.settings.validateAreas(patch);
       voiceChanges.add(ctx.runtime.settings);
       try {
-        await applyVoicePersona(ctx.runtime, requested as VoicePersona);
         try {
+          if (changeVoice) await applyVoicePersona(ctx.runtime, requested as VoicePersona);
+          const audioInstance = changeAudio ? await applyVoiceAudio(ctx.runtime, input, output) : null;
+          const status = await voiceRuntimeStatus(ctx.runtime);
+          const instance = status.service_started_at;
+          if (typeof instance !== "string" || (changeVoice && status.tts_voice_choice !== requested) || (audioInstance && instance !== audioInstance))
+            throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst hat die Änderung nicht bestätigt." });
           const result = ctx.runtime.settings.patch(patch, originalVersion);
+          if (changeVoice) recordVoiceAck(ctx.runtime, result.settings.version, requested as VoicePersona, instance);
+          if (changeAudio) recordAudioAck(ctx.runtime, result.settings.version, input, output, instance);
           ctx.audit.action = "settings.voice_changed";
-          ctx.audit.after = { voice: requested, version: result.settings.version };
+          ctx.audit.after = { ...(changeVoice ? { voice: requested } : {}), ...(changeAudio ? { audioDeviceChanged: true } : {}), version: result.settings.version };
           return { status: 200, body: single(result.settings) };
         } catch (error) {
-          try {
-            if (!VOICE_PERSONAS.includes(previous as VoicePersona)) throw new Error("Vorherige Stimme unbekannt", { cause: error });
-            await applyVoicePersona(ctx.runtime, previous as VoicePersona);
-          } catch (recovery) {
-            throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Stimme wurde geändert, aber Speichern und Rückkehr zur vorherigen Stimme konnten nicht bestätigt werden. Bitte Sprachdienst prüfen.", cause: recovery });
+          const recoveryErrors: unknown[] = [];
+          if (changeAudio) {
+            try { await applyVoiceAudio(ctx.runtime, previousVoice.inputDeviceId, previousVoice.outputDeviceId); }
+            catch (recovery) { recoveryErrors.push(recovery); }
           }
+          if (changeVoice) {
+            try {
+              if (!VOICE_PERSONAS.includes(previous as VoicePersona)) throw new Error("Vorherige Stimme unbekannt", { cause: error });
+              await applyVoicePersona(ctx.runtime, previous as VoicePersona);
+            } catch (recovery) { recoveryErrors.push(recovery); }
+          }
+          if (recoveryErrors.length)
+            throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachänderung und Rückkehr zur vorherigen Konfiguration konnten nicht bestätigt werden. Bitte Sprachdienst prüfen.", cause: new AggregateError(recoveryErrors, "Voice rollback incomplete") });
           throw error;
         }
       } finally {

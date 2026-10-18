@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema", "$id":"https://friday.local/schemas/integrations/mail-account-write.schema.json", "title":"MailAccountWrite", "type":"object",
+  "properties": {
+    "displayName":{"type":"string","minLength":1,"maxLength":200}, "email":{"type":"string","format":"email"}, "senderName":{"type":"string","minLength":1,"maxLength":200},
+    "aliases":{"type":"array","maxItems":20,"items":{"type":"string","format":"email"}}, "signature":{"type":"string","maxLength":1024},
+    "imapHost":{"type":"string","minLength":1,"maxLength":253}, "imapPort":{"type":"integer","minimum":1,"maximum":65535}, "imapSecurity":{"enum":["tls","start-tls"]}, "imapLogin":{"type":"string","minLength":1,"maxLength":200},
+    "smtpHost":{"type":"string","minLength":1,"maxLength":253}, "smtpPort":{"type":"integer","minimum":1,"maximum":65535}, "smtpSecurity":{"enum":["tls","start-tls"]}, "smtpLogin":{"type":"string","minLength":1,"maxLength":200},
+    "sentFolder":{"type":"string","maxLength":200}, "draftsFolder":{"type":"string","maxLength":200}, "trashFolder":{"type":"string","maxLength":200}, "archiveFolder":{"type":"string","maxLength":200}, "spamFolder":{"type":"string","maxLength":200},
+    "authMode":{"enum":["password","google-oauth","microsoft-oauth"]}, "oauthClientId":{"type":"string","maxLength":256}, "oauthTenant":{"type":"string","maxLength":36},
+    "secrets":{"type":"object","properties":{"imapPassword":{"type":["string","null"],"minLength":1,"maxLength":1024},"smtpPassword":{"type":["string","null"],"minLength":1,"maxLength":1024}},"additionalProperties":false}
+  },
+  "required":["displayName","email","senderName","aliases","signature","imapHost","imapPort","imapSecurity","imapLogin","smtpHost","smtpPort","smtpSecurity","smtpLogin","sentFolder","draftsFolder","trashFolder","archiveFolder","spamFolder"],
+  "additionalProperties":false
+}

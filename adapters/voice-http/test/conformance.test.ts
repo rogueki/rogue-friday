@@ -43,6 +43,7 @@ async function open(initialize = true): Promise<Rig> {
   const llama = await createFakeUpstream();
   installLlamaServer(llama);
   upstream.route("GET", "/", { body: makeVoiceStatus() });
+  upstream.route("GET", "/devices", { body: { transport: "device", items: [] } });
   const session = await openSession(
     new FridayVoiceHttpAdapter(),
     { baseUrl: upstream.url, localModelUrl: llama.url, ...TIMING },

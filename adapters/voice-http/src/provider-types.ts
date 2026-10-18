@@ -4,6 +4,7 @@ export const RAW_VOICE_STATES = [
   // Linux browser transport: the service waits until the owner's browser opens the audio WebSocket.
   "waiting_audio",
   "listening",
+  "wake_only",
   "command",
   "speaking",
   "followup",
@@ -61,4 +62,8 @@ export interface RawVoiceStatus {
   output_audio?: RawAudioLevels;
   /** `device` (host microphone/speaker) or `browser` (Linux: audio travels through the dashboard WebSocket). */
   audio_transport?: "device" | "browser";
+  service_started_at?: string;
+  tts_voice_choice?: string | null;
+  input_device_id?: string | null;
+  output_device_id?: string | null;
 }

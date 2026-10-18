@@ -3,6 +3,7 @@ import { EVENTS_PATH } from "../realtime/hub";
 import type { Handler, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { ApiError } from "../util/errors";
+import { voiceIntegrationStatus } from "../services/integration-status";
 
 const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString() });
 
@@ -80,7 +81,12 @@ export const metaHandlers: Partial<Record<OperationId, Handler>> = {
   },
 
   async getCapabilities(ctx) {
-    return { status: 200, body: ctx.runtime.capabilities() };
+    const status = await voiceIntegrationStatus(ctx.runtime, ctx.call);
+    return { status: 200, body: { ...ctx.runtime.capabilities(), integrations: [{
+      id: "voice", contractVersion: CONTRACT_VERSION, actions: [], settingsArea: "voice", requires: ["friday-voice-http"],
+      roles: ["viewer", "operator", "owner"], availability: status.connected ? "available" : status.configured ? "offline" : "needs_setup",
+      reasonCode: status.errorCode,
+    }] } };
   },
 
   async listAdapters(ctx) {

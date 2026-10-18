@@ -40,6 +40,8 @@ class MailVoice:
         self.interpret = interpret
         self.read_offset = 0
         self.followup = None
+        self.account_id = None
+        self.account_name = None
 
     def clear(self):
         self.pending = None
@@ -49,6 +51,8 @@ class MailVoice:
         self.draft = None
         self.read_offset = 0
         self.followup = None
+        self.account_id = None
+        self.account_name = None
 
     def clear_confirmation(self):
         self.pending = None
@@ -75,7 +79,8 @@ class MailVoice:
             headers["Content-Type"] = "application/json"
         if key:
             headers["Idempotency-Key"] = key
-        url = f"http://127.0.0.1:{dashboard_port(self.root)}/api/v1/communication/himalaya/{path}"
+        endpoint = path if path.startswith("/api/v1/") else "/api/v1/communication/himalaya/" + path
+        url = f"http://127.0.0.1:{dashboard_port(self.root)}{endpoint}"
         req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8") if body is not None else None,
                                      headers=headers, method=method)
         with self.opener.open(req, timeout=12 if method == "GET" else 35) as response:
@@ -110,8 +115,13 @@ class MailVoice:
         return self.selected
 
     def _read(self, selected, label):
-        query = urllib.parse.urlencode(selected)
-        data, error = self._safe("GET", "message?" + query)
+        if selected.get("accountId"):
+            query = urllib.parse.urlencode({"mailbox": selected["mailbox"], "uid": selected["id"],
+                                            "uidValidity": selected["uidValidity"]})
+            path = f"/api/v1/integrations/mail/accounts/{selected['accountId']}/message?" + query
+        else:
+            path = "message?" + urllib.parse.urlencode(selected)
+        data, error = self._safe("GET", path)
         if error:
             return error
         self.selected = selected
@@ -125,7 +135,13 @@ class MailVoice:
         selected = self._current()
         if not selected or not getattr(self, "read_offset", 0):
             return "Bitte waehle zuerst eine Mail zum Vorlesen."
-        data, error = self._safe("GET", "message?" + urllib.parse.urlencode(selected))
+        if selected.get("accountId"):
+            query = urllib.parse.urlencode({"mailbox": selected["mailbox"], "uid": selected["id"],
+                                            "uidValidity": selected["uidValidity"]})
+            path = f"/api/v1/integrations/mail/accounts/{selected['accountId']}/message?" + query
+        else:
+            path = "message?" + urllib.parse.urlencode(selected)
+        data, error = self._safe("GET", path)
         if error:
             return error
         body = data["bodyText"]
@@ -296,10 +312,12 @@ class MailVoice:
             if not folder_name:
                 self.followup = {"action": "move", "selected": selected, "expires": self.now() + 120}
                 return "In welchen bestehenden Ordner soll ich die Mail verschieben?"
-            boxes, error = self._safe("GET", "mailboxes")
+            boxes, error = self._safe("GET", f"/api/v1/integrations/mail/accounts/{selected['accountId']}/folders"
+                                      if selected.get("accountId") else "mailboxes")
             if error:
                 return error
-            folders = [row for row in boxes["mailboxes"] if row["name"].casefold() == folder_name.casefold()]
+            folders = [row for row in boxes.get("folders", boxes.get("mailboxes", []))
+                       if row["name"].casefold() == folder_name.casefold()]
             if len(folders) != 1:
                 return "Der Zielordner ist nicht eindeutig. Bitte nenne den genauen Ordnernamen."
             return self._preview({"action": "move", **selected, "destination": folders[0]["id"]})
@@ -338,7 +356,8 @@ class MailVoice:
             return "Betreff oder Mailtext sind fuer die Sprachvorschau zu lang. Bitte kuerzer formulieren."
         draft = self.draft
         self.draft = None
-        return self._preview({"action": "compose", "to": [draft["to"]], "subject": draft["subject"], "body": draft["body"]})
+        return self._preview({"action": "compose", "to": [draft["to"]], "subject": draft["subject"], "body": draft["body"],
+                              **({"accountId": self.account_id} if self.account_id else {})})
 
     @staticmethod
     def _recipient(words):
@@ -367,7 +386,7 @@ class MailVoice:
         self.pending = {"request": request, "preview": preview, "key": "idem_voice_mail_" + uuid.uuid4().hex,
                         "expires": self.now() + remaining, "armed": False}
         if request["action"] in ("compose", "reply"):
-            return (f"Vorschau. An {', '.join(preview['to'])}. Betreff {preview['subject']}. "
+            return (f"Vorschau aus {preview.get('accountName', 'Mail Postfach')}. An {', '.join(preview['to'])}. Betreff {preview['subject']}. "
                     f"Text: {preview['body']}. Soll ich genau diese E-Mail senden? Sage Ja oder Nein.")
         if request["action"] == "move":
             return (f"Vorschau. Nachricht {preview['subject']} aus {preview['mailbox']} nach "
@@ -446,17 +465,36 @@ class MailVoice:
                 self.draft = None
                 return "Der Mailentwurf wurde verworfen."
             return self._draft_step(words)
-        if match := LIST.fullmatch(words):
-            boxes, error = self._safe("GET", "mailboxes")
+        choice = re.fullmatch(r"(?:friday[, ]+)?(?:nimm|nutze|benutze|waehle|wähle)\s+(?:(?:mein|das|den)\s+)?(.+?)[.!?\s]*", words, re.I)
+        if choice and re.search(r"(?:postfach|mail|konto)", choice[1], re.I):
+            catalog, error = self._safe("GET", "/api/v1/integrations/mail/accounts")
             if error:
                 return error
-            inbox = next((row for row in boxes["mailboxes"] if row["role"] == "inbox"), None)
+            label = self._spoken_label(choice[1]).casefold()
+            matches = [row for row in catalog["accounts"] if row["displayName"].casefold() == label or
+                       row["email"].casefold() == label]
+            if len(matches) != 1:
+                return "Dieses Mail Postfach ist nicht eindeutig. Bitte nenne den vollständigen Kontonamen."
+            self.account_id = matches[0]["id"]
+            self.account_name = matches[0]["displayName"]
+            self.results = []
+            self.selected = None
+            self.followup = None
+            return f"Ich nutze jetzt {self.account_name}. Welche Mailaktion möchtest du?"
+        if match := LIST.fullmatch(words):
+            boxes, error = self._safe("GET", f"/api/v1/integrations/mail/accounts/{self.account_id}/folders"
+                                      if self.account_id else "mailboxes")
+            if error:
+                return error
+            inbox = next((row for row in boxes.get("folders", boxes.get("mailboxes", []))
+                          if row["role"] == "inbox" or row["id"].casefold() == "inbox"), None)
             if inbox is None:
                 return "Kein eindeutiger Posteingang ist eingerichtet."
             items = []
             for page in (1, 2):
                 query = urllib.parse.urlencode({"mailbox": inbox["id"], "page": page})
-                data, error = self._safe("GET", "envelopes?" + query)
+                path = f"/api/v1/integrations/mail/accounts/{self.account_id}/envelopes?" + query if self.account_id else "envelopes?" + query
+                data, error = self._safe("GET", path)
                 if error:
                     return error
                 items.extend(data["items"])
@@ -475,7 +513,9 @@ class MailVoice:
                 haystack = row.get("subject", "") + " " + json.dumps(row.get("from", []), ensure_ascii=False)
                 return not term or term in haystack.casefold()
             found = [row for row in items if matches(row)][:5]
-            self.results = [{"mailbox": inbox["id"], "id": row["id"]} for row in found]
+            self.results = [{"mailbox": inbox["id"], "id": row["id"],
+                             **({"accountId": self.account_id, "uidValidity": data["uidValidity"]} if self.account_id else {})}
+                            for row in found]
             self.selected = None
             self.read_offset = 0
             self.results_expires = self.now() + 120
@@ -492,7 +532,8 @@ class MailVoice:
             recipient = self._recipient(match["to"].replace("(at)", "@").replace("[at]", "@"))
             if len(match["subject"]) > 200 or len(match["body"]) > 1000:
                 return "Betreff oder Mailtext sind fuer die Sprachvorschau zu lang. Bitte kuerzer formulieren."
-            return self._preview({"action": "compose", "to": [recipient], "subject": match["subject"], "body": match["body"]})
+            return self._preview({"action": "compose", "to": [recipient], "subject": match["subject"], "body": match["body"],
+                                  **({"accountId": self.account_id} if self.account_id else {})})
         for pattern, action in ((REPLY, "reply"), (MOVE, "move"), (FLAG, "flag")):
             if match := pattern.fullmatch(words):
                 selected = self._selected(match["number"])
@@ -504,11 +545,13 @@ class MailVoice:
                         return "Der Antworttext ist fuer die Sprachvorschau zu lang. Bitte kuerzer formulieren."
                     request["body"] = match["body"]
                 if action == "move":
-                    boxes, error = self._safe("GET", "mailboxes")
+                    boxes, error = self._safe("GET", f"/api/v1/integrations/mail/accounts/{selected['accountId']}/folders"
+                                              if selected.get("accountId") else "mailboxes")
                     if error:
                         return error
                     folder_name = self._spoken_label(match["folder"])
-                    folders = [row for row in boxes["mailboxes"] if folder_name and row["name"].casefold() == folder_name.casefold()]
+                    folders = [row for row in boxes.get("folders", boxes.get("mailboxes", []))
+                               if folder_name and row["name"].casefold() == folder_name.casefold()]
                     if len(folders) != 1:
                         return "Der Zielordner ist nicht eindeutig. Bitte nenne den genauen Ordnernamen."
                     request["destination"] = folders[0]["id"]

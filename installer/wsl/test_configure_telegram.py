@@ -9,6 +9,7 @@ from unittest import mock
 spec = importlib.util.spec_from_file_location("configure_telegram", Path(__file__).with_name("configure_telegram.py"))
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
+REAL_BOT_PROBE = module.bot_probe
 
 
 class TelegramSetupTests(unittest.TestCase):
@@ -27,6 +28,10 @@ class TelegramSetupTests(unittest.TestCase):
         self.commands = mock.patch.object(module, "command", side_effect=self.command)
         self.commands.start()
         self.addCleanup(self.commands.stop)
+        self.probe = mock.patch.object(module, "bot_probe", return_value={"botAuthentication": "verified",
+            "botId": "123456789", "botUsername": "fake_bot", "receiveMode": "polling"})
+        self.probe.start()
+        self.addCleanup(self.probe.stop)
 
     def command(self, *args):
         if args[1:4] == ("config", "get", "platforms.telegram.enabled"):
@@ -73,6 +78,31 @@ class TelegramSetupTests(unittest.TestCase):
         request["allowedUserIds"] = ["123456789"]
         request["revision"] = 1
         self.assertEqual(self.submit(request)[0], 3)
+        self.assertEqual(self.restarts, 0)
+
+    def test_getme_and_webhook_probe_uses_fixed_telegram_methods(self):
+        token = "123456789:" + "a" * 35
+        urls = []
+        def fake_open(url, timeout):
+            urls.append(url)
+            body = {"ok": True, "result": {"id": 123456789, "is_bot": True, "username": "friday_bot"}} if url.endswith("/getMe") else \
+                   {"ok": True, "result": {"url": "https://example.test/hook"}}
+            return mock.MagicMock(__enter__=lambda self: io.BytesIO(json.dumps(body).encode()), __exit__=lambda *args: None)
+        with mock.patch.object(module, "urlopen", side_effect=fake_open):
+            result = REAL_BOT_PROBE(token)
+        self.assertEqual((result["botAuthentication"], result["botId"], result["receiveMode"]),
+                         ("verified", "123456789", "webhook"))
+        self.assertEqual([url.rsplit("/", 1)[-1] for url in urls], ["getMe", "getWebhookInfo"])
+        self.assertNotIn(token, json.dumps(result))
+
+    def test_known_webhook_conflict_blocks_polling_activation(self):
+        token = "123456789:" + "a" * 35
+        request = {"token": token, "clearToken": False, "allowedUserIds": ["123456789"],
+                   "enabled": True, "revision": module.snapshot()["revision"]}
+        with mock.patch.object(module, "bot_probe", return_value={"botAuthentication": "verified",
+                "botId": "123456789", "botUsername": "fake_bot", "receiveMode": "webhook"}):
+            code, result = self.submit(request)
+        self.assertEqual((code, result["error"]), (4, "invalid_bot_or_webhook_conflict"))
         self.assertEqual(self.restarts, 0)
 
 

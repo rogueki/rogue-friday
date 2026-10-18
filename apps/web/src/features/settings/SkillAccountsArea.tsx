@@ -12,7 +12,7 @@ import { getApiClient } from "@/lib/api/client";
 import { useSkillsCatalog } from "@/lib/api/domains/skills";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { useSettingsDrafts } from "./SettingsDrafts";
-import { HimalayaAccountSetup } from "./HimalayaAccountSetup";
+import { MailAccountsArea } from "./MailAccountsArea";
 import { TelegramGatewaySetup } from "./TelegramGatewaySetup";
 import { MessagingGatewaySetup } from "./MessagingGatewaySetup";
 import { TelephonySetup } from "./TelephonySetup";
@@ -326,7 +326,7 @@ export function SkillAccountsArea() {
         {codingClis.data?.data.map((item) => <p key={item.cli}><strong>{codingCliNames[item.cli]}</strong>{item.version ? ` ${item.version}` : ""}: {codingCliState(item)}. {item.cli === "codex" ? "ChatGPT-Abo: codex login --device-auth in Friday-Ubuntu." : item.cli === "opencode" ? "Anbieter mit opencode auth login einrichten; für lokale Modelle ist das optional." : "Claude-Abo: claude auth login --claudeai in Friday-Ubuntu."}</p>)}
       </> : <p>Nur der Owner kann den lokalen CLI-Status sehen.</p>}
     </section>
-    <HimalayaAccountSetup owner={role === "owner"} />
+    <MailAccountsArea owner={role === "owner"} />
     <TelegramGatewaySetup owner={role === "owner"} />
     <MessagingGatewaySetup owner={role === "owner"} platform="discord" />
     <MessagingGatewaySetup owner={role === "owner"} platform="whatsapp" />

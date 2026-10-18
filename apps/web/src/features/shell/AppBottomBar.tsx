@@ -113,7 +113,7 @@ export function AppBottomBar() {
       levels={voice.audio.level > 0 ? voice.audio.levels : undefined}
       onTalk={voice.toggle}
       onStop={() => (voice.browserAudioActive ? voice.stopBrowserAudio() : canStop ? stop.mutate({ scope: "voice" }) : unavailable())}
-      onPause={() => {
+      onPause={pathname === "/" ? undefined : () => {
         if (voice.browserAudioActive) return paused ? voice.resumeBrowserAudio() : voice.pauseBrowserAudio();
         if (paused) return canResume ? resume.mutate({ scope: "voice" }) : unavailable();
         return canPause ? pause.mutate({ scope: "voice" }) : unavailable();

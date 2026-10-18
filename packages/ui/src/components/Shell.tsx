@@ -768,7 +768,7 @@ export const BottomCommandBar = forwardRef<HTMLElement, BottomCommandBarProps>(f
           {text}
         </span>
         <div className="jv-bottombar__controls">
-          <IconButton label={paused ? resumeLabel : pauseLabel} icon={paused ? <Play size={15} strokeWidth={1.75} /> : <Pause size={15} strokeWidth={1.75} />} onClick={onPause} pressed={paused} size="sm" />
+          {onPause ? <IconButton label={paused ? resumeLabel : pauseLabel} icon={paused ? <Play size={15} strokeWidth={1.75} /> : <Pause size={15} strokeWidth={1.75} />} onClick={onPause} pressed={paused} size="sm" /> : null}
           <IconButton label={stopLabel} icon={<Square size={14} strokeWidth={1.75} />} onClick={onStop} size="sm" variant="danger" />
         </div>
       </div>

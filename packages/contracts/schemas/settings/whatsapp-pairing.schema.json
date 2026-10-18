@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/whatsapp-pairing.schema.json",
+  "title": "WhatsappPairing",
+  "type": "object",
+  "properties": {
+    "id": { "type": ["string", "null"] },
+    "state": { "type": "string", "enum": ["idle", "starting", "waiting", "qr_expired", "connected", "unverified", "expired", "cancelled", "error"] },
+    "mode": { "type": "string", "enum": ["bot", "self-chat"] },
+    "qr": { "type": ["string", "null"], "maxLength": 4096 },
+    "expiresAt": { "type": ["number", "null"] },
+    "linkedIdentity": { "type": ["string", "null"] },
+    "connectionState": { "type": "string", "enum": ["connected", "disconnected", "unknown"] }
+  },
+  "required": ["id", "state", "qr", "expiresAt", "linkedIdentity", "connectionState"],
+  "additionalProperties": false
+}

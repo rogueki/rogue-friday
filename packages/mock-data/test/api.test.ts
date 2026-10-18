@@ -206,7 +206,17 @@ describe("REST route coverage", () => {
       "addLinuxVoiceSample", "cancelContentProductionJob", "checkHermesSkillKey", "checkHimalayaSmtp", "confirmVoiceLocalCalendar", "confirmVoiceMail", "createCalendarEvent", "createCodingRun", "createContentProductionJob", "createLocalCalendarEvent", "createPowerPointDeck", "createVoiceCodingRun", "createVoicePowerPointDeck", "deleteLocalCalendarEvent", "downloadPowerPointDeck", "getBrowserAudioAvailability", "getCloudTalk", "getCodingCliStatus", "getCodingRun", "getCodingVoiceRepository",
       "getContentProductionArtifact", "getContentProductionJob", "getContentStudioPlan", "getCurrentWeather", "getDiscordGateway", "getHermesSkillKeys", "getHimalayaAccount", "getHimalayaMessage", "getLinuxVoiceEnrollment", "getObsidianVault", "getOnboarding", "getTelegramGateway", "getTelephony", "getTelephonyCall", "getWhatsappGateway", "getWikiPath", "hangupTelephonyCall", "listHimalayaEnvelopes", "listHimalayaMailboxes", "listPowerPointDecks", "listSkills", "originateCloudTalkCall", "originateTelephonyCall",
       "previewCalDavEvent", "previewCloudTalkCall", "previewTelephonyCall", "previewVoiceLocalCalendar", "previewVoiceMail", "putCloudTalk", "putCodingVoiceRepository", "putContentStudioPlan", "putDiscordGateway", "putHimalayaAccount", "putObsidianVault", "putOnboarding", "putTelegramGateway", "putTelephony", "putWhatsappGateway", "putWikiPath", "searchLocations", "sendHimalayaMessage", "setSkillActivation", "startLinuxVoiceTraining", "stopCodingRun", "updateHermesSkillKey", "updateLocalCalendarEvent",
-    ];
+      // Connected integrations use local WSL helpers or authenticated provider bridges; mock-data has no provider credentials.
+      "actOnCalendarAccount", "backupDurableMemory", "cancelWhatsappPairing", "captureDurableMemoryEvent", "changeMailMessage",
+      "checkMailAccount", "completeGoogleMailOAuth", "confirmVoiceConnectedCalendar", "correctDurableMemoryEvent",
+      "createMailAccount", "deleteMailAccount", "forgetDurableMemoryEvent", "getDurableMemoryStatus", "getMailAttachment",
+      "getMailMessage", "getVoiceIntegrationStatus", "getWhatsappPairing", "listCalendarAccounts", "listMailAccounts",
+      "listMailEnvelopes", "listMailFolders", "listMailReceipts", "logoutWhatsappGateway", "pollMailOAuth",
+      "previewVoiceConnectedCalendar", "putDurableMemorySettings", "reconcileMailArchive", "reconnectWhatsappGateway",
+      "reindexDurableMemory", "restoreDurableMemory", "retryDurableMemory", "reviewMailReceipt", "revokeMailOAuth",
+      "saveMailDraft", "searchDurableMemory", "searchMailEnvelopes", "sendMailMessage", "setDefaultMailAccount",
+      "startMailOAuth", "startWhatsappPairing", "updateMailAccount",
+    ].sort();
     const mocked = ROUTES.map((route) => route.operationId).sort();
     expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);
     expect(mocked).toEqual(contract.filter((id) => !liveOnly.includes(id)));

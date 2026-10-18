@@ -29,7 +29,7 @@ describe("idempotency", () => {
     const second = await owner.post("/api/v1/tasks", { title: "Einmalig anlegen", priority: "P2" }, { headers });
     expect(second.statusCode).toBe(201);
     expect(second.headers["idempotent-replayed"]).toBe("true");
-    expect(first.headers["idempotent-replayed"]).toBeUndefined();
+    expect(first.headers["idempotent-replayed"]).toBe("false");
     expect(second.json()).toEqual(first.json());
     expect(second.headers.location).toBe(first.headers.location);
     expect(await taskCount()).toBe(before + 1);
@@ -60,7 +60,7 @@ describe("idempotency", () => {
     const a = await owner.post("/api/v1/tasks", { title: "Gleicher Schlüssel" }, { headers });
     const b = await operator.post("/api/v1/tasks", { title: "Gleicher Schlüssel" }, { headers });
     expect(b.statusCode).toBe(201);
-    expect(b.headers["idempotent-replayed"]).toBeUndefined();
+    expect(b.headers["idempotent-replayed"]).toBe("false");
     expect(b.json().data.id).not.toBe(a.json().data.id);
   });
 

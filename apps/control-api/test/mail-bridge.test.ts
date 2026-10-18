@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { startTestApi } from "./helpers";
+import type { MailAccount } from "../src/services/mail-accounts";
 
 describe("read-only Hermes mail bridge", () => {
   it("uses a distinct persisted key and reads only the three GET operations on loopback", async () => {
@@ -14,9 +15,18 @@ describe("read-only Hermes mail bridge", () => {
       expect(readFileSync(join(api.config.paths.dataDir, "mail-bridge", "auth.key"), "utf8").trim()).toBe(key);
       const bridge = { authorization: `Bearer ${key}` };
       const client = api.client();
-      vi.spyOn(api.runtime.himalayaAccount, "mailboxes").mockResolvedValue({ mailboxes: [] });
-      vi.spyOn(api.runtime.himalayaAccount, "envelopes").mockResolvedValue({ mailbox: "INBOX", page: 1, items: [] });
-      vi.spyOn(api.runtime.himalayaAccount, "message").mockResolvedValue({ mailbox: "INBOX", id: "1", subject: "Test", from: "sender@example.test", date: "2026-10-16", bodyText: "Hello" });
+      const account = { id: "work", displayName: "Work", email: "sender@example.test", senderName: "Sender", aliases: [],
+        signature: "", imapHost: "imap.example.test", imapPort: 993, imapSecurity: "tls", imapLogin: "sender@example.test",
+        smtpHost: "smtp.example.test", smtpPort: 465, smtpSecurity: "tls", smtpLogin: "sender@example.test",
+        sentFolder: "Sent", draftsFolder: "Drafts", trashFolder: "Trash", archiveFolder: "Archive", spamFolder: "Spam",
+        revision: 1, authMode: "password", oauthClientId: "", oauthTenant: "",
+        secretState: { imapPassword: true, smtpPassword: true, oauthRefreshToken: false } } as MailAccount;
+      vi.spyOn(api.runtime.mailAccounts, "list").mockResolvedValue({ revision: 1, defaultAccountId: "work", accounts: [account] });
+      vi.spyOn(api.runtime.mailAccounts, "folders").mockResolvedValue({ folders: [] });
+      vi.spyOn(api.runtime.mailAccounts, "envelopes").mockResolvedValue({ mailbox: "INBOX", uidValidity: "1", page: 1, items: [] });
+      vi.spyOn(api.runtime.mailAccounts, "message").mockResolvedValue({ mailbox: "INBOX", uid: "1", uidValidity: "1",
+        subject: "Test", from: "sender@example.test", date: "2026-10-16", bodyText: "Hello", messageId: "<synthetic@example.test>",
+        replyTo: "", references: "", to: "sender@example.test", attachments: [] });
 
       expect((await client.get("/api/v1/communication/himalaya/mailboxes", { headers: bridge })).statusCode).toBe(200);
       expect((await client.get("/api/v1/communication/himalaya/envelopes?mailbox=INBOX", { headers: bridge })).statusCode).toBe(200);

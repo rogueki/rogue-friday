@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from messaging_runtime import platform_state
 
 HERMES = Path.home() / ".hermes"
 ENV = HERMES / ".env"
@@ -60,13 +61,29 @@ def linked():
     return path.is_file() and not path.is_symlink()
 
 
+def linked_phone():
+    legacy = HERMES / "whatsapp" / "session"
+    try:
+        use_legacy = legacy.exists() and (not legacy.is_dir() or any(legacy.iterdir()))
+        directory = legacy if use_legacy else HERMES / "platforms" / "whatsapp" / "session"
+        creds = directory / "creds.json"
+        if creds.is_symlink():
+            return None
+        data = json.loads(creds.read_text(encoding="utf-8"))
+        identifier = data.get("me", {}).get("id")
+        candidate = identifier.split("@", 1)[0].split(":", 1)[0] if isinstance(identifier, str) else ""
+        return candidate if PHONE.fullmatch(candidate) else None
+    except (OSError, ValueError, AttributeError, TypeError):
+        return None
+
+
 def snapshot(platform, lines, applied=None):
     current = values(lines, SPECS[platform])
     flag = enabled(platform)
     ids = [item.strip() for item in current[f"{platform.upper()}_ALLOWED_USERS"].split(",") if item.strip()]
     source = json.dumps([list(current.values()), flag], separators=(",", ":"))
     base = {"allowedUserIds": ids, "enabled": flag, "gatewayRunning": running(),
-            "connectionState": "unknown", "applied": applied,
+            "connectionState": platform_state(HERMES, platform), "applied": applied,
             "revision": int(hashlib.sha256(source.encode()).hexdigest()[:12], 16)}
     if platform == "discord":
         base.update(tokenConfigured=bool(current["DISCORD_BOT_TOKEN"]),
@@ -128,6 +145,9 @@ def update(platform, lines):
             return 2
         if flag and (not ids or not linked()):
             print(json.dumps({"error": "pairing_and_owner_required"}))
+            return 4
+        if flag and mode == "self-chat" and linked_phone() not in ids:
+            print(json.dumps({"error": "self_chat_owner_phone_required"}))
             return 4
         updates = {"WHATSAPP_MODE": mode, "WHATSAPP_ALLOWED_USERS": ",".join(ids), "WHATSAPP_ENABLED": "true" if flag else "false"}
     changed_env = any(updates[key] != current[key] for key in updates)

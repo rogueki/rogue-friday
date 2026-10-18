@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://friday.local/schemas/integrations/mail-oauth-poll.schema.json","title":"MailOAuthPoll","type":"object","properties":{"flowId":{"type":"string","minLength":16,"maxLength":128}},"required":["flowId"],"additionalProperties":false}

@@ -13,3 +13,9 @@
 .mem-diff__before { color: var(--friday-error); }
 .mem-diff__after { color: var(--friday-success); }
 .mem-list-panel { flex: 1; min-height: 240px; }
+.mem-durable { padding: 18px; border: 1px solid var(--jv-line-soft); border-radius: 12px; display: grid; gap: 10px; }
+.mem-durable h2, .mem-durable p { margin: 0; overflow-wrap: anywhere; }
+.mem-durable form, .mem-durable div { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.mem-durable input { min-width: min(100%, 260px); }
+.mem-durable li { overflow-wrap: anywhere; padding: 8px 0; }
+.mem-source-note { margin: 0; color: var(--jv-text-muted); font-size: var(--jv-fs-sm); }

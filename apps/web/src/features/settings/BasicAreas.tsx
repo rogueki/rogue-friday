@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import { useT } from "@/i18n";
 import { useLogoutAll, useLayouts } from "@/lib/api/domains/settings";
 import { useMeta } from "@/lib/api/domains/core";
-import { useVoiceDevices } from "@/lib/api/domains/voice";
+import { useVoiceDevices, useVoiceIntegrationStatus } from "@/lib/api/domains/voice";
 import { useSession } from "@/lib/session";
 import { FieldGrid, NumberField, Section, StringListEditor } from "./controls";
 import { useAreaDraft } from "./SettingsDrafts";
@@ -237,14 +237,24 @@ export function VoiceArea() {
   const { t } = useT();
   const { value, update, readOnly } = useAreaDraft("voice");
   const devices = useVoiceDevices();
+  const integration = useVoiceIntegrationStatus();
   if (!value) return null;
   const options = (kind: "input" | "output", current: string | null) => {
-    const list = (devices.data?.items ?? []).filter((device) => device.kind === kind).map((device) => ({ value: device.id, label: device.isDefault ? `${device.name} (${t("settings.voice.systemDefault")})` : device.name }));
-    if (current && !list.some((option) => option.value === current)) list.push({ value: current, label: current });
+    const list = (devices.data?.items ?? []).filter((device) => device.kind === kind).map((device) => ({ value: device.id, label: `${device.name} · ${(device.labels ?? []).join(", ")}${device.isDefault ? ` (${t("settings.voice.systemDefault")})` : ""}` }));
+    if (current && !list.some((option) => option.value === current)) list.push({ value: current, label: `Nicht verbunden (${current})` });
     return [{ value: "", label: t("settings.voice.systemDefault") }, ...list];
   };
   return (
     <>
+      <Section title="Laufzeitstatus">
+        {integration.isPending ? <p>Sprachdienst wird geprüft…</p> : integration.isError ? <p role="alert">Sprachdienststatus konnte nicht gelesen werden.</p> : integration.data ? (
+          <p role="status">
+            Einstellung gespeichert: Revision {integration.data.data.persistedRevision}. Stimme: {integration.data.data.settings.ttsVoice?.verification === "verified" ? "Umschaltung bestätigt" : "Wirkung nicht bestätigt"}.
+            {integration.data.data.connected ? " Sprachdienst verbunden." : " Sprachdienst nicht verbunden."}
+            {` Eingabegerät: ${integration.data.data.settings.inputDeviceId?.verification === "verified" ? "aktiv bestätigt" : "nicht bestätigt"}. Ausgabegerät: ${integration.data.data.settings.outputDeviceId?.verification === "verified" ? "aktiv bestätigt" : "nicht bestätigt"}.`}
+          </p>
+        ) : null}
+      </Section>
       <Section title={t("settings.voice.activation")}>
         <FieldGrid>
           <Switch label={t("settings.voice.wakeEnabled")} description={t("settings.voice.wakeEnabledDesc")} checked={value.wakeWordEnabled} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(wakeWordEnabled) => update({ wakeWordEnabled })} />
@@ -260,6 +270,8 @@ export function VoiceArea() {
         </FieldGrid>
       </Section>
       <Section title={t("settings.voice.output")}>
+        {devices.isError ? <p role="alert">Audiogeräte konnten nicht gelesen werden. Sprachdienst und Audio-Berechtigung prüfen.</p> : null}
+        <button type="button" onClick={() => void devices.refetch()} disabled={devices.isFetching}>Audiogeräte neu suchen</button>
         <FieldGrid>
           <Select label={t("settings.voice.ttsVoice")} value={value.ttsVoice} disabled={readOnly}
             options={[
