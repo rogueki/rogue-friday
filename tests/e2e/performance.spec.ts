@@ -113,18 +113,25 @@ test.describe("orb render loop", () => {
     await open(page, "/");
     await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
     await page.waitForTimeout(2000);
-    const rate = async (): Promise<number> => {
+    const rate = async (label: string): Promise<number> => {
+      const before = await page.evaluate(() => ({ quality: document.querySelector("[data-orb-root]")?.getAttribute("data-orb-quality"),
+        probe: (window as unknown as { __ORB_DEBUG__?: { frames: number; draws: number } }).__ORB_DEBUG__ }));
       const start = await drawCalls(page);
       await page.waitForTimeout(3000);
-      return ((await drawCalls(page)) - start) / 3;
+      const result = ((await drawCalls(page)) - start) / 3;
+      const after = await page.evaluate(() => ({ quality: document.querySelector("[data-orb-root]")?.getAttribute("data-orb-quality"),
+        probe: (window as unknown as { __ORB_DEBUG__?: { frames: number; draws: number } }).__ORB_DEBUG__ }));
+      note(`${label}: calls/s=${result.toFixed(1)}, quality=${before.quality}->${after.quality}, frames=${before.probe?.frames}->${after.probe?.frames}, draws/frame=${before.probe?.draws}->${after.probe?.draws}`);
+      return result;
     };
-    const visibleRate = await rate();
+    const visibleRate = await rate("visible baseline");
+    await rate("visible consecutive");
     await setTabHidden(page, true);
     await page.waitForTimeout(1500); // let in-flight frames drain
-    const hiddenRate = await rate();
+    const hiddenRate = await rate("hidden");
     await setTabHidden(page, false);
     await page.waitForTimeout(1500);
-    const resumedRate = await rate();
+    const resumedRate = await rate("resumed");
     note(`WebGL draw calls/s: visible ${visibleRate.toFixed(1)}, hidden ${hiddenRate.toFixed(1)}, resumed ${resumedRate.toFixed(1)}`);
     expect(visibleRate, "the orb renders while visible").toBeGreaterThan(5);
     expect(hiddenRate, "hidden tab: render loop stopped (<= 5 % of visible)").toBeLessThan(visibleRate * 0.05);
