@@ -5,7 +5,7 @@ import { FreshnessBadge, SourceBadge, useNow, type HealthState } from "@friday/u
 import { useMemo, type ReactNode } from "react";
 import type { PanelState } from "@/components/PanelFrame";
 import { useModulePanelGate } from "@/features/shared/useAvailability";
-import { formatRelative } from "@/features/shared/time";
+import { formatDateTimePattern, formatRelative } from "@/features/shared/time";
 import { useT, type MessageKey } from "@/i18n";
 import { useMeta } from "@/lib/api/domains/core";
 import type { CapabilityModule } from "@/lib/capabilities";
@@ -24,17 +24,16 @@ export interface Formatters {
 
 export function useFormatters(): Formatters {
   const { locale } = useT();
-  const { timeZone, hour12 } = useAppSettings();
+  const { timeZone, hour12, dateFormat } = useAppSettings();
   const now = useNow(30_000);
   return useMemo<Formatters>(() => {
     const tag = bcp47(locale);
-    const dateFormat = new Intl.DateTimeFormat(tag, { dateStyle: "medium", timeStyle: "short", timeZone, hour12 });
     return {
       locale,
       dateTime: (iso) => {
         if (!iso) return MISSING;
         const date = new Date(iso);
-        return Number.isNaN(date.getTime()) ? MISSING : dateFormat.format(date);
+        return Number.isNaN(date.getTime()) ? MISSING : formatDateTimePattern(date, dateFormat, { locale: tag, timeZone, hour12 });
       },
       relative: (iso) => {
         if (!iso) return MISSING;
@@ -46,7 +45,7 @@ export function useFormatters(): Formatters {
           ? MISSING
           : new Intl.NumberFormat(tag, { maximumFractionDigits: digits }).format(value),
     };
-  }, [locale, timeZone, hour12, now]);
+  }, [locale, timeZone, hour12, dateFormat, now]);
 }
 
 interface QueryLike<T> {

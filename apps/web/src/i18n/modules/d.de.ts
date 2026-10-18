@@ -137,7 +137,7 @@ export const deD = {
   "settings.dashboard.grid": "Hintergrundraster",
   "settings.dashboard.gridDesc": "Dezentes Punktraster hinter den Panels.",
   "settings.dashboard.compact": "Kompakte Darstellung",
-  "settings.dashboard.compactDesc": "Engere Abstände in Listen und Panels.",
+  "settings.dashboard.compactDesc": "Engere Abstände in Dashboard-Panels und der Übersicht.",
   "settings.dashboard.sound": "Soundeffekte",
   "settings.dashboard.soundDesc": "Kurze Töne bei Freigaben und Alarmen.",
   "settings.dashboard.behaviour": "Verhalten",

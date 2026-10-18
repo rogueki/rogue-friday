@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatClockTime, formatRelative } from "@/features/shared/time";
+import { formatClockTime, formatDatePattern, formatDateTimePattern, formatRelative } from "@/features/shared/time";
 import { useT } from "@/i18n";
 import { useAppSettings } from "@/lib/settings";
 
@@ -38,6 +38,8 @@ export interface Formatter {
   locale: string;
   timeZone: string | undefined;
   hour12: boolean | undefined;
+  dateFormat: ReturnType<typeof useAppSettings>["dateFormat"];
+  firstDayOfWeek: ReturnType<typeof useAppSettings>["firstDayOfWeek"];
   time: (iso: string | null | undefined) => string;
   date: (iso: string | null | undefined) => string;
   dateTime: (iso: string | null | undefined) => string;
@@ -47,7 +49,7 @@ export interface Formatter {
 /** Time formatting in the user's configured time zone, locale and 12/24 h preference (PLAN §8.2: wire = UTC, UI = local). */
 export function useFormat(): Formatter {
   const { locale } = useT();
-  const { timeZone, hour12 } = useAppSettings();
+  const { timeZone, hour12, dateFormat, firstDayOfWeek } = useAppSettings();
   return useMemo<Formatter>(() => {
     const intl = locale === "de" ? "de-DE" : "en-GB";
     const parse = (iso: string | null | undefined): Date | null => {
@@ -59,23 +61,23 @@ export function useFormat(): Formatter {
       locale: intl,
       timeZone,
       hour12,
+      dateFormat,
+      firstDayOfWeek,
       time: (iso) => formatClockTime(iso, { locale: intl, timeZone, hour12 }),
       date: (iso) => {
         const date = parse(iso);
-        return date ? new Intl.DateTimeFormat(intl, { day: "2-digit", month: "2-digit", year: "numeric", timeZone }).format(date) : "—";
+        return date ? formatDatePattern(date, dateFormat, timeZone) : "—";
       },
       dateTime: (iso) => {
         const date = parse(iso);
-        return date
-          ? new Intl.DateTimeFormat(intl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12, timeZone }).format(date)
-          : "—";
+        return date ? formatDateTimePattern(date, dateFormat, { locale: intl, timeZone, hour12 }) : "—";
       },
       relative: (iso, now = new Date()) => {
         const date = parse(iso);
         return date ? formatRelative(date, now, intl) : "—";
       },
     };
-  }, [locale, timeZone, hour12]);
+  }, [locale, timeZone, hour12, dateFormat, firstDayOfWeek]);
 }
 
 /** Value that follows `value` after `delayMs` of quiet (search fields: one request per pause, not per keystroke). */

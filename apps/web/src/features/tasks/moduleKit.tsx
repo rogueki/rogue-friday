@@ -15,6 +15,7 @@ import { Check, Copy, Lock } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useT } from "@/i18n";
+import { formatDateTimePattern } from "@/features/shared/time";
 import type { PanelState } from "@/components/PanelFrame";
 import { sectionStatus } from "@/features/overview/useOverviewPanel";
 import { isAdapterOutage, outageFromSection } from "@/features/shared/availability";
@@ -191,14 +192,13 @@ export interface DateFormatter {
 type Translate = ReturnType<typeof useT>["t"];
 
 // Intl objects are expensive to construct; rows of a virtualized list mount by the dozen, so they are shared per setting.
-const formatCache = new Map<string, { time: Intl.DateTimeFormat; dateTime: Intl.DateTimeFormat; relative: Intl.RelativeTimeFormat }>();
+const formatCache = new Map<string, { time: Intl.DateTimeFormat; relative: Intl.RelativeTimeFormat }>();
 function intlFor(locale: string, timeZone: string | undefined, hour12: boolean | undefined) {
   const key = `${locale}|${timeZone ?? ""}|${hour12 ?? ""}`;
   let entry = formatCache.get(key);
   if (!entry) {
     entry = {
       time: new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12, timeZone }),
-      dateTime: new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", hour12, timeZone }),
       relative: new Intl.RelativeTimeFormat(locale, { numeric: "auto", style: "short" }),
     };
     formatCache.set(key, entry);
@@ -212,8 +212,8 @@ function parseDate(iso: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function createDateFormatter(options: { locale: string; timeZone?: string; hour12?: boolean; now: Date; t: Translate }): DateFormatter {
-  const { locale, timeZone, hour12, now, t } = options;
+export function createDateFormatter(options: { locale: string; timeZone?: string; hour12?: boolean; dateFormat?: "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy"; now: Date; t: Translate }): DateFormatter {
+  const { locale, timeZone, hour12, dateFormat = "dd.MM.yyyy", now, t } = options;
   const intl = intlFor(locale, timeZone, hour12);
   return {
     locale,
@@ -224,7 +224,7 @@ export function createDateFormatter(options: { locale: string; timeZone?: string
     },
     dateTime: (iso) => {
       const date = parseDate(iso);
-      return date ? intl.dateTime.format(date) : "—";
+      return date ? formatDateTimePattern(date, dateFormat, { locale: locale === "de" ? "de-DE" : "en-GB", timeZone, hour12 }) : "—";
     },
     relative: (iso) => {
       const date = parseDate(iso);
@@ -260,11 +260,11 @@ const DateFormatterContext = createContext<DateFormatter | null>(null);
  */
 export function DateFormatterProvider({ tickMs = 30_000, children }: { tickMs?: number; children: ReactNode }) {
   const { locale, t } = useT();
-  const { timeZone, hour12 } = useAppSettings();
+  const { timeZone, hour12, dateFormat } = useAppSettings();
   const clientNow = useNow(tickMs);
   const offset = useServerClockOffset();
   const now = useMemo(() => new Date(clientNow.getTime() + offset), [clientNow, offset]);
-  const value = useMemo(() => createDateFormatter({ locale, timeZone, hour12, now, t }), [locale, timeZone, hour12, now, t]);
+  const value = useMemo(() => createDateFormatter({ locale, timeZone, hour12, dateFormat, now, t }), [locale, timeZone, hour12, dateFormat, now, t]);
   return <DateFormatterContext.Provider value={value}>{children}</DateFormatterContext.Provider>;
 }
 

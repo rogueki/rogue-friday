@@ -115,6 +115,14 @@ body { min-height: 100dvh; }
 .ov-providers .jv-provider { min-height: 0; }
 .ov-count { font-size: var(--jv-fs-xs); font-weight: 500; color: var(--friday-success); }
 
+/* User-selected density applies to dashboard panels while preserving the responsive grid and touch target sizes. */
+html[data-density="compact"] .jv-panel__body--sm { padding: 4px 8px 8px; }
+html[data-density="compact"] .jv-panel__body--md { padding: 4px 10px 10px; }
+html[data-density="compact"] .ov-grid { gap: 6px; }
+html[data-density="compact"] .ov-stack { gap: 4px; }
+html[data-density="compact"] .ov-agents,
+html[data-density="compact"] .ov-providers { gap: 5px; }
+
 
 /* Tablet: orb on top, attention directly below, cards in two columns (PLAN §27.15). */
 @media (max-width: 1099px) {

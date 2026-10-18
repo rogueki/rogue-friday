@@ -59,18 +59,18 @@ function CalendarPageInner() {
   const days = useMemo<Civil[]>(() => {
     if (view === "day") return [focus];
     if (view === "week") {
-      const first = startOfWeek(focus);
+      const first = startOfWeek(focus, format.firstDayOfWeek);
       return Array.from({ length: 7 }, (_, index) => addDays(first, index));
     }
     return [];
-  }, [view, focus]);
+  }, [view, focus, format.firstDayOfWeek]);
 
   const range = useMemo(() => {
     if (view === "day") return rangeOfDays(focus, 1, timeZone);
-    if (view === "week") return rangeOfDays(startOfWeek(focus), 7, timeZone);
-    if (view === "month") return rangeOfDays(monthGrid(focus)[0] as Civil, 42, timeZone);
+    if (view === "week") return rangeOfDays(startOfWeek(focus, format.firstDayOfWeek), 7, timeZone);
+    if (view === "month") return rangeOfDays(monthGrid(focus, format.firstDayOfWeek)[0] as Civil, 42, timeZone);
     return rangeOfDays(focus, AGENDA_DAYS, timeZone);
-  }, [view, focus, timeZone]);
+  }, [view, focus, timeZone, format.firstDayOfWeek]);
 
   const eventsQuery = useCalendarEvents({ from: range.from.toISOString(), to: range.to.toISOString(), limit: 200 });
   const conflicts = useCalendarConflicts();
@@ -107,7 +107,7 @@ function CalendarPageInner() {
   const rangeLabel = useMemo(() => {
     if (view === "day") return formatCivil(focus, format.locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     if (view === "week") {
-      const first = startOfWeek(focus);
+      const first = startOfWeek(focus, format.firstDayOfWeek);
       const last = addDays(first, 6);
       const from = formatCivil(first, format.locale, { day: "numeric", month: first.m === last.m ? undefined : "short" });
       const to = formatCivil(last, format.locale, { day: "numeric", month: "long", year: "numeric" });
@@ -115,7 +115,7 @@ function CalendarPageInner() {
     }
     if (view === "month") return formatCivil(focus, format.locale, { month: "long", year: "numeric" });
     return t("calendar.agenda.range", { from: formatCivil(focus, format.locale, { day: "numeric", month: "long", year: "numeric" }), days: AGENDA_DAYS });
-  }, [view, focus, format.locale, t]);
+  }, [view, focus, format.locale, format.firstDayOfWeek, t]);
 
   const zoneName = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const offset = offsetLabel(tzOffsetMinutes(now, timeZone));

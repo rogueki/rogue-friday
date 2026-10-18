@@ -53,4 +53,10 @@ describe("civil dates", () => {
     expect(grid).toHaveLength(42);
     expect(civilKey(grid[0] as never)).toBe("2026-09-28");
   });
+
+  it("uses the configured Sunday week start for week ranges and month grids", () => {
+    const wednesday = { y: 2026, m: 10, d: 14 };
+    expect(civilKey(startOfWeek(wednesday, "sunday"))).toBe("2026-10-11");
+    expect(civilKey(monthGrid(wednesday, "sunday")[0] as never)).toBe("2026-09-27");
+  });
 });

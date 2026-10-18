@@ -135,7 +135,7 @@ export const enD: Record<keyof typeof deD, string> = {
   "settings.dashboard.grid": "Background grid",
   "settings.dashboard.gridDesc": "Subtle dot grid behind the panels.",
   "settings.dashboard.compact": "Compact display",
-  "settings.dashboard.compactDesc": "Tighter spacing in lists and panels.",
+  "settings.dashboard.compactDesc": "Tighter spacing in dashboard panels and the overview.",
   "settings.dashboard.sound": "Sound effects",
   "settings.dashboard.soundDesc": "Short tones for approvals and alerts.",
   "settings.dashboard.behaviour": "Behaviour",

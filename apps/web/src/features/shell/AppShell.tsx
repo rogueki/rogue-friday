@@ -3,6 +3,7 @@
 import { FridayShell, LeftCommandNav } from "@friday/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { CommandConfirmHost } from "@/features/palette/commandRunner";
 import { CreateTaskDialog } from "@/features/palette/CreateTaskDialog";
 import { GlobalCommandPalette, usePaletteShortcuts } from "@/features/palette/GlobalCommandPalette";
@@ -18,8 +19,10 @@ import { AppBottomBar } from "./AppBottomBar";
 import { AppTopBar } from "./AppTopBar";
 import { OfflineCacheBanner } from "./OfflineCacheBanner";
 import { ErrorDetailDrawer, LiveActivityDrawer, NotificationsDrawer } from "./drawers";
-import { pageRoute, useNavItems } from "./navModel";
+import { defaultPageRedirect, pageRoute, useNavItems } from "./navModel";
 import { VoiceNavPanel } from "./VoiceNavPanel";
+import { useRealtimeStatus } from "@/lib/realtime/store";
+import { startDashboardRefreshFallback } from "./dashboardRefresh";
 
 /** Dashboard frame: left navigation, top status bar, persistent command bar and the global overlays. */
 export function AppShell({ children }: { children: ReactNode }) {
@@ -31,11 +34,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { settings } = useAppSettings();
   const { items, activeId } = useNavItems();
   const updateSettings = useUpdateSettings();
+  const queryClient = useQueryClient();
+  const realtime = useRealtimeStatus();
+  const autoRefreshSeconds = settings?.dashboard.autoRefreshSeconds;
   const [onboardingClosed, setOnboardingClosed] = useState(false);
   usePaletteShortcuts();
   const onboardingState = onboarding.data?.data;
   const showOnboarding = session.role === "owner" && !session.offline && pathname === "/" && !onboardingClosed && !isOnboardingSnoozed() &&
     onboardingState?.completedAt === null && Object.values(onboardingState.steps).some((step) => step === "pending");
+
+  useEffect(() => {
+    return startDashboardRefreshFallback(queryClient, autoRefreshSeconds ?? 0, realtime.state === "online");
+  }, [queryClient, autoRefreshSeconds, realtime.state]);
+
+  useEffect(() => {
+    if (showOnboarding) return;
+    const target = defaultPageRedirect(pathname, settings?.navigation.defaultPage, settings?.dashboard.contentStudioEnabled === true);
+    if (target) router.replace(target);
+  }, [pathname, router, settings?.navigation.defaultPage, settings?.dashboard.contentStudioEnabled, showOnboarding]);
 
   // The nav width follows settings.navigation.mode; toggling writes it back (reversible, applied optimistically).
   const [collapsed, setCollapsed] = useState(false);

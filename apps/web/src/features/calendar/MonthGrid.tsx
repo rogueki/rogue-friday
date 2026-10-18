@@ -24,7 +24,7 @@ export interface MonthGridProps {
 export function MonthGrid({ focus, today, events, conflictEventIds, selectedEventId, onOpenEvent, onOpenDay, label }: MonthGridProps) {
   const { t } = useT();
   const format = useFormat();
-  const grid = monthGrid(focus);
+  const grid = monthGrid(focus, format.firstDayOfWeek);
   const weekdays = grid.slice(0, 7);
   return (
     <div className="cal-month" role="group" aria-label={label}>
