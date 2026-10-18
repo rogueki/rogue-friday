@@ -66,6 +66,14 @@ class MessengerSendTest(unittest.TestCase):
                          {"state": "rejected", "reason": "configuration_changed"})
         self.assertEqual(len(self.calls), 1)  # pinned git check only
 
+    def test_unavailable_config_probe_is_distinct_from_unconfigured(self):
+        with patch.object(bridge, "configured_revision", side_effect=RuntimeError("missing Hermes runtime")):
+            self.assertEqual(bridge.send(self.request(action="check"), self.runner),
+                             {"state": "rejected", "reason": "config_probe_unavailable"})
+        with patch.object(bridge, "configured_revision", return_value=None):
+            self.assertEqual(bridge.send(self.request(action="check"), self.runner),
+                             {"state": "rejected", "reason": "platform_not_configured"})
+
     def test_timeout_and_malformed_receipt_are_uncertain(self):
         def timeout(argv, **kwargs):
             if argv[0] == "git":

@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
 """Fixed-purpose Friday transport to the pinned Hermes send CLI."""
 import json
-import hashlib
-import hmac
-import os
-import secrets
-from dataclasses import asdict
 from pathlib import Path
 import re
 import subprocess
@@ -43,33 +38,24 @@ def exact_target(platform, recipient):
 
 
 def configured_revision(platform):
-    # Use the pinned Hermes config loader and its enablement checks, not inbound
-    # sender allowlists or the directory's discovered-room entries.
+    # The install's published runtime provides its isolated dependencies. Plain
+    # WSL python3 cannot import gateway.config on this installation.
     sys.path.insert(0, str(ROOT))
-    from hermes_cli.send_cmd import _load_hermes_env
-    from gateway.config import Platform, load_gateway_config
-    _load_hermes_env()
-    config = load_gateway_config()
-    if platform not in {item.value for item in config.get_connected_platforms()}:
-        return None
-    home = ROOT.parent
-    key_path = home / "friday-messenger-revision.key"
+    from hermes_cli._launchers import runtime_command
+    path = Path(__file__).with_name("messaging_config_probe.py")
+    command = runtime_command(ROOT, [platform], code=f"import runpy; runpy.run_path({str(path)!r}, run_name='__main__')")
+    result = subprocess.run(command, capture_output=True, text=True, timeout=20, check=False)
+    if result.returncode != 0:
+        raise RuntimeError("Hermes config probe unavailable")
     try:
-        fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    except FileExistsError:
-        pass
-    else:
-        with os.fdopen(fd, "wb") as stream:
-            stream.write(secrets.token_bytes(32))
-    key = key_path.read_bytes()
-    if len(key) != 32 or key_path.stat().st_mode & 0o077:
+        payload = json.loads(result.stdout)
+    except ValueError as exc:
+        raise RuntimeError("Hermes config probe invalid") from exc
+    if payload.get("state") == "unconfigured":
         return None
-    files = (home / ".env", home / "config.yaml", home / "gateway.json")
-    metadata = [(str(path.name), path.stat().st_mtime_ns, path.stat().st_size)
-                for path in files if path.is_file()]
-    effective = asdict(config.platforms[Platform(platform)])
-    source = json.dumps({"effective": effective, "files": metadata}, sort_keys=True, default=str).encode()
-    return hmac.new(key, source, hashlib.sha256).hexdigest()
+    if payload.get("state") != "configured" or not re.fullmatch(r"[a-f0-9]{64}", str(payload.get("revision", ""))):
+        raise RuntimeError("Hermes config probe unavailable")
+    return payload["revision"]
 
 
 def send(request, runner=subprocess.run):
@@ -94,7 +80,7 @@ def send(request, runner=subprocess.run):
     try:
         revision = configured_revision(platform)
     except Exception:
-        revision = None
+        return {"state": "rejected", "reason": "config_probe_unavailable"}
     if not revision:
         return {"state": "rejected", "reason": "platform_not_configured"}
     if request["action"] == "check":
