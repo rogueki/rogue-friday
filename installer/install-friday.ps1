@@ -15,7 +15,8 @@
   Am Ende richtet ein Zusatzschritt den Service-Watchdog ein (Aufgabe FRIDAY_Watchdog, alle 5 Minuten, unsichtbar).
 #>
 param([switch]$Resume, [switch]$ChangeName, [switch]$ChangeVoice, [switch]$UpdateDashboard,
-      [string]$InstallRoot = 'C:\Friday', [string]$DistroName = '', [string]$DistroLocation = '')
+      [string]$InstallRoot = 'C:\Friday', [string]$DistroName = '', [string]$DistroLocation = '',
+      [string]$GuiConfigPath = '', [switch]$GuiSimulation)
 
 if ($InstallRoot -notmatch '^[A-Za-z]:\\[^<>:"|?*]+$' -or $InstallRoot -match '[\\/]\.\.?([\\/]|$)|[\x00-\x1F]' -or
     ([bool]$DistroName -ne [bool]$DistroLocation) -or
@@ -25,6 +26,49 @@ if ($InstallRoot -notmatch '^[A-Za-z]:\\[^<>:"|?*]+$' -or $InstallRoot -match '[
     throw 'InstallRoot bzw. DistroName/DistroLocation müssen sichere absolute Windows-Pfade und ein gültiger Distributionsname sein.'
 }
 if ($UpdateDashboard -and $ChangeVoice) { throw '-UpdateDashboard und -ChangeVoice bitte getrennt ausfuehren.' }
+$GuiMode = [bool]$GuiConfigPath
+$GuiConfig = $null
+if ($GuiMode) {
+    $guiAdministrator = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $guiAdministrator) { throw 'GUI-Installation muss mit Administratorrechten gestartet werden.' }
+    $configFull = [IO.Path]::GetFullPath($GuiConfigPath)
+    $configDir = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FridayInstaller'))
+    if ([IO.Path]::GetDirectoryName($configFull) -ine $configDir -or [IO.Path]::GetExtension($configFull) -ine '.json' -or
+        -not (Test-Path -LiteralPath $configFull -PathType Leaf) -or (Get-Item -LiteralPath $configFull).Length -gt 65536 -or
+        ((Get-Item -LiteralPath $configFull).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw 'Ungültige GUI-Konfiguration.'
+    }
+    try { $GuiConfig = Get-Content -LiteralPath $configFull -Raw -Encoding UTF8 | ConvertFrom-Json }
+    finally { Remove-Item -LiteralPath $configFull -Force -ErrorAction SilentlyContinue }
+    if ($GuiConfig.protocol -ne 1 -or -not $GuiConfig.answers -or -not $GuiConfig.secrets) { throw 'Unbekanntes GUI-Protokoll.' }
+    foreach ($key in @('assistantName','wakePhrase','ownerName','about','linuxUser','voiceMode','voiceChoice',
+                      'voiceReference','voiceId','inputDevice','outputDevice','address','character','length','migrateLegacy','disableLegacy',
+                      'reuseDistro','disableForeignTasks','overwriteDashboardConfig','keepIdentity',
+                      'repeatEnrollment','retryEnrollment','openBrowser','useExistingKimi','restartNow')) {
+        if (-not $GuiConfig.answers.PSObject.Properties[$key]) { throw "GUI-Antwort fehlt: $key" }
+    }
+    foreach ($key in @('voiceMode','voiceChoice','length')) {
+        if ([string]$GuiConfig.answers.$key -notin @('1','2')) { throw "Ungültige GUI-Auswahl: $key" }
+    }
+    foreach ($key in @('address','character')) {
+        if ([string]$GuiConfig.answers.$key -notin @('1','2','3')) { throw "Ungültige GUI-Auswahl: $key" }
+    }
+    foreach ($key in @('migrateLegacy','disableLegacy','reuseDistro','disableForeignTasks','overwriteDashboardConfig',
+                      'keepIdentity','repeatEnrollment','retryEnrollment','openBrowser','useExistingKimi','restartNow')) {
+        if ([string]$GuiConfig.answers.$key -notin @('true','false')) { throw "Ungültige GUI-Entscheidung: $key" }
+    }
+}
+if ($GuiSimulation) {
+    if (-not $GuiMode -or -not $GuiConfig.simulation -or $env:FRIDAY_GUI_TEST -ne '1') { throw 'Simulation nur im lokalen GUI-Testmodus.' }
+    [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
+    Write-Output '[GUI] Prüfung von Stimme und Schlüssel'
+    Write-Output '[GUI] Paketvorbereitung'
+    if ($GuiConfig.simulation -eq 'failure') { Write-Error 'Simulation: Paketvorbereitung fehlgeschlagen.'; exit 1 }
+    if ($GuiConfig.simulation -eq 'restart') { Write-Output '[GUI] Neustart erforderlich'; exit 10 }
+    Write-Output '[GUI] Dashboard Health: online'
+    exit 0
+}
 $InstallRoot = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 if ($DistroLocation) { $DistroLocation = [IO.Path]::GetFullPath($DistroLocation).TrimEnd('\') }
 
@@ -32,6 +76,7 @@ $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
 $env:WSL_UTF8 = '1'
 $OutputEncoding = New-Object Text.UTF8Encoding $false  # Eingaben (z. B. Passwort mit Umlauten) korrekt an wsl.exe
+if ($GuiMode) { [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false }
 $Root   = $InstallRoot
 $Inst   = "$Root\installer"
 $Distro = 'Ubuntu'
@@ -57,6 +102,7 @@ if (-not $admin) {
     if ($ChangeName) { $fwd += ' -ChangeName' }
     if ($ChangeVoice) { $fwd += ' -ChangeVoice' }
     if ($UpdateDashboard) { $fwd += ' -UpdateDashboard' }
+    if ($GuiMode) { $fwd += ' -GuiConfigPath "' + $GuiConfigPath + '"' }
     $fwd += ' -InstallRoot "' + $InstallRoot + '"'
     if ($DistroName) { $fwd += ' -DistroName "' + $DistroName + '" -DistroLocation "' + $DistroLocation + '"' }
     Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"$fwd"
@@ -71,15 +117,53 @@ function Ok($text)    { Write-Host "  [OK] $text" -ForegroundColor Green }
 function Warn($text)  { Write-Host "  [!]  $text" -ForegroundColor Yellow }
 function Stop-Install($text) {
     Write-Host ""; Write-Host "  [FEHLER] $text" -ForegroundColor Red
-    Write-Host "  Problem beheben und install-friday.bat einfach erneut starten - es geht an dieser Stelle weiter." -ForegroundColor Red
-    Stop-Transcript | Out-Null; Read-Host "  Enter zum Beenden"; exit 1
+    $retryLauncher = if ($GuiMode) { 'Friday installieren.bat' } else { 'install-friday.bat' }
+    Write-Host "  Problem beheben und $retryLauncher erneut starten - es geht an dieser Stelle weiter." -ForegroundColor Red
+    Stop-Transcript | Out-Null
+    if (-not $GuiMode) { Read-Host "  Enter zum Beenden" }
+    exit 1
+}
+function Gui-Answer([string]$key, [string]$fallback = '') {
+    if (-not $GuiMode) { return $fallback }
+    $prop = $GuiConfig.answers.PSObject.Properties[$key]
+    if (-not $prop) { throw "GUI-Antwort fehlt: $key" }
+    return [string]$prop.Value
+}
+function Gui-Secret([string]$key) {
+    $prop = $GuiConfig.secrets.PSObject.Properties[$key]
+    if (-not $prop -or -not $prop.Value) { throw "GUI-Zugangsdaten fehlen: $key" }
+    return (ConvertTo-SecureString -String ([string]$prop.Value))
 }
 function Ask($question, $default = '') {
+    if ($GuiMode) {
+        $key = switch -Regex ($question) {
+            '^Wie soll dein Assistent heißen' { 'assistantName'; break }
+            '^Mit welchem Wort oder Satz' { 'wakePhrase'; break }
+            '^Wie heißt du' { 'ownerName'; break }
+            '^Über mich' { 'about'; break }
+            '^Linux-Benutzername' { 'linuxUser'; break }
+            default { throw "Unbekannte GUI-Eingabe: $question" }
+        }
+        $value = Gui-Answer $key
+        if ([string]::IsNullOrWhiteSpace($value)) { return $default }
+        return $value.Trim()
+    }
     $suffix = if ($default) { " [$default]" } else { '' }
     $a = Read-Host "  $question$suffix"
     if ([string]::IsNullOrWhiteSpace($a)) { return $default } else { return $a.Trim() }
 }
 function Choose($question, [string[]]$options, $default = 1) {
+    if ($GuiMode) {
+        $key = switch -Regex ($question) {
+            '^Wie soll .* dich ansprechen' { 'address'; break }
+            '^Welcher Charakter' { 'character'; break }
+            '^Wie ausführlich' { 'length'; break }
+            default { throw "Unbekannte GUI-Auswahl: $question" }
+        }
+        $value = [int](Gui-Answer $key)
+        if ($value -lt 1 -or $value -gt $options.Count) { throw "Ungültige GUI-Auswahl: $key" }
+        return $value
+    }
     Write-Host "  $question"
     for ($i = 0; $i -lt $options.Count; $i++) { Write-Host "     $($i + 1)) $($options[$i])" }
     while ($true) {
@@ -88,6 +172,23 @@ function Choose($question, [string[]]$options, $default = 1) {
     }
 }
 function YesNo($question, $defaultYes = $true) {
+    if ($GuiMode) {
+        $key = switch -Regex ($question) {
+            '^Diese Aufgaben jetzt DEAKTIVIEREN' { 'disableForeignTasks'; break }
+            '^Bestehende Installation nach' { 'migrateLegacy'; break }
+            '^Die alten JARVIS_' { 'disableLegacy'; break }
+            '^Name und Wake Word unverändert' { 'repeatEnrollment'; break }
+            '^Name und Wake Word beibehalten' { 'keepIdentity'; break }
+            '^Es gibt bereits eine WSL-Distribution' { 'reuseDistro'; break }
+            '^Kimi-API-Key aus' { 'useExistingKimi'; break }
+            '^Aufnahme fortsetzen' { 'retryEnrollment'; break }
+            '^Mit der Vorgabe überschreiben' { 'overwriteDashboardConfig'; break }
+            '^Command Center jetzt im Browser' { 'openBrowser'; break }
+            '^Jetzt neu starten' { 'restartNow'; break }
+            default { throw "Unbekannte GUI-Entscheidung: $question" }
+        }
+        return (Gui-Answer $key) -eq 'true'
+    }
     $a = Ask "$question (j/n)" $(if ($defaultYes) { 'j' } else { 'n' })
     return $a -match '^[jJyY]'
 }
@@ -242,6 +343,7 @@ function Read-AssistantName($default) {
     while ($true) {
         $n = Ask 'Wie soll dein Assistent heißen?' $default
         if (Test-AssistantName $n) { return (Format-AssistantName $n) }
+        if ($GuiMode) { throw 'Ungültiger Assistentenname in der grafischen Installation.' }
         Warn 'Bitte nur Buchstaben (auch Umlaute), 2 bis 20 Zeichen, ohne Leerzeichen und Zahlen.'
     }
 }
@@ -250,6 +352,7 @@ function Read-WakePhrase($name, $default) {
     while ($true) {
         $p = Ask "Mit welchem Wort oder Satz soll $name geweckt werden?" $default
         if (Test-WakePhrase $p) { return (Format-WakePhrase $p) }
+        if ($GuiMode) { throw 'Ungültiges Wake Word in der grafischen Installation.' }
         Warn 'Bitte 1 bis 4 Wörter (nur Buchstaben, auch Umlaute, sowie Bindestrich), insgesamt 3 bis 30 Zeichen.'
     }
 }
@@ -752,6 +855,18 @@ function Save-State {
     [IO.File]::WriteAllText($StateFile, ($State | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false)))
 }
 function MarkDone($n) { $State.done = @(@($State.done) + $n | Select-Object -Unique); Save-State }
+if ($GuiMode -and -not (IsDone 'voicepython')) {
+    # The one-use GUI request is removed before provisioning. Preserve only
+    # nonsecret answers so a WSL reboot can restore decisions made in the wizard.
+    $State.gui_pending = @{}
+    foreach ($key in @('ownerName','about','address','character','length','inputDevice','outputDevice',
+                      'voiceMode','voiceChoice','voiceReference','voiceId','migrateLegacy','disableLegacy',
+                      'reuseDistro','disableForeignTasks','overwriteDashboardConfig','keepIdentity',
+                      'repeatEnrollment','openBrowser')) {
+        $State.gui_pending[$key] = [string]$GuiConfig.answers.$key
+    }
+    Save-State
+}
 
 Title 'F.R.I.D.A.Y. – Installation'
 Info 'Dieser Assistent richtet F.R.I.D.A.Y., deinen persönlichen Sprachassistenten, komplett ein. Du wirst nur nach wenigen Dingen gefragt.'
@@ -849,7 +964,7 @@ if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_mode -notin @('loc
     Info '2  ElevenLabs Cloud: Spracherkennung und Sprachausgabe ohne lokale GPU (API-Schlüssel nötig)'
     $defaultMode = if ($State.voice_mode -eq 'elevenlabs') { '2' } else { '1' }
     do {
-        $answer = (Read-Host "  Sprachbetrieb [1/2, Standard $defaultMode]").Trim()
+        $answer = $(if ($GuiMode) { Gui-Answer 'voiceMode' } else { Read-Host "  Sprachbetrieb [1/2, Standard $defaultMode]" }).Trim()
         if (-not $answer) { $answer = $defaultMode }
     } while ($answer -notin @('1', '2'))
     $newMode = if ($answer -eq '2') { 'elevenlabs' } else { 'local' }
@@ -870,7 +985,7 @@ if (-not $UpdateDashboard -and ($ChangeVoice -or $State.voice_mode -notin @('loc
     if ($newMode -eq 'elevenlabs') {
         Info 'ElevenLabs Voice ID: Standardstimme oder eigene Voice ID aus deinem ElevenLabs-Konto.'
         Warn 'Die Standardstimme ist eine Bibliotheksstimme. ElevenLabs sperrt deren API-Nutzung im Free-Tarif; dafuer ist ein geeigneter Tarif erforderlich.'
-        $voiceId = (Read-Host '  Voice ID (leer = Standardstimme)').Trim()
+        $voiceId = $(if ($GuiMode) { Gui-Answer 'voiceId' } else { Read-Host '  Voice ID (leer = Standardstimme)' }).Trim()
         if (-not $voiceId) { $voiceId = if ($State.elevenlabs_voice_id) { $State.elevenlabs_voice_id } else { '21m00Tcm4TlvDq8ikWAM' } }
         if ($voiceId -notmatch '^[A-Za-z0-9]{10,64}$') { Stop-Install 'ElevenLabs Voice ID ist ungueltig.' }
         $State.elevenlabs_voice_id = $voiceId
@@ -909,7 +1024,7 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
     }
     $defaultChoice = if ($State.voice_choice -eq 'classic') { '2' } elseif ($State.voice_choice -eq 'friday-female') { '1' } elseif ($AN -eq 'Jarvis') { '2' } else { '1' }
     do {
-        $answer = (Read-Host "  Stimme [1/2, Standard $defaultChoice]").Trim()
+        $answer = $(if ($GuiMode) { Gui-Answer 'voiceChoice' } else { Read-Host "  Stimme [1/2, Standard $defaultChoice]" }).Trim()
         if (-not $answer) { $answer = $defaultChoice }
     } while ($answer -notin @('1', '2'))
     $newChoice = if ($answer -eq '1') { 'friday-female' } else { 'classic' }
@@ -919,7 +1034,7 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
         if (-not $choiceReference -and $State.voice_choice -eq $newChoice) { $choiceReference = $State.voice_reference }
         $defaultReference = Find-VoiceReference $newChoice $choiceReference $Root $PSScriptRoot
         if ($defaultReference) { Info "Stimmreferenz wird automatisch verwendet: $defaultReference" }
-        $reference = (Read-Host '  Andere MP3/WAV-Stimmreferenz (leer = angezeigte Stimme oder Piper-Basisstimme)').Trim().Trim('"')
+        $reference = $(if ($GuiMode) { Gui-Answer 'voiceReference' } else { Read-Host '  Andere MP3/WAV-Stimmreferenz (leer = angezeigte Stimme oder Piper-Basisstimme)' }).Trim().Trim('"')
         if (-not $reference) { $reference = $defaultReference }
         if ($reference -and -not (Test-Path -LiteralPath $reference -PathType Leaf)) { Stop-Install "Stimmreferenz nicht gefunden: $reference" }
         if (-not $reference) { Warn 'Ohne Referenz wird die passende Piper-Basisstimme installiert. Du kannst später mit change-voice.bat eine eigene Referenz wählen.' }
@@ -1034,15 +1149,20 @@ if (-not (IsDone 'wslfeature')) {
     if ($LASTEXITCODE -ne 0) {
         Info 'WSL wird installiert …'
         Native { wsl.exe --install --no-distribution } | ForEach-Object { Info $_ }
-        $resumeArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$Inst\install-friday.ps1`" -Resume -InstallRoot `"$Root`""
-        if ($CustomRoot) { $resumeArgs += " -DistroName `"$Distro`" -DistroLocation `"$DistroLocation`"" }
+        if ($GuiMode) {
+            $resumeArgs = "-NoProfile -STA -ExecutionPolicy Bypass -File `"$Inst\install-friday-gui.ps1`" -ResumeRoot `"$Root`""
+        } else {
+            $resumeArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$Inst\install-friday.ps1`" -Resume -InstallRoot `"$Root`""
+            if ($CustomRoot) { $resumeArgs += " -DistroName `"$Distro`" -DistroLocation `"$DistroLocation`"" }
+        }
         $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $resumeArgs
         $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
         $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
         Register-ScheduledTask -TaskName $ResumeTask -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
         Warn 'Windows muss jetzt neu starten. Danach geht die Installation automatisch weiter.'
         Stop-Transcript | Out-Null
-        if (YesNo 'Jetzt neu starten?') { Restart-Computer -Force }
+        if (-not $GuiMode -and (YesNo 'Jetzt neu starten?')) { Restart-Computer -Force }
+        if ($GuiMode) { exit 10 }
         exit
     }
     Native { wsl.exe --update } | Out-Null
@@ -1141,11 +1261,15 @@ if (-not (IsDone 'linuxuser')) {
     Info "$AN läuft in Ubuntu unter einem eigenen Benutzer. Name: nur Kleinbuchstaben/Zahlen."
     $suggest = ($env:USERNAME.ToLower() -replace '[^a-z0-9_-]', '')
     if ($suggest -notmatch '^[a-z_]') { $suggest = 'friday' }
-    do { $user = Ask 'Linux-Benutzername' $suggest } until ($user -match '^[a-z_][a-z0-9_-]{0,31}$')
+    do {
+        $user = Ask 'Linux-Benutzername' $suggest
+        if ($GuiMode -and $user -notmatch '^[a-z_][a-z0-9_-]{0,31}$') { throw 'Ungültiger Linux-Benutzername in der grafischen Installation.' }
+    } until ($user -match '^[a-z_][a-z0-9_-]{0,31}$')
     while ($true) {
-        $p1 = Plain (Read-Host '  Linux-Passwort (wird für "sudo" gebraucht, gut merken!)' -AsSecureString)
-        $p2 = Plain (Read-Host '  Passwort wiederholen' -AsSecureString)
+        $p1 = Plain $(if ($GuiMode) { Gui-Secret 'linuxPassword' } else { Read-Host '  Linux-Passwort (wird für "sudo" gebraucht, gut merken!)' -AsSecureString })
+        $p2 = Plain $(if ($GuiMode) { Gui-Secret 'linuxPasswordRepeat' } else { Read-Host '  Passwort wiederholen' -AsSecureString })
         if ($p1 -and $p1 -eq $p2) { break }
+        if ($GuiMode) { throw 'Linux-Passwörter fehlen oder stimmen nicht überein.' }
         Warn 'Passwörter leer oder ungleich – bitte nochmal.'
     }
     Info 'Richte Ubuntu ein (Pakete, Benutzer, systemd) – dauert einige Minuten …'
@@ -1178,7 +1302,7 @@ if (-not (IsDone 'hermes')) {
     if ($key -and (YesNo 'Kimi-API-Key aus der Kimi-Code-Einrichtung gefunden. Verwenden?')) { }
     else {
         Info 'Kimi-API-Key eingeben (Eingabe bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
-        $key = Plain (Read-Host '  Kimi-API-Key' -AsSecureString)
+        $key = Plain $(if ($GuiMode) { Gui-Secret 'kimiKey' } else { Read-Host '  Kimi-API-Key' -AsSecureString })
     }
     if (-not $key) { Stop-Install "Ohne Kimi-API-Key kann $AN nicht denken." }
     # Datei zuerst leer anlegen und absichern, dann erst den Schluessel hineinschreiben (kein Fenster mit geerbten Rechten);
@@ -1320,7 +1444,7 @@ if (-not (IsDone 'voicepython')) {
         $secretPath = "$Root\config\elevenlabs_api.key.dpapi"
         if (-not (Test-Path -LiteralPath $secretPath -PathType Leaf)) {
             Info 'ElevenLabs API-Schlüssel wird verschlüsselt für diesen Windows-Benutzer gespeichert.'
-            $secret = Read-Host '  ElevenLabs API-Schlüssel' -AsSecureString
+            $secret = if ($GuiMode) { Gui-Secret 'elevenlabsKey' } else { Read-Host '  ElevenLabs API-Schlüssel' -AsSecureString }
             if ($secret.Length -eq 0) { Stop-Install 'ElevenLabs API-Schlüssel fehlt.' }
             $secret | ConvertFrom-SecureString | Set-Content -LiteralPath $secretPath -Encoding Ascii
             $secret.Dispose()
@@ -1344,6 +1468,13 @@ if (-not (IsDone 'voicepython')) {
     $out = & $vpy "$Root\voice\voice_setup.py" @voiceArgs 2>&1 | ForEach-Object { "$_" }
     $out | Where-Object { $_ -match '==>|^\s{3}|DONE' } | ForEach-Object { Info $_ }
     if (($out -join "`n") -notmatch 'VOICE_SETUP_DONE') { Stop-Install 'Einrichtung der Sprachmodelle fehlgeschlagen.' }
+    if ($GuiMode -and ($GuiConfig.answers.inputDevice -or $GuiConfig.answers.outputDevice)) {
+        $deviceArgs = @("$Root\config\voice.json")
+        if ($GuiConfig.answers.inputDevice) { $deviceArgs += @('--input-name', [string]$GuiConfig.answers.inputDevice) }
+        if ($GuiConfig.answers.outputDevice) { $deviceArgs += @('--output-name', [string]$GuiConfig.answers.outputDevice) }
+        & $vpy "$Root\voice\select_audio_devices.py" @deviceArgs 2>&1 | ForEach-Object { Info "$_" }
+        if ($LASTEXITCODE -ne 0) { Stop-Install 'Audiogerät nicht gefunden oder nicht nutzbar. Im grafischen Assistenten Windows-Standardgerät wählen und erneut starten.' }
+    }
     $voiceConfig = Get-Content -LiteralPath "$Root\config\voice.json" -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($voiceConfig.tts_backend -eq 'streaming_qwen') {
         Info 'Installiere dauerhaft geladenen lokalen TTS-Dienst in der Friday-Distribution …'
@@ -1379,15 +1510,21 @@ if (-not (IsDone 'enroll')) {
     else { Info "  • 44x ""$WP"", 15 ähnlich klingende Wörter (Teile und Varianten der Phrase), 8 kurze Texte vorlesen" }
     Info '  • Ruhige Umgebung, normal sprechen, nach jedem Piepton sprechen.'
     Info 'Es öffnet sich gleich ein eigenes Fenster. Dort Enter drücken und den Anweisungen folgen.'
-    Read-Host '  Enter, wenn du bereit bist'
+    if (-not $GuiMode) { Read-Host '  Enter, wenn du bereit bist' }
     $vpy = "$Root\voice\.venv\Scripts\python.exe"
     $raw = "$Root\voice\profiles\owner\raw"
     while ($true) {
-        Start-Process -FilePath $vpy -ArgumentList "`"$Root\voice\enroll_record.py`" --name `"$AN`" --phrase `"$WP`"" -WorkingDirectory "$Root\voice" -Wait
+        if ($GuiMode) {
+            & $vpy "$Root\voice\enroll_record.py" --name $AN --phrase $WP --gui 2>&1 | ForEach-Object { Info "$_" }
+            if ($LASTEXITCODE -ne 0) { Stop-Install 'Stimmaufnahme wurde abgebrochen oder ist fehlgeschlagen. Prüfe Mikrofon und Meldungen, dann den grafischen Assistenten erneut starten.' }
+        } else {
+            Start-Process -FilePath $vpy -ArgumentList "`"$Root\voice\enroll_record.py`" --name `"$AN`" --phrase `"$WP`"" -WorkingDirectory "$Root\voice" -Wait
+        }
         $nWake = @(Get-ChildItem "$raw\wake_$Slug\*.wav" -ErrorAction SilentlyContinue).Count
         $nSpeech = @(Get-ChildItem "$raw\speech\*.wav" -ErrorAction SilentlyContinue).Count
         if ($nWake -ge 20 -and $nSpeech -ge 6) { break }
         Warn "Zu wenige Aufnahmen ($nWake x '$WP', $nSpeech Texte). Bitte vollständig durchlaufen."
+        if ($GuiMode) { Stop-Install 'Stimmaufnahme unvollständig. Mikrofon prüfen und den grafischen Assistenten erneut starten.' }
         if (-not (YesNo 'Aufnahme fortsetzen?')) { Stop-Install 'Stimmprofil unvollständig.' }
     }
     Info 'Berechne dein Stimmprofil und trainiere die Wake-Word-Erkennung (bei eigenem Wake Word einige Minuten) …'
@@ -2143,4 +2280,5 @@ if (-not $CustomRoot) { Show-MigrationSummary }
 if ($DashProbe.Up -and (YesNo 'Command Center jetzt im Browser öffnen?')) { Start-Process $DashUrl }
 elseif (-not $DashProbe.Up) { Start-Process "http://127.0.0.1:$($Ports.Dashboard)" }
 Stop-Transcript | Out-Null
-Read-Host '  Enter zum Schließen'
+if (-not $GuiMode) { Read-Host '  Enter zum Schließen' }
+if ($GuiMode -and -not $DashProbe.Up) { exit 1 }

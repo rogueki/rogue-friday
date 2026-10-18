@@ -4,6 +4,15 @@
 
 **Starte mit dem Kern, erweitere nach Bedarf:** [Friday installieren](#schnellstart) · [Skills entdecken](#skills-und-optionale-werkzeuge) · [Kalender und E-Mail verbinden](#kalender-und-e-mail) · [Eigene Integration entwickeln](docs/ADAPTER_SDK.md). F.R.I.D.A.Y. ist eine öffentliche Beta; die Oberfläche kennzeichnet simulierte Daten und zeigt bei optionalen Anschlüssen an, ob ein Konto und ein Verbindungstest nötig sind.
 
+### Installation ohne Konsole
+
+1. [Aktuelles Friday-Paket als ZIP herunterladen](https://github.com/rogueki/rogue-friday/archive/refs/heads/main.zip) und im Downloadordner mit **Alle extrahieren** entpacken.
+2. Im entpackten Hauptordner **Friday installieren.bat** doppelklicken und die Windows-Abfrage für Administratorrechte bestätigen.
+3. Im grafischen Assistenten Installationsort, lokale Sprache oder ElevenLabs, Stimme, Wake Word und Zugangsdaten wählen. Vor dem Start zeigt er alle Entscheidungen. Danach zeigt er jeden Installationsschritt und dessen Meldungen.
+4. Wenn WSL einen Neustart braucht, Windows neu starten. Der Assistent öffnet sich nach der Anmeldung erneut und setzt erledigte Schritte fort. Beim ersten Dashboard-Aufruf das Besitzerkonto anlegen.
+
+Du brauchst für diesen Einstieg weder Git noch eine KI noch einen vorher installierten Node- oder Python-Befehl. Das ZIP ist ein **Online-Installer**: WSL, Modelle und Programmteile werden während der Einrichtung aus dem Internet geladen. Für lokale Sprache brauchst du eine NVIDIA-GPU mit mindestens 6 GB VRAM; ElevenLabs benötigt einen eigenen API-Zugang und kann Kosten verursachen. Mehr dazu in der [Installationsanleitung](installer/ANLEITUNG.md).
+
 ## Dashboard im Überblick
 
 Die Bilder zeigen den aktuellen Desktop-Build im Vollbildformat 1920 × 1080 mit synthetischen Beispieldaten. Für die Galerie sind alle Dienste der Demo online; kurzlebige Cache-Hinweise, ein optionaler, nicht eingerichteter Modell-Eintrag und der Sammelhinweis zu einem eingeschränkten Kommunikationskanal sind ausgeblendet. Der Telefonkanal bleibt als eingeschränkt gekennzeichnet. Ein Klick öffnet das jeweilige Bild in voller Auflösung. Die Einführung ist nur auf dem letzten Bild zu sehen.
@@ -21,11 +30,11 @@ Die Bilder zeigen den aktuellen Desktop-Build im Vollbildformat 1920 × 1080 mit
 
 ## Schnellstart
 
-1. Lade das vollständige Repository als ZIP herunter und entpacke es. Starte nicht nur den Ordner `installer`: Dashboard-Quellordner müssen daneben liegen.
-2. Lies [Installation und Ersteinrichtung](installer/ANLEITUNG.md). Prüfe Windows/WSL2, Speicherplatz, Mikrofon und API-Zugangsdaten, bevor du startest.
-3. Doppelklicke auf `installer/install-friday.bat` und bestätige die Windows-Administratorabfrage. Wähle lokale Sprache (NVIDIA-GPU mit mindestens 6 GB VRAM) oder ElevenLabs Cloud (keine dedizierte GPU), dann Persona, Stimme, Wake Word und lokalen Linux-Zugang.
-4. Nach einem nötigen Windows-Neustart wird die Installation fortgesetzt. Nimm dein Wake Word auf und warte, bis Installer und erster Build abgeschlossen sind.
-5. Öffne das Command Center unter <http://127.0.0.1:3100>. Beim ersten Besuch legst du den lokalen Dashboard-Zugang selbst an und durchläufst die Einführung. Das Hermes-Dashboard liegt standardmäßig unter <http://127.0.0.1:43691>. Bei einer benutzerdefinierten Installation gelten die im Installationsbericht genannten Ports.
+1. [ZIP herunterladen und entpacken](https://github.com/rogueki/rogue-friday/archive/refs/heads/main.zip).
+2. **Friday installieren.bat** im entpackten Hauptordner doppelklicken und die Administratorabfrage bestätigen. Der grafische Assistent zeigt Voraussetzungen und alle wählbaren Einstellungen.
+3. Die Zusammenfassung prüfen und **Installieren** wählen. Bei einem nötigen Windows-Neustart wird der grafische Assistent nach der Anmeldung fortgesetzt.
+4. Den Anweisungen für die persönliche Stimmaufnahme folgen und auf den geprüften Abschluss warten.
+5. Das Command Center unter der im Abschlussbericht angezeigten Adresse öffnen und das lokale Besitzerkonto anlegen. Für `C:\Friday` ist der Standard <http://127.0.0.1:3100>; bei einem benutzerdefinierten Installationsort gilt die angezeigte Adresse.
 
 Der Installer lädt das separate Repository `friday-skills` nach `<InstallRoot>\skills\friday-skills`, prüft die 106 Skill-Dateien gegen die Registry und meldet den Ordner bei Hermes an. Für optionale Dienste richte anschließend nur die Konten und lokalen Werkzeuge ein, die du wirklich nutzen willst; der Katalog nennt die jeweiligen Voraussetzungen.
 
@@ -34,10 +43,12 @@ Die ausführlichen Voraussetzungen, Dauer, Wiederaufnahme nach Fehlern, Update- 
 ## Was F.R.I.D.A.Y. derzeit kann
 
 - Das Dashboard bietet eine gemeinsame Oberfläche für Übersicht, Aufgaben, Aktivität, Agenten, Freigaben, Gedächtnis, Benachrichtigungen, Kommunikation, Kalender, Automationen, Recherche, Dateien, Sprache, System und Audit. Das Verhalten und die verfügbaren Aktionen hängen vom verbundenen Adapter ab.
-- Im Installer-Standardmodus sind Aufgaben, Aktivität und Agenten mit Hermes verbunden; Sprach- und Systemstatus kommen von den lokalen Diensten. Andere Bereiche können als Simulation angezeigt werden. Die Oberfläche kennzeichnet Datenquellen und eingeschränkte Fähigkeiten.
+- Im Installer-Standardmodus sind Aufgaben, Aktivität und Agenten mit Hermes verbunden; Sprach- und Systemstatus kommen von den lokalen Diensten. Noch nicht verbundene Bereiche starten ohne vorgefüllte Demo-Einträge. Die Oberfläche kennzeichnet Datenquellen und eingeschränkte Fähigkeiten.
 - Das Dashboard nutzt eine lokale Control API und Adapter. Hermes, Sprache und Windows/WSL werden durch den Server angesprochen; Qwen läuft nur im lokalen Sprachmodus. Der Browser erhält keine Zugangsschlüssel.
 - Einstellungen umfassen unter anderem Profil und Sprache, Dashboard-Darstellung, Theme und Orb, Navigation, Modellrouting, Stimme, Benachrichtigungen, Anmeldung/Sicherheit, Freigaben, Aufbewahrung, Backups und Entwickleranzeige. Verfügbare Änderungen hängen vom installierten Stand ab. Eine [Beispieldatei für den Settings-Export](packages/contracts/examples/settings/settings-export.json) zeigt das Datenformat; sie ist kein Versprechen, dass jede Einstellung in der Beta-Oberfläche bereits bearbeitbar ist.
 - Die Sprachsteuerung und persönliche Wake-Word-Einrichtung kommen aus dem Windows-Installer. Ein Kimi-Zugang wird bei der Einrichtung abgefragt; lokale Funktionen und Cloud-Aufgaben haben unterschiedliche Laufzeit- und Kontoanforderungen.
+- Der Orb reagiert auf die laufende Sprachausgabe und zeigt Zustände animiert an. Für die klassische lokale Stimme liegt eine J.A.R.V.I.S.-Referenz im Installationspaket; im Assistenten kann sie ohne Dateipfad ausgewählt werden.
+- Unter **Einstellungen → Dashboard → Dashboard-Updates** prüft das Dashboard GitHub auf eine neue Version. Bei der Installation werden geänderte Dashboard-Dateien und Builds übernommen; lokale Konfiguration, Geheimnisse und Daten bleiben erhalten. [Technische Details](docs/DASHBOARD_UPDATES.md).
 
 ### Sprache ohne dedizierte GPU und Modellrouting
 

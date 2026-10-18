@@ -1,5 +1,17 @@
 # F.R.I.D.A.Y. – Installation für Einsteiger
 
+## Grafische Installation (empfohlen)
+
+1. [Das vollständige GitHub-Paket als ZIP laden](https://github.com/rogueki/rogue-friday/archive/refs/heads/main.zip) und mit **Alle extrahieren** entpacken.
+2. Im entpackten **Hauptordner** auf **Friday installieren.bat** doppelklicken. Die Windows-Abfrage nach Administratorrechten mit **Ja** beantworten.
+3. Im Assistenten Systemprüfung, Installationsort und WSL-Distribution, lokalen Sprachbetrieb oder ElevenLabs, Stimme, Assistentennamen, Wake Word, Persönlichkeit und Zugangsdaten wählen. Die klassische J.A.R.V.I.S.-Referenz ist enthalten; eine eigene MP3/WAV kann gewählt werden. Lokale Sprache erfordert eine NVIDIA-GPU mit mindestens 6 GB VRAM; ElevenLabs benötigt Internet und einen eigenen API-Zugang, der Kosten verursachen kann.
+4. Die **Zusammenfassung** lesen und **Installieren** wählen. Der Fortschritt zeigt die tatsächlichen Schritte und Protokollmeldungen. Bei Fehlern bleibt der Zustand gespeichert; mit **Erneut versuchen** kann fortgesetzt werden.
+5. Falls WSL einen Neustart benötigt, Windows neu starten. Der grafische Assistent öffnet sich nach der Anmeldung erneut. Bei der Stimmaufnahme erscheinen Dialoge mit den zu sprechenden Sätzen und Hörsignale. Im Dashboard beim ersten Aufruf ein Besitzerkonto anlegen.
+
+Der Einstieg benötigt kein Git, keine KI und keine vorher installierten Node- oder Python-Werkzeuge. Das Paket lädt die nötigen Komponenten während der Installation aus dem Internet; es ist kein Offline-Paket. Bestehende Installationen behalten Daten und Konfiguration. Für spätere Dashboard-Änderungen unter **Einstellungen → Dashboard → Dashboard-Updates** nachsehen: der [Updater](../docs/DASHBOARD_UPDATES.md) installiert geänderte Dashboard-Dateien und bewahrt persönliche Daten, Konfiguration und Geheimnisse. Der Orb reagiert auf Audio und zeigt Zustände animiert an. Normale Neuinstallationen enthalten keine vorgefüllten Demo-Benachrichtigungen. Im Assistenten kannst du Mikrofon und Lautsprecher wählen oder die Windows-Standardgeräte verwenden. Die Wahl wird nach Installation der Audiobibliothek geprüft; ein nicht unterstütztes Gerät führt zu einer verständlichen Fehlermeldung, danach kannst du mit Standardgeräten fortsetzen.
+
+Die folgenden Konsolenschritte beschreiben weiterhin den bisherigen technischen Installationsweg und Sonderfälle. Für eine normale Installation reichen die fünf grafischen Schritte oben.
+
 Dieses Paket richtet deinen persönlichen Sprachassistenten **F.R.I.D.A.Y.** („Friday“, der Nachfolger von J.A.R.V.I.S.)
 komplett ein. Den **Namen** und das **Wake Word** (mit dem du ihn rufst) **kannst du selbst wählen**. Standard: Name *Friday*,
 Wake Word *„Hey Friday“*.
@@ -29,7 +41,7 @@ Wake Word *„Hey Friday“*.
 ## Installation
 
 1. ZIP entpacken (Rechtsklick → *Alle extrahieren*), z. B. in *Downloads*.
-2. **Doppelklick auf `install-friday.bat`** → Frage nach Administratorrechten mit *Ja* bestätigen.
+2. **Doppelklick auf `Friday installieren.bat` im Hauptordner** → Frage nach Administratorrechten mit *Ja* bestätigen. `installer/install-friday.bat` startet weiterhin den älteren Konsolenweg.
    Gibt es auf dem PC schon eine Installation der früheren Version in `C:\Jarvis`, bietet der Installer zuerst an, sie zu
    **übernehmen** (siehe Abschnitt „Frühere Installation übernehmen“).
 3. Den Anweisungen im Fenster folgen. Du wirst gefragt nach:

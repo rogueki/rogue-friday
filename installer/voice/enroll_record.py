@@ -23,6 +23,16 @@ sys.path.insert(0, ROOT)
 RAW = os.path.join(ROOT, "profiles", "owner", "raw")
 MANIFEST = os.path.join(RAW, "manifest.jsonl")
 DEFAULT_NAME = "Friday"
+GUI_MODE = "--gui" in sys.argv
+
+
+def ready(message: str) -> None:
+    if GUI_MODE:
+        from tkinter import messagebox
+        if not messagebox.askokcancel("F.R.I.D.A.Y. Stimmaufnahme", message + "\n\nOK startet diese Aufnahme. Abbrechen beendet die Stimmaufnahme."):
+            raise SystemExit(2)
+    else:
+        input(message + "\n  -> Enter druecken, wenn bereit ... ")
 
 import negative_texts  # noqa: E402
 import personal_wake  # noqa: E402  (gleicher Ordner: slugify, hard_negatives, enrollment_blocks)
@@ -42,6 +52,7 @@ def assistant_identity() -> tuple[str, str]:
     ap = argparse.ArgumentParser()
     ap.add_argument("--name")
     ap.add_argument("--phrase")
+    ap.add_argument("--gui", action="store_true")
     args = ap.parse_args()
     name = (args.name or _persona_field("assistant_name") or DEFAULT_NAME).strip()
     if not personal_wake.valid_name(name):
@@ -127,6 +138,8 @@ def level(audio: np.ndarray) -> tuple[float, float]:
 def capture_short(block: str, idx: int, text: str, hint: str, seconds: float = 2.0) -> None:
     while True:
         print(f"\n  [{idx:02d}] ({hint})  Gleich sagen:  >>> {text} <<<")
+        if GUI_MODE:
+            ready(f"Aufnahme {idx}: {hint}\n\nSage nach dem Signal: {text}")
         time.sleep(0.8)
         beep()
         print("      JETZT sprechen ...", flush=True)
@@ -144,11 +157,18 @@ def capture_short(block: str, idx: int, text: str, hint: str, seconds: float = 2
 
 
 def pause(msg: str) -> None:
-    input(f"\n{msg}\n  -> Enter druecken, wenn bereit ... ")
+    ready(msg)
 
 
 def main() -> None:
     name, phrase = assistant_identity()
+    if GUI_MODE:
+        try:
+            with open(os.path.join(ROOT, "..", "config", "voice.json"), encoding="utf-8") as handle:
+                audio_config = json.load(handle)
+            sd.default.device = (audio_config.get("input_device"), audio_config.get("output_device"))
+        except (OSError, ValueError) as exc:
+            raise SystemExit(f"Audiogeraete konnten nicht geladen werden: {exc}")
     texts = passages(phrase)
     print("=" * 70)
     print(f" {name} - Stimmaufnahme (alles bleibt lokal auf diesem Rechner)")
@@ -191,7 +211,7 @@ def main() -> None:
               "wenn der Text vor Ablauf fertig ist, einfach frei weiterreden.")
     for i, text in remaining_texts:
         print(f"\n  Text {i}/{len(texts)}:\n\n    {text}\n")
-        input("  -> Enter, dann nach dem Piepton vorlesen ... ")
+        ready(f"Text {i}/{len(texts)}:\n\n{text}")
         beep()
         print("      Aufnahme laeuft (20 s) ...", flush=True)
         audio = record(20)
@@ -204,7 +224,8 @@ def main() -> None:
     print("=" * 70)
     beep(800, 150)
     beep(1200, 250)
-    input()
+    if not GUI_MODE:
+        input()
 
 
 if __name__ == "__main__":
