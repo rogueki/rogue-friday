@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync, symlinkSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
@@ -18,7 +18,7 @@ function fixture() {
   mkdirSync(data, { recursive: true });
   mkdirSync(join(vault, ".obsidian"), { recursive: true });
   mkdirSync(destination);
-  writeFileSync(join(data, "auth.key"), "synthetic test key");
+  writeFileSync(join(data, "auth.key"), Buffer.alloc(32, 1).toString("base64"));
   const db = openDatabase(join(data, "dashboard.sqlite"));
   const memory = new DurableMemoryService(data, vault);
   return { root, data, vault, destination, db, memory, service: new SystemBackupService(data, db, memory) };
@@ -33,7 +33,7 @@ it("snapshots a consistent SQLite database and memory manifest, then verifies an
   expect(f.service.verify(created.path).fileCount).toBeGreaterThan(2);
   const restored = f.service.restoreIsolated(created.path, join(f.data, "probe"));
   expect(restored.fileCount).toBe(created.fileCount);
-  expect(readFileSync(join(restored.path, "keys", "auth.key"), "utf8")).toBe("synthetic test key");
+  expect(readFileSync(join(restored.path, "keys", "auth.key"), "utf8")).toBe(Buffer.alloc(32, 1).toString("base64"));
   expect(existsSync(join(f.vault, "Conversations"))).toBe(false);
   f.memory.close();
   f.db.close();
@@ -60,6 +60,54 @@ it("refuses a destination nested in live data or Vault", () => {
   const f = fixture();
   expect(() => f.service.preview(f.data)).toThrow(/overlaps/);
   expect(() => f.service.preview(f.vault)).toThrow(/overlaps/);
+  f.memory.close();
+  f.db.close();
+});
+
+it("requires every manifest artifact and refuses unlisted files or symlinks", async () => {
+  const f = fixture();
+  const created = await f.service.create(f.destination, 2);
+  const manifestPath = join(created.path, "manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as { files: Record<string, string> };
+  delete manifest.files["dashboard.sqlite"];
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+  expect(() => f.service.verify(created.path)).toThrow(/manifest/);
+  manifest.files["dashboard.sqlite"] = "a".repeat(64);
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+  expect(() => f.service.verify(created.path)).toThrow(/checksum/);
+  writeFileSync(join(created.path, "extra.txt"), "unlisted");
+  expect(() => f.service.verify(created.path)).toThrow(/inventory/);
+  f.memory.close();
+  f.db.close();
+});
+
+it("prunes only registered snapshots and preserves a same-prefix canary", async () => {
+  const f = fixture();
+  const canary = join(f.destination, "friday-system-lookalike");
+  mkdirSync(canary);
+  writeFileSync(join(canary, "sentinel"), "untouched");
+  const first = await f.service.create(f.destination, 1);
+  const second = await f.service.create(f.destination, 1);
+  expect(existsSync(first.path)).toBe(false);
+  expect(existsSync(second.path)).toBe(true);
+  expect(readFileSync(join(canary, "sentinel"), "utf8")).toBe("untouched");
+  f.memory.close();
+  f.db.close();
+});
+
+it("rejects a symlinked manifest before reading its target", async () => {
+  const f = fixture();
+  const created = await f.service.create(f.destination, 2);
+  const manifest = join(created.path, "manifest.json");
+  const outside = join(f.root, "outside-manifest.json");
+  writeFileSync(outside, readFileSync(manifest));
+  unlinkSync(manifest);
+  try { symlinkSync(outside, manifest, "file"); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EPERM") { f.memory.close(); f.db.close(); return; }
+    throw error;
+  }
+  expect(() => f.service.verify(created.path)).toThrow(/ordinary file/);
   f.memory.close();
   f.db.close();
 });
