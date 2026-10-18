@@ -250,10 +250,16 @@ export class SystemBackupService {
     return { fileCount: Object.keys(manifest.files).length, memoryEventCount: manifest.memoryEventCount, createdAt: manifest.createdAt };
   }
 
+  verifyPublished(path: string): { fileCount: number; memoryEventCount: number; createdAt: string } {
+    const selected = resolve(path);
+    if (!this.registered().includes(selected) || !basename(selected).startsWith(ownPrefix))
+      throw new Error("Backup was not created by this installation");
+    return this.verify(selected);
+  }
+
   restoreIsolated(sourcePath: string, targetPath: string): { path: string; fileCount: number } {
     const source = realpathSync(sourcePath);
-    if (!basename(source).startsWith(ownPrefix)) throw new Error("Unknown system backup");
-    const result = this.verify(source);
+    const result = this.verifyPublished(source);
     const target = resolve(targetPath);
     if (existsSync(target) || !within(target, this.dataDir) || within(target, this.vaultPath))
       throw new Error("Restore target must be new and isolated inside Friday data");

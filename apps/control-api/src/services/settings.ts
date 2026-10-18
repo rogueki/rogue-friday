@@ -20,6 +20,7 @@ import type { Logger } from "@friday/observability";
 import { kvGet, kvSet, type Db } from "../db/database";
 import type { LibraryStore } from "../db/stores";
 import { ApiError, conflict, validationFailed } from "../util/errors";
+import { validateBackupSchedule } from "./backup-jobs";
 
 export const SETTINGS_AREAS = [
   "profile",
@@ -347,7 +348,18 @@ export class SettingsService {
     if (installed && typeof merged.voice === "object" && merged.voice !== null) {
       merged.voice = { ...(merged.voice as SettingsAreas["voice"]), ttsVoice: installed };
     }
+    merged.backups = this.withBackupResult(merged.backups as SettingsAreas["backups"]);
     return merged as unknown as SettingsAreas;
+  }
+
+  private withBackupResult(value: SettingsAreas["backups"]): SettingsAreas["backups"] {
+    try {
+      const saved = kvGet(this.db, "system_backup.last_result");
+      if (!saved) return value;
+      const result = JSON.parse(saved) as { at?: unknown; status?: unknown };
+      if (typeof result.at !== "string" || !["success", "failed"].includes(String(result.status))) return value;
+      return { ...value, lastBackupAt: result.at, lastBackupStatus: result.status as "success" | "failed" };
+    } catch { return value; }
   }
 
   /** One stored area without assembling the whole settings document (cheap enough for per-request checks). */
@@ -360,12 +372,12 @@ export class SettingsService {
           const installed = installedVoiceChoice(this.config);
           if (installed) return { ...value, ttsVoice: installed } as SettingsAreas[K];
         }
-        return value;
+        return name === "backups" ? this.withBackupResult(value as SettingsAreas["backups"]) as SettingsAreas[K] : value;
       } catch {
         // fall through to the default
       }
     }
-    return this.defaults[name];
+    return name === "backups" ? this.withBackupResult(this.defaults.backups) as SettingsAreas[K] : this.defaults[name];
   }
 
   version(): number {
@@ -412,6 +424,13 @@ export class SettingsService {
 
   /** A patch may only activate a theme/layout that exists (the UI would otherwise render with no tokens). */
   private assertReferences(patch: SettingsPatch): void {
+    if (patch.backups) {
+      try { validateBackupSchedule(patch.backups.schedule); }
+      catch { throw validationFailed("Backup-Zeitplan ist ungültig.", [{ path: "backups.schedule", message: "Fünf gültige Cron-Felder erforderlich" }]); }
+    }
+    if (patch.dataRetention?.memoryDefaultTtlDays !== null && patch.dataRetention?.memoryDefaultTtlDays !== undefined)
+      throw validationFailed("Obsidian-Gedächtnis bleibt ohne automatische Ablaufzeit.",
+        [{ path: "dataRetention.memoryDefaultTtlDays", message: "nur unbegrenzt unterstützt" }]);
     const location = patch.dashboard?.location;
     if (location && ([location.latitude, location.longitude].some((value) => Math.abs(value - Math.round(value * 100) / 100) > 1e-9))) {
       throw validationFailed("Standortkoordinaten müssen vor dem Speichern auf zwei Dezimalstellen gerundet sein.",
