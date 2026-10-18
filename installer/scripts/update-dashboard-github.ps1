@@ -161,8 +161,17 @@ function Invoke-VoicePersonaHelper([string]$mode) {
     if ($accepted -cnotcontains $result.status) { throw "Stimmen-Update $mode hat keinen bestätigten Ergebnisstatus." }
 }
 function Get-VoiceSourcePaths {
-    return @('installer/voice/friday_voice.py', 'installer/voice/voice_persona.py',
-        'installer/voice/prepare_voice_pairs.py', 'installer/fast_tts/server.py',
+    return @('installer/voice/audio_level.py', 'installer/voice/audio_output.py',
+        'installer/voice/browser_audio.py', 'installer/voice/calendar_voice.py',
+        'installer/voice/cloudtalk_voice.py', 'installer/voice/coding_voice.py',
+        'installer/voice/content_studio_voice.py', 'installer/voice/cuda_dlls.py',
+        'installer/voice/elevenlabs_cloud.py', 'installer/voice/film_filter.py',
+        'installer/voice/friday_voice.py', 'installer/voice/mail_voice.py',
+        'installer/voice/model_routing.py', 'installer/voice/personal_wake.py',
+        'installer/voice/powerpoint_voice.py', 'installer/voice/qwen_tts.py',
+        'installer/voice/skills_onboarding_voice.py', 'installer/voice/voice_persona.py',
+        'installer/voice/voice_runtime_paths.py', 'installer/voice/prepare_voice_pairs.py',
+        'installer/fast_tts/server.py',
         'installer/fast_tts/install_wsl.sh', 'installer/fast_tts/update_personas.sh',
         'installer/voice_models/friday_ref.wav', 'installer/voice_models/friday_ref.txt',
         'installer/voice_models/jarvis_ref.wav', 'installer/voice_models/jarvis_ref.txt')
@@ -198,8 +207,14 @@ function Test-VoicePersonaUpdateNeeded([string[]]$changedPaths) {
     foreach ($name in @('friday_ref.wav', 'friday_ref.txt', 'jarvis_ref.wav', 'jarvis_ref.txt')) {
         if (-not (Test-Path -LiteralPath (Join-Path $root "installer\voice_models\$name") -PathType Leaf)) { return $true }
     }
-    if ((Test-Path -LiteralPath (Join-Path $root 'voice\friday_voice.py') -PathType Leaf) -and
-        -not (Test-Path -LiteralPath (Join-Path $root 'voice\voice_persona.py') -PathType Leaf)) { return $true }
+    if (Test-Path -LiteralPath (Join-Path $root 'voice\friday_voice.py') -PathType Leaf) {
+        foreach ($path in $voicePaths) {
+            if ($path -like 'installer/voice/*.py') {
+                $installedPath = Join-Path $root ('voice\' + [IO.Path]::GetFileName($path))
+                if (-not (Test-Path -LiteralPath $installedPath -PathType Leaf)) { return $true }
+            }
+        }
+    }
     return $false
 }
 function Set-UpdateToolPath {

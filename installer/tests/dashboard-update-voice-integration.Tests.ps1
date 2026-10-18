@@ -30,9 +30,15 @@ try {
     foreach ($name in @('friday_ref.wav','friday_ref.txt','jarvis_ref.wav','jarvis_ref.txt')) {
         [IO.File]::WriteAllText((Join-Path $root "installer\voice_models\$name"), 'reference')
     }
-    [IO.File]::WriteAllText((Join-Path $root 'voice\friday_voice.py'), 'voice')
-    [IO.File]::WriteAllText((Join-Path $root 'voice\voice_persona.py'), 'persona')
+    foreach ($path in (Get-VoiceSourcePaths)) {
+        if ($path -like 'installer/voice/*.py') {
+            [IO.File]::WriteAllText((Join-Path $root ('voice\' + [IO.Path]::GetFileName($path))), "fixture $path")
+        }
+    }
     if (Test-VoicePersonaUpdateNeeded @('apps/web/src/page.tsx')) { throw 'Unveraenderte Stimmen wurden ausgeloest.' }
+    Remove-Item -LiteralPath (Join-Path $root 'voice\mail_voice.py')
+    if (-not (Test-VoicePersonaUpdateNeeded @())) { throw 'Fehlendes Mailmodul wurde uebersehen.' }
+    [IO.File]::WriteAllText((Join-Path $root 'voice\mail_voice.py'), 'restored')
     if (-not (Test-VoicePersonaUpdateNeeded @('installer/voice/voice_persona.py'))) { throw 'Voice-Diff wurde uebersehen.' }
     if (-not (Test-VoicePersonaUpdateNeeded @('installer/scripts/update-voice-personas.ps1'))) { throw 'Helper-only-Diff wurde uebersehen.' }
     Remove-Item -LiteralPath (Join-Path $root 'installer\voice_models\jarvis_ref.wav')

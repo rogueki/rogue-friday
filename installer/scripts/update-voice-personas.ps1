@@ -14,7 +14,13 @@ $resultFile = Join-Path $run 'result.json'
 $backupDir = Join-Path $run 'backup'
 $pairs = @('friday-female','classic')
 $files = @(
-    'voice\friday_voice.py', 'voice\voice_persona.py', 'voice\prepare_voice_pairs.py',
+    'voice\audio_level.py', 'voice\audio_output.py', 'voice\browser_audio.py',
+    'voice\calendar_voice.py', 'voice\cloudtalk_voice.py', 'voice\coding_voice.py',
+    'voice\content_studio_voice.py', 'voice\cuda_dlls.py', 'voice\elevenlabs_cloud.py',
+    'voice\film_filter.py', 'voice\friday_voice.py', 'voice\mail_voice.py',
+    'voice\model_routing.py', 'voice\personal_wake.py', 'voice\powerpoint_voice.py',
+    'voice\qwen_tts.py', 'voice\skills_onboarding_voice.py', 'voice\voice_persona.py',
+    'voice\voice_runtime_paths.py', 'voice\prepare_voice_pairs.py',
     'installer\fast_tts\server.py', 'installer\fast_tts\install_wsl.sh', 'installer\fast_tts\update_personas.sh',
     'installer\voice_models\friday_ref.wav', 'installer\voice_models\friday_ref.txt',
     'installer\voice_models\jarvis_ref.wav', 'installer\voice_models\jarvis_ref.txt'
