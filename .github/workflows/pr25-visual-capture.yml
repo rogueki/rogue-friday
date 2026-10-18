@@ -1,0 +1,48 @@
+name: PR25 focused Linux visual capture
+
+on:
+  push:
+    branches: [ci/pr25-visual-capture-20261019]
+
+permissions:
+  contents: read
+
+jobs:
+  visual-capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:app
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Preserve checked-in baselines
+        run: |
+          mkdir -p visual-capture/before
+          cp tests/e2e/__screenshots__/visual.spec.ts/{memory,calendar}-1080p-linux.png visual-capture/before/
+      - name: Capture only memory and calendar at 1080p
+        run: pnpm test:e2e tests/e2e/visual.spec.ts --grep 'core pages 1920x1080 (memory|calendar)$' --workers=1 --update-snapshots
+      - name: Preserve candidates and source revision
+        if: always()
+        run: |
+          mkdir -p visual-capture/after
+          cp tests/e2e/__screenshots__/visual.spec.ts/{memory,calendar}-1080p-linux.png visual-capture/after/
+          git rev-parse HEAD > visual-capture/source-sha.txt
+          git diff --stat -- tests/e2e/__screenshots__/visual.spec.ts > visual-capture/diff-stat.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr25-memory-calendar-linux-capture
+          path: |
+            visual-capture
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 3
