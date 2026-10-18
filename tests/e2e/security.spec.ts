@@ -45,7 +45,7 @@ test("the CSP is delivered exactly as specified and no page triggers a violation
   expect(violations).toEqual([]);
   expect(documentCsp.length).toBeGreaterThan(0);
   for (const csp of documentCsp) {
-    for (const directive of ["default-src 'self'", "frame-ancestors 'none'", "base-uri 'none'", "form-action 'self'", "img-src 'self' data: blob:", "connect-src 'self' ws: wss:", "worker-src 'self' blob:"]) expect(csp).toContain(directive);
+    for (const directive of ["default-src 'self'", "frame-ancestors 'none'", "base-uri 'none'", "form-action 'self'", "img-src 'self' data: blob:", "connect-src 'self' https://api.bigdatacloud.net ws: wss:", "worker-src 'self' blob:"]) expect(csp).toContain(directive);
     expect(csp).toMatch(/script-src 'self'( 'sha256-[A-Za-z0-9+/=]+')*;/);
     expect(csp).not.toMatch(/script-src[^;]*'unsafe-(inline|eval)'/);
   }

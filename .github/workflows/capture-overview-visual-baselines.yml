@@ -1,0 +1,64 @@
+name: Capture reviewed overview visual baselines
+
+on:
+  push:
+    branches: [ci/overview-baseline-capture-20261019]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Capture two Linux overview baselines
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build
+        run: pnpm build
+
+      - name: Capture only reviewed overview states
+        run: pnpm test:e2e tests/e2e/visual.spec.ts -g 'overview in scenario (partial-outage|critical-alert)' --update-snapshots
+
+      - name: Verify only the two approved baselines changed
+        shell: bash
+        run: |
+          expected="$(mktemp)"
+          changed="$(mktemp)"
+          printf '%s\n' \
+            tests/e2e/__screenshots__/visual.spec.ts/overview-critical-alert-linux.png \
+            tests/e2e/__screenshots__/visual.spec.ts/overview-partial-outage-linux.png \
+            | sort > "$expected"
+          git diff --name-only | sort > "$changed"
+          diff -u "$expected" "$changed"
+          git diff --check
+
+      - name: Upload candidate Linux baselines
+        uses: actions/upload-artifact@v4
+        with:
+          name: overview-linux-baseline-candidates
+          path: |
+            tests/e2e/__screenshots__/visual.spec.ts/overview-critical-alert-linux.png
+            tests/e2e/__screenshots__/visual.spec.ts/overview-partial-outage-linux.png
+          if-no-files-found: error
+          retention-days: 7
