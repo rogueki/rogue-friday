@@ -203,6 +203,7 @@ function Find-VoiceReference([string]$Choice, [string]$SavedReference, [string]$
         $candidates += "$InstallRoot\config\voice-references\$Choice-reference.$extension"
     }
     if ($Choice -eq 'classic') { $candidates += "$PackageRoot\voice_models\jarvis_ref.wav" }
+    if ($Choice -eq 'friday-female') { $candidates += "$PackageRoot\voice_models\friday_ref.wav" }
     foreach ($candidate in $candidates) {
         if ($candidate -match '\.(wav|mp3)$' -and (Test-Path -LiteralPath $candidate -PathType Leaf)) { return $candidate }
     }
@@ -1479,6 +1480,14 @@ if (-not (IsDone 'voicepython')) {
     if ($voiceConfig.tts_backend -eq 'streaming_qwen') {
         Info 'Installiere dauerhaft geladenen lokalen TTS-Dienst in der Friday-Distribution …'
         $windowsPaths = @("$Root\installer\fast_tts\install_wsl.sh", $voiceConfig.tts_reference, $voiceConfig.tts_reference_text_file)
+        $pairResult = @(& $vpy "$Root\voice\prepare_voice_pairs.py" $Root $PSScriptRoot 2>&1)
+        if ($LASTEXITCODE -ne 0) { Stop-Install "Stimmreferenzen konnten nicht vorbereitet werden: $($pairResult -join ' ')" }
+        $pairs = $pairResult[-1] | ConvertFrom-Json
+        if ($pairs.'friday-female' -and $pairs.classic) {
+            $referenceDir = "$Root\config\voice-references"
+            $windowsPaths += @("$referenceDir\friday-female-streaming.wav", "$referenceDir\friday-female-reference.txt",
+                               "$referenceDir\classic-streaming.wav", "$referenceDir\classic-reference.txt")
+        }
         $linuxPaths = @()
         foreach ($windowsPath in $windowsPaths) {
             $pathOutput = @(& wsl.exe -d $Distro -u $State.linux_user --exec wslpath -a -u $windowsPath 2>&1)
@@ -1487,7 +1496,9 @@ if (-not (IsDone 'voicepython')) {
             if ($exitCode -ne 0 -or -not "$linuxPath".StartsWith('/')) { Stop-Install "WSL-Pfad konnte nicht aufgeloest werden: $windowsPath" }
             $linuxPaths += [string]$linuxPath
         }
-        & wsl.exe -d $Distro -u $State.linux_user --exec bash $linuxPaths[0] $linuxPaths[1] $linuxPaths[2] ([string]$ttsPort) 2>&1 |
+        $ttsArgs = @($linuxPaths[0], $linuxPaths[1], $linuxPaths[2], [string]$ttsPort)
+        if ($linuxPaths.Count -eq 7) { $ttsArgs += $linuxPaths[3..6] }
+        & wsl.exe -d $Distro -u $State.linux_user --exec bash @ttsArgs 2>&1 |
             ForEach-Object { Info "$_" }
         if ($LASTEXITCODE -ne 0) { Stop-Install 'Lokaler TTS-Dienst konnte nicht installiert werden.' }
         if (-not (Wait-Http "http://127.0.0.1:$ttsPort/health" 240)) {

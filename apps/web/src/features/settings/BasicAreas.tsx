@@ -261,7 +261,13 @@ export function VoiceArea() {
       </Section>
       <Section title={t("settings.voice.output")}>
         <FieldGrid>
-          <TextField label={t("settings.voice.ttsVoice")} value={value.ttsVoice} disabled={readOnly} onChange={(event) => update({ ttsVoice: event.target.value })} />
+          <Select label={t("settings.voice.ttsVoice")} value={value.ttsVoice} disabled={readOnly}
+            options={[
+              ...(!["friday-female", "classic"].includes(value.ttsVoice) ? [{ value: value.ttsVoice, label: t("settings.voice.unconfigured") }] : []),
+              { value: "friday-female", label: "F.R.I.D.A.Y. (weiblich)" },
+              { value: "classic", label: "J.A.R.V.I.S. (männlich)" },
+            ]}
+            onChange={(event) => update({ ttsVoice: event.target.value })} />
           <Slider label={t("settings.voice.ttsRate")} min={0.5} max={2} step={0.05} value={value.ttsRate} disabled={readOnly} formatValue={(v) => `${v.toFixed(2)}×`} onValueChange={(ttsRate) => update({ ttsRate })} />
           <Select label={t("settings.voice.inputDevice")} value={value.inputDeviceId ?? ""} disabled={readOnly} options={options("input", value.inputDeviceId)} onChange={(event) => update({ inputDeviceId: event.target.value === "" ? null : event.target.value })} />
           <Select label={t("settings.voice.outputDevice")} value={value.outputDeviceId ?? ""} disabled={readOnly} options={options("output", value.outputDeviceId)} onChange={(event) => update({ outputDeviceId: event.target.value === "" ? null : event.target.value })} />

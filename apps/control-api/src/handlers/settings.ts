@@ -8,6 +8,7 @@ import type { TelephonyProfile } from "../services/telephony";
 import type { HimalayaSendRequest } from "../services/himalaya-send";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
 import { LocationWeatherService } from "../services/location-weather";
+import { applyVoicePersona, VOICE_PERSONAS, type VoicePersona } from "../services/voice-persona";
 import type { SettingsService } from "../services/settings";
 import { localList } from "./meta";
 
@@ -15,6 +16,7 @@ const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString()
 
 const single = <T>(data: T) => ({ contractVersion: CONTRACT_VERSION, data, freshness: fresh() });
 const weatherServices = new WeakMap<SettingsService, LocationWeatherService>();
+const voiceChanges = new WeakSet<SettingsService>();
 function weatherService(settings: SettingsService): LocationWeatherService {
   let service = weatherServices.get(settings);
   if (!service) { service = new LocationWeatherService(settings); weatherServices.set(settings, service); }
@@ -217,7 +219,44 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
   },
 
   async updateSettings(ctx) {
-    const { settings, changed } = ctx.runtime.settings.patch(ctx.body as SettingsPatch, ctx.mutation.ifMatchVersion);
+    const patch = ctx.body as SettingsPatch;
+    const requested = patch.voice?.ttsVoice;
+    const previous = ctx.runtime.settings.area("voice").ttsVoice;
+    const changeVoice = requested !== undefined && requested !== previous;
+    if (patch.voice && voiceChanges.has(ctx.runtime.settings)) {
+      throw new ApiError({ code: "CONFLICT", message: "Eine Stimmenänderung läuft bereits." });
+    }
+    if (changeVoice) {
+      if (!VOICE_PERSONAS.includes(requested as VoicePersona)) {
+        throw validationFailed("Bitte F.R.I.D.A.Y. oder J.A.R.V.I.S. wählen.", [{ path: "voice.ttsVoice", message: "unbekannte Stimme" }]);
+      }
+      const originalVersion = ctx.runtime.settings.version();
+      if (ctx.mutation.ifMatchVersion !== undefined && ctx.mutation.ifMatchVersion !== originalVersion) {
+        throw new ApiError({ code: "CONFLICT", message: "Einstellungen wurden inzwischen geändert. Bitte neu laden." });
+      }
+      ctx.runtime.settings.validateAreas(patch);
+      voiceChanges.add(ctx.runtime.settings);
+      try {
+        await applyVoicePersona(ctx.runtime, requested as VoicePersona);
+        try {
+          const result = ctx.runtime.settings.patch(patch, originalVersion);
+          ctx.audit.action = "settings.voice_changed";
+          ctx.audit.after = { voice: requested, version: result.settings.version };
+          return { status: 200, body: single(result.settings) };
+        } catch (error) {
+          try {
+            if (!VOICE_PERSONAS.includes(previous as VoicePersona)) throw new Error("Vorherige Stimme unbekannt");
+            await applyVoicePersona(ctx.runtime, previous as VoicePersona);
+          } catch (recovery) {
+            throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Stimme wurde geändert, aber Speichern und Rückkehr zur vorherigen Stimme konnten nicht bestätigt werden. Bitte Sprachdienst prüfen.", cause: recovery });
+          }
+          throw error;
+        }
+      } finally {
+        voiceChanges.delete(ctx.runtime.settings);
+      }
+    }
+    const { settings, changed } = ctx.runtime.settings.patch(patch, ctx.mutation.ifMatchVersion);
     ctx.audit.action = "settings.updated";
     ctx.audit.after = { areas: changed, version: settings.version };
     // The mock world words its orb/status texts with the assistant name; re-derive them so a rename shows up at once.

@@ -130,6 +130,13 @@ else:
             if not os.path.exists(dst):
                 shutil.copy(hf_hub_download("rhasspy/piper-voices", f"{folder}/{name}{ext}"), dst)
         voice = os.path.join(tts, name + ".onnx")
+    # Both dashboard personas need their own local fallback if Qwen temporarily fails.
+    for fallback_name, fallback_folder in (("de_DE-kerstin-low", "de/de_DE/kerstin/low"),
+                                           ("de_DE-thorsten-medium", "de/de_DE/thorsten/medium")):
+        for ext in (".onnx", ".onnx.json"):
+            dst = os.path.join(tts, fallback_name + ext)
+            if not os.path.exists(dst):
+                shutil.copy(hf_hub_download("rhasspy/piper-voices", f"{fallback_folder}/{fallback_name}{ext}"), dst)
 
     qwen_settings = {"tts_backend": "piper", "tts_reference": None, "tts_url": None,
                      "tts_reference_text_file": None,
@@ -268,6 +275,11 @@ cfg.update({"voice_mode": options.voice_mode, "elevenlabs_voice_id": options.ele
             "elevenlabs_key_file": os.path.join(CONFIG, "elevenlabs_api.key.dpapi"),
             "tts_voice": voice, "tts_film_filter": film_filter,
             "tts_voice_choice": options.voice_choice, "tts_speaker_id": None, **qwen_settings})
+if options.voice_mode == "elevenlabs":
+    saved_ids = cfg.get("elevenlabs_voice_ids")
+    ids = dict(saved_ids) if isinstance(saved_ids, dict) else {}
+    ids[options.voice_choice] = options.elevenlabs_voice_id
+    cfg["elevenlabs_voice_ids"] = ids
 if options.qwen_port is not None:
     cfg["qwen_url"] = f"http://127.0.0.1:{options.qwen_port}/v1/chat/completions"
 if options.hermes_port is not None:

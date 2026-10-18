@@ -52,10 +52,10 @@ Wake Word *„Hey Friday“*.
      zusammen 3–30 Zeichen, z. B. *Hey Friday*, *Computer*, *Guten Morgen Friday*.
    - dem **Sprachmodus**: lokal mit mindestens 6 GB NVIDIA-VRAM oder ElevenLabs Cloud ohne dedizierte GPU. Für Cloud gibst du eine Voice ID (optional) und später den verdeckt abgefragten API-Schlüssel ein. Die voreingestellte ElevenLabs-Bibliotheksstimme braucht für API-Nutzung einen geeigneten Tarif; ein Free-Konto wurde mit `paid_plan_required` abgewiesen.
      Im Free-Tarif kannst du stattdessen unter **ElevenLabs → Voices → My Voices → Add a new voice → Voice Design** eine synthetische Stimme erstellen, speichern und über **⋯ → Copy voice ID** ihre ID kopieren. Die Erstellung und Nutzung verbrauchen Credits aus deinem Kontingent; prüfe die aktuellen [ElevenLabs-Tarife](https://elevenlabs.io/pricing).
-   - bei lokaler Sprache der **Ausgabestimme**: Option 2 nutzt die mitgelieferte synthetische J.A.R.V.I.S.-Referenz
+   - bei lokaler Sprache der **Ausgabestimme**: Option 1 nutzt die mitgelieferte weibliche F.R.I.D.A.Y.-Referenz `installer/voice_models/friday_ref.wav`; Option 2 nutzt die mitgelieferte synthetische J.A.R.V.I.S.-Referenz
      `installer/voice_models/jarvis_ref.wav` automatisch mit lokalem Qwen3-TTS und Filmfilter. Du brauchst dafür keinen
      Dateipfad einzugeben. Eine eigene 3–30 Sekunden lange MP3/WAV-Referenz kannst du als Ersatz angeben; sie wird
-     lokal gespeichert. Option 1 nutzt eine eigene weibliche Referenz oder ohne diese Piper Kerstin. Für Option 2
+     lokal gespeichert. Für Option 1 ist Piper Kerstin die Ausfallstimme. Für Option 2
      ist alternativ ein eigenes `jarvis_de.onnx` mit `.json` möglich. Thorsten mit Filmfilter ist die Ausfallstimme,
      wenn weder Referenz noch ONNX vorhanden ist.
    - deinem **Vornamen** und wie dein Assistent dich ansprechen soll (z. B. *„Sir“* wie ein britischer Butler)

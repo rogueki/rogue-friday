@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
   CONTRACT_VERSION,
   SCHEMAS,
@@ -62,6 +62,14 @@ const NAVIGATION_ORDER = [
 export const FALLBACK_THEME_ID = "friday-command-midnight";
 export const FALLBACK_LAYOUT_ID = "friday-command-overview";
 
+function installedVoiceChoice(config: FridayConfig): "friday-female" | "classic" | null {
+  try {
+    const file = resolve(config.configDir, "..", "..", "config", "voice.json");
+    const value = JSON.parse(readFileSync(file, "utf8")) as { tts_voice_choice?: unknown };
+    return value.tts_voice_choice === "friday-female" || value.tts_voice_choice === "classic" ? value.tts_voice_choice : null;
+  } catch { return null; }
+}
+
 export function defaultSettingsAreas(config: FridayConfig): SettingsAreas {
   const locale = config.ui.locale.toLowerCase().startsWith("en") ? "en" : "de";
   return {
@@ -122,7 +130,7 @@ export function defaultSettingsAreas(config: FridayConfig): SettingsAreas {
       speakerVerificationRequired: true,
       storeRawRecordings: false,
       voiceHistoryEnabled: true,
-      ttsVoice: "de_DE-thorsten-medium",
+      ttsVoice: installedVoiceChoice(config) ?? "",
       ttsRate: 1,
       inputDeviceId: null,
       outputDeviceId: null,
@@ -335,6 +343,10 @@ export class SettingsService {
         // A damaged row falls back to the default area instead of breaking every settings call.
       }
     }
+    const installed = installedVoiceChoice(this.config);
+    if (installed && typeof merged.voice === "object" && merged.voice !== null) {
+      merged.voice = { ...(merged.voice as SettingsAreas["voice"]), ttsVoice: installed };
+    }
     return merged as unknown as SettingsAreas;
   }
 
@@ -343,7 +355,12 @@ export class SettingsService {
     const row = this.db.prepare("SELECT json FROM settings_areas WHERE area = ?").get(name) as { json: string } | undefined;
     if (row) {
       try {
-        return JSON.parse(row.json) as SettingsAreas[K];
+        const value = JSON.parse(row.json) as SettingsAreas[K];
+        if (name === "voice") {
+          const installed = installedVoiceChoice(this.config);
+          if (installed) return { ...value, ttsVoice: installed } as SettingsAreas[K];
+        }
+        return value;
       } catch {
         // fall through to the default
       }

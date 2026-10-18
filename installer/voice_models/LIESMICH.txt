@@ -1,4 +1,6 @@
 Die klassische J.A.R.V.I.S.-Stimmreferenz liegt als jarvis_ref.wav in diesem Ordner.
+Die weibliche F.R.I.D.A.Y.-Stimmreferenz liegt als friday_ref.wav in diesem Ordner.
+Die gleichnamigen TXT-Dateien enthalten die zugehörigen gesprochenen Referenztexte für Qwen.
 Bei Auswahl 2 verwendet der Installer sie automatisch mit lokalem Qwen3-TTS und Filmfilter.
 Die Referenz ist ein synthetisches VoiceDesign aus dem JARVIS_Stimmpaket (kein Klon einer realen Person).
 Die ANLEITUNG.md dieses Originalpakets nennt als Nutzung "privat".
@@ -7,5 +9,5 @@ Der Pakettext nennt Qwen3-TTS Apache-2.0 und faster-qwen3-tts MIT; fuer die WAV-
 Du kannst im Installer stattdessen eine andere MP3/WAV-Referenz angeben. Diese wird nur lokal gespeichert.
 Falls keine Referenz vorhanden ist, kannst du alternativ jarvis_de.onnx und jarvis_de.onnx.json hier ablegen.
 Ohne Referenz oder ONNX verwendet die klassische Ausgabe Thorsten mit Filmfilter.
-Die weibliche F.R.I.D.A.Y.-Ausgabe kann ebenfalls eine eigene MP3/WAV-Referenz verwenden;
-ohne sie ist Piper Kerstin die Basisstimme. Spaeterer Wechsel: change-voice.bat.
+Die weibliche F.R.I.D.A.Y.-Ausgabe verwendet standardmäßig die beiliegende Referenz.
+Eigene MP3/WAV-Referenzen können weiterhin lokal gewählt werden. Spaeterer Wechsel: Dashboard-Einstellungen oder change-voice.bat.

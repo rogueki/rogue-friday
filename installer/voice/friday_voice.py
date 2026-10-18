@@ -199,6 +199,27 @@ class Speaker:
         self.level = LevelMeter()  # nur ein Pegelwert 0..1 fuer das Status-JSON, kein Audio
         threading.Thread(target=self._worker, daemon=True).start()
 
+    def apply_persona(self, cfg: dict) -> bool:
+        """Switch after current speech; the worker cannot keep cached audio from the old voice."""
+        with self.queue_lock:
+            if self.speaking.is_set() or not self.queue.empty():
+                return False
+            if cfg.get("voice_mode") != "elevenlabs":
+                from piper import PiperVoice
+                next_voice = PiperVoice.load(cfg["tts_voice"])
+            else:
+                next_voice = None
+            self.voice = next_voice
+            self.sr = next_voice.config.sample_rate if next_voice else elevenlabs_cloud.TTS_RATE
+            self.cloud = cfg.get("voice_mode") == "elevenlabs"
+            self.tts_config = cfg
+            self.tts_url = cfg.get("tts_url")
+            self.film_filter = cfg.get("tts_film_filter", False)
+            self.speaker_id = cfg.get("tts_speaker_id")
+            self.cache.clear()
+            self.qwen_cache.clear()
+            return True
+
     def prefetch(self, texts: list[str]) -> None:
         """Feste Kurzsaetze vorab synthetisieren, damit z. B. "Moment." ohne Wartezeit kommt."""
         if self.cloud or not self.tts_url:
@@ -253,7 +274,10 @@ class Speaker:
                 underflows = play_pcm((pcm[i:i + 4096] for i in range(0, len(pcm), 4096)), sr)
                 log_event(event="tts_stream", cached=True, underflows=underflows, audio_s=round(len(pcm) / 2 / sr, 2))
             return
-        req = urllib.request.Request(self.tts_url, json.dumps({"text": text}).encode("utf-8"),
+        payload = {"text": text}
+        if self.tts_config.get("tts_persona_streaming"):
+            payload["voice"] = self.tts_config.get("tts_voice_choice")
+        req = urllib.request.Request(self.tts_url, json.dumps(payload).encode("utf-8"),
                                      {"Content-Type": "application/json"})
         collected = bytearray()
         with urllib.request.urlopen(req, timeout=60) as resp:
@@ -1317,6 +1341,7 @@ class VoiceService:
         `phase`, `tts_active`, `input_audio`/`output_audio` = {level, peak, low, mid, high} 0..1."""
         speaking = self.tts.speaking.is_set()
         return {**self.status, "speaking": speaking,
+                "tts_voice_choice": self.cfg.get("tts_voice_choice"),
                 "trusted": time.monotonic() < self.trusted_until,
                 "input_level": self.input_level.value(),
                 "output_level": self.tts.level.value(),
@@ -1331,7 +1356,7 @@ class VoiceService:
 
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_POST(self):
-                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume"):
+                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice"):
                     self.send_error(404)
                     return
                 key_path = voice_bridge_key_path(service.cfg)
@@ -1344,6 +1369,55 @@ class VoiceService:
                 supplied = self.headers.get("Authorization", "")
                 if not expected or len(supplied) > 100 or not supplied.isascii() or not hmac.compare_digest(supplied, "Bearer " + expected):
                     self.send_error(401)
+                    return
+                if self.path == "/control/voice":
+                    from voice_persona import PersonaUnavailable, resolve
+                    try:
+                        size = int(self.headers.get("Content-Length", "0"))
+                        if not 0 < size <= 128:
+                            raise ValueError("Invalid request size")
+                        body = json.loads(self.rfile.read(size))
+                        if not isinstance(body, dict) or set(body) != {"voice"} or body["voice"] not in ("friday-female", "classic"):
+                            raise ValueError("Invalid voice")
+                    except (ValueError, TypeError, AttributeError):
+                        self.send_error(400)
+                        return
+                    try:
+                        config = resolve(service.cfg, INSTALL_ROOT, body["voice"])
+                    except PersonaUnavailable as exc:
+                        message = json.dumps({"applied": False, "message": str(exc)}).encode("utf-8")
+                        self.send_response(409)
+                        self.send_header("Content-Type", "application/json")
+                        self.send_header("Content-Length", str(len(message)))
+                        self.end_headers()
+                        self.wfile.write(message)
+                        return
+                    with service.manual_start_lock:
+                        if service.processing or not service.tts.apply_persona(config):
+                            self.send_error(423, "Voice is busy")
+                            return
+                        import tempfile
+                        config_path = os.path.join(INSTALL_ROOT, "config", "voice.json")
+                        handle, temporary = tempfile.mkstemp(prefix="voice-persona-", suffix=".json", dir=os.path.dirname(config_path))
+                        try:
+                            with os.fdopen(handle, "w", encoding="utf-8") as target:
+                                json.dump(config, target, ensure_ascii=False, indent=2)
+                            os.replace(temporary, config_path)
+                        except OSError:
+                            try:
+                                os.unlink(temporary)
+                            except OSError:
+                                pass
+                            service.tts.apply_persona(service.cfg)
+                            self.send_error(500)
+                            return
+                        service.cfg = config
+                    result = json.dumps({"applied": True, "voice": body["voice"]}).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(result)))
+                    self.end_headers()
+                    self.wfile.write(result)
                     return
                 with service.manual_start_lock:
                     if self.path == "/control/start":
@@ -1396,6 +1470,15 @@ def main() -> None:
                     "erzwingt die Engine openwakeword")
     args = ap.parse_args()
     cfg = json.load(open(args.config, encoding="utf-8-sig"))  # BOM-tolerant (Windows-Editoren)
+    selected = cfg.get("tts_voice_choice", "")
+    canonical = os.path.join(INSTALL_ROOT, "config", "voice-references", f"{selected}-reference.wav")
+    if (cfg.get("tts_backend") == "streaming_qwen" and not cfg.get("tts_persona_streaming") and
+            os.path.normcase(os.path.abspath(str(cfg.get("tts_reference", "")))) == os.path.normcase(canonical)):
+        from voice_persona import PersonaUnavailable, resolve
+        try:
+            cfg = resolve(cfg, INSTALL_ROOT, selected)
+        except PersonaUnavailable:
+            pass  # Existing single-reference installations still start until their voice update is applied.
     os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
     VoiceService(cfg, args.test_wake_model).run()
 
