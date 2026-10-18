@@ -485,4 +485,3 @@ Für jedes Feld der vollständigen Einstellungen-Matrix sind folgende Prüfungen
 Besonders prüfen: Wake Word, Push-to-Talk, Sprecherprofil, STT-Sprache/Modell, TTS-Stimme/Tempo, Ein-/Ausgabe, Modellrouting und Fallback, Ruhezeiten, Benachrichtigungskanäle, Session-Timeout, Freigabeablauf, Datenaufbewahrung, Backups, Speicherpfade, Standort, Theme/Layout und sämtliche Providerfelder.
 
 **SETTINGS-ALL-01:** Kein Feld ohne benannten Consumer. **SETTINGS-ALL-02:** Kein funktionierender Status allein aufgrund lokaler Speicherung. **SETTINGS-ALL-03:** Jede Auswahl aus einer externen Geräte-/Konten-/Modellquelle besitzt echten Bestandsabgleich und Fehleranzeige. **SETTINGS-ALL-04:** Vollständige Feldmatrix mit Belegen abgearbeitet. Diese Kriterien sowie AUDIO-01 bis AUDIO-09 und UI-STOP-01 bis UI-STOP-03 ergänzen verbindlich die Definition of Done in Abschnitt 15.
-

@@ -64,5 +64,3 @@ P8 starts after P1 status contracts and after applicable first-wave packages are
 2. Implement P7-A first, then allocate P7-B/C/D/E/F as independent bounded families only after its schema/status contracts stabilize. Keep one writer per shared file family. P8-1 can start after P1; P8-2/3/4 wait for P2/P2b, P6 and P3 respectively; P8-5 is isolated; P8-6 is divided by domain.
 3. Required package evidence is the exact criteria/field IDs, source key and revision, UI/API/handler/consumer, apply/read-back behavior, platform/prerequisites, negative cases and targeted command results. Root reviews the combined diff and tests at integration boundaries. Do not change the global status of the 58 acceptance criteria merely because a subpackage passes.
 4. Keep account/provider/hardware proof separate: model credentials/available models, optional tools, plugin installation, channel pairing, cloud spend limits, physical audio and backup storage are not inferred from source or mock tests. Mark external blockers explicitly and keep unsupported choices visible. Do not claim a price, weekly quota or effective cloud budget absent a verified provider/account contract.
-
-

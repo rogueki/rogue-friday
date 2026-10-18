@@ -104,6 +104,3 @@ For each row in `settings-runtime-map.csv`, record: (1) source of choices, (2) r
 ## Evidence record format
 
 For every result add UTC date, code SHA and runtime/provider versions, criterion ID, exact command or manual path, outcome, artifact/log reference with secrets redacted, limitations, and reviewer. A screenshot proves visible UI only; HTTP 200 proves reachability only. Missing account/provider consent is `BLOCKED_EXTERNAL`; physical headset use and stop-latency measurement are `BLOCKED_HARDWARE` until actually exercised. Do not claim a weekly quota, price or fixed cost unless independently established from the current provider/account terms.
-
-
-

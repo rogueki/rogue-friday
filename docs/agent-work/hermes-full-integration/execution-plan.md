@@ -34,7 +34,3 @@ Baseline checkout: `rogue-friday-clean`, `841f0771f52c81b78ea57fd4012161c11c4efb
 - Keep automated evidence and provider/hardware evidence distinct. Provider setup/consent, WhatsApp QR/device pairing, calendar write permission, mail credentials, microphone permissions, actual headset endpoint, Bluetooth behavior and 30-sample stop-latency runs cannot be inferred from mocks, source inspection or HTTP health.
 - Back up before later migration/install work; the live Friday installation is preserved during tonight's feature work. Clean install is isolated, then a separately scheduled full-system exercise follows backup and data-preservation checks.
 - Update `acceptance-ledger.md` and project memory as evidence lands. A criterion stays `NOT_RUN` until exercised; use `FAIL`, `BLOCKED_EXTERNAL`, `BLOCKED_HARDWARE` or `PASS` with evidence rather than inferred success.
-
-
-
-
