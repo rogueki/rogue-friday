@@ -241,7 +241,9 @@ export function createWorld(
   if (config.dataMode === "live") return undefined;
   return new MockWorld({
     ...(options.seed !== undefined ? { seed: options.seed } : {}),
-    ...(options.profile ? { profile: options.profile as never } : {}),
+    // Hybrid's fallback adapters provide empty placeholders on a normal installation. Explicit demo profiles and
+    // standalone mock mode keep their curated scenarios; neither path touches persisted live-adapter data.
+    profile: (options.profile ?? (config.dataMode === "hybrid" ? "empty" : "default")) as never,
     ...(options.nextSequence ? { nextSequence: options.nextSequence } : {}),
     ...(options.assistantName ? { assistantName: options.assistantName } : {}),
     realTime: options.realTime,

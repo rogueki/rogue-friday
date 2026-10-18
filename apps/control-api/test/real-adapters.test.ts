@@ -123,6 +123,37 @@ describe("real adapters behind the Control API (hybrid)", () => {
     await upstreams.start("hermes");
     await expect.poll(async () => (await owner.get("/api/v1/tasks")).statusCode, { timeout: 30000 }).toBe(200);
   });
+
+  it("starts hybrid fallback data empty but warns for a new P1 alert", async () => {
+    for (const path of ["/api/v1/memory", "/api/v1/approvals", "/api/v1/notifications", "/api/v1/calendar/events", "/api/v1/files"]) {
+      expect((await owner.get(path)).json().items, path).toHaveLength(0);
+    }
+    const adapterLogs = (await owner.get("/api/v1/adapters/mock-notifications/logs")).json().items as Array<{ message: string }>;
+    expect(adapterLogs.some((entry) => entry.message === "Healthcheck erfolgreich")).toBe(false);
+    expect((await owner.get("/api/v1/notifications?priority=P1&status=open")).json().items).toHaveLength(0);
+    await expect.poll(async () => (await owner.get("/api/v1/health")).json().status, { timeout: 10000 }).toBe("online");
+    const before = (await owner.get("/api/v1/orb/status")).json().data;
+    expect(before.status.health).toBe("online");
+    expect(before.layers.attention).toBe("none");
+
+    api.runtime.world!.notifications.raise({ priority: "P1", category: "system", title: "Runtime-Warnung", body: "Test" });
+    const orb = (await owner.get("/api/v1/orb/status")).json().data;
+    expect(orb.status.health).toBe("online");
+    expect(orb.layers.attention).toBe("warning");
+  });
+});
+
+it.each([
+  { dataMode: "mock" as const },
+  { dataMode: "hybrid" as const, worldProfile: "default" },
+])("keeps curated P1 notifications for an explicit demo profile ($dataMode)", async (options) => {
+  const api = await startTestApi({ ...options, ...(options.dataMode === "hybrid" ? { authMode: "local", ownerPassword: PASSWORD } : {}) });
+  try {
+    const notifications = api.runtime.world?.state.notifications.filter((item) => item.priority === "P1" && item.status === "open");
+    expect(notifications).toHaveLength(2);
+  } finally {
+    await api.close();
+  }
 });
 
 describe("allowlist wiring", () => {
