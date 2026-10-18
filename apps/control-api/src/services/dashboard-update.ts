@@ -63,7 +63,7 @@ export class DashboardUpdateService {
     let latest: string | null = null;
     let error: string | null = installed ? null : "Installierter Git-Stand unbekannt. Dashboard einmal mit dem aktuellen Installer aktualisieren.";
     try { latest = await this.latest(force); }
-    catch { error = "GitHub ist nicht erreichbar oder der Zugriff auf das private Repository fehlt."; }
+    catch { error = "GitHub ist nicht erreichbar oder der Zugriff auf das Repository fehlt."; }
     const { existsSync } = await import("node:fs");
     return { installed, latest, available: Boolean(installed && latest && installed !== latest),
       checking: false, installing: existsSync(this.lock), error, lastResult: await this.lastResult() };
