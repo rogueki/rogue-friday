@@ -32,8 +32,12 @@ async function controlSocket(page: Page): Promise<SocketControl> {
 
 test("a dropped event stream is reported, retried with backoff and backfilled with ?since= after it returns", async ({ page, api }) => {
   const sockets = await controlSocket(page);
-  await open(page, "/");
-  await expect(eventStreamChip(page)).toContainText("online");
+  // This reconnect scenario runs after the long performance/soak cases in CI. Give the initial
+  // WebSocket handshake more than the shared open() helper's 15s so a slow runner does not fail
+  // before the actual drop/retry behavior is exercised.
+  await page.goto("/");
+  await expect(page.getByRole("main", { name: "Hauptinhalt" })).toBeVisible();
+  await expect(eventStreamChip(page)).toContainText("online", { timeout: 40_000 });
   const firstConnects = sockets.urls.length;
   expect(firstConnects).toBeGreaterThanOrEqual(1);
   // The client resumes from the last sequence it has seen, so let it see one event before the drop.

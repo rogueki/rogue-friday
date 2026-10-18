@@ -65,9 +65,12 @@ test.describe("orb states (static 2D render, 14 modes)", () => {
     await open(page, "/");
     for (const mode of ORB_MODES) {
       await api.forceOrb(mode);
+      await pinOrbMode(page, mode);
       await expectOrbMode(page, mode);
       await settle(page);
+      await expectOrbMode(page, mode);
       await expect(orbRoot(page)).toHaveScreenshot(`orb-${mode}.png`, { mask: [page.getByText(/^Aktualisiert \d/)] });
+      await expectOrbMode(page, mode);
     }
   });
 
@@ -157,8 +160,18 @@ async function setOrbClock(page: Page, clock: OrbClock): Promise<void> {
   await expect.poll(() => page.evaluate(() => window.__ORB_DEBUG__?.frames ?? 0), { timeout: 60_000 }).toBeGreaterThan(applied + 4);
 }
 
-async function orbShot(page: Page, name: string): Promise<void> {
+async function pinOrbMode(page: Page, mode: string): Promise<void> {
+  await page.evaluate((value) => {
+    const hook = (window as unknown as { __FRIDAY_ORB__?: { controller: { setMode: (mode: string) => void } } }).__FRIDAY_ORB__;
+    if (!hook) throw new Error("Orb dev hook is unavailable");
+    hook.controller.setMode(value);
+  }, mode);
+}
+
+async function orbShot(page: Page, name: string, mode: string): Promise<void> {
+  await expectOrbMode(page, mode);
   await expect(orbRoot(page)).toHaveScreenshot(`${name}.png`, { mask: [page.getByText(/^Aktualisiert \d/)], timeout: 90_000 });
+  await expectOrbMode(page, mode);
 }
 
 test.describe("orb 3D with the test clock (entry / mid / stable / exit)", () => {
@@ -170,15 +183,17 @@ test.describe("orb 3D with the test clock (entry / mid / stable / exit)", () => 
       await api.forceOrb(mode);
       await open(page, "/");
       await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
+      await pinOrbMode(page, mode);
       await expectOrbMode(page, mode);
       for (const [stage, progress] of STAGES) {
         await setOrbClock(page, { fixedTime: 4, animationProgress: progress });
-        await orbShot(page, `orb3d-${mode}-${stage}`);
+        await orbShot(page, `orb3d-${mode}-${stage}`, mode);
       }
       await api.forceOrb("idle"); // exit: the state is left and the orb settles in idle
+      await pinOrbMode(page, "idle");
       await expectOrbMode(page, "idle");
       await setOrbClock(page, { fixedTime: 4, animationProgress: 1 });
-      await orbShot(page, `orb3d-${mode}-exit`);
+      await orbShot(page, `orb3d-${mode}-exit`, "idle");
     });
   }
 
@@ -192,7 +207,7 @@ test.describe("orb 3D with the test clock (entry / mid / stable / exit)", () => 
     // t = 2.54 s sits on the peak of the "spike" fixture's transient
     for (const fixture of ["silence", "normal", "loud", "tts", "spike"] as const) {
       await setOrbClock(page, { fixedTime: fixture === "spike" ? 2.54 : 3.1, animationProgress: 1, audioFixture: fixture });
-      await orbShot(page, `orb3d-speaking-audio-${fixture}`);
+      await orbShot(page, `orb3d-speaking-audio-${fixture}`, "speaking");
     }
   });
 
