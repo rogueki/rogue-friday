@@ -32,6 +32,8 @@ def test_dispatcher_discards_calendar_preview_if_cancelled_or_not_spoken():
             status={"rejected_speaker": 0, "commands": 0}, trusted_until=0,
             _transcribe=lambda audio: "Erstelle Termin Team am 20.10.2026 um 14 Uhr",
             calendar_voice=types.SimpleNamespace(pending=None),
+            cloudtalk_voice=types.SimpleNamespace(handle=lambda text: None, pending=None),
+            powerpoint_voice=types.SimpleNamespace(handle=lambda text: None, pending=None),
             coding_voice=types.SimpleNamespace(pending=None),
             content_studio_voice=types.SimpleNamespace(pending=None),
             skills_onboarding_voice=types.SimpleNamespace(pending=None),
