@@ -74,7 +74,7 @@ def test_dispatcher_discards_calendar_preview_if_cancelled_or_not_spoken():
     assert unheard.history == []
 
 
-def test_calendar_bridge_does_not_follow_http_redirect_with_bearer(tmp_path):
+def test_calendar_bridge_does_not_follow_http_redirect_with_bearer(tmp_path, monkeypatch):
     hits = []
     class Redirect(http.server.BaseHTTPRequestHandler):
         def do_POST(self):
@@ -96,6 +96,8 @@ def test_calendar_bridge_does_not_follow_http_redirect_with_bearer(tmp_path):
         config = tmp_path / "dashboard" / "config" / "dashboard.yaml"
         config.parent.mkdir(parents=True)
         config.write_text(f"server:\n  port: {server.server_port}\n", encoding="utf-8")
+        monkeypatch.setenv("FRIDAY_DATA_DIR", str(tmp_path / "dashboard" / "data"))
+        monkeypatch.setenv("FRIDAY_DASHBOARD_PORT", str(server.server_port))
         calendar = CalendarVoice(str(tmp_path))
         try:
             calendar._request("preview", {"action": "delete", "targetTitle": "Team"})

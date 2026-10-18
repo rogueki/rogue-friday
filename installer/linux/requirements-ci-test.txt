@@ -1,0 +1,7 @@
+# Versions verified with the current voice Python environment; no model/provider packages.
+numpy==2.4.6
+scipy==1.17.1
+scikit-learn==1.9.1
+websockets==16.0
+pytest==9.1.1
+PyYAML==6.0.3
