@@ -6188,6 +6188,46 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: viewer
+  /api/v1/system-backups:
+    get:
+      operationId: getSystemBackupStatus
+      tags: [system]
+      summary: Get scheduled system backup status and source coverage
+      responses:
+        "200":
+          description: Current backup status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemBackupStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/system-backups/actions:
+    post:
+      operationId: performSystemBackupAction
+      tags: [system]
+      summary: Preview, create, verify or test-restore a system backup
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SystemBackupActionRequest"
+      responses:
+        "200":
+          description: Backup action result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemBackupActionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings:
     get:
       operationId: getSettings
@@ -9034,6 +9074,12 @@ components:
       $ref: ../schemas/system/system-metrics.schema.json
     SystemMetricsResponse:
       $ref: ../schemas/system/system-metrics-response.schema.json
+    SystemBackupActionRequest:
+      $ref: ../schemas/system/system-backup-action-request.schema.json
+    SystemBackupActionResponse:
+      $ref: ../schemas/system/system-backup-action-response.schema.json
+    SystemBackupStatusResponse:
+      $ref: ../schemas/system/system-backup-status-response.schema.json
     Task:
       $ref: ../schemas/tasks/task.schema.json
     TaskActionRequest:

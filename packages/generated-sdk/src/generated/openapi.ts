@@ -3070,6 +3070,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system-backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get scheduled system backup status and source coverage */
+        get: operations["getSystemBackupStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system-backups/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview, create, verify or test-restore a system backup */
+        post: operations["performSystemBackupAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/system/metrics": {
         parameters: {
             query?: never;
@@ -8706,6 +8740,52 @@ export interface components {
             items: components["schemas"]["StorageVolume"][];
             pageInfo: components["schemas"]["PageInfo"];
             sources: components["schemas"]["SourceDescriptor"][];
+        };
+        /** SystemBackupActionRequest */
+        SystemBackupActionRequest: {
+            /** @enum {string} */
+            action: "preview" | "run" | "verify" | "restore-test";
+            path?: string;
+            targetPath?: string;
+        };
+        /** SystemBackupActionResponse */
+        SystemBackupActionResponse: {
+            contractVersion: string;
+            data: {
+                /** @enum {string} */
+                action: "preview" | "run" | "verify" | "restore-test";
+                /** Format: date-time */
+                createdAt?: string;
+                destination?: string;
+                estimatedBytes?: number;
+                fileCount?: number;
+                memoryEventCount?: number;
+                path?: string;
+                verified?: boolean;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** SystemBackupStatusResponse */
+        SystemBackupStatusResponse: {
+            contractVersion: string;
+            data: {
+                /** @enum {string} */
+                coverage: "windows-and-memory";
+                enabled: boolean;
+                last: null | {
+                    /** Format: date-time */
+                    at: string;
+                    error: string | null;
+                    path: string | null;
+                    /** @enum {string} */
+                    status: "success" | "failed";
+                };
+                running: boolean;
+                schedule: string;
+                targetPath: string;
+                timeZone: string;
+            };
+            freshness: components["schemas"]["Freshness"];
         };
         /** SystemCapability */
         SystemCapability: {
@@ -16821,6 +16901,55 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSystemBackupStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current backup status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemBackupStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    performSystemBackupAction: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SystemBackupActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Backup action result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemBackupActionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     getSystemMetrics: {

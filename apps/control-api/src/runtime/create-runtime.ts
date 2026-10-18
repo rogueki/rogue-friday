@@ -35,6 +35,8 @@ import { SettingsService, seedLibrary } from "../services/settings";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
 import { DurableMemoryService } from "../services/durable-memory";
+import { SystemBackupService } from "../services/system-backup";
+import { BackupJobsService } from "../services/backup-jobs";
 import { WikiPathService } from "../services/wiki-path";
 import { HimalayaAccountService } from "../services/himalaya-account";
 import { TelegramGatewayService } from "../services/telegram-gateway";
@@ -260,6 +262,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const obsidianVault = new ObsidianVaultService(config.paths.dataDir);
   const durableMemory = new DurableMemoryService(config.paths.dataDir);
   durableMemory.flush();
+  const systemBackup = new SystemBackupService(config.paths.dataDir, db, durableMemory);
+  const backupJobs = new BackupJobsService(db, settings, systemBackup);
   const wikiPath = new WikiPathService(config.paths.dataDir);
   const himalayaAccount = new HimalayaAccountService(config.paths.dataDir);
   const telegramGateway = new TelegramGatewayService(config.paths.dataDir);
@@ -503,6 +507,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     onboarding,
     obsidianVault,
     durableMemory,
+    backupJobs,
     wikiPath,
     himalayaAccount,
     telegramGateway,
@@ -565,6 +570,10 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
       logger.info("Adapter geladen", { dataMode: config.dataMode, ...overall.summary });
       trackDerivedState();
       if (options.background !== false) {
+        const checkBackup = () => void backupJobs.tick().catch((error: unknown) =>
+          logger.warn("System backup job failed", { error: String(error) }));
+        checkBackup();
+        timers.push(setInterval(checkBackup, 60_000));
         contentStudioProduction.start();
         void cloudtalk.tickReminders().catch((error: unknown) => logger.warn("CloudTalk reminder scan failed", { error: String(error) }));
         timers.push(setInterval(() => void cloudtalk.tickReminders().catch((error: unknown) =>

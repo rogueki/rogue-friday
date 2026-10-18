@@ -24,6 +24,7 @@ import { calendarAccountHandlers } from "./calendar-accounts";
 import { connectedCalendarVoiceHandlers } from "./connected-calendar-voice";
 import { messengerSendHandlers } from "./messenger-send";
 import { hermesConfigHandlers } from "./hermes-config";
+import { systemBackupHandlers } from "./system-backups";
 
 /** Port-backed operations come from `PORT_SPEC`; the explicit handlers add enforcement or are served locally. */
 export function buildHandlers(): Map<OperationId, Handler> {
@@ -47,6 +48,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     connectedCalendarVoiceHandlers,
     messengerSendHandlers,
     hermesConfigHandlers,
+    systemBackupHandlers,
     localReads,
     devHandlers,
     approvalHandlers,

@@ -845,6 +845,9 @@ export interface FridayModelMap {
   SourceDescriptor: SourceDescriptor;
   StorageVolume: StorageVolume;
   StorageVolumeListResponse: StorageVolumeListResponse;
+  SystemBackupActionRequest: SystemBackupActionRequest;
+  SystemBackupActionResponse: SystemBackupActionResponse;
+  SystemBackupStatusResponse: SystemBackupStatusResponse;
   SystemMetrics: SystemMetrics;
   SystemMetricsResponse: SystemMetricsResponse;
   Task: Task;
@@ -5140,6 +5143,43 @@ export interface StorageVolumeListResponse {
   pageInfo: PageInfo;
   freshness: Freshness;
   sources: SourceDescriptor[];
+}
+export interface SystemBackupActionRequest {
+  action: "preview" | "run" | "verify" | "restore-test";
+  path?: string;
+  targetPath?: string;
+}
+export interface SystemBackupActionResponse {
+  contractVersion: string;
+  data: {
+    action: "preview" | "run" | "verify" | "restore-test";
+    destination?: string;
+    estimatedBytes?: number;
+    path?: string;
+    createdAt?: string;
+    fileCount?: number;
+    memoryEventCount?: number;
+    verified?: boolean;
+  };
+  freshness: Freshness;
+}
+export interface SystemBackupStatusResponse {
+  contractVersion: string;
+  data: {
+    enabled: boolean;
+    schedule: string;
+    timeZone: string;
+    targetPath: string;
+    running: boolean;
+    coverage: "windows-and-memory";
+    last: null | {
+      at: string;
+      status: "success" | "failed";
+      path: string | null;
+      error: string | null;
+    };
+  };
+  freshness: Freshness;
 }
 /**
  * Hardware snapshot (PLAN §40.1). Optional sensors are null when unavailable.

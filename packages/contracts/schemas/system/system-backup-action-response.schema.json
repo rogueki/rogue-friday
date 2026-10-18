@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/system/system-backup-action-response.schema.json",
+  "title": "SystemBackupActionResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "type": "string" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "action": { "type": "string", "enum": ["preview", "run", "verify", "restore-test"] },
+        "destination": { "type": "string" },
+        "estimatedBytes": { "type": "integer", "minimum": 0 },
+        "path": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "fileCount": { "type": "integer", "minimum": 0 },
+        "memoryEventCount": { "type": "integer", "minimum": 0 },
+        "verified": { "type": "boolean" }
+      },
+      "required": ["action"],
+      "additionalProperties": false
+    },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

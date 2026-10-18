@@ -22,6 +22,7 @@ import type { PowerPointService } from "../services/powerpoint";
 import type { OnboardingService } from "../services/onboarding";
 import type { ObsidianVaultService } from "../services/obsidian-vault";
 import type { DurableMemoryService } from "../services/durable-memory";
+import type { BackupJobsService } from "../services/backup-jobs";
 import type { WikiPathService } from "../services/wiki-path";
 import type { HimalayaAccountService } from "../services/himalaya-account";
 import type { TelegramGatewayService } from "../services/telegram-gateway";
@@ -93,6 +94,7 @@ export interface Runtime {
   onboarding: OnboardingService;
   obsidianVault: ObsidianVaultService;
   durableMemory: DurableMemoryService;
+  backupJobs: BackupJobsService;
   wikiPath: WikiPathService;
   himalayaAccount: HimalayaAccountService;
   telegramGateway: TelegramGatewayService;

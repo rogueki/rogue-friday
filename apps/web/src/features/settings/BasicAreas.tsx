@@ -10,6 +10,7 @@ import { useLogoutAll, useLayouts } from "@/lib/api/domains/settings";
 import { useMeta } from "@/lib/api/domains/core";
 import { useVoiceDevices, useVoiceIntegrationStatus } from "@/lib/api/domains/voice";
 import { useSession } from "@/lib/session";
+import { useSystemBackupAction, useSystemBackupStatus } from "@/lib/api/domains/system-backups";
 import { FieldGrid, NumberField, Section, StringListEditor } from "./controls";
 import { useAreaDraft } from "./SettingsDrafts";
 import { NAV_PAGES } from "@/features/shell/navModel";
@@ -499,7 +500,22 @@ export function DataRetentionArea() {
 export function BackupsArea() {
   const { t, locale } = useT();
   const { value, update, readOnly } = useAreaDraft("backups");
+  const { role, offline } = useSession();
+  const status = useSystemBackupStatus(role === "owner" && !offline);
+  const action = useSystemBackupAction();
+  const [preview, setPreview] = useState<{ destination: string; estimatedBytes: number } | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState("");
+  const [result, setResult] = useState<string | null>(null);
   if (!value) return null;
+  const last = status.data?.data.last;
+  const perform = async (request: Parameters<typeof action.mutateAsync>[0]) => {
+    try {
+      const response = await action.mutateAsync(request);
+      if (request.action === "preview") setPreview({ destination: response.data.destination ?? "", estimatedBytes: response.data.estimatedBytes ?? 0 });
+      else setResult(request.action === "run" ? `Backup erstellt: ${response.data.path}` :
+        request.action === "verify" ? `Integrität geprüft: ${response.data.fileCount} Dateien` : `Restore-Test erfolgreich: ${response.data.path}`);
+    } catch { setResult(null); }
+  };
   const fmt = (iso: string | null): string => (iso ? new Intl.DateTimeFormat(locale === "de" ? "de-DE" : "en-GB", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso)) : t("settings.backups.never"));
   const tone = value.lastBackupStatus === "success" ? "green" : value.lastBackupStatus === "failed" ? "red" : "muted";
   return (
@@ -518,6 +534,21 @@ export function BackupsArea() {
           <span>{fmt(value.lastBackupAt)}</span>
         </p>
       </Section>
+      {role === "owner" && <Section title="Backup-Prüfung" description="Lokaler Snapshot von Windows-Konfiguration, SQLite und Obsidian-Vault. WSL-Konten und Hermes-Zustand sind noch nicht enthalten.">
+        {status.isError && <p role="alert">Backup-Status nicht erreichbar.</p>}
+        {last?.error && <p role="alert">Letzter Fehler: {last.error}</p>}
+        <p className="st-row">Zeitplan: {status.data?.data.schedule ?? value.schedule} ({status.data?.data.timeZone ?? "Zeitzone unbekannt"})</p>
+        {preview && <p role="status">Ziel: {preview.destination} · Bedarf mindestens {Math.ceil(preview.estimatedBytes / 1024 / 1024)} MiB</p>}
+        <div className="st-row">
+          <Button size="sm" variant="ghost" disabled={readOnly || action.isPending} onClick={() => void perform({ action: "preview" })}>Ziel und Platz prüfen</Button>
+          <Button size="sm" disabled={readOnly || action.isPending} onClick={() => void perform({ action: "run" })}>Backup jetzt erstellen</Button>
+          <Button size="sm" variant="ghost" disabled={readOnly || action.isPending || !last?.path} onClick={() => void perform({ action: "verify", path: last!.path! })}>Letztes Backup prüfen</Button>
+        </div>
+        <TextField label="Neuer Ordner für isolierten Restore-Test" value={restoreTarget} disabled={readOnly} onChange={(event) => setRestoreTarget(event.target.value)} hint="Ein noch nicht vorhandener Pfad innerhalb von dashboard/data." />
+        <Button size="sm" variant="ghost" disabled={readOnly || action.isPending || !last?.path || !restoreTarget.trim()} onClick={() => void perform({ action: "restore-test", path: last!.path!, targetPath: restoreTarget.trim() })}>Restore getrennt testen</Button>
+        {result && <p role="status">{result}</p>}
+        {action.isError && <p role="alert">Backup-Aktion fehlgeschlagen. Der Backup-Status zeigt den letzten Lauf.</p>}
+      </Section>}
     </>
   );
 }
