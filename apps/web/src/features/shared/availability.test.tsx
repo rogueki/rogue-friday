@@ -113,7 +113,7 @@ describe("Tasks page: the three situations look different", () => {
     renderWithProviders(<TasksPage />, { capabilities: NO_TASKS_CAPS, adapters: [tasksOffline], fetchImpl: api.fetch });
     expect(await screen.findByText("Offline")).toBeInTheDocument();
     const description = screen.getByText(/Hermes Aufgaben nicht erreichbar seit/);
-    expect(description).toHaveTextContent(/letzter Erfolg .*14\.10\.26/);
+    expect(description).toHaveTextContent("letzter Erfolg 14.10.2026");
     expect(description).toHaveTextContent("Letzte Meldung: Hermes-API antwortet nicht");
     expect(screen.queryByText("Nicht verbunden")).toBeNull();
     expect(screen.queryByText(/Capability/)).toBeNull();
