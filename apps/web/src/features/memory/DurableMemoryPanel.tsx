@@ -2,6 +2,7 @@
 
 import type { DurableMemorySearchResponse, DurableMemoryStatusResponse, DurableMemoryBackupResponse, DurableMemoryRestoreResponse, DurableMemorySettings, DurableMemorySettingsResponse } from "@friday/sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button, HudPanel, StatusChip, Switch, TextArea, TextField } from "@friday/ui";
 import { useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
@@ -51,55 +52,73 @@ export function DurableMemoryPanel() {
   const changeSettings = (change: Partial<DurableMemorySettings>) => {
     if (settings) setSettingsDraft({ ...settings, ...change });
   };
-  return <section className="mem-durable" aria-label="Dauerhaftes Obsidian-Gedächtnis">
-    <h2>Obsidian-Gedächtnis</h2>
+  return <HudPanel title="Obsidian-Gedächtnis" subtitle="Dauerhaftes Gesprächsarchiv" className="mem-durable">
     {status.isPending && <p role="status">Gedächtnisstatus wird geladen …</p>}
     {status.isError && <p role="alert">Gedächtnisstatus nicht erreichbar.</p>}
     {status.data && <>
-      <p role="status">Vault-Schreiber: {status.data.data.ready ? "bereit" : "nicht bereit"} · {status.data.data.pending} ausstehende Ereignisse · Vault: {status.data.data.vaultPath}</p>
+      <div className="mem-durable__status" role="status">
+        <StatusChip tone={status.data.data.ready ? "green" : "red"}>{status.data.data.ready ? "Vault bereit" : "Vault nicht bereit"}</StatusChip>
+        <StatusChip tone={status.data.data.pending ? "amber" : "muted"}>{status.data.data.pending} ausstehend</StatusChip>
+        <StatusChip tone={status.data.data.indexState === "ready" ? "green" : "amber"}>Index: {status.data.data.indexState}</StatusChip>
+      </div>
+      <p className="mem-durable__path">Vault: {status.data.data.vaultPath}</p>
       {status.data.data.lastError && <p role="alert">Letzter Schreibfehler: {status.data.data.lastError}</p>}
-      <p>Letzter Schreibvorgang: {status.data.data.lastWrittenAt ?? "noch keiner"} · Letzter Restore-Test: {status.data.data.lastRestoreTestAt ?? "noch keiner"}</p>
-      <button type="button" disabled={retry.isPending} onClick={() => retry.mutate()}>Ausstehende Einträge erneut schreiben</button>
-      <button type="button" disabled={reindex.isPending} onClick={() => reindex.mutate()}>Vault neu indexieren</button>
-      <p>Index: {status.data.data.indexState}. Vault-Wechsel und vorhandenen Ordner einrichten: <a href="/settings?area=skillAccounts#obsidian-setup-title">Obsidian-Einstellungen</a>.</p>
+      <p className="mem-durable__note">Letzter Schreibvorgang: {status.data.data.lastWrittenAt ?? "noch keiner"} · Letzter Restore-Test: {status.data.data.lastRestoreTestAt ?? "noch keiner"}</p>
+      <div className="mem-durable__actions">
+        <Button size="sm" variant="ghost" loading={retry.isPending} onClick={() => retry.mutate()}>Ausstehende Einträge erneut schreiben</Button>
+        <Button size="sm" variant="ghost" loading={reindex.isPending} onClick={() => reindex.mutate()}>Vault neu indexieren</Button>
+      </div>
+      <p className="mem-durable__note">Vault-Wechsel und vorhandenen Ordner einrichten: <a href="/settings?area=skillAccounts#obsidian-setup-title">Obsidian-Einstellungen</a>.</p>
     </>}
-    {settings && <form onSubmit={(event) => { event.preventDefault(); saveSettings.mutate(settings); }}>
+    {settings && <form className="mem-durable__section" onSubmit={(event) => { event.preventDefault(); saveSettings.mutate(settings); }}>
       <h3>Aufnahme und Privatsphäre</h3>
-      <label><input type="checkbox" checked={settings.enabled} onChange={(event) => changeSettings({ enabled: event.target.checked })} />Standard-Gedächtnis aktiv</label>
-      <label><input type="checkbox" checked={settings.privateMode} onChange={(event) => changeSettings({ privateMode: event.target.checked })} />Privater Modus: neue Ereignisse nicht speichern</label>
-      <p>Erfasste Kanäle: Dashboard-Befehle und Antworten; Stimme bei lokaler Voice-Verbindung; eigenständige Hermes-CLI mit installiertem Plugin. Messenger-Verknüpfung ist derzeit nicht aktiv.</p>
-      {(["dashboard", "voice", "hermes"] as const).map((channel) => <label key={channel}>
-        <input type="checkbox" checked={settings.channels[channel]} onChange={(event) =>
-          changeSettings({ channels: { ...settings.channels, [channel]: event.target.checked } })} />{channel === "dashboard" ? "Dashboard" : channel === "voice" ? "Stimme" : "Hermes-CLI"}
-      </label>)}
-      <p>Aufbewahrung: unbegrenzt. Ausgeschlossen: private Eingaben, „nicht speichern“, erkannte Zugangsdaten-Muster und Roh-Audio. Bereits gesicherte Einträge bleiben bei Deaktivierung erhalten.</p>
-      <button type="submit" disabled={!settingsDraft || saveSettings.isPending}>Einstellungen speichern</button>
+      <div className="mem-durable__switches">
+        <Switch label="Standard-Gedächtnis aktiv" checked={settings.enabled} onCheckedChange={(enabled) => changeSettings({ enabled })} />
+        <Switch label="Privater Modus" description="Neue Ereignisse nicht speichern" checked={settings.privateMode} onCheckedChange={(privateMode) => changeSettings({ privateMode })} />
+      </div>
+      <p className="mem-durable__note">Erfasste Kanäle: Dashboard-Befehle und Antworten; Stimme bei lokaler Voice-Verbindung; eigenständige Hermes-CLI mit installiertem Plugin. Messenger-Verknüpfung ist derzeit nicht aktiv.</p>
+      <div className="mem-durable__switches">
+        {(["dashboard", "voice", "hermes"] as const).map((channel) => <Switch key={channel}
+          label={channel === "dashboard" ? "Dashboard" : channel === "voice" ? "Stimme" : "Hermes-CLI"}
+          checked={settings.channels[channel]} onCheckedChange={(enabled) =>
+            changeSettings({ channels: { ...settings.channels, [channel]: enabled } })} />)}
+      </div>
+      <p className="mem-durable__note">Aufbewahrung: unbegrenzt. Ausgeschlossen: private Eingaben, „nicht speichern“, erkannte Zugangsdaten-Muster und Roh-Audio. Bereits gesicherte Einträge bleiben bei Deaktivierung erhalten.</p>
+      <div className="mem-durable__actions"><Button type="submit" size="sm" disabled={!settingsDraft} loading={saveSettings.isPending}>Einstellungen speichern</Button></div>
       {saveSettings.isError && <p role="alert">Gedächtniseinstellungen konnten nicht gespeichert werden.</p>}
     </form>}
-    <form onSubmit={(event) => { event.preventDefault(); setSearchTerm(term.trim()); }}>
-      <label htmlFor="durable-memory-search">Gesprächsarchiv durchsuchen</label>
-      <input id="durable-memory-search" value={term} onChange={(event) => setTerm(event.target.value)} />
-      <button type="submit" disabled={!term.trim()}>Suchen</button>
+    <form className="mem-durable__section" onSubmit={(event) => { event.preventDefault(); setSearchTerm(term.trim()); }}>
+      <h3>Gesprächsarchiv</h3>
+      <div className="mem-durable__search">
+        <TextField id="durable-memory-search" label="Gesprächsarchiv durchsuchen" value={term} onChange={(event) => setTerm(event.target.value)} />
+        <Button type="submit" size="sm" disabled={!term.trim()}>Suchen</Button>
+      </div>
     </form>
     {search.isPending && searchTerm && <p role="status">Suche läuft …</p>}
     {search.isError && <p role="alert">Gesprächsarchiv konnte nicht durchsucht werden.</p>}
-    {search.data && <ul>{search.data.data.items.map((item) => <li key={item.eventId}>
-      <p>{item.text}</p><small>{item.occurredAt} · {item.channel} · {item.source}</small>{" "}
-      <button type="button" disabled={forget.isPending} onClick={() => forget.mutate(item.eventId)}>Vergessen</button>
-      <button type="button" onClick={() => { setEditingId(item.eventId); setCorrection(item.text); }}>Korrigieren</button>
-      {editingId === item.eventId && <form onSubmit={(event) => { event.preventDefault(); if (correction.trim()) correct.mutate({ eventId: item.eventId, text: correction.trim() }); }}>
-        <label htmlFor={`correction-${item.eventId}`}>Korrigierter Eintrag</label>
-        <textarea id={`correction-${item.eventId}`} value={correction} onChange={(event) => setCorrection(event.target.value)} />
-        <button type="submit" disabled={!correction.trim() || correct.isPending}>Korrektur speichern</button>
-        <button type="button" onClick={() => setEditingId(null)}>Abbrechen</button>
+    {search.data && <ul className="mem-durable__results">{search.data.data.items.map((item) => <li key={item.eventId}>
+      <p>{item.text}</p><small>{item.occurredAt} · {item.channel} · {item.source}</small>
+      <div className="mem-durable__actions">
+        <Button size="sm" variant="danger" disabled={forget.isPending} onClick={() => forget.mutate(item.eventId)}>Vergessen</Button>
+        <Button size="sm" variant="ghost" onClick={() => { setEditingId(item.eventId); setCorrection(item.text); }}>Korrigieren</Button>
+      </div>
+      {editingId === item.eventId && <form className="mem-durable__section" onSubmit={(event) => { event.preventDefault(); if (correction.trim()) correct.mutate({ eventId: item.eventId, text: correction.trim() }); }}>
+        <TextArea id={`correction-${item.eventId}`} label="Korrigierter Eintrag" value={correction} onChange={(event) => setCorrection(event.target.value)} />
+        <div className="mem-durable__actions">
+          <Button type="submit" size="sm" disabled={!correction.trim()} loading={correct.isPending}>Korrektur speichern</Button>
+          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Abbrechen</Button>
+        </div>
       </form>}
     </li>)}</ul>}
     {search.data?.data.items.length === 0 && <p>Keine passenden Einträge.</p>}
-    <div>
-      <button type="button" disabled={backup.isPending} onClick={() => backup.mutate()}>Vault-Backup erstellen</button>
-      {backupPath && <><p>Backup: {backupPath}</p><button type="button" disabled={restore.isPending} onClick={() => restore.mutate()}>Restore in separatem Vault testen</button></>}
+    <div className="mem-durable__section">
+      <h3>Vault-Sicherung</h3>
+      <div className="mem-durable__actions"><Button size="sm" loading={backup.isPending} onClick={() => backup.mutate()}>Vault-Backup erstellen</Button>
+        {backupPath && <Button size="sm" variant="ghost" loading={restore.isPending} onClick={() => restore.mutate()}>Restore in separatem Vault testen</Button>}
+      </div>
+      {backupPath && <p className="mem-durable__path">Backup: {backupPath}</p>}
       {restoreResult && <p role="status">Restore geprüft: {restoreResult}</p>}
       {(backup.isError || restore.isError || forget.isError || correct.isError || retry.isError || reindex.isError) && <p role="alert">Aktion fehlgeschlagen. Der Gedächtnisstatus zeigt den aktuellen Stand.</p>}
     </div>
-  </section>;
+  </HudPanel>;
 }
