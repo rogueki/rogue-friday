@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -57,6 +57,23 @@ export function parseDashboardProgress(value: unknown): DashboardUpdateProgress 
     startedAt: item.startedAt, updatedAt: item.updatedAt,
     ...(Number.isInteger(item.pid) && (item.pid as number) > 0 ? { pid: item.pid as number } : {}),
     ...(typeof item.processStartedAt === "string" ? { processStartedAt: item.processStartedAt } : {}) };
+}
+
+async function boundedJson(response: Response, maxBytes: number): Promise<unknown> {
+  if (!response.body) throw new Error("Leere GitHub-Antwort.");
+  const reader = response.body.getReader();
+  const chunks: Buffer[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) { await reader.cancel(); throw new Error("GitHub-Antwort ist zu groß."); }
+      chunks.push(Buffer.from(value));
+    }
+  } finally { reader.releaseLock(); }
+  return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
 }
 
 /** The installed dashboard has no .git directory. Its provenance is recorded after a successful installer build. */
@@ -188,26 +205,68 @@ export class DashboardUpdateService {
 
   private async stageUpdater(expectedCommit: string): Promise<string> {
     const updates = join(this.root, "updates");
-    const repositoryCache = join(updates, "updater-script.git");
+    const repositoryCache = join(updates, "rogue-friday-main");
     await mkdir(updates, { recursive: true });
-    if (!existsSync(join(repositoryCache, "HEAD"))) {
-      await exec("git", ["init", "--bare", repositoryCache], { timeout: 20_000, windowsHide: true });
-    }
-    const git = async (args: string[]) => exec("git", ["--git-dir", repositoryCache, ...args], {
-      timeout: 120_000, windowsHide: true, maxBuffer: 2_000_000,
+    const git = async (args: string[]) => exec("git", ["-C", repositoryCache, ...args], {
+      timeout: 45_000, windowsHide: true, maxBuffer: 2_000_000,
       env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
     });
-    await git(["fetch", "--depth=1", "--no-tags", REPOSITORY, "refs/heads/main"]);
-    const { stdout: fetched } = await git(["rev-parse", "FETCH_HEAD"]);
-    if (fetched.trim() !== expectedCommit) throw new Error("GitHub main hat sich geändert. Bitte Update erneut prüfen.");
-    const { stdout: listing } = await git(["ls-tree", expectedCommit, "--", SCRIPT_PATH]);
-    const match = listing.trim().match(/^100644 blob ([0-9a-f]{40})\s+installer\/scripts\/update-dashboard-github\.ps1$/);
-    if (!match) throw new Error("Verifiziertes Update-Skript fehlt im GitHub-Stand.");
-    const { stdout: source } = await git(["show", `${expectedCommit}:${SCRIPT_PATH}`]);
+    let source: Buffer | null = null;
+    if (existsSync(join(repositoryCache, ".git"))) {
+      const { stdout: remote } = await git(["config", "--get", "remote.origin.url"]).catch(() => ({ stdout: "" }));
+      if (remote.trim() !== REPOSITORY) throw new Error("Update-Cache hat eine unerwartete Git-Quelle.");
+      let cached = "";
+      try { cached = (await git(["rev-parse", "refs/remotes/origin/main"])).stdout.trim(); } catch { /* first fetch */ }
+      if (cached !== expectedCommit) {
+        try {
+          await git(["fetch", "--no-tags", "origin", "+refs/heads/main:refs/remotes/origin/main"]);
+          cached = (await git(["rev-parse", "refs/remotes/origin/main"])).stdout.trim();
+        } catch { cached = ""; }
+      }
+      if (cached && cached !== expectedCommit) throw new Error("GitHub main hat sich geändert. Bitte Update erneut prüfen.");
+      if (cached === expectedCommit) {
+        try {
+          const { stdout: listing } = await git(["ls-tree", expectedCommit, "--", SCRIPT_PATH]);
+          const match = listing.trim().match(/^100644 blob ([0-9a-f]{40})\s+installer\/scripts\/update-dashboard-github\.ps1$/);
+          if (!match) throw new Error("Verifiziertes Update-Skript fehlt im GitHub-Stand.");
+          const { stdout: content } = await git(["show", `${expectedCommit}:${SCRIPT_PATH}`]);
+          const bytes = Buffer.from(content, "utf8");
+          const blob = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+          if (blob !== match[1]) throw new Error("Update-Skript stimmt nicht mit dem GitHub-Commit überein.");
+          source = bytes;
+        } catch (error) {
+          if (error instanceof Error && /^(Verifiziertes Update-Skript|Update-Skript stimmt)/.test(error.message)) throw error;
+          // Corrupt or temporarily unavailable cache: fetch the pinned file directly.
+        }
+      }
+    }
+    if (!source) {
+      // GitHub's contents endpoint transfers one pinned file, avoiding a full clone on first update.
+      const url = `https://api.github.com/repos/rogueki/rogue-friday/contents/${SCRIPT_PATH}?ref=${expectedCommit}`;
+      try {
+        const response = await fetch(url, {
+          headers: { Accept: "application/vnd.github+json", "User-Agent": "Friday-Dashboard-Updater" },
+          signal: AbortSignal.timeout(20_000),
+          redirect: "error",
+        });
+        if (!response.ok || Number(response.headers.get("content-length") ?? 0) > 2_000_000)
+          throw new Error("GitHub-Datei nicht verfügbar.");
+        const value = await boundedJson(response, 2_000_000) as Record<string, unknown>;
+        if (value.type !== "file" || value.path !== SCRIPT_PATH || value.encoding !== "base64" ||
+            typeof value.sha !== "string" || !SHA.test(value.sha) || typeof value.content !== "string")
+          throw new Error("GitHub-Datei hat ungültige Metadaten.");
+        const bytes = Buffer.from(value.content.replace(/\s+/g, ""), "base64");
+        if (bytes.length === 0 || bytes.length > 1_000_000 || value.size !== bytes.length)
+          throw new Error("GitHub-Datei hat eine ungültige Größe.");
+        const blob = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+        if (blob !== value.sha) throw new Error("GitHub-Datei stimmt nicht mit ihrem Git-Blob überein.");
+        source = bytes;
+      } catch {
+        throw new Error("GitHub-Update-Skript konnte nicht geladen werden. GitHub-Verbindung prüfen und erneut versuchen.");
+      }
+    }
     const script = join(updates, `update-dashboard-${expectedCommit}-${randomUUID()}.ps1`);
     await writeFile(script, source, { flag: "wx" });
-    const { stdout: actual } = await git(["hash-object", script]);
-    if (actual.trim() !== match[1]) { await rm(script, { force: true }); throw new Error("Update-Skript stimmt nicht mit dem GitHub-Commit überein."); }
     return script;
   }
 
@@ -224,7 +283,7 @@ export class DashboardUpdateService {
     const runId = randomUUID().replaceAll("-", "");
     const now = new Date().toISOString();
     const starting: DashboardUpdateProgress = { runId, targetCommit: expectedCommit, state: "running", phase: "starting",
-      step: 0, totalSteps: 8, message: "Update wird vorbereitet.", startedAt: now, updatedAt: now };
+      step: 0, totalSteps: 8, message: "GitHub-Update-Skript wird geladen.", startedAt: now, updatedAt: now };
     try {
       await guard.writeFile(JSON.stringify({ pid: process.pid, processStartedAt: new Date(Date.now() - process.uptime() * 1000).toISOString() }));
       await this.writeProgress(starting);
