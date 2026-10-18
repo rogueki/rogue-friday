@@ -6,6 +6,7 @@ import { DashboardUpdateArea } from "./DashboardUpdateArea";
 const mocks = vi.hoisted(() => ({
   install: vi.fn(),
   refetch: vi.fn(),
+  refresh: vi.fn(),
   status: {
     data: { installed: "a".repeat(40), latest: "b".repeat(40), available: true,
       installing: false, error: null, progress: null, lastResult: null } as Record<string, unknown> | undefined,
@@ -16,8 +17,31 @@ vi.mock("@/i18n", () => ({ useT: () => ({ t: (key: string) => key }) }));
 vi.mock("./SettingsDrafts", () => ({ useSettingsDrafts: () => ({ role: "owner" }) }));
 vi.mock("@/lib/api/dashboardUpdate", () => ({
   installDashboardUpdate: mocks.install,
-  useDashboardUpdateStatus: () => ({ ...mocks.status, refetch: mocks.refetch }),
+  useDashboardUpdateStatus: () => ({ ...mocks.status, refetch: mocks.refetch, refresh: mocks.refresh }),
 }));
+
+it("checks GitHub afresh on the manual button without using the cached poll", async () => {
+  sessionStorage.clear();
+  mocks.refresh.mockResolvedValue(mocks.status.data);
+  mocks.refresh.mockClear();
+  mocks.refetch.mockClear();
+  render(<DashboardUpdateArea />);
+  fireEvent.click(screen.getByRole("button", { name: "settings.update.check" }));
+  await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
+  expect(mocks.refetch).not.toHaveBeenCalled();
+});
+
+it("shows a manual check failure and hides a stale install offer", async () => {
+  sessionStorage.clear();
+  mocks.status.data = { installed: "a".repeat(40), latest: "b".repeat(40), available: true,
+    installing: false, error: null, progress: null, lastResult: null };
+  mocks.refresh.mockRejectedValueOnce(new Error("GitHub nicht erreichbar"));
+  render(<DashboardUpdateArea />);
+  fireEvent.click(screen.getByRole("button", { name: "settings.update.check" }));
+  await waitFor(() => expect(screen.getByText("GitHub nicht erreichbar")).toBeTruthy());
+  expect(screen.getByText("settings.update.unknown")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "settings.update.install" })).toBeNull();
+});
 
 it("opens confirmation and shows a failed POST visibly", async () => {
   sessionStorage.clear();

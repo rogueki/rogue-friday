@@ -93,7 +93,8 @@ export function configureHttp(fastify: FastifyInstance, runtime: Runtime, pipeli
       api.get("/v1/dashboard-update", async (request, reply) => {
         const principal = runtime.auth.authenticate(request.headers.cookie);
         if (!principal || principal.role !== "owner") return sendError(reply, new ApiError({ code: "FORBIDDEN", message: "Nur der Besitzer darf Updates prüfen." }));
-        return reply.header("Cache-Control", "no-store").send(await dashboardUpdates.status());
+        const refresh = (request.query as { refresh?: unknown } | undefined)?.refresh === "1";
+        return reply.header("Cache-Control", "no-store").send(await dashboardUpdates.status(refresh));
       });
       api.post("/v1/dashboard-update/install", async (request, reply) => {
         const principal = runtime.auth.authenticate(request.headers.cookie);

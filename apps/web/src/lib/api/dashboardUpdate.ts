@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCsrfToken } from "./client";
 
 export interface DashboardUpdateStatus {
@@ -24,7 +24,8 @@ async function responseJson<T>(response: Response): Promise<T> {
 }
 
 export function useDashboardUpdateStatus(enabled: boolean, starting = false) {
-  return useQuery({
+  const client = useQueryClient();
+  const query = useQuery({
     queryKey: ["dashboard-update"],
     queryFn: async () => responseJson<DashboardUpdateStatus>(await fetch("/api/v1/dashboard-update", { credentials: "same-origin", cache: "no-store" })),
     enabled,
@@ -32,6 +33,13 @@ export function useDashboardUpdateStatus(enabled: boolean, starting = false) {
     refetchInterval: (query) => starting || query.state.data?.installing ? 2_000 : 30_000,
     retry: false,
   });
+  return { ...query, refresh: async (): Promise<DashboardUpdateStatus> => {
+    const status = await responseJson<DashboardUpdateStatus>(await fetch("/api/v1/dashboard-update?refresh=1", {
+      credentials: "same-origin", cache: "no-store",
+    }));
+    client.setQueryData(["dashboard-update"], status);
+    return status;
+  } };
 }
 
 export async function installDashboardUpdate(commit: string): Promise<void> {

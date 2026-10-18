@@ -24,6 +24,7 @@ export function DashboardUpdateArea() {
   const { role } = useSettingsDrafts();
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [rememberedRun, setRememberedRun] = useState(false);
   const [priorRunId, setPriorRunId] = useState<string | null>(null);
@@ -63,6 +64,13 @@ export function DashboardUpdateArea() {
     }
     finally { setBusy(false); setConfirm(false); }
   };
+  const checkNow = async (): Promise<void> => {
+    setChecking(true);
+    setFailure(null);
+    try { await status.refresh(); }
+    catch (error) { setFailure(error instanceof Error ? error.message : String(error)); }
+    finally { setChecking(false); }
+  };
   if (role !== "owner") return null;
   const reconnecting = (rememberedRun || data?.installing) && status.isError;
   const steps = [
@@ -74,11 +82,11 @@ export function DashboardUpdateArea() {
     <div className="st-section__head"><div>
       <h3 className="st-section__title" id="dashboard-update-title">{t("settings.update.title")}</h3>
       <p className="st-section__desc">{t("settings.update.desc")}</p>
-    </div><Button size="sm" variant="ghost" icon={<RefreshCw size={14} />} loading={status.isFetching} onClick={() => void status.refetch()}>{t("settings.update.check")}</Button></div>
+    </div><Button size="sm" variant="ghost" icon={<RefreshCw size={14} />} loading={checking || status.isFetching} onClick={() => void checkNow()}>{t("settings.update.check")}</Button></div>
     {data?.installing || busy || reconnecting ? <StatusChip tone="amber">{t("settings.update.installing")}</StatusChip>
       : progress?.state === "failed" ? <StatusChip tone="amber">{t("settings.update.failed")}</StatusChip>
+      : !data || status.isError || data.error || failure ? <StatusChip tone="amber">{t("settings.update.unknown")}</StatusChip>
       : data?.available ? <StatusChip tone="amber" pulse>{t("settings.update.available")}</StatusChip>
-      : !data || status.isError || data.error ? <StatusChip tone="amber">{t("settings.update.unknown")}</StatusChip>
       : data?.lastResult?.status === "failed" ? <StatusChip tone="amber">{t("settings.update.failed")}</StatusChip>
       : <StatusChip tone="green">{t("settings.update.current")}</StatusChip>}
     {progress ? <div className="st-update-progress" aria-live="polite" aria-atomic="true">
@@ -102,7 +110,7 @@ export function DashboardUpdateArea() {
     {data?.error || failure || status.error && !reconnecting ? <p className="st-error" role="alert">{failure ?? data?.error ?? (status.error instanceof Error ? status.error.message : String(status.error))}</p> : null}
     {progress?.state === "failed" ? <p className="st-error" role="alert">{progress.message}</p>
       : !progress && data?.lastResult?.status === "failed" && !data.installing ? <p className="st-error" role="alert">{t("settings.update.failed")}: {data.lastResult.message}</p> : null}
-    {data?.available && !data.installing ? <Button icon={<Download size={15} />} disabled={busy || rememberedRun} onClick={() => setConfirm(true)}>{t("settings.update.install")}</Button> : null}
+    {data?.available && !data.installing && !data.error && !failure ? <Button icon={<Download size={15} />} disabled={busy || rememberedRun} onClick={() => setConfirm(true)}>{t("settings.update.install")}</Button> : null}
     <ConfirmDialog open={confirm} onOpenChange={setConfirm} title={t("settings.update.confirmTitle")} description={t("settings.update.confirmDesc")}
       details={[`${data?.installed?.slice(0, 12) ?? "—"} → ${data?.latest?.slice(0, 12) ?? "—"}`]}
       confirmLabel={t("settings.update.install")} cancelLabel={t("common.cancel")} loading={busy} onConfirm={() => void install()} />
