@@ -1984,7 +1984,7 @@ if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
     if ($script:DashOk) {
         MarkDone 'dashboard'
         if ($State.dashboard_source -and (Test-Path (Join-Path $State.dashboard_source '.git'))) {
-            $revision = (& git.exe -C $State.dashboard_source rev-parse HEAD 2>$null | Select-Object -First 1)
+            $revision = & git.exe -C $State.dashboard_source rev-parse HEAD 2>$null
             if ($LASTEXITCODE -eq 0 -and "$revision" -cmatch '^[0-9a-f]{40}$') {
                 $revisionFile = "$Dash\data\dashboard-revision.json"
                 $revisionJson = @{ commit = "$revision"; installedAt = (Get-Date -Format o) } | ConvertTo-Json
