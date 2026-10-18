@@ -45,8 +45,9 @@ interface BridgeStatus {
   explicit: Record<HermesConfigField, boolean>;
   secrets: { "model.api_key": boolean };
   families: Array<{ id: string; roots: string[]; followup: string; configFileSet: boolean }>;
-  skills: Array<{ id: string; installed: true; enabled: boolean }>;
-  plugins: Array<{ id: string; installed: true; enabled: boolean; configured: null }>;
+  inventory: { scope: "profile"; skillsComplete: boolean; pluginsComplete: boolean; reasons: string[] };
+  skills: Array<{ id: string; installed: true; enabled: boolean | null }>;
+  plugins: Array<{ id: string; installed: true; enabled: boolean | null; configured: null }>;
   write: { key: HermesConfigField; persisted: boolean } | null;
 }
 
@@ -129,10 +130,14 @@ export class HermesConfigService {
       typeof raw.explicit !== "object" ||
       !raw.explicit ||
       !Array.isArray(raw.families) ||
+      typeof raw.inventory !== "object" || !raw.inventory ||
       !Array.isArray(raw.skills) ||
       !Array.isArray(raw.plugins)
     )
       throw unavailable();
+    const inventory = raw.inventory as Record<string, unknown>;
+    if (inventory.scope !== "profile" || typeof inventory.skillsComplete !== "boolean" ||
+      typeof inventory.pluginsComplete !== "boolean" || !Array.isArray(inventory.reasons)) throw unavailable();
     for (const [key, spec] of Object.entries(HERMES_CONFIG_FIELDS)) {
       const value = (raw.values as Record<string, unknown>)[key];
       if (
@@ -175,6 +180,7 @@ export class HermesConfigService {
           fields: [],
           secretStates: [],
           families: [],
+          inventory: { scope: "profile" as const, skillsComplete: false, pluginsComplete: false, reasons: ["hermes_not_installed"] },
           skills: [],
           plugins: [],
           write: null,
@@ -241,8 +247,11 @@ export class HermesConfigService {
           unsupported: null,
           coverage: "followup" as const,
         })),
+      inventory: { scope: "profile" as const, skillsComplete: observed.inventory.skillsComplete === true,
+        pluginsComplete: observed.inventory.pluginsComplete === true,
+        reasons: observed.inventory.reasons.filter((reason) => typeof reason === "string") },
       skills: observed.skills
-        .filter((skill) => typeof skill.id === "string" && typeof skill.enabled === "boolean")
+        .filter((skill) => typeof skill.id === "string" && (skill.enabled === null || typeof skill.enabled === "boolean"))
         .map((skill) => ({
           id: skill.id,
           installed: true as const,
@@ -254,7 +263,7 @@ export class HermesConfigService {
           unsupported: null,
         })),
       plugins: observed.plugins
-        .filter((plugin) => typeof plugin.id === "string" && typeof plugin.enabled === "boolean")
+        .filter((plugin) => typeof plugin.id === "string" && (plugin.enabled === null || typeof plugin.enabled === "boolean"))
         .map((plugin) => ({
           id: plugin.id,
           installed: true as const,

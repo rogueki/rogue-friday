@@ -49,6 +49,7 @@ const bridge = {
       unexpected: "CANARY-DO-NOT-RETURN",
     },
   ],
+  inventory: { scope: "profile", skillsComplete: true, pluginsComplete: true, reasons: [] },
   skills: [{ id: "hermes-agent", installed: true, enabled: true, unexpected: "CANARY-DO-NOT-RETURN" }],
   plugins: [
     { id: "kanban", installed: true, enabled: false, configured: null, unexpected: "CANARY-DO-NOT-RETURN" },
@@ -138,4 +139,13 @@ it("distinguishes a missing Hermes installation from an unavailable bridge", asy
     }) as unknown as RunnerInvoker,
   );
   await expect(unavailable.status()).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+});
+
+it("keeps unknown skill activation and partial inventory visible", async () => {
+  const observed = await fixture(vi.fn(async () => ({ ...bridge,
+    inventory: { scope: "profile", skillsComplete: false, pluginsComplete: true, reasons: ["skill_activation_unknown"] },
+    skills: [{ id: "sample", installed: true, enabled: null }],
+  })) as unknown as RunnerInvoker).status();
+  expect(observed.skills[0]?.enabled).toBeNull();
+  expect(observed.inventory).toMatchObject({ skillsComplete: false, reasons: ["skill_activation_unknown"] });
 });

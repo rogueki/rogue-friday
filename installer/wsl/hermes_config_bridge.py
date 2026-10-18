@@ -3,9 +3,12 @@
 
 import hashlib
 import json
+import fcntl
+import os
 from pathlib import Path
 import subprocess
 import sys
+import time
 import yaml
 
 
@@ -26,13 +29,26 @@ FAMILIES = (
 )
 
 
-def revision(path):
+def revision_bytes(content):
+    return int(hashlib.sha256(content).hexdigest()[:12], 16) or 1
+
+
+def snapshot(path):
+    if path.is_symlink():
+        raise ValueError("config_symlink")
     try:
         content = path.read_bytes()
     except FileNotFoundError:
         content = b""
+    raw = yaml.safe_load(content.decode("utf-8-sig")) if content else {}
+    if not isinstance(raw, dict):
+        raise ValueError("invalid_config")
     # At most 48 bits, exactly representable by JavaScript's number type.
-    return int(hashlib.sha256(content).hexdigest()[:12], 16) or 1
+    return revision_bytes(content), raw
+
+
+def revision(path):
+    return snapshot(path)[0]
 
 
 def nested(config, key):
@@ -44,24 +60,78 @@ def nested(config, key):
     return value
 
 
-def manifests(root, file_names, max_depth=2):
-    result = []
-    if not root.is_dir() or root.is_symlink():
-        return result
-    for directory in sorted(root.iterdir(), key=lambda item: item.name):
-        if len(result) >= 500:
-            break
-        if not directory.is_dir() or directory.is_symlink() or directory.name.startswith("."):
+EXCLUDED_SKILL_DIRS = frozenset((".git", ".github", ".hub", ".archive", ".curator_backups", ".locks",
+    ".venv", "venv", "node_modules", "site-packages", "__pycache__", ".tox", ".nox", ".pytest_cache",
+    ".mypy_cache", ".ruff_cache"))
+SKILL_SUPPORT_DIRS = frozenset(("references", "templates", "assets", "scripts"))
+
+
+def installed_skills(roots):
+    """Profile roots, with the same recursive/pruned SKILL.md scan as agent.skill_utils."""
+    result, errors = {}, []
+    for root in roots:
+        if not root.exists():
             continue
-        candidates = [directory]
-        if max_depth > 1:
-            candidates.extend(child for child in directory.iterdir() if child.is_dir() and not child.is_symlink())
-        for candidate in candidates:
-            if any((candidate / name).is_file() for name in file_names):
-                result.append(candidate.relative_to(root).as_posix())
-                if len(result) >= 500:
-                    break
-    return result
+        if not root.is_dir():
+            errors.append("skill_root_unreadable")
+            continue
+        def onerror(_error):
+            errors.append("skill_root_unreadable")
+        for current, dirs, files in os.walk(root, followlinks=True, onerror=onerror):
+            dirs[:] = [name for name in dirs if name not in EXCLUDED_SKILL_DIRS and
+                       not ("SKILL.md" in files and name in SKILL_SUPPORT_DIRS)]
+            if "SKILL.md" not in files:
+                continue
+            manifest = Path(current) / "SKILL.md"
+            try:
+                # Hermes' declared name is the activation key; path is a stable fallback.
+                text = manifest.read_text(encoding="utf-8-sig")[:16384]
+                header = text.split("---", 2)[1] if text.startswith("---") else ""
+                metadata = yaml.safe_load(header) if header else {}
+                name = metadata.get("name") if isinstance(metadata, dict) else None
+                name = name.strip() if isinstance(name, str) and name.strip() else manifest.parent.name
+                result.setdefault(name, True)
+            except (OSError, ValueError, yaml.YAMLError):
+                errors.append("skill_manifest_unreadable")
+    return sorted(result), sorted(set(errors))
+
+
+def inventory_roots(home, call):
+    roots, errors = [home / "skills"], []
+    for key in ("skills.create_dir", "skills.external_dirs"):
+        try:
+            value = json.loads(call("get", key, "--json"))
+        except (ValueError, json.JSONDecodeError):
+            errors.append("skill_roots_unknown")
+            continue
+        entries = value if isinstance(value, list) else [value] if isinstance(value, str) else []
+        if value is not None and not isinstance(value, (list, str)):
+            errors.append("skill_roots_unknown")
+        for entry in entries:
+            if not isinstance(entry, str):
+                errors.append("skill_roots_unknown")
+                continue
+            entry = os.path.expandvars(os.path.expanduser(entry.strip()))
+            if entry:
+                path = Path(entry)
+                roots.append(path if path.is_absolute() else home / path)
+    return list(dict.fromkeys(roots)), errors
+
+
+def lock_config(home):
+    lock_path = home / ".friday-config.lock"
+    lock = lock_path.open("a+")
+    os.fchmod(lock.fileno(), 0o600)
+    deadline = time.monotonic() + 15
+    while True:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return lock
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                lock.close()
+                raise ValueError("config_lock_timeout")
+            time.sleep(0.025)
 
 
 def main():
@@ -73,6 +143,15 @@ def main():
     if not source.is_dir() or not cli.is_file():
         print(json.dumps({"error": "hermes_not_installed"}))
         return 5
+    lock = lock_config(home)
+    try:
+        return locked_main(home, source, cli)
+    finally:
+        fcntl.flock(lock, fcntl.LOCK_UN)
+        lock.close()
+
+
+def locked_main(home, source, cli):
     def call(*args):
         result = subprocess.run([str(cli), "config", *args], capture_output=True, text=True, timeout=15)
         if result.returncode:
@@ -80,12 +159,7 @@ def main():
         return result.stdout.strip()
 
     config_path = Path(call("path"))
-    if config_path.is_symlink():
-        raise ValueError("config_symlink")
-    raw = yaml.safe_load(config_path.read_text(encoding="utf-8-sig")) if config_path.exists() else {}
-    if not isinstance(raw, dict):
-        raise ValueError("invalid_config")
-    before = revision(config_path)
+    before, raw = snapshot(config_path)
     commit = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3)
     source_revision = commit.stdout.strip() if commit.returncode == 0 else None
     if sys.argv[1] == "update":
@@ -108,41 +182,54 @@ def main():
             return 4
         # Hermes owns validation and preserving the rest of config.yaml. Never --force.
         call("set", key, str(value).lower() if isinstance(value, bool) else str(value))
-    current = revision(config_path)
+    current, raw = snapshot(config_path)
     values = {}
     for key in FIELDS:
         values[key] = json.loads(call("get", key, "--json"))
     try:
         disabled_skills = json.loads(call("get", "skills.disabled", "--json"))
     except (ValueError, json.JSONDecodeError):
-        disabled_skills = []
-    try:
-        plugin_enabled = json.loads(call("get", "plugins.enabled", "--json"))
-    except (ValueError, json.JSONDecodeError):
-        plugin_enabled = []
-    try:
-        plugin_disabled = json.loads(call("get", "plugins.disabled", "--json"))
-    except (ValueError, json.JSONDecodeError):
-        plugin_disabled = []
+        disabled_skills = None
     explicit = {key: nested(raw, key) is not None for key in FIELDS}
     # Only safe, typed leaves cross the bridge; provider credentials and arbitrary YAML do not.
     for key, spec in FIELDS.items():
         if values[key] is not None and type(values[key]) is not (int if spec[0] == "integer" else bool):
             values[key] = None
-    skill_names = set(manifests(source / "skills", ("SKILL.md",))) | set(manifests(home / "skills", ("SKILL.md",)))
-    disabled_skills = set(disabled_skills) if isinstance(disabled_skills, list) else set()
-    plugin_names = manifests(home / "plugins", ("plugin.yaml", "plugin.yml"))
-    enabled_set = set(plugin_enabled) if isinstance(plugin_enabled, list) else set()
-    disabled_set = set(plugin_disabled) if isinstance(plugin_disabled, list) else set()
+    roots, root_errors = inventory_roots(home, call)
+    skill_names, skill_errors = installed_skills(roots)
+    if not isinstance(disabled_skills, list) or not all(isinstance(name, str) for name in disabled_skills):
+        disabled_skills = None
+        skill_errors.append("skill_activation_unknown")
+    disabled_set = set(disabled_skills) if disabled_skills is not None else set()
+    plugin_errors = []
+    try:
+        result = subprocess.run([str(cli), "plugins", "list", "--json", "--user"], capture_output=True, text=True, timeout=15)
+        if result.returncode:
+            raise ValueError("plugin_list_failed")
+        plugin_rows = json.loads(result.stdout)
+        if not isinstance(plugin_rows, list) or not all(isinstance(row, dict) and isinstance(row.get("name"), str)
+                                                        and isinstance(row.get("status"), str) for row in plugin_rows):
+            raise ValueError("plugin_list_invalid")
+    except (ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
+        plugin_rows = []
+        plugin_errors.append("plugin_inventory_unknown")
+    if revision(config_path) != current:
+        raise ValueError("concurrent_config_change")
+    inventory_reasons = sorted(set(root_errors + skill_errors + plugin_errors))
     print(json.dumps({
         "installed": True, "revision": current, "sourceRevision": source_revision,
         "values": values, "explicit": explicit,
         "secrets": {"model.api_key": bool(nested(raw, "model.api_key"))},
         "families": [{"id": name, "roots": roots, "followup": followup,
                       "configFileSet": any(nested(raw, root) is not None for root in roots)} for name, roots, followup in FAMILIES],
-        "skills": [{"id": name, "installed": True, "enabled": name.split("/")[-1] not in disabled_skills} for name in sorted(skill_names)],
-        "plugins": [{"id": name, "installed": True, "enabled": name in enabled_set and name not in disabled_set,
-                     "configured": None} for name in plugin_names],
+        "inventory": {"scope": "profile", "skillsComplete": not (root_errors or skill_errors),
+                      "pluginsComplete": not plugin_errors, "reasons": inventory_reasons},
+        "skills": [{"id": name, "installed": True,
+                    "enabled": True if name == "hermes-agent" else None if disabled_skills is None else name not in disabled_set}
+                   for name in skill_names],
+        "plugins": [{"id": row["name"], "installed": True,
+                     "enabled": True if row["status"] == "enabled" else False if row["status"] == "disabled" else None,
+                     "configured": None} for row in plugin_rows],
         "write": {"key": request["key"], "persisted": values[request["key"]] == request["value"]} if sys.argv[1] == "update" else None,
     }))
     return 0

@@ -2742,6 +2742,12 @@ export interface HermesConfigStatus {
     unsupported: boolean | null;
     coverage: "followup";
   }[];
+  inventory: {
+    scope: "profile";
+    skillsComplete: boolean;
+    pluginsComplete: boolean;
+    reasons: string[];
+  };
   skills: Extension[];
   plugins: Extension[];
   write: null | {
@@ -2755,7 +2761,7 @@ export interface HermesConfigStatus {
 export interface Extension {
   id: string;
   installed: true;
-  enabled: boolean;
+  enabled: boolean | null;
   configured: boolean | null;
   authenticated: boolean | null;
   available: boolean | null;

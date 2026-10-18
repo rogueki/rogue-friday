@@ -129,6 +129,10 @@ export function HermesConfigArea() {
         </p>
       ) : null}
       <h3>Weitere Hermes-Bereiche</h3>
+      <p role={data.inventory.skillsComplete && data.inventory.pluginsComplete ? "status" : "alert"}>
+        Profil-Inventar: {data.inventory.skillsComplete && data.inventory.pluginsComplete ? "vollständig" : "unvollständig"}
+        {data.inventory.reasons.length ? ` (${data.inventory.reasons.join(", ")})` : ""}.
+      </p>
       <p>
         Diese Bereiche sind für die angegebenen Pakete vorgemerkt. Ihre einzelnen Felder, Voraussetzungen und
         Verbraucher werden dort geprüft.
@@ -152,7 +156,7 @@ export function HermesConfigArea() {
         <ul>
           {data.skills.map((skill) => (
             <li key={skill.id}>
-              {skill.id}: {skill.enabled ? "nicht deaktiviert" : "deaktiviert"} · Nutzbarkeit ungeprüft
+              {skill.id}: {skill.enabled === null ? "Aktivierung unbekannt" : skill.enabled ? "nicht deaktiviert" : "deaktiviert"} · Nutzbarkeit ungeprüft
             </li>
           ))}
         </ul>
@@ -162,7 +166,7 @@ export function HermesConfigArea() {
         <ul>
           {data.plugins.map((plugin) => (
             <li key={plugin.id}>
-              {plugin.id}: {plugin.enabled ? "in Hermes aktiviert" : "nicht aktiviert"} · Nutzbarkeit
+              {plugin.id}: {plugin.enabled === null ? "Aktivierung unbekannt" : plugin.enabled ? "in Hermes aktiviert" : "nicht aktiviert"} · Nutzbarkeit
               ungeprüft
             </li>
           ))}

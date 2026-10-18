@@ -5756,7 +5756,7 @@ export interface components {
             authenticated: boolean | null;
             available: boolean | null;
             configured: boolean | null;
-            enabled: boolean;
+            enabled: boolean | null;
             id: string;
             /** @constant */
             installed: true;
@@ -6068,6 +6068,13 @@ export interface components {
                 writable: boolean;
             }[];
             installed: boolean;
+            inventory: {
+                pluginsComplete: boolean;
+                reasons: string[];
+                /** @constant */
+                scope: "profile";
+                skillsComplete: boolean;
+            };
             plugins: components["schemas"]["extension"][];
             revision: number | null;
             secretStates: {
@@ -6092,7 +6099,7 @@ export interface components {
                     authenticated: boolean | null;
                     available: boolean | null;
                     configured: boolean | null;
-                    enabled: boolean;
+                    enabled: boolean | null;
                     id: string;
                     /** @constant */
                     installed: true;
