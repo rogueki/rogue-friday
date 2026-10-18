@@ -97,10 +97,23 @@ function Start-OwnVoice([string]$choice, [bool]$allowLegacy = $false) {
     Start-ScheduledTask -TaskName 'FRIDAY_Voice' -ErrorAction Stop
     if (-not (Voice-Health $choice 180 $allowLegacy)) { throw 'Sprachdienst meldet nach Neustart nicht die vorherige Stimme.' }
 }
+function Invoke-NativeCaptured([string]$executable, [string[]]$arguments) {
+    $previousPreference = $ErrorActionPreference
+    try {
+        # Native stderr is output, not a PowerShell terminating error. The process exit code decides success.
+        $ErrorActionPreference = 'Continue'
+        $lines = @(& $executable @arguments 2>&1 | ForEach-Object { [string]$_ })
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    return [pscustomobject]@{ ExitCode = $exitCode; Lines = $lines }
+}
 function Wsl-Path([string]$path, [string]$distro, [string]$user) {
-    $result = @(& wsl.exe -d $distro -u $user --exec wslpath -a -u $path 2>&1)
-    if ($LASTEXITCODE -ne 0 -or $result.Count -lt 1 -or -not ([string]$result[0]).StartsWith('/')) { throw "WSL-Pfad nicht verfügbar: $path" }
-    return [string]$result[0]
+    $result = Invoke-NativeCaptured 'wsl.exe' @('-d', $distro, '-u', $user, '--exec', 'wslpath', '-a', '-u', $path)
+    $translated = @($result.Lines | Where-Object { $_.StartsWith('/') } | Select-Object -First 1)
+    if ($result.ExitCode -ne 0 -or $translated.Count -lt 1) { throw "WSL-Pfad nicht verfügbar: $path. $(($result.Lines | Select-Object -Last 2) -join ' ')" }
+    return [string]$translated[0]
 }
 function Invoke-WslVoice([string]$action, [object]$state) {
     if (-not $state.wsl) { return }
@@ -115,8 +128,8 @@ function Invoke-WslVoice([string]$action, [object]$state) {
             $args += Wsl-Path $windows $state.distro $state.user
         }
     }
-    $output = @(& wsl.exe -d $state.distro -u $state.user --exec bash @args 2>&1)
-    if ($LASTEXITCODE -ne 0) { throw "WSL-TTS $action fehlgeschlagen: $(($output | Select-Object -Last 2) -join ' ')" }
+    $result = Invoke-NativeCaptured 'wsl.exe' (@('-d', $state.distro, '-u', $state.user, '--exec', 'bash') + $args)
+    if ($result.ExitCode -ne 0) { throw "WSL-TTS $action fehlgeschlagen (Exit $($result.ExitCode)): $(($result.Lines | Select-Object -Last 8) -join ' ')" }
 }
 function Restore([object]$state) {
     $errors = [Collections.Generic.List[string]]::new()
@@ -241,8 +254,8 @@ try {
     if ($state.wsl) {
         $python = Join-Path $root 'voice\.venv\Scripts\python.exe'
         if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { throw 'Voice-Python fehlt.' }
-        & $python (Join-Path $root 'voice\prepare_voice_pairs.py') $root (Join-Path $source 'installer') | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw 'Stimmreferenzen konnten nicht vorbereitet werden.' }
+        $prepared = Invoke-NativeCaptured $python @((Join-Path $root 'voice\prepare_voice_pairs.py'), $root, (Join-Path $source 'installer'))
+        if ($prepared.ExitCode -ne 0) { throw "Stimmreferenzen konnten nicht vorbereitet werden (Exit $($prepared.ExitCode)): $(($prepared.Lines | Select-Object -Last 8) -join ' ')" }
         $state.wslAttempted = $true
         Write-Result $state
         Invoke-WslVoice 'Apply' $state

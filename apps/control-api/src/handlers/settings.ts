@@ -245,7 +245,7 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
           return { status: 200, body: single(result.settings) };
         } catch (error) {
           try {
-            if (!VOICE_PERSONAS.includes(previous as VoicePersona)) throw new Error("Vorherige Stimme unbekannt");
+            if (!VOICE_PERSONAS.includes(previous as VoicePersona)) throw new Error("Vorherige Stimme unbekannt", { cause: error });
             await applyVoicePersona(ctx.runtime, previous as VoicePersona);
           } catch (recovery) {
             throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Stimme wurde geändert, aber Speichern und Rückkehr zur vorherigen Stimme konnten nicht bestätigt werden. Bitte Sprachdienst prüfen.", cause: recovery });

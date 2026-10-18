@@ -20,7 +20,7 @@ health_ready() {
   port=$(sed -n 's/.* --port \([0-9][0-9]*\).*/\1/p' "$unit" | head -n 1)
   [[ "$port" =~ ^[0-9]+$ ]] || return 1
   curl -fsS --max-time 2 "http://127.0.0.1:$port/health" 2>/dev/null |
-    python3 -c 'import json,sys; s=json.load(sys.stdin); sys.exit(0 if s.get("ok") is True and s.get("ready") is True else 1)'
+    python3 -c 'import json,sys; s=json.load(sys.stdin); sys.exit(0 if s.get("ok") is True and s.get("ready") is True else 1)' 2>/dev/null
 }
 
 restore() {
@@ -78,7 +78,7 @@ systemctl --user restart friday-tts.service
 port=$(sed -n 's/.* --port \([0-9][0-9]*\).*/\1/p' "$unit" | head -n 1)
 [[ "$port" =~ ^[0-9]+$ ]] || { echo 'TTS port missing' >&2; exit 2; }
 for _ in {1..90}; do
-  if curl -fsS --max-time 2 "http://127.0.0.1:$port/health" 2>/dev/null | python3 -c 'import json,sys; s=json.load(sys.stdin); sys.exit(0 if set(s.get("voices",[]))=={"friday-female","classic"} else 1)' ; then
+  if curl -fsS --max-time 2 "http://127.0.0.1:$port/health" 2>/dev/null | python3 -c 'import json,sys; s=json.load(sys.stdin); sys.exit(0 if set(s.get("voices",[]))=={"friday-female","classic"} else 1)' 2>/dev/null; then
     trap - ERR
     echo 'applied'
     exit 0
