@@ -95,6 +95,18 @@ function Plain([Security.SecureString]$s) {
     $b = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)
     try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($b) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b) }
 }
+function Find-VoiceReference([string]$Choice, [string]$SavedReference, [string]$InstallRoot, [string]$PackageRoot) {
+    $candidates = @()
+    if ($SavedReference) { $candidates += $SavedReference }
+    foreach ($extension in @('wav', 'mp3')) {
+        $candidates += "$InstallRoot\config\voice-references\$Choice-reference.$extension"
+    }
+    if ($Choice -eq 'classic') { $candidates += "$PackageRoot\voice_models\jarvis_ref.wav" }
+    foreach ($candidate in $candidates) {
+        if ($candidate -match '\.(wav|mp3)$' -and (Test-Path -LiteralPath $candidate -PathType Leaf)) { return $candidate }
+    }
+    return ''
+}
 
 # ---------------------------------------------------------------- Helfer
 function Native([scriptblock]$cmd) { & $cmd 2>&1 | ForEach-Object { "$_" } }
@@ -887,8 +899,12 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
     ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic'))) {
     Title 'Ausgabestimme wählen'
     Info '1  F.R.I.D.A.Y.: weibliche Stimme aus eigener 3-30-Sekunden-Referenz (Qwen3-TTS, lokal)'
-    Info '2  Klassisch: eigene J.A.R.V.I.S.-Referenz (Qwen3-TTS, lokal), ONNX oder Thorsten'
-    if (-not (Test-Path "$Inst\voice_models\jarvis_de.onnx")) {
+    Info '2  Klassisch: unsere J.A.R.V.I.S.-Stimme (Qwen3-TTS, lokal), eigene Referenz oder ONNX'
+    $classicSaved = $State['voice_reference_classic']
+    if (-not $classicSaved -and $State.voice_choice -eq 'classic') { $classicSaved = $State.voice_reference }
+    $classicAvailable = Find-VoiceReference 'classic' $classicSaved $Root $PSScriptRoot
+    if (-not $classicAvailable -and -not (Test-Path "$PSScriptRoot\voice_models\jarvis_de.onnx") -and
+        -not (Test-Path "$Inst\voice_models\jarvis_de.onnx")) {
         Warn 'Ohne eigene J.A.R.V.I.S.-Referenz/ONNX verwendet Option 2 Thorsten mit Filmfilter.'
     }
     $defaultChoice = if ($State.voice_choice -eq 'classic') { '2' } elseif ($State.voice_choice -eq 'friday-female') { '1' } elseif ($AN -eq 'Jarvis') { '2' } else { '1' }
@@ -901,10 +917,10 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
     if ($State.voice_mode -eq 'local' -and $newChoice -in @('friday-female', 'classic')) {
         $choiceReference = $State["voice_reference_$newChoice"]
         if (-not $choiceReference -and $State.voice_choice -eq $newChoice) { $choiceReference = $State.voice_reference }
-        $savedReference = if ($choiceReference -and (Test-Path -LiteralPath $choiceReference -PathType Leaf)) { $choiceReference } else { '' }
-        if ($savedReference) { Info "Bisherige Stimmreferenz: $savedReference" }
-        $reference = (Read-Host '  Pfad einer eigenen MP3/WAV-Stimmreferenz (leer = bisherige oder Piper-Basisstimme)').Trim().Trim('"')
-        if (-not $reference) { $reference = $savedReference }
+        $defaultReference = Find-VoiceReference $newChoice $choiceReference $Root $PSScriptRoot
+        if ($defaultReference) { Info "Stimmreferenz wird automatisch verwendet: $defaultReference" }
+        $reference = (Read-Host '  Andere MP3/WAV-Stimmreferenz (leer = angezeigte Stimme oder Piper-Basisstimme)').Trim().Trim('"')
+        if (-not $reference) { $reference = $defaultReference }
         if ($reference -and -not (Test-Path -LiteralPath $reference -PathType Leaf)) { Stop-Install "Stimmreferenz nicht gefunden: $reference" }
         if (-not $reference) { Warn 'Ohne Referenz wird die passende Piper-Basisstimme installiert. Du kannst später mit change-voice.bat eine eigene Referenz wählen.' }
     }

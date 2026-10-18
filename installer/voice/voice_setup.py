@@ -120,7 +120,10 @@ else:
     else:
         name, folder = "de_DE-thorsten-medium", "de/de_DE/thorsten/medium"
         film_filter = True
-        print("   Klassisch: Thorsten (maennlich) mit Filmfilter; keine eigene J.A.R.V.I.S.-Datei vorhanden")
+        if options.voice_reference:
+            print("   Klassisch: eigene Referenz mit Qwen3-TTS; Thorsten als Ausfallstimme")
+        else:
+            print("   Klassisch: Thorsten (maennlich) mit Filmfilter; keine eigene J.A.R.V.I.S.-Datei vorhanden")
     if options.voice_choice == "friday-female" or not os.path.exists(custom):
         for ext in (".onnx", ".onnx.json"):
             dst = os.path.join(tts, name + ext)
