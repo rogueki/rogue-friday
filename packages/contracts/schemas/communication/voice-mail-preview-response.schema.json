@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/communication/voice-mail-preview-response.schema.json",
+  "title": "VoiceMailPreviewResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": { "type": "object", "properties": {
+      "token": { "type": "string" }, "expiresAt": { "type": "string", "format": "date-time" },
+      "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+      "action": { "type": "string", "enum": ["compose", "reply", "move", "flag"] },
+      "to": { "type": "array", "items": { "type": "string" } },
+      "subject": { "type": "string" }, "body": { "type": "string" },
+      "mailbox": { "type": "string" }, "id": { "type": "string" }, "destination": { "type": "string" }
+    }, "required": ["token", "expiresAt", "fingerprint", "action", "to", "subject", "body", "mailbox", "id", "destination"], "additionalProperties": false },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"], "additionalProperties": false
+}

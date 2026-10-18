@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/communication/voice-mail-confirm-request.schema.json",
+  "title": "VoiceMailConfirmRequest",
+  "type": "object",
+  "properties": {
+    "request": { "$ref": "../communication/voice-mail-request.schema.json" },
+    "token": { "type": "string", "minLength": 32, "maxLength": 2000 },
+    "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "required": ["request", "token", "fingerprint"], "additionalProperties": false
+}

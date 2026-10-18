@@ -24,6 +24,8 @@ const VOICE_BRIDGE_OPERATIONS = new Set<OperationId>([
   "getCodingVoiceRepository", "createVoiceCodingRun",
   "createVoicePowerPointDeck",
   "previewVoiceLocalCalendar", "confirmVoiceLocalCalendar",
+  "previewVoiceMail", "confirmVoiceMail",
+  "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage",
 ]);
 const MAIL_BRIDGE_OPERATIONS = new Set<OperationId>([
   "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage",

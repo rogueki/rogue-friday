@@ -29,6 +29,8 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   updateDraft: "communication.draft",
   requestDraftSend: "communication.requestSend",
   sendHimalayaMessage: "communication.requestSend",
+  previewVoiceMail: "communication.requestSend",
+  confirmVoiceMail: "communication.requestSend",
   getTelephony: "settings.update",
   getCloudTalk: "settings.update",
   putCloudTalk: "settings.update",

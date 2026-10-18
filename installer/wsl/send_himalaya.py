@@ -16,14 +16,18 @@ ADDRESS = re.compile(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za
 
 
 def valid(data):
-    return (isinstance(data, dict) and set(data) == {"to", "subject", "body"}
+    return (isinstance(data, dict) and {"to", "subject", "body"} <= set(data)
+            and set(data) <= {"to", "subject", "body", "inReplyTo", "references"}
             and isinstance(data["to"], list) and 1 <= len(data["to"]) <= 10
             and len(set(data["to"])) == len(data["to"])
             and all(isinstance(addr, str) and len(addr) <= 254 and ADDRESS.fullmatch(addr) for addr in data["to"])
             and isinstance(data["subject"], str) and 1 <= len(data["subject"]) <= 200
             and not any(ord(ch) < 32 or ord(ch) == 127 for ch in data["subject"])
             and isinstance(data["body"], str) and 1 <= len(data["body"].encode("utf-8")) <= 100000
-            and not any((ord(ch) < 32 and ch not in "\n\t") or ord(ch) == 127 for ch in data["body"]))
+            and not any((ord(ch) < 32 and ch not in "\n\t") or ord(ch) == 127 for ch in data["body"])
+            and all(isinstance(data.get(name, ""), str) and len(data.get(name, "")) <= 2000
+                    and not any(ord(ch) < 32 or ord(ch) == 127 for ch in data.get(name, ""))
+                    for name in ("inReplyTo", "references")))
 
 
 def send(data):
@@ -42,6 +46,10 @@ def send(data):
     message["From"] = formataddr((display_name, sender))
     message["To"] = ", ".join(data["to"])
     message["Subject"] = data["subject"]
+    if data.get("inReplyTo"):
+        message["In-Reply-To"] = data["inReplyTo"]
+    if data.get("references"):
+        message["References"] = data["references"]
     message.set_content(data["body"])
     cli = Path.home() / ".local" / "bin" / "himalaya"
     if not cli.is_file() or cli.is_symlink():

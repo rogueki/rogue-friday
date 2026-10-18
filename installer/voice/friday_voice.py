@@ -55,6 +55,7 @@ from content_studio_voice import ContentStudioVoice  # noqa: E402
 from skills_onboarding_voice import SkillsOnboardingVoice  # noqa: E402
 from coding_voice import CodingVoice  # noqa: E402
 from calendar_voice import CalendarVoice  # noqa: E402
+from mail_voice import MailVoice  # noqa: E402
 from powerpoint_voice import PowerPointVoice  # noqa: E402
 from cloudtalk_voice import CloudTalkVoice  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
@@ -530,6 +531,7 @@ class VoiceService:
         self.content_studio_voice = ContentStudioVoice(INSTALL_ROOT)
         self.coding_voice = CodingVoice(INSTALL_ROOT)
         self.calendar_voice = CalendarVoice(INSTALL_ROOT, zone=cfg.get("calendar_time_zone", "Europe/Berlin"))
+        self.mail_voice = MailVoice(INSTALL_ROOT)
         self.powerpoint_voice = PowerPointVoice(INSTALL_ROOT)
         self.cloudtalk_voice = CloudTalkVoice()
         self.skills_onboarding_voice = SkillsOnboardingVoice(
@@ -647,6 +649,7 @@ class VoiceService:
             self.trusted_until = 0.0
             self.background_jobs.clear()
             self.calendar_voice.pending = None
+            self.mail_voice.clear()
             self.powerpoint_voice.pending = None
             self.cloudtalk_voice.pending = None
             self.background_reply_ready.clear()
@@ -804,7 +807,10 @@ class VoiceService:
         if not text:
             log_event(event="empty_transcript", speaker_score=round(score, 3))
             return
-        print(f"> {text}", flush=True)
+        if hasattr(self, "mail_voice") and self.mail_voice.handles_text(text):
+            print("> [Mail-Sprachbefehl]", flush=True)
+        else:
+            print(f"> {text}", flush=True)
         self.processing = "thinking"  # Routing und Wartezeit auf Hermes/Modell (der Text selbst wird nie veroeffentlicht)
 
         def with_first_use_offer(answer: str) -> str:
@@ -816,6 +822,8 @@ class VoiceService:
             self.cloudtalk_voice.pending = None
             return
         if cloudtalk_answer is not None:
+            if hasattr(self, "mail_voice"):
+                self.mail_voice.clear()
             self.powerpoint_voice.pending = None
             self.calendar_voice.pending = None
             self.coding_voice.pending = None
@@ -834,6 +842,8 @@ class VoiceService:
             self.powerpoint_voice.pending = None
             return
         if powerpoint_answer is not None:
+            if hasattr(self, "mail_voice"):
+                self.mail_voice.clear()
             self.cloudtalk_voice.pending = None
             self.calendar_voice.pending = None
             self.coding_voice.pending = None
@@ -847,11 +857,31 @@ class VoiceService:
             self.history += [{"role": "user", "content": text}, {"role": "assistant", "content": powerpoint_answer}]
             return
 
+        mail_answer = self.mail_voice.handle(text) if hasattr(self, "mail_voice") else None
+        if self.control_cancel.is_set() or generation != self.control_generation:
+            if hasattr(self, "mail_voice"):
+                self.mail_voice.clear()
+            return
+        if mail_answer is not None:
+            self.calendar_voice.pending = None
+            self.cloudtalk_voice.pending = None
+            self.powerpoint_voice.pending = None
+            self.coding_voice.pending = None
+            self.content_studio_voice.pending = None
+            self.skills_onboarding_voice.pending = None
+            self.status["commands"] += 1
+            log_event(event="mail_voice_command", speaker_score=round(score, 3), success=True)
+            if not self._say_if_current(mail_answer, generation):
+                self.mail_voice.clear()
+            return
+
         calendar_answer = self.calendar_voice.handle(text)
         if self.control_cancel.is_set() or generation != self.control_generation:
             self.calendar_voice.pending = None
             return
         if calendar_answer is not None:
+            if hasattr(self, "mail_voice"):
+                self.mail_voice.clear()
             self.cloudtalk_voice.pending = None
             self.powerpoint_voice.pending = None
             # Exactly one spoken confirmation may be armed at a time.
@@ -1155,6 +1185,7 @@ class VoiceService:
                 break
             if interrupted:
                 self.calendar_voice.pending = None
+                self.mail_voice.clear()
                 self.powerpoint_voice.pending = None
                 self.cloudtalk_voice.pending = None
                 wake_audio = self._acknowledge_wake()
@@ -1166,6 +1197,7 @@ class VoiceService:
                 continue
             self.coding_voice.arm_confirmation()
             self.calendar_voice.arm_confirmation()
+            self.mail_voice.arm_confirmation()
             self.powerpoint_voice.arm_confirmation()
             self.cloudtalk_voice.arm_confirmation()
             # Berechnung und TTS duerfen die Folgefragezeit nicht aufbrauchen.
@@ -1183,6 +1215,7 @@ class VoiceService:
             self.processing = None
         self._drain()
         self.calendar_voice.pending = None
+        self.mail_voice.clear()
         self.powerpoint_voice.pending = None
         self.cloudtalk_voice.pending = None
         self.processing = None
@@ -1285,6 +1318,7 @@ class VoiceService:
                         service.trusted_until = 0.0
                         service.background_jobs.clear()
                         service.calendar_voice.pending = None
+                        service.mail_voice.clear()
                         service.powerpoint_voice.pending = None
                         service.cloudtalk_voice.pending = None
                         service.background_reply_ready.clear()

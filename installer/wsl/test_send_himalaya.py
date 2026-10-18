@@ -41,6 +41,19 @@ class SendHimalayaTests(unittest.TestCase):
                 mail.send({**self.request, "to": ["recipient@example.test\nBcc: attacker@example.test"]})
             run.assert_not_called()
 
+    def test_reply_headers_are_sent_and_injection_is_rejected(self):
+        reply = {**self.request, "inReplyTo": "<one@example.test>",
+                 "references": "<old@example.test> <one@example.test>"}
+        with patch.object(mail.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run:
+            self.assertEqual(mail.send(reply), {"state": "sent"})
+        raw = run.call_args.kwargs["input"]
+        self.assertIn(b"In-Reply-To: <one@example.test>", raw)
+        self.assertIn(b"References: <old@example.test> <one@example.test>", raw)
+        with patch.object(mail.subprocess, "run") as run:
+            with self.assertRaises(ValueError):
+                mail.send({**reply, "inReplyTo": "<one@example.test>\r\nBcc: x@example.test"})
+            run.assert_not_called()
+
     def test_nonzero_and_timeout_are_unknown(self):
         with patch.object(mail.subprocess, "run", return_value=subprocess.CompletedProcess([], 1)):
             with self.assertRaisesRegex(RuntimeError, "mail_outcome_unknown"):

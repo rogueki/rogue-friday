@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/communication/voice-mail-confirm-response.schema.json",
+  "title": "VoiceMailConfirmResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": { "type": "object", "properties": {
+      "state": { "type": "string", "enum": ["sent", "changed", "unknown"] },
+      "replayed": { "type": "boolean" }
+    }, "required": ["state", "replayed"], "additionalProperties": false },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"], "additionalProperties": false
+}

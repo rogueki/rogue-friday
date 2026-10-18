@@ -23,7 +23,7 @@ describe("read-only Hermes mail bridge", () => {
       expect((await client.get("/api/v1/communication/himalaya/message?mailbox=INBOX&id=1", { headers: bridge })).statusCode).toBe(200);
       expect((await client.get("/api/v1/communication/himalaya/mailboxes", { headers: { authorization: "Bearer invalid" } })).statusCode).toBe(401);
       expect((await client.get("/api/v1/communication/himalaya/mailboxes", { headers: { authorization: `Bearer ${api.runtime.calendarBridgeKey.toString("base64")}` } })).statusCode).toBe(403);
-      expect((await client.get("/api/v1/communication/himalaya/mailboxes", { headers: { authorization: `Bearer ${api.runtime.voiceBridgeKey.toString("base64")}` } })).statusCode).toBe(401);
+      expect((await client.get("/api/v1/communication/himalaya/mailboxes", { headers: { authorization: `Bearer ${api.runtime.voiceBridgeKey.toString("base64")}` } })).statusCode).toBe(200);
       expect((await api.fastify.inject({ method: "GET", url: "/api/v1/communication/himalaya/mailboxes", remoteAddress: "192.0.2.2", headers: bridge })).statusCode).toBe(403);
       expect((await client.get("/api/v1/skills", { headers: bridge })).statusCode).toBe(403);
       expect((await client.get("/api/v1/settings/himalaya-account", { headers: bridge })).statusCode).toBe(403);

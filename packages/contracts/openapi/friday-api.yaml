@@ -5626,6 +5626,55 @@ paths:
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/communication/himalaya/voice/preview:
+    post:
+      operationId: previewVoiceMail
+      tags: [communication]
+      summary: Preview one local voice mail action with an expiring approval token
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VoiceMailRequest" }
+      responses:
+        "200":
+          description: Exact recipients, text and mailbox action to read aloud
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VoiceMailPreviewResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-required-role: owner
+  /api/v1/communication/himalaya/voice/confirm:
+    post:
+      operationId: confirmVoiceMail
+      tags: [communication]
+      summary: Execute the exact approved voice mail action once
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VoiceMailConfirmRequest" }
+      responses:
+        "200":
+          description: Sent, changed, or unknown outcome
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VoiceMailConfirmResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-required-role: owner
   /api/v1/settings/wiki-path:
     get:
       operationId: getWikiPath
@@ -7238,6 +7287,14 @@ components:
       $ref: ../schemas/communication/himalaya-send-request.schema.json
     HimalayaSendResponse:
       $ref: ../schemas/communication/himalaya-send-response.schema.json
+    VoiceMailRequest:
+      $ref: ../schemas/communication/voice-mail-request.schema.json
+    VoiceMailPreviewResponse:
+      $ref: ../schemas/communication/voice-mail-preview-response.schema.json
+    VoiceMailConfirmRequest:
+      $ref: ../schemas/communication/voice-mail-confirm-request.schema.json
+    VoiceMailConfirmResponse:
+      $ref: ../schemas/communication/voice-mail-confirm-response.schema.json
     WikiPath:
       $ref: ../schemas/settings/wiki-path.schema.json
     WikiPathPatch:

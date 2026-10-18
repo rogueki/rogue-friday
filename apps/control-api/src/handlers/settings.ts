@@ -6,6 +6,7 @@ import type { TelegramGatewayPatch } from "../services/telegram-gateway";
 import type { MessagingGatewayPatch } from "../services/messaging-gateways";
 import type { TelephonyProfile } from "../services/telephony";
 import type { HimalayaSendRequest } from "../services/himalaya-send";
+import { forbidden } from "../util/errors";
 import { localList } from "./meta";
 
 const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString() });
@@ -103,13 +104,16 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     return { status: 200, body: single(outcome), headers: { "Idempotent-Replayed": String(outcome.replayed) } };
   },
   async listHimalayaMailboxes(ctx) {
+    if (ctx.voiceBridgeAuthorized && !ctx.runtime.auth.ownerPasswordConfigured()) throw forbidden("Besitzerkonto fehlt.");
     return { status: 200, body: single(await ctx.runtime.himalayaAccount.mailboxes()) };
   },
   async listHimalayaEnvelopes(ctx) {
+    if (ctx.voiceBridgeAuthorized && !ctx.runtime.auth.ownerPasswordConfigured()) throw forbidden("Besitzerkonto fehlt.");
     return { status: 200, body: single(await ctx.runtime.himalayaAccount.envelopes(
       String(ctx.query.mailbox ?? ""), Number(ctx.query.page ?? 1))) };
   },
   async getHimalayaMessage(ctx) {
+    if (ctx.voiceBridgeAuthorized && !ctx.runtime.auth.ownerPasswordConfigured()) throw forbidden("Besitzerkonto fehlt.");
     return { status: 200, body: single(await ctx.runtime.himalayaAccount.message(
       String(ctx.query.mailbox ?? ""), String(ctx.query.id ?? ""))) };
   },

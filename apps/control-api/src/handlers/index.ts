@@ -15,6 +15,7 @@ import { skillsHandlers } from "./skills";
 import { caldavHandlers } from "./caldav";
 import { localCalendarHandlers, localCalendarReads } from "./local-calendar";
 import { voiceCalendarHandlers } from "./voice-calendar";
+import { voiceMailHandlers } from "./voice-mail";
 import { browserVoiceHandlers } from "./browser-voice";
 
 /** Port-backed operations come from `PORT_SPEC`; the explicit handlers add enforcement or are served locally. */
@@ -30,6 +31,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     caldavHandlers,
     localCalendarHandlers,
     voiceCalendarHandlers,
+    voiceMailHandlers,
     browserVoiceHandlers,
     localReads,
     devHandlers,

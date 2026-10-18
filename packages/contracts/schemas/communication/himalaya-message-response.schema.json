@@ -7,7 +7,8 @@
     "contractVersion": { "$ref": "../common/contract-version.schema.json" },
     "data": { "type": "object", "properties": {
       "mailbox": { "type": "string" }, "id": { "type": "string" }, "subject": { "type": "string" },
-      "from": { "type": "string" }, "date": { "type": "string" }, "bodyText": { "type": "string" }
+      "from": { "type": "string" }, "date": { "type": "string" }, "bodyText": { "type": "string" },
+      "replyTo": { "type": "string" }, "messageId": { "type": "string" }, "references": { "type": "string" }
     }, "required": ["mailbox", "id", "subject", "from", "date", "bodyText"], "additionalProperties": false },
     "freshness": { "$ref": "../common/freshness.schema.json" }
   },

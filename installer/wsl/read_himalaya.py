@@ -99,7 +99,9 @@ def main():
         content = ""
     print(json.dumps({"mailbox": mailbox, "id": uid, "subject": str(message.get("subject", ""))[:500],
                       "from": str(message.get("from", ""))[:500], "date": str(message.get("date", ""))[:120],
-                      "bodyText": content[:100000]}))
+                      "bodyText": content[:100000], "replyTo": str(message.get("reply-to", ""))[:500],
+                      "messageId": str(message.get("message-id", ""))[:500],
+                      "references": str(message.get("references", ""))[:2000]}))
 
 
 if __name__ == "__main__":

@@ -472,6 +472,10 @@ export interface FridayModelMap {
   VoiceLocalConfirmRequest: VoiceLocalConfirmRequest;
   VoiceLocalPreviewResponse: VoiceLocalPreviewResponse;
   VoiceLocalRequest: VoiceLocalRequest;
+  VoiceMailConfirmRequest: VoiceMailConfirmRequest;
+  VoiceMailConfirmResponse: VoiceMailConfirmResponse;
+  VoiceMailPreviewResponse: VoiceMailPreviewResponse;
+  VoiceMailRequest: VoiceMailRequest;
   VoiceMetrics: VoiceMetrics;
   VoiceMetricsResponse: VoiceMetricsResponse;
   VoiceProfile: VoiceProfile;
@@ -2507,6 +2511,9 @@ export interface HimalayaMessageResponse {
     from: string;
     date: string;
     bodyText: string;
+    replyTo?: string;
+    messageId?: string;
+    references?: string;
   };
   freshness: Freshness;
 }
@@ -4295,6 +4302,44 @@ export interface VoiceLocalPreviewResponse {
     version: number;
     action: "create" | "update" | "delete";
     event: LocalEventRequest;
+  };
+  freshness: Freshness;
+}
+export interface VoiceMailConfirmRequest {
+  request: VoiceMailRequest;
+  token: string;
+  fingerprint: string;
+}
+export interface VoiceMailRequest {
+  action: "compose" | "reply" | "move" | "flag";
+  mailbox?: string;
+  id?: string;
+  destination?: string;
+  to?: string[];
+  subject?: string;
+  body?: string;
+}
+export interface VoiceMailConfirmResponse {
+  contractVersion: ContractVersion;
+  data: {
+    state: "sent" | "changed" | "unknown";
+    replayed: boolean;
+  };
+  freshness: Freshness;
+}
+export interface VoiceMailPreviewResponse {
+  contractVersion: ContractVersion;
+  data: {
+    token: string;
+    expiresAt: string;
+    fingerprint: string;
+    action: "compose" | "reply" | "move" | "flag";
+    to: string[];
+    subject: string;
+    body: string;
+    mailbox: string;
+    id: string;
+    destination: string;
   };
   freshness: Freshness;
 }

@@ -106,11 +106,23 @@ export class HimalayaAccountService {
     return result;
   }
 
-  async sendRaw(input: { to: string[]; subject: string; body: string }): Promise<void> {
+  async sendRaw(input: { to: string[]; subject: string; body: string; inReplyTo?: string; references?: string }): Promise<void> {
     const { script, distro, user } = this.target();
     const sendScript = script.replace(/configure_himalaya\.py$/, "send_himalaya.py");
     if (sendScript === script) throw unavailable();
     const result = await this.invoke(sendScript, distro, user, [], JSON.stringify(input), 30000);
     if (result.state !== "sent") throw unavailable();
+  }
+
+  async changeMessage(input: { action: "move" | "flag"; mailbox: string; id: string; destination?: string }): Promise<void> {
+    const state = await this.status();
+    if (!state.readyForLocalUse) throw unavailable();
+    const { script, distro, user } = this.target();
+    const changeScript = script.replace(/configure_himalaya\.py$/, "change_himalaya.py");
+    if (changeScript === script) throw unavailable();
+    try {
+      const result = await this.invoke(changeScript, distro, user, [], JSON.stringify(input), 20000);
+      if (result.state !== "changed") throw unavailable();
+    } catch { throw unavailable(); }
   }
 }
