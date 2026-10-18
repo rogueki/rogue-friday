@@ -35,6 +35,21 @@ describe("messenger preview and durable send", () => {
     db.close();
   });
 
+  it("denies a target revoked while the connector check was in flight", async () => {
+    const { db, service, invoke } = fixture();
+    const preview = await service.preview("owner", draft);
+    invoke.mockImplementation(async (_script, _distro, _user, _args, input) => {
+      if (JSON.parse(input ?? "{}").action === "check") {
+        service.remove("owner", service.targets("owner")[0]!.id);
+        return { state: "configured", revision: "r1" };
+      }
+      return { state: "sent", externalId: "synthetic-3" };
+    });
+    await expect(service.confirm("owner", draft, preview.token, "revoked-target-key")).rejects.toThrow();
+    expect(invoke.mock.calls.filter((call) => JSON.parse(call[4] as string).action === "send")).toHaveLength(0);
+    db.close();
+  });
+
   it("accepts an explicit Matrix user with a colon in its identifier", async () => {
     const { db, service } = fixture();
     const matrix = { ...draft, platform: "matrix", recipient: "@alice:example.org" };
@@ -54,6 +69,8 @@ describe("messenger preview and durable send", () => {
     expect(await service.confirm("owner", draft, preview.token, "message-key-123")).toMatchObject({ state: "sent", replayed: false });
     expect(await service.confirm("owner", draft, preview.token, "message-key-123")).toMatchObject({ state: "sent", replayed: true });
     expect(invoke.mock.calls.filter((call) => JSON.parse(call[4] as string).action === "send")).toHaveLength(1);
+    expect(JSON.parse(invoke.mock.calls.find((call) => JSON.parse(call[4] as string).action === "send")![4] as string)
+      .expectedConfigRevision).toBe("r1");
     db.close();
   });
 

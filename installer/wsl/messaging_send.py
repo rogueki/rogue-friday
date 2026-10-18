@@ -17,14 +17,14 @@ PINNED = "d923a5eb"
 PLATFORMS = frozenset({"telegram", "discord", "whatsapp", "slack", "signal",
                        "matrix", "mattermost", "sms", "irc", "line", "feishu",
                        "wecom", "photon", "buzz", "ntfy"})
-RECIPIENT = re.compile(r"^[A-Za-z0-9_@.!+#:;-]{1,128}$")
+RECIPIENT = re.compile(r"^[A-Za-z0-9_@.!+#:;=-]{1,128}$")
 EXACT_TARGETS = {
     "telegram": r"-?[0-9]{5,20}(?::[0-9]+)?",
     "discord": r"[0-9]{10,20}(?::[0-9]{10,20})?",
     "slack": r"[CGD][A-Z0-9]{8,}",
     "signal": r"\+[1-9][0-9]{6,14}",
     "sms": r"\+[1-9][0-9]{6,14}",
-    "matrix": r"[@!][A-Za-z0-9_.=-]+:[A-Za-z0-9.-]+",
+    "matrix": r"[@!][A-Za-z0-9_.=-]+:[A-Za-z0-9.-]+(?::[0-9]{1,5})?",
     "mattermost": r"[a-z0-9]{26}",
     "irc": r"#[A-Za-z0-9_-]{1,64}",
     "line": r"[UCR][0-9a-f]{32}",
@@ -73,9 +73,12 @@ def configured_revision(platform):
 
 
 def send(request, runner=subprocess.run):
-    if not isinstance(request, dict) or set(request) != {"action", "platform", "recipient", "text"}:
+    if not isinstance(request, dict) or request.get("action") not in ("check", "send"):
         return {"state": "rejected", "reason": "invalid_request"}
-    if request["action"] not in ("check", "send"):
+    expected_keys = {"action", "platform", "recipient", "text"}
+    if request["action"] == "send":
+        expected_keys.add("expectedConfigRevision")
+    if set(request) != expected_keys:
         return {"state": "rejected", "reason": "invalid_request"}
     platform, recipient, message = (request[key] for key in ("platform", "recipient", "text"))
     if not isinstance(platform, str) or platform not in PLATFORMS or not isinstance(recipient, str) or not RECIPIENT.fullmatch(recipient) or not exact_target(platform, recipient) or \
@@ -97,6 +100,9 @@ def send(request, runner=subprocess.run):
     if request["action"] == "check":
         # Configuration is a prerequisite, not a live auth or delivery probe.
         return {"state": "configured", "revision": revision}
+    expected_revision = request["expectedConfigRevision"]
+    if not isinstance(expected_revision, str) or not re.fullmatch(r"[a-f0-9]{64}", expected_revision) or expected_revision != revision:
+        return {"state": "rejected", "reason": "configuration_changed"}
     # No message or secret in argv, stderr, or Friday logs. Once invoked, any
     # timeout/parse failure may follow delivery and must never be retried blindly.
     try:

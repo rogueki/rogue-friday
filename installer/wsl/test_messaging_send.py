@@ -22,7 +22,7 @@ class MessengerSendTest(unittest.TestCase):
         cli = home / "hermes"
         cli.write_text("# fake\n")
         self.patches = [patch.object(bridge, "ROOT", root), patch.object(bridge, "CLI", cli),
-                        patch.object(bridge, "configured_revision", return_value="config-revision")]
+                        patch.object(bridge, "configured_revision", return_value="a" * 64)]
         for item in self.patches:
             item.start()
             self.addCleanup(item.stop)
@@ -35,11 +35,15 @@ class MessengerSendTest(unittest.TestCase):
         return subprocess.CompletedProcess(argv, 0, json.dumps({"success": True, "message_id": "provider-1"}), "")
 
     def request(self, **changes):
-        return {"action": "send", "platform": "telegram", "recipient": "12345678", "text": "Synthetic hello", **changes}
+        request = {"action": "send", "platform": "telegram", "recipient": "12345678", "text": "Synthetic hello",
+                   "expectedConfigRevision": "a" * 64, **changes}
+        if request["action"] == "check":
+            request.pop("expectedConfigRevision")
+        return request
 
     def test_check_never_sends_and_send_uses_exact_argv_with_body_only_on_stdin(self):
         self.assertEqual(bridge.send(self.request(action="check"), self.runner),
-                         {"state": "configured", "revision": "config-revision"})
+                         {"state": "configured", "revision": "a" * 64})
         self.assertEqual(len(self.calls), 1)
         self.assertEqual(bridge.send(self.request(), self.runner), {"state": "sent", "externalId": "provider-1"})
         argv, kwargs = self.calls[-1]
@@ -56,6 +60,11 @@ class MessengerSendTest(unittest.TestCase):
         self.assertEqual(bridge.send(self.request(platform="matrix", recipient="@user:example.org"), self.runner)["state"], "sent")
         with patch.object(bridge, "configured_revision", return_value=None):
             self.assertEqual(bridge.send(self.request(action="check"), self.runner)["reason"], "platform_not_configured")
+
+    def test_account_change_between_check_and_send_rejects_before_cli(self):
+        self.assertEqual(bridge.send(self.request(expectedConfigRevision="b" * 64), self.runner),
+                         {"state": "rejected", "reason": "configuration_changed"})
+        self.assertEqual(len(self.calls), 1)  # pinned git check only
 
     def test_timeout_and_malformed_receipt_are_uncertain(self):
         def timeout(argv, **kwargs):

@@ -9,7 +9,7 @@ import type { ApprovalTokenService } from "@friday/auth";
 const sha = (input: string) => createHash("sha256").update(input).digest("hex");
 const PLATFORM = new Set(["telegram", "discord", "whatsapp", "slack", "signal", "matrix", "mattermost", "sms",
   "irc", "line", "feishu", "wecom", "photon", "buzz", "ntfy"]);
-const TARGET = /^[A-Za-z0-9_@.!+#:;-]{1,128}$/;
+const TARGET = /^[A-Za-z0-9_@.!+#:;=-]{1,128}$/;
 export interface MessengerDraft { accountId: "default"; platform: string; recipient: string; text: string }
 export interface MessengerTarget { id: string; accountId: string; platform: string; recipient: string; createdAt: string }
 export interface MessengerReceipt { receiptId: string; accountId: string; platform: string; recipient: string;
@@ -25,7 +25,7 @@ function validTarget(platform: string, recipient: string): boolean {
     case "slack": return /^[CGD][A-Z0-9]{8,}$/.test(recipient);
     case "signal":
     case "sms": return /^\+[1-9][0-9]{6,14}$/.test(recipient);
-    case "matrix": return /^[@!][A-Za-z0-9_.=-]+:[A-Za-z0-9.-]+$/.test(recipient);
+    case "matrix": return /^[@!][A-Za-z0-9_.=-]+:[A-Za-z0-9.-]+(?::[0-9]{1,5})?$/.test(recipient);
     case "mattermost": return /^[a-z0-9]{26}$/.test(recipient);
     case "irc": return /^#[A-Za-z0-9_-]{1,64}$/.test(recipient);
     case "line": return /^[UCR][0-9a-f]{32}$/.test(recipient);
@@ -109,11 +109,12 @@ export class MessengerSendService {
       script: `/mnt/${match[1]!.toLowerCase()}/${match[2]!.replaceAll("\\", "/")}/installer/wsl/messaging_send.py` };
   }
 
-  private async run(action: "check" | "send", draft: MessengerDraft): Promise<RunnerResult> {
+  private async run(action: "check" | "send", draft: MessengerDraft, expectedConfigRevision?: string): Promise<RunnerResult> {
     const { script, distro, user } = this.target();
     try {
       return await this.invoke(script, distro, user, [], JSON.stringify({ action, platform: draft.platform,
-        recipient: draft.recipient, text: draft.text }), action === "check" ? 10000 : 45000) as RunnerResult;
+        recipient: draft.recipient, text: draft.text,
+        ...(action === "send" ? { expectedConfigRevision } : {}) }), action === "check" ? 10000 : 45000) as RunnerResult;
     } catch {
       return { state: action === "send" ? "uncertain" : "rejected" };
     }
@@ -134,6 +135,7 @@ export class MessengerSendService {
     if (!targetId) throw validationFailed("Empfänger ist für dieses Konto nicht registriert.");
     const ready = await this.run("check", draft);
     if (ready.state !== "configured" || !ready.revision) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes-Kanal ist nicht konfiguriert." });
+    if (this.admitted(actor, draft) !== targetId) throw conflict("Empfängerfreigabe wurde geändert; bitte erneut prüfen.");
     const fingerprint = this.fingerprint(actor, draft, ready.revision, targetId);
     const { token, claims } = this.approvals.issue({ approvalId: fingerprint, userId: actor, action: "messenger.send" });
     return { token, expiresAt: new Date(claims.expiresAt).toISOString(), fingerprint, draft };
@@ -149,6 +151,7 @@ export class MessengerSendService {
     if (!targetId) throw validationFailed("Empfänger ist für dieses Konto nicht registriert.");
     const ready = await this.run("check", draft);
     if (ready.state !== "configured" || !ready.revision) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes-Kanal ist nicht konfiguriert." });
+    if (this.admitted(actor, draft) !== targetId) throw conflict("Empfängerfreigabe wurde geändert; bitte erneut prüfen.");
     const payloadHash = this.fingerprint(actor, draft, ready.revision, targetId);
     const valid = this.approvals.consume(token, { approvalId: payloadHash, userId: actor, action: "messenger.send" });
     if (!valid.ok) throw conflict("Nachricht oder Empfänger wurde geändert; bitte neu freigeben.");
@@ -158,7 +161,7 @@ export class MessengerSendService {
       VALUES (?,?,?,?,?,?,?,'pending',?,?)`).run(keyHash, actor, draft.accountId, draft.platform, draft.recipient,
       payloadHash, this.draftHash(actor, draft), now, now).changes;
     if (!inserted) return this.replay(keyHash, this.lookup(keyHash)!, this.draftHash(actor, draft));
-    const result = await this.run("send", draft);
+    const result = await this.run("send", draft, ready.revision);
     const state = result.state === "sent" ? "sent" : "uncertain";
     this.db.prepare("UPDATE messenger_send_journal SET state=?,external_id=?,updated_at=? WHERE key_hash=?")
       .run(state, state === "sent" && typeof result.externalId === "string" ? result.externalId : null,
