@@ -83,11 +83,13 @@ export class SystemBackupService {
       [join(this.dataDir, "mail-bridge", "auth.key"), "keys/mail-bridge.key"],
       [join(this.dataDir, "hermes-memory-bridge", "auth.key"), "keys/hermes-memory-bridge.key"],
       [join(this.installRoot, "config", "voice.json"), "config/voice.json"],
+      [join(this.installRoot, "config", "persona.json"), "config/persona.json"],
       [join(this.installRoot, "config", "install-state.json"), "config/install-state.json"],
       [join(this.installRoot, "config", "dashboard_owner.hash"), "config/dashboard_owner.hash"],
       [join(this.installRoot, "dashboard", "config", "dashboard.yaml"), "config/dashboard.yaml"],
       [join(this.installRoot, "dashboard", "config", "adapters.yaml"), "config/adapters.yaml"],
     ];
+    if (!existsSync(names[0]![0])) throw new Error("System backup authentication key is missing");
     return names.filter(([from]) => existsSync(from)).map(([from, to]) => { ordinary(from); return { from, to }; });
   }
 
@@ -95,6 +97,8 @@ export class SystemBackupService {
     const destination = this.destination(targetPath);
     const files = this.sourceFiles();
     const databaseSize = statSync(join(this.dataDir, "dashboard.sqlite")).size;
+    const walPath = join(this.dataDir, "dashboard.sqlite-wal");
+    const walSize = existsSync(walPath) ? statSync(walPath).size : 0;
     let memoryBytes = 0;
     const measure = (dir: string): void => {
       for (const item of readdirSync(dir, { withFileTypes: true })) {
@@ -105,11 +109,11 @@ export class SystemBackupService {
       }
     };
     measure(this.vaultPath);
-    const estimatedBytes = databaseSize * 2 + memoryBytes + files.reduce((n, item) => n + statSync(item.from).size, 0) + 16 * 1024 * 1024;
+    const estimatedBytes = (databaseSize + walSize) * 2 + memoryBytes + files.reduce((n, item) => n + statSync(item.from).size, 0) + 16 * 1024 * 1024;
     const targetSpace = statfsSync(destination);
     const sourceSpace = statfsSync(this.dataDir);
     if (targetSpace.bavail * targetSpace.bsize < estimatedBytes * 2 ||
-        sourceSpace.bavail * sourceSpace.bsize < memoryBytes * 2 + 16 * 1024 * 1024)
+        sourceSpace.bavail * sourceSpace.bsize < memoryBytes * 2 + walSize + 16 * 1024 * 1024)
       throw new Error("Backup source or destination has insufficient free space");
     return { destination, estimatedBytes };
   }
@@ -265,6 +269,10 @@ export class SystemBackupService {
       throw new Error("Restore target must be new and isolated inside Friday data");
     const parent = realpathSync(dirname(target));
     if (parent !== this.dataDir && !within(parent, this.dataDir)) throw new Error("Restore target escapes Friday data");
+    const requiredBytes = Object.keys((JSON.parse(readFileSync(join(source, "manifest.json"), "utf8")) as Manifest).files)
+      .reduce((total, name) => total + statSync(join(source, name)).size, 0) * 2 + 16 * 1024 * 1024;
+    const free = statfsSync(parent);
+    if (free.bavail * free.bsize < requiredBytes) throw new Error("Restore target has insufficient free space");
     const staging = privateStaging(parent, ".friday-system-restore-");
     try {
       const manifest = JSON.parse(readFileSync(join(source, "manifest.json"), "utf8")) as Manifest;

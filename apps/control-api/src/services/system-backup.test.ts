@@ -81,6 +81,19 @@ it("requires every manifest artifact and refuses unlisted files or symlinks", as
   f.db.close();
 });
 
+it("rejects an omitted Memory manifest even when the backup inventory matches", async () => {
+  const f = fixture();
+  const created = await f.service.create(f.destination, 2);
+  const manifestPath = join(created.path, "manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as { files: Record<string, string> };
+  delete manifest.files["memory/manifest.json"];
+  unlinkSync(join(created.path, "memory", "manifest.json"));
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+  expect(() => f.service.verify(created.path)).toThrow(/manifest/);
+  f.memory.close();
+  f.db.close();
+});
+
 it("prunes only registered snapshots and preserves a same-prefix canary", async () => {
   const f = fixture();
   const canary = join(f.destination, "friday-system-lookalike");
