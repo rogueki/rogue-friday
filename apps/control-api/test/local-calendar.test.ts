@@ -69,6 +69,7 @@ it("serves the local event through the calendar API while requiring owner and CS
     const listed = await owner.get("/api/v1/calendar/events?from=2026-11-02T00:00:00.000Z&to=2026-11-03T00:00:00.000Z");
     expect(listed.statusCode, listed.body).toBe(200);
     expect(listed.json().freshness.asOf).toBe(mockNow);
+    expect(listed.json().freshness.state).toBe("fresh");
     expect(listed.json().items.some((item: { id: string }) => item.id === id)).toBe(true);
     const bridge = await api.client().get("/api/v1/calendar/events?from=2026-11-02T00:00:00.000Z&to=2026-11-03T00:00:00.000Z", { headers: { authorization: `Bearer ${api.runtime.calendarBridgeKey.toString("base64")}` } });
     expect(bridge.statusCode).toBe(200);
@@ -113,7 +114,7 @@ it("paginates mixed local and remote events without repeats or dangling cursors"
     const seen: string[] = [];
     let cursor: string | null = null;
     for (let page = 0; page < 4; page++) {
-      const ctx = { runtime: { db, nowMs: () => Date.parse("2026-10-14T08:00:00.000Z"), calendarAccounts: { list: async () => ({ accounts: [] }) } }, query: { from: "2026-11-02T00:00:00.000Z", to: "2026-11-03T00:00:00.000Z", limit: 2, ...(cursor ? { cursor } : {}) } } as unknown as RequestContext;
+      const ctx = { runtime: { db, config: { dataMode: "mock" }, nowMs: () => Date.parse("2026-10-14T08:00:00.000Z") }, query: { from: "2026-11-02T00:00:00.000Z", to: "2026-11-03T00:00:00.000Z", limit: 2, ...(cursor ? { cursor } : {}) } } as unknown as RequestContext;
       const body = (await list(ctx)).body as { items: Array<{ title: string; source: { system: string } }>; sources: Array<{ system: string }>; pageInfo: { hasNextPage: boolean; nextCursor: string | null } };
       seen.push(...body.items.map((item) => item.title));
       expect(body.items.every((item) => item.source.system === "friday-local" || item.source.system === "ics")).toBe(true);

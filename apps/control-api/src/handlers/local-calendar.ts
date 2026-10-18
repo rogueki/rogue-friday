@@ -31,6 +31,8 @@ const unavailable = (error: unknown) => {
 };
 
 async function connectedEvents(ctx: Parameters<Handler>[0], from?: string, to?: string): Promise<{ items: CalendarEvent[]; failed: boolean }> {
+  // Mock calendars are served by the mock adapter; the optional WSL account bridge is absent in this mode.
+  if (ctx.runtime.config.dataMode === "mock") return { items: [], failed: false };
   const nowMs = ctx.runtime.nowMs();
   const start = from ?? new Date(nowMs - 30 * 86_400_000).toISOString();
   const end = to ?? new Date(nowMs + 365 * 86_400_000).toISOString();
