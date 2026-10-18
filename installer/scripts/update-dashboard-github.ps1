@@ -20,7 +20,7 @@ $lockHandle = [IO.File]::Open($lock, [IO.FileMode]::CreateNew, [IO.FileAccess]::
 $backup = $null
 $stopped = $false
 function Git([string[]]$arguments) {
-    $result = & git.exe @arguments 2>&1
+    $result = & git.exe @arguments 2>> $log
     if ($LASTEXITCODE -ne 0) { throw "Git-Operation fehlgeschlagen: $($arguments[0])" }
     return $result
 }
