@@ -60,4 +60,31 @@ describe("notification escalation", () => {
     expect(notification.status).toBe("acknowledged");
     expect(notification.escalation[0]?.state).toBe("awaiting_approval");
   });
+
+  it("applies configured channel enablement and priority threshold", () => {
+    const world = new MockWorld({ realTime: false });
+    world.state.settings.notifications.channels = world.state.settings.notifications.channels.map((channel) =>
+      channel.kind === "telegram" ? { ...channel, enabled: false } : channel,
+    );
+    const notification = world.notifications.raise({ priority: "P1", category: "system", title: "Test", body: "Test", chain: ["telegram"] });
+    expect(notification.escalation[0]?.state).toBe("skipped");
+  });
+
+  it("defers non-critical external escalation during configured local quiet hours", () => {
+    const world = new MockWorld({ realTime: false });
+    world.state.settings.profile.timeZone = "UTC";
+    world.state.settings.notifications.quietHours = { enabled: true, from: "00:00", to: "23:59" };
+    const notification = world.notifications.raise({ priority: "P2", category: "system", title: "Test", body: "Test", chain: ["telegram"], stepSeconds: [1] });
+    world.clock.advance(1_000);
+    expect(notification.escalation[0]?.state).toBe("pending");
+  });
+
+  it("lets urgent notifications pass through quiet hours", () => {
+    const world = new MockWorld({ realTime: false });
+    world.state.settings.profile.timeZone = "UTC";
+    world.state.settings.notifications.quietHours = { enabled: true, from: "00:00", to: "23:59" };
+    const notification = world.notifications.raise({ priority: "P0", category: "security", title: "Test", body: "Test", chain: ["telegram"], stepSeconds: [1] });
+    world.clock.advance(1_000);
+    expect(notification.escalation[0]?.state).toBe("awaiting_approval");
+  });
 });

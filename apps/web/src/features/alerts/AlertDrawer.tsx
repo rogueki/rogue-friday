@@ -105,6 +105,14 @@ export function AlertDrawer({ id, notification, loading, actions, onClose, onSno
                 {t("alerts.action.openSource")}
               </Button>
             ) : null}
+            {notification.escalation.some((step) => step.state === "awaiting_approval" && ["telegram", "whatsapp", "sms"].includes(step.channel)) ? (
+              <Button size="sm" variant="primary" onClick={() => actions.openSource({
+                ...notification,
+                targetRoute: `/communication?messengerNotification=${encodeURIComponent(notification.id)}`,
+              })}>
+                {t("alerts.action.reviewSend")}
+              </Button>
+            ) : null}
           </div>
         </div>
       ) : loading ? (

@@ -23,6 +23,7 @@ interface Row {
   detail?: string;
   enabled: boolean | null;
   minPriority: string | null;
+  recipientConfigured: boolean | null;
   lastSyncAt: string | null;
 }
 
@@ -41,7 +42,7 @@ export function ChannelStatusPanel() {
     const config = new Map((settings.data?.data.notifications.channels ?? []).map((entry) => [entry.kind, entry]));
     return ORDER.map((kind): Row => {
       const entry = config.get(kind);
-      const base = { kind, enabled: entry?.enabled ?? null, minPriority: entry?.minPriority ?? null };
+      const base = { kind, enabled: entry?.enabled ?? null, minPriority: entry?.minPriority ?? null, recipientConfigured: kind === "dashboard" ? null : Boolean(entry?.recipient?.trim()) };
       if (kind === "dashboard") {
         const status: ChannelStatus = realtime.state === "online" ? "online" : realtime.state === "offline" ? "offline" : "degraded";
         return { ...base, status, lastSyncAt: realtime.lastEventAt ? new Date(realtime.lastEventAt).toISOString() : null };
@@ -77,6 +78,7 @@ export function ChannelStatusPanel() {
                 <span className="mk-row__meta">
                   {row.minPriority ? <span>{t("alerts.channels.minPriority", { priority: row.minPriority })}</span> : null}
                   {row.enabled === false ? <span>{t("alerts.channels.disabled")}</span> : null}
+                  {row.enabled && row.recipientConfigured === false ? <span>{t("alerts.channels.recipientMissing")}</span> : null}
                   {row.lastSyncAt ? <span title={format.dateTime(row.lastSyncAt)}>{t("alerts.channels.sync", { when: format.relative(row.lastSyncAt) })}</span> : null}
                 </span>
               </span>
@@ -85,6 +87,11 @@ export function ChannelStatusPanel() {
                 {row.status === "not_configured" ? (
                   <Button size="sm" variant="ghost" icon={<Settings2 size={13} />} onClick={() => router.push("/settings")}>
                     {t("panel.configureAdapter")}
+                  </Button>
+                ) : null}
+                {row.status !== "not_configured" && row.enabled && row.recipientConfigured === false ? (
+                  <Button size="sm" variant="ghost" icon={<Settings2 size={13} />} onClick={() => router.push("/settings")}>
+                    {t("alerts.channels.configureRecipient")}
                   </Button>
                 ) : null}
               </span>
