@@ -174,9 +174,9 @@ describe("security: sessions, CSRF and roles (dev auth)", () => {
           denied += 1;
         }
       }
-      // 107 operations: operator is denied the owner-only ones, viewer everything operator/owner.
+      // Owner-only operations deny operator and viewer; operator operations deny viewer.
       expect(denied).toBeGreaterThan(60);
-    });
+    }, 15_000); // The complete role matrix grew with the native integration routes.
 
     it("lets every role read what a viewer may read", async () => {
       const reads = ROUTE_TABLE.filter((spec) => spec.method === "GET" && spec.requiresSession && spec.role === "viewer" && spec.pathParams.length === 0 && spec.operationId !== "getSession");

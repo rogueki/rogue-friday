@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema", "$id":"https://friday.local/schemas/integrations/mail-account.schema.json", "title":"MailAccount", "type":"object",
+  "properties": {
+    "id":{"type":"string"}, "displayName":{"type":"string"}, "email":{"type":"string"}, "senderName":{"type":"string"},
+    "aliases":{"type":"array","items":{"type":"string"}}, "signature":{"type":"string"},
+    "imapHost":{"type":"string"}, "imapPort":{"type":"integer"}, "imapSecurity":{"enum":["tls","start-tls"]}, "imapLogin":{"type":"string"},
+    "smtpHost":{"type":"string"}, "smtpPort":{"type":"integer"}, "smtpSecurity":{"enum":["tls","start-tls"]}, "smtpLogin":{"type":"string"},
+    "sentFolder":{"type":"string"}, "draftsFolder":{"type":"string"}, "trashFolder":{"type":"string"}, "archiveFolder":{"type":"string"}, "spamFolder":{"type":"string"},
+    "authMode":{"enum":["password","google-oauth","microsoft-oauth"]}, "oauthClientId":{"type":"string"}, "oauthTenant":{"type":"string"},
+    "revision":{"type":"integer","minimum":1}, "secretState":{"type":"object","properties":{"imapPassword":{"type":"boolean"},"smtpPassword":{"type":"boolean"},"oauthRefreshToken":{"type":"boolean"}},"required":["imapPassword","smtpPassword","oauthRefreshToken"],"additionalProperties":false}
+  },
+  "required":["id","displayName","email","senderName","aliases","signature","imapHost","imapPort","imapSecurity","imapLogin","smtpHost","smtpPort","smtpSecurity","smtpLogin","sentFolder","draftsFolder","trashFolder","archiveFolder","spamFolder","authMode","oauthClientId","oauthTenant","revision","secretState"],
+  "additionalProperties":false
+}

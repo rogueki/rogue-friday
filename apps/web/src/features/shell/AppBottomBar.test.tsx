@@ -106,7 +106,7 @@ describe("AppBottomBar text input", () => {
   });
 });
 
-it("sends voice-only stop, pause and resume controls and reflects the live pause state", async () => {
+it("shows overview voice stop without pause and sends voice-only stop", async () => {
   const user = userEvent.setup();
   const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
   let voiceState: "speaking" | "paused" | "listening" | "idle" = "speaking";
@@ -136,19 +136,11 @@ it("sends voice-only stop, pause and resume controls and reflects the live pause
     capabilities: capabilitiesOf({ voice: { read: true, stop: true }, commands: { stop: true, pause: true, resume: true, execute: true } }),
   });
 
-  await screen.findByRole("button", { name: "Pause" });
-  await user.click(screen.getByRole("button", { name: "Pause" }));
-  await waitFor(() => expect(requests).toHaveLength(1));
-  expect(requests[0]).toMatchObject({ path: "http://friday.test/api/v1/commands/pause", body: { scope: "voice" } });
-  await screen.findByRole("button", { name: "Fortsetzen" });
-
-  await user.click(screen.getByRole("button", { name: "Fortsetzen" }));
-  await waitFor(() => expect(requests).toHaveLength(2));
-  expect(requests[1]).toMatchObject({ path: "http://friday.test/api/v1/commands/resume", body: { scope: "voice" } });
-  await screen.findByRole("button", { name: "Pause" });
+  expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Fortsetzen" })).not.toBeInTheDocument();
 
   await user.click(screen.getByRole("button", { name: "Stopp" }));
-  await waitFor(() => expect(requests).toHaveLength(3));
-  expect(requests[2]).toMatchObject({ path: "http://friday.test/api/v1/commands/stop", body: { scope: "voice" } });
+  await waitFor(() => expect(requests).toHaveLength(1));
+  expect(requests[0]).toMatchObject({ path: "http://friday.test/api/v1/commands/stop", body: { scope: "voice" } });
   expect(requests.every(({ body }) => typeof body.targetId === "undefined")).toBe(true);
 });

@@ -16,6 +16,50 @@ permissions:
   contents: read
 
 jobs:
+  python-helpers:
+    name: Python voice and integration helpers
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: installer/linux/requirements-ci-test.txt
+
+      - name: Install test dependencies
+        run: python -m pip install -r installer/linux/requirements-ci-test.txt
+
+      - name: Synthetic voice and integration tests
+        env:
+          HOME: ${{ runner.temp }}/friday-python-home
+        run: |
+          mkdir -p "$HOME"
+          PYTHONPATH=installer/voice:installer/wsl python -m pytest -q \
+            installer/voice/test_audio_devices.py \
+            installer/voice/test_memory_outbox.py \
+            installer/voice/test_connected_calendar_voice.py \
+            installer/voice/tests/test_browser_audio.py \
+            installer/voice/tests/test_personal_wake.py \
+            installer/voice/tests/test_mail_voice.py \
+            installer/voice/tests/test_mail_voice_pipeline.py \
+            installer/voice/tests/test_calendar_voice.py \
+            installer/voice/tests/test_headless_compat.py \
+            installer/voice/tests/test_voice_runtime_paths.py \
+            installer/voice/tests/test_update_dependency_closure.py \
+            installer/wsl/test_friday_memory_plugin.py \
+            installer/wsl/test_mail_accounts.py \
+            installer/wsl/test_calendar_accounts.py \
+            installer/wsl/test_send_himalaya.py \
+            installer/wsl/test_messaging_runtime.py \
+            installer/wsl/test_messaging_pairing.py \
+            installer/wsl/tests/test_mail_bridge_setup.py \
+            installer/wsl/tests/test_calendar_bridge_setup.py
+
   verify:
     name: Contracts, typecheck, lint, tests, build
     runs-on: ubuntu-latest

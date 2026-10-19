@@ -1,0 +1,11 @@
+{
+  "$schema": "https://friday.local/schemas/integrations/integration-event.schema.json",
+  "eventId": "evt_20261019_example",
+  "contractVersion": "2.0.0",
+  "eventType": "user_utterance",
+  "actor": { "type": "user", "id": "owner", "role": "owner" },
+  "identityId": "owner", "channel": "voice", "sessionId": "session-example", "dialogId": "dialog-example",
+  "correlationId": null, "source": "friday-voice", "occurredAt": "2026-10-19T00:00:00Z",
+  "outcome": "completed", "captureEligibility": "eligible", "redaction": "complete",
+  "payload": { "kind": "text", "text": "Wie ist das Wetter?" }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/capability-descriptor.schema.json",
+  "title": "CapabilityDescriptor",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "actions": { "type": "array", "items": { "type": "string" } },
+    "settingsArea": { "type": "string" },
+    "requires": { "type": "array", "items": { "type": "string" } },
+    "roles": { "type": "array", "items": { "enum": ["viewer", "operator", "owner"] } },
+    "availability": { "enum": ["available", "needs_setup", "unsupported", "offline"] },
+    "reasonCode": { "type": ["string", "null"] }
+  },
+  "required": ["id", "contractVersion", "actions", "settingsArea", "requires", "roles", "availability", "reasonCode"],
+  "additionalProperties": false
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/integration-event.schema.json",
+  "title": "IntegrationEvent",
+  "description": "Capture candidate. A durable writer must enforce captureEligibility and redact sensitive text before storage.",
+  "type": "object",
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "eventType": { "enum": ["user_utterance", "assistant_response", "action_result"] },
+    "actor": { "type": "object", "properties": { "type": { "enum": ["user", "assistant", "system", "provider"] }, "id": { "type": "string", "minLength": 1 }, "role": { "type": ["string", "null"] } }, "required": ["type", "id", "role"], "additionalProperties": false },
+    "identityId": { "type": ["string", "null"] },
+    "channel": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": ["string", "null"] },
+    "dialogId": { "type": ["string", "null"] },
+    "correlationId": { "type": ["string", "null"] },
+    "source": { "type": "string", "minLength": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "outcome": { "enum": ["completed", "aborted", "uncertain"] },
+    "captureEligibility": { "enum": ["eligible", "private", "do_not_store"] },
+    "redaction": { "enum": ["complete", "required"] },
+    "payload": {
+      "oneOf": [
+        { "type": "object", "properties": { "kind": { "const": "text" }, "text": { "type": "string" } }, "required": ["kind", "text"], "additionalProperties": false },
+        { "type": "object", "properties": { "kind": { "const": "action" }, "actionId": { "type": "string" }, "targetId": { "type": ["string", "null"] }, "externalId": { "type": ["string", "null"] } }, "required": ["kind", "actionId", "targetId", "externalId"], "additionalProperties": false }
+      ]
+    }
+  },
+  "required": ["eventId", "contractVersion", "eventType", "actor", "identityId", "channel", "sessionId", "dialogId", "correlationId", "source", "occurredAt", "outcome", "captureEligibility", "redaction", "payload"],
+  "additionalProperties": false
+}

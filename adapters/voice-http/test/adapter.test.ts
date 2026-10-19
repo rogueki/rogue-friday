@@ -174,13 +174,13 @@ describe("FridayVoiceHttpAdapter against the wire-level fake of friday_voice.py"
     });
   });
 
-  describe("what the service does not expose", () => {
-    it("devices and profiles: empty pages with unknown freshness", async () => {
+  describe("optional voice resources", () => {
+    it("devices are fresh from the host while profiles remain unknown", async () => {
       rig = await createRig();
-      for (const result of [
-        await rig.adapter.listVoiceDevices({}, call()),
-        await rig.adapter.listVoiceProfiles({}, call()),
-      ]) {
+      const deviceResult = await rig.adapter.listVoiceDevices({}, call());
+      expect(deviceResult.items).toEqual([]);
+      expect(deviceResult.freshness.state).toBe("fresh");
+      for (const result of [await rig.adapter.listVoiceProfiles({}, call())]) {
         expect(result.items).toEqual([]);
         expect(result.pageInfo).toEqual({ nextCursor: null, hasNextPage: false });
         expect(result.freshness.state).toBe("unknown");

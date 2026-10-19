@@ -249,6 +249,31 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_cloudtalk_reminder_owner_time ON cloudtalk_reminder_calls (owner_id, created_at);
     `,
   },
+  {
+    id: 13,
+    name: "multi-mail-send-journal",
+    sql: `
+      CREATE TABLE mail_send_journal (
+        key_hash TEXT PRIMARY KEY,
+        actor TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        body_hash TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('pending', 'sent', 'uncertain')),
+        archive_pending INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_mail_send_account ON mail_send_journal (account_id, created_at);
+    `,
+  },
+  {
+    id: 14,
+    name: "mail-archive-receipt",
+    sql: `
+      ALTER TABLE mail_send_journal ADD COLUMN account_hash TEXT;
+      ALTER TABLE mail_send_journal ADD COLUMN message_id TEXT;
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

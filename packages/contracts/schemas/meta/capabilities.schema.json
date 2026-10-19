@@ -8,6 +8,7 @@
     "contractVersion": {
       "$ref": "../common/contract-version.schema.json"
     },
+    "integrations": { "type": "array", "items": { "$ref": "../integrations/capability-descriptor.schema.json" } },
     "modules": {
       "type": "object",
       "properties": {

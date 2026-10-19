@@ -24,6 +24,8 @@ $backup = $null
 $stopped = $false
 $voiceHelper = $null
 $voiceApplyStarted = $false
+$memoryHelper = $null
+$memoryApplyStarted = $false
 $runStartedAt = (Get-Date).ToUniversalTime().ToString('o')
 $processStartedAt = (Get-Process -Id $PID).StartTime.ToUniversalTime().ToString('o')
 if (-not $RunId) { $RunId = [guid]::NewGuid().ToString('N') }
@@ -160,13 +162,67 @@ function Invoke-VoicePersonaHelper([string]$mode) {
     $accepted = if ($mode -eq 'Apply') { @('applied', 'runtimeNotConfigured') } else { @('rolledBack') }
     if ($accepted -cnotcontains $result.status) { throw "Stimmen-Update $mode hat keinen bestätigten Ergebnisstatus." }
 }
+function Stage-VerifiedMemoryHelper {
+    $gitPath = 'installer/scripts/update-memory-bridge.ps1'
+    $sourceFile = Join-Path $cache 'installer\scripts\update-memory-bridge.ps1'
+    $tree = (Git -arguments @('-C', $cache, 'ls-tree', $target, '--', $gitPath) | Select-Object -First 1)
+    if ($tree -notmatch '^100(644|755) blob ([0-9a-f]{40})\s') { throw 'Verifizierter Memory-Updater fehlt.' }
+    $expectedBlob = $Matches[2]
+    Assert-NoReparse $sourceFile $cache
+    $actualBlob = (Git -arguments @('-C', $cache, 'hash-object', "--path=$gitPath", '--', $sourceFile) | Select-Object -First 1).Trim()
+    if ($actualBlob -cne $expectedBlob) { throw 'Memory-Updater stimmt nicht mit dem Git-Stand überein.' }
+    $staged = Join-Path $updates "memory-helper-$RunId.ps1"
+    Assert-NoReparse $staged $updates
+    Copy-Item -LiteralPath $sourceFile -Destination $staged -ErrorAction Stop
+    $stagedBlob = (Git -arguments @('-C', $cache, 'hash-object', "--path=$gitPath", '--', $staged) | Select-Object -First 1).Trim()
+    if ($stagedBlob -cne $expectedBlob) { throw 'Memory-Updater konnte nicht sicher zwischengespeichert werden.' }
+    return $staged
+}
+function Invoke-MemoryHelper([string]$mode) {
+    if ($mode -cnotin @('Apply','Rollback') -or -not $memoryHelper) { throw 'Ungültiger Memory-Update-Aufruf.' }
+    $previous = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $memoryHelper -InstallRoot $root -SourceRoot $cache -RunId $RunId -Mode $mode 2>&1 |
+            Out-File -LiteralPath $log -Append -Encoding utf8
+        $code = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $previous }
+    if ($code -ne 0) { throw "Memory-Update $mode fehlgeschlagen." }
+    $result = Get-Content -LiteralPath (Join-Path $updates "memory-bridge-$RunId\result.json") -Raw | ConvertFrom-Json
+    $accepted = if ($mode -eq 'Apply') { @('applied','runtimeNotConfigured') } else { @('rolledBack') }
+    if ($accepted -cnotcontains $result.status) { throw "Memory-Update $mode ohne bestätigten Ergebnisstatus." }
+}
+function Test-MemoryUpdateNeeded([string[]]$changedPaths) {
+    foreach ($path in $changedPaths) {
+        if ($path -in @('installer/wsl/configure_memory_bridge.py', 'installer/wsl/setup_memory_bridge.sh',
+            'installer/wsl/friday_memory_plugin/plugin.yaml', 'installer/wsl/friday_memory_plugin/__init__.py',
+            'installer/scripts/update-memory-bridge.ps1', 'installer/scripts/update-dashboard-github.ps1') -or
+            (Get-WslBridgeSourcePaths) -ccontains $path) { return $true }
+    }
+    foreach ($path in (Get-WslBridgeSourcePaths)) {
+        if (-not (Test-Path -LiteralPath (Join-Path $root $path.Replace('/', '\')) -PathType Leaf)) { return $true }
+    }
+    return $false
+}
+function Get-WslBridgeSourcePaths {
+    # Runtime targets and their local sibling dependencies; never include user config or WSL credentials.
+    return @('installer/wsl/calendar_accounts.py', 'installer/wsl/mail_accounts.py',
+        'installer/wsl/configure_calendar_bridge.py',
+        'installer/wsl/setup_calendar_bridge.sh', 'installer/wsl/configure_mail_bridge.py',
+        'installer/wsl/setup_mail_bridge.sh', 'installer/wsl/configure_messaging_gateway.py',
+        'installer/wsl/messaging_pairing.py',
+        'installer/wsl/messaging_runtime.py',
+        'installer/wsl/whatsapp_logout.mjs', 'installer/wsl/configure_telegram.py',
+        'installer/wsl/configure_obsidian.py')
+}
 function Get-VoiceSourcePaths {
-    return @('installer/voice/audio_level.py', 'installer/voice/audio_output.py',
+    return @('installer/voice/audio_devices.py', 'installer/voice/audio_level.py', 'installer/voice/audio_output.py',
         'installer/voice/browser_audio.py', 'installer/voice/calendar_voice.py',
         'installer/voice/cloudtalk_voice.py', 'installer/voice/coding_voice.py',
         'installer/voice/content_studio_voice.py', 'installer/voice/cuda_dlls.py',
         'installer/voice/elevenlabs_cloud.py', 'installer/voice/film_filter.py',
         'installer/voice/friday_voice.py', 'installer/voice/mail_voice.py',
+        'installer/voice/memory_outbox.py',
         'installer/voice/model_routing.py', 'installer/voice/personal_wake.py',
         'installer/voice/powerpoint_voice.py', 'installer/voice/qwen_tts.py',
         'installer/voice/skills_onboarding_voice.py', 'installer/voice/voice_persona.py',
@@ -293,6 +349,7 @@ try {
     }
     Git -arguments @('-C', $cache, 'checkout', '--detach', '--force', $target) | Out-Null
     $voiceNeeded = Test-VoicePersonaUpdateNeeded $changedPaths
+    $memoryNeeded = Test-MemoryUpdateNeeded $changedPaths
     # Check every changed installed source against the old Git blob before writing it.
     foreach ($change in $changes) {
         $destination = Join-Path $dash $change.Path
@@ -315,6 +372,7 @@ try {
         Assert-VerifiedVoiceSources
         $voiceHelper = Stage-VerifiedVoiceHelper
     }
+    if ($memoryNeeded) { $memoryHelper = Stage-VerifiedMemoryHelper }
     if ($changes.Count -eq 0) {
         $successMessage = 'Dashboard ist aktuell.'
         if ($voiceNeeded) {
@@ -322,6 +380,11 @@ try {
             $voiceApplyStarted = $true
             Invoke-VoicePersonaHelper 'Apply'
             $successMessage = 'Stimmen aktualisiert; Dashboard ist aktuell.'
+        }
+        if ($memoryNeeded) {
+            $memoryApplyStarted = $true
+            Invoke-MemoryHelper 'Apply'
+            $successMessage = 'Gedächtnisbrücke aktualisiert; Dashboard ist aktuell.'
         }
         [IO.File]::WriteAllText($marker, (@{ commit = $target; installedAt = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
         [IO.File]::WriteAllText($resultFile, (@{ commit = $target; status = 'success'; time = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
@@ -394,6 +457,11 @@ try {
     Start-Dashboard
     Set-UpdatePhase 7 'health' 'Dashboard startet neu; Verbindung wird geprüft.'
     if (-not (Health-Ready)) { throw 'Dashboard-Healthcheck nach Update fehlgeschlagen.' }
+    if ($memoryNeeded) {
+        Set-UpdatePhase 7 'health' 'Hermes-Gedächtnisbrücke wird aktualisiert und geprüft.'
+        $memoryApplyStarted = $true
+        Invoke-MemoryHelper 'Apply'
+    }
     [IO.File]::WriteAllText($marker, (@{ commit = $target; installedAt = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText($resultFile, (@{ commit = $target; status = 'success'; time = (Get-Date -Format o) } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
     Set-UpdatePhase 8 'success' 'Update installiert und Dashboard erreichbar.'
@@ -401,11 +469,19 @@ try {
     "$(Get-Date -Format o) Update erfolgreich; Backup: $backup" | Add-Content $log
 } catch {
     $failureMessage = $_.Exception.Message
-    if ($voiceApplyStarted -or ($stopped -and $backup)) {
+    if ($voiceApplyStarted -or $memoryApplyStarted -or ($stopped -and $backup)) {
         Write-UpdateState 'rollback' 'Update fehlgeschlagen; Wiederherstellung wird geprüft.' 'running'
     }
     "$(Get-Date -Format o) FEHLER: $failureMessage" | Add-Content $log
     $voiceRollbackConfirmed = $true
+    $memoryRollbackConfirmed = $true
+    if ($memoryApplyStarted) {
+        try { Invoke-MemoryHelper 'Rollback' }
+        catch {
+            $memoryRollbackConfirmed = $false
+            "$(Get-Date -Format o) Memory-Rollback fehlgeschlagen: $($_.Exception.Message)" | Add-Content $log
+        }
+    }
     if ($voiceApplyStarted) {
         try {
             $voiceRollbackConfirmed = Restore-VoicePersonaAfterFailure
@@ -453,6 +529,7 @@ try {
     if (-not $voiceRollbackConfirmed -and -not ($stopped -and $backup)) {
         $failureMessage = "Update in Phase $phase fehlgeschlagen; Stimmen-Rollback nicht bestätigt."
     }
+    if (-not $memoryRollbackConfirmed) { $failureMessage += ' Hermes-Memory-Rollback nicht bestätigt.' }
     if ($voiceApplyStarted -and -not $stopped -and $installedMarkerText) {
         try { [IO.File]::WriteAllText($marker, $installedMarkerText, [Text.UTF8Encoding]::new($false)) }
         catch {

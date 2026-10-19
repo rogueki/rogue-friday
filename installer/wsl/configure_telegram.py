@@ -9,6 +9,9 @@ import re
 import subprocess
 import sys
 import tempfile
+from urllib.error import HTTPError
+from urllib.request import urlopen
+from messaging_runtime import platform_state
 
 HERMES = Path.home() / ".hermes"
 HERMES_CLI = Path.home() / ".local" / "bin" / "hermes"
@@ -52,14 +55,45 @@ def gateway_running():
     return result.returncode == 0 and result.stdout.strip() == "active"
 
 
+def bot_probe(token):
+    if not token:
+        return {"botAuthentication": "missing", "botId": None, "botUsername": None,
+                "receiveMode": "unknown"}
+    try:
+        with urlopen(f"https://api.telegram.org/bot{token}/getMe", timeout=4) as response:
+            data = json.loads(response.read(4096))
+        bot = data.get("result") if data.get("ok") is True else None
+        if not isinstance(bot, dict) or not isinstance(bot.get("id"), int) or bot.get("is_bot") is not True:
+            return {"botAuthentication": "invalid", "botId": None, "botUsername": None,
+                    "receiveMode": "unknown"}
+        mode = "unknown"
+        try:
+            with urlopen(f"https://api.telegram.org/bot{token}/getWebhookInfo", timeout=4) as response:
+                info = json.loads(response.read(4096))
+            if info.get("ok") is True and isinstance(info.get("result"), dict):
+                mode = "webhook" if info["result"].get("url") else "polling"
+        except (OSError, ValueError, TypeError):
+            pass
+        username = bot.get("username")
+        return {"botAuthentication": "verified", "botId": str(bot["id"]),
+                "botUsername": username if isinstance(username, str) else None, "receiveMode": mode}
+    except HTTPError as error:
+        return {"botAuthentication": "invalid" if error.code in (401, 403, 404) else "unknown",
+                "botId": None, "botUsername": None, "receiveMode": "unknown"}
+    except (OSError, ValueError, TypeError):
+        return {"botAuthentication": "unknown", "botId": None, "botUsername": None,
+                "receiveMode": "unknown"}
+
+
 def snapshot(lines=None, applied=None):
     current = values(read_lines() if lines is None else lines)
     ids = [part.strip() for part in current["TELEGRAM_ALLOWED_USERS"].split(",") if part.strip()]
     flag = enabled()
     revision_source = json.dumps([current["TELEGRAM_BOT_TOKEN"], ids, flag], separators=(",", ":"))
     return {"tokenConfigured": bool(current["TELEGRAM_BOT_TOKEN"]), "allowedUserIds": ids,
-            "enabled": flag, "gatewayRunning": gateway_running(), "connectionState": "unknown",
-            "applied": applied, "revision": int(hashlib.sha256(revision_source.encode()).hexdigest()[:12], 16)}
+            "enabled": flag, "gatewayRunning": gateway_running(), "connectionState": platform_state(HERMES, "telegram"),
+            "applied": applied, "revision": int(hashlib.sha256(revision_source.encode()).hexdigest()[:12], 16),
+            **bot_probe(current["TELEGRAM_BOT_TOKEN"])}
 
 
 def write_env(lines, token, ids):
@@ -103,6 +137,11 @@ def update(lines):
     if flag and (not new_token or not ids):
         print(json.dumps({"error": "token_and_owner_required"}))
         return 4
+    if flag:
+        probe = bot_probe(new_token)
+        if probe["botAuthentication"] == "invalid" or probe["receiveMode"] == "webhook":
+            print(json.dumps({"error": "invalid_bot_or_webhook_conflict"}))
+            return 4
     changed_env = new_token != current["TELEGRAM_BOT_TOKEN"] or ",".join(ids) != current["TELEGRAM_ALLOWED_USERS"]
     changed_flag = flag != before["enabled"]
     if changed_env:

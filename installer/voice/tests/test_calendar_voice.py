@@ -3,6 +3,7 @@ import ast
 import base64
 import http.server
 import os
+import re
 import sys
 import threading
 import time
@@ -21,7 +22,8 @@ def test_dispatcher_discards_calendar_preview_if_cancelled_or_not_spoken():
     method.returns = None
     for arg in method.args.args:
         arg.annotation = None
-    namespace = {"time": time, "SR": 16000, "log_event": lambda **kwargs: None}
+    namespace = {"time": time, "SR": 16000, "STOP_WORDS": re.compile(r"^stopp?$", re.I),
+                 "log_event": lambda **kwargs: None}
     exec(compile(ast.Module(body=[method], type_ignores=[]), source, "exec"), namespace)
 
     def make_voice():
@@ -72,7 +74,7 @@ def test_dispatcher_discards_calendar_preview_if_cancelled_or_not_spoken():
     assert unheard.history == []
 
 
-def test_calendar_bridge_does_not_follow_http_redirect_with_bearer(tmp_path):
+def test_calendar_bridge_does_not_follow_http_redirect_with_bearer(tmp_path, monkeypatch):
     hits = []
     class Redirect(http.server.BaseHTTPRequestHandler):
         def do_POST(self):
@@ -94,6 +96,8 @@ def test_calendar_bridge_does_not_follow_http_redirect_with_bearer(tmp_path):
         config = tmp_path / "dashboard" / "config" / "dashboard.yaml"
         config.parent.mkdir(parents=True)
         config.write_text(f"server:\n  port: {server.server_port}\n", encoding="utf-8")
+        monkeypatch.setenv("FRIDAY_DATA_DIR", str(tmp_path / "dashboard" / "data"))
+        monkeypatch.setenv("FRIDAY_DASHBOARD_PORT", str(server.server_port))
         calendar = CalendarVoice(str(tmp_path))
         try:
             calendar._request("preview", {"action": "delete", "targetTitle": "Team"})

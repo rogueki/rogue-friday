@@ -4,6 +4,7 @@ import type { FridayEvent } from "@friday/sdk";
 import { ROUTE_TABLE } from "../src/http/route-table.generated";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 import { pathOf } from "./support/contract";
+import { stableUserId } from "../src/security/auth-service";
 
 const IMAP = "canary-imap-pw-7f3a9c1e5b2d4086";
 const SMTP = "canary-smtp-pw-0b8d6e4a2c9f1357";
@@ -94,13 +95,21 @@ describe("secret hygiene", () => {
       }
       return originalFetch(input, init);
     });
+    // Native WSL providers are absent in this isolated API runtime. Keep their new read routes in the leak sweep.
+    const calendarList = vi.spyOn(api.runtime.calendarAccounts, "list").mockResolvedValue({ revision: 1, defaultAccountId: null, accounts: [] });
+    const calendarPending = vi.spyOn(api.runtime.calendarAccounts, "pendingMemory").mockResolvedValue({ events: [] });
+    const mailList = vi.spyOn(api.runtime.mailAccounts, "list").mockResolvedValue({ revision: 1, defaultAccountId: null, accounts: [] });
+    const memorySearch = vi.spyOn(api.runtime.durableMemory, "search").mockReturnValue([]);
+    const whatsappPairing = vi.spyOn(api.runtime.whatsappGateway, "pairing").mockResolvedValue({ id: null, state: "idle",
+      qr: null, expiresAt: null, linkedIdentity: null, connectionState: "disconnected" });
     try {
       for (const spec of ROUTE_TABLE.filter((candidate) => candidate.method === "GET" && candidate.pathParams.length === 0 && candidate.requiresSession)) {
         // Hermes-backed reads require an installed WSL distro, absent in this isolated test runtime.
         // Gateway token redaction is covered by the dedicated Telegram/Discord/WhatsApp API tests.
         if (spec.operationId === "downloadFile" || spec.operationId === "getObsidianVault" || spec.operationId === "getWikiPath" || spec.operationId === "getHimalayaAccount" || spec.operationId === "listHimalayaMailboxes" || spec.operationId === "listHimalayaEnvelopes" || spec.operationId === "getHimalayaMessage" || spec.operationId === "getCodingCliStatus" || spec.operationId === "getHermesSkillKeys" || spec.operationId === "getTelegramGateway" || spec.operationId === "getDiscordGateway" || spec.operationId === "getWhatsappGateway" || spec.operationId === "getTelephony") continue;
         const response = record(spec.operationId, await owner.get(pathOf(spec), spec.operationId === "exportAudit" ? { query: { format: "json" } } :
-          spec.operationId === "searchLocations" ? { query: { q: "Berlin" } } : {}));
+          spec.operationId === "searchLocations" ? { query: { q: "Berlin" } } :
+          spec.operationId === "searchDurableMemory" ? { query: { query: "synthetic", identityId: stableUserId("owner") } } : {}));
         expect(response.statusCode, spec.operationId).toBe(200);
         expect(hasCanary(response.body), `${spec.operationId} body`).toBeUndefined();
         expect(response.body, `${spec.operationId} body`).not.toContain(hash);
@@ -109,6 +118,11 @@ describe("secret hygiene", () => {
       expect(providerFetch).toHaveBeenCalledWith(expect.objectContaining({ hostname: "geocoding-api.open-meteo.com" }), expect.any(Object));
     } finally {
       providerFetch.mockRestore();
+      calendarList.mockRestore();
+      calendarPending.mockRestore();
+      mailList.mockRestore();
+      memorySearch.mockRestore();
+      whatsappPairing.mockRestore();
     }
   });
 

@@ -22,6 +22,7 @@ RENAME = re.compile(r"^(?:friday[, ]+)?(?:benenne|[aä]ndere)\s+Termin\s+(?P<tit
 DELETE = re.compile(r"^(?:friday[, ]+)?(?:l[oö]sche|entferne)\s+Termin\s+(?P<title>.+?)[.!?]?\s*$", re.I)
 YES = re.compile(r"^\s*(?:ja|ja bitte|best[aä]tige|best[aä]tigen|mach das|okay|ok)[.!?\s]*$", re.I)
 NO = re.compile(r"^\s*(?:nein|abbrechen|stopp|stop|verwerfen)[.!?\s]*$", re.I)
+CONNECTED = re.compile(r"\s+im\s+Kalender\s+(?P<name>[\wÄÖÜäöüß][\wÄÖÜäöüß -]{0,80})[.!?]?\s*$", re.I)
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -50,7 +51,9 @@ class CalendarVoice:
         headers = {"Authorization": "Bearer " + raw_key, "Content-Type": "application/json", "Accept": "application/json"}
         if request_key:
             headers["Idempotency-Key"] = request_key
-        req = urllib.request.Request(f"http://127.0.0.1:{dashboard_port(self.root)}/api/v1/calendar/local/voice/{path}",
+        voice_request = body.get("request", body)
+        scope = "connected" if voice_request.get("calendarName") else "local"
+        req = urllib.request.Request(f"http://127.0.0.1:{dashboard_port(self.root)}/api/v1/calendar/{scope}/voice/{path}",
                                      data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
         with self.opener.open(req, timeout=12) as response:
             return json.load(response)["data"]
@@ -79,19 +82,27 @@ class CalendarVoice:
         return utc.isoformat(timespec="seconds").replace("+00:00", "Z")
 
     def _request_from_text(self, words):
+        connected = CONNECTED.search(words)
+        if connected:
+            words = words[:connected.start()].rstrip(" .!?")
+        account_name = connected["name"].strip() if connected else None
         if match := CREATE.fullmatch(words):
             start = dt.datetime.fromisoformat(self._iso(match).replace("Z", "+00:00"))
             duration = int(match["duration"] or 60)
             if not 1 <= duration <= 480:
                 raise ValueError("duration")
             return {"action": "create", "title": match["title"].strip(), "start": start.isoformat().replace("+00:00", "Z"),
-                    "end": (start + dt.timedelta(minutes=duration)).isoformat().replace("+00:00", "Z"), "timeZone": self.zone}
+                    "end": (start + dt.timedelta(minutes=duration)).isoformat().replace("+00:00", "Z"), "timeZone": self.zone,
+                    **({"calendarName": account_name} if account_name else {})}
         if match := MOVE.fullmatch(words):
-            return {"action": "update", "targetTitle": match["title"].strip(), "start": self._iso(match), "timeZone": self.zone}
+            return {"action": "update", "targetTitle": match["title"].strip(), "start": self._iso(match), "timeZone": self.zone,
+                    **({"calendarName": account_name} if account_name else {})}
         if match := RENAME.fullmatch(words):
-            return {"action": "update", "targetTitle": match["title"].strip(), "title": match["new_title"].strip()}
+            return {"action": "update", "targetTitle": match["title"].strip(), "title": match["new_title"].strip(),
+                    **({"calendarName": account_name} if account_name else {})}
         if match := DELETE.fullmatch(words):
-            return {"action": "delete", "targetTitle": match["title"].strip()}
+            return {"action": "delete", "targetTitle": match["title"].strip(),
+                    **({"calendarName": account_name} if account_name else {})}
         return None
 
     def handle(self, text):
@@ -108,15 +119,23 @@ class CalendarVoice:
                 self.pending = None
                 return "Die Kalendervorschau wurde unterbrochen. Bitte beginne erneut."
             pending = self.pending
-            result, error = self._safe_request("confirm", {
-                "request": pending["request"], "token": pending["preview"]["token"],
-                "targetId": pending["preview"]["targetId"], "version": pending["preview"]["version"],
-            }, pending["key"])
+            confirmation = {"request": pending["request"], "token": pending["preview"]["token"]}
+            if pending["request"].get("calendarName"):
+                confirmation.update({key: pending["preview"][key] for key in ("accountId", "calendarId", "eventId", "etag")})
+            else:
+                confirmation.update({key: pending["preview"][key] for key in ("targetId", "version")})
+            result, error = self._safe_request("confirm", confirmation, pending["key"])
             if error:
                 if "nicht eindeutig" in error or "ungueltig" in error:
                     self.pending = None
                 return error
             self.pending = None
+            if pending["request"].get("calendarName"):
+                if result.get("state") == "uncertain":
+                    return "Das Ergebnis beim verbundenen Kalender ist unklar. Bitte im Dashboard prüfen, bevor du es erneut versuchst."
+                return {"create": "Der Termin ist im verbundenen Kalender angelegt.",
+                        "update": "Der verbundene Termin wurde geändert.",
+                        "delete": "Der verbundene Termin wurde gelöscht."}[pending["request"]["action"]]
             return {"create": "Der Termin ist im lokalen Friday-Kalender angelegt.",
                     "update": "Der lokale Termin wurde geaendert.",
                     "delete": "Der lokale Termin wurde geloescht."}[pending["request"]["action"]]
@@ -133,8 +152,8 @@ class CalendarVoice:
             return error
         event = preview["event"]
         try:
-            local_start = dt.datetime.fromisoformat(event["start"].replace("Z", "+00:00")).astimezone(ZoneInfo(event["timeZone"]))
-            local_end = dt.datetime.fromisoformat(event["end"].replace("Z", "+00:00")).astimezone(ZoneInfo(event["timeZone"]))
+            local_start = dt.datetime.fromisoformat(event["start"].replace("Z", "+00:00")).astimezone(ZoneInfo(event.get("timeZone", self.zone)))
+            local_end = dt.datetime.fromisoformat(event["end"].replace("Z", "+00:00")).astimezone(ZoneInfo(event.get("timeZone", self.zone)))
             date_words = local_start.strftime("%d.%m.%Y um %H:%M Uhr")
             end_words = local_end.strftime("%d.%m.%Y um %H:%M Uhr")
         except (ValueError, ZoneInfoNotFoundError, KeyError):
@@ -145,4 +164,5 @@ class CalendarVoice:
         self.pending = {"request": request, "preview": preview, "key": "idem_voice_calendar_" + uuid.uuid4().hex,
                         "expires": self.now() + remaining, "armed": False}
         verb = {"create": "anlegen", "update": "aendern", "delete": "loeschen"}[request["action"]]
-        return f"Ich werde den lokalen Termin {event['title']} vom {date_words} bis {end_words} {verb}. Soll ich genau das tun? Sage Ja oder Nein."
+        location = f"im Kalender {preview['calendarName']}" if request.get("calendarName") else "im lokalen Friday-Kalender"
+        return f"Ich werde den Termin {event['title']} {location} vom {date_words} bis {end_words} {verb}. Soll ich genau das tun? Sage Ja oder Nein."

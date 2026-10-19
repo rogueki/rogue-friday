@@ -6,6 +6,35 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from mail_voice import MailVoice
 
 
+def test_named_account_selection_keeps_source_uid_and_preview_bound():
+    voice = MailVoice("/synthetic", now=lambda: 100.0)
+    calls = []
+
+    def fake(method, path, body=None, key=None):
+        calls.append((method, path, body))
+        if path == "/api/v1/integrations/mail/accounts":
+            return {"accounts": [{"id": "work", "displayName": "Geschäftspostfach", "email": "work@example.test"}]}, None
+        if path == "/api/v1/integrations/mail/accounts/work/folders":
+            return {"folders": [{"id": "Inbox", "name": "Inbox", "role": "inbox"}]}, None
+        if path.startswith("/api/v1/integrations/mail/accounts/work/envelopes?"):
+            return {"mailbox": "Inbox", "uidValidity": "91", "items": [
+                {"id": "8", "subject": "Synthetic", "from": "Sender <sender@example.test>", "flags": []}]}, None
+        if path == "voice/preview":
+            return {"token": "a" * 40, "fingerprint": "f" * 64, "accountName": "Geschäftspostfach",
+                    "expiresAt": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=60)).isoformat(),
+                    "action": "reply", "to": ["sender@example.test"], "subject": "Re: Synthetic",
+                    "body": "Morgen um zehn", "mailbox": "Inbox", "id": "8", "destination": ""}, None
+        raise AssertionError(path)
+
+    voice._safe = fake
+    assert "Geschäftspostfach" in voice.handle("Nimm mein Geschäftspostfach")
+    assert "Synthetic" in voice.handle("Zeige Mails")
+    assert "Geschäftspostfach" in voice.handle("Antworte auf Mail eins mit Morgen um zehn")
+    preview = next(body for _, path, body in calls if path == "voice/preview")
+    assert preview["accountId"] == "work"
+    assert preview["uidValidity"] == "91"
+
+
 def test_mail_selection_reply_preview_and_armed_confirmation():
     now = [100.0]
     voice = MailVoice("/synthetic", now=lambda: now[0])

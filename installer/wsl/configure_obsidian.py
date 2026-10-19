@@ -27,6 +27,16 @@ def revision(value):
 def result(path, applied=None):
     vault = Path(path) if path else None
     readable = bool(vault and vault.is_dir() and (vault / ".obsidian").is_dir() and os.access(vault, os.R_OK | os.W_OK))
+    if readable:
+        try:
+            with tempfile.NamedTemporaryFile(prefix=".friday-probe-", dir=vault, delete=True) as probe:
+                probe.write("Frïday".encode("utf-8"))
+                probe.flush()
+                os.fsync(probe.fileno())
+                probe.seek(0)
+                readable = probe.read() == "Frïday".encode("utf-8")
+        except OSError:
+            readable = False
     return {"path": path, "revision": revision(path), "configured": bool(path), "readable": readable,
             "applied": readable if applied is None else applied}
 

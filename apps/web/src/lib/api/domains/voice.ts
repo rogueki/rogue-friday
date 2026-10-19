@@ -5,6 +5,7 @@ import type {
   VoiceDeviceListResponse,
   VoiceEnrollment,
   VoiceEnrollmentResponse,
+  IntegrationStatusResponse,
   VoiceEnrollRequest,
   VoiceMetricsResponse,
   VoiceProfileListResponse,
@@ -24,6 +25,13 @@ export const voiceQueries = {
     queryOptions({
       queryKey: queryKeys.voice.status,
       queryFn: (): Promise<VoiceStatusResponse> => call(getApiClient().GET("/api/v1/voice/status")),
+      staleTime: staleTimes.voice,
+      refetchInterval: 10_000,
+    }),
+  integrationStatus: () =>
+    queryOptions({
+      queryKey: ["voice", "integration-status"] as const,
+      queryFn: (): Promise<IntegrationStatusResponse> => call(getApiClient().GET("/api/v1/integrations/voice/status")),
       staleTime: staleTimes.voice,
       refetchInterval: 10_000,
     }),
@@ -48,6 +56,7 @@ export const voiceQueries = {
 };
 
 export const useVoiceStatus = () => useQuery(voiceQueries.status());
+export const useVoiceIntegrationStatus = () => useQuery(voiceQueries.integrationStatus());
 export const useVoiceMetrics = () => useQuery(voiceQueries.metrics());
 export const useVoiceProfiles = () => useQuery(voiceQueries.profiles());
 export const useVoiceDevices = () => useQuery(voiceQueries.devices());

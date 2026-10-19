@@ -5,10 +5,14 @@ import { invokeCodingRunner, type RunnerInvoker } from "./coding-runs";
 
 export interface TelegramGatewayStatus {
   tokenConfigured: boolean;
+  botAuthentication: "missing" | "verified" | "invalid" | "unknown";
+  botId: string | null;
+  botUsername: string | null;
+  receiveMode: "polling" | "webhook" | "unknown";
   allowedUserIds: string[];
   enabled: boolean | null;
   gatewayRunning: boolean | null;
-  connectionState: "unknown";
+  connectionState: "connected" | "disconnected" | "unknown";
   applied: boolean | null;
   revision: number;
 }
@@ -46,14 +50,17 @@ export class TelegramGatewayService {
     try { data = await this.invoke(script, distro, user, [action], input ? JSON.stringify(input) : undefined, action === "update" ? 50000 : 20000); }
     catch (error) {
       if (action === "update" && error instanceof Error && error.message.startsWith("runner_3:")) throw conflict("Die Telegram-Konfiguration wurde inzwischen geändert. Bitte neu laden.");
-      if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:")) throw validationFailed("Zum Aktivieren werden ein Bot-Token und mindestens eine numerische Owner-ID benötigt.");
+      if (action === "update" && error instanceof Error && error.message.startsWith("runner_4:")) throw validationFailed("Zum Aktivieren werden ein gültiges Bot-Token, eine numerische Owner-ID und ein freier Polling-Modus ohne Webhook benötigt.");
       throw unavailable();
     }
-    if (typeof data.tokenConfigured !== "boolean" || !Array.isArray(data.allowedUserIds) ||
+    if (typeof data.tokenConfigured !== "boolean" || !["missing", "verified", "invalid", "unknown"].includes(String(data.botAuthentication)) ||
+        !(data.botId === null || typeof data.botId === "string" && /^[1-9][0-9]{0,19}$/.test(data.botId)) ||
+        !(data.botUsername === null || typeof data.botUsername === "string" && /^[A-Za-z0-9_]{5,32}$/.test(data.botUsername)) ||
+        !["polling", "webhook", "unknown"].includes(String(data.receiveMode)) || !Array.isArray(data.allowedUserIds) ||
         !data.allowedUserIds.every((id) => typeof id === "string" && USER.test(id)) ||
         !(data.enabled === null || typeof data.enabled === "boolean") ||
         !(data.gatewayRunning === null || typeof data.gatewayRunning === "boolean") ||
-        data.connectionState !== "unknown" || !(data.applied === null || typeof data.applied === "boolean") ||
+        !["connected", "disconnected", "unknown"].includes(String(data.connectionState)) || !(data.applied === null || typeof data.applied === "boolean") ||
         !Number.isSafeInteger(data.revision)) throw unavailable();
     return data as unknown as TelegramGatewayStatus;
   }

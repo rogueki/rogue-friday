@@ -71,8 +71,10 @@ describe("Himalaya SMTP send journal", () => {
   it("sends once through the authenticated route and replays the same key", async () => {
     const api = await startTestApi({ authMode: "local", ownerPassword: "synthetic-test-password", responseValidation: "throw" });
     try {
-      const sendRaw = vi.spyOn(api.runtime.himalayaAccount, "sendRaw").mockResolvedValue();
-      vi.spyOn(api.runtime.himalayaAccount, "status").mockResolvedValue(ready);
+      const sent = vi.spyOn(api.runtime.mailAccounts, "send").mockResolvedValue({ state: "sent", archivePending: false });
+      vi.spyOn(api.runtime.mailAccounts, "list").mockResolvedValue({ revision: 1, defaultAccountId: "friday", accounts: [
+        { id: "friday", secretState: { imapPassword: true, smtpPassword: true } } as Awaited<ReturnType<typeof api.runtime.mailAccounts.list>>["accounts"][number] ] });
+      vi.spyOn(api.runtime.mailAccounts, "check").mockResolvedValue({ ok: true });
       const owner = api.client();
       await owner.loginOwner("synthetic-test-password");
       const headers = { "Idempotency-Key": "key-12345678" };
@@ -81,7 +83,7 @@ describe("Himalaya SMTP send journal", () => {
       expect(first.json().data).toEqual({ state: "sent", replayed: false });
       const replay = await owner.post("/api/v1/communication/himalaya/send", message, { headers });
       expect(replay.json().data).toEqual({ state: "sent", replayed: true });
-      expect(sendRaw).toHaveBeenCalledTimes(1);
+      expect(sent).toHaveBeenCalledTimes(1);
       const conflict = await owner.post("/api/v1/communication/himalaya/send", { ...message, subject: "Another" }, { headers });
       expect(conflict.statusCode).toBe(409);
     } finally { await api.close(); }

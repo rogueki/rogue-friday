@@ -216,7 +216,7 @@ function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '') {
     # Skriptdateien statt Befehlszeilen: wsl.exe wuerde $VARIABLEN sonst vorzeitig expandieren.
     $wslEnv = @("FRIDAY_INSTALLER=$WslInstPath", "FRIDAY_CONFIG=$WslConfigPath", "FRIDAY_ROOT=$WslRootPath",
                 "FRIDAY_DASH_PORT=$($Ports.Dashboard)", "FRIDAY_API_PORT=$($Ports.HermesApi)",
-                "FRIDAY_QWEN_PORT=$($Ports.Qwen)", "FRIDAY_CALENDAR_PORT=$DashPort", "FRIDAY_MAIL_PORT=$DashPort")
+                "FRIDAY_QWEN_PORT=$($Ports.Qwen)", "FRIDAY_CALENDAR_PORT=$DashPort", "FRIDAY_MAIL_PORT=$DashPort", "FRIDAY_MEMORY_PORT=$DashPort")
     $out = if ($StdIn) { $StdIn | & wsl.exe -d $Distro -u $User --exec env @wslEnv bash $Script 2>&1 } else { & wsl.exe -d $Distro -u $User --exec env @wslEnv bash $Script 2>&1 }
     $lines = @($out | ForEach-Object { "$_" })
     $lines | ForEach-Object { Write-Host "     $_" -ForegroundColor DarkGray }
@@ -1328,6 +1328,20 @@ if (-not (IsDone 'hermes')) {
 }
 
 # Friday-Skills come from the separate versioned repository. Recheck on updates;
+# A local vault is the default even if Obsidian is closed. Existing vaults are preserved.
+if (-not $ChangeVoice -and (IsDone 'hermes')) {
+    Title 'Obsidian-Gedächtnis einrichten und prüfen'
+    $obsidianSetup = Join-Path $PSScriptRoot 'setup-obsidian.ps1'
+    if (-not (Test-Path -LiteralPath $obsidianSetup -PathType Leaf)) { Stop-Install 'Obsidian-Setup fehlt im Installer.' }
+    try {
+        $obsidianResult = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $obsidianSetup -Action ensure -InstallRoot $Root |
+            Select-Object -Last 1 | ConvertFrom-Json
+        if ($LASTEXITCODE -ne 0 -or -not $obsidianResult.readable -or -not $obsidianResult.applied) {
+            Stop-Install 'Obsidian-Vault ist in Friday-Ubuntu nicht einsatzbereit.'
+        }
+        Ok "Obsidian-Vault bereit: $($obsidianResult.path)"
+    } catch { Stop-Install "Obsidian-Einrichtung fehlgeschlagen: $($_.Exception.Message)" }
+}
 # a failed fetch leaves the previous checkout and Hermes built-ins untouched.
 if (-not $ChangeVoice -and ((-not (IsDone 'skills')) -or $UpdateDashboard)) {
     Title 'Friday-Skills einrichten und pruefen'
@@ -2219,6 +2233,24 @@ if (-not $ChangeVoice -and (IsDone 'skills') -and (IsDone 'dashboard')) {
             Warn 'Hermes-Mailleser nicht eingerichtet; Postfach im Dashboard bleibt verfuegbar.'
         } finally { $mailKey = $null }
     } else { Warn 'Mail-Dienstschluessel fehlt; Dashboard-Health und API-Start pruefen.' }
+}
+
+# A distinct owner-only memory credential reaches the pinned local Hermes CLI plugin.
+if (-not $ChangeVoice -and (IsDone 'skills') -and (IsDone 'dashboard')) {
+    $memoryKeyFile = "$Dash\data\hermes-memory-bridge\auth.key"
+    $memoryHealth = Test-DashboardHealth 3
+    if (-not $memoryHealth.Up -or $memoryHealth.Code -lt 200 -or $memoryHealth.Code -ge 300) {
+        Warn 'Hermes-Gedächtnis nicht eingerichtet: Dashboard-Healthcheck fehlgeschlagen.'
+    } elseif (Test-Path -LiteralPath $memoryKeyFile -PathType Leaf) {
+        $memoryKey = [IO.File]::ReadAllText($memoryKeyFile).Trim()
+        try {
+            if ($memoryKey -notmatch '^[A-Za-z0-9+/]{43}=$') { throw 'Ungültiger Gedächtnis-Dienstschlüssel.' }
+            $memoryResult = Wsl-Run $State.linux_user "$WslInstPath/wsl/setup_memory_bridge.sh" $memoryKey
+            if ($memoryResult -match 'FRIDAY_MEMORY_BRIDGE_READY') { Ok 'Hermes-CLI-Gedächtnis mit privatem lokalem Schlüssel eingerichtet.' }
+            else { Warn 'Hermes-CLI-Gedächtnis nicht eingerichtet; Hermes-Version und Hook-Status prüfen.' }
+        } catch { Warn 'Hermes-CLI-Gedächtnis nicht eingerichtet; Hermes-Version und Hook-Status prüfen.' }
+        finally { $memoryKey = $null }
+    } else { Warn 'Hermes-Gedächtnis-Dienstschlüssel fehlt; Dashboard-API-Start prüfen.' }
 }
 
 # ================================================================ Zusatz: Service-Watchdog (FRIDAY_Watchdog)

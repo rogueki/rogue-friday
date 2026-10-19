@@ -26,6 +26,10 @@ class FakeService:
         self.disconnected = 0
         self.status = {"state": "listening"}
         self.controls = []
+        self.stop_audio = []
+
+    def _queue_stop_audio(self, samples):
+        self.stop_audio.append(samples.copy())
 
     def browser_control(self, action):
         self.controls.append(action)
@@ -64,6 +68,7 @@ async def check_auth_pcm_and_single_session():
                 await conn.send(frame)
                 await asyncio.sleep(0.02)
                 assert service.audio_q.get_nowait()[0] == 1234
+                assert service.stop_audio[0][0] == 1234
                 await conn.send('{"type":"pause"}')
                 assert json.loads(await conn.recv())["state"] == "paused"
                 assert service.controls == ["pause"]

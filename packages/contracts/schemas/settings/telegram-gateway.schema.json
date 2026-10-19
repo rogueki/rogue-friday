@@ -5,13 +5,17 @@
   "type": "object",
   "properties": {
     "tokenConfigured": { "type": "boolean" },
+    "botAuthentication": { "type": "string", "enum": ["missing", "verified", "invalid", "unknown"] },
+    "botId": { "type": ["string", "null"] },
+    "botUsername": { "type": ["string", "null"] },
+    "receiveMode": { "type": "string", "enum": ["polling", "webhook", "unknown"] },
     "allowedUserIds": { "type": "array", "items": { "type": "string" } },
     "enabled": { "type": ["boolean", "null"] },
     "gatewayRunning": { "type": ["boolean", "null"] },
-    "connectionState": { "type": "string", "enum": ["unknown"] },
+    "connectionState": { "type": "string", "enum": ["connected", "disconnected", "unknown"] },
     "applied": { "type": ["boolean", "null"] },
     "revision": { "type": "integer", "minimum": 0 }
   },
-  "required": ["tokenConfigured", "allowedUserIds", "enabled", "gatewayRunning", "connectionState", "applied", "revision"],
+  "required": ["tokenConfigured", "botAuthentication", "botId", "botUsername", "receiveMode", "allowedUserIds", "enabled", "gatewayRunning", "connectionState", "applied", "revision"],
   "additionalProperties": false
 }

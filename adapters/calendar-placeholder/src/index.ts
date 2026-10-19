@@ -2,6 +2,7 @@ import { CONTRACT_VERSION, type AdapterManifest } from "@friday/sdk";
 import type { AdapterFactory } from "@friday/adapter-core";
 import { IcsCalendarAdapter } from "./ics-calendar";
 export { validateFeedUrl } from "./fetch-ics";
+export { parseEvents, parseEventEntries, inspectCalendarDocument } from "./ics-calendar";
 
 export const PROVIDER_ID = "caldav-calendar";
 export const CONFIG_SCHEMA_ID = "urn:friday:adapter:caldav-calendar:config";

@@ -4,7 +4,7 @@ import { setApiClient } from "@/lib/api/client";
 import { jsonResponse, renderWithProviders } from "@/test/render";
 import { TelegramGatewaySetup } from "./TelegramGatewaySetup";
 
-const status = { contractVersion: "2.0.0", data: { tokenConfigured: false, allowedUserIds: [],
+const status = { contractVersion: "2.0.0", data: { tokenConfigured: false, botAuthentication: "missing", botId: null, botUsername: null, receiveMode: "unknown", allowedUserIds: [],
   enabled: false, gatewayRunning: false, connectionState: "unknown", applied: null, revision: 42 },
   freshness: { state: "fresh", asOf: "2026-10-16T10:00:00Z" } };
 

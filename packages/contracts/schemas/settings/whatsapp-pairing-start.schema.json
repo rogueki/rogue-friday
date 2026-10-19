@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/whatsapp-pairing-start.schema.json",
+  "title": "WhatsappPairingStart",
+  "type": "object",
+  "properties": { "mode": { "type": "string", "enum": ["bot", "self-chat"] } },
+  "required": ["mode"],
+  "additionalProperties": false
+}

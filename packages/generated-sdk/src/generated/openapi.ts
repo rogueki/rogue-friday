@@ -615,6 +615,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calendar/connected/voice/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute the exact confirmed connected calendar voice action once */
+        post: operations["confirmVoiceConnectedCalendar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/connected/voice/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview an explicitly named connected calendar voice action */
+        post: operations["previewVoiceConnectedCalendar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/calendar/events": {
         parameters: {
             query?: never;
@@ -1437,6 +1471,536 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/calendar/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Friday-managed calendar accounts and discovered permissions */
+        get: operations["listCalendarAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/calendar/accounts/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Configure, discover, read or conditionally mutate a connected calendar */
+        post: operations["actOnCalendarAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Friday-managed mail accounts without secrets */
+        get: operations["listMailAccounts"];
+        put?: never;
+        /** Create one IMAP and SMTP mail account */
+        post: operations["createMailAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace account configuration at expected revision */
+        put: operations["updateMailAccount"];
+        post?: never;
+        /** Remove one Friday-managed account locally */
+        delete: operations["deleteMailAccount"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/attachment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download one bounded attachment from its source UID and UIDVALIDITY */
+        get: operations["getMailAttachment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Flag or move one UID from its source account */
+        post: operations["changeMailMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check IMAP or SMTP authentication without sending mail */
+        post: operations["checkMailAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Choose the default account with catalog revision */
+        post: operations["setDefaultMailAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Save an idempotent draft to the account Drafts folder without SMTP */
+        post: operations["saveMailDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/envelopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one mailbox page bound to account and UIDVALIDITY */
+        get: operations["listMailEnvelopes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Discover folders in one account */
+        get: operations["listMailFolders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a UID from its source account and UIDVALIDITY */
+        get: operations["getMailMessage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/oauth/poll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Poll a Microsoft device authorization once */
+        post: operations["pollMailOAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/oauth/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove locally stored OAuth grant; provider consent may require separate revocation */
+        post: operations["revokeMailOAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/oauth/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start local Google PKCE or Microsoft device authorization */
+        post: operations["startMailOAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Review bounded mail send journal without message contents */
+        get: operations["listMailReceipts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/receipts/{receiptId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Append exact confirmed SMTP send to Sent only, with dedupe; never sends SMTP */
+        post: operations["reconcileMailArchive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/receipts/{receiptId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check Sent for an uncertain send without sending */
+        post: operations["reviewMailReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search message text in one source mailbox */
+        get: operations["searchMailEnvelopes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/accounts/{accountId}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send with durable journal and separate Sent copy state */
+        post: operations["sendMailMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/mail/oauth/google/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Local loopback PKCE callback bound to a short-lived random state */
+        get: operations["completeGoogleMailOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/memory/backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create an isolated memory backup */
+        post: operations["backupDurableMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/memory/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Capture an eligible redacted event */
+        post: operations["captureDurableMemoryEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/memory/events/{eventId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Tombstone one stored event */
+        delete: operations["forgetDurableMemoryEvent"];
+        options?: never;
+        head?: never;
+        /** Correct one memory event atomically */
+        patch: operations["correctDurableMemoryEvent"];
+        trace?: never;
+    };
+    "/api/v1/integrations/memory/reindex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rebuild native memory search index from owned Vault notes */
+        post: operations["reindexDurableMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/memory/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore into a separate target vault */
+        post: operations["restoreDurableMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/memory/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry pending memory writes */
+        post: operations["retryDurableMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/memory/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search durable memory for one identity */
+        get: operations["searchDurableMemory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/memory/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set native memory capture policy */
+        put: operations["putDurableMemorySettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/memory/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Durable memory writer and vault status */
+        get: operations["getDurableMemoryStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/voice/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Persisted and verified voice integration state */
+        get: operations["getVoiceIntegrationStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/location/search": {
         parameters: {
             query?: never;
@@ -2165,6 +2729,59 @@ export interface paths {
         /** Configure the local Hermes WhatsApp gateway after pairing */
         put: operations["putWhatsappGateway"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/whatsapp-pairing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read short-lived local WhatsApp QR pairing status */
+        get: operations["getWhatsappPairing"];
+        put?: never;
+        /** Start or replace the local Hermes Baileys pairing session */
+        post: operations["startWhatsappPairing"];
+        /** Cancel pending WhatsApp QR pairing without logging out an existing account */
+        delete: operations["cancelWhatsappPairing"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/whatsapp-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke the linked Baileys WhatsApp session and disable its Hermes adapter */
+        delete: operations["logoutWhatsappGateway"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/whatsapp-session/reconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restart the linked Hermes gateway to reconnect its WhatsApp adapter */
+        post: operations["reconnectWhatsappGateway"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3805,6 +4422,53 @@ export interface components {
             };
             freshness: components["schemas"]["Freshness"];
         };
+        /** CalendarAccountAction */
+        CalendarAccountAction: {
+            account?: {
+                baseUrl: string;
+                displayName: string;
+                id?: string;
+                /** @enum {unknown} */
+                kind: "caldav" | "ics";
+                syncMinutes: number;
+                username: string;
+            };
+            accountId?: string;
+            /** @enum {unknown} */
+            action: "upsert" | "delete" | "discover" | "select" | "default" | "check" | "events" | "create" | "update" | "delete-event";
+            calendarId?: string;
+            defaultCalendarId?: string | null;
+            etag?: string;
+            event?: {
+                allDay?: boolean;
+                description?: string;
+                end: string;
+                location?: string;
+                rrule?: string;
+                start: string;
+                title: string;
+            };
+            eventId?: string;
+            expectedRevision?: number | null;
+            /** Format: date-time */
+            from?: string;
+            password?: string;
+            /** Format: date-time */
+            recurrenceId?: string;
+            /** @enum {unknown} */
+            scope?: "single" | "series" | "occurrence";
+            selectedIds?: string[];
+            /** Format: date-time */
+            to?: string;
+        };
+        /** CalendarAccountActionResponse */
+        CalendarAccountActionResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                [key: string]: unknown;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
         /** CalendarBriefing */
         CalendarBriefing: {
             attendeeContext: {
@@ -4024,6 +4688,7 @@ export interface components {
          */
         Capabilities: {
             contractVersion: components["schemas"]["ContractVersion"];
+            integrations?: components["schemas"]["CapabilityDescriptor"][];
             modules: {
                 activity: components["schemas"]["ActivityCapability"];
                 agents: components["schemas"]["AgentsCapability"];
@@ -4201,6 +4866,26 @@ export interface components {
                     sources: string[];
                 };
             };
+        };
+        /** CapabilityCatalogResponse */
+        CapabilityCatalogResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                items: components["schemas"]["CapabilityDescriptor"][];
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** CapabilityDescriptor */
+        CapabilityDescriptor: {
+            actions: string[];
+            /** @enum {unknown} */
+            availability: "available" | "needs_setup" | "unsupported" | "offline";
+            contractVersion: components["schemas"]["ContractVersion"];
+            id: string;
+            reasonCode: string | null;
+            requires: string[];
+            roles: ("viewer" | "operator" | "owner")[];
+            settingsArea: string;
         };
         /**
          * Channel
@@ -4666,7 +5351,7 @@ export interface components {
             allowedUserIds: string[];
             applied: boolean | null;
             /** @enum {string} */
-            connectionState: "unknown";
+            connectionState: "connected" | "disconnected" | "unknown";
             enabled: boolean | null;
             gatewayRunning: boolean | null;
             revision: number;
@@ -4759,6 +5444,133 @@ export interface components {
             status?: "draft" | "discarded";
             subject?: string;
             to?: components["schemas"]["Participant"][];
+        };
+        /** DurableMemoryBackupResponse */
+        DurableMemoryBackupResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                /** Format: date-time */
+                createdAt: string;
+                eventCount: number;
+                path: string;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** DurableMemoryCaptureResponse */
+        DurableMemoryCaptureResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                accepted: boolean;
+                eventId: string;
+                pending: boolean;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** DurableMemoryCorrectRequest */
+        DurableMemoryCorrectRequest: {
+            text: string;
+        };
+        /** DurableMemoryCorrectResponse */
+        DurableMemoryCorrectResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                corrected: boolean;
+                eventId: string;
+                replacementEventId: string;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** DurableMemoryForgetResponse */
+        DurableMemoryForgetResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                deleted: boolean;
+                eventId: string;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** DurableMemoryRestoreRequest */
+        DurableMemoryRestoreRequest: {
+            backupPath: string;
+            targetVaultPath: string;
+        };
+        /** DurableMemoryRestoreResponse */
+        DurableMemoryRestoreResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                eventCount: number;
+                /** Format: date-time */
+                restoredAt: string;
+                targetVaultPath: string;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** DurableMemorySearchResponse */
+        DurableMemorySearchResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                items: {
+                    channel: string;
+                    eventId: string;
+                    identityId: string | null;
+                    /** Format: date-time */
+                    occurredAt: string;
+                    score: number;
+                    sessionId: string | null;
+                    source: string;
+                    text: string;
+                }[];
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** DurableMemorySettings */
+        DurableMemorySettings: {
+            channels: {
+                dashboard: boolean;
+                hermes: boolean;
+                voice: boolean;
+            };
+            enabled: boolean;
+            exclusions: string[];
+            privateMode: boolean;
+            /** @constant */
+            retention: "unlimited";
+        };
+        /** DurableMemorySettingsPatch */
+        DurableMemorySettingsPatch: {
+            channels: {
+                dashboard: boolean;
+                hermes: boolean;
+                voice: boolean;
+            };
+            enabled: boolean;
+            privateMode: boolean;
+        };
+        /** DurableMemorySettingsResponse */
+        DurableMemorySettingsResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["DurableMemorySettings"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** DurableMemoryStatus */
+        DurableMemoryStatus: {
+            /** @enum {unknown} */
+            indexState: "ready" | "unavailable" | "error";
+            lastError: string | null;
+            /** Format: date-time */
+            lastRestoreTestAt: string | null;
+            /** Format: date-time */
+            lastWrittenAt: string | null;
+            pending: number;
+            ready: boolean;
+            settings?: components["schemas"]["DurableMemorySettings"];
+            vaultPath: string;
+        };
+        /** DurableMemoryStatusResponse */
+        DurableMemoryStatusResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["DurableMemoryStatus"];
+            freshness: components["schemas"]["Freshness"];
         };
         /** ElevenSpeechRequest */
         ElevenSpeechRequest: {
@@ -5227,6 +6039,78 @@ export interface components {
             freshness: components["schemas"]["Freshness"];
         };
         /**
+         * IntegrationEvent
+         * @description Capture candidate. A durable writer must enforce captureEligibility and redact sensitive text before storage.
+         */
+        IntegrationEvent: {
+            actor: {
+                id: string;
+                role: string | null;
+                /** @enum {unknown} */
+                type: "user" | "assistant" | "system" | "provider";
+            };
+            /** @enum {unknown} */
+            captureEligibility: "eligible" | "private" | "do_not_store";
+            channel: string;
+            contractVersion: components["schemas"]["ContractVersion"];
+            correlationId: string | null;
+            dialogId: string | null;
+            eventId: string;
+            /** @enum {unknown} */
+            eventType: "user_utterance" | "assistant_response" | "action_result";
+            identityId: string | null;
+            /** Format: date-time */
+            occurredAt: string;
+            /** @enum {unknown} */
+            outcome: "completed" | "aborted" | "uncertain";
+            payload: {
+                /** @constant */
+                kind: "text";
+                text: string;
+            } | {
+                actionId: string;
+                externalId: string | null;
+                /** @constant */
+                kind: "action";
+                targetId: string | null;
+            };
+            /** @enum {unknown} */
+            redaction: "complete" | "required";
+            sessionId: string | null;
+            source: string;
+        };
+        /** IntegrationStatus */
+        IntegrationStatus: {
+            appliedRevision: number | null;
+            authenticated: boolean | null;
+            canRead: boolean | null;
+            canWrite: boolean | null;
+            /** Format: date-time */
+            checkedAt: string;
+            configured: boolean;
+            connected: boolean | null;
+            errorCode: string | null;
+            id: string | null;
+            installed: boolean;
+            kind: string;
+            persistedRevision: number;
+            settings: {
+                [key: string]: {
+                    reasonCode: string | null;
+                    /** @enum {unknown} */
+                    verification: "verified" | "unverified" | "failed" | "requires_restart";
+                };
+            };
+            /** @enum {unknown} */
+            verification: "verified" | "unverified" | "failed" | "requires_restart";
+        };
+        /** IntegrationStatusResponse */
+        IntegrationStatusResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["IntegrationStatus"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /**
          * JsonSchemaObject
          * @description An embedded JSON Schema document (e.g. an adapter configSchema).
          */
@@ -5382,12 +6266,293 @@ export interface components {
             rememberMe?: boolean;
             username: string;
         };
+        /** MailAccount */
+        MailAccount: {
+            aliases: string[];
+            archiveFolder: string;
+            /** @enum {unknown} */
+            authMode: "password" | "google-oauth" | "microsoft-oauth";
+            displayName: string;
+            draftsFolder: string;
+            email: string;
+            id: string;
+            imapHost: string;
+            imapLogin: string;
+            imapPort: number;
+            /** @enum {unknown} */
+            imapSecurity: "tls" | "start-tls";
+            oauthClientId: string;
+            oauthTenant: string;
+            revision: number;
+            secretState: {
+                imapPassword: boolean;
+                oauthRefreshToken: boolean;
+                smtpPassword: boolean;
+            };
+            senderName: string;
+            sentFolder: string;
+            signature: string;
+            smtpHost: string;
+            smtpLogin: string;
+            smtpPort: number;
+            /** @enum {unknown} */
+            smtpSecurity: "tls" | "start-tls";
+            spamFolder: string;
+            trashFolder: string;
+        };
+        /** MailAccountResponse */
+        MailAccountResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["MailAccount"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MailAccountsResponse */
+        MailAccountsResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                accounts: components["schemas"]["MailAccount"][];
+                defaultAccountId: string | null;
+                revision: number;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MailAccountWrite */
+        MailAccountWrite: {
+            aliases: string[];
+            archiveFolder: string;
+            /** @enum {unknown} */
+            authMode?: "password" | "google-oauth" | "microsoft-oauth";
+            displayName: string;
+            draftsFolder: string;
+            /** Format: email */
+            email: string;
+            imapHost: string;
+            imapLogin: string;
+            imapPort: number;
+            /** @enum {unknown} */
+            imapSecurity: "tls" | "start-tls";
+            oauthClientId?: string;
+            oauthTenant?: string;
+            secrets?: {
+                imapPassword?: string | null;
+                smtpPassword?: string | null;
+            };
+            senderName: string;
+            sentFolder: string;
+            signature: string;
+            smtpHost: string;
+            smtpLogin: string;
+            smtpPort: number;
+            /** @enum {unknown} */
+            smtpSecurity: "tls" | "start-tls";
+            spamFolder: string;
+            trashFolder: string;
+        };
+        /** MailAttachmentResponse */
+        MailAttachmentResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                contentType: string;
+                data: string;
+                filename: string;
+                size: number;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
         /** MailCapability */
         MailCapability: {
             draft: boolean;
             read: boolean;
             send: boolean;
             sources: string[];
+        };
+        /** MailChangeRequest */
+        MailChangeRequest: {
+            destination?: string;
+            /** @enum {unknown} */
+            kind: "move" | "flag";
+            mailbox: string;
+            uid: string;
+            uidValidity: string;
+        };
+        /** MailCheckResponse */
+        MailCheckResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                folders?: {
+                    id: string;
+                    name: string;
+                    role: string | null;
+                }[];
+                ok: boolean;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MailDraftRequest */
+        MailDraftRequest: {
+            attachments?: {
+                data: string;
+                filename: string;
+            }[];
+            body?: string;
+            /** Format: email */
+            from?: string;
+            inReplyTo?: string;
+            references?: string;
+            subject?: string;
+            to?: string[];
+        };
+        /** MailDraftResponse */
+        MailDraftResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                alreadyPresent: boolean;
+                messageId: string;
+                /** @constant */
+                state: "drafted";
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MailEnvelopesResponse */
+        MailEnvelopesResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                items: {
+                    date: string;
+                    flags: string[];
+                    from: string;
+                    id: string;
+                    subject: string;
+                }[];
+                mailbox: string;
+                page: number;
+                uidValidity: string | null;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MailFolderResponse */
+        MailFolderResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                folders: {
+                    id: string;
+                    name: string;
+                    role: string | null;
+                }[];
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MailMessageResponse */
+        MailMessageResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                attachments: {
+                    contentType: string;
+                    filename: string;
+                    size: number;
+                }[];
+                bodyText: string;
+                date: string;
+                from: string;
+                mailbox: string;
+                messageId: string;
+                references: string;
+                replyTo: string;
+                subject: string;
+                to: string;
+                uid: string;
+                uidValidity: string | null;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MailOAuthPoll */
+        MailOAuthPoll: {
+            flowId: string;
+        };
+        /** MailOAuthResultResponse */
+        MailOAuthResultResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                accountId: string;
+                authorized: boolean;
+                pending: boolean;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MailOAuthStartResponse */
+        MailOAuthStartResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                authorizationUrl: string | null;
+                expiresAt: string;
+                flowId: string;
+                userCode: string | null;
+                verificationUri: string | null;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MailReceipt */
+        MailReceipt: {
+            accountId: string;
+            archivePending: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            receiptId: string;
+            /** @enum {unknown} */
+            state: "pending" | "sent" | "uncertain";
+        };
+        /** MailReceiptResponse */
+        MailReceiptResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["MailReceipt"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MailReceiptsResponse */
+        MailReceiptsResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                items: components["schemas"]["MailReceipt"][];
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MailResultResponse */
+        MailResultResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                changed?: boolean;
+                defaultAccountId?: string;
+                deleted?: boolean;
+                revision?: number;
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** MailSendRequest */
+        MailSendRequest: {
+            attachments?: {
+                data: string;
+                filename: string;
+            }[];
+            body: string;
+            /** Format: email */
+            from?: string;
+            inReplyTo?: string;
+            references?: string;
+            subject: string;
+            to: string[];
+        };
+        /** MailSendResponse */
+        MailSendResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                archivePending: boolean;
+                /** @enum {unknown} */
+                memoryCapture: "written" | "pending" | "skipped" | "error";
+                receiptId: string;
+                replayed: boolean;
+                /** @enum {unknown} */
+                state: "sent" | "uncertain";
+            };
+            freshness: components["schemas"]["Freshness"];
         };
         /**
          * Memory
@@ -7017,9 +8182,15 @@ export interface components {
             allowedUserIds: string[];
             applied: boolean | null;
             /** @enum {string} */
-            connectionState: "unknown";
+            botAuthentication: "missing" | "verified" | "invalid" | "unknown";
+            botId: string | null;
+            botUsername: string | null;
+            /** @enum {string} */
+            connectionState: "connected" | "disconnected" | "unknown";
             enabled: boolean | null;
             gatewayRunning: boolean | null;
+            /** @enum {string} */
+            receiveMode: "polling" | "webhook" | "unknown";
             revision: number;
             tokenConfigured: boolean;
         };
@@ -7286,6 +8457,28 @@ export interface components {
             revision: number;
             task: string;
         };
+        /** VoiceConnectedCalendarConfirm */
+        VoiceConnectedCalendarConfirm: {
+            accountId: string;
+            calendarId: string;
+            etag: string;
+            eventId: string;
+            request: components["schemas"]["VoiceConnectedCalendarRequest"];
+            token: string;
+        };
+        /** VoiceConnectedCalendarRequest */
+        VoiceConnectedCalendarRequest: {
+            /** @enum {unknown} */
+            action: "create" | "update" | "delete";
+            calendarName: string;
+            /** Format: date-time */
+            end?: string;
+            /** Format: date-time */
+            start?: string;
+            targetTitle?: string;
+            timeZone?: string;
+            title?: string;
+        };
         /** VoiceDevice */
         VoiceDevice: {
             channels?: number;
@@ -7413,6 +8606,8 @@ export interface components {
         VoiceMailPreviewResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: {
+                accountId: string;
+                accountName: string;
                 /** @enum {string} */
                 action: "compose" | "reply" | "move" | "flag";
                 body: string;
@@ -7430,6 +8625,7 @@ export interface components {
         };
         /** VoiceMailRequest */
         VoiceMailRequest: {
+            accountId?: string;
             /** @enum {string} */
             action: "compose" | "reply" | "move" | "flag";
             body?: string;
@@ -7438,6 +8634,7 @@ export interface components {
             mailbox?: string;
             subject?: string;
             to?: string[];
+            uidValidity?: string;
         };
         /**
          * VoiceMetrics
@@ -7542,6 +8739,8 @@ export interface components {
                 enabled: boolean;
             };
             rawRecordingEnabled: boolean;
+            /** Format: date-time */
+            serviceStartedAt?: string | null;
             source: components["schemas"]["SourceDescriptor"];
             speakerVerification: {
                 confidence: number | null;
@@ -7567,6 +8766,7 @@ export interface components {
                 /** @enum {string} */
                 state: "ready" | "busy" | "error" | "offline";
             };
+            ttsVoiceChoice?: string | null;
             /** Format: date-time */
             updatedAt: string;
             voiceHistoryEnabled: boolean;
@@ -7651,7 +8851,7 @@ export interface components {
             allowedUserIds: string[];
             applied: boolean | null;
             /** @enum {string} */
-            connectionState: "unknown";
+            connectionState: "connected" | "disconnected" | "unknown";
             enabled: boolean | null;
             gatewayRunning: boolean | null;
             /** @enum {string|null} */
@@ -7672,6 +8872,30 @@ export interface components {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["WhatsappGateway"];
             freshness: components["schemas"]["Freshness"];
+        };
+        /** WhatsappPairing */
+        WhatsappPairing: {
+            /** @enum {string} */
+            connectionState: "connected" | "disconnected" | "unknown";
+            expiresAt: number | null;
+            id: string | null;
+            linkedIdentity: string | null;
+            /** @enum {string} */
+            mode?: "bot" | "self-chat";
+            qr: string | null;
+            /** @enum {string} */
+            state: "idle" | "starting" | "waiting" | "qr_expired" | "connected" | "unverified" | "expired" | "cancelled" | "error";
+        };
+        /** WhatsappPairingResponse */
+        WhatsappPairingResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["WhatsappPairing"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** WhatsappPairingStart */
+        WhatsappPairingStart: {
+            /** @enum {string} */
+            mode: "bot" | "self-chat";
         };
         /** WikiPath */
         WikiPath: {
@@ -9282,6 +10506,67 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    confirmVoiceConnectedCalendar: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceConnectedCalendarConfirm"];
+            };
+        };
+        responses: {
+            /** @description Provider result, including explicitly uncertain writes */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarAccountActionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    previewVoiceConnectedCalendar: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceConnectedCalendarRequest"];
+            };
+        };
+        responses: {
+            /** @description Preview and confirmation token */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarAccountActionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
         };
     };
     listCalendarEvents: {
@@ -11178,6 +12463,927 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    listCalendarAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarAccountActionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    actOnCalendarAccount: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarAccountAction"];
+            };
+        };
+        responses: {
+            /** @description Success or explicitly uncertain provider write */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarAccountActionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listMailAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailAccountsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createMailAccount: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MailAccountWrite"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailAccountResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateMailAccount: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MailAccountWrite"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailAccountResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    deleteMailAccount: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailResultResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getMailAttachment: {
+        parameters: {
+            query: {
+                index: number;
+                mailbox: string;
+                uid: string;
+                uidValidity: string;
+            };
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailAttachmentResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    changeMailMessage: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MailChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailResultResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    checkMailAccount: {
+        parameters: {
+            query: {
+                protocol: "imap" | "smtp";
+            };
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailCheckResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    setDefaultMailAccount: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailResultResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    saveMailDraft: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MailDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Draft present in IMAP Drafts */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailDraftResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listMailEnvelopes: {
+        parameters: {
+            query: {
+                mailbox: string;
+                page?: number;
+            };
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailEnvelopesResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listMailFolders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailFolderResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getMailMessage: {
+        parameters: {
+            query: {
+                mailbox: string;
+                uid: string;
+                uidValidity: string;
+            };
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailMessageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    pollMailOAuth: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MailOAuthPoll"];
+            };
+        };
+        responses: {
+            /** @description Pending or connected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailOAuthResultResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    revokeMailOAuth: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Local grant removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailAccountResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    startMailOAuth: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authorization instructions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailOAuthStartResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listMailReceipts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailReceiptsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    reconcileMailArchive: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                accountId: string;
+                receiptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MailSendRequest"];
+            };
+        };
+        responses: {
+            /** @description Current receipt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailReceiptResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    reviewMailReceipt: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                accountId: string;
+                receiptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current receipt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailReceiptResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    searchMailEnvelopes: {
+        parameters: {
+            query: {
+                mailbox: string;
+                page?: number;
+                q: string;
+            };
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailEnvelopesResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    sendMailMessage: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MailSendRequest"];
+            };
+        };
+        responses: {
+            /** @description Success or uncertain outcome */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailSendResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    completeGoogleMailOAuth: {
+        parameters: {
+            query: {
+                code: string;
+                state: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OAuth connected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailOAuthResultResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    backupDurableMemory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurableMemoryBackupResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    captureDurableMemoryEvent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationEvent"];
+            };
+        };
+        responses: {
+            /** @description Captured or already recorded */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurableMemoryCaptureResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    forgetDurableMemoryEvent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                eventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurableMemoryForgetResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    correctDurableMemoryEvent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                eventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DurableMemoryCorrectRequest"];
+            };
+        };
+        responses: {
+            /** @description Corrected event */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurableMemoryCorrectResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    reindexDurableMemory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current writer and index status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurableMemoryStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    restoreDurableMemory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DurableMemoryRestoreRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurableMemoryRestoreResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    retryDurableMemory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current writer status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurableMemoryStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    searchDurableMemory: {
+        parameters: {
+            query: {
+                identityId: string;
+                limit?: number;
+                query: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurableMemorySearchResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    putDurableMemorySettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DurableMemorySettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description Applied settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurableMemorySettingsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getDurableMemoryStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurableMemoryStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getVoiceIntegrationStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     searchLocations: {
         parameters: {
             query: {
@@ -13072,6 +15278,149 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getWhatsappPairing: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsappPairingResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    startWhatsappPairing: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhatsappPairingStart"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsappPairingResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    cancelWhatsappPairing: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsappPairingResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    logoutWhatsappGateway: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Remote logout confirmed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsappPairingResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    reconnectWhatsappGateway: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restart requested */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsappPairingResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

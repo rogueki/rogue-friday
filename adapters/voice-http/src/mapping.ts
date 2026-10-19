@@ -100,6 +100,10 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
     ...(input ? { input_audio: input } : {}),
     ...(output ? { output_audio: output } : {}),
     ...(raw.audio_transport === "device" || raw.audio_transport === "browser" ? { audio_transport: raw.audio_transport } : {}),
+    ...(typeof raw.service_started_at === "string" ? { service_started_at: raw.service_started_at } : {}),
+    ...(typeof raw.tts_voice_choice === "string" || raw.tts_voice_choice === null ? { tts_voice_choice: raw.tts_voice_choice } : {}),
+    ...(typeof raw.input_device_id === "string" || raw.input_device_id === null ? { input_device_id: raw.input_device_id } : {}),
+    ...(typeof raw.output_device_id === "string" || raw.output_device_id === null ? { output_device_id: raw.output_device_id } : {}),
   };
 }
 
@@ -181,8 +185,10 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
         latencyMs: null,
       },
       localModel: { name: settings.localModelName, state: localModel.state, latencyMs: null },
-      audioInputDeviceId: null,
-      audioOutputDeviceId: null,
+      audioInputDeviceId: raw.input_device_id ?? null,
+      audioOutputDeviceId: raw.output_device_id ?? null,
+      serviceStartedAt: raw.service_started_at ?? null,
+      ttsVoiceChoice: raw.tts_voice_choice ?? null,
       pushToTalk: { enabled: false, active: false },
       focusMode,
       // The service never stores raw audio (module docstring); metadata goes to logs/voice.jsonl (JV:88-91).

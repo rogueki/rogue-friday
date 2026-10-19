@@ -47,6 +47,7 @@ it("rejects invalid local times and zones", () => {
 it("serves the local event through the calendar API while requiring owner and CSRF for writes", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {
+    const mockNow = new Date(api.runtime.nowMs()).toISOString();
     const owner = api.client();
     const viewer = api.client();
     await owner.loginDev("owner");
@@ -57,6 +58,7 @@ it("serves the local event through the calendar API while requiring owner and CS
     expect((await owner.post(path, body, { csrf: false, headers: { "Idempotency-Key": "local-key-123456" } })).statusCode).toBe(403);
     const created = await owner.post(path, body, { headers: { "Idempotency-Key": "local-key-123456" } });
     expect(created.statusCode, created.body).toBe(201);
+    expect(created.json().freshness.asOf).toBe(mockNow);
     const id = created.json().data.id as string;
     const replay = await owner.post(path, body, { headers: { "Idempotency-Key": "local-key-123456" } });
     expect(replay.statusCode).toBe(201);
@@ -66,12 +68,15 @@ it("serves the local event through the calendar API while requiring owner and CS
     expect(api.runtime.db.prepare("SELECT COUNT(*) AS count FROM local_calendar_events").get()).toMatchObject({ count: 1 });
     const listed = await owner.get("/api/v1/calendar/events?from=2026-11-02T00:00:00.000Z&to=2026-11-03T00:00:00.000Z");
     expect(listed.statusCode, listed.body).toBe(200);
+    expect(listed.json().freshness.asOf).toBe(mockNow);
+    expect(listed.json().freshness.state).toBe("fresh");
     expect(listed.json().items.some((item: { id: string }) => item.id === id)).toBe(true);
     const bridge = await api.client().get("/api/v1/calendar/events?from=2026-11-02T00:00:00.000Z&to=2026-11-03T00:00:00.000Z", { headers: { authorization: `Bearer ${api.runtime.calendarBridgeKey.toString("base64")}` } });
     expect(bridge.statusCode).toBe(200);
     expect(bridge.json().items.some((item: { id: string }) => item.id === id)).toBe(true);
     const detail = await owner.get(`/api/v1/calendar/events/${id}`);
     expect(detail.statusCode).toBe(200);
+    expect(detail.json().freshness.asOf).toBe(mockNow);
     expect(detail.json().data.source.adapterId).toBe("friday-local-calendar");
     const stale = await owner.request("PUT", `${path}/${id}`, { body: { ...body, title: "Neu" }, headers: { "If-Match": "2" } });
     expect(stale.statusCode).toBe(409);
@@ -109,7 +114,7 @@ it("paginates mixed local and remote events without repeats or dangling cursors"
     const seen: string[] = [];
     let cursor: string | null = null;
     for (let page = 0; page < 4; page++) {
-      const ctx = { runtime: { db }, query: { from: "2026-11-02T00:00:00.000Z", to: "2026-11-03T00:00:00.000Z", limit: 2, ...(cursor ? { cursor } : {}) } } as unknown as RequestContext;
+      const ctx = { runtime: { db, config: { dataMode: "mock" }, nowMs: () => Date.parse("2026-10-14T08:00:00.000Z") }, query: { from: "2026-11-02T00:00:00.000Z", to: "2026-11-03T00:00:00.000Z", limit: 2, ...(cursor ? { cursor } : {}) } } as unknown as RequestContext;
       const body = (await list(ctx)).body as { items: Array<{ title: string; source: { system: string } }>; sources: Array<{ system: string }>; pageInfo: { hasNextPage: boolean; nextCursor: string | null } };
       seen.push(...body.items.map((item) => item.title));
       expect(body.items.every((item) => item.source.system === "friday-local" || item.source.system === "ics")).toBe(true);

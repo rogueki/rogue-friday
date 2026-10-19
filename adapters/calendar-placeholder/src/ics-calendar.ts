@@ -17,41 +17,62 @@ const MAX_PAGE = 200;
 
 type SourceEvent = CalendarEvent;
 
-export function parseEvents(document: string, fetchedAt: string, from: number, to: number): SourceEvent[] {
+export function inspectCalendarDocument(document: string): { recurring: boolean; masterStart: string; masterEnd: string; hasExceptions: boolean } {
+  const component = new ICAL.Component(ICAL.parse(document));
+  if (component.name !== "vcalendar") throw new Error("Ungueltiges iCalendar-Dokument");
+  const parts = component.getAllSubcomponents("vevent");
+  const masters = parts.filter((part) => !part.getFirstPropertyValue("recurrence-id"));
+  if (masters.length !== 1) throw new Error("Kalender-Ressource hat keinen eindeutigen Haupttermin");
+  const master = new ICAL.Event(masters[0]!);
+  return { recurring: master.isRecurring() || parts.length > 1,
+    masterStart: master.startDate.toJSDate().toISOString(), masterEnd: master.endDate.toJSDate().toISOString(),
+    hasExceptions: parts.length > 1 };
+}
+
+export function parseEventEntries(document: string, fetchedAt: string, from: number, to: number): Array<{ event: SourceEvent; recurrenceId: string | null }> {
   const component = new ICAL.Component(ICAL.parse(document));
   if (component.name !== "vcalendar") throw new Error("Ungueltiges iCalendar-Dokument");
   const raw = component.getAllSubcomponents("vevent");
   if (raw.length > MAX_COMPONENTS) throw new Error("Kalender-Feed enthaelt zu viele Termine");
-  const result: SourceEvent[] = [];
+  const exceptions = new Map<string, ICAL.Component[]>();
+  for (const part of raw) {
+    if (!part.getFirstPropertyValue("recurrence-id")) continue;
+    const uid = String(part.getFirstPropertyValue("uid") ?? "");
+    const same = exceptions.get(uid) ?? [];
+    same.push(part);
+    exceptions.set(uid, same);
+  }
+  const result: Array<{ event: SourceEvent; recurrenceId: string | null }> = [];
   let expanded = 0;
   for (const part of raw) {
     const event = new ICAL.Event(part);
     if (event.isRecurrenceException()) continue;
-    const add = (startMs: number, endMs: number, recurrence: string) => {
+    for (const exception of exceptions.get(event.uid) ?? []) event.relateException(new ICAL.Event(exception));
+    const add = (startMs: number, endMs: number, recurrence: string, recurrenceId: string | null, instance: ICAL.Event = event) => {
       if (endMs <= from || startMs >= to) return;
       if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return;
       const start = new Date(startMs).toISOString();
       const end = new Date(endMs).toISOString();
-      const title = event.summary || "Ohne Titel";
-      const allDay = event.startDate.isDate;
-      const zone = event.startDate.zone?.tzid || "UTC";
-      const statusRaw = String(part.getFirstPropertyValue("status") ?? "CONFIRMED").toUpperCase();
-      result.push({
+      const title = instance.summary || "Ohne Titel";
+      const allDay = instance.startDate.isDate;
+      const zone = instance.startDate.zone?.tzid || "UTC";
+      const statusRaw = String(instance.component.getFirstPropertyValue("status") ?? "CONFIRMED").toUpperCase();
+      result.push({ event: {
         id: createId("cal", `${event.uid || title}:${recurrence}`),
         version: 1,
         createdAt: fetchedAt,
         updatedAt: fetchedAt,
         source: { adapterId: manifest.id, system: "ics", externalId: event.uid || undefined, lastSyncedAt: fetchedAt },
-        title, description: event.description || undefined,
+        title, description: instance.description || undefined,
         start, end, allDay, timeZone: zone === "floating" ? "UTC" : zone,
-        location: event.location || undefined,
+        location: instance.location || undefined,
         attendees: [],
         status: statusRaw === "CANCELLED" ? "cancelled" : statusRaw === "TENTATIVE" ? "tentative" : "confirmed",
         reminderMinutes: [], linkedTaskIds: [], linkedThreadIds: [], conflictIds: [], briefingId: null,
-      });
+      }, recurrenceId });
     };
     if (!event.isRecurring()) {
-      add(event.startDate.toJSDate().getTime(), event.endDate.toJSDate().getTime(), "single");
+      add(event.startDate.toJSDate().getTime(), event.endDate.toJSDate().getTime(), "single", null);
       continue;
     }
     const iterator = event.iterator();
@@ -59,12 +80,16 @@ export function parseEvents(document: string, fetchedAt: string, from: number, t
     while ((occurrence = iterator.next())) {
       if (++expanded > MAX_OCCURRENCES) throw new Error("Kalender-Feed enthaelt zu viele Wiederholungen");
       const details = event.getOccurrenceDetails(occurrence);
+      if (occurrence.toJSDate().getTime() >= to) break;
       const startMs = details.startDate.toJSDate().getTime();
-      if (startMs >= to) break;
-      add(startMs, details.endDate.toJSDate().getTime(), occurrence.toString());
+      add(startMs, details.endDate.toJSDate().getTime(), occurrence.toString(), occurrence.toJSDate().toISOString(), details.item);
     }
   }
-  return result.sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id));
+  return result.sort((a, b) => a.event.start.localeCompare(b.event.start) || a.event.id.localeCompare(b.event.id));
+}
+
+export function parseEvents(document: string, fetchedAt: string, from: number, to: number): SourceEvent[] {
+  return parseEventEntries(document, fetchedAt, from, to).map((entry) => entry.event);
 }
 
 function parseDocuments(documents: string[], fetchedAt: string, from: number, to: number): SourceEvent[] {

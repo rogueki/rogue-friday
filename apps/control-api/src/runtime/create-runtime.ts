@@ -33,6 +33,7 @@ import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, sum
 import { SettingsService, seedLibrary } from "../services/settings";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
+import { DurableMemoryService } from "../services/durable-memory";
 import { WikiPathService } from "../services/wiki-path";
 import { HimalayaAccountService } from "../services/himalaya-account";
 import { TelegramGatewayService } from "../services/telegram-gateway";
@@ -40,8 +41,11 @@ import { MessagingGatewayService } from "../services/messaging-gateways";
 import { TelephonyService } from "../services/telephony";
 import { CloudTalkService } from "../services/cloudtalk";
 import { HimalayaSendService } from "../services/himalaya-send";
+import { MailAccountsService } from "../services/mail-accounts";
+import { MailSendService } from "../services/mail-send";
 import { CalDavCreateService } from "../services/caldav-create";
 import { LocalCalendarService } from "../services/local-calendar";
+import { CalendarAccountsService } from "../services/calendar-accounts";
 import { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import { CodingRunsService } from "../services/coding-runs";
 import { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
@@ -124,8 +128,10 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const voiceBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "voice-bridge"));
   const calendarBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "calendar-bridge"));
   const mailBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "mail-bridge"));
+  const hermesMemoryBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "hermes-memory-bridge"));
   if (!calendarBridgeKey.permissionsRestricted) logger.warn("Calendar bridge key permissions could not be restricted", { path: calendarBridgeKey.path });
   if (!mailBridgeKey.permissionsRestricted) logger.warn("Mail bridge key permissions could not be restricted", { path: mailBridgeKey.path });
+  if (!hermesMemoryBridgeKey.permissionsRestricted) logger.warn("Hermes memory bridge key permissions could not be restricted", { path: hermesMemoryBridgeKey.path });
   if (!voiceBridgeKey.permissionsRestricted) logger.warn("Berechtigungen des Voice-Bridge-Schlüssels konnten nicht eingeschränkt werden", { path: voiceBridgeKey.path });
   const sessions = new SqliteSessionStore(db, {
     defaultTtlMs: config.auth.sessionTtlMinutes * 60_000,
@@ -245,6 +251,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const contentStudioPlan = new ContentStudioPlanService(db);
   const onboarding = new OnboardingService(db);
   const obsidianVault = new ObsidianVaultService(config.paths.dataDir);
+  const durableMemory = new DurableMemoryService(config.paths.dataDir);
+  durableMemory.flush();
   const wikiPath = new WikiPathService(config.paths.dataDir);
   const himalayaAccount = new HimalayaAccountService(config.paths.dataDir);
   const telegramGateway = new TelegramGatewayService(config.paths.dataDir);
@@ -254,6 +262,9 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const cloudtalk = new CloudTalkService(db, deriveKey(serverKey.key, "cloudtalk-profile"), options.providerFetch, options.now,
     () => settings.area("profile").displayName);
   const himalayaSend = new HimalayaSendService(db, himalayaAccount);
+  const mailAccounts = new MailAccountsService(config.paths.dataDir);
+  const calendarAccounts = new CalendarAccountsService(config.paths.dataDir);
+  const mailSend = new MailSendService(db, mailAccounts);
   const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
   const skills: SkillsService = new SkillsService({
@@ -470,6 +481,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     voiceBridgeKey: voiceBridgeKey.key,
     calendarBridgeKey: calendarBridgeKey.key,
     mailBridgeKey: mailBridgeKey.key,
+    hermesMemoryBridgeKey: hermesMemoryBridgeKey.key,
     approvalTokens,
     settings,
     contentStudioKeys,
@@ -479,6 +491,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     powerpoint,
     onboarding,
     obsidianVault,
+    durableMemory,
     wikiPath,
     himalayaAccount,
     telegramGateway,
@@ -487,6 +500,9 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     telephony,
     cloudtalk,
     himalayaSend,
+    mailAccounts,
+    calendarAccounts,
+    mailSend,
     caldavCreate,
     hermesSkillKeys,
     codingRuns,
@@ -551,6 +567,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
       sessions.purgeExpired();
     },
     async close() {
+      durableMemory.close();
       await contentStudioProduction.stop();
       for (const timer of timers) clearInterval(timer);
       timers.length = 0;

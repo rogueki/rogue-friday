@@ -18,6 +18,7 @@ import urllib.error
 import urllib.request
 
 import numpy as np
+import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 VOICE = os.path.dirname(HERE)
@@ -416,7 +417,7 @@ def test_manual_start_uses_command_handler_without_wake_audio(monkeypatch):
     svc._session(manual=True)
 
     assert recorded == [(jv.SR, None)]
-    assert svc.status["state"] == "listening"
+    assert svc.status["state"] == "wake_only"
 
 
 def test_manual_start_endpoint_requires_key_and_rejects_duplicate():
@@ -492,14 +493,14 @@ def test_voice_control_stop_pause_resume_are_authenticated_and_change_state():
         assert post("start", "a" * 44) == 202
         assert post("stop", "a" * 44) == 202
         assert not svc.manual_start.is_set()
-        assert svc.control_cancel.is_set() and svc.status["state"] == "listening"
+        assert svc.control_cancel.is_set() and svc.status["state"] == "wake_only"
         assert svc.tts.interrupted == 2
 
         # Stopping while paused must leave the service ready for a fresh manual session.
         assert post("pause", "a" * 44) == 202
         paused_generation = svc.control_generation
         assert post("stop", "a" * 44) == 202
-        assert not svc.control_paused and svc.status["state"] == "listening"
+        assert not svc.control_paused and svc.status["state"] == "wake_only"
         assert svc.control_cancel.is_set() and svc.control_generation == paused_generation + 1
         assert post("start", "a" * 44) == 202
         assert svc.manual_start.is_set()
@@ -527,6 +528,125 @@ def test_pending_hermes_answer_is_suppressed_after_stop():
     release.set()
     assert not worker.is_alive()
     assert result == [None]
+
+
+def test_stop_detector_suppresses_tts_quote_and_cancels_user_stop(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg["speaker_threshold"] = 0.4
+    svc.stop_audio_q = queue.Queue(maxsize=64)
+    svc.transcribe_lock = threading.Lock()
+    svc.processing = "thinking"
+    svc.tts.speaking.set()
+    svc.tts.current_text = "Sie sagte Stop im Zitat"
+    echo = [True]
+    svc.tts.is_output_echo = lambda audio: echo[0]
+    svc.verifier = types.SimpleNamespace(score=lambda audio: 0.9)
+    svc._transcribe = lambda audio: "Stop"
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    threading.Thread(target=svc._stop_listener, daemon=True).start()
+
+    def phrase():
+        for _ in range(6):
+            svc.stop_audio_q.put(np.full(jv.CHUNK, 5000, dtype=np.int16))
+        for _ in range(5):
+            svc.stop_audio_q.put(np.zeros(jv.CHUNK, dtype=np.int16))
+
+    phrase()
+    jv.time.sleep(0.15)
+    assert not svc.control_cancel.is_set()
+    echo[0] = False  # The user speaks Stop while the TTS quote still contains Stop.
+    phrase()
+    submitted = jv.time.monotonic()
+    deadline = jv.time.monotonic() + 1
+    while not svc.control_cancel.is_set() and jv.time.monotonic() < deadline:
+        jv.time.sleep(0.01)
+    assert svc.control_cancel.is_set()
+    assert jv.time.monotonic() - submitted < 0.5  # synthetic queue, not physical capture/playback latency
+    assert svc.status["state"] == "wake_only"
+
+
+def test_playback_reference_matches_echo_but_not_overlaid_user_voice():
+    jv = load_voice_module()
+    speaker = jv.Speaker.__new__(jv.Speaker)
+    speaker.browser_audio = None
+    speaker.echo_reference = collections.deque()
+    speaker.echo_lock = threading.Lock()
+    sample = np.random.default_rng(5).normal(0, 0.06, jv.SR).astype(np.float32)
+    speaker._note_output(sample, jv.SR)
+    assert speaker.is_output_echo(sample)
+    user = np.random.default_rng(6).normal(0, 0.4, jv.SR).astype(np.float32)
+    assert not speaker.is_output_echo(sample + user)
+
+
+def test_browser_pcm_send_updates_echo_reference(monkeypatch):
+    jv = load_voice_module()
+    sample = (np.random.default_rng(25).standard_normal(jv.elevenlabs_cloud.TTS_RATE) * 4000).astype("<i2")
+    sent = []
+    speaker = jv.Speaker.__new__(jv.Speaker)
+    speaker.browser_audio = types.SimpleNamespace(connected=lambda: True,
+        send_pcm=lambda data, stop: sent.append(data) or True)
+    speaker.cloud_key = "unused"
+    speaker.tts_config = {"elevenlabs_voice_id": "synthetic"}
+    speaker.stop_flag = threading.Event()
+    speaker.level = types.SimpleNamespace(update=lambda *args: None)
+    speaker.echo_reference = collections.deque()
+    speaker.echo_lock = threading.Lock()
+    monkeypatch.setattr(jv.elevenlabs_cloud, "stream_speech", lambda *args, **kwargs: [sample.tobytes()])
+    speaker._play_elevenlabs("quoted Stop")
+    assert b"".join(sent) == sample.tobytes()
+    browser_microphone_echo = np.concatenate([part for _, part in speaker.echo_reference])
+    assert speaker.is_output_echo(browser_microphone_echo)
+
+
+def test_audio_apply_rolls_back_open_stream_after_config_write_failure(monkeypatch, tmp_path):
+    jv = load_voice_module()
+    class Stream:
+        def __init__(self):
+            self.active = False
+            self.closed = False
+        def __enter__(self):
+            return self
+        def __exit__(self, *_):
+            self.close()
+        def start(self):
+            self.active = True
+        def stop(self):
+            self.active = False
+        def close(self):
+            self.closed = True
+
+    opened = []
+    def input_stream(**kwargs):
+        stream = Stream()
+        opened.append(stream)
+        return stream
+    fake_sd = types.SimpleNamespace(InputStream=input_stream, OutputStream=lambda **kwargs: Stream(),
+                                    PortAudioError=RuntimeError,
+                                    query_devices=lambda device=None, direction=None: {"default_samplerate": 48000, "max_output_channels": 2})
+    monkeypatch.setattr(jv, "sd", fake_sd)
+    svc = make_service(jv, {})
+    svc.audio_transport = "device"
+    svc.input_stream = Stream()
+    svc.tts.output_device = None
+    svc.processing = None
+    svc.status["state"] = "wake_only"
+    svc.audio_input_device_id = svc.audio_output_device_id = None
+    svc.audio_applied_revision = 1
+    svc.audio_error = None
+    svc.audio_q = queue.Queue()
+    svc.service_started_at = "2026-10-19T00:00:00Z"
+    svc.cfg.update({"input_device": None, "output_device": None})
+    (tmp_path / "config").mkdir()
+    monkeypatch.setattr(jv, "INSTALL_ROOT", str(tmp_path))
+    import audio_devices
+    monkeypatch.setattr(audio_devices, "resolve", lambda sd, selected, direction: (None, None))
+    monkeypatch.setattr(jv.os, "replace", lambda *_: (_ for _ in ()).throw(OSError("write failed")))
+    with pytest.raises(OSError, match="write failed"):
+        svc.apply_audio(None, None)
+    assert len(opened) == 2  # attempted new stream, then rollback stream
+    assert opened[0].closed and opened[1].active
+    assert svc.audio_input_device_id is None and svc.audio_output_device_id is None
 
 
 def test_cancelled_generation_cannot_queue_late_speech():
@@ -581,7 +701,7 @@ def test_followup_window_starts_after_answer(monkeypatch):
     svc._session()
     assert calls == [5.0, 15.0]
     assert 14 <= svc.trusted_until - jv.time.monotonic() <= 15
-    assert svc.status["state"] == "listening"
+    assert svc.status["state"] == "wake_only"
 
 
 def test_background_reply_reopens_followup_window(monkeypatch):
@@ -608,7 +728,7 @@ def test_background_reply_reopens_followup_window(monkeypatch):
     svc._handle_command = handle
     svc._session()
     assert calls == [5.0, 15.0, 15.0, 15.0]
-    assert svc.status["state"] == "listening"
+    assert svc.status["state"] == "wake_only"
 
 
 def test_service_stage2_accepts_and_rejects(monkeypatch):

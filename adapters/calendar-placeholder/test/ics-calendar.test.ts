@@ -1,6 +1,6 @@
 ﻿import { describe, expect, it, vi } from "vitest";
 import type { AdapterContext } from "@friday/adapter-core";
-import { IcsCalendarAdapter, parseEvents } from "../src/ics-calendar";
+import { IcsCalendarAdapter, parseEvents, parseEventEntries } from "../src/ics-calendar";
 import { validateFeedUrl } from "../src/fetch-ics";
 import { parseCalDavResponse } from "../src/fetch-caldav";
 
@@ -41,6 +41,15 @@ describe("read-only ICS calendar", () => {
     ]);
     expect(events[0]?.title).toBe("Planning");
     expect(events[0]?.id).toMatch(/^cal_[0-9A-Z]{26}$/);
+  });
+
+  it("keeps the original recurrence instant when a detached occurrence moves", () => {
+    const shifted = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:weekly-1\r\nDTSTART:20261016T090000Z\r\nDTEND:20261016T100000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nSUMMARY:Planning\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:weekly-1\r\nRECURRENCE-ID:20261017T090000Z\r\nDTSTART:20261017T110000Z\r\nDTEND:20261017T120000Z\r\nSUMMARY:Moved\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
+    const entries = parseEventEntries(shifted, "2026-10-16T08:00:00.000Z", Date.parse("2026-10-16"), Date.parse("2026-10-20"));
+    expect(entries).toHaveLength(3);
+    expect(entries[1]?.recurrenceId).toBe("2026-10-17T09:00:00.000Z");
+    expect(entries[1]?.event.start).toBe("2026-10-17T11:00:00.000Z");
+    expect(entries[1]?.event.title).toBe("Moved");
   });
 
   it("rejects loopback, local, credentials, redirects by protocol and plain HTTP URLs", () => {
