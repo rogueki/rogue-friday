@@ -85,7 +85,11 @@ try {
     function Invoke-Wsl {
         param([string]$Distro, [string]$User, [string[]]$Arguments, [string]$InputJson = '')
         if ($Arguments[0] -eq 'python3' -and $InputJson) {
-            if ($InputJson -match '"action":"rollback"') { $script:events += 'rollback-wsl'; return '{"state":"rolled back"}' }
+            if ($InputJson -match '"action":"rollback"') {
+                $script:events += 'rollback-wsl'
+                if ($script:failWslRollback) { throw 'synthetic WSL rollback refusal' }
+                return '{"state":"rolled back"}'
+            }
             if ($InputJson -match '"keyDigests"') {
                 $script:events += 'bridge-health'
                 if ($script:failBridgeHealth) { throw 'synthetic bridge health failure' }
@@ -111,6 +115,7 @@ try {
             if ($script:failApply) { throw 'synthetic apply failure' }
             return [pscustomobject]@{ state = 'applied' }
         }
+        if ($script:failWindowsRollback -and $Arguments[0] -eq 'rollback') { throw 'synthetic Windows rollback refusal' }
         return [pscustomobject]@{ state = 'rolled-back' }
     }
     $script:failPrepare = $true
@@ -171,6 +176,35 @@ try {
     catch { if ($_.Exception.Message -notmatch 'synthetic bridge health failure') { throw } }
     if ('bridge-health' -notin $script:events -or 'cli:rollback' -notin $script:events -or
         'rollback-wsl' -notin $script:events) { throw 'bridge failure skipped rollback' }
+
+    # A failed rollback is an uncertain cutover. Neither the original services
+    # nor scheduled tasks may resume until an operator reconciles the receipt.
+    $script:failWslRollback = $true
+    $script:events = @(); $script:taskJournal = @(); $script:taskState.FRIDAY_Watchdog = 'Running'
+    try { Invoke-FridayRecovery | Out-Null; throw 'failed WSL rollback accepted' }
+    catch { if ($_.Exception.Message -notmatch 'WSL-Rollback verweigert') { throw } }
+    if ('cli:rollback' -notin $script:events -or 'rollback-wsl' -notin $script:events -or
+        'restore-wsl-states' -in $script:events -or $script:taskState.FRIDAY_Watchdog -eq 'Running' -or
+        $script:taskState.FRIDAY_Watchdog -ne 'Disabled' -or $script:taskState.FRIDAY_Dashboard -ne 'Disabled' -or
+        -not (Test-Path -LiteralPath (Join-Path $stage 'recovery-plan.json'))) {
+        throw 'WSL rollback refusal restarted or discarded the uncertain target'
+    }
+    $script:failWslRollback = $false
+    # Test-fixture reset only: production recovery deliberately leaves these stopped.
+    Resume-OwnedTasks $script:taskJournal
+
+    $script:failWindowsRollback = $true
+    $script:events = @(); $script:taskJournal = @(); $script:taskState.FRIDAY_Watchdog = 'Running'
+    try { Invoke-FridayRecovery | Out-Null; throw 'failed Windows rollback accepted' }
+    catch { if ($_.Exception.Message -notmatch 'Windows-Rollback verweigert') { throw } }
+    if ('cli:rollback' -notin $script:events -or 'rollback-wsl' -notin $script:events -or
+        'restore-wsl-states' -in $script:events -or $script:taskState.FRIDAY_Watchdog -eq 'Running' -or
+        $script:taskState.FRIDAY_Watchdog -ne 'Disabled' -or $script:taskState.FRIDAY_Dashboard -ne 'Disabled' -or
+        -not (Test-Path -LiteralPath (Join-Path $stage 'recovery-plan.json'))) {
+        throw 'Windows rollback refusal restarted or discarded the uncertain target'
+    }
+    $script:failWindowsRollback = $false
+    Resume-OwnedTasks $script:taskJournal
 
     $script:failBridgeHealth = $false
     $script:events = @(); $script:taskJournal = @(); $script:taskState.FRIDAY_Watchdog = 'Running'
