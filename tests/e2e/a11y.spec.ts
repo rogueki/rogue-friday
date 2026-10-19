@@ -201,6 +201,9 @@ test.describe("keyboard", () => {
   });
 
   test("the whole task flow works with the keyboard only (open palette, navigate, create a task)", async ({ page, api }) => {
+    // tier-2 approvals are disabled so the confirmed preview executes directly (the approval detour is covered by tasks.spec.ts)
+    const settings = (await api.get("/settings")).body.data;
+    await patchSettings(api, { approvals: { ...settings.approvals, confirmTier2: false } });
     await open(page, "/");
     await page.keyboard.press("Control+k");
     const palette = page.getByRole("dialog", { name: "Befehlspalette" });
@@ -216,6 +219,11 @@ test.describe("keyboard", () => {
     await page.keyboard.press("Tab"); // priority select
     await page.keyboard.press("Tab"); // cancel
     await page.keyboard.press("Tab"); // create
+    await page.keyboard.press("Enter");
+    // creating a task is a staged write: the server preview is confirmed (keyboard) before anything exists
+    const createPreview = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+    await expect(createPreview).toBeVisible();
+    await createPreview.getByRole("button", { name: "Bestätigen" }).focus();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("article", { name: /^Tastatur-Aufgabe E2E/ })).toBeVisible();
     const found = (await api.get(`/tasks?q=${encodeURIComponent("Tastatur-Aufgabe E2E")}`)).body.items as unknown[];

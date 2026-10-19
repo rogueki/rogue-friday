@@ -82,7 +82,7 @@ test.describe("high load (profile highLoad: 1 000 tasks, 10 000 activity events,
     await loadHighLoad(api);
     await open(page, "/activity");
     await expect(eventStreamChip(page)).toContainText("online");
-    await api.post("/tasks", { title: "E2E Vorlauf", priority: "P4" }); // the client resumes from the last sequence it saw
+    await api.createTask({ title: "E2E Vorlauf", priority: "P4" }); // the client resumes from the last sequence it saw
     await expect(page.getByRole("main").getByText("E2E Vorlauf").first()).toBeVisible({ timeout: 20_000 });
 
     const nav = page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: /Aufgaben/ });
@@ -92,7 +92,7 @@ test.describe("high load (profile highLoad: 1 000 tasks, 10 000 activity events,
 
     blocked = true;
     live?.close({ code: 1006 });
-    for (let i = 0; i < 25; i += 1) await api.post("/tasks", { title: `E2E Last ${i}`, priority: "P4" }); // missed while down
+    for (let i = 0; i < 25; i += 1) await api.createTask({ title: `E2E Last ${i}`, priority: "P4" }); // missed while down
     await page.waitForTimeout(2000);
     const dropped = Date.now();
     blocked = false;

@@ -1,4 +1,4 @@
-import { test, expect, open } from "./support/fixtures";
+import { test, expect, open, patchSettings } from "./support/fixtures";
 import type { Locator, Page } from "@playwright/test";
 
 /** PLAN §51.5 command bar, §43.4: write commands answer with a server preview and run only after an explicit confirmation. */
@@ -68,6 +68,9 @@ test("a forbidden command is rejected with a clear message and changes nothing",
 });
 
 test("the palette sends free text as a command (\"F.R.I.D.A.Y. fragen\") and a task preview needs confirmation", async ({ page, api }) => {
+  // tier-2 approvals are disabled so the confirmed command executes directly (the approval detour is covered by tasks.spec.ts)
+  const settings = (await api.get("/settings")).body.data;
+  await patchSettings(api, { approvals: { ...settings.approvals, confirmTier2: false } });
   await open(page, "/tasks");
   await page.keyboard.press("Control+k");
   const palette = page.getByRole("dialog", { name: "Befehlspalette" });

@@ -249,7 +249,9 @@ test("a freshly raised P0 shows the pending channels as 'Geplant' and the channe
   await open(page, "/alerts");
   const items = card(page, "P0", P0_TITLE).getByRole("list", { name: "Eskalation" }).getByRole("listitem");
   await expect(items.nth(0)).toContainText("Dashboard · Gesendet");
-  for (const label of ["Telegram", "WhatsApp", "Telefon"]) await expect(items.filter({ hasText: label })).toContainText("Geplant");
+  for (const label of ["Telegram", "Telefon"]) await expect(items.filter({ hasText: label })).toContainText("Geplant");
+  // WhatsApp is disabled in the seeded notification settings, so the wave-2 eligibility check marks it skipped at raise time.
+  await expect(items.filter({ hasText: "WhatsApp" })).toContainText("Übersprungen");
 
   const channels = page.getByRole("list", { name: "Kanalstatus" });
   for (const label of ["Dashboard", "Telegram", "WhatsApp", "SMS", "Telefon", "E-Mail"]) await expect(channels.getByRole("listitem").filter({ hasText: label })).toHaveCount(1);
