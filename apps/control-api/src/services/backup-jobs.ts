@@ -66,12 +66,14 @@ export class BackupJobsService {
   constructor(private readonly db: Db, private readonly settings: SettingsService, private readonly backup: SystemBackupService) {}
 
   status(): { enabled: boolean; schedule: string; timeZone: string; targetPath: string; last: LastResult | null; running: boolean;
-    coverage: "windows-and-memory" | "windows-wsl-and-memory" } {
+    coverage: "windows-and-memory" | "windows-wsl-and-memory"; restoreMode: "isolated-verification-only";
+    reprovisionRequired: true } {
     const settings = this.settings.area("backups");
     let last: LastResult | null = null;
     try { last = JSON.parse(kvGet(this.db, "system_backup.last_result") ?? "null") as LastResult | null; } catch { /* corrupted result is unknown */ }
     return { enabled: settings.enabled, schedule: settings.schedule, timeZone: this.settings.area("profile").timeZone,
-      targetPath: settings.targetPath, last, running: this.running, coverage: this.backup.coverage() };
+      targetPath: settings.targetPath, last, running: this.running, coverage: this.backup.coverage(),
+      restoreMode: "isolated-verification-only", reprovisionRequired: true };
   }
 
   preview(targetPath?: string) { return this.backup.preview(targetPath ?? this.settings.area("backups").targetPath); }

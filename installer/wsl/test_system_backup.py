@@ -4,6 +4,7 @@ import json
 from contextlib import closing
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "wsl-system-backup.py"
@@ -31,7 +32,7 @@ class SystemBackupTests(unittest.TestCase):
             self.assertIn("hermes/.env", [entry[1] for entry in entries])
             self.assertIn("friday-calendar/actions.sqlite", [entry[1] for entry in entries])
             output = Path(temporary) / "output"
-            module.export_snapshot(entries, output)
+            module.export_snapshot(entries, output, "a" * 40)
             copied = output / "friday-calendar" / "actions.sqlite"
             with closing(sqlite3.connect(copied)) as connection:
                 self.assertEqual(connection.execute("SELECT id FROM journal").fetchone(), ("one",))
@@ -68,12 +69,25 @@ class SystemBackupTests(unittest.TestCase):
                 self.assertEqual([name for _, name, _ in entries], ["friday-calendar/journal.sqlite3"])
                 self.assertGreater(entries[0][2], database.stat().st_size)
                 output = Path(temporary) / "output"
-                module.export_snapshot(entries, output)
+                module.export_snapshot(entries, output, "a" * 40)
                 copied = output / "friday-calendar" / "journal.sqlite3"
                 with closing(sqlite3.connect(copied)) as snapshot:
                     self.assertEqual(snapshot.execute("SELECT id FROM journal").fetchone(), ("wal-only",))
                 self.assertEqual(json.loads((output / "manifest.json").read_text())["sqlite"],
                                  ["friday-calendar/journal.sqlite3"])
+
+    def test_preserves_nested_user_cache_but_requires_clean_excluded_checkout(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary) / "home"
+            (home / ".hermes" / "skills" / "custom" / "cache").mkdir(parents=True)
+            (home / ".hermes" / "skills" / "custom" / "cache" / "state.json").write_text("{}")
+            (home / ".hermes" / "hermes-agent").mkdir()
+            with mock.patch.object(module.subprocess, "run", return_value=mock.Mock(returncode=0, stdout=b" M user.py\n")):
+                with self.assertRaisesRegex(ValueError, "local state"):
+                    inventory(home)
+            with mock.patch.object(module.subprocess, "run", return_value=mock.Mock(returncode=0, stdout=b"")):
+                names = [name for _, name, _ in inventory(home)]
+            self.assertEqual(names, ["hermes/skills/custom/cache/state.json"])
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ from pathlib import Path
 import shutil
 import sqlite3
 import stat
+import subprocess
 import sys
 
 
@@ -20,6 +21,7 @@ SOURCES = (
     (".config/himalaya/config.toml", "himalaya/config.toml"),
 )
 EXCLUDE_DIRS = {".git", "__pycache__"}
+REBUILDABLE_HERMES_ROOTS = {"hermes-agent", "tools", "installs", "cache"}
 MAX_ITEMS = 100_000
 
 
@@ -54,16 +56,27 @@ def inventory(home: Path) -> list[tuple[Path, str, int]]:
             continue
         if not source.is_dir():
             raise ValueError("unsupported WSL backup source")
+        if label == "hermes" and (source / "hermes-agent").exists():
+            checkout = source / "hermes-agent"
+            if checkout.is_symlink() or not checkout.is_dir():
+                raise ValueError("unsupported Hermes checkout")
+            state = subprocess.run(["git", "-C", str(checkout), "status", "--porcelain", "--untracked-files=normal"],
+                                   capture_output=True, timeout=30, check=False)
+            if state.returncode != 0 or state.stdout:
+                raise ValueError("Hermes checkout has local state requiring separate backup")
         for current, dirs, files in os.walk(source, followlinks=False):
             folder = Path(current)
             for name in dirs[:]:
                 child = folder / name
                 if child.is_symlink():
                     raise ValueError("linked WSL backup directory")
-                if name in EXCLUDE_DIRS or name.startswith("friday-memory-backup-"):
+                if name in EXCLUDE_DIRS or name.startswith("friday-memory-backup-") or (
+                        label == "hermes" and folder == source and name in REBUILDABLE_HERMES_ROOTS):
                     dirs.remove(name)
             for name in files:
                 child = folder / name
+                if stat.S_ISSOCK(child.lstat().st_mode):
+                    continue  # Runtime IPC sockets cannot be snapshotted or restored as user data.
                 check_file(child)
                 base = folder / name.rsplit("-", 1)[0]
                 if name.endswith(("-wal", "-shm")) and base.is_file() and is_sqlite(base):
@@ -112,7 +125,9 @@ def digest(path: Path) -> str:
     return result.hexdigest()
 
 
-def export_snapshot(entries: list[tuple[Path, str, int]], root: Path) -> None:
+def export_snapshot(entries: list[tuple[Path, str, int]], root: Path, hermes_revision: str) -> None:
+    if len(hermes_revision) != 40 or any(char not in "0123456789abcdef" for char in hermes_revision):
+        raise ValueError("Hermes revision is unavailable for restore")
     root.mkdir(mode=0o700)
     hashes = {}
     databases = []
@@ -122,7 +137,9 @@ def export_snapshot(entries: list[tuple[Path, str, int]], root: Path) -> None:
         hashes[relative] = digest(target)
         if is_sqlite(target):
             databases.append(relative)
-    manifest = {"version": 1, "files": hashes, "sqlite": databases}
+    manifest = {"version": 1, "files": hashes, "sqlite": databases,
+                "excludedRebuildable": sorted(REBUILDABLE_HERMES_ROOTS),
+                "hermesRevision": hermes_revision}
     with (root / "manifest.json").open("x", encoding="utf-8") as output:
         json.dump(manifest, output, sort_keys=True)
         output.flush()
@@ -143,7 +160,11 @@ def main() -> None:
     root = Path(request.get("target", ""))
     if not root.is_absolute() or not str(root).startswith("/mnt/") or root.exists() or root.is_symlink():
         raise ValueError("WSL backup target must be a new mounted path")
-    export_snapshot(entries, root)
+    revision = subprocess.run(["git", "-C", str(home / ".hermes" / "hermes-agent"), "rev-parse", "HEAD"],
+                              capture_output=True, text=True, timeout=30, check=False)
+    if revision.returncode != 0:
+        raise ValueError("Hermes revision is unavailable for restore")
+    export_snapshot(entries, root, revision.stdout.strip())
     print(json.dumps({"count": len(entries), "bytes": sum(size for _, _, size in entries)}))
 
 

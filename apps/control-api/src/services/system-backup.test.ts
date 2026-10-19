@@ -154,6 +154,27 @@ it("includes archived audit segments and verifies their anchored chain", async (
   f.db.close();
 });
 
+it("fails closed if audit archiving races the database snapshot", async () => {
+  const f = fixture();
+  const archive = new AuditArchive(f.db, join(f.data, "audit-archive"));
+  const audit = new AuditStore(f.db, undefined, undefined, archive);
+  audit.append({ actor: { id: "owner", type: "user", displayName: "Owner" } as never,
+    category: "system", action: "test", severity: "info", result: "success", correlationId: "test",
+    occurredAt: "2025-01-01T00:00:00Z" });
+  const service = f.service as unknown as { sourceFiles(): Array<{ from: string; to: string }> };
+  const original = service.sourceFiles.bind(f.service);
+  let calls = 0;
+  service.sourceFiles = () => {
+    const files = original();
+    if (++calls === 2) archive.archiveBefore("2026-01-01T00:00:00Z", () => audit.verify().valid);
+    return files;
+  };
+  await expect(f.service.create(f.destination, 2)).rejects.toThrow(/archive|audit/i);
+  expect(audit.verify().valid).toBe(true);
+  f.memory.close();
+  f.db.close();
+});
+
 it("prunes only registered snapshots and preserves a same-prefix canary", async () => {
   const f = fixture();
   const canary = join(f.destination, "friday-system-lookalike");

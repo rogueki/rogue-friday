@@ -182,6 +182,7 @@ export class SystemBackupService {
       [join(this.dataDir, "calendar-bridge", "auth.key"), "keys/calendar-bridge.key"],
       [join(this.dataDir, "mail-bridge", "auth.key"), "keys/mail-bridge.key"],
       [join(this.dataDir, "hermes-memory-bridge", "auth.key"), "keys/hermes-memory-bridge.key"],
+      [join(this.dataDir, "hermes-messenger-bridge", "auth.key"), "keys/hermes-messenger-bridge.key"],
       [join(this.installRoot, "config", "voice.json"), "config/voice.json"],
       [join(this.installRoot, "config", "persona.json"), "config/persona.json"],
       [join(this.installRoot, "config", "install-state.json"), "config/install-state.json"],
@@ -438,8 +439,11 @@ export class SystemBackupService {
     }
     if (manifest.wslIncluded) {
       const wsl = JSON.parse(readFileSync(join(root, "wsl", "manifest.json"), "utf8")) as
-        { version: number; files: Record<string, string>; sqlite: string[] };
-      if (wsl.version !== 1 || !wsl.files || typeof wsl.files !== "object" || !Array.isArray(wsl.sqlite))
+        { version: number; files: Record<string, string>; sqlite: string[]; excludedRebuildable: string[];
+          hermesRevision: string };
+      if (wsl.version !== 1 || !wsl.files || typeof wsl.files !== "object" || !Array.isArray(wsl.sqlite) ||
+          JSON.stringify(wsl.excludedRebuildable) !== JSON.stringify(["cache", "hermes-agent", "installs", "tools"]) ||
+          !/^[a-f0-9]{40}$/.test(wsl.hermesRevision))
         throw new Error("System backup WSL manifest is invalid");
       const wslNames = Object.keys(manifest.files).filter((name) => name.startsWith("wsl/") && name !== "wsl/manifest.json");
       if (JSON.stringify(wslNames.sort()) !== JSON.stringify(Object.keys(wsl.files).map((name) => `wsl/${name}`).sort()))
@@ -451,7 +455,8 @@ export class SystemBackupService {
             sha(readFileSync(file)) !== hash) throw new Error("System backup WSL checksum mismatch");
         if (readFileSync(file).subarray(0, 16).equals(Buffer.from("SQLite format 3\0"))) databases.add(name);
       }
-      if (JSON.stringify([...databases].sort()) !== JSON.stringify([...new Set(wsl.sqlite)].sort()))
+      if (wsl.sqlite.length !== new Set(wsl.sqlite).size ||
+          JSON.stringify([...databases].sort()) !== JSON.stringify([...new Set(wsl.sqlite)].sort()))
         throw new Error("System backup WSL database inventory mismatch");
       for (const name of databases) {
         const database = new DatabaseSync(join(root, "wsl", name), { readOnly: true });

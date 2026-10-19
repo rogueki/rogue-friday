@@ -14,6 +14,8 @@
         "targetPath": { "type": "string" },
         "running": { "type": "boolean" },
         "coverage": { "type": "string", "enum": ["windows-and-memory", "windows-wsl-and-memory"] },
+        "restoreMode": { "type": "string", "const": "isolated-verification-only" },
+        "reprovisionRequired": { "type": "boolean", "const": true },
         "last": {
           "anyOf": [
             { "type": "null" },
@@ -31,7 +33,7 @@
           ]
         }
       },
-      "required": ["enabled", "schedule", "timeZone", "targetPath", "running", "coverage", "last"],
+      "required": ["enabled", "schedule", "timeZone", "targetPath", "running", "coverage", "restoreMode", "reprovisionRequired", "last"],
       "additionalProperties": false
     },
     "freshness": { "$ref": "../common/freshness.schema.json" }
