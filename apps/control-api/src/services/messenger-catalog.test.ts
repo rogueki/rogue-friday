@@ -15,7 +15,8 @@ describe("pinned Hermes messenger catalog", () => {
       mkdirSync(join(root, "config"));
       writeFileSync(join(root, "config", "install-state.json"), JSON.stringify({ distro_name: "Friday-Ubuntu", linux_user: "friday" }));
       const invoke = vi.fn(async () => ({ state: "available", pin: "d923a5eb", items: platforms.map((platform) => ({
-        platform, source: "bundled_plugin", fields: [{ name: "SLACK_BOT_TOKEN", secret: true, required: true, present: true }],
+        platform, source: "bundled_plugin", fields: [{ name: "SLACK_BOT_TOKEN", secret: true, required: true,
+          present: true, value: "secret-value" }],
         configured: platform === "slack", gatewayRunning: false, connectionState: "unknown",
       })) }));
       const service = new MessengerCatalogService(root, invoke);

@@ -47,7 +47,8 @@ export class MessengerCatalogService {
         const field = fieldRaw as Record<string, unknown>;
         if (typeof field.name !== "string" || !/^[A-Z][A-Z0-9_]{2,80}$/.test(field.name) ||
             typeof field.secret !== "boolean" || typeof field.required !== "boolean" || typeof field.present !== "boolean") throw unavailable();
-        return field as unknown as MessengerCatalogField;
+        return { name: field.name, secret: field.secret, required: field.required,
+          present: field.present } as MessengerCatalogField;
       });
       return { platform: item.platform, source: item.source as MessengerCatalogItem["source"], fields,
         configured: item.configured, gatewayRunning: item.gatewayRunning,
