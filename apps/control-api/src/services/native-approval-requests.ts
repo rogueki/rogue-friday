@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createId } from "@friday/observability";
 import type { Approval, SchemaValidator, TaskCreateRequest } from "@friday/sdk";
 import type { Db } from "../db/database";
@@ -138,20 +138,23 @@ export class NativeApprovalRequests {
     const result = JSON.parse(row.result_json) as CapturedApprovalPolicy;
     if (result.requiresApproval) throw conflict("Diese Aktion braucht eine Freigabe.");
     if (row.state === "completed" && row.receipt_json) return (JSON.parse(row.receipt_json) as { taskId: string }).taskId;
-    if (row.state !== "pending" && !(row.state === "dispatching" && this.now() - row.updated_at >= 30_000))
+    if (row.state !== "pending")
       throw conflict("Die Aktion ist nicht bestaetigt oder wird bereits verarbeitet.");
-    const reserved = this.db.prepare("UPDATE native_approval_requests SET state = 'dispatching', updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = ? AND updated_at = ?")
-      .run(this.now(), ownerId, requestKey, row.state, row.updated_at);
+    const dispatchToken = randomUUID();
+    const reserved = this.db.prepare("UPDATE native_approval_requests SET state = 'dispatching', dispatch_token = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'pending' AND updated_at = ?")
+      .run(dispatchToken, this.now(), ownerId, requestKey, row.updated_at);
     if (reserved.changes !== 1) throw conflict("Die Aktion wird bereits verarbeitet.");
     try {
       const action = JSON.parse(row.action_json) as NativeExecutableAction;
       const taskId = await dispatch(action, `native-action:${ownerId}:${requestKey}`);
-      this.db.prepare("UPDATE native_approval_requests SET state = 'completed', receipt_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'dispatching'")
-        .run(JSON.stringify({ taskId }), this.now(), ownerId, requestKey);
+      const written = this.db.prepare("UPDATE native_approval_requests SET state = 'completed', receipt_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'dispatching' AND dispatch_token = ?")
+        .run(JSON.stringify({ taskId }), this.now(), ownerId, requestKey, dispatchToken);
+      if (written.changes !== 1) throw conflict("Der Ausfuehrungsbeleg konnte nicht gesichert werden.");
       return taskId;
     } catch (error) {
-      this.db.prepare("UPDATE native_approval_requests SET state = 'pending', updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'dispatching'")
-        .run(this.now(), ownerId, requestKey);
+      // A timeout may happen after Hermes created the task. Never issue a second write without a verified receipt.
+      this.db.prepare("UPDATE native_approval_requests SET state = 'uncertain', updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'dispatching' AND dispatch_token = ?")
+        .run(this.now(), ownerId, requestKey, dispatchToken);
       throw error;
     }
   }
@@ -190,26 +193,32 @@ export class NativeApprovalRequests {
     const result = JSON.parse(row.result_json) as CapturedApprovalPolicy;
     const approval = result.approval;
     if (!approval || approval.status !== "pending" ||
-      (row.state !== "pending" && !(row.state === "dispatching" && this.now() - row.updated_at >= 30_000)))
+      row.state !== "pending")
       throw conflict("Freigabe ist nicht mehr offen oder wird noch verarbeitet.");
     if (approval.expiresAt && Date.parse(approval.expiresAt) <= this.now()) throw conflict("Freigabe ist abgelaufen.");
-    const reserved = this.db.prepare("UPDATE native_approval_requests SET state = 'dispatching', updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = ? AND updated_at = ?")
-      .run(this.now(), ownerId, row.request_key, row.state, row.updated_at);
+    const dispatchToken = randomUUID();
+    const decidedAt = new Date(this.now()).toISOString();
+    const approved: Approval = { ...approval, status: "approved", version: approval.version + 1,
+      updatedAt: decidedAt, decidedAt, decidedBy: actor,
+      executionResult: "Ausfuehrung gestartet; das Ergebnis ist noch nicht bestaetigt." };
+    const reserved = this.db.prepare("UPDATE native_approval_requests SET state = 'dispatching', dispatch_token = ?, result_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'pending' AND updated_at = ?")
+      .run(dispatchToken, JSON.stringify({ ...result, approval: approved }), this.now(), ownerId, row.request_key, row.updated_at);
     if (reserved.changes !== 1) throw conflict("Freigabe wird bereits verarbeitet.");
     try {
       const action = JSON.parse(row.action_json) as NativeExecutableAction;
       if (action.kind !== "task.create") throw conflict("Aktion ist nicht ausfuehrbar.");
       const taskId = await dispatch(action, `native-approval:${approvalId}`);
-      const decidedAt = new Date(this.now()).toISOString();
-      const completed: Approval = { ...approval, status: "executed", version: approval.version + 1, updatedAt: decidedAt,
-        decidedAt, decidedBy: actor, executionResult: `Aufgabe ${taskId} angelegt.` };
-      this.db.prepare("UPDATE native_approval_requests SET state = 'completed', result_json = ?, receipt_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'dispatching'")
-        .run(JSON.stringify({ ...result, approval: completed }), JSON.stringify({ taskId }), this.now(), ownerId, row.request_key);
+      const completed: Approval = { ...approved, status: "executed", version: approved.version + 1,
+        updatedAt: new Date(this.now()).toISOString(), executionResult: `Aufgabe ${taskId} angelegt.` };
+      const written = this.db.prepare("UPDATE native_approval_requests SET state = 'completed', result_json = ?, receipt_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'dispatching' AND dispatch_token = ?")
+        .run(JSON.stringify({ ...result, approval: completed }), JSON.stringify({ taskId }), this.now(), ownerId, row.request_key, dispatchToken);
+      if (written.changes !== 1) throw conflict("Der Ausfuehrungsbeleg konnte nicht gesichert werden.");
       return completed;
     } catch (error) {
-      // The adapter receives the same idempotency key on retry, including after an uncertain timeout.
-      this.db.prepare("UPDATE native_approval_requests SET state = 'pending', updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'dispatching'")
-        .run(this.now(), ownerId, row.request_key);
+      const uncertain: Approval = { ...approved, updatedAt: new Date(this.now()).toISOString(),
+        executionResult: "Ausfuehrung unklar. Bitte Aufgabe und Adapter pruefen; nicht erneut freigeben." };
+      this.db.prepare("UPDATE native_approval_requests SET state = 'uncertain', result_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'dispatching' AND dispatch_token = ?")
+        .run(JSON.stringify({ ...result, approval: uncertain }), this.now(), ownerId, row.request_key, dispatchToken);
       throw error;
     }
   }

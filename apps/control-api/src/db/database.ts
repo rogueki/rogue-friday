@@ -376,8 +376,9 @@ export const MIGRATIONS: readonly Migration[] = [
         proposal_hash TEXT NOT NULL,
         result_json TEXT NOT NULL,
         action_json TEXT,
-        state TEXT NOT NULL CHECK (state IN ('draft', 'pending', 'dispatching', 'completed', 'rejected', 'expired')),
+        state TEXT NOT NULL CHECK (state IN ('draft', 'pending', 'dispatching', 'uncertain', 'completed', 'rejected', 'expired')),
         receipt_json TEXT,
+        dispatch_token TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         PRIMARY KEY (owner_id, request_key)
