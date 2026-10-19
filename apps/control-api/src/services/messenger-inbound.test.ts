@@ -4,7 +4,7 @@ import { stableUserId } from "../security/auth-service";
 import type { DurableMemoryService, IntegrationEvent } from "./durable-memory";
 import { MessengerInboundService, type InboundMessage } from "./messenger-inbound";
 
-const message: InboundMessage = { platform: "discord", accountId: "default", senderId: "123456789012345678",
+const message: InboundMessage = { platform: "discord", accountId: "default", accountEpoch: "a".repeat(64), senderId: "123456789012345678",
   chatId: "234567890123456789", chatType: "dm", messageId: "m-1", text: "Hallo Friday" };
 
 describe("post-admission messenger identity and memory gate", () => {
@@ -31,8 +31,26 @@ describe("post-admission messenger identity and memory gate", () => {
     expect(captured[0]).toEqual(captured[1]);
     expect(captured[0]).toMatchObject({ channel: "messenger", identityId: stableUserId("owner"),
       source: expect.stringMatching(/^messenger\/discord\/[a-f0-9]{16}$/), payload: { kind: "text", text: message.text } });
+    expect(service.receive({ ...message, accountEpoch: "b".repeat(64) }).reason).toBe("unlinked");
+    expect(service.observations()).toHaveLength(2);
     service.unlink(observed[0]!.id);
     expect(service.receive({ ...message, messageId: "m-2" }).reason).toBe("unlinked");
+    db.close();
+  });
+
+  it("links and unlinks an exact observation even after more than 100 newer senders", () => {
+    const db = new DatabaseSync(":memory:");
+    const memory = { getSettings: () => ({ enabled: true, privateMode: false, channels: { messenger: true } }) } as
+      unknown as DurableMemoryService;
+    const service = new MessengerInboundService(db, memory);
+    service.receive(message);
+    const oldest = service.observations()[0]!.id;
+    db.prepare("UPDATE messenger_sender_observations SET last_seen_at=? WHERE id=?").run("2020-01-01T00:00:00Z", oldest);
+    for (let index = 0; index < 101; index += 1) service.receive({ ...message, senderId: `sender-${index}` });
+    expect(service.observations().some((item) => item.id === oldest)).toBe(false);
+    expect(service.link(oldest, stableUserId("owner"))?.linked).toBe(true);
+    service.unlink(oldest);
+    expect(service.observation(oldest)?.linked).toBe(false);
     db.close();
   });
 

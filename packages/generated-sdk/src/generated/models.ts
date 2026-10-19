@@ -4073,12 +4073,19 @@ export interface MessengerInboundEvent {
     | "photon"
     | "simplex";
   accountId: "default";
+  accountEpoch: string;
   senderId: string;
   chatId: string;
   chatType: string;
   messageId: string;
   text: string;
-  suppressionReason?: "private" | "policy_disabled" | "not_private_dm" | "unsupported_profile";
+  suppressionReason?:
+    | "private"
+    | "policy_disabled"
+    | "not_private_dm"
+    | "unsupported_profile"
+    | "multi_profile_unknown"
+    | "account_changed";
 }
 export interface MessengerInboundResponse {
   contractVersion: ContractVersion;
@@ -4091,6 +4098,8 @@ export interface MessengerInboundResponse {
       | "private"
       | "not_private_dm"
       | "unsupported_profile"
+      | "multi_profile_unknown"
+      | "account_changed"
       | "invalid";
     eventId: string | null;
   };

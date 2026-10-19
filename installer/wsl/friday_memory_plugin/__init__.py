@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from contextlib import closing, contextmanager
+import base64
 import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
 import re
 import sqlite3
+import secrets
 import threading
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -30,6 +33,8 @@ PRIVATE = re.compile(
     r"do not (?:store|remember|save) (?:this |the )?(?:conversation|chat)|off the record)\b", re.I)
 _private_sessions: set[str] = set()
 _private_messenger_sessions: set[str] = set()
+_messenger_process_nonce = secrets.token_bytes(32)
+_messenger_config_stamps: dict[str, tuple[tuple[int, int, int] | None, ...]] = {}
 _wake = threading.Event()
 _drain_lock = threading.Lock()
 _worker_started = False
@@ -238,6 +243,29 @@ def _messenger_policy(settings_db: Path) -> bool:
         return False
 
 
+def _messenger_files_stamp(home: Path) -> tuple[tuple[int, int, int] | None, ...]:
+    result = []
+    for name in ("config.yaml", ".env"):
+        path = home / name
+        if path.is_symlink():
+            raise OSError("unsafe messenger credential path")
+        try:
+            info = path.stat()
+            result.append((info.st_ino, info.st_size, info.st_mtime_ns))
+        except FileNotFoundError:
+            result.append(None)
+    return tuple(result)
+
+
+def _messenger_has_named_profiles(home: Path) -> bool:
+    profiles = home / "profiles"
+    if profiles.is_symlink():
+        return True
+    if not profiles.exists():
+        return False
+    return any(path.is_dir() or path.is_symlink() for path in profiles.iterdir())
+
+
 def _messenger_admitted(**kwargs):
     try:
         if MESSENGER_CONFIG.is_symlink() or MESSENGER_KEY.is_symlink():
@@ -262,20 +290,28 @@ def _messenger_admitted(**kwargs):
         if not all(isinstance(value, str) and 0 < len(value) <= 128 and not re.search(r"[\x00-\x1f\x7f]", value)
                    for value in (sender, chat, message_id)) or not isinstance(content, str) or len(content) > 200_000:
             return None
+        account_epoch = hmac.new(base64.b64decode(key), _messenger_process_nonce + platform.encode(), hashlib.sha256).hexdigest()
+        stamp = _messenger_files_stamp(Path(hermes_home))
+        original_stamp = _messenger_config_stamps.setdefault(platform, stamp)
         session_key = kwargs.get("session_key")
         if isinstance(session_key, str) and PRIVATE.search(content):
             _private_messenger_sessions.add(session_key)
         suppression = None
         if source.get("profile") not in (None, "", "default"):
             suppression = "unsupported_profile"
+        elif _messenger_has_named_profiles(Path(hermes_home)):
+            suppression = "multi_profile_unknown"
         elif source.get("chat_type") != "dm":
             suppression = "not_private_dm"
+        elif stamp != original_stamp:
+            suppression = "account_changed"
         elif PRIVATE.search(content) or (isinstance(session_key, str) and session_key in _private_messenger_sessions) or \
                 SECRET_CUE.search(content) or SECRET_VALUE.search(content):
             suppression = "private"
         elif not _messenger_policy(Path(config["settingsDb"])):
             suppression = "policy_disabled"
-        body = {"platform": platform, "accountId": "default", "senderId": sender, "chatId": chat,
+        body = {"platform": platform, "accountId": "default", "accountEpoch": account_epoch,
+                "senderId": sender, "chatId": chat,
                 "chatType": source.get("chat_type") or "unknown", "messageId": message_id,
                 "text": "" if suppression else content}
         if suppression:
@@ -288,7 +324,8 @@ def _messenger_admitted(**kwargs):
                 return None
             result = json.load(response)
         if (result.get("data") or {}).get("reason") not in (
-                "captured", "pending", "unlinked", "policy_disabled", "private", "not_private_dm", "unsupported_profile", "invalid"):
+                "captured", "pending", "unlinked", "policy_disabled", "private", "not_private_dm",
+                "unsupported_profile", "multi_profile_unknown", "account_changed", "invalid"):
             return None
     except (ImportError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
         return None

@@ -7427,6 +7427,7 @@ export interface components {
         };
         /** MessengerInboundEvent */
         MessengerInboundEvent: {
+            accountEpoch: string;
             /** @constant */
             accountId: "default";
             chatId: string;
@@ -7436,7 +7437,7 @@ export interface components {
             platform: "telegram" | "discord" | "whatsapp" | "whatsapp_cloud" | "slack" | "signal" | "mattermost" | "matrix" | "sms" | "dingtalk" | "feishu" | "wecom" | "weixin" | "bluebubbles" | "qqbot" | "yuanbao" | "teams" | "buzz" | "google_chat" | "irc" | "line" | "ntfy" | "photon" | "simplex";
             senderId: string;
             /** @enum {unknown} */
-            suppressionReason?: "private" | "policy_disabled" | "not_private_dm" | "unsupported_profile";
+            suppressionReason?: "private" | "policy_disabled" | "not_private_dm" | "unsupported_profile" | "multi_profile_unknown" | "account_changed";
             text: string;
         };
         /** MessengerInboundResponse */
@@ -7445,7 +7446,7 @@ export interface components {
             data: {
                 eventId: string | null;
                 /** @enum {unknown} */
-                reason: "captured" | "pending" | "unlinked" | "policy_disabled" | "private" | "not_private_dm" | "unsupported_profile" | "invalid";
+                reason: "captured" | "pending" | "unlinked" | "policy_disabled" | "private" | "not_private_dm" | "unsupported_profile" | "multi_profile_unknown" | "account_changed" | "invalid";
             };
             freshness: components["schemas"]["Freshness"];
         };

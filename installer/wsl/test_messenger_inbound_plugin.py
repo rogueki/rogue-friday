@@ -1,4 +1,6 @@
 import base64
+import hashlib
+import hmac
 import importlib.util
 import json
 from pathlib import Path
@@ -62,6 +64,50 @@ class MessengerAdmissionTests(unittest.TestCase):
         self.assertEqual(len(requests), 1)
         self.assertEqual(requests[0].get_header("Authorization"), f"Bearer {self.key}")
         self.assertEqual(json.loads(requests[0].data)["senderId"], "18412")
+        self.assertRegex(json.loads(requests[0].data)["accountEpoch"], r"^[a-f0-9]{64}$")
+
+    def test_config_change_requires_gateway_restart_before_any_more_capture(self):
+        requests = []
+        class Response:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def read(self): return b'{"data":{"reason":"unlinked"}}'
+        def open_request(request, timeout):
+            requests.append(json.loads(request.data))
+            return Response()
+        with patch.object(self.plugin, "urlopen", open_request):
+            self.call()
+            (self.home / ".env").write_text("TELEGRAM_BOT_TOKEN=new-synthetic-account")
+            self.call("followup")
+        self.assertEqual(requests[1]["suppressionReason"], "account_changed")
+        self.assertEqual(requests[1]["text"], "")
+
+    def test_new_gateway_process_rotates_link_provenance_even_with_same_key(self):
+        spec = importlib.util.spec_from_file_location("friday_memory_plugin_restart", PLUGIN)
+        restarted = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(restarted)
+        key = base64.b64decode(self.key)
+        old_epoch = hmac.new(key, self.plugin._messenger_process_nonce + b"telegram", hashlib.sha256).hexdigest()
+        new_epoch = hmac.new(key, restarted._messenger_process_nonce + b"telegram", hashlib.sha256).hexdigest()
+        self.assertNotEqual(old_epoch, new_epoch)
+
+    def test_named_profiles_suppress_capture_without_receiving_bot_identity(self):
+        profiles = self.home / "profiles" / "other-bot"
+        profiles.mkdir(parents=True)
+        requests = []
+        class Response:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def read(self): return b'{"data":{"reason":"multi_profile_unknown"}}'
+        def open_request(request, timeout):
+            requests.append(json.loads(request.data))
+            return Response()
+        with patch.object(self.plugin, "urlopen", open_request):
+            self.call("Harmloser Inhalt")
+        self.assertEqual(requests[0]["suppressionReason"], "multi_profile_unknown")
+        self.assertEqual(requests[0]["text"], "")
 
     def test_private_session_and_wrong_routed_home_never_forward(self):
         requests = []

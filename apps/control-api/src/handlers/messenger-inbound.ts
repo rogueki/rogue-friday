@@ -34,9 +34,9 @@ export const messengerInboundHandlers: Partial<Record<OperationId, Handler>> = {
   async unlinkMessengerSender(ctx) {
     if (!ctx.runtime.auth.ownerPasswordConfigured()) throw forbidden("Owner ist nicht eingerichtet.");
     const id = ctx.pathParams.id!;
-    if (!ctx.runtime.messengerInbound.observations().some((item) => item.id === id)) throw notFound("Beobachteter Messenger-Absender");
+    if (!ctx.runtime.messengerInbound.observation(id)) throw notFound("Beobachteter Messenger-Absender");
     ctx.runtime.messengerInbound.unlink(id);
-    const item = ctx.runtime.messengerInbound.observations().find((entry) => entry.id === id)!;
+    const item = ctx.runtime.messengerInbound.observation(id)!;
     ctx.audit.action = "messenger.sender.unlink";
     ctx.audit.after = { platform: item.platform, observationId: item.id };
     return { status: 200, body: single(item) };

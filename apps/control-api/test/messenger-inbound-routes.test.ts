@@ -13,7 +13,7 @@ describe("scoped Hermes inbound bridge", () => {
       expect(key).not.toBe(api.runtime.hermesMemoryBridgeKey.toString("base64"));
       expect(readFileSync(join(api.config.paths.dataDir, "hermes-messenger-bridge", "auth.key"), "utf8").trim()).toBe(key);
       const bridge = { authorization: `Bearer ${key}` };
-      const payload = { platform: "discord", accountId: "default", senderId: "123456789012345678",
+      const payload = { platform: "discord", accountId: "default", accountEpoch: "a".repeat(64), senderId: "123456789012345678",
         chatId: "234567890123456789", chatType: "dm", messageId: "fixture-1", text: "Synthetic inbound text" };
       const anonymous = api.client();
       const viewer = api.client(); await viewer.loginDev("viewer");

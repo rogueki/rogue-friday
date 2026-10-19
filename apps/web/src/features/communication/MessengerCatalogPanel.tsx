@@ -29,7 +29,7 @@ function MessengerSenderLinks() {
     finally { setBusy(null); }
   }
   return <details onToggle={(event) => setOpen(event.currentTarget.open)}><summary>Beobachtete private Absender und Identitätslinks</summary>
-    <p>Nur nach Hermes-Zulassung beobachtete Direktnachrichten erscheinen hier. Verknüpfe eine genaue Absender-ID nur, wenn sie zu dir gehört. Gruppen und unbekannte Absender werden nicht dem Owner-Gedächtnis zugeordnet.</p>
+    <p>Nur nach Hermes-Zulassung beobachtete Direktnachrichten erscheinen hier. Verknüpfe eine genaue Absender-ID nur, wenn sie zu dir gehört. Nach einem Gateway-Neustart oder Kontowechsel ist eine neue Beobachtung und Verknüpfung nötig. Gruppen und unbekannte Absender werden nicht dem Owner-Gedächtnis zugeordnet.</p>
     {senders.isPending && open ? <p role="status">Absender werden gelesen.</p> : null}
     {senders.isError ? <p role="alert">Absenderliste nicht erreichbar. <button type="button" onClick={() => void senders.refetch()}>Erneut prüfen</button></p> : null}
     {senders.data ? <ul>{senders.data.data.items.map((sender) => <li key={sender.id}>
