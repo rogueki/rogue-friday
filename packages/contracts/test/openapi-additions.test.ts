@@ -7,6 +7,7 @@ type Operation = {
   operationId: string;
   "x-capability"?: string;
   parameters?: Array<{ $ref?: string }>;
+  requestBody?: Record<string, unknown>;
   responses: Record<string, { headers?: Record<string, Header>; content?: Record<string, unknown> } | { $ref: string }>;
   "x-required-role"?: string;
   "x-max-body-bytes"?: number;
