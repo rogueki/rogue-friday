@@ -53,9 +53,14 @@ it.runIf(process.platform === "win32")("starts the exact scheduled update launch
     expect(exit, stderr).toBe(0);
     expect(existsSync(join(root, "scheduled.txt"))).toBe(false);
     const deadline = Date.now() + 10_000;
-    while (!existsSync(join(root, "scheduled.txt")) && Date.now() < deadline)
+    let completed = "";
+    while (Date.now() < deadline) {
+      // WriteAllText creates the file before its contents are necessarily visible to another process.
+      try { completed = await readFile(join(root, "scheduled.txt"), "utf8"); } catch { completed = ""; }
+      if (completed === runId) break;
       await new Promise((resolveWait) => setTimeout(resolveWait, 100));
-    expect(await readFile(join(root, "scheduled.txt"), "utf8")).toBe(runId);
+    }
+    expect(completed).toBe(runId);
   } finally {
     const cleanup = spawn("powershell.exe", ["-NoProfile", "-Command",
       `Unregister-ScheduledTask -TaskName '${taskName}' -Confirm:$false -ErrorAction SilentlyContinue`], { stdio: "ignore" });

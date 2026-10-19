@@ -29,7 +29,8 @@ describe("first local owner setup", () => {
     expect(created.statusCode, created.body).toBe(200);
     expect(created.json().data.user.displayName).toBe("RogueKI");
     expect(created.json().data.setupRequired).toBe(false);
-    expect(String(created.headers["set-cookie"])).toContain("Max-Age=2592000");
+    const policySeconds = api.runtime.settings.area("security").sessionTimeoutMinutes * 60;
+    expect(String(created.headers["set-cookie"])).toContain(`Max-Age=${Math.min(policySeconds, 30 * 24 * 60 * 60)}`);
     const hashFile = join(api.dir, "config", "owner.hash");
     expect(existsSync(hashFile)).toBe(true);
     expect(readFileSync(hashFile, "utf8")).toMatch(/^scrypt\$/);
