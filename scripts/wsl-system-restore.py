@@ -169,7 +169,7 @@ def write_receipt(receipt: Path, payload: dict[str, object], exclusive: bool = F
         sync_directory(receipt.parent)
 
 
-def import_snapshot(source: Path, home: Path) -> dict[str, object]:
+def import_snapshot(source: Path, home: Path, allow_existing: bool = False) -> dict[str, object]:
     files, databases, revision = inventory(source)
     no_linked_ancestor(home)
     if not home.is_dir():
@@ -189,6 +189,8 @@ def import_snapshot(source: Path, home: Path) -> dict[str, object]:
     sidecars: dict[str, str] = {}
     for name, _, target in targets:
         if target.exists() or target.is_symlink():
+            if not allow_existing:
+                raise ValueError("target WSL state already exists; fresh-install proof required")
             ordinary(target)
             previous[name] = digest(target)
             with target.open("rb") as stream:
@@ -380,7 +382,7 @@ def main() -> None:
         files, databases, revision = inventory(source)
         print(json.dumps({"fileCount": len(files), "databaseCount": len(databases), "hermesRevision": revision}))
     elif request.get("action") == "import":
-        print(json.dumps(import_snapshot(source, home)))
+        print(json.dumps(import_snapshot(source, home, request.get("allowExisting") is True)))
     elif request.get("action") == "rollback":
         print(json.dumps(rollback_snapshot(source, home)))
     else:

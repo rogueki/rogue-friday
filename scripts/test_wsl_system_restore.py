@@ -70,7 +70,9 @@ class RestoreTest(unittest.TestCase):
         marker = self.home / ".hermes/friday-messenger-bridge-applied.sha256"
         target.write_text("fresh-install-key")
         marker.write_text("fresh-apply-marker")
-        restore.import_snapshot(self.source, self.home)
+        with self.assertRaisesRegex(ValueError, "fresh-install proof"):
+            restore.import_snapshot(self.source, self.home)
+        restore.import_snapshot(self.source, self.home, allow_existing=True)
         self.assertEqual(target.read_bytes(), b"synthetic-secret")
         self.assertFalse(marker.exists())
         restored = restore.rollback_snapshot(self.source, self.home)
@@ -83,7 +85,7 @@ class RestoreTest(unittest.TestCase):
         self.snapshot()
         preexisting = self.home / ".config/friday/calendar"
         preexisting.mkdir(parents=True)
-        restore.import_snapshot(self.source, self.home)
+        restore.import_snapshot(self.source, self.home, allow_existing=True)
         key = self.home / ".hermes/friday-messenger-bridge.key"
         key.write_text("newer")
         with self.assertRaisesRegex(ValueError, "changed"):
@@ -101,7 +103,7 @@ class RestoreTest(unittest.TestCase):
         self.snapshot()
         key = self.home / ".hermes/friday-messenger-bridge.key"
         key.write_text("fresh-key")
-        restore.import_snapshot(self.source, self.home)
+        restore.import_snapshot(self.source, self.home, allow_existing=True)
         receipt = self.home / restore.RECEIPT_NAME
         payload = json.loads(receipt.read_text())
         payload["state"] = "applying"
@@ -121,13 +123,13 @@ class RestoreTest(unittest.TestCase):
             connection.execute("CREATE TABLE fresh (value TEXT)")
         sidecar = Path(f"{database}-shm")
         sidecar.write_bytes(b"synthetic-shm")
-        restore.import_snapshot(self.source, self.home)
+        restore.import_snapshot(self.source, self.home, allow_existing=True)
         self.assertFalse(sidecar.exists())
         restore.rollback_snapshot(self.source, self.home)
         self.assertEqual(sidecar.read_bytes(), b"synthetic-shm")
         Path(f"{database}-wal").write_bytes(b"pending")
         with self.assertRaisesRegex(ValueError, "checkpointed"):
-            restore.import_snapshot(self.source, self.home)
+            restore.import_snapshot(self.source, self.home, allow_existing=True)
 
     def test_rejects_wrong_revision_and_tampering(self):
         self.snapshot()
