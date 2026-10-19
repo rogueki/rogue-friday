@@ -12,6 +12,7 @@ REQUIRED = {
     "installer/wsl/hermes_model_catalog.py",
     "installer/wsl/hermes_plugin_activation.py",
     "installer/wsl/hermes_mcp_http_apply.py",
+    "installer/scripts/recover-friday.ps1",
     "installer/wsl/configure_messenger_inbound_bridge.py",
     "installer/wsl/setup_messenger_inbound_bridge.sh",
 }
@@ -25,7 +26,7 @@ class WslUpdateDependencyClosureTest(unittest.TestCase):
         source_paths = {path.replace("\\", "/") for path in re.findall(r"'([^']+)'", source)
                         if path.startswith("installer/")}
         memory_paths = {path.replace("\\", "/") for path in re.findall(r"'([^']+)'", helper.split("$paths = @(", 1)[1].split(")", 1)[0])
-                        if path.startswith("installer\\wsl\\")}
+                        if path.startswith(("installer\\wsl\\", "installer\\scripts\\recover-friday.ps1"))}
         self.assertTrue(REQUIRED <= source_paths)
         self.assertTrue(REQUIRED <= memory_paths)
         self.assertTrue(source_paths <= memory_paths)
