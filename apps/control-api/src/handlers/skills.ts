@@ -77,12 +77,6 @@ export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
   async getCodingRun(ctx) {
     return { status: 200, body: single(await ctx.runtime.codingRuns.status(ctx.pathParams.runId as string)) };
   },
-  async stopCodingRun(ctx) {
-    const run = await ctx.runtime.codingRuns.stop(ctx.pathParams.runId as string);
-    ctx.audit.action = "skills.coding_run_stopped";
-    ctx.audit.after = { runId: run.runId };
-    return { status: 200, body: single(run) };
-  },
   async listSkills(ctx) {
     const result = await ctx.runtime.skills.list();
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, data: result.skills, catalogError: result.catalogError, hermesError: result.hermesError,

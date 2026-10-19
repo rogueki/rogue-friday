@@ -234,6 +234,22 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
           const receipt = await runtime.messengerSend.sendStaged(principal.userId, action.draft, idempotencyKey);
           return receipt.receiptId;
         }
+        // Agent lifecycle and assignment go through the agents port with the decision's idempotency key.
+        if (action.kind === "agent.assign") {
+          const assign = runtime.registry.getPort("agents").assignTask;
+          if (!assign) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Agentenzuweisung ist derzeit nicht verfuegbar." });
+          return (await assign({ id: action.id, body: action.body }, call)).data.id;
+        }
+        if (action.kind === "agent.pause" || action.kind === "agent.resume" || action.kind === "agent.stop") {
+          const agents = runtime.registry.getPort("agents");
+          const method = action.kind === "agent.pause" ? agents.pauseAgent
+            : action.kind === "agent.resume" ? agents.resumeAgent : agents.stopAgent;
+          if (!method) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Agentenaktion ist derzeit nicht verfuegbar." });
+          return (await method({ id: action.id }, call)).data.id;
+        }
+        if (action.kind === "codingrun.stop") {
+          return (await runtime.codingRuns.stop(action.id)).runId;
+        }
         throw conflict("Aktion ist nicht ausfuehrbar.");
       })) : await approveBase(ctx);
     const result = (base.body as { data: Approval }).data;

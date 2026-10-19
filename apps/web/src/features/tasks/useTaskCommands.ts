@@ -4,7 +4,7 @@ import type { Task, TaskStatus } from "@friday/sdk";
 import { useToast } from "@friday/ui";
 import { useMemo } from "react";
 import { useT } from "@/i18n";
-import { useAssignTask, useTaskAction } from "@/lib/api/domains/tasks";
+import { useTaskAction } from "@/lib/api/domains/tasks";
 import { useCapabilityState, type CapabilityState } from "@/lib/capabilities";
 import { isFinished } from "./model";
 import { useRunTaskWrite, useTaskWriteBusy } from "./taskWriteRunner";
@@ -55,14 +55,13 @@ export function useTaskActionStates(task: Task | undefined): Record<TaskActionId
 }
 
 /**
- * Mutations of the task actions. Status changes, result approvals, cancels and the update-based assign fallback are
- * staged writes: the server shows a preview first and executes only after the user confirms it (taskWriteRunner).
- * Pause/resume/retry stay one-shot adapter actions.
+ * Mutations of the task actions. Status changes, result approvals, cancels, the agents-port assignment and the
+ * update-based assign fallback are staged writes: the server shows a preview first and executes only after the user
+ * confirms it (taskWriteRunner). Pause/resume/retry stay one-shot adapter actions.
  */
 export function useTaskCommands() {
   const { t } = useT();
   const { toast } = useToast();
-  const assignTask = useAssignTask();
   const canAssignOperation = useCapabilityState("agents", "assignTask") === "available";
   const pause = useTaskAction("pause");
   const resume = useTaskAction("resume");
@@ -85,8 +84,8 @@ export function useTaskCommands() {
 
   const assign = (task: Task, agentId: string | null): void => {
     if (canAssignOperation) {
-      settle(assignTask.mutateAsync({ id: task.id, version: task.version, agentId }),
-        () => done(agentId === null ? "tasks.toast.unassigned" : "tasks.toast.assigned", task));
+      void runTaskWrite({ kind: "assign", id: task.id, version: task.version, body: { agentId },
+        successMessage: t(agentId === null ? "tasks.toast.unassigned" : "tasks.toast.assigned"), taskTitle: task.title });
       return;
     }
     void runTaskWrite({ kind: "update", id: task.id, version: task.version, body: { agentId },
@@ -113,6 +112,6 @@ export function useTaskCommands() {
     assign,
     approveResult,
     run,
-    pending: staging || assignTask.isPending || pause.isPending || resume.isPending || retry.isPending,
+    pending: staging || pause.isPending || resume.isPending || retry.isPending,
   };
 }

@@ -1,4 +1,4 @@
-import { test, expect, open } from "./support/fixtures";
+import { test, expect, open, patchSettings } from "./support/fixtures";
 import type { ApiClient } from "./support/api";
 import type { Page } from "@playwright/test";
 
@@ -124,20 +124,34 @@ test("the detail drawer has the eight tabs of PLAN §31.2 and each renders its c
 test("pause -> status paused (API confirms) -> resume -> working again", async ({ page, api }) => {
   const agent = await agentByName(api, RESEARCH);
   expect(agent.status).toBe("working");
+  // tier-2 approvals are disabled so the confirmed preview executes directly (the approval detour is covered by tasks.spec.ts)
+  const settings = (await api.get("/settings")).body.data;
+  await patchSettings(api, { approvals: { ...settings.approvals, confirmTier2: false } });
   const drawer = await openAgent(page, RESEARCH);
   const actions = drawer.getByRole("group", { name: "Aktionen" });
   await expect(actions.getByRole("button", { name: /^Fortsetzen/ }), "resume makes no sense while working").toBeDisabled();
 
   const pause = page.waitForRequest((request) => request.url().endsWith(`/agents/${agent.id}/pause`) && request.method() === "POST");
   await actions.getByRole("button", { name: "Pausieren" }).click();
-  expect((await pause).headers()["idempotency-key"]).toBeTruthy();
+  expect((await pause).headers()["x-action-preview-id"]).toBeUndefined();
+  // the staged write executes only after the server preview is confirmed
+  const pausePreview = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+  await expect(pausePreview).toBeVisible();
+  await expect(pausePreview).toContainText(RESEARCH);
+  await pausePreview.getByRole("button", { name: "Bestätigen" }).click();
   await expect(page.getByText("Agent pausiert").first()).toBeVisible();
   await expect.poll(() => statusOf(api, agent.id)).toBe("paused");
   await expect(agentCard(page, RESEARCH)).toHaveAttribute("data-status", "paused");
   await expect(drawer.locator(".ag-card__status, .tk-drawer__sub").getByText("Pausiert").first()).toBeVisible();
   await expect(actions.getByRole("button", { name: /^Pausieren/ })).toBeDisabled();
 
+  const resume = page.waitForRequest((request) => request.url().endsWith(`/agents/${agent.id}/resume`) && request.method() === "POST");
   await actions.getByRole("button", { name: "Fortsetzen" }).click();
+  expect((await resume).headers()["x-action-preview-id"]).toBeUndefined();
+  const resumePreview = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+  await expect(resumePreview).toBeVisible();
+  await expect(resumePreview).toContainText(RESEARCH);
+  await resumePreview.getByRole("button", { name: "Bestätigen" }).click();
   await expect(page.getByText("Agent fortgesetzt").first()).toBeVisible();
   await expect.poll(() => statusOf(api, agent.id)).toBe("working");
   await expect(agentCard(page, RESEARCH)).toHaveAttribute("data-status", "working");
@@ -145,6 +159,8 @@ test("pause -> status paused (API confirms) -> resume -> working again", async (
 
 test("stop asks for confirmation: backing out changes nothing, confirming stops the agent", async ({ page, api }) => {
   const agent = await agentByName(api, RESEARCH);
+  const settings = (await api.get("/settings")).body.data;
+  await patchSettings(api, { approvals: { ...settings.approvals, confirmTier2: false } });
   const drawer = await openAgent(page, RESEARCH);
   await drawer.getByRole("group", { name: "Aktionen" }).getByRole("button", { name: "Stoppen" }).click();
   const confirm = page.getByRole("alertdialog", { name: "Agent stoppen?" });
@@ -157,6 +173,11 @@ test("stop asks for confirmation: backing out changes nothing, confirming stops 
 
   await drawer.getByRole("group", { name: "Aktionen" }).getByRole("button", { name: "Stoppen" }).click();
   await page.getByRole("alertdialog", { name: "Agent stoppen?" }).getByRole("button", { name: "Agent stoppen" }).click();
+  // stopping is a staged write as well: the server preview binds the exact action
+  const stopPreview = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+  await expect(stopPreview).toBeVisible();
+  await expect(stopPreview).toContainText(RESEARCH);
+  await stopPreview.getByRole("button", { name: "Bestätigen" }).click();
   await expect(page.getByText("Agent gestoppt").first()).toBeVisible();
   await expect.poll(() => statusOf(api, agent.id)).not.toBe("working");
   const stopped = await statusOf(api, agent.id);
@@ -169,6 +190,8 @@ test("assign task: the chosen open task gets the agent via POST /tasks/{id}/assi
   const tasks = (await api.get("/tasks?limit=200")).body.items as Task[];
   const target = tasks.find((task) => task.status === "todo" && !task.agentId)!;
   expect(target, "seed has an unassigned todo task").toBeDefined();
+  const settings = (await api.get("/settings")).body.data;
+  await patchSettings(api, { approvals: { ...settings.approvals, confirmTier2: false } });
   const agent = await agentByName(api, IDLE_AGENT);
   const drawer = await openAgent(page, IDLE_AGENT);
 
@@ -184,6 +207,13 @@ test("assign task: the chosen open task gets the agent via POST /tasks/{id}/assi
   expect(request.postDataJSON()).toMatchObject({ agentId: agent.id });
   expect((await request.allHeaders())["if-match"], "carries the task version the user saw").toBe(String(target.version));
   await expect(dialog).toBeHidden();
+
+  // the assignment executes only after the server preview is confirmed
+  const assignPreview = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+  await expect(assignPreview).toBeVisible();
+  await expect(assignPreview).toContainText(target.title);
+  await assignPreview.getByRole("button", { name: "Bestätigen" }).click();
+  await expect(page.getByText("Agent zugewiesen").first()).toBeVisible();
 
   await expect.poll(async () => ((await api.get(`/tasks/${target.id}`)).body.data as Task).agentId).toBe(agent.id);
   // the agent's own task list reflects it

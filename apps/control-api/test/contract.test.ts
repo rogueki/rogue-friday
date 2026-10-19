@@ -159,14 +159,25 @@ describe("contract: all operations", () => {
     });
 
     it("assigns a task to an agent and answers a task that waits for input", async () => {
+      const settings = (await owner.get("/api/v1/settings")).json().data;
+      const relaxed = await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+        { headers: { "if-match": String(settings.version) } });
+      expect(relaxed.statusCode, relaxed.body).toBe(200);
       const agents = await idsOf("/api/v1/agents");
       const idle = agents.find((agent) => agent.status === "idle");
       const open = (await idsOf("/api/v1/tasks", { status: ["todo", "ready"] }))[0];
-      const assigned = await call("assignTask", { params: { id: open.id }, body: { agentId: idle.id }, headers: { "idempotency-key": "idem-contract-assign-01", "if-match": String(open.version) } });
+      const assignHeaders = { "if-match": String(open.version) };
+      const stagedAssign = await call("assignTask", { params: { id: open.id }, body: { agentId: idle.id }, headers: assignHeaders, expect: 403 });
+      expect(stagedAssign.json.error).toMatchObject({ code: "APPROVAL_REQUIRED", details: { stage: "preview" } });
+      const assigned = await call("assignTask", { params: { id: open.id }, body: { agentId: idle.id },
+        headers: { ...assignHeaders, "x-action-preview-id": stagedAssign.json.error.details.previewId } });
       expect(assigned.json.data.agentId).toBe(idle.id);
       const waiting = (await idsOf("/api/v1/tasks", { status: ["waiting"] })).find((task) => task.blockers.some((blocker: any) => blocker.kind === "input_needed"));
       const answered = await call("provideTaskInput", { params: { id: waiting.id }, body: { input: "Bitte das günstigere Angebot nehmen." }, headers: { "idempotency-key": "idem-contract-input-01" } });
       expect(answered.json.data.blockers.some((blocker: any) => blocker.kind === "input_needed")).toBe(false);
+      const latest = (await owner.get("/api/v1/settings")).json().data;
+      expect((await owner.patch("/api/v1/settings", { approvals: settings.approvals },
+        { headers: { "if-match": String(latest.version) } })).statusCode).toBe(200);
     });
   });
 
@@ -203,9 +214,24 @@ describe("contract: all operations", () => {
     it("lists, reads and controls agents", async () => {
       await call("listAgents", { query: { status: ["working"] } });
       await call("getAgent", { params: { id: ids.agentPause } });
-      await call("pauseAgent", { params: { id: ids.agentPause } });
-      await call("resumeAgent", { params: { id: ids.agentPause } });
-      await call("stopAgent", { params: { id: ids.agentStop } });
+      const settings = (await owner.get("/api/v1/settings")).json().data;
+      const relaxed = await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+        { headers: { "if-match": String(settings.version) } });
+      expect(relaxed.statusCode, relaxed.body).toBe(200);
+      // Lifecycle writes are staged drafts: each executes only after the unchanged preview is confirmed.
+      const stagedPause = await call("pauseAgent", { params: { id: ids.agentPause }, expect: 403 });
+      expect(stagedPause.json.error).toMatchObject({ code: "APPROVAL_REQUIRED", details: { stage: "preview" } });
+      await call("pauseAgent", { params: { id: ids.agentPause },
+        headers: { "x-action-preview-id": stagedPause.json.error.details.previewId } });
+      const stagedResume = await call("resumeAgent", { params: { id: ids.agentPause }, expect: 403 });
+      await call("resumeAgent", { params: { id: ids.agentPause },
+        headers: { "x-action-preview-id": stagedResume.json.error.details.previewId } });
+      const stagedStop = await call("stopAgent", { params: { id: ids.agentStop }, expect: 403 });
+      await call("stopAgent", { params: { id: ids.agentStop },
+        headers: { "x-action-preview-id": stagedStop.json.error.details.previewId } });
+      const latest = (await owner.get("/api/v1/settings")).json().data;
+      expect((await owner.patch("/api/v1/settings", { approvals: settings.approvals },
+        { headers: { "if-match": String(latest.version) } })).statusCode).toBe(200);
     });
   });
 

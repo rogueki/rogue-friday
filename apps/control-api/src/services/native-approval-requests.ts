@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createId } from "@friday/observability";
-import type { Approval, CalendarEvent, SchemaValidator, TaskActionRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
+import type { Approval, CalendarEvent, SchemaValidator, TaskActionRequest, TaskAssignRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
 import type { Db } from "../db/database";
 import type { LocalEventInput } from "./local-calendar";
 import type { MailSendRequest } from "./mail-send";
@@ -22,7 +22,15 @@ export type NativeExecutableAction =
   | { kind: "mail.send"; accountId: string; body: MailSendRequest }
   | { kind: "mail.change"; accountId: string; mailbox: string; uid: string; uidValidity: string; change: "move" | "flag"; destination?: string }
   /** The journal in MessengerSendService keeps provider delivery at-most-once per staged action. */
-  | { kind: "messenger.send"; draft: MessengerSendDraft };
+  | { kind: "messenger.send"; draft: MessengerSendDraft }
+  /** Agent lifecycle mutations go to the agents port; its idempotency key keeps the adapter call at-most-once. */
+  | { kind: "agent.pause"; id: string }
+  | { kind: "agent.resume"; id: string }
+  | { kind: "agent.stop"; id: string }
+  /** Assignment is a task write on the agents port (POST /tasks/{id}/assign). */
+  | { kind: "agent.assign"; id: string; body: TaskAssignRequest }
+  /** The native staged draft is the only at-most-once guard of a coding-run stop (same as mail.change). */
+  | { kind: "codingrun.stop"; id: string };
 
 /** Receipt sentence per action kind; the create wording is asserted by existing API fixtures. */
 export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], string>> = {
@@ -35,6 +43,11 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "mail.send": "versendet",
   "mail.change": "aktualisiert",
   "messenger.send": "versendet",
+  "agent.pause": "pausiert",
+  "agent.resume": "fortgesetzt",
+  "agent.stop": "gestoppt",
+  "agent.assign": "zugewiesen",
+  "codingrun.stop": "abgebrochen",
 };
 
 /** Receipt subject per action family; combined with the verb to the exact receipt sentence. */
@@ -48,6 +61,11 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "mail.send": "Mail",
   "mail.change": "Mail",
   "messenger.send": "Nachricht",
+  "agent.pause": "Agent",
+  "agent.resume": "Agent",
+  "agent.stop": "Agent",
+  "agent.assign": "Aufgabe",
+  "codingrun.stop": "Coding-Lauf",
 };
 
 /** The action executor supplies a reviewed preview and a stable key before any external side effect. */

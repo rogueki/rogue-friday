@@ -106,14 +106,25 @@ describe("CodingRunsService", () => {
       expect((await owner.post("/api/v1/coding-runs", body)).statusCode).toBe(422);
       const admitted = { runId, status: "started", requestedCli: "codex" as const, requestedWorkdir: "/mnt/c/Users/Test/repo", preflightVersion: "codex-cli 0.163.0", executionVerified: false as const, output: null, error: null, updatedAt: null };
       const start = vi.spyOn(api.runtime.codingRuns, "start").mockResolvedValue(admitted);
-      vi.spyOn(api.runtime.codingRuns, "status").mockResolvedValue({ ...admitted, status: "completed", output: "Done" });
-      vi.spyOn(api.runtime.codingRuns, "stop").mockResolvedValue({ ...admitted, status: "stopping" });
+      const status = vi.spyOn(api.runtime.codingRuns, "status").mockResolvedValue({ ...admitted, status: "completed", output: "Done" });
+      const stop = vi.spyOn(api.runtime.codingRuns, "stop").mockResolvedValue({ ...admitted, status: "stopping" });
       const headers = { "idempotency-key": "idem_test1234" };
       expect((await owner.request("POST", "/api/v1/coding-runs", { body, headers })).statusCode).toBe(202);
       expect((await owner.request("POST", "/api/v1/coding-runs", { body, headers })).statusCode).toBe(202);
       expect(start).toHaveBeenCalledTimes(1);
       expect((await owner.get(`/api/v1/coding-runs/${runId}`)).json().data.output).toBe("Done");
-      expect((await owner.post(`/api/v1/coding-runs/${runId}/stop`)).json().data.status).toBe("stopping");
+      // Stopping a run is a staged tier-2 write: preview first, then a single confirmed dispatch.
+      const settings = (await owner.get("/api/v1/settings")).json().data;
+      expect((await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+        { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
+      status.mockResolvedValue({ ...admitted, status: "running" });
+      const stagedStop = await owner.post(`/api/v1/coding-runs/${runId}/stop`);
+      expect(stagedStop.statusCode, stagedStop.body).toBe(403);
+      expect(stagedStop.json().error.details.stage).toBe("preview");
+      const stopped = await owner.post(`/api/v1/coding-runs/${runId}/stop`,
+        undefined, { headers: { "x-action-preview-id": stagedStop.json().error.details.previewId } });
+      expect(stopped.statusCode, stopped.body).toBe(200);
+      expect(stop).toHaveBeenCalledTimes(1);
     } finally { await api.close(); }
   });
   it("binds voice runs to the owner-approved alias and revision", async () => {

@@ -10,12 +10,15 @@ import { parseTaskActionIntent, type TaskActionIntent } from "../services/task-a
 import { parseCalendarActionIntent, type CalendarActionIntent } from "../services/calendar-action-intent";
 import { derivedSubject, parseMailActionIntent, type MailActionIntent } from "../services/mail-action-intent";
 import { parseMessengerActionIntent, type MessengerActionIntent } from "../services/messenger-action-intent";
+import { parseAgentActionIntent, type AgentActionIntent } from "../services/agent-action-intent";
 import { checkedLocalEvent, LocalCalendarService } from "../services/local-calendar";
 import { checkedMailSend, type MailSendRequest } from "../services/mail-send";
 import { checkedMessengerDraft, type MessengerSendDraft } from "../services/messenger-send";
 import { captureMailSend } from "./mail-memory";
 import { mailJournalKey } from "./mail-accounts";
 import { captureMessengerSend, messengerPreviewText } from "./messenger-send";
+import { AGENT_LIFECYCLE_VERB, agentLifecyclePreviewText, assertAgentTransition, CODING_RUN_TERMINAL } from "./agent-actions";
+import type { Agent } from "@friday/sdk";
 import type { CalendarEvent } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import { conflict, notFound, validationFailed, ApiError } from "../util/errors";
@@ -522,6 +525,128 @@ async function executeMessengerAction(ctx: Parameters<Handler>[0], request: Comm
   return { status: 200, body: response };
 }
 
+const squashAgentName = (value: string): string =>
+  value.toLowerCase()
+    .replaceAll("ä", "ae").replaceAll("ö", "oe").replaceAll("ü", "ue").replaceAll("ß", "ss")
+    .replace(/\s+/g, " ").trim();
+
+/**
+ * A spoken agent reference resolves ONLY against the live registry: exact name, or the name base with the
+ * -Agent suffix the seed personas carry ("Recherche-Agenten" matches "Recherche-Agent"). Zero matches fail 404,
+ * several fail 409 — an action on a guessed agent is never staged.
+ */
+async function resolveAgentRef(ctx: Parameters<Handler>[0], ref: string): Promise<Agent> {
+  const items = (await ctx.runtime.registry.getPort("agents").listAgents({ limit: 200 }, ctx.call)).items;
+  const wanted = squashAgentName(ref);
+  const base = wanted.replace(/[-\s]?agent(?:en)?$/, "").trim();
+  const matches = items.filter((agent) => {
+    const name = squashAgentName(agent.name);
+    return name === wanted || name === `${base}-agent` || name === `${base} agent` ||
+      name.replace(/[-\s]?agent$/, "").trim() === base;
+  });
+  if (matches.length === 0) throw notFound("Agent", ref);
+  if (matches.length > 1) throw conflict(`Mehrere Agenten passen zu „${ref}“. Bitte genauer nennen.`, { ref });
+  return matches[0]!;
+}
+
+/**
+ * Spoken agent lifecycle, assignment and coding-run-stop intents run through the same native staged pipeline as the
+ * agent routes: exact-body confirmation binds the action, the port call carries the pipeline idempotency key.
+ */
+async function executeAgentAction(ctx: Parameters<Handler>[0], request: CommandRequest,
+  intent: AgentActionIntent): Promise<Awaited<ReturnType<Handler>>> {
+  const ownerId = ctx.principal?.userId;
+  if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+  const agents = ctx.runtime.registry.getPort("agents");
+  let action: NativeExecutableAction;
+  let actionText: string;
+  let previewText: string;
+  let doneMessage: string;
+  let targetRoute: string;
+  if (intent.kind === "codingrun.stop") {
+    const selected = request.context?.selectedIds ?? [];
+    const runId = selected.length === 1 ? selected[0]! : null;
+    if (!runId) throw validationFailed("Welcher Coding-Lauf ist gemeint? Bitte genau einen Lauf auswaehlen.",
+      [{ path: "context.selectedIds", message: "genau ein Lauf erforderlich" }]);
+    if (!request.confirm) {
+      const current = await ctx.runtime.codingRuns.status(runId);
+      if (CODING_RUN_TERMINAL.includes(current.status)) {
+        throw conflict(`Coding-Lauf ${runId} ist bereits beendet (${current.status}).`, { status: current.status });
+      }
+    }
+    action = { kind: "codingrun.stop", id: runId };
+    actionText = `Coding-Lauf abbrechen: ${runId}`;
+    previewText = `Coding-Lauf ${runId} abbrechen? Laufende Arbeit wird beendet.`;
+    doneMessage = "Coding-Lauf wurde abgebrochen.";
+    targetRoute = "/skills";
+  } else if (intent.kind === "agent.assign") {
+    if (!agents.assignTask) throw new ApiError({ code: "CAPABILITY_MISSING",
+      message: "Aufgaben koennen derzeit keinem Agenten zugewiesen werden." });
+    const task = await resolveTaskRef(ctx, request, intent.taskRef);
+    const agent = await resolveAgentRef(ctx, intent.agentRef);
+    action = { kind: "agent.assign", id: task.id, body: { agentId: agent.id } };
+    actionText = `Aufgabe zuweisen: ${task.title} an ${agent.name}`;
+    previewText = `Aufgabe „${task.title}“ an ${agent.name} zuweisen?`;
+    doneMessage = "Aufgabe wurde zugewiesen.";
+    targetRoute = `/tasks?task=${task.id}`;
+  } else {
+    const capability = intent.kind === "agent.pause" ? "pause" as const
+      : intent.kind === "agent.resume" ? "resume" as const : "stop" as const;
+    const method = capability === "pause" ? agents.pauseAgent : capability === "resume" ? agents.resumeAgent : agents.stopAgent;
+    if (!method) throw new ApiError({ code: "CAPABILITY_MISSING",
+      message: `Agenten koennen derzeit nicht ${capability === "pause" ? "pausiert" : capability === "resume" ? "fortgesetzt" : "gestoppt"} werden.` });
+    const agent = await resolveAgentRef(ctx, intent.ref);
+    if (!request.confirm) assertAgentTransition(agent, capability);
+    action = { kind: intent.kind, id: agent.id };
+    actionText = `Agent ${AGENT_LIFECYCLE_VERB[capability]}: ${agent.name}`;
+    previewText = agentLifecyclePreviewText(capability, agent.name);
+    doneMessage = capability === "pause" ? "Agent wurde pausiert."
+      : capability === "resume" ? "Agent wurde fortgesetzt." : "Agent wurde gestoppt.";
+    targetRoute = "/agents";
+  }
+  if (!request.confirm && request.previewId) {
+    ctx.runtime.nativeApprovals.cancelDraft(ownerId, request.previewId, action);
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"),
+      correlationId: ctx.correlationId, riskTier: 2, status: "rejected", requiresConfirmation: false,
+      previewText: null, approvalId: null, result: { message: "Entwurf verworfen." } } satisfies CommandResponse };
+  }
+  const requestKey = request.confirm ? request.previewId : ctx.correlationId;
+  if (!requestKey) throw validationFailed("Eine bestaetigte Vorschau fehlt.", [{ path: "previewId", message: "erforderlich" }]);
+  const policy = request.confirm
+    ? ctx.runtime.nativeApprovals.confirm(ownerId, requestKey, action)
+    : ctx.runtime.nativeApprovals.propose({ ownerId, requestKey, correlationId: ctx.correlationId, riskTier: 2,
+        type: "system_change", action: actionText, rationale: "Agentenaktion aus bestaetigtem Befehl",
+        preview: { kind: "text", title: actionText, body: previewText }, impacts: [], execution: action });
+  const base = { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"), correlationId: ctx.correlationId,
+    riskTier: 2 as const };
+  let response: CommandResponse;
+  if (!request.confirm) {
+    response = { ...base, status: "requires_confirmation", requiresConfirmation: true,
+      previewText, previewId: requestKey, approvalId: null, result: null };
+  } else if (policy.approval) {
+    response = { ...base, status: "requires_approval", requiresConfirmation: false, previewText: null,
+      approvalId: policy.approval.id,
+      result: { message: "Aktion wartet auf Freigabe.", targetRoute: `/approvals?approval=${policy.approval.id}` } };
+  } else {
+    const targetId = await ctx.runtime.nativeApprovals.executeWithoutApproval(ownerId, requestKey,
+      async (actionToRun, idempotencyKey) => {
+        const call = { ...ctx.mutation, idempotencyKey };
+        if (actionToRun.kind === "agent.pause") return (await agents.pauseAgent!({ id: actionToRun.id }, call)).data.id;
+        if (actionToRun.kind === "agent.resume") return (await agents.resumeAgent!({ id: actionToRun.id }, call)).data.id;
+        if (actionToRun.kind === "agent.stop") return (await agents.stopAgent!({ id: actionToRun.id }, call)).data.id;
+        if (actionToRun.kind === "agent.assign") {
+          return (await agents.assignTask!({ id: actionToRun.id, body: actionToRun.body }, call)).data.id;
+        }
+        if (actionToRun.kind === "codingrun.stop") return (await ctx.runtime.codingRuns.stop(actionToRun.id)).runId;
+        throw conflict("Die Bestaetigung passt nicht zum gespeicherten Entwurf.");
+      });
+    response = { ...base, status: "executed", requiresConfirmation: false, previewText: null,
+      approvalId: null, result: { message: doneMessage, targetRoute,
+        ...(intent.kind === "agent.assign" ? { taskId: targetId } : {}) } };
+  }
+  return { status: 200, body: response };
+}
+
 function captureCommand(ctx: Parameters<Handler>[0], eventId: string, eventType: "user_utterance" | "assistant_response",
   text: string, outcome: IntegrationEvent["outcome"], privateInput: boolean): void {
   if (!ctx.principal) return;
@@ -586,14 +711,17 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
       const timeZone = ctx.runtime.settings.area("profile").timeZone;
       const calendarAction = taskCreate || taskAction ? null
         : parseCalendarActionIntent(request.text, ctx.runtime.nowMs(), timeZone);
-      const messengerAction = taskCreate || taskAction || calendarAction ? null
+      const agentAction = taskCreate || taskAction || calendarAction ? null
+        : parseAgentActionIntent(request.text);
+      const messengerAction = taskCreate || taskAction || calendarAction || agentAction ? null
         : parseMessengerActionIntent(request.text);
-      const mailAction = taskCreate || taskAction || calendarAction || messengerAction ? null
+      const mailAction = taskCreate || taskAction || calendarAction || agentAction || messengerAction ? null
         : parseMailActionIntent(request.text);
       const intent = request.confirm ? null : matchBuiltinIntent(request.text);
       const result = taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
         : taskAction ? await executeTaskAction(ctx, request, taskAction)
         : calendarAction ? await executeCalendarAction(ctx, request, calendarAction)
+        : agentAction ? await executeAgentAction(ctx, request, agentAction)
         : messengerAction ? await executeMessengerAction(ctx, request, messengerAction)
         : mailAction ? await executeMailAction(ctx, request, mailAction)
         : intent ? await executeBuiltinIntent(ctx, intent, () => executeBase(ctx)) : await executeBase(ctx);
@@ -607,6 +735,7 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         source: request.source,
         ...(intent ? { intent } : taskCreate ? { intent: "task_create" } : taskAction ? { intent: taskAction.kind.replace(".", "_") }
           : calendarAction ? { intent: calendarAction.kind.replace(".", "_") }
+          : agentAction ? { intent: agentAction.kind.replace(".", "_") }
           : messengerAction ? { intent: messengerAction.kind.replace(".", "_") }
           : mailAction ? { intent: mailAction.kind.replace(".", "_") } : {}),
         redacted: sensitive,

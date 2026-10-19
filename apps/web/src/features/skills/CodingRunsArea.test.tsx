@@ -2,9 +2,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CONTRACT_VERSION, createFridayClient } from "@friday/sdk";
+import { ToastProvider } from "@friday/ui";
 import { afterEach, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
 import { CodingRunsArea } from "./CodingRunsArea";
+
+const nav = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: nav.push }),
+  usePathname: () => "/skills",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 afterEach(() => { setApiClient(null); vi.unstubAllGlobals(); window.localStorage.clear(); });
 
@@ -21,7 +29,7 @@ it("sends an idempotency key in the shared SDK format for a coding run", async (
     }, freshness: { state: "fresh", asOf: new Date().toISOString() } }, { status: 202 });
   } }));
   const user = userEvent.setup();
-  render(<QueryClientProvider client={new QueryClient()}><CodingRunsArea skills={[]} /></QueryClientProvider>);
+  render(<QueryClientProvider client={new QueryClient()}><ToastProvider><CodingRunsArea skills={[]} /></ToastProvider></QueryClientProvider>);
   await user.type(screen.getByLabelText("Git-Repository unter deinem Benutzerprofil oder Friday-Installationspfad"), "C:\\Users\\Test\\repo");
   await user.type(screen.getByLabelText("Auftrag"), "Bitte diese Datei anpassen");
   await user.click(screen.getByRole("button", { name: "Coding-Auftrag starten" }));

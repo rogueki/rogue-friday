@@ -1,18 +1,18 @@
 "use client";
 
-import { type TaskActionRequest, type TaskResponse, type TaskUpdateRequest } from "@friday/sdk";
+import { type TaskActionRequest, type TaskAssignRequest, type TaskResponse, type TaskUpdateRequest } from "@friday/sdk";
 import { useCallback } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { StagedWriteConfirmHost, useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 
-/** One staged task write (status change, field update or cancel) as the Control API gates it since the P9 slice. */
+/** One staged task write (status change, field update, agent assignment or cancel) as the Control API gates it since the P9 slice. */
 export interface TaskWrite {
-  kind: "update" | "cancel";
+  kind: "update" | "cancel" | "assign";
   id: string;
   version?: number;
-  body?: TaskUpdateRequest | TaskActionRequest;
+  body?: TaskUpdateRequest | TaskActionRequest | TaskAssignRequest;
   /** Already-translated toast text for a successful execution. */
   successMessage: string;
   taskTitle: string;
@@ -33,6 +33,13 @@ function sendTaskWrite(write: TaskWrite, previewId?: string, idempotencyKey?: st
       ...(confirmHeaders ? { headers: confirmHeaders } : {}),
     }));
   }
+  if (write.kind === "assign") {
+    return call(getApiClient().POST("/api/v1/tasks/{id}/assign", {
+      params: { path: { id: write.id }, header },
+      body: write.body as TaskAssignRequest,
+      ...(confirmHeaders ? { headers: confirmHeaders } : {}),
+    }));
+  }
   return call(getApiClient().PATCH("/api/v1/tasks/{id}", {
     params: { path: { id: write.id }, header },
     body: write.body as TaskUpdateRequest,
@@ -49,7 +56,10 @@ export function useRunTaskWrite(): (write: TaskWrite, idempotencyKey?: string) =
         send: (previewId) => sendTaskWrite(write, previewId, idempotencyKey),
         successMessage: write.successMessage,
         subject: write.taskTitle,
-        invalidateKeys: [queryKeys.tasks.all, queryKeys.overview],
+        // An assignment also changes the agents view, so its lists refresh with the task lists.
+        invalidateKeys: write.kind === "assign"
+          ? [queryKeys.tasks.all, queryKeys.overview, queryKeys.agents.all]
+          : [queryKeys.tasks.all, queryKeys.overview],
       });
     },
     [runStagedWrite],

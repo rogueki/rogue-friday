@@ -4,7 +4,6 @@ import type {
   AuditEventListResponse,
   Priority,
   Task,
-  TaskAssignRequest,
   TaskInputRequest,
   TaskListResponse,
   TaskResponse,
@@ -102,25 +101,6 @@ export function useTaskAction(action: TaskAction) {
         }),
       ),
     invalidate: invalidateTasks,
-    conflictKeys: [queryKeys.tasks.all],
-  });
-}
-
-/**
- * Assigns a task to an agent or releases it (POST /tasks/{id}/assign, capability `agents.assignTask`). Adapters without
- * this operation still accept `agentId` through the task update (see `useTaskCommands`).
- */
-export function useAssignTask() {
-  return useApiMutation<TaskResponse, { id: string; version?: number } & TaskAssignRequest & IntentVars>({
-    label: "Agent zuweisen",
-    mutationFn: ({ id, version, agentId, reason, idempotencyKey }) =>
-      call(
-        getApiClient().POST("/api/v1/tasks/{id}/assign", {
-          params: { path: { id }, header: { "Idempotency-Key": idempotencyKey, ...(version === undefined ? {} : { "If-Match": String(version) }) } },
-          body: { agentId, ...(reason ? { reason } : {}) },
-        }),
-      ),
-    invalidate: [...invalidateTasks, queryKeys.agents.all],
     conflictKeys: [queryKeys.tasks.all],
   });
 }

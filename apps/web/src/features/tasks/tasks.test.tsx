@@ -400,29 +400,43 @@ describe("assigning a task (agents.assignTask)", () => {
     return { api, dialog, select };
   };
 
-  it("uses POST /tasks/{id}/assign with If-Match and an idempotency key instead of a PATCH", async () => {
+  it("assigns via the staged POST /tasks/{id}/assign with If-Match instead of a PATCH", async () => {
     const user = userEvent.setup();
-    const { api, select } = await open(withAssign, { "POST /tasks/:id/assign": () => dataOf({ ...task, agentId: agent.id, agentName: agent.name, version: 2 }) });
+    const { api, select } = await open(withAssign, {
+      "POST /tasks/:id/assign": stagedRoute("Aufgabe „Rechnung prüfen“ an Coding-Agent zuweisen?", "corr_0000000000000000000000as2",
+        () => dataOf({ ...task, agentId: agent.id, agentName: agent.name, version: 2 })),
+    });
     await user.selectOptions(select, agent.id);
     await waitFor(() => expect(api.callsTo("POST /tasks/:id/assign")).toHaveLength(1));
-    const call = api.callsTo("POST /tasks/:id/assign")[0]!;
-    expect(call.body).toEqual({ agentId: agent.id });
-    expect(call.headers.get("if-match")).toBe("1");
-    expect(call.headers.get("idempotency-key")).toBeTruthy();
+    const staged = api.callsTo("POST /tasks/:id/assign")[0]!;
+    expect(staged.body).toEqual({ agentId: agent.id });
+    expect(staged.headers.get("if-match")).toBe("1");
+    expect(staged.headers.get("x-action-preview-id")).toBeNull();
     expect(api.callsTo("PATCH /tasks/:id")).toHaveLength(0);
+    const confirm = await screen.findByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(api.callsTo("POST /tasks/:id/assign")).toHaveLength(2));
+    expect(api.callsTo("POST /tasks/:id/assign")[1]?.headers.get("x-action-preview-id")).toBe("corr_0000000000000000000000as2");
     expect(await screen.findByText("Agent zugewiesen")).toBeInTheDocument();
   });
 
   it("releases the task with agentId null", async () => {
     const assigned = { ...task, agentId: agent.id, agentName: agent.name };
     nav.params = new URLSearchParams(`task=${task.id}`);
-    const api = routerFetch({ "GET /tasks": listOf([assigned]), "GET /agents": listOf([agent]), "GET /tasks/:id": dataOf(assigned), "POST /tasks/:id/assign": () => dataOf({ ...task, version: 2 }) });
+    const api = routerFetch({
+      "GET /tasks": listOf([assigned]), "GET /agents": listOf([agent]), "GET /tasks/:id": dataOf(assigned),
+      "POST /tasks/:id/assign": stagedRoute("Aufgabe „Rechnung prüfen“ freigeben (kein Agent)?", "corr_0000000000000000000000as3",
+        () => dataOf({ ...task, version: 2 })),
+    });
     const user = userEvent.setup();
-    renderWithProviders(<TasksPage />, { capabilities: withAssign, fetchImpl: api.fetch });
+    renderWithProviders(<><TasksPage /><TaskWriteConfirmHost /></>, { capabilities: withAssign, fetchImpl: api.fetch });
     const dialog = await screen.findByRole("dialog");
     await user.selectOptions(await within(dialog).findByRole("combobox", { name: "Agent zuweisen" }), "");
     await waitFor(() => expect(api.callsTo("POST /tasks/:id/assign")).toHaveLength(1));
     expect(api.callsTo("POST /tasks/:id/assign")[0]?.body).toEqual({ agentId: null });
+    const confirm = await screen.findByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(api.callsTo("POST /tasks/:id/assign")).toHaveLength(2));
     expect(await screen.findByText("Zuweisung aufgehoben")).toBeInTheDocument();
   });
 
