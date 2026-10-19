@@ -57,6 +57,8 @@ describe("messenger preview and durable send", () => {
     await expect(service.preview("owner", draft)).rejects.toThrow("Konfigurationsprüfung ist nicht erreichbar");
     invoke.mockResolvedValue({ state: "rejected", reason: "platform_not_configured" });
     await expect(service.preview("owner", draft)).rejects.toThrow("nicht konfiguriert");
+    invoke.mockResolvedValue({ state: "rejected", reason: "gateway_not_connected" });
+    await expect(service.preview("owner", draft)).rejects.toThrow("nicht verbunden");
     expect(invoke.mock.calls.every((call) => call[5] === 15000)).toBe(true);
     db.close();
   });
@@ -73,12 +75,14 @@ describe("messenger preview and durable send", () => {
     const { db, service } = fixture();
     for (const [platform, recipient] of Object.entries({ teams: "a:conversation_123", google_chat: "spaces/AAAA-123",
       simplex: "group:123", weixin: "wxid_abc123", bluebubbles: "+15551234567",
-      dingtalk: "webhook", whatsapp_cloud: "+15551234567", qqbot: "group:open_id_123" })) {
+      dingtalk: "webhook", whatsapp_cloud: "+15551234567", qqbot: "group:open_id_123",
+      yuanbao: "direct:account_123" })) {
       expect(service.register("owner", { accountId: "default", platform, recipient })).toMatchObject({ platform, recipient });
     }
     for (const [platform, recipient] of Object.entries({ teams: "a/conversation", google_chat: "spaces/../bad",
       simplex: "@displayname", weixin: "friend", bluebubbles: "group name",
-      dingtalk: "user123", whatsapp_cloud: "group:123", qqbot: "123456" })) {
+      dingtalk: "user123", whatsapp_cloud: "group:123", qqbot: "123456",
+      yuanbao: "@friend" })) {
       expect(() => service.register("owner", { accountId: "default", platform, recipient })).toThrow();
     }
     await expect(service.preview("owner", { ...draft, platform: "qqbot", recipient: "group:open_id_123",

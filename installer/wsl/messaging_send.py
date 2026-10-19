@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Fixed-purpose Friday transport to the pinned Hermes send CLI."""
 import json
+import base64
+import hashlib
+import hmac
 from pathlib import Path
 import re
+import secrets
+import socket
 import subprocess
 import sys
+import time
 
 ROOT = Path.home() / ".hermes" / "hermes-agent"
 CLI = Path.home() / ".local" / "bin" / "hermes"
@@ -12,7 +18,7 @@ PINNED = "d923a5eb"
 PLATFORMS = frozenset({"telegram", "discord", "whatsapp", "slack", "signal",
                        "matrix", "mattermost", "sms", "irc", "line", "feishu",
                        "wecom", "photon", "buzz", "ntfy", "teams", "google_chat",
-                       "simplex", "weixin", "bluebubbles", "dingtalk", "whatsapp_cloud", "qqbot"})
+                       "simplex", "weixin", "bluebubbles", "dingtalk", "whatsapp_cloud", "qqbot", "yuanbao"})
 DIRECT = frozenset({"teams", "google_chat", "simplex", "bluebubbles", "dingtalk", "whatsapp_cloud", "qqbot"})
 RECIPIENT = re.compile(r"^[A-Za-z0-9_@.!+#:;/=-]{1,128}$")
 EXACT_TARGETS = {
@@ -38,6 +44,7 @@ EXACT_TARGETS = {
     "dingtalk": r"webhook",
     "whatsapp_cloud": r"\+[1-9][0-9]{6,14}",
     "qqbot": r"(?:c2c|group):[A-Za-z0-9_-]{1,128}|guild:[0-9]{10,20}",
+    "yuanbao": r"(?:group|direct):[A-Za-z0-9_-]{1,128}",
 }
 
 
@@ -110,6 +117,48 @@ async def send_qqbot(config, recipient, message):
                                           "Content-Type": "application/json"}, "POST", path, body, timeout=15.0)
     external = response.get("id")
     return {"state": "sent", "externalId": external} if isinstance(external, str) and external else {"state": "uncertain"}
+
+
+def send_yuanbao_ipc(recipient, message, revision):
+    """One-shot authenticated handoff to the already running gateway adapter."""
+    home = Path.home() / ".hermes"
+    path = home / "friday-yuanbao-send.sock"
+    key_path = home / "friday-messenger-bridge.key"
+    if path.is_symlink() or key_path.is_symlink() or not key_path.is_file() or key_path.stat().st_mode & 0o077:
+        return {"state": "uncertain"}
+    try:
+        key = base64.b64decode(key_path.read_text(encoding="ascii").strip(), validate=True)
+        if len(key) != 32:
+            return {"state": "uncertain"}
+        request = {"recipient": recipient, "text": message, "revision": revision,
+                   "nonce": secrets.token_hex(16), "timestamp": int(time.time())}
+        canonical = json.dumps(request, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        request["mac"] = hmac.new(key, canonical, hashlib.sha256).hexdigest()
+        with socket.socket(socket.AF_UNIX) as client:
+            client.settimeout(25)
+            client.connect(str(path))
+            client.sendall(json.dumps(request, separators=(",", ":"), ensure_ascii=False).encode("utf-8") + b"\n")
+            response = client.makefile("rb").readline(513)
+        payload = json.loads(response)
+        external = payload.get("externalId") if isinstance(payload, dict) else None
+        if isinstance(payload, dict) and payload.get("state") == "sent" and isinstance(external, str) and 0 < len(external) <= 128:
+            return {"state": "sent", "externalId": external}
+    except (OSError, ValueError, TypeError):
+        pass
+    return {"state": "uncertain"}
+
+
+def yuanbao_gateway_ready():
+    path = Path.home() / ".hermes/friday-yuanbao-send.sock"
+    if path.is_symlink() or not path.is_socket() or path.stat().st_mode & 0o077:
+        return False
+    try:
+        with socket.socket(socket.AF_UNIX) as client:
+            client.settimeout(0.5)
+            client.connect(str(path))
+        return True
+    except OSError:
+        return False
 
 
 def direct_send(request):
@@ -185,12 +234,16 @@ def send(request, runner=subprocess.run):
         return {"state": "rejected", "reason": "config_probe_unavailable"}
     if not revision:
         return {"state": "rejected", "reason": "platform_not_configured"}
+    if platform == "yuanbao" and not yuanbao_gateway_ready():
+        return {"state": "rejected", "reason": "gateway_not_connected"}
     if request["action"] == "check":
         # Configuration is a prerequisite, not a live auth or delivery probe.
         return {"state": "configured", "revision": revision}
     expected_revision = request["expectedConfigRevision"]
     if not isinstance(expected_revision, str) or not re.fullmatch(r"[a-f0-9]{64}", expected_revision) or expected_revision != revision:
         return {"state": "rejected", "reason": "configuration_changed"}
+    if platform == "yuanbao":
+        return send_yuanbao_ipc(recipient, message, revision)
     # No message or secret in argv, stderr, or Friday logs. Once invoked, any
     # timeout/parse failure may follow delivery and must never be retried blindly.
     try:

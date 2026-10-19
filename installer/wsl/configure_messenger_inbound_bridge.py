@@ -34,7 +34,8 @@ def configure(checkout: Path, port: int, key: str, home: Path, source: Path) -> 
     installed = home / ".hermes/plugins/friday-memory/__init__.py"
     if '"post_gateway_admission"' not in hooks or "post_gateway_admission" not in consumer or \
             not plugin.is_file() or not installed.is_file() or \
-            "_messenger_admitted" not in installed.read_text(encoding="utf-8"):
+            "_messenger_admitted" not in installed.read_text(encoding="utf-8") or \
+            "_yuanbao_server" not in installed.read_text(encoding="utf-8"):
         raise ValueError("Friday messenger admission hook is not installed")
     hermes = home / ".hermes"
     if hermes.is_symlink() or installed.is_symlink():
@@ -52,7 +53,8 @@ def ensure_applied(hermes: Path, changed: bool, runner=subprocess.run) -> None:
     if stamp.is_symlink():
         raise ValueError("unsafe messenger apply marker")
     digest = hashlib.sha256((hermes / "friday-messenger-bridge.key").read_bytes() +
-                            (hermes / "friday-messenger-bridge.json").read_bytes()).hexdigest()
+                            (hermes / "friday-messenger-bridge.json").read_bytes() +
+                            (hermes / "plugins/friday-memory/__init__.py").read_bytes()).hexdigest()
     if changed or not stamp.is_file() or stamp.read_text(encoding="ascii").strip() != digest:
         result = runner(["systemctl", "--user", "restart", "hermes-gateway.service"],
                         capture_output=True, timeout=20)

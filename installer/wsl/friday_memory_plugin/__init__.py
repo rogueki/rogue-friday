@@ -4,16 +4,22 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from contextlib import closing, contextmanager
+from dataclasses import asdict
 import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
 from pathlib import Path
 import re
 import sqlite3
 import secrets
+import socket
+import stat
+import struct
 import threading
+import time
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -38,6 +44,9 @@ _messenger_config_stamps: dict[str, tuple[tuple[int, int, int] | None, ...]] = {
 _wake = threading.Event()
 _drain_lock = threading.Lock()
 _worker_started = False
+_yuanbao_worker_started = False
+YUANBAO_SOCKET = HOME / "friday-yuanbao-send.sock"
+_YUANBAO_TARGET = re.compile(r"(?:group|direct):[A-Za-z0-9_-]{1,128}\Z")
 
 
 def _safe_text(text: str) -> str:
@@ -245,7 +254,7 @@ def _messenger_policy(settings_db: Path) -> bool:
 
 def _messenger_files_stamp(home: Path) -> tuple[tuple[int, int, int] | None, ...]:
     result = []
-    for name in ("config.yaml", ".env"):
+    for name in ("config.yaml", ".env", "gateway.json"):
         path = home / name
         if path.is_symlink():
             raise OSError("unsafe messenger credential path")
@@ -332,8 +341,160 @@ def _messenger_admitted(**kwargs):
     return None
 
 
+def _yuanbao_revision() -> str | None:
+    from gateway.config import Platform, load_gateway_config
+    key_path = HOME / "friday-messenger-revision.key"
+    if key_path.is_symlink() or not key_path.is_file() or key_path.stat().st_mode & 0o077:
+        return None
+    key = key_path.read_bytes()
+    if len(key) != 32:
+        return None
+    config = load_gateway_config()
+    if Platform.YUANBAO not in config.get_connected_platforms():
+        return None
+    files = (HOME / ".env", HOME / "config.yaml", HOME / "gateway.json")
+    if any(path.is_symlink() for path in files):
+        return None
+    metadata = [(path.name, path.stat().st_mtime_ns, path.stat().st_size)
+                for path in files if path.is_file()]
+    source = json.dumps({"effective": asdict(config.platforms[Platform.YUANBAO]), "files": metadata},
+                        sort_keys=True, default=str).encode()
+    return hmac.new(key, source, hashlib.sha256).hexdigest()
+
+
+def _yuanbao_adapter():
+    from gateway.config import Platform
+    from gateway.run import _gateway_runner_ref
+    from gateway.platforms.yuanbao import YuanbaoAdapter
+    runner = _gateway_runner_ref()
+    adapter = (getattr(runner, "adapters", None) or {}).get(Platform.YUANBAO) if runner else None
+    loop = getattr(runner, "_gateway_loop", None) if runner else None
+    return (adapter, loop) if adapter is not None and adapter is YuanbaoAdapter.get_active() and \
+        loop is not None and loop.is_running() else (None, None)
+
+
+def _yuanbao_key() -> bytes | None:
+    if MESSENGER_KEY.is_symlink() or not MESSENGER_KEY.is_file() or MESSENGER_KEY.stat().st_mode & 0o077:
+        return None
+    try:
+        key = base64.b64decode(MESSENGER_KEY.read_text(encoding="ascii").strip(), validate=True)
+    except (ValueError, OSError):
+        return None
+    return key if len(key) == 32 else None
+
+
+def _yuanbao_request(raw: bytes, stamp, seen: dict[str, float]) -> dict:
+    try:
+        request = json.loads(raw)
+        if not isinstance(request, dict) or set(request) != {"recipient", "text", "revision", "nonce", "timestamp", "mac"}:
+            return {"state": "rejected"}
+        mac = request.pop("mac")
+        key = _yuanbao_key()
+        if key is None or not isinstance(mac, str) or not re.fullmatch(r"[a-f0-9]{64}", mac):
+            return {"state": "rejected"}
+        canonical = json.dumps(request, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        if not hmac.compare_digest(mac, hmac.new(key, canonical, hashlib.sha256).hexdigest()):
+            return {"state": "rejected"}
+        recipient, message, revision, nonce, timestamp = (request[name] for name in
+            ("recipient", "text", "revision", "nonce", "timestamp"))
+        if not isinstance(recipient, str) or not _YUANBAO_TARGET.fullmatch(recipient) or \
+                not isinstance(message, str) or not message.strip() or len(message.encode("utf-8")) > 8192 or \
+                "MEDIA:" in message or "[[as_document]]" in message or \
+                not isinstance(revision, str) or not re.fullmatch(r"[a-f0-9]{64}", revision) or \
+                not isinstance(nonce, str) or not re.fullmatch(r"[a-f0-9]{32}", nonce) or nonce in seen or \
+                not isinstance(timestamp, int) or abs(time.time() - timestamp) > 30 or \
+                _messenger_has_named_profiles(HOME) or _messenger_files_stamp(HOME) != stamp or \
+                _yuanbao_revision() != revision:
+            return {"state": "rejected"}
+        adapter, loop = _yuanbao_adapter()
+        if adapter is None:
+            return {"state": "rejected"}
+        if len(seen) >= 1024:
+            for old, inserted in list(seen.items()):
+                if time.time() - inserted > 30:
+                    del seen[old]
+            if len(seen) >= 1024:
+                return {"state": "rejected"}
+        seen[nonce] = time.time()
+        import asyncio
+        future = asyncio.run_coroutine_threadsafe(adapter._outbound.sender.send_direct(recipient, message), loop)
+        try:
+            result = future.result(timeout=20)
+        except Exception:
+            return {"state": "uncertain"}
+        external = result.get("message_id") if isinstance(result, dict) and result.get("success") is True else None
+        return {"state": "sent", "externalId": external} if isinstance(external, str) and 0 < len(external) <= 128 else {"state": "uncertain"}
+    except (ImportError, OSError, ValueError, TypeError, KeyError, AttributeError):
+        return {"state": "uncertain"}
+
+
+def _yuanbao_server():
+    """Bind only in the running default gateway, never in short-lived Hermes CLI processes."""
+    logger = logging.getLogger("friday.yuanbao.ipc")
+    while True:
+        try:
+            adapter, _loop = _yuanbao_adapter()
+            if adapter is not None and MESSENGER_CONFIG.is_file() and not _messenger_has_named_profiles(HOME):
+                break
+        except (ImportError, OSError):
+            pass
+        time.sleep(1)
+    owned = False
+    try:
+        stamp = _messenger_files_stamp(HOME)
+        if YUANBAO_SOCKET.is_symlink():
+            return
+        if YUANBAO_SOCKET.exists():
+            info = YUANBAO_SOCKET.lstat()
+            if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid():
+                return
+            with socket.socket(socket.AF_UNIX) as probe:
+                try:
+                    probe.settimeout(0.2)
+                    probe.connect(str(YUANBAO_SOCKET))
+                    return
+                except (ConnectionRefusedError, FileNotFoundError, socket.timeout):
+                    YUANBAO_SOCKET.unlink()
+        previous_umask = os.umask(0o177)
+        try:
+            listener = socket.socket(socket.AF_UNIX)
+            listener.bind(str(YUANBAO_SOCKET))
+            owned = True
+        finally:
+            os.umask(previous_umask)
+        os.chmod(YUANBAO_SOCKET, 0o600)
+        seen: dict[str, float] = {}
+        with listener:
+            listener.listen(4)
+            listener.settimeout(1)
+            while True:
+                try:
+                    conn, _ = listener.accept()
+                except socket.timeout:
+                    continue
+                with conn:
+                    try:
+                        conn.settimeout(3)
+                        peer = struct.unpack("3i", conn.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
+                        if peer[1] != os.getuid():
+                            continue
+                        raw = conn.makefile("rb").readline(16385)
+                        result = _yuanbao_request(raw, stamp, seen) if len(raw) <= 16384 else {"state": "rejected"}
+                        conn.sendall(json.dumps(result, separators=(",", ":")).encode("utf-8") + b"\n")
+                    except (OSError, ValueError, TypeError):
+                        continue
+    except (OSError, ValueError, TypeError, ImportError):
+        logger.warning("Yuanbao local send socket unavailable")
+    finally:
+        try:
+            if owned and YUANBAO_SOCKET.is_socket() and YUANBAO_SOCKET.stat().st_uid == os.getuid():
+                YUANBAO_SOCKET.unlink()
+        except OSError:
+            pass
+
+
 def register(ctx) -> None:
-    global _worker_started
+    global _worker_started, _yuanbao_worker_started
     _config()  # Failure is visible at plugin registration; never claim capture without a key.
     ctx.register_hook("pre_llm_call", _pre)
     ctx.register_hook("post_llm_call", _post)
@@ -342,3 +503,6 @@ def register(ctx) -> None:
     if not _worker_started:
         threading.Thread(target=_worker, name="friday-memory-delivery", daemon=True).start()
         _worker_started = True
+    if not _yuanbao_worker_started:
+        threading.Thread(target=_yuanbao_server, name="friday-yuanbao-send", daemon=True).start()
+        _yuanbao_worker_started = True

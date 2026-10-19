@@ -1,12 +1,21 @@
 import importlib.util
 import asyncio
+import base64
+from concurrent.futures import Future
+import hashlib
+import hmac
 import json
+import os
 from pathlib import Path
 import subprocess
+import socket
 import tempfile
+import threading
+import time
 import types
 import unittest
 from unittest.mock import patch
+import friday_memory_plugin as gateway_plugin
 
 spec = importlib.util.spec_from_file_location("messaging_send", Path(__file__).with_name("messaging_send.py"))
 bridge = importlib.util.module_from_spec(spec)
@@ -198,6 +207,75 @@ class MessengerSendTest(unittest.TestCase):
             self.assertEqual(asyncio.run(bridge.send_cloud(object(), "+15551234567", "Synthetic hello")),
                              {"state": "sent", "externalId": "wamid-synthetic"})
         self.assertEqual(calls, [("15551234567", "Synthetic hello", True)])
+
+    def test_yuanbao_gateway_auth_revision_and_replay_before_adapter_send(self):
+        key = b"z" * 32
+        delivered = []
+        class Sender:
+            async def send_direct(self, recipient, message):
+                delivered.append((recipient, message))
+                return {"success": True, "message_id": "msg-123"}
+        adapter = types.SimpleNamespace(_outbound=types.SimpleNamespace(sender=Sender()))
+        def schedule(coro, _loop):
+            future = Future()
+            future.set_result(asyncio.run(coro))
+            return future
+        request = {"recipient": "direct:account_123", "text": "Synthetic hello", "revision": "a" * 64,
+                   "nonce": "b" * 32, "timestamp": int(time.time())}
+        request["mac"] = hmac.new(key, json.dumps(request, sort_keys=True, separators=(",", ":"),
+                                                 ensure_ascii=False).encode(), hashlib.sha256).hexdigest()
+        stamp = ((1, 2, 3),)
+        with patch.object(gateway_plugin, "_yuanbao_key", return_value=key), \
+             patch.object(gateway_plugin, "_yuanbao_revision", return_value="a" * 64), \
+             patch.object(gateway_plugin, "_yuanbao_adapter", return_value=(adapter, object())), \
+             patch.object(gateway_plugin, "_messenger_has_named_profiles", return_value=False), \
+             patch.object(gateway_plugin, "_messenger_files_stamp", return_value=stamp), \
+             patch("asyncio.run_coroutine_threadsafe", side_effect=schedule):
+            raw = json.dumps(request).encode()
+            seen = {}
+            self.assertEqual(gateway_plugin._yuanbao_request(raw, stamp, seen),
+                             {"state": "sent", "externalId": "msg-123"})
+            self.assertEqual(gateway_plugin._yuanbao_request(raw, stamp, seen), {"state": "rejected"})
+            bad = {**request, "recipient": "group:other"}
+            self.assertEqual(gateway_plugin._yuanbao_request(json.dumps(bad).encode(), stamp, seen),
+                             {"state": "rejected"})
+            self.assertEqual(delivered, [("direct:account_123", "Synthetic hello")])
+
+    def test_yuanbao_client_uses_private_socket_with_authenticated_body(self):
+        if os.name == "nt" or not hasattr(socket, "AF_UNIX"):
+            self.skipTest("Unix sockets unavailable")
+        home = Path(self.tmp.name)
+        hermes = home / ".hermes"
+        hermes.mkdir()
+        (hermes / "friday-messenger-bridge.key").write_text(base64.b64encode(b"y" * 32).decode())
+        (hermes / "friday-messenger-bridge.key").chmod(0o600)
+        path = hermes / "friday-yuanbao-send.sock"
+        seen = []
+        with socket.socket(socket.AF_UNIX) as listener:
+            listener.bind(str(path))
+            listener.listen(1)
+            def server():
+                conn, _ = listener.accept()
+                with conn:
+                    request = json.loads(conn.makefile("rb").readline())
+                    mac = request.pop("mac")
+                    canonical = json.dumps(request, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+                    seen.append(hmac.compare_digest(mac, hmac.new(b"y" * 32, canonical, hashlib.sha256).hexdigest()))
+                    conn.sendall(b'{"state":"sent","externalId":"msg-123"}\n')
+            worker = threading.Thread(target=server)
+            worker.start()
+            with patch.object(bridge.Path, "home", return_value=home):
+                self.assertEqual(bridge.send_yuanbao_ipc("group:123", "Synthetic hello", "a" * 64),
+                                 {"state": "sent", "externalId": "msg-123"})
+            worker.join(timeout=2)
+        self.assertEqual(seen, [True])
+
+    def test_yuanbao_preview_requires_a_live_local_gateway_socket(self):
+        with patch.object(bridge, "yuanbao_gateway_ready", return_value=False):
+            self.assertEqual(bridge.send(self.request(action="check", platform="yuanbao",
+                                                       recipient="direct:account_123"), self.runner),
+                             {"state": "rejected", "reason": "gateway_not_connected"})
+        self.assertEqual(len(self.calls), 1)
 
     def test_account_change_between_check_and_send_rejects_before_cli(self):
         self.assertEqual(bridge.send(self.request(expectedConfigRevision="b" * 64), self.runner),

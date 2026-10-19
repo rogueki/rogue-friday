@@ -14,6 +14,9 @@ class MessengerBridgeSetupTests(unittest.TestCase):
             hermes = Path(temp)
             (hermes / "friday-messenger-bridge.key").write_text("synthetic")
             (hermes / "friday-messenger-bridge.json").write_text("{}")
+            installed = hermes / "plugins/friday-memory/__init__.py"
+            installed.parent.mkdir(parents=True)
+            installed.write_text("_messenger_admitted\n_yuanbao_server\n")
             calls = []
             def failed(argv, **_kwargs):
                 calls.append(argv)
@@ -29,6 +32,9 @@ class MessengerBridgeSetupTests(unittest.TestCase):
             count = len(calls)
             ensure_applied(hermes, False, succeeds)
             self.assertEqual(len(calls), count)
+            installed.write_text("_messenger_admitted\n_yuanbao_server\n# updated")
+            ensure_applied(hermes, False, succeeds)
+            self.assertEqual(len(calls), count + 2)
 
     def test_pinned_hook_and_private_key_are_required(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -37,14 +43,14 @@ class MessengerBridgeSetupTests(unittest.TestCase):
             source = root / "hermes"
             home = root / "owner"
             (checkout / "wsl/friday_memory_plugin").mkdir(parents=True)
-            (checkout / "wsl/friday_memory_plugin/__init__.py").write_text("_messenger_admitted")
+            (checkout / "wsl/friday_memory_plugin/__init__.py").write_text("_messenger_admitted _yuanbao_server")
             (source / "hermes_cli").mkdir(parents=True)
             (source / "gateway").mkdir()
             (source / "hermes_cli/plugins.py").write_text('"post_gateway_admission"')
             (source / "gateway/run_inbound_consumer.py").write_text("post_gateway_admission")
             installed = home / ".hermes/plugins/friday-memory/__init__.py"
             installed.parent.mkdir(parents=True)
-            installed.write_text("_messenger_admitted")
+            installed.write_text("_messenger_admitted _yuanbao_server")
             key = base64.b64encode(b"z" * 32).decode()
             responses = [CompletedProcess([], 0, PINNED_HERMES), CompletedProcess([], 0, "")]
             with patch("configure_messenger_inbound_bridge.subprocess.run", side_effect=responses):

@@ -9,7 +9,7 @@ import type { ApprovalTokenService } from "@friday/auth";
 const sha = (input: string) => createHash("sha256").update(input).digest("hex");
 const PLATFORM = new Set(["telegram", "discord", "whatsapp", "slack", "signal", "matrix", "mattermost", "sms",
   "irc", "line", "feishu", "wecom", "photon", "buzz", "ntfy", "teams", "google_chat", "simplex", "weixin", "bluebubbles",
-  "dingtalk", "whatsapp_cloud", "qqbot"]);
+  "dingtalk", "whatsapp_cloud", "qqbot", "yuanbao"]);
 const TARGET = /^[A-Za-z0-9_@.!+#:;/=-]{1,128}$/;
 export interface MessengerDraft { accountId: "default"; platform: string; recipient: string; text: string;
   notificationId?: string; notificationStep?: number }
@@ -44,6 +44,7 @@ function validTarget(platform: string, recipient: string): boolean {
     case "dingtalk": return recipient === "webhook";
     case "whatsapp_cloud": return /^\+[1-9][0-9]{6,14}$/.test(recipient);
     case "qqbot": return /^(c2c|group):[A-Za-z0-9_-]{1,128}$/.test(recipient) || /^guild:[0-9]{10,20}$/.test(recipient);
+    case "yuanbao": return /^(group|direct):[A-Za-z0-9_-]{1,128}$/.test(recipient);
     default: return false;
   }
 }
@@ -149,7 +150,9 @@ export class MessengerSendService {
     if (!targetId) throw validationFailed("Empfänger ist für dieses Konto nicht registriert.");
     const ready = await this.run("check", draft);
     if (ready.state !== "configured" || !ready.revision) throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
-      message: ready.reason === "platform_not_configured" ? "Hermes-Kanal ist nicht konfiguriert." : "Hermes-Konfigurationsprüfung ist nicht erreichbar." });
+      message: ready.reason === "platform_not_configured" ? "Hermes-Kanal ist nicht konfiguriert." :
+        ready.reason === "gateway_not_connected" ? "Hermes-Gateway ist für diesen Kanal nicht verbunden." :
+          "Hermes-Konfigurationsprüfung ist nicht erreichbar." });
     if (this.admitted(actor, draft) !== targetId) throw conflict("Empfängerfreigabe wurde geändert; bitte erneut prüfen.");
     const fingerprint = this.fingerprint(actor, draft, ready.revision, targetId);
     const { token, claims } = this.approvals.issue({ approvalId: fingerprint, userId: actor, action: "messenger.send" });
@@ -168,7 +171,9 @@ export class MessengerSendService {
     if (!targetId) throw validationFailed("Empfänger ist für dieses Konto nicht registriert.");
     const ready = await this.run("check", draft);
     if (ready.state !== "configured" || !ready.revision) throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
-      message: ready.reason === "platform_not_configured" ? "Hermes-Kanal ist nicht konfiguriert." : "Hermes-Konfigurationsprüfung ist nicht erreichbar." });
+      message: ready.reason === "platform_not_configured" ? "Hermes-Kanal ist nicht konfiguriert." :
+        ready.reason === "gateway_not_connected" ? "Hermes-Gateway ist für diesen Kanal nicht verbunden." :
+          "Hermes-Konfigurationsprüfung ist nicht erreichbar." });
     if (this.admitted(actor, draft) !== targetId) throw conflict("Empfängerfreigabe wurde geändert; bitte erneut prüfen.");
     const payloadHash = this.fingerprint(actor, draft, ready.revision, targetId);
     const valid = this.approvals.consume(token, { approvalId: payloadHash, userId: actor, action: "messenger.send" });

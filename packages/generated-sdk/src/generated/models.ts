@@ -4103,7 +4103,8 @@ export interface MessengerDraft {
     | "bluebubbles"
     | "dingtalk"
     | "whatsapp_cloud"
-    | "qqbot";
+    | "qqbot"
+    | "yuanbao";
   recipient: string;
   text: string;
   notificationId?: string;
@@ -4269,7 +4270,8 @@ export interface MessengerTargetRequest {
     | "bluebubbles"
     | "dingtalk"
     | "whatsapp_cloud"
-    | "qqbot";
+    | "qqbot"
+    | "yuanbao";
   recipient: string;
 }
 export interface MessengerTargetResponse {
