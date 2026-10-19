@@ -34,6 +34,7 @@ import { AuthService } from "../security/auth-service";
 import { AdapterSettingsService } from "../services/adapter-settings";
 import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, summarizeAdapters } from "../services/core-views";
 import { SettingsService, seedLibrary } from "../services/settings";
+import { NativeApprovalRequests } from "../services/native-approval-requests";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
 import { DurableMemoryService } from "../services/durable-memory";
@@ -256,6 +257,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
 
   const adapterSettings = new AdapterSettingsService(wiring, adapterOverrides, secrets, config.dataMode);
   const settings = new SettingsService(db, config, validator, library, () => adapterSettings.list());
+  if (world) world.state.settings.approvals = structuredClone(settings.area("approvals"));
+  const nativeApprovals = new NativeApprovalRequests(db, settings, validator, options.now);
   let contentStudioKeys: ContentStudioKeysService;
   try {
     contentStudioKeys = new ContentStudioKeysService(db, deriveKey(serverKey.key, "content-studio-keys"), env);
@@ -507,6 +510,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     hermesMemoryBridgeKey: hermesMemoryBridgeKey.key,
     approvalTokens,
     settings,
+    nativeApprovals,
     contentStudioKeys,
     contentStudioProviders,
     contentStudioPlan,

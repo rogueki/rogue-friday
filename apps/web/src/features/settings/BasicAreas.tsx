@@ -465,7 +465,7 @@ export function ApprovalsArea() {
         <NumberField label={t("settings.approvals.expiry")} hint={t("settings.approvals.expiryHint")} integer min={1} value={value.defaultExpiryMinutes} disabled={readOnly} onValueChange={(next) => next !== null && update({ defaultExpiryMinutes: Math.round(next) })} />
         <Switch label={t("settings.approvals.draftOnly")} description={t("settings.approvals.draftOnlyDesc")} checked={value.draftOnlyByDefault} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(draftOnlyByDefault) => update({ draftOnlyByDefault })} />
         <Switch label={t("settings.approvals.tier2")} description={t("settings.approvals.tier2Desc")} checked={value.confirmTier2} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(confirmTier2) => update({ confirmTier2 })} />
-        <Switch label={t("settings.approvals.tier3")} description={t("settings.approvals.tier3Desc")} checked={value.reauthTier3} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(reauthTier3) => update({ reauthTier3 })} />
+        <Switch label={t("settings.approvals.tier3")} description={t("settings.approvals.tier3Desc")} checked={value.reauthTier3} disabled stateLabels={onOff(t)} onCheckedChange={(reauthTier3) => update({ reauthTier3 })} />
         <Switch label={t("settings.approvals.notify")} description={t("settings.approvals.notifyDesc")} checked={value.notifyOnRequest} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(notifyOnRequest) => update({ notifyOnRequest })} />
       </FieldGrid>
       {!value.reauthTier3 ? <StatusChip tone="amber">{t("settings.approvals.tier3Warning")}</StatusChip> : null}

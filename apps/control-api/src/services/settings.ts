@@ -351,6 +351,7 @@ export class SettingsService {
     merged.backups = this.withBackupResult(merged.backups as SettingsAreas["backups"]);
     const security = merged.security as SettingsAreas["security"];
     merged.security = { ...security, allowRemoteAccess: this.config.server.allowRemote, auditHashChain: true };
+    merged.approvals = { ...(merged.approvals as SettingsAreas["approvals"]), reauthTier3: true };
     return merged as unknown as SettingsAreas;
   }
 
@@ -375,6 +376,7 @@ export class SettingsService {
           if (installed) return { ...value, ttsVoice: installed } as SettingsAreas[K];
         }
         if (name === "security") return { ...value, allowRemoteAccess: this.config.server.allowRemote, auditHashChain: true } as SettingsAreas[K];
+        if (name === "approvals") return { ...value, reauthTier3: true } as SettingsAreas[K];
         return name === "backups" ? this.withBackupResult(value as SettingsAreas["backups"]) as SettingsAreas[K] : value;
       } catch {
         // fall through to the default
@@ -462,6 +464,10 @@ export class SettingsService {
         throw validationFailed("Vertrauenswuerdige Origins muessen eindeutige HTTP(S)-Origins ohne Pfad sein.",
           [{ path: "security.trustedOrigins", message: "ungueltige Origin" }]);
       }
+    }
+    if (patch.approvals?.reauthTier3 === false) {
+      throw validationFailed("Risikostufe 3 erfordert immer eine erneute Authentifizierung.",
+        [{ path: "approvals.reauthTier3", message: "Sicherheitskontrolle kann nicht deaktiviert werden" }]);
     }
     if (patch.theme && !this.library.get("theme", patch.theme.activeThemeId)) {
       throw validationFailed(`Das Theme ${patch.theme.activeThemeId} existiert nicht.`, [{ path: "theme.activeThemeId", message: "unbekannt" }]);

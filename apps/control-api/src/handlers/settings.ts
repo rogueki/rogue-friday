@@ -334,6 +334,7 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
           if (typeof instance !== "string" || (changeVoice && status.tts_voice_choice !== requested) || (audioInstance && instance !== audioInstance))
             throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst hat die Änderung nicht bestätigt." });
           const result = ctx.runtime.settings.patch(patch, originalVersion);
+          if (patch.approvals && ctx.runtime.world) ctx.runtime.world.state.settings.approvals = structuredClone(result.settings.approvals);
           if (changeVoice) recordVoiceAck(ctx.runtime, result.settings.version, requested as VoicePersona, instance);
           if (changeAudio) recordAudioAck(ctx.runtime, result.settings.version, input, output, instance);
           ctx.audit.action = "settings.voice_changed";
@@ -360,6 +361,7 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
       }
     }
     const { settings, changed } = ctx.runtime.settings.patch(patch, ctx.mutation.ifMatchVersion);
+    if (changed.includes("approvals") && ctx.runtime.world) ctx.runtime.world.state.settings.approvals = structuredClone(settings.approvals);
     ctx.audit.action = "settings.updated";
     ctx.audit.after = { areas: changed, version: settings.version };
     // The mock world words its orb/status texts with the assistant name; re-derive them so a rename shows up at once.
