@@ -196,9 +196,24 @@ function Test-MemoryUpdateNeeded([string[]]$changedPaths) {
     foreach ($path in $changedPaths) {
         if ($path -in @('installer/wsl/configure_memory_bridge.py', 'installer/wsl/setup_memory_bridge.sh',
             'installer/wsl/friday_memory_plugin/plugin.yaml', 'installer/wsl/friday_memory_plugin/__init__.py',
-            'installer/scripts/update-memory-bridge.ps1', 'installer/scripts/update-dashboard-github.ps1')) { return $true }
+            'installer/scripts/update-memory-bridge.ps1', 'installer/scripts/update-dashboard-github.ps1') -or
+            (Get-WslBridgeSourcePaths) -ccontains $path) { return $true }
+    }
+    foreach ($path in (Get-WslBridgeSourcePaths)) {
+        if (-not (Test-Path -LiteralPath (Join-Path $root $path.Replace('/', '\')) -PathType Leaf)) { return $true }
     }
     return $false
+}
+function Get-WslBridgeSourcePaths {
+    # Runtime targets and their local sibling dependencies; never include user config or WSL credentials.
+    return @('installer/wsl/calendar_accounts.py', 'installer/wsl/mail_accounts.py',
+        'installer/wsl/configure_calendar_bridge.py',
+        'installer/wsl/setup_calendar_bridge.sh', 'installer/wsl/configure_mail_bridge.py',
+        'installer/wsl/setup_mail_bridge.sh', 'installer/wsl/configure_messaging_gateway.py',
+        'installer/wsl/messaging_pairing.py',
+        'installer/wsl/messaging_runtime.py',
+        'installer/wsl/whatsapp_logout.mjs', 'installer/wsl/configure_telegram.py',
+        'installer/wsl/configure_obsidian.py')
 }
 function Get-VoiceSourcePaths {
     return @('installer/voice/audio_devices.py', 'installer/voice/audio_level.py', 'installer/voice/audio_output.py',

@@ -143,10 +143,10 @@ function Invoke-MemoryUpgrade([string]$action) {
     $helper = Join-Path $source 'installer\scripts\update-memory-bridge.ps1'
     Assert-Ordinary $helper
     Assert-PathSafe $helper $source
-    $tree = (& git.exe -C $source ls-tree HEAD -- $relative | Select-Object -First 1)
+    $tree = & git.exe -C $source ls-tree HEAD -- $relative
     if ($LASTEXITCODE -ne 0 -or $tree -notmatch '^100(644|755) blob ([0-9a-f]{40})\s') { throw 'Verifizierter Memory-Updater fehlt.' }
     $expected = $Matches[2]
-    $actual = (& git.exe -C $source hash-object --path=$relative -- $helper | Select-Object -First 1)
+    $actual = & git.exe -C $source hash-object --path=$relative -- $helper
     if ($LASTEXITCODE -ne 0 -or $actual.Trim() -cne $expected) { throw 'Memory-Updater entspricht nicht dem Git-Stand.' }
     $invoke = Invoke-NativeCaptured 'powershell.exe' @('-NoProfile','-ExecutionPolicy','Bypass','-File',$helper,
         '-InstallRoot',$root,'-SourceRoot',$source,'-RunId',$RunId,'-Mode',$action)

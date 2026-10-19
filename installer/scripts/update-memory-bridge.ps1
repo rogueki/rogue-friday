@@ -15,6 +15,14 @@ $manifest = Join-Path $run 'manifest.json'
 $result = Join-Path $run 'result.json'
 $paths = @('installer\wsl\configure_memory_bridge.py', 'installer\wsl\setup_memory_bridge.sh',
     'installer\wsl\friday_memory_plugin\plugin.yaml', 'installer\wsl\friday_memory_plugin\__init__.py',
+    'installer\wsl\calendar_accounts.py', 'installer\wsl\mail_accounts.py',
+    'installer\wsl\configure_calendar_bridge.py',
+    'installer\wsl\setup_calendar_bridge.sh', 'installer\wsl\configure_mail_bridge.py',
+    'installer\wsl\setup_mail_bridge.sh', 'installer\wsl\configure_messaging_gateway.py',
+    'installer\wsl\messaging_pairing.py',
+    'installer\wsl\messaging_runtime.py',
+    'installer\wsl\whatsapp_logout.mjs', 'installer\wsl\configure_telegram.py',
+    'installer\wsl\configure_obsidian.py',
     'installer\scripts\update-memory-bridge.ps1', 'installer\scripts\update-dashboard-github.ps1')
 
 function Assert-Safe([string]$path, [string]$base) {
@@ -109,10 +117,10 @@ foreach ($path in $paths) {
     Assert-Safe $file $source
     if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "Memory-Updatequelle fehlt: $path" }
     $gitPath = $path.Replace('\', '/')
-    $tree = (& git.exe -C $source ls-tree HEAD -- $gitPath | Select-Object -First 1)
+    $tree = & git.exe -C $source ls-tree HEAD -- $gitPath
     if ($LASTEXITCODE -ne 0 -or $tree -notmatch '^100(644|755) blob ([0-9a-f]{40})\s') { throw "Memory-Updatequelle nicht im Git-Stand: $path" }
     $expected = $Matches[2]
-    $actual = (& git.exe -C $source hash-object --path=$gitPath -- $file | Select-Object -First 1)
+    $actual = & git.exe -C $source hash-object --path=$gitPath -- $file
     if ($LASTEXITCODE -ne 0 -or $actual.Trim() -cne $expected) { throw "Memory-Updatequelle verändert: $path" }
 }
 if (Test-Path -LiteralPath $manifest) { throw 'Memory-Updatebackup existiert bereits.' }
