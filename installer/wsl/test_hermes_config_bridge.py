@@ -32,6 +32,12 @@ class BridgeTest(unittest.TestCase):
         self.config.write_text("model:\n  api_key: CANARY-PRIVATE\nagent:\n  max_turns: 500\n")
         self.values = {"model.provider": "openrouter", "model.default": "example/model", "agent.reasoning_effort": "medium",
                        "fallback.min_switch_reset_seconds": 0, "fallback_model": [],
+                       "agent.auto_recovery_cycles": 5, "agent.agent_cache.max_size": 128,
+                       "agent.run_budget_seconds": None, "agent.budget_warning_ratio": None,
+                       "max_concurrent_sessions": None, "context_file_max_chars": None,
+                       "compression.enabled": True, "compression.threshold": 0.5,
+                       "compression.target_ratio": 0.2, "compression.tail_mode": "lean",
+                       "compression.protect_last_n": 20,
                        "agent.max_turns": 500, "agent.gateway_timeout": 1800, "agent.api_max_retries": 3,
                        "session.terminal_continue": True, "max_live_sessions": 16,
                        "skills.disabled": [], "skills.create_dir": "", "skills.external_dirs": []}
@@ -49,8 +55,10 @@ class BridgeTest(unittest.TestCase):
         elif args[0] == "get":
             output = json.dumps(self.values[args[1]])
         elif args[0] == "set":
-            self.values[args[1]] = json.loads(args[2]) if args[1] == "fallback_model" else \
-                int(args[2]) if args[1] == "agent.max_turns" else args[2]
+            try:
+                self.values[args[1]] = json.loads(args[2])
+            except ValueError:
+                self.values[args[1]] = args[2]
             if args[1] == "agent.max_turns":
                 self.config.write_text(self.config.read_text().replace("max_turns: 500", f"max_turns: {args[2]}"))
             else:
@@ -127,6 +135,23 @@ class BridgeTest(unittest.TestCase):
         self.assertFalse(bridge.valid_field_value("model.provider", "openai; rm -rf /",
                                                    bridge.FIELDS["model.provider"]))
 
+    def test_compression_ratio_write_is_bounded(self):
+        code, result = self.invoke({"key": "compression.threshold", "value": 0.7,
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["compression.threshold"], 0.7)
+        self.assertTrue(result["write"]["persisted"])
+        self.assertFalse(bridge.valid_field_value("compression.threshold", 1.1,
+                                                   bridge.FIELDS["compression.threshold"]))
+
+    def test_optional_budget_can_be_cleared(self):
+        self.values["agent.run_budget_seconds"] = 3600
+        code, result = self.invoke({"key": "agent.run_budget_seconds", "value": None,
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertIsNone(result["values"]["agent.run_budget_seconds"])
+        self.assertTrue(result["write"]["persisted"])
+
     def test_two_real_processes_same_revision_only_one_writes(self):
         tools = self.home / "fake-bin"
         tools.mkdir()
@@ -142,6 +167,12 @@ if a == ['config', 'path']: print(p)
 elif a[:2] == ['config', 'get']:
     d = {'model.provider': 'openrouter', 'model.default': 'example/model',
          'agent.reasoning_effort': 'medium', 'fallback.min_switch_reset_seconds': 0, 'fallback_model': [],
+         'agent.auto_recovery_cycles': 5, 'agent.agent_cache.max_size': 128,
+         'agent.run_budget_seconds': None, 'agent.budget_warning_ratio': None,
+         'max_concurrent_sessions': None, 'context_file_max_chars': None,
+         'compression.enabled': True, 'compression.threshold': 0.5,
+         'compression.target_ratio': 0.2, 'compression.tail_mode': 'lean',
+         'compression.protect_last_n': 20,
          'agent.max_turns': int(p.read_text().split('max_turns: ')[1].splitlines()[0]),
          'agent.gateway_timeout': 1800, 'agent.api_max_retries': 3,
          'session.terminal_continue': True, 'max_live_sessions': 16,

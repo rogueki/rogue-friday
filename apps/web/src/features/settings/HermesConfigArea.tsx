@@ -10,6 +10,17 @@ const LABELS: Record<string, string> = {
   "agent.reasoning_effort": "Denkstufe für neue Anfragen",
   "fallback.min_switch_reset_seconds": "Fallback-Wechsel ab Resetzeit (Sekunden)",
   fallback_model: "Fallback-Kette",
+  "agent.auto_recovery_cycles": "Automatische Erholungsrunden",
+  "agent.run_budget_seconds": "Laufzeitbudget pro Agentenlauf (Sekunden)",
+  "agent.budget_warning_ratio": "Warnung ab Budgetanteil",
+  "agent.agent_cache.max_size": "Agenten im Gateway-Cache",
+  max_concurrent_sessions: "Gleichzeitige Sitzungen (0 = unbegrenzt)",
+  context_file_max_chars: "Kontextdatei-Zeichen (0 = dynamisch)",
+  "compression.enabled": "Kontextkomprimierung",
+  "compression.threshold": "Komprimierung ab Kontextanteil",
+  "compression.target_ratio": "Erhaltener Kontextanteil",
+  "compression.tail_mode": "Komprimierungsmodus",
+  "compression.protect_last_n": "Geschützte letzte Nachrichten",
   "agent.max_turns": "Maximale Agent-Schritte",
   "agent.gateway_timeout": "Gateway-Leerlauf (Sekunden)",
   "agent.api_max_retries": "API-Wiederholungen",
@@ -21,11 +32,27 @@ const LABELS: Record<string, string> = {
   extensions: "Skills, Plugins und MCP",
   operations: "Zeitpläne und Betrieb",
 };
+const NUMERIC_LIMITS: Record<string, [number, number, number]> = {
+  "fallback.min_switch_reset_seconds": [0, 3600, 1],
+  "agent.auto_recovery_cycles": [0, 20, 1],
+  "agent.run_budget_seconds": [1, 86400, 1],
+  "agent.budget_warning_ratio": [0.01, 0.99, 0.01],
+  "agent.agent_cache.max_size": [1, 4096, 1],
+  max_concurrent_sessions: [0, 10000, 1],
+  context_file_max_chars: [0, 1000000, 1],
+  "compression.threshold": [0.1, 0.95, 0.01],
+  "compression.target_ratio": [0.1, 0.8, 0.01],
+  "compression.protect_last_n": [0, 100, 1],
+  "agent.gateway_timeout": [60, 86400, 1],
+  "agent.api_max_retries": [1, 10, 1],
+  "agent.max_turns": [1, 100000, 1],
+  max_live_sessions: [0, 10000, 1],
+};
 
 export function HermesConfigArea() {
   const observed = useHermesConfig();
   const patch = usePatchHermesConfig();
-  const [draft, setDraft] = useState<Record<string, number | boolean | string | Array<{ provider: string; model: string }>>>({});
+  const [draft, setDraft] = useState<Record<string, number | boolean | string | Array<{ provider: string; model: string }> | null>>({});
   if (observed.isPending) return <p role="status">Hermes-Konfiguration wird gelesen…</p>;
   if (observed.isError)
     return (
@@ -63,11 +90,16 @@ export function HermesConfigArea() {
       ) : null}
       <h3>Freigegebene Einstellungen</h3>
       {data.fields.map((field) => {
-        const value = draft[field.key] ?? field.value;
+        const value = field.key in draft ? draft[field.key] : field.value;
         return (
           <div key={field.key} className="st-field">
             <label htmlFor={`hermes-${field.key}`}>{LABELS[field.key] ?? field.key}</label>
-            {field.type === "fallback" ? (
+            {field.key === "compression.tail_mode" ? (
+              <select id={`hermes-${field.key}`} value={String(value ?? "lean")}
+                onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))}>
+                <option value="lean">Kompakt</option><option value="legacy">Verbatim-Verlauf</option>
+              </select>
+            ) : field.type === "fallback" ? (
               <div>
                 {(Array.isArray(value) ? value : []).map((entry, index) => (
                   <div key={index} className="st-field">
@@ -116,26 +148,25 @@ export function HermesConfigArea() {
                 }
               />
             ) : (
+              <>
               <input
                 id={`hermes-${field.key}`}
                 type="number"
                 value={typeof value === "number" ? value : ""}
-                min={field.key === "max_live_sessions" || field.key === "fallback.min_switch_reset_seconds" ? 0 : field.key === "agent.gateway_timeout" ? 60 : 1}
-                max={
-                  field.key === "agent.api_max_retries"
-                    ? 10
-                    : field.key === "agent.gateway_timeout"
-                      ? 86400
-                    : field.key === "fallback.min_switch_reset_seconds"
-                      ? 3600
-                      : field.key === "max_live_sessions"
-                        ? 10000
-                        : 100000
-                }
-                onChange={(event) =>
-                  setDraft((current) => ({ ...current, [field.key]: Number(event.target.value) }))
-                }
+                min={NUMERIC_LIMITS[field.key]?.[0] ?? 0}
+                max={NUMERIC_LIMITS[field.key]?.[1] ?? 100000}
+                step={NUMERIC_LIMITS[field.key]?.[2] ?? 1}
+                onChange={(event) => setDraft((current) => ({ ...current,
+                  [field.key]: event.target.value === "" &&
+                    (field.type === "optionalInteger" || field.type === "optionalNumber")
+                    ? null : Number(event.target.value),
+                }))}
               />
+              {field.type === "optionalInteger" || field.type === "optionalNumber" ?
+                <button type="button" onClick={() => setDraft((current) => ({ ...current, [field.key]: null }))}>
+                  Hermes-Standard
+                </button> : null}
+              </>
             )}
             <small>
               {field.explicit ? "In Hermes gesetzt" : "Hermes-Standard/Overlay"} · Verbraucher:{" "}

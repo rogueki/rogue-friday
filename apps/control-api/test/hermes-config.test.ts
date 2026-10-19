@@ -31,6 +31,17 @@ const bridge = {
     "agent.reasoning_effort": "medium",
     "fallback.min_switch_reset_seconds": 0,
     fallback_model: [],
+    "agent.auto_recovery_cycles": 5,
+    "agent.run_budget_seconds": null,
+    "agent.budget_warning_ratio": null,
+    "agent.agent_cache.max_size": 128,
+    max_concurrent_sessions: null,
+    context_file_max_chars: null,
+    "compression.enabled": true,
+    "compression.threshold": 0.5,
+    "compression.target_ratio": 0.2,
+    "compression.tail_mode": "lean",
+    "compression.protect_last_n": 20,
     "agent.max_turns": 500,
     "agent.gateway_timeout": 1800,
     "agent.api_max_retries": 3,
@@ -43,6 +54,17 @@ const bridge = {
     "agent.reasoning_effort": false,
     "fallback.min_switch_reset_seconds": false,
     fallback_model: false,
+    "agent.auto_recovery_cycles": false,
+    "agent.run_budget_seconds": false,
+    "agent.budget_warning_ratio": false,
+    "agent.agent_cache.max_size": false,
+    max_concurrent_sessions: false,
+    context_file_max_chars: false,
+    "compression.enabled": false,
+    "compression.threshold": false,
+    "compression.target_ratio": false,
+    "compression.tail_mode": false,
+    "compression.protect_last_n": false,
     "agent.max_turns": true,
     "agent.gateway_timeout": false,
     "agent.api_max_retries": false,
@@ -71,7 +93,7 @@ const bridge = {
 it("returns only allowlisted resolved values and installed manifests without credential leakage", async () => {
   const invoke = vi.fn(async () => bridge) as unknown as RunnerInvoker;
   const status = await fixture(invoke).status();
-  expect(status.fields).toHaveLength(10);
+  expect(status.fields).toHaveLength(21);
   expect(status.fields.find((field) => field.key === "agent.max_turns")).toMatchObject({
     value: 500,
     writable: true,
@@ -137,6 +159,18 @@ it("accepts a structured fallback chain and rejects unsafe model/provider identi
   await expect(service.update({ key: "model.provider", value: "evil; command" }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
   await expect(service.update({ key: "agent.reasoning_effort", value: "unsupported" }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
   await expect(service.update({ key: "fallback_model", value: [{ provider: "openrouter", model: "" }] }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  await expect(service.update({ key: "compression.threshold", value: 1.1 }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
+it("clears optional run budget without claiming a live-turn change", async () => {
+  const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
+    write: { key: "agent.run_budget_seconds", persisted: true },
+  })) as unknown as RunnerInvoker;
+  const result = await fixture(invoke).update({ key: "agent.run_budget_seconds", value: null }, 123);
+  expect(result.write).toMatchObject({ persisted: true, applied: null, verification: "unverified" });
+  expect(JSON.parse((vi.mocked(invoke).mock.calls[0]?.[4] ?? "") as string)).toMatchObject({
+    key: "agent.run_budget_seconds", value: null, revision: 123,
+  });
 });
 
 it("maps external revision changes to conflict and disables writes for an unknown Hermes source", async () => {

@@ -9,6 +9,17 @@ export const HERMES_CONFIG_FIELDS = {
   "agent.reasoning_effort": { type: "string", kind: "reasoning", family: "models", consumer: "new Hermes model request" },
   "fallback.min_switch_reset_seconds": { type: "integer", min: 0, max: 3600, family: "models", consumer: "next Hermes fallback decision" },
   fallback_model: { type: "fallback", family: "models", consumer: "new Hermes provider route" },
+  "agent.auto_recovery_cycles": { type: "integer", min: 0, max: 20, family: "agent", consumer: "new Hermes API recovery loop" },
+  "agent.run_budget_seconds": { type: "optionalInteger", min: 1, max: 86400, family: "agent", consumer: "new Hermes agent run" },
+  "agent.budget_warning_ratio": { type: "optionalNumber", min: 0.01, max: 0.99, family: "agent", consumer: "new Hermes agent run" },
+  "agent.agent_cache.max_size": { type: "integer", min: 1, max: 4096, family: "agent", consumer: "gateway agent cache" },
+  max_concurrent_sessions: { type: "integer", min: 0, max: 10000, family: "agent", consumer: "gateway session admission" },
+  context_file_max_chars: { type: "integer", min: 0, max: 1000000, family: "agent", consumer: "next context-file load" },
+  "compression.enabled": { type: "boolean", family: "agent", consumer: "next Hermes compression check" },
+  "compression.threshold": { type: "number", min: 0.1, max: 0.95, family: "agent", consumer: "next Hermes compression check" },
+  "compression.target_ratio": { type: "number", min: 0.1, max: 0.8, family: "agent", consumer: "next Hermes compression check" },
+  "compression.tail_mode": { type: "string", kind: "tailMode", family: "agent", consumer: "next Hermes compression" },
+  "compression.protect_last_n": { type: "integer", min: 0, max: 100, family: "agent", consumer: "next Hermes compression" },
   "agent.max_turns": {
     type: "integer",
     min: 1,
@@ -41,12 +52,13 @@ export const HERMES_CONFIG_FIELDS = {
 } as const;
 export type HermesConfigField = keyof typeof HERMES_CONFIG_FIELDS;
 type FallbackEntry = { provider: string; model: string };
-export type HermesConfigPatch = { key: HermesConfigField; value: number | boolean | string | FallbackEntry[] };
+export type HermesConfigPatch = { key: HermesConfigField; value: number | boolean | string | FallbackEntry[] | null };
 
 const REASONING_EFFORTS = new Set(["", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
-function validStringPatch(kind: "provider" | "model" | "reasoning", value: unknown): boolean {
+function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode", value: unknown): boolean {
   if (typeof value !== "string") return false;
   if (kind === "reasoning") return REASONING_EFFORTS.has(value);
+  if (kind === "tailMode") return value === "lean" || value === "legacy";
   if (kind === "provider") return /^[A-Za-z0-9_.-]{1,64}$/.test(value);
   return value.length > 0 && value.length <= 200 && !/\s/.test(value) &&
     [...value].every((character) => character.charCodeAt(0) > 31 && character.charCodeAt(0) !== 127);
@@ -165,7 +177,9 @@ export class HermesConfigService {
       const value = (raw.values as Record<string, unknown>)[key];
       if (
         value !== null &&
-        (spec.type === "integer" ? !Number.isSafeInteger(value) : spec.type === "boolean" ? typeof value !== "boolean" :
+        (spec.type === "integer" || spec.type === "optionalInteger" ? !Number.isSafeInteger(value) :
+          spec.type === "number" || spec.type === "optionalNumber" ? typeof value !== "number" || !Number.isFinite(value) :
+          spec.type === "boolean" ? typeof value !== "boolean" :
           spec.type === "fallback" ? !validFallback(value) : typeof value !== "string")
       )
         throw unavailable();
@@ -218,10 +232,14 @@ export class HermesConfigService {
     const spec = HERMES_CONFIG_FIELDS[patch.key];
     if (!spec) throw validationFailed("Hermes-Feld ist nicht freigegeben.");
     if (
-      spec.type === "integer"
-        ? !Number.isInteger(patch.value) ||
+      spec.type === "integer" || spec.type === "optionalInteger"
+        ? spec.type === "optionalInteger" && patch.value === null ? false :
+          !Number.isInteger(patch.value) ||
           (patch.value as number) < spec.min ||
           (patch.value as number) > spec.max
+        : spec.type === "optionalNumber" && patch.value === null ? false :
+          spec.type === "number" || spec.type === "optionalNumber" ? typeof patch.value !== "number" || !Number.isFinite(patch.value) ||
+          patch.value < spec.min || patch.value > spec.max
         : spec.type === "boolean" ? typeof patch.value !== "boolean"
         : spec.type === "fallback" ? !validFallback(patch.value)
         : !validStringPatch(spec.kind, patch.value)

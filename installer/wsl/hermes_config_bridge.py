@@ -19,6 +19,17 @@ FIELDS = {
     "agent.reasoning_effort": ("reasoning", None, None),
     "fallback.min_switch_reset_seconds": ("integer", 0, 3600),
     "fallback_model": ("fallback", None, None),
+    "agent.auto_recovery_cycles": ("integer", 0, 20),
+    "agent.run_budget_seconds": ("optional_integer", 1, 86400),
+    "agent.budget_warning_ratio": ("optional_number", 0.01, 0.99),
+    "agent.agent_cache.max_size": ("integer", 1, 4096),
+    "max_concurrent_sessions": ("integer", 0, 10000),
+    "context_file_max_chars": ("integer", 0, 1000000),
+    "compression.enabled": ("boolean", None, None),
+    "compression.threshold": ("number", 0.1, 0.95),
+    "compression.target_ratio": ("number", 0.1, 0.8),
+    "compression.tail_mode": ("tail_mode", None, None),
+    "compression.protect_last_n": ("integer", 0, 100),
     "agent.max_turns": ("integer", 1, 100000),
     "agent.gateway_timeout": ("integer", 60, 86400),
     "agent.api_max_retries": ("integer", 1, 10),
@@ -32,6 +43,12 @@ def valid_field_value(key, value, spec):
     kind = spec[0]
     if kind == "integer":
         return type(value) is int and spec[1] <= value <= spec[2]
+    if kind == "optional_integer":
+        return value is None or (type(value) is int and spec[1] <= value <= spec[2])
+    if kind == "optional_number":
+        return value is None or (type(value) in (int, float) and spec[1] <= value <= spec[2])
+    if kind == "number":
+        return type(value) in (int, float) and spec[1] <= value <= spec[2]
     if kind == "boolean":
         return type(value) is bool
     if kind == "provider":
@@ -40,6 +57,8 @@ def valid_field_value(key, value, spec):
         return type(value) is str and 1 <= len(value) <= 200 and re.fullmatch(r"[^\s\x00-\x1f\x7f]+", value) is not None
     if kind == "reasoning":
         return type(value) is str and value in REASONING_EFFORTS
+    if kind == "tail_mode":
+        return type(value) is str and value in ("lean", "legacy")
     if kind == "fallback":
         return (type(value) is list and len(value) <= 8 and all(
             type(item) is dict and set(item) == {"provider", "model"} and
@@ -50,7 +69,7 @@ def valid_field_value(key, value, spec):
 PINNED_SOURCE = "d923a5eb"
 FAMILIES = (
     ("models", ("model", "models_dev", "providers", "fallback", "fallback_providers", "auxiliary", "agent.service_tier"), "P7-B: provider onboarding and live catalog remain"),
-    ("agent", ("agent", "compression", "context", "session", "sessions"), "P7-C"),
+    ("agent", ("agent", "compression", "context", "session", "sessions"), "P7-C: further session/context fields remain"),
     ("execution", ("terminal", "browser", "computer_use", "code_execution", "toolsets"), "P7-D"),
     ("extensions", ("skills", "plugins", "mcp"), "P7-E"),
     ("operations", ("cron", "gateway", "logging", "monitoring", "hooks", "update"), "P7-F"),
@@ -202,7 +221,7 @@ def locked_main(home, source, cli):
                 return 4
             # Hermes owns validation and preserving the rest of config.yaml. Never --force.
             call("set", key, json.dumps(value, separators=(",", ":")) if isinstance(value, list) else
-                 str(value).lower() if isinstance(value, bool) else str(value))
+                 "null" if value is None else str(value).lower() if isinstance(value, bool) else str(value))
             current, raw = snapshot(config_path)
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
@@ -221,7 +240,7 @@ def locked_main(home, source, cli):
     for key, spec in FIELDS.items():
         if key == "fallback_model" and isinstance(values[key], dict):
             values[key] = [values[key]]
-        if values[key] is not None and not valid_field_value(key, values[key], spec):
+        if not valid_field_value(key, values[key], spec) and values[key] is not None:
             values[key] = None
     roots, root_errors = inventory_roots(home, call)
     skill_names, skill_errors = installed_skills(roots)

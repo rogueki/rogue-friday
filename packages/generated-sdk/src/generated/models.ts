@@ -118,6 +118,50 @@ export type HermesConfigPatch =
       }[];
     }
   | {
+      key: "agent.auto_recovery_cycles";
+      value: number;
+    }
+  | {
+      key: "agent.run_budget_seconds";
+      value: number | null;
+    }
+  | {
+      key: "agent.budget_warning_ratio";
+      value: number | null;
+    }
+  | {
+      key: "agent.agent_cache.max_size";
+      value: number;
+    }
+  | {
+      key: "max_concurrent_sessions";
+      value: number;
+    }
+  | {
+      key: "context_file_max_chars";
+      value: number;
+    }
+  | {
+      key: "compression.enabled";
+      value: boolean;
+    }
+  | {
+      key: "compression.threshold";
+      value: number;
+    }
+  | {
+      key: "compression.target_ratio";
+      value: number;
+    }
+  | {
+      key: "compression.tail_mode";
+      value: "lean" | "legacy";
+    }
+  | {
+      key: "compression.protect_last_n";
+      value: number;
+    }
+  | {
       key: "agent.max_turns";
       value: number;
     }
@@ -2737,12 +2781,23 @@ export interface HermesConfigStatus {
       | "agent.reasoning_effort"
       | "fallback.min_switch_reset_seconds"
       | "fallback_model"
+      | "agent.auto_recovery_cycles"
+      | "agent.run_budget_seconds"
+      | "agent.budget_warning_ratio"
+      | "agent.agent_cache.max_size"
+      | "max_concurrent_sessions"
+      | "context_file_max_chars"
+      | "compression.enabled"
+      | "compression.threshold"
+      | "compression.target_ratio"
+      | "compression.tail_mode"
+      | "compression.protect_last_n"
       | "agent.max_turns"
       | "agent.gateway_timeout"
       | "agent.api_max_retries"
       | "session.terminal_continue"
       | "max_live_sessions";
-    type: "integer" | "boolean" | "string" | "fallback";
+    type: "integer" | "optionalInteger" | "number" | "optionalNumber" | "boolean" | "string" | "fallback";
     family: "agent" | "models";
     consumer: string;
     value:

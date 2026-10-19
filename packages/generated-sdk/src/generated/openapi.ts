@@ -6036,6 +6036,51 @@ export interface components {
             }[];
         } | {
             /** @constant */
+            key: "agent.auto_recovery_cycles";
+            value: number;
+        } | {
+            /** @constant */
+            key: "agent.run_budget_seconds";
+            value: number | null;
+        } | {
+            /** @constant */
+            key: "agent.budget_warning_ratio";
+            value: number | null;
+        } | {
+            /** @constant */
+            key: "agent.agent_cache.max_size";
+            value: number;
+        } | {
+            /** @constant */
+            key: "max_concurrent_sessions";
+            value: number;
+        } | {
+            /** @constant */
+            key: "context_file_max_chars";
+            value: number;
+        } | {
+            /** @constant */
+            key: "compression.enabled";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "compression.threshold";
+            value: number;
+        } | {
+            /** @constant */
+            key: "compression.target_ratio";
+            value: number;
+        } | {
+            /** @constant */
+            key: "compression.tail_mode";
+            /** @enum {unknown} */
+            value: "lean" | "legacy";
+        } | {
+            /** @constant */
+            key: "compression.protect_last_n";
+            value: number;
+        } | {
+            /** @constant */
             key: "agent.max_turns";
             value: number;
         } | {
@@ -6081,11 +6126,11 @@ export interface components {
                 /** @enum {unknown} */
                 family: "agent" | "models";
                 /** @enum {unknown} */
-                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions";
+                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions";
                 /** @constant */
                 reasonCode: "runtime_receipt_unavailable";
                 /** @enum {unknown} */
-                type: "integer" | "boolean" | "string" | "fallback";
+                type: "integer" | "optionalInteger" | "number" | "optionalNumber" | "boolean" | "string" | "fallback";
                 value: (number | boolean | string | null) | {
                     model: string;
                     provider: string;

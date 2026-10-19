@@ -31,6 +31,17 @@
         "required": ["provider", "model"], "additionalProperties": false } } },
       "required": ["key", "value"], "additionalProperties": false
     },
+    { "type": "object", "properties": { "key": { "const": "agent.auto_recovery_cycles" }, "value": { "type": "integer", "minimum": 0, "maximum": 20 } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "agent.run_budget_seconds" }, "value": { "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 86400 }, { "type": "null" }] } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "agent.budget_warning_ratio" }, "value": { "anyOf": [{ "type": "number", "minimum": 0.01, "maximum": 0.99 }, { "type": "null" }] } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "agent.agent_cache.max_size" }, "value": { "type": "integer", "minimum": 1, "maximum": 4096 } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "max_concurrent_sessions" }, "value": { "type": "integer", "minimum": 0, "maximum": 10000 } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "context_file_max_chars" }, "value": { "type": "integer", "minimum": 0, "maximum": 1000000 } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "compression.enabled" }, "value": { "type": "boolean" } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "compression.threshold" }, "value": { "type": "number", "minimum": 0.1, "maximum": 0.95 } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "compression.target_ratio" }, "value": { "type": "number", "minimum": 0.1, "maximum": 0.8 } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "compression.tail_mode" }, "value": { "enum": ["lean", "legacy"] } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "compression.protect_last_n" }, "value": { "type": "integer", "minimum": 0, "maximum": 100 } }, "required": ["key", "value"], "additionalProperties": false },
     {
       "type": "object",
       "properties": {
