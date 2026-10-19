@@ -61,7 +61,7 @@ from powerpoint_voice import PowerPointVoice  # noqa: E402
 from cloudtalk_voice import CloudTalkVoice  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
 import elevenlabs_cloud  # noqa: E402
-from model_routing import load_dashboard_voice_routing, route_request  # noqa: E402
+from model_routing import load_dashboard_voice_policy, route_request  # noqa: E402
 from voice_runtime_paths import dashboard_port  # noqa: E402
 from memory_outbox import MemoryOutbox, private_intent  # noqa: E402
 
@@ -108,7 +108,6 @@ prio ::= "P0" | "P1" | "P2" | "P3" | "P4"
 text ::= [^\n|]*'''
 
 ROUTE_NAMES = {"L": "local", "K1": "cloud_low", "K2": "cloud_high", "K3": "cloud_max"}
-ROUTE_EFFORT = {"cloud_low": "none", "cloud_high": "high", "cloud_max": "max"}
 KIMI_MODELS = {"cloud_low": "kimi-for-coding", "cloud_high": "k3", "cloud_max": "k3"}
 
 # Standardwerte (Friday); der Installer schreibt Name, Persona und Sprachbausteine in config\voice.json.
@@ -1079,7 +1078,12 @@ class VoiceService:
         if direct:
             return {"route": "local", "background": False, "needs_confirmation": False, "priority": "P4",
                     "intent": "clock", "answer": direct}
-        if self.cfg.get("voice_mode") == "elevenlabs":
+        policy = load_dashboard_voice_policy(
+            os.path.join(self.cfg.get("data_dir") or os.environ.get("FRIDAY_DATA_DIR") or
+                         os.path.join(INSTALL_ROOT, "dashboard", "data"), "dashboard.sqlite"),
+            fallback_provider=self.cfg.get("cloud_provider", "kimi-coding"),
+            fallback_models=self.cfg.get("cloud_models"))
+        if self.cfg.get("voice_mode") == "elevenlabs" or not policy["local_first"]:
             decision = route_request(text, provider=self.cfg.get("cloud_provider", "kimi-coding"),
                                      models=self.cfg.get("cloud_models"))
             decision["intent"] = decision["tier"]
@@ -1109,15 +1113,19 @@ class VoiceService:
 
     def _ask_hermes(self, text: str, decision: dict, task_id: str) -> str:
         route = decision["route"]
-        targets = load_dashboard_voice_routing(
+        policy = load_dashboard_voice_policy(
             os.path.join(self.cfg.get("data_dir") or os.environ.get("FRIDAY_DATA_DIR") or
                          os.path.join(INSTALL_ROOT, "dashboard", "data"), "dashboard.sqlite"),
             fallback_provider=self.cfg.get("cloud_provider", "kimi-coding"),
             fallback_models=self.cfg.get("cloud_models"))
-        provider, model = targets[route]
+        provider, model = policy["targets"][route]
+        if not model and policy["fallback"][route]:
+            provider, model = policy["fallback"][route]
+            log_event(event="hermes_model_fallback", task_id=task_id, route=route,
+                      reason_code="primary_unconfigured", provider=provider, model=model)
         if not model:
             return "Für diesen Anbieter ist noch kein Sprachmodell eingerichtet. Bitte die Modellrouten konfigurieren."
-        effort = ROUTE_EFFORT[route]
+        effort = policy["reasoning"][route]
         memory = self._memory_context(text)
         payload = {"model": model, "model_options": {"reasoning_effort": effort}, "messages": [
             {"role": "system", "content": HERMES_VOICE_SYSTEM.format(effort=effort)},
@@ -1128,6 +1136,8 @@ class VoiceService:
             payload["provider"] = provider
         t = time.monotonic()
         try:
+            # Once submitted, an HTTP error can follow agent tools or provider work. Never retry
+            # the request on a different model without a proven pre-execution rejection receipt.
             resp = post_json(self.cfg["hermes_url"], payload, {"Authorization": f"Bearer {self.hermes_key}"},
                              timeout=900)
             answer = resp["choices"][0]["message"]["content"].strip()

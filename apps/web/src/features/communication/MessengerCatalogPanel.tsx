@@ -1,6 +1,6 @@
 "use client";
 
-import type { MessengerCatalogResponse, MessengerProviderResponse, MessengerProviderUpdate } from "@friday/sdk";
+import type { MessengerCatalogResponse, MessengerProviderResponse, MessengerProviderUpdate, MessengerSendersResponse } from "@friday/sdk";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { call } from "@/lib/api/call";
@@ -11,6 +11,35 @@ const managed = new Set(["bluebubbles", "buzz", "dingtalk", "feishu", "google_ch
   "mattermost", "ntfy", "photon", "qqbot", "signal", "simplex", "slack", "sms", "teams", "wecom", "weixin",
   "whatsapp_cloud", "yuanbao"]);
 const omitted = new Set(["BUZZ_CLI_PATH", "BUZZ_CREDENTIALS_FILE", "HERMES_SIMPLEX_TEXT_BATCH_DELAY"]);
+
+function MessengerSenderLinks() {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+  const [open, setOpen] = useState(false);
+  const senders = useQuery({ queryKey: ["messenger", "senders"], enabled: open, retry: false,
+    queryFn: (): Promise<MessengerSendersResponse> => call(getApiClient().GET("/api/v1/messenger/senders")) });
+  async function change(id: string, link: boolean) {
+    setBusy(id); setMessage("");
+    try {
+      if (link) await call(getApiClient().POST("/api/v1/messenger/senders/{id}/link", { params: { path: { id } } }));
+      else await call(getApiClient().DELETE("/api/v1/messenger/senders/{id}/link", { params: { path: { id } } }));
+      await senders.refetch();
+      setMessage(link ? "Absender mit Owner-Identität verknüpft." : "Absender-Verknüpfung entfernt.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Absender-Verknüpfung fehlgeschlagen."); }
+    finally { setBusy(null); }
+  }
+  return <details onToggle={(event) => setOpen(event.currentTarget.open)}><summary>Beobachtete private Absender und Identitätslinks</summary>
+    <p>Nur nach Hermes-Zulassung beobachtete Direktnachrichten erscheinen hier. Verknüpfe eine genaue Absender-ID nur, wenn sie zu dir gehört. Nach einem Gateway-Neustart oder Kontowechsel ist eine neue Beobachtung und Verknüpfung nötig. Gruppen und unbekannte Absender werden nicht dem Owner-Gedächtnis zugeordnet.</p>
+    {senders.isPending && open ? <p role="status">Absender werden gelesen.</p> : null}
+    {senders.isError ? <p role="alert">Absenderliste nicht erreichbar. <button type="button" onClick={() => void senders.refetch()}>Erneut prüfen</button></p> : null}
+    {senders.data ? <ul>{senders.data.data.items.map((sender) => <li key={sender.id}>
+      <strong>{sender.platform}</strong> ({sender.accountId}): {sender.senderId} · Chat {sender.chatId} · {sender.linked ? "Owner-verknüpft" : "nicht verknüpft"}
+      <button type="button" disabled={busy !== null} onClick={() => void change(sender.id, !sender.linked)}>
+        {sender.linked ? "Verknüpfung entfernen" : "Mit Owner verknüpfen"}</button>
+    </li>)}</ul> : null}
+    {message ? <p role="status">{message}</p> : null}
+  </details>;
+}
 
 function ProviderFields({ item }: { item: MessengerCatalogResponse["data"]["items"][number] }) {
   const queryClient = useQueryClient();
@@ -87,6 +116,7 @@ export function MessengerCatalogPanel() {
   if (role !== "owner") return null;
   return <section className="mk-panel" aria-label="Hermes-Messenger-Kanäle">
     <h2>Hermes-Messenger-Kanäle</h2>
+    <MessengerSenderLinks />
     <p>Das Inventar stammt aus der gepinnten lokalen Hermes-Version. „Konfiguriert“ bedeutet nur, dass Hermes die Voraussetzungen erkennt. Ein erfolgreicher Empfang oder Versand ist damit nicht belegt.</p>
     {catalog.isPending ? <p role="status">Kanalvoraussetzungen werden gelesen.</p> : null}
     {catalog.isError ? <p role="alert">Kanalinventar nicht erreichbar. <button type="button" onClick={() => void catalog.refetch()}>Erneut prüfen</button></p> : null}

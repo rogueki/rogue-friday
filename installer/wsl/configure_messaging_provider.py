@@ -18,6 +18,7 @@ from messaging_runtime import platform_state
 ROOT = Path.home() / ".hermes" / "hermes-agent"
 HOME = ROOT.parent
 LOCK = HOME / ".friday-config.lock"
+ENV_LOCK = HOME / ".obsidian-vault.lock"
 KEY = HOME / "friday-messenger-revision.key"
 PINNED = "d923a5eb"
 SPECS = Path(__file__).with_name("messaging_provider_fields.json")
@@ -49,6 +50,21 @@ def lock_profile():
             if time.monotonic() >= deadline:
                 os.close(fd)
                 raise TimeoutError("profile config busy")
+            time.sleep(0.025)
+
+
+def lock_credentials():
+    fd = os.open(ENV_LOCK, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    os.fchmod(fd, 0o600)
+    deadline = time.monotonic() + 3
+    while True:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fd
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                os.close(fd)
+                raise TimeoutError("profile credentials busy")
             time.sleep(0.025)
 
 
@@ -146,11 +162,15 @@ def operation(platform, action, request=None, runner=subprocess.run):
         from hermes_cli._launchers import runtime_command
         path = Path(__file__).with_name("messaging_provider_apply_probe.py")
         command = runtime_command(ROOT, code=f"import runpy; runpy.run_path({str(path)!r}, run_name='__main__')")
+        env_fd = lock_credentials()
         try:
-            result = runner(command, input=json.dumps({"values": values}), capture_output=True,
-                            text=True, timeout=20, check=False)
-        except (OSError, subprocess.TimeoutExpired):
-            return {"state": "uncertain", "platform": platform, "revision": revision(platform)}
+            try:
+                result = runner(command, input=json.dumps({"values": values}), capture_output=True,
+                                text=True, timeout=20, check=False)
+            except (OSError, subprocess.TimeoutExpired):
+                return {"state": "uncertain", "platform": platform, "revision": revision(platform)}
+        finally:
+            os.close(env_fd)
         try:
             applied = json.loads(result.stdout)
         except ValueError:

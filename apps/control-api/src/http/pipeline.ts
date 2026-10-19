@@ -90,15 +90,14 @@ export class ApiPipeline {
       this.send(reply, outcome.result, spec);
       const seconds = (performance.now() - started) / 1000;
       this.runtime.metrics.recordRequest(spec.method, spec.path, outcome.status, seconds);
-      this.runtime.logger.info("request", {
+      const developer = this.runtime.settings.area("developer");
+      if (developer.debugMode) this.runtime.logger.debug("request diagnostic", {
         method: spec.method,
         route: spec.path,
         operationId: spec.operationId,
         status: outcome.status,
         durationMs: Math.round(seconds * 1000),
-        userId: ctx?.principal?.userId,
         role: ctx?.principal?.role,
-        ip: request.ip,
         ...(outcome.errorCode ? { errorCode: outcome.errorCode } : {}),
       });
     });
@@ -124,7 +123,12 @@ export class ApiPipeline {
       (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
       !this.runtime.config.server.allowRemote &&
       verifyVoiceBridgeKey(headers.authorization, this.runtime.hermesMemoryBridgeKey);
-    const actor: Actor = hermesMemoryBridgeAuthorized ? { type: "system", id: "friday-hermes-memory", name: "F.R.I.D.A.Y. Hermes Memory" } :
+    const messengerInboundBridgeAuthorized = spec.operationId === "captureMessengerInbound" && spec.method === "POST" &&
+      (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
+      !this.runtime.config.server.allowRemote &&
+      verifyVoiceBridgeKey(headers.authorization, this.runtime.messengerInboundBridgeKey);
+    const actor: Actor = messengerInboundBridgeAuthorized ? { type: "system", id: "friday-messenger", name: "F.R.I.D.A.Y. Messenger" } :
+      hermesMemoryBridgeAuthorized ? { type: "system", id: "friday-hermes-memory", name: "F.R.I.D.A.Y. Hermes Memory" } :
       mailBridgeAuthorized ? { type: "system", id: "friday-mail", name: "F.R.I.D.A.Y. Mail" } :
       calendarBridgeAuthorized ? { type: "system", id: "friday-calendar", name: "F.R.I.D.A.Y. Calendar" } :
       voiceBridgeAuthorized ? { type: "system", id: "friday-voice", name: "F.R.I.D.A.Y. Voice" } :
@@ -142,6 +146,7 @@ export class ApiPipeline {
       calendarBridgeAuthorized,
       mailBridgeAuthorized,
       hermesMemoryBridgeAuthorized,
+      messengerInboundBridgeAuthorized,
       actor,
       pathParams: (request.params ?? {}) as Record<string, string>,
       query: {},
@@ -183,6 +188,10 @@ export class ApiPipeline {
 
   private authorizeRequest(ctx: RequestContext, spec: RouteSpec): void {
     const { runtime } = this;
+    if (verifyVoiceBridgeKey(ctx.headers.authorization, runtime.messengerInboundBridgeKey)) {
+      if (ctx.messengerInboundBridgeAuthorized) return;
+      throw new ApiError({ code: "FORBIDDEN", message: "Messenger-Dienstkennung gilt nur für lokalen Gateway-Empfang." });
+    }
     if (verifyVoiceBridgeKey(ctx.headers.authorization, runtime.hermesMemoryBridgeKey)) {
       if (ctx.hermesMemoryBridgeAuthorized) return;
       throw new ApiError({ code: "FORBIDDEN", message: "Hermes-Gedächtniskennung gilt nur für lokalen Ereignisabruf und Aufnahme." });
@@ -214,7 +223,7 @@ export class ApiPipeline {
     }
     const action = ACTION_BY_OPERATION[spec.operationId];
     if (action) {
-      const decision = authorize(principal.role, action, { devMode: runtime.config.dev.scenarioConsole && runtime.engine !== undefined });
+      const decision = authorize(principal.role, action, { devMode: runtime.config.dev.scenarioConsole && runtime.engine !== undefined && runtime.settings.area("developer").scenarioConsole });
       if (!decision.allowed) {
         if (decision.reason === "dev_only") throw new ApiError({ code: "NOT_FOUND", message: "Szenario-Konsole ist nicht aktiviert." });
         throw new ApiError({ code: "FORBIDDEN", message: "Für diese Aktion fehlt die Berechtigung.", details: { action, reason: decision.reason } });

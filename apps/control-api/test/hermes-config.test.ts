@@ -71,7 +71,8 @@ const bridge = {
     "session.terminal_continue": false,
     max_live_sessions: false,
   },
-  secrets: { "model.api_key": true, rawCredential: "CANARY-DO-NOT-RETURN" },
+  secrets: { "model.api_key": true, OPENROUTER_API_KEY: true, OPENAI_API_KEY: false,
+    ANTHROPIC_API_KEY: false, rawCredential: "CANARY-DO-NOT-RETURN" },
   families: [
     {
       id: "agent",
@@ -144,6 +145,33 @@ it("passes one typed field and If-Match revision, then reports persisted without
   await expect(service.update({ key: "agent.max_turns", value: 0 }, 123)).rejects.toMatchObject({
     code: "VALIDATION_FAILED",
   });
+});
+
+it("sends model credentials only through bridge stdin and reports set-state without echoing the secret", async () => {
+  const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
+    write: { key: "OPENROUTER_API_KEY", persisted: true },
+  })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const secret = "CANARY-ONLY-IN-STDIN";
+  const result = await service.updateCredential({ key: "OPENROUTER_API_KEY", value: secret }, 123);
+  expect(result.secretStates.find((entry) => entry.key === "OPENROUTER_API_KEY")).toMatchObject({
+    configFileSet: true, effectiveConfigured: null,
+  });
+  expect(result.write).toMatchObject({ persisted: true, applied: null, verification: "unverified" });
+  expect(JSON.stringify(result)).not.toContain(secret);
+  expect(vi.mocked(invoke).mock.calls[0]?.[3]).toEqual(["credential-update"]);
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[0]?.[4]))).toEqual({
+    key: "OPENROUTER_API_KEY", value: secret, revision: 123,
+  });
+  await expect(service.updateCredential({ key: "OPENROUTER_API_KEY", value: "bad\nkey" }, 123))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
+it("does not report a timed-out credential write as failed or safe to retry", async () => {
+  const invoke = vi.fn(async () => { throw new Error("runner timed out"); }) as unknown as RunnerInvoker;
+  await expect(fixture(invoke).updateCredential({ key: "OPENAI_API_KEY", value: "CANARY" }, 123))
+    .rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE",
+      message: expect.stringContaining("Status neu laden") });
 });
 
 it("accepts a structured fallback chain and rejects unsafe model/provider identifiers", async () => {

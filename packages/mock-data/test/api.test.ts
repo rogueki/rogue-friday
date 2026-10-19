@@ -219,7 +219,8 @@ describe("REST route coverage", () => {
       "previewMessengerMessage", "confirmMessengerMessage", "listMessengerReceipts",
       "listMessengerTargets", "registerMessengerTarget", "removeMessengerTarget", "getMessengerCatalog",
       "getSystemBackupStatus", "performSystemBackupAction", "getDataRetentionStatus", "performDataRetentionAction",
-      "getMessengerProvider", "updateMessengerProvider", "applyMessengerProvider",
+      "getMessengerProvider", "updateMessengerProvider", "applyMessengerProvider", "listMessengerSenders",
+      "linkMessengerSender", "unlinkMessengerSender", "captureMessengerInbound",
     ].sort();
     const mocked = ROUTES.map((route) => route.operationId).sort();
     expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);

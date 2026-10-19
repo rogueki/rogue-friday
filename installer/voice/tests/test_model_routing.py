@@ -7,7 +7,7 @@ VOICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if VOICE not in sys.path:
     sys.path.insert(0, VOICE)
 
-from model_routing import load_dashboard_voice_routing, route_request
+from model_routing import load_dashboard_voice_policy, load_dashboard_voice_routing, route_request
 
 
 def test_routine_default_and_credential_state_are_separate():
@@ -134,3 +134,22 @@ def test_dashboard_voice_routes_fall_back_when_database_is_missing_or_old(tmp_pa
         db.execute("CREATE TABLE settings_areas (area TEXT PRIMARY KEY, json TEXT NOT NULL)")
         db.execute("INSERT INTO settings_areas VALUES (?, ?)", ("modelsRouting", json.dumps({"defaultModel": "Kimi K3", "routes": []})))
     assert load_dashboard_voice_routing(db_path, fallback_models=fallback) == expected
+
+
+def test_dashboard_voice_policy_consumes_local_first_reasoning_and_fallback(tmp_path):
+    db_path = tmp_path / "dashboard.sqlite"
+    with sqlite3.connect(db_path) as db:
+        db.execute("CREATE TABLE settings_areas (area TEXT PRIMARY KEY, json TEXT NOT NULL)")
+        db.execute("INSERT INTO settings_areas VALUES (?, ?)", ("modelsRouting", json.dumps({
+            "defaultModel": "openai:primary",
+            "localFirst": False,
+            "monthlyBudgetEur": 10,
+            "routes": [{"taskKind": "voice-complex", "model": "openai:reasoner",
+                        "reasoningLevel": "medium", "fallbackModel": "anthropic:backup"}],
+        })))
+    policy = load_dashboard_voice_policy(db_path)
+    assert policy["local_first"] is False
+    assert policy["targets"]["cloud_high"] == ("openai", "reasoner")
+    assert policy["reasoning"]["cloud_high"] == "medium"
+    assert policy["fallback"]["cloud_high"] == ("anthropic", "backup")
+    assert policy["monthly_budget_enforced"] is False

@@ -53,6 +53,9 @@ export const HERMES_CONFIG_FIELDS = {
 export type HermesConfigField = keyof typeof HERMES_CONFIG_FIELDS;
 type FallbackEntry = { provider: string; model: string };
 export type HermesConfigPatch = { key: HermesConfigField; value: number | boolean | string | FallbackEntry[] | null };
+export const HERMES_MODEL_CREDENTIALS = ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] as const;
+export type HermesModelCredential = typeof HERMES_MODEL_CREDENTIALS[number];
+export type HermesModelCredentialPatch = { key: HermesModelCredential; value: string | null };
 
 const REASONING_EFFORTS = new Set(["", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
 function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode", value: unknown): boolean {
@@ -75,13 +78,13 @@ interface BridgeStatus {
   revision: number;
   values: Record<HermesConfigField, number | boolean | string | FallbackEntry[] | null>;
   explicit: Record<HermesConfigField, boolean>;
-  secrets: { "model.api_key": boolean };
+  secrets: Record<"model.api_key" | HermesModelCredential, boolean>;
   families: Array<{ id: string; roots: string[]; followup: string; configFileSet: boolean }>;
   inventory: { scope: "profile"; skillsComplete: boolean; pluginsComplete: boolean; modelProvidersComplete: boolean; reasons: string[] };
   modelProviders: Array<{ id: string; configFileSet: boolean; authenticated: null; available: null }>;
   skills: Array<{ id: string; installed: true; enabled: boolean | null }>;
   plugins: Array<{ id: string; installed: true; enabled: boolean | null; configured: null }>;
-  write: { key: HermesConfigField; persisted: boolean } | null;
+  write: { key: HermesConfigField | HermesModelCredential; persisted: boolean } | null;
 }
 
 const unavailable = () =>
@@ -132,8 +135,8 @@ export class HermesConfigService {
   }
 
   private async run(
-    action: "status" | "update",
-    patch?: HermesConfigPatch,
+    action: "status" | "update" | "credential-update",
+    patch?: HermesConfigPatch | HermesModelCredentialPatch,
     revision?: number,
   ): Promise<BridgeStatus | null> {
     const { script, distro, user } = this.target();
@@ -145,7 +148,7 @@ export class HermesConfigService {
         user,
         [action],
         patch ? JSON.stringify({ ...patch, revision }) : undefined,
-        30000,
+        action === "credential-update" ? 60000 : 30000,
         150000,
       );
     } catch (error) {
@@ -153,6 +156,9 @@ export class HermesConfigService {
         return null;
       if (error instanceof Error && error.message.includes("revision_conflict"))
         throw conflict("Hermes-Konfiguration wurde außerhalb von Friday geändert.");
+      if (action === "credential-update")
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Hermes-Schlüsselvorgang nicht bestätigt. Status neu laden; eine Wiederholung könnte den bereits gespeicherten Schlüssel überschreiben." });
       throw unavailable();
     }
     if (
@@ -188,7 +194,8 @@ export class HermesConfigService {
     if (
       typeof raw.secrets !== "object" ||
       !raw.secrets ||
-      typeof (raw.secrets as Record<string, unknown>)["model.api_key"] !== "boolean"
+      !["model.api_key", ...HERMES_MODEL_CREDENTIALS].every((key) =>
+        typeof (raw.secrets as Record<string, unknown>)[key] === "boolean")
     )
       throw unavailable();
     if (
@@ -197,7 +204,7 @@ export class HermesConfigService {
     )
       throw unavailable();
     if (
-      action === "update" &&
+      action !== "status" &&
       (!raw.write ||
         typeof raw.write !== "object" ||
         (raw.write as Record<string, unknown>).key !== patch?.key ||
@@ -252,6 +259,18 @@ export class HermesConfigService {
     return this.present(observed);
   }
 
+  async updateCredential(patch: HermesModelCredentialPatch, revision: number) {
+    if (!HERMES_MODEL_CREDENTIALS.includes(patch.key) ||
+        !(patch.value === null || (typeof patch.value === "string" && patch.value.length >= 1 &&
+          patch.value.length <= 4096 && /^[\x20-\x7e]+$/.test(patch.value))))
+      throw validationFailed("Ungültiger Hermes-Modellanbieterschlüssel.");
+    if (!Number.isSafeInteger(revision) || revision < 1)
+      throw validationFailed("Ungültige Hermes-Konfigurationsversion.");
+    const observed = await this.run("credential-update", patch, revision);
+    if (!observed) throw unavailable();
+    return this.present(observed);
+  }
+
   private present(observed: BridgeStatus) {
     const pinned = observed.sourceRevision?.startsWith("d923a5eb") === true;
     return {
@@ -269,9 +288,9 @@ export class HermesConfigService {
         verification: "unverified" as const,
         reasonCode: "runtime_receipt_unavailable" as const,
       })),
-      secretStates: [
-        { key: "model.api_key", configFileSet: observed.secrets["model.api_key"], effectiveConfigured: null },
-      ],
+      secretStates: (["model.api_key", ...HERMES_MODEL_CREDENTIALS] as const).map((key) => ({
+        key, configFileSet: observed.secrets[key], effectiveConfigured: null,
+      })),
       families: observed.families
         .filter(
           (family) =>

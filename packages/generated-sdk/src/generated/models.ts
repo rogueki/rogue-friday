@@ -180,6 +180,10 @@ export type HermesConfigPatch =
   | {
       key: "max_live_sessions";
       value: number;
+    }
+  | {
+      key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
+      value: string | null;
     };
 export type MemoryType =
   | "profile"
@@ -750,6 +754,8 @@ export interface FridayModelMap {
   MessengerCatalogResponse: MessengerCatalogResponse;
   MessengerConfirmRequest: MessengerConfirmRequest;
   MessengerDraft: MessengerDraft;
+  MessengerInboundEvent: MessengerInboundEvent;
+  MessengerInboundResponse: MessengerInboundResponse;
   MessengerPreviewResponse: MessengerPreviewResponse;
   MessengerProviderApply: MessengerProviderApply;
   MessengerProviderResponse: MessengerProviderResponse;
@@ -757,6 +763,9 @@ export interface FridayModelMap {
   MessengerReceipt: MessengerReceipt;
   MessengerReceiptResponse: MessengerReceiptResponse;
   MessengerReceiptsResponse: MessengerReceiptsResponse;
+  MessengerSender: MessengerSender;
+  MessengerSenderResponse: MessengerSenderResponse;
+  MessengerSendersResponse: MessengerSendersResponse;
   MessengerTarget: MessengerTarget;
   MessengerTargetRequest: MessengerTargetRequest;
   MessengerTargetResponse: MessengerTargetResponse;
@@ -2827,6 +2836,7 @@ export interface DurableMemorySettings {
     dashboard: boolean;
     voice: boolean;
     hermes: boolean;
+    messenger?: boolean;
   };
   retention: "unlimited";
   exclusions: string[];
@@ -3153,7 +3163,7 @@ export interface HermesConfigStatus {
     reasonCode: "runtime_receipt_unavailable";
   }[];
   secretStates: {
-    key: "model.api_key";
+    key: "model.api_key" | "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
     configFileSet: boolean;
     effectiveConfigured: boolean | null;
   }[];
@@ -4036,6 +4046,65 @@ export interface MessengerDraft {
   notificationId?: string;
   notificationStep?: number;
 }
+export interface MessengerInboundEvent {
+  platform:
+    | "telegram"
+    | "discord"
+    | "whatsapp"
+    | "whatsapp_cloud"
+    | "slack"
+    | "signal"
+    | "mattermost"
+    | "matrix"
+    | "sms"
+    | "dingtalk"
+    | "feishu"
+    | "wecom"
+    | "weixin"
+    | "bluebubbles"
+    | "qqbot"
+    | "yuanbao"
+    | "teams"
+    | "buzz"
+    | "google_chat"
+    | "irc"
+    | "line"
+    | "ntfy"
+    | "photon"
+    | "simplex";
+  accountId: "default";
+  accountEpoch: string;
+  senderId: string;
+  chatId: string;
+  chatType: string;
+  messageId: string;
+  text: string;
+  suppressionReason?:
+    | "private"
+    | "policy_disabled"
+    | "not_private_dm"
+    | "unsupported_profile"
+    | "multi_profile_unknown"
+    | "account_changed";
+}
+export interface MessengerInboundResponse {
+  contractVersion: ContractVersion;
+  data: {
+    reason:
+      | "captured"
+      | "pending"
+      | "unlinked"
+      | "policy_disabled"
+      | "private"
+      | "not_private_dm"
+      | "unsupported_profile"
+      | "multi_profile_unknown"
+      | "account_changed"
+      | "invalid";
+    eventId: string | null;
+  };
+  freshness: Freshness;
+}
 export interface MessengerPreviewResponse {
   contractVersion: ContractVersion;
   data: {
@@ -4081,6 +4150,27 @@ export interface MessengerReceiptsResponse {
   contractVersion: ContractVersion;
   data: {
     items: MessengerReceipt[];
+  };
+  freshness: Freshness;
+}
+export interface MessengerSender {
+  id: string;
+  platform: string;
+  accountId: "default";
+  senderId: string;
+  chatId: string;
+  lastSeenAt: string;
+  linked: boolean;
+}
+export interface MessengerSenderResponse {
+  contractVersion: ContractVersion;
+  data: MessengerSender;
+  freshness: Freshness;
+}
+export interface MessengerSendersResponse {
+  contractVersion: ContractVersion;
+  data: {
+    items: MessengerSender[];
   };
   freshness: Freshness;
 }

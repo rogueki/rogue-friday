@@ -29,6 +29,12 @@ describe("secret hygiene", () => {
     api.runtime.hub.subscribe((event: FridayEvent) => streamed.push(JSON.stringify(event)));
     owner = api.client();
     record("login", await owner.loginOwner(OWNER_PASSWORD));
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    const debugSettings = await owner.patch("/api/v1/settings", {
+      developer: { ...settings.developer, debugMode: true, logLevel: "debug" },
+    }, { headers: { "if-match": String(settings.version) } });
+    expect(debugSettings.statusCode, debugSettings.body).toBe(200);
+    expect(debugSettings.json().data.developer).toMatchObject({ debugMode: true, logLevel: "debug" });
 
     // plant secrets through the only way in: the write-only adapter settings
     const planted = record(
@@ -164,8 +170,10 @@ describe("secret hygiene", () => {
   });
 
   it("keeps secrets out of the logs, including rejected login attempts", () => {
-    expect(logs.length).toBeGreaterThan(10);
-    const text = logs.join("\n");
+    const entries = logs.map((line) => JSON.parse(line));
+    expect(entries.length).toBeGreaterThan(10);
+    expect(entries).toContainEqual(expect.objectContaining({ message: "request diagnostic", operationId: "login", status: 401 }));
+    const text = entries.map((entry) => JSON.stringify(entry)).join("\n");
     expect(hasCanary(text)).toBeUndefined();
     expect(text).not.toContain(OWNER_PASSWORD + "-wrong");
     expect(text).not.toContain(api.env.FRIDAY_OWNER_PASSWORD_HASH as string);

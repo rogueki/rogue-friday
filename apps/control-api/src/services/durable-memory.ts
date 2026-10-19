@@ -30,7 +30,7 @@ export interface MemoryHit {
 export interface MemorySettings {
   enabled: boolean;
   privateMode: boolean;
-  channels: { dashboard: boolean; voice: boolean; hermes: boolean };
+  channels: { dashboard: boolean; voice: boolean; hermes: boolean; messenger?: boolean };
   retention: "unlimited";
   exclusions: string[];
 }
@@ -115,7 +115,7 @@ export class DurableMemoryService {
       CREATE INDEX IF NOT EXISTS memory_events_state ON events(state);`);
     this.db.exec("CREATE INDEX IF NOT EXISTS memory_events_identity ON events(json_extract(json,'$.identityId'));");
     this.db.prepare("INSERT OR IGNORE INTO metadata(key,value) VALUES('capture_settings',?)").run(JSON.stringify({
-      enabled: true, privateMode: false, channels: { dashboard: true, voice: true, hermes: true },
+      enabled: true, privateMode: false, channels: { dashboard: true, voice: true, hermes: true, messenger: false },
       retention: "unlimited", exclusions: ["private", "do_not_store", "credentials", "raw_audio"] }));
     // Only pending events are replayable. A written note missing after a healthy complete
     // Vault scan is an Obsidian deletion, not a request to recreate user-deleted content.
@@ -128,7 +128,7 @@ export class DurableMemoryService {
     const saved = row ? JSON.parse(row.value) as Partial<MemorySettings> : {};
     return { enabled: saved.enabled !== false, privateMode: saved.privateMode === true,
       channels: { dashboard: saved.channels?.dashboard !== false, voice: saved.channels?.voice !== false,
-        hermes: saved.channels?.hermes !== false }, retention: "unlimited",
+        hermes: saved.channels?.hermes !== false, messenger: saved.channels?.messenger === true }, retention: "unlimited",
       exclusions: ["private", "do_not_store", "credentials", "raw_audio"] };
   }
 
@@ -137,8 +137,10 @@ export class DurableMemoryService {
         !input.channels || ["dashboard", "voice", "hermes"].some((key) =>
           typeof input.channels[key as keyof MemorySettings["channels"]] !== "boolean"))
       throw new Error("Invalid memory settings");
+    if (input.channels.messenger !== undefined && typeof input.channels.messenger !== "boolean") throw new Error("Invalid memory settings");
     const settings: MemorySettings = { enabled: input.enabled, privateMode: input.privateMode,
-      channels: { dashboard: input.channels.dashboard, voice: input.channels.voice, hermes: input.channels.hermes },
+      channels: { dashboard: input.channels.dashboard, voice: input.channels.voice, hermes: input.channels.hermes,
+        messenger: input.channels.messenger === true },
       retention: "unlimited", exclusions: ["private", "do_not_store", "credentials", "raw_audio"] };
     this.db.exec("BEGIN IMMEDIATE");
     try {
@@ -196,7 +198,8 @@ export class DurableMemoryService {
     if (candidate.captureEligibility !== "eligible") return { eventId: candidate.eventId, accepted: false, pending: false };
     const settings = this.getSettings();
     if (!settings.enabled || settings.privateMode ||
-        candidate.channel in settings.channels && !settings.channels[candidate.channel as keyof MemorySettings["channels"]])
+        !Object.hasOwn(settings.channels, candidate.channel) ||
+        !settings.channels[candidate.channel as keyof MemorySettings["channels"]])
       return { eventId: candidate.eventId, accepted: false, pending: false };
     if (this.db.prepare("SELECT 1 FROM tombstones WHERE id=?").get(candidate.eventId))
       return { eventId: candidate.eventId, accepted: false, pending: false };

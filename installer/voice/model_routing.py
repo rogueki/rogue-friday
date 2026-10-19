@@ -101,6 +101,42 @@ def load_dashboard_voice_routing(
                 targets[by_task[task_kind]] = target
     return targets
 
+
+def load_dashboard_voice_policy(
+    db_path: str | Path, *, fallback_provider: str = "kimi-coding", fallback_models: Mapping | None = None,
+) -> dict:
+    """Resolve the voice route and the native policy fields consumed per request."""
+    targets = load_dashboard_voice_routing(db_path, fallback_provider=fallback_provider,
+                                           fallback_models=fallback_models)
+    policy = {"targets": targets, "local_first": True,
+              "reasoning": {"cloud_low": "none", "cloud_high": "high", "cloud_max": "max"},
+              "fallback": {route: None for route in VOICE_TASK_KINDS},
+              "monthly_budget_enforced": False}
+    try:
+        path = Path(db_path)
+        if not path.is_file():
+            return policy
+        with sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=0.2) as db:
+            row = db.execute("SELECT json FROM settings_areas WHERE area = ?", ("modelsRouting",)).fetchone()
+        settings = json.loads(row[0]) if row else None
+    except (OSError, ValueError, sqlite3.Error, TypeError):
+        return policy
+    if not isinstance(settings, dict):
+        return policy
+    if isinstance(settings.get("localFirst"), bool):
+        policy["local_first"] = settings["localFirst"]
+    by_task = {task: route for route, task in VOICE_TASK_KINDS.items()}
+    for entry in settings.get("routes", []) if isinstance(settings.get("routes"), list) else []:
+        if not isinstance(entry, dict) or entry.get("taskKind") not in by_task:
+            continue
+        route = by_task[entry["taskKind"]]
+        if entry.get("reasoningLevel") in ("none", "low", "medium", "high", "max"):
+            policy["reasoning"][route] = entry["reasoningLevel"]
+        fallback = _parse_model_target(entry.get("fallbackModel"))
+        if fallback and fallback != targets[route]:
+            policy["fallback"][route] = fallback
+    return policy
+
 _CRITICAL = re.compile(
     r"\b(?:medizinisch|medizin|diagnose|rechtlich|anwalt|gericht|steuerlich|"
     r"investition|investieren|sicherheitsl(?:ue|u)cke|datenverlust|notfall|"

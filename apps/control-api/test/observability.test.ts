@@ -18,6 +18,12 @@ describe("metrics and frontend telemetry (PLAN §50.3)", () => {
     operator = api.client();
     viewer = api.client();
     await owner.loginDev("owner");
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    const debugSettings = await owner.patch("/api/v1/settings", {
+      developer: { ...settings.developer, debugMode: true, logLevel: "debug" },
+    }, { headers: { "if-match": String(settings.version) } });
+    expect(debugSettings.statusCode, debugSettings.body).toBe(200);
+    expect(debugSettings.json().data.developer).toMatchObject({ debugMode: true, logLevel: "debug" });
     await operator.loginDev("operator");
     await viewer.loginDev("viewer");
   });

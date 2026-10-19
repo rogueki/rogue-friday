@@ -74,15 +74,18 @@ class ProviderConfigTest(unittest.TestCase):
             return subprocess.CompletedProcess(argv, 0, json.dumps({"state": "saved", "appliedFields": 1}), "")
         with tempfile.TemporaryDirectory() as directory, patch.object(bridge, "HOME", Path(directory)), \
                 patch.object(bridge, "LOCK", Path(directory) / ".friday-config.lock"), \
+                patch.object(bridge, "ENV_LOCK", Path(directory) / ".obsidian-vault.lock"), \
                 patch.object(bridge, "ROOT", Path(directory) / "hermes-agent"), \
                 patch.object(bridge, "source_ok", return_value=True), \
                 patch.object(bridge, "revision", side_effect=["a" * 64, "b" * 64]), \
                 patch.dict(sys.modules, {"hermes_cli": package, "hermes_cli._launchers": launcher}):
             result = bridge.operation("matrix", "update", {"revision": "a" * 64,
                 "values": {"MATRIX_ACCESS_TOKEN": "synthetic-secret"}}, runner)
+            credential_lock_created = (Path(directory) / ".obsidian-vault.lock").exists()
         self.assertEqual(result["state"], "saved")
         self.assertFalse(result["gatewayRestarted"])
         self.assertEqual(calls[0][0], ["fake-runtime"])
+        self.assertTrue(credential_lock_created)
         self.assertNotIn("synthetic-secret", json.dumps(result))
 
     def test_apply_restarts_only_after_exact_revision_and_does_not_claim_connection(self):

@@ -68,7 +68,7 @@
       "items": {
         "type": "object",
         "properties": {
-          "key": { "const": "model.api_key" },
+          "key": { "enum": ["model.api_key", "OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] },
           "configFileSet": { "type": "boolean" },
           "effectiveConfigured": { "type": ["boolean", "null"] }
         },

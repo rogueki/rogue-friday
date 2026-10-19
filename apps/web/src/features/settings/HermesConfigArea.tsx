@@ -53,6 +53,7 @@ export function HermesConfigArea() {
   const observed = useHermesConfig();
   const patch = usePatchHermesConfig();
   const [draft, setDraft] = useState<Record<string, number | boolean | string | Array<{ provider: string; model: string }> | null>>({});
+  const [credentialDraft, setCredentialDraft] = useState<Record<string, string>>({});
   if (observed.isPending) return <p role="status">Hermes-Konfiguration wird gelesen…</p>;
   if (observed.isError)
     return (
@@ -89,7 +90,9 @@ export function HermesConfigArea() {
         </p>
       ) : null}
       <h3>Freigegebene Einstellungen</h3>
-      {data.fields.map((field) => {
+      {(["models", "agent"] as const).map((family) => <section key={family} aria-label={LABELS[family]}>
+        <h4>{LABELS[family]}</h4>
+      {data.fields.filter((field) => field.family === family).map((field) => {
         const value = field.key in draft ? draft[field.key] : field.value;
         return (
           <div key={field.key} className="st-field">
@@ -201,12 +204,32 @@ export function HermesConfigArea() {
           </div>
         );
       })}
+      </section>)}
       {data.write ? (
         <p role="status">
           {data.write.persisted ? "Gespeichert und rückgelesen" : "Rücklesung abweichend"}; laufender
           Hermes-Prozess: unbekannt.
         </p>
       ) : null}
+      <section aria-label="Modellanbieter-Zugänge">
+        <h3>Modellanbieter-Zugänge</h3>
+        <p>Schlüssel werden nur beim Speichern gesendet und nie zurückgegeben. „Hinterlegt“ bestätigt die lokale Speicherung; Anmeldung und Modellzugriff bleiben ungeprüft.</p>
+        {data.secretStates.filter((state) => state.key !== "model.api_key").map((state) => (
+          <div key={state.key} className="st-field">
+            <label htmlFor={`hermes-secret-${state.key}`}>{state.key}</label>
+            <input id={`hermes-secret-${state.key}`} type="password" autoComplete="off"
+              value={credentialDraft[state.key] ?? ""} maxLength={4096}
+              onChange={(event) => setCredentialDraft((current) => ({ ...current, [state.key]: event.target.value }))} />
+            <small>{state.configFileSet ? "Lokal hinterlegt" : "Nicht lokal hinterlegt"} · Anbieterprüfung ausstehend</small>
+            <button type="button" disabled={patch.isPending || !credentialDraft[state.key] || data.fields.every((field) => !field.writable)}
+              onClick={() => patch.mutate({ revision, patch: { key: state.key as "OPENROUTER_API_KEY", value: credentialDraft[state.key] ?? "" } },
+                { onSuccess: () => setCredentialDraft((current) => ({ ...current, [state.key]: "" })) })}>Schlüssel speichern</button>
+            <button type="button" disabled={patch.isPending || !state.configFileSet || data.fields.every((field) => !field.writable)}
+              onClick={() => patch.mutate({ revision, patch: { key: state.key as "OPENROUTER_API_KEY", value: null } },
+                { onSuccess: () => setCredentialDraft((current) => ({ ...current, [state.key]: "" })) })}>Schlüssel entfernen</button>
+          </div>
+        ))}
+      </section>
       <h3>Weitere Hermes-Bereiche</h3>
       <p>
         Erfasste Anbieterkennungen: {data.modelProviders.length ? data.modelProviders.map((provider) => provider.id).join(", ") : "keine"}.
@@ -233,7 +256,7 @@ export function HermesConfigArea() {
       <p>
         Modell-API-Schlüssel in <code>config.yaml</code>:{" "}
         {data.secretStates[0]?.configFileSet ? "hinterlegt" : "nicht dort hinterlegt"}. Andere
-        Credential-Quellen sind hier noch ungeprüft.
+        Weitere Credential-Quellen und die tatsächliche Anbieteranmeldung sind ungeprüft.
       </p>
       <details>
         <summary>Installierte Skills ({data.skills.length})</summary>
