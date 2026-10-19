@@ -60,6 +60,7 @@ jobs:
             installer/wsl/test_messaging_send.py \
             installer/wsl/test_messaging_catalog.py \
             installer/wsl/test_configure_messaging_provider.py \
+            installer/wsl/test_hermes_config_bridge.py \
             installer/wsl/tests/test_mail_bridge_setup.py \
             installer/wsl/tests/test_calendar_bridge_setup.py
 
