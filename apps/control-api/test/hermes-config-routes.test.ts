@@ -139,3 +139,35 @@ it("accepts only the owner credential allowlist and never echoes a model secret"
     await api.close();
   }
 });
+
+it("serves the model picker only to the owner and keeps catalog proof distinct from model access", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const read = vi.spyOn(api.runtime.hermesConfig, "modelCatalog").mockImplementation(async (providerId) => ({
+      sourceRevision: status.sourceRevision,
+      checkedAt: new Date().toISOString(),
+      providerListComplete: null,
+      providers: [{ id: "openai-api", label: "OpenAI API" }],
+      selected: providerId ? { id: providerId, models: ["gpt-test"],
+        origin: "endpoint_confirmed_picker" as const, probeStatus: "succeeded" as const, modelAccess: null } : null,
+    }));
+    const anonymous = api.client();
+    const viewer = api.client();
+    await viewer.loginDev("viewer");
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const route = "/api/v1/settings/hermes-model-catalog";
+    expect((await anonymous.get(route)).statusCode).toBe(401);
+    expect((await viewer.get(route)).statusCode).toBe(403);
+    expect((await owner.get(`${route}?providerId=unsafe%3Bvalue`)).statusCode).toBe(400);
+    const offered = await owner.get(route);
+    expect(offered.statusCode, offered.body).toBe(200);
+    expect(offered.json().data.selected).toBeNull();
+    const probed = await owner.get(`${route}?providerId=openai-api`);
+    expect(probed.statusCode, probed.body).toBe(200);
+    expect(probed.json().data.selected).toMatchObject({ probeStatus: "succeeded", modelAccess: null });
+    expect(read).toHaveBeenCalledWith("openai-api");
+  } finally {
+    await api.close();
+  }
+});

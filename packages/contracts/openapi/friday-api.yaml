@@ -6389,6 +6389,35 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/hermes-model-catalog:
+    get:
+      operationId: getHermesModelCatalog
+      tags: [settings]
+      summary: Read pinned Hermes picker providers; optionally probe one model catalog
+      parameters:
+        - name: providerId
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9_.-]{1,64}$"
+      responses:
+        "200":
+          description: Provider picker and optional bounded model discovery; not an inference receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesModelCatalogResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/content-studio-keys:
     get:
       operationId: getContentStudioKeys
@@ -9134,6 +9163,10 @@ components:
       $ref: ../schemas/integrations/hermes-config-status.schema.json
     HermesConfigStatusResponse:
       $ref: ../schemas/integrations/hermes-config-status-response.schema.json
+    HermesModelCatalog:
+      $ref: ../schemas/integrations/hermes-model-catalog.schema.json
+    HermesModelCatalogResponse:
+      $ref: ../schemas/integrations/hermes-model-catalog-response.schema.json
     DurableMemoryStatus:
       $ref: ../schemas/integrations/durable-memory-status.schema.json
     DurableMemoryStatusResponse:

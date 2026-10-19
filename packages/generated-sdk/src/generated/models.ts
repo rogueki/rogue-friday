@@ -674,6 +674,8 @@ export interface FridayModelMap {
   HermesConfigPatch: HermesConfigPatch;
   HermesConfigStatus: HermesConfigStatus;
   HermesConfigStatusResponse: HermesConfigStatusResponse;
+  HermesModelCatalog: HermesModelCatalog;
+  HermesModelCatalogResponse: HermesModelCatalogResponse;
   HermesSkillKeyCheck: HermesSkillKeyCheck;
   HermesSkillKeyCheckResponse: HermesSkillKeyCheckResponse;
   HermesSkillKeyPatch: HermesSkillKeyPatch;
@@ -3217,6 +3219,30 @@ export interface Extension {
 export interface HermesConfigStatusResponse {
   contractVersion: ContractVersion;
   data: HermesConfigStatus;
+  freshness: Freshness;
+}
+export interface HermesModelCatalog {
+  sourceRevision: string;
+  checkedAt: string;
+  /**
+   * Pinned picker can silently omit plugin profiles whose discovery fails.
+   */
+  providerListComplete: boolean | null;
+  providers: {
+    id: string;
+    label: string;
+  }[];
+  selected: null | {
+    id: string;
+    models: string[];
+    origin: "curated" | "endpoint_confirmed_picker";
+    probeStatus: "unsupported" | "succeeded" | "failed";
+    modelAccess: boolean | null;
+  };
+}
+export interface HermesModelCatalogResponse {
+  contractVersion: ContractVersion;
+  data: HermesModelCatalog;
   freshness: Freshness;
 }
 export interface HermesSkillKeyCheck {

@@ -2,7 +2,7 @@
 
 import type { HermesConfigPatch } from "@friday/sdk";
 import { useState } from "react";
-import { useHermesConfig, usePatchHermesConfig } from "@/lib/api/domains/settings";
+import { useHermesConfig, useHermesModelCatalog, usePatchHermesConfig } from "@/lib/api/domains/settings";
 
 const LABELS: Record<string, string> = {
   "model.provider": "Hermes-Anbieterkennung",
@@ -52,6 +52,11 @@ const NUMERIC_LIMITS: Record<string, [number, number, number]> = {
 export function HermesConfigArea() {
   const observed = useHermesConfig();
   const patch = usePatchHermesConfig();
+  const [showCatalog, setShowCatalog] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [probeProvider, setProbeProvider] = useState<string | null>(null);
+  const catalog = useHermesModelCatalog(undefined, showCatalog);
+  const selectedCatalog = useHermesModelCatalog(probeProvider ?? undefined, probeProvider !== null);
   const [draft, setDraft] = useState<Record<string, number | boolean | string | Array<{ provider: string; model: string }> | null>>({});
   const [credentialDraft, setCredentialDraft] = useState<Record<string, string>>({});
   if (observed.isPending) return <p role="status">Hermes-Konfiguration wird gelesen…</p>;
@@ -73,6 +78,8 @@ export function HermesConfigArea() {
       </p>
     );
   const revision = data.revision;
+  const effectiveProvider = String(draft["model.provider"] ??
+    data.fields.find((field) => field.key === "model.provider")?.value ?? "");
   return (
     <div className="st-stack">
       <p role="status">
@@ -134,12 +141,18 @@ export function HermesConfigArea() {
             ) : field.type === "string" ? (
               <>
                 <input id={`hermes-${field.key}`} type="text" value={String(value ?? "")}
-                  list={field.key === "model.provider" ? "hermes-provider-ids" : undefined}
+                  list={field.key === "model.provider" ? "hermes-provider-ids" :
+                    field.key === "model.default" && selectedCatalog.data?.data.selected?.id === effectiveProvider ?
+                      "hermes-model-ids" : undefined}
                   maxLength={field.key === "model.provider" ? 64 : 200}
                   onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))} />
                 {field.key === "model.provider" ? <datalist id="hermes-provider-ids">
-                  {data.modelProviders.map((provider) => <option key={provider.id} value={provider.id} />)}
+                  {(catalog.data?.data.providers ?? data.modelProviders).map((provider) => <option key={provider.id} value={provider.id} />)}
                 </datalist> : null}
+                {field.key === "model.default" && selectedCatalog.data?.data.selected?.id === effectiveProvider ?
+                  <datalist id="hermes-model-ids">
+                    {selectedCatalog.data.data.selected.models.map((model) => <option key={model} value={model} />)}
+                  </datalist> : null}
               </>
             ) : field.type === "boolean" ? (
               <input
@@ -230,9 +243,45 @@ export function HermesConfigArea() {
           </div>
         ))}
       </section>
+      <section aria-label="Hermes-Modellkatalog">
+        <h3>Hermes-Modellkatalog</h3>
+        <p>Die Anbieterliste kommt aus dem installierten Hermes-Picker. Die ausdrückliche Modellprüfung fragt einen Anbieter-Katalogendpunkt ab, ohne eine Modellanfrage zu senden. Ein Katalogtreffer bestätigt die Nutzbarkeit des Modells noch nicht.</p>
+        <button type="button" disabled={catalog.isFetching}
+          onClick={() => showCatalog ? void catalog.refetch() : setShowCatalog(true)}>
+          {showCatalog ? "Anbieterliste neu laden" : "Anbieter laden"}
+        </button>
+        {catalog.isError ? <p role="alert">Anbieterliste nicht erreichbar.</p> : null}
+        {catalog.data ? <>
+          <p>{catalog.data.data.providers.length} Anbieterkennungen im aktuellen Picker; die Vollständigkeit externer Plugin-Profile ist unbekannt.</p>
+          <label htmlFor="hermes-catalog-provider">Anbieter für Modellprüfung</label>
+          <select id="hermes-catalog-provider" value={selectedProvider ?? ""}
+            onChange={(event) => { setSelectedProvider(event.target.value || null); setProbeProvider(null); }}>
+            <option value="">Anbieter wählen</option>
+            {catalog.data.data.providers.map((provider) =>
+              <option key={provider.id} value={provider.id}>{provider.label} ({provider.id})</option>)}
+          </select>
+          {selectedProvider ? <button type="button" disabled={selectedCatalog.isFetching}
+            onClick={() => probeProvider === selectedProvider ? void selectedCatalog.refetch() : setProbeProvider(selectedProvider)}>
+            Modellliste prüfen
+          </button> : null}
+        </> : null}
+        {selectedCatalog.isError ? <p role="alert">Modellkatalog nicht erreichbar.</p> : null}
+        {selectedCatalog.data?.data.selected ? <>
+          <p role="status">
+            {selectedCatalog.data.data.selected.probeStatus === "succeeded" ?
+              "Anbieter-Katalogendpunkt hat geantwortet" :
+              selectedCatalog.data.data.selected.probeStatus === "failed" ?
+                "Katalogabfrage fehlgeschlagen; nur kuratierte Kandidaten" :
+                "Keine verifizierende Abfrage für diesen Anbieter; nur kuratierte Kandidaten"}.
+            Modellnutzung bleibt ungeprüft.
+          </p>
+          <p>Modellkandidaten: {selectedCatalog.data.data.selected.models.length ?
+            selectedCatalog.data.data.selected.models.join(", ") : "keine"}</p>
+        </> : null}
+      </section>
       <h3>Weitere Hermes-Bereiche</h3>
       <p>
-        Erfasste Anbieterkennungen: {data.modelProviders.length ? data.modelProviders.map((provider) => provider.id).join(", ") : "keine"}.
+        Im Profil konfigurierte Anbieterkennungen: {data.modelProviders.length ? data.modelProviders.map((provider) => provider.id).join(", ") : "keine"}.
         Authentifizierung und Erreichbarkeit sind ungeprüft; Modelllisten erfordern eine anbieterspezifische Abfrage.
         {!data.inventory.modelProvidersComplete ? " Nicht alle Anbieterkennungen konnten dargestellt werden." : ""}
       </p>

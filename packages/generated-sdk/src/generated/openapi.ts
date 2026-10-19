@@ -2745,6 +2745,23 @@ export interface paths {
         patch: operations["patchHermesConfig"];
         trace?: never;
     };
+    "/api/v1/settings/hermes-model-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read pinned Hermes picker providers; optionally probe one model catalog */
+        get: operations["getHermesModelCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/hermes-skill-keys": {
         parameters: {
             query?: never;
@@ -6461,6 +6478,33 @@ export interface components {
         HermesConfigStatusResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["HermesConfigStatus"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HermesModelCatalog */
+        HermesModelCatalog: {
+            /** Format: date-time */
+            checkedAt: string;
+            /** @description Pinned picker can silently omit plugin profiles whose discovery fails. */
+            providerListComplete: boolean | null;
+            providers: {
+                id: string;
+                label: string;
+            }[];
+            selected: null | {
+                id: string;
+                modelAccess: boolean | null;
+                models: string[];
+                /** @enum {unknown} */
+                origin: "curated" | "endpoint_confirmed_picker";
+                /** @enum {unknown} */
+                probeStatus: "unsupported" | "succeeded" | "failed";
+            };
+            sourceRevision: string;
+        };
+        /** HermesModelCatalogResponse */
+        HermesModelCatalogResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["HermesModelCatalog"];
             freshness: components["schemas"]["Freshness"];
         };
         /** HermesSkillKeyCheck */
@@ -16249,6 +16293,32 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getHermesModelCatalog: {
+        parameters: {
+            query?: {
+                providerId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider picker and optional bounded model discovery; not an inference receipt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesModelCatalogResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };

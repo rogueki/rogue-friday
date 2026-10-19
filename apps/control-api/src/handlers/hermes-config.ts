@@ -12,6 +12,11 @@ const single = <T>(data: T) => ({
 });
 
 export const hermesConfigHandlers: Partial<Record<OperationId, Handler>> = {
+  async getHermesModelCatalog(ctx) {
+    const providerId = ctx.query.providerId;
+    return { status: 200, body: single(await ctx.runtime.hermesConfig.modelCatalog(
+      typeof providerId === "string" ? providerId : undefined)) };
+  },
   async getHermesConfig(ctx) {
     return { status: 200, body: single(await ctx.runtime.hermesConfig.status()) };
   },

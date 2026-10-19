@@ -235,6 +235,59 @@ export class HermesConfigService {
         };
   }
 
+  async modelCatalog(providerId?: string) {
+    if (providerId !== undefined && !/^[A-Za-z0-9_.-]{1,64}$/.test(providerId))
+      throw validationFailed("Ungültige Hermes-Anbieterkennung.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["model-catalog"],
+        JSON.stringify({ providerId: providerId ?? null }), 45000, 150000);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("unknown_provider"))
+        throw validationFailed("Hermes bietet diesen Anbieter nicht an.");
+      throw unavailable();
+    }
+    if (typeof raw.sourceRevision !== "string" || !/^d923a5eb[0-9a-f]{32}$/.test(raw.sourceRevision) ||
+        !Array.isArray(raw.providers) || raw.providers.length > 200 ||
+        !raw.providers.every((provider) => provider && typeof provider === "object" &&
+          typeof (provider as Record<string, unknown>).id === "string" &&
+          /^[A-Za-z0-9_.-]{1,64}$/.test((provider as Record<string, unknown>).id as string) &&
+          typeof (provider as Record<string, unknown>).label === "string" &&
+          ((provider as Record<string, unknown>).label as string).length <= 200)) throw unavailable();
+    if (new Set(raw.providers.map((provider) => (provider as { id: string }).id)).size !== raw.providers.length)
+      throw unavailable();
+    const selected = raw.selected;
+    if (selected !== null &&
+        (!selected || typeof selected !== "object" ||
+         (selected as Record<string, unknown>).id !== providerId ||
+         !raw.providers.some((provider) => (provider as { id: string }).id === providerId) ||
+         !Array.isArray((selected as Record<string, unknown>).models) ||
+         ((selected as Record<string, unknown>).models as unknown[]).length > 1000 ||
+         !((selected as Record<string, unknown>).models as unknown[]).every((model) =>
+           typeof model === "string" && model.length >= 1 && model.length <= 200 && !/\s/.test(model)) ||
+         !["curated", "endpoint_confirmed_picker"].includes(String((selected as Record<string, unknown>).origin)) ||
+         !["unsupported", "succeeded", "failed"].includes(String((selected as Record<string, unknown>).probeStatus)) ||
+         (selected as Record<string, unknown>).modelAccess !== null)) throw unavailable();
+    if (providerId === undefined && selected !== null || providerId !== undefined && selected === null)
+      throw unavailable();
+    return {
+      sourceRevision: raw.sourceRevision,
+      checkedAt: new Date().toISOString(),
+      providerListComplete: null,
+      providers: raw.providers.map((provider) => ({
+        id: (provider as { id: string }).id, label: (provider as { label: string }).label,
+      })),
+      selected: selected === null ? null : {
+        id: providerId as string,
+        models: (selected as { models: string[] }).models,
+        origin: (selected as { origin: "curated" | "endpoint_confirmed_picker" }).origin,
+        probeStatus: (selected as { probeStatus: "unsupported" | "succeeded" | "failed" }).probeStatus,
+        modelAccess: null,
+      },
+    };
+  }
+
   async update(patch: HermesConfigPatch, revision: number) {
     const spec = HERMES_CONFIG_FIELDS[patch.key];
     if (!spec) throw validationFailed("Hermes-Feld ist nicht freigegeben.");

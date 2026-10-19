@@ -237,3 +237,34 @@ it("keeps unknown skill activation and partial inventory visible", async () => {
   expect(observed.skills[0]?.enabled).toBeNull();
   expect(observed.inventory).toMatchObject({ skillsComplete: false, reasons: ["skill_activation_unknown"] });
 });
+
+it("returns a redacted picker catalog without inferring provider login or model access", async () => {
+  const invoke = vi.fn(async (_script, _distro, _user, _args, request) => ({
+    sourceRevision: bridge.sourceRevision,
+    providers: [{ id: "openai-api", label: "OpenAI API", secret: "CANARY-DO-NOT-RETURN" }],
+    selected: JSON.parse(String(request)).providerId ? {
+      id: "openai-api", models: ["gpt-test"], origin: "endpoint_confirmed_picker",
+      probeStatus: "succeeded", modelAccess: null, secret: "CANARY-DO-NOT-RETURN",
+    } : null,
+    secret: "CANARY-DO-NOT-RETURN",
+  })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const offered = await service.modelCatalog();
+  expect(offered).toMatchObject({ providerListComplete: null, selected: null,
+    providers: [{ id: "openai-api", label: "OpenAI API" }] });
+  const probed = await service.modelCatalog("openai-api");
+  expect(probed.selected).toEqual({ id: "openai-api", models: ["gpt-test"],
+    origin: "endpoint_confirmed_picker", probeStatus: "succeeded", modelAccess: null });
+  expect(JSON.stringify([offered, probed])).not.toContain("CANARY-DO-NOT-RETURN");
+  expect(vi.mocked(invoke).mock.calls[1]?.[3]).toEqual(["model-catalog"]);
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[1]?.[4]))).toEqual({ providerId: "openai-api" });
+  await expect(service.modelCatalog("unsafe;provider")).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
+it("fails closed when a catalog response claims an unrequested provider", async () => {
+  const service = fixture(vi.fn(async () => ({ sourceRevision: bridge.sourceRevision,
+    providers: [{ id: "openai-api", label: "OpenAI API" }],
+    selected: { id: "anthropic", models: [], origin: "curated", probeStatus: "failed", modelAccess: null },
+  })) as unknown as RunnerInvoker);
+  await expect(service.modelCatalog("openai-api")).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+});
