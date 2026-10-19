@@ -3,6 +3,7 @@ import { createId } from "@friday/observability";
 import type { Approval, CalendarEvent, SchemaValidator, TaskActionRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
 import type { Db } from "../db/database";
 import type { LocalEventInput } from "./local-calendar";
+import type { MailSendRequest } from "./mail-send";
 import type { SettingsService } from "./settings";
 import { conflict, validationFailed } from "../util/errors";
 import type { Actor } from "@friday/sdk";
@@ -15,7 +16,10 @@ export type NativeExecutableAction =
   | { kind: "calendar.create"; body: LocalEventInput }
   | { kind: "calendar.update"; id: string; version: number; body: LocalEventInput }
   /** The snapshot lets a replayed confirmation still answer with the event as it was before the deletion. */
-  | { kind: "calendar.delete"; id: string; version: number; snapshot: CalendarEvent };
+  | { kind: "calendar.delete"; id: string; version: number; snapshot: CalendarEvent }
+  /** The journal in MailSendService makes the actual SMTP call durable and at-most-once per staged action. */
+  | { kind: "mail.send"; accountId: string; body: MailSendRequest }
+  | { kind: "mail.change"; accountId: string; mailbox: string; uid: string; uidValidity: string; change: "move" | "flag"; destination?: string };
 
 /** Receipt sentence per action kind; the create wording is asserted by existing API fixtures. */
 export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], string>> = {
@@ -25,6 +29,8 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "calendar.create": "eingetragen",
   "calendar.update": "aktualisiert",
   "calendar.delete": "geloescht",
+  "mail.send": "versendet",
+  "mail.change": "aktualisiert",
 };
 
 /** Receipt subject per action family; combined with the verb to the exact receipt sentence. */
@@ -35,6 +41,8 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "calendar.create": "Termin",
   "calendar.update": "Termin",
   "calendar.delete": "Termin",
+  "mail.send": "Mail",
+  "mail.change": "Mail",
 };
 
 /** The action executor supplies a reviewed preview and a stable key before any external side effect. */
@@ -135,6 +143,13 @@ export class NativeApprovalRequests {
     const row = this.db.prepare("SELECT action_json FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
       .get(ownerId, requestKey) as { action_json: string | null } | undefined;
     return row?.action_json ? JSON.parse(row.action_json) as NativeExecutableAction : null;
+  }
+
+  /** Read-only lifecycle state, e.g. to mark a replayed confirmation as a replay instead of a fresh execution. */
+  stateOf(ownerId: string, requestKey: string): string | null {
+    const row = this.db.prepare("SELECT state FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
+      .get(ownerId, requestKey) as { state: string } | undefined;
+    return row?.state ?? null;
   }
 
   confirm(ownerId: string, requestKey: string, expectedAction: NativeExecutableAction): CapturedApprovalPolicy {

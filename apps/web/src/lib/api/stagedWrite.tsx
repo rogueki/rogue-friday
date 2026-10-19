@@ -23,6 +23,8 @@ export interface StagedWrite {
   subject: string;
   /** Queries invalidated after execution (and on CONFLICT, where the data may have moved). */
   invalidateKeys: readonly (readonly unknown[])[];
+  /** Receives the parsed success response, e.g. a send receipt the caller keeps working with. */
+  onExecuted?: (response: unknown) => void;
 }
 
 export type StagedWriteOutcome = "executed" | "preview" | "approval" | "failed";
@@ -78,7 +80,8 @@ export function useRunStagedWrite(): (write: StagedWrite) => Promise<StagedWrite
     async (write) => {
       setBusy(true);
       try {
-        await write.send();
+        const response = await write.send();
+        write.onExecuted?.(response);
         toast({ title: write.successMessage, description: write.subject, tone: "green", duration: 3500 });
         for (const key of write.invalidateKeys) void queryClient.invalidateQueries({ queryKey: key });
         return "executed";
@@ -123,7 +126,8 @@ export function StagedWriteConfirmHost() {
     if (!pending) return;
     setBusy(true);
     try {
-      await pending.write.send(pending.previewId);
+      const response = await pending.write.send(pending.previewId);
+      pending.write.onExecuted?.(response);
       setPending(null);
       toast({ title: pending.write.successMessage, description: pending.write.subject, tone: "green", duration: 3500 });
       for (const key of pending.write.invalidateKeys) void queryClient.invalidateQueries({ queryKey: key });

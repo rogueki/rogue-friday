@@ -219,6 +219,16 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
           calendar.delete(action.id, principal.userId, action.version);
           return action.id;
         }
+        // Mail sends go through the durable send journal: one SMTP attempt per staged action, uncertain on ambiguity.
+        if (action.kind === "mail.send") {
+          await runtime.mailSend.send(action.accountId, action.body, principal.userId, idempotencyKey);
+          return runtime.mailSend.receipt(action.accountId, principal.userId, idempotencyKey).receiptId;
+        }
+        if (action.kind === "mail.change") {
+          await runtime.mailAccounts.change(action.accountId, action.mailbox, action.uid, action.uidValidity,
+            action.change, action.destination);
+          return `${action.mailbox}:${action.uid}`;
+        }
         throw conflict("Aktion ist nicht ausfuehrbar.");
       })) : await approveBase(ctx);
     const result = (base.body as { data: Approval }).data;

@@ -4,9 +4,9 @@ import type { IntegrationEvent } from "../services/durable-memory";
 
 /** Only safe action metadata enters native memory; mail contents and addresses stay out. */
 export function captureMailSend(ctx: RequestContext, accountId: string, actor: string, identityId: string,
-  channel: "dashboard" | "voice", state: "sent" | "uncertain"): "written" | "pending" | "skipped" | "error" {
+  channel: "dashboard" | "voice", state: "sent" | "uncertain", journalKey?: string): "written" | "pending" | "skipped" | "error" {
   try {
-    const receipt = ctx.runtime.mailSend.receipt(accountId, actor, ctx.idempotencyKey ?? "");
+    const receipt = ctx.runtime.mailSend.receipt(accountId, actor, journalKey ?? ctx.idempotencyKey ?? "");
     const event: IntegrationEvent = {
       eventId: receipt.eventId, contractVersion: CONTRACT_VERSION, eventType: "action_result",
       actor: { type: "assistant", id: "friday", role: null }, identityId, channel,

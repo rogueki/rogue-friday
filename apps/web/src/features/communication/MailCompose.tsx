@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
+import { useRunStagedWrite } from "@/lib/api/stagedWrite";
 
 const address = (value: string) => (/<([^<>]+)>/.exec(value)?.[1] ?? value).trim();
 const split = (value: string) => value.split(",").map(address).filter(Boolean);
@@ -24,9 +25,9 @@ export function MailCompose({ account, original, mode, onClose }: {
   const [sendState, setSendState] = useState<"sent" | "uncertain" | null>(null);
   const [archivePending, setArchivePending] = useState(false);
   const [sentRequest, setSentRequest] = useState<MailSendRequest | null>(null);
-  const key = useRef<string | null>(null);
   const draftKey = useRef<string | null>(null);
   const queryClient = useQueryClient();
+  const runStagedWrite = useRunStagedWrite();
   useEffect(() => {
     if (!original) return;
     const recipients = mode === "reply-all" ? [...split(original.replyTo || original.from), ...split(original.to)] :
@@ -34,7 +35,7 @@ export function MailCompose({ account, original, mode, onClose }: {
     setTo([...new Set(recipients.filter((item) => item !== account.email && !account.aliases.includes(item)))].join(", "));
     setSubject(mode === "forward" ? `Fwd: ${original.subject}` : /^re:/i.test(original.subject) ? original.subject : `Re: ${original.subject}`);
   }, [account, original, mode]);
-  const edit = (action: () => void) => { action(); setPreview(false); setResult(""); setReceiptId(null); setSentRequest(null); key.current = null; draftKey.current = null; };
+  const edit = (action: () => void) => { action(); setPreview(false); setResult(""); setReceiptId(null); setSentRequest(null); draftKey.current = null; };
   async function addFiles(files: FileList | null) {
     if (!files) return;
     const next: NonNullable<MailSendRequest["attachments"]> = [];
@@ -68,23 +69,29 @@ export function MailCompose({ account, original, mode, onClose }: {
     finally { setBusy(false); }
   }
   async function send() {
-    setBusy(true); setResult(""); key.current ??= createIdempotencyKey();
+    setBusy(true); setResult("");
     const request = composeMessage();
-    try {
-      const response: MailSendResponse = await call(getApiClient().POST("/api/v1/integrations/mail/accounts/{accountId}/send", {
-        params: { path: { accountId: account.id }, header: { "Idempotency-Key": key.current } },
-        body: request,
-      }));
-      setReceiptId(response.data.receiptId);
-      setSendState(response.data.state);
-      setArchivePending(response.data.archivePending);
-      setSentRequest(request);
-      void queryClient.invalidateQueries({ queryKey: ["mail-accounts", account.id, "receipts"] });
-      setResult(response.data.state === "uncertain" ? "Versand unklar. Bitte beim Anbieter prüfen; Friday sendet diesen Versuch nicht erneut." :
-        response.data.archivePending ? "SMTP-Versand bestätigt. Kopie in Gesendet ist noch ausstehend; nicht erneut senden." : "SMTP-Versand und Gesendet-Kopie bestätigt.");
-    } catch {
-      setResult("Antwort unbekannt. Bitte beim Anbieter prüfen, bevor du erneut sendest.");
-    } finally { setBusy(false); setPreview(false); }
+    const outcome = await runStagedWrite({
+      // The staged pipeline binds the exact message to the server preview; the journal key comes from the preview id.
+      send: (previewId) => call(getApiClient().POST("/api/v1/integrations/mail/accounts/{accountId}/send", {
+        params: { path: { accountId: account.id } }, body: request,
+        ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })),
+      successMessage: "E-Mail versendet.",
+      subject: subject || "E-Mail",
+      invalidateKeys: [["mail-accounts", account.id, "receipts"]],
+      onExecuted: (response) => {
+        const data = (response as MailSendResponse).data;
+        setReceiptId(data.receiptId);
+        setSendState(data.state);
+        setArchivePending(data.archivePending);
+        setSentRequest(request);
+        setResult(data.state === "uncertain" ? "Versand unklar. Bitte beim Anbieter prüfen; Friday sendet diesen Versuch nicht erneut." :
+          data.archivePending ? "SMTP-Versand bestätigt. Kopie in Gesendet ist noch ausstehend; nicht erneut senden." : "SMTP-Versand und Gesendet-Kopie bestätigt.");
+      },
+    });
+    if (outcome === "failed") setResult("Antwort unbekannt. Bitte beim Anbieter prüfen, bevor du erneut sendest.");
+    setBusy(false);
+    if (outcome === "executed") setPreview(false);
   }
   async function review() {
     if (!receiptId) return;

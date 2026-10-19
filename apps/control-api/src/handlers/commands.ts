@@ -8,7 +8,11 @@ import { controlLiveVoice, executeBuiltinIntent, matchBuiltinIntent } from "../s
 import { parseTaskCreateIntent } from "../services/task-create-intent";
 import { parseTaskActionIntent, type TaskActionIntent } from "../services/task-action-intent";
 import { parseCalendarActionIntent, type CalendarActionIntent } from "../services/calendar-action-intent";
+import { derivedSubject, parseMailActionIntent, type MailActionIntent } from "../services/mail-action-intent";
 import { checkedLocalEvent, LocalCalendarService } from "../services/local-calendar";
+import { checkedMailSend, type MailSendRequest } from "../services/mail-send";
+import { captureMailSend } from "./mail-memory";
+import { mailJournalKey } from "./mail-accounts";
 import type { CalendarEvent } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import { conflict, notFound, validationFailed, ApiError } from "../util/errors";
@@ -252,6 +256,174 @@ async function executeCalendarAction(ctx: Parameters<Handler>[0], request: Comma
   return { status: 200, body: response };
 }
 
+const MAIL_ADDRESS = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
+const MAIL_MESSAGE_ID = /^<[^<>\s@]+@[^<>\s@]+>$/;
+const MAIL_SELECTED = /^([^:]+):([0-9]+)$/;
+
+interface MailEnvelopeRef { id?: unknown; subject?: unknown; from?: unknown; date?: unknown }
+
+/**
+ * The spoken mail command never names an account: the configured default wins, a single configured account is the
+ * implicit default, everything else fails before staging instead of guessing a mailbox.
+ */
+async function mailAccountFor(ctx: Parameters<Handler>[0]): Promise<string> {
+  const catalog = await ctx.runtime.mailAccounts.list();
+  const chosen = catalog.defaultAccountId && catalog.accounts.some((item) => item.id === catalog.defaultAccountId)
+    ? catalog.defaultAccountId : catalog.accounts.length === 1 ? catalog.accounts[0]!.id : null;
+  if (!chosen) throw validationFailed("Welches Mail Postfach ist gemeint? Bitte ein Standardpostfach festlegen.");
+  return chosen;
+}
+
+/** Extracts the bare address from a From/Reply-To header; anything unclear stays unresolved, never guessed. */
+function mailHeaderAddress(header: unknown): string | null {
+  const value = String(header ?? "").trim();
+  const candidate = value.includes("<") ? /^([^<>]*)<([^<>]+)>$/.exec(value)?.[2]?.trim() : value;
+  if (!candidate || !MAIL_ADDRESS.test(candidate) || value.includes("\n") || value.includes("\r")) return null;
+  return candidate;
+}
+
+function newestEnvelope(items: unknown[]): MailEnvelopeRef | null {
+  const usable = (items as MailEnvelopeRef[]).filter((item) => item && item.id !== undefined);
+  usable.sort((a, b) => Date.parse(String(b.date ?? 0)) - Date.parse(String(a.date ?? 0)));
+  return usable[0] ?? null;
+}
+
+/**
+ * A spoken recipient name is resolved against the INBOX senders of the account. Zero or several distinct addresses
+ * fail before staging; exactly one wins. Addresses pass through unchanged.
+ */
+async function resolveMailRecipient(ctx: Parameters<Handler>[0], accountId: string, recipient: string): Promise<string> {
+  if (MAIL_ADDRESS.test(recipient)) return recipient;
+  const found = await ctx.runtime.mailAccounts.search(accountId, "INBOX", recipient, 1);
+  const addresses = new Map<string, string>();
+  for (const item of found.items as MailEnvelopeRef[]) {
+    const address = mailHeaderAddress(item?.from);
+    if (address) addresses.set(address.toLowerCase(), address);
+  }
+  if (addresses.size === 0) throw notFound("Empfaenger", recipient);
+  if (addresses.size > 1) throw conflict(`Mehrere Empfaenger passen zu „${recipient}“. Bitte die Adresse angeben.`, { recipient });
+  return [...addresses.values()][0]!;
+}
+
+interface MailReplyTarget { to: string; subject: string; inReplyTo: string; references: string }
+
+/**
+ * Resolves the reply destination before anything is staged: the newest INBOX mail of a uniquely matched sender, the
+ * single selected "mailbox:uid" of the command context, or the newest INBOX mail overall. The header binding
+ * (Reply-To, Message-Id, References) mirrors the voice reply path.
+ */
+async function resolveMailReplyTarget(ctx: Parameters<Handler>[0], request: CommandRequest,
+  accountId: string, sender: string | null): Promise<MailReplyTarget> {
+  let mailbox = "INBOX";
+  let uid: string;
+  let uidValidity: string;
+  if (sender) {
+    const found = await ctx.runtime.mailAccounts.search(accountId, "INBOX", sender, 1);
+    const items = found.items as MailEnvelopeRef[];
+    const senders = new Map<string, string>();
+    for (const item of items) {
+      const address = mailHeaderAddress(item?.from);
+      if (address) senders.set(address.toLowerCase(), address);
+    }
+    if (senders.size === 0) throw notFound("Absender", sender);
+    if (senders.size > 1) throw conflict(`Mehrere Absender passen zu „${sender}“. Bitte genauer nennen.`, { sender });
+    const target = newestEnvelope(items);
+    if (!target) throw notFound("Absender", sender);
+    uid = String(target.id);
+    uidValidity = found.uidValidity ?? "";
+  } else {
+    const selectedIds = request.context?.selectedIds ?? [];
+    const selected = selectedIds.length === 1 ? MAIL_SELECTED.exec(selectedIds[0]!) : null;
+    if (selected) {
+      mailbox = selected[1]!;
+      uid = selected[2]!;
+      uidValidity = (await ctx.runtime.mailAccounts.envelopes(accountId, mailbox, 1)).uidValidity ?? "";
+    } else {
+      const listing = await ctx.runtime.mailAccounts.envelopes(accountId, "INBOX", 1);
+      const target = newestEnvelope(listing.items as MailEnvelopeRef[]);
+      if (!target) throw notFound("Mail", "Posteingang");
+      uid = String(target.id);
+      uidValidity = listing.uidValidity ?? "";
+    }
+  }
+  if (!uidValidity) throw conflict("Die Ordnerkennung fehlt. Bitte die Mail im Dashboard erneut oeffnen.");
+  const message = await ctx.runtime.mailAccounts.message(accountId, mailbox, uid, uidValidity);
+  const to = mailHeaderAddress(message.replyTo ?? message.from);
+  if (!to) throw conflict("Antwortadresse ist nicht eindeutig. Bitte im Dashboard antworten.");
+  const originalId = String(message.messageId ?? "").trim();
+  if (originalId && !MAIL_MESSAGE_ID.test(originalId))
+    throw conflict("Nachrichtenkennung ist ungueltig. Bitte im Dashboard antworten.");
+  const oldReferences = String(message.references ?? "").trim();
+  const references = [oldReferences, originalId].filter(Boolean).join(" ");
+  if (references.length > 2000 || (oldReferences && !oldReferences.split(/\s+/).every((value) => MAIL_MESSAGE_ID.test(value))))
+    throw conflict("Antwortverlauf ist ungueltig. Bitte im Dashboard antworten.");
+  const subject = String(message.subject ?? "");
+  return { to, subject: /^re\s*:/i.test(subject) ? subject : "Re: " + subject, inReplyTo: originalId, references };
+}
+
+/**
+ * Spoken compose/reply runs through the same staged pipeline as the mail routes: exact-body confirmation binds the
+ * draft, and the send journal keeps SMTP at-most-once across confirmation, approval and replay.
+ */
+async function executeMailAction(ctx: Parameters<Handler>[0], request: CommandRequest,
+  intent: MailActionIntent): Promise<Awaited<ReturnType<Handler>>> {
+  const ownerId = ctx.principal?.userId;
+  if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+  const accountId = await mailAccountFor(ctx);
+  const body: MailSendRequest = intent.kind === "mail.compose"
+    ? checkedMailSend({ to: [await resolveMailRecipient(ctx, accountId, intent.recipient)],
+        subject: intent.subject ?? derivedSubject(intent.body), body: intent.body })
+    : await (async () => {
+        const target = await resolveMailReplyTarget(ctx, request, accountId, intent.sender);
+        return checkedMailSend({ to: [target.to], subject: target.subject, body: intent.body,
+          ...(target.inReplyTo ? { inReplyTo: target.inReplyTo } : {}),
+          ...(target.references ? { references: target.references } : {}) });
+      })();
+  const action: NativeExecutableAction = { kind: "mail.send", accountId, body };
+  const actionText = `Mail senden: ${body.subject}`;
+  const previewText = `E-Mail an ${body.to.join(", ")} senden? Betreff: „${body.subject}“`;
+  if (!request.confirm && request.previewId) {
+    ctx.runtime.nativeApprovals.cancelDraft(ownerId, request.previewId, action);
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"),
+      correlationId: ctx.correlationId, riskTier: 2, status: "rejected", requiresConfirmation: false,
+      previewText: null, approvalId: null, result: { message: "Entwurf verworfen." } } satisfies CommandResponse };
+  }
+  const requestKey = request.confirm ? request.previewId : ctx.correlationId;
+  if (!requestKey) throw validationFailed("Eine bestaetigte Vorschau fehlt.", [{ path: "previewId", message: "erforderlich" }]);
+  const policy = request.confirm
+    ? ctx.runtime.nativeApprovals.confirm(ownerId, requestKey, action)
+    : ctx.runtime.nativeApprovals.propose({ ownerId, requestKey, correlationId: ctx.correlationId, riskTier: 2,
+        type: "system_change", action: actionText, rationale: "E-Mail aus bestaetigtem Befehl",
+        preview: { kind: "text", title: actionText, body: previewText }, impacts: [], execution: action });
+  const base = { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"), correlationId: ctx.correlationId,
+    riskTier: 2 as const };
+  let response: CommandResponse;
+  if (!request.confirm) {
+    response = { ...base, status: "requires_confirmation", requiresConfirmation: true,
+      previewText, previewId: requestKey, approvalId: null, result: null };
+  } else if (policy.approval) {
+    response = { ...base, status: "requires_approval", requiresConfirmation: false, previewText: null,
+      approvalId: policy.approval.id,
+      result: { message: "E-Mail wartet auf Freigabe.", targetRoute: `/approvals?approval=${policy.approval.id}` } };
+  } else {
+    const receiptId = await ctx.runtime.nativeApprovals.executeWithoutApproval(ownerId, requestKey,
+      async (actionToRun, idempotencyKey) => {
+        if (actionToRun.kind !== "mail.send") throw conflict("Die Bestaetigung passt nicht zum gespeicherten Entwurf.");
+        await ctx.runtime.mailSend.send(actionToRun.accountId, actionToRun.body, ownerId, idempotencyKey);
+        return ctx.runtime.mailSend.receipt(actionToRun.accountId, ownerId, idempotencyKey).receiptId;
+      });
+    const outcome = ctx.runtime.mailSend.outcomeFor(accountId, receiptId)
+      ?? { state: "uncertain" as const, archivePending: false };
+    const memoryCapture = captureMailSend(ctx, accountId, ownerId, ownerId, "dashboard", outcome.state,
+      mailJournalKey(ownerId, requestKey));
+    ctx.audit.after = { accountId, state: outcome.state, replayed: false, memoryCapture };
+    response = { ...base, status: "executed", requiresConfirmation: false, previewText: null, approvalId: null,
+      result: { message: outcome.state === "sent" ? "E-Mail wurde versendet." : "Versand unklar; bitte Mail-Eingang pruefen.",
+        targetRoute: "/communication" } };
+  }
+  return { status: 200, body: response };
+}
+
 function captureCommand(ctx: Parameters<Handler>[0], eventId: string, eventType: "user_utterance" | "assistant_response",
   text: string, outcome: IntegrationEvent["outcome"], privateInput: boolean): void {
   if (!ctx.principal) return;
@@ -316,10 +488,12 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
       const timeZone = ctx.runtime.settings.area("profile").timeZone;
       const calendarAction = taskCreate || taskAction ? null
         : parseCalendarActionIntent(request.text, ctx.runtime.nowMs(), timeZone);
+      const mailAction = taskCreate || taskAction || calendarAction ? null : parseMailActionIntent(request.text);
       const intent = request.confirm ? null : matchBuiltinIntent(request.text);
       const result = taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
         : taskAction ? await executeTaskAction(ctx, request, taskAction)
         : calendarAction ? await executeCalendarAction(ctx, request, calendarAction)
+        : mailAction ? await executeMailAction(ctx, request, mailAction)
         : intent ? await executeBuiltinIntent(ctx, intent, () => executeBase(ctx)) : await executeBase(ctx);
       const response = result.body as CommandResponse;
       status = response.status;
@@ -330,7 +504,8 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         approvalId: response.approvalId,
         source: request.source,
         ...(intent ? { intent } : taskCreate ? { intent: "task_create" } : taskAction ? { intent: taskAction.kind.replace(".", "_") }
-          : calendarAction ? { intent: calendarAction.kind.replace(".", "_") } : {}),
+          : calendarAction ? { intent: calendarAction.kind.replace(".", "_") }
+          : mailAction ? { intent: mailAction.kind.replace(".", "_") } : {}),
         redacted: sensitive,
         ...(sensitive ? {} : { text: request.text.slice(0, 200) }),
       };
