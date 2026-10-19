@@ -7,6 +7,9 @@ import type { IntegrationEvent } from "../services/durable-memory";
 import { controlLiveVoice, executeBuiltinIntent, matchBuiltinIntent } from "../services/command-intents";
 import { parseTaskCreateIntent } from "../services/task-create-intent";
 import { parseTaskActionIntent, type TaskActionIntent } from "../services/task-action-intent";
+import { parseCalendarActionIntent, type CalendarActionIntent } from "../services/calendar-action-intent";
+import { checkedLocalEvent, LocalCalendarService } from "../services/local-calendar";
+import type { CalendarEvent } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import { conflict, notFound, validationFailed, ApiError } from "../util/errors";
 import { portHandler } from "./ports";
@@ -149,6 +152,106 @@ async function executeTaskAction(ctx: Parameters<Handler>[0], request: CommandRe
   return { status: 200, body: response };
 }
 
+const EVENT_REF_ID = /^cal_[0-9A-Za-z]{26}$/;
+
+/**
+ * Resolves the spoken reference before anything is staged: an event id directly, an exact unique local title, or the
+ * single selected event of the command context. Only Friday-local events are writable; unknown or ambiguous
+ * references fail here, not after a preview was saved.
+ */
+function resolveEventRef(ctx: Parameters<Handler>[0], request: CommandRequest, ref: string | null): CalendarEvent {
+  const calendar = new LocalCalendarService(ctx.runtime.db);
+  const ownerId = ctx.principal!.userId;
+  if (ref === null) {
+    const selected = request.context?.selectedIds ?? [];
+    if (selected.length !== 1) {
+      throw validationFailed("Welcher Termin ist gemeint? Bitte Titel, Kennung oder genau eine Auswahl angeben.",
+        [{ path: "context.selectedIds", message: "genau ein Termin erforderlich" }]);
+    }
+    return calendar.get(selected[0]!);
+  }
+  if (EVENT_REF_ID.test(ref)) return calendar.get(ref);
+  const matches = calendar.findOwnerByTitle(ownerId, ref);
+  if (matches.length === 0) throw notFound("Termin", ref);
+  if (matches.length > 1) throw conflict(`Mehrere Termine passen zu „${ref}“. Bitte die Kennung angeben.`, { ref });
+  return matches[0]!;
+}
+
+const deDateTime = (iso: string, timeZone: string): string =>
+  new Intl.DateTimeFormat("de-DE", { dateStyle: "full", timeStyle: "short", timeZone }).format(new Date(iso));
+
+async function executeCalendarAction(ctx: Parameters<Handler>[0], request: CommandRequest,
+  intent: CalendarActionIntent): Promise<Awaited<ReturnType<Handler>>> {
+  const ownerId = ctx.principal?.userId;
+  if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+  let action: NativeExecutableAction;
+  let actionText: string;
+  let previewText: string;
+  let doneMessage: string;
+  if (intent.kind === "calendar.create") {
+    const body = checkedLocalEvent({ title: intent.title, start: intent.start, end: intent.end, timeZone: intent.timeZone });
+    action = { kind: "calendar.create", body };
+    actionText = `Termin eintragen: ${body.title}`;
+    previewText = `Termin „${body.title}“ am ${deDateTime(body.start, body.timeZone)} eintragen?`;
+    doneMessage = "Termin wurde eingetragen.";
+  } else if (intent.kind === "calendar.update") {
+    const event = resolveEventRef(ctx, request, intent.ref);
+    const duration = Date.parse(event.end) - Date.parse(event.start);
+    const body = checkedLocalEvent({ title: event.title, start: intent.start,
+      end: new Date(Date.parse(intent.start) + duration).toISOString(), timeZone: event.timeZone });
+    action = { kind: "calendar.update", id: event.id, version: event.version, body };
+    actionText = `Termin verschieben: ${event.title}`;
+    previewText = `Termin „${event.title}“ auf ${deDateTime(body.start, body.timeZone)} verschieben?`;
+    doneMessage = "Termin wurde verschoben.";
+  } else {
+    const event = resolveEventRef(ctx, request, intent.ref);
+    action = { kind: "calendar.delete", id: event.id, version: event.version, snapshot: event };
+    actionText = `Termin loeschen: ${event.title}`;
+    previewText = `Termin „${event.title}“ loeschen?`;
+    doneMessage = "Termin wurde geloescht.";
+  }
+  if (!request.confirm && request.previewId) {
+    ctx.runtime.nativeApprovals.cancelDraft(ownerId, request.previewId, action);
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"),
+      correlationId: ctx.correlationId, riskTier: 2, status: "rejected", requiresConfirmation: false,
+      previewText: null, approvalId: null, result: { message: "Entwurf verworfen." } } satisfies CommandResponse };
+  }
+  const requestKey = request.confirm ? request.previewId : ctx.correlationId;
+  if (!requestKey) throw validationFailed("Eine bestaetigte Vorschau fehlt.", [{ path: "previewId", message: "erforderlich" }]);
+  const policy = request.confirm
+    ? ctx.runtime.nativeApprovals.confirm(ownerId, requestKey, action)
+    : ctx.runtime.nativeApprovals.propose({ ownerId, requestKey, correlationId: ctx.correlationId, riskTier: 2,
+        type: "system_change", action: actionText, rationale: "Kalenderaktion aus bestaetigtem Befehl",
+        preview: { kind: "text", title: actionText, body: previewText }, impacts: [], execution: action });
+  const base = { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"), correlationId: ctx.correlationId,
+    riskTier: 2 as const };
+  let response: CommandResponse;
+  if (!request.confirm) {
+    response = { ...base, status: "requires_confirmation", requiresConfirmation: true,
+      previewText, previewId: requestKey, approvalId: null, result: null };
+  } else if (policy.approval) {
+    response = { ...base, status: "requires_approval", requiresConfirmation: false, previewText: null,
+      approvalId: policy.approval.id, result: { message: "Termin wartet auf Freigabe.", targetRoute: `/approvals?approval=${policy.approval.id}` } };
+  } else {
+    await ctx.runtime.nativeApprovals.executeWithoutApproval(ownerId, requestKey,
+      async (actionToRun) => {
+        const calendar = new LocalCalendarService(ctx.runtime.db);
+        if (actionToRun.kind === "calendar.create") return calendar.create(actionToRun.body, ownerId).id;
+        if (actionToRun.kind === "calendar.update") {
+          return calendar.update(actionToRun.id, actionToRun.body, ownerId, actionToRun.version).id;
+        }
+        if (actionToRun.kind === "calendar.delete") {
+          calendar.delete(actionToRun.id, ownerId, actionToRun.version);
+          return actionToRun.id;
+        }
+        throw conflict("Die Bestaetigung passt nicht zum gespeicherten Entwurf.");
+      });
+    response = { ...base, status: "executed", requiresConfirmation: false, previewText: null,
+      approvalId: null, result: { message: doneMessage, targetRoute: "/calendar" } };
+  }
+  return { status: 200, body: response };
+}
+
 function captureCommand(ctx: Parameters<Handler>[0], eventId: string, eventType: "user_utterance" | "assistant_response",
   text: string, outcome: IntegrationEvent["outcome"], privateInput: boolean): void {
   if (!ctx.principal) return;
@@ -210,9 +313,13 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
     try {
       const taskCreate = parseTaskCreateIntent(request.text);
       const taskAction = taskCreate ? null : parseTaskActionIntent(request.text);
+      const timeZone = ctx.runtime.settings.area("profile").timeZone;
+      const calendarAction = taskCreate || taskAction ? null
+        : parseCalendarActionIntent(request.text, ctx.runtime.nowMs(), timeZone);
       const intent = request.confirm ? null : matchBuiltinIntent(request.text);
       const result = taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
         : taskAction ? await executeTaskAction(ctx, request, taskAction)
+        : calendarAction ? await executeCalendarAction(ctx, request, calendarAction)
         : intent ? await executeBuiltinIntent(ctx, intent, () => executeBase(ctx)) : await executeBase(ctx);
       const response = result.body as CommandResponse;
       status = response.status;
@@ -222,7 +329,8 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         riskTier: response.riskTier,
         approvalId: response.approvalId,
         source: request.source,
-        ...(intent ? { intent } : taskCreate ? { intent: "task_create" } : taskAction ? { intent: taskAction.kind.replace(".", "_") } : {}),
+        ...(intent ? { intent } : taskCreate ? { intent: "task_create" } : taskAction ? { intent: taskAction.kind.replace(".", "_") }
+          : calendarAction ? { intent: calendarAction.kind.replace(".", "_") } : {}),
         redacted: sensitive,
         ...(sensitive ? {} : { text: request.text.slice(0, 200) }),
       };

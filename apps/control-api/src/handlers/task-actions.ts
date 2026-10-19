@@ -62,7 +62,10 @@ async function executeTaskWrite(ctx: RequestContext, ownerId: string, previewId:
       if (savedAction.kind === "task.update") {
         return (await tasks.updateTask!({ id: savedAction.id, body: savedAction.body }, call)).data.id;
       }
-      return (await tasks.cancelTask!({ id: savedAction.id, body: savedAction.body }, call)).data.id;
+      if (savedAction.kind === "task.cancel") {
+        return (await tasks.cancelTask!({ id: savedAction.id, body: savedAction.body }, call)).data.id;
+      }
+      throw conflict("Die Bestaetigung passt nicht zum gespeicherten Entwurf.");
     });
 }
 

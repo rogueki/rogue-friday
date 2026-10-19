@@ -4,6 +4,7 @@ import type { Handler, HandlerResult, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import type { Principal } from "../security/auth-service";
 import { ApiError, conflict, validationFailed } from "../util/errors";
+import { LocalCalendarService } from "../services/local-calendar";
 import { portHandler } from "./ports";
 import { PORT_SPEC, isAdapterError } from "@friday/adapter-core";
 
@@ -209,6 +210,14 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
           const cancel = tasks.cancelTask;
           if (!cancel) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Aufgaben koennen derzeit nicht abgebrochen werden." });
           return (await cancel({ id: action.id, body: action.body }, call)).data.id;
+        }
+        // Local calendar writes are Friday's own database rows; no adapter port is involved.
+        const calendar = new LocalCalendarService(runtime.db);
+        if (action.kind === "calendar.create") return calendar.create(action.body, principal.userId).id;
+        if (action.kind === "calendar.update") return calendar.update(action.id, action.body, principal.userId, action.version).id;
+        if (action.kind === "calendar.delete") {
+          calendar.delete(action.id, principal.userId, action.version);
+          return action.id;
         }
         throw conflict("Aktion ist nicht ausfuehrbar.");
       })) : await approveBase(ctx);

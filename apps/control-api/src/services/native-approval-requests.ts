@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createId } from "@friday/observability";
-import type { Approval, SchemaValidator, TaskActionRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
+import type { Approval, CalendarEvent, SchemaValidator, TaskActionRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
 import type { Db } from "../db/database";
+import type { LocalEventInput } from "./local-calendar";
 import type { SettingsService } from "./settings";
 import { conflict, validationFailed } from "../util/errors";
 import type { Actor } from "@friday/sdk";
@@ -10,13 +11,30 @@ import type { Actor } from "@friday/sdk";
 export type NativeExecutableAction =
   | { kind: "task.create"; body: TaskCreateRequest }
   | { kind: "task.update"; id: string; body: TaskUpdateRequest }
-  | { kind: "task.cancel"; id: string; body?: TaskActionRequest };
+  | { kind: "task.cancel"; id: string; body?: TaskActionRequest }
+  | { kind: "calendar.create"; body: LocalEventInput }
+  | { kind: "calendar.update"; id: string; version: number; body: LocalEventInput }
+  /** The snapshot lets a replayed confirmation still answer with the event as it was before the deletion. */
+  | { kind: "calendar.delete"; id: string; version: number; snapshot: CalendarEvent };
 
 /** Receipt sentence per action kind; the create wording is asserted by existing API fixtures. */
 export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], string>> = {
   "task.create": "angelegt",
   "task.update": "aktualisiert",
   "task.cancel": "abgebrochen",
+  "calendar.create": "eingetragen",
+  "calendar.update": "aktualisiert",
+  "calendar.delete": "geloescht",
+};
+
+/** Receipt subject per action family; combined with the verb to the exact receipt sentence. */
+export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], string>> = {
+  "task.create": "Aufgabe",
+  "task.update": "Aufgabe",
+  "task.cancel": "Aufgabe",
+  "calendar.create": "Termin",
+  "calendar.update": "Termin",
+  "calendar.delete": "Termin",
 };
 
 /** The action executor supplies a reviewed preview and a stable key before any external side effect. */
@@ -110,6 +128,13 @@ export class NativeApprovalRequests {
     const row = this.db.prepare("SELECT result_json FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
       .get(ownerId, requestKey) as { result_json: string } | undefined;
     return row ? JSON.parse(row.result_json) as CapturedApprovalPolicy : null;
+  }
+
+  /** Read-only access to the stored executable action, e.g. to answer a replayed confirmation after the target is gone. */
+  readAction(ownerId: string, requestKey: string): NativeExecutableAction | null {
+    const row = this.db.prepare("SELECT action_json FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
+      .get(ownerId, requestKey) as { action_json: string | null } | undefined;
+    return row?.action_json ? JSON.parse(row.action_json) as NativeExecutableAction : null;
   }
 
   confirm(ownerId: string, requestKey: string, expectedAction: NativeExecutableAction): CapturedApprovalPolicy {
@@ -214,20 +239,20 @@ export class NativeApprovalRequests {
     const reserved = this.db.prepare("UPDATE native_approval_requests SET state = 'dispatching', dispatch_token = ?, result_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'pending' AND updated_at = ?")
       .run(dispatchToken, JSON.stringify({ ...result, approval: approved }), this.now(), ownerId, row.request_key, row.updated_at);
     if (reserved.changes !== 1) throw conflict("Freigabe wird bereits verarbeitet.");
+    const action = JSON.parse(row.action_json) as NativeExecutableAction;
     try {
-      const action = JSON.parse(row.action_json) as NativeExecutableAction;
       const doneVerb = ACTION_DONE_VERB[action.kind];
       if (!doneVerb) throw conflict("Aktion ist nicht ausfuehrbar.");
       const taskId = await dispatch(action, `native-approval:${approvalId}`);
       const completed: Approval = { ...approved, status: "executed", version: approved.version + 1,
-        updatedAt: new Date(this.now()).toISOString(), executionResult: `Aufgabe ${taskId} ${doneVerb}.` };
+        updatedAt: new Date(this.now()).toISOString(), executionResult: `${ACTION_SUBJECT[action.kind]} ${taskId} ${doneVerb}.` };
       const written = this.db.prepare("UPDATE native_approval_requests SET state = 'completed', result_json = ?, receipt_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'dispatching' AND dispatch_token = ?")
         .run(JSON.stringify({ ...result, approval: completed }), JSON.stringify({ taskId }), this.now(), ownerId, row.request_key, dispatchToken);
       if (written.changes !== 1) throw conflict("Der Ausfuehrungsbeleg konnte nicht gesichert werden.");
       return completed;
     } catch (error) {
       const uncertain: Approval = { ...approved, updatedAt: new Date(this.now()).toISOString(),
-        executionResult: "Ausfuehrung unklar. Bitte Aufgabe und Adapter pruefen; nicht erneut freigeben." };
+        executionResult: `Ausfuehrung unklar. Bitte ${ACTION_SUBJECT[action.kind]} und Adapter pruefen; nicht erneut freigeben.` };
       this.db.prepare("UPDATE native_approval_requests SET state = 'uncertain', result_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'dispatching' AND dispatch_token = ?")
         .run(JSON.stringify({ ...result, approval: uncertain }), this.now(), ownerId, row.request_key, dispatchToken);
       throw error;
