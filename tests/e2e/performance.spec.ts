@@ -108,7 +108,10 @@ test.describe("high load (profile highLoad: 1 000 tasks, 10 000 activity events,
 });
 
 test.describe("orb render loop", () => {
-  test("a background tab stops the orb's WebGL render loop and it resumes when visible again", async ({ page }) => {
+  test("a background tab stops the orb's WebGL render loop and it resumes when visible again", async ({ page, api }) => {
+    // Keep draw calls per frame comparable across visibility transitions; auto-quality scaling has separate tests below.
+    const settings = (await api.get("/settings")).body.data;
+    await patchSettings(api, { orb: { ...settings.orb, quality: "medium" } });
     await installDrawCounter(page);
     await open(page, "/");
     await expect(orbRoot(page)).toHaveAttribute("data-orb-renderer", "3d");
