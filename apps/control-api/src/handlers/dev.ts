@@ -10,7 +10,7 @@ const fresh = (): Freshness => ({ state: "fresh", asOf: new Date().toISOString()
 /** The scenario console exists only with mock data and `dev.scenarioConsole`; everywhere else it is simply not there. */
 function engineOf(ctx: RequestContext): ScenarioEngine {
   const { engine, config } = ctx.runtime;
-  if (!engine || !config.dev.scenarioConsole) throw notFound("Szenario-Konsole");
+  if (!engine || !config.dev.scenarioConsole || !ctx.runtime.settings.area("developer").scenarioConsole) throw notFound("Szenario-Konsole");
   return engine;
 }
 

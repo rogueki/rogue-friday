@@ -36,7 +36,8 @@ export function mockAwareAdapterInfo(info: AdapterInfo): AdapterInfo {
 export const metaHandlers: Partial<Record<OperationId, Handler>> = {
   async getMeta(ctx) {
     const { config } = ctx.runtime;
-    const devScenarios = Boolean(ctx.runtime.engine) && config.dev.scenarioConsole;
+    const scenarioControls = Boolean(ctx.runtime.engine) && config.dev.scenarioConsole;
+    const devScenarios = scenarioControls && ctx.runtime.settings.area("developer").scenarioConsole;
     const meta: Meta = {
       contractVersion: CONTRACT_VERSION,
       apiVersion: "v1",
@@ -47,6 +48,7 @@ export const metaHandlers: Partial<Record<OperationId, Handler>> = {
         // Scenario-driven UI hints of the mock world (forceOrbFallback2D, reducedMotion) first, so they can never shadow a core flag.
         ...(ctx.runtime.world?.state.uiHints ?? {}),
         devScenarios,
+        scenarioControls,
         mockData: config.dataMode !== "live",
         eventReplay: true,
         devAuth: config.auth.mode === "dev",

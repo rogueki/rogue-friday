@@ -106,6 +106,7 @@ export interface Logger {
   error(message: string, fields?: Record<string, unknown>): void;
   fatal(message: string, fields?: Record<string, unknown>): void;
   isLevelEnabled(level: LogLevel): boolean;
+  setLevel?(level: LogLevel): void;
   /** Child logger with additional bound fields. */
   child(fields: Record<string, unknown>): Logger;
   close(): void;
@@ -171,6 +172,7 @@ function build(core: LoggerCore, bound: Readonly<Record<string, unknown>>): Logg
     error: (m, f) => emit('error', m, f),
     fatal: (m, f) => emit('fatal', m, f),
     isLevelEnabled: (level) => LEVEL_RANK[level] >= LEVEL_RANK[core.level],
+    setLevel: (level) => { core.level = level; },
     child: (fields) => build(core, { ...bound, ...fields }),
     close: () => {
       for (const sink of core.sinks) sink.close?.();

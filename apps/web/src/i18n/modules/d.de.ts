@@ -544,7 +544,7 @@ export const deD = {
   "settings.developer.title": "Entwickleroptionen",
   "settings.developer.desc": "Nur für Entwicklung und Fehlersuche gedacht.",
   "settings.developer.debug": "Debug-Modus",
-  "settings.developer.debugDesc": "Zusätzliche Diagnoseausgaben in der Oberfläche.",
+  "settings.developer.debugDesc": "Schreibt bei Log-Level Debug Anfragediagnosen mit Route, Status, Dauer und Korrelations-ID; Anfragetexte und Personenkennungen bleiben außen vor.",
   "settings.developer.rawJson": "Rohdaten (JSON) anzeigen",
   "settings.developer.rawJsonDesc": "Zeigt in Detailansichten die unveränderte API-Antwort.",
   "settings.developer.scenarioConsole": "Szenario-Konsole erlauben",

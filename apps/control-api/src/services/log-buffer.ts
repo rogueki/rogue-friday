@@ -113,6 +113,7 @@ export function withLogBuffer(inner: Logger, buffer: LogBuffer, bound: Record<st
     error: through("error"),
     fatal: through("fatal"),
     isLevelEnabled: (level) => inner.isLevelEnabled(level),
+    ...(inner.setLevel ? { setLevel: (level: LogLevel) => inner.setLevel?.(level) } : {}),
     child: (fields) => withLogBuffer(inner.child(fields), buffer, { ...bound, ...fields }),
     close: () => inner.close(),
   };

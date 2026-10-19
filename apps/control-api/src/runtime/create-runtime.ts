@@ -259,6 +259,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const settings = new SettingsService(db, config, validator, library, () => adapterSettings.list());
   if (world) world.state.settings.approvals = structuredClone(settings.area("approvals"));
   const nativeApprovals = new NativeApprovalRequests(db, settings, validator, options.now);
+  logger.setLevel?.(settings.area("developer").logLevel);
   let contentStudioKeys: ContentStudioKeysService;
   try {
     contentStudioKeys = new ContentStudioKeysService(db, deriveKey(serverKey.key, "content-studio-keys"), env);

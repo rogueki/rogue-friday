@@ -72,5 +72,5 @@ export function OrbSlotInner({ className, onRendererChange }: OrbSlotProps) {
   }, [settings?.orb, forceFallback2D, testOverrides, debugSettings]);
 
   if (!snapshot) return null;
-  return <FridayOrb controller={runtime.controller} settings={orbSettings} onActivate={onActivate} onVoiceToggle={onVoiceToggle} assistantName={assistantName} onRendererChange={onRendererChange} locale={locale} className={className} />;
+  return <FridayOrb controller={runtime.controller} settings={orbSettings} showPerf={Boolean(features?.scenarioControls && settings?.developer.orbPerfOverlay)} onActivate={onActivate} onVoiceToggle={onVoiceToggle} assistantName={assistantName} onRendererChange={onRendererChange} locale={locale} className={className} />;
 }

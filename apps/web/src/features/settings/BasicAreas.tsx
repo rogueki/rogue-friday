@@ -593,7 +593,9 @@ export function BackupsArea() {
 export function DeveloperArea() {
   const { t } = useT();
   const { value, update, readOnly } = useAreaDraft("developer");
-  const devScenarios = Boolean(useMeta().data?.features.devScenarios);
+  const meta = useMeta();
+  const devScenarios = Boolean(meta.data?.features.devScenarios);
+  const scenarioControls = Boolean(meta.data?.features.scenarioControls);
   const router = useRouter();
   if (!value) return null;
   return (
@@ -602,8 +604,8 @@ export function DeveloperArea() {
         <FieldGrid>
           <Switch label={t("settings.developer.debug")} description={t("settings.developer.debugDesc")} checked={value.debugMode} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(debugMode) => update({ debugMode })} />
           <Switch label={t("settings.developer.rawJson")} description={t("settings.developer.rawJsonDesc")} checked={value.showRawJson} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(showRawJson) => update({ showRawJson })} />
-          <Switch label={t("settings.developer.scenarioConsole")} description={t("settings.developer.scenarioConsoleDesc")} checked={value.scenarioConsole} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(scenarioConsole) => update({ scenarioConsole })} />
-          <Switch label={t("settings.developer.orbPerf")} description={t("settings.developer.orbPerfDesc")} checked={value.orbPerfOverlay} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(orbPerfOverlay) => update({ orbPerfOverlay })} />
+          <Switch label={t("settings.developer.scenarioConsole")} description={t("settings.developer.scenarioConsoleDesc")} checked={scenarioControls && value.scenarioConsole} disabled={readOnly || !scenarioControls} stateLabels={onOff(t)} onCheckedChange={(scenarioConsole) => update({ scenarioConsole })} />
+          <Switch label={t("settings.developer.orbPerf")} description={t("settings.developer.orbPerfDesc")} checked={value.orbPerfOverlay} disabled={readOnly || !scenarioControls} stateLabels={onOff(t)} onCheckedChange={(orbPerfOverlay) => update({ orbPerfOverlay })} />
           <Select
             label={t("settings.developer.logLevel")}
             value={value.logLevel}

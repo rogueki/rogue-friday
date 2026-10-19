@@ -529,7 +529,7 @@ export const enD: Record<keyof typeof deD, string> = {
   "settings.developer.title": "Developer options",
   "settings.developer.desc": "Meant for development and troubleshooting only.",
   "settings.developer.debug": "Debug mode",
-  "settings.developer.debugDesc": "Additional diagnostics in the interface.",
+  "settings.developer.debugDesc": "Writes request diagnostics with route, status, duration and correlation ID when Log level is Debug; request bodies and personal identifiers are omitted.",
   "settings.developer.rawJson": "Show raw data (JSON)",
   "settings.developer.rawJsonDesc": "Shows the unchanged API response in detail views.",
   "settings.developer.scenarioConsole": "Allow scenario console",

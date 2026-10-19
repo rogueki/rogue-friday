@@ -305,6 +305,9 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
 
   async updateSettings(ctx) {
     const patch = ctx.body as SettingsPatch;
+    if (patch.developer?.scenarioConsole && (!ctx.runtime.engine || !ctx.runtime.config.dev.scenarioConsole)) {
+      throw validationFailed("Die Szenario-Konsole ist nur mit aktiviertem Mock-Szenariolaufzeit verfügbar.", [{ path: "developer.scenarioConsole", message: "Mock-Szenariolaufzeit ist nicht aktiv" }]);
+    }
     const requested = patch.voice?.ttsVoice;
     const previousVoice = ctx.runtime.settings.area("voice");
     const previous = previousVoice.ttsVoice;
@@ -335,6 +338,7 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
             throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst hat die Änderung nicht bestätigt." });
           const result = ctx.runtime.settings.patch(patch, originalVersion);
           if (patch.approvals && ctx.runtime.world) ctx.runtime.world.state.settings.approvals = structuredClone(result.settings.approvals);
+          if (result.changed.includes("developer")) ctx.runtime.logger.setLevel?.(result.settings.developer.logLevel);
           if (changeVoice) recordVoiceAck(ctx.runtime, result.settings.version, requested as VoicePersona, instance);
           if (changeAudio) recordAudioAck(ctx.runtime, result.settings.version, input, output, instance);
           ctx.audit.action = "settings.voice_changed";
@@ -362,6 +366,7 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     }
     const { settings, changed } = ctx.runtime.settings.patch(patch, ctx.mutation.ifMatchVersion);
     if (changed.includes("approvals") && ctx.runtime.world) ctx.runtime.world.state.settings.approvals = structuredClone(settings.approvals);
+    if (changed.includes("developer")) ctx.runtime.logger.setLevel?.(settings.developer.logLevel);
     ctx.audit.action = "settings.updated";
     ctx.audit.after = { areas: changed, version: settings.version };
     // The mock world words its orb/status texts with the assistant name; re-derive them so a rename shows up at once.

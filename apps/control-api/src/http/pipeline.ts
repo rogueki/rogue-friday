@@ -90,15 +90,14 @@ export class ApiPipeline {
       this.send(reply, outcome.result, spec);
       const seconds = (performance.now() - started) / 1000;
       this.runtime.metrics.recordRequest(spec.method, spec.path, outcome.status, seconds);
-      this.runtime.logger.info("request", {
+      const developer = this.runtime.settings.area("developer");
+      if (developer.debugMode) this.runtime.logger.debug("request diagnostic", {
         method: spec.method,
         route: spec.path,
         operationId: spec.operationId,
         status: outcome.status,
         durationMs: Math.round(seconds * 1000),
-        userId: ctx?.principal?.userId,
         role: ctx?.principal?.role,
-        ip: request.ip,
         ...(outcome.errorCode ? { errorCode: outcome.errorCode } : {}),
       });
     });
@@ -214,7 +213,7 @@ export class ApiPipeline {
     }
     const action = ACTION_BY_OPERATION[spec.operationId];
     if (action) {
-      const decision = authorize(principal.role, action, { devMode: runtime.config.dev.scenarioConsole && runtime.engine !== undefined });
+      const decision = authorize(principal.role, action, { devMode: runtime.config.dev.scenarioConsole && runtime.engine !== undefined && runtime.settings.area("developer").scenarioConsole });
       if (!decision.allowed) {
         if (decision.reason === "dev_only") throw new ApiError({ code: "NOT_FOUND", message: "Szenario-Konsole ist nicht aktiviert." });
         throw new ApiError({ code: "FORBIDDEN", message: "Für diese Aktion fehlt die Berechtigung.", details: { action, reason: decision.reason } });
