@@ -217,7 +217,9 @@ function Get-WslBridgeSourcePaths {
         'installer/wsl/messaging_send.py', 'installer/wsl/messaging_config_probe.py',
         'installer/wsl/messaging_catalog.py', 'installer/wsl/messaging_catalog_probe.py',
         'installer/wsl/configure_messaging_provider.py',
-        'installer/wsl/messaging_provider_apply_probe.py', 'installer/wsl/messaging_provider_fields.json')
+        'installer/wsl/messaging_provider_apply_probe.py', 'installer/wsl/messaging_provider_fields.json',
+        'installer/wsl/hermes_model_credential_apply.py',
+        'installer/wsl/configure_messenger_inbound_bridge.py', 'installer/wsl/setup_messenger_inbound_bridge.sh')
 }
 function Get-VoiceSourcePaths {
     return @('installer/voice/audio_devices.py', 'installer/voice/audio_level.py', 'installer/voice/audio_output.py',
