@@ -109,6 +109,12 @@ test.describe("high load (profile highLoad: 1 000 tasks, 10 000 activity events,
 
 test.describe("orb render loop", () => {
   test("a background tab stops the orb's WebGL render loop and it resumes when visible again", async ({ page, api }) => {
+    // This file runs high-load scenarios first. Scenario reset restores the active profile's baseline, so explicitly
+    // select the default profile before measuring the Orb; otherwise the renderer is still carrying 1,000 tasks.
+    await api.play("clean-idle");
+    const taskCount = (await api.get("/tasks?limit=1")).body.pageInfo.totalCount as number;
+    expect(taskCount, "visibility performance is measured on the default profile").toBeLessThan(100);
+
     // Keep draw calls per frame comparable across visibility transitions; auto-quality scaling has separate tests below.
     const settings = (await api.get("/settings")).body.data;
     await patchSettings(api, { orb: { ...settings.orb, quality: "medium" } });
