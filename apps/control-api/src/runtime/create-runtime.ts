@@ -170,6 +170,10 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
       if (service) service.patch({ profile: { ...service.area("profile"), displayName } });
     },
     localLoginRequired: () => settingsHolder.current?.area("security").loginRequired !== false || settingsHolder.current?.area("security").allowRemoteAccess === true,
+    securitySettings: () => settingsHolder.current?.area("security") ?? {
+      sessionTimeoutMinutes: config.auth.sessionTtlMinutes,
+      reauthWindowMinutes: config.auth.reauthWindowMinutes,
+    },
   });
 
   // ---- persistence --------------------------------------------------------------------------------------------

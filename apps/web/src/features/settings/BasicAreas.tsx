@@ -432,8 +432,8 @@ export function SecurityArea() {
       </Section>
       <Section title={t("settings.security.network")}>
         <FieldGrid>
-          <Switch label={t("settings.security.remote")} description={t("settings.security.remoteDesc")} checked={value.allowRemoteAccess} disabled={readOnly || value.loginRequired === false} stateLabels={onOff(t)} onCheckedChange={(allowRemoteAccess) => update({ allowRemoteAccess })} />
-          <Switch label={t("settings.security.hashChain")} description={t("settings.security.hashChainDesc")} checked={value.auditHashChain} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(auditHashChain) => update({ auditHashChain })} />
+          <Switch label={t("settings.security.remote")} description={t("settings.security.remoteDesc")} checked={value.allowRemoteAccess} disabled stateLabels={onOff(t)} onCheckedChange={(allowRemoteAccess) => update({ allowRemoteAccess })} />
+          <Switch label={t("settings.security.hashChain")} description={t("settings.security.hashChainDesc")} checked={value.auditHashChain} disabled stateLabels={onOff(t)} onCheckedChange={(auditHashChain) => update({ auditHashChain })} />
         </FieldGrid>
         {value.allowRemoteAccess ? <StatusChip tone="amber">{t("settings.security.remoteWarning")}</StatusChip> : null}
         <StringListEditor label={t("settings.security.origins")} values={value.trustedOrigins} disabled={readOnly} placeholder="http://127.0.0.1:3100" onChange={(trustedOrigins) => update({ trustedOrigins })} />

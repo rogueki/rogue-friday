@@ -466,10 +466,10 @@ export const enD: Record<keyof typeof deD, string> = {
   "settings.security.remote": "Allow remote access",
   "settings.security.loginRequired": "Require sign-in",
   "settings.security.loginRequiredDesc": "Can be disabled only on this computer. Password confirmation for approvals remains active.",
-  "settings.security.remoteDesc": "By default only the local machine is allowed.",
+  "settings.security.remoteDesc": "Network binding is configured on the server and requires a restart.",
   "settings.security.remoteWarning": "Warning: remote access enlarges the attack surface. Use it only through a secure tunnel.",
   "settings.security.hashChain": "Audit hash chain",
-  "settings.security.hashChainDesc": "Chains audit entries so tampering is noticeable.",
+  "settings.security.hashChainDesc": "Always on: chains audit entries so tampering is noticeable.",
   "settings.security.origins": "Trusted origins",
 
   "settings.approvals.title": "Approvals",

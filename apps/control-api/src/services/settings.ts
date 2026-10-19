@@ -349,6 +349,8 @@ export class SettingsService {
       merged.voice = { ...(merged.voice as SettingsAreas["voice"]), ttsVoice: installed };
     }
     merged.backups = this.withBackupResult(merged.backups as SettingsAreas["backups"]);
+    const security = merged.security as SettingsAreas["security"];
+    merged.security = { ...security, allowRemoteAccess: this.config.server.allowRemote, auditHashChain: true };
     return merged as unknown as SettingsAreas;
   }
 
@@ -372,6 +374,7 @@ export class SettingsService {
           const installed = installedVoiceChoice(this.config);
           if (installed) return { ...value, ttsVoice: installed } as SettingsAreas[K];
         }
+        if (name === "security") return { ...value, allowRemoteAccess: this.config.server.allowRemote, auditHashChain: true } as SettingsAreas[K];
         return name === "backups" ? this.withBackupResult(value as SettingsAreas["backups"]) as SettingsAreas[K] : value;
       } catch {
         // fall through to the default
@@ -438,6 +441,27 @@ export class SettingsService {
     }
     if (patch.security?.loginRequired === false && (this.config.server.allowRemote || patch.security.allowRemoteAccess)) {
       throw validationFailed("Ohne Anmeldung darf das Dashboard nur lokal erreichbar sein.", [{ path: "security.loginRequired", message: "Fernzugriff ist aktiviert" }]);
+    }
+    if (patch.security) {
+      const security = patch.security;
+      if (security.allowRemoteAccess !== this.config.server.allowRemote) {
+        throw validationFailed("Fernzugriff erfordert eine Serverkonfiguration und einen Neustart.",
+          [{ path: "security.allowRemoteAccess", message: "kein laufender Netzwerk-Apply verfuegbar" }]);
+      }
+      if (!security.auditHashChain) {
+        throw validationFailed("Die Audit-Hashkette muss aktiv bleiben.",
+          [{ path: "security.auditHashChain", message: "Sicherheitskontrolle kann nicht deaktiviert werden" }]);
+      }
+      if (security.trustedOrigins.length > 16 || security.trustedOrigins.some((value) => {
+        try {
+          const origin = new URL(value);
+          return !["http:", "https:"].includes(origin.protocol) || origin.username !== "" || origin.password !== "" ||
+            origin.pathname !== "/" || origin.search !== "" || origin.hash !== "" || origin.origin !== value;
+        } catch { return true; }
+      }) || new Set(security.trustedOrigins).size !== security.trustedOrigins.length) {
+        throw validationFailed("Vertrauenswuerdige Origins muessen eindeutige HTTP(S)-Origins ohne Pfad sein.",
+          [{ path: "security.trustedOrigins", message: "ungueltige Origin" }]);
+      }
     }
     if (patch.theme && !this.library.get("theme", patch.theme.activeThemeId)) {
       throw validationFailed(`Das Theme ${patch.theme.activeThemeId} existiert nicht.`, [{ path: "theme.activeThemeId", message: "unbekannt" }]);
@@ -527,6 +551,7 @@ export class SettingsService {
   }
 
   validateAreas(patch: SettingsPatch): void {
+    this.assertReferences(patch);
     for (const area of SETTINGS_AREAS) {
       const value = patch[area];
       if (value === undefined) continue;

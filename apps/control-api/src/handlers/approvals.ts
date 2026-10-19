@@ -90,7 +90,7 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
       approvalTier: tier as 1 | 2 | 3,
       channel,
       reauthAt,
-      reauthWindowMs: runtime.config.auth.reauthWindowMinutes * 60_000,
+      reauthWindowMs: runtime.auth.reauthWindowMs(),
     });
     if (!decision.allowed) throw denied(decision.reason, tier);
 

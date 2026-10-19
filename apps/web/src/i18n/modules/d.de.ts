@@ -477,10 +477,10 @@ export const deD = {
   "settings.security.remote": "Fernzugriff erlauben",
   "settings.security.loginRequired": "Anmeldung erforderlich",
   "settings.security.loginRequiredDesc": "Nur auf diesem Rechner abschaltbar. Freigaben mit Passwortbestätigung bleiben geschützt.",
-  "settings.security.remoteDesc": "Standardmäßig ist nur der lokale Rechner zugelassen.",
+  "settings.security.remoteDesc": "Die Netzwerkbindung wird in der Serverkonfiguration festgelegt und erfordert einen Neustart.",
   "settings.security.remoteWarning": "Achtung: Fernzugriff vergrößert die Angriffsfläche. Nur mit sicherem Tunnel verwenden.",
   "settings.security.hashChain": "Audit-Hashkette",
-  "settings.security.hashChainDesc": "Verkettet Audit-Einträge, damit Manipulation auffällt.",
+  "settings.security.hashChainDesc": "Immer aktiv: Verkettet Audit-Einträge, damit Manipulation auffällt.",
   "settings.security.origins": "Vertrauenswürdige Ursprünge",
 
   // ── Freigaben ───────────────────────────────────────────────────────────

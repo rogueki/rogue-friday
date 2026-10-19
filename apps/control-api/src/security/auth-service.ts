@@ -54,6 +54,7 @@ export interface AuthServiceDeps {
   ownerUsername?: () => string;
   setOwnerIdentity?: (username: string, displayName: string) => void;
   localLoginRequired?: () => boolean;
+  securitySettings?: () => { sessionTimeoutMinutes: number; reauthWindowMinutes: number };
   now?: () => number;
 }
 
@@ -102,12 +103,38 @@ export class AuthService {
       isLoopbackHost(this.deps.config.server.host) && this.deps.localLoginRequired?.() === false;
   }
 
+  private sessionTtlMs(): number {
+    return (this.deps.securitySettings?.().sessionTimeoutMinutes ?? this.deps.config.auth.sessionTtlMinutes) * 60_000;
+  }
+
+  reauthWindowMs(): number {
+    return (this.deps.securitySettings?.().reauthWindowMinutes ?? this.deps.config.auth.reauthWindowMinutes) * 60_000;
+  }
+
+  private effectiveExpiry(session: Session): number {
+    // Tightening the policy takes effect for existing sessions without extending their original expiry.
+    return Math.min(session.expiresAt, session.createdAt + this.sessionTtlMs());
+  }
+
+  private activeSession(sessionId: string): Session | null {
+    const session = this.deps.sessions.get(sessionId, { touch: false });
+    if (session && this.now() >= this.effectiveExpiry(session)) {
+      this.deps.sessions.revoke(sessionId);
+      return null;
+    }
+    return session;
+  }
+
   /** Resolves the principal from the `Cookie` header; refreshes the sliding idle timeout. */
   authenticate(cookieHeader: string | undefined): Principal | null {
     const sessionId = parseCookies(cookieHeader)[SESSION_COOKIE];
     if (!sessionId) return null;
     const session = this.deps.sessions.get(sessionId);
     if (!session) return null;
+    if (this.now() >= this.effectiveExpiry(session)) {
+      this.deps.sessions.revoke(sessionId);
+      return null;
+    }
     if (session.userId === LOCAL_AUTO_USER_ID && !this.localAutoLogin) return null;
     return this.principalOf(sessionId, session);
   }
@@ -136,7 +163,7 @@ export class AuthService {
   }
 
   private cookiesFor(sessionId: string, rememberMe = false): string[] {
-    const options = { secureCookies: this.deps.config.auth.secureCookies, maxAgeSeconds: rememberMe ? REMEMBER_TTL_MS / 1000 : this.deps.config.auth.sessionTtlMinutes * 60 };
+    const options = { secureCookies: this.deps.config.auth.secureCookies, maxAgeSeconds: rememberMe ? REMEMBER_TTL_MS / 1000 : this.sessionTtlMs() / 1000 };
     return [serializeSessionCookie(sessionId, options), serializeCsrfCookie(issueCsrfToken(this.deps.csrfKey, sessionId), options)];
   }
 
@@ -149,7 +176,7 @@ export class AuthService {
     const { sessionId, session } = this.deps.sessions.create({
       userId,
       role,
-      ttlMs: rememberMe ? REMEMBER_TTL_MS : this.deps.config.auth.sessionTtlMinutes * 60_000,
+      ttlMs: rememberMe ? REMEMBER_TTL_MS : this.sessionTtlMs(),
       idleTimeoutMs: rememberMe ? REMEMBER_TTL_MS : this.deps.config.auth.idleTimeoutMinutes * 60_000,
     });
     return { sessionId, session };
@@ -296,7 +323,7 @@ export class AuthService {
 
   /** Single-use check of a re-auth token against the calling session. */
   consumeReauthToken(principal: Principal, token: string | undefined): boolean {
-    if (!token) return false;
+    if (!token || !this.activeSession(principal.sessionId)) return false;
     return this.deps.approvalTokens.consume(token, {
       approvalId: principal.session.idHash,
       userId: principal.userId,
@@ -306,12 +333,12 @@ export class AuthService {
 
   /** Re-read from the store: `markReauth` happened after the principal was created. */
   reauthAt(principal: Principal): number {
-    return this.deps.sessions.get(principal.sessionId, { touch: false })?.reauthAt ?? principal.session.reauthAt;
+    return this.activeSession(principal.sessionId)?.reauthAt ?? 0;
   }
 
   reauthFresh(principal: Principal): boolean {
-    const session = this.deps.sessions.get(principal.sessionId, { touch: false });
-    return session ? hasFreshReauth(session, this.now(), this.deps.config.auth.reauthWindowMinutes * 60_000) : false;
+    const session = this.activeSession(principal.sessionId);
+    return session ? hasFreshReauth(session, this.now(), this.reauthWindowMs()) : false;
   }
 
   sessionResponse(principal: Principal | null, freshnessAsOf: string): SessionResponse {
@@ -322,8 +349,9 @@ export class AuthService {
         freshness: { state: "fresh", asOf: freshnessAsOf },
       };
     }
-    const session = this.deps.sessions.get(principal.sessionId, { touch: false }) ?? principal.session;
-    const windowMs = this.deps.config.auth.reauthWindowMinutes * 60_000;
+    const session = this.activeSession(principal.sessionId);
+    if (!session) return this.sessionResponse(null, freshnessAsOf);
+    const windowMs = this.reauthWindowMs();
     const reauthUntil = hasFreshReauth(session, this.now(), windowMs) ? new Date(session.reauthAt + windowMs).toISOString() : null;
     return {
       contractVersion: CONTRACT_VERSION,
@@ -333,7 +361,7 @@ export class AuthService {
         user: { id: principal.userId, displayName: principal.displayName, role: principal.role },
         role: principal.role,
         csrfToken: this.csrfTokenFor(principal),
-        expiresAt: new Date(session.expiresAt).toISOString(),
+        expiresAt: new Date(this.effectiveExpiry(session)).toISOString(),
         reauthUntil,
       },
       freshness: { state: "fresh", asOf: freshnessAsOf },
