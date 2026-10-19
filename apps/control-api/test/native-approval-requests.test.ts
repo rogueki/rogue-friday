@@ -7,6 +7,7 @@ import type { NativeApprovalProposal } from "../src/services/native-approval-req
 
 const CORRELATION = `corr_${"A".repeat(26)}`;
 const proposal = (requestKey: string, riskTier: 1 | 2 | 3): NativeApprovalProposal => ({
+  ownerId: "owner-one",
   requestKey, correlationId: CORRELATION, riskTier, type: "send_message",
   action: "Nachricht versenden", rationale: "Gepruefter Empfaenger und Inhalt",
   preview: { kind: "message", title: "Nachricht", body: "Synthetischer Inhalt" }, impacts: [],
@@ -54,7 +55,10 @@ describe("native approval request policy capture", () => {
       await first.app.close();
       first = undefined;
       second = await startTestApi({ dir, now: () => clock + 1_000 });
-      expect(second.runtime.nativeApprovals.get("request-old-001")).toEqual(initial);
+      expect(second.runtime.nativeApprovals.get("owner-one", "request-old-001")).toEqual(initial);
+      expect(second.runtime.nativeApprovals.get("owner-two", "request-old-001")).toBeNull();
+      const otherOwner = second.runtime.nativeApprovals.propose({ ...proposal("request-old-001", 2), ownerId: "owner-two", action: "Eigene Aktion" });
+      expect(otherOwner.approval?.id).not.toBe(initial.approval?.id);
       expect(second.runtime.nativeApprovals.propose(proposal("request-new-003", 3))).toEqual(tier3);
     } finally {
       await first?.app.close();

@@ -7,6 +7,8 @@ import { conflict, validationFailed } from "../util/errors";
 
 /** The action executor supplies a reviewed preview and a stable key before any external side effect. */
 export interface NativeApprovalProposal {
+  /** Stable authenticated owner identity; never supplied by untrusted request text. */
+  ownerId: string;
   requestKey: string;
   correlationId: string;
   riskTier: 1 | 2 | 3;
@@ -31,23 +33,17 @@ export interface CapturedApprovalPolicy {
 /** Durable policy capture for trusted action producers. This does not execute or approve an action. */
 export class NativeApprovalRequests {
   constructor(private readonly db: Db, private readonly settings: SettingsService,
-    private readonly validator: SchemaValidator, private readonly now: () => number = Date.now) {
-    db.exec(`CREATE TABLE IF NOT EXISTS native_approval_requests (
-      request_key TEXT PRIMARY KEY,
-      proposal_hash TEXT NOT NULL,
-      result_json TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    )`);
-  }
+    private readonly validator: SchemaValidator, private readonly now: () => number = Date.now) {}
 
   propose(input: NativeApprovalProposal): CapturedApprovalPolicy {
-    if (!/^[A-Za-z0-9._:-]{8,128}$/.test(input.requestKey) || !/^corr_[0-9A-Za-z]{26}$/.test(input.correlationId) ||
+    if (!/^[A-Za-z0-9._:-]{1,128}$/.test(input.ownerId) ||
+        !/^[A-Za-z0-9._:-]{8,128}$/.test(input.requestKey) || !/^corr_[0-9A-Za-z]{26}$/.test(input.correlationId) ||
         ![1, 2, 3].includes(input.riskTier) || !input.action.trim() || !input.preview.title.trim()) {
       throw validationFailed("Freigabeanfrage ist unvollstaendig.", [{ path: "approval", message: "ungueltige Erzeugungsdaten" }]);
     }
     const hash = createHash("sha256").update(JSON.stringify(input)).digest("hex");
-    const existing = this.db.prepare("SELECT proposal_hash, result_json FROM native_approval_requests WHERE request_key = ?")
-      .get(input.requestKey) as { proposal_hash: string; result_json: string } | undefined;
+    const existing = this.db.prepare("SELECT proposal_hash, result_json FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
+      .get(input.ownerId, input.requestKey) as { proposal_hash: string; result_json: string } | undefined;
     if (existing) {
       if (existing.proposal_hash !== hash) throw conflict("Freigabeschluessel wurde fuer eine andere Aktion verwendet.");
       return JSON.parse(existing.result_json) as CapturedApprovalPolicy;
@@ -79,11 +75,11 @@ export class NativeApprovalRequests {
       if (!check.valid) throw validationFailed("Freigabeanfrage entspricht nicht dem Vertrag.", check.errors);
     }
     try {
-      this.db.prepare("INSERT INTO native_approval_requests (request_key, proposal_hash, result_json, created_at) VALUES (?, ?, ?, ?)")
-        .run(input.requestKey, hash, JSON.stringify(result), this.now());
+      this.db.prepare("INSERT INTO native_approval_requests (owner_id, request_key, proposal_hash, result_json, created_at) VALUES (?, ?, ?, ?, ?)")
+        .run(input.ownerId, input.requestKey, hash, JSON.stringify(result), this.now());
     } catch (error) {
-      const raced = this.db.prepare("SELECT proposal_hash, result_json FROM native_approval_requests WHERE request_key = ?")
-        .get(input.requestKey) as { proposal_hash: string; result_json: string } | undefined;
+      const raced = this.db.prepare("SELECT proposal_hash, result_json FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
+        .get(input.ownerId, input.requestKey) as { proposal_hash: string; result_json: string } | undefined;
       if (!raced) throw error;
       if (raced.proposal_hash !== hash) throw conflict("Freigabeschluessel wurde fuer eine andere Aktion verwendet.");
       return JSON.parse(raced.result_json) as CapturedApprovalPolicy;
@@ -91,9 +87,9 @@ export class NativeApprovalRequests {
     return result;
   }
 
-  get(requestKey: string): CapturedApprovalPolicy | null {
-    const row = this.db.prepare("SELECT result_json FROM native_approval_requests WHERE request_key = ?")
-      .get(requestKey) as { result_json: string } | undefined;
+  get(ownerId: string, requestKey: string): CapturedApprovalPolicy | null {
+    const row = this.db.prepare("SELECT result_json FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
+      .get(ownerId, requestKey) as { result_json: string } | undefined;
     return row ? JSON.parse(row.result_json) as CapturedApprovalPolicy : null;
   }
 }
