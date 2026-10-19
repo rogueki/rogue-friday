@@ -5559,19 +5559,20 @@ export interface components {
         /** DataRetentionActionRequest */
         DataRetentionActionRequest: {
             /** @enum {string} */
-            action: "preview" | "run";
+            action: "preview" | "run" | "activate" | "deactivate";
         };
         /** DataRetentionActionResponse */
         DataRetentionActionResponse: {
             contractVersion: string;
             data: {
                 /** @enum {string} */
-                action: "preview" | "run";
+                action: "preview" | "run" | "activate" | "deactivate";
                 archivedAuditRows: number;
                 /** Format: date-time */
                 at?: string;
                 /** @constant */
                 auditPolicy: "archive-local-indefinitely";
+                automaticEnabled?: boolean;
                 cutoffs: {
                     /** Format: date-time */
                     activity: string;
@@ -5616,6 +5617,7 @@ export interface components {
         DataRetentionStatusResponse: {
             contractVersion: string;
             data: {
+                automaticEnabled: boolean;
                 last: null | {
                     /** Format: date-time */
                     at: string;

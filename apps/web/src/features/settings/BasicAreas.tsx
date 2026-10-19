@@ -504,9 +504,12 @@ export function DataRetentionArea() {
           {status.data.data.last.status === "failed" && Object.keys(status.data.data.last.confirmedPartial).length
             ? ` · ${t("settings.retention.partial")}: ${JSON.stringify(status.data.data.last.confirmedPartial)}` : ""}</p>}
         {dirty && <p className="st-muted">{t("settings.retention.saveFirst")}</p>}
+        <p className="st-muted">{status.data?.data.automaticEnabled ? t("settings.retention.autoOn") : t("settings.retention.autoOff")}</p>
         <div className="st-row">
           <Button size="sm" variant="ghost" disabled={readOnly || dirty || action.isPending} onClick={() => void action.mutateAsync({ action: "preview" }).then((response) => setPreview(response.data)).catch(() => setPreview(null))}>{t("settings.retention.preview")}</Button>
           <Button size="sm" disabled={readOnly || dirty || action.isPending} onClick={() => void action.mutateAsync({ action: "run" }).then((response) => setPreview(response.data)).catch(() => setPreview(null))}>{t("settings.retention.run")}</Button>
+          {!status.data?.data.automaticEnabled && <Button size="sm" variant="ghost" disabled={readOnly || dirty || action.isPending || status.isLoading || status.isError} onClick={() => void action.mutateAsync({ action: "activate" }).catch(() => setPreview(null))}>{t("settings.retention.activate")}</Button>}
+          {status.data?.data.automaticEnabled && <Button size="sm" variant="ghost" disabled={readOnly || action.isPending} onClick={() => void action.mutateAsync({ action: "deactivate" }).catch(() => setPreview(null))}>{t("settings.retention.deactivate")}</Button>}
         </div>
         {preview && <div role="status">
           <p>{t(preview.action === "run" ? "settings.retention.removed" : "settings.retention.eligible")}:</p>

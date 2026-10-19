@@ -507,6 +507,10 @@ export const enD: Record<keyof typeof deD, string> = {
   "settings.retention.removed": "Actually cleaned or archived",
   "settings.retention.partial": "Confirmed partial results",
   "settings.retention.saveFirst": "Save changes first; preview and run use the saved periods.",
+  "settings.retention.autoOn": "Automatic cleanup was explicitly enabled.",
+  "settings.retention.autoOff": "Automatic cleanup remains off until explicitly enabled. Defaults do not erase existing data on startup.",
+  "settings.retention.activate": "Enable automatic cleanup",
+  "settings.retention.deactivate": "Pause automatic cleanup",
 
   "settings.backups.title": "Backup",
   "settings.backups.desc": "Regular backup of settings and data.",

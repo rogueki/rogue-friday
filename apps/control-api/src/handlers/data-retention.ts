@@ -12,6 +12,16 @@ export const dataRetentionHandlers: Partial<Record<OperationId, Handler>> = {
   async performDataRetentionAction(ctx) {
     const { action } = ctx.body as DataRetentionActionRequest;
     if (action === "preview") return { status: 200, body: envelope({ action, ...ctx.runtime.retention.dryRun() }) };
+    if (action === "activate") {
+      ctx.runtime.retention.enableAutomatic();
+      ctx.audit.action = "system.retention_activated";
+      return { status: 200, body: envelope({ action, ...ctx.runtime.retention.dryRun(), automaticEnabled: true }) };
+    }
+    if (action === "deactivate") {
+      ctx.runtime.retention.disableAutomatic();
+      ctx.audit.action = "system.retention_deactivated";
+      return { status: 200, body: envelope({ action, ...ctx.runtime.retention.dryRun(), automaticEnabled: false }) };
+    }
     const result = ctx.runtime.retention.run();
     ctx.audit.action = "system.retention_run";
     ctx.audit.after = { ...result.removed };

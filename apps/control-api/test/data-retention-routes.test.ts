@@ -13,6 +13,10 @@ it("exposes owner-only preview and scoped run through the API", async () => {
     expect(preview.statusCode, preview.body).toBe(200);
     expect(preview.json().data).toMatchObject({ action: "preview", memoryPolicy: "unlimited",
       auditPolicy: "archive-local-indefinitely" });
+    expect((await owner.request("GET", "/api/v1/data-retention")).json().data.automaticEnabled).toBe(false);
+    const activated = await owner.request("POST", "/api/v1/data-retention/actions", { body: { action: "activate" } });
+    expect(activated.statusCode, activated.body).toBe(200);
+    expect((await owner.request("GET", "/api/v1/data-retention")).json().data.automaticEnabled).toBe(true);
     const run = await owner.request("POST", "/api/v1/data-retention/actions", { body: { action: "run" } });
     expect(run.statusCode, run.body).toBe(200);
     expect(run.json().data.removed).toBeDefined();

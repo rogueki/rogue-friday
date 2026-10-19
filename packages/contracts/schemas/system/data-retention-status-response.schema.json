@@ -116,11 +116,15 @@
               "additionalProperties": false
             }
           ]
+        },
+        "automaticEnabled": {
+          "type": "boolean"
         }
       },
       "required": [
         "running",
-        "last"
+        "last",
+        "automaticEnabled"
       ],
       "additionalProperties": false
     },

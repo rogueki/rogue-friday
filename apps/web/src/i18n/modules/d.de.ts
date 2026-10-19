@@ -520,6 +520,10 @@ export const deD = {
   "settings.retention.removed": "Tatsächlich bereinigt oder archiviert",
   "settings.retention.partial": "Bestätigte Teilergebnisse",
   "settings.retention.saveFirst": "Änderungen zuerst speichern; Vorschau und Lauf verwenden die gespeicherten Fristen.",
+  "settings.retention.autoOn": "Automatische Bereinigung ist ausdrücklich aktiviert.",
+  "settings.retention.autoOff": "Automatische Bereinigung ist bis zur ausdrücklichen Aktivierung aus. Alte Daten werden durch Standardfristen nicht beim Start entfernt.",
+  "settings.retention.activate": "Automatische Bereinigung aktivieren",
+  "settings.retention.deactivate": "Automatische Bereinigung anhalten",
 
   // ── Backups ─────────────────────────────────────────────────────────────
   "settings.backups.title": "Sicherung",

@@ -2583,12 +2583,12 @@ export interface DashboardSettings {
   };
 }
 export interface DataRetentionActionRequest {
-  action: "preview" | "run";
+  action: "preview" | "run" | "activate" | "deactivate";
 }
 export interface DataRetentionActionResponse {
   contractVersion: string;
   data: {
-    action: "preview" | "run";
+    action: "preview" | "run" | "activate" | "deactivate";
     cutoffs: {
       activity: string;
       voiceHistory: string;
@@ -2614,6 +2614,7 @@ export interface DataRetentionActionResponse {
     memoryPolicy: "unlimited";
     auditPolicy: "archive-local-indefinitely";
     at?: string;
+    automaticEnabled?: boolean;
   };
   freshness: Freshness;
 }
@@ -2648,6 +2649,7 @@ export interface DataRetentionStatusResponse {
       };
       error: string | null;
     };
+    automaticEnabled: boolean;
   };
   freshness: Freshness;
 }

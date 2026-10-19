@@ -44,11 +44,17 @@ it("dry-runs exact store counts, archives old audit, deletes only scoped history
   const now = new Date("2026-10-19T00:00:00Z");
   expect(f.retention.dryRun(now).eligible).toEqual({ activity: 1, voiceHistory: 1, auditToArchive: 1,
     notifications: 1, temporaryFiles: 0 });
+  expect(f.retention.status().automaticEnabled).toBe(false);
+  expect(f.retention.tick(now)).toBe(false);
+  expect((f.db.prepare("SELECT COUNT(*) AS n FROM command_history").get() as { n: number }).n).toBe(3);
   expect(f.retention.run(now).removed).toEqual({ activity: 1, voiceHistory: 1, auditToArchive: 1,
     notifications: 1, temporaryFiles: 0 });
   expect(f.audit.verify().valid).toBe(true);
   expect(f.retention.dryRun(now).archivedAuditRows).toBe(1);
   expect((f.db.prepare("SELECT COUNT(*) AS n FROM command_history").get() as { n: number }).n).toBe(1);
+  expect(f.retention.tick(now)).toBe(false);
+  f.retention.enableAutomatic();
+  expect(f.retention.status().automaticEnabled).toBe(true);
   expect(f.retention.tick(now)).toBe(false);
   f.db.close();
 });

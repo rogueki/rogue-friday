@@ -3,7 +3,7 @@
   "$id": "https://friday.local/schemas/system/data-retention-action-request.schema.json",
   "title": "DataRetentionActionRequest",
   "type": "object",
-  "properties": { "action": { "type": "string", "enum": ["preview", "run"] } },
+  "properties": { "action": { "type": "string", "enum": ["preview", "run", "activate", "deactivate"] } },
   "required": ["action"],
   "additionalProperties": false
 }

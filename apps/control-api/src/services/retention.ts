@@ -32,12 +32,15 @@ export class RetentionService {
     private readonly audit: AuditStore, private readonly archive: AuditArchive,
     private readonly backup: SystemBackupService, private readonly notifications: NotificationRetention) {}
 
-  status(): { last: LastResult | null; running: boolean } {
+  status(): { last: LastResult | null; running: boolean; automaticEnabled: boolean } {
     let last: LastResult | null = null;
     try { last = JSON.parse(kvGet(this.db, "data_retention.last_result") ?? "null") as LastResult | null; }
     catch { /* invalid prior status is unknown */ }
-    return { last, running: this.running };
+    return { last, running: this.running, automaticEnabled: kvGet(this.db, "data_retention.automatic_enabled") === "true" };
   }
+
+  enableAutomatic(): void { kvSet(this.db, "data_retention.automatic_enabled", "true"); }
+  disableAutomatic(): void { kvSet(this.db, "data_retention.automatic_enabled", "false"); }
 
   dryRun(now = new Date()): RetentionPlan {
     const settings = this.settings.area("dataRetention");
@@ -97,7 +100,9 @@ export class RetentionService {
   }
 
   tick(now = new Date()): boolean {
-    const last = this.status().last;
+    const status = this.status();
+    if (!status.automaticEnabled) return false;
+    const last = status.last;
     if (last?.status === "success" && now.getTime() - Date.parse(last.at) < 86_400_000) return false;
     this.run(now);
     return true;

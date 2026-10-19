@@ -11,7 +11,7 @@
 | `temporaryFileDays` | Registered `SystemBackupService` staging directories with matching random ownership marker | Unregistered/user directories and completed backups are not selected. |
 | `memoryDefaultTtlDays` | No expiration consumer | P3 Obsidian policy is unlimited. Server rejects non-null TTL and UI disables the field. |
 
-`RetentionService` runs at most once per successful 24-hour window, exposes owner-only dry-run counts and a manual run, and records confirmed partial results when a later stage fails. A retention run does not hold a transaction across filesystem archive or temporary cleanup; retry is idempotent and the result must not claim all-or-nothing execution.
+`RetentionService` runs automatically at most once per successful 24-hour window **only after the owner explicitly activates it**. Pre-existing settings defaults alone never trigger deletion on first startup. Owner-only dry-run counts and a manual run remain available, and confirmed partial results are recorded when a later stage fails. A retention run does not hold a transaction across filesystem archive or temporary cleanup; retry is idempotent and the result must not claim all-or-nothing execution.
 
 ## Backup source map
 

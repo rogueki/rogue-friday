@@ -14,7 +14,9 @@
           "type": "string",
           "enum": [
             "preview",
-            "run"
+            "run",
+            "activate",
+            "deactivate"
           ]
         },
         "cutoffs": {
@@ -131,6 +133,9 @@
         "at": {
           "type": "string",
           "format": "date-time"
+        },
+        "automaticEnabled": {
+          "type": "boolean"
         }
       },
       "required": [
