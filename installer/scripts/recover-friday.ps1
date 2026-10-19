@@ -91,6 +91,24 @@ function Test-WslRecoveryReceipt([string]$Distro, [string]$User, [string]$LinuxH
     return $result -eq 'present'
 }
 
+function Get-ScopedBridgeDigests([string]$Root) {
+    $result = @{}
+    $data = Join-Path $Root 'dashboard\data'
+    foreach ($item in @(@('memory', 'hermes-memory-bridge'), @('calendar', 'calendar-bridge'),
+                       @('mail', 'mail-bridge'), @('messenger', 'hermes-messenger-bridge'))) {
+        $file = Join-Path $data (Join-Path $item[1] 'auth.key')
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "Wiederhergestellter $($item[0])-Dienstschluessel fehlt." }
+        $encoded = [IO.File]::ReadAllText($file).Trim()
+        if ($encoded -cnotmatch '^[A-Za-z0-9+/]{43}=$') { throw "Wiederhergestellter $($item[0])-Dienstschluessel ist ungueltig." }
+        $bytes = [Convert]::FromBase64String($encoded)
+        if ($bytes.Length -ne 32) { throw "Wiederhergestellter $($item[0])-Dienstschluessel ist ungueltig." }
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try { $result[$item[0]] = [BitConverter]::ToString($sha.ComputeHash($bytes)).Replace('-', '').ToLowerInvariant() }
+        finally { $sha.Dispose(); [Array]::Clear($bytes, 0, $bytes.Length); $encoded = $null }
+    }
+    return $result
+}
+
 function Invoke-FridayRecovery {
 $target = [IO.Path]::GetFullPath($TargetRoot).TrimEnd('\')
 $statePath = Join-Path $target 'config\install-state.json'
@@ -163,6 +181,17 @@ try {
     if ($health.StatusCode -ne 200) { throw 'Wiederhergestelltes Dashboard ist nicht gesund.' }
     $gateway = Invoke-Wsl $state.distro_name $state.linux_user @('systemctl', '--user', 'is-active', 'hermes-gateway.service')
     if ([string]($gateway | Select-Object -Last 1) -ne 'active') { throw 'Wiederhergestelltes Hermes-Gateway ist nicht aktiv.' }
+    $bridgeHelper = Join-Path $target 'dashboard\scripts\wsl-recovery-bridge-health.py'
+    if (-not (Test-Path -LiteralPath $bridgeHelper -PathType Leaf)) { throw 'WSL-Bridge-Health-Helfer fehlt.' }
+    $memoryDbPath = Wsl-Path $state.distro_name $state.linux_user (Join-Path $target 'dashboard\data\memory\outbox.sqlite')
+    $bridgeRequest = @{ port = $dashboardPort; memoryDbPath = $memoryDbPath;
+        keyDigests = (Get-ScopedBridgeDigests $target) } | ConvertTo-Json -Compress
+    $bridgeResult = Invoke-Wsl $state.distro_name $state.linux_user @('python3', (Wsl-Path $state.distro_name $state.linux_user $bridgeHelper)) $bridgeRequest
+    $bridgeHealth = [string]($bridgeResult | Select-Object -Last 1) | ConvertFrom-Json
+    if ($bridgeHealth.state -cne 'ready' -or @($bridgeHealth.keyMatches).Count -ne 4 -or
+        @($bridgeHealth.readOnlyProbes) -cnotcontains 'memory-search') {
+        throw 'Wiederhergestellte API-Bruecken sind nicht bereit.'
+    }
     Resume-OwnedTasks $script:taskJournal
     Write-Output (@{ state = 'healthy'; stagingPath = $stage.path; fileCount = $stage.fileCount;
         hermesRevision = $stage.wslRevision } | ConvertTo-Json -Compress)

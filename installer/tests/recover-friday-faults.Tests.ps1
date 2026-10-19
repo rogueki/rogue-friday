@@ -8,7 +8,13 @@ New-Item -ItemType Directory -Path (Join-Path $target 'config'), (Join-Path $tar
 [IO.File]::WriteAllText((Join-Path $target 'config\install-state.json'),
     (@{ distro_name = 'FridayTest'; linux_user = 'friday'; ports = @{ CommandCenter = 3101 } } | ConvertTo-Json -Compress))
 [IO.File]::WriteAllText((Join-Path $target 'dashboard\scripts\wsl-system-restore.py'), 'fixture')
+[IO.File]::WriteAllText((Join-Path $target 'dashboard\scripts\wsl-recovery-bridge-health.py'), 'fixture')
 [IO.File]::WriteAllText((Join-Path $stage 'recovery-plan.json'), '{"state":"applying"}')
+foreach ($bridge in @('hermes-memory-bridge', 'calendar-bridge', 'mail-bridge', 'hermes-messenger-bridge')) {
+    $keyDir = Join-Path $target ("dashboard\data\$bridge")
+    New-Item -ItemType Directory -Path $keyDir -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $keyDir 'auth.key'), [Convert]::ToBase64String(([byte[]](1..32))))
+}
 $env:FRIDAY_RECOVERY_TEST = '1'
 try {
     . $scriptPath -BackupPath (Join-Path $fixture 'backup') -TargetRoot $target -Apply
@@ -80,6 +86,11 @@ try {
         param([string]$Distro, [string]$User, [string[]]$Arguments, [string]$InputJson = '')
         if ($Arguments[0] -eq 'python3' -and $InputJson) {
             if ($InputJson -match '"action":"rollback"') { $script:events += 'rollback-wsl'; return '{"state":"rolled back"}' }
+            if ($InputJson -match '"keyDigests"') {
+                $script:events += 'bridge-health'
+                if ($script:failBridgeHealth) { throw 'synthetic bridge health failure' }
+                return '{"state":"ready","keyMatches":["memory","calendar","mail","messenger"],"readOnlyProbes":["memory-search"]}'
+            }
             $script:events += 'import-wsl'
             if ($script:validImport) { return ('{"hermesRevision":"' + ('a' * 40) + '"}') }
             return 'not-json'
@@ -154,6 +165,14 @@ try {
         'rollback-wsl' -notin $script:events) { throw 'health failure skipped rollback' }
 
     function Invoke-WebRequest { return [pscustomobject]@{ StatusCode = 200 } }
+    $script:failBridgeHealth = $true
+    $script:events = @(); $script:taskJournal = @(); $script:taskState.FRIDAY_Watchdog = 'Running'
+    try { Invoke-FridayRecovery | Out-Null; throw 'bridge health failure accepted' }
+    catch { if ($_.Exception.Message -notmatch 'synthetic bridge health failure') { throw } }
+    if ('bridge-health' -notin $script:events -or 'cli:rollback' -notin $script:events -or
+        'rollback-wsl' -notin $script:events) { throw 'bridge failure skipped rollback' }
+
+    $script:failBridgeHealth = $false
     $script:events = @(); $script:taskJournal = @(); $script:taskState.FRIDAY_Watchdog = 'Running'
     $result = @(Invoke-FridayRecovery)
     if (-not (@($result) -join ' ' -match 'healthy') -or 'cli:rollback' -in $script:events -or
