@@ -61,4 +61,22 @@ describe("NotificationStore", () => {
     expect(store.get(pending.id)).toEqual(pending);
     expect(() => store.countResolvedBefore("not-a-date")).toThrow("ISO date-time");
   });
+
+  it("binds one immutable messenger draft and retry key to an owner-approved notification step", () => {
+    db = openDatabase(":memory:");
+    const store = new NotificationStore(db);
+    const alert = notification({ status: "open", resolved: false, resolvedAt: null, acknowledged: false,
+      acknowledgedAt: null, escalation: [{ step: 1, channel: "telegram", state: "awaiting_approval",
+        scheduledAt: "2026-01-02T00:00:00.000Z", sentAt: null, acknowledgedAt: null }] });
+    store.save(alert, false);
+    const draft = { accountId: "default" as const, platform: "telegram", recipient: "12345678", text: "Alert" };
+    const first = store.stageMessengerDraft(alert.id, 1, "owner", draft);
+    const replay = store.stageMessengerDraft(alert.id, 1, "owner", draft);
+    expect(replay.idempotencyKey).toBe(first.idempotencyKey);
+    expect(store.messengerStage(alert.id, 1, "owner")).toEqual(first);
+    expect(() => store.stageMessengerDraft(alert.id, 1, "other-owner", draft)).toThrow();
+    expect(() => store.stageMessengerDraft(alert.id, 1, "owner", { ...draft, text: "Changed" })).toThrow();
+    store.completeMessengerStage(alert.id, 1, "owner", first.idempotencyKey, { state: "uncertain", receiptId: "receipt" });
+    expect(store.messengerStage(alert.id, 1, "owner").state).toBe("uncertain");
+  });
 });

@@ -7043,6 +7043,8 @@ export interface components {
         MessengerDraft: {
             /** @constant */
             accountId: "default";
+            notificationId?: string;
+            notificationStep?: number;
             /** @enum {unknown} */
             platform: "telegram" | "discord" | "whatsapp" | "slack" | "signal" | "matrix" | "mattermost" | "sms" | "irc" | "line" | "feishu" | "wecom" | "photon" | "buzz" | "ntfy";
             recipient: string;
@@ -7056,6 +7058,7 @@ export interface components {
                 /** Format: date-time */
                 expiresAt: string;
                 fingerprint: string;
+                idempotencyKey?: string;
                 token: string;
             };
             freshness: components["schemas"]["Freshness"];
@@ -7199,7 +7202,7 @@ export interface components {
                 /** Format: date-time */
                 sentAt: string | null;
                 /** @enum {string} */
-                state: "pending" | "awaiting_approval" | "sent" | "acknowledged" | "failed" | "skipped";
+                state: "pending" | "awaiting_approval" | "sent" | "uncertain" | "acknowledged" | "failed" | "skipped";
                 step: number;
                 /** @default true */
                 stopOnAcknowledge: boolean;

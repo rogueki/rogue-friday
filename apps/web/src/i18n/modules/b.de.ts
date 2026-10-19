@@ -209,6 +209,7 @@ export const deB = {
   "alerts.escalation.state.pending": "Geplant",
   "alerts.escalation.state.awaiting_approval": "Freigabe erforderlich",
   "alerts.escalation.state.sent": "Gesendet",
+  "alerts.escalation.state.uncertain": "Zustellung unklar",
   "alerts.escalation.state.acknowledged": "Bestätigt",
   "alerts.escalation.state.failed": "Fehlgeschlagen",
   "alerts.escalation.state.skipped": "Übersprungen",

@@ -76,15 +76,18 @@ describe("alerts page", () => {
     const pending = makeNotification({
       id: P3,
       title: "Backup abgeschlossen",
-      escalation: [{ step: 1, channel: "telegram", state: "awaiting_approval", scheduledAt: NOW, sentAt: null, acknowledgedAt: null }],
+      escalation: [
+        { step: 1, channel: "email", state: "awaiting_approval", scheduledAt: NOW, sentAt: null, acknowledgedAt: null },
+        { step: 2, channel: "telegram", state: "awaiting_approval", scheduledAt: NOW, sentAt: null, acknowledgedAt: null },
+      ],
     });
     const fake = routedFetch(routes([pending]));
     renderWithProviders(<AlertsPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     const { push } = await import("../memory/kit/testRouter");
     const card = (await screen.findByText("Backup abgeschlossen")).closest("article") as HTMLElement;
     await user.click(within(card).getByRole("button", { name: "Details zu „Backup abgeschlossen“" }));
-    await user.click(await screen.findByRole("button", { name: "Versand prüfen" }));
-    expect(push).toHaveBeenCalledWith(`/communication?messengerNotification=${P3}`);
+    await user.click(await screen.findByRole("button", { name: /Versand prüfen.*Telegram/i }));
+    expect(push).toHaveBeenCalledWith(`/communication?messengerNotification=${P3}&messengerStep=2`);
   });
 
   it("shows P0/P1 prominently with priority words, counts and no animation classes", async () => {

@@ -21,7 +21,7 @@ export const categoryKey = (category: NotificationCategory): MessageKey => `aler
 export const escalationStateKey = (state: EscalationState): MessageKey => `alerts.escalation.state.${state}` as MessageKey;
 
 export const STATUS_TONE: Record<NotificationStatus, Tone> = { open: "red", acknowledged: "cyan", snoozed: "blue", resolved: "green" };
-export const ESCALATION_TONE: Record<EscalationState, Tone> = { pending: "muted", awaiting_approval: "amber", sent: "amber", acknowledged: "green", failed: "red", skipped: "muted" };
+export const ESCALATION_TONE: Record<EscalationState, Tone> = { pending: "muted", awaiting_approval: "amber", sent: "amber", uncertain: "red", acknowledged: "green", failed: "red", skipped: "muted" };
 
 export const CATEGORY_ICON: Record<NotificationCategory, LucideIcon> = {
   system: Cpu,

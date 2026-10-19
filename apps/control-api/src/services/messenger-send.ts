@@ -10,7 +10,8 @@ const sha = (input: string) => createHash("sha256").update(input).digest("hex");
 const PLATFORM = new Set(["telegram", "discord", "whatsapp", "slack", "signal", "matrix", "mattermost", "sms",
   "irc", "line", "feishu", "wecom", "photon", "buzz", "ntfy"]);
 const TARGET = /^[A-Za-z0-9_@.!+#:;=-]{1,128}$/;
-export interface MessengerDraft { accountId: "default"; platform: string; recipient: string; text: string }
+export interface MessengerDraft { accountId: "default"; platform: string; recipient: string; text: string;
+  notificationId?: string; notificationStep?: number }
 export interface MessengerTarget { id: string; accountId: string; platform: string; recipient: string; createdAt: string }
 export interface MessengerReceipt { receiptId: string; accountId: string; platform: string; recipient: string;
   state: "pending" | "sent" | "uncertain"; externalId: string | null; createdAt: string; replayed: boolean }
@@ -41,7 +42,8 @@ function validTarget(platform: string, recipient: string): boolean {
 function validate(draft: MessengerDraft): void {
   if (!draft || draft.accountId !== "default" || !validTarget(draft.platform, draft.recipient) ||
       typeof draft.text !== "string" || !draft.text.trim() || Buffer.byteLength(draft.text, "utf8") > 8192 ||
-      draft.text.includes("MEDIA:") || draft.text.includes("[[as_document]]")) {
+      draft.text.includes("MEDIA:") || draft.text.includes("[[as_document]]") ||
+      ((draft.notificationId === undefined) !== (draft.notificationStep === undefined))) {
     throw validationFailed("Kanal, exakter Empfänger oder Nachricht ist ungültig.");
   }
 }
@@ -121,11 +123,13 @@ export class MessengerSendService {
   }
 
   private fingerprint(actor: string, draft: MessengerDraft, revision: string, targetId: string): string {
-    return sha(JSON.stringify([actor, draft.accountId, draft.platform, draft.recipient, draft.text, revision, targetId]));
+    return sha(JSON.stringify([actor, draft.accountId, draft.platform, draft.recipient, draft.text, revision, targetId,
+      draft.notificationId ?? null, draft.notificationStep ?? null]));
   }
 
   private draftHash(actor: string, draft: MessengerDraft): string {
-    return sha(JSON.stringify([actor, draft.accountId, draft.platform, draft.recipient, draft.text]));
+    return sha(JSON.stringify([actor, draft.accountId, draft.platform, draft.recipient, draft.text,
+      draft.notificationId ?? null, draft.notificationStep ?? null]));
   }
 
   async preview(actor: string, draft: MessengerDraft): Promise<{ token: string; expiresAt: string; fingerprint: string;
@@ -142,12 +146,14 @@ export class MessengerSendService {
     return { token, expiresAt: new Date(claims.expiresAt).toISOString(), fingerprint, draft };
   }
 
-  async confirm(actor: string, draft: MessengerDraft, token: string, key: string): Promise<MessengerReceipt> {
+  async confirm(actor: string, draft: MessengerDraft, token: string, key: string,
+    options: { beforeSend?: () => void; replayOnly?: boolean } = {}): Promise<MessengerReceipt> {
     validate(draft);
     if (typeof token !== "string" || !key || key.length < 8 || key.length > 128) throw validationFailed("Freigabe oder Idempotency-Key fehlt.");
     const keyHash = sha(JSON.stringify([actor, draft.accountId, key]));
     const existing = this.lookup(keyHash);
     if (existing) return this.replay(keyHash, existing, this.draftHash(actor, draft));
+    if (options.replayOnly) throw conflict("Für diesen Eskalationsversuch liegt kein Versandbeleg vor; ein neuer Versuch ist gesperrt.");
     const targetId = this.admitted(actor, draft);
     if (!targetId) throw validationFailed("Empfänger ist für dieses Konto nicht registriert.");
     const ready = await this.run("check", draft);
@@ -157,6 +163,7 @@ export class MessengerSendService {
     const payloadHash = this.fingerprint(actor, draft, ready.revision, targetId);
     const valid = this.approvals.consume(token, { approvalId: payloadHash, userId: actor, action: "messenger.send" });
     if (!valid.ok) throw conflict("Nachricht oder Empfänger wurde geändert; bitte neu freigeben.");
+    options.beforeSend?.();
     const now = new Date().toISOString();
     const inserted = this.db.prepare(`INSERT OR IGNORE INTO messenger_send_journal
       (key_hash,actor,account_id,platform,recipient,payload_hash,draft_hash,state,created_at,updated_at)

@@ -25,13 +25,50 @@ export const messengerSendHandlers: Partial<Record<OperationId, Handler>> = {
   },
   async previewMessengerMessage(ctx) {
     const draft = ctx.body as MessengerDraft;
-    return { status: 200, body: single(await ctx.runtime.messengerSend.preview(ctx.principal!.userId, draft)),
+    let idempotencyKey: string | undefined;
+    if (draft.notificationId && draft.notificationStep) {
+      if (!ctx.runtime.world) throw validationFailed("Diese Benachrichtigung ist nicht im lokalen Owner-Freigabespeicher verfügbar.");
+      ctx.runtime.world.notifications.assertMessengerStepActionable(draft.notificationId, draft.notificationStep, draft.platform, draft.recipient);
+      const stage = ctx.runtime.notifications.stageMessengerDraft(draft.notificationId, draft.notificationStep,
+        ctx.principal!.userId, draft);
+      if (stage.state !== "staged") throw validationFailed("Dieser Eskalationsversuch wurde bereits abgeschlossen; keinen neuen Versandversuch anlegen.");
+      idempotencyKey = stage.idempotencyKey;
+    }
+    const preview = await ctx.runtime.messengerSend.preview(ctx.principal!.userId, draft);
+    return { status: 200, body: single({ ...preview, ...(idempotencyKey ? { idempotencyKey } : {}) }),
       headers: { "Cache-Control": "no-store" } };
   },
   async confirmMessengerMessage(ctx) {
     if (!ctx.idempotencyKey) throw validationFailed("Idempotency-Key für Messenger-Versand erforderlich.");
     const { draft, token } = ctx.body as { draft: MessengerDraft; token: string };
-    const receipt = await ctx.runtime.messengerSend.confirm(ctx.principal!.userId, draft, token, ctx.idempotencyKey);
+    const origin = draft.notificationId && draft.notificationStep ?
+      ctx.runtime.notifications.messengerStage(draft.notificationId, draft.notificationStep, ctx.principal!.userId) : undefined;
+    if (origin && (origin.idempotencyKey !== ctx.idempotencyKey || JSON.stringify(origin.draft) !== JSON.stringify(draft)))
+      throw validationFailed("Der Eskalationsentwurf oder Idempotency-Key stimmt nicht mit der gespeicherten Freigabe überein.");
+    const receipt = await ctx.runtime.messengerSend.confirm(ctx.principal!.userId, draft, token, ctx.idempotencyKey, {
+      replayOnly: Boolean(origin && origin.state !== "staged"),
+      ...(origin && origin.state === "staged" ? { beforeSend: () => {
+        if (!ctx.runtime.world) throw validationFailed("Benachrichtigungszustand ist nicht verfügbar.");
+        ctx.runtime.world.notifications.assertMessengerStepActionable(draft.notificationId!, draft.notificationStep!, draft.platform, draft.recipient);
+      } } : {}),
+    });
+    if (origin) {
+      const finalState = receipt.state === "sent" ? "sent" : "uncertain";
+      const current = ctx.runtime.world?.notifications.find(origin.notificationId);
+      const previous = current ? JSON.parse(JSON.stringify(current)) as typeof current : undefined;
+      ctx.runtime.db.exec("BEGIN IMMEDIATE");
+      try {
+        if (current && current.escalation.find((step) => step.step === origin.step)?.state !== finalState)
+          ctx.runtime.world!.notifications.recordMessengerReceipt(origin.notificationId, origin.step, finalState);
+        ctx.runtime.notifications.completeMessengerStage(origin.notificationId, origin.step, origin.actor, origin.idempotencyKey,
+          { state: finalState, receiptId: receipt.receiptId });
+        ctx.runtime.db.exec("COMMIT");
+      } catch (error) {
+        ctx.runtime.db.exec("ROLLBACK");
+        if (current && previous) Object.assign(current, previous);
+        throw error;
+      }
+    }
     let memoryCapture: "written" | "pending" | "skipped" | "error" = "error";
     try {
       const result = ctx.runtime.durableMemory.capture({

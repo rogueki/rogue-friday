@@ -12,7 +12,7 @@ afterEach(() => window.history.replaceState({}, "", "/communication"));
 describe("MessengerCompose alert handoff", () => {
   it("hydrates an opaque notification reference and requires a fresh explicit preview", async () => {
     const id = "ntf_01JAAAAAAAAAAAAAAAAAAAAAAA";
-    window.history.replaceState({}, "", `/communication?messengerNotification=${id}`);
+    window.history.replaceState({}, "", `/communication?messengerNotification=${id}&messengerStep=1`);
     const alert = {
       id, version: 2, createdAt: NOW, updatedAt: NOW, source: SOURCE, priority: "P2", category: "system",
       title: "Backup abgeschlossen", body: "Der lokale Sicherungslauf ist fertig.", status: "open", acknowledged: false,
@@ -22,16 +22,19 @@ describe("MessengerCompose alert handoff", () => {
     const expectedDraft = {
       accountId: "default", platform: "telegram", recipient: "-1001234567890",
       text: "Backup abgeschlossen\n\nDer lokale Sicherungslauf ist fertig.",
+      notificationId: id, notificationStep: 1,
     };
     const fake = routedFetch({
-      "GET /api/v1/notifications": listOf([alert]),
+      "GET /api/v1/notifications": (url: URL) => url.searchParams.get("cursor") === "older" ? listOf([alert]) : {
+        ...listOf([]), pageInfo: { nextCursor: "older", hasNextPage: true },
+      },
       "GET /api/v1/settings": single({ notifications: {
         channels: [{ kind: "telegram", enabled: true, minPriority: "P2", accountId: "default", recipient: "-1001234567890" }],
         quietHours: { enabled: false, from: "22:00", to: "07:00" }, defaultEscalation: [], snoozeDefaultMinutes: 30,
       } }),
       "GET /api/v1/messenger/receipts": single({ items: [] }),
       "GET /api/v1/messenger/targets": single({ items: [] }),
-      "POST /api/v1/messenger/preview": (_url: URL, _request: Request, body: unknown) => single({ token: "preview-token", expiresAt: NOW, fingerprint: "draft-hash", draft: body }),
+      "POST /api/v1/messenger/preview": (_url: URL, _request: Request, body: unknown) => single({ token: "preview-token", expiresAt: NOW, fingerprint: "draft-hash", draft: body, idempotencyKey: "stable-notification-key" }),
     });
     const user = userEvent.setup();
     renderWithProviders(<MessengerCompose />, { fetchImpl: fake.fetch });
@@ -42,6 +45,7 @@ describe("MessengerCompose alert handoff", () => {
     expect(screen.getByRole("status")).toHaveTextContent("es wurde nichts gesendet");
     await user.click(screen.getByRole("button", { name: "Vorschau prüfen" }));
     await waitFor(() => expect(fake.to("POST", "/api/v1/messenger/preview")).toHaveLength(1));
+    expect(fake.to("GET", "/api/v1/notifications")).toHaveLength(2);
     expect(fake.to("POST", "/api/v1/messenger/preview")[0]?.body).toEqual(expectedDraft);
     expect(await screen.findByRole("group", { name: "Versandfreigabe" })).toBeInTheDocument();
   });

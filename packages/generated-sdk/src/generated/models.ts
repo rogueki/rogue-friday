@@ -3575,6 +3575,8 @@ export interface MessengerDraft {
     | "ntfy";
   recipient: string;
   text: string;
+  notificationId?: string;
+  notificationStep?: number;
 }
 export interface MessengerPreviewResponse {
   contractVersion: ContractVersion;
@@ -3583,6 +3585,7 @@ export interface MessengerPreviewResponse {
     expiresAt: string;
     fingerprint: string;
     draft: MessengerDraft;
+    idempotencyKey?: string;
   };
   freshness: Freshness;
 }
@@ -3748,7 +3751,7 @@ export interface Notification {
   escalation: {
     step: number;
     channel: "dashboard" | "telegram" | "whatsapp" | "sms" | "phone" | "email";
-    state: "pending" | "awaiting_approval" | "sent" | "acknowledged" | "failed" | "skipped";
+    state: "pending" | "awaiting_approval" | "sent" | "uncertain" | "acknowledged" | "failed" | "skipped";
     scheduledAt: string;
     sentAt: string | null;
     acknowledgedAt: string | null;

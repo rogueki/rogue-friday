@@ -39,6 +39,39 @@ export class NotificationService {
     return notification;
   }
 
+  /** Validates the live owner-review step immediately before a bound messenger send is admitted. */
+  assertMessengerStepActionable(id: string, stepNumber: number, platform?: string, recipient?: string): Notification {
+    const notification = this.find(id);
+    const step = notification.escalation.find((entry) => entry.step === stepNumber);
+    const channelSetting = step && this.w.state.settings.notifications.channels.find((entry) => entry.kind === step.channel);
+    const recipientAllowed = recipient === undefined || (channelSetting?.recipient?.trim() === recipient &&
+      (channelSetting.accountId === undefined || channelSetting.accountId === "default"));
+    const statusAllows = notification.status === "open" ||
+      (notification.status === "acknowledged" && step?.stopOnAcknowledge === false);
+    if (!statusAllows || step?.state !== "awaiting_approval" ||
+        !["telegram", "whatsapp", "sms"].includes(step.channel) ||
+        (platform !== undefined && step.channel !== platform) ||
+        !recipientAllowed ||
+        !this.channelEligible(notification.priority, step.channel) || this.quietHoursActive(this.w.nowMs(), notification.priority)) {
+      throw conflict("Dieser Messenger-Schritt ist nicht mehr versandberechtigt.");
+    }
+    return notification;
+  }
+
+  recordMessengerReceipt(id: string, stepNumber: number, receiptState: "sent" | "uncertain"): Notification {
+    const notification = this.find(id);
+    const step = notification.escalation.find((entry) => entry.step === stepNumber);
+    if (!step || !["telegram", "whatsapp", "sms"].includes(step.channel))
+      throw conflict("Der Messenger-Beleg gehört nicht zu diesem Eskalationsschritt.");
+    step.state = receiptState;
+    step.sentAt = receiptState === "sent" ? this.w.nowIso() : null;
+    this.w.bump(notification);
+    this.persist(notification);
+    this.w.emitFor("notifications", "friday.notification.updated", notification, `notification/${notification.id}`);
+    this.w.refresh();
+    return clone(notification);
+  }
+
   list(query: NotificationListQuery = {}): Page<Notification> {
     return this.w.read("listNotifications", () => {
       const priorities = asList(query.priority);
@@ -140,12 +173,13 @@ export class NotificationService {
       resolvedAt: null,
       escalation: steps.map((step, index) => {
         const immediate = step.afterSeconds === 0;
+        const quietDeferral = step.channel !== "dashboard" && this.quietHoursActive(this.w.nowMs(), input.priority);
         return {
           step: index + 1,
           channel: step.channel,
-          state: immediate ? (step.channel === "dashboard" ? ("sent" as const) : ("awaiting_approval" as const)) : ("pending" as const),
+          state: immediate && !quietDeferral ? (step.channel === "dashboard" ? ("sent" as const) : ("awaiting_approval" as const)) : ("pending" as const),
           scheduledAt: new Date(this.w.nowMs() + step.afterSeconds * 1000).toISOString(),
-          sentAt: immediate ? now : null,
+          sentAt: immediate && step.channel === "dashboard" ? now : null,
           acknowledgedAt: null,
           stopOnAcknowledge: step.stopOnAcknowledge ?? true,
         };
@@ -255,6 +289,7 @@ export class NotificationService {
 
   private scheduleEscalationStep(notificationId: string, stepNumber: number, delay: number): void {
     const handle = this.w.clock.setTimeout(() => {
+      this.forgetTimer(notificationId, handle);
       const current = this.w.state.notifications.find((candidate) => candidate.id === notificationId);
       const target = current?.escalation.find((entry) => entry.step === stepNumber);
       if (!current || !target || target.state !== "pending") return;
@@ -275,6 +310,12 @@ export class NotificationService {
       this.w.refresh();
     }, delay);
     this.timers.set(notificationId, [...(this.timers.get(notificationId) ?? []), handle]);
+  }
+
+  private forgetTimer(notificationId: string, handle: TimerHandle): void {
+    const remaining = (this.timers.get(notificationId) ?? []).filter((entry) => entry !== handle);
+    if (remaining.length) this.timers.set(notificationId, remaining);
+    else this.timers.delete(notificationId);
   }
 
   private scheduleSnooze(notification: Notification): void {

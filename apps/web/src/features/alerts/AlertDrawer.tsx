@@ -4,6 +4,7 @@ import type { Notification } from "@friday/sdk";
 import { Button, Drawer, EmptyState, StatusChip, TagPill } from "@friday/ui";
 import { Check, ExternalLink, Moon, Undo2 } from "lucide-react";
 import { useT } from "@/i18n";
+import { channelKindKey } from "../memory/kit/channelStatus";
 import { DataBadges } from "../memory/kit/Badges";
 import { useFormat } from "../memory/kit/hooks";
 import { EscalationChain } from "./EscalationChain";
@@ -105,14 +106,14 @@ export function AlertDrawer({ id, notification, loading, actions, onClose, onSno
                 {t("alerts.action.openSource")}
               </Button>
             ) : null}
-            {notification.escalation.some((step) => step.state === "awaiting_approval" && ["telegram", "whatsapp", "sms"].includes(step.channel)) ? (
-              <Button size="sm" variant="primary" onClick={() => actions.openSource({
+            {notification.escalation.filter((step) => step.state === "awaiting_approval" && ["telegram", "whatsapp", "sms"].includes(step.channel)).map((step) => (
+              <Button key={step.step} size="sm" variant="primary" onClick={() => actions.openSource({
                 ...notification,
-                targetRoute: `/communication?messengerNotification=${encodeURIComponent(notification.id)}`,
+                targetRoute: `/communication?messengerNotification=${encodeURIComponent(notification.id)}&messengerStep=${step.step}`,
               })}>
-                {t("alerts.action.reviewSend")}
+                {t("alerts.action.reviewSend")} · {t(channelKindKey(step.channel))}
               </Button>
-            ) : null}
+            ))}
           </div>
         </div>
       ) : loading ? (

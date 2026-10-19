@@ -511,6 +511,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     calendarAccounts,
     mailSend,
     messengerSend,
+    notifications,
     caldavCreate,
     hermesSkillKeys,
     hermesConfig,

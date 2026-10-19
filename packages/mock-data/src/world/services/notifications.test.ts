@@ -79,6 +79,20 @@ describe("notification escalation", () => {
     expect(notification.escalation[0]?.state).toBe("pending");
   });
 
+  it("does not mark immediate external steps as delivered during quiet hours and keeps one retry timer", () => {
+    const world = new MockWorld({ realTime: false });
+    world.state.settings.profile.timeZone = "UTC";
+    world.state.settings.notifications.quietHours = { enabled: true, from: "00:00", to: "23:59" };
+    const timersBefore = world.clock.pendingTimers;
+    const notification = world.notifications.raise({ priority: "P2", category: "system", title: "Test", body: "Test", chain: ["telegram"], stepSeconds: [0] });
+    expect(notification.escalation[0]?.state).toBe("pending");
+    expect(notification.escalation[0]?.sentAt).toBeNull();
+    world.clock.advance(20 * 60_000);
+    expect(notification.escalation[0]?.state).toBe("pending");
+    expect(notification.escalation[0]?.sentAt).toBeNull();
+    expect(world.clock.pendingTimers).toBeLessThanOrEqual(timersBefore + 1);
+  });
+
   it("lets urgent notifications pass through quiet hours", () => {
     const world = new MockWorld({ realTime: false });
     world.state.settings.profile.timeZone = "UTC";
@@ -86,5 +100,27 @@ describe("notification escalation", () => {
     const notification = world.notifications.raise({ priority: "P0", category: "security", title: "Test", body: "Test", chain: ["telegram"], stepSeconds: [1] });
     world.clock.advance(1_000);
     expect(notification.escalation[0]?.state).toBe("awaiting_approval");
+  });
+
+  it("records the receipt after policy or resolution changes while an admitted send is in flight", () => {
+    const world = new MockWorld({ realTime: false });
+    const notification = world.notifications.raise({ priority: "P1", category: "system", title: "Test", body: "Test", chain: ["telegram"], stepSeconds: [0] });
+    world.notifications.assertMessengerStepActionable(notification.id, 1);
+    world.notifications.resolve(notification.id);
+    const updated = world.notifications.recordMessengerReceipt(notification.id, 1, "sent");
+    expect(updated.status).toBe("resolved");
+    expect(updated.escalation[0]).toMatchObject({ state: "sent" });
+    expect(updated.escalation[0]?.sentAt).not.toBeNull();
+  });
+
+  it("invalidates an alert approval when the configured messenger recipient changes", () => {
+    const world = new MockWorld({ realTime: false });
+    world.state.settings.notifications.channels = world.state.settings.notifications.channels.map((channel) =>
+      channel.kind === "telegram" ? { ...channel, enabled: true, minPriority: "P1", accountId: "default", recipient: "12345678" } : channel);
+    const notification = world.notifications.raise({ priority: "P1", category: "system", title: "Test", body: "Test", chain: ["telegram"], stepSeconds: [0] });
+    expect(() => world.notifications.assertMessengerStepActionable(notification.id, 1, "telegram", "12345678")).not.toThrow();
+    world.state.settings.notifications.channels = world.state.settings.notifications.channels.map((channel) =>
+      channel.kind === "telegram" ? { ...channel, recipient: "87654321" } : channel);
+    expect(() => world.notifications.assertMessengerStepActionable(notification.id, 1, "telegram", "12345678")).toThrow("nicht mehr versandberechtigt");
   });
 });

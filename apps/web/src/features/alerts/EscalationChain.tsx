@@ -15,6 +15,7 @@ const STATE_ICON: Record<EscalationState, LucideIcon> = {
   pending: Clock3,
   awaiting_approval: TriangleAlert,
   sent: Check,
+  uncertain: TriangleAlert,
   acknowledged: Check,
   failed: TriangleAlert,
   skipped: SkipForward,

@@ -81,7 +81,7 @@
           },
           "state": {
             "type": "string",
-            "enum": ["pending", "awaiting_approval", "sent", "acknowledged", "failed", "skipped"]
+            "enum": ["pending", "awaiting_approval", "sent", "uncertain", "acknowledged", "failed", "skipped"]
           },
           "scheduledAt": {
             "type": "string",

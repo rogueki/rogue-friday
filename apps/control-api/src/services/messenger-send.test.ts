@@ -101,6 +101,27 @@ describe("messenger preview and durable send", () => {
     db.close();
   });
 
+  it("rechecks a notification-origin authorization immediately before reserving the send", async () => {
+    const { db, service, invoke } = fixture();
+    const preview = await service.preview("owner", draft);
+    const authorization = vi.fn(() => { throw new Error("origin is no longer actionable"); });
+    await expect(service.confirm("owner", draft, preview.token, "origin-denied-key", { beforeSend: authorization })).rejects.toThrow("origin is no longer actionable");
+    expect(authorization).toHaveBeenCalledOnce();
+    expect(invoke.mock.calls.filter((call) => JSON.parse(call[4] as string).action === "send")).toHaveLength(0);
+    expect(service.receipts("owner")).toHaveLength(0);
+    db.close();
+  });
+
+  it("does not allow completed notification origins to mint a new send when their journal row is absent", async () => {
+    const { db, service, invoke } = fixture();
+    const originated = { ...draft, notificationId: "ntf_01JAAAAAAAAAAAAAAAAAAAAAAA", notificationStep: 1 };
+    service.register("owner", originated);
+    const preview = await service.preview("owner", originated);
+    await expect(service.confirm("owner", originated, preview.token, "origin-replay-only-key", { replayOnly: true })).rejects.toThrow("kein Versandbeleg");
+    expect(invoke.mock.calls.filter((call) => JSON.parse(call[4] as string).action === "send")).toHaveLength(0);
+    db.close();
+  });
+
   it("allows only one concurrent confirm of a preview", async () => {
     const { db, service, invoke } = fixture();
     const preview = await service.preview("owner", draft);

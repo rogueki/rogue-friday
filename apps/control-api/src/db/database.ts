@@ -331,6 +331,23 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_notifications_retention ON notifications (resolved_at) WHERE status = 'resolved' AND pending_dispatch = 0;
     `,
   },
+  {
+    id: 20,
+    name: "notification-messenger-origin",
+    sql: `
+      CREATE TABLE notification_messenger_stages (
+        notification_id TEXT NOT NULL,
+        step INTEGER NOT NULL CHECK (step > 0),
+        actor TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        draft_json TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('staged', 'sent', 'uncertain')),
+        receipt_json TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (notification_id, step)
+      );
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

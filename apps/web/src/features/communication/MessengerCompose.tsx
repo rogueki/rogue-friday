@@ -1,11 +1,10 @@
 "use client";
 
-import type { MessengerDraft, MessengerPreviewResponse, MessengerReceiptResponse, MessengerReceiptsResponse, MessengerTargetsResponse } from "@friday/sdk";
+import type { MessengerDraft, MessengerPreviewResponse, MessengerReceiptResponse, MessengerReceiptsResponse, MessengerTargetsResponse, NotificationListResponse } from "@friday/sdk";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
-import { useNotifications } from "@/lib/api/domains/notifications";
 import { useSettings } from "@/lib/api/domains/settings";
 import { useSession } from "@/lib/session";
 
@@ -15,8 +14,27 @@ const platforms = ["telegram", "discord", "whatsapp", "slack", "signal", "matrix
 export function MessengerCompose() {
   const { role } = useSession();
   const [notificationId] = useState(() => typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("messengerNotification"));
+  const [notificationStep] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const raw = new URLSearchParams(window.location.search).get("messengerStep");
+    const parsed = raw === null ? NaN : Number(raw);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  });
   const settings = useSettings(role === "owner" && Boolean(notificationId));
-  const notifications = useNotifications({ limit: 100 }, role === "owner" && Boolean(notificationId));
+  const notifications = useQuery({ queryKey: ["notifications", "messenger-handoff", notificationId],
+    enabled: role === "owner" && Boolean(notificationId), retry: false,
+    queryFn: async (): Promise<NotificationListResponse> => {
+      let cursor: string | undefined;
+      const items: NotificationListResponse["items"] = [];
+      let response: NotificationListResponse | undefined;
+      do {
+        response = await call(getApiClient().GET("/api/v1/notifications", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }));
+        items.push(...response.items);
+        if (items.some((item) => item.id === notificationId)) break;
+        cursor = response.pageInfo.nextCursor ?? undefined;
+      } while (cursor);
+      return response ? { ...response, items } : { contractVersion: "2.0.0", items, pageInfo: { nextCursor: null, hasNextPage: false }, freshness: { state: "fresh", asOf: new Date().toISOString() }, sources: [] };
+    } });
   const hydratedNotification = useRef<string | null>(null);
   const [platform, setPlatform] = useState<(typeof platforms)[number]>("telegram");
   const [recipient, setRecipient] = useState("");
@@ -33,7 +51,7 @@ export function MessengerCompose() {
     if (!notificationId || hydratedNotification.current === notificationId || !settings.data || !notifications.data) return;
     hydratedNotification.current = notificationId;
     const notification = notifications.data.items.find((item) => item.id === notificationId);
-    const step = notification?.escalation.find((item) => item.state === "awaiting_approval");
+    const step = notificationStep === null ? undefined : notification?.escalation.find((item) => item.step === notificationStep && item.state === "awaiting_approval");
     const platform = step?.channel;
     if (!notification || !platform || !["telegram", "whatsapp", "sms"].includes(platform)) {
       setMessage("Für diese Meldung liegt kein freigabepflichtiger Messenger-Schritt vor.");
@@ -52,9 +70,10 @@ export function MessengerCompose() {
     setRecipient(channel.recipient.trim());
     setText(`${notification.title}\n\n${notification.body}`);
     setMessage(`Meldung ${notification.id} vorbereitet. Prüfe die Vorschau ausdrücklich; es wurde nichts gesendet.`);
-  }, [notificationId, notifications.data, settings.data]);
+  }, [notificationId, notificationStep, notifications.data, settings.data]);
   if (role !== "owner") return null;
-  const draft = (): MessengerDraft => ({ accountId: "default", platform, recipient: recipient.trim(), text });
+  const draft = (): MessengerDraft => ({ accountId: "default", platform, recipient: recipient.trim(), text,
+    ...(notificationId && notificationStep ? { notificationId, notificationStep } : {}) });
   const change = (update: () => void) => { update(); setPreview(null); sendKey.current = null; setMessage(""); };
   async function registerTarget() {
     setBusy(true); setMessage("");
@@ -80,7 +99,7 @@ export function MessengerCompose() {
     try {
       const response: MessengerPreviewResponse = await call(getApiClient().POST("/api/v1/messenger/preview", { body: draft() }));
       setPreview(response.data);
-      sendKey.current = crypto.randomUUID();
+      sendKey.current = response.data.idempotencyKey ?? crypto.randomUUID();
     } catch (error) { setMessage(error instanceof Error ? error.message : "Empfänger oder Kanal ist nicht bereit."); }
     finally { setBusy(false); }
   }
@@ -101,10 +120,10 @@ export function MessengerCompose() {
   return <section className="mk-panel" aria-label="Messenger-Nachricht">
     <h2>Messenger-Nachricht</h2>
     <p>Ausgehende Ziele werden hier ausdrücklich registriert. Hermes’ Listen erlaubter Absender gelten nur für eingehende Nachrichten. Eine Vorschau sendet noch nichts.</p>
-    <label>Kanal <select value={platform} onChange={(event) => change(() => setPlatform(event.target.value as typeof platform))}>
+    <label>Kanal <select value={platform} disabled={Boolean(notificationId)} onChange={(event) => change(() => setPlatform(event.target.value as typeof platform))}>
       {platforms.map((item) => <option key={item} value={item}>{item}</option>)}
     </select></label>
-    <label>Empfänger-ID <input value={recipient} onChange={(event) => change(() => setRecipient(event.target.value))} /></label>
+    <label>Empfänger-ID <input value={recipient} readOnly={Boolean(notificationId)} onChange={(event) => change(() => setRecipient(event.target.value))} /></label>
     <button type="button" disabled={busy || !recipient.trim()} onClick={() => void registerTarget()}>Empfänger-ID registrieren</button>
     {targets.data?.data.items.length ? <ul aria-label="Registrierte Empfänger">
       {targets.data.data.items.map((item) => <li key={item.id}>
@@ -113,7 +132,7 @@ export function MessengerCompose() {
         </button>{" "}<button type="button" disabled={busy} onClick={() => void removeTarget(item.id)}>Entfernen</button>
       </li>)}
     </ul> : null}
-    <label>Nachricht <textarea value={text} onChange={(event) => change(() => setText(event.target.value))} /></label>
+    <label>Nachricht <textarea value={text} readOnly={Boolean(notificationId)} onChange={(event) => change(() => setText(event.target.value))} /></label>
     <button type="button" disabled={busy || !recipient.trim() || !text.trim()} onClick={() => void prepare()}>Vorschau prüfen</button>
     {preview ? <div role="group" aria-label="Versandfreigabe">
       <p>Kanal: {preview.draft.platform}; Empfänger: {preview.draft.recipient}; Konto: {preview.draft.accountId}</p>
