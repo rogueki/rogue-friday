@@ -8,6 +8,7 @@ import type { Db } from "../db/database";
 import { kvGet, kvSet } from "../db/database";
 import { AuditAnchor } from "../db/audit-anchor";
 import { AuditStore } from "../db/audit-store";
+import { AuditArchive } from "../db/audit-archive";
 import { deriveKey } from "@friday/auth";
 import type { DurableMemoryService } from "./durable-memory";
 
@@ -25,6 +26,8 @@ interface WslResult { count: number; bytes: number }
 
 const ownPrefix = "friday-system-";
 const registryKey = "system_backup.created_paths";
+const temporaryKey = "system_backup.temporary_paths";
+interface TemporaryEntry { path: string; id: string; createdAt: string; kind: "backup" | "restore" }
 const sha = (bytes: Buffer): string => createHash("sha256").update(bytes).digest("hex");
 const within = (child: string, parent: string): boolean => child.startsWith(parent + sep);
 
@@ -63,6 +66,49 @@ export class SystemBackupService {
   private readonly installRoot: string;
   private readonly vaultPath: string;
   private busy = false;
+
+  private temporary(): TemporaryEntry[] {
+    try {
+      const stored = JSON.parse(kvGet(this.db, temporaryKey) ?? "[]") as unknown;
+      return Array.isArray(stored) ? stored.filter((item): item is TemporaryEntry =>
+        item && typeof item === "object" && typeof item.path === "string" && typeof item.id === "string" &&
+        typeof item.createdAt === "string" && (item.kind === "backup" || item.kind === "restore")) : [];
+    } catch { return []; }
+  }
+
+  private registerTemporary(path: string, kind: TemporaryEntry["kind"]): void {
+    const entry: TemporaryEntry = { path, kind, id: randomUUID(), createdAt: new Date().toISOString() };
+    writeFileSync(join(path, ".friday-temporary.json"), JSON.stringify({ id: entry.id }),
+      { flag: "wx", mode: 0o600, flush: true });
+    kvSet(this.db, temporaryKey, JSON.stringify([...this.temporary(), entry]));
+  }
+
+  private clearTemporary(path: string): void {
+    kvSet(this.db, temporaryKey, JSON.stringify(this.temporary().filter((item) => item.path !== path)));
+  }
+
+  temporaryCandidates(cutoffIso: string): string[] {
+    return this.temporary().filter((entry) => {
+      if (entry.createdAt >= cutoffIso || Number.isNaN(Date.parse(entry.createdAt)) || !existsSync(entry.path) ||
+          lstatSync(entry.path).isSymbolicLink() || !lstatSync(entry.path).isDirectory()) return false;
+      if (entry.kind === "restore") {
+        if (!basename(entry.path).startsWith(".friday-system-restore-") ||
+            !within(entry.path, this.dataDir)) return false;
+      } else {
+        if (!basename(entry.path).startsWith(`.${ownPrefix}`)) return false;
+        try { this.destination(dirname(entry.path)); } catch { return false; }
+      }
+      try { return (JSON.parse(readFileSync(join(entry.path, ".friday-temporary.json"), "utf8")) as { id: string }).id === entry.id; }
+      catch { return false; }
+    }).map((entry) => entry.path);
+  }
+
+  cleanupTemporary(cutoffIso: string): number {
+    const candidates = this.temporaryCandidates(cutoffIso);
+    for (const path of candidates) rmSync(path, { recursive: true, force: true });
+    kvSet(this.db, temporaryKey, JSON.stringify(this.temporary().filter((entry) => existsSync(entry.path))));
+    return candidates.length;
+  }
 
   constructor(dataDir: string, private readonly db: Db, private readonly memory: DurableMemoryService) {
     this.dataDir = realpathSync(resolve(dataDir));
@@ -159,6 +205,16 @@ export class SystemBackupService {
       };
       walk(references);
     }
+    const archives = join(this.dataDir, "audit-archive");
+    if (existsSync(archives)) {
+      if (lstatSync(archives).isSymbolicLink() || !lstatSync(archives).isDirectory())
+        throw new Error("Audit archive directory is unsafe");
+      const registered = this.db.prepare("SELECT filename FROM audit_archive_segments").all() as Array<{ filename: string }>;
+      for (const { filename } of registered) {
+        if (!/^audit-[a-f0-9-]{36}\.json$/.test(filename)) throw new Error("Audit archive registry is invalid");
+        names.push([join(archives, filename), `audit-archive/${filename}`]);
+      }
+    }
     for (const item of this.selectedVoiceFiles()) names.push([item.from, item.to]);
     return names.filter(([from]) => existsSync(from)).map(([from, to]) => { ordinary(from); return { from, to }; });
   }
@@ -230,6 +286,7 @@ export class SystemBackupService {
       const files = this.sourceFiles();
       const auxiliary = this.auxiliaryDatabases();
       staging = privateStaging(destination, `.${ownPrefix}`);
+      this.registerTemporary(staging, "backup");
       const hashes: Record<string, string> = {};
       const put = (from: string, name: string): void => {
         ordinary(from);
@@ -296,9 +353,11 @@ export class SystemBackupService {
         memoryEventCount: memorySnapshot.eventCount, wslIncluded: wsl !== null,
         voiceSources: Object.fromEntries(this.selectedVoiceFiles().map((item) => [item.from, item.to])) };
       writeFileSync(join(staging, "manifest.json"), JSON.stringify(manifest), { flag: "wx", mode: 0o600, flush: true });
+      rmSync(join(staging, ".friday-temporary.json"));
       this.verify(staging);
       const published = join(destination, `${ownPrefix}${createdAt.replaceAll(/[:.]/g, "-")}-${randomUUID()}`);
       renameSync(staging, published);
+      this.clearTemporary(staging);
       staging = null;
       const registered = this.registered();
       registered.push(published);
@@ -306,6 +365,7 @@ export class SystemBackupService {
       this.prune(destination, retentionCount);
       return { path: published, createdAt, fileCount: Object.keys(hashes).length, verified: true };
     } finally {
+      if (staging) this.clearTemporary(staging);
       if (staging) rmSync(staging, { recursive: true, force: true });
       this.busy = false;
     }
@@ -364,7 +424,8 @@ export class SystemBackupService {
         throw new Error("System backup audit anchor is missing");
       const audit = new AuditStore(database, undefined,
         new AuditAnchor({ db: database, key: deriveKey(key, "audit-head"),
-          ...(auditHead ? { file: join(root, "state", "audit-head.json") } : {}) }));
+          ...(auditHead ? { file: join(root, "state", "audit-head.json") } : {}) }),
+        new AuditArchive(database, join(root, "audit-archive")));
       if (!audit.verify().valid) throw new Error("System backup audit chain or anchor is invalid");
     } finally { database.close(); }
     for (const name of ["state/voice-memory.sqlite", "state/memory-outbox.sqlite"]) {
@@ -429,6 +490,7 @@ export class SystemBackupService {
     if (free.bavail * free.bsize < requiredBytes) throw new Error("Restore target has insufficient free space");
     const staging = privateStaging(parent, ".friday-system-restore-");
     try {
+      this.registerTemporary(staging, "restore");
       const manifest = JSON.parse(readFileSync(join(source, "manifest.json"), "utf8")) as Manifest;
       for (const name of Object.keys(manifest.files)) {
         const dest = resolve(staging, name);
@@ -437,11 +499,15 @@ export class SystemBackupService {
         copyFileSync(join(source, name), dest, constants.COPYFILE_EXCL);
       }
       copyFileSync(join(source, "manifest.json"), join(staging, "manifest.json"), constants.COPYFILE_EXCL);
+      rmSync(join(staging, ".friday-temporary.json"));
       this.verify(staging);
       if (existsSync(target)) throw new Error("Restore target appeared during verification");
       renameSync(staging, target);
       return { path: target, fileCount: result.fileCount };
-    } finally { if (existsSync(staging)) rmSync(staging, { recursive: true, force: true }); }
+    } finally {
+      this.clearTemporary(staging);
+      if (existsSync(staging)) rmSync(staging, { recursive: true, force: true });
+    }
   }
 
   private prune(destination: string, keep: number): void {

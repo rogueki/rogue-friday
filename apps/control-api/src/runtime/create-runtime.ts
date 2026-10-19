@@ -25,6 +25,7 @@ import { kvGet, kvSet, openDatabase } from "../db/database";
 import { AuditAnchor } from "../db/audit-anchor";
 import { migrateLegacyAuditAnchor } from "../db/audit-anchor-migration";
 import { AuditStore, type AuditVerification } from "../db/audit-store";
+import { AuditArchive } from "../db/audit-archive";
 import { AdapterOverrideStore, CommandHistoryStore, IdempotencyStore, LibraryStore } from "../db/stores";
 import { NotificationStore } from "../services/notification-store";
 import { EventHub } from "../realtime/hub";
@@ -178,7 +179,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     ...(options.dbPath === ":memory:" ? {} : { file: join(config.paths.dataDir, "audit-head.json") }),
     onError: (error) => logger.error("Audit-Anker konnte nicht geschrieben werden", { error: error instanceof Error ? error.message : String(error) }),
   });
-  const audit = new AuditStore(db, undefined, auditAnchor);
+  const auditArchive = new AuditArchive(db, join(config.paths.dataDir, "audit-archive"));
+  const audit = new AuditStore(db, undefined, auditAnchor, auditArchive);
   if (!serverKey.created && audit.verify().reason === "anchor_tampered" &&
       migrateLegacyAuditAnchor(db, serverKey.key, join(config.paths.dataDir, "audit-head.json"), audit)) {
     logger.warn("JARVIS-Audit-Anker geprüft und mit F.R.I.D.A.Y.-Schlüssel neu versiegelt");

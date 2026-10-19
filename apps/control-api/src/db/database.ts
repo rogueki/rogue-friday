@@ -332,6 +332,24 @@ export const MIGRATIONS: readonly Migration[] = [
     `,
   },
   {
+    id: 19,
+    name: "audit-archive-segments",
+    sql: `
+      CREATE TABLE audit_archive_segments (
+        id TEXT PRIMARY KEY,
+        filename TEXT NOT NULL UNIQUE,
+        first_seq INTEGER NOT NULL,
+        last_seq INTEGER NOT NULL,
+        row_count INTEGER NOT NULL,
+        previous_hash TEXT NOT NULL,
+        head_hash TEXT NOT NULL,
+        sha256 TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX idx_audit_archive_first ON audit_archive_segments (first_seq);
+    `,
+  },
+  {
     id: 20,
     name: "notification-messenger-origin",
     sql: `

@@ -3,6 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
 import { openDatabase } from "../db/database";
+import { AuditAnchor } from "../db/audit-anchor";
+import { AuditArchive } from "../db/audit-archive";
+import { AuditStore } from "../db/audit-store";
+import { deriveKey } from "@friday/auth";
 import { DurableMemoryService } from "./durable-memory";
 import { SystemBackupService } from "./system-backup";
 
@@ -107,6 +111,24 @@ it("includes selected custom voice references and refuses a missing configured r
   expect(readFileSync(join(created.path, manifest.voiceSources[reference]!), "utf8")).toBe("synthetic-audio");
   unlinkSync(reference);
   await expect(f.service.create(f.destination, 2)).rejects.toThrow(/voice reference is missing/);
+  f.memory.close();
+  f.db.close();
+});
+
+it("includes archived audit segments and verifies their anchored chain", async () => {
+  const f = fixture();
+  const archive = new AuditArchive(f.db, join(f.data, "audit-archive"));
+  const anchor = new AuditAnchor({ db: f.db, key: deriveKey(Buffer.alloc(32, 1), "audit-head") });
+  const audit = new AuditStore(f.db, undefined, anchor, archive);
+  audit.append({ actor: { id: "owner", type: "user", displayName: "Owner" } as never,
+    category: "system", action: "test", severity: "info", result: "success", correlationId: "test",
+    occurredAt: "2026-01-01T00:00:00Z" });
+  archive.archiveBefore("2026-02-01T00:00:00Z", () => audit.verify().valid);
+  const created = await f.service.create(f.destination, 2);
+  expect(f.service.verify(created.path).fileCount).toBeGreaterThan(4);
+  const segment = (f.db.prepare("SELECT filename FROM audit_archive_segments").get() as { filename: string }).filename;
+  unlinkSync(join(created.path, "audit-archive", segment));
+  expect(() => f.service.verify(created.path)).toThrow(/inventory/);
   f.memory.close();
   f.db.close();
 });
