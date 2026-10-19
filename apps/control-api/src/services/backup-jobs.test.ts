@@ -19,7 +19,8 @@ it("runs once per repeated local DST slot and persists the job result", async ()
       { enabled: true, schedule: "30 2 * * *", targetPath: "synthetic", retentionCount: 2 };
   } } as SettingsService;
   const backup = { create: async () => { calls.push("run"); return {
-    path: "synthetic/snapshot", createdAt: "2026-10-25T00:00:00Z", fileCount: 3, verified: true }; } } as unknown as SystemBackupService;
+    path: "synthetic/snapshot", createdAt: "2026-10-25T00:00:00Z", fileCount: 3, verified: true }; },
+    coverage: () => "windows-and-memory" } as unknown as SystemBackupService;
   const jobs = new BackupJobsService(db, settings, backup);
   expect(await jobs.tick(new Date("2026-10-25T00:30:00Z"))).toBe(true);
   expect(await jobs.tick(new Date("2026-10-25T01:30:00Z"))).toBe(false);

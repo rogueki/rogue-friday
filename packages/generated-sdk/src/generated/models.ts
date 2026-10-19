@@ -5171,7 +5171,7 @@ export interface SystemBackupStatusResponse {
     timeZone: string;
     targetPath: string;
     running: boolean;
-    coverage: "windows-and-memory";
+    coverage: "windows-and-memory" | "windows-wsl-and-memory";
     last: null | {
       at: string;
       status: "success" | "failed";

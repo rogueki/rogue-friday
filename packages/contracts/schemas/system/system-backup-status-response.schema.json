@@ -13,7 +13,7 @@
         "timeZone": { "type": "string" },
         "targetPath": { "type": "string" },
         "running": { "type": "boolean" },
-        "coverage": { "type": "string", "enum": ["windows-and-memory"] },
+        "coverage": { "type": "string", "enum": ["windows-and-memory", "windows-wsl-and-memory"] },
         "last": {
           "anyOf": [
             { "type": "null" },

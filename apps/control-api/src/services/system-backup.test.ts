@@ -56,10 +56,10 @@ it("rejects a pre-existing restore target and a changed backup without touching 
   f.db.close();
 });
 
-it("refuses a destination nested in live data or Vault", () => {
+it("refuses a destination nested in live data or Vault", async () => {
   const f = fixture();
-  expect(() => f.service.preview(f.data)).toThrow(/overlaps/);
-  expect(() => f.service.preview(f.vault)).toThrow(/overlaps/);
+  await expect(f.service.preview(f.data)).rejects.toThrow(/overlaps/);
+  await expect(f.service.preview(f.vault)).rejects.toThrow(/overlaps/);
   f.memory.close();
   f.db.close();
 });
@@ -90,6 +90,23 @@ it("rejects an omitted Memory manifest even when the backup inventory matches", 
   unlinkSync(join(created.path, "memory", "manifest.json"));
   writeFileSync(manifestPath, JSON.stringify(manifest));
   expect(() => f.service.verify(created.path)).toThrow(/manifest/);
+  f.memory.close();
+  f.db.close();
+});
+
+it("includes selected custom voice references and refuses a missing configured reference", async () => {
+  const f = fixture();
+  const config = join(f.root, "config");
+  mkdirSync(config);
+  const reference = join(f.root, "custom-voice.wav");
+  writeFileSync(reference, "synthetic-audio");
+  writeFileSync(join(config, "voice.json"), JSON.stringify({ tts_reference: reference }));
+  const created = await f.service.create(f.destination, 2);
+  const manifest = JSON.parse(readFileSync(join(created.path, "manifest.json"), "utf8")) as
+    { voiceSources: Record<string, string> };
+  expect(readFileSync(join(created.path, manifest.voiceSources[reference]!), "utf8")).toBe("synthetic-audio");
+  unlinkSync(reference);
+  await expect(f.service.create(f.destination, 2)).rejects.toThrow(/voice reference is missing/);
   f.memory.close();
   f.db.close();
 });

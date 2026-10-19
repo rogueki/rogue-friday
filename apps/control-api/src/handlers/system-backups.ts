@@ -8,12 +8,12 @@ const envelope = (data: unknown) => ({ contractVersion: CONTRACT_VERSION, data,
 
 export const systemBackupHandlers: Partial<Record<OperationId, Handler>> = {
   async getSystemBackupStatus(ctx) {
-    return { status: 200, body: envelope({ ...ctx.runtime.backupJobs.status(), coverage: "windows-and-memory" }) };
+    return { status: 200, body: envelope(ctx.runtime.backupJobs.status()) };
   },
   async performSystemBackupAction(ctx) {
     const input = ctx.body as SystemBackupActionRequest;
     const jobs = ctx.runtime.backupJobs;
-    if (input.action === "preview") return { status: 200, body: envelope({ action: input.action, ...jobs.preview(input.targetPath) }) };
+    if (input.action === "preview") return { status: 200, body: envelope({ action: input.action, ...await jobs.preview(input.targetPath) }) };
     if (input.action === "run") {
       const result = await jobs.run();
       ctx.audit.action = "system.backup_created";

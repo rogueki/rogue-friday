@@ -8770,7 +8770,7 @@ export interface components {
             contractVersion: string;
             data: {
                 /** @enum {string} */
-                coverage: "windows-and-memory";
+                coverage: "windows-and-memory" | "windows-wsl-and-memory";
                 enabled: boolean;
                 last: null | {
                     /** Format: date-time */

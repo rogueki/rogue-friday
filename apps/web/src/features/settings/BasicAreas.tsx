@@ -534,7 +534,9 @@ export function BackupsArea() {
           <span>{fmt(value.lastBackupAt)}</span>
         </p>
       </Section>
-      {role === "owner" && <Section title="Backup-Prüfung" description="Lokaler Snapshot von Windows-Konfiguration, SQLite und Obsidian-Vault. WSL-Konten und Hermes-Zustand sind noch nicht enthalten.">
+      {role === "owner" && <Section title="Backup-Prüfung" description={status.data?.data.coverage === "windows-wsl-and-memory"
+        ? "Lokaler Snapshot von Windows-Konfiguration, SQLite, Obsidian-Vault und Friday-Ubuntu-Konten mit Hermes-Zustand."
+        : "Lokaler Snapshot von Windows-Konfiguration, SQLite und Obsidian-Vault; Friday-Ubuntu ist nicht konfiguriert."}>
         {status.isError && <p role="alert">Backup-Status nicht erreichbar.</p>}
         {last?.error && <p role="alert">Letzter Fehler: {last.error}</p>}
         <p className="st-row">Zeitplan: {status.data?.data.schedule ?? value.schedule} ({status.data?.data.timeZone ?? "Zeitzone unbekannt"})</p>
