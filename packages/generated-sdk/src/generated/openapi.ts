@@ -7465,7 +7465,7 @@ export interface components {
             notificationId?: string;
             notificationStep?: number;
             /** @enum {unknown} */
-            platform: "telegram" | "discord" | "whatsapp" | "slack" | "signal" | "matrix" | "mattermost" | "sms" | "irc" | "line" | "feishu" | "wecom" | "photon" | "buzz" | "ntfy";
+            platform: "telegram" | "discord" | "whatsapp" | "slack" | "signal" | "matrix" | "mattermost" | "sms" | "irc" | "line" | "feishu" | "wecom" | "photon" | "buzz" | "ntfy" | "teams" | "google_chat" | "simplex" | "weixin" | "bluebubbles";
             recipient: string;
             text: string;
         };
@@ -7835,7 +7835,7 @@ export interface components {
             /** @constant */
             accountId: "default";
             /** @enum {unknown} */
-            platform: "telegram" | "discord" | "whatsapp" | "slack" | "signal" | "matrix" | "mattermost" | "sms" | "irc" | "line" | "feishu" | "wecom" | "photon" | "buzz" | "ntfy";
+            platform: "telegram" | "discord" | "whatsapp" | "slack" | "signal" | "matrix" | "mattermost" | "sms" | "irc" | "line" | "feishu" | "wecom" | "photon" | "buzz" | "ntfy" | "teams" | "google_chat" | "simplex" | "weixin" | "bluebubbles";
             recipient: string;
         };
         /** MessengerTargetResponse */

@@ -7,7 +7,7 @@ const OFFERED = new Set(["telegram", "discord", "whatsapp", "whatsapp_cloud", "s
   "matrix", "sms", "dingtalk", "feishu", "wecom", "weixin", "bluebubbles", "qqbot", "yuanbao", "teams",
   "buzz", "google_chat", "irc", "line", "ntfy", "photon", "simplex"]);
 const SEND_EXACT = new Set(["telegram", "discord", "whatsapp", "slack", "signal", "matrix", "mattermost", "sms",
-  "irc", "line", "feishu", "wecom", "photon", "buzz", "ntfy"]);
+  "irc", "line", "feishu", "wecom", "photon", "buzz", "ntfy", "teams", "google_chat", "simplex", "weixin", "bluebubbles"]);
 const NATIVE_SETUP = new Set(["telegram", "discord", "whatsapp"]);
 export interface MessengerCatalogField { name: string; secret: boolean; required: boolean; present: boolean }
 export interface MessengerCatalogItem { platform: string; source: "bundled_plugin" | "builtin";

@@ -4066,7 +4066,12 @@ export interface MessengerDraft {
     | "wecom"
     | "photon"
     | "buzz"
-    | "ntfy";
+    | "ntfy"
+    | "teams"
+    | "google_chat"
+    | "simplex"
+    | "weixin"
+    | "bluebubbles";
   recipient: string;
   text: string;
   notificationId?: string;
@@ -4224,7 +4229,12 @@ export interface MessengerTargetRequest {
     | "wecom"
     | "photon"
     | "buzz"
-    | "ntfy";
+    | "ntfy"
+    | "teams"
+    | "google_chat"
+    | "simplex"
+    | "weixin"
+    | "bluebubbles";
   recipient: string;
 }
 export interface MessengerTargetResponse {

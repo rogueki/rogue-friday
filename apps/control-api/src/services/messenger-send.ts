@@ -8,8 +8,8 @@ import type { ApprovalTokenService } from "@friday/auth";
 
 const sha = (input: string) => createHash("sha256").update(input).digest("hex");
 const PLATFORM = new Set(["telegram", "discord", "whatsapp", "slack", "signal", "matrix", "mattermost", "sms",
-  "irc", "line", "feishu", "wecom", "photon", "buzz", "ntfy"]);
-const TARGET = /^[A-Za-z0-9_@.!+#:;=-]{1,128}$/;
+  "irc", "line", "feishu", "wecom", "photon", "buzz", "ntfy", "teams", "google_chat", "simplex", "weixin", "bluebubbles"]);
+const TARGET = /^[A-Za-z0-9_@.!+#:;/=-]{1,128}$/;
 export interface MessengerDraft { accountId: "default"; platform: string; recipient: string; text: string;
   notificationId?: string; notificationStep?: number }
 export interface MessengerTarget { id: string; accountId: string; platform: string; recipient: string; createdAt: string }
@@ -35,6 +35,11 @@ function validTarget(platform: string, recipient: string): boolean {
     case "photon": return /^any;-;\+[0-9]{6,15}$/.test(recipient);
     case "buzz": return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(recipient);
     case "ntfy": return /^[A-Za-z0-9_-]{1,128}$/.test(recipient);
+    case "teams": return /^[A-Za-z0-9:@._-]{1,128}$/.test(recipient);
+    case "google_chat": return /^(spaces|users)\/[A-Za-z0-9_-]+$/.test(recipient);
+    case "simplex": return /^([1-9][0-9]*|group:[1-9][0-9]*)$/.test(recipient);
+    case "weixin": return /^((wxid|gh|v[0-9]+|wm|wb)_[A-Za-z0-9_-]+|[A-Za-z0-9._-]+@chatroom|filehelper)$/.test(recipient);
+    case "bluebubbles": return /^\+[1-9][0-9]{6,14}$/.test(recipient) || /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(recipient);
     default: return false;
   }
 }

@@ -69,6 +69,18 @@ describe("messenger preview and durable send", () => {
     expect(await service.confirm("owner", matrix, preview.token, "matrix-message-key")).toMatchObject({ state: "sent" });
     db.close();
   });
+  it("enrolls only source-backed exact IDs for additional native transports", () => {
+    const { db, service } = fixture();
+    for (const [platform, recipient] of Object.entries({ teams: "a:conversation_123", google_chat: "spaces/AAAA-123",
+      simplex: "group:123", weixin: "wxid_abc123", bluebubbles: "+15551234567" })) {
+      expect(service.register("owner", { accountId: "default", platform, recipient })).toMatchObject({ platform, recipient });
+    }
+    for (const [platform, recipient] of Object.entries({ teams: "a/conversation", google_chat: "spaces/../bad",
+      simplex: "@displayname", weixin: "friend", bluebubbles: "group name" })) {
+      expect(() => service.register("owner", { accountId: "default", platform, recipient })).toThrow();
+    }
+    db.close();
+  });
   it("binds actor, account, transport, recipient and text; corrections invalidate approval", async () => {
     const { db, service, invoke } = fixture();
     const preview = await service.preview("owner", draft);
