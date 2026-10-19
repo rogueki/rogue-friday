@@ -44,6 +44,7 @@ export const devHandlers: Partial<Record<OperationId, Handler>> = {
     }
     ctx.audit.action = `dev.${request.action}`;
     ctx.audit.after = { ...request };
+    if (request.action === "reset") ctx.runtime.db.prepare("DELETE FROM native_approval_requests").run();
     // Availability/capability changes reach the registry through health checks; make the response consistent with them.
     await ctx.runtime.refreshAdapters();
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, data: state, freshness: fresh() } };

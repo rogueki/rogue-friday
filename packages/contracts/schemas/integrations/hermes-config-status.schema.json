@@ -35,11 +35,14 @@
               "agent.gateway_timeout",
               "agent.api_max_retries",
               "session.terminal_continue",
-              "max_live_sessions"
+              "max_live_sessions",
+              "terminal.timeout",
+              "browser.command_timeout",
+              "browser.snapshot_threshold"
             ]
           },
           "type": { "enum": ["integer", "optionalInteger", "number", "optionalNumber", "boolean", "string", "fallback"] },
-          "family": { "enum": ["agent", "models"] },
+          "family": { "enum": ["agent", "models", "execution"] },
           "consumer": { "type": "string" },
           "value": { "anyOf": [{ "type": ["number", "boolean", "string", "null"] }, { "type": "array", "maxItems": 8,
             "items": { "type": "object", "properties": { "provider": { "type": "string" }, "model": { "type": "string" } },

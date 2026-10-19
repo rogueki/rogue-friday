@@ -2745,6 +2745,23 @@ export interface paths {
         patch: operations["patchHermesConfig"];
         trace?: never;
     };
+    "/api/v1/settings/hermes-model-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read pinned Hermes picker providers; optionally probe one model catalog */
+        get: operations["getHermesModelCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/hermes-skill-keys": {
         parameters: {
             query?: never;
@@ -6366,6 +6383,18 @@ export interface components {
             key: "max_live_sessions";
             value: number;
         } | {
+            /** @constant */
+            key: "terminal.timeout";
+            value: number;
+        } | {
+            /** @constant */
+            key: "browser.command_timeout";
+            value: number;
+        } | {
+            /** @constant */
+            key: "browser.snapshot_threshold";
+            value: number;
+        } | {
             /** @enum {unknown} */
             key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
             value: string | null;
@@ -6394,9 +6423,9 @@ export interface components {
                 consumer: string;
                 explicit: boolean;
                 /** @enum {unknown} */
-                family: "agent" | "models";
+                family: "agent" | "models" | "execution";
                 /** @enum {unknown} */
-                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions";
+                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "browser.command_timeout" | "browser.snapshot_threshold";
                 /** @constant */
                 reasonCode: "runtime_receipt_unavailable";
                 /** @enum {unknown} */
@@ -6461,6 +6490,33 @@ export interface components {
         HermesConfigStatusResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["HermesConfigStatus"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HermesModelCatalog */
+        HermesModelCatalog: {
+            /** Format: date-time */
+            checkedAt: string;
+            /** @description Pinned picker can silently omit plugin profiles whose discovery fails. */
+            providerListComplete: boolean | null;
+            providers: {
+                id: string;
+                label: string;
+            }[];
+            selected: null | {
+                id: string;
+                modelAccess: boolean | null;
+                models: string[];
+                /** @enum {unknown} */
+                origin: "curated" | "endpoint_confirmed_picker";
+                /** @enum {unknown} */
+                probeStatus: "unsupported" | "succeeded" | "failed";
+            };
+            sourceRevision: string;
+        };
+        /** HermesModelCatalogResponse */
+        HermesModelCatalogResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["HermesModelCatalog"];
             freshness: components["schemas"]["Freshness"];
         };
         /** HermesSkillKeyCheck */
@@ -7421,7 +7477,7 @@ export interface components {
             notificationId?: string;
             notificationStep?: number;
             /** @enum {unknown} */
-            platform: "telegram" | "discord" | "whatsapp" | "slack" | "signal" | "matrix" | "mattermost" | "sms" | "irc" | "line" | "feishu" | "wecom" | "photon" | "buzz" | "ntfy";
+            platform: "telegram" | "discord" | "whatsapp" | "slack" | "signal" | "matrix" | "mattermost" | "sms" | "irc" | "line" | "feishu" | "wecom" | "photon" | "buzz" | "ntfy" | "teams" | "google_chat" | "simplex" | "weixin" | "bluebubbles" | "dingtalk" | "whatsapp_cloud" | "qqbot";
             recipient: string;
             text: string;
         };
@@ -7791,7 +7847,7 @@ export interface components {
             /** @constant */
             accountId: "default";
             /** @enum {unknown} */
-            platform: "telegram" | "discord" | "whatsapp" | "slack" | "signal" | "matrix" | "mattermost" | "sms" | "irc" | "line" | "feishu" | "wecom" | "photon" | "buzz" | "ntfy";
+            platform: "telegram" | "discord" | "whatsapp" | "slack" | "signal" | "matrix" | "mattermost" | "sms" | "irc" | "line" | "feishu" | "wecom" | "photon" | "buzz" | "ntfy" | "teams" | "google_chat" | "simplex" | "weixin" | "bluebubbles" | "dingtalk" | "whatsapp_cloud" | "qqbot";
             recipient: string;
         };
         /** MessengerTargetResponse */
@@ -16249,6 +16305,32 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getHermesModelCatalog: {
+        parameters: {
+            query?: {
+                providerId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider picker and optional bounded model discovery; not an inference receipt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesModelCatalogResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };

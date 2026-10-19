@@ -19,6 +19,7 @@ import type {
   ThemeResponse,
   HermesConfigPatch,
   HermesConfigStatusResponse,
+  HermesModelCatalogResponse,
 } from "@friday/sdk";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { call } from "../call";
@@ -62,6 +63,14 @@ export const useHermesConfig = (enabled = true) => useQuery({
   queryFn: (): Promise<HermesConfigStatusResponse> => call(getApiClient().GET("/api/v1/settings/hermes-config")),
   enabled,
   staleTime: 15000,
+});
+
+export const useHermesModelCatalog = (providerId?: string, enabled = true) => useQuery({
+  queryKey: ["hermes-model-catalog", providerId ?? null],
+  queryFn: (): Promise<HermesModelCatalogResponse> => call(getApiClient().GET(
+    "/api/v1/settings/hermes-model-catalog", { params: { query: providerId ? { providerId } : {} } })),
+  enabled,
+  staleTime: 0,
 });
 export function usePatchHermesConfig() {
   return useApiMutation<HermesConfigStatusResponse, { revision: number; patch: HermesConfigPatch } & IntentVars>({

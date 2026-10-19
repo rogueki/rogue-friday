@@ -8,6 +8,7 @@ import fcntl
 import os
 import re
 import secrets
+import signal
 from pathlib import Path
 import subprocess
 import sys
@@ -37,6 +38,9 @@ FIELDS = {
     "agent.api_max_retries": ("integer", 1, 10),
     "session.terminal_continue": ("boolean", None, None),
     "max_live_sessions": ("integer", 0, 10000),
+    "terminal.timeout": ("integer", 1, 3600),
+    "browser.command_timeout": ("integer", 5, 600),
+    "browser.snapshot_threshold": ("integer", 1000, 200000),
 }
 MODEL_CREDENTIALS = frozenset(("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"))
 REASONING_EFFORTS = frozenset(("", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"))
@@ -212,8 +216,30 @@ def lock_config(home, name=".friday-config.lock"):
             time.sleep(0.025)
 
 
+def run_runtime_child(command, request, timeout):
+    # runtime_command launches Python directly. A separate process group also
+    # covers bootstrap/lifecycle descendants before releasing the config locks.
+    process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, text=True, start_new_session=True)
+    try:
+        stdout, stderr = process.communicate(request, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        try:
+            process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.stdout.close()
+            process.stderr.close()
+            process.wait(timeout=1)
+        raise
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "model-catalog"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -237,6 +263,27 @@ def locked_main(home, source, cli):
     config_path = Path(call("path"))
     commit = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3)
     source_revision = commit.stdout.strip() if commit.returncode == 0 else None
+    if sys.argv[1] == "model-catalog":
+        if not source_revision or not source_revision.startswith(PINNED_SOURCE):
+            raise ValueError("unsupported_source_revision")
+        request = json.load(sys.stdin)
+        provider_id = request.get("providerId") if isinstance(request, dict) and set(request) == {"providerId"} else False
+        if provider_id is False or not (provider_id is None or
+                                        isinstance(provider_id, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", provider_id)):
+            raise ValueError("invalid_request")
+        sys.path.insert(0, str(source))
+        from hermes_cli._launchers import runtime_command
+        probe = Path(__file__).with_name("hermes_model_catalog.py")
+        command = runtime_command(source, code=f"import runpy; runpy.run_path({str(probe)!r}, run_name='__main__')")
+        result = run_runtime_child(command, json.dumps(request), 25)
+        response = json.loads(result.stdout)
+        if result.returncode and isinstance(response, dict) and response.get("error") == "unknown_provider":
+            raise ValueError("unknown_provider")
+        if result.returncode or not isinstance(response, dict) or not isinstance(response.get("providers"), list):
+            raise ValueError("catalog_unavailable")
+        print(json.dumps({"sourceRevision": source_revision, "providers": response["providers"],
+                          "selected": response.get("selected")}))
+        return 0
     if sys.argv[1] in ("update", "credential-update"):
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
@@ -266,8 +313,7 @@ def locked_main(home, source, cli):
                     from hermes_cli._launchers import runtime_command
                     probe = Path(__file__).with_name("hermes_model_credential_apply.py")
                     command = runtime_command(source, code=f"import runpy; runpy.run_path({str(probe)!r}, run_name='__main__')")
-                    result = subprocess.run(command, input=json.dumps({"key": key, "value": value}),
-                                            capture_output=True, text=True, timeout=30)
+                    result = run_runtime_child(command, json.dumps({"key": key, "value": value}), 30)
                     try:
                         saved = json.loads(result.stdout).get("saved") is True
                     except (ValueError, TypeError):
@@ -378,5 +424,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (OSError, ValueError, TypeError, ImportError, subprocess.TimeoutExpired) as error:
-        print(json.dumps({"error": str(error) if str(error) in {"config_symlink", "invalid_request", "unsupported_field", "invalid_value"} else "hermes_unavailable"}))
+        print(json.dumps({"error": str(error) if str(error) in {"config_symlink", "invalid_request", "unsupported_field", "invalid_value", "unknown_provider"} else "hermes_unavailable"}))
         raise SystemExit(5)

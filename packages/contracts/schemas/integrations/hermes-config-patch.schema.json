@@ -84,6 +84,9 @@
       "required": ["key", "value"],
       "additionalProperties": false
     },
+    { "type": "object", "properties": { "key": { "const": "terminal.timeout" }, "value": { "type": "integer", "minimum": 1, "maximum": 3600 } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "browser.command_timeout" }, "value": { "type": "integer", "minimum": 5, "maximum": 600 } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "browser.snapshot_threshold" }, "value": { "type": "integer", "minimum": 1000, "maximum": 200000 } }, "required": ["key", "value"], "additionalProperties": false },
     {
       "type": "object",
       "properties": {

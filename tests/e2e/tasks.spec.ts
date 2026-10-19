@@ -1,9 +1,11 @@
-import { test, expect, open } from "./support/fixtures";
+import { test, expect, open, patchSettings } from "./support/fixtures";
 
 /** PLAN §51.5 Task flow: create -> move -> cancel with confirmation. Every UI step is verified against the API. */
 const TITLE = "E2E Quartalsablage prüfen";
 
 test("create a task, move it to another status and cancel it after a confirmation", async ({ page, api }) => {
+  const settings = (await api.get("/settings")).body.data;
+  await patchSettings(api, { approvals: { ...settings.approvals, confirmTier2: false } });
   await open(page, "/tasks");
 
   // create
@@ -15,6 +17,10 @@ test("create a task, move it to another status and cancel it after a confirmatio
   await dialog.getByRole("combobox", { name: "Priorität" }).selectOption({ label: "P1 · Dringend" });
   await create.click();
   await expect(dialog).toBeHidden();
+  const createPreview = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+  await expect(createPreview).toBeVisible();
+  await createPreview.getByRole("button", { name: "Bestätigen" }).click();
+  await expect(createPreview).toBeHidden();
   const card = page.getByRole("article", { name: new RegExp(`^${TITLE}`) });
   await expect(card).toHaveAttribute("aria-label", `${TITLE}, Todo, P1`);
 
@@ -41,6 +47,47 @@ test("create a task, move it to another status and cancel it after a confirmatio
   await page.getByRole("alertdialog", { name: "Aufgabe abbrechen?" }).getByRole("button", { name: "Aufgabe abbrechen" }).click();
   await expect.poll(async () => (await api.get(`/tasks/${created.id}`)).body.data.status).toBe("cancelled");
   await expect(drawer.getByText("Abgebrochen").first()).toBeVisible();
+});
+
+test("task dialog submits a reviewed action to approvals before creating a task", async ({ page, api }) => {
+  const title = "E2E Freigabe Archivplanung";
+  await open(page, "/tasks");
+  await page.getByRole("button", { name: "Neue Aufgabe" }).click();
+  const dialog = page.getByRole("dialog", { name: "Neue Aufgabe" });
+  await dialog.getByRole("textbox", { name: "Titel der Aufgabe" }).fill(title);
+  await dialog.getByRole("button", { name: "Aufgabe anlegen" }).click();
+  const preview = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+  await expect(preview).toContainText(title);
+  await preview.getByRole("button", { name: "Bestätigen" }).click();
+  await expect(preview).toBeHidden();
+  const pending = await api.get("/approvals?status=pending&limit=100");
+  const approval = pending.body.items.find((item: { action: string }) => item.action.includes(title));
+  expect(approval, "the dialog action is present in the real approvals API").toBeDefined();
+  expect((await api.get(`/tasks?q=${encodeURIComponent(title)}`)).body.items).toHaveLength(0);
+  await open(page, `/approvals?approval=${encodeURIComponent(approval.id)}`);
+  const drawer = page.getByRole("dialog", { name: "Freigabe" });
+  await expect(drawer).toContainText(title);
+  await drawer.getByRole("button", { name: "Genehmigen", exact: true }).click();
+  const confirm = page.getByRole("dialog", { name: "Freigabe erteilen" });
+  await confirm.getByRole("button", { name: "Freigabe erteilen" }).click();
+  await expect.poll(async () => (await api.get(`/tasks?q=${encodeURIComponent(title)}`)).body.items.length).toBe(1);
+  expect((await api.get(`/approvals/${approval.id}`)).body.data.status).toBe("executed");
+});
+
+test("dismissed task preview does not create an approval or task", async ({ page, api }) => {
+  const title = "E2E Abgebrochener Entwurf";
+  await open(page, "/tasks");
+  await page.getByRole("button", { name: "Neue Aufgabe" }).click();
+  const dialog = page.getByRole("dialog", { name: "Neue Aufgabe" });
+  await dialog.getByRole("textbox", { name: "Titel der Aufgabe" }).fill(title);
+  await dialog.getByRole("button", { name: "Aufgabe anlegen" }).click();
+  const preview = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+  await expect(preview).toContainText(title);
+  await preview.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(preview).toBeHidden();
+  await expect.poll(async () => (await api.get("/approvals?status=pending&limit=100")).body.items
+    .filter((item: { action: string }) => item.action.includes(title)).length).toBe(0);
+  expect((await api.get(`/tasks?q=${encodeURIComponent(title)}`)).body.items).toHaveLength(0);
 });
 
 test("the task list filters by status and shows exactly the server's matches", async ({ page, api }) => {

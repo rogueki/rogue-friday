@@ -182,6 +182,18 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "terminal.timeout";
+      value: number;
+    }
+  | {
+      key: "browser.command_timeout";
+      value: number;
+    }
+  | {
+      key: "browser.snapshot_threshold";
+      value: number;
+    }
+  | {
       key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
       value: string | null;
     };
@@ -674,6 +686,8 @@ export interface FridayModelMap {
   HermesConfigPatch: HermesConfigPatch;
   HermesConfigStatus: HermesConfigStatus;
   HermesConfigStatusResponse: HermesConfigStatusResponse;
+  HermesModelCatalog: HermesModelCatalog;
+  HermesModelCatalogResponse: HermesModelCatalogResponse;
   HermesSkillKeyCheck: HermesSkillKeyCheck;
   HermesSkillKeyCheckResponse: HermesSkillKeyCheckResponse;
   HermesSkillKeyPatch: HermesSkillKeyPatch;
@@ -3147,9 +3161,12 @@ export interface HermesConfigStatus {
       | "agent.gateway_timeout"
       | "agent.api_max_retries"
       | "session.terminal_continue"
-      | "max_live_sessions";
+      | "max_live_sessions"
+      | "terminal.timeout"
+      | "browser.command_timeout"
+      | "browser.snapshot_threshold";
     type: "integer" | "optionalInteger" | "number" | "optionalNumber" | "boolean" | "string" | "fallback";
-    family: "agent" | "models";
+    family: "agent" | "models" | "execution";
     consumer: string;
     value:
       | (number | boolean | string | null)
@@ -3217,6 +3234,30 @@ export interface Extension {
 export interface HermesConfigStatusResponse {
   contractVersion: ContractVersion;
   data: HermesConfigStatus;
+  freshness: Freshness;
+}
+export interface HermesModelCatalog {
+  sourceRevision: string;
+  checkedAt: string;
+  /**
+   * Pinned picker can silently omit plugin profiles whose discovery fails.
+   */
+  providerListComplete: boolean | null;
+  providers: {
+    id: string;
+    label: string;
+  }[];
+  selected: null | {
+    id: string;
+    models: string[];
+    origin: "curated" | "endpoint_confirmed_picker";
+    probeStatus: "unsupported" | "succeeded" | "failed";
+    modelAccess: boolean | null;
+  };
+}
+export interface HermesModelCatalogResponse {
+  contractVersion: ContractVersion;
+  data: HermesModelCatalog;
   freshness: Freshness;
 }
 export interface HermesSkillKeyCheck {
@@ -4040,7 +4081,15 @@ export interface MessengerDraft {
     | "wecom"
     | "photon"
     | "buzz"
-    | "ntfy";
+    | "ntfy"
+    | "teams"
+    | "google_chat"
+    | "simplex"
+    | "weixin"
+    | "bluebubbles"
+    | "dingtalk"
+    | "whatsapp_cloud"
+    | "qqbot";
   recipient: string;
   text: string;
   notificationId?: string;
@@ -4198,7 +4247,15 @@ export interface MessengerTargetRequest {
     | "wecom"
     | "photon"
     | "buzz"
-    | "ntfy";
+    | "ntfy"
+    | "teams"
+    | "google_chat"
+    | "simplex"
+    | "weixin"
+    | "bluebubbles"
+    | "dingtalk"
+    | "whatsapp_cloud"
+    | "qqbot";
   recipient: string;
 }
 export interface MessengerTargetResponse {

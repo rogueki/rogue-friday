@@ -7,9 +7,10 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 
 spec = importlib.util.spec_from_file_location("hermes_config_bridge", Path(__file__).with_name("hermes_config_bridge.py"))
@@ -41,6 +42,8 @@ class BridgeTest(unittest.TestCase):
                        "compression.protect_last_n": 20,
                        "agent.max_turns": 500, "agent.gateway_timeout": 1800, "agent.api_max_retries": 3,
                        "session.terminal_continue": True, "max_live_sessions": 16,
+                       "terminal.timeout": 180, "browser.command_timeout": 30,
+                       "browser.snapshot_threshold": 15000,
                        "skills.disabled": [], "skills.create_dir": "", "skills.external_dirs": []}
         self.calls = []
 
@@ -95,6 +98,7 @@ class BridgeTest(unittest.TestCase):
         lifecycle.save_provider_env_credential = save
         lifecycle.remove_provider_env_credential = remove
         with patch.object(bridge.Path, "home", return_value=self.home), patch.object(bridge.subprocess, "run", side_effect=self.run_command), \
+             patch.object(bridge, "run_runtime_child", side_effect=lambda command, request, timeout: self.run_command(command, input=request)), \
              patch.dict(sys.modules, {"hermes_bootstrap": bootstrap, "hermes_cli": hermes_cli,
                                       "hermes_cli.config": config, "hermes_cli.credential_lifecycle": lifecycle,
                                       "hermes_cli._launchers": launchers}), \
@@ -128,6 +132,18 @@ class BridgeTest(unittest.TestCase):
                          "revision": bridge.revision(self.config)})
         self.assertFalse((self.home / ".hermes" / ".env").exists())
 
+    @unittest.skipUnless(os.name == "posix" and hasattr(os, "killpg"), "POSIX process groups required")
+    def test_runtime_timeout_kills_descendants_before_lock_release(self):
+        marker = self.home / "late-write"
+        ready = self.home / "descendant-started"
+        grandchild = "import pathlib,sys,time; pathlib.Path(sys.argv[2]).write_text('ready'); time.sleep(2); pathlib.Path(sys.argv[1]).write_text('late')"
+        parent = "import subprocess,sys,time; subprocess.Popen([sys.executable,'-c',sys.argv[1],sys.argv[2],sys.argv[3]]); time.sleep(4)"
+        with self.assertRaises(subprocess.TimeoutExpired):
+            bridge.run_runtime_child([sys.executable, "-c", parent, grandchild, str(marker), str(ready)], "", 1)
+        self.assertTrue(ready.exists(), "descendant did not start before timeout")
+        time.sleep(2.1)
+        self.assertFalse(marker.exists())
+
     def test_status_is_effective_and_redacted(self):
         code, result = self.invoke()
         self.assertEqual(code, 0)
@@ -141,6 +157,31 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(result["modelProviders"], [{"id": "openrouter", "configFileSet": False,
                                                        "authenticated": None, "available": None}])
         self.assertNotIn("CANARY-PRIVATE", json.dumps(result))
+
+    def test_model_catalog_only_passes_allowlisted_provider_and_projects_child_response(self):
+        out = io.StringIO()
+        probe = Mock(return_value=subprocess.CompletedProcess(
+            ["catalog-worker"], 0, json.dumps({
+                "providers": [{"id": "openai-api", "label": "OpenAI API"}],
+                "selected": {"id": "openai-api", "models": ["gpt-test"],
+                             "origin": "endpoint_confirmed_picker", "probeStatus": "succeeded", "modelAccess": None},
+                "secret": "CANARY-DO-NOT-RETURN",
+            }), ""))
+        launchers = types.ModuleType("hermes_cli._launchers")
+        launchers.runtime_command = lambda *args, **kwargs: ["catalog-worker"]
+        with patch.object(bridge.Path, "home", return_value=self.home), \
+             patch.object(bridge.subprocess, "run", side_effect=self.run_command), \
+             patch.object(bridge, "run_runtime_child", probe), \
+             patch.dict(sys.modules, {"hermes_cli": types.ModuleType("hermes_cli"),
+                                      "hermes_cli._launchers": launchers}), \
+             patch.object(sys, "argv", ["bridge", "model-catalog"]), \
+             patch.object(sys, "stdin", io.StringIO('{"providerId":"openai-api"}')), \
+             contextlib.redirect_stdout(out):
+            self.assertEqual(bridge.main(), 0)
+        result = json.loads(out.getvalue())
+        self.assertEqual(result["selected"]["models"], ["gpt-test"])
+        self.assertNotIn("CANARY-DO-NOT-RETURN", out.getvalue())
+        self.assertEqual(json.loads(probe.call_args.args[1]), {"providerId": "openai-api"})
 
     def test_revision_conflict_never_calls_set(self):
         code, result = self.invoke({"key": "agent.max_turns", "value": 600, "revision": 1})
@@ -156,6 +197,13 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(result["revision"], bridge.revision(self.config))
         self.assertEqual(result["values"]["agent.max_turns"], 600)
         self.assertEqual(len([command for command in self.calls if command[2:3] == ["set"]]), 1)
+
+    def test_browser_timeout_guard_rejects_value_below_runtime_floor(self):
+        current = bridge.revision(self.config)
+        code, result = self.invoke({"key": "browser.command_timeout", "value": 4, "revision": current})
+        self.assertEqual(code, 5)
+        self.assertEqual(result["error"], "invalid_value")
+        self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
 
     def test_disabled_skills_error_is_unknown(self):
         original = self.run_command

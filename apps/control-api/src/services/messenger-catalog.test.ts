@@ -25,7 +25,10 @@ describe("pinned Hermes messenger catalog", () => {
       expect(result.items.find((item) => item.platform === "slack")).toMatchObject({ configured: true,
         connectionState: "unknown", exactSendSupported: true, nativeSetupAvailable: false });
       expect(result.items.find((item) => item.platform === "teams")).toMatchObject({ configured: false,
-        exactSendSupported: false, nativeSetupAvailable: false });
+        exactSendSupported: true, nativeSetupAvailable: false });
+      expect(result.items.filter((item) => item.exactSendSupported)).toHaveLength(23);
+      for (const platform of ["yuanbao"])
+        expect(result.items.find((item) => item.platform === platform)?.exactSendSupported).toBe(false);
       expect(JSON.stringify(result)).not.toContain("secret-value");
       expect(invoke).toHaveBeenCalledOnce();
     } finally { rmSync(root, { recursive: true, force: true }); }

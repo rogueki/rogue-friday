@@ -230,6 +230,16 @@ describe("approvals (PLAN §32.5)", () => {
       expect(errorOf(response).details.reason).toBe("voice_not_allowed");
     });
 
+    it("does not let a body channel override a voice-marked request", async () => {
+      const [target] = await pendingApprovals(owner, 3);
+      const id = (target as ApprovalRow).id;
+      const reauthToken = (await reauth(owner)).json().reauthToken as string;
+      const response = await approve(owner, id, await open(owner, id),
+        { reauthToken, inputChannel: "dashboard" }, { "x-input-channel": "voice" });
+      expect(response.statusCode).toBe(403);
+      expect(errorOf(response).details.reason).toBe("voice_not_allowed");
+    });
+
     it("lets the re-authentication window run out", async () => {
       const [target] = await pendingApprovals(owner, 3);
       const id = (target as ApprovalRow).id;

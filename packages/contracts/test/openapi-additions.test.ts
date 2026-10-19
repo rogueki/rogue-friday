@@ -69,17 +69,20 @@ describe("observability operations (PLAN §50.3)", () => {
     expect(Object.keys(telemetry?.op.responses ?? {})).toEqual(expect.arrayContaining(["202", "401", "403", "413", "422", "429"]));
   });
 
-  it("the contract includes the 254 released operations", () => {
-    expect(operations).toHaveLength(254);
+  it("the contract includes the 255 released operations", () => {
+    expect(operations).toHaveLength(255);
   });
 
   it("Hermes config is owner-only and its typed mutation requires CSRF and If-Match", () => {
     const get = operations.find(({ op }) => op.operationId === "getHermesConfig");
     const patch = operations.find(({ op }) => op.operationId === "patchHermesConfig");
+    const catalog = operations.find(({ op }) => op.operationId === "getHermesModelCatalog");
     expect(get).toMatchObject({ path: "/api/v1/settings/hermes-config", method: "get" });
     expect(patch).toMatchObject({ path: "/api/v1/settings/hermes-config", method: "patch" });
     expect(get?.op["x-required-role"]).toBe("owner");
     expect(patch?.op["x-required-role"]).toBe("owner");
+    expect(catalog).toMatchObject({ path: "/api/v1/settings/hermes-model-catalog", method: "get" });
+    expect(catalog?.op["x-required-role"]).toBe("owner");
     expect((patch?.op.parameters ?? []).map((parameter) => parameter.$ref)).toEqual(expect.arrayContaining([
       "#/components/parameters/CsrfToken", "#/components/parameters/IfMatch",
     ]));

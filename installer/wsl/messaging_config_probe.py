@@ -10,7 +10,7 @@ import sys
 
 
 def probe(platform):
-    from gateway.config import Platform, load_gateway_config
+    from gateway.config import Platform, load_gateway_config, _getenv
     from hermes_cli.send_cmd import _load_hermes_env
 
     _load_hermes_env()
@@ -18,6 +18,10 @@ def probe(platform):
     member = Platform(platform)
     if member not in config.get_connected_platforms():
         return {"state": "unconfigured"}
+    if platform == "dingtalk":
+        extra = config.platforms[member].extra or {}
+        if not (extra.get("webhook_url") or _getenv("DINGTALK_WEBHOOK_URL", "")):
+            return {"state": "unconfigured"}
     home = Path.home() / ".hermes"
     key_path = home / "friday-messenger-revision.key"
     try:

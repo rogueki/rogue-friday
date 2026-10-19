@@ -108,10 +108,12 @@ export function CommandConfirmHost() {
       });
       setPending(null);
       const route = response.result?.targetRoute;
+      const awaitingApproval = response.status === "requires_approval";
+      const completed = response.status === "executed" || response.status === "accepted";
       toast({
-        title: response.status === "executed" || response.status === "accepted" ? t("command.done") : t("command.failed"),
+        title: awaitingApproval ? t("command.requiresApproval") : completed ? t("command.done") : t("command.failed"),
         description: response.result?.message,
-        tone: response.status === "executed" || response.status === "accepted" ? "green" : "red",
+        tone: awaitingApproval ? "amber" : completed ? "green" : "red",
         action: route ? { label: t("command.open"), onClick: () => router.push(route) } : undefined,
       });
     } catch (error) {
@@ -121,10 +123,17 @@ export function CommandConfirmHost() {
   };
 
   const details = pending?.response.riskTier ? [t("command.riskTier", { tier: pending.response.riskTier })] : undefined;
+  const dismiss = (): void => {
+    if (pending?.response.previewId?.startsWith("corr_")) {
+      void execute.mutateAsync({ ...pending.input, previewId: pending.response.previewId, confirm: false }).catch(() =>
+        toast({ title: t("command.failed"), description: "Der Entwurf konnte nicht verworfen werden.", tone: "red", duration: 9000 }));
+    }
+    setPending(null);
+  };
   return (
     <ConfirmDialog
       open={pending !== null}
-      onOpenChange={(open) => !open && setPending(null)}
+      onOpenChange={(open) => !open && dismiss()}
       title={t("command.confirmTitle")}
       description={pending?.response.previewText ?? pending?.input.text ?? ""}
       details={details}

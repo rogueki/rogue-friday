@@ -47,6 +47,9 @@ const bridge = {
     "agent.api_max_retries": 3,
     "session.terminal_continue": true,
     max_live_sessions: 16,
+    "terminal.timeout": 180,
+    "browser.command_timeout": 30,
+    "browser.snapshot_threshold": 15000,
   },
   explicit: {
     "model.provider": true,
@@ -70,6 +73,9 @@ const bridge = {
     "agent.api_max_retries": false,
     "session.terminal_continue": false,
     max_live_sessions: false,
+    "terminal.timeout": false,
+    "browser.command_timeout": false,
+    "browser.snapshot_threshold": false,
   },
   secrets: { "model.api_key": true, OPENROUTER_API_KEY: true, OPENAI_API_KEY: false,
     ANTHROPIC_API_KEY: false, rawCredential: "CANARY-DO-NOT-RETURN" },
@@ -94,7 +100,10 @@ const bridge = {
 it("returns only allowlisted resolved values and installed manifests without credential leakage", async () => {
   const invoke = vi.fn(async () => bridge) as unknown as RunnerInvoker;
   const status = await fixture(invoke).status();
-  expect(status.fields).toHaveLength(21);
+  expect(status.fields).toHaveLength(24);
+  expect(status.fields.find((field) => field.key === "terminal.timeout")).toMatchObject({
+    value: 180, family: "execution", verification: "unverified",
+  });
   expect(status.fields.find((field) => field.key === "agent.max_turns")).toMatchObject({
     value: 500,
     writable: true,
@@ -143,6 +152,9 @@ it("passes one typed field and If-Match revision, then reports persisted without
     code: "VALIDATION_FAILED",
   });
   await expect(service.update({ key: "agent.max_turns", value: 0 }, 123)).rejects.toMatchObject({
+    code: "VALIDATION_FAILED",
+  });
+  await expect(service.update({ key: "browser.command_timeout", value: 4 }, 123)).rejects.toMatchObject({
     code: "VALIDATION_FAILED",
   });
 });
@@ -236,4 +248,35 @@ it("keeps unknown skill activation and partial inventory visible", async () => {
   })) as unknown as RunnerInvoker).status();
   expect(observed.skills[0]?.enabled).toBeNull();
   expect(observed.inventory).toMatchObject({ skillsComplete: false, reasons: ["skill_activation_unknown"] });
+});
+
+it("returns a redacted picker catalog without inferring provider login or model access", async () => {
+  const invoke = vi.fn(async (_script, _distro, _user, _args, request) => ({
+    sourceRevision: bridge.sourceRevision,
+    providers: [{ id: "openai-api", label: "OpenAI API", secret: "CANARY-DO-NOT-RETURN" }],
+    selected: JSON.parse(String(request)).providerId ? {
+      id: "openai-api", models: ["gpt-test"], origin: "endpoint_confirmed_picker",
+      probeStatus: "succeeded", modelAccess: null, secret: "CANARY-DO-NOT-RETURN",
+    } : null,
+    secret: "CANARY-DO-NOT-RETURN",
+  })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const offered = await service.modelCatalog();
+  expect(offered).toMatchObject({ providerListComplete: null, selected: null,
+    providers: [{ id: "openai-api", label: "OpenAI API" }] });
+  const probed = await service.modelCatalog("openai-api");
+  expect(probed.selected).toEqual({ id: "openai-api", models: ["gpt-test"],
+    origin: "endpoint_confirmed_picker", probeStatus: "succeeded", modelAccess: null });
+  expect(JSON.stringify([offered, probed])).not.toContain("CANARY-DO-NOT-RETURN");
+  expect(vi.mocked(invoke).mock.calls[1]?.[3]).toEqual(["model-catalog"]);
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[1]?.[4]))).toEqual({ providerId: "openai-api" });
+  await expect(service.modelCatalog("unsafe;provider")).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
+it("fails closed when a catalog response claims an unrequested provider", async () => {
+  const service = fixture(vi.fn(async () => ({ sourceRevision: bridge.sourceRevision,
+    providers: [{ id: "openai-api", label: "OpenAI API" }],
+    selected: { id: "anthropic", models: [], origin: "curated", probeStatus: "failed", modelAccess: null },
+  })) as unknown as RunnerInvoker);
+  await expect(service.modelCatalog("openai-api")).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
 });
