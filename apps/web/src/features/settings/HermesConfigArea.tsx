@@ -29,6 +29,7 @@ const LABELS: Record<string, string> = {
   "terminal.timeout": "Terminal-Befehlslimit (Sekunden)",
   "browser.command_timeout": "Browser-Befehlslimit (Sekunden)",
   "browser.snapshot_threshold": "Browser-Snapshot-Grenze (Zeichen)",
+  "skills.disabled": "Deaktivierte Hermes-Skills",
   models: "Modelle und Anbieter",
   agent: "Agent und Sitzungen",
   execution: "Ausführung und Werkzeuge",
@@ -86,6 +87,9 @@ export function HermesConfigArea() {
   const revision = data.revision;
   const effectiveProvider = String(draft["model.provider"] ??
     data.fields.find((field) => field.key === "model.provider")?.value ?? "");
+  const skillField = data.fields.find((field) => field.key === "skills.disabled");
+  const disabledSkills = Array.isArray(skillField?.value) && skillField.value.every((name) => typeof name === "string")
+    ? skillField.value as string[] : null;
   return (
     <div className="st-stack">
       <p role="status">
@@ -105,8 +109,10 @@ export function HermesConfigArea() {
       <h3>Freigegebene Einstellungen</h3>
       {(["models", "agent", "execution"] as const).map((family) => <section key={family} aria-label={LABELS[family]}>
         <h4>{LABELS[family]}</h4>
-      {data.fields.filter((field) => field.family === family).map((field) => {
+      {data.fields.filter((field) => field.family === family && field.type !== "skillNames").map((field) => {
         const value = field.key in draft ? draft[field.key] : field.value;
+        const fallbackValue = Array.isArray(value) ? value.filter((entry): entry is { provider: string; model: string } =>
+          typeof entry === "object" && entry !== null && "provider" in entry && "model" in entry) : [];
         return (
           <div key={field.key} className="st-field">
             <label htmlFor={`hermes-${field.key}`}>{LABELS[field.key] ?? field.key}</label>
@@ -117,24 +123,24 @@ export function HermesConfigArea() {
               </select>
             ) : field.type === "fallback" ? (
               <div>
-                {(Array.isArray(value) ? value : []).map((entry, index) => (
+                {fallbackValue.map((entry, index) => (
                   <div key={index} className="st-field">
                     <input aria-label={`Fallback ${index + 1} Anbieter`} value={entry.provider}
                       onChange={(event) => setDraft((current) => ({ ...current, [field.key]:
-                        (Array.isArray(value) ? value : []).map((item, position) => position === index ? { ...item, provider: event.target.value } : item),
+                        fallbackValue.map((item, position) => position === index ? { ...item, provider: event.target.value } : item),
                       }))} />
                     <input aria-label={`Fallback ${index + 1} Modell`} value={entry.model}
                       onChange={(event) => setDraft((current) => ({ ...current, [field.key]:
-                        (Array.isArray(value) ? value : []).map((item, position) => position === index ? { ...item, model: event.target.value } : item),
+                        fallbackValue.map((item, position) => position === index ? { ...item, model: event.target.value } : item),
                       }))} />
                     <button type="button" onClick={() => setDraft((current) => ({ ...current, [field.key]:
-                      (Array.isArray(value) ? value : []).filter((_, position) => position !== index),
+                        fallbackValue.filter((_, position) => position !== index),
                     }))}>Entfernen</button>
                   </div>
                 ))}
-                <button type="button" disabled={Array.isArray(value) && value.length >= 8}
+                <button type="button" disabled={fallbackValue.length >= 8}
                   onClick={() => setDraft((current) => ({ ...current, [field.key]:
-                    [...(Array.isArray(value) ? value : []), { provider: "", model: "" }],
+                    [...fallbackValue, { provider: "", model: "" }],
                   }))}>Fallback hinzufügen</button>
                 <small>Leere Kette deaktiviert den Fallback. Hermes prüft Anbieter und Modell beim nächsten Aufruf.</small>
               </div>
@@ -319,6 +325,13 @@ export function HermesConfigArea() {
           {data.skills.map((skill) => (
             <li key={skill.id}>
               {skill.id}: {skill.enabled === null ? "Aktivierung unbekannt" : skill.enabled ? "nicht deaktiviert" : "deaktiviert"} · Nutzbarkeit ungeprüft
+              {skill.id !== "hermes-agent" && skill.enabled !== null && disabledSkills && skillField?.writable &&
+                data.inventory.skillsComplete ? <button type="button" disabled={patch.isPending}
+                  onClick={() => patch.mutate({ revision, patch: { key: "skills.disabled",
+                    value: skill.enabled ? [...disabledSkills, skill.id] : disabledSkills.filter((name) => name !== skill.id),
+                  } })}>
+                  {skill.enabled ? "Deaktivieren" : "Aktivieren"}
+                </button> : null}
             </li>
           ))}
         </ul>

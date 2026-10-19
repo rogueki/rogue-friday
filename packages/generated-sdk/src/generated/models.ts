@@ -194,6 +194,10 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "skills.disabled";
+      value: string[];
+    }
+  | {
       key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
       value: string | null;
     };
@@ -3164,16 +3168,26 @@ export interface HermesConfigStatus {
       | "max_live_sessions"
       | "terminal.timeout"
       | "browser.command_timeout"
-      | "browser.snapshot_threshold";
-    type: "integer" | "optionalInteger" | "number" | "optionalNumber" | "boolean" | "string" | "fallback";
-    family: "agent" | "models" | "execution";
+      | "browser.snapshot_threshold"
+      | "skills.disabled";
+    type:
+      | "integer"
+      | "optionalInteger"
+      | "number"
+      | "optionalNumber"
+      | "boolean"
+      | "string"
+      | "fallback"
+      | "skillNames";
+    family: "agent" | "models" | "execution" | "extensions";
     consumer: string;
     value:
       | (number | boolean | string | null)
       | {
           provider: string;
           model: string;
-        }[];
+        }[]
+      | string[];
     explicit: boolean;
     writable: boolean;
     verification: "unverified";

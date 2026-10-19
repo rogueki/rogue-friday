@@ -41,6 +41,7 @@ FIELDS = {
     "terminal.timeout": ("integer", 1, 3600),
     "browser.command_timeout": ("integer", 5, 600),
     "browser.snapshot_threshold": ("integer", 1000, 200000),
+    "skills.disabled": ("skill_names", None, None),
 }
 MODEL_CREDENTIALS = frozenset(("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"))
 REASONING_EFFORTS = frozenset(("", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"))
@@ -72,6 +73,9 @@ def valid_field_value(key, value, spec):
             valid_field_value("model.provider", item["provider"], FIELDS["model.provider"]) and
             valid_field_value("model.default", item["model"], FIELDS["model.default"])
             for item in value))
+    if kind == "skill_names":
+        return (type(value) is list and len(value) <= 512 and len(set(value)) == len(value) and
+                all(type(name) is str and re.fullmatch(r"[A-Za-z0-9._/-]{1,100}", name) for name in value))
     return False
 PINNED_SOURCE = "d923a5eb"
 FAMILIES = (
@@ -171,6 +175,8 @@ def installed_skills(roots):
                 metadata = yaml.safe_load(header) if header else {}
                 name = metadata.get("name") if isinstance(metadata, dict) else None
                 name = name.strip() if isinstance(name, str) and name.strip() else manifest.parent.name
+                if name in result:
+                    errors.append("skill_name_collision")
                 result.setdefault(name, True)
             except (OSError, ValueError, yaml.YAMLError):
                 errors.append("skill_manifest_unreadable")
@@ -305,6 +311,11 @@ def locked_main(home, source, cli):
             if request["revision"] != before or revision(config_path) != before:
                 print(json.dumps({"error": "revision_conflict"}))
                 return 4
+            if key == "skills.disabled":
+                roots, root_errors = inventory_roots(home, call)
+                names, scan_errors = installed_skills(roots)
+                if root_errors or scan_errors or "hermes-agent" in value or not set(value) <= set(names):
+                    raise ValueError("invalid_value")
             if credential_update:
                 # The CLI accepts secrets only in argv. Use its Python closure with stdin instead.
                 env_lock = lock_config(home, ".obsidian-vault.lock")
@@ -335,7 +346,8 @@ def locked_main(home, source, cli):
         current, raw = snapshot(config_path)
     values = {}
     for key in FIELDS:
-        values[key] = json.loads(call("get", key, "--json"))
+        if key != "skills.disabled":
+            values[key] = json.loads(call("get", key, "--json"))
     try:
         disabled_skills = json.loads(call("get", "skills.disabled", "--json"))
         # Hermes get reports an unset optional key as null; skill_utils resolves that to an empty set.
@@ -343,6 +355,7 @@ def locked_main(home, source, cli):
             disabled_skills = []
     except (ValueError, json.JSONDecodeError):
         disabled_skills = None
+    values["skills.disabled"] = disabled_skills
     explicit = {key: nested(raw, key) is not None for key in FIELDS}
     # Only safe, typed leaves cross the bridge; provider credentials and arbitrary YAML do not.
     for key, spec in FIELDS.items():

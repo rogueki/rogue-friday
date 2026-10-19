@@ -200,9 +200,20 @@ class BridgeTest(unittest.TestCase):
 
     def test_browser_timeout_guard_rejects_value_below_runtime_floor(self):
         current = bridge.revision(self.config)
-        code, result = self.invoke({"key": "browser.command_timeout", "value": 4, "revision": current})
-        self.assertEqual(code, 5)
-        self.assertEqual(result["error"], "invalid_value")
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "browser.command_timeout", "value": 4, "revision": current})
+        self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
+
+    def test_skill_activation_targets_only_discovered_profile_skill(self):
+        current = bridge.revision(self.config)
+        code, result = self.invoke({"key": "skills.disabled", "value": ["sample"], "revision": current})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["write"], {"key": "skills.disabled", "persisted": True})
+        self.assertFalse(next(skill for skill in result["skills"] if skill["id"] == "sample")["enabled"])
+        self.calls.clear()
+        with self.assertRaisesRegex(ValueError, "invalid_value"):
+            self.invoke({"key": "skills.disabled", "value": ["uninstalled"],
+                         "revision": bridge.revision(self.config)})
         self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
 
     def test_disabled_skills_error_is_unknown(self):
@@ -301,6 +312,8 @@ elif a[:2] == ['config', 'get']:
          'agent.max_turns': int(p.read_text().split('max_turns: ')[1].splitlines()[0]),
          'agent.gateway_timeout': 1800, 'agent.api_max_retries': 3,
          'session.terminal_continue': True, 'max_live_sessions': 16,
+         'terminal.timeout': 180, 'browser.command_timeout': 30,
+         'browser.snapshot_threshold': 15000,
          'skills.disabled': [], 'skills.create_dir': '', 'skills.external_dirs': []}
     print(json.dumps(d[a[2]]))
 elif a[:2] == ['config', 'set']:

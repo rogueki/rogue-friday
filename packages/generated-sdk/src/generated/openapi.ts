@@ -6395,6 +6395,10 @@ export interface components {
             key: "browser.snapshot_threshold";
             value: number;
         } | {
+            /** @constant */
+            key: "skills.disabled";
+            value: string[];
+        } | {
             /** @enum {unknown} */
             key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
             value: string | null;
@@ -6423,17 +6427,17 @@ export interface components {
                 consumer: string;
                 explicit: boolean;
                 /** @enum {unknown} */
-                family: "agent" | "models" | "execution";
+                family: "agent" | "models" | "execution" | "extensions";
                 /** @enum {unknown} */
-                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "browser.command_timeout" | "browser.snapshot_threshold";
+                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "browser.command_timeout" | "browser.snapshot_threshold" | "skills.disabled";
                 /** @constant */
                 reasonCode: "runtime_receipt_unavailable";
                 /** @enum {unknown} */
-                type: "integer" | "optionalInteger" | "number" | "optionalNumber" | "boolean" | "string" | "fallback";
+                type: "integer" | "optionalInteger" | "number" | "optionalNumber" | "boolean" | "string" | "fallback" | "skillNames";
                 value: (number | boolean | string | null) | {
                     model: string;
                     provider: string;
-                }[];
+                }[] | string[];
                 /** @constant */
                 verification: "unverified";
                 writable: boolean;

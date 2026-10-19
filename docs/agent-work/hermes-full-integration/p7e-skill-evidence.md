@@ -1,0 +1,5 @@
+﻿# P7-E installed skill activation checkpoint
+
+Friday's owner-only Hermes config surface can now enable or disable a discovered profile skill by changing the pinned `skills.disabled` config list. The bridge re-scans profile skill manifests under its interprocess CAS lock before writing and rejects missing names, collisions, incomplete scans and the internal `hermes-agent` skill. It preserves other disabled entries in the UI request and uses Hermes `config set`, then reads back the persisted list. No arbitrary skill path, installer command, or uninstalled catalog entry crosses the API. Hermes matches disabled entries by declared name or resolved `load_name`: [pinned skill resolver](https://github.com/NousResearch/hermes-agent/blob/d923a5eb487a17c0a68801bba9ef0f56c81040a8/agent/skill_utils.py#L445).
+
+A successful readback confirms the file state only. Friday does not claim an already running agent has rebuilt its skill prompt. Plugin activation and MCP server setup require separate native flows and are not part of this checkpoint. No live installed skill was changed during validation.

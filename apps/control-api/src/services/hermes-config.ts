@@ -52,10 +52,11 @@ export const HERMES_CONFIG_FIELDS = {
   "terminal.timeout": { type: "integer", min: 1, max: 3600, family: "execution", consumer: "new Hermes terminal environment" },
   "browser.command_timeout": { type: "integer", min: 5, max: 600, family: "execution", consumer: "new browser session or cleared browser cache" },
   "browser.snapshot_threshold": { type: "integer", min: 1000, max: 200000, family: "execution", consumer: "new browser session or cleared browser cache" },
+  "skills.disabled": { type: "skillNames", family: "extensions", consumer: "next Hermes skill resolution" },
 } as const;
 export type HermesConfigField = keyof typeof HERMES_CONFIG_FIELDS;
 type FallbackEntry = { provider: string; model: string };
-export type HermesConfigPatch = { key: HermesConfigField; value: number | boolean | string | FallbackEntry[] | null };
+export type HermesConfigPatch = { key: HermesConfigField; value: number | boolean | string | FallbackEntry[] | string[] | null };
 export const HERMES_MODEL_CREDENTIALS = ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] as const;
 export type HermesModelCredential = typeof HERMES_MODEL_CREDENTIALS[number];
 export type HermesModelCredentialPatch = { key: HermesModelCredential; value: string | null };
@@ -74,12 +75,17 @@ function validFallback(value: unknown): value is FallbackEntry[] {
     entry && typeof entry === "object" && Object.keys(entry).sort().join(",") === "model,provider" &&
     validStringPatch("provider", entry.provider) && validStringPatch("model", entry.model));
 }
+function validSkillNames(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length <= 512 &&
+    value.every((name) => typeof name === "string" && /^[A-Za-z0-9._/-]{1,100}$/.test(name)) &&
+    new Set(value).size === value.length;
+}
 
 interface BridgeStatus {
   installed: true;
   sourceRevision: string | null;
   revision: number;
-  values: Record<HermesConfigField, number | boolean | string | FallbackEntry[] | null>;
+  values: Record<HermesConfigField, number | boolean | string | FallbackEntry[] | string[] | null>;
   explicit: Record<HermesConfigField, boolean>;
   secrets: Record<"model.api_key" | HermesModelCredential, boolean>;
   families: Array<{ id: string; roots: string[]; followup: string; configFileSet: boolean }>;
@@ -189,7 +195,8 @@ export class HermesConfigService {
         (spec.type === "integer" || spec.type === "optionalInteger" ? !Number.isSafeInteger(value) :
           spec.type === "number" || spec.type === "optionalNumber" ? typeof value !== "number" || !Number.isFinite(value) :
           spec.type === "boolean" ? typeof value !== "boolean" :
-          spec.type === "fallback" ? !validFallback(value) : typeof value !== "string")
+          spec.type === "fallback" ? !validFallback(value) :
+          spec.type === "skillNames" ? !validSkillNames(value) : typeof value !== "string")
       )
         throw unavailable();
       if (typeof (raw.explicit as Record<string, unknown>)[key] !== "boolean") throw unavailable();
@@ -305,6 +312,7 @@ export class HermesConfigService {
           patch.value < spec.min || patch.value > spec.max
         : spec.type === "boolean" ? typeof patch.value !== "boolean"
         : spec.type === "fallback" ? !validFallback(patch.value)
+        : spec.type === "skillNames" ? !validSkillNames(patch.value)
         : !validStringPatch(spec.kind, patch.value)
     )
       throw validationFailed("Ungültiger Hermes-Konfigurationswert.");

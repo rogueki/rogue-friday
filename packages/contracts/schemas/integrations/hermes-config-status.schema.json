@@ -38,15 +38,17 @@
               "max_live_sessions",
               "terminal.timeout",
               "browser.command_timeout",
-              "browser.snapshot_threshold"
+              "browser.snapshot_threshold",
+              "skills.disabled"
             ]
           },
-          "type": { "enum": ["integer", "optionalInteger", "number", "optionalNumber", "boolean", "string", "fallback"] },
-          "family": { "enum": ["agent", "models", "execution"] },
+          "type": { "enum": ["integer", "optionalInteger", "number", "optionalNumber", "boolean", "string", "fallback", "skillNames"] },
+          "family": { "enum": ["agent", "models", "execution", "extensions"] },
           "consumer": { "type": "string" },
           "value": { "anyOf": [{ "type": ["number", "boolean", "string", "null"] }, { "type": "array", "maxItems": 8,
             "items": { "type": "object", "properties": { "provider": { "type": "string" }, "model": { "type": "string" } },
-              "required": ["provider", "model"], "additionalProperties": false } }] },
+              "required": ["provider", "model"], "additionalProperties": false } },
+            { "type": "array", "maxItems": 512, "items": { "type": "string" } }] },
           "explicit": { "type": "boolean" },
           "writable": { "type": "boolean" },
           "verification": { "const": "unverified" },
