@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { startTestApi } from "./helpers";
-import type { NativeApprovalProposal } from "../src/services/native-approval-requests";
+import type { NativeApprovalProposal, NativeExecutableAction } from "../src/services/native-approval-requests";
 
 const CORRELATION = `corr_${"A".repeat(26)}`;
 const proposal = (requestKey: string, riskTier: 1 | 2 | 3): NativeApprovalProposal => ({
@@ -81,5 +81,32 @@ describe("native approval request policy capture", () => {
     } finally {
       await api.close();
     }
+  });
+
+  it("reclaims a crashed task dispatch with the same key and preserves one receipt", async () => {
+    let now = Date.parse("2026-10-19T12:00:00Z");
+    const api = await startTestApi({ now: () => now });
+    try {
+      const owner = api.client();
+      await owner.loginDev("owner");
+      const ownerId = (await owner.get("/api/v1/auth/session")).json().data.user.id as string;
+      const action = { kind: "task.create" as const, body: { title: "Synthetic recovery", priority: "P2" as const } };
+      const captured = api.runtime.nativeApprovals.propose({ ...proposal("request-recovery-001", 2), ownerId, execution: action });
+      const approvalId = captured.approval!.id;
+      api.runtime.nativeApprovals.confirm(ownerId, "request-recovery-001", action);
+      api.runtime.db.prepare("UPDATE native_approval_requests SET state = 'dispatching', updated_at = ? WHERE owner_id = ? AND request_key = ?")
+        .run(now, ownerId, "request-recovery-001");
+      const actor = { type: "user" as const, id: ownerId, name: "Owner" };
+      const keys: string[] = [];
+      const dispatch = async (_action: NativeExecutableAction, key: string) => { keys.push(key); return "task_" + "A".repeat(26); };
+      await expect(api.runtime.nativeApprovals.approve(ownerId, approvalId, actor, dispatch)).rejects.toThrow();
+      now += 30_001;
+      const decided = await api.runtime.nativeApprovals.approve(ownerId, approvalId, actor, dispatch);
+      expect(decided.status).toBe("executed");
+      expect(decided.executionResult).toContain("task_");
+      expect(keys).toEqual([`native-approval:${approvalId}`]);
+      await expect(api.runtime.nativeApprovals.approve(ownerId, approvalId, actor, dispatch)).rejects.toThrow();
+      expect(keys).toHaveLength(1);
+    } finally { await api.close(); }
   });
 });

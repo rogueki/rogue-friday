@@ -375,10 +375,15 @@ export const MIGRATIONS: readonly Migration[] = [
         request_key TEXT NOT NULL,
         proposal_hash TEXT NOT NULL,
         result_json TEXT NOT NULL,
+        action_json TEXT,
+        state TEXT NOT NULL CHECK (state IN ('draft', 'pending', 'dispatching', 'completed', 'rejected', 'expired')),
+        receipt_json TEXT,
         created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
         PRIMARY KEY (owner_id, request_key)
       );
       CREATE INDEX idx_native_approval_owner_created ON native_approval_requests (owner_id, created_at);
+      CREATE UNIQUE INDEX idx_native_approval_id ON native_approval_requests (json_extract(result_json, '$.approval.id'));
     `,
   },
 ];

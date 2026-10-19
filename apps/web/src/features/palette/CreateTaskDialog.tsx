@@ -1,13 +1,12 @@
 "use client";
 
 import type { Priority } from "@friday/sdk";
-import { Button, Dialog, Select, TextField, useToast } from "@friday/ui";
-import { useRouter } from "next/navigation";
+import { Button, Dialog, Select, TextField } from "@friday/ui";
 import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { useT, type MessageKey } from "@/i18n";
-import { useCreateTask } from "@/lib/api/domains/tasks";
 import { useCapability } from "@/lib/capabilities";
+import { useRunCommand } from "./commandRunner";
 
 interface CreateTaskStore {
   open: boolean;
@@ -21,14 +20,13 @@ const PRIORITIES: readonly Priority[] = ["P2", "P1", "P0", "P3", "P4"];
 /** Quick task creation (palette, quick commands). Needs `tasks.create`; the server validates and audits the creation. */
 export function CreateTaskDialog() {
   const { t } = useT();
-  const { toast } = useToast();
-  const router = useRouter();
   const open = useCreateTaskDialog((s) => s.open);
   const setOpen = useCreateTaskDialog((s) => s.setOpen);
   const canCreate = useCapability("tasks", "create");
-  const createTask = useCreateTask();
+  const runCommand = useRunCommand();
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<Priority>("P2");
+  const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -38,23 +36,13 @@ export function CreateTaskDialog() {
     }
   }, [open]);
 
-  const submit = (): void => {
+  const submit = async (): Promise<void> => {
     const trimmed = title.trim();
-    if (!trimmed || !canCreate) return;
-    createTask.mutate(
-      { title: trimmed, priority },
-      {
-        onSuccess: (response) => {
-          setOpen(false);
-          toast({
-            title: t("task.created"),
-            description: response.data.title,
-            tone: "green",
-            action: { label: t("command.open"), onClick: () => router.push(`/tasks?task=${encodeURIComponent(response.data.id)}`) },
-          });
-        },
-      },
-    );
+    if (!trimmed || !canCreate || busy) return;
+    setBusy(true);
+    try {
+      if (await runCommand({ text: `Neue Aufgabe (${priority}): ${trimmed}`, source: "palette" })) setOpen(false);
+    } finally { setBusy(false); }
   };
 
   return (
@@ -71,7 +59,7 @@ export function CreateTaskDialog() {
           <Button variant="ghost" onClick={() => setOpen(false)}>
             {t("common.cancel")}
           </Button>
-          <Button variant="primary" onClick={submit} loading={createTask.isPending} disabled={!canCreate || title.trim().length === 0}>
+          <Button variant="primary" onClick={() => void submit()} loading={busy} disabled={!canCreate || title.trim().length === 0}>
             {t("task.create.submit")}
           </Button>
         </>
@@ -81,7 +69,7 @@ export function CreateTaskDialog() {
         className="web-form"
         onSubmit={(event) => {
           event.preventDefault();
-          submit();
+          void submit();
         }}
       >
         <TextField ref={inputRef} label={t("task.create.name")} value={title} onChange={(event) => setTitle(event.target.value)} maxLength={200} disabled={!canCreate} />
