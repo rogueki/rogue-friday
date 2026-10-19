@@ -26,6 +26,9 @@ const LABELS: Record<string, string> = {
   "agent.api_max_retries": "API-Wiederholungen",
   "session.terminal_continue": "Terminalsitzung lokal fortsetzen",
   max_live_sessions: "Sitzungen im Gateway-Speicher",
+  "terminal.timeout": "Terminal-Befehlslimit (Sekunden)",
+  "browser.command_timeout": "Browser-Befehlslimit (Sekunden)",
+  "browser.snapshot_threshold": "Browser-Snapshot-Grenze (Zeichen)",
   models: "Modelle und Anbieter",
   agent: "Agent und Sitzungen",
   execution: "Ausführung und Werkzeuge",
@@ -47,6 +50,9 @@ const NUMERIC_LIMITS: Record<string, [number, number, number]> = {
   "agent.api_max_retries": [1, 10, 1],
   "agent.max_turns": [1, 100000, 1],
   max_live_sessions: [0, 10000, 1],
+  "terminal.timeout": [1, 3600, 1],
+  "browser.command_timeout": [5, 600, 1],
+  "browser.snapshot_threshold": [1000, 200000, 1000],
 };
 
 export function HermesConfigArea() {
@@ -97,7 +103,7 @@ export function HermesConfigArea() {
         </p>
       ) : null}
       <h3>Freigegebene Einstellungen</h3>
-      {(["models", "agent"] as const).map((family) => <section key={family} aria-label={LABELS[family]}>
+      {(["models", "agent", "execution"] as const).map((family) => <section key={family} aria-label={LABELS[family]}>
         <h4>{LABELS[family]}</h4>
       {data.fields.filter((field) => field.family === family).map((field) => {
         const value = field.key in draft ? draft[field.key] : field.value;

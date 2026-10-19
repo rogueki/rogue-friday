@@ -38,6 +38,9 @@ FIELDS = {
     "agent.api_max_retries": ("integer", 1, 10),
     "session.terminal_continue": ("boolean", None, None),
     "max_live_sessions": ("integer", 0, 10000),
+    "terminal.timeout": ("integer", 1, 3600),
+    "browser.command_timeout": ("integer", 5, 600),
+    "browser.snapshot_threshold": ("integer", 1000, 200000),
 }
 MODEL_CREDENTIALS = frozenset(("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"))
 REASONING_EFFORTS = frozenset(("", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"))

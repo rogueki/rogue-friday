@@ -42,6 +42,8 @@ class BridgeTest(unittest.TestCase):
                        "compression.protect_last_n": 20,
                        "agent.max_turns": 500, "agent.gateway_timeout": 1800, "agent.api_max_retries": 3,
                        "session.terminal_continue": True, "max_live_sessions": 16,
+                       "terminal.timeout": 180, "browser.command_timeout": 30,
+                       "browser.snapshot_threshold": 15000,
                        "skills.disabled": [], "skills.create_dir": "", "skills.external_dirs": []}
         self.calls = []
 
@@ -195,6 +197,13 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(result["revision"], bridge.revision(self.config))
         self.assertEqual(result["values"]["agent.max_turns"], 600)
         self.assertEqual(len([command for command in self.calls if command[2:3] == ["set"]]), 1)
+
+    def test_browser_timeout_guard_rejects_value_below_runtime_floor(self):
+        current = bridge.revision(self.config)
+        code, result = self.invoke({"key": "browser.command_timeout", "value": 4, "revision": current})
+        self.assertEqual(code, 5)
+        self.assertEqual(result["error"], "invalid_value")
+        self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
 
     def test_disabled_skills_error_is_unknown(self):
         original = self.run_command

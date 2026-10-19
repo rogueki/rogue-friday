@@ -182,6 +182,18 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "terminal.timeout";
+      value: number;
+    }
+  | {
+      key: "browser.command_timeout";
+      value: number;
+    }
+  | {
+      key: "browser.snapshot_threshold";
+      value: number;
+    }
+  | {
       key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
       value: string | null;
     };
@@ -3149,9 +3161,12 @@ export interface HermesConfigStatus {
       | "agent.gateway_timeout"
       | "agent.api_max_retries"
       | "session.terminal_continue"
-      | "max_live_sessions";
+      | "max_live_sessions"
+      | "terminal.timeout"
+      | "browser.command_timeout"
+      | "browser.snapshot_threshold";
     type: "integer" | "optionalInteger" | "number" | "optionalNumber" | "boolean" | "string" | "fallback";
-    family: "agent" | "models";
+    family: "agent" | "models" | "execution";
     consumer: string;
     value:
       | (number | boolean | string | null)

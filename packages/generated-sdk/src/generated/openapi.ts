@@ -6383,6 +6383,18 @@ export interface components {
             key: "max_live_sessions";
             value: number;
         } | {
+            /** @constant */
+            key: "terminal.timeout";
+            value: number;
+        } | {
+            /** @constant */
+            key: "browser.command_timeout";
+            value: number;
+        } | {
+            /** @constant */
+            key: "browser.snapshot_threshold";
+            value: number;
+        } | {
             /** @enum {unknown} */
             key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
             value: string | null;
@@ -6411,9 +6423,9 @@ export interface components {
                 consumer: string;
                 explicit: boolean;
                 /** @enum {unknown} */
-                family: "agent" | "models";
+                family: "agent" | "models" | "execution";
                 /** @enum {unknown} */
-                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions";
+                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "browser.command_timeout" | "browser.snapshot_threshold";
                 /** @constant */
                 reasonCode: "runtime_receipt_unavailable";
                 /** @enum {unknown} */

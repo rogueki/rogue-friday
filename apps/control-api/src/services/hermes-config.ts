@@ -49,6 +49,9 @@ export const HERMES_CONFIG_FIELDS = {
     family: "agent",
     consumer: "Hermes gateway session cache",
   },
+  "terminal.timeout": { type: "integer", min: 1, max: 3600, family: "execution", consumer: "new Hermes terminal environment" },
+  "browser.command_timeout": { type: "integer", min: 5, max: 600, family: "execution", consumer: "new browser session or cleared browser cache" },
+  "browser.snapshot_threshold": { type: "integer", min: 1000, max: 200000, family: "execution", consumer: "new browser session or cleared browser cache" },
 } as const;
 export type HermesConfigField = keyof typeof HERMES_CONFIG_FIELDS;
 type FallbackEntry = { provider: string; model: string };

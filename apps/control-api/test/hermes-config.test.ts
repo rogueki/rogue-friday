@@ -47,6 +47,9 @@ const bridge = {
     "agent.api_max_retries": 3,
     "session.terminal_continue": true,
     max_live_sessions: 16,
+    "terminal.timeout": 180,
+    "browser.command_timeout": 30,
+    "browser.snapshot_threshold": 15000,
   },
   explicit: {
     "model.provider": true,
@@ -70,6 +73,9 @@ const bridge = {
     "agent.api_max_retries": false,
     "session.terminal_continue": false,
     max_live_sessions: false,
+    "terminal.timeout": false,
+    "browser.command_timeout": false,
+    "browser.snapshot_threshold": false,
   },
   secrets: { "model.api_key": true, OPENROUTER_API_KEY: true, OPENAI_API_KEY: false,
     ANTHROPIC_API_KEY: false, rawCredential: "CANARY-DO-NOT-RETURN" },
@@ -94,7 +100,10 @@ const bridge = {
 it("returns only allowlisted resolved values and installed manifests without credential leakage", async () => {
   const invoke = vi.fn(async () => bridge) as unknown as RunnerInvoker;
   const status = await fixture(invoke).status();
-  expect(status.fields).toHaveLength(21);
+  expect(status.fields).toHaveLength(24);
+  expect(status.fields.find((field) => field.key === "terminal.timeout")).toMatchObject({
+    value: 180, family: "execution", verification: "unverified",
+  });
   expect(status.fields.find((field) => field.key === "agent.max_turns")).toMatchObject({
     value: 500,
     writable: true,
@@ -143,6 +152,9 @@ it("passes one typed field and If-Match revision, then reports persisted without
     code: "VALIDATION_FAILED",
   });
   await expect(service.update({ key: "agent.max_turns", value: 0 }, 123)).rejects.toMatchObject({
+    code: "VALIDATION_FAILED",
+  });
+  await expect(service.update({ key: "browser.command_timeout", value: 4 }, 123)).rejects.toMatchObject({
     code: "VALIDATION_FAILED",
   });
 });
