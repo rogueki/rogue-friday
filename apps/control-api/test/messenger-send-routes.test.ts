@@ -32,6 +32,11 @@ describe("owner messenger delivery routes", () => {
       const anonymous = api.client();
       const viewer = api.client(); await viewer.loginDev("viewer");
       const owner = api.client(); await owner.loginDev("owner");
+      const settings = JSON.parse((await owner.request("GET", "/api/v1/settings")).body).data as {
+        approvals: Record<string, unknown>; version: number };
+      expect((await owner.request("PATCH", "/api/v1/settings", {
+        body: { approvals: { ...settings.approvals, confirmTier2: false } },
+        headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
       expect((await viewer.request("GET", "/api/v1/messenger/targets")).statusCode).toBe(403);
       expect((await owner.request("POST", "/api/v1/messenger/targets", {
         body: { accountId: "default", platform: "telegram", recipient: "12345678" }, csrf: false,
@@ -44,25 +49,39 @@ describe("owner messenger delivery routes", () => {
       const preview = vi.spyOn(api.runtime.messengerSend, "preview").mockResolvedValue({
         token: "synthetic-token-123", expiresAt: new Date(Date.now() + 10000).toISOString(), fingerprint: "a".repeat(64), draft,
       });
-      const confirm = vi.spyOn(api.runtime.messengerSend, "confirm").mockResolvedValue({
-        receiptId: "b".repeat(64), accountId: "default", platform: "telegram", recipient: "12345678",
-        state: "uncertain", externalId: null, createdAt: new Date().toISOString(), replayed: false,
-      });
+      vi.spyOn(api.runtime.messengerSend, "assertSendable").mockResolvedValue(undefined);
+      const receiptValue = { receiptId: "b".repeat(64), accountId: "default", platform: "telegram",
+        recipient: "12345678", state: "uncertain" as const, externalId: null, createdAt: new Date().toISOString(),
+        replayed: false };
+      const sendStaged = vi.spyOn(api.runtime.messengerSend, "sendStaged").mockResolvedValue(receiptValue);
+      vi.spyOn(api.runtime.messengerSend, "receipt").mockReturnValue(receiptValue);
       expect((await anonymous.request("POST", "/api/v1/messenger/preview", { body: draft })).statusCode).toBe(401);
       expect((await viewer.request("POST", "/api/v1/messenger/preview", { body: draft })).statusCode).toBe(403);
       expect((await owner.request("POST", "/api/v1/messenger/preview", { body: draft, csrf: false })).statusCode).toBe(403);
       expect((await owner.request("POST", "/api/v1/messenger/preview", { body: draft })).statusCode).toBe(200);
       expect(preview).toHaveBeenCalledOnce();
+      const staged = await owner.request("POST", "/api/v1/messenger/confirm", { body: { draft, token: "synthetic-token-123" } });
+      expect(staged.statusCode, staged.body).toBe(403);
+      const details = JSON.parse(staged.body).error.details as { stage: string; previewId: string; previewText: string };
+      expect(details.stage).toBe("preview");
+      expect(details.previewText).toContain("12345678");
+      expect(sendStaged).not.toHaveBeenCalled();
+      const tampered = await owner.request("POST", "/api/v1/messenger/confirm", {
+        body: { draft: { ...draft, text: "Manipuliert" }, token: "synthetic-token-123" },
+        headers: { "X-Action-Preview-Id": details.previewId } });
+      expect(tampered.statusCode, tampered.body).toBe(409);
       const delivered = await owner.request("POST", "/api/v1/messenger/confirm", {
-        body: { draft, token: "synthetic-token-123" }, headers: { "Idempotency-Key": "synthetic-key-123" },
+        body: { draft, token: "synthetic-token-123" }, headers: { "X-Action-Preview-Id": details.previewId },
       });
       expect(delivered.statusCode, delivered.body).toBe(200);
-      expect(confirm).toHaveBeenCalledOnce();
+      expect(sendStaged).toHaveBeenCalledOnce();
       expect(delivered.body).toContain("uncertain");
       expect(logs.join("\n")).not.toContain(draft.text);
       vi.spyOn(api.runtime.durableMemory, "capture").mockImplementation(() => { throw new Error("vault offline"); });
+      const restaged = await owner.request("POST", "/api/v1/messenger/confirm", { body: { draft, token: "synthetic-token-123" } });
+      const restagedId = (JSON.parse(restaged.body).error.details as { previewId: string }).previewId;
       const deliveredWithoutMemory = await owner.request("POST", "/api/v1/messenger/confirm", {
-        body: { draft, token: "synthetic-token-123" }, headers: { "Idempotency-Key": "synthetic-key-456" },
+        body: { draft, token: "synthetic-token-123" }, headers: { "X-Action-Preview-Id": restagedId },
       });
       expect(deliveredWithoutMemory.statusCode, deliveredWithoutMemory.body).toBe(200);
       expect(deliveredWithoutMemory.body).toContain('"memoryCapture":"error"');

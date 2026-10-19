@@ -13,6 +13,8 @@ const PLATFORM = new Set(["telegram", "discord", "whatsapp", "slack", "signal", 
 const TARGET = /^[A-Za-z0-9_@.!+#:;/=-]{1,128}$/;
 export interface MessengerDraft { accountId: "default"; platform: string; recipient: string; text: string;
   notificationId?: string; notificationStep?: number }
+/** A plain outbound send without escalation binding; the only shape the native staged pipeline carries. */
+export type MessengerSendDraft = Pick<MessengerDraft, "accountId" | "platform" | "recipient" | "text">;
 export interface MessengerTarget { id: string; accountId: string; platform: string; recipient: string; createdAt: string }
 export interface MessengerReceipt { receiptId: string; accountId: string; platform: string; recipient: string;
   state: "pending" | "sent" | "uncertain"; externalId: string | null; createdAt: string; replayed: boolean }
@@ -57,6 +59,12 @@ function validate(draft: MessengerDraft): void {
       (draft.platform === "qqbot" && draft.text.length > 4000)) {
     throw validationFailed("Kanal, exakter Empfänger oder Nachricht ist ungültig.");
   }
+}
+
+/** Validate-only seam for pre-staging checks; returns the draft unchanged. */
+export function checkedMessengerDraft(draft: MessengerDraft): MessengerDraft {
+  validate(draft);
+  return draft;
 }
 
 export class MessengerSendService {
@@ -167,6 +175,47 @@ export class MessengerSendService {
     const existing = this.lookup(keyHash);
     if (existing) return this.replay(keyHash, existing, this.draftHash(actor, draft));
     if (options.replayOnly) throw conflict("Für diesen Eskalationsversuch liegt kein Versandbeleg vor; ein neuer Versuch ist gesperrt.");
+    const { revision, targetId } = await this.sendable(actor, draft);
+    const payloadHash = this.fingerprint(actor, draft, revision, targetId);
+    const valid = this.approvals.consume(token, { approvalId: payloadHash, userId: actor, action: "messenger.send" });
+    if (!valid.ok) throw conflict("Nachricht oder Empfänger wurde geändert; bitte neu freigeben.");
+    options.beforeSend?.();
+    return this.deliver(actor, draft, key, revision, payloadHash);
+  }
+
+  /**
+   * Native-pipeline send: the staged draft and its confirmation replace the preview token, so the token step is
+   * skipped — but target admission, the live readiness check and the at-most-once journal stay identical.
+   */
+  async sendStaged(actor: string, draft: MessengerDraft, key: string): Promise<MessengerReceipt> {
+    validate(draft);
+    if (!key || key.length < 8 || key.length > 128) throw validationFailed("Idempotency-Key fehlt oder ist ungültig.");
+    const keyHash = sha(JSON.stringify([actor, draft.accountId, key]));
+    const existing = this.lookup(keyHash);
+    if (existing) return this.replay(keyHash, existing, this.draftHash(actor, draft));
+    const { revision, targetId } = await this.sendable(actor, draft);
+    return this.deliver(actor, draft, key, revision, this.fingerprint(actor, draft, revision, targetId));
+  }
+
+  /** Journal state for a known receipt; used to answer a replayed confirmation with the stored outcome. */
+  receipt(actor: string, receiptId: string): MessengerReceipt | null {
+    if (!/^[a-f0-9]{64}$/.test(receiptId)) return null;
+    const row = this.lookup(receiptId);
+    if (!row) return null;
+    const owned = this.db.prepare("SELECT actor FROM messenger_send_journal WHERE key_hash=?").get(receiptId) as
+      { actor: string } | undefined;
+    if (!owned || owned.actor !== actor) return null;
+    return this.public(receiptId, row, false);
+  }
+
+  /** Pre-staging readiness probe: unregistered recipient or unconfigured channel fails before any draft exists. */
+  async assertSendable(actor: string, draft: MessengerDraft): Promise<void> {
+    validate(draft);
+    await this.sendable(actor, draft);
+  }
+
+  /** Registered target plus a live readiness check; every failure is an honest precondition, never a staged guess. */
+  private async sendable(actor: string, draft: MessengerDraft): Promise<{ revision: string; targetId: string }> {
     const targetId = this.admitted(actor, draft);
     if (!targetId) throw validationFailed("Empfänger ist für dieses Konto nicht registriert.");
     const ready = await this.run("check", draft);
@@ -175,17 +224,19 @@ export class MessengerSendService {
         ready.reason === "gateway_not_connected" ? "Hermes-Gateway ist für diesen Kanal nicht verbunden." :
           "Hermes-Konfigurationsprüfung ist nicht erreichbar." });
     if (this.admitted(actor, draft) !== targetId) throw conflict("Empfängerfreigabe wurde geändert; bitte erneut prüfen.");
-    const payloadHash = this.fingerprint(actor, draft, ready.revision, targetId);
-    const valid = this.approvals.consume(token, { approvalId: payloadHash, userId: actor, action: "messenger.send" });
-    if (!valid.ok) throw conflict("Nachricht oder Empfänger wurde geändert; bitte neu freigeben.");
-    options.beforeSend?.();
+    return { revision: ready.revision, targetId };
+  }
+
+  private async deliver(actor: string, draft: MessengerDraft, key: string, revision: string,
+    payloadHash: string): Promise<MessengerReceipt> {
+    const keyHash = sha(JSON.stringify([actor, draft.accountId, key]));
     const now = new Date().toISOString();
     const inserted = this.db.prepare(`INSERT OR IGNORE INTO messenger_send_journal
       (key_hash,actor,account_id,platform,recipient,payload_hash,draft_hash,state,created_at,updated_at)
       VALUES (?,?,?,?,?,?,?,'pending',?,?)`).run(keyHash, actor, draft.accountId, draft.platform, draft.recipient,
       payloadHash, this.draftHash(actor, draft), now, now).changes;
     if (!inserted) return this.replay(keyHash, this.lookup(keyHash)!, this.draftHash(actor, draft));
-    const result = await this.run("send", draft, ready.revision);
+    const result = await this.run("send", draft, revision);
     const state = result.state === "sent" ? "sent" : "uncertain";
     this.db.prepare("UPDATE messenger_send_journal SET state=?,external_id=?,updated_at=? WHERE key_hash=?")
       .run(state, state === "sent" && typeof result.externalId === "string" ? result.externalId : null,

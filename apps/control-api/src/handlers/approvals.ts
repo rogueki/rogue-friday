@@ -229,6 +229,11 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
             action.change, action.destination);
           return `${action.mailbox}:${action.uid}`;
         }
+        // Messenger sends go through the durable send journal: one provider attempt per staged action.
+        if (action.kind === "messenger.send") {
+          const receipt = await runtime.messengerSend.sendStaged(principal.userId, action.draft, idempotencyKey);
+          return receipt.receiptId;
+        }
         throw conflict("Aktion ist nicht ausfuehrbar.");
       })) : await approveBase(ctx);
     const result = (base.body as { data: Approval }).data;

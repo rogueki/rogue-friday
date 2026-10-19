@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
+import { useRunStagedWrite } from "@/lib/api/stagedWrite";
 import { useSettings } from "@/lib/api/domains/settings";
 import { useSession } from "@/lib/session";
 
@@ -43,6 +44,7 @@ export function MessengerCompose() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const sendKey = useRef<string | null>(null);
+  const runStagedWrite = useRunStagedWrite();
   const receipts = useQuery({ queryKey: ["messenger", "receipts"], enabled: role === "owner",
     queryFn: (): Promise<MessengerReceiptsResponse> => call(getApiClient().GET("/api/v1/messenger/receipts")), retry: false });
   const targets = useQuery({ queryKey: ["messenger", "targets"], enabled: role === "owner",
@@ -107,6 +109,26 @@ export function MessengerCompose() {
     if (!preview) return;
     setBusy(true); setMessage("");
     try {
+      if (!notificationId) {
+        // Plain sends run through the native staged pipeline: the server-staged preview binds the exact
+        // draft, and the journal key derives from the preview id.
+        const staged = preview;
+        await runStagedWrite({
+          send: (previewId) => call(getApiClient().POST("/api/v1/messenger/confirm", {
+            body: { draft: staged.draft, token: staged.token },
+            ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })),
+          successMessage: "Nachricht versendet.",
+          subject: `Nachricht über ${staged.draft.platform}`,
+          invalidateKeys: [["messenger", "receipts"]],
+          onExecuted: (response) => {
+            const data = (response as MessengerReceiptResponse).data;
+            setMessage(data.state === "sent" ? "Der Adapter hat die Zustellung bestätigt." :
+              "Zustellung unklar. Friday sendet diesen Versuch nicht erneut; bitte den Kanal prüfen.");
+            setPreview(null);
+          },
+        });
+        return;
+      }
       const response: MessengerReceiptResponse = await call(getApiClient().POST("/api/v1/messenger/confirm", {
         params: { header: { "Idempotency-Key": sendKey.current ??= crypto.randomUUID() } }, body: { draft: preview.draft, token: preview.token },
       }));

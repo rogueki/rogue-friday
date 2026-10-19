@@ -4,6 +4,7 @@ import type { Approval, CalendarEvent, SchemaValidator, TaskActionRequest, TaskC
 import type { Db } from "../db/database";
 import type { LocalEventInput } from "./local-calendar";
 import type { MailSendRequest } from "./mail-send";
+import type { MessengerSendDraft } from "./messenger-send";
 import type { SettingsService } from "./settings";
 import { conflict, validationFailed } from "../util/errors";
 import type { Actor } from "@friday/sdk";
@@ -19,7 +20,9 @@ export type NativeExecutableAction =
   | { kind: "calendar.delete"; id: string; version: number; snapshot: CalendarEvent }
   /** The journal in MailSendService makes the actual SMTP call durable and at-most-once per staged action. */
   | { kind: "mail.send"; accountId: string; body: MailSendRequest }
-  | { kind: "mail.change"; accountId: string; mailbox: string; uid: string; uidValidity: string; change: "move" | "flag"; destination?: string };
+  | { kind: "mail.change"; accountId: string; mailbox: string; uid: string; uidValidity: string; change: "move" | "flag"; destination?: string }
+  /** The journal in MessengerSendService keeps provider delivery at-most-once per staged action. */
+  | { kind: "messenger.send"; draft: MessengerSendDraft };
 
 /** Receipt sentence per action kind; the create wording is asserted by existing API fixtures. */
 export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], string>> = {
@@ -31,6 +34,7 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "calendar.delete": "geloescht",
   "mail.send": "versendet",
   "mail.change": "aktualisiert",
+  "messenger.send": "versendet",
 };
 
 /** Receipt subject per action family; combined with the verb to the exact receipt sentence. */
@@ -43,6 +47,7 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "calendar.delete": "Termin",
   "mail.send": "Mail",
   "mail.change": "Mail",
+  "messenger.send": "Nachricht",
 };
 
 /** The action executor supplies a reviewed preview and a stable key before any external side effect. */

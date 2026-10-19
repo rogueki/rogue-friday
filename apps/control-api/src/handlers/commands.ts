@@ -9,10 +9,13 @@ import { parseTaskCreateIntent } from "../services/task-create-intent";
 import { parseTaskActionIntent, type TaskActionIntent } from "../services/task-action-intent";
 import { parseCalendarActionIntent, type CalendarActionIntent } from "../services/calendar-action-intent";
 import { derivedSubject, parseMailActionIntent, type MailActionIntent } from "../services/mail-action-intent";
+import { parseMessengerActionIntent, type MessengerActionIntent } from "../services/messenger-action-intent";
 import { checkedLocalEvent, LocalCalendarService } from "../services/local-calendar";
 import { checkedMailSend, type MailSendRequest } from "../services/mail-send";
+import { checkedMessengerDraft, type MessengerSendDraft } from "../services/messenger-send";
 import { captureMailSend } from "./mail-memory";
 import { mailJournalKey } from "./mail-accounts";
+import { captureMessengerSend, messengerPreviewText } from "./messenger-send";
 import type { CalendarEvent } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import { conflict, notFound, validationFailed, ApiError } from "../util/errors";
@@ -424,6 +427,101 @@ async function executeMailAction(ctx: Parameters<Handler>[0], request: CommandRe
   return { status: 200, body: response };
 }
 
+/**
+ * A spoken messenger recipient resolves ONLY against the registered outbound targets of the sender: exact,
+ * case-insensitive match on the stored platform recipient id. Zero matches fail 404, several fail 409 — a send to a
+ * guessed recipient is never staged.
+ */
+function resolveMessengerRecipient(ctx: Parameters<Handler>[0], ownerId: string, platform: string,
+  spoken: string | null): string {
+  const targets = ctx.runtime.messengerSend.targets(ownerId).filter((target) => target.platform === platform);
+  if (spoken) {
+    const exact = targets.filter((target) => target.recipient.toLowerCase() === spoken.toLowerCase());
+    if (exact.length === 0) throw notFound("Empfaenger", spoken);
+    return exact[0]!.recipient;
+  }
+  if (targets.length === 0) throw notFound("Empfaenger", platform);
+  if (targets.length > 1) throw conflict(`Mehrere Empfaenger sind für ${platform} registriert. Bitte genauer nennen.`,
+    { platform });
+  return targets[0]!.recipient;
+}
+
+/**
+ * A spoken reply binds to the newest inbound observation (optionally platform-filtered); the observed chat must be a
+ * registered outbound target, otherwise the reply fails honestly before staging.
+ */
+function resolveMessengerReplyTarget(ctx: Parameters<Handler>[0], ownerId: string,
+  platform: string | null): { platform: string; recipient: string } {
+  const observations = ctx.runtime.messengerInbound.observations();
+  const candidates = platform ? observations.filter((entry) => entry.platform === platform) : observations;
+  const latest = candidates[0];
+  if (!latest) throw notFound("Nachricht", platform ?? "Eingang");
+  const hit = ctx.runtime.messengerSend.targets(ownerId)
+    .find((target) => target.platform === latest.platform && target.recipient === latest.chatId);
+  if (!hit) throw notFound("Empfaenger", latest.chatId);
+  return { platform: latest.platform, recipient: hit.recipient };
+}
+
+/**
+ * Spoken messenger compose/reply runs through the same native staged pipeline as the messenger routes: exact-body
+ * confirmation binds the draft, and the send journal keeps provider delivery at-most-once.
+ */
+async function executeMessengerAction(ctx: Parameters<Handler>[0], request: CommandRequest,
+  intent: MessengerActionIntent): Promise<Awaited<ReturnType<Handler>>> {
+  const ownerId = ctx.principal?.userId;
+  if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+  const resolved = intent.kind === "messenger.send"
+    ? { platform: intent.platform, recipient: resolveMessengerRecipient(ctx, ownerId, intent.platform, intent.recipient) }
+    : resolveMessengerReplyTarget(ctx, ownerId, intent.platform);
+  const draft: MessengerSendDraft = checkedMessengerDraft({ accountId: "default", platform: resolved.platform,
+    recipient: resolved.recipient, text: intent.text });
+  const action: NativeExecutableAction = { kind: "messenger.send", draft };
+  const actionText = `Nachricht senden: ${draft.platform}/${draft.recipient}`;
+  const previewText = messengerPreviewText(draft);
+  // An unregistered recipient, an unconfigured channel or a dead gateway fails before any preview is staged.
+  if (!request.confirm) await ctx.runtime.messengerSend.assertSendable(ownerId, draft);
+  if (!request.confirm && request.previewId) {
+    ctx.runtime.nativeApprovals.cancelDraft(ownerId, request.previewId, action);
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"),
+      correlationId: ctx.correlationId, riskTier: 2, status: "rejected", requiresConfirmation: false,
+      previewText: null, approvalId: null, result: { message: "Entwurf verworfen." } } satisfies CommandResponse };
+  }
+  const requestKey = request.confirm ? request.previewId : ctx.correlationId;
+  if (!requestKey) throw validationFailed("Eine bestaetigte Vorschau fehlt.", [{ path: "previewId", message: "erforderlich" }]);
+  const policy = request.confirm
+    ? ctx.runtime.nativeApprovals.confirm(ownerId, requestKey, action)
+    : ctx.runtime.nativeApprovals.propose({ ownerId, requestKey, correlationId: ctx.correlationId, riskTier: 2,
+        type: "system_change", action: actionText, rationale: "Nachricht aus bestaetigtem Befehl",
+        preview: { kind: "text", title: actionText, body: previewText }, impacts: [], execution: action });
+  const base = { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"), correlationId: ctx.correlationId,
+    riskTier: 2 as const };
+  let response: CommandResponse;
+  if (!request.confirm) {
+    response = { ...base, status: "requires_confirmation", requiresConfirmation: true,
+      previewText, previewId: requestKey, approvalId: null, result: null };
+  } else if (policy.approval) {
+    response = { ...base, status: "requires_approval", requiresConfirmation: false, previewText: null,
+      approvalId: policy.approval.id,
+      result: { message: "Nachricht wartet auf Freigabe.", targetRoute: `/approvals?approval=${policy.approval.id}` } };
+  } else {
+    const receiptId = await ctx.runtime.nativeApprovals.executeWithoutApproval(ownerId, requestKey,
+      async (actionToRun, idempotencyKey) => {
+        if (actionToRun.kind !== "messenger.send") throw conflict("Die Bestaetigung passt nicht zum gespeicherten Entwurf.");
+        const receipt = await ctx.runtime.messengerSend.sendStaged(ownerId, actionToRun.draft, idempotencyKey);
+        return receipt.receiptId;
+      });
+    const receipt = ctx.runtime.messengerSend.receipt(ownerId, receiptId)
+      ?? { receiptId, accountId: draft.accountId, platform: draft.platform, recipient: draft.recipient,
+        state: "uncertain" as const, externalId: null, createdAt: new Date().toISOString(), replayed: false };
+    const memoryCapture = captureMessengerSend(ctx, ownerId, receipt);
+    ctx.audit.after = { platform: receipt.platform, state: receipt.state, replayed: false, memoryCapture };
+    response = { ...base, status: "executed", requiresConfirmation: false, previewText: null, approvalId: null,
+      result: { message: receipt.state === "sent" ? "Nachricht wurde versendet." : "Zustellung unklar; bitte den Kanal pruefen.",
+        targetRoute: "/communication" } };
+  }
+  return { status: 200, body: response };
+}
+
 function captureCommand(ctx: Parameters<Handler>[0], eventId: string, eventType: "user_utterance" | "assistant_response",
   text: string, outcome: IntegrationEvent["outcome"], privateInput: boolean): void {
   if (!ctx.principal) return;
@@ -488,11 +586,15 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
       const timeZone = ctx.runtime.settings.area("profile").timeZone;
       const calendarAction = taskCreate || taskAction ? null
         : parseCalendarActionIntent(request.text, ctx.runtime.nowMs(), timeZone);
-      const mailAction = taskCreate || taskAction || calendarAction ? null : parseMailActionIntent(request.text);
+      const messengerAction = taskCreate || taskAction || calendarAction ? null
+        : parseMessengerActionIntent(request.text);
+      const mailAction = taskCreate || taskAction || calendarAction || messengerAction ? null
+        : parseMailActionIntent(request.text);
       const intent = request.confirm ? null : matchBuiltinIntent(request.text);
       const result = taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
         : taskAction ? await executeTaskAction(ctx, request, taskAction)
         : calendarAction ? await executeCalendarAction(ctx, request, calendarAction)
+        : messengerAction ? await executeMessengerAction(ctx, request, messengerAction)
         : mailAction ? await executeMailAction(ctx, request, mailAction)
         : intent ? await executeBuiltinIntent(ctx, intent, () => executeBase(ctx)) : await executeBase(ctx);
       const response = result.body as CommandResponse;
@@ -505,6 +607,7 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         source: request.source,
         ...(intent ? { intent } : taskCreate ? { intent: "task_create" } : taskAction ? { intent: taskAction.kind.replace(".", "_") }
           : calendarAction ? { intent: calendarAction.kind.replace(".", "_") }
+          : messengerAction ? { intent: messengerAction.kind.replace(".", "_") }
           : mailAction ? { intent: mailAction.kind.replace(".", "_") } : {}),
         redacted: sensitive,
         ...(sensitive ? {} : { text: request.text.slice(0, 200) }),
