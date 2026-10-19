@@ -71,6 +71,21 @@ class RestoreTest(unittest.TestCase):
         self.assertEqual(target.read_text(), "newer")
         self.assertFalse((self.home / ".config/friday/mail/account.json").exists())
 
+    def test_rolls_back_import_only_while_files_are_unchanged(self):
+        self.snapshot()
+        restore.import_snapshot(self.source, self.home)
+        key = self.home / ".hermes/friday-messenger-bridge.key"
+        key.write_text("newer")
+        with self.assertRaisesRegex(ValueError, "changed"):
+            restore.rollback_snapshot(self.source, self.home)
+        self.assertEqual(key.read_text(), "newer")
+        key.write_bytes(b"synthetic-secret")
+        result = restore.rollback_snapshot(self.source, self.home)
+        self.assertEqual(result["removedFileCount"], 4)
+        self.assertFalse(key.exists())
+        self.assertFalse((self.home / restore.RECEIPT_NAME).exists())
+        self.assertTrue((self.home / ".hermes/hermes-agent/.git").is_dir())
+
     def test_rejects_wrong_revision_and_tampering(self):
         self.snapshot()
         manifest = self.source / "manifest.json"

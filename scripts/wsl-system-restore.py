@@ -17,6 +17,7 @@ import sys
 ROOTS = {"hermes", "friday-mail", "friday-calendar", "himalaya"}
 EXCLUDED = ["cache", "hermes-agent", "installs", "tools"]
 REAPPLY_MARKER = "hermes/friday-messenger-bridge-applied.sha256"
+RECEIPT_NAME = ".friday-recovery-receipt.json"
 SQLITE_HEADER = b"SQLite format 3\x00"
 
 
@@ -121,6 +122,9 @@ def import_snapshot(source: Path, home: Path) -> dict[str, object]:
     if home.is_symlink() or not home.is_dir():
         raise ValueError("target WSL home is unavailable")
     pinned_checkout(home, revision)
+    receipt = home / RECEIPT_NAME
+    if receipt.exists() or receipt.is_symlink():
+        raise ValueError("target WSL profile already has a recovery receipt")
     # This digest only says a former gateway process observed a bridge config.
     # A recovered gateway must apply and acknowledge the restored config again.
     targets = [(source / name, destination(home, name)) for name in sorted(files) if name != REAPPLY_MARKER]
@@ -152,6 +156,14 @@ def import_snapshot(source: Path, home: Path) -> dict[str, object]:
             target.chmod(0o600)
             if digest(target) != files[target_to_name(home, target)]:
                 raise ValueError("WSL restore copy changed")
+        payload = {"version": 1, "manifestSha256": digest(source / "manifest.json"),
+                   "files": {target_to_name(home, target): files[target_to_name(home, target)] for _, target in targets}}
+        with receipt.open("x", encoding="utf-8") as output:
+            created_files.append(receipt)
+            json.dump(payload, output, sort_keys=True)
+            output.flush()
+            os.fsync(output.fileno())
+        receipt.chmod(0o600)
         return {"fileCount": len(targets), "databaseCount": len(databases), "hermesRevision": revision,
                 "state": "imported; services must be reprovisioned and health-checked"}
     except Exception:
@@ -160,6 +172,37 @@ def import_snapshot(source: Path, home: Path) -> dict[str, object]:
         for folder in reversed(created_dirs):
             folder.rmdir()
         raise
+
+
+def rollback_snapshot(source: Path, home: Path) -> dict[str, object]:
+    files, _, _ = inventory(source)
+    receipt = home / RECEIPT_NAME
+    ordinary(receipt)
+    payload = json.loads(receipt.read_text(encoding="utf-8"))
+    expected = {name: value for name, value in files.items() if name != REAPPLY_MARKER}
+    if (payload.get("version") != 1 or payload.get("manifestSha256") != digest(source / "manifest.json") or
+            payload.get("files") != expected):
+        raise ValueError("WSL recovery receipt does not match the source")
+    targets = [destination(home, name) for name in sorted(expected)]
+    for name, target in zip(sorted(expected), targets):
+        ordinary(target)
+        if digest(target) != expected[name]:
+            raise ValueError("imported WSL state changed; rollback refused")
+        parent = target.parent
+        while parent != home:
+            if parent.is_symlink() or not parent.is_dir():
+                raise ValueError("imported WSL state has an unsafe parent")
+            parent = parent.parent
+    for target in targets:
+        target.unlink()
+    receipt.unlink()
+    for parent in sorted({parent for target in targets for parent in target.parents if parent != home and home in parent.parents},
+                         key=lambda path: len(path.parts), reverse=True):
+        try:
+            parent.rmdir()
+        except OSError:
+            pass  # A pre-existing directory or the pinned checkout remains.
+    return {"removedFileCount": len(targets), "state": "rolled back"}
 
 
 def target_to_name(home: Path, target: Path) -> str:
@@ -184,6 +227,8 @@ def main() -> None:
         print(json.dumps({"fileCount": len(files), "databaseCount": len(databases), "hermesRevision": revision}))
     elif request.get("action") == "import":
         print(json.dumps(import_snapshot(source, home)))
+    elif request.get("action") == "rollback":
+        print(json.dumps(rollback_snapshot(source, home)))
     else:
         raise ValueError("invalid WSL restore action")
 
