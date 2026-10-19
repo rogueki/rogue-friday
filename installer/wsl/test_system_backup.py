@@ -51,6 +51,30 @@ class SystemBackupTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "linked"):
                 inventory(home)
 
+    def test_snapshots_committed_wal_row_from_sqlite3_without_raw_wal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary) / "home"
+            calendar = home / ".config" / "friday" / "calendar"
+            calendar.mkdir(parents=True)
+            database = calendar / "journal.sqlite3"
+            with closing(sqlite3.connect(database)) as connection:
+                connection.execute("PRAGMA journal_mode=WAL")
+                connection.execute("PRAGMA wal_autocheckpoint=0")
+                connection.execute("CREATE TABLE journal (id TEXT PRIMARY KEY)")
+                connection.execute("INSERT INTO journal VALUES ('wal-only')")
+                connection.commit()
+                self.assertTrue(Path(f"{database}-wal").exists())
+                entries = inventory(home)
+                self.assertEqual([name for _, name, _ in entries], ["friday-calendar/journal.sqlite3"])
+                self.assertGreater(entries[0][2], database.stat().st_size)
+                output = Path(temporary) / "output"
+                module.export_snapshot(entries, output)
+                copied = output / "friday-calendar" / "journal.sqlite3"
+                with closing(sqlite3.connect(copied)) as snapshot:
+                    self.assertEqual(snapshot.execute("SELECT id FROM journal").fetchone(), ("wal-only",))
+                self.assertEqual(json.loads((output / "manifest.json").read_text())["sqlite"],
+                                 ["friday-calendar/journal.sqlite3"])
+
 
 if __name__ == "__main__":
     unittest.main()

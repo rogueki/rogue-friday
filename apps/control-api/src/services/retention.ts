@@ -18,7 +18,8 @@ export interface RetentionPlan {
   memoryPolicy: "unlimited";
   auditPolicy: "archive-local-indefinitely";
 }
-interface LastResult { at: string; status: "success" | "failed"; counts: Counts | null; error: string | null }
+interface LastResult { at: string; status: "success" | "failed"; counts: Counts | null;
+  confirmedPartial: Partial<Counts>; error: string | null }
 
 function cutoff(now: Date, days: number): string { return new Date(now.getTime() - days * 86_400_000).toISOString(); }
 const count = (db: Db, query: string, cutoffIso: string): number =>
@@ -60,9 +61,11 @@ export class RetentionService {
   run(now = new Date()): RetentionPlan & { removed: Counts; at: string } {
     if (this.running) throw new Error("Retention job is already running");
     this.running = true;
+    const confirmedPartial: Partial<Counts> = {};
     try {
       const plan = this.dryRun(now);
       const archived = this.archive.archiveBefore(plan.cutoffs.auditToArchive, () => this.audit.verify().valid);
+      confirmedPartial.auditToArchive = archived;
       this.db.exec("BEGIN IMMEDIATE");
       let activity = 0;
       let voiceHistory = 0;
@@ -74,14 +77,20 @@ export class RetentionService {
           .run(plan.cutoffs.voiceHistory).changes);
         notifications = this.notifications.deleteResolvedBefore(plan.cutoffs.notifications);
         this.db.exec("COMMIT");
+        confirmedPartial.activity = activity;
+        confirmedPartial.voiceHistory = voiceHistory;
+        confirmedPartial.notifications = notifications;
       } catch (error) { this.db.exec("ROLLBACK"); throw error; }
       const temporaryFiles = this.backup.cleanupTemporary(plan.cutoffs.temporaryFiles);
+      confirmedPartial.temporaryFiles = temporaryFiles;
       const removed = { activity, voiceHistory, auditToArchive: archived, notifications, temporaryFiles };
       const at = new Date().toISOString();
-      kvSet(this.db, "data_retention.last_result", JSON.stringify({ at, status: "success", counts: removed, error: null }));
+      kvSet(this.db, "data_retention.last_result", JSON.stringify({ at, status: "success", counts: removed,
+        confirmedPartial, error: null }));
       return { ...plan, removed, at };
     } catch (error) {
       kvSet(this.db, "data_retention.last_result", JSON.stringify({ at: new Date().toISOString(), status: "failed", counts: null,
+        confirmedPartial,
         error: error instanceof Error ? error.message.slice(0, 160) : "Retention failed" }));
       throw error;
     } finally { this.running = false; }

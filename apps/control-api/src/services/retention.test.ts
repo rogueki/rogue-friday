@@ -12,7 +12,7 @@ import { RetentionService, type NotificationRetention } from "./retention";
 const cleanup: string[] = [];
 afterEach(() => { for (const path of cleanup.splice(0)) rmSync(path, { recursive: true, force: true }); });
 
-function fixture(notifications: NotificationRetention) {
+function fixture(notifications: NotificationRetention, backupOverride?: SystemBackupService) {
   const root = mkdtempSync(join(tmpdir(), "friday-retention-"));
   cleanup.push(root);
   const db = openDatabase(join(root, "dashboard.sqlite"));
@@ -21,7 +21,7 @@ function fixture(notifications: NotificationRetention) {
   const settings = { area: () => ({ activityDays: 90, voiceHistoryDays: 30, auditDays: 365,
     notificationDays: 60, temporaryFileDays: 7, memoryDefaultTtlDays: null }) } as unknown as SettingsService;
   const backup = { temporaryCandidates: () => [], cleanupTemporary: () => 0 } as unknown as SystemBackupService;
-  const retention = new RetentionService(db, settings, audit, archive, backup, notifications);
+  const retention = new RetentionService(db, settings, audit, archive, backupOverride ?? backup, notifications);
   return { db, archive, audit, retention };
 }
 
@@ -57,5 +57,20 @@ it("rolls back history deletion if notification cleanup fails and records a fail
   expect(() => f.retention.run(new Date("2026-10-19T00:00:00Z"))).toThrow(/notification failure/);
   expect((f.db.prepare("SELECT COUNT(*) AS n FROM command_history").get() as { n: number }).n).toBe(1);
   expect(f.retention.status().last?.status).toBe("failed");
+  f.db.close();
+});
+
+it("reports confirmed archive and DB cleanup when later temporary cleanup fails", () => {
+  const backup = { temporaryCandidates: () => [], cleanupTemporary: () => { throw new Error("temporary failure"); } } as
+    unknown as SystemBackupService;
+  const f = fixture({ countResolvedBefore: () => 0, deleteResolvedBefore: () => 0 }, backup);
+  command(f.db, "old", "text", "2026-01-01T00:00:00Z");
+  f.audit.append({ actor: { id: "owner", type: "user", displayName: "Owner" } as never,
+    category: "system", action: "test", severity: "info", result: "success", correlationId: "c",
+    occurredAt: "2025-01-01T00:00:00Z" });
+  expect(() => f.retention.run(new Date("2026-10-19T00:00:00Z"))).toThrow(/temporary failure/);
+  expect(f.retention.status().last).toMatchObject({ status: "failed",
+    confirmedPartial: { auditToArchive: 1, activity: 1, voiceHistory: 0, notifications: 0 } });
+  expect(f.audit.verify().valid).toBe(true);
   f.db.close();
 });

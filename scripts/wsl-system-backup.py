@@ -19,7 +19,7 @@ SOURCES = (
     (".config/friday/calendar", "friday-calendar"),
     (".config/himalaya/config.toml", "himalaya/config.toml"),
 )
-EXCLUDE_DIRS = {".git", "__pycache__", "hermes-agent", "cache", "logs"}
+EXCLUDE_DIRS = {".git", "__pycache__"}
 MAX_ITEMS = 100_000
 
 
@@ -27,6 +27,12 @@ def check_file(path: Path) -> None:
     mode = path.lstat().st_mode
     if not stat.S_ISREG(mode):
         raise ValueError("unsupported or linked WSL backup source")
+
+
+def is_sqlite(path: Path) -> bool:
+    check_file(path)
+    with path.open("rb") as stream:
+        return stream.read(16) == b"SQLite format 3\x00"
 
 
 def inventory(home: Path) -> list[tuple[Path, str, int]]:
@@ -59,10 +65,17 @@ def inventory(home: Path) -> list[tuple[Path, str, int]]:
             for name in files:
                 child = folder / name
                 check_file(child)
-                if name.endswith(("-wal", "-shm")) and (folder / name.rsplit("-", 1)[0]).exists():
+                base = folder / name.rsplit("-", 1)[0]
+                if name.endswith(("-wal", "-shm")) and base.is_file() and is_sqlite(base):
                     continue
                 dest = (Path(label) / child.relative_to(source)).as_posix()
-                found.append((child, dest, child.stat().st_size))
+                size = child.stat().st_size
+                if is_sqlite(child):
+                    wal = folder / f"{name}-wal"
+                    if wal.exists():
+                        check_file(wal)
+                        size += wal.stat().st_size
+                found.append((child, dest, size))
                 if len(found) > MAX_ITEMS:
                     raise ValueError("WSL backup has too many files")
     return sorted(found, key=lambda entry: entry[1])
@@ -72,9 +85,11 @@ def copy_snapshot(source: Path, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists() or destination.is_symlink():
         raise ValueError("WSL backup destination already exists")
-    if source.suffix in {".sqlite", ".db"}:
+    if is_sqlite(source):
         with closing(sqlite3.connect(f"file:{source}?mode=ro", uri=True)) as live, closing(sqlite3.connect(destination)) as target:
             live.backup(target)
+            if target.execute("PRAGMA integrity_check").fetchone() != ("ok",):
+                raise ValueError("WSL SQLite snapshot failed integrity check")
     else:
         before = source.stat()
         with source.open("rb") as reader, destination.open("xb") as writer:
@@ -100,11 +115,14 @@ def digest(path: Path) -> str:
 def export_snapshot(entries: list[tuple[Path, str, int]], root: Path) -> None:
     root.mkdir(mode=0o700)
     hashes = {}
+    databases = []
     for source, relative, _ in entries:
         target = root / relative
         copy_snapshot(source, target)
         hashes[relative] = digest(target)
-    manifest = {"version": 1, "files": hashes}
+        if is_sqlite(target):
+            databases.append(relative)
+    manifest = {"version": 1, "files": hashes, "sqlite": databases}
     with (root / "manifest.json").open("x", encoding="utf-8") as output:
         json.dump(manifest, output, sort_keys=True)
         output.flush()

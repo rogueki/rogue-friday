@@ -436,6 +436,31 @@ export class SystemBackupService {
           throw new Error("System backup auxiliary database failed integrity check");
       } finally { auxiliary.close(); }
     }
+    if (manifest.wslIncluded) {
+      const wsl = JSON.parse(readFileSync(join(root, "wsl", "manifest.json"), "utf8")) as
+        { version: number; files: Record<string, string>; sqlite: string[] };
+      if (wsl.version !== 1 || !wsl.files || typeof wsl.files !== "object" || !Array.isArray(wsl.sqlite))
+        throw new Error("System backup WSL manifest is invalid");
+      const wslNames = Object.keys(manifest.files).filter((name) => name.startsWith("wsl/") && name !== "wsl/manifest.json");
+      if (JSON.stringify(wslNames.sort()) !== JSON.stringify(Object.keys(wsl.files).map((name) => `wsl/${name}`).sort()))
+        throw new Error("System backup WSL inventory mismatch");
+      const databases = new Set<string>();
+      for (const [name, hash] of Object.entries(wsl.files)) {
+        const file = resolve(root, "wsl", name);
+        if (!within(file, join(root, "wsl")) || !/^[a-f0-9]{64}$/.test(hash) ||
+            sha(readFileSync(file)) !== hash) throw new Error("System backup WSL checksum mismatch");
+        if (readFileSync(file).subarray(0, 16).equals(Buffer.from("SQLite format 3\0"))) databases.add(name);
+      }
+      if (JSON.stringify([...databases].sort()) !== JSON.stringify([...new Set(wsl.sqlite)].sort()))
+        throw new Error("System backup WSL database inventory mismatch");
+      for (const name of databases) {
+        const database = new DatabaseSync(join(root, "wsl", name), { readOnly: true });
+        try {
+          if ((database.prepare("PRAGMA integrity_check").get() as { integrity_check: string }).integrity_check !== "ok")
+            throw new Error("System backup WSL database failed integrity check");
+        } finally { database.close(); }
+      }
+    }
     const memory = JSON.parse(readFileSync(join(root, "memory", "manifest.json"), "utf8")) as
       { version: number; eventCount: number; tombstones: Array<{ id: string; deleted_at: string }>; hashes: Record<string, string> };
     if (memory.version !== 1 || memory.eventCount !== manifest.memoryEventCount || !Array.isArray(memory.tombstones) ||

@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
-import { openDatabase } from "../db/database";
+import { kvSet, openDatabase } from "../db/database";
 import { AuditAnchor } from "../db/audit-anchor";
 import { AuditArchive } from "../db/audit-archive";
 import { AuditStore } from "../db/audit-store";
@@ -56,6 +56,27 @@ it("rejects a pre-existing restore target and a changed backup without touching 
   writeFileSync(join(created.path, "keys", "auth.key"), "tampered");
   expect(() => f.service.restoreIsolated(created.path, join(restores, "unused"))).toThrow(/checksum/);
   expect(existsSync(join(restores, "unused"))).toBe(false);
+  f.memory.close();
+  f.db.close();
+});
+
+it("cleans only registered app staging with a matching marker", () => {
+  const f = fixture();
+  const owned = join(f.data, ".friday-system-restore-owned");
+  const canary = join(f.data, ".friday-system-restore-canary");
+  mkdirSync(owned);
+  mkdirSync(canary);
+  writeFileSync(join(owned, ".friday-temporary.json"), JSON.stringify({ id: "owned-id" }));
+  writeFileSync(join(canary, ".friday-temporary.json"), JSON.stringify({ id: "different-id" }));
+  writeFileSync(join(canary, "sentinel"), "preserve me");
+  kvSet(f.db, "system_backup.temporary_paths", JSON.stringify([
+    { path: owned, id: "owned-id", kind: "restore", createdAt: "2026-01-01T00:00:00Z" },
+    { path: canary, id: "wrong-id", kind: "restore", createdAt: "2026-01-01T00:00:00Z" },
+  ]));
+  expect(f.service.temporaryCandidates("2026-10-19T00:00:00Z")).toEqual([owned]);
+  expect(f.service.cleanupTemporary("2026-10-19T00:00:00Z")).toBe(1);
+  expect(existsSync(owned)).toBe(false);
+  expect(readFileSync(join(canary, "sentinel"), "utf8")).toBe("preserve me");
   f.memory.close();
   f.db.close();
 });

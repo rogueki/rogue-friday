@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { chmodSync, closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { GENESIS_HASH } from "@friday/observability";
 import type { Db } from "./database";
@@ -76,7 +77,15 @@ export class AuditArchive {
     if (rows[0]!.seq !== (prior?.last_seq ?? 0) + 1 || rows[0]!.prev_hash !== (prior?.head_hash ?? GENESIS_HASH))
       throw new Error("Audit archive prefix is not contiguous");
     mkdirSync(this.directory, { recursive: true, mode: 0o700 });
-    if (lstatSync(this.directory).isSymbolicLink()) throw new Error("Audit archive directory is linked");
+    if (lstatSync(this.directory).isSymbolicLink() || !lstatSync(this.directory).isDirectory())
+      throw new Error("Audit archive directory is linked");
+    if (process.platform === "win32") {
+      const user = process.env.USERNAME;
+      if (!user) throw new Error("Audit archive owner is unknown");
+      const principal = process.env.USERDOMAIN ? `${process.env.USERDOMAIN}\\${user}` : user;
+      execFileSync("icacls", [this.directory, "/inheritance:r", "/grant:r", `${principal}:(OI)(CI)(F)`],
+        { stdio: "ignore", windowsHide: true, timeout: 10_000 });
+    } else chmodSync(this.directory, 0o700);
     const filename = `audit-${randomUUID()}.json`;
     if (!namePattern.test(filename) || basename(filename) !== filename) throw new Error("Invalid audit archive filename");
     const final = join(this.directory, filename);

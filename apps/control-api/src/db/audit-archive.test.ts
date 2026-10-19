@@ -37,6 +37,25 @@ it("archives a contiguous prefix, restarts, appends, and verifies the full ancho
   f.db.close();
 });
 
+it("reopens after archiving every hot row and continues the same sequence", () => {
+  const f = fixture();
+  f.append("2026-01-01T00:00:00Z");
+  f.append("2026-01-02T00:00:00Z");
+  expect(f.archive.archiveBefore("2026-02-01T00:00:00Z", () => f.audit.verify().valid)).toBe(2);
+  expect((f.db.prepare("SELECT COUNT(*) AS n FROM audit_log").get() as { n: number }).n).toBe(0);
+  f.db.close();
+  const db = openDatabase(join(f.root, "dashboard.sqlite"));
+  const archive = new AuditArchive(db, join(f.root, "archive"));
+  const anchor = new AuditAnchor({ db, key: Buffer.alloc(32, 7), file: join(f.root, "audit-head.json") });
+  const audit = new AuditStore(db, undefined, anchor, archive);
+  expect(audit.verify()).toMatchObject({ valid: true, length: 2 });
+  const added = audit.append({ actor: { id: "owner", type: "user", displayName: "Owner" } as never,
+    category: "system", action: "after-restart", severity: "info", result: "success", correlationId: "test" });
+  expect(added.sequence).toBe(3);
+  expect(audit.verify()).toMatchObject({ valid: true, length: 3 });
+  db.close();
+});
+
 it("keeps hot rows if interrupted before the DB commit and detects a missing or tampered segment", () => {
   const f = fixture();
   f.append("2026-01-01T00:00:00Z");
