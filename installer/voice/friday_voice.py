@@ -1119,6 +1119,10 @@ class VoiceService:
             fallback_provider=self.cfg.get("cloud_provider", "kimi-coding"),
             fallback_models=self.cfg.get("cloud_models"))
         provider, model = policy["targets"][route]
+        if not model and policy["fallback"][route]:
+            provider, model = policy["fallback"][route]
+            log_event(event="hermes_model_fallback", task_id=task_id, route=route,
+                      reason_code="primary_unconfigured", provider=provider, model=model)
         if not model:
             return "Für diesen Anbieter ist noch kein Sprachmodell eingerichtet. Bitte die Modellrouten konfigurieren."
         effort = policy["reasoning"][route]
@@ -1132,22 +1136,10 @@ class VoiceService:
             payload["provider"] = provider
         t = time.monotonic()
         try:
-            try:
-                resp = post_json(self.cfg["hermes_url"], payload, {"Authorization": f"Bearer {self.hermes_key}"},
-                                 timeout=900)
-            except urllib.error.HTTPError as rejected:
-                fallback = policy["fallback"][route]
-                # A rejected authentication or rate-limit response precedes execution. Ambiguous
-                # transport failures never trigger a second, potentially billable request.
-                if rejected.code not in (401, 429) or not fallback:
-                    raise
-                provider, model = fallback
-                payload["provider"] = provider
-                payload["model"] = model
-                log_event(event="hermes_model_fallback", task_id=task_id, route=route,
-                          reason_code=rejected.code, provider=provider, model=model)
-                resp = post_json(self.cfg["hermes_url"], payload, {"Authorization": f"Bearer {self.hermes_key}"},
-                                 timeout=900)
+            # Once submitted, an HTTP error can follow agent tools or provider work. Never retry
+            # the request on a different model without a proven pre-execution rejection receipt.
+            resp = post_json(self.cfg["hermes_url"], payload, {"Authorization": f"Bearer {self.hermes_key}"},
+                             timeout=900)
             answer = resp["choices"][0]["message"]["content"].strip()
             log_event(event="hermes_done", task_id=task_id, route=route, model=model, provider=provider,
                       duration_s=round(time.monotonic() - t, 2), success=True)

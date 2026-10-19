@@ -227,7 +227,7 @@ export function ModelsRoutingArea() {
                 onChange={(event) => setRoute(index, { reasoningLevel: event.target.value as typeof route.reasoningLevel })} />
               <TextField label="Fallback-Modell (Anbieter:Modell)" value={route.fallbackModel ?? ""} disabled={readOnly}
                 onChange={(event) => setRoute(index, { fallbackModel: event.target.value || null })} />
-              <small>Fallback nur nach eindeutiger Ablehnung durch Anmeldung oder Ratenlimit; bei unklarem Timeout kein zweiter Aufruf.</small>
+              <small>Fallback nur vor dem ersten Agentaufruf, wenn kein Primärmodell eingerichtet ist. Nach jedem HTTP-Fehler oder Timeout erfolgt kein zweiter Aufruf.</small>
               {readOnly ? null : (
                 <button type="button" className="st-iconbtn st-route__remove" aria-label={t("settings.list.remove", { name: route.taskKind || `#${index + 1}` })} onClick={() => update({ routes: value.routes.filter((_, i) => i !== index) })}>
                   <Trash2 size={14} strokeWidth={1.75} aria-hidden="true" />

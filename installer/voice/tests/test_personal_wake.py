@@ -680,7 +680,7 @@ def test_cloud_routes_select_model_and_reasoning(monkeypatch):
     assert requests[-1]["model"] == "small-model" and requests[-1]["provider"] == "anthropic"
 
 
-def test_voice_model_policy_uses_reasoning_and_retries_only_explicit_rejection(monkeypatch):
+def test_voice_model_policy_never_retries_after_agent_request(monkeypatch):
     jv = load_voice_module()
     svc = make_service(jv, {})
     svc.cfg.update({"hermes_url": "http://127.0.0.1/test", "hermes_model": "friday"})
@@ -691,17 +691,24 @@ def test_voice_model_policy_uses_reasoning_and_retries_only_explicit_rejection(m
     monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
     assert svc._route("Analysiere diesen Fehler")["route"] == "cloud_high"
     requests = []
-    def rejected_once(url, payload, headers, timeout):
+    side_effects = []
+    def rejected_after_side_effect(url, payload, headers, timeout):
         requests.append(dict(payload))
-        if len(requests) == 1:
-            raise urllib.error.HTTPError(url, 429, "rate limited", {}, None)
-        return {"choices": [{"message": {"content": "Bereit."}}]}
-    monkeypatch.setattr(jv, "post_json", rejected_once)
-    assert svc._ask_hermes("Test", {"route": "cloud_high"}, "task") == "Bereit."
-    assert [(request["provider"], request["model"]) for request in requests] == [
-        ("openai", "primary"), ("anthropic", "backup")]
-    assert all(request["model_options"]["reasoning_effort"] == "medium" for request in requests)
+        side_effects.append("provider-work-may-have-run")
+        raise urllib.error.HTTPError(url, 401, "auth error after work", {}, None)
+    monkeypatch.setattr(jv, "post_json", rejected_after_side_effect)
+    assert "nicht verfuegbar" in svc._ask_hermes("Test", {"route": "cloud_high"}, "task")
+    assert len(requests) == len(side_effects) == 1
+    assert requests[0]["model_options"]["reasoning_effort"] == "medium"
 
+    policy["targets"]["cloud_high"] = ("openai", None)
+    requests.clear()
+    monkeypatch.setattr(jv, "post_json", lambda url, payload, headers, timeout: (
+        requests.append(dict(payload)) or {"choices": [{"message": {"content": "Bereit."}}]}))
+    assert svc._ask_hermes("Test", {"route": "cloud_high"}, "task") == "Bereit."
+    assert [(request["provider"], request["model"]) for request in requests] == [("anthropic", "backup")]
+
+    policy["targets"]["cloud_high"] = ("openai", "primary")
     requests.clear()
     def ambiguous_timeout(url, payload, headers, timeout):
         requests.append(dict(payload))
