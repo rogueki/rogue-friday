@@ -26,6 +26,11 @@ def ordinary(path: Path) -> None:
         raise ValueError("restore source is not an ordinary file")
 
 
+def no_linked_ancestor(path: Path) -> None:
+    if any(parent.is_symlink() for parent in (path, *path.parents)):
+        raise ValueError("WSL recovery path has a linked ancestor")
+
+
 def safe_relative(name: str) -> Path:
     if not isinstance(name, str) or "\\" in name or "\x00" in name:
         raise ValueError("invalid WSL restore path")
@@ -62,6 +67,7 @@ def digest(path: Path) -> str:
 
 
 def inventory(source: Path) -> tuple[dict[str, str], list[str], str]:
+    no_linked_ancestor(source)
     if source.is_symlink() or not source.is_dir():
         raise ValueError("WSL restore source is not a directory")
     manifest_file = source / "manifest.json"
@@ -119,7 +125,8 @@ def pinned_checkout(home: Path, revision: str) -> None:
 
 def import_snapshot(source: Path, home: Path) -> dict[str, object]:
     files, databases, revision = inventory(source)
-    if home.is_symlink() or not home.is_dir():
+    no_linked_ancestor(home)
+    if not home.is_dir():
         raise ValueError("target WSL home is unavailable")
     pinned_checkout(home, revision)
     receipt = home / RECEIPT_NAME
@@ -148,8 +155,9 @@ def import_snapshot(source: Path, home: Path) -> dict[str, object]:
             for folder in reversed(missing):
                 folder.mkdir(mode=0o700)
                 created_dirs.append(folder)
-            with origin.open("rb") as reader, target.open("xb") as writer:
-                created_files.append(target)
+            descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+            created_files.append(target)
+            with os.fdopen(descriptor, "wb") as writer, origin.open("rb") as reader:
                 shutil.copyfileobj(reader, writer, length=1024 * 1024)
                 writer.flush()
                 os.fsync(writer.fileno())
@@ -157,9 +165,11 @@ def import_snapshot(source: Path, home: Path) -> dict[str, object]:
             if digest(target) != files[target_to_name(home, target)]:
                 raise ValueError("WSL restore copy changed")
         payload = {"version": 1, "manifestSha256": digest(source / "manifest.json"),
-                   "files": {target_to_name(home, target): files[target_to_name(home, target)] for _, target in targets}}
-        with receipt.open("x", encoding="utf-8") as output:
-            created_files.append(receipt)
+                   "files": {target_to_name(home, target): files[target_to_name(home, target)] for _, target in targets},
+                   "createdDirs": [folder.relative_to(home).as_posix() for folder in created_dirs]}
+        descriptor = os.open(receipt, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        created_files.append(receipt)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as output:
             json.dump(payload, output, sort_keys=True)
             output.flush()
             os.fsync(output.fileno())
@@ -175,13 +185,18 @@ def import_snapshot(source: Path, home: Path) -> dict[str, object]:
 
 
 def rollback_snapshot(source: Path, home: Path) -> dict[str, object]:
+    no_linked_ancestor(home)
     files, _, _ = inventory(source)
     receipt = home / RECEIPT_NAME
     ordinary(receipt)
     payload = json.loads(receipt.read_text(encoding="utf-8"))
     expected = {name: value for name, value in files.items() if name != REAPPLY_MARKER}
+    allowed_dirs = {parent.relative_to(home).as_posix() for name in expected
+                    for parent in destination(home, name).parents if parent != home and home in parent.parents}
+    created_dirs = payload.get("createdDirs")
     if (payload.get("version") != 1 or payload.get("manifestSha256") != digest(source / "manifest.json") or
-            payload.get("files") != expected):
+            payload.get("files") != expected or not isinstance(created_dirs, list) or
+            len(created_dirs) != len(set(created_dirs)) or any(name not in allowed_dirs for name in created_dirs)):
         raise ValueError("WSL recovery receipt does not match the source")
     targets = [destination(home, name) for name in sorted(expected)]
     for name, target in zip(sorted(expected), targets):
@@ -196,8 +211,7 @@ def rollback_snapshot(source: Path, home: Path) -> dict[str, object]:
     for target in targets:
         target.unlink()
     receipt.unlink()
-    for parent in sorted({parent for target in targets for parent in target.parents if parent != home and home in parent.parents},
-                         key=lambda path: len(path.parts), reverse=True):
+    for parent in sorted((home / name for name in created_dirs), key=lambda path: len(path.parts), reverse=True):
         try:
             parent.rmdir()
         except OSError:

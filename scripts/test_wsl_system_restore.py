@@ -59,6 +59,8 @@ class RestoreTest(unittest.TestCase):
         self.assertFalse((self.home / ".hermes/friday-messenger-bridge-applied.sha256").exists())
         if os.name == "posix":
             self.assertEqual((self.home / ".config/friday/calendar/events.sqlite3").stat().st_mode & 0o777, 0o600)
+            self.assertEqual((self.home / ".hermes/friday-messenger-bridge.key").stat().st_mode & 0o777, 0o600)
+            self.assertEqual((self.home / restore.RECEIPT_NAME).stat().st_mode & 0o777, 0o600)
         with closing(sqlite3.connect(self.home / ".config/friday/calendar/events.sqlite3")) as connection:
             self.assertEqual(connection.execute("SELECT name FROM events").fetchone(), ("uncheckpointed",))
 
@@ -73,6 +75,8 @@ class RestoreTest(unittest.TestCase):
 
     def test_rolls_back_import_only_while_files_are_unchanged(self):
         self.snapshot()
+        preexisting = self.home / ".config/friday/calendar"
+        preexisting.mkdir(parents=True)
         restore.import_snapshot(self.source, self.home)
         key = self.home / ".hermes/friday-messenger-bridge.key"
         key.write_text("newer")
@@ -85,6 +89,7 @@ class RestoreTest(unittest.TestCase):
         self.assertFalse(key.exists())
         self.assertFalse((self.home / restore.RECEIPT_NAME).exists())
         self.assertTrue((self.home / ".hermes/hermes-agent/.git").is_dir())
+        self.assertTrue(preexisting.is_dir())
 
     def test_rejects_wrong_revision_and_tampering(self):
         self.snapshot()
