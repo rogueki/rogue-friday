@@ -102,13 +102,15 @@ export const ORB_MODES = [
 export type OrbModeName = (typeof ORB_MODES)[number];
 
 /** Opens a page of the built app and waits until the shell and the page region rendered. */
-export async function open(page: Page, path = "/"): Promise<void> {
+export async function open(page: Page, path = "/", options: { waitForEventStream?: boolean } = {}): Promise<void> {
   await page.goto(path);
   await expect(page.getByRole("main", { name: "Hauptinhalt" })).toBeVisible();
   // The menu collapses on tablet widths, so only wide viewports are expected to show it.
   // Wait for the event stream: a state forced right after the page load would otherwise race the socket subscription.
   if ((page.viewportSize()?.width ?? 1920) >= 1280) {
-    await expect(eventStreamChip(page)).toContainText(/online|eingeschränkt/);
+    if (options.waitForEventStream !== false) {
+      await expect(eventStreamChip(page)).toContainText(/online|eingeschränkt/);
+    }
     await expect(page.getByRole("navigation", { name: "Hauptnavigation" })).toBeVisible();
   }
 }

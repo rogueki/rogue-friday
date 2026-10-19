@@ -44,7 +44,9 @@ async function disableWakeWord(page: Page): Promise<void> {
 export async function openVoicePage(page: Page, options: { armedWakeWord?: boolean } = {}): Promise<FakeGateway> {
   if (!options.armedWakeWord) await disableWakeWord(page);
   const gateway = await installFakeGateway(page);
-  await open(page, "/");
+  // The microphone tests replace only the browser-audio socket and verify that path directly below.
+  // Their readiness is the rendered control plus the availability probe, not the independent event stream.
+  await open(page, "/", { waitForEventStream: false });
   await expect(page.getByRole("button", { name: MIC_BUTTON })).toBeVisible();
   // the availability probe runs on mount; wait until the page considers browser audio available
   await expect.poll(() => page.evaluate(async () => (await fetch("/api/v1/voice/browser-audio-availability")).json()), { timeout: 15_000 }).toEqual({ available: true });
