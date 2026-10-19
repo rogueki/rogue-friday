@@ -15,6 +15,8 @@ import type { DurableMemoryService } from "./durable-memory";
 interface Manifest {
   version: 1;
   createdAt: string;
+  sourceInstallRoot?: string;
+  sourceVaultPath?: string;
   files: Record<string, string>;
   memoryEventCount: number;
   wslIncluded: boolean;
@@ -186,6 +188,8 @@ export class SystemBackupService {
       [join(this.installRoot, "config", "voice.json"), "config/voice.json"],
       [join(this.installRoot, "config", "persona.json"), "config/persona.json"],
       [join(this.installRoot, "config", "install-state.json"), "config/install-state.json"],
+      [join(this.installRoot, "config", "hermes_api.key"), "keys/hermes_api.key"],
+      [join(this.installRoot, "config", "elevenlabs_api.key.dpapi"), "keys/elevenlabs_api.key.dpapi"],
       [join(this.installRoot, "config", "dashboard_owner.hash"), "config/dashboard_owner.hash"],
       [join(this.installRoot, "dashboard", "config", "dashboard.yaml"), "config/dashboard.yaml"],
       [join(this.installRoot, "dashboard", "config", "adapters.yaml"), "config/adapters.yaml"],
@@ -205,6 +209,21 @@ export class SystemBackupService {
         }
       };
       walk(references);
+    }
+    const enrollment = join(this.installRoot, "voice", "profiles", "owner");
+    if (existsSync(enrollment)) {
+      if (lstatSync(enrollment).isSymbolicLink() || !lstatSync(enrollment).isDirectory())
+        throw new Error("Voice enrollment directory is unsafe");
+      const walk = (folder: string): void => {
+        for (const item of readdirSync(folder, { withFileTypes: true })) {
+          const path = join(folder, item.name);
+          if (item.isSymbolicLink()) throw new Error("Voice enrollment contains a link");
+          if (item.isDirectory()) walk(path);
+          else if (item.isFile()) names.push([path, `voice/profiles/owner/${relative(enrollment, path).replaceAll("\\", "/")}`]);
+          else throw new Error("Voice enrollment contains a non-file entry");
+        }
+      };
+      walk(enrollment);
     }
     const archives = join(this.dataDir, "audit-archive");
     if (existsSync(archives)) {
@@ -351,6 +370,7 @@ export class SystemBackupService {
       walk(memorySnapshot.path);
       const createdAt = new Date().toISOString();
       const manifest: Manifest = { version: 1, createdAt, files: hashes,
+        sourceInstallRoot: this.installRoot, sourceVaultPath: this.vaultPath,
         memoryEventCount: memorySnapshot.eventCount, wslIncluded: wsl !== null,
         voiceSources: Object.fromEntries(this.selectedVoiceFiles().map((item) => [item.from, item.to])) };
       writeFileSync(join(staging, "manifest.json"), JSON.stringify(manifest), { flag: "wx", mode: 0o600, flush: true });
@@ -377,6 +397,8 @@ export class SystemBackupService {
     ordinary(join(root, "manifest.json"));
     const manifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8")) as Manifest;
     if (manifest.version !== 1 || !manifest.files || typeof manifest.files !== "object" ||
+        (manifest.sourceInstallRoot !== undefined && !isAbsolute(manifest.sourceInstallRoot)) ||
+        (manifest.sourceVaultPath !== undefined && !isAbsolute(manifest.sourceVaultPath)) ||
         !Number.isSafeInteger(manifest.memoryEventCount) || manifest.memoryEventCount < 0 ||
         typeof manifest.wslIncluded !== "boolean" || manifest.wslIncluded !== Boolean(manifest.files["wsl/manifest.json"]) ||
         !manifest.voiceSources || typeof manifest.voiceSources !== "object" ||

@@ -34,6 +34,9 @@ it("snapshots a consistent SQLite database and memory manifest, then verifies an
     "dashboard", "executed", "2026-10-19T00:00:00Z");
   const created = await f.service.create(f.destination, 2);
   expect(created.verified).toBe(true);
+  expect(JSON.parse(readFileSync(join(created.path, "manifest.json"), "utf8"))).toMatchObject({
+    sourceInstallRoot: f.root, sourceVaultPath: f.vault,
+  });
   expect(f.service.verify(created.path).fileCount).toBeGreaterThan(2);
   const restored = f.service.restoreIsolated(created.path, join(f.data, "probe"));
   expect(restored.fileCount).toBe(created.fileCount);
@@ -132,6 +135,24 @@ it("includes selected custom voice references and refuses a missing configured r
   expect(readFileSync(join(created.path, manifest.voiceSources[reference]!), "utf8")).toBe("synthetic-audio");
   unlinkSync(reference);
   await expect(f.service.create(f.destination, 2)).rejects.toThrow(/voice reference is missing/);
+  f.memory.close();
+  f.db.close();
+});
+
+it("captures recovery credentials and private owner enrollment data", async () => {
+  const f = fixture();
+  mkdirSync(join(f.root, "config"));
+  writeFileSync(join(f.root, "config", "hermes_api.key"), "synthetic-hermes-key");
+  writeFileSync(join(f.root, "config", "elevenlabs_api.key.dpapi"), "synthetic-bound-blob");
+  const raw = join(f.root, "voice", "profiles", "owner", "raw");
+  mkdirSync(raw, { recursive: true });
+  writeFileSync(join(raw, "sample.wav"), "synthetic-biometric-sample");
+  const created = await f.service.create(f.destination, 2);
+  expect(readFileSync(join(created.path, "keys", "hermes_api.key"), "utf8")).toBe("synthetic-hermes-key");
+  expect(readFileSync(join(created.path, "keys", "elevenlabs_api.key.dpapi"), "utf8")).toBe("synthetic-bound-blob");
+  expect(readFileSync(join(created.path, "voice", "profiles", "owner", "raw", "sample.wav"), "utf8"))
+    .toBe("synthetic-biometric-sample");
+  expect(f.service.verify(created.path).fileCount).toBe(created.fileCount);
   f.memory.close();
   f.db.close();
 });
