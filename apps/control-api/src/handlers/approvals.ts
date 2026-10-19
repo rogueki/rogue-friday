@@ -12,9 +12,9 @@ export const APPROVAL_TOKEN_EXPIRES_HEADER = "X-Approval-Token-Expires";
 const APPROVE_ACTION = "approvals.approve";
 
 function channelOf(ctx: RequestContext, body: ApprovalDecisionRequest | undefined): ApprovalChannel {
-  const requested = body?.inputChannel ?? ctx.headers["x-input-channel"];
-  if (requested === "voice") return "voice";
-  if (requested === "api") return "api";
+  // A body value cannot override a voice-marked request into the UI tier.
+  if (ctx.voiceBridgeAuthorized || body?.inputChannel === "voice" || ctx.headers["x-input-channel"] === "voice") return "voice";
+  if (body?.inputChannel === "api" || ctx.headers["x-input-channel"] === "api") return "api";
   return "ui";
 }
 
