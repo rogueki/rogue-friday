@@ -22,6 +22,7 @@ import { durableMemoryHandlers } from "./durable-memory";
 import { mailAccountHandlers } from "./mail-accounts";
 import { calendarAccountHandlers } from "./calendar-accounts";
 import { connectedCalendarVoiceHandlers } from "./connected-calendar-voice";
+import { dataRetentionHandlers } from "./data-retention";
 import { messengerSendHandlers } from "./messenger-send";
 import { hermesConfigHandlers } from "./hermes-config";
 import { systemBackupHandlers } from "./system-backups";
@@ -46,6 +47,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     mailAccountHandlers,
     calendarAccountHandlers,
     connectedCalendarVoiceHandlers,
+    dataRetentionHandlers,
     messengerSendHandlers,
     hermesConfigHandlers,
     systemBackupHandlers,

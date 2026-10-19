@@ -6188,6 +6188,46 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: viewer
+  /api/v1/data-retention:
+    get:
+      operationId: getDataRetentionStatus
+      tags: [system]
+      summary: Get scoped retention job status
+      responses:
+        "200":
+          description: Last retention result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataRetentionStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/data-retention/actions:
+    post:
+      operationId: performDataRetentionAction
+      tags: [system]
+      summary: Preview or run scoped data retention
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataRetentionActionRequest"
+      responses:
+        "200":
+          description: Retention preview or run result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataRetentionActionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/system-backups:
     get:
       operationId: getSystemBackupStatus
@@ -9074,6 +9114,12 @@ components:
       $ref: ../schemas/system/system-metrics.schema.json
     SystemMetricsResponse:
       $ref: ../schemas/system/system-metrics-response.schema.json
+    DataRetentionActionRequest:
+      $ref: "../schemas/system/data-retention-action-request.schema.json"
+    DataRetentionActionResponse:
+      $ref: "../schemas/system/data-retention-action-response.schema.json"
+    DataRetentionStatusResponse:
+      $ref: "../schemas/system/data-retention-status-response.schema.json"
     SystemBackupActionRequest:
       $ref: ../schemas/system/system-backup-action-request.schema.json
     SystemBackupActionResponse:

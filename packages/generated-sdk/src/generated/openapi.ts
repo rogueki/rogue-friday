@@ -1316,6 +1316,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/data-retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get scoped retention job status */
+        get: operations["getDataRetentionStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/data-retention/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview or run scoped data retention */
+        post: operations["performDataRetentionAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dev/scenarios": {
         parameters: {
             query?: never;
@@ -5522,6 +5556,53 @@ export interface components {
             };
             soundEffects: boolean;
         };
+        /** DataRetentionActionRequest */
+        DataRetentionActionRequest: {
+            /** @enum {string} */
+            action: "preview" | "run";
+        };
+        /** DataRetentionActionResponse */
+        DataRetentionActionResponse: {
+            contractVersion: string;
+            data: {
+                /** @enum {string} */
+                action: "preview" | "run";
+                archivedAuditRows: number;
+                /** Format: date-time */
+                at?: string;
+                /** @constant */
+                auditPolicy: "archive-local-indefinitely";
+                cutoffs: {
+                    /** Format: date-time */
+                    activity: string;
+                    /** Format: date-time */
+                    auditToArchive: string;
+                    /** Format: date-time */
+                    notifications: string;
+                    /** Format: date-time */
+                    temporaryFiles: string;
+                    /** Format: date-time */
+                    voiceHistory: string;
+                };
+                eligible: {
+                    activity: number;
+                    auditToArchive: number;
+                    notifications: number;
+                    temporaryFiles: number;
+                    voiceHistory: number;
+                };
+                /** @constant */
+                memoryPolicy: "unlimited";
+                removed?: {
+                    activity: number;
+                    auditToArchive: number;
+                    notifications: number;
+                    temporaryFiles: number;
+                    voiceHistory: number;
+                };
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
         /** DataRetentionSettings */
         DataRetentionSettings: {
             activityDays: number;
@@ -5530,6 +5611,35 @@ export interface components {
             notificationDays: number;
             temporaryFileDays: number;
             voiceHistoryDays: number;
+        };
+        /** DataRetentionStatusResponse */
+        DataRetentionStatusResponse: {
+            contractVersion: string;
+            data: {
+                last: null | {
+                    /** Format: date-time */
+                    at: string;
+                    confirmedPartial: {
+                        activity?: number;
+                        auditToArchive?: number;
+                        notifications?: number;
+                        temporaryFiles?: number;
+                        voiceHistory?: number;
+                    };
+                    counts: null | {
+                        activity: number;
+                        auditToArchive: number;
+                        notifications: number;
+                        temporaryFiles: number;
+                        voiceHistory: number;
+                    };
+                    error: string | null;
+                    /** @enum {string} */
+                    status: "success" | "failed";
+                };
+                running: boolean;
+            };
+            freshness: components["schemas"]["Freshness"];
         };
         /** DeveloperSettings */
         DeveloperSettings: {
@@ -8780,6 +8890,10 @@ export interface components {
                     /** @enum {string} */
                     status: "success" | "failed";
                 };
+                /** @constant */
+                reprovisionRequired: true;
+                /** @constant */
+                restoreMode: "isolated-verification-only";
                 running: boolean;
                 schedule: string;
                 targetPath: string;
@@ -12900,6 +13014,55 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getDataRetentionStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Last retention result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataRetentionStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    performDataRetentionAction: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DataRetentionActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Retention preview or run result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataRetentionActionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     listScenarios: {

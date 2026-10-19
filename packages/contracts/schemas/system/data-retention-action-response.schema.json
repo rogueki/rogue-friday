@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/system/data-retention-action-response.schema.json",
+  "title": "DataRetentionActionResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "preview",
+            "run"
+          ]
+        },
+        "cutoffs": {
+          "type": "object",
+          "properties": {
+            "activity": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "voiceHistory": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "auditToArchive": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "notifications": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "temporaryFiles": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "activity",
+            "voiceHistory",
+            "auditToArchive",
+            "notifications",
+            "temporaryFiles"
+          ],
+          "additionalProperties": false
+        },
+        "eligible": {
+          "type": "object",
+          "properties": {
+            "activity": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "voiceHistory": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "auditToArchive": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "notifications": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "temporaryFiles": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "activity",
+            "voiceHistory",
+            "auditToArchive",
+            "notifications",
+            "temporaryFiles"
+          ],
+          "additionalProperties": false
+        },
+        "removed": {
+          "type": "object",
+          "properties": {
+            "activity": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "voiceHistory": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "auditToArchive": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "notifications": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "temporaryFiles": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "activity",
+            "voiceHistory",
+            "auditToArchive",
+            "notifications",
+            "temporaryFiles"
+          ],
+          "additionalProperties": false
+        },
+        "archivedAuditRows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "memoryPolicy": {
+          "type": "string",
+          "const": "unlimited"
+        },
+        "auditPolicy": {
+          "type": "string",
+          "const": "archive-local-indefinitely"
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "action",
+        "cutoffs",
+        "eligible",
+        "archivedAuditRows",
+        "memoryPolicy",
+        "auditPolicy"
+      ],
+      "additionalProperties": false
+    },
+    "freshness": {
+      "$ref": "../common/freshness.schema.json"
+    }
+  },
+  "required": [
+    "contractVersion",
+    "data",
+    "freshness"
+  ],
+  "additionalProperties": false
+}

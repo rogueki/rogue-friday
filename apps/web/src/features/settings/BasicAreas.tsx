@@ -11,6 +11,7 @@ import { useMeta } from "@/lib/api/domains/core";
 import { useVoiceDevices, useVoiceIntegrationStatus } from "@/lib/api/domains/voice";
 import { useSession } from "@/lib/session";
 import { useSystemBackupAction, useSystemBackupStatus } from "@/lib/api/domains/system-backups";
+import { useDataRetentionAction, useDataRetentionStatus } from "@/lib/api/domains/data-retention";
 import { FieldGrid, NumberField, Section, StringListEditor } from "./controls";
 import { useAreaDraft } from "./SettingsDrafts";
 import { NAV_PAGES } from "@/features/shell/navModel";
@@ -476,7 +477,11 @@ export function ApprovalsArea() {
 
 export function DataRetentionArea() {
   const { t } = useT();
-  const { value, update, readOnly } = useAreaDraft("dataRetention");
+  const { value, update, dirty, readOnly } = useAreaDraft("dataRetention");
+  const { role, offline } = useSession();
+  const status = useDataRetentionStatus(role === "owner" && !offline);
+  const action = useDataRetentionAction();
+  const [preview, setPreview] = useState<Awaited<ReturnType<typeof action.mutateAsync>>["data"] | null>(null);
   if (!value) return null;
   const days = (label: MessageKey, key: "activityDays" | "auditDays" | "notificationDays" | "temporaryFileDays", min = 1, hint?: MessageKey) => (
     <NumberField label={t(label)} hint={hint ? t(hint) : undefined} integer min={min} value={value[key]} disabled={readOnly} onValueChange={(next) => next !== null && update({ [key]: Math.round(next) })} />
@@ -489,8 +494,32 @@ export function DataRetentionArea() {
         <NumberField label={t("settings.retention.voice")} hint={t("settings.retention.voiceHint")} integer min={0} value={value.voiceHistoryDays} disabled={readOnly} onValueChange={(next) => next !== null && update({ voiceHistoryDays: Math.round(next) })} />
         {days("settings.retention.notifications", "notificationDays")}
         {days("settings.retention.temp", "temporaryFileDays")}
-        <NumberField label={t("settings.retention.memoryTtl")} hint={t("settings.retention.memoryTtlHint")} integer min={1} nullable value={value.memoryDefaultTtlDays} disabled={readOnly} onValueChange={(next) => update({ memoryDefaultTtlDays: next === null ? null : Math.round(next) })} />
+        <NumberField label={t("settings.retention.memoryTtl")} hint={t("settings.retention.memoryTtlHint")} integer min={1} nullable value={value.memoryDefaultTtlDays} disabled onValueChange={() => undefined} />
       </FieldGrid>
+      {role === "owner" && <div>
+        <p className="st-muted">{t("settings.retention.scope")}</p>
+        {status.isError && <p role="alert">{t("settings.retention.statusError")}</p>}
+        {status.data?.data.last && <p role="status">{t("settings.retention.last")}: {status.data.data.last.status} · {status.data.data.last.at}
+          {status.data.data.last.error ? ` · ${status.data.data.last.error}` : ""}
+          {status.data.data.last.status === "failed" && Object.keys(status.data.data.last.confirmedPartial).length
+            ? ` · ${t("settings.retention.partial")}: ${JSON.stringify(status.data.data.last.confirmedPartial)}` : ""}</p>}
+        {dirty && <p className="st-muted">{t("settings.retention.saveFirst")}</p>}
+        <div className="st-row">
+          <Button size="sm" variant="ghost" disabled={readOnly || dirty || action.isPending} onClick={() => void action.mutateAsync({ action: "preview" }).then((response) => setPreview(response.data)).catch(() => setPreview(null))}>{t("settings.retention.preview")}</Button>
+          <Button size="sm" disabled={readOnly || dirty || action.isPending} onClick={() => void action.mutateAsync({ action: "run" }).then((response) => setPreview(response.data)).catch(() => setPreview(null))}>{t("settings.retention.run")}</Button>
+        </div>
+        {preview && <div role="status">
+          <p>{t(preview.action === "run" ? "settings.retention.removed" : "settings.retention.eligible")}:</p>
+          <ul>
+            <li>{t("settings.retention.activity")}: {(preview.removed ?? preview.eligible).activity}</li>
+            <li>{t("settings.retention.voice")}: {(preview.removed ?? preview.eligible).voiceHistory}</li>
+            <li>{t("settings.retention.audit")}: {(preview.removed ?? preview.eligible).auditToArchive}</li>
+            <li>{t("settings.retention.notifications")}: {(preview.removed ?? preview.eligible).notifications}</li>
+            <li>{t("settings.retention.temp")}: {(preview.removed ?? preview.eligible).temporaryFiles}</li>
+          </ul>
+        </div>}
+        {action.isError && <p role="alert">{t("settings.retention.actionError")}</p>}
+      </div>}
     </Section>
   );
 }
@@ -538,6 +567,7 @@ export function BackupsArea() {
         ? "Lokaler Snapshot von Windows-Konfiguration, SQLite, Obsidian-Vault und Friday-Ubuntu-Konten mit Hermes-Zustand."
         : "Lokaler Snapshot von Windows-Konfiguration, SQLite und Obsidian-Vault; Friday-Ubuntu ist nicht konfiguriert."}>
         {status.isError && <p role="alert">Backup-Status nicht erreichbar.</p>}
+        <p className="st-muted">Der Restore-Test prüft eine getrennte, inaktive Kopie. Eine betriebsbereite Wiederherstellung benötigt die Neuinstallation des im WSL-Manifest festgehaltenen Hermes-Revisionsstands sowie seiner Laufzeit- und Paketabhängigkeiten.</p>
         {last?.error && <p role="alert">Letzter Fehler: {last.error}</p>}
         <p className="st-row">Zeitplan: {status.data?.data.schedule ?? value.schedule} ({status.data?.data.timeZone ?? "Zeitzone unbekannt"})</p>
         {preview && <p role="status">Ziel: {preview.destination} · Bedarf mindestens {Math.ceil(preview.estimatedBytes / 1024 / 1024)} MiB</p>}

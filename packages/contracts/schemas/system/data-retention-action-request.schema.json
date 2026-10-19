@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/system/data-retention-action-request.schema.json",
+  "title": "DataRetentionActionRequest",
+  "type": "object",
+  "properties": { "action": { "type": "string", "enum": ["preview", "run"] } },
+  "required": ["action"],
+  "additionalProperties": false
+}

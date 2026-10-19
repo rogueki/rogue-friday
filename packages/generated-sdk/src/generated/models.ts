@@ -610,7 +610,10 @@ export interface FridayModelMap {
   ControlFrame: ControlFrame;
   CurrentWeatherResponse: CurrentWeatherResponse;
   DashboardSettings: DashboardSettings;
+  DataRetentionActionRequest: DataRetentionActionRequest;
+  DataRetentionActionResponse: DataRetentionActionResponse;
   DataRetentionSettings: DataRetentionSettings;
+  DataRetentionStatusResponse: DataRetentionStatusResponse;
   DeveloperSettings: DeveloperSettings;
   DiscordGateway: DiscordGateway;
   DiscordGatewayPatch: DiscordGatewayPatch;
@@ -2579,6 +2582,41 @@ export interface DashboardSettings {
     countryCode?: string;
   };
 }
+export interface DataRetentionActionRequest {
+  action: "preview" | "run";
+}
+export interface DataRetentionActionResponse {
+  contractVersion: string;
+  data: {
+    action: "preview" | "run";
+    cutoffs: {
+      activity: string;
+      voiceHistory: string;
+      auditToArchive: string;
+      notifications: string;
+      temporaryFiles: string;
+    };
+    eligible: {
+      activity: number;
+      voiceHistory: number;
+      auditToArchive: number;
+      notifications: number;
+      temporaryFiles: number;
+    };
+    removed?: {
+      activity: number;
+      voiceHistory: number;
+      auditToArchive: number;
+      notifications: number;
+      temporaryFiles: number;
+    };
+    archivedAuditRows: number;
+    memoryPolicy: "unlimited";
+    auditPolicy: "archive-local-indefinitely";
+    at?: string;
+  };
+  freshness: Freshness;
+}
 export interface DataRetentionSettings {
   activityDays: number;
   auditDays: number;
@@ -2586,6 +2624,32 @@ export interface DataRetentionSettings {
   notificationDays: number;
   temporaryFileDays: number;
   memoryDefaultTtlDays: number | null;
+}
+export interface DataRetentionStatusResponse {
+  contractVersion: string;
+  data: {
+    running: boolean;
+    last: null | {
+      at: string;
+      status: "success" | "failed";
+      counts: null | {
+        activity: number;
+        voiceHistory: number;
+        auditToArchive: number;
+        notifications: number;
+        temporaryFiles: number;
+      };
+      confirmedPartial: {
+        activity?: number;
+        voiceHistory?: number;
+        auditToArchive?: number;
+        notifications?: number;
+        temporaryFiles?: number;
+      };
+      error: string | null;
+    };
+  };
+  freshness: Freshness;
 }
 export interface DeveloperSettings {
   debugMode: boolean;
@@ -5172,6 +5236,8 @@ export interface SystemBackupStatusResponse {
     targetPath: string;
     running: boolean;
     coverage: "windows-and-memory" | "windows-wsl-and-memory";
+    restoreMode: "isolated-verification-only";
+    reprovisionRequired: true;
     last: null | {
       at: string;
       status: "success" | "failed";
