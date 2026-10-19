@@ -15,6 +15,8 @@ import type { DurableMemoryService } from "./durable-memory";
 interface Manifest {
   version: 1;
   createdAt: string;
+  sourceInstallRoot?: string;
+  sourceVaultPath?: string;
   files: Record<string, string>;
   memoryEventCount: number;
   wslIncluded: boolean;
@@ -368,6 +370,7 @@ export class SystemBackupService {
       walk(memorySnapshot.path);
       const createdAt = new Date().toISOString();
       const manifest: Manifest = { version: 1, createdAt, files: hashes,
+        sourceInstallRoot: this.installRoot, sourceVaultPath: this.vaultPath,
         memoryEventCount: memorySnapshot.eventCount, wslIncluded: wsl !== null,
         voiceSources: Object.fromEntries(this.selectedVoiceFiles().map((item) => [item.from, item.to])) };
       writeFileSync(join(staging, "manifest.json"), JSON.stringify(manifest), { flag: "wx", mode: 0o600, flush: true });
@@ -394,6 +397,8 @@ export class SystemBackupService {
     ordinary(join(root, "manifest.json"));
     const manifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8")) as Manifest;
     if (manifest.version !== 1 || !manifest.files || typeof manifest.files !== "object" ||
+        (manifest.sourceInstallRoot !== undefined && !isAbsolute(manifest.sourceInstallRoot)) ||
+        (manifest.sourceVaultPath !== undefined && !isAbsolute(manifest.sourceVaultPath)) ||
         !Number.isSafeInteger(manifest.memoryEventCount) || manifest.memoryEventCount < 0 ||
         typeof manifest.wslIncluded !== "boolean" || manifest.wslIncluded !== Boolean(manifest.files["wsl/manifest.json"]) ||
         !manifest.voiceSources || typeof manifest.voiceSources !== "object" ||

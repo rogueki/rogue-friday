@@ -34,6 +34,9 @@ it("snapshots a consistent SQLite database and memory manifest, then verifies an
     "dashboard", "executed", "2026-10-19T00:00:00Z");
   const created = await f.service.create(f.destination, 2);
   expect(created.verified).toBe(true);
+  expect(JSON.parse(readFileSync(join(created.path, "manifest.json"), "utf8"))).toMatchObject({
+    sourceInstallRoot: f.root, sourceVaultPath: f.vault,
+  });
   expect(f.service.verify(created.path).fileCount).toBeGreaterThan(2);
   const restored = f.service.restoreIsolated(created.path, join(f.data, "probe"));
   expect(restored.fileCount).toBe(created.fileCount);
