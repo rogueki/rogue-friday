@@ -111,3 +111,31 @@ it("enforces owner, CSRF, If-Match and typed allowlist while returning unverifie
     await api.close();
   }
 });
+
+it("accepts only the owner credential allowlist and never echoes a model secret", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const update = vi.spyOn(api.runtime.hermesConfig, "updateCredential").mockResolvedValue({
+      ...status,
+      revision: 124,
+      secretStates: [{ key: "OPENROUTER_API_KEY", configFileSet: true, effectiveConfigured: null }],
+      write: { key: "OPENROUTER_API_KEY", persisted: true, applied: null,
+        verification: "unverified", reasonCode: "runtime_receipt_unavailable" },
+    } as never);
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const viewer = api.client();
+    await viewer.loginDev("viewer");
+    const body = { key: "OPENROUTER_API_KEY", value: "CANARY-PRIVATE-MODEL-KEY" };
+    expect((await viewer.patch(path, body, { headers: { "If-Match": "123" } })).statusCode).toBe(403);
+    expect((await owner.patch(path, body, { headers: { "If-Match": "123" }, csrf: false })).statusCode).toBe(403);
+    expect((await owner.patch(path, { key: "EXA_API_KEY", value: "CANARY" },
+      { headers: { "If-Match": "123" } })).statusCode).toBe(422);
+    const saved = await owner.patch(path, body, { headers: { "If-Match": "123" } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(saved.body).not.toContain(body.value);
+    expect(update).toHaveBeenCalledWith(body, 123);
+  } finally {
+    await api.close();
+  }
+});

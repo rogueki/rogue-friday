@@ -83,6 +83,15 @@
       },
       "required": ["key", "value"],
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "key": { "enum": ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] },
+        "value": { "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^[\\x20-\\x7e]+$" }, { "type": "null" }] }
+      },
+      "required": ["key", "value"],
+      "additionalProperties": false
     }
   ]
 }

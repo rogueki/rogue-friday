@@ -6360,7 +6360,7 @@ paths:
     patch:
       operationId: patchHermesConfig
       tags: [settings]
-      summary: Write one allowlisted typed Hermes config leaf
+      summary: Write one allowlisted typed Hermes config leaf or stdin-only model credential
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/IfMatch"

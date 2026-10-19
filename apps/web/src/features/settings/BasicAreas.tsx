@@ -201,7 +201,9 @@ export function ModelsRoutingArea() {
           <div>
             <TextField label={t("settings.models.defaultModel")} value={value.defaultModel} disabled={readOnly} onChange={(event) => update({ defaultModel: event.target.value })} />
           </div>
+          <Switch label="Lokale Verarbeitung zuerst" description="Bei Aktivierung entscheidet der lokale Router vor einem Cloud-Aufruf. Die lokale Uhrzeitantwort bleibt immer lokal." checked={value.localFirst} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(localFirst) => update({ localFirst })} />
         </FieldGrid>
+        <p>Monatsbudget: {value.monthlyBudgetEur === null ? "nicht gesetzt" : `${value.monthlyBudgetEur} € gespeichert`}. Friday erfasst hier keine verlässlichen Providerkosten; der Wert wird nicht als Ausgabenlimit durchgesetzt.</p>
       </Section>
       <Section
         title={t("settings.models.routes")}
@@ -220,6 +222,12 @@ export function ModelsRoutingArea() {
             <li key={index} className="st-route">
               <TextField label={t("settings.models.taskKind")} value={route.taskKind} disabled={readOnly} onChange={(event) => setRoute(index, { taskKind: event.target.value })} />
               <TextField label={t("settings.models.model")} value={route.model} disabled={readOnly} onChange={(event) => setRoute(index, { model: event.target.value })} />
+              <Select label="Denkstufe" value={route.reasoningLevel} disabled={readOnly}
+                options={["none", "low", "medium", "high", "max"].map((level) => ({ value: level, label: level }))}
+                onChange={(event) => setRoute(index, { reasoningLevel: event.target.value as typeof route.reasoningLevel })} />
+              <TextField label="Fallback-Modell (Anbieter:Modell)" value={route.fallbackModel ?? ""} disabled={readOnly}
+                onChange={(event) => setRoute(index, { fallbackModel: event.target.value || null })} />
+              <small>Fallback nur nach eindeutiger Ablehnung durch Anmeldung oder Ratenlimit; bei unklarem Timeout kein zweiter Aufruf.</small>
               {readOnly ? null : (
                 <button type="button" className="st-iconbtn st-route__remove" aria-label={t("settings.list.remove", { name: route.taskKind || `#${index + 1}` })} onClick={() => update({ routes: value.routes.filter((_, i) => i !== index) })}>
                   <Trash2 size={14} strokeWidth={1.75} aria-hidden="true" />

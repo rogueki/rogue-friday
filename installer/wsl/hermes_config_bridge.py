@@ -2,10 +2,12 @@
 """Narrow Friday bridge to the installed Hermes config API. No raw config leaves this process."""
 
 import hashlib
+import hmac
 import json
 import fcntl
 import os
 import re
+import secrets
 from pathlib import Path
 import subprocess
 import sys
@@ -36,6 +38,7 @@ FIELDS = {
     "session.terminal_continue": ("boolean", None, None),
     "max_live_sessions": ("integer", 0, 10000),
 }
+MODEL_CREDENTIALS = frozenset(("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"))
 REASONING_EFFORTS = frozenset(("", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"))
 
 
@@ -76,8 +79,28 @@ FAMILIES = (
 )
 
 
-def revision_bytes(content):
-    return int(hashlib.sha256(content).hexdigest()[:12], 16) or 1
+def revision_bytes(content, home):
+    key_path = home / ".friday-config-revision.key"
+    try:
+        fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    except FileExistsError:
+        pass
+    else:
+        with os.fdopen(fd, "wb") as output:
+            output.write(secrets.token_bytes(32))
+            output.flush()
+            os.fsync(output.fileno())
+    if key_path.is_symlink() or key_path.stat().st_mode & 0o077:
+        raise ValueError("unsafe_revision_key")
+    deadline = time.monotonic() + 1
+    while True:
+        key = key_path.read_bytes()
+        if len(key) == 32:
+            break
+        if time.monotonic() >= deadline:
+            raise ValueError("invalid_revision_key")
+        time.sleep(0.01)
+    return int(hmac.new(key, content, hashlib.sha256).hexdigest()[:12], 16) or 1
 
 
 def snapshot(path):
@@ -90,8 +113,15 @@ def snapshot(path):
     raw = yaml.safe_load(content.decode("utf-8-sig")) if content else {}
     if not isinstance(raw, dict):
         raise ValueError("invalid_config")
-    # At most 48 bits, exactly representable by JavaScript's number type.
-    return revision_bytes(content), raw
+    env_path = path.parent / ".env"
+    if env_path.is_symlink():
+        raise ValueError("config_symlink")
+    try:
+        env_content = env_path.read_bytes()
+    except FileNotFoundError:
+        env_content = b""
+    # Include Hermes' credential store in the same 48-bit, JS-safe CAS token.
+    return revision_bytes(content + b"\0" + env_content, path.parent), raw
 
 
 def revision(path):
@@ -165,9 +195,10 @@ def inventory_roots(home, call):
     return list(dict.fromkeys(roots)), errors
 
 
-def lock_config(home):
-    lock_path = home / ".friday-config.lock"
-    lock = lock_path.open("a+")
+def lock_config(home, name=".friday-config.lock"):
+    lock_path = home / name
+    fd = os.open(lock_path, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    lock = os.fdopen(fd, "a+")
     os.fchmod(lock.fileno(), 0o600)
     deadline = time.monotonic() + 15
     while True:
@@ -182,7 +213,7 @@ def lock_config(home):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -206,15 +237,20 @@ def locked_main(home, source, cli):
     config_path = Path(call("path"))
     commit = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3)
     source_revision = commit.stdout.strip() if commit.returncode == 0 else None
-    if sys.argv[1] == "update":
+    if sys.argv[1] in ("update", "credential-update"):
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
         request = json.load(sys.stdin)
         if not isinstance(request, dict) or set(request) != {"key", "value", "revision"}:
             raise ValueError("invalid_request")
         key, value = request["key"], request["value"]
+        credential_update = sys.argv[1] == "credential-update"
         spec = FIELDS.get(key)
-        if not spec or type(request["revision"]) is not int or not valid_field_value(key, value, spec):
+        if type(request["revision"]) is not int or (credential_update and
+                (key not in MODEL_CREDENTIALS or not (value is None or
+                 (isinstance(value, str) and 1 <= len(value) <= 4096 and
+                  all(32 <= ord(char) <= 126 for char in value))))) or \
+                (not credential_update and (not spec or not valid_field_value(key, value, spec))):
             raise ValueError("unsupported_field")
         lock = lock_config(home)
         try:
@@ -222,9 +258,29 @@ def locked_main(home, source, cli):
             if request["revision"] != before or revision(config_path) != before:
                 print(json.dumps({"error": "revision_conflict"}))
                 return 4
-            # Hermes owns validation and preserving the rest of config.yaml. Never --force.
-            call("set", key, json.dumps(value, separators=(",", ":")) if isinstance(value, list) else
-                 "null" if value is None else str(value).lower() if isinstance(value, bool) else str(value))
+            if credential_update:
+                # The CLI accepts secrets only in argv. Use its Python closure with stdin instead.
+                env_lock = lock_config(home, ".obsidian-vault.lock")
+                try:
+                    sys.path.insert(0, str(source))
+                    from hermes_cli._launchers import runtime_command
+                    probe = Path(__file__).with_name("hermes_model_credential_apply.py")
+                    command = runtime_command(source, code=f"import runpy; runpy.run_path({str(probe)!r}, run_name='__main__')")
+                    result = subprocess.run(command, input=json.dumps({"key": key, "value": value}),
+                                            capture_output=True, text=True, timeout=30)
+                    try:
+                        saved = json.loads(result.stdout).get("saved") is True
+                    except (ValueError, TypeError):
+                        saved = False
+                    if result.returncode or not saved:
+                        raise ValueError("credential_readback_failed")
+                finally:
+                    fcntl.flock(env_lock, fcntl.LOCK_UN)
+                    env_lock.close()
+            else:
+                # Hermes owns validation and preserving the rest of config.yaml. Never --force.
+                call("set", key, json.dumps(value, separators=(",", ":")) if isinstance(value, list) else
+                     "null" if value is None else str(value).lower() if isinstance(value, bool) else str(value))
             current, raw = snapshot(config_path)
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
@@ -279,10 +335,19 @@ def locked_main(home, source, cli):
                             valid_field_value("model.provider", name, FIELDS["model.provider"]))
     inventory_reasons = sorted(set(root_errors + skill_errors + plugin_errors +
                                    (["model_provider_name_unsupported"] if invalid_provider_names else [])))
+    from_env = {key: False for key in MODEL_CREDENTIALS}
+    env_path = home / ".env"
+    if env_path.exists():
+        # Only a key at the start of an assignment counts; values never leave the bridge.
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            name, separator, candidate = line.partition("=")
+            if separator and name in MODEL_CREDENTIALS and candidate.strip().strip('"'):
+                from_env[name] = True
     print(json.dumps({
         "installed": True, "revision": current, "sourceRevision": source_revision,
         "values": values, "explicit": explicit,
-        "secrets": {"model.api_key": bool(nested(raw, "model.api_key"))},
+        "secrets": {"model.api_key": bool(nested(raw, "model.api_key")),
+                    **from_env},
         "families": [{"id": name, "roots": roots, "followup": followup,
                       "configFileSet": any(nested(raw, root) is not None for root in roots)} for name, roots, followup in FAMILIES],
         "inventory": {"scope": "profile", "skillsComplete": not (root_errors or skill_errors),
@@ -298,7 +363,10 @@ def locked_main(home, source, cli):
         "plugins": [{"id": row["name"], "installed": True,
                      "enabled": True if row["status"] == "enabled" else False if row["status"] == "disabled" else None,
                      "configured": None} for row in plugin_rows],
-        "write": {"key": request["key"], "persisted": values[request["key"]] == request["value"]} if sys.argv[1] == "update" else None,
+        "write": {"key": request["key"], "persisted": values[request["key"]] == request["value"]}
+                 if sys.argv[1] == "update" else
+                 {"key": request["key"], "persisted": from_env.get(request["key"], False) ==
+                  (request["value"] is not None)} if sys.argv[1] == "credential-update" else None,
     }))
     return 0
 

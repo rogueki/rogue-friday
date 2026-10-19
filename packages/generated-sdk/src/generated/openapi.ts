@@ -2682,7 +2682,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Write one allowlisted typed Hermes config leaf */
+        /** Write one allowlisted typed Hermes config leaf or stdin-only model credential */
         patch: operations["patchHermesConfig"];
         trace?: never;
     };
@@ -6305,6 +6305,10 @@ export interface components {
             /** @constant */
             key: "max_live_sessions";
             value: number;
+        } | {
+            /** @enum {unknown} */
+            key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
+            value: string | null;
         };
         /** HermesConfigStatus */
         HermesConfigStatus: {
@@ -6365,8 +6369,8 @@ export interface components {
             secretStates: {
                 configFileSet: boolean;
                 effectiveConfigured: boolean | null;
-                /** @constant */
-                key: "model.api_key";
+                /** @enum {unknown} */
+                key: "model.api_key" | "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
             }[];
             skills: components["schemas"]["extension"][];
             sourceRevision: string | null;

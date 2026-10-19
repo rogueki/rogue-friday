@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 from unittest.mock import patch
 
@@ -45,6 +46,11 @@ class BridgeTest(unittest.TestCase):
 
     def run_command(self, command, **_kwargs):
         self.calls.append(command)
+        if command[0] == "credential-worker":
+            request = json.loads(_kwargs["input"])
+            env_path = self.home / ".hermes" / ".env"
+            env_path.write_text(f"{request['key']}={request['value']}\n" if request["value"] is not None else "")
+            return subprocess.CompletedProcess(command, 0, '{"saved":true}', "")
         if command[0] == "git":
             return subprocess.CompletedProcess(command, 0, "d923a5eb487a17c0a68801bba9ef0f56c81040a8\n", "")
         if command[1:] == ["plugins", "list", "--json", "--user"]:
@@ -70,11 +76,57 @@ class BridgeTest(unittest.TestCase):
 
     def invoke(self, request=None):
         out = io.StringIO()
+        bootstrap = types.ModuleType("hermes_bootstrap")
+        hermes_cli = types.ModuleType("hermes_cli")
+        config = types.ModuleType("hermes_cli.config")
+        lifecycle = types.ModuleType("hermes_cli.credential_lifecycle")
+        launchers = types.ModuleType("hermes_cli._launchers")
+        launchers.runtime_command = lambda *args, **kwargs: ["credential-worker"]
+        env_path = self.home / ".hermes" / ".env"
+        def load_env():
+            return dict(line.split("=", 1) for line in env_path.read_text().splitlines()) if env_path.exists() else {}
+        def save(key, value):
+            env_path.write_text(f"{key}={value}\n")
+            return {"ok": True}
+        def remove(key):
+            env_path.write_text("")
+            return {"ok": True}
+        config.load_env = load_env
+        lifecycle.save_provider_env_credential = save
+        lifecycle.remove_provider_env_credential = remove
         with patch.object(bridge.Path, "home", return_value=self.home), patch.object(bridge.subprocess, "run", side_effect=self.run_command), \
-             patch.object(sys, "argv", ["bridge", "update" if request else "status"]), \
+             patch.dict(sys.modules, {"hermes_bootstrap": bootstrap, "hermes_cli": hermes_cli,
+                                      "hermes_cli.config": config, "hermes_cli.credential_lifecycle": lifecycle,
+                                      "hermes_cli._launchers": launchers}), \
+             patch.object(sys, "path", sys.path.copy()), \
+             patch.object(sys, "argv", ["bridge", "credential-update" if request and request["key"] in bridge.MODEL_CREDENTIALS else "update" if request else "status"]), \
              patch.object(sys, "stdin", io.StringIO(json.dumps(request) if request else "")), contextlib.redirect_stdout(out):
             code = bridge.main()
         return code, json.loads(out.getvalue())
+
+    def test_model_credential_uses_stdin_lifecycle_and_redacted_readback(self):
+        secret = "CANARY-MODEL-PRIVATE"
+        code, result = self.invoke({"key": "OPENROUTER_API_KEY", "value": secret,
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["write"], {"key": "OPENROUTER_API_KEY", "persisted": True})
+        self.assertTrue(result["secrets"]["OPENROUTER_API_KEY"])
+        self.assertNotIn(secret, json.dumps(result))
+        self.assertFalse(any(secret in " ".join(map(str, command)) for command in self.calls))
+        old_revision = result["revision"]
+        code, result = self.invoke({"key": "OPENROUTER_API_KEY", "value": None,
+                                    "revision": old_revision})
+        self.assertEqual(code, 0)
+        self.assertFalse(result["secrets"]["OPENROUTER_API_KEY"])
+
+    def test_model_credential_revision_conflict_and_bad_value_do_not_write(self):
+        code, result = self.invoke({"key": "OPENROUTER_API_KEY", "value": "CANARY-PRIVATE", "revision": 1})
+        self.assertEqual(code, 4)
+        self.assertEqual(result["error"], "revision_conflict")
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "OPENROUTER_API_KEY", "value": "line\nbreak",
+                         "revision": bridge.revision(self.config)})
+        self.assertFalse((self.home / ".hermes" / ".env").exists())
 
     def test_status_is_effective_and_redacted(self):
         code, result = self.invoke()
@@ -209,6 +261,11 @@ elif a == ['plugins', 'list', '--json', '--user']: print('[]')
 else: sys.exit(1)
 """)
         cli.chmod(0o755)
+        source = self.home / ".hermes" / "hermes-agent"
+        (source / "hermes_bootstrap.py").write_text("")
+        (source / "hermes_cli").mkdir()
+        (source / "hermes_cli" / "__init__.py").write_text("")
+        (source / "hermes_cli" / "config.py").write_text("def load_env(): return {}\n")
         env = dict(os.environ, HOME=str(self.home), PATH=f"{tools}:{os.environ['PATH']}")
         expected = bridge.revision(self.config)
         script = str(Path(__file__).with_name("hermes_config_bridge.py"))

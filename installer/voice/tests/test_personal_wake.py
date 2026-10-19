@@ -680,6 +680,37 @@ def test_cloud_routes_select_model_and_reasoning(monkeypatch):
     assert requests[-1]["model"] == "small-model" and requests[-1]["provider"] == "anthropic"
 
 
+def test_voice_model_policy_uses_reasoning_and_retries_only_explicit_rejection(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update({"hermes_url": "http://127.0.0.1/test", "hermes_model": "friday"})
+    svc.hermes_key, svc.history = "test", []
+    policy = {"targets": {"cloud_high": ("openai", "primary")}, "local_first": False,
+              "reasoning": {"cloud_high": "medium"}, "fallback": {"cloud_high": ("anthropic", "backup")}}
+    monkeypatch.setattr(jv, "load_dashboard_voice_policy", lambda *args, **kwargs: policy)
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    assert svc._route("Analysiere diesen Fehler")["route"] == "cloud_high"
+    requests = []
+    def rejected_once(url, payload, headers, timeout):
+        requests.append(dict(payload))
+        if len(requests) == 1:
+            raise urllib.error.HTTPError(url, 429, "rate limited", {}, None)
+        return {"choices": [{"message": {"content": "Bereit."}}]}
+    monkeypatch.setattr(jv, "post_json", rejected_once)
+    assert svc._ask_hermes("Test", {"route": "cloud_high"}, "task") == "Bereit."
+    assert [(request["provider"], request["model"]) for request in requests] == [
+        ("openai", "primary"), ("anthropic", "backup")]
+    assert all(request["model_options"]["reasoning_effort"] == "medium" for request in requests)
+
+    requests.clear()
+    def ambiguous_timeout(url, payload, headers, timeout):
+        requests.append(dict(payload))
+        raise TimeoutError("uncertain")
+    monkeypatch.setattr(jv, "post_json", ambiguous_timeout)
+    assert "nicht verfuegbar" in svc._ask_hermes("Test", {"route": "cloud_high"}, "task")
+    assert len(requests) == 1
+
+
 def test_followup_window_starts_after_answer(monkeypatch):
     jv = load_voice_module()
     svc = make_service(jv, {})

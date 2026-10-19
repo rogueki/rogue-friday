@@ -180,6 +180,10 @@ export type HermesConfigPatch =
   | {
       key: "max_live_sessions";
       value: number;
+    }
+  | {
+      key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
+      value: string | null;
     };
 export type MemoryType =
   | "profile"
@@ -3153,7 +3157,7 @@ export interface HermesConfigStatus {
     reasonCode: "runtime_receipt_unavailable";
   }[];
   secretStates: {
-    key: "model.api_key";
+    key: "model.api_key" | "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
     configFileSet: boolean;
     effectiveConfigured: boolean | null;
   }[];
