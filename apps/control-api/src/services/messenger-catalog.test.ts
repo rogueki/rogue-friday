@@ -26,8 +26,8 @@ describe("pinned Hermes messenger catalog", () => {
         connectionState: "unknown", exactSendSupported: true, nativeSetupAvailable: false });
       expect(result.items.find((item) => item.platform === "teams")).toMatchObject({ configured: false,
         exactSendSupported: true, nativeSetupAvailable: false });
-      expect(result.items.filter((item) => item.exactSendSupported)).toHaveLength(20);
-      for (const platform of ["dingtalk", "whatsapp_cloud", "qqbot", "yuanbao"])
+      expect(result.items.filter((item) => item.exactSendSupported)).toHaveLength(23);
+      for (const platform of ["yuanbao"])
         expect(result.items.find((item) => item.platform === platform)?.exactSendSupported).toBe(false);
       expect(JSON.stringify(result)).not.toContain("secret-value");
       expect(invoke).toHaveBeenCalledOnce();

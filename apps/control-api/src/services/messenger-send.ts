@@ -8,7 +8,8 @@ import type { ApprovalTokenService } from "@friday/auth";
 
 const sha = (input: string) => createHash("sha256").update(input).digest("hex");
 const PLATFORM = new Set(["telegram", "discord", "whatsapp", "slack", "signal", "matrix", "mattermost", "sms",
-  "irc", "line", "feishu", "wecom", "photon", "buzz", "ntfy", "teams", "google_chat", "simplex", "weixin", "bluebubbles"]);
+  "irc", "line", "feishu", "wecom", "photon", "buzz", "ntfy", "teams", "google_chat", "simplex", "weixin", "bluebubbles",
+  "dingtalk", "whatsapp_cloud", "qqbot"]);
 const TARGET = /^[A-Za-z0-9_@.!+#:;/=-]{1,128}$/;
 export interface MessengerDraft { accountId: "default"; platform: string; recipient: string; text: string;
   notificationId?: string; notificationStep?: number }
@@ -40,6 +41,9 @@ function validTarget(platform: string, recipient: string): boolean {
     case "simplex": return /^([1-9][0-9]*|group:[1-9][0-9]*)$/.test(recipient);
     case "weixin": return /^((wxid|gh|v[0-9]+|wm|wb)_[A-Za-z0-9_-]+|[A-Za-z0-9._-]+@chatroom|filehelper)$/.test(recipient);
     case "bluebubbles": return /^\+[1-9][0-9]{6,14}$/.test(recipient) || /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(recipient);
+    case "dingtalk": return recipient === "webhook";
+    case "whatsapp_cloud": return /^\+[1-9][0-9]{6,14}$/.test(recipient);
+    case "qqbot": return /^(c2c|group):[A-Za-z0-9_-]{1,128}$/.test(recipient) || /^guild:[0-9]{10,20}$/.test(recipient);
     default: return false;
   }
 }
@@ -48,7 +52,8 @@ function validate(draft: MessengerDraft): void {
   if (!draft || draft.accountId !== "default" || !validTarget(draft.platform, draft.recipient) ||
       typeof draft.text !== "string" || !draft.text.trim() || Buffer.byteLength(draft.text, "utf8") > 8192 ||
       draft.text.includes("MEDIA:") || draft.text.includes("[[as_document]]") ||
-      ((draft.notificationId === undefined) !== (draft.notificationStep === undefined))) {
+      ((draft.notificationId === undefined) !== (draft.notificationStep === undefined)) ||
+      (draft.platform === "qqbot" && draft.text.length > 4000)) {
     throw validationFailed("Kanal, exakter Empfänger oder Nachricht ist ungültig.");
   }
 }

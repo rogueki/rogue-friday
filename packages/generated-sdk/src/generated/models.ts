@@ -4071,7 +4071,10 @@ export interface MessengerDraft {
     | "google_chat"
     | "simplex"
     | "weixin"
-    | "bluebubbles";
+    | "bluebubbles"
+    | "dingtalk"
+    | "whatsapp_cloud"
+    | "qqbot";
   recipient: string;
   text: string;
   notificationId?: string;
@@ -4234,7 +4237,10 @@ export interface MessengerTargetRequest {
     | "google_chat"
     | "simplex"
     | "weixin"
-    | "bluebubbles";
+    | "bluebubbles"
+    | "dingtalk"
+    | "whatsapp_cloud"
+    | "qqbot";
   recipient: string;
 }
 export interface MessengerTargetResponse {
