@@ -7185,6 +7185,66 @@ paths:
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/messenger/senders:
+    get:
+      operationId: listMessengerSenders
+      tags: [communication]
+      summary: Inspect admitted private-message senders without message content
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200": { description: Observed senders, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerSendersResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/messenger/senders/{id}/link:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, pattern: "^[a-f0-9]{64}$" }
+      - $ref: "#/components/parameters/CorrelationId"
+      - $ref: "#/components/parameters/CsrfToken"
+    post:
+      operationId: linkMessengerSender
+      tags: [communication]
+      summary: Explicitly link one observed authenticated sender to the owner identity
+      responses:
+        "200": { description: Linked sender, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerSenderResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-capability: settings.write
+      x-required-role: owner
+    delete:
+      operationId: unlinkMessengerSender
+      tags: [communication]
+      summary: Revoke one sender-to-owner identity link
+      responses:
+        "200": { description: Unlinked sender, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerSenderResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-capability: settings.write
+      x-required-role: owner
+  /api/v1/integrations/messenger/events:
+    post:
+      operationId: captureMessengerInbound
+      tags: [communication]
+      summary: Admit a post-gateway private message through a distinct local bridge credential
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MessengerInboundEvent" } } }
+      responses:
+        "200": { description: Inbound classification, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerInboundResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-capability: memory.write
+      x-required-role: owner
   /api/v1/messenger/providers/{platform}:
     parameters:
       - name: platform
@@ -9022,6 +9082,16 @@ components:
       $ref: ../schemas/integrations/messenger-draft.schema.json
     MessengerCatalogResponse:
       $ref: ../schemas/integrations/messenger-catalog-response.schema.json
+    MessengerInboundEvent:
+      $ref: ../schemas/integrations/messenger-inbound-event.schema.json
+    MessengerInboundResponse:
+      $ref: ../schemas/integrations/messenger-inbound-response.schema.json
+    MessengerSenderResponse:
+      $ref: ../schemas/integrations/messenger-sender-response.schema.json
+    MessengerSender:
+      $ref: ../schemas/integrations/messenger-sender.schema.json
+    MessengerSendersResponse:
+      $ref: ../schemas/integrations/messenger-senders-response.schema.json
     MessengerProviderUpdate:
       $ref: ../schemas/integrations/messenger-provider-update.schema.json
     MessengerProviderApply:

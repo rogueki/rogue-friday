@@ -52,6 +52,7 @@ import { MailSendService } from "../services/mail-send";
 import { MessengerSendService } from "../services/messenger-send";
 import { MessengerCatalogService } from "../services/messenger-catalog";
 import { MessengerProviderService } from "../services/messenger-provider";
+import { MessengerInboundService } from "../services/messenger-inbound";
 import { CalDavCreateService } from "../services/caldav-create";
 import { LocalCalendarService } from "../services/local-calendar";
 import { CalendarAccountsService } from "../services/calendar-accounts";
@@ -139,9 +140,11 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const calendarBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "calendar-bridge"));
   const mailBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "mail-bridge"));
   const hermesMemoryBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "hermes-memory-bridge"));
+  const messengerInboundBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "hermes-messenger-bridge"));
   if (!calendarBridgeKey.permissionsRestricted) logger.warn("Calendar bridge key permissions could not be restricted", { path: calendarBridgeKey.path });
   if (!mailBridgeKey.permissionsRestricted) logger.warn("Mail bridge key permissions could not be restricted", { path: mailBridgeKey.path });
   if (!hermesMemoryBridgeKey.permissionsRestricted) logger.warn("Hermes memory bridge key permissions could not be restricted", { path: hermesMemoryBridgeKey.path });
+  if (!messengerInboundBridgeKey.permissionsRestricted) logger.warn("Hermes messenger bridge key permissions could not be restricted", { path: messengerInboundBridgeKey.path });
   if (!voiceBridgeKey.permissionsRestricted) logger.warn("Berechtigungen des Voice-Bridge-Schlüssels konnten nicht eingeschränkt werden", { path: voiceBridgeKey.path });
   const sessions = new SqliteSessionStore(db, {
     defaultTtlMs: config.auth.sessionTtlMinutes * 60_000,
@@ -291,6 +294,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const messengerSend = new MessengerSendService(db, config.paths.dataDir, approvalTokens);
   const messengerCatalog = new MessengerCatalogService(config.paths.dataDir);
   const messengerProvider = new MessengerProviderService(config.paths.dataDir, messengerCatalog);
+  const messengerInbound = new MessengerInboundService(db, durableMemory);
   const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
   const hermesConfig = new HermesConfigService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
@@ -509,6 +513,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     calendarBridgeKey: calendarBridgeKey.key,
     mailBridgeKey: mailBridgeKey.key,
     hermesMemoryBridgeKey: hermesMemoryBridgeKey.key,
+    messengerInboundBridgeKey: messengerInboundBridgeKey.key,
     approvalTokens,
     settings,
     nativeApprovals,
@@ -537,6 +542,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     notifications,
     messengerCatalog,
     messengerProvider,
+    messengerInbound,
     caldavCreate,
     hermesSkillKeys,
     hermesConfig,

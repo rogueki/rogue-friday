@@ -19,6 +19,8 @@ HOME = Path.home() / ".hermes"
 CONFIG = HOME / "friday-memory-bridge.json"
 KEY = HOME / "friday-memory-bridge.key"
 OUTBOX = HOME / "friday-memory-outbox.sqlite"
+MESSENGER_CONFIG = HOME / "friday-messenger-bridge.json"
+MESSENGER_KEY = HOME / "friday-messenger-bridge.key"
 SECRET_CUE = re.compile(r"\b(?:password|passwort|passphrase|api[ _-]?key|access[ _-]?token|refresh[ _-]?token|secret|geheimnis|otp|einmalcode|private[ _-]?key|bearer|authorization|kennwort|zugangsdaten)\b|\bpin\s*(?:[:=]|is\b|lautet\b)", re.I)
 SECRET_VALUE = re.compile(r"\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{16,}|(?:\d[ -]*?){13,19})\b")
 PRIVATE = re.compile(
@@ -27,6 +29,7 @@ PRIVATE = re.compile(
     r"(?:nicht speichern|nicht merken|vergiss (?:dieses |diese )?(?:gespr[aä]ch|unterhaltung|chat))|private[rnms]? modus|"
     r"do not (?:store|remember|save) (?:this |the )?(?:conversation|chat)|off the record)\b", re.I)
 _private_sessions: set[str] = set()
+_private_messenger_sessions: set[str] = set()
 _wake = threading.Event()
 _drain_lock = threading.Lock()
 _worker_started = False
@@ -224,12 +227,81 @@ def _finalize(**kwargs):
         _private_sessions.discard(session_id)
 
 
+def _messenger_policy(settings_db: Path) -> bool:
+    try:
+        with closing(sqlite3.connect(f"file:{settings_db.as_posix()}?mode=ro", uri=True, timeout=1)) as db:
+            row = db.execute("SELECT value FROM metadata WHERE key='capture_settings'").fetchone()
+        policy = json.loads(row[0]) if row else {}
+        return policy.get("enabled") is True and policy.get("privateMode") is False and \
+            isinstance(policy.get("channels"), dict) and policy["channels"].get("messenger") is True
+    except (OSError, sqlite3.Error, ValueError, TypeError, KeyError):
+        return False
+
+
+def _messenger_admitted(**kwargs):
+    try:
+        if MESSENGER_CONFIG.is_symlink() or MESSENGER_KEY.is_symlink():
+            return None
+        config = json.loads(MESSENGER_CONFIG.read_text(encoding="utf-8"))
+        key = MESSENGER_KEY.read_text(encoding="ascii").strip()
+        port = config.get("port")
+        from hermes_constants import get_hermes_home
+        hermes_home = get_hermes_home()
+        if not isinstance(port, int) or not 1024 <= port <= 65535 or not re.fullmatch(r"[A-Za-z0-9+/]{43}=", key) or \
+                config.get("accountId") != "default" or not isinstance(config.get("hermesHome"), str) or \
+                Path(hermes_home).resolve() != Path(config["hermesHome"]).resolve():
+            return None
+        source = kwargs.get("source")
+        platform = kwargs.get("platform")
+        if not isinstance(source, dict) or source.get("platform") != platform or platform not in {
+                    "telegram", "discord", "whatsapp", "whatsapp_cloud", "slack", "signal", "mattermost", "matrix", "sms",
+                    "dingtalk", "feishu", "wecom", "weixin", "bluebubbles", "qqbot", "yuanbao", "teams", "buzz",
+                    "google_chat", "irc", "line", "ntfy", "photon", "simplex"}:
+            return None
+        sender, chat, message_id, content = source.get("user_id"), source.get("chat_id"), kwargs.get("message_id"), kwargs.get("text")
+        if not all(isinstance(value, str) and 0 < len(value) <= 128 and not re.search(r"[\x00-\x1f\x7f]", value)
+                   for value in (sender, chat, message_id)) or not isinstance(content, str) or len(content) > 200_000:
+            return None
+        session_key = kwargs.get("session_key")
+        if isinstance(session_key, str) and PRIVATE.search(content):
+            _private_messenger_sessions.add(session_key)
+        suppression = None
+        if source.get("profile") not in (None, "", "default"):
+            suppression = "unsupported_profile"
+        elif source.get("chat_type") != "dm":
+            suppression = "not_private_dm"
+        elif PRIVATE.search(content) or (isinstance(session_key, str) and session_key in _private_messenger_sessions) or \
+                SECRET_CUE.search(content) or SECRET_VALUE.search(content):
+            suppression = "private"
+        elif not _messenger_policy(Path(config["settingsDb"])):
+            suppression = "policy_disabled"
+        body = {"platform": platform, "accountId": "default", "senderId": sender, "chatId": chat,
+                "chatType": source.get("chat_type") or "unknown", "messageId": message_id,
+                "text": "" if suppression else content}
+        if suppression:
+            body["suppressionReason"] = suppression
+        request = Request(f"http://127.0.0.1:{port}/api/v1/integrations/messenger/events",
+                          data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
+                          headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+        with urlopen(request, timeout=1.5) as response:
+            if response.status != 200:
+                return None
+            result = json.load(response)
+        if (result.get("data") or {}).get("reason") not in (
+                "captured", "pending", "unlinked", "policy_disabled", "private", "not_private_dm", "unsupported_profile", "invalid"):
+            return None
+    except (ImportError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
+        return None
+    return None
+
+
 def register(ctx) -> None:
     global _worker_started
     _config()  # Failure is visible at plugin registration; never claim capture without a key.
     ctx.register_hook("pre_llm_call", _pre)
     ctx.register_hook("post_llm_call", _post)
     ctx.register_hook("on_session_finalize", _finalize)
+    ctx.register_hook("post_gateway_admission", _messenger_admitted)
     if not _worker_started:
         threading.Thread(target=_worker, name="friday-memory-delivery", daemon=True).start()
         _worker_started = True

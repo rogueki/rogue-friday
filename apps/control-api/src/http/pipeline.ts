@@ -123,7 +123,12 @@ export class ApiPipeline {
       (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
       !this.runtime.config.server.allowRemote &&
       verifyVoiceBridgeKey(headers.authorization, this.runtime.hermesMemoryBridgeKey);
-    const actor: Actor = hermesMemoryBridgeAuthorized ? { type: "system", id: "friday-hermes-memory", name: "F.R.I.D.A.Y. Hermes Memory" } :
+    const messengerInboundBridgeAuthorized = spec.operationId === "captureMessengerInbound" && spec.method === "POST" &&
+      (request.ip === "127.0.0.1" || request.ip === "::1" || request.ip === "::ffff:127.0.0.1") &&
+      !this.runtime.config.server.allowRemote &&
+      verifyVoiceBridgeKey(headers.authorization, this.runtime.messengerInboundBridgeKey);
+    const actor: Actor = messengerInboundBridgeAuthorized ? { type: "system", id: "friday-messenger", name: "F.R.I.D.A.Y. Messenger" } :
+      hermesMemoryBridgeAuthorized ? { type: "system", id: "friday-hermes-memory", name: "F.R.I.D.A.Y. Hermes Memory" } :
       mailBridgeAuthorized ? { type: "system", id: "friday-mail", name: "F.R.I.D.A.Y. Mail" } :
       calendarBridgeAuthorized ? { type: "system", id: "friday-calendar", name: "F.R.I.D.A.Y. Calendar" } :
       voiceBridgeAuthorized ? { type: "system", id: "friday-voice", name: "F.R.I.D.A.Y. Voice" } :
@@ -141,6 +146,7 @@ export class ApiPipeline {
       calendarBridgeAuthorized,
       mailBridgeAuthorized,
       hermesMemoryBridgeAuthorized,
+      messengerInboundBridgeAuthorized,
       actor,
       pathParams: (request.params ?? {}) as Record<string, string>,
       query: {},
@@ -182,6 +188,10 @@ export class ApiPipeline {
 
   private authorizeRequest(ctx: RequestContext, spec: RouteSpec): void {
     const { runtime } = this;
+    if (verifyVoiceBridgeKey(ctx.headers.authorization, runtime.messengerInboundBridgeKey)) {
+      if (ctx.messengerInboundBridgeAuthorized) return;
+      throw new ApiError({ code: "FORBIDDEN", message: "Messenger-Dienstkennung gilt nur für lokalen Gateway-Empfang." });
+    }
     if (verifyVoiceBridgeKey(ctx.headers.authorization, runtime.hermesMemoryBridgeKey)) {
       if (ctx.hermesMemoryBridgeAuthorized) return;
       throw new ApiError({ code: "FORBIDDEN", message: "Hermes-Gedächtniskennung gilt nur für lokalen Ereignisabruf und Aufnahme." });
