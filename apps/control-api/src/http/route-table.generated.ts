@@ -13768,6 +13768,126 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "getMessengerProvider",
+    "method": "GET",
+    "path": "/api/v1/messenger/providers/{platform}",
+    "tag": "communication",
+    "capability": "meta.read",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [
+      "platform"
+    ],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": false,
+    "requestBody": null,
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "MessengerProviderResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
+    "operationId": "updateMessengerProvider",
+    "method": "PUT",
+    "path": "/api/v1/messenger/providers/{platform}",
+    "tag": "communication",
+    "capability": "settings.write",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [
+      "platform"
+    ],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "MessengerProviderUpdate"
+    },
+    "maxBodyBytes": null,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "MessengerProviderResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "listMessengerTargets",
     "method": "GET",
     "path": "/api/v1/messenger/targets",

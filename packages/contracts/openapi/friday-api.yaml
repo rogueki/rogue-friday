@@ -7105,6 +7105,43 @@ paths:
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/messenger/providers/{platform}:
+    parameters:
+      - name: platform
+        in: path
+        required: true
+        schema: { type: string }
+      - $ref: "#/components/parameters/CorrelationId"
+    get:
+      operationId: getMessengerProvider
+      tags: [communication]
+      summary: Read pinned Hermes provider configuration revision
+      responses:
+        "200": { description: Provider revision, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+    put:
+      operationId: updateMessengerProvider
+      tags: [communication]
+      summary: Store allowlisted provider fields in pinned Hermes without claiming gateway activation
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderUpdate" } } }
+      responses:
+        "200": { description: Provider save outcome, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: settings.write
+      x-required-role: owner
   /api/v1/messenger/targets:
     get:
       operationId: listMessengerTargets
@@ -8881,6 +8918,10 @@ components:
       $ref: ../schemas/integrations/messenger-draft.schema.json
     MessengerCatalogResponse:
       $ref: ../schemas/integrations/messenger-catalog-response.schema.json
+    MessengerProviderUpdate:
+      $ref: ../schemas/integrations/messenger-provider-update.schema.json
+    MessengerProviderResponse:
+      $ref: ../schemas/integrations/messenger-provider-response.schema.json
     MessengerTargetRequest:
       $ref: ../schemas/integrations/messenger-target-request.schema.json
     MessengerTargetResponse:

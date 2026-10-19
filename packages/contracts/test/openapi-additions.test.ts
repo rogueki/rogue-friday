@@ -69,8 +69,8 @@ describe("observability operations (PLAN §50.3)", () => {
     expect(Object.keys(telemetry?.op.responses ?? {})).toEqual(expect.arrayContaining(["202", "401", "403", "413", "422", "429"]));
   });
 
-  it("the contract includes the 243 released operations", () => {
-    expect(operations).toHaveLength(243);
+  it("the contract includes the 245 released operations", () => {
+    expect(operations).toHaveLength(245);
   });
 
   it("Hermes config is owner-only and its typed mutation requires CSRF and If-Match", () => {

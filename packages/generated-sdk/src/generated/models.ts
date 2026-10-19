@@ -193,6 +193,270 @@ export type MemoryType =
   | "episode"
   | "decision";
 export type MemorySensitivity = "normal" | "sensitive" | "restricted";
+export type MessengerProviderUpdate =
+  | {
+      platform: "bluebubbles";
+      revision: string;
+      values: {
+        BLUEBUBBLES_SERVER_URL?: string | null;
+        BLUEBUBBLES_PASSWORD?: string | null;
+      };
+    }
+  | {
+      platform: "buzz";
+      revision: string;
+      values: {
+        BUZZ_RELAY_URL?: string | null;
+        BUZZ_PRIVATE_KEY?: string | null;
+        BUZZ_TRANSPORT?: string | null;
+        BUZZ_AUTH_TAG?: string | null;
+        BUZZ_CHANNELS?: string | null;
+        BUZZ_HOME_CHANNEL?: string | null;
+        BUZZ_ALLOWED_USERS?: string | null;
+        BUZZ_POLL_INTERVAL?: string | null;
+        BUZZ_REPLY_IN_THREAD?: string | null;
+      };
+    }
+  | {
+      platform: "dingtalk";
+      revision: string;
+      values: {
+        DINGTALK_CLIENT_ID?: string | null;
+        DINGTALK_CLIENT_SECRET?: string | null;
+        DINGTALK_WEBHOOK_URL?: string | null;
+        DINGTALK_ALLOWED_USERS?: string | null;
+        DINGTALK_HOME_CHANNEL?: string | null;
+        DINGTALK_HOME_CHANNEL_NAME?: string | null;
+      };
+    }
+  | {
+      platform: "feishu";
+      revision: string;
+      values: {
+        FEISHU_APP_ID?: string | null;
+        FEISHU_APP_SECRET?: string | null;
+        FEISHU_DOMAIN?: string | null;
+        FEISHU_ALLOWED_USERS?: string | null;
+        FEISHU_HOME_CHANNEL?: string | null;
+        FEISHU_HOME_CHANNEL_NAME?: string | null;
+      };
+    }
+  | {
+      platform: "google_chat";
+      revision: string;
+      values: {
+        GOOGLE_CHAT_SERVICE_ACCOUNT_JSON?: string | null;
+        GOOGLE_CHAT_HTTP_EVENTS_URL?: string | null;
+        GOOGLE_CHAT_HTTP_EVENTS_AUDIENCE?: string | null;
+        GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL?: string | null;
+        GOOGLE_CHAT_PROJECT_ID?: string | null;
+        GOOGLE_CHAT_SUBSCRIPTION_NAME?: string | null;
+        GOOGLE_CHAT_ALLOWED_USERS?: string | null;
+        GOOGLE_CHAT_HOME_CHANNEL?: string | null;
+      };
+    }
+  | {
+      platform: "irc";
+      revision: string;
+      values: {
+        IRC_SERVER?: string | null;
+        IRC_CHANNEL?: string | null;
+        IRC_NICKNAME?: string | null;
+        IRC_PORT?: string | null;
+        IRC_USE_TLS?: string | null;
+        IRC_SERVER_PASSWORD?: string | null;
+        IRC_NICKSERV_PASSWORD?: string | null;
+        IRC_ALLOWED_USERS?: string | null;
+        IRC_HOME_CHANNEL?: string | null;
+      };
+    }
+  | {
+      platform: "line";
+      revision: string;
+      values: {
+        LINE_CHANNEL_ACCESS_TOKEN?: string | null;
+        LINE_CHANNEL_SECRET?: string | null;
+        LINE_PORT?: string | null;
+        LINE_HOST?: string | null;
+        LINE_PUBLIC_URL?: string | null;
+        LINE_ALLOWED_USERS?: string | null;
+        LINE_ALLOWED_GROUPS?: string | null;
+        LINE_ALLOWED_ROOMS?: string | null;
+        LINE_HOME_CHANNEL?: string | null;
+        LINE_SLOW_RESPONSE_THRESHOLD?: string | null;
+      };
+    }
+  | {
+      platform: "matrix";
+      revision: string;
+      values: {
+        MATRIX_HOMESERVER?: string | null;
+        MATRIX_ACCESS_TOKEN?: string | null;
+        MATRIX_PASSWORD?: string | null;
+        MATRIX_ALLOWED_USERS?: string | null;
+        MATRIX_HOME_CHANNEL?: string | null;
+        MATRIX_HOME_CHANNEL_NAME?: string | null;
+      };
+    }
+  | {
+      platform: "mattermost";
+      revision: string;
+      values: {
+        MATTERMOST_URL?: string | null;
+        MATTERMOST_TOKEN?: string | null;
+        MATTERMOST_ALLOWED_USERS?: string | null;
+        MATTERMOST_HOME_CHANNEL?: string | null;
+        MATTERMOST_REPLY_MODE?: string | null;
+        MATTERMOST_REQUIRE_MENTION?: string | null;
+        MATTERMOST_FREE_RESPONSE_CHANNELS?: string | null;
+        MATTERMOST_ALLOWED_CHANNELS?: string | null;
+      };
+    }
+  | {
+      platform: "ntfy";
+      revision: string;
+      values: {
+        NTFY_TOPIC?: string | null;
+        NTFY_SERVER_URL?: string | null;
+        NTFY_TOKEN?: string | null;
+        NTFY_PUBLISH_TOPIC?: string | null;
+        NTFY_MARKDOWN?: string | null;
+        NTFY_ALLOWED_USERS?: string | null;
+        NTFY_HOME_CHANNEL?: string | null;
+        NTFY_HOME_CHANNEL_NAME?: string | null;
+      };
+    }
+  | {
+      platform: "photon";
+      revision: string;
+      values: {
+        PHOTON_PROJECT_ID?: string | null;
+        PHOTON_PROJECT_SECRET?: string | null;
+        PHOTON_SIDECAR_PORT?: string | null;
+        PHOTON_SIDECAR_TOKEN?: string | null;
+        PHOTON_SIDECAR_AUTOSTART?: string | null;
+        PHOTON_NODE_BIN?: string | null;
+        PHOTON_DASHBOARD_HOST?: string | null;
+        PHOTON_SPECTRUM_HOST?: string | null;
+        PHOTON_ALLOWED_USERS?: string | null;
+        PHOTON_READ_RECEIPTS?: string | null;
+        PHOTON_REQUIRE_MENTION?: string | null;
+        PHOTON_MENTION_PATTERNS?: string | null;
+        PHOTON_HOME_CHANNEL?: string | null;
+        PHOTON_HOME_CHANNEL_NAME?: string | null;
+        PHOTON_TELEMETRY?: string | null;
+        PHOTON_MARKDOWN?: string | null;
+        PHOTON_REACTIONS?: string | null;
+      };
+    }
+  | {
+      platform: "qqbot";
+      revision: string;
+      values: {
+        QQ_APP_ID?: string | null;
+        QQ_CLIENT_SECRET?: string | null;
+      };
+    }
+  | {
+      platform: "signal";
+      revision: string;
+      values: {
+        SIGNAL_HTTP_URL?: string | null;
+        SIGNAL_ACCOUNT?: string | null;
+      };
+    }
+  | {
+      platform: "simplex";
+      revision: string;
+      values: {
+        SIMPLEX_WS_URL?: string | null;
+        SIMPLEX_ALLOWED_USERS?: string | null;
+        SIMPLEX_AUTO_ACCEPT?: string | null;
+        SIMPLEX_GROUP_ALLOWED?: string | null;
+        SIMPLEX_HOME_CHANNEL?: string | null;
+        SIMPLEX_HOME_CHANNEL_NAME?: string | null;
+      };
+    }
+  | {
+      platform: "slack";
+      revision: string;
+      values: {
+        SLACK_BOT_TOKEN?: string | null;
+        SLACK_APP_TOKEN?: string | null;
+        SLACK_ALLOWED_USERS?: string | null;
+        SLACK_HOME_CHANNEL?: string | null;
+        SLACK_HOME_CHANNEL_NAME?: string | null;
+        SLACK_THREAD_REQUIRE_MENTION?: string | null;
+      };
+    }
+  | {
+      platform: "sms";
+      revision: string;
+      values: {
+        TWILIO_ACCOUNT_SID?: string | null;
+        TWILIO_AUTH_TOKEN?: string | null;
+        TWILIO_PHONE_NUMBER?: string | null;
+        SMS_ALLOWED_USERS?: string | null;
+        SMS_HOME_CHANNEL?: string | null;
+      };
+    }
+  | {
+      platform: "teams";
+      revision: string;
+      values: {
+        TEAMS_CLIENT_ID?: string | null;
+        TEAMS_CLIENT_SECRET?: string | null;
+        TEAMS_TENANT_ID?: string | null;
+        TEAMS_PORT?: string | null;
+        TEAMS_HOST?: string | null;
+        TEAMS_ALLOWED_USERS?: string | null;
+        TEAMS_REQUIRE_MENTION?: string | null;
+        TEAMS_HOME_CHANNEL?: string | null;
+        TEAMS_HOME_CHANNEL_NAME?: string | null;
+        TEAMS_INCOMING_WEBHOOK_URL?: string | null;
+        TEAMS_GRAPH_ACCESS_TOKEN?: string | null;
+      };
+    }
+  | {
+      platform: "wecom";
+      revision: string;
+      values: {
+        WECOM_BOT_ID?: string | null;
+        WECOM_SECRET?: string | null;
+        WECOM_WEBSOCKET_URL?: string | null;
+        WECOM_HOME_CHANNEL?: string | null;
+        WECOM_ALLOWED_USERS?: string | null;
+        WECOM_CALLBACK_CORP_ID?: string | null;
+        WECOM_CALLBACK_CORP_SECRET?: string | null;
+        WECOM_CALLBACK_AGENT_ID?: string | null;
+        WECOM_CALLBACK_TOKEN?: string | null;
+        WECOM_CALLBACK_ENCODING_AES_KEY?: string | null;
+      };
+    }
+  | {
+      platform: "weixin";
+      revision: string;
+      values: {
+        WEIXIN_TOKEN?: string | null;
+        WEIXIN_ACCOUNT_ID?: string | null;
+      };
+    }
+  | {
+      platform: "whatsapp_cloud";
+      revision: string;
+      values: {
+        WHATSAPP_CLOUD_PHONE_NUMBER_ID?: string | null;
+        WHATSAPP_CLOUD_ACCESS_TOKEN?: string | null;
+      };
+    }
+  | {
+      platform: "yuanbao";
+      revision: string;
+      values: {
+        YUANBAO_APP_ID?: string | null;
+        YUANBAO_APP_SECRET?: string | null;
+      };
+    };
 /**
  * P0 critical, P1 urgent, P2 important, P3 normal, P4 informational.
  */
@@ -484,6 +748,8 @@ export interface FridayModelMap {
   MessengerConfirmRequest: MessengerConfirmRequest;
   MessengerDraft: MessengerDraft;
   MessengerPreviewResponse: MessengerPreviewResponse;
+  MessengerProviderResponse: MessengerProviderResponse;
+  MessengerProviderUpdate: MessengerProviderUpdate;
   MessengerReceipt: MessengerReceipt;
   MessengerReceiptResponse: MessengerReceiptResponse;
   MessengerReceiptsResponse: MessengerReceiptsResponse;
@@ -3704,6 +3970,16 @@ export interface MessengerPreviewResponse {
     fingerprint: string;
     draft: MessengerDraft;
     idempotencyKey?: string;
+  };
+  freshness: Freshness;
+}
+export interface MessengerProviderResponse {
+  contractVersion: ContractVersion;
+  data: {
+    state: "available" | "saved" | "partial" | "uncertain";
+    platform: string;
+    revision: string;
+    gatewayRestarted?: boolean;
   };
   freshness: Freshness;
 }

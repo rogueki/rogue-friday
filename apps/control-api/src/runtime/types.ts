@@ -33,6 +33,7 @@ import type { MailSendService } from "../services/mail-send";
 import type { MessengerSendService } from "../services/messenger-send";
 import type { NotificationStore } from "../services/notification-store";
 import type { MessengerCatalogService } from "../services/messenger-catalog";
+import type { MessengerProviderService } from "../services/messenger-provider";
 import type { CalDavCreateService } from "../services/caldav-create";
 import type { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import type { HermesConfigService } from "../services/hermes-config";
@@ -106,6 +107,7 @@ export interface Runtime {
   messengerSend: MessengerSendService;
   notifications: NotificationStore;
   messengerCatalog: MessengerCatalogService;
+  messengerProvider: MessengerProviderService;
   caldavCreate: CalDavCreateService;
   hermesSkillKeys: HermesSkillKeysService;
   hermesConfig: HermesConfigService;

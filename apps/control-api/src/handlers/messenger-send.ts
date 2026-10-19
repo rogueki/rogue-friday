@@ -11,6 +11,18 @@ export const messengerSendHandlers: Partial<Record<OperationId, Handler>> = {
     return { status: 200, body: single(await ctx.runtime.messengerCatalog.list()),
       headers: { "Cache-Control": "no-store" } };
   },
+  async getMessengerProvider(ctx) {
+    return { status: 200, body: single(await ctx.runtime.messengerProvider.status(ctx.pathParams.platform!)),
+      headers: { "Cache-Control": "no-store" } };
+  },
+  async updateMessengerProvider(ctx) {
+    const input = ctx.body as { platform: string; revision: string; values: Record<string, string | null> };
+    if (input.platform !== ctx.pathParams.platform) throw validationFailed("Provider-Pfad und Inhalt stimmen nicht überein.");
+    const result = await ctx.runtime.messengerProvider.update(input.platform, input);
+    ctx.audit.action = "messenger.provider.update";
+    ctx.audit.after = { platform: input.platform, state: result.state, fieldNames: Object.keys(input.values) };
+    return { status: 200, body: single(result), headers: { "Cache-Control": "no-store" } };
+  },
   async listMessengerTargets(ctx) {
     return { status: 200, body: single({ items: ctx.runtime.messengerSend.targets(ctx.principal!.userId) }) };
   },

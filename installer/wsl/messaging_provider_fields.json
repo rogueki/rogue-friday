@@ -1,0 +1,592 @@
+{
+  "bluebubbles": {
+    "BLUEBUBBLES_SERVER_URL": {
+      "secret": false,
+      "required": true
+    },
+    "BLUEBUBBLES_PASSWORD": {
+      "secret": true,
+      "required": true
+    }
+  },
+  "buzz": {
+    "BUZZ_RELAY_URL": {
+      "secret": false,
+      "required": true
+    },
+    "BUZZ_PRIVATE_KEY": {
+      "secret": true,
+      "required": true
+    },
+    "BUZZ_TRANSPORT": {
+      "secret": false,
+      "required": false
+    },
+    "BUZZ_AUTH_TAG": {
+      "secret": false,
+      "required": false
+    },
+    "BUZZ_CHANNELS": {
+      "secret": false,
+      "required": false
+    },
+    "BUZZ_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    },
+    "BUZZ_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "BUZZ_POLL_INTERVAL": {
+      "secret": false,
+      "required": false
+    },
+    "BUZZ_REPLY_IN_THREAD": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "dingtalk": {
+    "DINGTALK_CLIENT_ID": {
+      "secret": false,
+      "required": true
+    },
+    "DINGTALK_CLIENT_SECRET": {
+      "secret": true,
+      "required": true
+    },
+    "DINGTALK_WEBHOOK_URL": {
+      "secret": false,
+      "required": false
+    },
+    "DINGTALK_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "DINGTALK_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    },
+    "DINGTALK_HOME_CHANNEL_NAME": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "feishu": {
+    "FEISHU_APP_ID": {
+      "secret": false,
+      "required": true
+    },
+    "FEISHU_APP_SECRET": {
+      "secret": true,
+      "required": true
+    },
+    "FEISHU_DOMAIN": {
+      "secret": false,
+      "required": false
+    },
+    "FEISHU_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "FEISHU_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    },
+    "FEISHU_HOME_CHANNEL_NAME": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "google_chat": {
+    "GOOGLE_CHAT_SERVICE_ACCOUNT_JSON": {
+      "secret": true,
+      "required": true
+    },
+    "GOOGLE_CHAT_HTTP_EVENTS_URL": {
+      "secret": false,
+      "required": false
+    },
+    "GOOGLE_CHAT_HTTP_EVENTS_AUDIENCE": {
+      "secret": false,
+      "required": false
+    },
+    "GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL": {
+      "secret": false,
+      "required": false
+    },
+    "GOOGLE_CHAT_PROJECT_ID": {
+      "secret": false,
+      "required": false
+    },
+    "GOOGLE_CHAT_SUBSCRIPTION_NAME": {
+      "secret": false,
+      "required": false
+    },
+    "GOOGLE_CHAT_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "GOOGLE_CHAT_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "irc": {
+    "IRC_SERVER": {
+      "secret": false,
+      "required": true
+    },
+    "IRC_CHANNEL": {
+      "secret": false,
+      "required": true
+    },
+    "IRC_NICKNAME": {
+      "secret": false,
+      "required": true
+    },
+    "IRC_PORT": {
+      "secret": false,
+      "required": false
+    },
+    "IRC_USE_TLS": {
+      "secret": false,
+      "required": false
+    },
+    "IRC_SERVER_PASSWORD": {
+      "secret": true,
+      "required": false
+    },
+    "IRC_NICKSERV_PASSWORD": {
+      "secret": true,
+      "required": false
+    },
+    "IRC_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "IRC_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "line": {
+    "LINE_CHANNEL_ACCESS_TOKEN": {
+      "secret": true,
+      "required": true
+    },
+    "LINE_CHANNEL_SECRET": {
+      "secret": true,
+      "required": true
+    },
+    "LINE_PORT": {
+      "secret": false,
+      "required": false
+    },
+    "LINE_HOST": {
+      "secret": false,
+      "required": false
+    },
+    "LINE_PUBLIC_URL": {
+      "secret": false,
+      "required": false
+    },
+    "LINE_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "LINE_ALLOWED_GROUPS": {
+      "secret": false,
+      "required": false
+    },
+    "LINE_ALLOWED_ROOMS": {
+      "secret": false,
+      "required": false
+    },
+    "LINE_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    },
+    "LINE_SLOW_RESPONSE_THRESHOLD": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "matrix": {
+    "MATRIX_HOMESERVER": {
+      "secret": false,
+      "required": true
+    },
+    "MATRIX_ACCESS_TOKEN": {
+      "secret": true,
+      "required": true
+    },
+    "MATRIX_PASSWORD": {
+      "secret": true,
+      "required": false
+    },
+    "MATRIX_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "MATRIX_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    },
+    "MATRIX_HOME_CHANNEL_NAME": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "mattermost": {
+    "MATTERMOST_URL": {
+      "secret": false,
+      "required": true
+    },
+    "MATTERMOST_TOKEN": {
+      "secret": true,
+      "required": true
+    },
+    "MATTERMOST_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "MATTERMOST_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    },
+    "MATTERMOST_REPLY_MODE": {
+      "secret": false,
+      "required": false
+    },
+    "MATTERMOST_REQUIRE_MENTION": {
+      "secret": false,
+      "required": false
+    },
+    "MATTERMOST_FREE_RESPONSE_CHANNELS": {
+      "secret": false,
+      "required": false
+    },
+    "MATTERMOST_ALLOWED_CHANNELS": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "ntfy": {
+    "NTFY_TOPIC": {
+      "secret": false,
+      "required": true
+    },
+    "NTFY_SERVER_URL": {
+      "secret": false,
+      "required": false
+    },
+    "NTFY_TOKEN": {
+      "secret": true,
+      "required": false
+    },
+    "NTFY_PUBLISH_TOPIC": {
+      "secret": false,
+      "required": false
+    },
+    "NTFY_MARKDOWN": {
+      "secret": false,
+      "required": false
+    },
+    "NTFY_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "NTFY_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    },
+    "NTFY_HOME_CHANNEL_NAME": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "photon": {
+    "PHOTON_PROJECT_ID": {
+      "secret": false,
+      "required": true
+    },
+    "PHOTON_PROJECT_SECRET": {
+      "secret": true,
+      "required": true
+    },
+    "PHOTON_SIDECAR_PORT": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_SIDECAR_TOKEN": {
+      "secret": true,
+      "required": false
+    },
+    "PHOTON_SIDECAR_AUTOSTART": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_NODE_BIN": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_DASHBOARD_HOST": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_SPECTRUM_HOST": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_READ_RECEIPTS": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_REQUIRE_MENTION": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_MENTION_PATTERNS": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_HOME_CHANNEL_NAME": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_TELEMETRY": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_MARKDOWN": {
+      "secret": false,
+      "required": false
+    },
+    "PHOTON_REACTIONS": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "qqbot": {
+    "QQ_APP_ID": {
+      "secret": false,
+      "required": true
+    },
+    "QQ_CLIENT_SECRET": {
+      "secret": true,
+      "required": true
+    }
+  },
+  "signal": {
+    "SIGNAL_HTTP_URL": {
+      "secret": false,
+      "required": true
+    },
+    "SIGNAL_ACCOUNT": {
+      "secret": false,
+      "required": true
+    }
+  },
+  "simplex": {
+    "SIMPLEX_WS_URL": {
+      "secret": false,
+      "required": true
+    },
+    "SIMPLEX_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "SIMPLEX_AUTO_ACCEPT": {
+      "secret": false,
+      "required": false
+    },
+    "SIMPLEX_GROUP_ALLOWED": {
+      "secret": false,
+      "required": false
+    },
+    "SIMPLEX_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    },
+    "SIMPLEX_HOME_CHANNEL_NAME": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "slack": {
+    "SLACK_BOT_TOKEN": {
+      "secret": true,
+      "required": true
+    },
+    "SLACK_APP_TOKEN": {
+      "secret": true,
+      "required": true
+    },
+    "SLACK_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "SLACK_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    },
+    "SLACK_HOME_CHANNEL_NAME": {
+      "secret": false,
+      "required": false
+    },
+    "SLACK_THREAD_REQUIRE_MENTION": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "sms": {
+    "TWILIO_ACCOUNT_SID": {
+      "secret": false,
+      "required": true
+    },
+    "TWILIO_AUTH_TOKEN": {
+      "secret": true,
+      "required": true
+    },
+    "TWILIO_PHONE_NUMBER": {
+      "secret": false,
+      "required": true
+    },
+    "SMS_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "SMS_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    }
+  },
+  "teams": {
+    "TEAMS_CLIENT_ID": {
+      "secret": false,
+      "required": true
+    },
+    "TEAMS_CLIENT_SECRET": {
+      "secret": true,
+      "required": true
+    },
+    "TEAMS_TENANT_ID": {
+      "secret": false,
+      "required": true
+    },
+    "TEAMS_PORT": {
+      "secret": false,
+      "required": false
+    },
+    "TEAMS_HOST": {
+      "secret": false,
+      "required": false
+    },
+    "TEAMS_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "TEAMS_REQUIRE_MENTION": {
+      "secret": false,
+      "required": false
+    },
+    "TEAMS_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    },
+    "TEAMS_HOME_CHANNEL_NAME": {
+      "secret": false,
+      "required": false
+    },
+    "TEAMS_INCOMING_WEBHOOK_URL": {
+      "secret": true,
+      "required": false
+    },
+    "TEAMS_GRAPH_ACCESS_TOKEN": {
+      "secret": true,
+      "required": false
+    }
+  },
+  "wecom": {
+    "WECOM_BOT_ID": {
+      "secret": false,
+      "required": true
+    },
+    "WECOM_SECRET": {
+      "secret": true,
+      "required": true
+    },
+    "WECOM_WEBSOCKET_URL": {
+      "secret": false,
+      "required": false
+    },
+    "WECOM_HOME_CHANNEL": {
+      "secret": false,
+      "required": false
+    },
+    "WECOM_ALLOWED_USERS": {
+      "secret": false,
+      "required": false
+    },
+    "WECOM_CALLBACK_CORP_ID": {
+      "secret": false,
+      "required": false
+    },
+    "WECOM_CALLBACK_CORP_SECRET": {
+      "secret": true,
+      "required": false
+    },
+    "WECOM_CALLBACK_AGENT_ID": {
+      "secret": false,
+      "required": false
+    },
+    "WECOM_CALLBACK_TOKEN": {
+      "secret": true,
+      "required": false
+    },
+    "WECOM_CALLBACK_ENCODING_AES_KEY": {
+      "secret": true,
+      "required": false
+    }
+  },
+  "weixin": {
+    "WEIXIN_TOKEN": {
+      "secret": true,
+      "required": true
+    },
+    "WEIXIN_ACCOUNT_ID": {
+      "secret": false,
+      "required": true
+    }
+  },
+  "whatsapp_cloud": {
+    "WHATSAPP_CLOUD_PHONE_NUMBER_ID": {
+      "secret": false,
+      "required": true
+    },
+    "WHATSAPP_CLOUD_ACCESS_TOKEN": {
+      "secret": true,
+      "required": true
+    }
+  },
+  "yuanbao": {
+    "YUANBAO_APP_ID": {
+      "secret": false,
+      "required": true
+    },
+    "YUANBAO_APP_SECRET": {
+      "secret": true,
+      "required": true
+    }
+  }
+}

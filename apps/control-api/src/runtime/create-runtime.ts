@@ -46,6 +46,7 @@ import { MailAccountsService } from "../services/mail-accounts";
 import { MailSendService } from "../services/mail-send";
 import { MessengerSendService } from "../services/messenger-send";
 import { MessengerCatalogService } from "../services/messenger-catalog";
+import { MessengerProviderService } from "../services/messenger-provider";
 import { CalDavCreateService } from "../services/caldav-create";
 import { LocalCalendarService } from "../services/local-calendar";
 import { CalendarAccountsService } from "../services/calendar-accounts";
@@ -273,6 +274,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const mailSend = new MailSendService(db, mailAccounts);
   const messengerSend = new MessengerSendService(db, config.paths.dataDir, approvalTokens);
   const messengerCatalog = new MessengerCatalogService(config.paths.dataDir);
+  const messengerProvider = new MessengerProviderService(config.paths.dataDir, messengerCatalog);
   const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
   const hermesConfig = new HermesConfigService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
@@ -515,6 +517,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     messengerSend,
     notifications,
     messengerCatalog,
+    messengerProvider,
     caldavCreate,
     hermesSkillKeys,
     hermesConfig,

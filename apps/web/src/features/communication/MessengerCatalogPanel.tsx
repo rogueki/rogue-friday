@@ -1,10 +1,69 @@
 "use client";
 
-import type { MessengerCatalogResponse } from "@friday/sdk";
-import { useQuery } from "@tanstack/react-query";
+import type { MessengerCatalogResponse, MessengerProviderResponse, MessengerProviderUpdate } from "@friday/sdk";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
 import { useSession } from "@/lib/session";
+
+const managed = new Set(["bluebubbles", "buzz", "dingtalk", "feishu", "google_chat", "irc", "line", "matrix",
+  "mattermost", "ntfy", "photon", "qqbot", "signal", "simplex", "slack", "sms", "teams", "wecom", "weixin",
+  "whatsapp_cloud", "yuanbao"]);
+const omitted = new Set(["BUZZ_CLI_PATH", "BUZZ_CREDENTIALS_FILE", "HERMES_SIMPLEX_TEXT_BATCH_DELAY"]);
+
+function ProviderFields({ item }: { item: MessengerCatalogResponse["data"]["items"][number] }) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [clear, setClear] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState("");
+  const status = useQuery({ queryKey: ["messenger", "provider", item.platform], enabled: open, retry: false,
+    queryFn: (): Promise<MessengerProviderResponse> => call(getApiClient().GET("/api/v1/messenger/providers/{platform}",
+      { params: { path: { platform: item.platform } } })) });
+  const editable = item.fields.filter((field) => !omitted.has(field.name) && !field.name.endsWith("_ALLOW_ALL_USERS"));
+  async function save() {
+    if (!status.data) return;
+    const patch: Record<string, string | null> = {};
+    for (const field of editable) {
+      if (clear[field.name]) patch[field.name] = null;
+      else if (values[field.name]) patch[field.name] = values[field.name]!;
+    }
+    if (!Object.keys(patch).length) { setResult("Bitte mindestens ein Feld ändern."); return; }
+    if (Object.keys(patch).length > 10) { setResult("Bitte höchstens zehn Felder je Speichervorgang ändern."); return; }
+    setBusy(true);
+    setResult("");
+    try {
+      const body = { platform: item.platform, revision: status.data.data.revision, values: patch } as MessengerProviderUpdate;
+      const saved: MessengerProviderResponse = await call(getApiClient().PUT("/api/v1/messenger/providers/{platform}",
+        { params: { path: { platform: item.platform } }, body }));
+      setValues({}); setClear({});
+      await status.refetch();
+      await queryClient.invalidateQueries({ queryKey: ["messenger", "catalog"] });
+      setResult(saved.data.state === "saved" ? "Werte gespeichert. Gateway-Neustart und Verbindung sind noch nicht bestätigt."
+        : saved.data.state === "partial" ? "Ein Teil der Werte wurde gespeichert. Bitte Status neu prüfen und gezielt korrigieren."
+          : "Speicherergebnis ungewiss. Bitte Status prüfen und nicht blind erneut speichern.");
+    } catch (error) { setResult(error instanceof Error ? error.message : "Provider-Konfiguration nicht erreichbar."); }
+    finally { setBusy(false); }
+  }
+  return <details onToggle={(event) => setOpen(event.currentTarget.open)}><summary>Provider-Felder einrichten</summary>
+    {status.isPending ? <p role="status">Konfigurationsrevision wird gelesen.</p> : null}
+    {status.isError ? <p role="alert">Provider-Konfiguration nicht erreichbar. <button type="button" onClick={() => void status.refetch()}>Erneut prüfen</button></p> : null}
+    {status.data ? <>
+      <p>Änderungen werden in Hermes gespeichert. Der Gateway-Dienst wird dadurch nicht gestartet oder neu verbunden.</p>
+      {editable.map((field) => <div key={field.name}>
+        <label>{field.name} <input type={field.secret ? "password" : "text"} autoComplete="off" disabled={busy || !!clear[field.name]}
+          value={values[field.name] ?? ""} onChange={(event) => setValues({ ...values, [field.name]: event.target.value })}
+          placeholder={field.present ? "Vorhandenen Wert ersetzen" : "Wert eingeben"} /></label>
+        <label><input type="checkbox" checked={!!clear[field.name]} disabled={busy}
+          onChange={(event) => setClear({ ...clear, [field.name]: event.target.checked })} /> Wert entfernen</label>
+      </div>)}
+      <button type="button" disabled={busy} onClick={() => void save()}>Provider-Felder speichern</button>
+    </> : null}
+    {result ? <p role="status">{result}</p> : null}
+  </details>;
+}
 
 export function MessengerCatalogPanel() {
   const { role } = useSession();
@@ -26,6 +85,7 @@ export function MessengerCatalogPanel() {
           {item.fields.map((field) => <li key={field.name}>{field.name}: {field.present ? "vorhanden" : "fehlt"}
             {field.required ? " (erforderlich)" : " (optional)"}{field.secret ? ", geheimer Wert wird nicht angezeigt" : ""}</li>)}
         </ul></details> : null}
+        {managed.has(item.platform) ? <ProviderFields item={item} /> : null}
       </li>)}
     </ul></details> : null}
   </section>;
