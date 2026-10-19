@@ -1,0 +1,35 @@
+name: Orb fixed-quality visibility diagnostic
+
+on:
+  push:
+    branches: [fix/orb-visibility-quality-20261019]
+
+permissions:
+  contents: read
+
+jobs:
+  visibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:app
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: High-load context followed by fixed-quality visibility lifecycle
+        run: pnpm test:e2e tests/e2e/performance.spec.ts --grep 'high load|orb render loop' --workers=1
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: orb-fixed-quality-diagnostic
+          path: |
+            playwright-report
+            test-results
+          retention-days: 3
