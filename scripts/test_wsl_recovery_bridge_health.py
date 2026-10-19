@@ -66,7 +66,8 @@ class BridgeHealthTests(unittest.TestCase):
         config.chmod(0o600)
         marker = self.hermes / "friday-messenger-bridge-applied.sha256"
         marker.write_text(hashlib.sha256((self.hermes / "friday-messenger-bridge.key").read_bytes() +
-                                         (self.hermes / "friday-messenger-bridge.json").read_bytes()).hexdigest())
+                                         (self.hermes / "friday-messenger-bridge.json").read_bytes() +
+                                         plugin.read_bytes()).hexdigest())
         marker.chmod(0o600)
 
     def test_recovered_keys_and_scoped_read(self):
@@ -90,6 +91,20 @@ class BridgeHealthTests(unittest.TestCase):
         (self.hermes / "friday-calendar-bridge.key").chmod(0o600)
         (self.hermes / "friday-messenger-bridge-applied.sha256").write_text("0" * 64)
         with self.assertRaisesRegex(ValueError, "not been applied"):
+            bridge_health.check(self.request, self.home)
+
+    def test_plugin_change_requires_gateway_reapply(self):
+        plugin = self.hermes / "plugins/friday-memory/__init__.py"
+        plugin.write_text(plugin.read_text() + "# updated admission hook\n")
+        with patch.object(bridge_health, "urlopen") as call:
+            with self.assertRaisesRegex(ValueError, "not been applied"):
+                bridge_health.check(self.request, self.home)
+        call.assert_not_called()
+
+    def test_plugin_must_retain_private_installer_mode(self):
+        plugin = self.hermes / "plugins/friday-memory/__init__.py"
+        plugin.chmod(0o644)
+        with self.assertRaisesRegex(ValueError, "accessible to other users"):
             bridge_health.check(self.request, self.home)
 
     def test_stale_policy_database_and_disabled_plugin_fail_before_http(self):
@@ -142,7 +157,8 @@ class BridgeHealthTests(unittest.TestCase):
                 config_path.write_text(json.dumps(config))
             marker = self.hermes / "friday-messenger-bridge-applied.sha256"
             marker.write_text(hashlib.sha256((self.hermes / "friday-messenger-bridge.key").read_bytes() +
-                                             (self.hermes / "friday-messenger-bridge.json").read_bytes()).hexdigest())
+                                             (self.hermes / "friday-messenger-bridge.json").read_bytes() +
+                                             (self.hermes / "plugins/friday-memory/__init__.py").read_bytes()).hexdigest())
             env = {**os.environ, "HOME": str(self.home)}
             result = subprocess.run([sys.executable, str(Path(bridge_health.__file__))], input=json.dumps(self.request),
                                     text=True, capture_output=True, env=env, timeout=8, check=True)

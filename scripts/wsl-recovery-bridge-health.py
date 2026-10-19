@@ -67,8 +67,11 @@ def check(request: dict, home: Path) -> dict:
     if "_pre" not in contents or "_messenger_admitted" not in contents:
         raise ValueError("Hermes memory and messenger admission hooks are unavailable")
     marker = ordinary_private(hermes / "friday-messenger-bridge-applied.sha256").decode("ascii").strip()
+    # Must match configure_messenger_inbound_bridge.ensure_applied: plugin updates
+    # require a gateway restart even when key and configuration stay unchanged.
     applied = hashlib.sha256((hermes / "friday-messenger-bridge.key").read_bytes() +
-                             (hermes / "friday-messenger-bridge.json").read_bytes()).hexdigest()
+                             (hermes / "friday-messenger-bridge.json").read_bytes() +
+                             plugin.read_bytes()).hexdigest()
     if marker != applied:
         raise ValueError("messenger bridge has not been applied to the gateway")
 
