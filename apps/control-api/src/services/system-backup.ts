@@ -186,6 +186,8 @@ export class SystemBackupService {
       [join(this.installRoot, "config", "voice.json"), "config/voice.json"],
       [join(this.installRoot, "config", "persona.json"), "config/persona.json"],
       [join(this.installRoot, "config", "install-state.json"), "config/install-state.json"],
+      [join(this.installRoot, "config", "hermes_api.key"), "keys/hermes_api.key"],
+      [join(this.installRoot, "config", "elevenlabs_api.key.dpapi"), "keys/elevenlabs_api.key.dpapi"],
       [join(this.installRoot, "config", "dashboard_owner.hash"), "config/dashboard_owner.hash"],
       [join(this.installRoot, "dashboard", "config", "dashboard.yaml"), "config/dashboard.yaml"],
       [join(this.installRoot, "dashboard", "config", "adapters.yaml"), "config/adapters.yaml"],
@@ -205,6 +207,21 @@ export class SystemBackupService {
         }
       };
       walk(references);
+    }
+    const enrollment = join(this.installRoot, "voice", "profiles", "owner");
+    if (existsSync(enrollment)) {
+      if (lstatSync(enrollment).isSymbolicLink() || !lstatSync(enrollment).isDirectory())
+        throw new Error("Voice enrollment directory is unsafe");
+      const walk = (folder: string): void => {
+        for (const item of readdirSync(folder, { withFileTypes: true })) {
+          const path = join(folder, item.name);
+          if (item.isSymbolicLink()) throw new Error("Voice enrollment contains a link");
+          if (item.isDirectory()) walk(path);
+          else if (item.isFile()) names.push([path, `voice/profiles/owner/${relative(enrollment, path).replaceAll("\\", "/")}`]);
+          else throw new Error("Voice enrollment contains a non-file entry");
+        }
+      };
+      walk(enrollment);
     }
     const archives = join(this.dataDir, "audit-archive");
     if (existsSync(archives)) {

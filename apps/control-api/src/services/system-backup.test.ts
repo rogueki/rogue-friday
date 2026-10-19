@@ -136,6 +136,24 @@ it("includes selected custom voice references and refuses a missing configured r
   f.db.close();
 });
 
+it("captures recovery credentials and private owner enrollment data", async () => {
+  const f = fixture();
+  mkdirSync(join(f.root, "config"));
+  writeFileSync(join(f.root, "config", "hermes_api.key"), "synthetic-hermes-key");
+  writeFileSync(join(f.root, "config", "elevenlabs_api.key.dpapi"), "synthetic-bound-blob");
+  const raw = join(f.root, "voice", "profiles", "owner", "raw");
+  mkdirSync(raw, { recursive: true });
+  writeFileSync(join(raw, "sample.wav"), "synthetic-biometric-sample");
+  const created = await f.service.create(f.destination, 2);
+  expect(readFileSync(join(created.path, "keys", "hermes_api.key"), "utf8")).toBe("synthetic-hermes-key");
+  expect(readFileSync(join(created.path, "keys", "elevenlabs_api.key.dpapi"), "utf8")).toBe("synthetic-bound-blob");
+  expect(readFileSync(join(created.path, "voice", "profiles", "owner", "raw", "sample.wav"), "utf8"))
+    .toBe("synthetic-biometric-sample");
+  expect(f.service.verify(created.path).fileCount).toBe(created.fileCount);
+  f.memory.close();
+  f.db.close();
+});
+
 it("includes archived audit segments and verifies their anchored chain", async () => {
   const f = fixture();
   const archive = new AuditArchive(f.db, join(f.data, "audit-archive"));
