@@ -27,24 +27,31 @@ test("create a task, move it to another status and cancel it after a confirmatio
   const created = (await api.get(`/tasks?q=${encodeURIComponent(TITLE)}`)).body.items.find((task: { title: string }) => task.title === TITLE);
   expect(created, "task exists on the server").toMatchObject({ status: "todo", priority: "P1" });
 
-  // move: Todo -> Bereit
+  // move: Todo -> Bereit is a staged write: the server preview is confirmed before anything changes
   await card.getByRole("combobox", { name: new RegExp(`^Status ändern: ${TITLE}`) }).selectOption({ label: "Bereit" });
+  const movePreview = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+  await expect(movePreview).toBeVisible();
+  await expect(movePreview).toContainText(TITLE);
+  await movePreview.getByRole("button", { name: "Bestätigen" }).click();
+  await expect(movePreview).toBeHidden();
   await expect(page.getByRole("article", { name: new RegExp(`^${TITLE}`) })).toHaveAttribute("aria-label", `${TITLE}, Bereit, P1`);
   await expect.poll(async () => (await api.get(`/tasks/${created.id}`)).body.data.status).toBe("ready");
 
-  // cancel: the drawer asks first; "Abbrechen" in the confirmation dialog backs out without effect
+  // cancel: the drawer button stages the write; dismissing the server preview leaves the task untouched
   await page.getByRole("button", { name: TITLE, exact: true }).click();
   const drawer = page.getByRole("dialog", { name: "Aufgabe" });
   await expect(drawer.getByRole("heading", { name: TITLE })).toBeVisible();
   await drawer.getByRole("button", { name: "Abbrechen", exact: true }).click();
-  const confirm = page.getByRole("alertdialog", { name: "Aufgabe abbrechen?" });
-  await expect(confirm).toBeVisible();
-  await confirm.getByRole("button", { name: "Weiterlaufen lassen" }).click();
-  await expect(confirm).toBeHidden();
+  const cancelPreview = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+  await expect(cancelPreview).toBeVisible();
+  await cancelPreview.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(cancelPreview).toBeHidden();
   expect((await api.get(`/tasks/${created.id}`)).body.data.status).toBe("ready");
 
   await drawer.getByRole("button", { name: "Abbrechen", exact: true }).click();
-  await page.getByRole("alertdialog", { name: "Aufgabe abbrechen?" }).getByRole("button", { name: "Aufgabe abbrechen" }).click();
+  const cancelConfirm = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+  await expect(cancelConfirm).toBeVisible();
+  await cancelConfirm.getByRole("button", { name: "Bestätigen" }).click();
   await expect.poll(async () => (await api.get(`/tasks/${created.id}`)).body.data.status).toBe("cancelled");
   await expect(drawer.getByText("Abgebrochen").first()).toBeVisible();
 });

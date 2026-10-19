@@ -1,13 +1,23 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createId } from "@friday/observability";
-import type { Approval, SchemaValidator, TaskCreateRequest } from "@friday/sdk";
+import type { Approval, SchemaValidator, TaskActionRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
 import type { Db } from "../db/database";
 import type { SettingsService } from "./settings";
 import { conflict, validationFailed } from "../util/errors";
 import type { Actor } from "@friday/sdk";
 
 /** Persisted command payload. Add a kind only with a matching, idempotent dispatch branch and regression tests. */
-export type NativeExecutableAction = { kind: "task.create"; body: TaskCreateRequest };
+export type NativeExecutableAction =
+  | { kind: "task.create"; body: TaskCreateRequest }
+  | { kind: "task.update"; id: string; body: TaskUpdateRequest }
+  | { kind: "task.cancel"; id: string; body?: TaskActionRequest };
+
+/** Receipt sentence per action kind; the create wording is asserted by existing API fixtures. */
+export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], string>> = {
+  "task.create": "angelegt",
+  "task.update": "aktualisiert",
+  "task.cancel": "abgebrochen",
+};
 
 /** The action executor supplies a reviewed preview and a stable key before any external side effect. */
 export interface NativeApprovalProposal {
@@ -206,10 +216,11 @@ export class NativeApprovalRequests {
     if (reserved.changes !== 1) throw conflict("Freigabe wird bereits verarbeitet.");
     try {
       const action = JSON.parse(row.action_json) as NativeExecutableAction;
-      if (action.kind !== "task.create") throw conflict("Aktion ist nicht ausfuehrbar.");
+      const doneVerb = ACTION_DONE_VERB[action.kind];
+      if (!doneVerb) throw conflict("Aktion ist nicht ausfuehrbar.");
       const taskId = await dispatch(action, `native-approval:${approvalId}`);
       const completed: Approval = { ...approved, status: "executed", version: approved.version + 1,
-        updatedAt: new Date(this.now()).toISOString(), executionResult: `Aufgabe ${taskId} angelegt.` };
+        updatedAt: new Date(this.now()).toISOString(), executionResult: `Aufgabe ${taskId} ${doneVerb}.` };
       const written = this.db.prepare("UPDATE native_approval_requests SET state = 'completed', result_json = ?, receipt_json = ?, updated_at = ? WHERE owner_id = ? AND request_key = ? AND state = 'dispatching' AND dispatch_token = ?")
         .run(JSON.stringify({ ...result, approval: completed }), JSON.stringify({ taskId }), this.now(), ownerId, row.request_key, dispatchToken);
       if (written.changes !== 1) throw conflict("Der Ausfuehrungsbeleg konnte nicht gesichert werden.");

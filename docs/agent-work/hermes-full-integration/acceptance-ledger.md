@@ -1,4 +1,4 @@
-﻿# Acceptance ledger — Friday / Hermes full integration
+# Acceptance ledger — Friday / Hermes full integration
 
 Source: `implementation-spec.md`, sections 3–17. Original requirements baseline: `841f0771f52c81b78ea57fd4012161c11c4efbf3`; this evidence refresh is made against `30a5da196df983091f468a1b08db13f4b68b1f8f` and cites later scoped commits explicitly. The status in the acceptance table means the full stated minimum evidence is complete. A local implementation or synthetic fixture can be `PASS_LOCAL` while the acceptance row remains `NOT_RUN` because live/provider/hardware or cross-package evidence is outstanding. `BLOCKED_EXTERNAL` and `BLOCKED_HARDWARE` are reserved for a demonstrated unavailable prerequisite, not an assumed absence. No aggregate completion is implied.
 
@@ -20,10 +20,11 @@ These references record scoped implementation checks from the cited commits/work
 | P8-5 developer controls | **PASS_LOCAL_FIXTURES**: `253793a` two focused API tests and API typecheck; `5c4cff7c4b9cef25b1d33cae705350e0b857a130` logging suites, 22 tests, ESLint, diff check. | DOD-15 remains **NOT_RUN** pending final integrated CI. Installed runtime behavior and Orb overlay end-to-end proof remain open. |
 | Orb background/resume CI diagnosis | **PASS_FOCUSED_E2E**: isolated commit `9c8d059`; Playwright showed visible 221, hidden 0, resumed 170 draw calls/s after explicitly restoring the default profile; original thresholds unchanged. | This one targeted run is not a full CI result; DOD-15 remains **NOT_RUN**. |
 | Cross-package hygiene | **PASS_FOCUSED_TESTS**: `5c4cff7` logging fixtures and the scoped BottomCommandBar/mutation fixes have targeted checks; see commits/test paths in history. | Integrated local test/build pass is recorded above; final GitHub CI remains outstanding, so DOD-15 remains **NOT_RUN**. |
+| P9 task action family | **PASS_LOCAL_FIXTURES**: [`p9-task-action.md`](p9-task-action.md) (task create) and [`p9-task-status-cancel.md`](p9-task-status-cancel.md) (status change/cancel through the same staged preview/approval pipeline, direct API, natural-language path, Tasks UI adapted to the staged flow). | Real Hermes Kanban round trip and the remaining P9 families (agent, calendar, mail, messenger, file/knowledge, automation, research) remain **NOT_RUN**; NLP-01..06 remain open. |
 
 ## Highest-priority implementation gaps with no completed package evidence
 
-“Unowned” here means no completed implementation/evidence package is recorded in this ledger; confirm assignment before starting a work item. P2 is preparing a shared approval-aware executor foundation and Task Create, followed by Task Status/Cancel; that planned work is explicitly not counted as delivered. The 71 residual `NO_CONSUMER_HIT` / `CANDIDATE_HIT_REVIEW` settings rows (48 / 23) are static-search triage labels, not 71 confirmed defects; each requires source/consumer review before any implementation claim.
+“Unowned” here means no completed implementation/evidence package is recorded in this ledger; confirm assignment before starting a work item. The shared approval-aware executor foundation plus the task action family (create, status change, cancel) are delivered locally; see the P9 task action family row above. The 71 residual `NO_CONSUMER_HIT` / `CANDIDATE_HIT_REVIEW` settings rows (48 / 23) are static-search triage labels, not 71 confirmed defects; each requires source/consumer review before any implementation claim.
 
 | Priority | Gap | Required implementation boundary | Dependency / acceptance |
 |---|---|---|---|

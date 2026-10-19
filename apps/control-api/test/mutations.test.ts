@@ -15,6 +15,15 @@ async function stageTask(client: ApiClient, body: Record<string, unknown>, heade
 const confirmTask = (client: ApiClient, body: Record<string, unknown>, previewId: string, headers: Record<string, string> = {}) =>
   client.post("/api/v1/tasks", body, { headers: { ...headers, "x-action-preview-id": previewId } });
 
+/** Task updates go through the same staged preview as creates; the confirmation forwards If-Match to the task write. */
+async function patchTask(client: ApiClient, id: string, body: Record<string, unknown>, headers: Record<string, string> = {}) {
+  const staged = await client.patch(`/api/v1/tasks/${id}`, body, { headers });
+  expect(staged.statusCode, staged.body).toBe(403);
+  expect(errorOf(staged).details.stage).toBe("preview");
+  return client.patch(`/api/v1/tasks/${id}`, body,
+    { headers: { ...headers, "x-action-preview-id": errorOf(staged).details.previewId as string } });
+}
+
 describe("idempotency", () => {
   let api: TestApi;
   let owner: ApiClient;
@@ -157,6 +166,9 @@ describe("optimistic concurrency (If-Match)", () => {
     api = await startTestApi();
     owner = api.client();
     await owner.loginDev("owner");
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    expect((await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
   });
   afterAll(async () => {
     await api.close();
@@ -166,15 +178,15 @@ describe("optimistic concurrency (If-Match)", () => {
 
   it("applies an update whose If-Match equals the current version and increments the version", async () => {
     const task = await newTask();
-    const response = await owner.patch(`/api/v1/tasks/${task.id}`, { title: "Neu" }, { headers: { "if-match": String(task.version) } });
+    const response = await patchTask(owner, task.id, { title: "Neu" }, { "if-match": String(task.version) });
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().data.version).toBe(task.version + 1);
   });
 
   it("answers 409 CONFLICT for a stale version and leaves the resource untouched", async () => {
     const task = await newTask();
-    await owner.patch(`/api/v1/tasks/${task.id}`, { title: "Erste Änderung" }, { headers: { "if-match": String(task.version) } });
-    const stale = await owner.patch(`/api/v1/tasks/${task.id}`, { title: "Veraltete Änderung" }, { headers: { "if-match": String(task.version) } });
+    await patchTask(owner, task.id, { title: "Erste Änderung" }, { "if-match": String(task.version) });
+    const stale = await patchTask(owner, task.id, { title: "Veraltete Änderung" }, { "if-match": String(task.version) });
     expect(stale.statusCode).toBe(409);
     expect(errorOf(stale).code).toBe("CONFLICT");
     const current = (await owner.get(`/api/v1/tasks/${task.id}`)).json().data;
@@ -187,9 +199,9 @@ describe("optimistic concurrency (If-Match)", () => {
     ["weak", (version: number) => `W/"${version}"`],
   ])("understands a %s If-Match value", async (_label, format) => {
     const task = await newTask();
-    const ok = await owner.patch(`/api/v1/tasks/${task.id}`, { title: "Formtest" }, { headers: { "if-match": format(task.version) } });
+    const ok = await patchTask(owner, task.id, { title: "Formtest" }, { "if-match": format(task.version) });
     expect(ok.statusCode, ok.body).toBe(200);
-    const stale = await owner.patch(`/api/v1/tasks/${task.id}`, { title: "Formtest 2" }, { headers: { "if-match": format(task.version) } });
+    const stale = await patchTask(owner, task.id, { title: "Formtest 2" }, { "if-match": format(task.version) });
     expect(stale.statusCode).toBe(409);
   });
 
@@ -202,8 +214,8 @@ describe("optimistic concurrency (If-Match)", () => {
 
   it("does not require If-Match (last write wins) and treats * as no precondition", async () => {
     const task = await newTask();
-    expect((await owner.patch(`/api/v1/tasks/${task.id}`, { title: "ohne Header" })).statusCode).toBe(200);
-    expect((await owner.patch(`/api/v1/tasks/${task.id}`, { title: "Stern" }, { headers: { "if-match": "*" } })).statusCode).toBe(200);
+    expect((await patchTask(owner, task.id, { title: "ohne Header" })).statusCode).toBe(200);
+    expect((await patchTask(owner, task.id, { title: "Stern" }, { "if-match": "*" })).statusCode).toBe(200);
   });
 
   it("guards action endpoints too (pause with a stale version)", async () => {

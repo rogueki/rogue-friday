@@ -134,12 +134,28 @@ describe("contract: all operations", () => {
     });
 
     it("updates with If-Match and runs the lifecycle actions", async () => {
+      const settings = (await owner.get("/api/v1/settings")).json().data;
+      const relaxed = await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+        { headers: { "if-match": String(settings.version) } });
+      expect(relaxed.statusCode, relaxed.body).toBe(200);
       const current = await call("getTask", { params: { id: ids.updateTask } });
-      await call("updateTask", { params: { id: ids.updateTask }, body: { title: "Angebot nachfassen (aktualisiert)" }, headers: { "if-match": String(current.json.data.version) } });
+      const updateBody = { title: "Angebot nachfassen (aktualisiert)" };
+      const updateHeaders = { "if-match": String(current.json.data.version) };
+      const stagedUpdate = await call("updateTask", { params: { id: ids.updateTask }, body: updateBody, headers: updateHeaders, expect: 403 });
+      expect(stagedUpdate.json.error).toMatchObject({ code: "APPROVAL_REQUIRED", details: { stage: "preview" } });
+      await call("updateTask", { params: { id: ids.updateTask }, body: updateBody,
+        headers: { ...updateHeaders, "x-action-preview-id": stagedUpdate.json.error.details.previewId } });
       await call("pauseTask", { params: { id: ids.pauseTask }, body: { reason: "Rückfrage" } });
       await call("resumeTask", { params: { id: ids.pauseTask } });
-      await call("cancelTask", { params: { id: ids.cancelTask }, body: { reason: "nicht mehr nötig" } });
+      const cancelBody = { reason: "nicht mehr nötig" };
+      const stagedCancel = await call("cancelTask", { params: { id: ids.cancelTask }, body: cancelBody, expect: 403 });
+      expect(stagedCancel.json.error).toMatchObject({ code: "APPROVAL_REQUIRED", details: { stage: "preview" } });
+      await call("cancelTask", { params: { id: ids.cancelTask }, body: cancelBody,
+        headers: { "x-action-preview-id": stagedCancel.json.error.details.previewId } });
       await call("retryTask", { params: { id: ids.retryTask } });
+      const latest = (await owner.get("/api/v1/settings")).json().data;
+      expect((await owner.patch("/api/v1/settings", { approvals: settings.approvals },
+        { headers: { "if-match": String(latest.version) } })).statusCode).toBe(200);
     });
 
     it("assigns a task to an agent and answers a task that waits for input", async () => {

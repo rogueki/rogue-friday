@@ -8,6 +8,7 @@ import { decisionKind, isOverdue, progressPercent, showsIndeterminate } from "./
 import { TaskBoard, COLUMN_PAGE_SIZE } from "./TaskBoard";
 import { TasksPage } from "./TasksPage";
 import { dataOf, listOf, makeAgentWith, makeTaskWith, routerFetch } from "./testkit";
+import { TaskWriteConfirmHost } from "./taskWriteRunner";
 
 const nav = vi.hoisted(() => ({ params: new URLSearchParams(), push: vi.fn(), replace: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -28,6 +29,16 @@ const ADAPTER_DOWN = {
   status: 503,
   body: { error: { code: "ADAPTER_UNAVAILABLE", message: "Der Adapter für Aufgaben ist derzeit nicht erreichbar.", severity: "error", retryable: true, correlationId: "corr_00000000000000000000000009", details: {} } },
 };
+
+/** The staged-write answer of the Control API: 403 APPROVAL_REQUIRED with stage `preview` (P9 slice). */
+const previewRequired = (previewText: string, previewId: string) => ({
+  status: 403,
+  body: { error: { code: "APPROVAL_REQUIRED", message: "Diese Aktion muss zuerst bestätigt werden.", severity: "warning", retryable: false, correlationId: previewId, details: { stage: "preview", previewId, previewText } } },
+});
+
+/** Staged route helper: the first call is only staged, the repeat with `X-Action-Preview-Id` executes. */
+const stagedRoute = (previewText: string, previewId: string, done: () => unknown) => (request: Request): unknown =>
+  request.headers.get("x-action-preview-id") === previewId ? done() : previewRequired(previewText, previewId);
 
 beforeEach(() => {
   nav.params = new URLSearchParams();
@@ -170,20 +181,31 @@ describe("TasksPage", () => {
     expect(screen.queryByRole("combobox", { name: /Status ändern/ })).toBeNull();
   });
 
-  it("moves a card with If-Match and the optimistic change, and reports a conflict instead of overwriting", async () => {
+  it("stages a card move with If-Match and executes it only after the server preview is confirmed", async () => {
     const api = routerFetch({
       "GET /tasks": listOf([running]),
       "GET /agents": listOf([agent]),
-      "PATCH /tasks/:id": () => dataOf({ ...running, status: "review", version: 2 }),
+      "PATCH /tasks/:id": stagedRoute("Verschiebe „Wettbewerbsanalyse“ von „Laufend“ nach „Review“.", "corr_0000000000000000000000mv1", () => dataOf({ ...running, status: "review", version: 2 })),
     });
     const user = userEvent.setup();
-    renderWithProviders(<TasksPage />, { capabilities: FULL, fetchImpl: api.fetch });
+    renderWithProviders(<><TasksPage /><TaskWriteConfirmHost /></>, { capabilities: FULL, fetchImpl: api.fetch });
     await screen.findByText("Wettbewerbsanalyse");
     await user.selectOptions(screen.getByRole("combobox", { name: "Status ändern: Wettbewerbsanalyse" }), "review");
     await waitFor(() => expect(api.callsTo("PATCH /tasks/:id")).toHaveLength(1));
-    const call = api.callsTo("PATCH /tasks/:id")[0]!;
-    expect(call.headers.get("if-match")).toBe("1");
-    expect(call.body).toEqual({ status: "review" });
+    const staged = api.callsTo("PATCH /tasks/:id")[0]!;
+    expect(staged.headers.get("if-match")).toBe("1");
+    expect(staged.headers.get("x-action-preview-id")).toBeNull();
+    expect(staged.body).toEqual({ status: "review" });
+    const confirm = await screen.findByRole("alertdialog");
+    expect(within(confirm).getByText("Du bist dabei:")).toBeInTheDocument();
+    expect(within(confirm).getByText("Verschiebe „Wettbewerbsanalyse“ von „Laufend“ nach „Review“.")).toBeInTheDocument();
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(api.callsTo("PATCH /tasks/:id")).toHaveLength(2));
+    const executed = api.callsTo("PATCH /tasks/:id")[1]!;
+    expect(executed.headers.get("x-action-preview-id")).toBe("corr_0000000000000000000000mv1");
+    expect(executed.headers.get("if-match")).toBe("1");
+    expect(executed.body).toEqual({ status: "review" });
+    expect(await screen.findByText("Aufgabe verschoben")).toBeInTheDocument();
   });
 
   it("loads further pages by cursor", async () => {
@@ -251,23 +273,26 @@ describe("TaskDrawer", () => {
     expect(within(dialog).getByRole("combobox", { name: "Agent zuweisen" })).toBeDisabled();
   });
 
-  it("asks for confirmation before cancelling and sends confirm with If-Match and an idempotency key", async () => {
+  it("stages the cancel and executes it only after the server preview is confirmed", async () => {
     nav.params = new URLSearchParams(`task=${task.id}`);
-    const api = routes({ "POST /tasks/:id/cancel": () => dataOf({ ...task, status: "cancelled", version: 2 }) });
+    const api = routes({ "POST /tasks/:id/cancel": stagedRoute("Breche „Rechnung prüfen“ ab.", "corr_0000000000000000000000cn1", () => dataOf({ ...task, status: "cancelled", version: 2 })) });
     const user = userEvent.setup();
-    renderWithProviders(<TasksPage />, { capabilities: FULL, fetchImpl: api.fetch });
+    renderWithProviders(<><TasksPage /><TaskWriteConfirmHost /></>, { capabilities: FULL, fetchImpl: api.fetch });
     const dialog = await screen.findByRole("dialog");
     await user.click(await within(dialog).findByRole("button", { name: /Abbrechen/ }));
-    const confirm = await screen.findByRole("alertdialog");
-    expect(within(confirm).getByText("Aufgabe abbrechen?")).toBeInTheDocument();
-    expect(within(confirm).getByText("Verlauf, Schritte und Artefakte bleiben erhalten.")).toBeInTheDocument();
-    expect(api.callsTo("POST /tasks/:id/cancel")).toHaveLength(0);
-    await user.click(within(confirm).getByRole("button", { name: "Aufgabe abbrechen" }));
     await waitFor(() => expect(api.callsTo("POST /tasks/:id/cancel")).toHaveLength(1));
-    const call = api.callsTo("POST /tasks/:id/cancel")[0]!;
-    expect(call.body).toEqual({ confirm: true });
-    expect(call.headers.get("if-match")).toBe("1");
-    expect(call.headers.get("idempotency-key")).toMatch(/^idem_/);
+    const staged = api.callsTo("POST /tasks/:id/cancel")[0]!;
+    expect(staged.headers.get("if-match")).toBe("1");
+    expect(staged.headers.get("x-action-preview-id")).toBeNull();
+    const confirm = await screen.findByRole("alertdialog");
+    expect(within(confirm).getByText("Du bist dabei:")).toBeInTheDocument();
+    expect(within(confirm).getByText("Breche „Rechnung prüfen“ ab.")).toBeInTheDocument();
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(api.callsTo("POST /tasks/:id/cancel")).toHaveLength(2));
+    const executed = api.callsTo("POST /tasks/:id/cancel")[1]!;
+    expect(executed.headers.get("x-action-preview-id")).toBe("corr_0000000000000000000000cn1");
+    expect(executed.headers.get("if-match")).toBe("1");
+    expect(await screen.findByText("Aufgabe abgebrochen")).toBeInTheDocument();
   });
 
   it("shows the steps tab and writes the selected tab into the URL", async () => {
@@ -368,7 +393,7 @@ describe("assigning a task (agents.assignTask)", () => {
   const open = async (capabilities: ReturnType<typeof capabilitiesOf>, extra: Parameters<typeof routerFetch>[0] = {}) => {
     nav.params = new URLSearchParams(`task=${task.id}`);
     const api = routerFetch({ "GET /tasks": listOf([task]), "GET /agents": listOf([agent]), "GET /tasks/:id": dataOf(task), ...extra });
-    renderWithProviders(<TasksPage />, { capabilities, fetchImpl: api.fetch });
+    renderWithProviders(<><TasksPage /><TaskWriteConfirmHost /></>, { capabilities, fetchImpl: api.fetch });
     const dialog = await screen.findByRole("dialog");
     const select = await within(dialog).findByRole("combobox", { name: "Agent zuweisen" });
     await within(dialog).findByRole("option", { name: /Coding-Agent/ });
@@ -401,13 +426,21 @@ describe("assigning a task (agents.assignTask)", () => {
     expect(await screen.findByText("Zuweisung aufgehoben")).toBeInTheDocument();
   });
 
-  it("falls back to the task update for adapters without the assign operation", async () => {
+  it("falls back to a staged task update for adapters without the assign operation", async () => {
     const user = userEvent.setup();
-    const { api, select } = await open(withoutAssign, { "PATCH /tasks/:id": () => dataOf({ ...task, agentId: agent.id, agentName: agent.name, version: 2 }) });
+    const { api, select } = await open(withoutAssign, {
+      "PATCH /tasks/:id": stagedRoute("Weise „Rechnung prüfen“ dem Agenten „Coding-Agent“ zu.", "corr_0000000000000000000000as1", () => dataOf({ ...task, agentId: agent.id, agentName: agent.name, version: 2 })),
+    });
     await user.selectOptions(select, agent.id);
     await waitFor(() => expect(api.callsTo("PATCH /tasks/:id")).toHaveLength(1));
     expect(api.callsTo("PATCH /tasks/:id")[0]?.body).toEqual({ agentId: agent.id });
+    expect(api.callsTo("PATCH /tasks/:id")[0]?.headers.get("x-action-preview-id")).toBeNull();
     expect(api.callsTo("POST /tasks/:id/assign")).toHaveLength(0);
+    const confirm = await screen.findByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(api.callsTo("PATCH /tasks/:id")).toHaveLength(2));
+    expect(api.callsTo("PATCH /tasks/:id")[1]?.headers.get("x-action-preview-id")).toBe("corr_0000000000000000000000as1");
+    expect(await screen.findByText("Agent zugewiesen")).toBeInTheDocument();
   });
 
   it("is disabled when neither operation is available", async () => {

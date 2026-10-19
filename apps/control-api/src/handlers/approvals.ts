@@ -191,10 +191,26 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
     ctx.audit.action = "approval.approved";
     const base = native ? nativeResponse(ctx, await runtime.nativeApprovals.approve(principal.userId, id, ctx.actor,
       async (action, idempotencyKey) => {
-        const create = runtime.registry.getPort("tasks").createTask;
-        if (!create) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Aufgaben koennen derzeit nicht angelegt werden." });
-        const result = await create({ body: action.body }, { ...ctx.mutation, correlationId: current.correlationId, idempotencyKey });
-        return result.data.id;
+        const tasks = runtime.registry.getPort("tasks");
+        // The decision's own If-Match guards the approval version, never the task version.
+        const { ifMatchVersion: _decisionVersion, ...decisionMutation } = ctx.mutation;
+        const call = { ...decisionMutation, correlationId: current.correlationId, idempotencyKey };
+        if (action.kind === "task.create") {
+          const create = tasks.createTask;
+          if (!create) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Aufgaben koennen derzeit nicht angelegt werden." });
+          return (await create({ body: action.body }, call)).data.id;
+        }
+        if (action.kind === "task.update") {
+          const update = tasks.updateTask;
+          if (!update) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Aufgaben koennen derzeit nicht geaendert werden." });
+          return (await update({ id: action.id, body: action.body }, call)).data.id;
+        }
+        if (action.kind === "task.cancel") {
+          const cancel = tasks.cancelTask;
+          if (!cancel) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Aufgaben koennen derzeit nicht abgebrochen werden." });
+          return (await cancel({ id: action.id, body: action.body }, call)).data.id;
+        }
+        throw conflict("Aktion ist nicht ausfuehrbar.");
       })) : await approveBase(ctx);
     const result = (base.body as { data: Approval }).data;
     ctx.audit.after = { status: result.status, version: result.version };

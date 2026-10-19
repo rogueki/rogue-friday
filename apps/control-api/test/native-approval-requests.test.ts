@@ -141,6 +141,45 @@ describe("native approval request policy capture", () => {
     } finally { await api.close(); }
   });
 
+  it("records uncertain for a task.update after a side effect and adapter failure, without resending", async () => {
+    const api = await startTestApi();
+    try {
+      const owner = api.client();
+      await owner.loginDev("owner");
+      const ownerId = (await owner.get("/api/v1/auth/session")).json().data.user.id as string;
+      const action = { kind: "task.update" as const, id: `task_${"D".repeat(26)}`, body: { status: "done" as const } };
+      const captured = api.runtime.nativeApprovals.propose({ ...proposal("request-update-uncertain-001", 2), ownerId, execution: action });
+      const approvalId = captured.approval!.id;
+      api.runtime.nativeApprovals.confirm(ownerId, "request-update-uncertain-001", action);
+      const actor = { type: "user" as const, id: ownerId, name: "Owner" };
+      let effects = 0;
+      const dispatch = async () => { effects += 1; throw new Error("response lost after update"); };
+      await expect(api.runtime.nativeApprovals.approve(ownerId, approvalId, actor, dispatch)).rejects.toThrow("response lost");
+      expect(api.runtime.nativeApprovals.getApproval(ownerId, approvalId)).toMatchObject({ status: "approved",
+        executionResult: expect.stringContaining("unklar") });
+      expect((api.runtime.db.prepare("SELECT state FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
+        .get(ownerId, "request-update-uncertain-001") as { state: string }).state).toBe("uncertain");
+      await expect(api.runtime.nativeApprovals.approve(ownerId, approvalId, actor, dispatch)).rejects.toThrow();
+      expect(effects).toBe(1);
+    } finally { await api.close(); }
+  });
+
+  it("rejects a task.cancel confirmation that does not match the stored draft", async () => {
+    const api = await startTestApi();
+    try {
+      const owner = api.client();
+      await owner.loginDev("owner");
+      const ownerId = (await owner.get("/api/v1/auth/session")).json().data.user.id as string;
+      const action = { kind: "task.cancel" as const, id: `task_${"E".repeat(26)}` };
+      api.runtime.nativeApprovals.propose({ ...proposal("request-cancel-match-001", 2), ownerId, execution: action });
+      expect(() => api.runtime.nativeApprovals.confirm(ownerId, "request-cancel-match-001",
+        { kind: "task.cancel", id: `task_${"F".repeat(26)}` })).toThrow();
+      expect(() => api.runtime.nativeApprovals.confirm(ownerId, "request-cancel-match-001",
+        { kind: "task.cancel", id: action.id, body: { reason: "geaendert" } })).toThrow();
+      expect(api.runtime.nativeApprovals.confirm(ownerId, "request-cancel-match-001", action).approval?.status).toBe("pending");
+    } finally { await api.close(); }
+  });
+
   it("does not let a stale completion overwrite a newer dispatch state", async () => {
     const api = await startTestApi();
     try {

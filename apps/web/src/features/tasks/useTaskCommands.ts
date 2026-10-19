@@ -2,11 +2,12 @@
 
 import type { Task, TaskStatus } from "@friday/sdk";
 import { useToast } from "@friday/ui";
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { useT } from "@/i18n";
-import { useAssignTask, useTaskAction, useUpdateTask } from "@/lib/api/domains/tasks";
+import { useAssignTask, useTaskAction } from "@/lib/api/domains/tasks";
 import { useCapabilityState, type CapabilityState } from "@/lib/capabilities";
 import { isFinished } from "./model";
+import { useRunTaskWrite, useTaskWriteBusy } from "./taskWriteRunner";
 
 export type TaskActionId = "assign" | "move" | "pause" | "resume" | "cancel" | "retry" | "approveResult" | "input";
 
@@ -53,63 +54,65 @@ export function useTaskActionStates(task: Task | undefined): Record<TaskActionId
   }, [task?.status, task?.blockers, gates, t]);
 }
 
-/** Mutations of the task actions with success toasts; errors are toasted globally (409 refetches the lists). */
+/**
+ * Mutations of the task actions. Status changes, result approvals, cancels and the update-based assign fallback are
+ * staged writes: the server shows a preview first and executes only after the user confirms it (taskWriteRunner).
+ * Pause/resume/retry stay one-shot adapter actions.
+ */
 export function useTaskCommands() {
   const { t } = useT();
   const { toast } = useToast();
-  const update = useUpdateTask();
   const assignTask = useAssignTask();
   const canAssignOperation = useCapabilityState("agents", "assignTask") === "available";
   const pause = useTaskAction("pause");
   const resume = useTaskAction("resume");
-  const cancel = useTaskAction("cancel");
   const retry = useTaskAction("retry");
+  const runTaskWrite = useRunTaskWrite();
+  const staging = useTaskWriteBusy();
 
-  const done = useCallback(
-    (message: Parameters<typeof t>[0], task: Task): void => {
-      toast({ title: t(message), description: task.title, tone: "green", duration: 3500 });
-    },
-    [t, toast],
-  );
-
-  // mutateAsync (not mutate + callbacks) so every one of several quick actions gets its own success toast. A failure is
-  // already shown by the global mutation error toast of the QueryClient, so the rejection is only acknowledged here.
-  const settle = useCallback((promise: Promise<unknown>, onSuccess: () => void): void => {
+  const done = (message: Parameters<typeof t>[0], task: Task): void => {
+    toast({ title: t(message), description: task.title, tone: "green", duration: 3500 });
+  };
+  // A failure is already shown by the global mutation error toast of the QueryClient, so the rejection is only acknowledged here.
+  const settle = (promise: Promise<unknown>, onSuccess: () => void): void => {
     promise.then(onSuccess, () => undefined);
-  }, []);
+  };
 
-  const move = useCallback(
-    (task: Task, status: TaskStatus) => settle(update.mutateAsync({ id: task.id, version: task.version, patch: { status } }), () => done("tasks.toast.moved", task)),
-    [update, done, settle],
-  );
-  const assign = useCallback(
-    (task: Task, agentId: string | null) =>
-      settle(
-        canAssignOperation
-          ? assignTask.mutateAsync({ id: task.id, version: task.version, agentId })
-          : update.mutateAsync({ id: task.id, version: task.version, patch: { agentId } }),
-        () => done(agentId === null ? "tasks.toast.unassigned" : "tasks.toast.assigned", task),
-      ),
-    [canAssignOperation, assignTask, update, done, settle],
-  );
-  const approveResult = useCallback(
-    (task: Task) => settle(update.mutateAsync({ id: task.id, version: task.version, patch: { status: "done" } }), () => done("tasks.toast.resultApproved", task)),
-    [update, done, settle],
-  );
-  const run = useCallback(
-    (action: "pause" | "resume" | "cancel" | "retry", task: Task) => {
-      const mutation = { pause, resume, cancel, retry }[action];
-      const message = { pause: "tasks.toast.paused", resume: "tasks.toast.resumed", cancel: "tasks.toast.cancelled", retry: "tasks.toast.retried" } as const;
-      settle(mutation.mutateAsync({ id: task.id, version: task.version, ...(action === "cancel" ? { confirm: true } : {}) }), () => done(message[action], task));
-    },
-    [pause, resume, cancel, retry, done, settle],
-  );
+  const move = (task: Task, status: TaskStatus): void => {
+    void runTaskWrite({ kind: "update", id: task.id, version: task.version, body: { status },
+      successMessage: t("tasks.toast.moved"), taskTitle: task.title });
+  };
+
+  const assign = (task: Task, agentId: string | null): void => {
+    if (canAssignOperation) {
+      settle(assignTask.mutateAsync({ id: task.id, version: task.version, agentId }),
+        () => done(agentId === null ? "tasks.toast.unassigned" : "tasks.toast.assigned", task));
+      return;
+    }
+    void runTaskWrite({ kind: "update", id: task.id, version: task.version, body: { agentId },
+      successMessage: t(agentId === null ? "tasks.toast.unassigned" : "tasks.toast.assigned"), taskTitle: task.title });
+  };
+
+  const approveResult = (task: Task): void => {
+    void runTaskWrite({ kind: "update", id: task.id, version: task.version, body: { status: "done" },
+      successMessage: t("tasks.toast.resultApproved"), taskTitle: task.title });
+  };
+
+  const run = (action: "pause" | "resume" | "cancel" | "retry", task: Task): void => {
+    if (action === "cancel") {
+      void runTaskWrite({ kind: "cancel", id: task.id, version: task.version,
+        successMessage: t("tasks.toast.cancelled"), taskTitle: task.title });
+      return;
+    }
+    const message = { pause: "tasks.toast.paused", resume: "tasks.toast.resumed", retry: "tasks.toast.retried" } as const;
+    settle({ pause, resume, retry }[action].mutateAsync({ id: task.id, version: task.version }), () => done(message[action], task));
+  };
 
   return {
     move,
     assign,
     approveResult,
     run,
-    pending: update.isPending || assignTask.isPending || pause.isPending || resume.isPending || cancel.isPending || retry.isPending,
+    pending: staging || assignTask.isPending || pause.isPending || resume.isPending || retry.isPending,
   };
 }

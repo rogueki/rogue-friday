@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CommandConfirmHost } from "@/features/palette/commandRunner";
+import { TaskWriteConfirmHost } from "@/features/tasks/taskWriteRunner";
 import { CreateTaskDialog } from "@/features/palette/CreateTaskDialog";
 import { GlobalCommandPalette, usePaletteShortcuts } from "@/features/palette/GlobalCommandPalette";
 import { useT } from "@/i18n";
@@ -109,6 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <GlobalCommandPalette />
       <CreateTaskDialog />
       <CommandConfirmHost />
+      <TaskWriteConfirmHost />
       <NotificationsDrawer />
       <LiveActivityDrawer />
       <ErrorDetailDrawer />
