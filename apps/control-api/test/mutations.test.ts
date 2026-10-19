@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 import { createApprovedTask } from "./support/task-actions";
+import { confirmedHeaders, stageKnowledgeWrite } from "./support/knowledge-actions";
 
 const errorOf = (response: { json(): unknown }) => (response.json() as { error: { code: string; details: Record<string, any> } }).error;
 
@@ -226,12 +227,21 @@ describe("optimistic concurrency (If-Match)", () => {
   });
 
   it("guards memory updates and deletes", async () => {
-    const memory = (await owner.post("/api/v1/memory", { type: "fact", content: "Versionstest" })).json().data as { id: string; version: number };
+    const createPreview = await stageKnowledgeWrite(owner, "POST", "/api/v1/memory", { type: "fact", content: "Versionstest" });
+    const created = await owner.post("/api/v1/memory", { type: "fact", content: "Versionstest" },
+      { headers: confirmedHeaders(createPreview) });
+    expect(created.statusCode, created.body).toBe(201);
+    const memory = created.json().data as { id: string; version: number };
     const stale = await owner.patch(`/api/v1/memory/${memory.id}`, { content: "x" }, { headers: { "if-match": String(memory.version + 1) } });
     expect(stale.statusCode).toBe(409);
     const staleDelete = await owner.delete(`/api/v1/memory/${memory.id}`, { headers: { "if-match": String(memory.version + 1) } });
     expect(staleDelete.statusCode).toBe(409);
-    expect((await owner.delete(`/api/v1/memory/${memory.id}`, { headers: { "if-match": String(memory.version) } })).statusCode).toBe(200);
+    const deletePreview = await stageKnowledgeWrite(owner, "DELETE", `/api/v1/memory/${memory.id}`,
+      undefined, { "if-match": String(memory.version) });
+    const deleted = await owner.delete(`/api/v1/memory/${memory.id}`,
+      { headers: confirmedHeaders(deletePreview, { "if-match": String(memory.version) }) });
+    expect(deleted.statusCode, deleted.body).toBe(200);
+    expect(deleted.json()).toMatchObject({ accepted: true, status: "completed", resourceId: memory.id });
   });
 
   it("guards settings and persists assistantName", async () => {

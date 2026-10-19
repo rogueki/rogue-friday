@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { test, expect, open } from "./support/fixtures";
+import { test, expect, open, patchSettings } from "./support/fixtures";
 import type { ApiClient } from "./support/api";
 import type { Locator, Page } from "@playwright/test";
 
@@ -48,6 +48,23 @@ async function openDetail(page: Page, memory: Memory): Promise<Locator> {
   await expect(drawer).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`memory=${memory.id}`));
   return drawer;
+}
+
+/**
+ * Every memory write is staged since the P9 file/knowledge slice: the first request only saves the exact draft and the
+ * shell confirmation dialog shows the server preview. Confirms it and waits for the dialog to close.
+ */
+async function confirmStagedPreview(page: Page, expectedText: string | RegExp): Promise<void> {
+  const confirm = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+  await expect(confirm).toContainText(expectedText);
+  await confirm.getByRole("button", { name: "Bestätigen" }).click();
+  await expect(confirm).toBeHidden();
+}
+
+/** Tier-2 approvals off so a confirmed preview executes directly (the approval detour is covered by approvals.spec.ts). */
+async function disableTier2(api: ApiClient): Promise<void> {
+  const settings = (await api.get("/settings")).body.data;
+  await patchSettings(api, { approvals: { ...settings.approvals, confirmTier2: false } });
 }
 
 test("semantic search ranks the relevant entries first and sends a semantic search request", async ({ page, api }) => {
@@ -123,6 +140,7 @@ test("the detail drawer shows content, source, confidence, tags, provenance, his
 test("edit sends If-Match with the seen version, the version bumps and the history records before/after", async ({ page, api }) => {
   const memory = await memoryByTitle(api, EDITABLE);
   expect(memory.locked).toBe(false);
+  await disableTier2(api);
   const drawer = await openDetail(page, memory);
 
   await drawer.getByRole("button", { name: "Bearbeiten" }).click();
@@ -137,6 +155,9 @@ test("edit sends If-Match with the seen version, the version bumps and the histo
   const request = await patch;
   expect((await request.allHeaders())["if-match"]).toBe(String(memory.version));
   expect(request.postDataJSON()).toEqual({ content: updated, tags: [...memory.tags, "e2e-geprüft"] }); // only changed fields
+  // The editor stays open until the confirmed write executes; the server preview is the binding confirmation.
+  await expect(dialog).toBeVisible();
+  await confirmStagedPreview(page, "aktualisieren?");
   await expect(dialog).toBeHidden();
 
   await expect(drawer.getByText(updated)).toBeVisible();
@@ -155,6 +176,7 @@ test("edit sends If-Match with the seen version, the version bumps and the histo
 
 test("editing validates the form; a stale version is refused by the API and never overwrites the newer entry", async ({ page, api }) => {
   const memory = await memoryByTitle(api, EDITABLE);
+  await disableTier2(api);
   const drawer = await openDetail(page, memory);
   await drawer.getByRole("button", { name: "Bearbeiten" }).click();
   const dialog = page.getByRole("dialog", { name: "Eintrag bearbeiten" });
@@ -171,22 +193,37 @@ test("editing validates the form; a stale version is refused by the API and neve
   await dialog.getByRole("button", { name: "Abbrechen" }).click();
   await expect(dialog).toBeHidden();
 
-  // optimistic concurrency on the wire: the right version wins, the same (now stale) version is refused
-  const first = await api.patch(`/memory/${memory.id}`, { content: "Erster Stand." }, { "If-Match": String(memory.version) });
+  // optimistic concurrency on the wire: direct API writes are staged too; the confirmed write wins,
+  // and a draft that was staged before a concurrent write is refused at dispatch (pinned draft version)
+  const stagedFirst = await api.patch(`/memory/${memory.id}`, { content: "Erster Stand." }, { "If-Match": String(memory.version) });
+  expect(stagedFirst.status, "direct writes stage first").toBe(403);
+  const first = await api.patch(`/memory/${memory.id}`, { content: "Erster Stand." },
+    { "If-Match": String(memory.version), "X-Action-Preview-Id": stagedFirst.body.error.details.previewId });
   expect(first.status).toBe(200);
-  const stale = await api.patch(`/memory/${memory.id}`, { content: "Überschreibt blind." }, { "If-Match": String(memory.version) });
-  expect([409, 412], "stale If-Match is a conflict").toContain(stale.status);
+  const stagedStale = await api.patch(`/memory/${memory.id}`, { content: "Überschreibt blind." });
+  expect(stagedStale.status).toBe(403);
+  // concurrent write between preview and confirmation moves the version
+  const stagedConcurrent = await api.patch(`/memory/${memory.id}`, { content: "Zwischenstand." });
+  expect(stagedConcurrent.status).toBe(403);
+  const concurrent = await api.patch(`/memory/${memory.id}`, { content: "Zwischenstand." },
+    { "X-Action-Preview-Id": stagedConcurrent.body.error.details.previewId });
+  expect(concurrent.status).toBe(200);
+  const stale = await api.patch(`/memory/${memory.id}`, { content: "Überschreibt blind." },
+    { "X-Action-Preview-Id": stagedStale.body.error.details.previewId });
+  expect([409, 412], "stale draft version is a conflict at dispatch").toContain(stale.status);
   const after = await getMemory(api, memory.id);
-  expect(after.content).toBe("Erster Stand.");
-  expect(after.version).toBe(memory.version + 1);
+  expect(after.content).toBe("Zwischenstand.");
+  expect(after.version).toBe(memory.version + 2);
 });
 
 test("pin and lock: both flags are stored, a locked entry cannot be edited or forgotten until it is unlocked", async ({ page, api }) => {
   const memory = await memoryByTitle(api, EDITABLE);
+  await disableTier2(api);
   const drawer = await openDetail(page, memory);
   const actions = drawer.getByRole("group", { name: "Aktionen für diesen Eintrag" });
 
   await actions.getByRole("button", { name: "Anheften" }).click();
+  await confirmStagedPreview(page, "aktualisieren?");
   await expect(actions.getByRole("button", { name: "Lösen" })).toBeVisible();
   await expect.poll(async () => (await getMemory(api, memory.id)).pinned).toBe(true);
   await expect(row(page, memory.id).getByLabel("Angeheftet")).toBeVisible();
@@ -194,6 +231,7 @@ test("pin and lock: both flags are stored, a locked entry cannot be edited or fo
   const patch = page.waitForRequest((request) => request.url().endsWith(`/memory/${memory.id}`) && request.method() === "PATCH");
   await actions.getByRole("button", { name: "Sperren" }).click();
   expect((await (await patch).allHeaders())["if-match"], "pin bumped the version once").toBe(String(memory.version + 1));
+  await confirmStagedPreview(page, "aktualisieren?");
   await expect(actions.getByRole("button", { name: "Entsperren" })).toBeVisible();
   await expect.poll(async () => (await getMemory(api, memory.id)).locked).toBe(true);
   await expect(drawer.getByText(/^Gesperrt: Inhalt und Löschen sind gegen/)).toBeVisible();
@@ -201,28 +239,32 @@ test("pin and lock: both flags are stored, a locked entry cannot be edited or fo
   await expect(actions.getByRole("button", { name: "Vergessen" })).toBeDisabled();
   await expect(row(page, memory.id).getByLabel("Gesperrt")).toBeVisible();
 
-  // the server enforces the lock as well
+  // the server enforces the lock as well (a direct write is staged first and never executes)
   const refused = await api.patch(`/memory/${memory.id}`, { content: "heimlich geändert" }, { "If-Match": String((await getMemory(api, memory.id)).version) });
   expect(refused.status).toBeGreaterThanOrEqual(400);
   expect(refused.status).toBeLessThan(500);
   expect((await getMemory(api, memory.id)).content).toBe(memory.content);
 
   await actions.getByRole("button", { name: "Entsperren" }).click();
+  await confirmStagedPreview(page, "aktualisieren?");
   await expect(actions.getByRole("button", { name: "Bearbeiten" })).toBeEnabled();
   await expect.poll(async () => (await getMemory(api, memory.id)).locked).toBe(false);
   await actions.getByRole("button", { name: "Lösen" }).click();
+  await confirmStagedPreview(page, "aktualisieren?");
   await expect.poll(async () => (await getMemory(api, memory.id)).pinned).toBe(false);
   expect((await getMemory(api, memory.id)).version).toBe(memory.version + 4);
 });
 
-test("forget needs a confirmation, removes the entry from list and API and leaves an audit entry", async ({ page, api }) => {
+test("forget needs the staged server preview, removes the entry from list and API and leaves an audit entry", async ({ page, api }) => {
   const memory = await memoryByTitle(api, EDITABLE);
   const total = (await allMemories(api)).length;
+  await disableTier2(api);
   const drawer = await openDetail(page, memory);
   await drawer.getByRole("button", { name: "Vergessen" }).click();
-  const confirm = page.getByRole("alertdialog", { name: "Eintrag vergessen?" });
+  // The staged server preview is the binding confirmation and carries the audit warning.
+  const confirm = page.getByRole("alertdialog", { name: "Du bist dabei:" });
   await expect(confirm).toContainText(`„${memory.title}“`);
-  await expect(confirm).toContainText("Die Löschung wird nachvollziehbar im Audit-Protokoll festgehalten.");
+  await expect(confirm).toContainText("Die Löschung bleibt im Audit nachvollziehbar.");
 
   await confirm.getByRole("button", { name: "Abbrechen" }).click();
   await expect(confirm).toBeHidden();
@@ -230,7 +272,7 @@ test("forget needs a confirmation, removes the entry from list and API and leave
 
   await drawer.getByRole("button", { name: "Vergessen" }).click();
   const request = page.waitForRequest((candidate) => candidate.url().endsWith(`/memory/${memory.id}`) && candidate.method() === "DELETE");
-  await page.getByRole("alertdialog", { name: "Eintrag vergessen?" }).getByRole("button", { name: "Endgültig vergessen" }).click();
+  await confirmStagedPreview(page, `„${memory.title}“`);
   expect((await (await request).allHeaders())["if-match"]).toBe(String(memory.version));
   await expect(page.getByText("Eintrag vergessen", { exact: true })).toBeVisible();
   await expect(drawer).toBeHidden();
@@ -244,17 +286,13 @@ test("forget needs a confirmation, removes the entry from list and API and leave
   expect(audit[0]!.before, "audit keeps what was forgotten (type/title, not the content)").toMatchObject({ title: memory.title });
   expect(audit[0]!.after).toBeNull();
   expect(JSON.stringify(audit)).not.toContain(memory.content);
-
-  // the toast leads to the audit page, where the entry is listed
-  await page.getByRole("button", { name: "Audit öffnen" }).click();
-  await expect(page).toHaveURL(/\/audit\/?$/);
-  await expect(page.getByText("memory.deleted").first()).toBeVisible();
 });
 
 test("conflict: the pending conflict is flagged, 'replace' asks first and then forgets the contradicting entry", async ({ page, api }) => {
   const keep = await memoryByTitle(api, CONFLICT_A);
   const other = await memoryByTitle(api, CONFLICT_B);
   expect(keep.conflicts[0]).toMatchObject({ memoryId: other.id, resolution: "pending" });
+  await disableTier2(api);
 
   await open(page, "/memory");
   await expect(row(page, keep.id).getByText("Konflikt", { exact: true })).toBeVisible();
@@ -266,13 +304,15 @@ test("conflict: the pending conflict is flagged, 'replace' asks first and then f
   await drawer.getByRole("tab", { name: /^Konflikte/ }).click();
   await expect(drawer).toContainText(keep.conflicts[0]!.reason);
   await drawer.getByRole("button", { name: "Diesen behalten, anderen ersetzen …" }).click();
-  const confirm = page.getByRole("alertdialog", { name: "Widersprechenden Eintrag ersetzen?" });
-  await expect(confirm).toContainText("Der widersprechende Eintrag wird vergessen.");
+  // The staged server preview is the explicit confirmation that the other entry is forgotten.
+  const confirm = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+  await expect(confirm).toContainText("Ersetzen des widersprechenden Eintrags");
   await confirm.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(confirm).toBeHidden();
   expect((await getMemory(api, keep.id)).conflicts[0]!.resolution, "cancel changes nothing").toBe("pending");
 
   await drawer.getByRole("button", { name: "Diesen behalten, anderen ersetzen …" }).click();
-  await page.getByRole("alertdialog", { name: "Widersprechenden Eintrag ersetzen?" }).getByRole("button", { name: "Ersetzen" }).click();
+  await confirmStagedPreview(page, "Ersetzen des widersprechenden Eintrags");
   await expect(page.getByText("Der widersprechende Eintrag wurde ersetzt").first()).toBeVisible();
 
   await expect.poll(async () => (await getMemory(api, keep.id)).conflicts[0]?.resolution).toBe("replaced");
@@ -286,9 +326,11 @@ test("conflict: the pending conflict is flagged, 'replace' asks first and then f
 test("conflict: dismissing keeps both entries and closes the conflict", async ({ page, api }) => {
   const keep = await memoryByTitle(api, CONFLICT_A);
   const other = await memoryByTitle(api, CONFLICT_B);
+  await disableTier2(api);
   const drawer = await openDetail(page, keep);
   await drawer.getByRole("tab", { name: /^Konflikte/ }).click();
   await drawer.getByRole("button", { name: "Verwerfen" }).click();
+  await confirmStagedPreview(page, "als gegenstandslos");
   await expect(page.getByText("Konflikt verworfen").first()).toBeVisible();
   await expect.poll(async () => (await getMemory(api, keep.id)).conflicts[0]?.resolution).toBe("dismissed");
   expect((await api.get(`/memory/${other.id}`)).status, "dismiss never deletes").toBe(200);

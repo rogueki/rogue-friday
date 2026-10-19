@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/queryKeys";
+import { StagedWriteConfirmHost } from "@/lib/api/stagedWrite";
 import { renderWithProviders } from "@/test/render";
 import { errorResponse, FRESH, FULL, listOf, modules, NOW, resource, routedFetch, single } from "./kit/testSupport";
 import { resetRouter } from "./kit/testRouter";
@@ -13,6 +14,12 @@ vi.mock("next/navigation", async () => (await import("./kit/testRouter")).naviga
 
 const ID = "mem_01JAAAAAAAAAAAAAAAAAAAAAAA";
 const OTHER = "mem_01JBBBBBBBBBBBBBBBBBBBBBBB";
+
+/** The staged-write answer of the Control API: 403 APPROVAL_REQUIRED with stage `preview` (P9 slice). */
+const previewRequired = (previewText: string, previewId: string) => new Response(JSON.stringify({
+  error: { code: "APPROVAL_REQUIRED", message: "Gedächtniseintrag zuerst mit unveraenderter Vorschau bestaetigen.", severity: "warning",
+    retryable: false, correlationId: previewId, details: { stage: "preview", previewId, previewText } },
+}), { status: 403, headers: { "content-type": "application/json" } });
 
 function makeMemory(partial: Partial<Memory> = {}): Memory {
   return {
@@ -162,38 +169,53 @@ describe("memory page: search, detail and forgetting", () => {
     expect(within(drawer).getByText("Widerspricht dem Eintrag zum Tee")).toBeInTheDocument();
   });
 
-  it("forgets only after confirmation, with If-Match, and points to the audit log", async () => {
+  it("forgets through the staged server preview, with If-Match on both calls", async () => {
     const user = userEvent.setup();
+    const previewId = "corr_0000000000000000000000mg1";
     const fake = routedFetch({
       ...baseRoutes(),
-      [`DELETE /api/v1/memory/${ID}`]: { contractVersion: "2.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES" },
+      [`DELETE /api/v1/memory/${ID}`]: (_url: URL, request: Request) =>
+        request.headers.get("x-action-preview-id") === previewId
+          ? { contractVersion: "2.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES", resourceId: ID, auditEventId: "aud_1", message: "Eintrag wurde vergessen." }
+          : previewRequired("Gedächtniseintrag „Kaffeesorte“ vergessen? Die Löschung bleibt im Audit nachvollziehbar.", previewId),
     });
-    renderWithProviders(<MemoryPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    renderWithProviders(<><MemoryPage /><StagedWriteConfirmHost /></>, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     await user.click((await screen.findByText("Kaffeesorte")).closest("button") as HTMLElement);
     const drawer = await screen.findByRole("dialog");
     await user.click(within(drawer).getByRole("button", { name: /Vergessen/ }));
-    const confirm = await screen.findByRole("alertdialog");
-    expect(within(confirm).getByText(/im Audit-Protokoll festgehalten/)).toBeInTheDocument();
-    expect(fake.to("DELETE", `/api/v1/memory/${ID}`)).toHaveLength(0);
-    await user.click(within(confirm).getByRole("button", { name: "Endgültig vergessen" }));
     await waitFor(() => expect(fake.to("DELETE", `/api/v1/memory/${ID}`)).toHaveLength(1));
-    expect(fake.to("DELETE", `/api/v1/memory/${ID}`)[0]?.headers.get("If-Match")).toBe("3");
+    const staged = fake.to("DELETE", `/api/v1/memory/${ID}`)[0]!;
+    expect(staged.headers.get("If-Match")).toBe("3");
+    expect(staged.headers.get("x-action-preview-id")).toBeNull();
+    // The staged server preview is the binding confirmation; it carries the audit warning.
+    const confirm = await screen.findByRole("alertdialog");
+    expect(within(confirm).getByText(/im Audit nachvollziehbar/)).toBeInTheDocument();
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(fake.to("DELETE", `/api/v1/memory/${ID}`)).toHaveLength(2));
+    const executed = fake.to("DELETE", `/api/v1/memory/${ID}`)[1]!;
+    expect(executed.headers.get("x-action-preview-id")).toBe(previewId);
+    expect(executed.headers.get("If-Match")).toBe("3");
+    expect(await screen.findByText("Eintrag vergessen")).toBeInTheDocument();
   });
 
   it("closes the drawer and confirms the deletion even when the realtime event removes the detail before the response arrives", async () => {
     const user = userEvent.setup();
     let deleted = false;
+    const previewId = "corr_0000000000000000000000mg2";
     const fake = routedFetch({
       "GET /api/v1/memory": () => listOf(deleted ? [] : [makeMemory()]),
       [`GET /api/v1/memory/${ID}`]: () => (deleted ? errorResponse("NOT_FOUND", "Eintrag nicht gefunden", 404) : single(makeMemory())),
-      [`DELETE /api/v1/memory/${ID}`]: { contractVersion: "2.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES" },
+      [`DELETE /api/v1/memory/${ID}`]: (_url: URL, request: Request) =>
+        request.headers.get("x-action-preview-id") === previewId
+          ? { contractVersion: "2.0.0", accepted: true, status: "completed", correlationId: "corr_01JTESTTESTTESTTESTTESTTES", resourceId: ID, auditEventId: "aud_1", message: "Eintrag wurde vergessen." }
+          : previewRequired("Gedächtniseintrag „Kaffeesorte“ vergessen? Die Löschung bleibt im Audit nachvollziehbar.", previewId),
     });
     // The server publishes `friday.memory.deleted` before it answers: applyEvent drops the detail query (unmounting the
-    // drawer content) while the DELETE response is still in flight.
-    const rendered = renderWithProviders(<MemoryPage />, {
+    // drawer content) while the confirmed DELETE response is still in flight.
+    const rendered = renderWithProviders(<><MemoryPage /><StagedWriteConfirmHost /></>, {
       fetchImpl: ((input: Request | string | URL, init?: RequestInit) => {
         const request = input instanceof Request ? input : new Request(input, init);
-        if (request.method !== "DELETE") return fake.fetch(input, init);
+        if (request.method !== "DELETE" || request.headers.get("x-action-preview-id") !== previewId) return fake.fetch(input, init);
         deleted = true;
         // same two steps as `removeResource` in lib/realtime/applyEvent.ts: the list loses the entry, the detail query is dropped
         rendered.queryClient.setQueriesData<{ items: unknown[] }>({ queryKey: queryKeys.memory.lists() }, (old) => (old ? { ...old, items: [] } : old));
@@ -205,7 +227,7 @@ describe("memory page: search, detail and forgetting", () => {
     await user.click((await screen.findByText("Kaffeesorte")).closest("button") as HTMLElement);
     const drawer = await screen.findByRole("dialog");
     await user.click(within(drawer).getByRole("button", { name: /Vergessen/ }));
-    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Endgültig vergessen" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Bestätigen" }));
     expect(await screen.findByText("Eintrag vergessen")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.queryByText("Daten konnten nicht geladen werden")).toBeNull();
@@ -222,11 +244,16 @@ describe("memory page: search, detail and forgetting", () => {
     expect(within(drawer).getByText(/Gesperrt: Inhalt und Löschen/)).toBeInTheDocument();
   });
 
-  it("validates the create form and posts the new memory", async () => {
+  it("validates the create form and posts the new memory through the staged preview", async () => {
     const user = userEvent.setup();
+    const previewId = "corr_0000000000000000000000mc1";
     const created = makeMemory({ id: "mem_01JCCCCCCCCCCCCCCCCCCCCCCC", title: "Neu" });
-    const fake = routedFetch({ ...baseRoutes(), "POST /api/v1/memory": () => single(created) });
-    renderWithProviders(<MemoryPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    const fake = routedFetch({
+      ...baseRoutes(),
+      "POST /api/v1/memory": (_url: URL, request: Request) =>
+        request.headers.get("x-action-preview-id") === previewId ? single(created) : previewRequired("Gedächtniseintrag anlegen?", previewId),
+    });
+    renderWithProviders(<><MemoryPage /><StagedWriteConfirmHost /></>, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     await screen.findByText("Kaffeesorte");
     await user.click(screen.getAllByRole("button", { name: /Neuer Eintrag/ })[0] as HTMLElement);
     const dialog = await screen.findByRole("dialog");
@@ -236,8 +263,18 @@ describe("memory page: search, detail and forgetting", () => {
     await user.type(within(dialog).getByLabelText(/Inhalt/), "Mag keinen Koriander");
     await user.click(within(dialog).getByRole("button", { name: "Anlegen" }));
     await waitFor(() => expect(fake.to("POST", "/api/v1/memory")).toHaveLength(1));
-    expect(fake.to("POST", "/api/v1/memory")[0]?.body).toMatchObject({ type: "fact", content: "Mag keinen Koriander", confidence: 1 });
-    expect(fake.to("POST", "/api/v1/memory")[0]?.headers.get("Idempotency-Key")).toBeTruthy();
+    const staged = fake.to("POST", "/api/v1/memory")[0]!;
+    expect(staged.body).toMatchObject({ type: "fact", content: "Mag keinen Koriander", confidence: 1 });
+    expect(staged.headers.get("Idempotency-Key")).toBeTruthy();
+    expect(staged.headers.get("x-action-preview-id")).toBeNull();
+    // The server preview binds the confirmation; the repeat must be the identical request.
+    const confirm = await screen.findByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(fake.to("POST", "/api/v1/memory")).toHaveLength(2));
+    const executed = fake.to("POST", "/api/v1/memory")[1]!;
+    expect(executed.headers.get("x-action-preview-id")).toBe(previewId);
+    expect(executed.headers.get("Idempotency-Key")).toBe(staged.headers.get("Idempotency-Key"));
+    expect(executed.body).toEqual(staged.body);
   });
 });
 
@@ -305,43 +342,68 @@ describe("memory: conflict resolution", () => {
     return drawer;
   }
 
-  it("keeps both entries: POST …/resolve with If-Match, Idempotency-Key and the chosen resolution", async () => {
+  it("keeps both entries through the staged preview: POST …/resolve with If-Match, Idempotency-Key and the chosen resolution", async () => {
     const user = userEvent.setup();
+    const previewId = "corr_0000000000000000000000cb1";
     const resolved = makeMemory({ conflicts: [{ memoryId: OTHER, reason: "Widerspricht dem Eintrag zum Tee", detectedAt: NOW, resolution: "keep_both" }], version: 4 });
-    const fake = routedFetch({ ...baseRoutes(conflicted()), [`POST ${resolvePath}`]: single(resolved) });
-    renderWithProviders(<MemoryPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    const fake = routedFetch({
+      ...baseRoutes(conflicted()),
+      [`POST ${resolvePath}`]: (_url: URL, request: Request) =>
+        request.headers.get("x-action-preview-id") === previewId ? single(resolved) : previewRequired("Konflikt lösen?", previewId),
+    });
+    renderWithProviders(<><MemoryPage /><StagedWriteConfirmHost /></>, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     const drawer = await openConflicts(user);
     await user.click(within(drawer).getByRole("button", { name: /Beide behalten/ }));
     await waitFor(() => expect(fake.to("POST", resolvePath)).toHaveLength(1));
-    const call = fake.to("POST", resolvePath)[0];
-    expect(call?.body).toEqual({ resolution: "keep_both" });
-    expect(call?.headers.get("If-Match")).toBe("3");
-    expect(call?.headers.get("Idempotency-Key")).toBeTruthy();
+    const staged = fake.to("POST", resolvePath)[0]!;
+    expect(staged.body).toEqual({ resolution: "keep_both" });
+    expect(staged.headers.get("If-Match")).toBe("3");
+    expect(staged.headers.get("Idempotency-Key")).toBeTruthy();
+    expect(staged.headers.get("x-action-preview-id")).toBeNull();
+    const confirm = await screen.findByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(fake.to("POST", resolvePath)).toHaveLength(2));
+    const executed = fake.to("POST", resolvePath)[1]!;
+    expect(executed.headers.get("x-action-preview-id")).toBe(previewId);
+    expect(executed.headers.get("If-Match")).toBe("3");
+    expect(executed.body).toEqual(staged.body);
     expect(await screen.findByText("Beide Einträge bleiben bestehen")).toBeInTheDocument();
   });
 
-  it("dismisses a conflict directly", async () => {
+  it("dismisses a conflict directly through the staged preview", async () => {
     const user = userEvent.setup();
-    const fake = routedFetch({ ...baseRoutes(conflicted()), [`POST ${resolvePath}`]: single(makeMemory()) });
-    renderWithProviders(<MemoryPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    const previewId = "corr_0000000000000000000000cb2";
+    const fake = routedFetch({
+      ...baseRoutes(conflicted()),
+      [`POST ${resolvePath}`]: (_url: URL, request: Request) =>
+        request.headers.get("x-action-preview-id") === previewId ? single(makeMemory()) : previewRequired("Konflikt lösen?", previewId),
+    });
+    renderWithProviders(<><MemoryPage /><StagedWriteConfirmHost /></>, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     const drawer = await openConflicts(user);
     await user.click(within(drawer).getByRole("button", { name: "Verwerfen" }));
     await waitFor(() => expect(fake.to("POST", resolvePath)).toHaveLength(1));
-    expect(fake.to("POST", resolvePath)[0]?.body).toEqual({ resolution: "dismiss" });
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(fake.to("POST", resolvePath)).toHaveLength(2));
+    expect(fake.to("POST", resolvePath)[1]?.body).toEqual({ resolution: "dismiss" });
   });
 
-  it("replaces only after an explicit confirmation that says the other entry is forgotten", async () => {
+  it("replaces through the staged preview: the server preview is the explicit confirmation that the other entry is forgotten", async () => {
     const user = userEvent.setup();
-    const fake = routedFetch({ ...baseRoutes(conflicted()), [`POST ${resolvePath}`]: single(makeMemory()) });
-    renderWithProviders(<MemoryPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    const previewId = "corr_0000000000000000000000cb3";
+    const fake = routedFetch({
+      ...baseRoutes(conflicted()),
+      [`POST ${resolvePath}`]: (_url: URL, request: Request) =>
+        request.headers.get("x-action-preview-id") === previewId ? single(makeMemory()) : previewRequired("Konflikt von „Kaffeesorte“ durch Ersetzen des widersprechenden Eintrags lösen?", previewId),
+    });
+    renderWithProviders(<><MemoryPage /><StagedWriteConfirmHost /></>, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     const drawer = await openConflicts(user);
     await user.click(within(drawer).getByRole("button", { name: /Diesen behalten, anderen ersetzen/ }));
     const confirm = await screen.findByRole("alertdialog");
-    expect(within(confirm).getByText("Der widersprechende Eintrag wird vergessen.")).toBeInTheDocument();
-    expect(fake.to("POST", resolvePath)).toHaveLength(0);
-    await user.click(within(confirm).getByRole("button", { name: "Ersetzen" }));
-    await waitFor(() => expect(fake.to("POST", resolvePath)).toHaveLength(1));
-    expect(fake.to("POST", resolvePath)[0]?.body).toEqual({ resolution: "replace" });
+    expect(within(confirm).getByText("Konflikt von „Kaffeesorte“ durch Ersetzen des widersprechenden Eintrags lösen?")).toBeInTheDocument();
+    expect(fake.to("POST", resolvePath)).toHaveLength(1);
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(fake.to("POST", resolvePath)).toHaveLength(2));
+    expect(fake.to("POST", resolvePath)[1]?.body).toEqual({ resolution: "replace" });
   });
 
   it("offers no actions for resolved conflicts and disables them without the capability", async () => {

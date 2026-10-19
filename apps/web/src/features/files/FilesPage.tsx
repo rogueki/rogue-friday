@@ -1,10 +1,8 @@
 "use client";
 
-import type { FileCategory, FileItem } from "@friday/sdk";
-import { isFridayApiError } from "@friday/sdk";
+import type { ActionResult, ApprovalResponse, FileCategory, FileItem } from "@friday/sdk";
 import {
   Button,
-  ConfirmDialog,
   Dialog,
   Drawer,
   FilterBar,
@@ -24,12 +22,18 @@ import { KeyValue, StatusStrip, useFormatters, useQueryPanelState } from "@/feat
 import { saveBlob } from "@/features/system/download";
 import { formatBytes } from "@/features/system/format";
 import { useT, type MessageKey } from "@/i18n";
+import { getApiClient } from "@/lib/api/client";
 import { describeError } from "@/lib/api/queryClient";
-import { downloadFileBlob, useDeleteFile, useFile, useFiles, type FileFilters } from "@/lib/api/domains/files";
+import { downloadFileBlob, useFile, useFiles, type FileFilters } from "@/lib/api/domains/files";
+import { queryKeys } from "@/lib/api/queryKeys";
+import { useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 import { useCapability } from "@/lib/capabilities";
 import { FilePreviewPane } from "./FilePreview";
 import { RenameFileDialog } from "./RenameFileDialog";
 import "./files.css";
+
+/** Outcome of the staged DELETE /files/{id}: removed right away (200) or an adapter approval was raised (202). */
+type DeleteFileOutcome = { kind: "deleted"; result: ActionResult } | { kind: "approval"; approval: ApprovalResponse };
 
 const ICON = { size: 18, strokeWidth: 1.5 } as const;
 const PAGE_SIZE = 48;
@@ -128,8 +132,8 @@ export function FileDetail({ file, onClose, onSelectFile, siblings = [] }: FileD
   const canPreview = useCapability("files", "preview");
   const canDelete = useCapability("files", "delete");
   const canRename = useCapability("files", "rename");
-  const remove = useDeleteFile();
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const remove = useRunStagedWrite();
+  const removeBusy = useStagedWriteBusy();
   const [renaming, setRenaming] = useState(false);
   const [downloading, setDownloading] = useState<number | "current" | null>(null);
   const [openPreview, setOpenPreview] = useState(false);
@@ -147,31 +151,36 @@ export function FileDetail({ file, onClose, onSelectFile, siblings = [] }: FileD
     }
   };
 
+  /** DELETE /files/{id} as a staged write: 200 removes the file, 202 means the adapter approval decides. */
   const requestDelete = (): void => {
-    remove.mutate(
-      { id: file.id, version: file.version },
-      {
-        onSuccess: (outcome) => {
-          setConfirmDelete(false);
-          if (outcome.kind === "approval") {
-            const approvalId = outcome.approval.data.id;
-            toast({
-              title: t("files.delete.approvalRequested"),
-              description: t("files.delete.approvalDescription", { name: file.name }),
-              tone: "amber",
-              action: { label: t("files.delete.openApproval"), onClick: () => router.push(`/approvals?approval=${encodeURIComponent(approvalId)}`) },
-            });
-          } else {
-            toast({ title: t("files.delete.done", { name: file.name }), description: outcome.result.message, tone: "green" });
-            onClose();
-          }
-        },
-        onError: () => setConfirmDelete(false),
+    void remove({
+      send: async (previewId) => {
+        const { data, response } = await getApiClient().DELETE("/api/v1/files/{id}", {
+          params: { path: { id: file.id }, header: { "If-Match": String(file.version) } },
+          ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) });
+        if (data === undefined) throw new Error("Leere Antwort beim Löschen");
+        return response.status === 202 ? { kind: "approval" as const, approval: data as ApprovalResponse }
+          : { kind: "deleted" as const, result: data as ActionResult };
       },
-    );
+      successMessage: t("files.delete.done", { name: file.name }),
+      subject: file.name,
+      invalidateKeys: [queryKeys.files.all, queryKeys.overview, queryKeys.approvals.all],
+      onExecuted: (outcome) => {
+        const result = outcome as DeleteFileOutcome;
+        if (result.kind === "approval") {
+          const approvalId = result.approval.data.id;
+          toast({
+            title: t("files.delete.approvalRequested"),
+            description: t("files.delete.approvalDescription", { name: file.name }),
+            tone: "amber",
+            action: { label: t("files.delete.openApproval"), onClick: () => router.push(`/approvals?approval=${encodeURIComponent(approvalId)}`) },
+          });
+        } else {
+          onClose();
+        }
+      },
+    });
   };
-
-  const conflict = remove.error && isFridayApiError(remove.error) && remove.error.code === "CONFLICT";
 
   const detailsTab = (
     <div className="mc-stack">
@@ -316,17 +325,12 @@ export function FileDetail({ file, onClose, onSelectFile, siblings = [] }: FileD
           {t("files.action.rename")}
         </Button>
         {canDelete ? (
-          <Button size="sm" variant="danger" icon={<Trash2 size={14} strokeWidth={1.5} />} onClick={() => setConfirmDelete(true)}>
+          <Button size="sm" variant="danger" icon={<Trash2 size={14} strokeWidth={1.5} />} disabled={removeBusy} onClick={requestDelete}>
             {t("files.action.delete")}
           </Button>
         ) : null}
         {canDelete ? null : <span className="mc-note mc-note--muted">{t("files.action.deleteUnavailable")}</span>}
       </div>
-      {conflict ? (
-        <div className="mc-box mc-box--amber" role="alert">
-          {t("files.delete.conflict")}
-        </div>
-      ) : null}
       <Tabs
         label={t("files.detail.tabs")}
         items={[
@@ -337,18 +341,6 @@ export function FileDetail({ file, onClose, onSelectFile, siblings = [] }: FileD
         ]}
         defaultValue="preview"
         panelClassName="fl-detail__panel"
-      />
-      <ConfirmDialog
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        title={t("files.delete.title", { name: file.name })}
-        description={t("files.delete.description")}
-        details={[t("files.delete.impact1"), t("files.delete.impact2", { count: file.versions.length }), t("files.delete.impact3")]}
-        confirmLabel={t("files.delete.confirm")}
-        cancelLabel={t("common.cancel")}
-        tone="danger"
-        loading={remove.isPending}
-        onConfirm={requestDelete}
       />
       <FileOpenDialog file={file} open={openPreview} onOpenChange={setOpenPreview} />
       {renaming ? (

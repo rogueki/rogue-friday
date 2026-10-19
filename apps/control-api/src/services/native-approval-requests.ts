@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createId } from "@friday/observability";
-import type { Approval, CalendarEvent, SchemaValidator, TaskActionRequest, TaskAssignRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
+import type { Approval, CalendarEvent, FileRenameRequest, MemoryConflictResolveRequest, MemoryCreateRequest, MemoryUpdateRequest, SchemaValidator, TaskActionRequest, TaskAssignRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
 import type { Db } from "../db/database";
 import type { LocalEventInput } from "./local-calendar";
 import type { MailSendRequest } from "./mail-send";
@@ -30,7 +30,17 @@ export type NativeExecutableAction =
   /** Assignment is a task write on the agents port (POST /tasks/{id}/assign). */
   | { kind: "agent.assign"; id: string; body: TaskAssignRequest }
   /** The native staged draft is the only at-most-once guard of a coding-run stop (same as mail.change). */
-  | { kind: "codingrun.stop"; id: string };
+  | { kind: "codingrun.stop"; id: string }
+  /** Memory writes go to the memory port; the staged version keeps a changed resource from applying over a replay. */
+  | { kind: "memory.create"; body: MemoryCreateRequest }
+  | { kind: "memory.update"; id: string; version: number; body: MemoryUpdateRequest }
+  | { kind: "memory.delete"; id: string; version: number; title: string | null }
+  | { kind: "memory.resolveConflict"; id: string; conflictId: string; version: number; body: MemoryConflictResolveRequest }
+  /** File writes go to the files port with the pipeline idempotency key; the rename carries the old name for the audit trail. */
+  | { kind: "file.rename"; id: string; version: number; body: FileRenameRequest; previousName: string }
+  /** Immediate deletion (temporary files); the gated sibling hands the deletion to the adapter's own approval. */
+  | { kind: "file.delete"; id: string; version: number; name: string }
+  | { kind: "file.delete.gated"; id: string; version: number; name: string };
 
 /** Receipt sentence per action kind; the create wording is asserted by existing API fixtures. */
 export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], string>> = {
@@ -48,6 +58,13 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "agent.stop": "gestoppt",
   "agent.assign": "zugewiesen",
   "codingrun.stop": "abgebrochen",
+  "memory.create": "angelegt",
+  "memory.update": "aktualisiert",
+  "memory.delete": "vergessen",
+  "memory.resolveConflict": "geloest",
+  "file.rename": "umbenannt",
+  "file.delete": "geloescht",
+  "file.delete.gated": "zur Loeschung angemeldet",
 };
 
 /** Receipt subject per action family; combined with the verb to the exact receipt sentence. */
@@ -66,6 +83,13 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "agent.stop": "Agent",
   "agent.assign": "Aufgabe",
   "codingrun.stop": "Coding-Lauf",
+  "memory.create": "Gedaechtniseintrag",
+  "memory.update": "Gedaechtniseintrag",
+  "memory.delete": "Gedaechtniseintrag",
+  "memory.resolveConflict": "Konflikt",
+  "file.rename": "Datei",
+  "file.delete": "Datei",
+  "file.delete.gated": "Datei-Loeschung",
 };
 
 /** The action executor supplies a reviewed preview and a stable key before any external side effect. */

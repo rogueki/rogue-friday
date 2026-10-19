@@ -7,6 +7,7 @@ import { FRIDAY_EVENT_DATA_SCHEMA_IDS, createSchemaValidator, isFridayEventType 
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 import { WsProbe } from "./support/ws";
 import { createApprovedTask } from "./support/task-actions";
+import { confirmedHeaders, stageKnowledgeWrite } from "./support/knowledge-actions";
 
 const validator = createSchemaValidator();
 
@@ -34,6 +35,10 @@ describe("WebSocket /api/v1/events", () => {
     api = await startTestApi({ listen: true, ringBufferSize: 100, heartbeatSeconds: 1 });
     owner = api.client();
     await owner.loginDev("owner");
+    // Staged knowledge writes execute directly after confirmation in these event-stream tests.
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(settings.version) } });
   });
   afterEach(async () => {
     for (const probe of open.splice(0)) probe.close();
@@ -76,7 +81,9 @@ describe("WebSocket /api/v1/events", () => {
       const correlationId = "corr_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const created = await createApprovedTask(owner, { title: "Ereignistest" }, undefined, { "x-correlation-id": correlationId });
       const taskId = created.task.id;
-      await owner.post("/api/v1/memory", { type: "fact", content: "Ereignis aus dem Gedächtnis" });
+      const memoryPreview = await stageKnowledgeWrite(owner, "POST", "/api/v1/memory", { type: "fact", content: "Ereignis aus dem Gedächtnis" });
+      await owner.post("/api/v1/memory", { type: "fact", content: "Ereignis aus dem Gedächtnis" },
+        { headers: confirmedHeaders(memoryPreview, { "x-correlation-id": correlationId }) });
       await probe.waitFor((p) => p.events().length >= 3 && p.events().some((event) => event.type === "friday.task.created"), 3_000, "mindestens 3 Ereignisse");
 
       const events = probe.events();

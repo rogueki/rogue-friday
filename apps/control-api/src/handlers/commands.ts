@@ -11,6 +11,8 @@ import { parseCalendarActionIntent, type CalendarActionIntent } from "../service
 import { derivedSubject, parseMailActionIntent, type MailActionIntent } from "../services/mail-action-intent";
 import { parseMessengerActionIntent, type MessengerActionIntent } from "../services/messenger-action-intent";
 import { parseAgentActionIntent, type AgentActionIntent } from "../services/agent-action-intent";
+import { parseKnowledgeActionIntent, type KnowledgeActionIntent } from "../services/knowledge-action-intent";
+import { assertMemoryWritable, assertRenameTargetFree, assertValidFileName, dispatchKnowledgeAction, fileDeleteAction, memoryLabel } from "./knowledge-actions";
 import { checkedLocalEvent, LocalCalendarService } from "../services/local-calendar";
 import { checkedMailSend, type MailSendRequest } from "../services/mail-send";
 import { checkedMessengerDraft, type MessengerSendDraft } from "../services/messenger-send";
@@ -20,6 +22,8 @@ import { captureMessengerSend, messengerPreviewText } from "./messenger-send";
 import { AGENT_LIFECYCLE_VERB, agentLifecyclePreviewText, assertAgentTransition, CODING_RUN_TERMINAL } from "./agent-actions";
 import type { Agent } from "@friday/sdk";
 import type { CalendarEvent } from "@friday/sdk";
+import type { FileItem } from "@friday/sdk";
+import type { Memory, MemoryUpdateRequest } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import { conflict, notFound, validationFailed, ApiError } from "../util/errors";
 import { portHandler } from "./ports";
@@ -258,6 +262,195 @@ async function executeCalendarAction(ctx: Parameters<Handler>[0], request: Comma
       });
     response = { ...base, status: "executed", requiresConfirmation: false, previewText: null,
       approvalId: null, result: { message: doneMessage, targetRoute: "/calendar" } };
+  }
+  return { status: 200, body: response };
+}
+
+const MEMORY_REF_ID = /^mem_[0-9A-Za-z]{26}$/;
+const FILE_REF_ID = /^file_[0-9A-Za-z]{26}$/;
+const KNOWLEDGE_KINDS = new Set([
+  "memory.create", "memory.update", "memory.delete", "memory.resolveConflict",
+  "file.rename", "file.delete", "file.delete.gated",
+]);
+
+/**
+ * Resolves the spoken reference before anything is staged: a memory id directly, an exact unique title via the live
+ * memory list, or the single selected memory of the command context. Unknown or ambiguous references fail here.
+ */
+async function resolveMemoryRef(ctx: Parameters<Handler>[0], request: CommandRequest, ref: string | null): Promise<Memory> {
+  const memory = ctx.runtime.registry.getPort("memory");
+  if (ref === null) {
+    const selected = request.context?.selectedIds ?? [];
+    if (selected.length !== 1) {
+      throw validationFailed("Welcher Gedächtniseintrag ist gemeint? Bitte Titel, Kennung oder genau eine Auswahl angeben.",
+        [{ path: "context.selectedIds", message: "genau ein Eintrag erforderlich" }]);
+    }
+    return (await memory.getMemory({ id: selected[0]! }, ctx.call)).data;
+  }
+  if (MEMORY_REF_ID.test(ref)) return (await memory.getMemory({ id: ref }, ctx.call)).data;
+  const wanted = ref.toLowerCase();
+  const matches = (await memory.listMemory({ q: ref, limit: 50 }, ctx.call)).items
+    .filter((entry) => (entry.title ?? "").trim().toLowerCase() === wanted || entry.content.trim().toLowerCase() === wanted);
+  if (matches.length === 0) throw notFound("Gedächtniseintrag", ref);
+  if (matches.length > 1) throw conflict(`Mehrere Gedächtniseinträge passen zu „${ref}“. Bitte die Kennung angeben.`, { ref });
+  return matches[0]!;
+}
+
+/**
+ * Resolves the spoken reference before anything is staged: a file id directly, an exact unique file name via the live
+ * file list, or the single selected file of the command context. Unknown or ambiguous references fail here.
+ */
+async function resolveFileRef(ctx: Parameters<Handler>[0], request: CommandRequest, ref: string | null): Promise<FileItem> {
+  const files = ctx.runtime.registry.getPort("files");
+  if (ref === null) {
+    const selected = request.context?.selectedIds ?? [];
+    if (selected.length !== 1) {
+      throw validationFailed("Welche Datei ist gemeint? Bitte Name, Kennung oder genau eine Auswahl angeben.",
+        [{ path: "context.selectedIds", message: "genau eine Datei erforderlich" }]);
+    }
+    return (await files.getFile({ id: selected[0]! }, ctx.call)).data;
+  }
+  if (FILE_REF_ID.test(ref)) return (await files.getFile({ id: ref }, ctx.call)).data;
+  const matches = (await files.listFiles({ q: ref, limit: 50 }, ctx.call)).items
+    .filter((entry) => entry.name.trim().toLowerCase() === ref.toLowerCase());
+  if (matches.length === 0) throw notFound("Datei", ref);
+  if (matches.length > 1) throw conflict(`Mehrere Dateien passen zu „${ref}“. Bitte die Kennung angeben.`, { ref });
+  return matches[0]!;
+}
+
+function knowledgeDone(action: NativeExecutableAction): { doneMessage: string; targetRoute: string } {
+  switch (action.kind) {
+    case "memory.create": return { doneMessage: "Gedaechtniseintrag wurde angelegt.", targetRoute: "/memory" };
+    case "memory.update": return { doneMessage: "Gedaechtniseintrag wurde aktualisiert.", targetRoute: `/memory?memory=${action.id}` };
+    case "memory.delete": return { doneMessage: "Gedaechtniseintrag wurde vergessen.", targetRoute: "/memory" };
+    case "memory.resolveConflict": return { doneMessage: "Gedaechtniskonflikt wurde geloest.", targetRoute: `/memory?memory=${action.id}` };
+    case "file.rename": return { doneMessage: "Datei wurde umbenannt.", targetRoute: "/files" };
+    case "file.delete": return { doneMessage: "Datei wurde geloescht.", targetRoute: "/files" };
+    case "file.delete.gated": return { doneMessage: "Datei-Loeschung wurde beim Adapter zur Freigabe angemeldet.", targetRoute: "/approvals" };
+    default: throw conflict("Aktion ist nicht ausfuehrbar.");
+  }
+}
+
+/**
+ * Spoken file/knowledge actions run through the same native staged pipeline as the direct routes: exact-body
+ * confirmation binds the draft, and the port call carries the pipeline idempotency key. The references resolve ONLY
+ * against the live registry before staging (a saved draft binds confirmation and replay instead).
+ */
+async function executeKnowledgeAction(ctx: Parameters<Handler>[0], request: CommandRequest,
+  intent: KnowledgeActionIntent): Promise<Awaited<ReturnType<Handler>>> {
+  const ownerId = ctx.principal?.userId;
+  if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+  const memory = ctx.runtime.registry.getPort("memory");
+  const files = ctx.runtime.registry.getPort("files");
+  let action: NativeExecutableAction;
+  let actionText = "";
+  let previewText = "";
+  let doneMessage: string;
+  let targetRoute: string;
+  const stored = request.previewId ? ctx.runtime.nativeApprovals.readAction(ownerId, request.previewId) : null;
+  if (stored && KNOWLEDGE_KINDS.has(stored.kind)) {
+    // Confirmation or discard of a saved draft: the stored action binds; the target may be gone by now (deletion replay).
+    action = stored;
+    ({ doneMessage, targetRoute } = knowledgeDone(stored));
+  } else {
+    if (request.previewId) throw conflict("Der Entwurf passt nicht zur Aktion.");
+    if (intent.kind === "memory.create") {
+      if (!memory.createMemory || !ctx.runtime.capabilities().modules.memory.write) {
+        throw new ApiError({ code: "CAPABILITY_MISSING", message: "Gedaechtniseintraege koennen derzeit nicht angelegt werden." });
+      }
+      const body = { type: "fact" as const, content: intent.content };
+      action = { kind: "memory.create", body };
+      actionText = `Gedaechtniseintrag anlegen: ${memoryLabel({ title: null, content: intent.content })}`;
+      previewText = `Gedächtniseintrag „${intent.content.slice(0, 80)}“ anlegen?`;
+      doneMessage = "Gedaechtniseintrag wurde angelegt.";
+      targetRoute = "/memory";
+    } else if (intent.kind === "memory.update" || intent.kind === "memory.confirm") {
+      if (!memory.updateMemory || !ctx.runtime.capabilities().modules.memory.write) {
+        throw new ApiError({ code: "CAPABILITY_MISSING", message: "Gedaechtniseintraege koennen derzeit nicht geaendert werden." });
+      }
+      const current = await resolveMemoryRef(ctx, request, intent.ref);
+      const body: MemoryUpdateRequest = intent.kind === "memory.confirm" ? { confirm: true } : { content: intent.content };
+      assertMemoryWritable(current, body);
+      action = { kind: "memory.update", id: current.id, version: current.version, body };
+      actionText = `Gedaechtniseintrag aktualisieren: ${memoryLabel(current)}`;
+      previewText = intent.kind === "memory.confirm"
+        ? `Gedächtniseintrag „${memoryLabel(current)}“ bestätigen?`
+        : `Gedächtniseintrag „${memoryLabel(current)}“ aktualisieren?`;
+      doneMessage = intent.kind === "memory.confirm" ? "Gedaechtniseintrag wurde bestaetigt." : "Gedaechtniseintrag wurde aktualisiert.";
+      targetRoute = `/memory?memory=${current.id}`;
+    } else if (intent.kind === "memory.delete") {
+      if (!memory.deleteMemory || !ctx.runtime.capabilities().modules.memory.delete) {
+        throw new ApiError({ code: "CAPABILITY_MISSING", message: "Gedaechtniseintraege koennen derzeit nicht vergessen werden." });
+      }
+      const current = await resolveMemoryRef(ctx, request, intent.ref);
+      if (current.locked) throw conflict("Gesperrte Einträge können nicht gelöscht werden.", { locked: true });
+      action = { kind: "memory.delete", id: current.id, version: current.version, title: current.title ?? null };
+      actionText = `Gedaechtniseintrag vergessen: ${memoryLabel(current)}`;
+      previewText = `Gedächtniseintrag „${memoryLabel(current)}“ vergessen? Die Löschung bleibt im Audit nachvollziehbar.`;
+      doneMessage = "Gedaechtniseintrag wurde vergessen.";
+      targetRoute = "/memory";
+    } else if (intent.kind === "file.rename") {
+      if (!files.renameFile || !ctx.runtime.capabilities().modules.files.rename) {
+        throw new ApiError({ code: "CAPABILITY_MISSING", message: "Dateien koennen derzeit nicht umbenannt werden." });
+      }
+      const current = await resolveFileRef(ctx, request, intent.ref);
+      assertValidFileName(intent.name);
+      await assertRenameTargetFree(ctx, current, intent.name);
+      action = { kind: "file.rename", id: current.id, version: current.version, body: { name: intent.name },
+        previousName: current.name };
+      actionText = `Datei umbenennen: ${current.name} -> ${intent.name}`;
+      previewText = `Datei „${current.name}“ in „${intent.name}“ umbenennen?`;
+      doneMessage = "Datei wurde umbenannt.";
+      targetRoute = "/files";
+    } else {
+      if (!files.deleteFile || !ctx.runtime.capabilities().modules.files.delete) {
+        throw new ApiError({ code: "CAPABILITY_MISSING", message: "Dateien koennen derzeit nicht geloescht werden." });
+      }
+      const current = await resolveFileRef(ctx, request, intent.ref);
+      action = fileDeleteAction(current);
+      actionText = `Datei loeschen: ${current.name}`;
+      previewText = `Datei „${current.name}“ endgültig löschen?`;
+      doneMessage = action.kind === "file.delete.gated"
+        ? "Datei-Loeschung wurde beim Adapter zur Freigabe angemeldet." : "Datei wurde geloescht.";
+      targetRoute = "/files";
+    }
+  }
+  if (!request.confirm && request.previewId) {
+    ctx.runtime.nativeApprovals.cancelDraft(ownerId, request.previewId, action);
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"),
+      correlationId: ctx.correlationId, riskTier: 2, status: "rejected", requiresConfirmation: false,
+      previewText: null, approvalId: null, result: { message: "Entwurf verworfen." } } satisfies CommandResponse };
+  }
+  const requestKey = request.confirm ? request.previewId : ctx.correlationId;
+  if (!requestKey) throw validationFailed("Eine bestaetigte Vorschau fehlt.", [{ path: "previewId", message: "erforderlich" }]);
+  const policy = request.confirm
+    ? ctx.runtime.nativeApprovals.confirm(ownerId, requestKey, action)
+    : ctx.runtime.nativeApprovals.propose({ ownerId, requestKey, correlationId: ctx.correlationId, riskTier: 2,
+        type: "system_change", action: actionText, rationale: "Datei-/Wissensaktion aus bestaetigtem Befehl",
+        preview: { kind: "text", title: actionText, body: previewText }, impacts: [], execution: action });
+  const base = { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"), correlationId: ctx.correlationId,
+    riskTier: 2 as const };
+  let response: CommandResponse;
+  if (!request.confirm) {
+    response = { ...base, status: "requires_confirmation", requiresConfirmation: true,
+      previewText, previewId: requestKey, approvalId: null, result: null };
+  } else if (policy.approval) {
+    response = { ...base, status: "requires_approval", requiresConfirmation: false, previewText: null,
+      approvalId: policy.approval.id,
+      result: { message: "Aktion wartet auf Freigabe.", targetRoute: `/approvals?approval=${policy.approval.id}` } };
+  } else {
+    let approvalId: string | null = null;
+    await ctx.runtime.nativeApprovals.executeWithoutApproval(ownerId, requestKey,
+      async (actionToRun, idempotencyKey) => {
+        const dispatched = await dispatchKnowledgeAction(ctx.runtime, actionToRun, { ...ctx.mutation, idempotencyKey });
+        if (dispatched.result.kind === "file.approval") approvalId = dispatched.result.approval.id;
+        return dispatched.receipt;
+      });
+    response = { ...base, status: "executed", requiresConfirmation: false, previewText: null, approvalId: null,
+      result: { message: approvalId
+        ? "Datei-Loeschung wurde beim Adapter zur Freigabe angemeldet."
+        : doneMessage,
+        targetRoute: approvalId ? `/approvals?approval=${approvalId}` : targetRoute } };
   }
   return { status: 200, body: response };
 }
@@ -711,16 +904,19 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
       const timeZone = ctx.runtime.settings.area("profile").timeZone;
       const calendarAction = taskCreate || taskAction ? null
         : parseCalendarActionIntent(request.text, ctx.runtime.nowMs(), timeZone);
-      const agentAction = taskCreate || taskAction || calendarAction ? null
+      const knowledgeAction = taskCreate || taskAction || calendarAction ? null
+        : parseKnowledgeActionIntent(request.text);
+      const agentAction = taskCreate || taskAction || calendarAction || knowledgeAction ? null
         : parseAgentActionIntent(request.text);
-      const messengerAction = taskCreate || taskAction || calendarAction || agentAction ? null
+      const messengerAction = taskCreate || taskAction || calendarAction || agentAction || knowledgeAction ? null
         : parseMessengerActionIntent(request.text);
-      const mailAction = taskCreate || taskAction || calendarAction || agentAction || messengerAction ? null
+      const mailAction = taskCreate || taskAction || calendarAction || agentAction || messengerAction || knowledgeAction ? null
         : parseMailActionIntent(request.text);
       const intent = request.confirm ? null : matchBuiltinIntent(request.text);
       const result = taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
         : taskAction ? await executeTaskAction(ctx, request, taskAction)
         : calendarAction ? await executeCalendarAction(ctx, request, calendarAction)
+        : knowledgeAction ? await executeKnowledgeAction(ctx, request, knowledgeAction)
         : agentAction ? await executeAgentAction(ctx, request, agentAction)
         : messengerAction ? await executeMessengerAction(ctx, request, messengerAction)
         : mailAction ? await executeMailAction(ctx, request, mailAction)
@@ -735,6 +931,7 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         source: request.source,
         ...(intent ? { intent } : taskCreate ? { intent: "task_create" } : taskAction ? { intent: taskAction.kind.replace(".", "_") }
           : calendarAction ? { intent: calendarAction.kind.replace(".", "_") }
+          : knowledgeAction ? { intent: knowledgeAction.kind.replace(".", "_") }
           : agentAction ? { intent: agentAction.kind.replace(".", "_") }
           : messengerAction ? { intent: messengerAction.kind.replace(".", "_") }
           : mailAction ? { intent: mailAction.kind.replace(".", "_") } : {}),

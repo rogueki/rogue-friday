@@ -189,13 +189,27 @@ describe("contract: all operations", () => {
 
     it("creates, reads, updates, searches and deletes memory", async () => {
       await call("listMemory", { query: { q: "Arbeitszeit", limit: "5" } });
-      const created = await call("createMemory", { body: { type: "fact", content: "Dienstreise im November geplant", tags: ["reise"] }, headers: { "idempotency-key": "idem-contract-memory-01" } });
+      const settings = (await owner.get("/api/v1/settings")).json().data;
+      expect((await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+        { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
+      const body = { type: "fact", content: "Dienstreise im November geplant", tags: ["reise"] };
+      const headers = { "idempotency-key": "idem-contract-memory-01" };
+      const stagedCreate = await call("createMemory", { body, headers, expect: 403 });
+      expect(stagedCreate.json.error).toMatchObject({ code: "APPROVAL_REQUIRED", details: { stage: "preview" } });
+      const created = await call("createMemory", { body,
+        headers: { ...headers, "x-action-preview-id": stagedCreate.json.error.details.previewId } });
       const id = created.json.data.id as string;
       const read = await call("getMemory", { params: { id } });
-      await call("updateMemory", { params: { id }, body: { content: "Dienstreise im November bestätigt" }, headers: { "if-match": String(read.json.data.version) } });
+      const updateHeaders = { "if-match": String(read.json.data.version) };
+      const stagedUpdate = await call("updateMemory", { params: { id }, body: { content: "Dienstreise im November bestätigt" }, headers: updateHeaders, expect: 403 });
+      await call("updateMemory", { params: { id }, body: { content: "Dienstreise im November bestätigt" },
+        headers: { ...updateHeaders, "x-action-preview-id": stagedUpdate.json.error.details.previewId } });
       const search = await call("searchMemory", { body: { query: "Dienstreise" } });
       expect(search.json.items.length).toBeGreaterThan(0);
-      await call("deleteMemory", { params: { id } });
+      const stagedDelete = await call("deleteMemory", { params: { id }, expect: 403 });
+      const removed = await call("deleteMemory", { params: { id },
+        headers: { "x-action-preview-id": stagedDelete.json.error.details.previewId } });
+      expect(removed.json).toMatchObject({ accepted: true, status: "completed", resourceId: id });
     });
 
     it("exports the memory and resolves a conflict", async () => {
@@ -205,7 +219,10 @@ describe("contract: all operations", () => {
       expect(exported.json.items.some((memory: any) => memory.sensitivity === "restricted")).toBe(false);
       const conflicting = (await idsOf("/api/v1/memory")).find((memory) => memory.conflicts.some((entry: any) => entry.resolution === "pending"));
       const conflictId = conflicting.conflicts.find((entry: any) => entry.resolution === "pending").memoryId as string;
-      const resolved = await call("resolveMemoryConflict", { params: { id: conflicting.id, conflictId }, body: { resolution: "keep_both" }, headers: { "idempotency-key": "idem-contract-conflict-1" } });
+      const headers = { "idempotency-key": "idem-contract-conflict-1" };
+      const staged = await call("resolveMemoryConflict", { params: { id: conflicting.id, conflictId }, body: { resolution: "keep_both" }, headers, expect: 403 });
+      const resolved = await call("resolveMemoryConflict", { params: { id: conflicting.id, conflictId }, body: { resolution: "keep_both" },
+        headers: { ...headers, "x-action-preview-id": staged.json.error.details.previewId } });
       expect(resolved.json.data.conflicts.find((entry: any) => entry.memoryId === conflictId).resolution).toBe("keep_both");
     });
   });
@@ -331,9 +348,15 @@ describe("contract: all operations", () => {
       expect(download.response.headers["content-type"]).toBe("application/octet-stream");
       const temporary = files.json.items.find((file: any) => file.category === "temporary");
       const target = files.json.items.find((file: any) => file.category === "reports");
-      const renamed = await call("renameFile", { params: { id: target.id }, body: { name: "Umbenannter Bericht.md" }, headers: { "if-match": String(target.version) } });
+      const renameHeaders = { "if-match": String(target.version) };
+      const stagedRename = await call("renameFile", { params: { id: target.id }, body: { name: "Umbenannter Bericht.md" }, headers: renameHeaders, expect: 403 });
+      expect(stagedRename.json.error).toMatchObject({ code: "APPROVAL_REQUIRED", details: { stage: "preview" } });
+      const renamed = await call("renameFile", { params: { id: target.id }, body: { name: "Umbenannter Bericht.md" },
+        headers: { ...renameHeaders, "x-action-preview-id": stagedRename.json.error.details.previewId } });
       expect(renamed.json.data).toMatchObject({ id: target.id, name: "Umbenannter Bericht.md", version: target.version + 1 });
-      const removed = await call("deleteFile", { params: { id: temporary.id }, expect: [200, 202] });
+      const stagedDelete = await call("deleteFile", { params: { id: temporary.id }, expect: 403 });
+      const removed = await call("deleteFile", { params: { id: temporary.id },
+        headers: { "x-action-preview-id": stagedDelete.json.error.details.previewId } });
       expect([200, 202]).toContain(removed.status);
     });
   });

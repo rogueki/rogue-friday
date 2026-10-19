@@ -1,10 +1,9 @@
 "use client";
 
-import type { ActionResult, ApprovalResponse, FileCategory, FileItemListResponse, FileItemResponse, FilePreviewResponse } from "@friday/sdk";
+import type { FileCategory, FileItemListResponse, FileItemResponse, FilePreviewResponse } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
-import { useApiMutation, type IntentVars } from "../mutation";
 import { queryKeys } from "../queryKeys";
 import { staleTimes } from "../staleTimes";
 
@@ -52,50 +51,4 @@ export async function downloadFileBlob(id: string, version?: number): Promise<Bl
     parseAs: "blob",
   });
   return data instanceof Blob ? data : new Blob([typeof data === "string" ? data : ""]);
-}
-
-export interface RenameFileVars extends IntentVars {
-  id: string;
-  /** Current resource version for If-Match. */
-  version: number;
-  name: string;
-}
-
-/**
- * PATCH /files/{id} (capability `files.rename`, If-Match). Errors are shown inline by the dialog, so the global toast is
- * suppressed; a 409 still refetches the files so the dialog's file is current.
- */
-export function useRenameFile() {
-  return useApiMutation<FileItemResponse, RenameFileVars>({
-    label: "Datei umbenennen",
-    silent: true,
-    conflictKeys: [queryKeys.files.all],
-    mutationFn: ({ id, version, name }) =>
-      call(getApiClient().PATCH("/api/v1/files/{id}", { params: { path: { id }, header: { "If-Match": String(version) } }, body: { name } })),
-    invalidate: [queryKeys.files.all],
-  });
-}
-
-export interface DeleteFileVars extends IntentVars {
-  id: string;
-  /** Current resource version for If-Match. */
-  version: number;
-}
-
-/** Outcome of DELETE /files/{id}: removed right away (200) or an approval was raised (202). */
-export type DeleteFileOutcome = { kind: "deleted"; result: ActionResult } | { kind: "approval"; approval: ApprovalResponse };
-
-export function useDeleteFile() {
-  return useApiMutation<DeleteFileOutcome, DeleteFileVars>({
-    label: "Datei löschen",
-    conflictKeys: [queryKeys.files.all],
-    mutationFn: async ({ id, version, idempotencyKey }) => {
-      const { data, response } = await getApiClient().DELETE("/api/v1/files/{id}", {
-        params: { path: { id }, header: { "Idempotency-Key": idempotencyKey, "If-Match": String(version) } },
-      });
-      if (data === undefined) throw new Error("Leere Antwort beim Löschen");
-      return response.status === 202 ? { kind: "approval", approval: data as ApprovalResponse } : { kind: "deleted", result: data as ActionResult };
-    },
-    invalidate: (outcome) => (outcome.kind === "approval" ? [queryKeys.approvals.all, queryKeys.overview] : [queryKeys.files.all]),
-  });
 }

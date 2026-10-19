@@ -5,6 +5,7 @@ import type { OperationId } from "../http/route-types";
 import type { Principal } from "../security/auth-service";
 import { ApiError, conflict, validationFailed } from "../util/errors";
 import { LocalCalendarService } from "../services/local-calendar";
+import { dispatchKnowledgeAction } from "./knowledge-actions";
 import { portHandler } from "./ports";
 import { PORT_SPEC, isAdapterError } from "@friday/adapter-core";
 
@@ -249,6 +250,10 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
         }
         if (action.kind === "codingrun.stop") {
           return (await runtime.codingRuns.stop(action.id)).runId;
+        }
+        // Memory and file writes go through the memory/files ports with the decision's idempotency key.
+        if (action.kind.startsWith("memory.") || action.kind.startsWith("file.")) {
+          return (await dispatchKnowledgeAction(runtime, action, call)).receipt;
         }
         throw conflict("Aktion ist nicht ausfuehrbar.");
       })) : await approveBase(ctx);

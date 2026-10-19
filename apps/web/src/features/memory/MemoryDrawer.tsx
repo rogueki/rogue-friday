@@ -1,12 +1,16 @@
 "use client";
 
-import type { Memory, MemoryConflict, MemoryConflictResolveRequest, MemoryHistoryEntry } from "@friday/sdk";
-import { Button, ConfirmDialog, Drawer, TagPill, Tabs, useToast } from "@friday/ui";
+import type { Memory, MemoryConflict, MemoryConflictResolveRequest, MemoryHistoryEntry, MemoryResponse, MemoryUpdateRequest } from "@friday/sdk";
+import { createIdempotencyKey } from "@friday/sdk";
+import { Button, Drawer, TagPill, Tabs } from "@friday/ui";
 import { BadgeCheck, Download, GitMerge, Lock, LockOpen, Pencil, Pin, PinOff, Trash2, XCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useT, type MessageKey } from "@/i18n";
-import { useDeleteMemory, useMemory, useResolveMemoryConflict, useUpdateMemory } from "@/lib/api/domains/memory";
+import { call } from "@/lib/api/call";
+import { getApiClient } from "@/lib/api/client";
+import { useMemory } from "@/lib/api/domains/memory";
+import { queryKeys } from "@/lib/api/queryKeys";
+import { useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 import { useCapability } from "@/lib/capabilities";
 import { DataBadges } from "./kit/Badges";
 import { downloadJson, stamp } from "./kit/download";
@@ -53,35 +57,59 @@ interface DetailProps {
 
 function MemoryDetail({ memory, freshness, onClose, onOpenOther }: DetailProps) {
   const { t } = useT();
-  const { toast } = useToast();
-  const router = useRouter();
   const format = useFormat();
   const canWrite = useCapability("memory", "write");
   const canLock = useCapability("memory", "lock");
   const canDelete = useCapability("memory", "delete");
   const canRead = useCapability("memory", "read");
   const canResolve = useCapability("memory", "resolveConflict");
-  const update = useUpdateMemory();
-  const remove = useDeleteMemory();
-  const resolve = useResolveMemoryConflict();
+  const runStagedWrite = useRunStagedWrite();
+  const stagedBusy = useStagedWriteBusy();
   const [editing, setEditing] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [replacing, setReplacing] = useState<MemoryConflict | null>(null);
+  const memoryKeys = [queryKeys.memory.all, queryKeys.memory.detail(memory.id), queryKeys.overview] as const;
 
-  const resolveConflict = (conflict: MemoryConflict, resolution: MemoryConflictResolveRequest["resolution"]): void =>
-    resolve.mutate(
-      { id: memory.id, conflictId: conflict.memoryId, version: memory.version, resolution },
-      {
-        onSuccess: () => {
-          setReplacing(null);
-          toast({ title: t(`memory.conflicts.resolved.${resolution}` as MessageKey), tone: "green", duration: 3500 });
-        },
-        onError: () => setReplacing(null),
-      },
-    );
+  // Every write (edit, confirm, pin, lock, forget, conflict resolution) is a staged write: the server preview in the
+  // shell StagedWriteConfirmHost is the binding confirmation, the repeat carries If-Match and the unchanged body.
+  const resolveConflict = (conflict: MemoryConflict, resolution: MemoryConflictResolveRequest["resolution"]): void => {
+    const idempotencyKey = createIdempotencyKey();
+    void runStagedWrite({
+      send: (previewId) =>
+        call(getApiClient().POST("/api/v1/memory/{id}/conflicts/{conflictId}/resolve", {
+          params: { path: { id: memory.id, conflictId: conflict.memoryId },
+            header: { "If-Match": String(memory.version), "Idempotency-Key": idempotencyKey } },
+          body: { resolution },
+          ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })) as Promise<MemoryResponse>,
+      successMessage: t(`memory.conflicts.resolved.${resolution}` as MessageKey),
+      subject: memoryTitle(memory),
+      invalidateKeys: [...memoryKeys, queryKeys.audit.all],
+    });
+  };
 
-  const patch = (changes: Parameters<typeof update.mutate>[0]["patch"], done?: () => void): void =>
-    update.mutate({ id: memory.id, version: memory.version, patch: changes }, { onSuccess: done });
+  const patch = (changes: MemoryUpdateRequest, done?: () => void): void => {
+    void runStagedWrite({
+      send: (previewId) =>
+        call(getApiClient().PATCH("/api/v1/memory/{id}", { body: changes,
+          params: { path: { id: memory.id }, header: { "If-Match": String(memory.version) } },
+          ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })) as Promise<MemoryResponse>,
+      successMessage: t(changes.confirm === true ? "memory.staged.confirmed" : "memory.staged.updated"),
+      subject: memoryTitle(memory),
+      invalidateKeys: memoryKeys,
+      onExecuted: () => done?.(),
+    });
+  };
+
+  const forget = (): void => {
+    void runStagedWrite({
+      send: (previewId) =>
+        call(getApiClient().DELETE("/api/v1/memory/{id}", {
+          params: { path: { id: memory.id }, header: { "If-Match": String(memory.version) } },
+          ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })),
+      successMessage: t("memory.forget.done"),
+      subject: memoryTitle(memory),
+      invalidateKeys: [...memoryKeys, queryKeys.audit.all],
+      onExecuted: () => onClose(),
+    });
+  };
 
   const pendingConflicts = memory.conflicts.filter((conflict) => conflict.resolution === "pending").length;
   const exportMemory = (): void => downloadJson(`gedaechtnis-${memory.id}-${stamp()}.json`, memory);
@@ -224,19 +252,19 @@ function MemoryDetail({ memory, freshness, onClose, onOpenOther }: DetailProps) 
           </p>
           {conflict.resolution === "pending" ? (
             <div className="mk-actions" role="group" aria-label={t("memory.conflicts.resolve")}>
-              <Button size="sm" variant="ghost" icon={<GitMerge size={14} />} disabled={!canResolve || resolve.isPending} onClick={() => resolveConflict(conflict, "keep_both")}>
+              <Button size="sm" variant="ghost" icon={<GitMerge size={14} />} disabled={!canResolve || stagedBusy} onClick={() => resolveConflict(conflict, "keep_both")}>
                 {t("memory.conflicts.action.keep_both")}
               </Button>
               <Button
                 size="sm"
                 variant="danger"
                 icon={<Trash2 size={14} />}
-                disabled={!canResolve || resolve.isPending}
-                onClick={() => setReplacing(conflict)}
+                disabled={!canResolve || stagedBusy}
+                onClick={() => resolveConflict(conflict, "replace")}
               >
                 {t("memory.conflicts.action.replace")}
               </Button>
-              <Button size="sm" variant="ghost" icon={<XCircle size={14} />} disabled={!canResolve || resolve.isPending} onClick={() => resolveConflict(conflict, "dismiss")}>
+              <Button size="sm" variant="ghost" icon={<XCircle size={14} />} disabled={!canResolve || stagedBusy} onClick={() => resolveConflict(conflict, "dismiss")}>
                 {t("memory.conflicts.action.dismiss")}
               </Button>
               {canResolve ? null : <span className="mk-muted">{t("memory.conflicts.unavailable")}</span>}
@@ -253,7 +281,7 @@ function MemoryDetail({ memory, freshness, onClose, onOpenOther }: DetailProps) 
       {memory.locked ? <p className="mk-block mk-block--amber mk-note">{t("memory.lockedHint")}</p> : null}
       {memory.sensitivity !== "normal" ? <p className="mk-block mk-block--amber mk-note">{t("memory.sensitiveHint")}</p> : null}
       <div className="mk-actions" role="group" aria-label={t("memory.actions")}>
-        <Button size="sm" variant="ghost" icon={<BadgeCheck size={14} />} disabled={!canWrite || update.isPending} onClick={() => patch({ confirm: true })}>
+        <Button size="sm" variant="ghost" icon={<BadgeCheck size={14} />} disabled={!canWrite || stagedBusy} onClick={() => patch({ confirm: true })}>
           {t("memory.action.confirm")}
         </Button>
         <Button
@@ -266,10 +294,10 @@ function MemoryDetail({ memory, freshness, onClose, onOpenOther }: DetailProps) 
         >
           {t("memory.action.edit")}
         </Button>
-        <Button size="sm" variant="ghost" icon={memory.pinned ? <PinOff size={14} /> : <Pin size={14} />} disabled={!canWrite || update.isPending} onClick={() => patch({ pinned: !memory.pinned })}>
+        <Button size="sm" variant="ghost" icon={memory.pinned ? <PinOff size={14} /> : <Pin size={14} />} disabled={!canWrite || stagedBusy} onClick={() => patch({ pinned: !memory.pinned })}>
           {memory.pinned ? t("memory.action.unpin") : t("memory.action.pin")}
         </Button>
-        <Button size="sm" variant="ghost" icon={memory.locked ? <LockOpen size={14} /> : <Lock size={14} />} disabled={!canLock || update.isPending} onClick={() => patch({ locked: !memory.locked })}>
+        <Button size="sm" variant="ghost" icon={memory.locked ? <LockOpen size={14} /> : <Lock size={14} />} disabled={!canLock || stagedBusy} onClick={() => patch({ locked: !memory.locked })}>
           {memory.locked ? t("memory.action.unlock") : t("memory.action.lock")}
         </Button>
         <Button size="sm" variant="ghost" icon={<Download size={14} />} disabled={!canRead} onClick={exportMemory}>
@@ -281,7 +309,7 @@ function MemoryDetail({ memory, freshness, onClose, onOpenOther }: DetailProps) 
           icon={<Trash2 size={14} />}
           disabled={!canDelete || memory.locked}
           title={memory.locked ? t("memory.deleteLocked") : !canDelete ? t("memory.kit.noDelete") : undefined}
-          onClick={() => setConfirmDelete(true)}
+          onClick={forget}
         >
           {t("memory.action.forget")}
         </Button>
@@ -299,54 +327,8 @@ function MemoryDetail({ memory, freshness, onClose, onOpenOther }: DetailProps) 
         open={editing}
         onOpenChange={setEditing}
         memory={memory}
-        busy={update.isPending}
+        busy={stagedBusy}
         onUpdate={(changes) => patch(changes, () => setEditing(false))}
-      />
-      <ConfirmDialog
-        open={replacing !== null}
-        onOpenChange={(open) => {
-          if (!open) setReplacing(null);
-        }}
-        tone="danger"
-        title={t("memory.conflicts.replace.title")}
-        description={t("memory.conflicts.replace.description", { title: memoryTitle(memory) })}
-        details={[t("memory.conflicts.replace.detail.forget"), t("memory.conflicts.replace.detail.locked"), t("memory.conflicts.replace.detail.audit")]}
-        confirmLabel={t("memory.conflicts.replace.confirm")}
-        cancelLabel={t("common.cancel")}
-        loading={resolve.isPending}
-        onConfirm={() => {
-          if (replacing) resolveConflict(replacing, "replace");
-        }}
-      />
-      <ConfirmDialog
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        tone="danger"
-        title={t("memory.forget.title")}
-        description={t("memory.forget.description", { title: memoryTitle(memory) })}
-        details={[t("memory.forget.detail.audit"), t("memory.forget.detail.final"), t("memory.forget.detail.export")]}
-        confirmLabel={t("memory.forget.confirm")}
-        cancelLabel={t("common.cancel")}
-        loading={remove.isPending}
-        onConfirm={() => {
-          // `mutateAsync`, not `mutate(..., { onSuccess })`: the realtime `memory.deleted` event usually arrives before the
-          // HTTP response and removes the detail query, which unmounts this component. Per-call callbacks of `mutate` are
-          // dropped for an unmounted observer, which left the drawer on a NOT_FOUND error without toast or audit link.
-          // Failures are already toasted by the global mutation handler.
-          remove.mutateAsync({ id: memory.id, version: memory.version }).then(
-            () => {
-              setConfirmDelete(false);
-              onClose();
-              toast({
-                title: t("memory.forget.done"),
-                description: t("memory.forget.doneDescription"),
-                tone: "green",
-                action: { label: t("memory.forget.openAudit"), onClick: () => router.push("/audit") },
-              });
-            },
-            () => undefined,
-          );
-        }}
       />
     </div>
   );

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startTestApi, type ApiClient, type TestApi } from "./helpers";
 import { WsProbe } from "./support/ws";
 import { createApprovedTask } from "./support/task-actions";
+import { confirmedHeaders, stageKnowledgeWrite } from "./support/knowledge-actions";
 
 /** In mock mode the world numbers its events with the hub's global sequence (one counter for REST backfill and stream). */
 describe("hub sequence = activity sequence (mock mode)", () => {
@@ -15,6 +16,10 @@ describe("hub sequence = activity sequence (mock mode)", () => {
     owner = api.client();
     await owner.loginDev("owner");
     probe = await WsProbe.connect(api, owner);
+    // Staged knowledge writes execute directly after confirmation in these sequence tests.
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(settings.version) } });
   });
   afterAll(async () => {
     probe.close();
@@ -36,7 +41,8 @@ describe("hub sequence = activity sequence (mock mode)", () => {
 
   it("gives the envelope of friday.activity.appended the sequence of its ActivityEvent", async () => {
     await createApprovedTask(owner, { title: "Zweite Aufgabe" });
-    await owner.post("/api/v1/memory", { type: "fact", content: "Sequenz-Gleichheit" });
+    const memoryPreview = await stageKnowledgeWrite(owner, "POST", "/api/v1/memory", { type: "fact", content: "Sequenz-Gleichheit" });
+    await owner.post("/api/v1/memory", { type: "fact", content: "Sequenz-Gleichheit" }, { headers: confirmedHeaders(memoryPreview) });
     await probe.waitFor(() => activityEnvelopes().length >= 3, 3_000, "mehrere activity.appended");
     const envelopes = activityEnvelopes();
     expect(envelopes.length).toBeGreaterThanOrEqual(3);

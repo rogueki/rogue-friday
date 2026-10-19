@@ -1,12 +1,17 @@
 "use client";
 
-import type { Memory, MemoryListResponse, MemorySearchRequest, MemorySearchResponse, MemorySensitivity, MemoryType } from "@friday/sdk";
+import type { Memory, MemoryListResponse, MemoryResponse, MemorySearchRequest, MemorySearchResponse, MemorySensitivity, MemoryType } from "@friday/sdk";
+import { createIdempotencyKey } from "@friday/sdk";
 import { Button, FilterBar, HudPanel, StatusChip, Switch, useToast } from "@friday/ui";
 import { Brain, Download, Plus } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { useT } from "@/i18n";
-import { useCreateMemory, useExportMemory, useMemories, useMemorySearch, type MemoryFilters } from "@/lib/api/domains/memory";
+import { call } from "@/lib/api/call";
+import { getApiClient } from "@/lib/api/client";
+import { useExportMemory, useMemories, useMemorySearch, type MemoryFilters } from "@/lib/api/domains/memory";
+import { queryKeys } from "@/lib/api/queryKeys";
+import { useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 import { useCapability, useCapabilityState } from "@/lib/capabilities";
 import { CapabilityNote, DataBadges } from "./kit/Badges";
 import { downloadJson, stamp } from "./kit/download";
@@ -48,7 +53,8 @@ function MemoryPageInner() {
   const exportAll = useExportMemory();
   const readState = useCapabilityState("memory", "read");
   const writeState = useCapabilityState("memory", "write");
-  const create = useCreateMemory();
+  const runStagedWrite = useRunStagedWrite();
+  const stagedBusy = useStagedWriteBusy();
 
   const term = useDebounced(search.trim(), 250);
   const useSemantic = semantic && canSearch && term !== "";
@@ -221,15 +227,24 @@ function MemoryPageInner() {
       <MemoryFormDialog
         open={creating}
         onOpenChange={setCreating}
-        busy={create.isPending}
-        onCreate={(request) =>
-          create.mutate(request, {
-            onSuccess: (response) => {
-              setCreating(false);
-              setSelectedId(response.data.id, { push: true });
-            },
-          })
-        }
+        busy={stagedBusy}
+        onCreate={(request) => {
+          // The key belongs to this save attempt; the confirm repeat must carry the identical request.
+          const idempotencyKey = createIdempotencyKey();
+          void runStagedWrite({
+            send: (previewId) =>
+              call(getApiClient().POST("/api/v1/memory", { body: request,
+                params: { header: { "Idempotency-Key": idempotencyKey } },
+                ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })) as Promise<MemoryResponse>,
+            successMessage: t("memory.staged.created"),
+            subject: request.title ?? request.content.slice(0, 60),
+            invalidateKeys: [queryKeys.memory.all, queryKeys.overview],
+            onExecuted: (response) => setSelectedId((response as MemoryResponse).data.id, { push: true }),
+          }).then((outcome) => {
+            // A staged or queued write is confirmed over the shell dialog; only a real failure keeps the editor open.
+            if (outcome !== "failed") setCreating(false);
+          });
+        }}
       />
     </div>
   );
