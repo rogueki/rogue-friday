@@ -22,7 +22,11 @@ $paths = @('installer\wsl\configure_memory_bridge.py', 'installer\wsl\setup_memo
     'installer\wsl\messaging_pairing.py',
     'installer\wsl\messaging_runtime.py',
     'installer\wsl\whatsapp_logout.mjs', 'installer\wsl\configure_telegram.py',
-    'installer\wsl\configure_obsidian.py',
+    'installer\wsl\configure_obsidian.py', 'installer\wsl\hermes_config_bridge.py',
+    'installer\wsl\messaging_send.py', 'installer\wsl\messaging_config_probe.py',
+    'installer\wsl\messaging_catalog.py', 'installer\wsl\messaging_catalog_probe.py',
+    'installer\wsl\configure_messaging_provider.py',
+    'installer\wsl\messaging_provider_apply_probe.py', 'installer\wsl\messaging_provider_fields.json',
     'installer\scripts\update-memory-bridge.ps1', 'installer\scripts\update-dashboard-github.ps1')
 
 function Assert-Safe([string]$path, [string]$base) {
