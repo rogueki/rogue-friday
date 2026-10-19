@@ -116,6 +116,29 @@ class BridgeTest(unittest.TestCase):
         self.assertFalse(result["inventory"]["skillsComplete"])
         self.assertIn("skill_activation_unknown", result["inventory"]["reasons"])
 
+    def test_unset_optional_hermes_key_is_null_not_unavailable(self):
+        original = self.run_command
+        def unset(command, **kwargs):
+            if command[2:] == ["get", "fallback_model", "--json"]:
+                return subprocess.CompletedProcess(command, 1, "", "Config key not set: fallback_model\n")
+            return original(command, **kwargs)
+        with patch.object(self, "run_command", side_effect=unset):
+            code, result = self.invoke()
+        self.assertEqual(code, 0)
+        self.assertIsNone(result["values"]["fallback_model"])
+
+    def test_unset_disabled_skills_uses_hermes_empty_default(self):
+        original = self.run_command
+        def unset(command, **kwargs):
+            if command[2:] == ["get", "skills.disabled", "--json"]:
+                return subprocess.CompletedProcess(command, 1, "", "Config key not set: skills.disabled\n")
+            return original(command, **kwargs)
+        with patch.object(self, "run_command", side_effect=unset):
+            code, result = self.invoke()
+        self.assertEqual(code, 0)
+        self.assertTrue(result["skills"][0]["enabled"])
+        self.assertTrue(result["inventory"]["skillsComplete"])
+
     def test_fallback_chain_is_typed_and_secret_free(self):
         chain = [{"provider": "openrouter", "model": "example/model"}]
         code, result = self.invoke({"key": "fallback_model", "value": chain, "revision": bridge.revision(self.config)})

@@ -197,6 +197,9 @@ def locked_main(home, source, cli):
     def call(*args):
         result = subprocess.run([str(cli), "config", *args], capture_output=True, text=True, timeout=15)
         if result.returncode:
+            if len(args) == 3 and args[0] == "get" and args[2] == "--json" and \
+                    (result.stdout + result.stderr).strip() == f"Config key not set: {args[1]}":
+                return "null"
             raise ValueError("hermes_config_failed")
         return result.stdout.strip()
 
@@ -233,6 +236,9 @@ def locked_main(home, source, cli):
         values[key] = json.loads(call("get", key, "--json"))
     try:
         disabled_skills = json.loads(call("get", "skills.disabled", "--json"))
+        # Hermes get reports an unset optional key as null; skill_utils resolves that to an empty set.
+        if disabled_skills is None and nested(raw, "skills.disabled") is None:
+            disabled_skills = []
     except (ValueError, json.JSONDecodeError):
         disabled_skills = None
     explicit = {key: nested(raw, key) is not None for key in FIELDS}
