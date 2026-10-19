@@ -5,6 +5,11 @@ import { useState } from "react";
 import { useHermesConfig, usePatchHermesConfig } from "@/lib/api/domains/settings";
 
 const LABELS: Record<string, string> = {
+  "model.provider": "Hermes-Anbieterkennung",
+  "model.default": "Hermes-Standardmodell",
+  "agent.reasoning_effort": "Denkstufe für neue Anfragen",
+  "fallback.min_switch_reset_seconds": "Fallback-Wechsel ab Resetzeit (Sekunden)",
+  fallback_model: "Fallback-Kette",
   "agent.max_turns": "Maximale Agent-Schritte",
   "agent.gateway_timeout": "Gateway-Leerlauf (Sekunden)",
   "agent.api_max_retries": "API-Wiederholungen",
@@ -20,7 +25,7 @@ const LABELS: Record<string, string> = {
 export function HermesConfigArea() {
   const observed = useHermesConfig();
   const patch = usePatchHermesConfig();
-  const [draft, setDraft] = useState<Record<string, number | boolean>>({});
+  const [draft, setDraft] = useState<Record<string, number | boolean | string | Array<{ provider: string; model: string }>>>({});
   if (observed.isPending) return <p role="status">Hermes-Konfiguration wird gelesen…</p>;
   if (observed.isError)
     return (
@@ -62,7 +67,46 @@ export function HermesConfigArea() {
         return (
           <div key={field.key} className="st-field">
             <label htmlFor={`hermes-${field.key}`}>{LABELS[field.key] ?? field.key}</label>
-            {field.type === "boolean" ? (
+            {field.type === "fallback" ? (
+              <div>
+                {(Array.isArray(value) ? value : []).map((entry, index) => (
+                  <div key={index} className="st-field">
+                    <input aria-label={`Fallback ${index + 1} Anbieter`} value={entry.provider}
+                      onChange={(event) => setDraft((current) => ({ ...current, [field.key]:
+                        (Array.isArray(value) ? value : []).map((item, position) => position === index ? { ...item, provider: event.target.value } : item),
+                      }))} />
+                    <input aria-label={`Fallback ${index + 1} Modell`} value={entry.model}
+                      onChange={(event) => setDraft((current) => ({ ...current, [field.key]:
+                        (Array.isArray(value) ? value : []).map((item, position) => position === index ? { ...item, model: event.target.value } : item),
+                      }))} />
+                    <button type="button" onClick={() => setDraft((current) => ({ ...current, [field.key]:
+                      (Array.isArray(value) ? value : []).filter((_, position) => position !== index),
+                    }))}>Entfernen</button>
+                  </div>
+                ))}
+                <button type="button" disabled={Array.isArray(value) && value.length >= 8}
+                  onClick={() => setDraft((current) => ({ ...current, [field.key]:
+                    [...(Array.isArray(value) ? value : []), { provider: "", model: "" }],
+                  }))}>Fallback hinzufügen</button>
+                <small>Leere Kette deaktiviert den Fallback. Hermes prüft Anbieter und Modell beim nächsten Aufruf.</small>
+              </div>
+            ) : field.key === "agent.reasoning_effort" ? (
+              <select id={`hermes-${field.key}`} value={String(value ?? "")}
+                onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))}>
+                {["", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"].map((effort) =>
+                  <option key={effort} value={effort}>{effort || "Anbietervorgabe"}</option>)}
+              </select>
+            ) : field.type === "string" ? (
+              <>
+                <input id={`hermes-${field.key}`} type="text" value={String(value ?? "")}
+                  list={field.key === "model.provider" ? "hermes-provider-ids" : undefined}
+                  maxLength={field.key === "model.provider" ? 64 : 200}
+                  onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))} />
+                {field.key === "model.provider" ? <datalist id="hermes-provider-ids">
+                  {data.modelProviders.map((provider) => <option key={provider.id} value={provider.id} />)}
+                </datalist> : null}
+              </>
+            ) : field.type === "boolean" ? (
               <input
                 id={`hermes-${field.key}`}
                 type="checkbox"
@@ -76,12 +120,14 @@ export function HermesConfigArea() {
                 id={`hermes-${field.key}`}
                 type="number"
                 value={typeof value === "number" ? value : ""}
-                min={field.key === "max_live_sessions" ? 0 : field.key === "agent.gateway_timeout" ? 60 : 1}
+                min={field.key === "max_live_sessions" || field.key === "fallback.min_switch_reset_seconds" ? 0 : field.key === "agent.gateway_timeout" ? 60 : 1}
                 max={
                   field.key === "agent.api_max_retries"
                     ? 10
                     : field.key === "agent.gateway_timeout"
                       ? 86400
+                    : field.key === "fallback.min_switch_reset_seconds"
+                      ? 3600
                       : field.key === "max_live_sessions"
                         ? 10000
                         : 100000
@@ -101,7 +147,9 @@ export function HermesConfigArea() {
                 !field.writable ||
                 patch.isPending ||
                 draft[field.key] === undefined ||
-                draft[field.key] === field.value
+                draft[field.key] === field.value ||
+                (field.type === "fallback" && Array.isArray(draft[field.key]) &&
+                  (draft[field.key] as Array<{ provider: string; model: string }>).some((entry) => !entry.provider || !entry.model))
               }
               onClick={() =>
                 patch.mutate(
@@ -129,6 +177,11 @@ export function HermesConfigArea() {
         </p>
       ) : null}
       <h3>Weitere Hermes-Bereiche</h3>
+      <p>
+        Erfasste Anbieterkennungen: {data.modelProviders.length ? data.modelProviders.map((provider) => provider.id).join(", ") : "keine"}.
+        Authentifizierung und Erreichbarkeit sind ungeprüft; Modelllisten erfordern eine anbieterspezifische Abfrage.
+        {!data.inventory.modelProvidersComplete ? " Nicht alle Anbieterkennungen konnten dargestellt werden." : ""}
+      </p>
       <p role={data.inventory.skillsComplete && data.inventory.pluginsComplete ? "status" : "alert"}>
         Profil-Inventar: {data.inventory.skillsComplete && data.inventory.pluginsComplete ? "vollständig" : "unvollständig"}
         {data.inventory.reasons.length ? ` (${data.inventory.reasons.join(", ")})` : ""}.

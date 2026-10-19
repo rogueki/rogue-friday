@@ -4,6 +4,11 @@ import { ApiError, conflict, validationFailed } from "../util/errors";
 import { invokeCodingRunner, type RunnerInvoker } from "./coding-runs";
 
 export const HERMES_CONFIG_FIELDS = {
+  "model.provider": { type: "string", kind: "provider", family: "models", consumer: "new Hermes provider route" },
+  "model.default": { type: "string", kind: "model", family: "models", consumer: "new Hermes model request" },
+  "agent.reasoning_effort": { type: "string", kind: "reasoning", family: "models", consumer: "new Hermes model request" },
+  "fallback.min_switch_reset_seconds": { type: "integer", min: 0, max: 3600, family: "models", consumer: "next Hermes fallback decision" },
+  fallback_model: { type: "fallback", family: "models", consumer: "new Hermes provider route" },
   "agent.max_turns": {
     type: "integer",
     min: 1,
@@ -35,17 +40,33 @@ export const HERMES_CONFIG_FIELDS = {
   },
 } as const;
 export type HermesConfigField = keyof typeof HERMES_CONFIG_FIELDS;
-export type HermesConfigPatch = { key: HermesConfigField; value: number | boolean };
+type FallbackEntry = { provider: string; model: string };
+export type HermesConfigPatch = { key: HermesConfigField; value: number | boolean | string | FallbackEntry[] };
+
+const REASONING_EFFORTS = new Set(["", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
+function validStringPatch(kind: "provider" | "model" | "reasoning", value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  if (kind === "reasoning") return REASONING_EFFORTS.has(value);
+  if (kind === "provider") return /^[A-Za-z0-9_.-]{1,64}$/.test(value);
+  return value.length > 0 && value.length <= 200 && !/\s/.test(value) &&
+    [...value].every((character) => character.charCodeAt(0) > 31 && character.charCodeAt(0) !== 127);
+}
+function validFallback(value: unknown): value is FallbackEntry[] {
+  return Array.isArray(value) && value.length <= 8 && value.every((entry) =>
+    entry && typeof entry === "object" && Object.keys(entry).sort().join(",") === "model,provider" &&
+    validStringPatch("provider", entry.provider) && validStringPatch("model", entry.model));
+}
 
 interface BridgeStatus {
   installed: true;
   sourceRevision: string | null;
   revision: number;
-  values: Record<HermesConfigField, number | boolean | null>;
+  values: Record<HermesConfigField, number | boolean | string | FallbackEntry[] | null>;
   explicit: Record<HermesConfigField, boolean>;
   secrets: { "model.api_key": boolean };
   families: Array<{ id: string; roots: string[]; followup: string; configFileSet: boolean }>;
-  inventory: { scope: "profile"; skillsComplete: boolean; pluginsComplete: boolean; reasons: string[] };
+  inventory: { scope: "profile"; skillsComplete: boolean; pluginsComplete: boolean; modelProvidersComplete: boolean; reasons: string[] };
+  modelProviders: Array<{ id: string; configFileSet: boolean; authenticated: null; available: null }>;
   skills: Array<{ id: string; installed: true; enabled: boolean | null }>;
   plugins: Array<{ id: string; installed: true; enabled: boolean | null; configured: null }>;
   write: { key: HermesConfigField; persisted: boolean } | null;
@@ -131,18 +152,21 @@ export class HermesConfigService {
       !raw.explicit ||
       !Array.isArray(raw.families) ||
       typeof raw.inventory !== "object" || !raw.inventory ||
+      !Array.isArray(raw.modelProviders) ||
       !Array.isArray(raw.skills) ||
       !Array.isArray(raw.plugins)
     )
       throw unavailable();
     const inventory = raw.inventory as Record<string, unknown>;
     if (inventory.scope !== "profile" || typeof inventory.skillsComplete !== "boolean" ||
-      typeof inventory.pluginsComplete !== "boolean" || !Array.isArray(inventory.reasons)) throw unavailable();
+      typeof inventory.pluginsComplete !== "boolean" || typeof inventory.modelProvidersComplete !== "boolean" ||
+      !Array.isArray(inventory.reasons)) throw unavailable();
     for (const [key, spec] of Object.entries(HERMES_CONFIG_FIELDS)) {
       const value = (raw.values as Record<string, unknown>)[key];
       if (
         value !== null &&
-        (spec.type === "integer" ? !Number.isSafeInteger(value) : typeof value !== "boolean")
+        (spec.type === "integer" ? !Number.isSafeInteger(value) : spec.type === "boolean" ? typeof value !== "boolean" :
+          spec.type === "fallback" ? !validFallback(value) : typeof value !== "string")
       )
         throw unavailable();
       if (typeof (raw.explicit as Record<string, unknown>)[key] !== "boolean") throw unavailable();
@@ -180,7 +204,9 @@ export class HermesConfigService {
           fields: [],
           secretStates: [],
           families: [],
-          inventory: { scope: "profile" as const, skillsComplete: false, pluginsComplete: false, reasons: ["hermes_not_installed"] },
+          inventory: { scope: "profile" as const, skillsComplete: false, pluginsComplete: false,
+            modelProvidersComplete: false, reasons: ["hermes_not_installed"] },
+          modelProviders: [],
           skills: [],
           plugins: [],
           write: null,
@@ -196,7 +222,9 @@ export class HermesConfigService {
         ? !Number.isInteger(patch.value) ||
           (patch.value as number) < spec.min ||
           (patch.value as number) > spec.max
-        : typeof patch.value !== "boolean"
+        : spec.type === "boolean" ? typeof patch.value !== "boolean"
+        : spec.type === "fallback" ? !validFallback(patch.value)
+        : !validStringPatch(spec.kind, patch.value)
     )
       throw validationFailed("Ungültiger Hermes-Konfigurationswert.");
     if (!Number.isSafeInteger(revision) || revision < 1)
@@ -249,7 +277,13 @@ export class HermesConfigService {
         })),
       inventory: { scope: "profile" as const, skillsComplete: observed.inventory.skillsComplete === true,
         pluginsComplete: observed.inventory.pluginsComplete === true,
+        modelProvidersComplete: observed.inventory.modelProvidersComplete === true,
         reasons: observed.inventory.reasons.filter((reason) => typeof reason === "string") },
+      modelProviders: observed.modelProviders.filter((provider) =>
+        typeof provider.id === "string" && /^[A-Za-z0-9_.-]{1,64}$/.test(provider.id) &&
+        typeof provider.configFileSet === "boolean").map((provider) => ({
+        id: provider.id, configFileSet: provider.configFileSet, authenticated: null, available: null,
+      })),
       skills: observed.skills
         .filter((skill) => typeof skill.id === "string" && (skill.enabled === null || typeof skill.enabled === "boolean"))
         .map((skill) => ({

@@ -15,6 +15,11 @@
         "properties": {
           "key": {
             "enum": [
+              "model.provider",
+              "model.default",
+              "agent.reasoning_effort",
+              "fallback.min_switch_reset_seconds",
+              "fallback_model",
               "agent.max_turns",
               "agent.gateway_timeout",
               "agent.api_max_retries",
@@ -22,10 +27,12 @@
               "max_live_sessions"
             ]
           },
-          "type": { "enum": ["integer", "boolean"] },
-          "family": { "const": "agent" },
+          "type": { "enum": ["integer", "boolean", "string", "fallback"] },
+          "family": { "enum": ["agent", "models"] },
           "consumer": { "type": "string" },
-          "value": { "type": ["integer", "boolean", "null"] },
+          "value": { "anyOf": [{ "type": ["integer", "boolean", "string", "null"] }, { "type": "array", "maxItems": 8,
+            "items": { "type": "object", "properties": { "provider": { "type": "string" }, "model": { "type": "string" } },
+              "required": ["provider", "model"], "additionalProperties": false } }] },
           "explicit": { "type": "boolean" },
           "writable": { "type": "boolean" },
           "verification": { "const": "unverified" },
@@ -99,12 +106,17 @@
         "scope": { "const": "profile" },
         "skillsComplete": { "type": "boolean" },
         "pluginsComplete": { "type": "boolean" },
+        "modelProvidersComplete": { "type": "boolean" },
         "reasons": { "type": "array", "items": { "type": "string" } }
       },
-      "required": ["scope", "skillsComplete", "pluginsComplete", "reasons"],
+      "required": ["scope", "skillsComplete", "pluginsComplete", "modelProvidersComplete", "reasons"],
       "additionalProperties": false
     },
     "skills": { "type": "array", "items": { "$ref": "#/$defs/extension" } },
+    "modelProviders": { "type": "array", "items": { "type": "object",
+      "properties": { "id": { "type": "string" }, "configFileSet": { "type": "boolean" },
+        "authenticated": { "type": ["boolean", "null"] }, "available": { "type": ["boolean", "null"] } },
+      "required": ["id", "configFileSet", "authenticated", "available"], "additionalProperties": false } },
     "plugins": { "type": "array", "items": { "$ref": "#/$defs/extension" } },
     "write": {
       "oneOf": [
@@ -159,6 +171,7 @@
     "secretStates",
     "families",
     "inventory",
+    "modelProviders",
     "skills",
     "plugins",
     "write"

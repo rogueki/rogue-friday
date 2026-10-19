@@ -26,6 +26,11 @@ const bridge = {
   sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8",
   revision: 123,
   values: {
+    "model.provider": "openrouter",
+    "model.default": "example/model",
+    "agent.reasoning_effort": "medium",
+    "fallback.min_switch_reset_seconds": 0,
+    fallback_model: [],
     "agent.max_turns": 500,
     "agent.gateway_timeout": 1800,
     "agent.api_max_retries": 3,
@@ -33,6 +38,11 @@ const bridge = {
     max_live_sessions: 16,
   },
   explicit: {
+    "model.provider": true,
+    "model.default": true,
+    "agent.reasoning_effort": false,
+    "fallback.min_switch_reset_seconds": false,
+    fallback_model: false,
     "agent.max_turns": true,
     "agent.gateway_timeout": false,
     "agent.api_max_retries": false,
@@ -49,7 +59,8 @@ const bridge = {
       unexpected: "CANARY-DO-NOT-RETURN",
     },
   ],
-  inventory: { scope: "profile", skillsComplete: true, pluginsComplete: true, reasons: [] },
+  inventory: { scope: "profile", skillsComplete: true, pluginsComplete: true, modelProvidersComplete: true, reasons: [] },
+  modelProviders: [{ id: "openrouter", configFileSet: true, authenticated: null, available: null }],
   skills: [{ id: "hermes-agent", installed: true, enabled: true, unexpected: "CANARY-DO-NOT-RETURN" }],
   plugins: [
     { id: "kanban", installed: true, enabled: false, configured: null, unexpected: "CANARY-DO-NOT-RETURN" },
@@ -60,7 +71,7 @@ const bridge = {
 it("returns only allowlisted resolved values and installed manifests without credential leakage", async () => {
   const invoke = vi.fn(async () => bridge) as unknown as RunnerInvoker;
   const status = await fixture(invoke).status();
-  expect(status.fields).toHaveLength(5);
+  expect(status.fields).toHaveLength(10);
   expect(status.fields.find((field) => field.key === "agent.max_turns")).toMatchObject({
     value: 500,
     writable: true,
@@ -113,6 +124,21 @@ it("passes one typed field and If-Match revision, then reports persisted without
   });
 });
 
+it("accepts a structured fallback chain and rejects unsafe model/provider identifiers", async () => {
+  const chain = [{ provider: "openrouter", model: "example/model" }];
+  const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
+    values: { ...bridge.values, fallback_model: chain },
+    write: { key: "fallback_model", persisted: true },
+  })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const result = await service.update({ key: "fallback_model", value: chain }, 123);
+  expect(result.fields.find((field) => field.key === "fallback_model")?.value).toEqual(chain);
+  expect(result.write).toMatchObject({ persisted: true, applied: null });
+  await expect(service.update({ key: "model.provider", value: "evil; command" }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  await expect(service.update({ key: "agent.reasoning_effort", value: "unsupported" }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  await expect(service.update({ key: "fallback_model", value: [{ provider: "openrouter", model: "" }] }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
 it("maps external revision changes to conflict and disables writes for an unknown Hermes source", async () => {
   const conflictInvoke = vi.fn(async () => {
     throw new Error("runner_4:revision_conflict");
@@ -143,7 +169,7 @@ it("distinguishes a missing Hermes installation from an unavailable bridge", asy
 
 it("keeps unknown skill activation and partial inventory visible", async () => {
   const observed = await fixture(vi.fn(async () => ({ ...bridge,
-    inventory: { scope: "profile", skillsComplete: false, pluginsComplete: true, reasons: ["skill_activation_unknown"] },
+    inventory: { scope: "profile", skillsComplete: false, pluginsComplete: true, modelProvidersComplete: true, reasons: ["skill_activation_unknown"] },
     skills: [{ id: "sample", installed: true, enabled: null }],
   })) as unknown as RunnerInvoker).status();
   expect(observed.skills[0]?.enabled).toBeNull();

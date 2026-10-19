@@ -30,7 +30,9 @@ class BridgeTest(unittest.TestCase):
         (self.home / ".local" / "bin" / "hermes").write_text("synthetic")
         self.config = self.home / ".hermes" / "config.yaml"
         self.config.write_text("model:\n  api_key: CANARY-PRIVATE\nagent:\n  max_turns: 500\n")
-        self.values = {"agent.max_turns": 500, "agent.gateway_timeout": 1800, "agent.api_max_retries": 3,
+        self.values = {"model.provider": "openrouter", "model.default": "example/model", "agent.reasoning_effort": "medium",
+                       "fallback.min_switch_reset_seconds": 0, "fallback_model": [],
+                       "agent.max_turns": 500, "agent.gateway_timeout": 1800, "agent.api_max_retries": 3,
                        "session.terminal_continue": True, "max_live_sessions": 16,
                        "skills.disabled": [], "skills.create_dir": "", "skills.external_dirs": []}
         self.calls = []
@@ -47,8 +49,12 @@ class BridgeTest(unittest.TestCase):
         elif args[0] == "get":
             output = json.dumps(self.values[args[1]])
         elif args[0] == "set":
-            self.values[args[1]] = int(args[2])
-            self.config.write_text(self.config.read_text().replace("max_turns: 500", f"max_turns: {args[2]}"))
+            self.values[args[1]] = json.loads(args[2]) if args[1] == "fallback_model" else \
+                int(args[2]) if args[1] == "agent.max_turns" else args[2]
+            if args[1] == "agent.max_turns":
+                self.config.write_text(self.config.read_text().replace("max_turns: 500", f"max_turns: {args[2]}"))
+            else:
+                self.config.write_text(self.config.read_text() + f"\n# synthetic {args[1]} write\n")
             output = "saved"
         else:
             raise AssertionError(args)
@@ -70,6 +76,8 @@ class BridgeTest(unittest.TestCase):
         self.assertTrue(result["plugins"][0]["enabled"])
         self.assertTrue(result["inventory"]["skillsComplete"])
         self.assertTrue(result["inventory"]["pluginsComplete"])
+        self.assertEqual(result["modelProviders"], [{"id": "openrouter", "configFileSet": False,
+                                                       "authenticated": None, "available": None}])
         self.assertNotIn("CANARY-PRIVATE", json.dumps(result))
 
     def test_revision_conflict_never_calls_set(self):
@@ -100,6 +108,25 @@ class BridgeTest(unittest.TestCase):
         self.assertFalse(result["inventory"]["skillsComplete"])
         self.assertIn("skill_activation_unknown", result["inventory"]["reasons"])
 
+    def test_fallback_chain_is_typed_and_secret_free(self):
+        chain = [{"provider": "openrouter", "model": "example/model"}]
+        code, result = self.invoke({"key": "fallback_model", "value": chain, "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["fallback_model"], chain)
+        self.assertTrue(result["write"]["persisted"])
+        self.assertNotIn("CANARY-PRIVATE", json.dumps(result))
+        self.assertEqual(bridge.valid_field_value("fallback_model", [{"provider": "evil;cmd", "model": "id"}],
+                                                       bridge.FIELDS["fallback_model"]), False)
+
+    def test_model_provider_write_is_allowlisted(self):
+        code, result = self.invoke({"key": "model.provider", "value": "openai-api",
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["model.provider"], "openai-api")
+        self.assertTrue(result["write"]["persisted"])
+        self.assertFalse(bridge.valid_field_value("model.provider", "openai; rm -rf /",
+                                                   bridge.FIELDS["model.provider"]))
+
     def test_two_real_processes_same_revision_only_one_writes(self):
         tools = self.home / "fake-bin"
         tools.mkdir()
@@ -113,7 +140,9 @@ p = pathlib.Path.home() / '.hermes' / 'config.yaml'
 a = sys.argv[1:]
 if a == ['config', 'path']: print(p)
 elif a[:2] == ['config', 'get']:
-    d = {'agent.max_turns': int(p.read_text().split('max_turns: ')[1].splitlines()[0]),
+    d = {'model.provider': 'openrouter', 'model.default': 'example/model',
+         'agent.reasoning_effort': 'medium', 'fallback.min_switch_reset_seconds': 0, 'fallback_model': [],
+         'agent.max_turns': int(p.read_text().split('max_turns: ')[1].splitlines()[0]),
          'agent.gateway_timeout': 1800, 'agent.api_max_retries': 3,
          'session.terminal_continue': True, 'max_live_sessions': 16,
          'skills.disabled': [], 'skills.create_dir': '', 'skills.external_dirs': []}

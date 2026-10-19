@@ -6012,6 +6012,30 @@ export interface components {
         /** HermesConfigPatch */
         HermesConfigPatch: {
             /** @constant */
+            key: "model.provider";
+            value: string;
+        } | {
+            /** @constant */
+            key: "model.default";
+            value: string;
+        } | {
+            /** @constant */
+            key: "agent.reasoning_effort";
+            /** @enum {unknown} */
+            value: "" | "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
+        } | {
+            /** @constant */
+            key: "fallback.min_switch_reset_seconds";
+            value: number;
+        } | {
+            /** @constant */
+            key: "fallback_model";
+            value: {
+                model: string;
+                provider: string;
+            }[];
+        } | {
+            /** @constant */
             key: "agent.max_turns";
             value: number;
         } | {
@@ -6054,27 +6078,37 @@ export interface components {
             fields: {
                 consumer: string;
                 explicit: boolean;
-                /** @constant */
-                family: "agent";
                 /** @enum {unknown} */
-                key: "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions";
+                family: "agent" | "models";
+                /** @enum {unknown} */
+                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions";
                 /** @constant */
                 reasonCode: "runtime_receipt_unavailable";
                 /** @enum {unknown} */
-                type: "integer" | "boolean";
-                value: number | boolean | null;
+                type: "integer" | "boolean" | "string" | "fallback";
+                value: (number | boolean | string | null) | {
+                    model: string;
+                    provider: string;
+                }[];
                 /** @constant */
                 verification: "unverified";
                 writable: boolean;
             }[];
             installed: boolean;
             inventory: {
+                modelProvidersComplete: boolean;
                 pluginsComplete: boolean;
                 reasons: string[];
                 /** @constant */
                 scope: "profile";
                 skillsComplete: boolean;
             };
+            modelProviders: {
+                authenticated: boolean | null;
+                available: boolean | null;
+                configFileSet: boolean;
+                id: string;
+            }[];
             plugins: components["schemas"]["extension"][];
             revision: number | null;
             secretStates: {

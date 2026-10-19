@@ -5,6 +5,7 @@ import hashlib
 import json
 import fcntl
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -13,15 +14,42 @@ import yaml
 
 
 FIELDS = {
+    "model.provider": ("provider", None, None),
+    "model.default": ("model", None, None),
+    "agent.reasoning_effort": ("reasoning", None, None),
+    "fallback.min_switch_reset_seconds": ("integer", 0, 3600),
+    "fallback_model": ("fallback", None, None),
     "agent.max_turns": ("integer", 1, 100000),
     "agent.gateway_timeout": ("integer", 60, 86400),
     "agent.api_max_retries": ("integer", 1, 10),
     "session.terminal_continue": ("boolean", None, None),
     "max_live_sessions": ("integer", 0, 10000),
 }
+REASONING_EFFORTS = frozenset(("", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"))
+
+
+def valid_field_value(key, value, spec):
+    kind = spec[0]
+    if kind == "integer":
+        return type(value) is int and spec[1] <= value <= spec[2]
+    if kind == "boolean":
+        return type(value) is bool
+    if kind == "provider":
+        return type(value) is str and re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", value) is not None
+    if kind == "model":
+        return type(value) is str and 1 <= len(value) <= 200 and re.fullmatch(r"[^\s\x00-\x1f\x7f]+", value) is not None
+    if kind == "reasoning":
+        return type(value) is str and value in REASONING_EFFORTS
+    if kind == "fallback":
+        return (type(value) is list and len(value) <= 8 and all(
+            type(item) is dict and set(item) == {"provider", "model"} and
+            valid_field_value("model.provider", item["provider"], FIELDS["model.provider"]) and
+            valid_field_value("model.default", item["model"], FIELDS["model.default"])
+            for item in value))
+    return False
 PINNED_SOURCE = "d923a5eb"
 FAMILIES = (
-    ("models", ("model", "models_dev", "providers", "fallback", "fallback_providers", "auxiliary", "agent.service_tier"), "P7-B"),
+    ("models", ("model", "models_dev", "providers", "fallback", "fallback_providers", "auxiliary", "agent.service_tier"), "P7-B: provider onboarding and live catalog remain"),
     ("agent", ("agent", "compression", "context", "session", "sessions"), "P7-C"),
     ("execution", ("terminal", "browser", "computer_use", "code_execution", "toolsets"), "P7-D"),
     ("extensions", ("skills", "plugins", "mcp"), "P7-E"),
@@ -143,12 +171,7 @@ def main():
     if not source.is_dir() or not cli.is_file():
         print(json.dumps({"error": "hermes_not_installed"}))
         return 5
-    lock = lock_config(home)
-    try:
-        return locked_main(home, source, cli)
-    finally:
-        fcntl.flock(lock, fcntl.LOCK_UN)
-        lock.close()
+    return locked_main(home, source, cli)
 
 
 def locked_main(home, source, cli):
@@ -159,7 +182,6 @@ def locked_main(home, source, cli):
         return result.stdout.strip()
 
     config_path = Path(call("path"))
-    before, raw = snapshot(config_path)
     commit = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3)
     source_revision = commit.stdout.strip() if commit.returncode == 0 else None
     if sys.argv[1] == "update":
@@ -170,19 +192,23 @@ def locked_main(home, source, cli):
             raise ValueError("invalid_request")
         key, value = request["key"], request["value"]
         spec = FIELDS.get(key)
-        if not spec or type(request["revision"]) is not int or type(value) is not (int if spec[0] == "integer" else bool):
+        if not spec or type(request["revision"]) is not int or not valid_field_value(key, value, spec):
             raise ValueError("unsupported_field")
-        if spec[0] == "integer" and not spec[1] <= value <= spec[2]:
-            raise ValueError("invalid_value")
-        if request["revision"] != before:
-            print(json.dumps({"error": "revision_conflict"}))
-            return 4
-        if revision(config_path) != before:
-            print(json.dumps({"error": "revision_conflict"}))
-            return 4
-        # Hermes owns validation and preserving the rest of config.yaml. Never --force.
-        call("set", key, str(value).lower() if isinstance(value, bool) else str(value))
-    current, raw = snapshot(config_path)
+        lock = lock_config(home)
+        try:
+            before, _raw_before = snapshot(config_path)
+            if request["revision"] != before or revision(config_path) != before:
+                print(json.dumps({"error": "revision_conflict"}))
+                return 4
+            # Hermes owns validation and preserving the rest of config.yaml. Never --force.
+            call("set", key, json.dumps(value, separators=(",", ":")) if isinstance(value, list) else
+                 str(value).lower() if isinstance(value, bool) else str(value))
+            current, raw = snapshot(config_path)
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+            lock.close()
+    else:
+        current, raw = snapshot(config_path)
     values = {}
     for key in FIELDS:
         values[key] = json.loads(call("get", key, "--json"))
@@ -193,7 +219,9 @@ def locked_main(home, source, cli):
     explicit = {key: nested(raw, key) is not None for key in FIELDS}
     # Only safe, typed leaves cross the bridge; provider credentials and arbitrary YAML do not.
     for key, spec in FIELDS.items():
-        if values[key] is not None and type(values[key]) is not (int if spec[0] == "integer" else bool):
+        if key == "fallback_model" and isinstance(values[key], dict):
+            values[key] = [values[key]]
+        if values[key] is not None and not valid_field_value(key, values[key], spec):
             values[key] = None
     roots, root_errors = inventory_roots(home, call)
     skill_names, skill_errors = installed_skills(roots)
@@ -215,7 +243,17 @@ def locked_main(home, source, cli):
         plugin_errors.append("plugin_inventory_unknown")
     if revision(config_path) != current:
         raise ValueError("concurrent_config_change")
-    inventory_reasons = sorted(set(root_errors + skill_errors + plugin_errors))
+    configured_providers = raw.get("providers")
+    provider_names = set(configured_providers) if isinstance(configured_providers, dict) else set()
+    current_provider = values.get("model.provider")
+    if current_provider:
+        provider_names.add(current_provider)
+    invalid_provider_names = any(not valid_field_value("model.provider", name, FIELDS["model.provider"])
+                                 for name in provider_names)
+    provider_names = sorted(name for name in provider_names if
+                            valid_field_value("model.provider", name, FIELDS["model.provider"]))
+    inventory_reasons = sorted(set(root_errors + skill_errors + plugin_errors +
+                                   (["model_provider_name_unsupported"] if invalid_provider_names else [])))
     print(json.dumps({
         "installed": True, "revision": current, "sourceRevision": source_revision,
         "values": values, "explicit": explicit,
@@ -223,7 +261,12 @@ def locked_main(home, source, cli):
         "families": [{"id": name, "roots": roots, "followup": followup,
                       "configFileSet": any(nested(raw, root) is not None for root in roots)} for name, roots, followup in FAMILIES],
         "inventory": {"scope": "profile", "skillsComplete": not (root_errors or skill_errors),
-                      "pluginsComplete": not plugin_errors, "reasons": inventory_reasons},
+                      "pluginsComplete": not plugin_errors, "modelProvidersComplete": not invalid_provider_names,
+                      "reasons": inventory_reasons},
+        "modelProviders": [{"id": name,
+                            "configFileSet": (isinstance(configured_providers, dict) and name in configured_providers) or
+                                             nested(raw, "model.provider") == name,
+                            "authenticated": None, "available": None} for name in provider_names],
         "skills": [{"id": name, "installed": True,
                     "enabled": True if name == "hermes-agent" else None if disabled_skills is None else name not in disabled_set}
                    for name in skill_names],

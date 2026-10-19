@@ -95,6 +95,29 @@ export type OrbMode =
   | "paused";
 export type HermesConfigPatch =
   | {
+      key: "model.provider";
+      value: string;
+    }
+  | {
+      key: "model.default";
+      value: string;
+    }
+  | {
+      key: "agent.reasoning_effort";
+      value: "" | "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
+    }
+  | {
+      key: "fallback.min_switch_reset_seconds";
+      value: number;
+    }
+  | {
+      key: "fallback_model";
+      value: {
+        provider: string;
+        model: string;
+      }[];
+    }
+  | {
       key: "agent.max_turns";
       value: number;
     }
@@ -2709,15 +2732,25 @@ export interface HermesConfigStatus {
   checkedAt: string;
   fields: {
     key:
+      | "model.provider"
+      | "model.default"
+      | "agent.reasoning_effort"
+      | "fallback.min_switch_reset_seconds"
+      | "fallback_model"
       | "agent.max_turns"
       | "agent.gateway_timeout"
       | "agent.api_max_retries"
       | "session.terminal_continue"
       | "max_live_sessions";
-    type: "integer" | "boolean";
-    family: "agent";
+    type: "integer" | "boolean" | "string" | "fallback";
+    family: "agent" | "models";
     consumer: string;
-    value: number | boolean | null;
+    value:
+      | (number | boolean | string | null)
+      | {
+          provider: string;
+          model: string;
+        }[];
     explicit: boolean;
     writable: boolean;
     verification: "unverified";
@@ -2746,9 +2779,16 @@ export interface HermesConfigStatus {
     scope: "profile";
     skillsComplete: boolean;
     pluginsComplete: boolean;
+    modelProvidersComplete: boolean;
     reasons: string[];
   };
   skills: Extension[];
+  modelProviders: {
+    id: string;
+    configFileSet: boolean;
+    authenticated: boolean | null;
+    available: boolean | null;
+  }[];
   plugins: Extension[];
   write: null | {
     key: string;

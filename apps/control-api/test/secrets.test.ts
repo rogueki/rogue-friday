@@ -102,7 +102,7 @@ describe("secret hygiene", () => {
     const hermesConfig = vi.spyOn(api.runtime.hermesConfig, "status").mockResolvedValue({ installed: true,
       sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8", revision: 1, checkedAt: new Date().toISOString(),
       fields: [], secretStates: [{ key: "model.api_key", configFileSet: true, effectiveConfigured: null }],
-      families: [], skills: [], plugins: [], inventory: { scope: "profile", skillsComplete: true, pluginsComplete: true, reasons: [] }, write: null } as never);
+      families: [], skills: [], plugins: [], inventory: { scope: "profile", skillsComplete: true, pluginsComplete: true, modelProvidersComplete: true, reasons: [] }, modelProviders: [], write: null } as never);
     const memorySearch = vi.spyOn(api.runtime.durableMemory, "search").mockReturnValue([]);
     const whatsappPairing = vi.spyOn(api.runtime.whatsappGateway, "pairing").mockResolvedValue({ id: null, state: "idle",
       qr: null, expiresAt: null, linkedIdentity: null, connectionState: "disconnected" });

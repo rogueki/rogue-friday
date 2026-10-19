@@ -50,7 +50,8 @@ const status = {
     },
   ],
   plugins: [],
-  inventory: { scope: "profile" as const, skillsComplete: true, pluginsComplete: true, reasons: [] },
+  inventory: { scope: "profile" as const, skillsComplete: true, pluginsComplete: true, modelProvidersComplete: true, reasons: [] },
+  modelProviders: [],
   write: null,
 };
 
