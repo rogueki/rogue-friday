@@ -218,6 +218,7 @@ describe("REST route coverage", () => {
       "startMailOAuth", "startWhatsappPairing", "updateMailAccount",
       "previewMessengerMessage", "confirmMessengerMessage", "listMessengerReceipts",
       "listMessengerTargets", "registerMessengerTarget", "removeMessengerTarget", "getMessengerCatalog",
+      "getSystemBackupStatus", "performSystemBackupAction", "getDataRetentionStatus", "performDataRetentionAction",
       "getMessengerProvider", "updateMessengerProvider", "applyMessengerProvider",
     ].sort();
     const mocked = ROUTES.map((route) => route.operationId).sort();

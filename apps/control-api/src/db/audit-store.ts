@@ -120,8 +120,6 @@ export class AuditStore {
     catch { return { valid: false, length: this.length, headHash: null, reason: "archive_unavailable", checkedAt }; }
     const rows = [...archived,
       ...this.db.prepare("SELECT seq, json, prev_hash, hash FROM audit_log ORDER BY seq").all() as unknown as AuditRow[]];
-    if (rows.some((row, index) => row.seq !== index + 1))
-      return { valid: false, length: rows.length, headHash: null, reason: "sequence_gap", checkedAt };
     const entries = rows.map((row) => ({ event: JSON.parse(row.json) as unknown, prevHash: row.prev_hash, hash: row.hash }));
     const result = verifyChain(entries);
     if (!result.valid) {
@@ -135,6 +133,9 @@ export class AuditStore {
         checkedAt,
       };
     }
+    const gap = rows.findIndex((row, index) => row.seq !== index + 1);
+    if (gap !== -1) return { valid: false, length: rows.length, headHash: null,
+      brokenAtSequence: gap + 1, reason: "sequence_gap", checkedAt };
     const anchored = this.checkAnchor(rows);
     if (anchored) return { valid: false, length: rows.length, headHash: null, brokenAtSequence: anchored.brokenAtSequence, reason: anchored.reason, checkedAt };
     return { valid: true, length: rows.length, headHash: rows.length ? result.headHash : null, checkedAt };
@@ -179,7 +180,7 @@ export class AuditStore {
     try { archived = this.archive?.rows() ?? []; } catch { return false; }
     const rows = [...archived,
       ...this.db.prepare("SELECT seq, json, prev_hash, hash FROM audit_log ORDER BY seq").all() as unknown as AuditRow[]];
-    if (rows.length === 0) return false;
+    if (rows.length === 0 || rows.some((row, index) => row.seq !== index + 1)) return false;
     const result = verifyChain(rows.map((row) => ({ event: JSON.parse(row.json) as unknown, prevHash: row.prev_hash, hash: row.hash })));
     if (!result.valid) return false;
     this.anchor.write({ length: rows.length, hash: (rows.at(-1) as AuditRow).hash });
