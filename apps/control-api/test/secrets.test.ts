@@ -106,6 +106,13 @@ describe("secret hygiene", () => {
     const memorySearch = vi.spyOn(api.runtime.durableMemory, "search").mockReturnValue([]);
     const whatsappPairing = vi.spyOn(api.runtime.whatsappGateway, "pairing").mockResolvedValue({ id: null, state: "idle",
       qr: null, expiresAt: null, linkedIdentity: null, connectionState: "disconnected" });
+    const messengerCatalog = vi.spyOn(api.runtime.messengerCatalog, "list").mockResolvedValue({ pin: "d923a5eb",
+      items: ["telegram", "discord", "whatsapp", "whatsapp_cloud", "slack", "signal", "mattermost", "matrix", "sms",
+        "dingtalk", "feishu", "wecom", "weixin", "bluebubbles", "qqbot", "yuanbao", "teams", "buzz", "google_chat",
+        "irc", "line", "ntfy", "photon", "simplex"].map((platform) => ({ platform, source: "bundled_plugin" as const,
+        fields: [{ name: "MATRIX_ACCESS_TOKEN", secret: true, required: true, present: true }],
+        configured: false, gatewayRunning: false, connectionState: "unknown" as const,
+        exactSendSupported: false, nativeSetupAvailable: false })) });
     try {
       for (const spec of ROUTE_TABLE.filter((candidate) => candidate.method === "GET" && candidate.pathParams.length === 0 && candidate.requiresSession)) {
         // Hermes-backed reads require an installed WSL distro, absent in this isolated test runtime.
@@ -118,6 +125,7 @@ describe("secret hygiene", () => {
         expect(hasCanary(response.body), `${spec.operationId} body`).toBeUndefined();
         expect(response.body, `${spec.operationId} body`).not.toContain(hash);
         expect(response.body, `${spec.operationId} body`).not.toMatch(/scrypt\$|-----BEGIN [A-Z ]*PRIVATE KEY-----/);
+        if (spec.operationId === "getMessengerCatalog") expect(response.body).not.toMatch(/"value"\s*:/);
       }
       expect(providerFetch).toHaveBeenCalledWith(expect.objectContaining({ hostname: "geocoding-api.open-meteo.com" }), expect.any(Object));
     } finally {
@@ -128,6 +136,7 @@ describe("secret hygiene", () => {
       hermesConfig.mockRestore();
       memorySearch.mockRestore();
       whatsappPairing.mockRestore();
+      messengerCatalog.mockRestore();
     }
   });
 
