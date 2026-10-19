@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { closeSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync,
   readSync, readdirSync, realpathSync, renameSync, rmSync, statfsSync, statSync, writeFileSync } from "node:fs";
-import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, parse as parsePath, resolve, sep } from "node:path";
 import { parse, stringify } from "yaml";
 import type { SystemBackupService } from "./system-backup";
 
@@ -19,6 +19,7 @@ interface SnapshotManifest {
 interface FreshState {
   distro_name?: string;
   distro_location?: string;
+  linux_user?: string;
   ports?: Record<string, number>;
   dashboard_hash?: string;
   dashboard_source?: string;
@@ -40,7 +41,19 @@ interface RecoveryPlan {
 }
 
 const hash = (bytes: Buffer): string => createHash("sha256").update(bytes).digest("hex");
-const inside = (path: string, root: string): boolean => path.startsWith(root + sep);
+const comparable = (path: string): string => process.platform === "win32" ? resolve(path).toLowerCase() : resolve(path);
+const samePath = (left: string, right: string): boolean => comparable(left) === comparable(right);
+const inside = (path: string, root: string): boolean => comparable(path).startsWith(comparable(root) + sep);
+
+function noLinkedAncestors(path: string): void {
+  let current = resolve(path);
+  const volume = parsePath(current).root;
+  while (current !== volume) {
+    if (existsSync(current) && lstatSync(current).isSymbolicLink())
+      throw new Error("Recovery path contains a linked ancestor");
+    current = dirname(current);
+  }
+}
 
 function ordinary(path: string): void {
   const info = lstatSync(path);
@@ -95,10 +108,11 @@ export class SystemRecoveryService {
     if (!snapshot.sourceInstallRoot || !snapshot.sourceVaultPath || !snapshot.wslIncluded ||
         !snapshot.files["keys/hermes_api.key"] || !snapshot.files["wsl/manifest.json"])
       throw new Error("Backup lacks operational recovery prerequisites");
+    noLinkedAncestors(targetPath);
     const target = realpathSync(targetPath);
     if (!isAbsolute(targetPath) || lstatSync(targetPath).isSymbolicLink() || !statSync(target).isDirectory() ||
-        target === source || inside(target, source) || inside(source, target) ||
-        target === resolve(snapshot.sourceInstallRoot) || inside(target, resolve(snapshot.sourceInstallRoot)))
+        samePath(target, source) || inside(target, source) || inside(source, target) ||
+        samePath(target, snapshot.sourceInstallRoot) || inside(target, snapshot.sourceInstallRoot))
       throw new Error("Recovery target must be a separate fresh installation");
     const runtime = join(target, "dashboard", "apps", "control-api", "dist", "main.js");
     const statePath = join(target, "config", "install-state.json");
@@ -111,13 +125,19 @@ export class SystemRecoveryService {
     const fresh = JSON.parse(readFileSync(statePath, "utf8")) as FreshState;
     const original = JSON.parse(readFileSync(join(source, "config", "install-state.json"), "utf8")) as FreshState;
     if (!fresh.distro_name || !fresh.distro_location || !fresh.dashboard_hash ||
+        !fresh.linux_user || fresh.linux_user !== original.linux_user ||
         !fresh.ports || !Array.isArray(fresh.done) || !fresh.done.includes("dashboard") ||
         fresh.distro_name === original.distro_name || fresh.dashboard_hash !== original.dashboard_hash)
       throw new Error("Recovery requires a completed, separate installation of the same Friday build");
     const freshDb = new DatabaseSync(targetDbPath, { readOnly: true });
     try {
-      const count = (freshDb.prepare("SELECT COUNT(*) AS count FROM command_history").get() as { count: number }).count;
-      if (count !== 0) throw new Error("Recovery target already has conversation activity");
+      const tables = freshDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('sqlite_sequence','schema_migrations')")
+        .all() as Array<{ name: string }>;
+      for (const { name } of tables) {
+        const quoted = name.replaceAll('"', '""');
+        const count = (freshDb.prepare(`SELECT COUNT(*) AS count FROM "${quoted}"`).get() as { count: number }).count;
+        if (count !== 0) throw new Error("Recovery target already has application or owner data");
+      }
     } finally { freshDb.close(); }
     sqliteSidecars(targetDbPath);
     const notes = join(vault, "Conversations");
@@ -140,9 +160,9 @@ export class SystemRecoveryService {
       const transform = (value: unknown): unknown => {
         if (typeof value === "string") {
           let result = recoveredPaths[value] ?? value;
+          result = result.replaceAll(snapshot.sourceVaultPath!, vault);
           for (const oldRoot of [snapshot.sourceInstallRoot!, snapshot.sourceInstallRoot!.replaceAll("\\", "/")])
             result = result.replaceAll(oldRoot, oldRoot.includes("/") ? target.replaceAll("\\", "/") : target);
-          result = result.replaceAll(snapshot.sourceVaultPath!, vault);
           for (const [key, oldPort] of Object.entries(original.ports ?? {})) {
             const next = fresh.ports?.[key];
             if (next && next !== oldPort) result = result.replaceAll(`127.0.0.1:${oldPort}`, `127.0.0.1:${next}`);
@@ -155,7 +175,7 @@ export class SystemRecoveryService {
         return value;
       };
       const recoveredState = transform(original) as FreshState;
-      for (const key of ["distro_name", "distro_location", "ports", "dashboard_hash", "dashboard_source", "dashboard_pnpm", "done"])
+      for (const key of ["distro_name", "distro_location", "linux_user", "ports", "dashboard_hash", "dashboard_source", "dashboard_pnpm", "done"])
         recoveredState[key] = fresh[key];
       const contents: Record<string, Buffer> = {
         "config/install-state.json": Buffer.from(JSON.stringify(recoveredState)),

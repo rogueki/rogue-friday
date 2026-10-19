@@ -35,8 +35,8 @@ async function fixture() {
   };
   const oldStatePath = join(created.path, "config", "install-state.json");
   mkdirSync(join(created.path, "config"), { recursive: true });
-  writeFileSync(oldStatePath, JSON.stringify({ dashboard_hash: "same-build", distro_name: "FridayOld",
-    ports: { Dashboard: 43691 } }));
+  writeFileSync(oldStatePath, JSON.stringify({ dashboard_hash: "same-build", distro_name: "FridayOld", linux_user: "friday",
+    ports: { Dashboard: 43691 }, vault_path: manifest.sourceVaultPath }));
   manifest.files["config/install-state.json"] = digest(oldStatePath);
   const wsl = join(created.path, "wsl");
   mkdirSync(wsl);
@@ -55,7 +55,8 @@ async function fixture() {
   mkdirSync(freshData, { recursive: true });
   writeFileSync(join(fresh, "dashboard", "apps", "control-api", "dist", "main.js"), "installed-build");
   writeFileSync(join(fresh, "config", "install-state.json"), JSON.stringify({ distro_name: "FridayNew",
-    distro_location: join(base, "new-distro"), dashboard_hash: "same-build", ports: { Dashboard: 43791 },
+    distro_location: join(base, "new-distro"), dashboard_hash: "same-build", linux_user: "friday",
+    ports: { Dashboard: 43791 },
     done: ["dashboard"] }));
   const freshDb = openDatabase(join(freshData, "dashboard.sqlite"));
   freshDb.close();
@@ -69,8 +70,9 @@ it("prepares credential and state import without changing the fresh installation
   expect(staged.wslRevision).toBe("a".repeat(40));
   expect(readFileSync(join(staged.path, "new", "config", "hermes_api.key"), "utf8")).toBe("old-hermes-key");
   const next = JSON.parse(readFileSync(join(staged.path, "new", "config", "install-state.json"), "utf8")) as
-    { distro_name: string; ports: { Dashboard: number }; dashboard_hash: string };
+    { distro_name: string; ports: { Dashboard: number }; dashboard_hash: string; vault_path: string };
   expect(next).toMatchObject({ distro_name: "FridayNew", ports: { Dashboard: 43791 }, dashboard_hash: "same-build" });
+  expect(next.vault_path).toBe(join(f.fresh, "memory", "Friday"));
   expect(readFileSync(join(staged.path, "new", "config", "obsidian-vault-path.txt"), "utf8"))
     .toBe(join(f.fresh, "memory", "Friday"));
   expect(readFileSync(join(f.fresh, "config", "install-state.json"), "utf8")).toBe(before);
@@ -84,7 +86,27 @@ it("refuses a target with existing activity or the same distro", async () => {
   active.prepare("INSERT INTO command_history VALUES (?,?,?,?,?,?,?,?)").run("one", "c1", "owner", "user text", 1,
     "dashboard", "executed", "2026-10-19T00:00:00Z");
   active.close();
-  expect(() => f.service.prepare(f.created.path, f.fresh)).toThrow(/conversation activity/);
+  expect(() => f.service.prepare(f.created.path, f.fresh)).toThrow(/application or owner data/);
+  f.memory.close(); f.db.close();
+});
+
+it("refuses an owner-configured target even without conversation history", async () => {
+  const f = await fixture();
+  const active = openDatabase(join(f.fresh, "dashboard", "data", "dashboard.sqlite"));
+  active.prepare("INSERT INTO owner_onboarding (id,revision,json,updated_at) VALUES (1,1,?,?)")
+    .run('{"name":"existing owner"}', "2026-10-19T00:00:00Z");
+  active.close();
+  expect(() => f.service.prepare(f.created.path, f.fresh)).toThrow(/application or owner data/);
+  f.memory.close(); f.db.close();
+});
+
+it.skipIf(process.platform !== "win32")("compares source and target paths without Windows casing gaps", async () => {
+  const f = await fixture();
+  const manifestPath = join(f.created.path, "manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as { sourceInstallRoot: string };
+  manifest.sourceInstallRoot = f.fresh.toUpperCase();
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+  expect(() => f.service.prepare(f.created.path, f.fresh)).toThrow(/separate fresh installation/);
   f.memory.close(); f.db.close();
 });
 
