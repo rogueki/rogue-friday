@@ -43,7 +43,7 @@ export const en: Record<keyof typeof de, string> = {
   "login.username": "Username",
   "login.password": "Password",
   "login.submit": "Sign in",
-  "login.rememberMe": "Keep me signed in (30 days)",
+  "login.rememberMe": "Remember this device (until session expiry)",
   "login.setupTitle": "Set up F.R.I.D.A.Y.",
   "login.setupDesc": "Choose your name and sign-in details for this dashboard.",
   "login.displayName": "Your name",

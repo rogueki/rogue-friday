@@ -45,7 +45,7 @@ export const de = {
   "login.username": "Benutzername",
   "login.password": "Passwort",
   "login.submit": "Anmelden",
-  "login.rememberMe": "Angemeldet bleiben (30 Tage)",
+  "login.rememberMe": "Auf diesem Gerät merken (bis zum Sitzungsablauf)",
   "login.setupTitle": "F.R.I.D.A.Y. einrichten",
   "login.setupDesc": "Lege deinen Namen und den Zugang für dieses Dashboard fest.",
   "login.displayName": "Dein Name",

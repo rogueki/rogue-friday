@@ -551,12 +551,12 @@ export class SettingsService {
   }
 
   validateAreas(patch: SettingsPatch): void {
-    this.assertReferences(patch);
     for (const area of SETTINGS_AREAS) {
       const value = patch[area];
       if (value === undefined) continue;
       const result = this.validator.validate("Settings", { ...this.get(), [area]: value });
       if (!result.valid) throw validationFailed(`Einstellungsbereich ${area} ist ungültig.`, result.errors);
     }
+    this.assertReferences(patch);
   }
 }

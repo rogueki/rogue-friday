@@ -162,8 +162,8 @@ export class AuthService {
     return verifyCsrfToken(this.deps.csrfKey, principal.sessionId, header, cookie);
   }
 
-  private cookiesFor(sessionId: string, rememberMe = false): string[] {
-    const options = { secureCookies: this.deps.config.auth.secureCookies, maxAgeSeconds: rememberMe ? REMEMBER_TTL_MS / 1000 : this.sessionTtlMs() / 1000 };
+  private cookiesFor(sessionId: string): string[] {
+    const options = { secureCookies: this.deps.config.auth.secureCookies, maxAgeSeconds: this.sessionTtlMs() / 1000 };
     return [serializeSessionCookie(sessionId, options), serializeCsrfCookie(issueCsrfToken(this.deps.csrfKey, sessionId), options)];
   }
 
@@ -176,7 +176,7 @@ export class AuthService {
     const { sessionId, session } = this.deps.sessions.create({
       userId,
       role,
-      ttlMs: rememberMe ? REMEMBER_TTL_MS : this.sessionTtlMs(),
+      ttlMs: this.sessionTtlMs(),
       idleTimeoutMs: rememberMe ? REMEMBER_TTL_MS : this.deps.config.auth.idleTimeoutMinutes * 60_000,
     });
     return { sessionId, session };
@@ -269,7 +269,7 @@ export class AuthService {
     }
     this.deps.limiter.recordSuccess(username, ip);
     const { sessionId, session } = this.createSession(OWNER_USER_ID, "owner", rememberMe);
-    return { principal: this.principalOf(sessionId, session), setCookie: this.cookiesFor(sessionId, rememberMe) };
+    return { principal: this.principalOf(sessionId, session), setCookie: this.cookiesFor(sessionId) };
   }
 
   private ownerHash(): string | undefined {

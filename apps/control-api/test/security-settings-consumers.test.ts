@@ -54,6 +54,25 @@ describe("security settings runtime consumers", () => {
     expect(decision.json().error.code).toBe("REAUTH_REQUIRED");
   });
 
+  it("caps a remembered session and its cookie at the configured absolute lifetime", async () => {
+    const clock = Date.parse("2026-10-19T12:00:00Z");
+    const api = await startTestApi({ now: () => clock, authMode: "local", ownerPassword: "long-synthetic-owner-password" });
+    opened.push(api);
+    const owner = api.client();
+    const login = await owner.post("/api/v1/auth/login", { username: "owner", password: "long-synthetic-owner-password" }, { csrf: false });
+    expect(login.statusCode).toBe(200);
+    owner.csrfToken = login.json().data.csrfToken;
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    const updated = await owner.patch("/api/v1/settings", { security: { ...settings.security, sessionTimeoutMinutes: 5 } },
+      { headers: { "if-match": String(settings.version) } });
+    expect(updated.statusCode, updated.body).toBe(200);
+    const remembered = await api.client().post("/api/v1/auth/login",
+      { username: "owner", password: "long-synthetic-owner-password", rememberMe: true }, { csrf: false });
+    expect(remembered.statusCode).toBe(200);
+    expect(remembered.json().data.expiresAt).toBe(new Date(clock + 5 * 60_000).toISOString());
+    expect(String(remembered.headers["set-cookie"])).toContain("Max-Age=300");
+  });
+
   it("applies trusted origins per request, rejects malformed or unavailable security changes, and preserves the prior policy", async () => {
     const api = await start(() => Date.parse("2026-10-19T12:00:00Z"));
     const owner = api.client();
@@ -69,6 +88,7 @@ describe("security settings runtime consumers", () => {
       { ...original.security, trustedOrigins: ["https://evil.example/path"] },
       { ...original.security, allowRemoteAccess: true },
       { ...original.security, auditHashChain: false },
+      { ...original.security, trustedOrigins: null },
     ]) {
       const rejected = await owner.patch("/api/v1/settings", { security }, { headers: { "if-match": String(version) } });
       expect(rejected.statusCode).toBe(422);
