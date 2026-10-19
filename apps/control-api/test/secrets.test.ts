@@ -127,7 +127,10 @@ describe("secret hygiene", () => {
         const response = record(spec.operationId, await owner.get(pathOf(spec), spec.operationId === "exportAudit" ? { query: { format: "json" } } :
           spec.operationId === "searchLocations" ? { query: { q: "Berlin" } } :
           spec.operationId === "searchDurableMemory" ? { query: { query: "synthetic", identityId: stableUserId("owner") } } : {}));
-        expect(response.statusCode, spec.operationId).toBe(200);
+        if (spec.operationId === "getHermesModelCatalog") {
+          expect(response.statusCode, spec.operationId).toBe(503);
+          expect(response.json().error.code).toBe("ADAPTER_UNAVAILABLE");
+        } else expect(response.statusCode, spec.operationId).toBe(200);
         expect(hasCanary(response.body), `${spec.operationId} body`).toBeUndefined();
         expect(response.body, `${spec.operationId} body`).not.toContain(hash);
         expect(response.body, `${spec.operationId} body`).not.toMatch(/scrypt\$|-----BEGIN [A-Z ]*PRIVATE KEY-----/);

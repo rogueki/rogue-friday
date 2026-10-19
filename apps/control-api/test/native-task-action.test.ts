@@ -106,3 +106,104 @@ it("cancels a task preview and never revives its action", async () => {
     expect((await owner.get("/api/v1/tasks", { query: { q: "Verworfenes Konzept" } })).json().items).toHaveLength(0);
   } finally { await api.close(); }
 });
+
+it("gates direct task POST through the same saved preview and native approval", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const body = { title: "Direkte API-Aufgabe", priority: "P1", description: "Exakter Inhalt" };
+    const staged = await owner.post("/api/v1/tasks", body);
+    expect(staged.statusCode, staged.body).toBe(403);
+    expect(staged.json().error.code).toBe("APPROVAL_REQUIRED");
+    expect(staged.json().error.details.stage).toBe("preview");
+    const previewId = staged.json().error.details.previewId as string;
+    expect((await owner.get("/api/v1/tasks", { query: { q: body.title } })).json().items).toHaveLength(0);
+    const changed = await owner.post("/api/v1/tasks", { ...body, description: "Ausgetauscht" },
+      { headers: { "x-action-preview-id": previewId } });
+    expect(changed.statusCode).toBe(409);
+    const confirmed = await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId } });
+    expect(confirmed.statusCode, confirmed.body).toBe(403);
+    expect(confirmed.json().error.details.stage).toBe("approval");
+    const approvalId = confirmed.json().error.details.approvalId as string;
+    const opened = await owner.get(`/api/v1/approvals/${approvalId}`);
+    expect(opened.json().data.preview.body).toContain("Exakter Inhalt");
+    const token = opened.headers["x-approval-token"] as string;
+    const executed = await owner.post(`/api/v1/approvals/${approvalId}/approve`, {},
+      { headers: { "x-approval-token": token } });
+    expect(executed.statusCode, executed.body).toBe(200);
+    expect(executed.json().data.status).toBe("executed");
+    expect((await owner.get("/api/v1/tasks", { query: { q: body.title } })).json().items).toHaveLength(1);
+    expect((await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId } })).statusCode).toBe(409);
+  } finally { await api.close(); }
+});
+
+it("direct task POST needs an exact preview even when tier-2 approval is disabled", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    expect((await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
+    const body = { title: "Direkte Aufgabe ohne Tier-2-Gate", priority: "P2" };
+    const staged = await owner.post("/api/v1/tasks", body);
+    const previewId = staged.json().error.details.previewId as string;
+    expect(staged.statusCode).toBe(403);
+    const confirmed = await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId } });
+    expect(confirmed.statusCode, confirmed.body).toBe(201);
+    const replay = await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId } });
+    expect(replay.statusCode, replay.body).toBe(201);
+    expect(replay.json().data.id).toBe(confirmed.json().data.id);
+    expect((await owner.get("/api/v1/tasks", { query: { q: body.title } })).json().items).toHaveLength(1);
+  } finally { await api.close(); }
+});
+
+it("uses one intent key across preview and approval without caching the preview error", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const body = { title: "Gleicher Intent mit Freigabe" };
+    const key = "native-task-preview-approval-001";
+    const staged = await owner.post("/api/v1/tasks", body, { headers: { "idempotency-key": key } });
+    expect(staged.statusCode).toBe(403);
+    const previewId = staged.json().error.details.previewId as string;
+    const headers = { "idempotency-key": key, "x-action-preview-id": previewId };
+    const confirmed = await owner.post("/api/v1/tasks", body, { headers });
+    expect(confirmed.statusCode, confirmed.body).toBe(403);
+    expect(confirmed.json().error.details.stage).toBe("approval");
+    const approvalId = confirmed.json().error.details.approvalId as string;
+    const approval = await owner.get(`/api/v1/approvals/${approvalId}`);
+    expect(approval.json().data.correlationId).toBe(previewId);
+    const decision = await owner.post(`/api/v1/approvals/${approvalId}/approve`, {},
+      { headers: { "x-approval-token": String(approval.headers["x-approval-token"]) } });
+    expect(decision.statusCode, decision.body).toBe(200);
+    expect((await owner.get("/api/v1/tasks", { query: { q: body.title } })).json().items).toHaveLength(1);
+    expect((await owner.post("/api/v1/tasks", body, { headers })).statusCode).toBe(409);
+  } finally { await api.close(); }
+});
+
+it("uses one intent key across preview and direct receipt when tier-2 approval is disabled", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    expect((await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
+    const body = { title: "Gleicher Intent ohne Freigabe" };
+    const key = "native-task-preview-direct-001";
+    const staged = await owner.post("/api/v1/tasks", body, { headers: { "idempotency-key": key } });
+    expect(staged.statusCode).toBe(403);
+    const previewId = staged.json().error.details.previewId as string;
+    const headers = { "idempotency-key": key, "x-action-preview-id": previewId };
+    const confirmed = await owner.post("/api/v1/tasks", body, { headers });
+    expect(confirmed.statusCode, confirmed.body).toBe(201);
+    expect(confirmed.json().data.id).toMatch(/^task_[0-9A-Za-z]{26}$/);
+    const repeated = await owner.post("/api/v1/tasks", body, { headers });
+    expect(repeated.statusCode, repeated.body).toBe(201);
+    expect(repeated.json().data.id).toBe(confirmed.json().data.id);
+    expect((await owner.get("/api/v1/tasks", { query: { q: body.title } })).json().items).toHaveLength(1);
+  } finally { await api.close(); }
+});

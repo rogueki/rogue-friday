@@ -27,6 +27,7 @@ import { messengerSendHandlers } from "./messenger-send";
 import { hermesConfigHandlers } from "./hermes-config";
 import { systemBackupHandlers } from "./system-backups";
 import { messengerInboundHandlers } from "./messenger-inbound";
+import { taskActionHandlers } from "./task-actions";
 
 /** Port-backed operations come from `PORT_SPEC`; the explicit handlers add enforcement or are served locally. */
 export function buildHandlers(): Map<OperationId, Handler> {
@@ -53,6 +54,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     hermesConfigHandlers,
     systemBackupHandlers,
     messengerInboundHandlers,
+    taskActionHandlers,
     localReads,
     devHandlers,
     approvalHandlers,

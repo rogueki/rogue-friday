@@ -82,7 +82,9 @@ describe("security settings runtime consumers", () => {
     const saved = await owner.patch("/api/v1/settings", { security: { ...original.security, trustedOrigins: [...original.security.trustedOrigins, trusted] } },
       { headers: { "if-match": String(original.version) } });
     expect(saved.statusCode, saved.body).toBe(200);
-    expect((await owner.post("/api/v1/tasks", { title: "allowed" }, { headers: { origin: trusted } })).statusCode).toBe(201);
+    const allowed = await owner.post("/api/v1/tasks", { title: "allowed" }, { headers: { origin: trusted } });
+    expect(allowed.statusCode).toBe(403);
+    expect(allowed.json().error).toMatchObject({ code: "APPROVAL_REQUIRED", details: { stage: "preview" } });
     const version = saved.json().data.version as number;
     for (const security of [
       { ...original.security, trustedOrigins: ["https://evil.example/path"] },
@@ -93,7 +95,9 @@ describe("security settings runtime consumers", () => {
       const rejected = await owner.patch("/api/v1/settings", { security }, { headers: { "if-match": String(version) } });
       expect(rejected.statusCode).toBe(422);
       expect((await owner.get("/api/v1/settings")).json().data.version).toBe(version);
-      expect((await owner.post("/api/v1/tasks", { title: "still allowed" }, { headers: { origin: trusted } })).statusCode).toBe(201);
+      const stillAllowed = await owner.post("/api/v1/tasks", { title: "still allowed" }, { headers: { origin: trusted } });
+      expect(stillAllowed.statusCode).toBe(403);
+      expect(stillAllowed.json().error).toMatchObject({ code: "APPROVAL_REQUIRED", details: { stage: "preview" } });
     }
   });
 });

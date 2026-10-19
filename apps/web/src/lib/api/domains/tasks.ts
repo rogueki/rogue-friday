@@ -5,7 +5,6 @@ import type {
   Priority,
   Task,
   TaskAssignRequest,
-  TaskCreateRequest,
   TaskInputRequest,
   TaskListResponse,
   TaskResponse,
@@ -73,15 +72,6 @@ export function useTaskPages(filters: TaskFilters = {}) {
 export const useTask = (id: string | null | undefined) => useQuery({ ...taskQueries.detail(id ?? ""), enabled: Boolean(id) });
 
 const invalidateTasks = [queryKeys.tasks.all, queryKeys.overview] as const;
-
-export function useCreateTask() {
-  return useApiMutation<TaskResponse, TaskCreateRequest & IntentVars>({
-    label: "Aufgabe anlegen",
-    mutationFn: ({ idempotencyKey, ...body }) =>
-      call(getApiClient().POST("/api/v1/tasks", { body, params: { header: { "Idempotency-Key": idempotencyKey } } })),
-    invalidate: invalidateTasks,
-  });
-}
 
 /** PATCH with If-Match (PLAN §8.5); a 409 refetches the lists. Kanban moves reuse this via `status`. */
 export function useUpdateTask() {

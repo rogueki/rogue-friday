@@ -1,8 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- test code reads untyped JSON bodies and frames that the contract validators check */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
+import { createApprovedTask } from "./support/task-actions";
 
 const errorOf = (response: { json(): unknown }) => (response.json() as { error: { code: string; details: Record<string, any> } }).error;
+
+async function stageTask(client: ApiClient, body: Record<string, unknown>, headers: Record<string, string> = {}) {
+  const staged = await client.post("/api/v1/tasks", body, { headers });
+  expect(staged.statusCode, staged.body).toBe(403);
+  expect(errorOf(staged).details.stage).toBe("preview");
+  return errorOf(staged).details.previewId as string;
+}
+
+const confirmTask = (client: ApiClient, body: Record<string, unknown>, previewId: string, headers: Record<string, string> = {}) =>
+  client.post("/api/v1/tasks", body, { headers: { ...headers, "x-action-preview-id": previewId } });
 
 describe("idempotency", () => {
   let api: TestApi;
@@ -12,6 +23,9 @@ describe("idempotency", () => {
     api = await startTestApi();
     owner = api.client();
     await owner.loginDev("owner");
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    expect((await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
   });
   afterAll(async () => {
     await api.close();
@@ -23,10 +37,12 @@ describe("idempotency", () => {
   it("replays the stored response for a repeated key and executes only once", async () => {
     const before = await taskCount();
     const headers = { "idempotency-key": "idem-replay-0001" };
-    const first = await owner.post("/api/v1/tasks", { title: "Einmalig anlegen", priority: "P2" }, { headers });
+    const body = { title: "Einmalig anlegen", priority: "P2" };
+    const previewId = await stageTask(owner, body, headers);
+    const first = await confirmTask(owner, body, previewId, headers);
     expect(first.statusCode, first.body).toBe(201);
     const audits = auditCount();
-    const second = await owner.post("/api/v1/tasks", { title: "Einmalig anlegen", priority: "P2" }, { headers });
+    const second = await confirmTask(owner, body, previewId, headers);
     expect(second.statusCode).toBe(201);
     expect(second.headers["idempotent-replayed"]).toBe("true");
     expect(first.headers["idempotent-replayed"]).toBe("false");
@@ -38,15 +54,16 @@ describe("idempotency", () => {
 
   it("rejects the same key with a different body as IDEMPOTENCY_CONFLICT", async () => {
     const headers = { "idempotency-key": "idem-conflict-001" };
-    expect((await owner.post("/api/v1/tasks", { title: "Erste Fassung" }, { headers })).statusCode).toBe(201);
-    const conflict = await owner.post("/api/v1/tasks", { title: "Andere Fassung" }, { headers });
+    const previewId = await stageTask(owner, { title: "Erste Fassung" }, headers);
+    expect((await confirmTask(owner, { title: "Erste Fassung" }, previewId, headers)).statusCode).toBe(201);
+    const conflict = await confirmTask(owner, { title: "Andere Fassung" }, previewId, headers);
     expect(conflict.statusCode).toBe(409);
     expect(errorOf(conflict).code).toBe("IDEMPOTENCY_CONFLICT");
   });
 
   it("scopes keys to the operation and path", async () => {
-    const task = (await owner.post("/api/v1/tasks", { title: "Pfad-Test" })).json().data;
-    const other = (await owner.post("/api/v1/tasks", { title: "Pfad-Test 2" })).json().data;
+    const task = (await createApprovedTask(owner, { title: "Pfad-Test" })).task;
+    const other = (await createApprovedTask(owner, { title: "Pfad-Test 2" })).task;
     const headers = { "idempotency-key": "idem-path-scope-1" };
     expect((await owner.post(`/api/v1/tasks/${task.id}/pause`, {}, { headers })).statusCode).toBeLessThan(500);
     const elsewhere = await owner.post(`/api/v1/tasks/${other.id}/pause`, {}, { headers });
@@ -57,8 +74,9 @@ describe("idempotency", () => {
     const operator = api.client();
     await operator.loginDev("operator");
     const headers = { "idempotency-key": "idem-user-scope-1" };
-    const a = await owner.post("/api/v1/tasks", { title: "Gleicher Schlüssel" }, { headers });
-    const b = await operator.post("/api/v1/tasks", { title: "Gleicher Schlüssel" }, { headers });
+    const body = { title: "Gleicher Schluessel" };
+    const a = await confirmTask(owner, body, await stageTask(owner, body, headers), headers);
+    const b = await confirmTask(operator, body, await stageTask(operator, body, headers), headers);
     expect(b.statusCode).toBe(201);
     expect(b.headers["idempotent-replayed"]).toBe("false");
     expect(b.json().data.id).not.toBe(a.json().data.id);
@@ -68,15 +86,18 @@ describe("idempotency", () => {
     const headers = { "idempotency-key": "idem-failure-0001" };
     const bad = await owner.post("/api/v1/tasks", { title: "" }, { headers });
     expect(bad.statusCode).toBeGreaterThanOrEqual(400);
-    const good = await owner.post("/api/v1/tasks", { title: "Jetzt korrekt" }, { headers });
+    const body = { title: "Jetzt korrekt" };
+    const good = await confirmTask(owner, body, await stageTask(owner, body, headers), headers);
     expect(good.statusCode).toBe(201);
   });
 
   it("treats parallel requests with one key as one execution", async () => {
     const before = await taskCount();
     const headers = { "idempotency-key": "idem-parallel-001" };
+    const body = { title: "Doppelklick" };
+    const previewId = await stageTask(owner, body, headers);
     const responses = await Promise.all(
-      Array.from({ length: 5 }, () => owner.post("/api/v1/tasks", { title: "Doppelklick" }, { headers })),
+      Array.from({ length: 5 }, () => confirmTask(owner, body, previewId, headers)),
     );
     expect(responses.map((response) => response.statusCode)).toEqual([201, 201, 201, 201, 201]);
     expect(new Set(responses.map((response) => response.json().data.id)).size).toBe(1);
@@ -90,7 +111,8 @@ describe("idempotency", () => {
   });
 
   it("does not require a key (and ignores one on operations that do not accept it)", async () => {
-    expect((await owner.post("/api/v1/tasks", { title: "Ohne Schlüssel" })).statusCode).toBe(201);
+    const body = { title: "Ohne Schluessel" };
+    expect((await confirmTask(owner, body, await stageTask(owner, body))).statusCode).toBe(201);
     const search = await owner.post("/api/v1/memory/search", { query: "Arbeitszeit" }, { headers: { "idempotency-key": "idem-ignored-0001" } });
     expect(search.statusCode).toBe(200);
     expect(search.headers["idempotent-replayed"]).toBeUndefined();
@@ -101,8 +123,13 @@ describe("idempotency", () => {
     const dir = first.dir;
     const client = first.client();
     await client.loginDev("owner");
+    const settings = (await client.get("/api/v1/settings")).json().data;
+    expect((await client.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
     const headers = { "idempotency-key": "idem-restart-0001" };
-    const created = await client.post("/api/v1/tasks", { title: "Überlebt den Neustart" }, { headers });
+    const body = { title: "Ueberlebt den Neustart" };
+    const previewId = await stageTask(client, body, headers);
+    const created = await confirmTask(client, body, previewId, headers);
     expect(created.statusCode).toBe(201);
     // Close without deleting the data directory (a `dir` option keeps it), then boot a second instance on it.
     await first.app.close();
@@ -110,7 +137,7 @@ describe("idempotency", () => {
     try {
       const again = second.client();
       await again.loginDev("owner");
-      const replay = await again.post("/api/v1/tasks", { title: "Überlebt den Neustart" }, { headers });
+      const replay = await confirmTask(again, body, previewId, headers);
       expect(replay.statusCode).toBe(201);
       expect(replay.headers["idempotent-replayed"]).toBe("true");
       expect(replay.json()).toEqual(created.json());
@@ -135,7 +162,7 @@ describe("optimistic concurrency (If-Match)", () => {
     await api.close();
   });
 
-  const newTask = async () => (await owner.post("/api/v1/tasks", { title: "Versionstest", priority: "P3" })).json().data as { id: string; version: number };
+  const newTask = async () => (await createApprovedTask(owner, { title: "Versionstest", priority: "P3" })).task as { id: string; version: number };
 
   it("applies an update whose If-Match equals the current version and increments the version", async () => {
     const task = await newTask();

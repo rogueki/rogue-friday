@@ -193,7 +193,7 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
       async (action, idempotencyKey) => {
         const create = runtime.registry.getPort("tasks").createTask;
         if (!create) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Aufgaben koennen derzeit nicht angelegt werden." });
-        const result = await create({ body: action.body }, { ...ctx.mutation, idempotencyKey });
+        const result = await create({ body: action.body }, { ...ctx.mutation, correlationId: current.correlationId, idempotencyKey });
         return result.data.id;
       })) : await approveBase(ctx);
     const result = (base.body as { data: Approval }).data;

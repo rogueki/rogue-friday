@@ -661,6 +661,13 @@ paths:
         - $ref: "#/components/parameters/CorrelationId"
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/IdempotencyKey"
+        - name: X-Action-Preview-Id
+          in: header
+          required: false
+          description: Exact server draft reference from the first task-create attempt; sending it confirms the unchanged request body.
+          schema:
+            type: string
+            pattern: '^corr_[0-9A-Za-z]{26}$'
       requestBody:
         required: true
         content:

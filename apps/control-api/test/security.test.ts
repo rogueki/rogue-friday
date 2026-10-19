@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ROUTE_TABLE } from "../src/http/route-table.generated";
 import type { RouteSpec } from "../src/http/route-types";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
+import { createApprovedTask } from "./support/task-actions";
 import { pathOf } from "./support/contract";
 
 const ROLES = ["owner", "operator", "viewer"] as const;
@@ -146,7 +147,7 @@ describe("security: sessions, CSRF and roles (dev auth)", () => {
 
     it("exempts safe methods and accepts the valid token", async () => {
       expect((await clients.operator.get("/api/v1/tasks", { csrf: false })).statusCode).toBe(200);
-      expect((await clients.operator.post("/api/v1/tasks", { title: "mit gültigem Token" })).statusCode).toBe(201);
+      await createApprovedTask(clients.operator, { title: "mit gueltigem Token" });
     });
 
     it("refuses a foreign Origin on mutations and a foreign Host header", async () => {
@@ -157,7 +158,9 @@ describe("security: sessions, CSRF and roles (dev auth)", () => {
       expect(host.statusCode).toBe(403);
       expect(errorOf(host).details.reason).toBe("host_not_allowed");
       const same = await clients.operator.post("/api/v1/tasks", { title: "gleicher Origin" }, { headers: { origin: "http://127.0.0.1:3100" } });
-      expect(same.statusCode).toBe(201);
+      expect(same.statusCode).toBe(403);
+      expect(errorOf(same).code).toBe("APPROVAL_REQUIRED");
+      expect(errorOf(same).details.stage).toBe("preview");
     });
   });
 
@@ -198,7 +201,7 @@ describe("security: sessions, CSRF and roles (dev auth)", () => {
     });
 
     it("lets operators work but not change settings; viewers are read-only", async () => {
-      expect((await clients.operator.post("/api/v1/tasks", { title: "Operator-Aufgabe" })).statusCode).toBe(201);
+      await createApprovedTask(clients.operator, { title: "Operator-Aufgabe" });
       expect((await clients.viewer.post("/api/v1/tasks", { title: "Viewer-Aufgabe" })).statusCode).toBe(403);
       const settings = (await clients.owner.get("/api/v1/settings")).json().data;
       const patch = { dashboard: { ...settings.dashboard, compact: true } };

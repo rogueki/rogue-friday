@@ -111,11 +111,26 @@ describe("contract: all operations", () => {
   describe("tasks", () => {
     it("lists and filters tasks, creates (idempotent) and reads one", async () => {
       await call("listTasks", { query: { status: ["running", "waiting"], priority: ["P1", "P2"], sort: "-updatedAt", limit: "5" } });
-      const created = await call("createTask", { body: { title: "Reisekosten abrechnen", priority: "P2", labels: ["finanzen"] }, headers: { "idempotency-key": "idem-contract-task-0001" } });
+      const settings = (await owner.get("/api/v1/settings")).json().data;
+      const changed = await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+        { headers: { "if-match": String(settings.version) } });
+      expect(changed.statusCode, changed.body).toBe(200);
+      const body = { title: "Reisekosten abrechnen", priority: "P2", labels: ["finanzen"] };
+      const headers = { "idempotency-key": "idem-contract-task-0001" };
+      const staged = await call("createTask", { body, headers, expect: 403 });
+      expect(staged.json.error).toMatchObject({ code: "APPROVAL_REQUIRED", details: { stage: "preview" } });
+      const created = await call("createTask", { body,
+        headers: { ...headers, "x-action-preview-id": staged.json.error.details.previewId } });
       ids.createdTask = created.json.data.id;
       expect(created.response.headers.location).toContain(ids.createdTask);
+      const replayed = await call("createTask", { body,
+        headers: { ...headers, "x-action-preview-id": staged.json.error.details.previewId } });
+      expect(replayed.response.headers["idempotent-replayed"]).toBe("true");
       const task = await call("getTask", { params: { id: ids.createdTask } });
       versions.createdTask = task.json.data.version;
+      const latest = (await owner.get("/api/v1/settings")).json().data;
+      expect((await owner.patch("/api/v1/settings", { approvals: settings.approvals },
+        { headers: { "if-match": String(latest.version) } })).statusCode).toBe(200);
     });
 
     it("updates with If-Match and runs the lifecycle actions", async () => {

@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { startTestApi, type TestApi } from "./helpers";
+import { createApprovedTask } from "./support/task-actions";
 
 /** Phase 12 gate (docs/SECURITY.md §9): checks that no other suite covers. */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -61,8 +62,8 @@ describe("server key loss (auth.key)", () => {
       const first = await start({ dir });
       const before = first.client();
       await before.loginDev("owner");
-      const created = await before.post("/api/v1/tasks", { title: "Vor dem Schlüsselverlust" });
-      expect(created.statusCode).toBe(201);
+      const created = await createApprovedTask(before, { title: "Vor dem Schlüsselverlust" });
+      expect(created.task.title).toBe("Vor dem Schlüsselverlust");
       const staleCsrf = before.csrfToken;
       const cookies = new Map(before.cookies);
       const auditBefore = first.runtime.stores.audit.count();
@@ -80,7 +81,7 @@ describe("server key loss (auth.key)", () => {
       const session = await after.get("/api/v1/auth/session");
       after.csrfToken = (session.json() as { data: { csrfToken: string } }).data.csrfToken;
       after.cookies.set("friday_csrf", after.csrfToken);
-      expect((await after.post("/api/v1/tasks", { title: "mit neuem Token" })).statusCode).toBe(201);
+      expect((await createApprovedTask(after, { title: "mit neuem Token" })).task.title).toBe("mit neuem Token");
       expect(second.runtime.stores.audit.count()).toBeGreaterThanOrEqual(auditBefore);
       expect(second.runtime.stores.audit.verify()).toMatchObject({ valid: true });
     } finally {
@@ -99,10 +100,10 @@ describe("server key loss (auth.key)", () => {
       const first = await start({ dir });
       const client = first.client();
       await client.loginDev("owner");
-      await client.post("/api/v1/tasks", { title: "a" });
-      await client.post("/api/v1/tasks", { title: "b" });
+      await createApprovedTask(client, { title: "a" });
+      await createApprovedTask(client, { title: "b" });
       const victim = first.runtime.db.prepare("SELECT seq, json FROM audit_log WHERE seq = 2").get() as { seq: number; json: string };
-      first.runtime.db.prepare("UPDATE audit_log SET json = ? WHERE seq = ?").run(victim.json.replace('"info"', '"critical"'), victim.seq);
+      first.runtime.db.prepare("UPDATE audit_log SET json = ? WHERE seq = ?").run(victim.json.replace('"action"', '"tampered"'), victim.seq);
       await first.app.close();
       opened.splice(opened.indexOf(first), 1);
       unlinkSync(join(first.config.paths.dataDir, "auth.key"));

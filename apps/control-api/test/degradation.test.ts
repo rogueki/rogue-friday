@@ -2,6 +2,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { FridayEvent } from "@friday/sdk";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
+import { createApprovedTask } from "./support/task-actions";
 
 const errorOf = (response: { json(): unknown }) => (response.json() as { error: { code: string; retryable: boolean; details: Record<string, any> } }).error;
 
@@ -41,7 +42,7 @@ describe("partial outage (adapter offline)", () => {
     for (const path of ["/api/v1/tasks", "/api/v1/agents", "/api/v1/calendar/events", "/api/v1/notifications", "/api/v1/approvals", "/api/v1/system/services", "/api/v1/memory", "/api/v1/voice/status"]) {
       expect((await owner.get(path)).statusCode, path).toBe(200);
     }
-    expect((await owner.post("/api/v1/tasks", { title: "Läuft weiter" })).statusCode).toBe(201);
+    expect((await createApprovedTask(owner, { title: "Läuft weiter" })).task.title).toBe("Läuft weiter");
   });
 
   it("reports the outage in health, adapters, capabilities, status and overview", async () => {
@@ -213,7 +214,7 @@ describe("capability missing", () => {
   it("restores the operation when the capability returns", async () => {
     await control(owner, { action: "capability_toggle", module: "tasks", capability: "create", enabled: false });
     await control(owner, { action: "capability_toggle", module: "tasks", capability: "create", enabled: true });
-    expect((await operator.post("/api/v1/tasks", { title: "Wieder erlaubt" })).statusCode).toBe(201);
+    expect((await createApprovedTask(operator, { title: "Wieder erlaubt" })).task.title).toBe("Wieder erlaubt");
   });
 
   it.each([
