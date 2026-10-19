@@ -57,6 +57,9 @@ jobs:
             installer/wsl/test_send_himalaya.py \
             installer/wsl/test_messaging_runtime.py \
             installer/wsl/test_messaging_pairing.py \
+            installer/wsl/test_messaging_send.py \
+            installer/wsl/test_messaging_catalog.py \
+            installer/wsl/test_configure_messaging_provider.py \
             installer/wsl/tests/test_mail_bridge_setup.py \
             installer/wsl/tests/test_calendar_bridge_setup.py
 
