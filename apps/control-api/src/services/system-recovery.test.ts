@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
@@ -7,6 +7,7 @@ import { openDatabase } from "../db/database";
 import { DurableMemoryService } from "./durable-memory";
 import { SystemBackupService } from "./system-backup";
 import { SystemRecoveryService } from "./system-recovery";
+import { startTestApi } from "../../test/helpers";
 
 const roots: string[] = [];
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
@@ -36,7 +37,7 @@ async function fixture() {
   const oldStatePath = join(created.path, "config", "install-state.json");
   mkdirSync(join(created.path, "config"), { recursive: true });
   writeFileSync(oldStatePath, JSON.stringify({ dashboard_hash: "same-build", distro_name: "FridayOld", linux_user: "friday",
-    ports: { Dashboard: 43691 }, vault_path: manifest.sourceVaultPath }));
+    ports: { Dashboard: 43691, CommandCenter: 3100 }, vault_path: manifest.sourceVaultPath }));
   manifest.files["config/install-state.json"] = digest(oldStatePath);
   const wsl = join(created.path, "wsl");
   mkdirSync(wsl);
@@ -56,7 +57,7 @@ async function fixture() {
   writeFileSync(join(fresh, "dashboard", "apps", "control-api", "dist", "main.js"), "installed-build");
   writeFileSync(join(fresh, "config", "install-state.json"), JSON.stringify({ distro_name: "FridayNew",
     distro_location: join(base, "new-distro"), dashboard_hash: "same-build", linux_user: "friday",
-    ports: { Dashboard: 43791 },
+    ports: { Dashboard: 43791, CommandCenter: 3101 },
     done: ["dashboard"] }));
   const freshDb = openDatabase(join(freshData, "dashboard.sqlite"));
   freshDb.close();
@@ -97,6 +98,30 @@ it("refuses an owner-configured target even without conversation history", async
     .run('{"name":"existing owner"}', "2026-10-19T00:00:00Z");
   active.close();
   expect(() => f.service.prepare(f.created.path, f.fresh)).toThrow(/application or owner data/);
+  f.memory.close(); f.db.close();
+});
+
+it("accepts the built-in rows created by first dashboard boot", async () => {
+  const f = await fixture();
+  const active = openDatabase(join(f.fresh, "dashboard", "data", "dashboard.sqlite"));
+  active.prepare("INSERT INTO library_items (kind,id,json,built_in,updated_at) VALUES ('theme','default','{}',1,?)")
+    .run("2026-10-19T00:00:00Z");
+  active.prepare("INSERT INTO kv (key,value,updated_at) VALUES ('hub.sequence','4',?)")
+    .run("2026-10-19T00:00:00Z");
+  active.close();
+  expect(f.service.prepare(f.created.path, f.fresh).fileCount).toBeGreaterThan(0);
+  f.memory.close(); f.db.close();
+});
+
+it("accepts a database after an isolated fresh dashboard runtime boot", async () => {
+  const f = await fixture();
+  const bootRoot = join(f.base, "booted-api");
+  const api = await startTestApi({ dir: bootRoot, dataMode: "hybrid", authMode: "local",
+    firstRunSetup: true, background: false });
+  const bootedDb = join(api.dir, "data", "dashboard.sqlite");
+  await api.close();
+  copyFileSync(bootedDb, join(f.fresh, "dashboard", "data", "dashboard.sqlite"));
+  expect(f.service.prepare(f.created.path, f.fresh).fileCount).toBeGreaterThan(0);
   f.memory.close(); f.db.close();
 });
 

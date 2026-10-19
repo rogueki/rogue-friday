@@ -12,12 +12,14 @@ import sqlite3
 import stat
 import subprocess
 import sys
+import tempfile
 
 
 ROOTS = {"hermes", "friday-mail", "friday-calendar", "himalaya"}
 EXCLUDED = ["cache", "hermes-agent", "installs", "tools"]
 REAPPLY_MARKER = "hermes/friday-messenger-bridge-applied.sha256"
 RECEIPT_NAME = ".friday-recovery-receipt.json"
+PRIOR_PREFIX = ".friday-recovery-prior-"
 SQLITE_HEADER = b"SQLite format 3\x00"
 
 
@@ -123,6 +125,50 @@ def pinned_checkout(home: Path, revision: str) -> None:
         raise ValueError("Hermes checkout does not match the clean pinned revision")
 
 
+def private_copy(source: Path, target: Path) -> None:
+    descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    try:
+        with os.fdopen(descriptor, "wb") as writer, source.open("rb") as reader:
+            shutil.copyfileobj(reader, writer, length=1024 * 1024)
+            writer.flush()
+            os.fsync(writer.fileno())
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
+    if digest(target) != digest(source):
+        target.unlink()
+        raise ValueError("WSL restore copy changed")
+
+
+def sync_directory(path: Path) -> None:
+    if os.name != "posix":
+        return
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def write_receipt(receipt: Path, payload: dict[str, object], exclusive: bool = False) -> None:
+    if exclusive:
+        descriptor = os.open(receipt, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+            json.dump(payload, output, sort_keys=True)
+            output.flush()
+            os.fsync(output.fileno())
+        sync_directory(receipt.parent)
+    else:
+        temporary = receipt.with_name(receipt.name + ".tmp")
+        with temporary.open("x", encoding="utf-8") as output:
+            os.chmod(temporary, 0o600)
+            json.dump(payload, output, sort_keys=True)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, receipt)
+        sync_directory(receipt.parent)
+
+
 def import_snapshot(source: Path, home: Path) -> dict[str, object]:
     files, databases, revision = inventory(source)
     no_linked_ancestor(home)
@@ -132,55 +178,85 @@ def import_snapshot(source: Path, home: Path) -> dict[str, object]:
     receipt = home / RECEIPT_NAME
     if receipt.exists() or receipt.is_symlink():
         raise ValueError("target WSL profile already has a recovery receipt")
+    applied_marker = destination(home, REAPPLY_MARKER)
+    if applied_marker.exists() or applied_marker.is_symlink():
+        ordinary(applied_marker)
     # This digest only says a former gateway process observed a bridge config.
     # A recovered gateway must apply and acknowledge the restored config again.
-    targets = [(source / name, destination(home, name)) for name in sorted(files) if name != REAPPLY_MARKER]
-    for _, target in targets:
+    targets = [(name, source / name, destination(home, name)) for name in sorted(files) if name != REAPPLY_MARKER]
+    created_dirs: list[Path] = []
+    previous: dict[str, str | None] = {}
+    sidecars: dict[str, str] = {}
+    for name, _, target in targets:
         if target.exists() or target.is_symlink():
-            raise ValueError("target WSL state already exists")
+            ordinary(target)
+            previous[name] = digest(target)
+            with target.open("rb") as stream:
+                sqlite_file = stream.read(16) == SQLITE_HEADER
+            if sqlite_file:
+                for suffix in ("-wal", "-shm"):
+                    sidecar = Path(f"{target}{suffix}")
+                    if sidecar.exists() or sidecar.is_symlink():
+                        ordinary(sidecar)
+                        if suffix == "-wal" and sidecar.stat().st_size:
+                            raise ValueError("target WSL SQLite must be stopped and checkpointed")
+                        sidecars[name + suffix] = digest(sidecar)
+        else:
+            previous[name] = None
         parent = target.parent
         while parent != home:
             if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
                 raise ValueError("target WSL state has an unsafe parent")
+            if not parent.exists() and parent not in created_dirs:
+                created_dirs.append(parent)
             parent = parent.parent
-    created_files: list[Path] = []
-    created_dirs: list[Path] = []
+    prior_dir = Path(tempfile.mkdtemp(prefix=PRIOR_PREFIX, dir=home))
+    prior_dir.chmod(0o700)
     try:
-        for origin, target in targets:
-            missing = []
-            parent = target.parent
-            while parent != home and not parent.exists():
-                missing.append(parent)
-                parent = parent.parent
-            for folder in reversed(missing):
-                folder.mkdir(mode=0o700)
-                created_dirs.append(folder)
-            descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
-            created_files.append(target)
-            with os.fdopen(descriptor, "wb") as writer, origin.open("rb") as reader:
-                shutil.copyfileobj(reader, writer, length=1024 * 1024)
-                writer.flush()
-                os.fsync(writer.fileno())
-            target.chmod(0o600)
-            if digest(target) != files[target_to_name(home, target)]:
-                raise ValueError("WSL restore copy changed")
-        payload = {"version": 1, "manifestSha256": digest(source / "manifest.json"),
-                   "files": {target_to_name(home, target): files[target_to_name(home, target)] for _, target in targets},
+        for name, _, target in targets:
+            if previous[name] is not None:
+                prior = prior_dir / hashlib.sha256(name.encode("utf-8")).hexdigest()
+                private_copy(target, prior)
+                if digest(prior) != previous[name]:
+                    raise ValueError("target WSL state changed during baseline snapshot")
+        for name, expected in sidecars.items():
+            sidecar = Path(f"{destination(home, name[:-4])}{name[-4:]}")
+            prior = prior_dir / hashlib.sha256(name.encode("utf-8")).hexdigest()
+            private_copy(sidecar, prior)
+            if digest(prior) != expected:
+                raise ValueError("target WSL SQLite sidecar changed during baseline snapshot")
+        sync_directory(prior_dir)
+        payload = {"version": 2, "state": "applying", "manifestSha256": digest(source / "manifest.json"),
+                   "files": {name: files[name] for name, _, _ in targets}, "previous": previous,
+                   "sidecars": sidecars, "priorDir": prior_dir.name,
                    "createdDirs": [folder.relative_to(home).as_posix() for folder in created_dirs]}
-        descriptor = os.open(receipt, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
-        created_files.append(receipt)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as output:
-            json.dump(payload, output, sort_keys=True)
-            output.flush()
-            os.fsync(output.fileno())
-        receipt.chmod(0o600)
+        write_receipt(receipt, payload, exclusive=True)
+        applied_marker.unlink(missing_ok=True)
+        for name in sidecars:
+            Path(f"{destination(home, name[:-4])}{name[-4:]}").unlink()
+        for folder in sorted(created_dirs, key=lambda item: len(item.parts)):
+            folder.mkdir(mode=0o700)
+        for name, origin, target in targets:
+            temporary = target.with_name(target.name + ".friday-recovery-new")
+            if temporary.exists() or temporary.is_symlink():
+                raise ValueError("target WSL recovery temporary path already exists")
+            private_copy(origin, temporary)
+            os.replace(temporary, target)
+            target.chmod(0o600)
+            if digest(target) != files[name]:
+                raise ValueError("WSL restore copy changed")
+            sync_directory(target.parent)
+        payload["state"] = "imported"
+        write_receipt(receipt, payload)
         return {"fileCount": len(targets), "databaseCount": len(databases), "hermesRevision": revision,
                 "state": "imported; services must be reprovisioned and health-checked"}
     except Exception:
-        for item in reversed(created_files):
-            item.unlink(missing_ok=True)
-        for folder in reversed(created_dirs):
-            folder.rmdir()
+        if receipt.exists():
+            rollback_snapshot(source, home)
+        else:
+            for item in prior_dir.iterdir():
+                item.unlink()
+            prior_dir.rmdir()
         raise
 
 
@@ -194,29 +270,93 @@ def rollback_snapshot(source: Path, home: Path) -> dict[str, object]:
     allowed_dirs = {parent.relative_to(home).as_posix() for name in expected
                     for parent in destination(home, name).parents if parent != home and home in parent.parents}
     created_dirs = payload.get("createdDirs")
-    if (payload.get("version") != 1 or payload.get("manifestSha256") != digest(source / "manifest.json") or
-            payload.get("files") != expected or not isinstance(created_dirs, list) or
+    previous = payload.get("previous")
+    sidecars = payload.get("sidecars")
+    prior_name = payload.get("priorDir")
+    if (payload.get("version") != 2 or payload.get("state") not in ("applying", "imported") or
+            payload.get("manifestSha256") != digest(source / "manifest.json") or
+            payload.get("files") != expected or not isinstance(previous, dict) or not isinstance(sidecars, dict) or
+            set(previous) != set(expected) or not isinstance(prior_name, str) or
+            not prior_name.startswith(PRIOR_PREFIX) or "/" in prior_name or "\\" in prior_name or
+            not isinstance(created_dirs, list) or
             len(created_dirs) != len(set(created_dirs)) or any(name not in allowed_dirs for name in created_dirs)):
         raise ValueError("WSL recovery receipt does not match the source")
-    targets = [destination(home, name) for name in sorted(expected)]
-    for name, target in zip(sorted(expected), targets):
-        ordinary(target)
-        if digest(target) != expected[name]:
+    prior_dir = home / prior_name
+    if prior_dir.is_symlink() or not prior_dir.is_dir():
+        raise ValueError("WSL recovery baseline is unavailable")
+    prior_names = {hashlib.sha256(name.encode("utf-8")).hexdigest()
+                   for name, value in previous.items() if value is not None}
+    for name, checksum in sidecars.items():
+        if (not isinstance(name, str) or name[:-4] not in expected or name[-4:] not in ("-wal", "-shm") or
+                not isinstance(checksum, str) or len(checksum) != 64):
+            raise ValueError("WSL recovery sidecar receipt is invalid")
+        prior_names.add(hashlib.sha256(name.encode("utf-8")).hexdigest())
+    if {item.name for item in prior_dir.iterdir()} != prior_names:
+        raise ValueError("WSL recovery baseline inventory changed")
+    targets = [(name, destination(home, name)) for name in sorted(expected)]
+    for name, target in targets:
+        temporary_new = target.with_name(target.name + ".friday-recovery-new")
+        if temporary_new.exists() or temporary_new.is_symlink():
+            ordinary(temporary_new)
+            if payload["state"] != "applying":
+                raise ValueError("WSL recovery temporary file appeared after import")
+        if target.exists() or target.is_symlink():
+            ordinary(target)
+            if digest(target) not in (expected[name], previous[name]):
+                raise ValueError("imported WSL state changed; rollback refused")
+        elif payload["state"] == "imported":
             raise ValueError("imported WSL state changed; rollback refused")
+        if previous[name] is not None:
+            prior = prior_dir / hashlib.sha256(name.encode("utf-8")).hexdigest()
+            ordinary(prior)
+            if digest(prior) != previous[name]:
+                raise ValueError("WSL recovery baseline changed")
         parent = target.parent
         while parent != home:
-            if parent.is_symlink() or not parent.is_dir():
+            if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
                 raise ValueError("imported WSL state has an unsafe parent")
             parent = parent.parent
-    for target in targets:
-        target.unlink()
+    for name, checksum in sidecars.items():
+        prior = prior_dir / hashlib.sha256(name.encode("utf-8")).hexdigest()
+        ordinary(prior)
+        if digest(prior) != checksum:
+            raise ValueError("WSL recovery SQLite sidecar baseline changed")
+        sidecar = Path(f"{destination(home, name[:-4])}{name[-4:]}")
+        if sidecar.exists() or sidecar.is_symlink():
+            ordinary(sidecar)
+            if digest(sidecar) != checksum:
+                raise ValueError("recovered WSL SQLite sidecar changed; rollback refused")
+    for name, target in targets:
+        target.with_name(target.name + ".friday-recovery-new").unlink(missing_ok=True)
+        if previous[name] is None:
+            target.unlink(missing_ok=True)
+        else:
+            prior = prior_dir / hashlib.sha256(name.encode("utf-8")).hexdigest()
+            if not target.exists() or digest(target) != previous[name]:
+                temporary = target.with_name(target.name + ".friday-recovery-rollback")
+                if temporary.exists() or temporary.is_symlink():
+                    raise ValueError("WSL recovery rollback temporary path already exists")
+                private_copy(prior, temporary)
+                os.replace(temporary, target)
+                target.chmod(0o600)
+    for name, checksum in sidecars.items():
+        sidecar = Path(f"{destination(home, name[:-4])}{name[-4:]}")
+        if not sidecar.exists():
+            prior = prior_dir / hashlib.sha256(name.encode("utf-8")).hexdigest()
+            private_copy(prior, sidecar)
+            if digest(sidecar) != checksum:
+                raise ValueError("WSL recovery SQLite sidecar restore changed")
     receipt.unlink()
+    sync_directory(home)
+    for item in prior_dir.iterdir():
+        item.unlink()
+    prior_dir.rmdir()
     for parent in sorted((home / name for name in created_dirs), key=lambda path: len(path.parts), reverse=True):
         try:
             parent.rmdir()
         except OSError:
             pass  # A pre-existing directory or the pinned checkout remains.
-    return {"removedFileCount": len(targets), "state": "rolled back"}
+    return {"restoredFileCount": len(targets), "state": "rolled back"}
 
 
 def target_to_name(home: Path, target: Path) -> str:

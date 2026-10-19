@@ -64,13 +64,19 @@ class RestoreTest(unittest.TestCase):
         with closing(sqlite3.connect(self.home / ".config/friday/calendar/events.sqlite3")) as connection:
             self.assertEqual(connection.execute("SELECT name FROM events").fetchone(), ("uncheckpointed",))
 
-    def test_rejects_existing_state_without_overwrite(self):
+    def test_preserves_fresh_preexisting_profile_state_for_rollback(self):
         self.snapshot()
         target = self.home / ".hermes/friday-messenger-bridge.key"
-        target.write_text("newer")
-        with self.assertRaisesRegex(ValueError, "already exists"):
-            restore.import_snapshot(self.source, self.home)
-        self.assertEqual(target.read_text(), "newer")
+        marker = self.home / ".hermes/friday-messenger-bridge-applied.sha256"
+        target.write_text("fresh-install-key")
+        marker.write_text("fresh-apply-marker")
+        restore.import_snapshot(self.source, self.home)
+        self.assertEqual(target.read_bytes(), b"synthetic-secret")
+        self.assertFalse(marker.exists())
+        restored = restore.rollback_snapshot(self.source, self.home)
+        self.assertEqual(restored["restoredFileCount"], 4)
+        self.assertEqual(target.read_text(), "fresh-install-key")
+        self.assertFalse(marker.exists())
         self.assertFalse((self.home / ".config/friday/mail/account.json").exists())
 
     def test_rolls_back_import_only_while_files_are_unchanged(self):
@@ -85,11 +91,43 @@ class RestoreTest(unittest.TestCase):
         self.assertEqual(key.read_text(), "newer")
         key.write_bytes(b"synthetic-secret")
         result = restore.rollback_snapshot(self.source, self.home)
-        self.assertEqual(result["removedFileCount"], 4)
+        self.assertEqual(result["restoredFileCount"], 4)
         self.assertFalse(key.exists())
         self.assertFalse((self.home / restore.RECEIPT_NAME).exists())
         self.assertTrue((self.home / ".hermes/hermes-agent/.git").is_dir())
         self.assertTrue(preexisting.is_dir())
+
+    def test_rolls_back_interrupted_replacement_with_private_baseline(self):
+        self.snapshot()
+        key = self.home / ".hermes/friday-messenger-bridge.key"
+        key.write_text("fresh-key")
+        restore.import_snapshot(self.source, self.home)
+        receipt = self.home / restore.RECEIPT_NAME
+        payload = json.loads(receipt.read_text())
+        payload["state"] = "applying"
+        receipt.write_text(json.dumps(payload))
+        (self.home / ".config/friday/mail/account.json").unlink()
+        (self.home / ".config/friday/calendar/events.sqlite3.friday-recovery-new").write_text("partial")
+        result = restore.rollback_snapshot(self.source, self.home)
+        self.assertEqual(result["restoredFileCount"], 4)
+        self.assertEqual(key.read_text(), "fresh-key")
+        self.assertFalse((self.home / ".config/friday/calendar/events.sqlite3.friday-recovery-new").exists())
+
+    def test_preserves_fresh_sqlite_sidecar_and_rejects_pending_wal(self):
+        self.snapshot()
+        database = self.home / ".config/friday/calendar/events.sqlite3"
+        database.parent.mkdir(parents=True)
+        with closing(sqlite3.connect(database)) as connection:
+            connection.execute("CREATE TABLE fresh (value TEXT)")
+        sidecar = Path(f"{database}-shm")
+        sidecar.write_bytes(b"synthetic-shm")
+        restore.import_snapshot(self.source, self.home)
+        self.assertFalse(sidecar.exists())
+        restore.rollback_snapshot(self.source, self.home)
+        self.assertEqual(sidecar.read_bytes(), b"synthetic-shm")
+        Path(f"{database}-wal").write_bytes(b"pending")
+        with self.assertRaisesRegex(ValueError, "checkpointed"):
+            restore.import_snapshot(self.source, self.home)
 
     def test_rejects_wrong_revision_and_tampering(self):
         self.snapshot()

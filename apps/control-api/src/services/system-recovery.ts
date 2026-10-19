@@ -135,7 +135,12 @@ export class SystemRecoveryService {
         .all() as Array<{ name: string }>;
       for (const { name } of tables) {
         const quoted = name.replaceAll('"', '""');
-        const count = (freshDb.prepare(`SELECT COUNT(*) AS count FROM "${quoted}"`).get() as { count: number }).count;
+        // A first boot installs built-in UI library rows and may advance the
+        // event sequence. Neither belongs to the owner. Every other persisted
+        // row makes this target ambiguous, so recovery refuses to overwrite it.
+        const where = name === "library_items" ? " WHERE built_in = 0" :
+          name === "kv" ? " WHERE key != 'hub.sequence'" : "";
+        const count = (freshDb.prepare(`SELECT COUNT(*) AS count FROM "${quoted}"${where}`).get() as { count: number }).count;
         if (count !== 0) throw new Error("Recovery target already has application or owner data");
       }
     } finally { freshDb.close(); }
