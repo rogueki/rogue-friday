@@ -136,6 +136,8 @@ class BridgeTest(unittest.TestCase):
         self.assertTrue(result["plugins"][0]["enabled"])
         self.assertTrue(result["inventory"]["skillsComplete"])
         self.assertTrue(result["inventory"]["pluginsComplete"])
+        self.assertFalse(result["inventory"]["modelProvidersComplete"])
+        self.assertIn("provider_catalog_not_enumerated", result["inventory"]["reasons"])
         self.assertEqual(result["modelProviders"], [{"id": "openrouter", "configFileSet": False,
                                                        "authenticated": None, "available": None}])
         self.assertNotIn("CANARY-PRIVATE", json.dumps(result))

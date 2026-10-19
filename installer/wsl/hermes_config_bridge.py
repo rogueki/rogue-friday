@@ -333,7 +333,10 @@ def locked_main(home, source, cli):
                                  for name in provider_names)
     provider_names = sorted(name for name in provider_names if
                             valid_field_value("model.provider", name, FIELDS["model.provider"]))
+    # This list covers the configured profile only. Hermes' picker can also offer
+    # installed providers and curated models, so it is not a complete catalog.
     inventory_reasons = sorted(set(root_errors + skill_errors + plugin_errors +
+                                   ["provider_catalog_not_enumerated"] +
                                    (["model_provider_name_unsupported"] if invalid_provider_names else [])))
     from_env = {key: False for key in MODEL_CREDENTIALS}
     env_path = home / ".env"
@@ -351,7 +354,7 @@ def locked_main(home, source, cli):
         "families": [{"id": name, "roots": roots, "followup": followup,
                       "configFileSet": any(nested(raw, root) is not None for root in roots)} for name, roots, followup in FAMILIES],
         "inventory": {"scope": "profile", "skillsComplete": not (root_errors or skill_errors),
-                      "pluginsComplete": not plugin_errors, "modelProvidersComplete": not invalid_provider_names,
+                      "pluginsComplete": not plugin_errors, "modelProvidersComplete": False,
                       "reasons": inventory_reasons},
         "modelProviders": [{"id": name,
                             "configFileSet": (isinstance(configured_providers, dict) and name in configured_providers) or
