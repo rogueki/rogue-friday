@@ -13,14 +13,15 @@ export const dataRetentionHandlers: Partial<Record<OperationId, Handler>> = {
     const { action } = ctx.body as DataRetentionActionRequest;
     if (action === "preview") return { status: 200, body: envelope({ action, ...ctx.runtime.retention.dryRun() }) };
     if (action === "activate") {
+      ctx.runtime.retention.dryRun();
       ctx.runtime.retention.enableAutomatic();
       ctx.audit.action = "system.retention_activated";
-      return { status: 200, body: envelope({ action, ...ctx.runtime.retention.dryRun(), automaticEnabled: true }) };
+      return { status: 200, body: envelope({ action, automaticEnabled: true }) };
     }
     if (action === "deactivate") {
       ctx.runtime.retention.disableAutomatic();
       ctx.audit.action = "system.retention_deactivated";
-      return { status: 200, body: envelope({ action, ...ctx.runtime.retention.dryRun(), automaticEnabled: false }) };
+      return { status: 200, body: envelope({ action, automaticEnabled: false }) };
     }
     const result = ctx.runtime.retention.run();
     ctx.audit.action = "system.retention_run";

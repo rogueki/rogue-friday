@@ -5566,13 +5566,12 @@ export interface components {
             contractVersion: string;
             data: {
                 /** @enum {string} */
-                action: "preview" | "run" | "activate" | "deactivate";
+                action: "preview" | "run";
                 archivedAuditRows: number;
                 /** Format: date-time */
                 at?: string;
                 /** @constant */
                 auditPolicy: "archive-local-indefinitely";
-                automaticEnabled?: boolean;
                 cutoffs: {
                     /** Format: date-time */
                     activity: string;
@@ -5601,6 +5600,10 @@ export interface components {
                     temporaryFiles: number;
                     voiceHistory: number;
                 };
+            } | {
+                /** @enum {string} */
+                action: "activate" | "deactivate";
+                automaticEnabled: boolean;
             };
             freshness: components["schemas"]["Freshness"];
         };

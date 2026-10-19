@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { startTestApi } from "./helpers";
 
 it("exposes owner-only preview and scoped run through the API", async () => {
@@ -17,6 +17,14 @@ it("exposes owner-only preview and scoped run through the API", async () => {
     const activated = await owner.request("POST", "/api/v1/data-retention/actions", { body: { action: "activate" } });
     expect(activated.statusCode, activated.body).toBe(200);
     expect((await owner.request("GET", "/api/v1/data-retention")).json().data.automaticEnabled).toBe(true);
+    const unavailable = vi.spyOn(api.runtime.retention, "dryRun").mockImplementation(() => { throw new Error("source unavailable"); });
+    const deactivated = await owner.request("POST", "/api/v1/data-retention/actions", { body: { action: "deactivate" } });
+    expect(deactivated.statusCode, deactivated.body).toBe(200);
+    expect((await owner.request("GET", "/api/v1/data-retention")).json().data.automaticEnabled).toBe(false);
+    const failedActivation = await owner.request("POST", "/api/v1/data-retention/actions", { body: { action: "activate" } });
+    expect(failedActivation.statusCode).toBeGreaterThanOrEqual(500);
+    expect((await owner.request("GET", "/api/v1/data-retention")).json().data.automaticEnabled).toBe(false);
+    unavailable.mockRestore();
     const run = await owner.request("POST", "/api/v1/data-retention/actions", { body: { action: "run" } });
     expect(run.statusCode, run.body).toBe(200);
     expect(run.json().data.removed).toBeDefined();

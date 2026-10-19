@@ -2587,35 +2587,39 @@ export interface DataRetentionActionRequest {
 }
 export interface DataRetentionActionResponse {
   contractVersion: string;
-  data: {
-    action: "preview" | "run" | "activate" | "deactivate";
-    cutoffs: {
-      activity: string;
-      voiceHistory: string;
-      auditToArchive: string;
-      notifications: string;
-      temporaryFiles: string;
-    };
-    eligible: {
-      activity: number;
-      voiceHistory: number;
-      auditToArchive: number;
-      notifications: number;
-      temporaryFiles: number;
-    };
-    removed?: {
-      activity: number;
-      voiceHistory: number;
-      auditToArchive: number;
-      notifications: number;
-      temporaryFiles: number;
-    };
-    archivedAuditRows: number;
-    memoryPolicy: "unlimited";
-    auditPolicy: "archive-local-indefinitely";
-    at?: string;
-    automaticEnabled?: boolean;
-  };
+  data:
+    | {
+        action: "preview" | "run";
+        cutoffs: {
+          activity: string;
+          voiceHistory: string;
+          auditToArchive: string;
+          notifications: string;
+          temporaryFiles: string;
+        };
+        eligible: {
+          activity: number;
+          voiceHistory: number;
+          auditToArchive: number;
+          notifications: number;
+          temporaryFiles: number;
+        };
+        removed?: {
+          activity: number;
+          voiceHistory: number;
+          auditToArchive: number;
+          notifications: number;
+          temporaryFiles: number;
+        };
+        archivedAuditRows: number;
+        memoryPolicy: "unlimited";
+        auditPolicy: "archive-local-indefinitely";
+        at?: string;
+      }
+    | {
+        action: "activate" | "deactivate";
+        automaticEnabled: boolean;
+      };
   freshness: Freshness;
 }
 export interface DataRetentionSettings {

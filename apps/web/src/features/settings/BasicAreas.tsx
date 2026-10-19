@@ -1,6 +1,6 @@
 "use client";
 
-import type { Settings } from "@friday/sdk";
+import type { DataRetentionActionResponse, Settings } from "@friday/sdk";
 import { Button, ConfirmDialog, Select, Slider, StatusChip, Switch, TextField } from "@friday/ui";
 import { LogOut, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -481,7 +481,7 @@ export function DataRetentionArea() {
   const { role, offline } = useSession();
   const status = useDataRetentionStatus(role === "owner" && !offline);
   const action = useDataRetentionAction();
-  const [preview, setPreview] = useState<Awaited<ReturnType<typeof action.mutateAsync>>["data"] | null>(null);
+  const [preview, setPreview] = useState<Extract<DataRetentionActionResponse["data"], { eligible: unknown }> | null>(null);
   if (!value) return null;
   const days = (label: MessageKey, key: "activityDays" | "auditDays" | "notificationDays" | "temporaryFileDays", min = 1, hint?: MessageKey) => (
     <NumberField label={t(label)} hint={hint ? t(hint) : undefined} integer min={min} value={value[key]} disabled={readOnly} onValueChange={(next) => next !== null && update({ [key]: Math.round(next) })} />
@@ -506,8 +506,8 @@ export function DataRetentionArea() {
         {dirty && <p className="st-muted">{t("settings.retention.saveFirst")}</p>}
         <p className="st-muted">{status.data?.data.automaticEnabled ? t("settings.retention.autoOn") : t("settings.retention.autoOff")}</p>
         <div className="st-row">
-          <Button size="sm" variant="ghost" disabled={readOnly || dirty || action.isPending} onClick={() => void action.mutateAsync({ action: "preview" }).then((response) => setPreview(response.data)).catch(() => setPreview(null))}>{t("settings.retention.preview")}</Button>
-          <Button size="sm" disabled={readOnly || dirty || action.isPending} onClick={() => void action.mutateAsync({ action: "run" }).then((response) => setPreview(response.data)).catch(() => setPreview(null))}>{t("settings.retention.run")}</Button>
+          <Button size="sm" variant="ghost" disabled={readOnly || dirty || action.isPending} onClick={() => void action.mutateAsync({ action: "preview" }).then((response) => { if ("eligible" in response.data) setPreview(response.data); }).catch(() => setPreview(null))}>{t("settings.retention.preview")}</Button>
+          <Button size="sm" disabled={readOnly || dirty || action.isPending} onClick={() => void action.mutateAsync({ action: "run" }).then((response) => { if ("eligible" in response.data) setPreview(response.data); }).catch(() => setPreview(null))}>{t("settings.retention.run")}</Button>
           {!status.data?.data.automaticEnabled && <Button size="sm" variant="ghost" disabled={readOnly || dirty || action.isPending || status.isLoading || status.isError} onClick={() => void action.mutateAsync({ action: "activate" }).catch(() => setPreview(null))}>{t("settings.retention.activate")}</Button>}
           {status.data?.data.automaticEnabled && <Button size="sm" variant="ghost" disabled={readOnly || action.isPending} onClick={() => void action.mutateAsync({ action: "deactivate" }).catch(() => setPreview(null))}>{t("settings.retention.deactivate")}</Button>}
         </div>
