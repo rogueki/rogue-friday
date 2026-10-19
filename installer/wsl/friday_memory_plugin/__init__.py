@@ -373,6 +373,32 @@ def _yuanbao_adapter():
         loop is not None and loop.is_running() else (None, None)
 
 
+def _yuanbao_loaded_config_matches(adapter) -> bool:
+    try:
+        from gateway.config import Platform, load_gateway_config
+        from gateway.platforms.yuanbao import DEFAULT_API_DOMAIN, DEFAULT_WS_GATEWAY_URL
+        loaded = getattr(adapter, "config", None)
+        current = load_gateway_config().platforms.get(Platform.YUANBAO)
+        if loaded is None or current is None:
+            return False
+        # The adapter caches these values during construction. A disk revision taken when
+        # the IPC socket starts cannot establish which credentials the live socket uses.
+        extra = current.extra or {}
+        expected = (
+            (extra.get("app_id") or "").strip(),
+            (extra.get("app_secret") or "").strip(),
+            extra.get("bot_id") or None,
+            (extra.get("ws_url") or DEFAULT_WS_GATEWAY_URL).strip(),
+            (extra.get("api_domain") or DEFAULT_API_DOMAIN).rstrip("/"),
+            (extra.get("route_env") or "").strip(),
+        )
+        actual = tuple(getattr(adapter, name, None) for name in
+                       ("_app_key", "_app_secret", "_bot_id", "_ws_url", "_api_domain", "_route_env"))
+        return asdict(loaded) == asdict(current) and actual == expected
+    except (ImportError, OSError, ValueError, TypeError, AttributeError):
+        return False
+
+
 def _yuanbao_key() -> bytes | None:
     if MESSENGER_KEY.is_symlink() or not MESSENGER_KEY.is_file() or MESSENGER_KEY.stat().st_mode & 0o077:
         return None
@@ -407,11 +433,11 @@ def _yuanbao_request(raw: bytes, stamp, seen: dict[str, float]) -> dict:
                 _yuanbao_revision() != revision:
             return {"state": "rejected"}
         adapter, loop = _yuanbao_adapter()
-        if adapter is None:
+        if adapter is None or not _yuanbao_loaded_config_matches(adapter):
             return {"state": "rejected"}
         if len(seen) >= 1024:
             for old, inserted in list(seen.items()):
-                if time.time() - inserted > 30:
+                if time.time() - inserted > 61:
                     del seen[old]
             if len(seen) >= 1024:
                 return {"state": "rejected"}
@@ -439,7 +465,7 @@ def _yuanbao_server():
         except (ImportError, OSError):
             pass
         time.sleep(1)
-    owned = False
+    owned_inode = None
     try:
         stamp = _messenger_files_stamp(HOME)
         if YUANBAO_SOCKET.is_symlink():
@@ -453,13 +479,19 @@ def _yuanbao_server():
                     probe.settimeout(0.2)
                     probe.connect(str(YUANBAO_SOCKET))
                     return
-                except (ConnectionRefusedError, FileNotFoundError, socket.timeout):
+                except ConnectionRefusedError:
+                    current = YUANBAO_SOCKET.lstat()
+                    if current.st_ino != info.st_ino or current.st_dev != info.st_dev or \
+                            not stat.S_ISSOCK(current.st_mode) or current.st_uid != os.getuid():
+                        return
                     YUANBAO_SOCKET.unlink()
+                except (FileNotFoundError, socket.timeout):
+                    return
         previous_umask = os.umask(0o177)
         try:
             listener = socket.socket(socket.AF_UNIX)
             listener.bind(str(YUANBAO_SOCKET))
-            owned = True
+            owned_inode = YUANBAO_SOCKET.lstat().st_ino
         finally:
             os.umask(previous_umask)
         os.chmod(YUANBAO_SOCKET, 0o600)
@@ -487,7 +519,9 @@ def _yuanbao_server():
         logger.warning("Yuanbao local send socket unavailable")
     finally:
         try:
-            if owned and YUANBAO_SOCKET.is_socket() and YUANBAO_SOCKET.stat().st_uid == os.getuid():
+            info = YUANBAO_SOCKET.lstat()
+            if owned_inode is not None and stat.S_ISSOCK(info.st_mode) and \
+                    info.st_ino == owned_inode and info.st_uid == os.getuid():
                 YUANBAO_SOCKET.unlink()
         except OSError:
             pass

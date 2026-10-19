@@ -1,6 +1,7 @@
 import importlib.util
 import asyncio
 import base64
+from dataclasses import dataclass
 from concurrent.futures import Future
 import hashlib
 import hmac
@@ -228,6 +229,7 @@ class MessengerSendTest(unittest.TestCase):
         with patch.object(gateway_plugin, "_yuanbao_key", return_value=key), \
              patch.object(gateway_plugin, "_yuanbao_revision", return_value="a" * 64), \
              patch.object(gateway_plugin, "_yuanbao_adapter", return_value=(adapter, object())), \
+             patch.object(gateway_plugin, "_yuanbao_loaded_config_matches", return_value=True), \
              patch.object(gateway_plugin, "_messenger_has_named_profiles", return_value=False), \
              patch.object(gateway_plugin, "_messenger_files_stamp", return_value=stamp), \
              patch("asyncio.run_coroutine_threadsafe", side_effect=schedule):
@@ -240,6 +242,82 @@ class MessengerSendTest(unittest.TestCase):
             self.assertEqual(gateway_plugin._yuanbao_request(json.dumps(bad).encode(), stamp, seen),
                              {"state": "rejected"})
             self.assertEqual(delivered, [("direct:account_123", "Synthetic hello")])
+
+    def test_yuanbao_future_nonce_survives_cache_pressure_until_timestamp_expires(self):
+        key = b"z" * 32
+        sent = []
+        class Sender:
+            async def send_direct(self, recipient, message):
+                sent.append(recipient)
+                return {"success": True, "message_id": "msg-123"}
+        adapter = types.SimpleNamespace(_outbound=types.SimpleNamespace(sender=Sender()))
+        def schedule(coro, _loop):
+            future = Future()
+            future.set_result(asyncio.run(coro))
+            return future
+        now = [1000]
+        def signed(nonce, timestamp):
+            body = {"recipient": "direct:account_123", "text": "Synthetic hello", "revision": "a" * 64,
+                    "nonce": nonce, "timestamp": timestamp}
+            body["mac"] = hmac.new(key, json.dumps(body, sort_keys=True, separators=(",", ":"),
+                                                 ensure_ascii=False).encode(), hashlib.sha256).hexdigest()
+            return json.dumps(body).encode()
+        stamp = ((1, 2, 3),)
+        with patch.object(gateway_plugin, "_yuanbao_key", return_value=key), \
+             patch.object(gateway_plugin, "_yuanbao_revision", return_value="a" * 64), \
+             patch.object(gateway_plugin, "_yuanbao_adapter", return_value=(adapter, object())), \
+             patch.object(gateway_plugin, "_yuanbao_loaded_config_matches", return_value=True), \
+             patch.object(gateway_plugin, "_messenger_has_named_profiles", return_value=False), \
+             patch.object(gateway_plugin, "_messenger_files_stamp", return_value=stamp), \
+             patch.object(gateway_plugin.time, "time", side_effect=lambda: now[0]), \
+             patch("asyncio.run_coroutine_threadsafe", side_effect=schedule):
+            first = signed("b" * 32, 1030)
+            seen = {}
+            self.assertEqual(gateway_plugin._yuanbao_request(first, stamp, seen)["state"], "sent")
+            seen.update({f"{index:032x}": 900 for index in range(1023)})
+            now[0] = 1031
+            self.assertEqual(gateway_plugin._yuanbao_request(signed("c" * 32, 1031), stamp, seen)["state"], "sent")
+            self.assertEqual(gateway_plugin._yuanbao_request(first, stamp, seen), {"state": "rejected"})
+        self.assertEqual(sent, ["direct:account_123", "direct:account_123"])
+
+    def test_yuanbao_live_adapter_old_account_rejects_new_disk_revision_before_send(self):
+        @dataclass
+        class PlatformConfig:
+            extra: dict
+        class Platform:
+            YUANBAO = "yuanbao"
+        loaded = PlatformConfig({"app_id": "old", "app_secret": "old-secret", "bot_id": "old-bot"})
+        current = PlatformConfig({"app_id": "new", "app_secret": "new-secret", "bot_id": "new-bot"})
+        adapter = types.SimpleNamespace(config=loaded, _app_key="old", _app_secret="old-secret",
+            _bot_id="old-bot", _ws_url="wss://test", _api_domain="https://test", _route_env="")
+        config = types.ModuleType("gateway.config")
+        config.Platform = Platform
+        config.load_gateway_config = lambda: types.SimpleNamespace(platforms={Platform.YUANBAO: current})
+        yuanbao = types.ModuleType("gateway.platforms.yuanbao")
+        yuanbao.DEFAULT_WS_GATEWAY_URL = "wss://test"
+        yuanbao.DEFAULT_API_DOMAIN = "https://test"
+        with patch.dict("sys.modules", {"gateway": types.ModuleType("gateway"),
+                                        "gateway.config": config,
+                                        "gateway.platforms": types.ModuleType("gateway.platforms"),
+                                        "gateway.platforms.yuanbao": yuanbao}):
+            self.assertFalse(gateway_plugin._yuanbao_loaded_config_matches(adapter))
+            key = b"z" * 32
+            request = {"recipient": "direct:account_123", "text": "Synthetic hello",
+                       "revision": "a" * 64, "nonce": "b" * 32, "timestamp": int(time.time())}
+            request["mac"] = hmac.new(key, json.dumps(request, sort_keys=True, separators=(",", ":"),
+                                                   ensure_ascii=False).encode(), hashlib.sha256).hexdigest()
+            stamp = ((1, 2, 3),)
+            with patch.object(gateway_plugin, "_yuanbao_key", return_value=key), \
+                 patch.object(gateway_plugin, "_yuanbao_revision", return_value="a" * 64), \
+                 patch.object(gateway_plugin, "_yuanbao_adapter", return_value=(adapter, object())), \
+                 patch.object(gateway_plugin, "_messenger_has_named_profiles", return_value=False), \
+                 patch.object(gateway_plugin, "_messenger_files_stamp", return_value=stamp), \
+                 patch("asyncio.run_coroutine_threadsafe") as send:
+                self.assertEqual(gateway_plugin._yuanbao_request(json.dumps(request).encode(), stamp, {}),
+                                 {"state": "rejected"})
+                send.assert_not_called()
+            current.extra = loaded.extra.copy()
+            self.assertTrue(gateway_plugin._yuanbao_loaded_config_matches(adapter))
 
     def test_yuanbao_client_uses_private_socket_with_authenticated_body(self):
         if os.name == "nt" or not hasattr(socket, "AF_UNIX"):
