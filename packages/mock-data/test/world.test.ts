@@ -331,9 +331,9 @@ describe("automations, notifications, voice, system, audit, settings, commands",
     const world = createWorld();
     const alert = world.notifications.raise({ priority: "P1", category: "system", title: "Test", body: "b", chain: ["dashboard", "telegram", "phone"], stepSeconds: [0, 30, 60] });
     world.clock.advance(31_000);
-    expect(world.notifications.list({ status: ["open"] as never }).items.find((n) => n.id === alert.id)?.escalation.map((s) => s.state)).toEqual(["sent", "sent", "pending"]);
+    expect(world.notifications.list({ status: ["open"] as never }).items.find((n) => n.id === alert.id)?.escalation.map((s) => s.state)).toEqual(["sent", "awaiting_approval", "skipped"]);
     const acknowledged = world.notifications.acknowledge(alert.id);
-    expect(acknowledged.escalation.map((s) => s.state)).toEqual(["sent", "acknowledged", "skipped"]);
+    expect(acknowledged.escalation.map((s) => s.state)).toEqual(["acknowledged", "skipped", "skipped"]);
     const second = world.notifications.raise({ priority: "P3", category: "task", title: "Später", body: "b" });
     const snoozed = world.notifications.snooze(second.id, { durationMinutes: 10 });
     expect(snoozed.status).toBe("snoozed");
