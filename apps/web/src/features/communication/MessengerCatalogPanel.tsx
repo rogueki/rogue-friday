@@ -47,6 +47,20 @@ function ProviderFields({ item }: { item: MessengerCatalogResponse["data"]["item
     } catch (error) { setResult(error instanceof Error ? error.message : "Provider-Konfiguration nicht erreichbar."); }
     finally { setBusy(false); }
   }
+  async function apply() {
+    if (!status.data) return;
+    setBusy(true); setResult("");
+    try {
+      const applied: MessengerProviderResponse = await call(getApiClient().POST("/api/v1/messenger/providers/{platform}/apply",
+        { params: { path: { platform: item.platform } }, body: { revision: status.data.data.revision } }));
+      await status.refetch();
+      await queryClient.invalidateQueries({ queryKey: ["messenger", "catalog"] });
+      setResult(applied.data.state === "applied"
+        ? `Gateway-Neustart bestätigt. Verbindung dieses Kanals: ${applied.data.connectionState ?? "unknown"}.`
+        : "Gateway-Neustart nicht bestätigt. Dienststatus prüfen; Verbindung unbekannt.");
+    } catch (error) { setResult(error instanceof Error ? error.message : "Gateway-Neustart nicht erreichbar."); }
+    finally { setBusy(false); }
+  }
   return <details onToggle={(event) => setOpen(event.currentTarget.open)}><summary>Provider-Felder einrichten</summary>
     {status.isPending ? <p role="status">Konfigurationsrevision wird gelesen.</p> : null}
     {status.isError ? <p role="alert">Provider-Konfiguration nicht erreichbar. <button type="button" onClick={() => void status.refetch()}>Erneut prüfen</button></p> : null}
@@ -60,6 +74,7 @@ function ProviderFields({ item }: { item: MessengerCatalogResponse["data"]["item
           onChange={(event) => setClear({ ...clear, [field.name]: event.target.checked })} /> Wert entfernen</label>
       </div>)}
       <button type="button" disabled={busy} onClick={() => void save()}>Provider-Felder speichern</button>
+      <button type="button" disabled={busy} onClick={() => void apply()}>Hermes-Gateway mit gespeicherter Konfiguration neu starten</button>
     </> : null}
     {result ? <p role="status">{result}</p> : null}
   </details>;

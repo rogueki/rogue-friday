@@ -85,6 +85,24 @@ class ProviderConfigTest(unittest.TestCase):
         self.assertEqual(calls[0][0], ["fake-runtime"])
         self.assertNotIn("synthetic-secret", json.dumps(result))
 
+    def test_apply_restarts_only_after_exact_revision_and_does_not_claim_connection(self):
+        calls = []
+        def runner(argv, **_kwargs):
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 0, "active\n" if "is-active" in argv else "", "")
+        with tempfile.TemporaryDirectory() as directory, patch.object(bridge, "HOME", Path(directory)), \
+                patch.object(bridge, "LOCK", Path(directory) / ".friday-config.lock"), \
+                patch.object(bridge, "source_ok", return_value=True), \
+                patch.object(bridge, "revision", return_value="a" * 64), \
+                patch.object(bridge, "platform_state", return_value="unknown"):
+            stale = bridge.operation("matrix", "apply", {"revision": "b" * 64}, runner)
+            applied = bridge.operation("matrix", "apply", {"revision": "a" * 64}, runner)
+        self.assertEqual(stale["state"], "conflict")
+        self.assertEqual(applied["state"], "applied")
+        self.assertTrue(applied["gatewayRestarted"])
+        self.assertEqual(applied["connectionState"], "unknown")
+        self.assertEqual(len(calls), 2)
+
     def test_credential_error_after_first_attempt_is_uncertain(self):
         credentials = types.ModuleType("hermes_cli.credential_lifecycle")
         config = types.ModuleType("hermes_cli.config")

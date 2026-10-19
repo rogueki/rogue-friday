@@ -23,6 +23,14 @@ export const messengerSendHandlers: Partial<Record<OperationId, Handler>> = {
     ctx.audit.after = { platform: input.platform, state: result.state, fieldNames: Object.keys(input.values) };
     return { status: 200, body: single(result), headers: { "Cache-Control": "no-store" } };
   },
+  async applyMessengerProvider(ctx) {
+    const input = ctx.body as { revision: string };
+    const result = await ctx.runtime.messengerProvider.apply(ctx.pathParams.platform!, input.revision);
+    ctx.audit.action = "messenger.provider.apply";
+    ctx.audit.after = { platform: result.platform, state: result.state, gatewayRestarted: result.gatewayRestarted,
+      connectionState: result.connectionState };
+    return { status: 200, body: single(result), headers: { "Cache-Control": "no-store" } };
+  },
   async listMessengerTargets(ctx) {
     return { status: 200, body: single({ items: ctx.runtime.messengerSend.targets(ctx.principal!.userId) }) };
   },

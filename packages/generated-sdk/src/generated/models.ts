@@ -748,6 +748,7 @@ export interface FridayModelMap {
   MessengerConfirmRequest: MessengerConfirmRequest;
   MessengerDraft: MessengerDraft;
   MessengerPreviewResponse: MessengerPreviewResponse;
+  MessengerProviderApply: MessengerProviderApply;
   MessengerProviderResponse: MessengerProviderResponse;
   MessengerProviderUpdate: MessengerProviderUpdate;
   MessengerReceipt: MessengerReceipt;
@@ -3973,13 +3974,17 @@ export interface MessengerPreviewResponse {
   };
   freshness: Freshness;
 }
+export interface MessengerProviderApply {
+  revision: string;
+}
 export interface MessengerProviderResponse {
   contractVersion: ContractVersion;
   data: {
-    state: "available" | "saved" | "partial" | "uncertain";
+    state: "available" | "saved" | "partial" | "uncertain" | "applied";
     platform: string;
     revision: string;
     gatewayRestarted?: boolean;
+    connectionState?: "connected" | "disconnected" | "unknown";
   };
   freshness: Freshness;
 }

@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://friday.local/schemas/integrations/messenger-provider-apply.schema.json","title":"MessengerProviderApply","type":"object","properties":{"revision":{"type":"string","pattern":"^[a-f0-9]{64}$"}},"required":["revision"],"additionalProperties":false}

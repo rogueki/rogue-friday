@@ -13,6 +13,8 @@ import sys
 import time
 from urllib.parse import urlparse
 
+from messaging_runtime import platform_state
+
 ROOT = Path.home() / ".hermes" / "hermes-agent"
 HOME = ROOT.parent
 LOCK = HOME / ".friday-config.lock"
@@ -111,7 +113,7 @@ def validate_values(platform, values, registry):
 
 def operation(platform, action, request=None, runner=subprocess.run):
     registry = specs()
-    if platform not in registry or action not in ("status", "update"):
+    if platform not in registry or action not in ("status", "update", "apply"):
         return {"state": "rejected", "reason": "invalid_request"}
     if not source_ok(runner):
         return {"state": "unavailable", "reason": "hermes_version_changed"}
@@ -120,8 +122,25 @@ def operation(platform, action, request=None, runner=subprocess.run):
         current = revision(platform)
         if action == "status":
             return {"state": "available", "platform": platform, "revision": current}
-        if not isinstance(request, dict) or set(request) != {"revision", "values"} or request["revision"] != current:
+        expected = {"revision"} if action == "apply" else {"revision", "values"}
+        if not isinstance(request, dict) or set(request) != expected or request["revision"] != current:
             return {"state": "conflict", "platform": platform, "revision": current}
+        if action == "apply":
+            try:
+                restart = runner(["systemctl", "--user", "restart", "hermes-gateway.service"],
+                                 capture_output=True, text=True, timeout=12, check=False)
+                if restart.returncode != 0:
+                    return {"state": "uncertain", "platform": platform, "revision": revision(platform),
+                            "gatewayRestarted": False, "connectionState": "unknown"}
+                active = runner(["systemctl", "--user", "is-active", "hermes-gateway.service"],
+                                capture_output=True, text=True, timeout=3, check=False)
+            except (OSError, subprocess.TimeoutExpired):
+                return {"state": "uncertain", "platform": platform, "revision": revision(platform),
+                        "gatewayRestarted": False, "connectionState": "unknown"}
+            running = active.returncode == 0 and active.stdout.strip() == "active"
+            return {"state": "applied" if running else "uncertain", "platform": platform,
+                    "revision": revision(platform), "gatewayRestarted": running,
+                    "connectionState": platform_state(HOME, platform) if running else "unknown"}
         values = validate_values(platform, request["values"], registry)
         sys.path.insert(0, str(ROOT))
         from hermes_cli._launchers import runtime_command
@@ -147,7 +166,7 @@ def operation(platform, action, request=None, runner=subprocess.run):
 
 if __name__ == "__main__":
     try:
-        body = json.load(sys.stdin) if len(sys.argv) == 3 and sys.argv[2] == "update" else None
+        body = json.load(sys.stdin) if len(sys.argv) == 3 and sys.argv[2] in ("update", "apply") else None
         print(json.dumps(operation(sys.argv[1], sys.argv[2], body)))
     except (OSError, ValueError, TypeError, IndexError, subprocess.TimeoutExpired, TimeoutError):
         print(json.dumps({"state": "unavailable", "reason": "provider_config_unavailable"}))

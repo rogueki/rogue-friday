@@ -7,7 +7,8 @@ import { MessengerCatalogService } from "./messenger-catalog";
 const PROVIDERS = new Set(["bluebubbles", "buzz", "dingtalk", "feishu", "google_chat", "irc", "line", "matrix",
   "mattermost", "ntfy", "photon", "qqbot", "signal", "simplex", "slack", "sms", "teams", "wecom", "weixin",
   "whatsapp_cloud", "yuanbao"]);
-export type ProviderState = { state: "available" | "saved" | "partial" | "uncertain"; platform: string; revision: string; gatewayRestarted?: boolean };
+export type ProviderState = { state: "available" | "saved" | "partial" | "uncertain" | "applied"; platform: string;
+  revision: string; gatewayRestarted?: boolean; connectionState?: "connected" | "disconnected" | "unknown" };
 const unavailable = () => new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes-Provider-Konfiguration ist nicht erreichbar." });
 
 export class MessengerProviderService {
@@ -27,7 +28,7 @@ export class MessengerProviderService {
       distro: state.distro_name, user: state.linux_user };
   }
 
-  private async run(platform: string, action: "status" | "update", request?: { revision: string; values: Record<string, string | null> }): Promise<ProviderState> {
+  private async run(platform: string, action: "status" | "update" | "apply", request?: { revision: string; values?: Record<string, string | null> }): Promise<ProviderState> {
     if (!PROVIDERS.has(platform)) throw validationFailed("Unbekannter Hermes-Nachrichtenkanal.");
     const target = this.target();
     let data: Record<string, unknown>;
@@ -37,14 +38,23 @@ export class MessengerProviderService {
     if (data.state === "conflict") throw conflict("Provider-Konfiguration wurde inzwischen geändert. Bitte neu laden.");
     if (data.state === "rejected") throw validationFailed("Ungültiges Provider-Feld oder ungültiger Wert.");
     if (data.state === "unavailable") throw unavailable();
-    if (!["available", "saved", "partial", "uncertain"].includes(String(data.state)) || data.platform !== platform ||
+    if (!["available", "saved", "partial", "uncertain", "applied"].includes(String(data.state)) || data.platform !== platform ||
         typeof data.revision !== "string" || !/^[a-f0-9]{64}$/.test(data.revision)) throw unavailable();
     if (action === "status" && data.state !== "available" || action === "update" && !["saved", "partial", "uncertain"].includes(String(data.state))) throw unavailable();
+    if (action === "apply" && !["applied", "uncertain"].includes(String(data.state))) throw unavailable();
+    if (action === "apply" && !["connected", "disconnected", "unknown"].includes(String(data.connectionState))) throw unavailable();
     return { state: data.state as ProviderState["state"], platform, revision: data.revision,
-      ...(data.state === "saved" ? { gatewayRestarted: data.gatewayRestarted === true } : {}) };
+      ...(["saved", "applied", "uncertain"].includes(String(data.state)) && typeof data.gatewayRestarted === "boolean" ?
+        { gatewayRestarted: data.gatewayRestarted } : {}),
+      ...(action === "apply" ? { connectionState: data.connectionState as ProviderState["connectionState"] } : {}) };
   }
 
   status(platform: string): Promise<ProviderState> { return this.run(platform, "status"); }
+
+  apply(platform: string, revision: string): Promise<ProviderState> {
+    if (typeof revision !== "string" || !/^[a-f0-9]{64}$/.test(revision)) throw validationFailed("Provider-Revision ist ungültig.");
+    return this.run(platform, "apply", { revision });
+  }
 
   async update(platform: string, input: { revision: string; values: Record<string, string | null> }): Promise<ProviderState> {
     if (!PROVIDERS.has(platform)) throw validationFailed("Unbekannter Hermes-Nachrichtenkanal.");

@@ -7142,6 +7142,30 @@ paths:
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
       x-capability: settings.write
       x-required-role: owner
+  /api/v1/messenger/providers/{platform}/apply:
+    post:
+      operationId: applyMessengerProvider
+      tags: [communication]
+      summary: Explicitly restart the local Hermes gateway after provider credential changes
+      parameters:
+        - name: platform
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderApply" } } }
+      responses:
+        "200": { description: Observed gateway restart, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: settings.write
+      x-required-role: owner
   /api/v1/messenger/targets:
     get:
       operationId: listMessengerTargets
@@ -8920,6 +8944,8 @@ components:
       $ref: ../schemas/integrations/messenger-catalog-response.schema.json
     MessengerProviderUpdate:
       $ref: ../schemas/integrations/messenger-provider-update.schema.json
+    MessengerProviderApply:
+      $ref: ../schemas/integrations/messenger-provider-apply.schema.json
     MessengerProviderResponse:
       $ref: ../schemas/integrations/messenger-provider-response.schema.json
     MessengerTargetRequest:
