@@ -21,7 +21,7 @@ const unavailable = () => new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "
 export class MessengerCatalogService {
   constructor(private readonly dataDir: string, private readonly invoke: RunnerInvoker = invokeCodingRunner) {}
 
-  async list(): Promise<MessengerCatalog> {
+  private target(): { script: string; distro: string; user: string } {
     let root = resolve(this.dataDir);
     for (let depth = 0; depth < 5 && !existsSync(join(root, "config", "install-state.json")); depth += 1) root = resolve(root, "..");
     let state: { distro_name?: string; linux_user?: string };
@@ -30,9 +30,14 @@ export class MessengerCatalogService {
     const match = root.match(/^([a-zA-Z]):\\(.*)$/);
     if (!match || !state.distro_name || !/^[A-Za-z0-9_.-]+$/.test(state.distro_name) ||
         !state.linux_user || !/^[A-Za-z0-9_-]+$/.test(state.linux_user)) throw unavailable();
-    const script = `/mnt/${match[1]!.toLowerCase()}/${match[2]!.replaceAll("\\", "/")}/installer/wsl/messaging_catalog.py`;
+    return { distro: state.distro_name, user: state.linux_user,
+      script: `/mnt/${match[1]!.toLowerCase()}/${match[2]!.replaceAll("\\", "/")}/installer/wsl/messaging_catalog.py` };
+  }
+
+  async list(): Promise<MessengerCatalog> {
+    const { script, distro, user } = this.target();
     let result: Record<string, unknown>;
-    try { result = await this.invoke(script, state.distro_name, state.linux_user, [], undefined, 30000); }
+    try { result = await this.invoke(script, distro, user, [], undefined, 30000); }
     catch { throw unavailable(); }
     if (result.state !== "available" || result.pin !== "d923a5eb" || !Array.isArray(result.items) || result.items.length !== OFFERED.size)
       throw unavailable();
