@@ -8,6 +8,44 @@ const message: InboundMessage = { platform: "discord", accountId: "default", acc
   chatId: "234567890123456789", chatType: "dm", messageId: "m-1", text: "Hallo Friday" };
 
 describe("post-admission messenger identity and memory gate", () => {
+  it("retrieves owner context and binds a deduplicated assistant turn to the exact admitted DM", () => {
+    const db = new DatabaseSync(":memory:");
+    const settings = { enabled: true, privateMode: false, channels: { messenger: true } };
+    const captured: IntegrationEvent[] = [];
+    const memory = { getSettings: () => settings, capture: vi.fn((event: IntegrationEvent) => {
+      captured.push(event); return { eventId: event.eventId, accepted: true, pending: false };
+    }), search: vi.fn(() => [{ eventId: "prior", source: "voice/friday", occurredAt: "2026-01-01T00:00:00Z",
+      text: "Earlier owner conversation", channel: "voice", identityId: stableUserId("owner"), sessionId: "voice-1", score: 1 },
+    { eventId: "private", source: "voice/friday", occurredAt: "2026-01-01T00:00:00Z",
+      text: "access token: hidden", channel: "voice", identityId: stableUserId("owner"), sessionId: "voice-1", score: 1 }]) } as unknown as DurableMemoryService;
+    const service = new MessengerInboundService(db, memory);
+    service.receive(message);
+    service.link(service.observations()[0]!.id, stableUserId("owner"));
+    const admitted = service.receive(message);
+    expect(admitted.context).toEqual([{ source: "voice/friday", occurredAt: "2026-01-01T00:00:00Z",
+      text: "Earlier owner conversation" }]);
+    const reply: InboundMessage = { ...message, eventType: "assistant_response", admissionEventId: admitted.eventId!,
+      turnId: "turn-1", text: "Friday antwortet" };
+    expect(service.receive(reply).reason).toBe("captured");
+    expect(service.receive(reply).reason).toBe("captured");
+    expect(captured.at(-1)).toEqual(captured.at(-2));
+    expect(captured.at(-1)).toMatchObject({ eventType: "assistant_response", identityId: stableUserId("owner"),
+      channel: "messenger", correlationId: admitted.eventId, payload: { kind: "text", text: "Friday antwortet" } });
+    const action: InboundMessage = { ...reply, eventType: "action_result", turnId: "turn-1:call-1",
+      text: "", actionId: "terminal", outcome: "uncertain" };
+    expect(service.receive(action).reason).toBe("captured");
+    expect(captured.at(-1)).toMatchObject({ eventType: "action_result", outcome: "uncertain",
+      payload: { kind: "action", actionId: "terminal", targetId: null, externalId: null } });
+    expect(service.receive({ ...action, actionId: "bad tool name" }).reason).toBe("invalid");
+    expect(service.receive({ ...reply, accountEpoch: "b".repeat(64) }).reason).toBe("unlinked");
+    expect(service.receive({ ...reply, chatId: "other" }).reason).toBe("unlinked");
+    expect(service.receive({ ...reply, text: "access token: fake" }).reason).toBe("private");
+    service.unlink(service.observations()[0]!.id);
+    expect(service.receive(reply).reason).toBe("unlinked");
+    settings.channels.messenger = false;
+    expect(service.receive(reply).reason).toBe("policy_disabled");
+    db.close();
+  });
   it("stores only sender metadata before owner link, then captures an exact private conversation once", () => {
     const db = new DatabaseSync(":memory:");
     const settings = { enabled: true, privateMode: false, channels: { messenger: true } };
@@ -70,6 +108,18 @@ describe("post-admission messenger identity and memory gate", () => {
     expect(service.receive(message).reason).toBe("policy_disabled");
     expect(service.observations()).toHaveLength(0);
     expect(capture).not.toHaveBeenCalled();
+    db.close();
+  });
+
+  it("does not retain an admission when the Memory sink rejects it", () => {
+    const db = new DatabaseSync(":memory:");
+    const memory = { getSettings: () => ({ enabled: true, privateMode: false, channels: { messenger: true } }),
+      capture: () => ({ accepted: false, pending: false }) } as unknown as DurableMemoryService;
+    const service = new MessengerInboundService(db, memory);
+    service.receive(message);
+    service.link(service.observations()[0]!.id, stableUserId("owner"));
+    expect(service.receive(message)).toEqual({ reason: "policy_disabled", eventId: null });
+    expect(db.prepare("SELECT COUNT(*) AS n FROM messenger_inbound_events").get()).toEqual({ n: 0 });
     db.close();
   });
 });

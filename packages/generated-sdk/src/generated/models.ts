@@ -4150,6 +4150,11 @@ export interface MessengerInboundEvent {
     | "unsupported_profile"
     | "multi_profile_unknown"
     | "account_changed";
+  eventType?: "assistant_response" | "action_result";
+  admissionEventId?: string;
+  turnId?: string;
+  actionId?: string;
+  outcome?: "completed" | "aborted" | "uncertain";
 }
 export interface MessengerInboundResponse {
   contractVersion: ContractVersion;
@@ -4166,6 +4171,11 @@ export interface MessengerInboundResponse {
       | "account_changed"
       | "invalid";
     eventId: string | null;
+    context?: {
+      source: string;
+      occurredAt: string;
+      text: string;
+    }[];
   };
   freshness: Freshness;
 }

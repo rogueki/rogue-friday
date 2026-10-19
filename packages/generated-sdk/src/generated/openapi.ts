@@ -7490,20 +7490,32 @@ export interface components {
             accountEpoch: string;
             /** @constant */
             accountId: "default";
+            actionId?: string;
+            admissionEventId?: string;
             chatId: string;
             chatType: string;
+            /** @enum {unknown} */
+            eventType?: "assistant_response" | "action_result";
             messageId: string;
+            /** @enum {unknown} */
+            outcome?: "completed" | "aborted" | "uncertain";
             /** @enum {unknown} */
             platform: "telegram" | "discord" | "whatsapp" | "whatsapp_cloud" | "slack" | "signal" | "mattermost" | "matrix" | "sms" | "dingtalk" | "feishu" | "wecom" | "weixin" | "bluebubbles" | "qqbot" | "yuanbao" | "teams" | "buzz" | "google_chat" | "irc" | "line" | "ntfy" | "photon" | "simplex";
             senderId: string;
             /** @enum {unknown} */
             suppressionReason?: "private" | "policy_disabled" | "not_private_dm" | "unsupported_profile" | "multi_profile_unknown" | "account_changed";
             text: string;
+            turnId?: string;
         };
         /** MessengerInboundResponse */
         MessengerInboundResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: {
+                context?: {
+                    occurredAt: string;
+                    source: string;
+                    text: string;
+                }[];
                 eventId: string | null;
                 /** @enum {unknown} */
                 reason: "captured" | "pending" | "unlinked" | "policy_disabled" | "private" | "not_private_dm" | "unsupported_profile" | "multi_profile_unknown" | "account_changed" | "invalid";

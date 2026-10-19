@@ -15,10 +15,14 @@ const sourceId = (value: unknown): value is string => typeof value === "string" 
 
 export interface InboundMessage { platform: string; accountId: string; accountEpoch: string; senderId: string; chatId: string;
   chatType: string; messageId: string; text: string;
+  eventType?: "assistant_response" | "action_result"; admissionEventId?: string; turnId?: string;
+  actionId?: string; outcome?: "completed" | "aborted" | "uncertain";
   suppressionReason?: "private" | "policy_disabled" | "not_private_dm" | "unsupported_profile" | "multi_profile_unknown" | "account_changed" }
 export interface SenderObservation { id: string; platform: string; accountId: string; senderId: string;
   chatId: string; lastSeenAt: string; linked: boolean }
 export type InboundReason = "captured" | "pending" | "unlinked" | "policy_disabled" | "private" | "not_private_dm" | "unsupported_profile" | "multi_profile_unknown" | "account_changed" | "invalid";
+export interface InboundReceipt { reason: InboundReason; eventId: string | null;
+  context?: Array<{ source: string; occurredAt: string; text: string }> }
 
 export class MessengerInboundService {
   constructor(private readonly db: Db, private readonly memory: DurableMemoryService) {
@@ -29,7 +33,9 @@ export class MessengerInboundService {
         observation_id TEXT PRIMARY KEY REFERENCES messenger_sender_observations(id) ON DELETE CASCADE,
         identity_id TEXT NOT NULL, linked_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS messenger_inbound_events (
-        id TEXT PRIMARY KEY, observation_id TEXT NOT NULL, occurred_at TEXT NOT NULL);`);
+        id TEXT PRIMARY KEY, observation_id TEXT NOT NULL, occurred_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS messenger_turn_events (
+        id TEXT PRIMARY KEY, admission_id TEXT NOT NULL, occurred_at TEXT NOT NULL);`);
   }
 
   observations(): SenderObservation[] {
@@ -66,7 +72,7 @@ export class MessengerInboundService {
     this.db.prepare("DELETE FROM messenger_identity_links WHERE observation_id=?").run(id);
   }
 
-  receive(input: InboundMessage): { reason: InboundReason; eventId: string | null } {
+  receive(input: InboundMessage): InboundReceipt {
     if (!PLATFORMS.has(input.platform) || input.accountId !== "default" || !/^[a-f0-9]{64}$/.test(input.accountEpoch) ||
         !sourceId(input.senderId) || !sourceId(input.chatId) || !sourceId(input.messageId) ||
         typeof input.text !== "string" || input.text.length > 200_000) return { reason: "invalid", eventId: null };
@@ -80,6 +86,10 @@ export class MessengerInboundService {
       return { reason: "policy_disabled", eventId: null };
     if (privateText.test(input.text) || secretCue.test(input.text) || secretValue.test(input.text))
       return { reason: "private", eventId: null };
+    if (input.eventType) return this.receiveTurn(input);
+    if (input.admissionEventId !== undefined || input.turnId !== undefined ||
+        input.actionId !== undefined || input.outcome !== undefined)
+      return { reason: "invalid", eventId: null };
     const now = new Date().toISOString();
     const id = sha(JSON.stringify([input.platform, input.accountId, input.accountEpoch, input.senderId]));
     this.db.prepare(`INSERT INTO messenger_sender_observations VALUES (?,?,?,?,?,?)
@@ -99,7 +109,67 @@ export class MessengerInboundService {
       dialogId: null, correlationId: null, source: `messenger/${input.platform}/${sha(input.senderId).slice(0, 16)}`,
       occurredAt: record.occurred_at, outcome: "completed", captureEligibility: "eligible", redaction: "required",
       payload: { kind: "text", text: input.text } };
-    const result = this.memory.capture(event);
-    return { reason: result.pending ? "pending" : result.accepted ? "captured" : "policy_disabled", eventId };
+    let result: { eventId: string; accepted: boolean; pending: boolean };
+    try { result = this.memory.capture(event); }
+    catch (error) {
+      this.db.prepare("DELETE FROM messenger_inbound_events WHERE id=?").run(eventId);
+      throw error;
+    }
+    const reason = result.pending ? "pending" : result.accepted ? "captured" : "policy_disabled";
+    if (reason === "policy_disabled") {
+      this.db.prepare("DELETE FROM messenger_inbound_events WHERE id=?").run(eventId);
+      return { reason, eventId: null };
+    }
+    try {
+      const hits = this.memory.search(input.text.slice(0, 240), linked.identity_id, 5);
+      const context = hits.filter((hit) => hit.eventId !== eventId && !privateText.test(hit.text) &&
+        !secretCue.test(hit.text) && !secretValue.test(hit.text)).slice(0, 5).map((hit) => ({ source: hit.source.slice(0, 80),
+        occurredAt: hit.occurredAt.slice(0, 40), text: hit.text.slice(0, 600) }));
+      return context.length ? { reason, eventId, context } : { reason, eventId };
+    } catch { return { reason, eventId }; }
+  }
+
+  private receiveTurn(input: InboundMessage): InboundReceipt {
+    if ((input.eventType !== "assistant_response" && input.eventType !== "action_result") ||
+        !input.admissionEventId || !/^messenger-[a-f0-9]{64}$/.test(input.admissionEventId) ||
+        !input.turnId || !sourceId(input.turnId) ||
+        input.eventType === "action_result" && (input.text !== "" || !input.actionId ||
+          !/^[A-Za-z0-9][A-Za-z0-9_./:-]{0,127}$/.test(input.actionId) ||
+          !["completed", "aborted", "uncertain"].includes(input.outcome ?? "")) ||
+        input.eventType === "assistant_response" && (!input.text.trim() ||
+          input.actionId !== undefined || input.outcome !== undefined))
+      return { reason: "invalid", eventId: null };
+    const id = sha(JSON.stringify([input.platform, input.accountId, input.accountEpoch, input.senderId]));
+    const admission = this.db.prepare(`SELECT e.observation_id, o.chat_id, l.identity_id
+      FROM messenger_inbound_events e JOIN messenger_sender_observations o ON o.id=e.observation_id
+      LEFT JOIN messenger_identity_links l ON l.observation_id=o.id WHERE e.id=?`).get(input.admissionEventId) as
+      { observation_id: string; chat_id: string; identity_id: string | null } | undefined;
+    if (!admission || admission.observation_id !== id || admission.chat_id !== input.chatId ||
+        admission.identity_id !== stableUserId("owner")) return { reason: "unlinked", eventId: null };
+    const eventId = `messenger-${sha(JSON.stringify([input.admissionEventId, input.turnId, input.eventType,
+      input.actionId ?? null]))}`;
+    this.db.prepare("INSERT OR IGNORE INTO messenger_turn_events VALUES (?,?,?)")
+      .run(eventId, input.admissionEventId, new Date().toISOString());
+    const turn = this.db.prepare("SELECT admission_id,occurred_at FROM messenger_turn_events WHERE id=?").get(eventId) as
+      { admission_id: string; occurred_at: string };
+    if (turn.admission_id !== input.admissionEventId) return { reason: "invalid", eventId: null };
+    const sessionId = `messenger-${sha(JSON.stringify([input.platform, input.accountId, input.accountEpoch, input.chatId])).slice(0, 32)}`;
+    const event: IntegrationEvent = { eventId, contractVersion: "1.0.0", eventType: input.eventType,
+      actor: { type: "assistant", id: "friday", role: null }, identityId: admission.identity_id,
+      channel: "messenger", sessionId, dialogId: null, correlationId: input.admissionEventId,
+      source: `messenger/${input.platform}/${sha(input.senderId).slice(0, 16)}`,
+      occurredAt: turn.occurred_at, outcome: input.eventType === "action_result" ? input.outcome! : "completed",
+      captureEligibility: "eligible", redaction: "required", payload: input.eventType === "action_result" ?
+        { kind: "action", actionId: input.actionId!, targetId: null, externalId: null } : { kind: "text", text: input.text } };
+    let result: { eventId: string; accepted: boolean; pending: boolean };
+    try { result = this.memory.capture(event); }
+    catch (error) {
+      this.db.prepare("DELETE FROM messenger_turn_events WHERE id=?").run(eventId);
+      throw error;
+    }
+    if (!result.pending && !result.accepted)
+      this.db.prepare("DELETE FROM messenger_turn_events WHERE id=?").run(eventId);
+    return { reason: result.pending ? "pending" : result.accepted ? "captured" : "policy_disabled",
+      eventId: result.pending || result.accepted ? eventId : null };
   }
 }

@@ -36,6 +36,8 @@ class MessengerAdmissionTests(unittest.TestCase):
         spec.loader.exec_module(self.plugin)
         self.plugin.MESSENGER_CONFIG = self.config
         self.plugin.MESSENGER_KEY = self.keyfile
+        self.plugin._messenger_registration_home = str(self.home)
+        self.plugin._messenger_registration_stamp = self.plugin._messenger_files_stamp(self.home)
         self.source = {"platform": "telegram", "profile": None, "chat_type": "dm",
                        "user_id": "18412", "chat_id": "18412"}
         self.patches = [patch.dict(sys.modules, {"hermes_constants": types.SimpleNamespace(
@@ -82,6 +84,22 @@ class MessengerAdmissionTests(unittest.TestCase):
             self.call("followup")
         self.assertEqual(requests[1]["suppressionReason"], "account_changed")
         self.assertEqual(requests[1]["text"], "")
+
+    def test_change_before_first_admission_does_not_set_new_account_as_live_baseline(self):
+        (self.home / ".env").write_text("TELEGRAM_BOT_TOKEN=replaced-before-first-message")
+        requests = []
+        class Response:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def read(self): return b'{"data":{"reason":"account_changed"}}'
+        def open_request(request, timeout):
+            requests.append(json.loads(request.data))
+            return Response()
+        with patch.object(self.plugin, "urlopen", open_request):
+            self.call()
+        self.assertEqual(requests[0]["suppressionReason"], "account_changed")
+        self.assertEqual(requests[0]["text"], "")
 
     def test_new_gateway_process_rotates_link_provenance_even_with_same_key(self):
         spec = importlib.util.spec_from_file_location("friday_memory_plugin_restart", PLUGIN)
@@ -136,6 +154,50 @@ class MessengerAdmissionTests(unittest.TestCase):
             self.call()
         self.assertEqual(json.loads(open_request.call_args.args[0].data)["suppressionReason"], "policy_disabled")
         self.assertEqual(json.loads(open_request.call_args.args[0].data)["text"], "")
+
+
+    def test_linked_admission_binds_cross_channel_context_and_assistant_to_exact_turn(self):
+        requests = []
+        session = ["telegram:18412"]
+        approval = types.ModuleType("tools.approval_context")
+        approval.get_current_session_key = lambda default="": session[0]
+        class Response:
+            status = 200
+            def __init__(self, body): self.body = body
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def read(self): return json.dumps(self.body).encode()
+        def open_request(request, timeout):
+            body = json.loads(request.data)
+            requests.append(body)
+            if body.get("eventType") is None:
+                return Response({"data": {"reason": "captured", "eventId": "messenger-" + "a" * 64,
+                    "context": [{"source": "voice/friday", "occurredAt": "2026-01-01T00:00:00Z",
+                                 "text": "Earlier owner conversation"}]}})
+            return Response({"data": {"reason": "captured", "eventId": "messenger-" + "b" * 64}})
+        with patch.dict(sys.modules, {"tools": types.ModuleType("tools"), "tools.approval_context": approval}), \
+             patch.object(self.plugin, "urlopen", open_request):
+            self.call()
+            context = self.plugin._pre(platform="telegram", sender_id="18412", session_id="sid", turn_id="turn")
+            self.assertIn("Earlier owner conversation", context["context"])
+            session[0] = "telegram:other"
+            self.plugin._post(platform="telegram", session_id="sid", turn_id="turn",
+                              assistant_response="Antwort")
+            self.assertEqual(len(requests), 1)
+            session[0] = "telegram:18412"
+            self.call()
+            self.plugin._pre(platform="telegram", sender_id="18412", session_id="sid", turn_id="turn-2")
+            self.plugin._messenger_tool(session_id="sid", turn_id="turn-2", tool_call_id="call-1",
+                                        tool_name="terminal", status="error", result="secret not forwarded")
+            self.plugin._post(platform="telegram", session_id="sid", turn_id="turn-2",
+                              assistant_response="Antwort")
+        self.assertEqual(requests[-2]["eventType"], "action_result")
+        self.assertEqual(requests[-2]["actionId"], "terminal")
+        self.assertEqual(requests[-2]["outcome"], "uncertain")
+        self.assertNotIn("secret not forwarded", json.dumps(requests))
+        self.assertEqual(requests[-1]["eventType"], "assistant_response")
+        self.assertEqual(requests[-1]["admissionEventId"], "messenger-" + "a" * 64)
+        self.assertEqual(requests[-1]["senderId"], "18412")
 
 
 if __name__ == "__main__":
