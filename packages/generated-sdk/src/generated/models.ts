@@ -198,6 +198,11 @@ export type HermesConfigPatch =
       value: string[];
     }
   | {
+      key: "plugin.activation";
+      pluginId: string;
+      enabled: boolean;
+    }
+  | {
       key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
       value: string | null;
     };

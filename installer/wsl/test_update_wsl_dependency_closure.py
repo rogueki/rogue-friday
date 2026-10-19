@@ -10,6 +10,7 @@ REQUIRED = {
     "installer/wsl/hermes_config_bridge.py",
     "installer/wsl/hermes_model_credential_apply.py",
     "installer/wsl/hermes_model_catalog.py",
+    "installer/wsl/hermes_plugin_activation.py",
     "installer/wsl/configure_messenger_inbound_bridge.py",
     "installer/wsl/setup_messenger_inbound_bridge.sh",
 }

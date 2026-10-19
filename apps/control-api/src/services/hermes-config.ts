@@ -57,6 +57,7 @@ export const HERMES_CONFIG_FIELDS = {
 export type HermesConfigField = keyof typeof HERMES_CONFIG_FIELDS;
 type FallbackEntry = { provider: string; model: string };
 export type HermesConfigPatch = { key: HermesConfigField; value: number | boolean | string | FallbackEntry[] | string[] | null };
+export type HermesPluginPatch = { key: "plugin.activation"; pluginId: string; enabled: boolean };
 export const HERMES_MODEL_CREDENTIALS = ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] as const;
 export type HermesModelCredential = typeof HERMES_MODEL_CREDENTIALS[number];
 export type HermesModelCredentialPatch = { key: HermesModelCredential; value: string | null };
@@ -93,7 +94,7 @@ interface BridgeStatus {
   modelProviders: Array<{ id: string; configFileSet: boolean; authenticated: null; available: null }>;
   skills: Array<{ id: string; installed: true; enabled: boolean | null }>;
   plugins: Array<{ id: string; installed: true; enabled: boolean | null; configured: null }>;
-  write: { key: HermesConfigField | HermesModelCredential; persisted: boolean } | null;
+  write: { key: string; persisted: boolean } | null;
 }
 
 const unavailable = () =>
@@ -144,8 +145,8 @@ export class HermesConfigService {
   }
 
   private async run(
-    action: "status" | "update" | "credential-update",
-    patch?: HermesConfigPatch | HermesModelCredentialPatch,
+    action: "status" | "update" | "credential-update" | "plugin-activation",
+    patch?: HermesConfigPatch | HermesModelCredentialPatch | HermesPluginPatch,
     revision?: number,
   ): Promise<BridgeStatus | null> {
     const { script, distro, user } = this.target();
@@ -156,8 +157,10 @@ export class HermesConfigService {
         distro,
         user,
         [action],
-        patch ? JSON.stringify({ ...patch, revision }) : undefined,
-        action === "credential-update" ? 60000 : 30000,
+        patch ? JSON.stringify(action === "plugin-activation"
+          ? { pluginId: (patch as HermesPluginPatch).pluginId, enabled: (patch as HermesPluginPatch).enabled, revision }
+          : { ...patch, revision }) : undefined,
+        action === "credential-update" || action === "plugin-activation" ? 60000 : 30000,
         150000,
       );
     } catch (error) {
@@ -168,6 +171,9 @@ export class HermesConfigService {
       if (action === "credential-update")
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
           message: "Hermes-Schlüsselvorgang nicht bestätigt. Status neu laden; eine Wiederholung könnte den bereits gespeicherten Schlüssel überschreiben." });
+      if (action === "plugin-activation")
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Hermes-Plugin-Aktivierung nicht bestätigt. Status neu laden, bevor sie erneut versucht wird." });
       throw unavailable();
     }
     if (
@@ -217,7 +223,8 @@ export class HermesConfigService {
       action !== "status" &&
       (!raw.write ||
         typeof raw.write !== "object" ||
-        (raw.write as Record<string, unknown>).key !== patch?.key ||
+        (raw.write as Record<string, unknown>).key !== (action === "plugin-activation"
+          ? `plugin:${(patch as HermesPluginPatch).pluginId}` : patch?.key) ||
         typeof (raw.write as Record<string, unknown>).persisted !== "boolean")
     )
       throw unavailable();
@@ -331,6 +338,16 @@ export class HermesConfigService {
     if (!Number.isSafeInteger(revision) || revision < 1)
       throw validationFailed("Ungültige Hermes-Konfigurationsversion.");
     const observed = await this.run("credential-update", patch, revision);
+    if (!observed) throw unavailable();
+    return this.present(observed);
+  }
+
+  async updatePlugin(patch: HermesPluginPatch, revision: number) {
+    if (patch.key !== "plugin.activation" || !/^[A-Za-z0-9._/-]{1,100}$/.test(patch.pluginId) ||
+        !patch.pluginId.split("/").every((part) => part !== "" && part !== "." && part !== "..") ||
+        typeof patch.enabled !== "boolean" || !Number.isSafeInteger(revision) || revision < 1)
+      throw validationFailed("Ungültige Hermes-Plugin-Aktivierung.");
+    const observed = await this.run("plugin-activation", patch, revision);
     if (!observed) throw unavailable();
     return this.present(observed);
   }

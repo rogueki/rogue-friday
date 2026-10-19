@@ -343,6 +343,12 @@ export function HermesConfigArea() {
             <li key={plugin.id}>
               {plugin.id}: {plugin.enabled === null ? "Aktivierung unbekannt" : plugin.enabled ? "in Hermes aktiviert" : "nicht aktiviert"} · Nutzbarkeit
               ungeprüft
+              {plugin.enabled !== null && data.inventory.pluginsComplete ?
+                <button type="button" disabled={patch.isPending}
+                  onClick={() => patch.mutate({ revision, patch: { key: "plugin.activation", pluginId: plugin.id,
+                    enabled: !plugin.enabled } })}>
+                  {plugin.enabled ? "Plugin deaktivieren" : "Installierten Plugin-Code aktivieren"}
+                </button> : null}
             </li>
           ))}
         </ul>

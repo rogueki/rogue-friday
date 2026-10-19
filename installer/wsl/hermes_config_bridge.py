@@ -78,6 +78,13 @@ def valid_field_value(key, value, spec):
                 all(type(name) is str and re.fullmatch(r"[A-Za-z0-9._/-]{1,100}", name) for name in value))
     return False
 PINNED_SOURCE = "d923a5eb"
+
+
+def valid_plugin_id(name):
+    return (type(name) is str and re.fullmatch(r"[A-Za-z0-9._/-]{1,100}", name) is not None and
+            all(part and part not in (".", "..") for part in name.split("/")))
+
+
 FAMILIES = (
     ("models", ("model", "models_dev", "providers", "fallback", "fallback_providers", "auxiliary", "agent.service_tier"), "P7-B: provider onboarding and live catalog remain"),
     ("agent", ("agent", "compression", "context", "session", "sessions"), "P7-C: further session/context fields remain"),
@@ -245,7 +252,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "model-catalog"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "model-catalog"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -290,20 +297,25 @@ def locked_main(home, source, cli):
         print(json.dumps({"sourceRevision": source_revision, "providers": response["providers"],
                           "selected": response.get("selected")}))
         return 0
-    if sys.argv[1] in ("update", "credential-update"):
+    if sys.argv[1] in ("update", "credential-update", "plugin-activation"):
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
         request = json.load(sys.stdin)
-        if not isinstance(request, dict) or set(request) != {"key", "value", "revision"}:
+        plugin_update = sys.argv[1] == "plugin-activation"
+        expected_keys = {"pluginId", "enabled", "revision"} if plugin_update else {"key", "value", "revision"}
+        if not isinstance(request, dict) or set(request) != expected_keys:
             raise ValueError("invalid_request")
-        key, value = request["key"], request["value"]
+        key = "plugin:" + request["pluginId"] if plugin_update and isinstance(request["pluginId"], str) else request.get("key")
+        value = request["enabled"] if plugin_update else request["value"]
         credential_update = sys.argv[1] == "credential-update"
-        spec = FIELDS.get(key)
-        if type(request["revision"]) is not int or (credential_update and
-                (key not in MODEL_CREDENTIALS or not (value is None or
+        spec = FIELDS.get(key) if not plugin_update else None
+        if type(request["revision"]) is not int or (plugin_update and
+                (not valid_plugin_id(request["pluginId"]) or
+                 type(value) is not bool)) or (credential_update and
+                 (key not in MODEL_CREDENTIALS or not (value is None or
                  (isinstance(value, str) and 1 <= len(value) <= 4096 and
                   all(32 <= ord(char) <= 126 for char in value))))) or \
-                (not credential_update and (not spec or not valid_field_value(key, value, spec))):
+                (not credential_update and not plugin_update and (not spec or not valid_field_value(key, value, spec))):
             raise ValueError("unsupported_field")
         lock = lock_config(home)
         try:
@@ -311,6 +323,29 @@ def locked_main(home, source, cli):
             if request["revision"] != before or revision(config_path) != before:
                 print(json.dumps({"error": "revision_conflict"}))
                 return 4
+            if plugin_update:
+                prior = subprocess.run([str(cli), "plugins", "list", "--json", "--user"],
+                                       capture_output=True, text=True, timeout=15)
+                try:
+                    entries = json.loads(prior.stdout)
+                except ValueError:
+                    entries = None
+                matches = [row for row in entries if isinstance(row, dict) and
+                           row.get("name") == request["pluginId"]] if isinstance(entries, list) else []
+                if prior.returncode or len(matches) != 1 or matches[0].get("status") not in (
+                    "enabled", "disabled", "not enabled") or matches[0].get("removed"):
+                    raise ValueError("unknown_plugin")
+                sys.path.insert(0, str(source))
+                from hermes_cli._launchers import runtime_command
+                helper = Path(__file__).with_name("hermes_plugin_activation.py")
+                command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
+                result = run_runtime_child(command, json.dumps({"pluginId": request["pluginId"], "enabled": value}), 30)
+                try:
+                    accepted = json.loads(result.stdout).get("ok") is True
+                except (ValueError, TypeError):
+                    accepted = False
+                if result.returncode or not accepted:
+                    raise ValueError("plugin_activation_unconfirmed")
             if key == "skills.disabled":
                 roots, root_errors = inventory_roots(home, call)
                 names, scan_errors = installed_skills(roots)
@@ -334,7 +369,7 @@ def locked_main(home, source, cli):
                 finally:
                     fcntl.flock(env_lock, fcntl.LOCK_UN)
                     env_lock.close()
-            else:
+            elif not plugin_update:
                 # Hermes owns validation and preserving the rest of config.yaml. Never --force.
                 call("set", key, json.dumps(value, separators=(",", ":")) if isinstance(value, list) else
                      "null" if value is None else str(value).lower() if isinstance(value, bool) else str(value))
@@ -344,6 +379,7 @@ def locked_main(home, source, cli):
             lock.close()
     else:
         current, raw = snapshot(config_path)
+    write_key = key if sys.argv[1] == "plugin-activation" else None
     values = {}
     for key in FIELDS:
         if key != "skills.disabled":
@@ -423,9 +459,12 @@ def locked_main(home, source, cli):
                     "enabled": True if name == "hermes-agent" else None if disabled_skills is None else name not in disabled_set}
                    for name in skill_names],
         "plugins": [{"id": row["name"], "installed": True,
-                     "enabled": True if row["status"] == "enabled" else False if row["status"] == "disabled" else None,
+                     "enabled": True if row["status"] == "enabled" else False if row["status"] in ("disabled", "not enabled") else None,
                      "configured": None} for row in plugin_rows],
-        "write": {"key": request["key"], "persisted": values[request["key"]] == request["value"]}
+        "write": {"key": write_key, "persisted": len([row for row in plugin_rows if row.get("name") == request["pluginId"]]) == 1 and
+                  any(row.get("name") == request["pluginId"] and row.get("status") in ("enabled", "disabled", "not enabled") and
+                      (row.get("status") == "enabled") == value for row in plugin_rows)} if sys.argv[1] == "plugin-activation" else
+                 {"key": request["key"], "persisted": values[request["key"]] == request["value"]}
                  if sys.argv[1] == "update" else
                  {"key": request["key"], "persisted": from_env.get(request["key"], False) ==
                   (request["value"] is not None)} if sys.argv[1] == "credential-update" else None,

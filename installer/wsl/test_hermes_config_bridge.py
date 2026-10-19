@@ -46,9 +46,15 @@ class BridgeTest(unittest.TestCase):
                        "browser.snapshot_threshold": 15000,
                        "skills.disabled": [], "skills.create_dir": "", "skills.external_dirs": []}
         self.calls = []
+        self.plugin_status = "enabled"
 
     def run_command(self, command, **_kwargs):
         self.calls.append(command)
+        if command[0] == "plugin-worker":
+            request = json.loads(_kwargs["input"])
+            self.plugin_status = "enabled" if request["enabled"] else "disabled"
+            self.config.write_text(self.config.read_text() + "\n# synthetic plugin selection\n")
+            return subprocess.CompletedProcess(command, 0, '{"ok":true}', "")
         if command[0] == "credential-worker":
             request = json.loads(_kwargs["input"])
             env_path = self.home / ".hermes" / ".env"
@@ -57,7 +63,7 @@ class BridgeTest(unittest.TestCase):
         if command[0] == "git":
             return subprocess.CompletedProcess(command, 0, "d923a5eb487a17c0a68801bba9ef0f56c81040a8\n", "")
         if command[1:] == ["plugins", "list", "--json", "--user"]:
-            return subprocess.CompletedProcess(command, 0, '[{"name":"example","status":"enabled"}]', "")
+            return subprocess.CompletedProcess(command, 0, json.dumps([{"name": "example", "status": self.plugin_status}]), "")
         args = command[2:]
         if args == ["path"]:
             output = str(self.config)
@@ -84,7 +90,7 @@ class BridgeTest(unittest.TestCase):
         config = types.ModuleType("hermes_cli.config")
         lifecycle = types.ModuleType("hermes_cli.credential_lifecycle")
         launchers = types.ModuleType("hermes_cli._launchers")
-        launchers.runtime_command = lambda *args, **kwargs: ["credential-worker"]
+        launchers.runtime_command = lambda *args, **kwargs: ["plugin-worker" if "hermes_plugin_activation.py" in kwargs.get("code", "") else "credential-worker"]
         env_path = self.home / ".hermes" / ".env"
         def load_env():
             return dict(line.split("=", 1) for line in env_path.read_text().splitlines()) if env_path.exists() else {}
@@ -103,7 +109,8 @@ class BridgeTest(unittest.TestCase):
                                       "hermes_cli.config": config, "hermes_cli.credential_lifecycle": lifecycle,
                                       "hermes_cli._launchers": launchers}), \
              patch.object(sys, "path", sys.path.copy()), \
-             patch.object(sys, "argv", ["bridge", "credential-update" if request and request["key"] in bridge.MODEL_CREDENTIALS else "update" if request else "status"]), \
+             patch.object(sys, "argv", ["bridge", "plugin-activation" if request and "pluginId" in request else
+                                     "credential-update" if request and request["key"] in bridge.MODEL_CREDENTIALS else "update" if request else "status"]), \
              patch.object(sys, "stdin", io.StringIO(json.dumps(request) if request else "")), contextlib.redirect_stdout(out):
             code = bridge.main()
         return code, json.loads(out.getvalue())
@@ -215,6 +222,19 @@ class BridgeTest(unittest.TestCase):
             self.invoke({"key": "skills.disabled", "value": ["uninstalled"],
                          "revision": bridge.revision(self.config)})
         self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
+
+    def test_plugin_activation_only_targets_installed_selection_and_reads_back(self):
+        current = bridge.revision(self.config)
+        code, result = self.invoke({"pluginId": "example", "enabled": False, "revision": current})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["write"], {"key": "plugin:example", "persisted": True})
+        self.assertFalse(result["plugins"][0]["enabled"])
+        self.assertTrue(any(command[0] == "plugin-worker" for command in self.calls))
+        self.calls.clear()
+        with self.assertRaisesRegex(ValueError, "unknown_plugin"):
+            self.invoke({"pluginId": "uninstalled", "enabled": True,
+                         "revision": bridge.revision(self.config)})
+        self.assertFalse(any(command[0] == "plugin-worker" for command in self.calls))
 
     def test_disabled_skills_error_is_unknown(self):
         original = self.run_command

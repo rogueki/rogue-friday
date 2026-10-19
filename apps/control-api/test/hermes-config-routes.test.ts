@@ -171,3 +171,28 @@ it("serves the model picker only to the owner and keeps catalog proof distinct f
     await api.close();
   }
 });
+
+it("requires owner intent, CSRF and revision for installed-plugin activation", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const update = vi.spyOn(api.runtime.hermesConfig, "updatePlugin").mockResolvedValue({ ...status,
+      revision: 124, write: { key: "plugin:kanban", persisted: true, applied: null,
+        verification: "unverified", reasonCode: "runtime_receipt_unavailable" },
+    } as never);
+    const viewer = api.client();
+    await viewer.loginDev("viewer");
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const body = { key: "plugin.activation", pluginId: "kanban", enabled: true };
+    expect((await viewer.patch(path, body, { headers: { "If-Match": "123" } })).statusCode).toBe(403);
+    expect((await owner.patch(path, body, { headers: { "If-Match": "123" }, csrf: false })).statusCode).toBe(403);
+    expect((await owner.patch(path, body)).statusCode).toBe(422);
+    expect((await owner.patch(path, { ...body, pluginId: "../bad" }, { headers: { "If-Match": "123" } })).statusCode).toBe(422);
+    const saved = await owner.patch(path, body, { headers: { "If-Match": "123" } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(saved.json().data.write).toMatchObject({ key: "plugin:kanban", persisted: true, applied: null });
+    expect(update).toHaveBeenCalledWith(body, 123);
+  } finally {
+    await api.close();
+  }
+});

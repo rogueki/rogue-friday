@@ -6399,6 +6399,11 @@ export interface components {
             key: "skills.disabled";
             value: string[];
         } | {
+            enabled: boolean;
+            /** @constant */
+            key: "plugin.activation";
+            pluginId: string;
+        } | {
             /** @enum {unknown} */
             key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
             value: string | null;

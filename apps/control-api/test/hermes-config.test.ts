@@ -194,6 +194,23 @@ it("does not report a timed-out credential write as failed or safe to retry", as
       message: expect.stringContaining("Status neu laden") });
 });
 
+it("activates only a typed installed-plugin request and leaves runtime adoption unverified", async () => {
+  const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
+    plugins: [{ id: "kanban", installed: true, enabled: true, configured: null }],
+    write: { key: "plugin:kanban", persisted: true },
+  })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const result = await service.updatePlugin({ key: "plugin.activation", pluginId: "kanban", enabled: true }, 123);
+  expect(result.plugins[0]?.enabled).toBe(true);
+  expect(result.write).toMatchObject({ key: "plugin:kanban", persisted: true, applied: null });
+  expect(vi.mocked(invoke).mock.calls[0]?.[3]).toEqual(["plugin-activation"]);
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[0]?.[4]))).toEqual({
+    pluginId: "kanban", enabled: true, revision: 123,
+  });
+  await expect(service.updatePlugin({ key: "plugin.activation", pluginId: "../../bad", enabled: true }, 123))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
 it("accepts a structured fallback chain and rejects unsafe model/provider identifiers", async () => {
   const chain = [{ provider: "openrouter", model: "example/model" }];
   const invoke = vi.fn(async () => ({ ...bridge, revision: 124,

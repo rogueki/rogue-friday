@@ -88,6 +88,7 @@
     { "type": "object", "properties": { "key": { "const": "browser.command_timeout" }, "value": { "type": "integer", "minimum": 5, "maximum": 600 } }, "required": ["key", "value"], "additionalProperties": false },
     { "type": "object", "properties": { "key": { "const": "browser.snapshot_threshold" }, "value": { "type": "integer", "minimum": 1000, "maximum": 200000 } }, "required": ["key", "value"], "additionalProperties": false },
     { "type": "object", "properties": { "key": { "const": "skills.disabled" }, "value": { "type": "array", "maxItems": 512, "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z0-9._/-]{1,100}$" } } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "plugin.activation" }, "pluginId": { "type": "string", "pattern": "^(?!.*\\.\\.)(?!/)(?!.*//)[A-Za-z0-9._/-]{1,100}$" }, "enabled": { "type": "boolean" } }, "required": ["key", "pluginId", "enabled"], "additionalProperties": false },
     {
       "type": "object",
       "properties": {
