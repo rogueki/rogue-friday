@@ -50,6 +50,8 @@ const status = {
     },
   ],
   plugins: [],
+  mcpComplete: true,
+  mcpServers: [],
   inventory: { scope: "profile" as const, skillsComplete: true, pluginsComplete: true, modelProvidersComplete: true, reasons: [] },
   modelProviders: [],
   write: null,
@@ -134,6 +136,34 @@ it("accepts only the owner credential allowlist and never echoes a model secret"
     const saved = await owner.patch(path, body, { headers: { "If-Match": "123" } });
     expect(saved.statusCode, saved.body).toBe(200);
     expect(saved.body).not.toContain(body.value);
+    expect(update).toHaveBeenCalledWith(body, 123);
+  } finally {
+    await api.close();
+  }
+});
+
+it("restricts MCP setup to owner, CSRF, revision and typed HTTPS endpoint", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const update = vi.spyOn(api.runtime.hermesConfig, "updateMcp").mockResolvedValue({ ...status,
+      revision: 124, mcpServers: [{ id: "example", transport: "http", enabled: true,
+        endpoint: "https://example.org", editable: true }],
+      write: { key: "mcp:example", persisted: true, applied: null,
+        verification: "unverified", reasonCode: "runtime_receipt_unavailable" },
+    } as never);
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const viewer = api.client();
+    await viewer.loginDev("viewer");
+    const body = { key: "mcp.httpServer", name: "example", url: "https://example.org/mcp", enabled: true };
+    expect((await viewer.patch(path, body, { headers: { "If-Match": "123" } })).statusCode).toBe(403);
+    expect((await owner.patch(path, body, { headers: { "If-Match": "123" }, csrf: false })).statusCode).toBe(403);
+    expect((await owner.patch(path, body)).statusCode).toBe(422);
+    expect((await owner.patch(path, { ...body, url: "http://127.0.0.1/mcp" },
+      { headers: { "If-Match": "123" } })).statusCode).toBe(422);
+    const saved = await owner.patch(path, body, { headers: { "If-Match": "123" } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(saved.json().data.write).toMatchObject({ key: "mcp:example", persisted: true, applied: null });
     expect(update).toHaveBeenCalledWith(body, 123);
   } finally {
     await api.close();

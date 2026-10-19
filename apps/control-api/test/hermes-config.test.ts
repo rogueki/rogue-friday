@@ -96,6 +96,8 @@ const bridge = {
   plugins: [
     { id: "kanban", installed: true, enabled: false, configured: null, unexpected: "CANARY-DO-NOT-RETURN" },
   ],
+  mcpComplete: true,
+  mcpServers: [],
   write: null,
 };
 

@@ -66,6 +66,8 @@ export function HermesConfigArea() {
   const selectedCatalog = useHermesModelCatalog(probeProvider ?? undefined, probeProvider !== null);
   const [draft, setDraft] = useState<Record<string, number | boolean | string | Array<{ provider: string; model: string }> | null>>({});
   const [credentialDraft, setCredentialDraft] = useState<Record<string, string>>({});
+  const [mcpName, setMcpName] = useState("");
+  const [mcpUrl, setMcpUrl] = useState("");
   if (observed.isPending) return <p role="status">Hermes-Konfiguration wird gelesen…</p>;
   if (observed.isError)
     return (
@@ -353,6 +355,28 @@ export function HermesConfigArea() {
           ))}
         </ul>
       </details>
+      <section aria-label="Hermes-MCP-Server">
+        <h3>Hermes-MCP-Server</h3>
+        <p>Friday kann HTTPS-MCP-Endpunkte ohne eingebettete Zugangsdaten hinterlegen. Der gespeicherte Eintrag bestaetigt keine Verbindung; Hermes laedt ihn erst in einer neuen Sitzung oder nach einem MCP-Reload.</p>
+        <label htmlFor="hermes-mcp-name">Serverkennung</label>
+        <input id="hermes-mcp-name" value={mcpName} maxLength={64} onChange={(event) => setMcpName(event.target.value)} />
+        <label htmlFor="hermes-mcp-url">HTTPS-Endpunkt</label>
+        <input id="hermes-mcp-url" type="url" value={mcpUrl} maxLength={2048} placeholder="https://example.org/mcp"
+          onChange={(event) => setMcpUrl(event.target.value)} />
+        <button type="button" disabled={patch.isPending || !data.mcpComplete || !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(mcpName) || !mcpUrl.startsWith("https://")}
+          onClick={() => patch.mutate({ revision, patch: { key: "mcp.httpServer", name: mcpName, url: mcpUrl, enabled: true } })}>
+          HTTPS-Server hinterlegen und fuer neue Hermes-Sitzungen aktivieren
+        </button>
+        <p role={data.mcpComplete ? "status" : "alert"}>{data.mcpComplete ? "Konfigurierte Server gelesen" : "MCP-Inventar unvollstaendig"}</p>
+        <ul>{data.mcpServers.map((server) => <li key={server.id}>
+          {server.id}: {server.transport}, {server.enabled === null ? "Aktivierung unbekannt" : server.enabled ? "konfiguriert aktiviert" : "konfiguriert deaktiviert"}; Verbindung ungeprueft
+          {server.endpoint ? ` (${server.endpoint}; Pfad ausgeblendet)` : ""}
+          {server.editable ? <button type="button" disabled={patch.isPending}
+            onClick={() => patch.mutate({ revision, patch: { key: "mcp.httpServer", name: server.id, url: null, enabled: false } })}>
+            HTTP-Servereintrag entfernen
+          </button> : null}
+        </li>)}</ul>
+      </section>
     </div>
   );
 }

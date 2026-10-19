@@ -22,14 +22,15 @@ class PluginActivationTest(unittest.TestCase):
         native.dashboard_set_agent_plugin_enabled = lambda name, *, enabled: (
             calls.append((name, enabled)) or {"ok": True, "name": name, "restart_required": True,
                                           "secret": "CANARY-PRIVATE"})
-        output = io.StringIO()
-        with patch.dict(sys.modules, {"hermes_cli": package, "hermes_cli.plugins_cmd": native}), \
-             patch.object(sys, "stdin", io.StringIO('{"pluginId":"web/example","enabled":true}')), \
-             contextlib.redirect_stdout(output):
-            module.main()
-        self.assertEqual(calls, [("web/example", True)])
-        self.assertEqual(json.loads(output.getvalue()), {"ok": True, "name": "web/example", "restartRequired": True})
-        self.assertNotIn("CANARY-PRIVATE", output.getvalue())
+        with patch.dict(sys.modules, {"hermes_cli": package, "hermes_cli.plugins_cmd": native}):
+            for enabled in (True, False):
+                output = io.StringIO()
+                with patch.object(sys, "stdin", io.StringIO(json.dumps({"pluginId": "web/example", "enabled": enabled}))), \
+                     contextlib.redirect_stdout(output):
+                    module.main()
+                self.assertEqual(json.loads(output.getvalue()), {"ok": True, "name": "web/example", "restartRequired": True})
+                self.assertNotIn("CANARY-PRIVATE", output.getvalue())
+        self.assertEqual(calls, [("web/example", True), ("web/example", False)])
 
     def test_rejects_path_traversal_before_native_call(self):
         with patch.object(sys, "stdin", io.StringIO('{"pluginId":"../bad","enabled":true}')):

@@ -134,6 +134,12 @@
         "authenticated": { "type": ["boolean", "null"] }, "available": { "type": ["boolean", "null"] } },
       "required": ["id", "configFileSet", "authenticated", "available"], "additionalProperties": false } },
     "plugins": { "type": "array", "items": { "$ref": "#/$defs/extension" } },
+    "mcpComplete": { "type": "boolean" },
+    "mcpServers": { "type": "array", "items": { "type": "object", "properties": {
+      "id": { "type": "string" }, "transport": { "enum": ["http", "stdio", "unknown"] },
+      "enabled": { "type": ["boolean", "null"] }, "endpoint": { "type": ["string", "null"] },
+      "editable": { "type": "boolean" }
+    }, "required": ["id", "transport", "enabled", "endpoint", "editable"], "additionalProperties": false } },
     "write": {
       "oneOf": [
         { "type": "null" },
@@ -190,6 +196,8 @@
     "modelProviders",
     "skills",
     "plugins",
+    "mcpComplete",
+    "mcpServers",
     "write"
   ],
   "additionalProperties": false

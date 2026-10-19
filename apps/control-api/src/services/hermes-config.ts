@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { isIP } from "node:net";
 import { ApiError, conflict, validationFailed } from "../util/errors";
 import { invokeCodingRunner, type RunnerInvoker } from "./coding-runs";
 
@@ -58,6 +59,7 @@ export type HermesConfigField = keyof typeof HERMES_CONFIG_FIELDS;
 type FallbackEntry = { provider: string; model: string };
 export type HermesConfigPatch = { key: HermesConfigField; value: number | boolean | string | FallbackEntry[] | string[] | null };
 export type HermesPluginPatch = { key: "plugin.activation"; pluginId: string; enabled: boolean };
+export type HermesMcpPatch = { key: "mcp.httpServer"; name: string; url: string | null; enabled: boolean };
 export const HERMES_MODEL_CREDENTIALS = ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] as const;
 export type HermesModelCredential = typeof HERMES_MODEL_CREDENTIALS[number];
 export type HermesModelCredentialPatch = { key: HermesModelCredential; value: string | null };
@@ -81,6 +83,19 @@ function validSkillNames(value: unknown): value is string[] {
     value.every((name) => typeof name === "string" && /^[A-Za-z0-9._/-]{1,100}$/.test(name)) &&
     new Set(value).size === value.length;
 }
+function validMcpUrl(value: unknown): value is string {
+  if (typeof value !== "string" || value.length > 2048 ||
+      [...value].some((character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127)) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !!url.hostname && !url.username && !url.password &&
+      !url.search && !url.hash && (!url.port || url.port === "443") &&
+      /^[A-Za-z0-9.-]+$/.test(url.hostname) && url.hostname.includes(".") &&
+      !url.hostname.endsWith(".local") && isIP(url.hostname) === 0;
+  } catch {
+    return false;
+  }
+}
 
 interface BridgeStatus {
   installed: true;
@@ -94,6 +109,9 @@ interface BridgeStatus {
   modelProviders: Array<{ id: string; configFileSet: boolean; authenticated: null; available: null }>;
   skills: Array<{ id: string; installed: true; enabled: boolean | null }>;
   plugins: Array<{ id: string; installed: true; enabled: boolean | null; configured: null }>;
+  mcpComplete: boolean;
+  mcpServers: Array<{ id: string; transport: "http" | "stdio" | "unknown"; enabled: boolean | null;
+    endpoint: string | null; editable: boolean }>;
   write: { key: string; persisted: boolean } | null;
 }
 
@@ -145,8 +163,8 @@ export class HermesConfigService {
   }
 
   private async run(
-    action: "status" | "update" | "credential-update" | "plugin-activation",
-    patch?: HermesConfigPatch | HermesModelCredentialPatch | HermesPluginPatch,
+    action: "status" | "update" | "credential-update" | "plugin-activation" | "mcp-http",
+    patch?: HermesConfigPatch | HermesModelCredentialPatch | HermesPluginPatch | HermesMcpPatch,
     revision?: number,
   ): Promise<BridgeStatus | null> {
     const { script, distro, user } = this.target();
@@ -157,10 +175,13 @@ export class HermesConfigService {
         distro,
         user,
         [action],
-        patch ? JSON.stringify(action === "plugin-activation"
+        patch ? JSON.stringify(action === "mcp-http"
+          ? { name: (patch as HermesMcpPatch).name, url: (patch as HermesMcpPatch).url,
+            enabled: (patch as HermesMcpPatch).enabled, revision }
+          : action === "plugin-activation"
           ? { pluginId: (patch as HermesPluginPatch).pluginId, enabled: (patch as HermesPluginPatch).enabled, revision }
           : { ...patch, revision }) : undefined,
-        action === "credential-update" || action === "plugin-activation" ? 60000 : 30000,
+        action === "credential-update" || action === "plugin-activation" || action === "mcp-http" ? 60000 : 30000,
         150000,
       );
     } catch (error) {
@@ -187,7 +208,7 @@ export class HermesConfigService {
       typeof raw.inventory !== "object" || !raw.inventory ||
       !Array.isArray(raw.modelProviders) ||
       !Array.isArray(raw.skills) ||
-      !Array.isArray(raw.plugins)
+      !Array.isArray(raw.plugins) || typeof raw.mcpComplete !== "boolean" || !Array.isArray(raw.mcpServers)
     )
       throw unavailable();
     const inventory = raw.inventory as Record<string, unknown>;
@@ -224,7 +245,8 @@ export class HermesConfigService {
       (!raw.write ||
         typeof raw.write !== "object" ||
         (raw.write as Record<string, unknown>).key !== (action === "plugin-activation"
-          ? `plugin:${(patch as HermesPluginPatch).pluginId}` : patch?.key) ||
+          ? `plugin:${(patch as HermesPluginPatch).pluginId}` : action === "mcp-http"
+          ? `mcp:${(patch as HermesMcpPatch).name}` : patch?.key) ||
         typeof (raw.write as Record<string, unknown>).persisted !== "boolean")
     )
       throw unavailable();
@@ -247,6 +269,8 @@ export class HermesConfigService {
           modelProviders: [],
           skills: [],
           plugins: [],
+          mcpComplete: false,
+          mcpServers: [],
           write: null,
           checkedAt: new Date().toISOString(),
         };
@@ -352,6 +376,16 @@ export class HermesConfigService {
     return this.present(observed);
   }
 
+  async updateMcp(patch: HermesMcpPatch, revision: number) {
+    if (patch.key !== "mcp.httpServer" || !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(patch.name) ||
+        typeof patch.enabled !== "boolean" || !Number.isSafeInteger(revision) || revision < 1 ||
+        !(patch.url === null && patch.enabled === false || validMcpUrl(patch.url)))
+      throw validationFailed("Ungueltiger Hermes-MCP-Server.");
+    const observed = await this.run("mcp-http", patch, revision);
+    if (!observed) throw unavailable();
+    return this.present(observed);
+  }
+
   private present(observed: BridgeStatus) {
     const pinned = observed.sourceRevision?.startsWith("d923a5eb") === true;
     return {
@@ -426,6 +460,16 @@ export class HermesConfigService {
           needsSetup: null,
           unsupported: null,
         })),
+      mcpComplete: observed.mcpComplete,
+      mcpServers: observed.mcpServers.filter((server) =>
+        /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(server.id) &&
+        ["http", "stdio", "unknown"].includes(server.transport) &&
+        (server.enabled === null || typeof server.enabled === "boolean") &&
+        (server.endpoint === null || typeof server.endpoint === "string") &&
+        typeof server.editable === "boolean").map((server) => ({
+        id: server.id, transport: server.transport, enabled: server.enabled,
+        endpoint: server.endpoint, editable: server.editable,
+      })),
       write: observed.write
         ? {
             key: observed.write.key,

@@ -6404,6 +6404,12 @@ export interface components {
             key: "plugin.activation";
             pluginId: string;
         } | {
+            enabled: boolean;
+            /** @constant */
+            key: "mcp.httpServer";
+            name: string;
+            url: string | null;
+        } | {
             /** @enum {unknown} */
             key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
             value: string | null;
@@ -6456,6 +6462,15 @@ export interface components {
                 scope: "profile";
                 skillsComplete: boolean;
             };
+            mcpComplete: boolean;
+            mcpServers: {
+                editable: boolean;
+                enabled: boolean | null;
+                endpoint: string | null;
+                id: string;
+                /** @enum {unknown} */
+                transport: "http" | "stdio" | "unknown";
+            }[];
             modelProviders: {
                 authenticated: boolean | null;
                 available: boolean | null;

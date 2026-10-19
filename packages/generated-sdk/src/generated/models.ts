@@ -203,6 +203,12 @@ export type HermesConfigPatch =
       enabled: boolean;
     }
   | {
+      key: "mcp.httpServer";
+      name: string;
+      url: string | null;
+      enabled: boolean;
+    }
+  | {
       key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
       value: string | null;
     };
@@ -3232,6 +3238,14 @@ export interface HermesConfigStatus {
     available: boolean | null;
   }[];
   plugins: Extension[];
+  mcpComplete: boolean;
+  mcpServers: {
+    id: string;
+    transport: "http" | "stdio" | "unknown";
+    enabled: boolean | null;
+    endpoint: string | null;
+    editable: boolean;
+  }[];
   write: null | {
     key: string;
     persisted: boolean;

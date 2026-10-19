@@ -47,6 +47,7 @@ class BridgeTest(unittest.TestCase):
                        "skills.disabled": [], "skills.create_dir": "", "skills.external_dirs": []}
         self.calls = []
         self.plugin_status = "enabled"
+        self.mcp_servers = {}
 
     def run_command(self, command, **_kwargs):
         self.calls.append(command)
@@ -55,6 +56,20 @@ class BridgeTest(unittest.TestCase):
             self.plugin_status = "enabled" if request["enabled"] else "disabled"
             self.config.write_text(self.config.read_text() + "\n# synthetic plugin selection\n")
             return subprocess.CompletedProcess(command, 0, '{"ok":true}', "")
+        if command[0] == "mcp-worker":
+            request = json.loads(_kwargs["input"])
+            if request["url"] is None:
+                self.mcp_servers.pop(request["name"], None)
+            else:
+                self.mcp_servers[request["name"]] = {"url": request["url"], "enabled": request["enabled"]}
+            import yaml
+            raw = yaml.safe_load(self.config.read_text())
+            if self.mcp_servers:
+                raw["mcp_servers"] = self.mcp_servers
+            else:
+                raw.pop("mcp_servers", None)
+            self.config.write_text(yaml.safe_dump(raw))
+            return subprocess.CompletedProcess(command, 0, '{"saved":true}', "")
         if command[0] == "credential-worker":
             request = json.loads(_kwargs["input"])
             env_path = self.home / ".hermes" / ".env"
@@ -90,7 +105,9 @@ class BridgeTest(unittest.TestCase):
         config = types.ModuleType("hermes_cli.config")
         lifecycle = types.ModuleType("hermes_cli.credential_lifecycle")
         launchers = types.ModuleType("hermes_cli._launchers")
-        launchers.runtime_command = lambda *args, **kwargs: ["plugin-worker" if "hermes_plugin_activation.py" in kwargs.get("code", "") else "credential-worker"]
+        launchers.runtime_command = lambda *args, **kwargs: [
+            "plugin-worker" if "hermes_plugin_activation.py" in kwargs.get("code", "") else
+            "mcp-worker" if "hermes_mcp_http_apply.py" in kwargs.get("code", "") else "credential-worker"]
         env_path = self.home / ".hermes" / ".env"
         def load_env():
             return dict(line.split("=", 1) for line in env_path.read_text().splitlines()) if env_path.exists() else {}
@@ -110,6 +127,7 @@ class BridgeTest(unittest.TestCase):
                                       "hermes_cli._launchers": launchers}), \
              patch.object(sys, "path", sys.path.copy()), \
              patch.object(sys, "argv", ["bridge", "plugin-activation" if request and "pluginId" in request else
+                                     "mcp-http" if request and "name" in request else
                                      "credential-update" if request and request["key"] in bridge.MODEL_CREDENTIALS else "update" if request else "status"]), \
              patch.object(sys, "stdin", io.StringIO(json.dumps(request) if request else "")), contextlib.redirect_stdout(out):
             code = bridge.main()
@@ -229,12 +247,33 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(result["write"], {"key": "plugin:example", "persisted": True})
         self.assertFalse(result["plugins"][0]["enabled"])
+        persisted = bridge.revision(self.config)
+        self.assertEqual(result["revision"], persisted)
+        code, result = self.invoke({"pluginId": "example", "enabled": True, "revision": persisted})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["write"], {"key": "plugin:example", "persisted": True})
+        self.assertTrue(result["plugins"][0]["enabled"])
+        self.assertEqual(result["revision"], bridge.revision(self.config))
         self.assertTrue(any(command[0] == "plugin-worker" for command in self.calls))
         self.calls.clear()
         with self.assertRaisesRegex(ValueError, "unknown_plugin"):
             self.invoke({"pluginId": "uninstalled", "enabled": True,
                          "revision": bridge.revision(self.config)})
         self.assertFalse(any(command[0] == "plugin-worker" for command in self.calls))
+
+    def test_mcp_http_write_readback_and_redacted_endpoint(self):
+        request = {"name": "example", "url": "https://example.org/mcp", "enabled": True,
+                   "revision": bridge.revision(self.config)}
+        code, result = self.invoke(request)
+        self.assertEqual(code, 0)
+        self.assertEqual(result["write"], {"key": "mcp:example", "persisted": True})
+        self.assertEqual(result["mcpServers"], [{"id": "example", "transport": "http", "enabled": True,
+                                                  "endpoint": "https://example.org", "editable": True}])
+        code, result = self.invoke({**request, "url": None, "enabled": False,
+                                    "revision": result["revision"]})
+        self.assertEqual(code, 0)
+        self.assertTrue(result["write"]["persisted"])
+        self.assertEqual(result["mcpServers"], [])
 
     def test_disabled_skills_error_is_unknown(self):
         original = self.run_command

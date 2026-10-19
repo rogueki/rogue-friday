@@ -219,7 +219,7 @@ function Get-WslBridgeSourcePaths {
         'installer/wsl/configure_messaging_provider.py',
         'installer/wsl/messaging_provider_apply_probe.py', 'installer/wsl/messaging_provider_fields.json',
         'installer/wsl/hermes_model_credential_apply.py', 'installer/wsl/hermes_model_catalog.py',
-        'installer/wsl/hermes_plugin_activation.py',
+        'installer/wsl/hermes_plugin_activation.py', 'installer/wsl/hermes_mcp_http_apply.py',
         'installer/wsl/configure_messenger_inbound_bridge.py', 'installer/wsl/setup_messenger_inbound_bridge.sh')
 }
 function Get-VoiceSourcePaths {

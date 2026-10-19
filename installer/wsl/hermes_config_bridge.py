@@ -13,6 +13,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+from urllib.parse import urlsplit
 import yaml
 
 
@@ -83,6 +84,10 @@ PINNED_SOURCE = "d923a5eb"
 def valid_plugin_id(name):
     return (type(name) is str and re.fullmatch(r"[A-Za-z0-9._/-]{1,100}", name) is not None and
             all(part and part not in (".", "..") for part in name.split("/")))
+
+
+def valid_mcp_name(name):
+    return type(name) is str and re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{0,63}", name) is not None
 
 
 FAMILIES = (
@@ -252,7 +257,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "model-catalog"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "model-catalog"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -297,25 +302,33 @@ def locked_main(home, source, cli):
         print(json.dumps({"sourceRevision": source_revision, "providers": response["providers"],
                           "selected": response.get("selected")}))
         return 0
-    if sys.argv[1] in ("update", "credential-update", "plugin-activation"):
+    if sys.argv[1] in ("update", "credential-update", "plugin-activation", "mcp-http"):
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
         request = json.load(sys.stdin)
         plugin_update = sys.argv[1] == "plugin-activation"
-        expected_keys = {"pluginId", "enabled", "revision"} if plugin_update else {"key", "value", "revision"}
+        mcp_update = sys.argv[1] == "mcp-http"
+        expected_keys = ({"pluginId", "enabled", "revision"} if plugin_update else
+                         {"name", "url", "enabled", "revision"} if mcp_update else
+                         {"key", "value", "revision"})
         if not isinstance(request, dict) or set(request) != expected_keys:
             raise ValueError("invalid_request")
-        key = "plugin:" + request["pluginId"] if plugin_update and isinstance(request["pluginId"], str) else request.get("key")
-        value = request["enabled"] if plugin_update else request["value"]
+        key = ("plugin:" + request["pluginId"] if plugin_update and isinstance(request["pluginId"], str) else
+               "mcp:" + request["name"] if mcp_update and isinstance(request["name"], str) else request.get("key"))
+        value = request["enabled"] if plugin_update or mcp_update else request["value"]
         credential_update = sys.argv[1] == "credential-update"
-        spec = FIELDS.get(key) if not plugin_update else None
+        spec = FIELDS.get(key) if not (plugin_update or mcp_update) else None
         if type(request["revision"]) is not int or (plugin_update and
                 (not valid_plugin_id(request["pluginId"]) or
-                 type(value) is not bool)) or (credential_update and
+                 type(value) is not bool)) or (mcp_update and
+                 (not valid_mcp_name(request["name"]) or type(value) is not bool or
+                  not (request["url"] is None and value is False or
+                       type(request["url"]) is str and len(request["url"]) <= 2048))) or (credential_update and
                  (key not in MODEL_CREDENTIALS or not (value is None or
                  (isinstance(value, str) and 1 <= len(value) <= 4096 and
                   all(32 <= ord(char) <= 126 for char in value))))) or \
-                (not credential_update and not plugin_update and (not spec or not valid_field_value(key, value, spec))):
+                (not credential_update and not plugin_update and not mcp_update and
+                 (not spec or not valid_field_value(key, value, spec))):
             raise ValueError("unsupported_field")
         lock = lock_config(home)
         try:
@@ -346,6 +359,19 @@ def locked_main(home, source, cli):
                     accepted = False
                 if result.returncode or not accepted:
                     raise ValueError("plugin_activation_unconfirmed")
+            if mcp_update:
+                sys.path.insert(0, str(source))
+                from hermes_cli._launchers import runtime_command
+                helper = Path(__file__).with_name("hermes_mcp_http_apply.py")
+                command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
+                result = run_runtime_child(command, json.dumps({"name": request["name"],
+                    "url": request["url"], "enabled": value}), 30)
+                try:
+                    accepted = json.loads(result.stdout).get("saved") is True
+                except (ValueError, TypeError):
+                    accepted = False
+                if result.returncode or not accepted:
+                    raise ValueError("mcp_write_unconfirmed")
             if key == "skills.disabled":
                 roots, root_errors = inventory_roots(home, call)
                 names, scan_errors = installed_skills(roots)
@@ -369,7 +395,7 @@ def locked_main(home, source, cli):
                 finally:
                     fcntl.flock(env_lock, fcntl.LOCK_UN)
                     env_lock.close()
-            elif not plugin_update:
+            elif not plugin_update and not mcp_update:
                 # Hermes owns validation and preserving the rest of config.yaml. Never --force.
                 call("set", key, json.dumps(value, separators=(",", ":")) if isinstance(value, list) else
                      "null" if value is None else str(value).lower() if isinstance(value, bool) else str(value))
@@ -379,7 +405,7 @@ def locked_main(home, source, cli):
             lock.close()
     else:
         current, raw = snapshot(config_path)
-    write_key = key if sys.argv[1] == "plugin-activation" else None
+    write_key = key if sys.argv[1] in ("plugin-activation", "mcp-http") else None
     values = {}
     for key in FIELDS:
         if key != "skills.disabled":
@@ -417,6 +443,28 @@ def locked_main(home, source, cli):
     except (ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
         plugin_rows = []
         plugin_errors.append("plugin_inventory_unknown")
+    mcp_rows, mcp_errors = [], []
+    mcp_config = raw.get("mcp_servers")
+    if mcp_config is not None and not isinstance(mcp_config, dict):
+        mcp_errors.append("mcp_inventory_unknown")
+    elif isinstance(mcp_config, dict):
+        for name, entry in mcp_config.items():
+            if not isinstance(name, str) or not isinstance(entry, dict):
+                mcp_errors.append("mcp_inventory_unknown")
+                continue
+            transport = "http" if isinstance(entry.get("url"), str) else "stdio" if isinstance(entry.get("command"), str) else "unknown"
+            endpoint = None
+            if transport == "http":
+                try:
+                    parts = urlsplit(entry["url"])
+                    if parts.scheme in ("https", "http") and parts.hostname and not parts.username and not parts.password:
+                        endpoint = f"{parts.scheme}://{parts.hostname}"
+                except ValueError:
+                    pass
+            mcp_rows.append({"id": name, "transport": transport,
+                             "enabled": entry.get("enabled", True) if type(entry.get("enabled", True)) is bool else None,
+                             "endpoint": endpoint,
+                             "editable": transport == "http" and set(entry) <= {"url", "enabled"}})
     if revision(config_path) != current:
         raise ValueError("concurrent_config_change")
     configured_providers = raw.get("providers")
@@ -430,7 +478,7 @@ def locked_main(home, source, cli):
                             valid_field_value("model.provider", name, FIELDS["model.provider"]))
     # This list covers the configured profile only. Hermes' picker can also offer
     # installed providers and curated models, so it is not a complete catalog.
-    inventory_reasons = sorted(set(root_errors + skill_errors + plugin_errors +
+    inventory_reasons = sorted(set(root_errors + skill_errors + plugin_errors + mcp_errors +
                                    ["provider_catalog_not_enumerated"] +
                                    (["model_provider_name_unsupported"] if invalid_provider_names else [])))
     from_env = {key: False for key in MODEL_CREDENTIALS}
@@ -441,6 +489,22 @@ def locked_main(home, source, cli):
             name, separator, candidate = line.partition("=")
             if separator and name in MODEL_CREDENTIALS and candidate.strip().strip('"'):
                 from_env[name] = True
+    write = None
+    if sys.argv[1] == "plugin-activation":
+        matches = [row for row in plugin_rows if row.get("name") == request["pluginId"]]
+        write = {"key": write_key, "persisted": len(matches) == 1 and
+                 matches[0].get("status") in ("enabled", "disabled", "not enabled") and
+                 (matches[0]["status"] == "enabled") == value}
+    elif sys.argv[1] == "mcp-http":
+        persisted = (not isinstance(mcp_config, dict) or request["name"] not in mcp_config) if request["url"] is None else (
+            isinstance(mcp_config, dict) and mcp_config.get(request["name"]) ==
+            {"url": request["url"], "enabled": value})
+        write = {"key": write_key, "persisted": persisted and not mcp_errors}
+    elif sys.argv[1] == "update":
+        write = {"key": request["key"], "persisted": values[request["key"]] == request["value"]}
+    elif sys.argv[1] == "credential-update":
+        write = {"key": request["key"], "persisted": from_env.get(request["key"], False) ==
+                 (request["value"] is not None)}
     print(json.dumps({
         "installed": True, "revision": current, "sourceRevision": source_revision,
         "values": values, "explicit": explicit,
@@ -461,13 +525,8 @@ def locked_main(home, source, cli):
         "plugins": [{"id": row["name"], "installed": True,
                      "enabled": True if row["status"] == "enabled" else False if row["status"] in ("disabled", "not enabled") else None,
                      "configured": None} for row in plugin_rows],
-        "write": {"key": write_key, "persisted": len([row for row in plugin_rows if row.get("name") == request["pluginId"]]) == 1 and
-                  any(row.get("name") == request["pluginId"] and row.get("status") in ("enabled", "disabled", "not enabled") and
-                      (row.get("status") == "enabled") == value for row in plugin_rows)} if sys.argv[1] == "plugin-activation" else
-                 {"key": request["key"], "persisted": values[request["key"]] == request["value"]}
-                 if sys.argv[1] == "update" else
-                 {"key": request["key"], "persisted": from_env.get(request["key"], False) ==
-                  (request["value"] is not None)} if sys.argv[1] == "credential-update" else None,
+        "mcpServers": mcp_rows, "mcpComplete": not mcp_errors,
+        "write": write,
     }))
     return 0
 
