@@ -83,14 +83,16 @@ def validate_values(platform, values, registry):
             clean[field] = None
             continue
         limit = 32768 if field == "GOOGLE_CHAT_SERVICE_ACCOUNT_JSON" else 4096
-        if not isinstance(value, str) or not value or len(value) > limit or any(ord(char) < 32 for char in value):
+        if not isinstance(value, str) or not value or len(value) > limit:
             raise ValueError("invalid provider field value")
         if field == "GOOGLE_CHAT_SERVICE_ACCOUNT_JSON":
             data = json.loads(value)
             if not isinstance(data, dict) or data.get("type") != "service_account":
                 raise ValueError("invalid service account")
             value = json.dumps(data, separators=(",", ":"))
-        elif field.endswith("_URL") or field in {"MATRIX_HOMESERVER", "MATTERMOST_URL"}:
+        if any(ord(char) < 32 for char in value):
+            raise ValueError("invalid provider field value")
+        if field.endswith("_URL") or field in {"MATRIX_HOMESERVER", "MATTERMOST_URL"}:
             parsed = urlparse(value)
             if parsed.scheme not in ("https", "http", "wss", "ws") or not parsed.netloc or parsed.username or parsed.password:
                 raise ValueError("invalid provider URL")

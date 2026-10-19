@@ -5,6 +5,7 @@ import sys
 
 def apply(request):
     from hermes_cli.credential_lifecycle import remove_provider_env_credential, save_provider_env_credential
+    from hermes_cli.config import load_env
 
     done = 0
     attempted = False
@@ -12,9 +13,12 @@ def apply(request):
         for field, value in request["values"].items():
             attempted = True
             if value is None:
-                remove_provider_env_credential(field)
+                result = remove_provider_env_credential(field)
             else:
-                save_provider_env_credential(field, value)
+                result = save_provider_env_credential(field, value)
+            if not isinstance(result, dict) or result.get("ok") is not True or \
+                    (value is None and field in load_env()) or (value is not None and load_env().get(field) != value):
+                raise RuntimeError("Hermes credential persistence not confirmed")
             done += 1
     except Exception:
         return {"state": "partial" if done else "uncertain" if attempted else "rejected", "appliedFields": done}

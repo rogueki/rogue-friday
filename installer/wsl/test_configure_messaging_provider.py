@@ -32,6 +32,10 @@ class ProviderConfigTest(unittest.TestCase):
             bridge.validate_values("bluebubbles", {"BLUEBUBBLES_SERVER_URL": "https://user:pass@example.org"}, fields)
         with self.assertRaises(ValueError):
             bridge.validate_values("bluebubbles", {"BLUEBUBBLES_PASSWORD": "line\nsecret"}, fields)
+        pretty = '{\n  "type": "service_account",\n  "project_id": "synthetic"\n}'
+        compact = bridge.validate_values("google_chat", {"GOOGLE_CHAT_SERVICE_ACCOUNT_JSON": pretty}, fields)
+        self.assertEqual(compact["GOOGLE_CHAT_SERVICE_ACCOUNT_JSON"],
+            '{"type":"service_account","project_id":"synthetic"}')
 
     def test_stale_revision_never_invokes_credential_runtime(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(bridge, "HOME", Path(directory)), \
@@ -83,12 +87,25 @@ class ProviderConfigTest(unittest.TestCase):
 
     def test_credential_error_after_first_attempt_is_uncertain(self):
         credentials = types.ModuleType("hermes_cli.credential_lifecycle")
+        config = types.ModuleType("hermes_cli.config")
+        config.load_env = lambda: {}
         def fails_after_write(*_args):
             raise OSError("synthetic failure after env write")
         credentials.save_provider_env_credential = fails_after_write
         credentials.remove_provider_env_credential = fails_after_write
         with patch.dict(sys.modules, {"hermes_cli": types.ModuleType("hermes_cli"),
-                "hermes_cli.credential_lifecycle": credentials}):
+                "hermes_cli.credential_lifecycle": credentials, "hermes_cli.config": config}):
+            result = apply_bridge.apply({"values": {"MATRIX_ACCESS_TOKEN": "synthetic-secret"}})
+        self.assertEqual(result, {"state": "uncertain", "appliedFields": 0})
+
+    def test_normal_return_without_persisted_value_is_uncertain(self):
+        credentials = types.ModuleType("hermes_cli.credential_lifecycle")
+        credentials.save_provider_env_credential = lambda *_args: {"ok": True}
+        credentials.remove_provider_env_credential = lambda *_args: {"ok": True}
+        config = types.ModuleType("hermes_cli.config")
+        config.load_env = lambda: {}
+        with patch.dict(sys.modules, {"hermes_cli": types.ModuleType("hermes_cli"),
+                "hermes_cli.credential_lifecycle": credentials, "hermes_cli.config": config}):
             result = apply_bridge.apply({"values": {"MATRIX_ACCESS_TOKEN": "synthetic-secret"}})
         self.assertEqual(result, {"state": "uncertain", "appliedFields": 0})
 
