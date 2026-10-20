@@ -22,6 +22,9 @@ CONSUMER_SOURCES = {
     "approvals.mode": "tools/approval_context.py:216;tools/approval.py:964",
     "security.protected_instruction_files": "tools/file_tools_write_guards.py:193",
     "browser.inactivity_timeout": "tools/browser_tool.py:397",
+    "browser.allow_private_urls": "tools/browser_tool.py:648;tools/browser_tool_cloud.py:253",
+    "browser.restrict_evaluate": "tools/browser_tool_eval_policy.py:100;tools/browser_tool_eval_policy.py:135",
+    "browser.allow_unsafe_evaluate": "tools/browser_tool_eval_policy.py:92;tools/browser_tool_eval_policy.py:135",
     "browser.dialog_policy": "tools/browser_tool_cdp.py:73",
     "browser.dialog_timeout_s": "tools/browser_tool_cdp.py:73",
     "code_execution.kernel_idle_timeout": "tools/code_kernel.py:409",
@@ -31,6 +34,7 @@ CONSUMER_SOURCES = {
     "computer_use.capture_after_mode": "tools/computer_use/tool.py:908",
 }
 RUNTIME_FIXTURE_KEYS = {"browser.inactivity_timeout", "code_execution.kernel_idle_timeout",
+                        "browser.allow_private_urls", "browser.restrict_evaluate", "browser.allow_unsafe_evaluate",
                         "code_execution.max_session_kernels", "computer_use.capture_after_mode",
                         "terminal.container_cpu", "terminal.container_memory", "terminal.container_disk",
                         "approvals.single_query_mode", "approvals.unattended_mode", "approvals.mode",
