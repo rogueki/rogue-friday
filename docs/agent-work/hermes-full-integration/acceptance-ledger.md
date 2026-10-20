@@ -121,7 +121,7 @@ For each row in `settings-runtime-map.csv`, record: (1) source of choices, (2) r
 | DOD-11 | Natural language covers all action families, context and changes. | NOT_RUN |
 | DOD-12 | Spoken/button Stop share cancellation contract; only wake word reactivates. | NOT_RUN |
 | DOD-13 | Secrets, existing data and custom settings are protected and retained. | NOT_RUN |
-| DOD-14 | Clean-environment install, upgrade and rollback are verified. | NOT_RUN for physical install/upgrade/rollback. [P10 fixtures](p10-recovery-evidence.md) verify the isolated recovery orchestration's failure gates, including refusal to restart tasks/services after either WSL or Windows rollback fails; they do not establish the full criterion. |
+| DOD-14 | Clean-environment install, upgrade and rollback are verified. | NOT_RUN for physical install/upgrade/rollback. [P10 fixtures](p10-recovery-evidence.md) verify the isolated recovery orchestration's failure gates, including refusal to restart tasks/services after either WSL or Windows rollback fails; they do not establish the full criterion. [p10-clean-install-drill.md](p10-clean-install-drill.md) is the checklist for the physical run (services, ports, owner setup, Hermes pin, nine smoke tests, backup/restore); it is a plan, not evidence. |
 | DOD-15 | Relevant local checks and final CI pass; known regressions are closed or explicitly open. | NOT_RUN |
 | DOD-16 | README/help, architecture/operations docs, version matrix and project memory are updated. | NOT_RUN |
 
