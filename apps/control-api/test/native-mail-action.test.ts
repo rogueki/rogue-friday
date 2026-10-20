@@ -148,6 +148,71 @@ it("fails unknown or ambiguous recipients before any preview is staged", async (
   } finally { await api.close(); }
 });
 
+it("resolves an ambiguous mail recipient across an authenticated session turn and sends only after confirmation", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const { send } = mockMailbox(api);
+    const owner = api.client();
+    await owner.loginDev("owner");
+    await disableTier2(owner);
+    const search = vi.spyOn(api.runtime.mailAccounts, "search");
+    const duplicateSenders = { mailbox: "INBOX", uidValidity: "u1", page: 1, items: [
+      { id: "1", from: "Becker, Anna <anna.becker@example.test>", date: "2026-10-18T09:00:00Z" },
+      { id: "2", from: "Becker, Bert <bert.becker@example.test>", date: "2026-10-17T09:00:00Z" },
+    ] };
+    search.mockResolvedValueOnce(duplicateSenders).mockResolvedValueOnce(duplicateSenders);
+    const text = "Schreibe eine Mail an Becker mit dem Betreff Projektstatus: Das Release ist fertig";
+    const ambiguous = await owner.post("/api/v1/commands", { text, source: "text" });
+    expect(ambiguous.statusCode).toBe(409);
+    expect(ambiguous.json().error.details).toMatchObject({ clarificationRequired: true, optionCount: 2 });
+    expect(ambiguous.json().error.message).toContain("anna.becker@example.test");
+    expect(send).not.toHaveBeenCalled();
+    expect(stagedRows(api)).toBe(0);
+    const pending = api.runtime.db.prepare("SELECT payload_ciphertext FROM pending_command_clarifications").get() as { payload_ciphertext: string };
+    expect(pending.payload_ciphertext).not.toContain("Das Release ist fertig");
+
+    const clarification = await owner.post("/api/v1/commands", { text: "choose the second", source: "text" });
+    expect(clarification.statusCode, clarification.body).toBe(200);
+    expect(clarification.json()).toMatchObject({ status: "requires_confirmation", requiresConfirmation: true });
+    expect(clarification.json().previewText).toContain("bert.becker@example.test");
+    expect(send).not.toHaveBeenCalled();
+    expect(stagedRows(api)).toBe(1);
+
+    const confirmed = await owner.post("/api/v1/commands", { text, source: "text", confirm: true, previewId: clarification.json().previewId });
+    expect(confirmed.statusCode, confirmed.body).toBe(200);
+    expect(confirmed.json().status).toBe("executed");
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]![1]).toMatchObject({ to: ["bert.becker@example.test"], subject: "Projektstatus", body: "Das Release ist fertig" });
+    const history = api.runtime.db.prepare("SELECT text FROM command_history ORDER BY created_at").all() as Array<{ text: string }>;
+    expect(history.map((row) => row.text).join("\n")).not.toContain("Das Release ist fertig");
+    expect(history.some((row) => row.text === "[REDACTED]")).toBe(true);
+  } finally { await api.close(); }
+});
+
+it("does not resume mail composition when the ambiguous mailbox candidates changed", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const { send } = mockMailbox(api);
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const search = vi.spyOn(api.runtime.mailAccounts, "search");
+    search.mockResolvedValueOnce({ mailbox: "INBOX", uidValidity: "u1", page: 1, items: [
+      { id: "1", from: "Anna Becker <anna.becker@example.test>", date: "2026-10-18T09:00:00Z" },
+      { id: "2", from: "Bert Becker <bert.becker@example.test>", date: "2026-10-17T09:00:00Z" },
+    ] }).mockResolvedValueOnce({ mailbox: "INBOX", uidValidity: "u1", page: 1, items: [
+      { id: "1", from: "Anna Becker <anna.becker@example.test>", date: "2026-10-18T09:00:00Z" },
+      { id: "3", from: "Clara Becker <clara.becker@example.test>", date: "2026-10-16T09:00:00Z" },
+    ] });
+    const text = "Schreibe eine Mail an Becker: Das Release ist fertig";
+    expect((await owner.post("/api/v1/commands", { text, source: "text" })).statusCode).toBe(409);
+    const resumed = await owner.post("/api/v1/commands", { text: "second", source: "text" });
+    expect(resumed.statusCode).toBe(409);
+    expect(resumed.json().error.message).toContain("Empfaengerliste hat sich");
+    expect(send).not.toHaveBeenCalled();
+    expect(stagedRows(api)).toBe(0);
+  } finally { await api.close(); }
+});
+
 it("records an uncertain SMTP outcome and never sends twice on replay", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {

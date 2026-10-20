@@ -449,6 +449,22 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE research_projects ADD COLUMN result_summary TEXT;
     `,
   },
+  {
+    id: 28,
+    name: "pending-command-clarifications",
+    sql: `
+      CREATE TABLE pending_command_clarifications (
+        id TEXT PRIMARY KEY,
+        owner_id TEXT NOT NULL,
+        session_hash TEXT NOT NULL,
+        payload_ciphertext TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        UNIQUE (owner_id, session_hash)
+      );
+      CREATE INDEX idx_pending_command_clarifications_expiry ON pending_command_clarifications (expires_at);
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

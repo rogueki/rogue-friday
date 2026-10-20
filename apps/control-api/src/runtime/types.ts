@@ -14,6 +14,7 @@ import type { LogBuffer } from "../services/log-buffer";
 import type { OrbService, OverviewService, StatusService } from "../services/core-views";
 import type { SettingsService } from "../services/settings";
 import type { NativeApprovalRequests } from "../services/native-approval-requests";
+import type { PendingCommandClarifications } from "../services/pending-command-clarifications";
 import type { ContentStudioKeysService } from "../services/content-studio-keys";
 import type { ContentStudioProviderService } from "../services/content-studio-providers";
 import type { ContentStudioPlanService } from "../services/content-studio-plan";
@@ -92,6 +93,7 @@ export interface Runtime {
   approvalTokens: ApprovalTokenService;
   settings: SettingsService;
   nativeApprovals: NativeApprovalRequests;
+  pendingCommandClarifications: PendingCommandClarifications;
   contentStudioKeys: ContentStudioKeysService;
   contentStudioProviders: ContentStudioProviderService;
   contentStudioPlan: ContentStudioPlanService;

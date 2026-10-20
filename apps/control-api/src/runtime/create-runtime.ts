@@ -35,6 +35,7 @@ import { AdapterSettingsService } from "../services/adapter-settings";
 import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, summarizeAdapters } from "../services/core-views";
 import { SettingsService, seedLibrary } from "../services/settings";
 import { NativeApprovalRequests } from "../services/native-approval-requests";
+import { PendingCommandClarifications } from "../services/pending-command-clarifications";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
 import { DurableMemoryService } from "../services/durable-memory";
@@ -269,6 +270,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const settings = new SettingsService(db, config, validator, library, () => adapterSettings.list());
   if (world) world.state.settings.approvals = structuredClone(settings.area("approvals"));
   const nativeApprovals = new NativeApprovalRequests(db, settings, validator, options.now);
+  const pendingCommandClarifications = new PendingCommandClarifications(db,
+    deriveKey(serverKey.key, "pending-command-clarifications"), options.now);
   logger.setLevel?.(settings.area("developer").logLevel);
   let contentStudioKeys: ContentStudioKeysService;
   try {
@@ -538,6 +541,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     approvalTokens,
     settings,
     nativeApprovals,
+    pendingCommandClarifications,
     contentStudioKeys,
     contentStudioProviders,
     contentStudioPlan,
@@ -635,10 +639,12 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
             sessions.purgeExpired();
           }, 3_600_000),
         );
+        timers.push(setInterval(() => pendingCommandClarifications.purgeExpired(), 60_000));
         for (const timer of timers) timer.unref?.();
       }
       idempotency.purgeExpired();
       sessions.purgeExpired();
+      pendingCommandClarifications.purgeExpired();
     },
     async close() {
       durableMemory.close();

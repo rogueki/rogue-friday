@@ -16,11 +16,11 @@ export type NativeExecutableAction =
   | { kind: "task.cancel"; id: string; body?: TaskActionRequest }
   | { kind: "task.retry"; id: string; body?: TaskActionRequest }
   | { kind: "calendar.create"; body: LocalEventInput }
-  | { kind: "calendar.update"; id: string; version: number; body: LocalEventInput }
+  | { kind: "calendar.update"; id: string; version: number; body: LocalEventInput; sessionBinding?: string }
   /** The snapshot lets a replayed confirmation still answer with the event as it was before the deletion. */
-  | { kind: "calendar.delete"; id: string; version: number; snapshot: CalendarEvent }
+  | { kind: "calendar.delete"; id: string; version: number; snapshot: CalendarEvent; sessionBinding?: string }
   /** The journal in MailSendService makes the actual SMTP call durable and at-most-once per staged action. */
-  | { kind: "mail.send"; accountId: string; body: MailSendRequest }
+  | { kind: "mail.send"; accountId: string; body: MailSendRequest; sessionBinding?: string }
   | { kind: "mail.change"; accountId: string; mailbox: string; uid: string; uidValidity: string; change: "move" | "flag"; destination?: string }
   /** The journal in MessengerSendService keeps provider delivery at-most-once per staged action. */
   | { kind: "messenger.send"; draft: MessengerSendDraft }

@@ -53,7 +53,7 @@ export class LocalCalendarService {
   }
 
   findOwnerByTitle(ownerId: string, title: string): CalendarEvent[] {
-    const rows = this.db.prepare("SELECT * FROM local_calendar_events WHERE owner_id = ? AND lower(title) = lower(?) ORDER BY starts_at, id LIMIT 2").all(ownerId, title.trim()) as unknown as Row[];
+    const rows = this.db.prepare("SELECT * FROM local_calendar_events WHERE owner_id = ? AND lower(title) = lower(?) ORDER BY starts_at, id LIMIT 5").all(ownerId, title.trim()) as unknown as Row[];
     return rows.map(event);
   }
 
