@@ -70,8 +70,10 @@ describe("observability operations (PLAN §50.3)", () => {
     expect(Object.keys(telemetry?.op.responses ?? {})).toEqual(expect.arrayContaining(["202", "401", "403", "413", "422", "429"]));
   });
 
-  it("the contract includes the 270 released operations", () => {
-    expect(operations).toHaveLength(270);
+  it("the contract includes the 271 released operations", () => {
+    // 269 after the wave-2 merge, 270 with the staged Hermes cron mutation, 271 with the native
+    // approval dry run. Bump deliberately with the release note instead of fitting the number to a failure.
+    expect(operations).toHaveLength(271);
   });
 
   it("binds STT inventory and explicit download control to the owner", () => {
