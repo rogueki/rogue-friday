@@ -15,7 +15,9 @@ export type SettingsContentMutationIntent =
   | { kind: "contentStudio.posting.fromIdea"; title: string; date: string }
   | { kind: "contentStudio.posting.create"; title: string; date: string; time: string; platform: string; format: string }
   | { kind: "contentStudio.posting.status"; title: string; date: string; time: string; status: "geplant" | "gepostet" | "verpasst" }
-  | { kind: "contentStudio.posting.remove"; title: string; date: string; time: string };
+  | { kind: "contentStudio.posting.remove"; title: string; date: string; time: string }
+  | { kind: "contentStudio.plan.exportGuided" }
+  | { kind: "contentStudio.plan.importGuided" };
 
 const SETTING_COMPACT = /^(?:please\s+)?(?:set|change|stelle|aendere|ändere)\s+(?:my\s+)?(?:dashboard\s+)?(?:compact|kompakt)(?:\s+mode)?\s+(?:(?:to|auf)\s+)?(on|off|enabled|disabled|ein|aus)(?:[.!?])?$/i;
 const SETTING_REFRESH = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:the\s+)?(?:dashboard\s+)?(?:refresh|aktualisierung)(?:\s+interval)?\s+(?:(?:to|auf)\s+)?([0-9]{1,4})\s*(?:seconds?|sekunden|s)?[.!?]?$/i;
@@ -33,11 +35,15 @@ const CREATE_POSTING = /^(?:schedule|create|plan|plane(?:\s+ein)?|trage\s+ein)\s
 const POSTING_STATUS = /^(?:set|change|setze|aendere|ändere)\s+status\s+(?:of|von)\s+(?:the\s+)?posting\s+"([^"\r\n]{1,200})"\s+(?:on|am)\s+([0-9]{4}-[0-9]{2}-[0-9]{2})\s+(?:at|um)\s+([0-2][0-9]:[0-5][0-9])\s+(?:to|auf)\s+(planned|geplant|posted|gepostet|missed|verpasst)[.!?]?$/i;
 const REMOVE_IDEA = /^(?:remove|delete|entferne|loesche|lösche)\s+(?:the\s+)?(?:idea|idee)\s+"([^"\r\n]{1,200})"[.!?]?$/i;
 const REMOVE_POSTING = /^(?:remove|delete|entferne|loesche|lösche)\s+(?:the\s+)?posting\s+"([^"\r\n]{1,200})"\s+(?:on|am)\s+([0-9]{4}-[0-9]{2}-[0-9]{2})\s+(?:at|um)\s+([0-2][0-9]:[0-5][0-9])[.!?]?$/i;
+const PLAN_GUIDED = /^(?:please\s+)?(?:export|download|exportiere|exportier|import|importiere|importier)\s+(?:(?:the|den)\s+)?(?:content\s+studio\s+|content\s+)?(?:plan|redaktionsplan)(?:[.!?])?$/i;
 
 /** Small typed write grammar; free text is data only inside the exact terminal idea-title slot. */
 export function parseSettingsContentMutationIntent(input: string): SettingsContentMutationIntent | null {
   const rawText = input.trim();
   const text = rawText.replace(/\s+/g, " ");
+  const guidedPlan = PLAN_GUIDED.exec(text);
+  if (guidedPlan) return /^(export|download|exportiere|exportier)$/i.test(guidedPlan[0]!.split(/\s+/)[0]!)
+    ? { kind: "contentStudio.plan.exportGuided" } : { kind: "contentStudio.plan.importGuided" };
   const compact = SETTING_COMPACT.exec(text);
   if (compact) return { kind: "settings.dashboard.compact", value: /^(on|enabled|ein)$/i.test(compact[1]!) };
   const refresh = SETTING_REFRESH.exec(text);

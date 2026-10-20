@@ -91,4 +91,9 @@ describe("settings and Content Studio mutation intents", () => {
       .toEqual({ kind: "contentStudio.posting.remove", title: "Release note", date: "2026-10-23", time: "14:30" });
     expect(parseSettingsContentMutationIntent('Remove posting "Release note" on 2026-02-30 at 14:30')).toBeNull();
   });
+
+  it("maps plan import/export to explicit guided file-picker actions", () => {
+    expect(parseSettingsContentMutationIntent("Export Content Studio plan")).toEqual({ kind: "contentStudio.plan.exportGuided" });
+    expect(parseSettingsContentMutationIntent("Importiere den Redaktionsplan")).toEqual({ kind: "contentStudio.plan.importGuided" });
+  });
 });

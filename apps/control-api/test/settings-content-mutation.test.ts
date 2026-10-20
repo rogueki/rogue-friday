@@ -111,6 +111,20 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     }
   });
 
+  it("guides plan export and import to the actual browser file actions", async () => {
+    const settings = api.runtime.settings.get();
+    if (!settings.dashboard.contentStudioEnabled)
+      api.runtime.settings.patch({ dashboard: { ...settings.dashboard, contentStudioEnabled: true } }, settings.version);
+    const before = api.runtime.contentStudioPlan.get();
+    const exported = await command(owner, "Export Content Studio plan");
+    expect(exported.statusCode, exported.body).toBe(200);
+    expect(exported.json()).toMatchObject({ status: "executed", result: { targetRoute: "/content-studio", message: expect.stringContaining("Plan exportieren") } });
+    const imported = await command(owner, "Importiere den Redaktionsplan");
+    expect(imported.json()).toMatchObject({ status: "executed", result: { targetRoute: "/content-studio", message: expect.stringContaining("Dateiauswahldialog") } });
+    expect((await command(operator, "Export Content Studio plan")).statusCode).toBe(403);
+    expect(api.runtime.contentStudioPlan.get().revision).toBe(before.revision);
+  });
+
   it("adds an idea through a typed action even when its title looks like a read, with plan CAS and replay", async () => {
     const settings = (await owner.get("/api/v1/settings")).json().data;
     if (!settings.dashboard.contentStudioEnabled)

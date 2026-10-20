@@ -7,8 +7,9 @@ rename, description and scheduling actions described below are a second local
 slice after commit `763ac9a`. Date, format and platform edits are a third local
 slice. Manual posting create/status and bounded idea/post removals were added in
 the fourth slice; dashboard refresh interval is a fifth slice and background
-grid, sound effects and Content Studio gating are a sixth local slice. The
-fifth and sixth slices are pending review and commit.
+grid, sound effects and Content Studio gating are a sixth local slice. A seventh
+slice adds guided Content Studio browser import/export; each slice remains
+subject to root review and broader integration checks.
 
 ## Implemented actions and source path
 
@@ -30,6 +31,7 @@ fifth and sixth slices are pending review and commit.
 | `set status of posting "<title>" on YYYY-MM-DD at HH:MM to planned/posted/missed` | `contentStudio.posting.status` | Resolves one unique title/date/time tuple before staging and updates only the status through canonical plan persistence with captured revision. | Exact UI counterpart is PostingCalendar/list status selector; tests verify persisted `gepostet` state. Ambiguous tuples fail before staging. |
 | `remove posting "<title>" on YYYY-MM-DD at HH:MM` | `contentStudio.posting.remove` | Resolves one unique tuple before staging, previews the exact item, and removes only that row via canonical plan CAS after confirmation. | Exact UI counterpart is the Postingplan `Entfernen` button; tests verify explicit preview and stored removal. |
 | `retry task <id/title>` / selected task, including German restart phrasing | `task.retry` | Resolves task before staging, checks retryable state, captures `task.retry` in the native approval journal, and calls the existing task port with the journal idempotency key after confirmation. | Exact operation is `retryTask`; preview/approval/replay tested against a failed fixture task. This adds a missing NL consumer to the existing direct retry endpoint. |
+| `export/download Content Studio plan` or `import Content Studio plan` / German equivalents | `contentStudio.plan.exportGuided` / `contentStudio.plan.importGuided` | Returns the Content Studio route and explicit instructions for the existing browser download or JSON file picker. It does not read arbitrary paths, upload bytes, or pretend the file operation already occurred. | `ContentStudioPage.tsx`: `downloadPlan`, “Plan exportieren” button, “Plan importieren” button, hidden JSON file input and `importPlan` change handler. API test checks owner-only access and unchanged server plan revision. The actual download/file selection remains a user browser step. |
 
 These actions pin the concrete payload and revision in the native preview,
 reject a corrected payload against an old preview, and use the existing native
@@ -51,7 +53,7 @@ physical voice behavior or full natural-language coverage.
 
 | ID | Exact requirement | Current evidence | Remaining work / boundary |
 |---|---|---|---|
-| NLP-01 | Every UI action has an accessible language/text action or justified guided physical step. | Settings compact/refresh/grid/sound/Content Studio gate; Content Studio add/status/rename/description/date/format/platform/idea schedule/manual posting create/status and idea/post removal; task.retry; Settings and plan read consumers exist in the earlier read slice. | Still unmapped: other Settings fields; plan import/export; media, production and publishing UI actions. Continue the dashboard-wide callback inventory. |
+| NLP-01 | Every UI action has an accessible language/text action or justified guided physical step. | Settings compact/refresh/grid/sound/Content Studio gate; Content Studio add/status/rename/description/date/format/platform/idea schedule/manual posting create/status and idea/post removal; task.retry; plan import/export are guided to the actual browser controls. Settings and plan read consumers exist in the earlier read slice. | Still unmapped: other Settings fields; media, production and publishing UI actions. Continue the dashboard-wide callback inventory. |
 | NLP-02 | References/pronouns resolve to the intended entity. | Content Studio title references resolve exact unique idea title before staging; no cross-turn pronoun context is added. | Add scoped context and multi-turn references across entity families. |
 | NLP-03 | Ambiguous recipients/calendars prompt for clarification. | Title-based Content Studio actions refuse duplicate titles before staging. | Implement conversational clarification turn for recipient/calendar and title ambiguity; current duplicate rejection is safe but not a clarification exchange. |
 | NLP-04 | Any material correction invalidates prior approval. | Native mutation drafts bind exact new title, description, status and plan date/payload; rename tests reject a corrected title against the old preview. | Cross-family recipient/channel corrections and existing approval-edit paths remain unverified. |

@@ -112,6 +112,8 @@ function makeAction(ctx: RequestContext, intent: SettingsContentMutationIntent):
     ctx.runtime.settings.validateAreas({ dashboard });
     return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
   }
+  if (intent.kind === "contentStudio.plan.exportGuided" || intent.kind === "contentStudio.plan.importGuided")
+    throw conflict("Diese Dateiaktion wird als angeleiteter Browser-Schritt verarbeitet.");
   if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
   const current = ctx.runtime.contentStudioPlan.get();
   if (intent.kind === "contentStudio.idea.status") {
@@ -230,6 +232,12 @@ function proposalText(action: NativeExecutableAction): string {
 export async function executeSettingsContentMutation(ctx: RequestContext, request: CommandRequest,
   intent: SettingsContentMutationIntent): Promise<HandlerResult> {
   const ownerId = isOwner(ctx);
+  if (intent.kind === "contentStudio.plan.exportGuided" || intent.kind === "contentStudio.plan.importGuided") {
+    if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
+    return baseResponse(ctx, "executed", { result: { targetRoute: "/content-studio", message: intent.kind === "contentStudio.plan.exportGuided"
+      ? "Content Studio geoeffnet. Klicke auf Plan exportieren, damit der Browser plan.json herunterlaedt."
+      : "Content Studio geoeffnet. Klicke auf Plan importieren und waehle die JSON-Datei im Dateiauswahldialog aus." } });
+  }
   if (intent.kind.startsWith("settings.") && !authorize(ctx.principal!.role, "settings.update").allowed)
     throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
   if (intent.kind.startsWith("contentStudio.") && ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true)
