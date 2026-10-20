@@ -70,14 +70,55 @@ describe("observability operations (PLAN §50.3)", () => {
     expect(Object.keys(telemetry?.op.responses ?? {})).toEqual(expect.arrayContaining(["202", "401", "403", "413", "422", "429"]));
   });
 
-  it("the contract includes the 255 released operations", () => {
-    expect(operations).toHaveLength(255);
+  it("the contract includes the 271 released operations", () => {
+    // 269 after the wave-2 merge, 270 with the staged Hermes cron mutation, 271 with the native
+    // approval dry run. Bump deliberately with the release note instead of fitting the number to a failure.
+    expect(operations).toHaveLength(271);
+  });
+
+  it("binds STT inventory and explicit download control to the owner", () => {
+    for (const [operationId, method, path] of [
+      ["listVoiceSttModels", "get", "/api/v1/voice/stt-models"],
+      ["startVoiceSttModelDownload", "post", "/api/v1/voice/stt-models/download"],
+      ["cancelVoiceSttModelDownload", "post", "/api/v1/voice/stt-models/cancel"],
+    ]) {
+      const found = operations.find(({ op }) => op.operationId === operationId);
+      expect(found, operationId).toMatchObject({ method, path });
+      expect(found?.op["x-required-role"]).toBe("owner");
+      if (method === "post") {
+        expect(found?.op.requestBody).toBeDefined();
+        expect((found?.op.parameters ?? []).map((parameter) => parameter.$ref))
+          .toContain("#/components/parameters/CsrfToken");
+      }
+    }
+  });
+
+  it("binds all five wake enrollment routes to owner-only staged operations", () => {
+    const wake = [
+      ["getWakeEnrollment", "get", "/api/v1/voice/wake-enrollment"],
+      ["startWakeEnrollment", "post", "/api/v1/voice/wake-enrollment/start"],
+      ["addWakeEnrollmentSample", "post", "/api/v1/voice/wake-enrollment/samples"],
+      ["trainWakeEnrollment", "post", "/api/v1/voice/wake-enrollment/train"],
+      ["discardWakeEnrollment", "post", "/api/v1/voice/wake-enrollment/discard"],
+    ];
+    for (const [operationId, method, path] of wake) {
+      const found = operations.find(({ op }) => op.operationId === operationId);
+      expect(found, operationId).toMatchObject({ method, path });
+      expect(found?.op["x-required-role"], operationId).toBe("owner");
+      if (method === "post") {
+        expect(found?.op.requestBody, operationId).toBeDefined();
+        expect((found?.op.parameters ?? []).map((parameter) => parameter.$ref), operationId)
+          .toContain("#/components/parameters/CsrfToken");
+      }
+    }
+    expect(operations.find(({ op }) => op.operationId === "addWakeEnrollmentSample")?.op["x-max-body-bytes"]).toBe(260000);
   });
 
   it("Hermes config is owner-only and its typed mutation requires CSRF and If-Match", () => {
     const get = operations.find(({ op }) => op.operationId === "getHermesConfig");
     const patch = operations.find(({ op }) => op.operationId === "patchHermesConfig");
     const catalog = operations.find(({ op }) => op.operationId === "getHermesModelCatalog");
+    const approvalTest = operations.find(({ op }) => op.operationId === "testHermesApproval");
     expect(get).toMatchObject({ path: "/api/v1/settings/hermes-config", method: "get" });
     expect(patch).toMatchObject({ path: "/api/v1/settings/hermes-config", method: "patch" });
     expect(get?.op["x-required-role"]).toBe("owner");
@@ -88,6 +129,11 @@ describe("observability operations (PLAN §50.3)", () => {
       "#/components/parameters/CsrfToken", "#/components/parameters/IfMatch",
     ]));
     expect(patch?.op.requestBody).toBeDefined();
+    expect(approvalTest).toMatchObject({ path: "/api/v1/settings/hermes-config/approval-test", method: "post" });
+    expect(approvalTest?.op["x-required-role"]).toBe("owner");
+    expect((approvalTest?.op.parameters ?? []).map((parameter) => parameter.$ref)).toEqual(expect.arrayContaining([
+      "#/components/parameters/CsrfToken", "#/components/parameters/IfMatch",
+    ]));
   });
 
   it("marks owner telephony actions with a call capability", () => {

@@ -26,7 +26,7 @@ async function request(path: string, body?: unknown): Promise<Status> {
   return response.json() as Promise<Status>;
 }
 
-async function capture(): Promise<string> {
+export async function captureEnrollmentPcm(): Promise<string> {
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.AudioWorkletNode) throw new Error("Mikrofon benötigt HTTPS oder localhost und AudioWorklet.");
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }, video: false });
   let audio: AudioContext | null = null;
@@ -74,7 +74,7 @@ export function LinuxEnrollment() {
   const next = (Object.keys(labels) as Kind[]).find((kind) => status.counts[kind] < status.required[kind]);
   const record = async (kind: Kind) => {
     setBusy(true); setError(null);
-    try { const pcmBase64 = await capture(); const result = await request("/samples", { kind, pcmBase64 }); if (mounted.current) setStatus(result); }
+    try { const pcmBase64 = await captureEnrollmentPcm(); const result = await request("/samples", { kind, pcmBase64 }); if (mounted.current) setStatus(result); }
     catch (reason) { if (mounted.current) setError(reason instanceof Error ? reason.message : "Aufnahme fehlgeschlagen."); }
     finally { if (mounted.current) setBusy(false); }
   };

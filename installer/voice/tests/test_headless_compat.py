@@ -36,6 +36,7 @@ class HeadlessCompatibilityTests(unittest.TestCase):
         service = voice_module.VoiceService.__new__(voice_module.VoiceService)
         service.status = {"state": "waiting_audio"}
         service.audio_transport = "browser"
+        service.ptt_active = False
         import audio_level
         service.tts = types.SimpleNamespace(speaking=threading.Event(), level=audio_level.LevelMeter())
         service.input_level = audio_level.LevelMeter()

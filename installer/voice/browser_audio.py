@@ -85,7 +85,7 @@ class BrowserAudioBridge:
                         command = json.loads(message)
                     except (ValueError, TypeError):
                         command = None
-                    if not isinstance(command, dict) or command.get("type") not in ("stop", "pause", "resume") or len(command) != 1:
+                    if not isinstance(command, dict) or command.get("type") not in ("stop", "pause", "resume", "start", "release") or len(command) != 1:
                         await connection.close(code=1003, reason="invalid control")
                         break
                     self.service.browser_control(command["type"])

@@ -1,4 +1,4 @@
-import type { Task, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
+import type { Task, TaskActionRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
 import {
   AdapterError,
   assertCanonicalEvent,
@@ -56,7 +56,7 @@ export function taskEventType(kind: string, task: Task): AdapterEventInput["type
 
 /**
  * Tasks/Kanban on Hermes: dashboard REST of the Kanban plugin (read + create + update) and the Kanban event WebSocket
- * (`tasks.stream`). Cancel, retry, pause and resume are not offered: no live-verified Hermes interface.
+ * (`tasks.stream`). Cancel archives atomically in Hermes; retry is restricted to non-running terminal/blocked work.
  */
 export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
   readonly manifest = manifestFor("tasks");
@@ -162,6 +162,7 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
   async createTask(params: { body: TaskCreateRequest }, call: MutationContext): Promise<Single<Task>> {
     const { kanban, settings, context } = this.ready();
     const { body } = params;
+    if (body.provider && !body.model) throw unsupported("Ein Task-Anbieter erfordert ein Modell.");
     if (body.dueAt !== undefined && body.dueAt !== null) {
       throw unsupported("Hermes kennt keine Fälligkeit; dueAt wird nicht unterstützt.");
     }
@@ -183,6 +184,8 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
       ...(body.agentId ? { assignee: await this.resolveAgent(body.agentId, call) } : {}),
       ...(body.priority ? { priority: toHermesPriority(body.priority) } : {}),
       ...(body.model ? { model_override: body.model } : {}),
+      ...(body.model && body.provider ? { provider_override: body.provider } : {}),
+      ...(body.reasoningLevel ? { reasoning_effort: body.reasoningLevel } : {}),
       ...(tenant ? { tenant } : {}),
       ...(call.idempotencyKey ? { idempotency_key: call.idempotencyKey } : {}),
     };
@@ -244,6 +247,54 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
       data: this.requireMapper().map({ board: ref.board, raw, profileModel }, this.mapContext()),
       freshness: { state: "fresh", asOf: toIso(context.clock) },
     };
+  }
+
+  async cancelTask(params: IdParam & { body?: TaskActionRequest }, call: MutationContext): Promise<Single<Task>> {
+    const { kanban, context } = this.ready();
+    const ref = await this.resolveTask(params.id, call);
+    const before = await kanban.taskDetail(ref, "cancelTask", call);
+    this.assertLifecycleVersion(before.task, call);
+    if (before.task.status === "archived" || before.task.status === "done") {
+      throw new AdapterError({ code: "CONFLICT", message: "Die Aufgabe ist bereits beendet.", retryable: false });
+    }
+    // Pinned Friday route checks event revision, status and current run/claim under SQLite's write lock.
+    // Upstream archive commits before killing, so a lost response is never replayed blindly.
+    await kanban.lifecycleTask(ref, "cancel", before, call);
+    const after = await kanban.taskDetail(ref, "cancelTask", call);
+    if (after.task.status !== "archived") {
+      throw new AdapterError({ code: "CONFLICT", message: "Hermes meldet die Aufgabe nicht als archiviert.", retryable: false });
+    }
+    return { data: this.mapDetail(ref.board, after, await this.profileModel(call)),
+      freshness: { state: "fresh", asOf: toIso(context.clock) } };
+  }
+
+  async retryTask(params: IdParam & { body?: TaskActionRequest }, call: MutationContext): Promise<Single<Task>> {
+    const { kanban, context } = this.ready();
+    const ref = await this.resolveTask(params.id, call);
+    const before = await kanban.taskDetail(ref, "retryTask", call);
+    this.assertLifecycleVersion(before.task, call);
+    // `ready` with last_failure_error is a historical failure marker, not a stopped task:
+    // the dispatcher may already be claiming it. Only blocked failures and archived work
+    // have a known safe transition to ready in the pinned Hermes workflow.
+    if (before.task.status !== "archived" &&
+        !(before.task.status === "blocked" &&
+          (before.task.lastFailureError || before.task.blockKind === "friday_stopped"))) {
+      throw new AdapterError({ code: "CONFLICT", message: "Nur archivierte oder blockierte fehlgeschlagene Aufgaben koennen erneut gestartet werden.", retryable: false });
+    }
+    await kanban.lifecycleTask(ref, "retry", before, call);
+    const after = await kanban.taskDetail(ref, "retryTask", call);
+    if (after.task.status !== "ready" && after.task.status !== "running") {
+      throw new AdapterError({ code: "CONFLICT", message: "Hermes hat den Neustart nicht bestaetigt.", retryable: false });
+    }
+    return { data: this.mapDetail(ref.board, after, await this.profileModel(call)),
+      freshness: { state: "fresh", asOf: toIso(context.clock) } };
+  }
+
+  private assertLifecycleVersion(raw: WireTaskDetail["task"], call: MutationContext): void {
+    if (call.ifMatchVersion !== undefined && taskVersion(raw) !== call.ifMatchVersion) {
+      throw new AdapterError({ code: "CONFLICT", message: "Die Aufgabe wurde in Hermes zwischenzeitlich geaendert.",
+        retryable: false, details: { expectedVersion: call.ifMatchVersion, currentVersion: taskVersion(raw) } });
+    }
   }
 
   // ---- events (tasks.stream) ---------------------------------------------------------------------------------------------

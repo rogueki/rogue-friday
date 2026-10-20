@@ -213,6 +213,11 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
           if (!cancel) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Aufgaben koennen derzeit nicht abgebrochen werden." });
           return (await cancel({ id: action.id, body: action.body }, call)).data.id;
         }
+        if (action.kind === "task.retry") {
+          const retry = tasks.retryTask;
+          if (!retry) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Aufgaben koennen derzeit nicht neu gestartet werden." });
+          return (await retry({ id: action.id, body: action.body }, call)).data.id;
+        }
         // Local calendar writes are Friday's own database rows; no adapter port is involved.
         const calendar = new LocalCalendarService(runtime.db);
         if (action.kind === "calendar.create") return calendar.create(action.body, principal.userId).id;
@@ -224,6 +229,13 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
         // Mail sends go through the durable send journal: one SMTP attempt per staged action, uncertain on ambiguity.
         if (action.kind === "mail.send") {
           await runtime.mailSend.send(action.accountId, action.body, principal.userId, idempotencyKey);
+          return runtime.mailSend.receipt(action.accountId, principal.userId, idempotencyKey).receiptId;
+        }
+        if (action.kind === "mail.send.clarified") {
+          const body = runtime.encryptedClarifiedMailDrafts.consume(principal.userId, action.sessionBinding,
+            action.draftId, action.intentHash);
+          if (!body) throw conflict("Der verschluesselte Mailentwurf ist abgelaufen oder wurde bereits verwendet.");
+          await runtime.mailSend.send(action.accountId, body, principal.userId, idempotencyKey);
           return runtime.mailSend.receipt(action.accountId, principal.userId, idempotencyKey).receiptId;
         }
         if (action.kind === "mail.change") {
@@ -260,6 +272,13 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
         if (action.kind.startsWith("automation.")) {
           return (await dispatchAutomationAction(runtime, action, call)).receipt;
         }
+        if (action.kind === "research.create") {
+          return (await runtime.research.create(principal.userId, action.body.topic, idempotencyKey, action.providerVersion)).id;
+        }
+        if (action.kind === "hermesCron.mutate") {
+          const receipt = await runtime.hermesConfig.mutateCron(action.body);
+          return receipt.jobId;
+        }
         throw conflict("Aktion ist nicht ausfuehrbar.");
       })) : await approveBase(ctx);
     const result = (base.body as { data: Approval }).data;
@@ -276,6 +295,11 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
       throw conflict("Die Freigabe wurde zwischenzeitlich geaendert.", { currentVersion: native.version });
     const base = native ? nativeResponse(ctx, ctx.runtime.nativeApprovals.reject(principal.userId, native.id, ctx.actor,
       (ctx.body as ApprovalDecisionRequest | undefined)?.comment ?? null)) : await rejectBase(ctx);
+    if (native) {
+      const action = ctx.runtime.nativeApprovals.readActionForApproval(principal.userId, native.id);
+      if (action?.kind === "mail.send.clarified")
+        ctx.runtime.encryptedClarifiedMailDrafts.delete(principal.userId, action.sessionBinding, action.draftId);
+    }
     ctx.audit.after = { status: (base.body as { data: Approval }).data.status };
     return base;
   },

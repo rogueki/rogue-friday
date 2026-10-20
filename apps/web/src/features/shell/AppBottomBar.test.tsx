@@ -106,6 +106,42 @@ describe("AppBottomBar text input", () => {
   });
 });
 
+describe("command preview dismissal", () => {
+  it("waits for backend draft invalidation before closing the preview", async () => {
+    const user = userEvent.setup();
+    const { impl, calls } = commandFetch((body) => body.confirm === false
+      ? { status: "rejected", requiresConfirmation: false, previewId: "corr_12345678901234567890123456" }
+      : { status: "requires_confirmation", requiresConfirmation: true, previewText: "Vorschau", previewId: "corr_12345678901234567890123456", riskTier: 2 });
+    renderWithProviders(<><AppBottomBar /><CommandConfirmHost /></>, {
+      fetchImpl: impl,
+      capabilities: capabilitiesOf({ commands: { execute: true, stop: true, pause: true, resume: true } }),
+    });
+
+    await user.type(screen.getByRole("textbox", { name: "Befehl eingeben" }), "Neue Aufgabe{Enter}");
+    expect(await screen.findByText("Vorschau")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Abbrechen" }));
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect(calls[1]).toMatchObject({ confirm: false, previewId: "corr_12345678901234567890123456" });
+    await waitFor(() => expect(screen.queryByText("Vorschau")).not.toBeInTheDocument());
+  });
+
+  it("keeps the preview visible when backend draft invalidation fails", async () => {
+    const user = userEvent.setup();
+    const { impl } = commandFetch((body) => body.confirm === false
+      ? { status: "failed", requiresConfirmation: false, previewId: "corr_12345678901234567890123456" }
+      : { status: "requires_confirmation", requiresConfirmation: true, previewText: "Vorschau bleibt", previewId: "corr_12345678901234567890123456", riskTier: 2 });
+    renderWithProviders(<><AppBottomBar /><CommandConfirmHost /></>, {
+      fetchImpl: impl,
+      capabilities: capabilitiesOf({ commands: { execute: true, stop: true, pause: true, resume: true } }),
+    });
+
+    await user.type(screen.getByRole("textbox", { name: "Befehl eingeben" }), "Neue Aufgabe{Enter}");
+    expect(await screen.findByText("Vorschau bleibt")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Abbrechen" }));
+    expect(await screen.findByText("Vorschau bleibt")).toBeInTheDocument();
+  });
+});
+
 it("shows overview voice stop without pause and sends voice-only stop", async () => {
   const user = userEvent.setup();
   const requests: Array<{ path: string; body: Record<string, unknown> }> = [];

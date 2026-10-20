@@ -57,7 +57,7 @@ export function useTaskActionStates(task: Task | undefined): Record<TaskActionId
 /**
  * Mutations of the task actions. Status changes, result approvals, cancels, the agents-port assignment and the
  * update-based assign fallback are staged writes: the server shows a preview first and executes only after the user
- * confirms it (taskWriteRunner). Pause/resume/retry stay one-shot adapter actions.
+ * confirms it (taskWriteRunner). Pause/resume stay one-shot adapter actions.
  */
 export function useTaskCommands() {
   const { t } = useT();
@@ -65,7 +65,6 @@ export function useTaskCommands() {
   const canAssignOperation = useCapabilityState("agents", "assignTask") === "available";
   const pause = useTaskAction("pause");
   const resume = useTaskAction("resume");
-  const retry = useTaskAction("retry");
   const runTaskWrite = useRunTaskWrite();
   const staging = useTaskWriteBusy();
 
@@ -98,13 +97,14 @@ export function useTaskCommands() {
   };
 
   const run = (action: "pause" | "resume" | "cancel" | "retry", task: Task): void => {
-    if (action === "cancel") {
-      void runTaskWrite({ kind: "cancel", id: task.id, version: task.version,
-        successMessage: t("tasks.toast.cancelled"), taskTitle: task.title });
+    if (action === "cancel" || action === "retry") {
+      void runTaskWrite({ kind: action, id: task.id, version: task.version,
+        successMessage: t(action === "cancel" ? "tasks.toast.cancelled" : "tasks.toast.retried"),
+        taskTitle: task.title });
       return;
     }
-    const message = { pause: "tasks.toast.paused", resume: "tasks.toast.resumed", retry: "tasks.toast.retried" } as const;
-    settle({ pause, resume, retry }[action].mutateAsync({ id: task.id, version: task.version }), () => done(message[action], task));
+    const message = { pause: "tasks.toast.paused", resume: "tasks.toast.resumed" } as const;
+    settle({ pause, resume }[action].mutateAsync({ id: task.id, version: task.version }), () => done(message[action], task));
   };
 
   return {
@@ -112,6 +112,6 @@ export function useTaskCommands() {
     assign,
     approveResult,
     run,
-    pending: staging || pause.isPending || resume.isPending || retry.isPending,
+    pending: staging || pause.isPending || resume.isPending,
   };
 }

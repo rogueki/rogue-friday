@@ -10,9 +10,10 @@ Wake-Engines (voice.json "wake_engine"):
   die ECAPA-Sprecherpruefung.
 
 Fail closed: ohne Sprecherprofil/ECAPA startet der Dienst nicht; unbekannte Sprecher werden still ignoriert.
-Keine Rohaudios werden gespeichert, nur Metadaten in logs/voice.jsonl.
+Rohaudio wird nur nach ausdruecklicher Aktivierung fuer akzeptierte Befehle gespeichert.
 """
 import argparse
+import atexit
 import collections
 import datetime
 import http.server
@@ -52,11 +53,15 @@ except (ImportError, OSError):
 import torch  # noqa: E402
 
 import personal_wake  # noqa: E402
+import runtime_settings  # noqa: E402
+from wake_enrollment import WakeEnrollment  # noqa: E402
+from stt_models import SttModels  # noqa: E402
 from content_studio_voice import ContentStudioVoice  # noqa: E402
 from skills_onboarding_voice import SkillsOnboardingVoice  # noqa: E402
 from coding_voice import CodingVoice  # noqa: E402
 from calendar_voice import CalendarVoice  # noqa: E402
 from mail_voice import MailVoice  # noqa: E402
+from research_voice import ResearchVoice  # noqa: E402
 from powerpoint_voice import PowerPointVoice  # noqa: E402
 from cloudtalk_voice import CloudTalkVoice  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
@@ -66,6 +71,7 @@ from voice_runtime_paths import dashboard_port  # noqa: E402
 from memory_outbox import MemoryOutbox, private_intent  # noqa: E402
 
 SR = 16000
+STT_PREFLIGHT_TIMEOUT = 45
 CHUNK = 1280  # 80 ms, Eingabegroesse von openWakeWord
 VAD_FRAME = 512
 LOG_PATH = os.path.join(STATE_ROOT, "logs", "voice.jsonl")
@@ -287,13 +293,14 @@ class Speaker:
                     else:
                         samples = (pcm.astype(np.float32) / 32768.0,)
                     for audio in samples:
+                        audio = runtime_settings.pace(audio, self.tts_config.get("tts_rate", 1.0))
                         self.level.update(audio, target_rate)
                         self._note_output(audio, target_rate)
                         underflows += bool(out.write(audio.reshape(-1, 1)))
                 if not self.stop_flag.is_set():
                     if resampler:
                         for output in resampler.resample(None):
-                            audio = output.to_ndarray().reshape(-1)
+                            audio = runtime_settings.pace(output.to_ndarray().reshape(-1), self.tts_config.get("tts_rate", 1.0))
                             self.level.update(audio, target_rate)
                             self._note_output(audio, target_rate)
                             underflows += bool(out.write(audio.reshape(-1, 1)))
@@ -361,12 +368,13 @@ class Speaker:
                 if self.stop_flag.is_set():
                     return
                 shaped = fx.process(chunk.audio_float_array)
+                shaped = runtime_settings.pace(shaped, self.tts_config.get("tts_rate", 1.0))
                 self.level.update(shaped, self.sr)
                 self._note_output(shaped, self.sr)
                 out.write(shaped.reshape(-1, 1))
             tail = fx.flush()
             if len(tail) and not self.stop_flag.is_set():
-                out.write(tail.reshape(-1, 1))
+                out.write(runtime_settings.pace(tail, self.tts_config.get("tts_rate", 1.0)).reshape(-1, 1))
 
     def _play_elevenlabs(self, text: str) -> None:
         if self.browser_audio is not None:
@@ -382,6 +390,9 @@ class Speaker:
                 complete = len(pending) // 2560 * 2560
                 if complete:
                     data, pending = pending[:complete], pending[complete:]
+                    if self.tts_config.get("tts_rate", 1.0) != 1:
+                        samples = np.frombuffer(data, dtype="<i2").astype(np.float32) / 32768.0
+                        data = (np.clip(runtime_settings.pace(samples, self.tts_config["tts_rate"]), -1, 1) * 32767).astype("<i2").tobytes()
                     self.level.update(np.frombuffer(data, dtype="<i2"), elevenlabs_cloud.TTS_RATE)
                     if not self.browser_audio.send_pcm(data, self.stop_flag):
                         return
@@ -389,6 +400,9 @@ class Speaker:
             if len(pending) % 2:
                 pending = pending[:-1]
             if pending and not self.stop_flag.is_set():
+                if self.tts_config.get("tts_rate", 1.0) != 1:
+                    samples = np.frombuffer(pending, dtype="<i2").astype(np.float32) / 32768.0
+                    pending = (np.clip(runtime_settings.pace(samples, self.tts_config["tts_rate"]), -1, 1) * 32767).astype("<i2").tobytes()
                 if self.browser_audio.send_pcm(pending, self.stop_flag):
                     self._note_output(np.frombuffer(pending, dtype="<i2").astype(np.float32) / 32768.0, elevenlabs_cloud.TTS_RATE)
             return
@@ -419,12 +433,13 @@ class Speaker:
                 else:
                     samples = (pcm.astype(np.float32) / 32768.0,)
                 for audio in samples:
+                    audio = runtime_settings.pace(audio, self.tts_config.get("tts_rate", 1.0))
                     self.level.update(audio, target_rate)
                     self._note_output(audio, target_rate)
                     out.write(audio.reshape(-1, 1))
             if resampler and not self.stop_flag.is_set():
                 for frame in resampler.resample(None):
-                    audio = frame.to_ndarray().reshape(-1)
+                    audio = runtime_settings.pace(frame.to_ndarray().reshape(-1), self.tts_config.get("tts_rate", 1.0))
                     self.level.update(audio, target_rate)
                     self._note_output(audio, target_rate)
                     out.write(audio.reshape(-1, 1))
@@ -453,6 +468,7 @@ class Speaker:
             effect = FilmFilter(rate, True)
             audio = np.concatenate((effect.process(audio), effect.flush()))
         audio, rate = for_output_device(audio, rate, self.output_device)
+        audio = runtime_settings.pace(audio, self.tts_config.get("tts_rate", 1.0))
         with sd.OutputStream(samplerate=rate, channels=1, dtype="float32", device=self.output_device) as out:
             for offset in range(0, len(audio), 4096):
                 if self.stop_flag.is_set():
@@ -555,9 +571,12 @@ class SpeakerVerifier:
 
 
 class VoiceService:
-    def __init__(self, cfg: dict, test_wake_model: str | None):
+    def __init__(self, cfg: dict, test_wake_model: str | None, config_path: str | None = None):
         self.cfg = cfg
+        self.config_path = config_path or os.path.join(INSTALL_ROOT, "config", "voice.json")
+        self.config_disk_hash = runtime_settings.file_hash(self.config_path)
         self.audio_transport = cfg.get("audio_transport", "device")
+        self.native_ptt_available = self.audio_transport == "device" and os.name == "nt"
         if self.audio_transport not in ("device", "browser"):
             raise SystemExit("audio_transport muss device oder browser sein")
         if self.audio_transport == "browser" and cfg.get("voice_mode") != "elevenlabs":
@@ -570,6 +589,7 @@ class VoiceService:
         if self.engine not in ("openwakeword", "personal"):
             raise SystemExit(f"Unbekannte wake_engine '{self.engine}' in voice.json (openwakeword|personal).")
         self.phrase = cfg.get("wake_phrase") or personal_wake.wake_phrase(self.name)
+        cfg.setdefault("wake_phrase", self.phrase)
         # Additive Felder (assistant_name, wake_phrase, wake_engine, wake_rejected): bisherige Schluessel bleiben gleich.
         self.status = {"state": "starting", "started": datetime.datetime.now().isoformat(timespec="seconds"),
                        "last_event": None, "wake_count": 0, "rejected_speaker": 0, "commands": 0,
@@ -582,7 +602,15 @@ class VoiceService:
         self.stop_audio_q: queue.Queue[np.ndarray] = queue.Queue(maxsize=64)
         self.transcribe_lock = threading.Lock()
         self.manual_start = threading.Event()
+        self.manual_release = threading.Event()
+        self.ptt_active = False
         self.manual_start_lock = threading.Lock()
+        self.wake_model_lock = threading.Lock()
+        self.wake_enrollment = WakeEnrollment(INSTALL_ROOT, STATE_ROOT)
+        self.stt_models = SttModels(os.path.join(STATE_ROOT, "models", "whisper"),
+                                    local_mode=cfg.get("voice_mode") != "elevenlabs",
+                                    current_model=lambda: self.cfg.get("whisper_model"))
+        atexit.register(self.stt_models.close)
         self.control_cancel = threading.Event()
         self.control_paused = False
         # Kurzlebige Verarbeitungsphase einer Aeusserung: None | "transcribing" | "thinking" (siehe voice_phase()).
@@ -598,7 +626,8 @@ class VoiceService:
         self.background_jobs: set[str] = set()
         self.background_reply_ready = threading.Event()
         self.last_wake = 0.0
-        self.history: list[dict] = []
+        self.history: list[dict] = runtime_settings.PrivacyHistory(
+            lambda: self.cfg.get("voice_history_enabled", True))
         self.memory_session_id = None
         self.memory_dialog_id = None
         self.memory_dialog_private = False
@@ -612,11 +641,13 @@ class VoiceService:
             self.memory_capture_error = type(exc).__name__
         self.memory_retry = threading.Event()
         threading.Thread(target=self._memory_delivery_worker, daemon=True).start()
+        threading.Thread(target=self._recording_retention_worker, daemon=True).start()
         self.hermes_key = open(cfg["hermes_key_file"], encoding="utf-8").read().strip()
         self.content_studio_voice = ContentStudioVoice(INSTALL_ROOT)
         self.coding_voice = CodingVoice(INSTALL_ROOT)
         self.calendar_voice = CalendarVoice(INSTALL_ROOT, zone=cfg.get("calendar_time_zone", "Europe/Berlin"))
         self.mail_voice = MailVoice(INSTALL_ROOT, interpret=self._interpret_mail)
+        self.research_voice = ResearchVoice(INSTALL_ROOT)
         self.powerpoint_voice = PowerPointVoice(INSTALL_ROOT)
         self.cloudtalk_voice = CloudTalkVoice()
         self.skills_onboarding_voice = SkillsOnboardingVoice(
@@ -693,6 +724,47 @@ class VoiceService:
               f"{meta.get('quality', '?')}, Phrasencheck {'an' if self.cfg.get('wake_confirm', True) else 'aus'})",
               flush=True)
 
+    def _prepare_wake_switch(self, phrase: str, prepared_paths=None) -> dict:
+        oww_dir = os.path.join(STATE_ROOT, "models", "openwakeword")
+        rollback = getattr(self, "wake_rollback", None)
+        if rollback is not None and personal_wake.phrase_key(rollback["phrase"]) == personal_wake.phrase_key(phrase):
+            rollback["prepared"]["detector"].reset()
+            return rollback["prepared"]
+        if personal_wake.is_pretrained_phrase(phrase):
+            from openwakeword.model import Model
+            model_path = self.cfg["wake_model"]
+            if not os.path.isfile(model_path):
+                raise ValueError("Pretrained wake model is missing")
+            verifier = {}
+            if os.path.exists(self.cfg["wake_verifier"]):
+                name = os.path.splitext(os.path.basename(model_path))[0]
+                verifier = {"custom_verifier_models": {name: self.cfg["wake_verifier"]},
+                            "custom_verifier_threshold": self.cfg["wake_verifier_threshold"]}
+            detector = Model(wakeword_models=[model_path], inference_framework="onnx",
+                             melspec_model_path=os.path.join(oww_dir, "melspectrogram.onnx"),
+                             embedding_model_path=os.path.join(oww_dir, "embedding_model.onnx"), **verifier)
+            detector.reset()
+            return {"engine": "openwakeword", "detector": detector, "name": list(detector.models.keys())[0],
+                    "threshold": self.cfg["wake_threshold"], "high_confidence": None,
+                    "model_path": None, "meta_path": None}
+        if prepared_paths is None:
+            raise ValueError("Train the selected wake phrase in the dashboard before saving")
+        model_path, meta_path = prepared_paths
+        meta = personal_wake.load_meta(meta_path)
+        if personal_wake.phrase_key(meta.get("wake_phrase", "")) != personal_wake.phrase_key(phrase):
+            raise ValueError("Trained wake model phrase mismatch")
+        detector = personal_wake.PersonalWakeDetector(
+            personal_wake.WindowModel.load(model_path), os.path.join(oww_dir, "melspectrogram.onnx"),
+            os.path.join(oww_dir, "embedding_model.onnx"))
+        detector.reset()
+        threshold = meta["threshold"]
+        calibration = meta.get("calibration") or {}
+        false_maxima = (calibration.get("speech_max"), calibration.get("words_max"))
+        high = (max(threshold, *(value + 1.0 for value in false_maxima))
+                if all(isinstance(value, (int, float)) for value in false_maxima) else None)
+        return {"engine": "personal", "detector": detector, "name": "personal", "threshold": threshold,
+                "high_confidence": high, "model_path": model_path, "meta_path": meta_path}
+
     # ---------- Audio ----------
     def _on_audio(self, indata, frames, time_info, status) -> None:
         self.input_level.update(indata[:, 0])
@@ -746,7 +818,7 @@ class VoiceService:
                 if len(audio) < int(0.28 * SR) or self.control_generation != generation:
                     continue
                 try:
-                    if self.verifier.score(audio) < self.cfg["speaker_threshold"]:
+                    if self.cfg.get("speaker_verification_required", True) and self.verifier.score(audio) < self.cfg["speaker_threshold"]:
                         continue
                     with self.transcribe_lock:
                         phrase = self._transcribe(audio)
@@ -787,11 +859,35 @@ class VoiceService:
             self.cancel_active_interaction(pause=action == "pause")
             return
         with self.manual_start_lock:
+            if action == "start":
+                if self.control_paused or self.status["state"] not in ("listening", "wake_only") or self.manual_start.is_set():
+                    return
+                self.manual_release.clear()
+                self.manual_start.set()
+                self.ptt_active = True
+                return
+            if action == "release":
+                self.manual_release.set()
+                self.ptt_active = False
+                return
             if action == "resume":
                 self.control_paused = False
                 self.control_cancel.clear()
                 self.status["state"] = "listening"
                 return
+
+    def _native_ptt_loop(self) -> None:
+        controller = runtime_settings.NativePushToTalk(
+            lambda: self.cfg.get("push_to_talk_key", "Ctrl+Space"), runtime_settings.native_key_pressed,
+            lambda: self.browser_control("start"), lambda: self.browser_control("release"))
+        while True:
+            try:
+                controller.step()
+            except OSError as exc:
+                self.native_ptt_available = False
+                log_event(event="native_ptt_error", error=type(exc).__name__)
+                return
+            time.sleep(0.02)
 
     def cancel_active_interaction(self, pause: bool = False) -> None:
         """One cancellation boundary for spoken stop, browser stop and local control."""
@@ -800,6 +896,8 @@ class VoiceService:
             self.control_generation += 1
             self.control_cancel.set()
             self.manual_start.clear()
+            self.manual_release.set()
+            self.ptt_active = False
             self.trusted_until = 0.0
             self.background_jobs.clear()
             self.background_reply_ready.clear()
@@ -814,6 +912,8 @@ class VoiceService:
             self.processing = None
             self.status["state"] = "paused" if pause else "wake_only"
             self.tts.interrupt()
+            if hasattr(self, "research_voice"):
+                self.research_voice.cancel()
             if had_dialog:
                 self._queue_memory_event("action_result", {"kind": "action", "actionId": "dialog.cancel",
                                           "targetId": None, "externalId": None}, "aborted")
@@ -829,6 +929,8 @@ class VoiceService:
                     break
 
     def _queue_memory_event(self, event_type: str, payload: dict, outcome: str = "completed", private: bool = False) -> None:
+        if not self.cfg.get("voice_history_enabled", True):
+            return
         if not self.memory_dialog_id:
             return
         private = private or getattr(self, "memory_session_private", False)
@@ -860,6 +962,9 @@ class VoiceService:
             self.memory_retry.clear()
             if self.memory_outbox is not None:
                 try:
+                    if not self.cfg.get("voice_history_enabled", True):
+                        self.memory_outbox.purge()
+                        continue
                     policy_db = os.path.join(INSTALL_ROOT, "dashboard", "data", "memory", "outbox.sqlite")
                     policy = self.memory_outbox.capture_policy(policy_db)
                     if policy == "allowed":
@@ -871,6 +976,14 @@ class VoiceService:
                         self.memory_capture_error = "CAPTURE_POLICY_UNAVAILABLE"
                 except Exception as exc:
                     self.memory_capture_error = type(exc).__name__
+
+    def _recording_retention_worker(self) -> None:
+        while True:
+            try:
+                runtime_settings.prune_recordings(STATE_ROOT)
+            except OSError as exc:
+                log_event(event="recording_retention_error", error=type(exc).__name__)
+            time.sleep(3600)
 
     def _send_memory_event(self, event: dict) -> bool:
             try:
@@ -908,6 +1021,9 @@ class VoiceService:
         with self.manual_start_lock:
             if self.processing or self.tts.speaking.is_set() or self.status["state"] in ("command", "followup", "speaking"):
                 raise RuntimeError("Friday ist beschaeftigt")
+            config_path = getattr(self, "config_path", os.path.join(INSTALL_ROOT, "config", "voice.json"))
+            expected = getattr(self, "config_disk_hash", runtime_settings.file_hash(config_path))
+            runtime_settings.assert_revision(config_path, expected)
             previous_stream = self.input_stream
             previous_output = self.tts.output_device
             previous_input_id = self.audio_input_device_id
@@ -929,17 +1045,9 @@ class VoiceService:
                 self.tts.output_device = selected_output
                 updated = {**previous_cfg, "input_device_id": input_id, "output_device_id": output_id,
                            "input_device": selected_input, "output_device": selected_output}
-                import tempfile
-                config_path = os.path.join(INSTALL_ROOT, "config", "voice.json")
-                handle, temporary = tempfile.mkstemp(prefix="voice-audio-", suffix=".json", dir=os.path.dirname(config_path))
-                try:
-                    with os.fdopen(handle, "w", encoding="utf-8") as target:
-                        json.dump(updated, target, ensure_ascii=False, indent=2)
-                    os.replace(temporary, config_path)
-                finally:
-                    if os.path.exists(temporary):
-                        os.unlink(temporary)
+                runtime_settings.atomic_write(config_path, updated, expected)
                 self.cfg = updated
+                self.config_disk_hash = runtime_settings.file_hash(config_path)
                 self.audio_input_device_id = input_id
                 self.audio_output_device_id = output_id
                 self.audio_applied_revision += 1
@@ -1039,14 +1147,16 @@ class VoiceService:
             elapsed = time.monotonic() - t0
             if not started and elapsed > start_timeout:
                 return None
+            if self.manual_release.is_set():
+                return np.concatenate(buf) if started and buf else None
             if started and (silence >= cfg["command_end_silence_s"] or elapsed > cfg["command_max_s"]):
                 return np.concatenate(buf)
 
     # ---------- Verarbeitung ----------
     def _transcribe(self, audio: np.ndarray) -> str:
         if self.cloud_voice:
-            return elevenlabs_cloud.transcribe(audio, self.cloud_key)
-        segs, _ = self.whisper.transcribe(audio, language="de", beam_size=1, vad_filter=False,
+            return elevenlabs_cloud.transcribe(audio, self.cloud_key, language=self.cfg.get("stt_language", "de"))
+        segs, _ = self.whisper.transcribe(audio, language=self.cfg.get("stt_language", "de"), beam_size=1, vad_filter=False,
                                           initial_prompt=f"{self.name}, Sprachassistent.")
         return " ".join(s.text.strip() for s in segs).strip()
 
@@ -1110,6 +1220,24 @@ class VoiceService:
             log_event(event="router_fallback", error=str(exc))
             return {"route": "cloud_low", "background": False, "priority": "P3", "needs_confirmation": False,
                     "intent": "fallback", "answer": ""}
+
+    def _guest_answer(self, text: str) -> str:
+        direct = clock_answer(text)
+        if direct:
+            return direct
+        endpoint = urllib.parse.urlparse(self.cfg.get("qwen_url", ""))
+        if endpoint.scheme != "http" or endpoint.hostname not in ("127.0.0.1", "localhost", "::1"):
+            return "Der lokale Gast-Chat ist nicht eingerichtet."
+        payload = {"model": "qwen3-router", "messages": [
+            {"role": "system", "content": "Du beantwortest nur allgemeine Fragen. Keine Werkzeuge, Dateien, Konten, Erinnerungen oder personenbezogenen Informationen verwenden."},
+            {"role": "user", "content": text}], "temperature": 0.2, "max_tokens": 300,
+            "chat_template_kwargs": {"enable_thinking": False}}
+        try:
+            answer = post_json(self.cfg["qwen_url"], payload, timeout=20)["choices"][0]["message"]["content"].strip()
+            return answer[:1500] or "Der lokale Gast-Chat hat keine Antwort geliefert."
+        except Exception as exc:
+            log_event(event="guest_chat_unavailable", error=type(exc).__name__)
+            return "Der lokale Gast-Chat ist gerade nicht verfuegbar."
 
     def _ask_hermes(self, text: str, decision: dict, task_id: str) -> str:
         route = decision["route"]
@@ -1187,26 +1315,29 @@ class VoiceService:
         self.processing = "transcribing"  # Sprecherpruefung + STT; das Ende setzt der Aufrufer (_session) zurueck
         t0 = time.monotonic()
         probe = np.concatenate([wake_audio, audio]) if wake_audio is not None else audio
-        combined_score = self.verifier.score(probe)
-        command_score = self.verifier.score(audio) if wake_audio is not None and len(audio) >= SR else -1.0
+        owner_required = self.cfg.get("speaker_verification_required", True)
+        combined_score = self.verifier.score(probe) if owner_required else 0.0
+        command_score = self.verifier.score(audio) if owner_required and wake_audio is not None and len(audio) >= SR else -1.0
         # A verified question is sufficient when the longer wake window contains stale/noisy audio.
         score = max(combined_score, command_score)
         probe_details = {"wake_s": round(len(wake_audio) / SR, 2) if wake_audio is not None else 0,
                          "command_s": round(len(audio) / SR, 2),
                          "command_score": round(command_score, 3) if command_score >= 0 else None}
-        if score == -1.0:
+        if owner_required and score == -1.0:
             # Zu wenig Sprache fuer ein Embedding (Raeuspern, Geraeusch): ignorieren, Session nicht beenden.
             log_event(event="too_short", followup=wake_audio is None, **probe_details)
             return
-        if score < self.cfg["speaker_threshold"]:
+        if owner_required and score < self.cfg["speaker_threshold"]:
             self.status["rejected_speaker"] += 1
             self.trusted_until = 0.0  # Plan: unbekannter Sprecher schliesst die Trusted Session sofort
             if hasattr(self, "mail_voice"):
                 self.mail_voice.clear_confirmation()
+            if hasattr(self, "research_voice"):
+                self.research_voice.cancel()
             log_event(event="speaker_rejected", score=round(score, 3), followup=wake_audio is None,
                       **probe_details)
             return
-        self.trusted_until = time.monotonic() + self.cfg["trusted_session_s"]
+        self.trusted_until = time.monotonic() + self.cfg["trusted_session_s"] if owner_required else 0.0
         t_stt = time.monotonic()
         lock = getattr(self, "transcribe_lock", None)
         if lock is None:
@@ -1224,6 +1355,17 @@ class VoiceService:
             self.cancel_active_interaction()
             log_event(event="stop", generation=generation)
             return
+        if not owner_required:
+            # No speaker identity is asserted. Guest chat receives no owner history, memories or tools.
+            self.status["commands"] += 1
+            log_event(event="guest_voice_command", identity="unverified", mode="local_chat")
+            self._say_if_current(self._guest_answer(text), generation)
+            return
+        if self.cfg.get("store_raw_recordings", False):
+            try:
+                runtime_settings.record_command(STATE_ROOT, audio)
+            except OSError as exc:
+                log_event(event="recording_error", error=type(exc).__name__)
         if hasattr(self, "memory_capture_error"):
             self.memory_dialog_id = "dlg_" + uuid.uuid4().hex
             if private_intent(text):
@@ -1243,6 +1385,27 @@ class VoiceService:
         def with_first_use_offer(answer: str) -> str:
             offer = self.skills_onboarding_voice.offer_first_use()
             return answer if not offer else answer + " " + offer
+
+        research = getattr(self, "research_voice", None)
+        research_answer = research.handle(text) if research is not None else None
+        if self.control_cancel.is_set() or generation != self.control_generation:
+            if research is not None:
+                research.cancel()
+            return
+        if research_answer is not None:
+            if hasattr(self, "mail_voice"):
+                self.mail_voice.clear_confirmation()
+            self.calendar_voice.pending = None
+            self.cloudtalk_voice.pending = None
+            self.powerpoint_voice.pending = None
+            self.coding_voice.pending = None
+            self.content_studio_voice.pending = None
+            self.skills_onboarding_voice.pending = None
+            self.status["commands"] += 1
+            log_event(event="research_voice_command", speaker_score=round(score, 3), success=True)
+            if not self._say_if_current(research_answer, generation):
+                research.cancel()
+            return
 
         if hasattr(self, "mail_voice") and self.mail_voice.handles_text(text):
             mail_answer = self.mail_voice.handle(text)
@@ -1482,6 +1645,8 @@ class VoiceService:
             self.audio_applied_revision = max(1, self.audio_applied_revision)
             if self.audio_transport == "device":
                 threading.Thread(target=self._audio_device_watcher, daemon=True).start()
+                if self.native_ptt_available:
+                    threading.Thread(target=self._native_ptt_loop, daemon=True).start()
             self.status["state"] = "listening"
             print(f"{self.name} hoert zu (sag '{self.phrase}').", flush=True)
             if self.browser_audio is not None:
@@ -1498,7 +1663,7 @@ class VoiceService:
                 chunk = self._read_chunk()
                 if self.control_paused or (self.audio_transport == "device" and self.status["state"] == "waiting_audio"):
                     continue
-                detected = False if self.manual_start.is_set() else self._wake_detected(chunk)
+                detected = False if self.manual_start.is_set() or not self.cfg.get("wake_word_enabled", True) else self._wake_detected(chunk)
                 with self.manual_start_lock:
                     if self.control_paused or (self.audio_transport == "device" and self.status["state"] == "waiting_audio"):
                         continue
@@ -1545,6 +1710,10 @@ class VoiceService:
         return False, round((time.monotonic() - t0) * 1000)
 
     def _wake_detected(self, chunk: np.ndarray) -> bool:
+        with self.wake_model_lock:
+            return self._wake_detected_locked(chunk)
+
+    def _wake_detected_locked(self, chunk: np.ndarray) -> bool:
         score = self._wake_score(chunk)
         if score < self.wake_threshold:
             return False
@@ -1638,7 +1807,7 @@ class VoiceService:
             while self.tts.speaking.is_set():
                 if self.control_cancel.is_set() or generation != self.control_generation:
                     break
-                if self._wake_detected(self._read_chunk()):
+                if self.cfg.get("wake_word_enabled", True) and self._wake_detected(self._read_chunk()):
                     interrupted = True
                     break
             self._drain()
@@ -1646,6 +1815,8 @@ class VoiceService:
                 break
             if interrupted:
                 self.calendar_voice.pending = None
+                if hasattr(self, "research_voice"):
+                    self.research_voice.cancel_preview()
                 if hasattr(self, "mail_voice"):
                     self.mail_voice.clear_confirmation()
                 for name in ("powerpoint_voice", "cloudtalk_voice"):
@@ -1659,8 +1830,13 @@ class VoiceService:
                     self._handle_command(audio, wake_audio)
                 self.processing = None
                 continue
+            if not self.cfg.get("speaker_verification_required", True):
+                # A guest reply must never establish the owner follow-up window or arm owner confirmations.
+                break
             self.coding_voice.arm_confirmation()
             self.calendar_voice.arm_confirmation()
+            if hasattr(self, "research_voice"):
+                self.research_voice.arm_confirmation()
             for name in ("mail_voice", "powerpoint_voice", "cloudtalk_voice"):
                 controller = getattr(self, name, None)
                 if controller is not None:
@@ -1680,6 +1856,8 @@ class VoiceService:
             self.processing = None
         self._drain()
         self.calendar_voice.pending = None
+        if hasattr(self, "research_voice"):
+            self.research_voice.cancel_preview()
         if hasattr(self, "mail_voice"):
             self.mail_voice.clear_confirmation()
         for name in ("powerpoint_voice", "cloudtalk_voice"):
@@ -1751,6 +1929,11 @@ class VoiceService:
             self.memory_capture_error = type(exc).__name__
         return {**self.status, "speaking": speaking,
                 "tts_voice_choice": self.cfg.get("tts_voice_choice"),
+                "runtime_settings": runtime_settings.effective(self.cfg),
+                "config_revision": getattr(self, "config_disk_hash", None),
+                "stt_preflight_busy": getattr(self, "stt_preflight_busy", False),
+                "ptt_active": self.ptt_active,
+                "native_ptt_available": getattr(self, "native_ptt_available", False),
                 "service_started_at": getattr(self, "service_started_at", None),
                 "trusted": time.monotonic() < self.trusted_until,
                 "input_level": self.input_level.value(),
@@ -1772,20 +1955,273 @@ class VoiceService:
         service = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
-            def do_POST(self):
-                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/audio"):
-                    self.send_error(404)
-                    return
-                key_path = voice_bridge_key_path(service.cfg)
+            def _authorized(self):
                 try:
-                    with open(key_path, encoding="ascii") as source:
+                    with open(voice_bridge_key_path(service.cfg), encoding="ascii") as source:
                         expected = source.read().strip()
                 except (OSError, UnicodeError):
                     self.send_error(503)
-                    return
+                    return False
                 supplied = self.headers.get("Authorization", "")
                 if not expected or len(supplied) > 100 or not supplied.isascii() or not hmac.compare_digest(supplied, "Bearer " + expected):
                     self.send_error(401)
+                    return False
+                return True
+
+            def _json(self, value):
+                body = json.dumps(value).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_POST(self):
+                enrollment_paths = ("/control/wake-enrollment/start", "/control/wake-enrollment/sample",
+                                    "/control/wake-enrollment/train", "/control/wake-enrollment/discard")
+                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/audio", "/control/settings", "/control/stt-models/download", "/control/stt-models/cancel", *enrollment_paths):
+                    self.send_error(404)
+                    return
+                if not self._authorized():
+                    return
+                if self.path in ("/control/stt-models/download", "/control/stt-models/cancel"):
+                    try:
+                        size = int(self.headers.get("Content-Length", "0"))
+                        if not 0 < size <= 256:
+                            raise ValueError("Invalid STT model request size")
+                        request = json.loads(self.rfile.read(size))
+                        if not isinstance(request, dict):
+                            raise ValueError("Invalid STT model request")
+                        if self.path.endswith("/download"):
+                            if set(request) != {"model", "expectedServiceStartedAt"} or request["expectedServiceStartedAt"] != service.service_started_at:
+                                raise ValueError("STT model selection is stale")
+                            self._json(service.stt_models.start(request["model"]))
+                        else:
+                            if set(request) != {"jobId"}:
+                                raise ValueError("Invalid STT download cancellation")
+                            self._json(service.stt_models.cancel(request["jobId"]))
+                    except (ValueError, KeyError, TypeError) as exc:
+                        self.send_error(422, str(exc))
+                    except RuntimeError as exc:
+                        self.send_error(423, str(exc))
+                    except (OSError, ImportError):
+                        self.send_error(503, "STT model cache unavailable")
+                    return
+                if self.path in enrollment_paths:
+                    if service.wake_enrollment is None:
+                        self.send_error(503, "Wake enrollment is unavailable")
+                        return
+                    try:
+                        size = int(self.headers.get("Content-Length", "0"))
+                        if not 0 < size <= 260_000:
+                            raise ValueError("Invalid enrollment request size")
+                        request = json.loads(self.rfile.read(size))
+                        if not isinstance(request, dict):
+                            raise ValueError("Invalid enrollment request")
+                        if self.path.endswith("/start"):
+                            if set(request) != {"phrase", "expectedConfigRevision", "expectedServiceStartedAt"}:
+                                raise ValueError("Invalid enrollment start")
+                            with service.manual_start_lock:
+                                if service.processing or service.tts.speaking.is_set() or service.status["state"] in ("command", "followup", "speaking"):
+                                    self.send_error(423, "Voice is busy")
+                                    return
+                                result = service.wake_enrollment.start(request["phrase"], service.config_disk_hash,
+                                    request["expectedConfigRevision"], service.service_started_at,
+                                    request["expectedServiceStartedAt"], service.phrase)
+                        elif self.path.endswith("/sample"):
+                            if set(request) != {"jobId", "kind", "pcmBase64"}:
+                                raise ValueError("Invalid enrollment sample")
+                            result = service.wake_enrollment.add_sample(request["jobId"], request["kind"], request["pcmBase64"])
+                        elif self.path.endswith("/train"):
+                            if set(request) != {"jobId"}:
+                                raise ValueError("Invalid enrollment train")
+                            if (service.wake_enrollment.job is None or
+                                    service.wake_enrollment.job["service_started_at"] != service.service_started_at or
+                                    personal_wake.phrase_key(service.wake_enrollment.job["active_phrase"]) != personal_wake.phrase_key(service.phrase)):
+                                raise runtime_settings.ConfigConflict("Voice configuration revision changed")
+                            result = service.wake_enrollment.train(request["jobId"])
+                        else:
+                            if set(request) != {"jobId"}:
+                                raise ValueError("Invalid enrollment discard")
+                            result = service.wake_enrollment.discard(request["jobId"])
+                    except runtime_settings.ConfigConflict as exc:
+                        self.send_error(409, str(exc))
+                        return
+                    except (ValueError, TypeError, KeyError) as exc:
+                        self.send_error(422, str(exc))
+                        return
+                    except OSError:
+                        self.send_error(503, "Wake enrollment storage unavailable")
+                        return
+                    self._json(result)
+                    return
+                if self.path == "/control/settings":
+                    prepared_wake = None
+                    prepared_from_enrollment = False
+                    prepared_stt = None
+                    try:
+                        size = int(self.headers.get("Content-Length", "0"))
+                        if not 0 < size <= 1024:
+                            raise ValueError("Invalid request size")
+                        request = json.loads(self.rfile.read(size))
+                        if not isinstance(request, dict) or set(request) != {"settings", "expectedConfigRevision", "expectedServiceStartedAt"}:
+                            raise ValueError("Expected settings and voice revision")
+                        requested = request["settings"]
+                        runtime_settings.validate(requested, service.cfg)
+                        with service.manual_start_lock:
+                            model_change = requested["sttModel"] != runtime_settings.effective(service.cfg)["sttModel"]
+                            if (service.processing or service.tts.speaking.is_set() or
+                                    (model_change and getattr(service, "stt_preflight_busy", False)) or
+                                    service.status["state"] in ("command", "followup", "speaking")):
+                                self.send_error(423, "Whisper loader is still running; restart voice service if it does not finish" if
+                                                model_change and getattr(service, "stt_preflight_busy", False) else "Voice is busy")
+                                return
+                            if (request["expectedServiceStartedAt"] != service.service_started_at or
+                                    request["expectedConfigRevision"] != service.config_disk_hash):
+                                raise runtime_settings.ConfigConflict("Voice configuration revision changed")
+                            if model_change:
+                                if service.cloud_voice or requested["sttModel"] is None:
+                                    raise ValueError("Local Whisper model is unavailable in this voice mode")
+                                service.stt_preflight_busy = True
+                        if model_change:
+                            ready = threading.Event()
+                            prepared = {}
+                            def load_cached_model():
+                                try:
+                                    from faster_whisper import WhisperModel
+                                    prepared["model"] = WhisperModel(requested["sttModel"],
+                                        device=service.cfg.get("whisper_device", "cuda"),
+                                        compute_type=service.cfg["whisper_compute_type"],
+                                        download_root=os.path.join(STATE_ROOT, "models", "whisper"),
+                                        local_files_only=True)
+                                except Exception as exc:
+                                    prepared["error"] = type(exc).__name__
+                                finally:
+                                    with service.manual_start_lock:
+                                        service.stt_preflight_busy = False
+                                    ready.set()
+                            try:
+                                threading.Thread(target=load_cached_model, daemon=True).start()
+                            except Exception:
+                                with service.manual_start_lock:
+                                    service.stt_preflight_busy = False
+                                raise
+                            if not ready.wait(STT_PREFLIGHT_TIMEOUT):
+                                raise OSError("Cached Whisper model load timed out; restart voice service if loader remains busy")
+                            if "model" not in prepared:
+                                raise ValueError("Whisper model is not cached or cannot load locally")
+                            prepared_stt = prepared["model"]
+                        if requested["wakeWord"] != runtime_settings.effective(service.cfg)["wakeWord"]:
+                            phrase = requested["wakeWord"]
+                            if personal_wake.is_pretrained_phrase(phrase) or (getattr(service, "wake_rollback", None) is not None and
+                                personal_wake.phrase_key(service.wake_rollback["phrase"]) == personal_wake.phrase_key(phrase)):
+                                prepared_wake = service._prepare_wake_switch(phrase)
+                            else:
+                                enrollment = getattr(service, "wake_enrollment", None)
+                                if enrollment is None:
+                                    raise ValueError("Wake enrollment is unavailable")
+                                paths = enrollment.prepared(phrase, service.phrase, service.service_started_at,
+                                                            service.config_disk_hash, request["expectedConfigRevision"])
+                                prepared_wake = service._prepare_wake_switch(phrase, paths)
+                                prepared_from_enrollment = True
+                        with service.manual_start_lock:
+                            if (service.processing or service.tts.speaking.is_set() or
+                                    (model_change and getattr(service, "stt_preflight_busy", False)) or
+                                    service.status["state"] in ("command", "followup", "speaking")):
+                                self.send_error(423, "Voice is busy")
+                                return
+                            if (request["expectedServiceStartedAt"] != service.service_started_at or
+                                    request["expectedConfigRevision"] != service.config_disk_hash):
+                                raise runtime_settings.ConfigConflict("Voice configuration revision changed")
+                            updated = runtime_settings.validate(requested, service.cfg)
+                            if prepared_wake is not None:
+                                updated.update({"wake_engine": prepared_wake["engine"],
+                                                "wake_aliases": personal_wake.default_aliases(updated["wake_phrase"]),
+                                                "wake_reject_words": personal_wake.default_reject_words(updated["wake_phrase"])})
+                                if prepared_wake["model_path"]:
+                                    updated["personal_wake_model"] = prepared_wake["model_path"]
+                                    updated["personal_wake_meta"] = prepared_wake["meta_path"]
+                            if (service.audio_transport != "browser" and not getattr(service, "native_ptt_available", False) and
+                                    requested["pushToTalkKey"] != runtime_settings.effective(service.cfg)["pushToTalkKey"]):
+                                raise ValueError("Push-to-talk key requires browser audio or an interactive Windows device desktop")
+                            config_path = getattr(service, "config_path", os.path.join(INSTALL_ROOT, "config", "voice.json"))
+                            expected = getattr(service, "config_disk_hash", runtime_settings.file_hash(config_path))
+                            with service.wake_model_lock:
+                                previous_wake = {"phrase": service.phrase, "prepared": {
+                                    "engine": service.engine, "detector": service.oww, "name": service.wake_name,
+                                    "threshold": service.wake_threshold,
+                                    "high_confidence": getattr(service, "wake_high_confidence", None),
+                                    "model_path": (service.cfg.get("personal_wake_model") or os.path.join(STATE_ROOT, "models", "openwakeword", "personal_wake.npz")) if service.engine == "personal" else None,
+                                    "meta_path": (service.cfg.get("personal_wake_meta") or os.path.join(STATE_ROOT, "models", "openwakeword", "personal_wake.json")) if service.engine == "personal" else None}}
+                                runtime_settings.atomic_write(config_path, updated, expected)
+                                service.cfg = updated
+                                if prepared_stt is not None:
+                                    service.whisper = prepared_stt
+                                service.config_disk_hash = runtime_settings.file_hash(config_path)
+                                service.tts.tts_config = updated
+                                if prepared_wake is not None:
+                                    service.engine = prepared_wake["engine"]
+                                    service.phrase = updated["wake_phrase"]
+                                    service.oww = prepared_wake["detector"]
+                                    service.wake_name = prepared_wake["name"]
+                                    service.wake_threshold = prepared_wake["threshold"]
+                                    service.wake_high_confidence = prepared_wake["high_confidence"]
+                                    service.status["wake_phrase"] = service.phrase
+                                    service.status["wake_engine"] = service.engine
+                                    service.wake_rollback = previous_wake
+                                    if prepared_from_enrollment:
+                                        try:
+                                            service.wake_enrollment.committed()
+                                        except OSError as exc:
+                                            log_event(event="wake_enrollment_cleanup_error", error=type(exc).__name__)
+                            if not updated["voice_history_enabled"]:
+                                service.history.clear()
+                                if service.memory_outbox is not None:
+                                    try:
+                                        service.memory_outbox.purge()
+                                        service.memory_capture_error = None
+                                    except Exception as exc:
+                                        # The committed policy still stops capture/delivery; retry on the worker loop.
+                                        service.memory_capture_error = type(exc).__name__
+                                        try:
+                                            log_event(event="memory_purge_error", error=type(exc).__name__)
+                                        except OSError:
+                                            pass
+                            if not updated["speaker_verification_required"]:
+                                for name in ("calendar_voice", "coding_voice", "cloudtalk_voice", "powerpoint_voice",
+                                             "content_studio_voice", "skills_onboarding_voice"):
+                                    controller = getattr(service, name, None)
+                                    if controller is not None:
+                                        controller.pending = None
+                                if hasattr(service, "research_voice"):
+                                    service.research_voice.cancel()
+                                if hasattr(service, "mail_voice"):
+                                    service.mail_voice.clear()
+                                service.history.clear()
+                            service.control_generation += 1
+                            service.control_cancel.set()
+                            service.manual_start.clear()
+                            service.trusted_until = 0.0
+                            service.ring.clear()
+                            service.preroll.clear()
+                            result = {"applied": True, "settings": runtime_settings.effective(service.cfg),
+                                      "serviceStartedAt": service.service_started_at,
+                                      "configRevision": service.config_disk_hash}
+                    except (ValueError, TypeError, KeyError) as exc:
+                        self.send_error(422, str(exc))
+                        return
+                    except runtime_settings.ConfigConflict as exc:
+                        self.send_error(409, str(exc))
+                        return
+                    except (OSError, RuntimeError, ImportError):
+                        self.send_error(503, "Voice configuration could not be written")
+                        return
+                    body = json.dumps(result).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
                     return
                 if self.path == "/control/audio":
                     try:
@@ -1800,6 +2236,9 @@ class VoiceService:
                             raise ValueError("Invalid device ID")
                         result = service.apply_audio(request["inputDeviceId"], request["outputDeviceId"])
                     except ValueError as exc:
+                        self.send_error(409, str(exc))
+                        return
+                    except runtime_settings.ConfigConflict as exc:
                         self.send_error(409, str(exc))
                         return
                     except RuntimeError as exc:
@@ -1838,21 +2277,24 @@ class VoiceService:
                         self.wfile.write(message)
                         return
                     with service.manual_start_lock:
+                        config_path = getattr(service, "config_path", os.path.join(INSTALL_ROOT, "config", "voice.json"))
+                        expected = getattr(service, "config_disk_hash", runtime_settings.file_hash(config_path))
+                        try:
+                            runtime_settings.assert_revision(config_path, expected)
+                        except runtime_settings.ConfigConflict as exc:
+                            self.send_error(409, str(exc))
+                            return
                         if service.processing or not service.tts.apply_persona(config):
                             self.send_error(423, "Voice is busy")
                             return
-                        import tempfile
-                        config_path = os.path.join(INSTALL_ROOT, "config", "voice.json")
-                        handle, temporary = tempfile.mkstemp(prefix="voice-persona-", suffix=".json", dir=os.path.dirname(config_path))
                         try:
-                            with os.fdopen(handle, "w", encoding="utf-8") as target:
-                                json.dump(config, target, ensure_ascii=False, indent=2)
-                            os.replace(temporary, config_path)
+                            runtime_settings.atomic_write(config_path, config, expected)
+                            service.config_disk_hash = runtime_settings.file_hash(config_path)
+                        except runtime_settings.ConfigConflict:
+                            service.tts.apply_persona(service.cfg)
+                            self.send_error(409)
+                            return
                         except OSError:
-                            try:
-                                os.unlink(temporary)
-                            except OSError:
-                                pass
                             service.tts.apply_persona(service.cfg)
                             self.send_error(500)
                             return
@@ -1872,6 +2314,7 @@ class VoiceService:
                         if service.control_paused or service.status["state"] not in ("listening", "wake_only") or service.manual_start.is_set():
                             self.send_error(409)
                             return
+                        service.manual_release.clear()
                         service.manual_start.set()
                     elif self.path == "/control/resume":
                         service.control_paused = False
@@ -1883,6 +2326,22 @@ class VoiceService:
                 self.wfile.write(b'{"accepted":true}')
 
             def do_GET(self):
+                if self.path == "/control/stt-models":
+                    if not self._authorized():
+                        return
+                    try:
+                        self._json(service.stt_models.status())
+                    except (OSError, ImportError):
+                        self.send_error(503, "STT model cache unavailable")
+                    return
+                if self.path == "/control/wake-enrollment":
+                    if not self._authorized():
+                        return
+                    if service.wake_enrollment is None:
+                        self.send_error(503)
+                        return
+                    self._json(service.wake_enrollment.status())
+                    return
                 if self.path == "/devices":
                     from audio_devices import inventory
                     try:
@@ -1925,7 +2384,7 @@ def main() -> None:
         except PersonaUnavailable:
             pass  # Existing single-reference installations still start until their voice update is applied.
     os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
-    VoiceService(cfg, args.test_wake_model).run()
+    VoiceService(cfg, args.test_wake_model, args.config).run()
 
 
 if __name__ == "__main__":

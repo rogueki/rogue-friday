@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createId } from "@friday/observability";
-import type { Approval, AutomationCreateRequest, AutomationPauseAllRequest, AutomationTestRequest, AutomationUpdateRequest, CalendarEvent, FileRenameRequest, MemoryConflictResolveRequest, MemoryCreateRequest, MemoryUpdateRequest, SchemaValidator, TaskActionRequest, TaskAssignRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
+import type { Approval, AutomationCreateRequest, AutomationPauseAllRequest, AutomationTestRequest, AutomationUpdateRequest, CalendarEvent, FileRenameRequest, MemoryConflictResolveRequest, MemoryCreateRequest, MemoryUpdateRequest, ResearchCreateRequest, SchemaValidator, TaskActionRequest, TaskAssignRequest, TaskCreateRequest, TaskUpdateRequest, ContentPlanDocument, Posting, Platform, ContentFormat, HermesCronMutationRequest } from "@friday/sdk";
 import type { Db } from "../db/database";
 import type { LocalEventInput } from "./local-calendar";
 import type { MailSendRequest } from "./mail-send";
@@ -11,15 +11,18 @@ import type { Actor } from "@friday/sdk";
 
 /** Persisted command payload. Add a kind only with a matching, idempotent dispatch branch and regression tests. */
 export type NativeExecutableAction =
-  | { kind: "task.create"; body: TaskCreateRequest }
+  | { kind: "task.create"; body: TaskCreateRequest; sourceBody?: TaskCreateRequest }
   | { kind: "task.update"; id: string; body: TaskUpdateRequest }
   | { kind: "task.cancel"; id: string; body?: TaskActionRequest }
+  | { kind: "task.retry"; id: string; body?: TaskActionRequest }
   | { kind: "calendar.create"; body: LocalEventInput }
-  | { kind: "calendar.update"; id: string; version: number; body: LocalEventInput }
+  | { kind: "calendar.update"; id: string; version: number; body: LocalEventInput; sessionBinding?: string }
   /** The snapshot lets a replayed confirmation still answer with the event as it was before the deletion. */
-  | { kind: "calendar.delete"; id: string; version: number; snapshot: CalendarEvent }
+  | { kind: "calendar.delete"; id: string; version: number; snapshot: CalendarEvent; sessionBinding?: string }
   /** The journal in MailSendService makes the actual SMTP call durable and at-most-once per staged action. */
-  | { kind: "mail.send"; accountId: string; body: MailSendRequest }
+  | { kind: "mail.send"; accountId: string; body: MailSendRequest; sessionBinding?: string }
+  /** Clarification-created mail stores only an encrypted draft reference in the approval ledger. */
+  | { kind: "mail.send.clarified"; accountId: string; draftId: string; intentHash: string; sessionBinding: string }
   | { kind: "mail.change"; accountId: string; mailbox: string; uid: string; uidValidity: string; change: "move" | "flag"; destination?: string }
   /** The journal in MessengerSendService keeps provider delivery at-most-once per staged action. */
   | { kind: "messenger.send"; draft: MessengerSendDraft }
@@ -48,17 +51,44 @@ export type NativeExecutableAction =
   | { kind: "automation.disable"; id: string; version: number }
   /** A test run records a run entry; a real (non-dry) run executes actions, so it is staged like every write. */
   | { kind: "automation.test"; id: string; body: AutomationTestRequest }
-  | { kind: "automation.pauseAll"; body: AutomationPauseAllRequest };
+  | { kind: "automation.pauseAll"; body: AutomationPauseAllRequest }
+| { kind: "research.create"; body: ResearchCreateRequest; providerVersion: number; channel?: "voice" }
+  | { kind: "hermesCron.mutate"; body: HermesCronMutationRequest }
+  | { kind: "settings.profile.locale"; expectedVersion: number; value: "de" | "en" }
+  | { kind: "settings.profile.dateFormat"; expectedVersion: number; value: "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy" }
+  | { kind: "settings.profile.timeFormat"; expectedVersion: number; value: "24h" | "12h" }
+  | { kind: "settings.profile.firstDayOfWeek"; expectedVersion: number; value: "monday" | "sunday" }
+  | { kind: "settings.profile.timeZone"; expectedVersion: number; value: string }
+  | { kind: "settings.profile.displayName" | "settings.profile.assistantName"; expectedVersion: number; value: string }
+  | { kind: "settings.dashboard.compact"; expectedVersion: number; value: boolean }
+  | { kind: "settings.dashboard.refresh"; expectedVersion: number; value: number }
+  | { kind: "settings.dashboard.backgroundGrid" | "settings.dashboard.soundEffects" | "settings.dashboard.contentStudioEnabled"; expectedVersion: number; value: boolean }
+  | { kind: "settings.navigation.defaultPage"; expectedVersion: number; value: "overview" | "tasks" | "activity" | "memory" | "agents" | "approvals" | "communication" | "calendar" | "automations" | "research" | "content-studio" | "files" | "voice" | "alerts" | "system" | "audit" | "settings" | "skills" }
+  | { kind: "settings.navigation.mode"; expectedVersion: number; value: "compact" | "expanded" }
+  | { kind: "contentStudio.idea.add"; expectedRevision: number; idea: ContentPlanDocument["content"][number] }
+  | { kind: "contentStudio.idea.status"; expectedRevision: number; ideaId: string; title: string; status: "idee" | "in-arbeit" | "fertig" }
+  | { kind: "contentStudio.idea.rename"; expectedRevision: number; ideaId: string; title: string; newTitle: string }
+  | { kind: "contentStudio.idea.description"; expectedRevision: number; ideaId: string; title: string; description: string }
+  | { kind: "contentStudio.idea.date"; expectedRevision: number; ideaId: string; title: string; date: string }
+  | { kind: "contentStudio.idea.format"; expectedRevision: number; ideaId: string; title: string; format: ContentFormat }
+  | { kind: "contentStudio.idea.targets"; expectedRevision: number; ideaId: string; title: string; targets: Platform[] }
+  | { kind: "contentStudio.idea.remove"; expectedRevision: number; ideaId: string; title: string }
+  | { kind: "contentStudio.posting.fromIdea"; expectedRevision: number; posting: Posting }
+  | { kind: "contentStudio.posting.create"; expectedRevision: number; posting: Posting }
+  | { kind: "contentStudio.posting.status"; expectedRevision: number; postingId: string; title: string; date: string; time: string; status: Posting["status"] }
+  | { kind: "contentStudio.posting.remove"; expectedRevision: number; postingId: string; title: string; date: string; time: string };
 
 /** Receipt sentence per action kind; the create wording is asserted by existing API fixtures. */
 export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], string>> = {
   "task.create": "angelegt",
   "task.update": "aktualisiert",
   "task.cancel": "abgebrochen",
+  "task.retry": "erneut gestartet",
   "calendar.create": "eingetragen",
   "calendar.update": "aktualisiert",
   "calendar.delete": "geloescht",
   "mail.send": "versendet",
+  "mail.send.clarified": "versendet",
   "mail.change": "aktualisiert",
   "messenger.send": "versendet",
   "agent.pause": "pausiert",
@@ -79,6 +109,34 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "automation.disable": "deaktiviert",
   "automation.test": "getestet",
   "automation.pauseAll": "pausiert",
+  "research.create": "gestartet",
+  "hermesCron.mutate": "gespeichert",
+  "settings.profile.locale": "gespeichert",
+  "settings.profile.dateFormat": "gespeichert",
+  "settings.profile.timeFormat": "gespeichert",
+  "settings.profile.firstDayOfWeek": "gespeichert",
+  "settings.profile.timeZone": "gespeichert",
+  "settings.profile.displayName": "gespeichert",
+  "settings.profile.assistantName": "gespeichert",
+  "settings.dashboard.compact": "gespeichert",
+  "settings.dashboard.refresh": "gespeichert",
+  "settings.dashboard.backgroundGrid": "gespeichert",
+  "settings.dashboard.soundEffects": "gespeichert",
+  "settings.dashboard.contentStudioEnabled": "gespeichert",
+  "settings.navigation.defaultPage": "gespeichert",
+  "settings.navigation.mode": "gespeichert",
+  "contentStudio.idea.add": "hinzugefuegt",
+  "contentStudio.idea.status": "aktualisiert",
+  "contentStudio.idea.rename": "umbenannt",
+  "contentStudio.idea.description": "aktualisiert",
+  "contentStudio.idea.date": "aktualisiert",
+  "contentStudio.idea.format": "aktualisiert",
+  "contentStudio.idea.targets": "aktualisiert",
+  "contentStudio.idea.remove": "geloescht",
+  "contentStudio.posting.fromIdea": "eingeplant",
+  "contentStudio.posting.create": "eingeplant",
+  "contentStudio.posting.status": "aktualisiert",
+  "contentStudio.posting.remove": "entfernt",
 };
 
 /** Receipt subject per action family; combined with the verb to the exact receipt sentence. */
@@ -86,10 +144,12 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "task.create": "Aufgabe",
   "task.update": "Aufgabe",
   "task.cancel": "Aufgabe",
+  "task.retry": "Aufgabe",
   "calendar.create": "Termin",
   "calendar.update": "Termin",
   "calendar.delete": "Termin",
   "mail.send": "Mail",
+  "mail.send.clarified": "Mail",
   "mail.change": "Mail",
   "messenger.send": "Nachricht",
   "agent.pause": "Agent",
@@ -110,6 +170,34 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "automation.disable": "Automation",
   "automation.test": "Automation",
   "automation.pauseAll": "Automationen",
+  "research.create": "Recherche",
+  "hermesCron.mutate": "Hermes-Zeitplan",
+  "settings.profile.locale": "Einstellung",
+  "settings.profile.dateFormat": "Einstellung",
+  "settings.profile.timeFormat": "Einstellung",
+  "settings.profile.firstDayOfWeek": "Einstellung",
+  "settings.profile.timeZone": "Einstellung",
+  "settings.profile.displayName": "Einstellung",
+  "settings.profile.assistantName": "Einstellung",
+  "settings.dashboard.compact": "Einstellung",
+  "settings.dashboard.refresh": "Einstellung",
+  "settings.dashboard.backgroundGrid": "Einstellung",
+  "settings.dashboard.soundEffects": "Einstellung",
+  "settings.dashboard.contentStudioEnabled": "Einstellung",
+  "settings.navigation.defaultPage": "Einstellung",
+  "settings.navigation.mode": "Einstellung",
+  "contentStudio.idea.add": "Content-Idee",
+  "contentStudio.idea.status": "Content-Idee",
+  "contentStudio.idea.rename": "Content-Idee",
+  "contentStudio.idea.description": "Content-Idee",
+  "contentStudio.idea.date": "Content-Idee",
+  "contentStudio.idea.format": "Content-Idee",
+  "contentStudio.idea.targets": "Content-Idee",
+  "contentStudio.idea.remove": "Content-Idee",
+  "contentStudio.posting.fromIdea": "Posting",
+  "contentStudio.posting.create": "Posting",
+  "contentStudio.posting.status": "Posting",
+  "contentStudio.posting.remove": "Posting",
 };
 
 /** The action executor supplies a reviewed preview and a stable key before any external side effect. */
@@ -212,6 +300,12 @@ export class NativeApprovalRequests {
     return row?.action_json ? JSON.parse(row.action_json) as NativeExecutableAction : null;
   }
 
+  readActionForApproval(ownerId: string, approvalId: string): NativeExecutableAction | null {
+    const row = this.db.prepare("SELECT action_json FROM native_approval_requests WHERE owner_id = ? AND json_extract(result_json, '$.approval.id') = ?")
+      .get(ownerId, approvalId) as { action_json: string | null } | undefined;
+    return row?.action_json ? JSON.parse(row.action_json) as NativeExecutableAction : null;
+  }
+
   /** Read-only lifecycle state, e.g. to mark a replayed confirmation as a replay instead of a fresh execution. */
   stateOf(ownerId: string, requestKey: string): string | null {
     const row = this.db.prepare("SELECT state FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
@@ -245,6 +339,16 @@ export class NativeApprovalRequests {
     const removed = this.db.prepare("DELETE FROM native_approval_requests WHERE owner_id = ? AND request_key = ? AND state = 'draft'")
       .run(ownerId, requestKey);
     if (removed.changes !== 1) throw conflict("Der Entwurf wurde bereits geaendert.");
+  }
+
+  cancelPending(ownerId: string, requestKey: string, expectedAction: NativeExecutableAction, actor: Actor): void {
+    const row = this.db.prepare("SELECT action_json, result_json, state FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
+      .get(ownerId, requestKey) as { action_json: string | null; result_json: string; state: string } | undefined;
+    if (!row?.action_json || JSON.stringify(JSON.parse(row.action_json)) !== JSON.stringify(expectedAction))
+      throw conflict("Der Entwurf passt nicht zur Aktion.");
+    const approval = (JSON.parse(row.result_json) as CapturedApprovalPolicy).approval;
+    if (row.state !== "pending" || !approval) throw conflict("Die Freigabe ist nicht mehr offen.");
+    this.reject(ownerId, approval.id, actor, "Sprachdialog gestoppt.");
   }
 
   async executeWithoutApproval(ownerId: string, requestKey: string,

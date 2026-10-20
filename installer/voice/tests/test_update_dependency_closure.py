@@ -34,7 +34,7 @@ def local_import_closure() -> set[str]:
 
 class VoiceUpdateDependencyClosureTest(unittest.TestCase):
     def test_old_install_with_missing_mail_module_gets_complete_pinned_payload(self):
-        expected = local_import_closure() | {"prepare_voice_pairs"}
+        expected = local_import_closure() | {"prepare_voice_pairs", "build_personal_wake", "enroll_record", "negative_texts"}
         updater = (REPO / "installer" / "scripts" / "update-dashboard-github.ps1").read_text(encoding="utf-8-sig")
         helper = (REPO / "installer" / "scripts" / "update-voice-personas.ps1").read_text(encoding="utf-8-sig")
         source_function = updater.split("function Get-VoiceSourcePaths {", 1)[1].split("function Assert-VerifiedVoiceSources", 1)[0]
@@ -47,6 +47,7 @@ class VoiceUpdateDependencyClosureTest(unittest.TestCase):
             old_runtime.mkdir()
             (old_runtime / "friday_voice.py").write_bytes((VOICE / "friday_voice.py").read_bytes())
             self.assertFalse((old_runtime / "mail_voice.py").exists())
+            self.assertFalse((old_runtime / "research_voice.py").exists())
             for name in installed:
                 (old_runtime / f"{name}.py").write_bytes((VOICE / f"{name}.py").read_bytes())
             for name in local_import_closure():

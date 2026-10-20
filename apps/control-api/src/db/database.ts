@@ -387,6 +387,100 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE UNIQUE INDEX idx_native_approval_id ON native_approval_requests (json_extract(result_json, '$.approval.id'));
     `,
   },
+  {
+    id: 22,
+    name: "local-research-evidence",
+    sql: `
+      CREATE TABLE research_projects (
+        id TEXT PRIMARY KEY,
+        owner_id TEXT NOT NULL,
+        request_key TEXT NOT NULL,
+        topic TEXT NOT NULL,
+        mission TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('running', 'review', 'failed')),
+        error_code TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (owner_id, request_key)
+      );
+      CREATE INDEX idx_research_projects_owner_created ON research_projects (owner_id, created_at DESC);
+      CREATE TABLE research_sources (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES research_projects(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        url TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        excerpt TEXT,
+        created_at TEXT NOT NULL,
+        UNIQUE (project_id, url)
+      );
+      CREATE INDEX idx_research_sources_project ON research_sources (project_id, created_at);
+    `,
+  },
+  {
+    id: 23,
+    name: "research-provider-provenance",
+    sql: `ALTER TABLE research_projects ADD COLUMN provider TEXT NOT NULL DEFAULT 'searxng';`,
+  },
+  {
+    id: 26,
+    name: "research-page-evidence",
+    sql: `
+      ALTER TABLE research_sources ADD COLUMN status TEXT NOT NULL DEFAULT 'queued';
+      ALTER TABLE research_sources ADD COLUMN retrieved_at TEXT;
+      ALTER TABLE research_sources ADD COLUMN body_text TEXT;
+      ALTER TABLE research_sources ADD COLUMN content_hash TEXT;
+      ALTER TABLE research_sources ADD COLUMN error_code TEXT;
+    `,
+  },
+  {
+    id: 27,
+    name: "research-draft-findings",
+    sql: `
+      CREATE TABLE research_findings (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES research_projects(id) ON DELETE CASCADE,
+        source_id TEXT NOT NULL REFERENCES research_sources(id) ON DELETE CASCADE,
+        statement TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE (project_id, source_id)
+      );
+      CREATE INDEX idx_research_findings_project ON research_findings (project_id, created_at);
+      ALTER TABLE research_projects ADD COLUMN result_summary TEXT;
+    `,
+  },
+  {
+    id: 28,
+    name: "pending-command-clarifications",
+    sql: `
+      CREATE TABLE pending_command_clarifications (
+        id TEXT PRIMARY KEY,
+        owner_id TEXT NOT NULL,
+        session_hash TEXT NOT NULL,
+        payload_ciphertext TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        UNIQUE (owner_id, session_hash)
+      );
+      CREATE INDEX idx_pending_command_clarifications_expiry ON pending_command_clarifications (expires_at);
+    `,
+  },
+  {
+    id: 29,
+    name: "encrypted-clarified-mail-drafts",
+    sql: `
+      CREATE TABLE encrypted_clarified_mail_drafts (
+        id TEXT PRIMARY KEY,
+        owner_id TEXT NOT NULL,
+        session_binding TEXT NOT NULL,
+        intent_hash TEXT NOT NULL,
+        payload_ciphertext TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX idx_encrypted_clarified_mail_drafts_expiry ON encrypted_clarified_mail_drafts (expires_at);
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {
@@ -399,8 +493,12 @@ export function openDatabase(path: string): Db {
 }
 
 export function migrate(db: Db): number[] {
-  db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)");
-  const applied = new Set((db.prepare("SELECT id FROM schema_migrations").all() as Array<{ id: number }>).map((row) => row.id));
+  db.exec(
+    "CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)",
+  );
+  const applied = new Set(
+    (db.prepare("SELECT id FROM schema_migrations").all() as Array<{ id: number }>).map((row) => row.id),
+  );
   const ran: number[] = [];
   for (const migration of MIGRATIONS) {
     if (applied.has(migration.id)) continue;
@@ -416,9 +514,12 @@ export function migrate(db: Db): number[] {
       ran.push(migration.id);
     } catch (error) {
       db.exec("ROLLBACK");
-      throw new Error(`Migration ${migration.id} (${migration.name}) failed: ${error instanceof Error ? error.message : String(error)}`, {
-        cause: error,
-      });
+      throw new Error(
+        `Migration ${migration.id} (${migration.name}) failed: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          cause: error,
+        },
+      );
     }
   }
   return ran;

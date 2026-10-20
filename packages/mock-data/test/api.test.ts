@@ -210,7 +210,7 @@ describe("REST route coverage", () => {
       "actOnCalendarAccount", "backupDurableMemory", "cancelWhatsappPairing", "captureDurableMemoryEvent", "changeMailMessage",
       "checkMailAccount", "completeGoogleMailOAuth", "confirmVoiceConnectedCalendar", "correctDurableMemoryEvent",
       "createMailAccount", "deleteMailAccount", "forgetDurableMemoryEvent", "getDurableMemoryStatus", "getMailAttachment",
-      "getMailMessage", "getHermesConfig", "getHermesModelCatalog", "getVoiceIntegrationStatus", "getWhatsappPairing", "listCalendarAccounts", "listMailAccounts",
+      "getMailMessage", "getHermesConfig", "getHermesModelCatalog", "getVoiceIntegrationStatus", "getWhatsappPairing", "listCalendarAccounts", "listHermesCronJobs", "mutateHermesCronJob", "listMailAccounts",
       "listMailEnvelopes", "listMailFolders", "listMailReceipts", "logoutWhatsappGateway", "pollMailOAuth",
       "patchHermesConfig", "previewVoiceConnectedCalendar", "putDurableMemorySettings", "reconcileMailArchive", "reconnectWhatsappGateway",
       "reindexDurableMemory", "restoreDurableMemory", "retryDurableMemory", "reviewMailReceipt", "revokeMailOAuth",
@@ -221,6 +221,10 @@ describe("REST route coverage", () => {
       "getSystemBackupStatus", "performSystemBackupAction", "getDataRetentionStatus", "performDataRetentionAction",
       "getMessengerProvider", "updateMessengerProvider", "applyMessengerProvider", "listMessengerSenders",
       "linkMessengerSender", "unlinkMessengerSender", "captureMessengerInbound",
+      "probeHermesMcp", "manageHermesMcpOAuth", "createResearchProject", "getResearchProvider", "updateResearchProvider",
+      "getWakeEnrollment", "startWakeEnrollment", "addWakeEnrollmentSample", "trainWakeEnrollment", "discardWakeEnrollment",
+      "listVoiceSttModels", "startVoiceSttModelDownload", "cancelVoiceSttModelDownload",
+      "testHermesApproval",
     ].sort();
     const mocked = ROUTES.map((route) => route.operationId).sort();
     expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);

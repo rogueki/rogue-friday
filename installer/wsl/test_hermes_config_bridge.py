@@ -42,8 +42,42 @@ class BridgeTest(unittest.TestCase):
                        "compression.protect_last_n": 20,
                        "agent.max_turns": 500, "agent.gateway_timeout": 1800, "agent.api_max_retries": 3,
                        "session.terminal_continue": True, "max_live_sessions": 16,
-                       "terminal.timeout": 180, "browser.command_timeout": 30,
-                       "browser.snapshot_threshold": 15000,
+                       "terminal.timeout": 180, "terminal.container_cpu": 1.0,
+                       "terminal.container_memory": 5120, "terminal.container_disk": 51200,
+                       "terminal.container_persistent": True,
+                       "browser.command_timeout": 30,
+                       "terminal.backend": "local", "terminal.cwd": ".", "terminal.docker_network": True,
+                       "terminal.docker_mount_cwd_to_workspace": False, "terminal.docker_volumes": [],
+                       "browser.snapshot_threshold": 15000, "browser.inactivity_timeout": 120,
+                       "browser.engine": "auto", "browser.headed": False,
+                       "browser.auto_local_for_private_urls": True,
+                       "browser.dialog_policy": "must_respond", "browser.dialog_timeout_s": 300,
+                       "browser.allow_private_urls": False, "browser.use_real_profile": False,
+                       "browser.real_profile_pin": "", "browser.restrict_evaluate": False,
+                       "browser.allow_unsafe_evaluate": False, "code_execution.mode": "project",
+                       "code_execution.kernel_idle_timeout": 1800,
+                       "code_execution.max_session_kernels": 4,
+                       "computer_use.permission_mode": "standard", "computer_use.capability_manifest": "",
+                       "computer_use.max_image_dimension": 1456, "computer_use.ax_max_elements": 200,
+                       "computer_use.capture_after_mode": "som",
+                       "toolsets": ["hermes-cli"], "command_allowlist": [],
+                       "approvals.mode": "smart", "approvals.timeout": 300,
+                       "approvals.denial_breaker_threshold": 3, "approvals.deny": [],
+                       "approvals.destructive_slash_confirm": True, "approvals.mcp_reload_confirm": True,
+                       "approvals.single_query_mode": "deny", "approvals.unattended_mode": "deny",
+                       "security.protected_instruction_files": True,
+                       "cron.catch_up_missed": True, "cron.allow_agent_scheduling": False,
+                       "cron.preflight": True, "cron.max_parallel_jobs": None,
+                       "cron.output_retention": 50, "cron.script_timeout_seconds": 3600,
+                       "cron.session_db_timeout_seconds": 10, "cron.failure_repeat_alert_hours": 6,
+                       "cron.require_restart_safe_scope": False,
+                       "gateway.loop_watchdog": True, "gateway.startup_watchdog": True,
+                       "gateway.startup_watchdog_timeout_seconds": 300,
+                       "gateway.restart_loop_guard.max_restarts": 3,
+                       "gateway.respawn_storm.max_starts": 5,
+                       "gateway.signal_interrupt_grace_timeout": 1.0,
+                       "logging.level": "INFO", "logging.max_size_mb": 5,
+                       "logging.backup_count": 3,
                        "skills.disabled": [], "skills.create_dir": "", "skills.external_dirs": []}
         self.calls = []
         self.plugin_status = "enabled"
@@ -51,6 +85,8 @@ class BridgeTest(unittest.TestCase):
 
     def run_command(self, command, **_kwargs):
         self.calls.append(command)
+        if command[0] == "docker":
+            return subprocess.CompletedProcess(command, 0, "synthetic-docker\n", "")
         if command[0] == "plugin-worker":
             request = json.loads(_kwargs["input"])
             self.plugin_status = "enabled" if request["enabled"] else "disabled"
@@ -70,6 +106,35 @@ class BridgeTest(unittest.TestCase):
                 raw.pop("mcp_servers", None)
             self.config.write_text(yaml.safe_dump(raw))
             return subprocess.CompletedProcess(command, 0, '{"saved":true}', "")
+        if command[0] == "mcp-bearer-worker":
+            request = json.loads(_kwargs["input"])
+            entry = self.mcp_servers[request["name"]]
+            env_path = self.home / ".hermes" / ".env"
+            if request["token"] is None:
+                entry.pop("headers", None)
+                env_path.write_text("")
+            else:
+                entry["headers"] = {"Authorization": "Bearer ${MCP_" + request["name"].upper() + "_API_KEY}"}
+                env_path.write_text("MCP_" + request["name"].upper() + "_API_KEY=" + request["token"] + "\n")
+            import yaml
+            raw = yaml.safe_load(self.config.read_text())
+            raw["mcp_servers"] = self.mcp_servers
+            self.config.write_text(yaml.safe_dump(raw))
+            return subprocess.CompletedProcess(command, 0, '{"saved":true}', "")
+        if command[0] == "mcp-auth-probe-worker":
+            request = json.loads(_kwargs["input"])
+            if "token" in request:
+                raise AssertionError("token crossed from native profile to bridge")
+            return subprocess.CompletedProcess(command, 0, json.dumps({"connected": True, "toolCount": 1,
+                "toolCountComplete": True, "failureClass": None}), "")
+        if command[0] == "approval-test-worker":
+            request = json.loads(_kwargs["input"])
+            return subprocess.CompletedProcess(command, 0, json.dumps({
+                "command": request["command"], "env_type": request["backend"],
+                "verdict": "ask-approval", "exit_code": 2, "rule": "private " + request["command"],
+                "detail": "would request approval for " + request["command"],
+                "normalized_variants": [request["command"]],
+            }), "")
         if command[0] == "credential-worker":
             request = json.loads(_kwargs["input"])
             env_path = self.home / ".hermes" / ".env"
@@ -98,7 +163,7 @@ class BridgeTest(unittest.TestCase):
             raise AssertionError(args)
         return subprocess.CompletedProcess(command, 0, output, "")
 
-    def invoke(self, request=None):
+    def invoke(self, request=None, action=None):
         out = io.StringIO()
         bootstrap = types.ModuleType("hermes_bootstrap")
         hermes_cli = types.ModuleType("hermes_cli")
@@ -106,8 +171,11 @@ class BridgeTest(unittest.TestCase):
         lifecycle = types.ModuleType("hermes_cli.credential_lifecycle")
         launchers = types.ModuleType("hermes_cli._launchers")
         launchers.runtime_command = lambda *args, **kwargs: [
+            "approval-test-worker" if "hermes_cli.approvals_test" in kwargs.get("code", "") else
             "plugin-worker" if "hermes_plugin_activation.py" in kwargs.get("code", "") else
-            "mcp-worker" if "hermes_mcp_http_apply.py" in kwargs.get("code", "") else "credential-worker"]
+            "mcp-worker" if "hermes_mcp_http_apply.py" in kwargs.get("code", "") else
+            "mcp-auth-probe-worker" if "hermes_mcp_auth_probe.py" in kwargs.get("code", "") else
+            "mcp-bearer-worker" if "hermes_mcp_bearer_apply.py" in kwargs.get("code", "") else "credential-worker"]
         env_path = self.home / ".hermes" / ".env"
         def load_env():
             return dict(line.split("=", 1) for line in env_path.read_text().splitlines()) if env_path.exists() else {}
@@ -126,9 +194,10 @@ class BridgeTest(unittest.TestCase):
                                       "hermes_cli.config": config, "hermes_cli.credential_lifecycle": lifecycle,
                                       "hermes_cli._launchers": launchers}), \
              patch.object(sys, "path", sys.path.copy()), \
-             patch.object(sys, "argv", ["bridge", "plugin-activation" if request and "pluginId" in request else
+             patch.object(sys, "argv", ["bridge", action or ("plugin-activation" if request and "pluginId" in request else
+                                     "mcp-activation" if request and "name" in request and "url" not in request else
                                      "mcp-http" if request and "name" in request else
-                                     "credential-update" if request and request["key"] in bridge.MODEL_CREDENTIALS else "update" if request else "status"]), \
+                                     "credential-update" if request and request["key"] in bridge.MODEL_CREDENTIALS else "update" if request else "status")]), \
              patch.object(sys, "stdin", io.StringIO(json.dumps(request) if request else "")), contextlib.redirect_stdout(out):
             code = bridge.main()
         return code, json.loads(out.getvalue())
@@ -223,6 +292,39 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(result["values"]["agent.max_turns"], 600)
         self.assertEqual(len([command for command in self.calls if command[2:3] == ["set"]]), 1)
 
+    def test_cron_parallel_limit_persists_with_readback(self):
+        revision = bridge.revision(self.config)
+        code, result = self.invoke({"key": "cron.max_parallel_jobs", "value": 4,
+                                    "revision": revision})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["write"], {"key": "cron.max_parallel_jobs", "persisted": True})
+        self.assertEqual(result["values"]["cron.max_parallel_jobs"], 4)
+        self.assertEqual(len([command for command in self.calls if command[2:3] == ["set"]]), 1)
+
+    def test_cron_parallel_limit_rejects_out_of_range_without_write(self):
+        revision = bridge.revision(self.config)
+        for value in (0, 65):
+            with self.assertRaisesRegex(ValueError, "unsupported_field"):
+                self.invoke({"key": "cron.max_parallel_jobs", "value": value,
+                             "revision": revision})
+        self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
+
+    def test_log_level_is_bounded_to_native_levels(self):
+        revision = bridge.revision(self.config)
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "logging.level", "value": "TRACE", "revision": revision})
+        self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
+        code, result = self.invoke({"key": "logging.level", "value": "WARNING",
+                                    "revision": revision})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["logging.level"], "WARNING")
+
+    def test_zero_log_backups_is_rejected_because_native_default_would_override_it(self):
+        revision = bridge.revision(self.config)
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "logging.backup_count", "value": 0, "revision": revision})
+        self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
+
     def test_browser_timeout_guard_rejects_value_below_runtime_floor(self):
         current = bridge.revision(self.config)
         with self.assertRaisesRegex(ValueError, "unsupported_field"):
@@ -268,12 +370,136 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(result["write"], {"key": "mcp:example", "persisted": True})
         self.assertEqual(result["mcpServers"], [{"id": "example", "transport": "http", "enabled": True,
-                                                  "endpoint": "https://example.org", "editable": True}])
+                                                  "endpoint": "https://example.org", "editable": True,
+                                                  "authMode": "none", "credentialConfigured": None}])
         code, result = self.invoke({**request, "url": None, "enabled": False,
                                     "revision": result["revision"]})
         self.assertEqual(code, 0)
         self.assertTrue(result["write"]["persisted"])
         self.assertEqual(result["mcpServers"], [])
+
+    def test_mcp_oauth_start_is_revision_bound_and_returns_only_browser_link(self):
+        self.invoke({"name": "sample", "url": "https://mcp.example.org/mcp", "enabled": True,
+                     "revision": bridge.revision(self.config)})
+        stale_dir = self.home / ".hermes" / ".friday-mcp-oauth" / ("b" * 32)
+        stale_dir.mkdir(parents=True)
+        (stale_dir / "state.json").write_text('{"status":"failed"}')
+        os.utime(stale_dir, (time.time() - 90000, time.time() - 90000))
+
+        class FakeInput:
+            def __init__(self, test): self.test = test
+            def write(self, body):
+                self.request = json.loads(body)
+            def close(self):
+                from hermes_mcp_oauth_worker import write_state
+                write_state(Path(self.request["flowDir"]), "awaiting_approval",
+                            authorizationUrl="https://auth.example.org/authorize?state=synthetic")
+
+        class FakeWorker:
+            def __init__(self, test):
+                self.stdin = FakeInput(test)
+                self.pid = os.getpid()
+            def poll(self): return None
+
+        with patch.object(bridge.subprocess, "Popen", return_value=FakeWorker(self)), patch.object(
+                bridge.shutil, "which", return_value="/usr/bin/timeout"):
+            code, result = self.invoke({"name": "sample", "revision": bridge.revision(self.config),
+                                        "ownerId": "owner-1"},
+                                       "mcp-oauth-start")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["status"], "awaiting_approval")
+        self.assertRegex(result["flowId"], r"^[0-9a-f]{32}$")
+        self.assertNotIn("mcp.example.org/mcp", json.dumps(result))
+        self.assertFalse(stale_dir.exists())
+        stale_code, stale = self.invoke({"name": "sample", "revision": 0, "ownerId": "owner-1"}, "mcp-oauth-start")
+        self.assertEqual(stale_code, 4)
+        self.assertEqual(stale, {"error": "revision_conflict"})
+        with self.assertRaisesRegex(ValueError, "unknown_oauth_flow"):
+            self.invoke({"flowId": result["flowId"], "ownerId": "another-owner"}, "mcp-oauth-status")
+        flow_dir = self.home / ".hermes" / ".friday-mcp-oauth" / result["flowId"]
+        staged = flow_dir / "stage" / "mcp-tokens"
+        staged.mkdir(parents=True)
+        (staged / "sample.json").write_text('{"access_token":"synthetic-private"}')
+        with patch.object(bridge, "process_start", return_value=None):
+            status_code, status = self.invoke({"flowId": result["flowId"], "ownerId": "owner-1"},
+                                              "mcp-oauth-status")
+        self.assertEqual(status_code, 0)
+        self.assertEqual(status["failureClass"], "oauth_worker_unconfirmed")
+        self.assertFalse((flow_dir / "stage").exists())
+
+    def test_mcp_bearer_secret_is_redacted_and_revision_bound(self):
+        self.invoke({"name": "example", "url": "https://example.org/mcp", "enabled": True,
+                     "revision": bridge.revision(self.config)})
+        secret = "CANARY-MCP-PRIVATE"
+        code, result = self.invoke({"name": "example", "token": secret,
+                                    "revision": bridge.revision(self.config)}, action="mcp-bearer")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["write"], {"key": "mcp:example", "persisted": True})
+        self.assertEqual(result["mcpServers"][0]["authMode"], "bearer")
+        self.assertTrue(result["mcpServers"][0]["credentialConfigured"])
+        self.assertNotIn(secret, json.dumps(result))
+        self.assertFalse(any(secret in " ".join(map(str, command)) for command in self.calls))
+        code, conflict = self.invoke({"name": "example", "token": "another",
+                                      "revision": 1}, action="mcp-bearer")
+        self.assertEqual(code, 4)
+        self.assertEqual(conflict["error"], "revision_conflict")
+        code, cleared = self.invoke({"name": "example", "token": None,
+                                     "revision": result["revision"]}, action="mcp-bearer")
+        self.assertEqual(code, 0)
+        self.assertTrue(cleared["write"]["persisted"])
+        self.assertEqual(cleared["mcpServers"][0]["authMode"], "none")
+
+    def test_mcp_activation_reuses_stored_url_and_rejects_nonmanaged_entry(self):
+        self.invoke({"name": "example", "url": "https://example.org/mcp", "enabled": True,
+                     "revision": bridge.revision(self.config)})
+        code, disabled = self.invoke({"name": "example", "enabled": False,
+                                      "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertTrue(disabled["write"]["persisted"])
+        self.assertFalse(disabled["mcpServers"][0]["enabled"])
+        code, enabled = self.invoke({"name": "example", "enabled": True,
+                                     "revision": disabled["revision"]})
+        self.assertEqual(code, 0)
+        self.assertTrue(enabled["mcpServers"][0]["enabled"])
+        self.mcp_servers["example"]["headers"] = {"Authorization": "CANARY"}
+        import yaml
+        raw = yaml.safe_load(self.config.read_text())
+        raw["mcp_servers"] = self.mcp_servers
+        self.config.write_text(yaml.safe_dump(raw))
+        with self.assertRaisesRegex(ValueError, "managed_entry_conflict"):
+            self.invoke({"name": "example", "enabled": False,
+                         "revision": bridge.revision(self.config)})
+
+    def test_mcp_probe_uses_stored_entry_and_revision_without_exposing_endpoint(self):
+        self.invoke({"name": "example", "url": "https://example.org/private/mcp", "enabled": True,
+                     "revision": bridge.revision(self.config)})
+        import hermes_mcp_protocol_probe
+        with patch.object(hermes_mcp_protocol_probe, "probe", return_value={
+            "connected": True, "toolCount": 2, "toolCountComplete": True, "failureClass": None}) as probe:
+            code, result = self.invoke({"name": "example", "revision": bridge.revision(self.config)},
+                                       action="mcp-probe")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["toolCount"], 2)
+        self.assertNotIn("/private/mcp", json.dumps(result))
+        probe.assert_called_once_with("https://example.org/private/mcp")
+        with patch.object(hermes_mcp_protocol_probe, "probe") as probe:
+            code, result = self.invoke({"name": "example", "revision": 1}, action="mcp-probe")
+        self.assertEqual(code, 4)
+        self.assertEqual(result["error"], "revision_conflict")
+        probe.assert_not_called()
+
+    def test_mcp_bearer_probe_uses_native_secret_without_crossing_bridge(self):
+        self.invoke({"name": "example", "url": "https://example.org/private/mcp", "enabled": True,
+                     "revision": bridge.revision(self.config)})
+        self.invoke({"name": "example", "token": "CANARY-MCP-PRIVATE",
+                     "revision": bridge.revision(self.config)}, action="mcp-bearer")
+        code, result = self.invoke({"name": "example", "revision": bridge.revision(self.config)},
+                                   action="mcp-probe")
+        self.assertEqual(code, 0)
+        self.assertTrue(result["connected"])
+        self.assertNotIn("CANARY-MCP-PRIVATE", json.dumps(result))
+        self.assertNotIn("/private/mcp", json.dumps(result))
+        self.assertTrue(any(command[0] == "mcp-auth-probe-worker" for command in self.calls))
 
     def test_disabled_skills_error_is_unknown(self):
         original = self.run_command
@@ -347,6 +573,220 @@ class BridgeTest(unittest.TestCase):
         self.assertIsNone(result["values"]["agent.run_budget_seconds"])
         self.assertTrue(result["write"]["persisted"])
 
+    def test_execution_policy_rejects_inert_or_unbounded_grants(self):
+        current = bridge.revision(self.config)
+        with self.assertRaisesRegex(ValueError, "execution_backend_required"):
+            self.invoke({"key": "terminal.docker_mount_cwd_to_workspace", "value": True, "revision": current})
+        with self.assertRaisesRegex(ValueError, "docker_policy_requires_safe_baseline"):
+            self.invoke({"key": "terminal.backend", "value": "docker", "revision": current})
+        with self.assertRaisesRegex(ValueError, "capability_manifest_required"):
+            self.invoke({"key": "computer_use.permission_mode", "value": "bounded", "revision": current})
+        with self.assertRaisesRegex(ValueError, "profile_pin_required"):
+            self.invoke({"key": "browser.use_real_profile", "value": True, "revision": current})
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "computer_use.permission_mode", "value": "unrestricted", "revision": current})
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "approvals.mode", "value": "auto", "revision": current})
+        with self.assertRaisesRegex(ValueError, "invalid_capability_manifest"):
+            self.invoke({"key": "computer_use.capability_manifest", "value": "/tmp/foreign.json",
+                         "revision": current})
+        with self.assertRaisesRegex(ValueError, "invalid_execution_workspace"):
+            self.invoke({"key": "terminal.cwd", "value": "/tmp", "revision": current})
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "browser.dialog_policy", "value": "auto_accept", "revision": current})
+        with self.assertRaisesRegex(ValueError, "allowlist_addition_requires_native_approval"):
+            self.invoke({"key": "command_allowlist", "value": ["rm -rf *"], "revision": current})
+        self.config.write_text(self.config.read_text() + "\nbrowser:\n  restrict_evaluate: true\n")
+        with self.assertRaisesRegex(ValueError, "conflicting_browser_evaluate_policy"):
+            self.invoke({"key": "browser.allow_unsafe_evaluate", "value": True,
+                         "revision": bridge.revision(self.config)})
+
+    def test_execution_policy_owner_write_has_readback_only(self):
+        code, result = self.invoke({"key": "code_execution.mode", "value": "strict",
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertTrue(result["write"]["persisted"])
+        self.assertEqual(result["values"]["code_execution.mode"], "strict")
+
+    def test_bounded_browser_kernel_and_capture_controls_read_back(self):
+        for invalid in (15, 29):
+            with self.subTest(invalid_browser_idle=invalid), self.assertRaisesRegex(ValueError, "unsupported_field"):
+                self.invoke({"key": "browser.inactivity_timeout", "value": invalid,
+                             "revision": bridge.revision(self.config)})
+        for key, value in (("browser.dialog_policy", "auto_dismiss"),
+                           ("browser.dialog_timeout_s", 45),
+                           ("browser.inactivity_timeout", 30),
+                           ("code_execution.kernel_idle_timeout", 600),
+                           ("code_execution.max_session_kernels", 2),
+                           ("computer_use.ax_max_elements", 250),
+                           ("computer_use.max_image_dimension", 1024),
+                           ("computer_use.capture_after_mode", "ax")):
+            with self.subTest(key=key):
+                code, result = self.invoke({"key": key, "value": value,
+                                            "revision": bridge.revision(self.config)})
+                self.assertEqual(code, 0)
+                self.assertEqual(result["values"][key], value)
+                self.assertTrue(result["write"]["persisted"])
+
+    def test_docker_requires_staged_network_off_and_daemon(self):
+        code, _ = self.invoke({"key": "terminal.docker_network", "value": False,
+                               "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.config.write_text(self.config.read_text() + "\nterminal:\n  docker_network: false\n")
+        with patch.object(bridge.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(ValueError, "docker_unavailable"):
+                self.invoke({"key": "terminal.backend", "value": "docker",
+                             "revision": bridge.revision(self.config)})
+        with patch.object(bridge.shutil, "which", return_value="docker"):
+            code, result = self.invoke({"key": "terminal.backend", "value": "docker",
+                                        "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["terminal.backend"], "docker")
+        self.assertTrue(any(call[0] == "docker" and call[1] == "info" for call in self.calls))
+
+    def test_profile_consent_requires_pinned_principal(self):
+        code, _ = self.invoke({"key": "browser.real_profile_pin", "value": "Profile 2",
+                               "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.config.write_text(self.config.read_text() + "\nbrowser:\n  real_profile_pin: Profile 2\n")
+        code, result = self.invoke({"key": "browser.use_real_profile", "value": True,
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertTrue(result["values"]["browser.use_real_profile"])
+        self.config.write_text(self.config.read_text() + "\nbrowser:\n  real_profile_pin: Profile 2\n  use_real_profile: true\n")
+        with self.assertRaisesRegex(ValueError, "profile_pin_required"):
+            self.invoke({"key": "browser.real_profile_pin", "value": "",
+                         "revision": bridge.revision(self.config)})
+
+    def test_execution_policy_allows_only_removing_existing_command_approvals(self):
+        self.config.write_text(self.config.read_text() + "\ncommand_allowlist:\n  - 'git status'\n")
+        self.values["command_allowlist"] = ["git status"]
+        code, result = self.invoke({"key": "command_allowlist", "value": [],
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["command_allowlist"], [])
+
+    def test_automatic_approval_modes_round_trip_without_changing_other_modes(self):
+        for key in ("approvals.single_query_mode", "approvals.unattended_mode"):
+            code, result = self.invoke({"key": key, "value": "approve",
+                                        "revision": bridge.revision(self.config)})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["values"][key], "approve")
+            self.assertTrue(result["write"]["persisted"])
+            self.assertEqual(result["values"]["approvals.mode"], "smart")
+            code, result = self.invoke({"key": key, "value": "deny",
+                                        "revision": bridge.revision(self.config)})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["values"][key], "deny")
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "approvals.unattended_mode", "value": "off",
+                         "revision": bridge.revision(self.config)})
+
+    def test_approval_preview_returns_native_verdict_without_command_echo_or_write(self):
+        original = self.config.read_bytes()
+        code, result = self.invoke({"command": "rm -rf build", "revision": bridge.revision(self.config)},
+                                   action="approval-test")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["verdict"], "ask-approval")
+        self.assertEqual(result["backend"], "local")
+        self.assertNotIn("command", result)
+        self.assertNotIn("rm -rf build", json.dumps(result))
+        self.assertIsNone(result["rule"])
+        self.assertEqual(self.config.read_bytes(), original)
+        self.assertEqual(self.calls[-1][0], "approval-test-worker")
+
+    def test_native_deny_globs_and_slash_confirmation_controls_round_trip(self):
+        for key, value in (("approvals.deny", ["git push --force*", "rm -rf *"]),
+                           ("approvals.denial_breaker_threshold", 0),
+                           ("approvals.destructive_slash_confirm", False),
+                           ("approvals.mcp_reload_confirm", False)):
+            code, result = self.invoke({"key": key, "value": value,
+                                        "revision": bridge.revision(self.config)})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["values"][key], value)
+            self.assertTrue(result["write"]["persisted"])
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "approvals.deny", "value": ["bad\npattern"],
+                         "revision": bridge.revision(self.config)})
+
+    def test_local_browser_engine_and_route_controls_round_trip(self):
+        for key, value in (("browser.engine", "lightpanda"),
+                           ("browser.headed", True),
+                           ("browser.auto_local_for_private_urls", False)):
+            code, result = self.invoke({"key": key, "value": value,
+                                        "revision": bridge.revision(self.config)})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["values"][key], value)
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "browser.engine", "value": "unknown",
+                         "revision": bridge.revision(self.config)})
+
+    def test_owner_can_set_native_bypass_and_instruction_file_policy(self):
+        for key, value in (("approvals.mode", "off"),
+                           ("security.protected_instruction_files", False)):
+            code, result = self.invoke({"key": key, "value": value,
+                                        "revision": bridge.revision(self.config)})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["values"][key], value)
+            self.assertTrue(result["write"]["persisted"])
+
+    def test_toolsets_require_installed_native_definition(self):
+        native = types.ModuleType("toolsets")
+        native.TOOLSETS = {"hermes-cli": {}, "web": {}}
+        with patch.dict(sys.modules, {"toolsets": native}):
+            with self.assertRaisesRegex(ValueError, "unknown_toolset"):
+                self.invoke({"key": "toolsets", "value": ["unknown"],
+                             "revision": bridge.revision(self.config)})
+            code, result = self.invoke({"key": "toolsets", "value": ["web"],
+                                        "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["toolsets"], ["web"])
+
+    def test_docker_mounts_stay_inside_non_secret_user_workspace(self):
+        workspace = self.home / "Arbeits Fläche"
+        workspace.mkdir()
+        code, result = self.invoke({"key": "terminal.cwd", "value": str(workspace),
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["terminal.cwd"], str(workspace))
+        self.config.write_text(self.config.read_text() + "\nterminal:\n  backend: docker\n")
+        with self.assertRaisesRegex(ValueError, "invalid_docker_mount"):
+            self.invoke({"key": "terminal.docker_volumes", "value": ["/var/run/docker.sock:/workspace/mounts/docker"],
+                         "revision": bridge.revision(self.config)})
+        code, result = self.invoke({"key": "terminal.docker_volumes",
+                                    "value": [str(workspace) + ":/workspace/mounts/project"],
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertTrue(result["write"]["persisted"])
+
+    def test_container_resource_values_round_trip_through_native_config(self):
+        for key, value in (("terminal.container_cpu", 1.5),
+                           ("terminal.container_memory", 4096),
+                           ("terminal.container_disk", 16384)):
+            code, result = self.invoke({"key": key, "value": value,
+                                        "revision": bridge.revision(self.config)})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["values"][key], value)
+            self.assertTrue(result["write"]["persisted"])
+            self.values[key] = value
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "terminal.container_cpu", "value": 0,
+                         "revision": bridge.revision(self.config)})
+        code, result = self.invoke({"key": "terminal.container_persistent", "value": False,
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["terminal.container_persistent"], False)
+
+    def test_revoking_real_browser_profile_removes_staged_credentials(self):
+        snapshot = self.home / ".hermes" / "browser-profile"
+        snapshot.mkdir()
+        (snapshot / "Login Data").write_text("synthetic-secret")
+        code, result = self.invoke({"key": "browser.use_real_profile", "value": False,
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertTrue(result["write"]["persisted"])
+        self.assertFalse(snapshot.exists())
+
     def test_two_real_processes_same_revision_only_one_writes(self):
         tools = self.home / "fake-bin"
         tools.mkdir()
@@ -371,8 +811,41 @@ elif a[:2] == ['config', 'get']:
          'agent.max_turns': int(p.read_text().split('max_turns: ')[1].splitlines()[0]),
          'agent.gateway_timeout': 1800, 'agent.api_max_retries': 3,
          'session.terminal_continue': True, 'max_live_sessions': 16,
-         'terminal.timeout': 180, 'browser.command_timeout': 30,
-         'browser.snapshot_threshold': 15000,
+         'terminal.timeout': 180, 'terminal.container_cpu': 1.0,
+         'terminal.container_memory': 5120, 'terminal.container_disk': 51200,
+         'terminal.container_persistent': True,
+         'browser.command_timeout': 30,
+         'terminal.backend': 'local', 'terminal.cwd': '.', 'terminal.docker_network': True,
+         'terminal.docker_mount_cwd_to_workspace': False, 'terminal.docker_volumes': [],
+         'browser.snapshot_threshold': 15000, 'browser.inactivity_timeout': 120,
+         'browser.engine': 'auto', 'browser.headed': False,
+         'browser.auto_local_for_private_urls': True,
+         'browser.dialog_policy': 'must_respond', 'browser.dialog_timeout_s': 300,
+         'browser.allow_private_urls': False, 'browser.use_real_profile': False,
+         'browser.real_profile_pin': '', 'browser.restrict_evaluate': False,
+         'browser.allow_unsafe_evaluate': False, 'code_execution.mode': 'project',
+         'code_execution.kernel_idle_timeout': 1800, 'code_execution.max_session_kernels': 4,
+         'computer_use.permission_mode': 'standard', 'computer_use.capability_manifest': '',
+         'computer_use.max_image_dimension': 1456, 'computer_use.ax_max_elements': 200,
+         'computer_use.capture_after_mode': 'som',
+         'toolsets': ['hermes-cli'], 'command_allowlist': [],
+         'approvals.mode': 'smart', 'approvals.timeout': 300,
+         'approvals.denial_breaker_threshold': 3, 'approvals.deny': [],
+         'approvals.destructive_slash_confirm': True, 'approvals.mcp_reload_confirm': True,
+         'approvals.single_query_mode': 'deny', 'approvals.unattended_mode': 'deny',
+         'security.protected_instruction_files': True,
+         'cron.catch_up_missed': True, 'cron.allow_agent_scheduling': False,
+         'cron.preflight': True, 'cron.max_parallel_jobs': None,
+         'cron.output_retention': 50, 'cron.script_timeout_seconds': 3600,
+         'cron.session_db_timeout_seconds': 10, 'cron.failure_repeat_alert_hours': 6,
+         'cron.require_restart_safe_scope': False,
+         'gateway.loop_watchdog': True, 'gateway.startup_watchdog': True,
+         'gateway.startup_watchdog_timeout_seconds': 300,
+         'gateway.restart_loop_guard.max_restarts': 3,
+         'gateway.respawn_storm.max_starts': 5,
+         'gateway.signal_interrupt_grace_timeout': 1.0,
+         'logging.level': 'INFO', 'logging.max_size_mb': 5,
+         'logging.backup_count': 3,
          'skills.disabled': [], 'skills.create_dir': '', 'skills.external_dirs': []}
     print(json.dumps(d[a[2]]))
 elif a[:2] == ['config', 'set']:

@@ -70,6 +70,15 @@ describe("notification escalation", () => {
     expect(notification.escalation[0]?.state).toBe("skipped");
   });
 
+  it("does not offer a legacy non-default messenger account for an owner-reviewed send", () => {
+    const world = new MockWorld({ realTime: false });
+    world.state.settings.notifications.channels = world.state.settings.notifications.channels.map((channel) =>
+      channel.kind === "telegram" ? { ...channel, enabled: true, accountId: "old-profile" } : channel,
+    );
+    const notification = world.notifications.raise({ priority: "P1", category: "system", title: "Test", body: "Test", chain: ["telegram"] });
+    expect(notification.escalation[0]?.state).toBe("skipped");
+  });
+
   it("defers non-critical external escalation during configured local quiet hours", () => {
     const world = new MockWorld({ realTime: false });
     world.state.settings.profile.timeZone = "UTC";

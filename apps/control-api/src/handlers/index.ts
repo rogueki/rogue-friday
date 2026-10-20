@@ -31,11 +31,13 @@ import { taskActionHandlers } from "./task-actions";
 import { agentActionHandlers } from "./agent-actions";
 import { knowledgeActionHandlers } from "./knowledge-actions";
 import { automationActionHandlers } from "./automation-actions";
+import { researchActionHandlers, researchReads } from "./research-actions";
 
 /** Port-backed operations come from `PORT_SPEC`; the explicit handlers add enforcement or are served locally. */
 export function buildHandlers(): Map<OperationId, Handler> {
   const handlers = buildPortHandlers();
   const localReads = localCalendarReads(handlers.get("listCalendarEvents")!, handlers.get("getCalendarEvent")!);
+  const localResearchReads = researchReads(handlers);
   const overrides: Array<Partial<Record<OperationId, Handler>>> = [
     metaHandlers,
     authHandlers,
@@ -59,6 +61,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     messengerInboundHandlers,
     taskActionHandlers,
     localReads,
+    localResearchReads,
     devHandlers,
     approvalHandlers,
     adapterHandlers,
@@ -66,6 +69,7 @@ export function buildHandlers(): Map<OperationId, Handler> {
     agentActionHandlers,
     knowledgeActionHandlers,
     automationActionHandlers,
+    researchActionHandlers,
     commandHandlers,
     observabilityHandlers,
   ];

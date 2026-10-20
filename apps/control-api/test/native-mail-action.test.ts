@@ -1,4 +1,7 @@
 import { expect, it, vi } from "vitest";
+import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import type { MailAccount } from "../src/services/mail-accounts";
 import { startTestApi, type TestApi } from "./helpers";
 
@@ -143,6 +146,207 @@ it("fails unknown or ambiguous recipients before any preview is staged", async (
     const ambiguous = await owner.post("/api/v1/commands", { text: "Schreibe eine Mail an Becker dass hallo", source: "text" });
     expect(ambiguous.statusCode, ambiguous.body).toBe(409);
     expect(ambiguous.json().error.message).toContain("Mehrere Empfaenger");
+    expect(ambiguous.json().error.details).toMatchObject({ clarificationRequired: true });
+    expect(stagedRows(api)).toBe(0);
+  } finally { await api.close(); }
+});
+
+it("resolves an ambiguous mail recipient across an authenticated session turn and sends only after confirmation", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const { send } = mockMailbox(api);
+    const owner = api.client();
+    await owner.loginDev("owner");
+    await disableTier2(owner);
+    const search = vi.spyOn(api.runtime.mailAccounts, "search");
+    const duplicateSenders = { mailbox: "INBOX", uidValidity: "u1", page: 1, items: [
+      { id: "1", from: "Becker, Anna <anna.becker@example.test>", date: "2026-10-18T09:00:00Z" },
+      { id: "2", from: "Becker, Bert <bert.becker@example.test>", date: "2026-10-17T09:00:00Z" },
+    ] };
+    search.mockResolvedValueOnce(duplicateSenders).mockResolvedValueOnce(duplicateSenders);
+    const text = "Schreibe eine Mail an Becker mit dem Betreff Projektstatus: Das Release ist fertig";
+    const ambiguous = await owner.post("/api/v1/commands", { text, source: "text" });
+    expect(ambiguous.statusCode).toBe(409);
+    expect(ambiguous.json().error.details).toMatchObject({ clarificationRequired: true, optionCount: 2 });
+    expect(ambiguous.json().error.message).toContain("anna.becker@example.test");
+    expect(send).not.toHaveBeenCalled();
+    expect(stagedRows(api)).toBe(0);
+    const pending = api.runtime.db.prepare("SELECT payload_ciphertext FROM pending_command_clarifications").get() as { payload_ciphertext: string };
+    expect(pending.payload_ciphertext).not.toContain("Das Release ist fertig");
+
+    const clarification = await owner.post("/api/v1/commands", { text: "choose the second", source: "text" });
+    expect(clarification.statusCode, clarification.body).toBe(200);
+    expect(clarification.json()).toMatchObject({ status: "requires_confirmation", requiresConfirmation: true });
+    expect(clarification.json().previewText).toContain("bert.becker@example.test");
+    expect(send).not.toHaveBeenCalled();
+    expect(stagedRows(api)).toBe(1);
+    const native = api.runtime.db.prepare("SELECT action_json, result_json FROM native_approval_requests").get() as { action_json: string; result_json: string };
+    expect(native.action_json).toContain("mail.send.clarified");
+    expect(native.action_json).not.toContain("Das Release ist fertig");
+    expect(native.action_json).not.toContain("Projektstatus");
+    expect(native.result_json).not.toContain("Das Release ist fertig");
+    const stagedAction = JSON.parse(native.action_json) as { draftId: string; intentHash: string; sessionBinding: string };
+    const ownerId = await ownerIdOf(owner);
+    expect(api.runtime.encryptedClarifiedMailDrafts.read(ownerId, "different-session", stagedAction.draftId, stagedAction.intentHash)).toBeNull();
+    const encryptedDraft = api.runtime.db.prepare("SELECT payload_ciphertext FROM encrypted_clarified_mail_drafts").get() as { payload_ciphertext: string };
+    expect(encryptedDraft.payload_ciphertext).not.toContain("Das Release ist fertig");
+    for (const file of [join(api.config.paths.dataDir, "dashboard.sqlite"), join(api.config.paths.dataDir, "dashboard.sqlite-wal")]) {
+      if (existsSync(file)) expect(readFileSync(file).includes(Buffer.from("Das Release ist fertig"))).toBe(false);
+    }
+
+    const changedPreview = await owner.post("/api/v1/commands", { text: text.replace("Release", "Rollback"), source: "text", confirm: true, previewId: clarification.json().previewId });
+    expect(changedPreview.statusCode).toBe(409);
+    const confirmed = await owner.post("/api/v1/commands", { text, source: "text", confirm: true, previewId: clarification.json().previewId });
+    expect(confirmed.statusCode, confirmed.body).toBe(200);
+    expect(confirmed.json().status).toBe("executed");
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]![1]).toMatchObject({ to: ["bert.becker@example.test"], subject: "Projektstatus", body: "Das Release ist fertig" });
+    expect((api.runtime.db.prepare("SELECT COUNT(*) AS count FROM encrypted_clarified_mail_drafts").get() as { count: number }).count).toBe(0);
+    search.mockResolvedValueOnce(duplicateSenders);
+    const replay = await owner.post("/api/v1/commands", { text, source: "text", confirm: true, previewId: clarification.json().previewId });
+    expect(replay.statusCode).toBe(409);
+    expect(replay.json().error.details).toMatchObject({ clarificationRequired: true });
+    expect(send).toHaveBeenCalledTimes(1);
+    const history = api.runtime.db.prepare("SELECT text FROM command_history ORDER BY created_at").all() as Array<{ text: string }>;
+    expect(history.map((row) => row.text).join("\n")).not.toContain("Das Release ist fertig");
+    expect(history.some((row) => row.text === "[REDACTED]")).toBe(true);
+  } finally { await api.close(); }
+});
+
+it("deletes the encrypted clarification draft and bodyless native preview on discard", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    mockMailbox(api);
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const search = vi.spyOn(api.runtime.mailAccounts, "search");
+    const candidates = { mailbox: "INBOX", uidValidity: "u1", page: 1, items: [
+      { id: "1", from: "Anna Becker <anna.becker@example.test>", date: "2026-10-18T09:00:00Z" },
+      { id: "2", from: "Bert Becker <bert.becker@example.test>", date: "2026-10-17T09:00:00Z" },
+    ] };
+    search.mockResolvedValueOnce(candidates);
+    const text = "Schreibe eine Mail an Becker: Vertraulicher Text nur fuer diesen Test";
+    expect((await owner.post("/api/v1/commands", { text, source: "text" })).statusCode).toBe(409);
+    search.mockResolvedValueOnce(candidates);
+    const preview = await owner.post("/api/v1/commands", { text: "1", source: "text" });
+    expect(preview.statusCode).toBe(200);
+    expect((api.runtime.db.prepare("SELECT COUNT(*) AS count FROM encrypted_clarified_mail_drafts").get() as { count: number }).count).toBe(1);
+    const discarded = await owner.post("/api/v1/commands", { text: "discard", source: "text", previewId: preview.json().previewId });
+    expect(discarded.statusCode, discarded.body).toBe(200);
+    expect(discarded.json().status).toBe("rejected");
+    expect((api.runtime.db.prepare("SELECT COUNT(*) AS count FROM encrypted_clarified_mail_drafts").get() as { count: number }).count).toBe(0);
+    expect(stagedRows(api)).toBe(0);
+  } finally { await api.close(); }
+});
+
+it("executes a clarified mail only after approval and keeps its body out of approval rows", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const { send } = mockMailbox(api);
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const search = vi.spyOn(api.runtime.mailAccounts, "search");
+    const candidates = { mailbox: "INBOX", uidValidity: "u1", page: 1, items: [
+      { id: "1", from: "Anna Becker <anna.becker@example.test>", date: "2026-10-18T09:00:00Z" },
+      { id: "2", from: "Bert Becker <bert.becker@example.test>", date: "2026-10-17T09:00:00Z" },
+    ] };
+    search.mockResolvedValueOnce(candidates).mockResolvedValueOnce(candidates);
+    const text = "Schreibe eine Mail an Becker mit dem Betreff Projektstatus: Vertrauliche Freigabe erforderlich";
+    expect((await owner.post("/api/v1/commands", { text, source: "text" })).statusCode).toBe(409);
+    const preview = await owner.post("/api/v1/commands", { text: "choose the first", source: "text" });
+    expect(preview.statusCode, preview.body).toBe(200);
+    const confirmed = await owner.post("/api/v1/commands", { text, source: "text", confirm: true, previewId: preview.json().previewId });
+    expect(confirmed.json().status).toBe("requires_approval");
+    expect(send).not.toHaveBeenCalled();
+    const approvalId = confirmed.json().approvalId as string;
+    const native = api.runtime.db.prepare(`SELECT n.action_json, n.result_json FROM native_approval_requests n
+      WHERE json_extract(n.result_json, '$.approval.id') = ?`).get(approvalId) as { action_json: string; result_json: string };
+    expect(native.action_json).toContain("mail.send.clarified");
+    expect(native.action_json).not.toContain("Vertrauliche Freigabe erforderlich");
+    expect(native.result_json).not.toContain("Vertrauliche Freigabe erforderlich");
+    const opened = await owner.get(`/api/v1/approvals/${approvalId}`);
+    const decision = await owner.post(`/api/v1/approvals/${approvalId}/approve`, {},
+      { headers: { "x-approval-token": String(opened.headers["x-approval-token"]) } });
+    expect(decision.statusCode, decision.body).toBe(200);
+    expect(decision.json().data.status).toBe("executed");
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]![1]).toMatchObject({ to: ["anna.becker@example.test"], body: "Vertrauliche Freigabe erforderlich" });
+    expect((api.runtime.db.prepare("SELECT COUNT(*) AS count FROM encrypted_clarified_mail_drafts").get() as { count: number }).count).toBe(0);
+  } finally { await api.close(); }
+});
+
+it("deletes an expired clarified mail preview and its encrypted body", async () => {
+  let now = Date.parse("2026-10-20T12:00:00Z");
+  const api = await startTestApi({ responseValidation: "throw", now: () => now });
+  try {
+    mockMailbox(api);
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const search = vi.spyOn(api.runtime.mailAccounts, "search");
+    const candidates = { mailbox: "INBOX", uidValidity: "u1", page: 1, items: [
+      { id: "1", from: "Anna Becker <anna.becker@example.test>", date: "2026-10-18T09:00:00Z" },
+      { id: "2", from: "Bert Becker <bert.becker@example.test>", date: "2026-10-17T09:00:00Z" },
+    ] };
+    search.mockResolvedValueOnce(candidates).mockResolvedValueOnce(candidates);
+    expect((await owner.post("/api/v1/commands", { text: "Schreibe eine Mail an Becker: Einmaliger privater Inhalt", source: "text" })).statusCode).toBe(409);
+    const preview = await owner.post("/api/v1/commands", { text: "1", source: "text" });
+    expect(preview.statusCode).toBe(200);
+    expect((api.runtime.db.prepare("SELECT COUNT(*) AS count FROM encrypted_clarified_mail_drafts").get() as { count: number }).count).toBe(1);
+    now = (api.runtime.db.prepare("SELECT expires_at FROM encrypted_clarified_mail_drafts").get() as { expires_at: number }).expires_at;
+    expect(api.runtime.encryptedClarifiedMailDrafts.purgeExpired()).toBe(1);
+    expect((api.runtime.db.prepare("SELECT COUNT(*) AS count FROM encrypted_clarified_mail_drafts").get() as { count: number }).count).toBe(0);
+    expect(stagedRows(api)).toBe(0);
+  } finally { await api.close(); }
+});
+
+it("refuses to create a replacement auth.key while encrypted command data remains", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "friday-encrypted-command-key-"));
+  let api: TestApi | undefined;
+  try {
+    api = await startTestApi({ dir, responseValidation: "throw" });
+    mockMailbox(api);
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const search = vi.spyOn(api.runtime.mailAccounts, "search");
+    const candidates = { mailbox: "INBOX", uidValidity: "u1", page: 1, items: [
+      { id: "1", from: "Anna Becker <anna.becker@example.test>", date: "2026-10-18T09:00:00Z" },
+      { id: "2", from: "Bert Becker <bert.becker@example.test>", date: "2026-10-17T09:00:00Z" },
+    ] };
+    search.mockResolvedValueOnce(candidates).mockResolvedValueOnce(candidates);
+    expect((await owner.post("/api/v1/commands", { text: "Schreibe eine Mail an Becker: Persistenter privater Text", source: "text" })).statusCode).toBe(409);
+    expect((await owner.post("/api/v1/commands", { text: "1", source: "text" })).statusCode).toBe(200);
+    const dataDir = api.config.paths.dataDir;
+    await api.close();
+    api = undefined;
+    unlinkSync(join(dataDir, "auth.key"));
+    await expect(startTestApi({ dir, responseValidation: "throw" }))
+      .rejects.toThrow("Persisted encrypted local records require the original auth.key");
+  } finally {
+    if (api) await api.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+it("does not resume mail composition when the ambiguous mailbox candidates changed", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const { send } = mockMailbox(api);
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const search = vi.spyOn(api.runtime.mailAccounts, "search");
+    search.mockResolvedValueOnce({ mailbox: "INBOX", uidValidity: "u1", page: 1, items: [
+      { id: "1", from: "Anna Becker <anna.becker@example.test>", date: "2026-10-18T09:00:00Z" },
+      { id: "2", from: "Bert Becker <bert.becker@example.test>", date: "2026-10-17T09:00:00Z" },
+    ] }).mockResolvedValueOnce({ mailbox: "INBOX", uidValidity: "u1", page: 1, items: [
+      { id: "1", from: "Anna Becker <anna.becker@example.test>", date: "2026-10-18T09:00:00Z" },
+      { id: "3", from: "Clara Becker <clara.becker@example.test>", date: "2026-10-16T09:00:00Z" },
+    ] });
+    const text = "Schreibe eine Mail an Becker: Das Release ist fertig";
+    expect((await owner.post("/api/v1/commands", { text, source: "text" })).statusCode).toBe(409);
+    const resumed = await owner.post("/api/v1/commands", { text: "second", source: "text" });
+    expect(resumed.statusCode).toBe(409);
+    expect(resumed.json().error.message).toContain("Empfaengerliste hat sich");
+    expect(send).not.toHaveBeenCalled();
     expect(stagedRows(api)).toBe(0);
   } finally { await api.close(); }
 });

@@ -73,6 +73,19 @@ describe("priority (owner order section 7)", () => {
     expect(mode(controller)).toBe("listening");
   });
 
+  it("an installed service-level source cannot keep a missing microphone-close event alive forever", () => {
+    const { controller, bridge, advance } = setup();
+    controller.setInputAudioSource({
+      sample: (_now, out) => { out.source = "service-level"; out.rms = 0; out.gateOpen = false; },
+      dispose: () => undefined,
+    });
+    bridge.onSnapshot(snapshot());
+    bridge.onMicrophoneOpened({ source: "service" });
+    expect(mode(controller)).toBe("listening");
+    for (let i = 0; i < 120; i++) advance(100);
+    expect(mode(controller)).toBe("idle");
+  });
+
   it("listening outranks speaking when the user opens the microphone during TTS (barge-in intent)", () => {
     const { controller, bridge } = setup();
     bridge.onTtsStarted();

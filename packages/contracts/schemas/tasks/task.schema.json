@@ -55,6 +55,9 @@
     "model": {
       "type": ["string", "null"]
     },
+    "reasoningLevel": {
+      "$ref": "../agents/reasoning-level.schema.json"
+    },
     "progress": {
       "$ref": "../common/progress.schema.json"
     },

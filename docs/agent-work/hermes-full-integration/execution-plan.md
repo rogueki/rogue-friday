@@ -2,7 +2,7 @@
 
 ## Authority and baseline
 
-This is the execution companion to `implementation-spec.md`. The requested implementation supersedes that plan's Astra/Flash routing: use economical Sol/Luna/Terra workers for bounded packages; no Astra Flash, Astra builder or Kourier/DeepSeek. Root owns architecture decisions, integration review, test selection and authorized `main` publication. Workers own explicit file/package scopes and do not commit, push, deploy, mutate the live install or delegate. Concurrent edits are coordinated by ownership and shared-tree awareness.
+This is the execution companion to `implementation-spec.md`. The requested implementation supersedes that plan's Astra/Flash routing: use Sol/Luna workers for bounded packages; no Astra Flash, Astra builder or Kourier/DeepSeek. Root owns architecture decisions, integration review, test selection and authorized `main` publication. Workers own explicit file/package scopes and may make isolated review commits when root assigns them; they do not push, deploy, mutate the live install or delegate. Concurrent edits are coordinated by ownership and shared-tree awareness.
 
 Baseline checkout: `rogue-friday-clean`, `841f0771f52c81b78ea57fd4012161c11c4efbf3`. Capture the actual baseline/worktree before package implementation. Existing live installation must not be reset or reinstalled tonight. Use isolated fixtures and disposable environments for clean-install testing; tomorrow's full install exercise is a separate planned gate after backup and preservation review. Keep settings, custom voice references, Vault and user data intact. This plan makes no claim that live settings, providers, hardware, costs or quota limits are already verified.
 
@@ -28,7 +28,7 @@ Baseline checkout: `rogue-friday-clean`, `841f0771f52c81b78ea57fd4012161c11c4efb
 ## Package controls
 
 - Assign one writer per overlapping package/fileset; root reviews the combined diff and all untracked files. Workers report changed paths, criteria IDs, exact commands/results, unresolved issues and evidence references.
-- Keep bounded packages; use Sol for broad repository/runtime work, Luna/Terra for discrete independent UI/test/docs or connector slices where interfaces are frozen. No worker claims entire-plan completion from its package.
+- Keep bounded packages; use Sol for broad repository/runtime work and Luna for discrete independent UI/test/docs or connector slices where interfaces are frozen. No worker claims entire-plan completion from its package.
 - Start with targeted checks from real package manifests; at integration boundaries run contracts, typecheck, lint, unit/conformance, app build and relevant E2E/integration suites. Add Python/PowerShell parser/runtime checks for installer and voice paths. Push the reviewed work to a task/feature branch to start its CI workflow; a push is allowed before CI is green. Merge/fast-forward to `main` only after required CI checks pass and root completes review. Do not push directly to `main` as a way to trigger CI.
 - Provider tests use controlled test accounts and synthetic messages/events. Never use personal inbox/calendar content as fixtures. Never auto-buy a provider plan, authorize external messaging, or assume a quota/cost.
 - Keep automated evidence and provider/hardware evidence distinct. Provider setup/consent, WhatsApp QR/device pairing, calendar write permission, mail credentials, microphone permissions, actual headset endpoint, Bluetooth behavior and 30-sample stop-latency runs cannot be inferred from mocks, source inspection or HTTP health.

@@ -6,6 +6,8 @@
   "speakerVerificationRequired": true,
   "storeRawRecordings": false,
   "voiceHistoryEnabled": false,
+  "sttLanguage": "de",
+  "sttModel": "small",
   "ttsVoice": "de_DE-thorsten",
   "ttsRate": 1,
   "inputDeviceId": null,

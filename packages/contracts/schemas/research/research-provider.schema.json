@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/research/research-provider.schema.json",
+  "title": "ResearchProvider",
+  "type": "object",
+  "properties": {
+    "provider": { "type": "string", "enum": ["searxng", "wikipedia"] },
+    "endpoint": { "type": ["string", "null"] },
+    "configured": { "type": "boolean" },
+    "version": { "type": "integer", "minimum": 1 },
+    "maxSources": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 12000 },
+    "setup": {
+      "type": "object",
+      "properties": {
+        "available": { "type": "boolean" },
+        "state": { "type": "string", "enum": ["ready", "stopped", "unavailable"] },
+        "endpoint": { "type": "string" },
+        "image": { "type": ["string", "null"] },
+        "reason": { "type": ["string", "null"] }
+      },
+      "required": ["available", "state", "endpoint", "image", "reason"],
+      "additionalProperties": false
+    },
+    "sourceVerification": { "const": "unverified" }
+  },
+  "required": [
+    "provider",
+    "endpoint",
+    "configured",
+    "version",
+    "maxSources",
+    "timeoutMs",
+    "setup",
+    "sourceVerification"
+  ],
+  "additionalProperties": false
+}

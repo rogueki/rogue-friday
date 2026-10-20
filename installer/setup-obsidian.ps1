@@ -18,34 +18,25 @@ function Save-SelectedVault([string]$path) {
         [Environment]::SetEnvironmentVariable('FRIDAY_OBSIDIAN_VAULT', $path, 'User')
     } finally { Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue }
 }
-if ($Action -eq 'ensure') {
-    $existing = [Environment]::GetEnvironmentVariable('FRIDAY_OBSIDIAN_VAULT', 'User')
-    $vault = if ($VaultPath) { $VaultPath } elseif ($existing) { $existing } else { Join-Path $root 'memory\Friday' }
-    $vault = [IO.Path]::GetFullPath($vault)
-    if ($vault -notmatch '^[A-Za-z]:\\[^<>:"|?*]+$') { throw 'Vault muss ein lokaler absoluter Pfad sein.' }
-    foreach ($folder in @('.obsidian','Conversations','Daily','People','Projects','Knowledge','Decisions','Attachments')) {
-        $directory = Join-Path $vault $folder
-        if (-not (Test-Path -LiteralPath $directory)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
-    }
-    $probe = Join-Path $vault ('.friday-write-test-' + [guid]::NewGuid().ToString('N'))
-    try { [IO.File]::WriteAllText($probe, 'test'); if ([IO.File]::ReadAllText($probe) -ne 'test') { throw 'Vault-Leseprobe fehlgeschlagen.' } }
-    finally { Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue }
-    $VaultPath = $vault
-    # The writer works without a running Obsidian process. Report application installation separately.
-    $app = @((Join-Path $env:LOCALAPPDATA 'Obsidian\Obsidian.exe'), (Join-Path $env:ProgramFiles 'Obsidian\Obsidian.exe')) |
-        Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
-    if (-not $app) {
-        if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) { throw 'Obsidian fehlt und winget ist nicht verfügbar.' }
-        & winget.exe install --exact --id Obsidian.Obsidian --scope machine --accept-package-agreements --accept-source-agreements --silent | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Obsidian-Installation fehlgeschlagen (winget exit $LASTEXITCODE)." }
-    }
-}
 $stateFile = Join-Path $InstallRoot 'config\install-state.json'
 if (-not (Test-Path -LiteralPath $stateFile -PathType Leaf)) { throw 'Friday-Installation nicht gefunden.' }
 $state = Get-Content -LiteralPath $stateFile -Raw | ConvertFrom-Json
 if (-not $state.distro_name -or -not $state.linux_user) { throw 'WSL-Installationszustand unvollstaendig.' }
 if ($root -notmatch '^([A-Za-z]):\\(.+)$') { throw 'InstallRoot muss ein lokaler Laufwerkspfad sein.' }
 $script = '/mnt/' + $Matches[1].ToLowerInvariant() + '/' + $Matches[2].Replace('\', '/') + '/installer/wsl/configure_obsidian.py'
+if ($Action -eq 'ensure') {
+    $existing = [Environment]::GetEnvironmentVariable('FRIDAY_OBSIDIAN_VAULT', 'User')
+    $savedPath = Join-Path $root 'config\obsidian-vault-path.txt'
+    $savedVault = if (Test-Path -LiteralPath $savedPath -PathType Leaf) { [IO.File]::ReadAllText($savedPath).Trim() } else { $null }
+    $vault = if ($VaultPath) { $VaultPath } elseif ($existing) { $existing } elseif ($savedVault -and
+        (Test-Path -LiteralPath (Join-Path $savedVault '.obsidian') -PathType Container)) { $savedVault } else { Join-Path $root 'memory\Friday' }
+    . (Join-Path $PSScriptRoot 'ensure-obsidian-vault.ps1')
+    $vault = Ensure-FridayObsidianVault -Path $vault
+    $VaultPath = $vault
+    # The writer works without a running Obsidian process. Report application installation separately.
+    . (Join-Path $PSScriptRoot 'find-obsidian-install.ps1')
+    $app = (Ensure-ObsidianInstall).path
+}
 if ($Action -eq 'set' -or $Action -eq 'ensure') {
     if ([string]::IsNullOrWhiteSpace($VaultPath)) { exit 4 }
     try { $vault = [IO.Path]::GetFullPath($VaultPath) } catch { exit 4 }
@@ -61,6 +52,7 @@ if ($Action -eq 'set' -or $Action -eq 'ensure') {
             if ($LASTEXITCODE -eq 0) {
                 Save-SelectedVault $vault
                 $current.applied = $true
+                $current | Add-Member -NotePropertyName applicationPath -NotePropertyValue $app -Force
                 $current | ConvertTo-Json -Compress
                 exit 0
             }
@@ -72,6 +64,10 @@ if ($Action -eq 'set' -or $Action -eq 'ensure') {
     if ($code -eq 0) {
         $configured = $response | Select-Object -Last 1 | ConvertFrom-Json
         if ($configured.readable -and $configured.applied) { Save-SelectedVault $vault }
+        if ($Action -eq 'ensure') {
+            $configured | Add-Member -NotePropertyName applicationPath -NotePropertyValue $app -Force
+            $response = $configured | ConvertTo-Json -Compress
+        }
     }
     $response
     exit $code

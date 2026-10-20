@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { isIP } from "node:net";
+import type { HermesCronMutationReceipt, HermesCronMutationRequest } from "@friday/sdk";
 import { ApiError, conflict, validationFailed } from "../util/errors";
-import { invokeCodingRunner, type RunnerInvoker } from "./coding-runs";
+import { invokeCodingRunner, nativeRunnerScript, type RunnerInvoker } from "./coding-runs";
 
 export const HERMES_CONFIG_FIELDS = {
   "model.provider": { type: "string", kind: "provider", family: "models", consumer: "new Hermes provider route" },
@@ -51,24 +52,100 @@ export const HERMES_CONFIG_FIELDS = {
     consumer: "Hermes gateway session cache",
   },
   "terminal.timeout": { type: "integer", min: 1, max: 3600, family: "execution", consumer: "new Hermes terminal environment" },
+  "terminal.container_cpu": { type: "number", min: 0.01, max: 1024, family: "execution", consumer: "new container environment; Docker CPU enforcement depends on cgroups" },
+  "terminal.container_memory": { type: "integer", min: 1, max: 1048576, family: "execution", consumer: "new container environment; Docker memory enforcement depends on cgroups" },
+  "terminal.container_disk": { type: "integer", min: 1, max: 1048576, family: "execution", consumer: "new container environment; Docker disk quota depends on storage driver" },
+  "terminal.container_persistent": { type: "boolean", family: "execution", consumer: "new Docker session scope and container lifetime" },
+  "terminal.backend": { type: "string", kind: "executionBackend", family: "execution", consumer: "new Hermes terminal environment" },
+  "terminal.cwd": { type: "string", kind: "workspacePath", family: "execution", consumer: "new Hermes terminal environment" },
+  "terminal.docker_network": { type: "boolean", family: "execution", consumer: "new Docker sandbox" },
+  "terminal.docker_mount_cwd_to_workspace": { type: "boolean", family: "execution", consumer: "new Docker sandbox" },
+  "terminal.docker_volumes": { type: "textList", kind: "dockerMounts", family: "execution", consumer: "new Docker sandbox" },
   "browser.command_timeout": { type: "integer", min: 5, max: 600, family: "execution", consumer: "new browser session or cleared browser cache" },
   "browser.snapshot_threshold": { type: "integer", min: 1000, max: 200000, family: "execution", consumer: "new browser session or cleared browser cache" },
+  "browser.inactivity_timeout": { type: "integer", min: 30, max: 3600, family: "execution", consumer: "new browser module session" },
+  "browser.engine": { type: "string", kind: "browserEngine", family: "execution", consumer: "new local browser session" },
+  "browser.headed": { type: "boolean", family: "execution", consumer: "new local Chromium window" },
+  "browser.auto_local_for_private_urls": { type: "boolean", family: "execution", consumer: "next cloud-backend private URL route" },
+  "browser.dialog_policy": { type: "string", kind: "dialogPolicy", family: "execution", consumer: "new CDP dialog supervisor" },
+  "browser.dialog_timeout_s": { type: "integer", min: 1, max: 3600, family: "execution", consumer: "new CDP dialog supervisor" },
+  "browser.allow_private_urls": { type: "boolean", family: "execution", consumer: "new Hermes browser navigation" },
+  "browser.use_real_profile": { type: "boolean", family: "execution", consumer: "new browser profile snapshot" },
+  "browser.real_profile_pin": { type: "string", kind: "profilePin", family: "execution", consumer: "new browser profile snapshot" },
+  "browser.restrict_evaluate": { type: "boolean", family: "execution", consumer: "new browser console evaluation" },
+  "browser.allow_unsafe_evaluate": { type: "boolean", family: "execution", consumer: "new browser console evaluation" },
+  "code_execution.mode": { type: "string", kind: "codeMode", family: "execution", consumer: "new execute_code kernel" },
+  "code_execution.kernel_idle_timeout": { type: "integer", min: 30, max: 86400, family: "execution", consumer: "new code-kernel idle sweep" },
+  "code_execution.max_session_kernels": { type: "integer", min: 1, max: 32, family: "execution", consumer: "new code-kernel admission" },
+  "computer_use.permission_mode": { type: "string", kind: "computerPermission", family: "execution", consumer: "new computer-use session" },
+  "computer_use.capability_manifest": { type: "string", kind: "manifestPath", family: "execution", consumer: "new bounded computer-use session" },
+  "computer_use.max_image_dimension": { type: "integer", min: 320, max: 4096, family: "execution", consumer: "new computer-use driver session" },
+  "computer_use.ax_max_elements": { type: "integer", min: 50, max: 1000, family: "execution", consumer: "next computer-use accessibility capture" },
+  "computer_use.capture_after_mode": { type: "string", kind: "captureAfterMode", family: "execution", consumer: "next computer-use action capture" },
+  toolsets: { type: "textList", kind: "toolsetNames", family: "execution", consumer: "new Hermes tool surface" },
+  command_allowlist: { type: "textList", kind: "allowlistSubset", family: "execution", consumer: "next dangerous-command approval check" },
+  "approvals.mode": { type: "string", kind: "approvalMode", family: "execution", consumer: "next Hermes command approval" },
+  "approvals.timeout": { type: "integer", min: 15, max: 600, family: "execution", consumer: "next Hermes approval wait" },
+  "approvals.denial_breaker_threshold": { type: "integer", min: 0, max: 100000, family: "execution", consumer: "next smart-guardian denial sequence" },
+  "approvals.deny": { type: "textList", kind: "denyGlobs", family: "execution", consumer: "next Hermes terminal command approval" },
+  "approvals.destructive_slash_confirm": { type: "boolean", family: "execution", consumer: "next Hermes destructive slash command" },
+  "approvals.mcp_reload_confirm": { type: "boolean", family: "execution", consumer: "next Hermes MCP reload command" },
+  "approvals.single_query_mode": { type: "string", kind: "automaticApproval", family: "execution", consumer: "next flagged command in single-query mode" },
+  "approvals.unattended_mode": { type: "string", kind: "automaticApproval", family: "execution", consumer: "next flagged command on a notifier-blind gateway platform" },
+  "security.protected_instruction_files": { type: "boolean", family: "execution", consumer: "next protected instruction file write" },
   "skills.disabled": { type: "skillNames", family: "extensions", consumer: "next Hermes skill resolution" },
+  "cron.catch_up_missed": { type: "boolean", family: "operations", consumer: "Hermes cron due scan" },
+  "cron.allow_agent_scheduling": { type: "boolean", family: "operations", consumer: "Hermes cron toolset for new runs" },
+  "cron.preflight": { type: "boolean", family: "operations", consumer: "Hermes cron pre-dispatch validation" },
+  "cron.max_parallel_jobs": { type: "optionalInteger", min: 1, max: 64, family: "operations", consumer: "Hermes cron per-profile pool" },
+  "cron.output_retention": { type: "integer", min: 0, max: 10000, family: "operations", consumer: "Hermes cron output pruning" },
+  "cron.script_timeout_seconds": { type: "integer", min: 1, max: 86400, family: "operations", consumer: "new Hermes cron script runs" },
+  "cron.session_db_timeout_seconds": { type: "integer", min: 0, max: 3600, family: "operations", consumer: "new Hermes cron session DB opens" },
+  "cron.failure_repeat_alert_hours": { type: "integer", min: 0, max: 168, family: "operations", consumer: "Hermes cron failure incident notifier" },
+  "cron.require_restart_safe_scope": { type: "boolean", family: "operations", consumer: "Hermes cron worker scope admission" },
+  "gateway.loop_watchdog": { type: "boolean", family: "operations", consumer: "next Hermes gateway start" },
+  "gateway.startup_watchdog": { type: "boolean", family: "operations", consumer: "next Hermes gateway process start" },
+  "gateway.startup_watchdog_timeout_seconds": { type: "integer", min: 30, max: 3600, family: "operations", consumer: "next Hermes gateway process start" },
+  "gateway.restart_loop_guard.max_restarts": { type: "integer", min: 0, max: 20, family: "operations", consumer: "next Hermes gateway restart" },
+  "gateway.respawn_storm.max_starts": { type: "integer", min: 0, max: 100, family: "operations", consumer: "next Hermes gateway process start" },
+  "gateway.signal_interrupt_grace_timeout": { type: "number", min: 0, max: 60, family: "operations", consumer: "next Hermes gateway signal drain" },
+  "logging.level": { type: "string", kind: "logLevel", family: "operations", consumer: "Hermes setup_logging(): agent.log; new process required" },
+  "logging.max_size_mb": { type: "integer", min: 1, max: 100, family: "operations", consumer: "Hermes setup_logging(): agent.log rotation; new process required" },
+  "logging.backup_count": { type: "integer", min: 1, max: 50, family: "operations", consumer: "Hermes setup_logging(): agent.log rotation; new process required" },
 } as const;
 export type HermesConfigField = keyof typeof HERMES_CONFIG_FIELDS;
 type FallbackEntry = { provider: string; model: string };
 export type HermesConfigPatch = { key: HermesConfigField; value: number | boolean | string | FallbackEntry[] | string[] | null };
 export type HermesPluginPatch = { key: "plugin.activation"; pluginId: string; enabled: boolean };
 export type HermesMcpPatch = { key: "mcp.httpServer"; name: string; url: string | null; enabled: boolean };
+export type HermesMcpActivationPatch = { key: "mcp.activation"; name: string; enabled: boolean };
+export type HermesMcpBearerPatch = { key: "mcp.bearerCredential"; name: string; token: string | null };
 export const HERMES_MODEL_CREDENTIALS = ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] as const;
 export type HermesModelCredential = typeof HERMES_MODEL_CREDENTIALS[number];
 export type HermesModelCredentialPatch = { key: HermesModelCredential; value: string | null };
 
 const REASONING_EFFORTS = new Set(["", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
-function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode", value: unknown): boolean {
+function printablePath(value: string): boolean {
+  return value.length <= 512 && value.startsWith("/") && !/[\p{C}\p{Zl}\p{Zp}]/u.test(value);
+}
+function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" | "executionBackend" |
+  "profilePin" | "codeMode" | "computerPermission" | "manifestPath" | "workspacePath" | "browserEngine" |
+  "approvalMode" | "automaticApproval" | "logLevel" | "dialogPolicy" | "captureAfterMode", value: unknown): boolean {
   if (typeof value !== "string") return false;
   if (kind === "reasoning") return REASONING_EFFORTS.has(value);
   if (kind === "tailMode") return value === "lean" || value === "legacy";
+  if (kind === "executionBackend") return value === "local" || value === "docker";
+  if (kind === "codeMode") return value === "project" || value === "strict";
+  if (kind === "dialogPolicy") return value === "must_respond" || value === "auto_dismiss";
+  if (kind === "browserEngine") return value === "auto" || value === "chrome" || value === "lightpanda";
+  if (kind === "captureAfterMode") return value === "som" || value === "ax" || value === "vision";
+  if (kind === "computerPermission") return value === "standard" || value === "bounded";
+  if (kind === "approvalMode") return value === "manual" || value === "smart" || value === "off";
+  if (kind === "automaticApproval") return value === "deny" || value === "approve";
+  if (kind === "profilePin") return value === "" || /^(Default|Profile [0-9]{1,3})$/.test(value);
+  if (kind === "manifestPath") return value === "" || printablePath(value);
+  if (kind === "workspacePath") return value === "." || printablePath(value);
+  if (kind === "logLevel") return value === "DEBUG" || value === "INFO" || value === "WARNING";
   if (kind === "provider") return /^[A-Za-z0-9_.-]{1,64}$/.test(value);
   return value.length > 0 && value.length <= 200 && !/\s/.test(value) &&
     [...value].every((character) => character.charCodeAt(0) > 31 && character.charCodeAt(0) !== 127);
@@ -81,6 +158,14 @@ function validFallback(value: unknown): value is FallbackEntry[] {
 function validSkillNames(value: unknown): value is string[] {
   return Array.isArray(value) && value.length <= 512 &&
     value.every((name) => typeof name === "string" && /^[A-Za-z0-9._/-]{1,100}$/.test(name)) &&
+    new Set(value).size === value.length;
+}
+function validExecutionList(kind: "dockerMounts" | "toolsetNames" | "allowlistSubset" | "denyGlobs", value: unknown): value is string[] {
+  const limit = kind === "dockerMounts" ? 8 : kind === "toolsetNames" ? 16 : 128;
+  return Array.isArray(value) && value.length <= limit && value.every((item) =>
+    typeof item === "string" && item.length >= 1 && item.length <= 512 &&
+    (kind === "dockerMounts" || kind === "denyGlobs" ? !/[\p{C}\p{Zl}\p{Zp}]/u.test(item) :
+      (kind === "allowlistSubset" ? /^[ -~]+$/ : /^[!-~]+$/).test(item))) &&
     new Set(value).size === value.length;
 }
 function validMcpUrl(value: unknown): value is string {
@@ -111,7 +196,8 @@ interface BridgeStatus {
   plugins: Array<{ id: string; installed: true; enabled: boolean | null; configured: null }>;
   mcpComplete: boolean;
   mcpServers: Array<{ id: string; transport: "http" | "stdio" | "unknown"; enabled: boolean | null;
-    endpoint: string | null; editable: boolean }>;
+    endpoint: string | null; editable: boolean; authMode: "none" | "bearer" | "oauth" | "unknown";
+    credentialConfigured: boolean | null }>;
   write: { key: string; persisted: boolean } | null;
 }
 
@@ -127,7 +213,74 @@ export class HermesConfigService {
     private readonly invoke: RunnerInvoker = invokeCodingRunner,
   ) {}
 
+  async mutateCron(request: HermesCronMutationRequest): Promise<HermesCronMutationReceipt> {
+    nativeRunnerScript(this.dataDir, "hermes_cron_mutate.py");
+    const { script, distro, user } = this.target();
+    const cronScript = script.replace(/hermes_config_bridge\.py$/, "hermes_cron_mutate.py");
+    if (cronScript === script) throw unavailable();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(cronScript, distro, user, ["mutate"], JSON.stringify(request), 15000, 20000);
+    } catch {
+      // A bridge timeout may follow a persisted native write. The staged journal keeps this action uncertain.
+      throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Cron-Aenderung nicht bestaetigt; nativen Status neu laden." });
+    }
+    if (typeof raw.error === "string") {
+      if (["store_revision_conflict", "profile_conflict", "timezone_conflict", "job_not_found"].includes(raw.error))
+        throw conflict("Hermes-Zeitplan hat sich geaendert; Status neu laden.");
+      if (raw.error === "invalid_request" || raw.error === "unsupported_profile")
+        throw validationFailed("Hermes-Zeitplanaktion ist ungueltig.");
+      throw unavailable();
+    }
+    if (Object.keys(raw).sort().join(",") !==
+        "accepted,action,executionVerified,jobId,profile,profileTimezone,state,storeRevision" ||
+        raw.action !== request.action || raw.profile !== request.profile ||
+        raw.profileTimezone !== request.profileTimezone ||
+        typeof raw.jobId !== "string" || !/^[0-9a-f]{12}$/.test(raw.jobId) ||
+        (request.action !== "create" && raw.jobId !== request.jobId) ||
+        typeof raw.storeRevision !== "string" || !/^[0-9a-f]{64}$/.test(raw.storeRevision) ||
+        typeof raw.state !== "string" || raw.state.length > 40 ||
+        raw.accepted !== true || raw.executionVerified !== false) throw unavailable();
+    return raw as unknown as HermesCronMutationReceipt;
+  }
+
+  async cronJobs(): Promise<Record<string, unknown>> {
+    const { script, distro, user } = this.target();
+    const cronScript = script.replace(/hermes_config_bridge\.py$/, "hermes_cron_read.py");
+    if (cronScript === script) throw unavailable();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(cronScript, distro, user, ["list"], undefined, 15000, 150000);
+    } catch {
+      throw unavailable();
+    }
+    if (Object.keys(raw).sort().join(",") !==
+        "count,jobs,profile,profileTimezone,schedulerRunning,sourceRevision,storeRevision,truncated" ||
+      raw.sourceRevision !== "d923a5eb487a17c0a68801bba9ef0f56c81040a8" ||
+      typeof raw.profile !== "string" || raw.profile.length > 100 ||
+      (raw.profileTimezone !== null && typeof raw.profileTimezone !== "string") ||
+      typeof raw.storeRevision !== "string" || !/^[0-9a-f]{64}$/.test(raw.storeRevision) ||
+      !Number.isSafeInteger(raw.count) || Number(raw.count) < 0 ||
+      typeof raw.truncated !== "boolean" || raw.schedulerRunning !== null ||
+      !Array.isArray(raw.jobs) || raw.jobs.length > 200 ||
+      (raw.truncated !== (Number(raw.count) > 200)) ||
+      raw.jobs.length !== Math.min(Number(raw.count), 200) ||
+      raw.jobs.some((job) => !job || typeof job !== "object" || Array.isArray(job) ||
+        Object.keys(job).sort().join(",") !==
+          "enabled,id,lastRunAt,name,nextRunAt,schedule,state,timezone" ||
+        typeof job.id !== "string" || typeof job.name !== "string" ||
+        typeof job.schedule !== "string" || typeof job.enabled !== "boolean" ||
+        typeof job.state !== "string" ||
+        (job.timezone !== null && typeof job.timezone !== "string") ||
+        (job.nextRunAt !== null && typeof job.nextRunAt !== "string") ||
+        (job.lastRunAt !== null && typeof job.lastRunAt !== "string"))) throw unavailable();
+    return raw;
+  }
+
   private target(): { script: string; distro: string; user: string } {
+    if (process.platform !== "win32")
+      return { script: nativeRunnerScript(this.dataDir, "hermes_config_bridge.py").script,
+        distro: "", user: "" };
     let root = resolve(this.dataDir);
     for (let depth = 0; depth < 5 && !existsSync(join(root, "config", "install-state.json")); depth += 1)
       root = resolve(root, "..");
@@ -147,12 +300,6 @@ export class HermesConfigService {
       !/^[a-zA-Z0-9_-]+$/.test(state.linux_user)
     )
       throw unavailable();
-    if (process.platform !== "win32")
-      return {
-        distro: state.distro_name,
-        user: state.linux_user,
-        script: join(root, "installer", "wsl", "hermes_config_bridge.py"),
-      };
     const match = root.match(/^([a-zA-Z]):\\(.*)$/);
     if (!match) throw unavailable();
     return {
@@ -163,8 +310,8 @@ export class HermesConfigService {
   }
 
   private async run(
-    action: "status" | "update" | "credential-update" | "plugin-activation" | "mcp-http",
-    patch?: HermesConfigPatch | HermesModelCredentialPatch | HermesPluginPatch | HermesMcpPatch,
+    action: "status" | "update" | "credential-update" | "plugin-activation" | "mcp-http" | "mcp-activation" | "mcp-bearer",
+    patch?: HermesConfigPatch | HermesModelCredentialPatch | HermesPluginPatch | HermesMcpPatch | HermesMcpActivationPatch | HermesMcpBearerPatch,
     revision?: number,
   ): Promise<BridgeStatus | null> {
     const { script, distro, user } = this.target();
@@ -175,13 +322,18 @@ export class HermesConfigService {
         distro,
         user,
         [action],
-        patch ? JSON.stringify(action === "mcp-http"
+        patch ? JSON.stringify(action === "mcp-bearer"
+          ? { name: (patch as HermesMcpBearerPatch).name, token: (patch as HermesMcpBearerPatch).token, revision }
+          : action === "mcp-activation"
+          ? { name: (patch as HermesMcpActivationPatch).name,
+            enabled: (patch as HermesMcpActivationPatch).enabled, revision }
+          : action === "mcp-http"
           ? { name: (patch as HermesMcpPatch).name, url: (patch as HermesMcpPatch).url,
             enabled: (patch as HermesMcpPatch).enabled, revision }
           : action === "plugin-activation"
           ? { pluginId: (patch as HermesPluginPatch).pluginId, enabled: (patch as HermesPluginPatch).enabled, revision }
           : { ...patch, revision }) : undefined,
-        action === "credential-update" || action === "plugin-activation" || action === "mcp-http" ? 60000 : 30000,
+        action === "credential-update" || action === "plugin-activation" || action === "mcp-http" || action === "mcp-activation" || action === "mcp-bearer" ? 60000 : 30000,
         150000,
       );
     } catch (error) {
@@ -189,12 +341,43 @@ export class HermesConfigService {
         return null;
       if (error instanceof Error && error.message.includes("revision_conflict"))
         throw conflict("Hermes-Konfiguration wurde außerhalb von Friday geändert.");
+      if (action === "update" && error instanceof Error) {
+        if (error.message.includes("profile_snapshot_cleanup_failed"))
+          throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+            message: "Browserprofil-Zustimmung wurde geändert, aber der Hermes-Snapshot konnte nicht bestätigt entfernt werden. Status neu laden und den lokalen Profilordner prüfen." });
+        if (error.message.includes("docker_unavailable"))
+          throw validationFailed("Der Docker-Daemon ist in Friday-Ubuntu nicht erreichbar.");
+        if (error.message.includes("execution_backend_required"))
+          throw validationFailed("Docker-Optionen erfordern zuerst das Docker-Terminal-Backend.");
+        if (error.message.includes("docker_policy_requires_safe_baseline"))
+          throw validationFailed("Vor dem Docker-Wechsel Netzwerk deaktivieren und Host-Mounts entfernen; danach Berechtigungen einzeln einschalten.");
+        if (error.message.includes("capability_manifest_required") || error.message.includes("invalid_capability_manifest"))
+          throw validationFailed("Computer Use braucht ein vorhandenes Manifest im Hermes-Profil.");
+        if (error.message.includes("profile_pin_required"))
+          throw validationFailed("Vor dem echten Browserprofil muss dessen Verzeichnisname festgelegt bleiben.");
+        if (error.message.includes("allowlist_addition_requires_native_approval"))
+          throw validationFailed("Neue dauerhafte Befehlsfreigaben müssen über Hermes' Freigabedialog erfolgen.");
+        if (["invalid_execution_workspace", "invalid_docker_mount", "conflicting_browser_evaluate_policy", "unknown_toolset"]
+          .some((code) => error.message.includes(code)))
+          throw validationFailed("Hermes-Ausführungsrichtlinie ist für diese Installation ungültig.");
+      }
+      if (action === "mcp-activation" && error instanceof Error && error.message.includes("managed_entry_conflict"))
+        throw conflict("Nur HTTPS-MCP-Eintraege ohne Zugangsdaten sind hier schaltbar.");
+      if (action === "mcp-bearer" && error instanceof Error &&
+          (error.message.includes("managed_entry_conflict") || error.message.includes("credential_name_conflict")))
+        throw conflict("MCP-Zugangsdaten gehoeren nicht eindeutig zu diesem verwalteten HTTPS-Server.");
+      if (action === "mcp-bearer")
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Hermes-MCP-Schluesselvorgang nicht bestaetigt. Status neu laden, bevor er wiederholt wird." });
       if (action === "credential-update")
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
           message: "Hermes-Schlüsselvorgang nicht bestätigt. Status neu laden; eine Wiederholung könnte den bereits gespeicherten Schlüssel überschreiben." });
       if (action === "plugin-activation")
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
           message: "Hermes-Plugin-Aktivierung nicht bestätigt. Status neu laden, bevor sie erneut versucht wird." });
+      if (action === "mcp-activation")
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Hermes-MCP-Aktivierung nicht bestaetigt. Status neu laden, bevor sie erneut versucht wird." });
       throw unavailable();
     }
     if (
@@ -223,7 +406,8 @@ export class HermesConfigService {
           spec.type === "number" || spec.type === "optionalNumber" ? typeof value !== "number" || !Number.isFinite(value) :
           spec.type === "boolean" ? typeof value !== "boolean" :
           spec.type === "fallback" ? !validFallback(value) :
-          spec.type === "skillNames" ? !validSkillNames(value) : typeof value !== "string")
+          spec.type === "skillNames" ? !validSkillNames(value) :
+          spec.type === "textList" ? !validExecutionList(spec.kind, value) : typeof value !== "string")
       )
         throw unavailable();
       if (typeof (raw.explicit as Record<string, unknown>)[key] !== "boolean") throw unavailable();
@@ -245,8 +429,8 @@ export class HermesConfigService {
       (!raw.write ||
         typeof raw.write !== "object" ||
         (raw.write as Record<string, unknown>).key !== (action === "plugin-activation"
-          ? `plugin:${(patch as HermesPluginPatch).pluginId}` : action === "mcp-http"
-          ? `mcp:${(patch as HermesMcpPatch).name}` : patch?.key) ||
+          ? `plugin:${(patch as HermesPluginPatch).pluginId}` : action === "mcp-http" || action === "mcp-activation" || action === "mcp-bearer"
+          ? `mcp:${(patch as HermesMcpPatch | HermesMcpActivationPatch | HermesMcpBearerPatch).name}` : patch?.key) ||
         typeof (raw.write as Record<string, unknown>).persisted !== "boolean")
     )
       throw unavailable();
@@ -344,6 +528,7 @@ export class HermesConfigService {
         : spec.type === "boolean" ? typeof patch.value !== "boolean"
         : spec.type === "fallback" ? !validFallback(patch.value)
         : spec.type === "skillNames" ? !validSkillNames(patch.value)
+        : spec.type === "textList" ? !validExecutionList(spec.kind, patch.value)
         : !validStringPatch(spec.kind, patch.value)
     )
       throw validationFailed("Ungültiger Hermes-Konfigurationswert.");
@@ -384,6 +569,116 @@ export class HermesConfigService {
     const observed = await this.run("mcp-http", patch, revision);
     if (!observed) throw unavailable();
     return this.present(observed);
+  }
+
+  async activateMcp(patch: HermesMcpActivationPatch, revision: number) {
+    if (patch.key !== "mcp.activation" || !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(patch.name) ||
+        typeof patch.enabled !== "boolean" || !Number.isSafeInteger(revision) || revision < 1)
+      throw validationFailed("Ungueltige Hermes-MCP-Aktivierung.");
+    const observed = await this.run("mcp-activation", patch, revision);
+    if (!observed) throw unavailable();
+    return this.present(observed);
+  }
+
+  async updateMcpBearer(patch: HermesMcpBearerPatch, revision: number) {
+    if (patch.key !== "mcp.bearerCredential" || !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(patch.name) ||
+        !(patch.token === null || typeof patch.token === "string" && patch.token.length >= 1 &&
+          patch.token.length <= 4096 && /^[\x21-\x7e]+$/.test(patch.token)) ||
+        !Number.isSafeInteger(revision) || revision < 1)
+      throw validationFailed("Ungueltige Hermes-MCP-Zugangsdaten.");
+    const observed = await this.run("mcp-bearer", patch, revision);
+    if (!observed) throw unavailable();
+    return this.present(observed);
+  }
+
+  async probeMcp(name: string, revision: number) {
+    if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name) || !Number.isSafeInteger(revision) || revision < 1)
+      throw validationFailed("Ungueltige Hermes-MCP-Probe.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["mcp-probe"], JSON.stringify({ name, revision }), 30000, 4096);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("revision_conflict"))
+        throw conflict("Hermes-Konfiguration wurde waehrend der Probe geaendert.");
+      if (error instanceof Error && error.message.includes("unprobeable_server"))
+        throw validationFailed("Nur aktivierte verwaltete HTTPS-MCP-Eintraege ohne Auth oder mit hinterlegtem Bearer-Schluessel sind pruefbar.");
+      throw unavailable();
+    }
+    const failures = ["auth_required", "config_invalid", "connect_failed", "protocol_failed",
+      "protocol_unsupported", "redirect_rejected", "private_or_unresolved_address"];
+    if (raw.name !== name || raw.revision !== revision || typeof raw.connected !== "boolean" ||
+        typeof raw.toolCountComplete !== "boolean" ||
+        !(raw.connected ? Number.isSafeInteger(raw.toolCount) && (raw.toolCount as number) >= 0 &&
+          (raw.toolCount as number) <= 10000 && raw.failureClass === null :
+          raw.toolCount === null && raw.toolCountComplete === false && failures.includes(String(raw.failureClass))))
+      throw unavailable();
+    return { name, revision, checkedAt: new Date().toISOString(), connected: raw.connected,
+      toolCount: raw.toolCount, toolCountComplete: raw.toolCountComplete,
+      failureClass: raw.failureClass, runtimeApplied: null };
+  }
+
+  async testApproval(command: string, revision: number) {
+    if (typeof command !== "string" || !command.trim() || command.length > 512 ||
+        [...command].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127) ||
+        !Number.isSafeInteger(revision) || revision < 1)
+      throw validationFailed("Ungueltige Hermes-Freigabevorschau.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["approval-test"],
+        JSON.stringify({ command, revision }), 30000, 4096);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("revision_conflict"))
+        throw conflict("Hermes-Konfiguration wurde waehrend der Vorschau geaendert.");
+      if (error instanceof Error && error.message.includes("unsupported_execution_backend"))
+        throw validationFailed("Hermes-Freigabevorschau ist nur fuer lokale oder Docker-Terminals verfuegbar.");
+      throw unavailable();
+    }
+    const verdicts = ["allow", "ask-approval", "hardline-deny", "user-deny"];
+    if (raw.revision !== revision || (raw.backend !== "local" && raw.backend !== "docker") ||
+        !verdicts.includes(String(raw.verdict)) ||
+        !(raw.rule === null || typeof raw.rule === "string" && raw.rule.length <= 512) ||
+        typeof raw.detail !== "string" || raw.detail.length > 1024)
+      throw unavailable();
+    return { revision, checkedAt: new Date().toISOString(), backend: raw.backend,
+      verdict: raw.verdict, rule: raw.rule, detail: raw.detail, runtimeApplied: null };
+  }
+
+  async manageMcpOAuth(body: { action: "start"; name: string } | { action: "status" | "cancel"; flowId: string }, revision: number,
+    ownerId: string) {
+    if (!Number.isSafeInteger(revision) || revision < 1 ||
+        typeof ownerId !== "string" || ownerId.length < 1 || ownerId.length > 128 ||
+        [...ownerId].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127) ||
+        (body.action === "start" ? !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(body.name) :
+          !/^[0-9a-f]{32}$/.test(body.flowId)))
+      throw validationFailed("Ungueltiger Hermes-MCP-OAuth-Vorgang.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, [`mcp-oauth-${body.action}`], JSON.stringify(
+        body.action === "start" ? { name: body.name, revision, ownerId } : { flowId: body.flowId, ownerId }), 30000, 10000);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("revision_conflict"))
+        throw conflict("Hermes-Konfiguration wurde vor dem OAuth-Start geaendert.");
+      if (error instanceof Error && error.message.includes("managed_entry_conflict"))
+        throw conflict("Nur aktive verwaltete HTTPS-MCP-Server ohne vorhandene Authentifizierung koennen OAuth starten.");
+      throw unavailable();
+    }
+    if (!/^[0-9a-f]{32}$/.test(String(raw.flowId)) ||
+        body.action !== "start" && raw.flowId !== body.flowId ||
+        !["starting", "awaiting_approval", "publishing", "cancelling", "configured", "failed"].includes(String(raw.status)) ||
+        !(raw.authorizationUrl === undefined || typeof raw.authorizationUrl === "string" &&
+          raw.authorizationUrl.length <= 8192 && raw.authorizationUrl.startsWith("https://")) ||
+        !(raw.revision === undefined || Number.isSafeInteger(raw.revision) && (raw.revision as number) >= 1) ||
+        !(raw.failureClass === undefined || typeof raw.failureClass === "string" && raw.failureClass.length <= 80))
+      throw unavailable();
+    return { flowId: raw.flowId as string, status: raw.status as
+      "starting" | "awaiting_approval" | "publishing" | "cancelling" | "configured" | "failed",
+      authorizationUrl: typeof raw.authorizationUrl === "string" ? raw.authorizationUrl : null,
+      revision: typeof raw.revision === "number" ? raw.revision : null,
+      failureClass: typeof raw.failureClass === "string" ? raw.failureClass : null,
+      runtimeApplied: null };
   }
 
   private present(observed: BridgeStatus) {
@@ -466,9 +761,12 @@ export class HermesConfigService {
         ["http", "stdio", "unknown"].includes(server.transport) &&
         (server.enabled === null || typeof server.enabled === "boolean") &&
         (server.endpoint === null || typeof server.endpoint === "string") &&
-        typeof server.editable === "boolean").map((server) => ({
+        typeof server.editable === "boolean" &&
+        ["none", "bearer", "oauth", "unknown"].includes(server.authMode) &&
+        (server.credentialConfigured === null || typeof server.credentialConfigured === "boolean")).map((server) => ({
         id: server.id, transport: server.transport, enabled: server.enabled,
-        endpoint: server.endpoint, editable: server.editable,
+        endpoint: server.endpoint, editable: server.editable, authMode: server.authMode,
+        credentialConfigured: server.credentialConfigured,
       })),
       write: observed.write
         ? {

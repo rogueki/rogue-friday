@@ -30,7 +30,10 @@ export interface FakeTask {
   block_kind: string | null;
   last_heartbeat_at: number | null;
   current_run_started_at: number | null;
+  current_run_id: number | null;
+  claim_lock: string | null;
   model_override: string | null;
+  provider_override: string | null;
   reasoning_effort: string | null;
   session_id: string | null;
   consecutive_failures: number;
@@ -159,6 +162,8 @@ export class HermesState {
   invalidData = false;
   /** Posts that created a task (side effects for idempotency checks). */
   createdCount = 0;
+  /** Test-only delay after a Kanban mutation has committed, before HTTP responds. */
+  mutationResponseDelayMs = 0;
 
   readonly boards = new Map<string, FakeBoard>();
   readonly profiles: FakeProfile[] = [
@@ -173,6 +178,9 @@ export class HermesState {
     },
   ];
   readonly workers: FakeWorker[] = [];
+  runStopPatched = true;
+  archiveWorkerSurvives = false;
+  beforeLifecycleMutation: (() => void) | undefined;
   readonly sessions: FakeSession[] = [];
   readonly toolsets: Array<{ name: string; enabled: boolean }> = [
     { name: "web", enabled: true },
@@ -271,7 +279,10 @@ export class HermesState {
       block_kind: null,
       last_heartbeat_at: null,
       current_run_started_at: null,
+      current_run_id: null,
+      claim_lock: null,
       model_override: null,
+      provider_override: null,
       reasoning_effort: null,
       session_id: null,
       consecutive_failures: 0,
@@ -304,7 +315,7 @@ export class HermesState {
       });
     }
     if (!KNOWN_STATUSES.has(status)) throw new HttpFail(400, { detail: `unknown status: ${status}` });
-    if (!(TRANSITIONS[task.status] ?? []).includes(status) && task.status !== status) {
+    if (status !== "archived" && !(TRANSITIONS[task.status] ?? []).includes(status) && task.status !== status) {
       throw new HttpFail(409, { detail: `status transition to '${status}' not valid from current state` });
     }
     const previous = task.status;
@@ -323,6 +334,18 @@ export class HermesState {
       task.block_kind = null;
       this.addEvent(board, task, "unblocked");
     } else if (status === "archived") {
+      for (const run of board.runs.filter((candidate) => candidate.task_id === task.id && candidate.ended_at === null)) {
+        run.ended_at = this.tick();
+        run.status = "reclaimed";
+        run.outcome = "reclaimed";
+      }
+      task.current_run_id = null;
+      task.claim_lock = null;
+      if (!this.archiveWorkerSurvives) {
+        for (let index = this.workers.length - 1; index >= 0; index -= 1) {
+          if (this.workers[index]?.board === board.slug && this.workers[index]?.task_id === task.id) this.workers.splice(index, 1);
+        }
+      }
       this.addEvent(board, task, "archived");
     } else {
       this.addEvent(board, task, "status", { status, requested_status: status });
@@ -358,6 +381,8 @@ export class HermesState {
     task.status = "running";
     task.started_at ??= this.tick();
     const run = this.addRun(board, task, { started_at: this.tick() });
+    task.current_run_id = run.id;
+    task.claim_lock = `fake-lock-${run.id}`;
     task.current_run_started_at = run.started_at;
     task.last_heartbeat_at = this.tick();
     this.addEvent(board, task, "spawned", { pid }, run.id);

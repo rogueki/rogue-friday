@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-approval-test-response.schema.json",
+  "title": "HermesApprovalTestResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "revision": { "type": "integer", "minimum": 1 },
+        "checkedAt": { "type": "string", "format": "date-time" },
+        "backend": { "enum": ["local", "docker"] },
+        "verdict": { "enum": ["allow", "ask-approval", "hardline-deny", "user-deny"] },
+        "rule": { "type": ["string", "null"], "maxLength": 512 },
+        "detail": { "type": "string", "maxLength": 1024 },
+        "runtimeApplied": { "type": "null" }
+      },
+      "required": ["revision", "checkedAt", "backend", "verdict", "rule", "detail", "runtimeApplied"],
+      "additionalProperties": false
+    },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

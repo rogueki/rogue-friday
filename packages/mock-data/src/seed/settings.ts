@@ -141,6 +141,8 @@ export function buildSettings(ctx: SeedContext): Settings {
       speakerVerificationRequired: true,
       storeRawRecordings: false,
       voiceHistoryEnabled: true,
+      sttLanguage: "de",
+      sttModel: "small",
       ttsVoice: "de_DE-thorsten-medium",
       ttsRate: 1,
       inputDeviceId: null,

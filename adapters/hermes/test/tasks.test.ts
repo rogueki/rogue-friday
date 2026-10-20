@@ -336,6 +336,24 @@ describe("tasks: credentials", () => {
 });
 
 describe("tasks: write", () => {
+  it("pins a provider-qualified model and reasoning on the native Kanban card", async () => {
+    const h = await open();
+    const { data } = await h.adapter.createTask(
+      { body: { title: "Geroutete Aufgabe", model: "k3", provider: "kimi-coding", reasoningLevel: "high" } },
+      h.mutation(),
+    );
+    expect(data.model).toBe("kimi-coding:k3");
+    expect(data.reasoningLevel).toBe("high");
+    const post = fake.callsTo("dashboard", "/api/plugins/kanban/tasks").find((call) => call.method === "POST");
+    expect(post?.body).toMatchObject({ model_override: "k3", provider_override: "kimi-coding", reasoning_effort: "high" });
+    expect((await h.adapter.getTask({ id: data.id }, h.call())).data.model).toBe("kimi-coding:k3");
+    expect((await h.adapter.getTask({ id: data.id }, h.call())).data.reasoningLevel).toBe("high");
+    const tagged = await h.adapter.createTask({ body: { title: "Lokales Tag", model: "qwen:7b" } }, h.mutation());
+    expect(tagged.data.model).toBe("qwen:7b");
+    const posts = fake.callsTo("dashboard", "/api/plugins/kanban/tasks").filter((call) => call.method === "POST");
+    expect(posts.at(-1)?.body).toMatchObject({ model_override: "qwen:7b" });
+    expect(posts.at(-1)?.body).not.toHaveProperty("provider_override");
+  });
   it("creates a task on the first board with priority, assignee, model and idempotency key", async () => {
     fake.state.addTask("default", { title: "Vorhanden", assignee: "kira" });
     const h = await open({ boards: ["business", "default"] });
@@ -506,13 +524,101 @@ describe("tasks: write", () => {
 });
 
 describe("tasks: capabilities", () => {
-  it("declares exactly what is implemented and offers no cancel/retry/pause/resume", async () => {
+  it("declares cancel and retry but no pause/resume", async () => {
     const h = await open();
     const { capabilities } = await h.adapter.getCapabilities();
-    expect(capabilities.sort()).toEqual(["tasks.create", "tasks.read", "tasks.stream", "tasks.update"]);
-    for (const method of ["cancelTask", "retryTask", "pauseTask", "resumeTask"]) {
+    expect(capabilities.sort()).toEqual(["tasks.cancel", "tasks.create", "tasks.read", "tasks.retry", "tasks.stream", "tasks.update"]);
+    for (const method of ["pauseTask", "resumeTask"]) {
       expect((h.adapter as unknown as Record<string, unknown>)[method]).toBeUndefined();
     }
+  });
+});
+
+describe("tasks: lifecycle", () => {
+  it("archives running work and confirms that its worker was closed", async () => {
+    const raw = fake.state.addTask("default", { title: "Aktiv", assignee: "kira" });
+    fake.state.startWorker("default", raw);
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+    const result = await h.adapter.cancelTask({ id: task.id }, h.mutation({ ifMatchVersion: task.version }));
+    expect(result.data.status).toBe("cancelled");
+    expect(fake.state.workers).toHaveLength(0);
+    expect(fake.state.board("default").runs[0]?.ended_at).not.toBeNull();
+    expect(fake.callsTo("dashboard", /\/friday\/tasks\/t_.*\/cancel$/).filter((call) => call.method === "POST")).toHaveLength(1);
+  });
+
+  it("rolls back cancel when the worker survives", async () => {
+    const raw = fake.state.addTask("default", { title: "Unbeendbar", assignee: "kira" });
+    fake.state.startWorker("default", raw);
+    fake.state.archiveWorkerSurvives = true;
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+    await expect(h.adapter.cancelTask({ id: task.id }, h.mutation())).rejects.toBeDefined();
+    expect(raw.status).toBe("running");
+    expect(fake.state.workers).toHaveLength(1);
+    expect(fake.callsTo("dashboard", /\/friday\/tasks\/t_.*\/cancel$/).filter((call) => call.method === "POST")).toHaveLength(1);
+  });
+
+  it("retries an archived task once and refuses an already-dispatchable failed task", async () => {
+    const raw = fake.state.addTask("default", { title: "Archiv", status: "archived" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({ status: ["cancelled"] }, h.call())).items[0]!;
+    const result = await h.adapter.retryTask({ id: task.id }, h.mutation({ ifMatchVersion: task.version }));
+    expect(result.data.status).toBe("ready");
+    expect((await rejection(h.adapter.retryTask({ id: task.id }, h.mutation()))).code).toBe("CONFLICT");
+    raw.last_failure_error = "alter Fehler";
+    expect((await rejection(h.adapter.retryTask({ id: task.id }, h.mutation()))).code).toBe("CONFLICT");
+  });
+
+  it("refuses retry if a new run claims the task after the detail read", async () => {
+    const raw = fake.state.addTask("default", { title: "Rennlauf", status: "archived", assignee: "kira" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({ status: ["cancelled"] }, h.call())).items[0]!;
+    fake.state.beforeLifecycleMutation = () => {
+      fake.state.setStatus(fake.state.board("default"), raw, "ready");
+      fake.state.startWorker("default", raw);
+    };
+    expect((await rejection(h.adapter.retryTask({ id: task.id }, h.mutation()))).code).toBe("CONFLICT");
+    expect(raw.status).toBe("running");
+    expect(raw.current_run_id).not.toBeNull();
+    expect(fake.state.workers).toHaveLength(1);
+  });
+
+  it("refuses cancel when a new run claims the task after the detail read", async () => {
+    const raw = fake.state.addTask("default", { title: "Neuer Lauf", assignee: "kira" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+    fake.state.beforeLifecycleMutation = () => fake.state.startWorker("default", raw);
+    expect((await rejection(h.adapter.cancelTask({ id: task.id }, h.mutation()))).code).toBe("CONFLICT");
+    expect(raw.status).toBe("running");
+    expect(raw.current_run_id).not.toBeNull();
+    expect(fake.state.workers).toHaveLength(1);
+  });
+
+  it("refuses cancel when the pinned lifecycle endpoint is absent", async () => {
+    fake.state.addTask("default", { title: "Alter Hermes" });
+    fake.state.runStopPatched = false;
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+    expect((await rejection(h.adapter.cancelTask({ id: task.id }, h.mutation()))).code).toBe("CAPABILITY_MISSING");
+    expect(fake.callsTo("dashboard", /\/friday\/tasks\/t_.*\/cancel$/)).toHaveLength(0);
+  });
+
+  it("refuses stale If-Match before lifecycle writes", async () => {
+    fake.state.addTask("default", { title: "Alt", status: "archived" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({ status: ["cancelled"] }, h.call())).items[0]!;
+    expect((await rejection(h.adapter.retryTask({ id: task.id }, h.mutation({ ifMatchVersion: task.version + 1 })))).code).toBe("CONFLICT");
+    expect(fake.callsTo("dashboard", /\/friday\/tasks\/t_.*\/retry$/).filter((call) => call.method === "POST")).toHaveLength(0);
+  });
+
+  it("reopens a task blocked by a run-specific Friday stop", async () => {
+    fake.state.addTask("default", { title: "Gestoppt", assignee: "kira", status: "blocked",
+      block_kind: "friday_stopped" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+    expect(task.status).toBe("waiting");
+    expect((await h.adapter.retryTask({ id: task.id }, h.mutation())).data.status).toBe("ready");
   });
 });
 

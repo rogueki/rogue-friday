@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { CONTRACT_VERSION, createFridayClient } from "@friday/sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
+import { commandContextForRoute } from "@/features/palette/commandContext";
 import { ContentStudioPage } from "./ContentStudioPage";
 
 vi.mock("@/lib/settings", () => ({ useAppSettings: () => ({ settings: { dashboard: { contentStudioEnabled: true } }, isLoading: false }) }));
@@ -84,6 +85,7 @@ describe("Content Studio parity views", () => {
     expect(plan.postings[0]?.status).toBe("gepostet");
     const ideaColumn = screen.getByRole("region", { name: "Idee: 1 Ideen" });
     await userEvent.setup().click(within(ideaColumn).getByRole("button", { name: "Bearbeiten" }));
+    expect(commandContextForRoute("/content-studio")).toEqual({ route: "/content-studio", selectedIds: ["server"] });
     expect(screen.getByDisplayValue("Serveridee")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Änderungen speichern" })).toBeInTheDocument();
     await userEvent.setup().clear(screen.getByDisplayValue("Serveridee"));
@@ -92,5 +94,6 @@ describe("Content Studio parity views", () => {
     await waitFor(() => expect(plan.content[0]?.titel).toBe("Bearbeitete Idee"));
     expect(requests.at(-1)?.headers.get("If-Match")).toBe("4");
     expect(await screen.findByText("Bearbeitete Idee")).toBeInTheDocument();
+    expect(commandContextForRoute("/content-studio")).toEqual({ route: "/content-studio" });
   });
 });

@@ -2512,7 +2512,8 @@ export interface paths {
         /** List research projects */
         get: operations["listResearchProjects"];
         put?: never;
-        post?: never;
+        /** Search for a topic and store unverified source candidates */
+        post: operations["createResearchProject"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2585,6 +2586,24 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/research/provider": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get local source discovery provider configuration */
+        get: operations["getResearchProvider"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Configure Wikipedia or a local SearXNG endpoint, optionally provisioning the bundled local service */
+        patch: operations["updateResearchProvider"];
         trace?: never;
     };
     "/api/v1/settings": {
@@ -2743,6 +2762,75 @@ export interface paths {
         head?: never;
         /** Write one allowlisted typed Hermes config leaf or stdin-only model credential */
         patch: operations["patchHermesConfig"];
+        trace?: never;
+    };
+    "/api/v1/settings/hermes-config/approval-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dry-run the pinned Hermes command approval verdict without executing a command */
+        post: operations["testHermesApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/hermes-config/mcp-oauth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start, poll or cancel one owner-bound Hermes MCP OAuth login */
+        post: operations["manageHermesMcpOAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/hermes-config/mcp-probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Probe one configured HTTPS MCP server with a bounded public-IP protocol handshake */
+        post: operations["probeHermesMcp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/hermes-cron/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read bounded native Hermes cron job metadata for the active profile */
+        get: operations["listHermesCronJobs"];
+        put?: never;
+        /** Stage and confirm one revision-bound native Hermes cron mutation */
+        post: operations["mutateHermesCronJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/settings/hermes-model-catalog": {
@@ -3763,6 +3851,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/stt-models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List locally cached Whisper models and explicit download progress */
+        get: operations["listVoiceSttModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/stt-models/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel the current explicit Whisper model download */
+        post: operations["cancelVoiceSttModelDownload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/stt-models/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Download one selected Whisper model into the local cache without activating it */
+        post: operations["startVoiceSttModelDownload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/test": {
         parameters: {
             query?: never;
@@ -3774,6 +3913,91 @@ export interface paths {
         put?: never;
         /** Run a voice pipeline test */
         post: operations["runVoiceTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/wake-enrollment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read private pending wake phrase enrollment */
+        get: operations["getWakeEnrollment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/wake-enrollment/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel and delete a pending wake enrollment */
+        post: operations["discardWakeEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/wake-enrollment/samples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload one bounded private wake training sample */
+        post: operations["addWakeEnrollmentSample"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/wake-enrollment/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start one phrase-bound private wake enrollment */
+        post: operations["startWakeEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/wake-enrollment/train": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Train staged wake model without activating it */
+        post: operations["trainWakeEnrollment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6292,6 +6516,27 @@ export interface components {
          * @enum {string}
          */
         HealthStatus: "online" | "degraded" | "offline" | "unknown" | "paused";
+        /** HermesApprovalTestRequest */
+        HermesApprovalTestRequest: {
+            command: string;
+        };
+        /** HermesApprovalTestResponse */
+        HermesApprovalTestResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                /** @enum {unknown} */
+                backend: "local" | "docker";
+                /** Format: date-time */
+                checkedAt: string;
+                detail: string;
+                revision: number;
+                rule: string | null;
+                runtimeApplied: null;
+                /** @enum {unknown} */
+                verdict: "allow" | "ask-approval" | "hardline-deny" | "user-deny";
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
         /** HermesConfigPatch */
         HermesConfigPatch: {
             /** @constant */
@@ -6388,6 +6633,43 @@ export interface components {
             value: number;
         } | {
             /** @constant */
+            key: "terminal.container_cpu";
+            value: number;
+        } | {
+            /** @constant */
+            key: "terminal.container_memory";
+            value: number;
+        } | {
+            /** @constant */
+            key: "terminal.container_disk";
+            value: number;
+        } | {
+            /** @constant */
+            key: "terminal.container_persistent";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "terminal.backend";
+            /** @enum {unknown} */
+            value: "local" | "docker";
+        } | {
+            /** @constant */
+            key: "terminal.cwd";
+            value: string;
+        } | {
+            /** @constant */
+            key: "terminal.docker_network";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "terminal.docker_mount_cwd_to_workspace";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "terminal.docker_volumes";
+            value: string[];
+        } | {
+            /** @constant */
             key: "browser.command_timeout";
             value: number;
         } | {
@@ -6396,8 +6678,181 @@ export interface components {
             value: number;
         } | {
             /** @constant */
+            key: "browser.inactivity_timeout";
+            value: number;
+        } | {
+            /** @constant */
+            key: "browser.engine";
+            /** @enum {unknown} */
+            value: "auto" | "chrome" | "lightpanda";
+        } | {
+            /** @enum {unknown} */
+            key: "browser.headed" | "browser.auto_local_for_private_urls";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "browser.dialog_policy";
+            /** @enum {unknown} */
+            value: "must_respond" | "auto_dismiss";
+        } | {
+            /** @constant */
+            key: "browser.dialog_timeout_s";
+            value: number;
+        } | {
+            /** @constant */
+            key: "browser.allow_private_urls";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "browser.use_real_profile";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "browser.real_profile_pin";
+            value: string;
+        } | {
+            /** @constant */
+            key: "browser.restrict_evaluate";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "browser.allow_unsafe_evaluate";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "code_execution.mode";
+            /** @enum {unknown} */
+            value: "project" | "strict";
+        } | {
+            /** @constant */
+            key: "code_execution.kernel_idle_timeout";
+            value: number;
+        } | {
+            /** @constant */
+            key: "code_execution.max_session_kernels";
+            value: number;
+        } | {
+            /** @constant */
+            key: "computer_use.permission_mode";
+            /** @enum {unknown} */
+            value: "standard" | "bounded";
+        } | {
+            /** @constant */
+            key: "computer_use.capability_manifest";
+            value: string;
+        } | {
+            /** @constant */
+            key: "computer_use.max_image_dimension";
+            value: number;
+        } | {
+            /** @constant */
+            key: "computer_use.ax_max_elements";
+            value: number;
+        } | {
+            /** @constant */
+            key: "computer_use.capture_after_mode";
+            /** @enum {unknown} */
+            value: "som" | "ax" | "vision";
+        } | {
+            /** @constant */
+            key: "toolsets";
+            value: string[];
+        } | {
+            /** @constant */
+            key: "command_allowlist";
+            value: string[];
+        } | {
+            /** @constant */
+            key: "approvals.mode";
+            /** @enum {unknown} */
+            value: "manual" | "smart" | "off";
+        } | {
+            /** @constant */
+            key: "approvals.timeout";
+            value: number;
+        } | {
+            /** @constant */
+            key: "approvals.denial_breaker_threshold";
+            value: number;
+        } | {
+            /** @constant */
+            key: "approvals.deny";
+            value: string[];
+        } | {
+            /** @enum {unknown} */
+            key: "approvals.destructive_slash_confirm" | "approvals.mcp_reload_confirm";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "approvals.single_query_mode";
+            /** @enum {unknown} */
+            value: "deny" | "approve";
+        } | {
+            /** @constant */
+            key: "approvals.unattended_mode";
+            /** @enum {unknown} */
+            value: "deny" | "approve";
+        } | {
+            /** @constant */
+            key: "security.protected_instruction_files";
+            value: boolean;
+        } | {
+            /** @constant */
             key: "skills.disabled";
             value: string[];
+        } | {
+            /** @enum {unknown} */
+            key: "cron.catch_up_missed" | "cron.allow_agent_scheduling" | "cron.preflight" | "cron.require_restart_safe_scope" | "gateway.loop_watchdog" | "gateway.startup_watchdog";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "cron.max_parallel_jobs";
+            value: number | null;
+        } | {
+            /** @constant */
+            key: "cron.output_retention";
+            value: number;
+        } | {
+            /** @constant */
+            key: "cron.script_timeout_seconds";
+            value: number;
+        } | {
+            /** @constant */
+            key: "cron.session_db_timeout_seconds";
+            value: number;
+        } | {
+            /** @constant */
+            key: "cron.failure_repeat_alert_hours";
+            value: number;
+        } | {
+            /** @constant */
+            key: "gateway.startup_watchdog_timeout_seconds";
+            value: number;
+        } | {
+            /** @constant */
+            key: "gateway.restart_loop_guard.max_restarts";
+            value: number;
+        } | {
+            /** @constant */
+            key: "gateway.respawn_storm.max_starts";
+            value: number;
+        } | {
+            /** @constant */
+            key: "gateway.signal_interrupt_grace_timeout";
+            value: number;
+        } | {
+            /** @constant */
+            key: "logging.level";
+            /** @enum {unknown} */
+            value: "DEBUG" | "INFO" | "WARNING";
+        } | {
+            /** @constant */
+            key: "logging.max_size_mb";
+            value: number;
+        } | {
+            /** @constant */
+            key: "logging.backup_count";
+            value: number;
         } | {
             enabled: boolean;
             /** @constant */
@@ -6409,6 +6864,16 @@ export interface components {
             key: "mcp.httpServer";
             name: string;
             url: string | null;
+        } | {
+            enabled: boolean;
+            /** @constant */
+            key: "mcp.activation";
+            name: string;
+        } | {
+            /** @constant */
+            key: "mcp.bearerCredential";
+            name: string;
+            token: string | null;
         } | {
             /** @enum {unknown} */
             key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
@@ -6438,13 +6903,13 @@ export interface components {
                 consumer: string;
                 explicit: boolean;
                 /** @enum {unknown} */
-                family: "agent" | "models" | "execution" | "extensions";
+                family: "agent" | "models" | "execution" | "extensions" | "operations";
                 /** @enum {unknown} */
-                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "browser.command_timeout" | "browser.snapshot_threshold" | "skills.disabled";
+                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "terminal.container_cpu" | "terminal.container_memory" | "terminal.container_disk" | "terminal.container_persistent" | "terminal.backend" | "terminal.cwd" | "terminal.docker_network" | "terminal.docker_mount_cwd_to_workspace" | "terminal.docker_volumes" | "browser.command_timeout" | "browser.snapshot_threshold" | "browser.inactivity_timeout" | "browser.engine" | "browser.headed" | "browser.auto_local_for_private_urls" | "browser.dialog_policy" | "browser.dialog_timeout_s" | "browser.allow_private_urls" | "browser.use_real_profile" | "browser.real_profile_pin" | "browser.restrict_evaluate" | "browser.allow_unsafe_evaluate" | "code_execution.mode" | "code_execution.kernel_idle_timeout" | "code_execution.max_session_kernels" | "computer_use.permission_mode" | "computer_use.capability_manifest" | "computer_use.max_image_dimension" | "computer_use.ax_max_elements" | "computer_use.capture_after_mode" | "toolsets" | "command_allowlist" | "approvals.mode" | "approvals.timeout" | "approvals.denial_breaker_threshold" | "approvals.deny" | "approvals.destructive_slash_confirm" | "approvals.mcp_reload_confirm" | "approvals.single_query_mode" | "approvals.unattended_mode" | "security.protected_instruction_files" | "skills.disabled" | "cron.catch_up_missed" | "cron.allow_agent_scheduling" | "cron.preflight" | "cron.max_parallel_jobs" | "cron.output_retention" | "cron.script_timeout_seconds" | "cron.session_db_timeout_seconds" | "cron.failure_repeat_alert_hours" | "cron.require_restart_safe_scope" | "gateway.loop_watchdog" | "gateway.startup_watchdog" | "gateway.startup_watchdog_timeout_seconds" | "gateway.restart_loop_guard.max_restarts" | "gateway.respawn_storm.max_starts" | "gateway.signal_interrupt_grace_timeout" | "logging.level" | "logging.max_size_mb" | "logging.backup_count";
                 /** @constant */
                 reasonCode: "runtime_receipt_unavailable";
                 /** @enum {unknown} */
-                type: "integer" | "optionalInteger" | "number" | "optionalNumber" | "boolean" | "string" | "fallback" | "skillNames";
+                type: "integer" | "optionalInteger" | "number" | "optionalNumber" | "boolean" | "string" | "fallback" | "skillNames" | "textList";
                 value: (number | boolean | string | null) | {
                     model: string;
                     provider: string;
@@ -6464,6 +6929,9 @@ export interface components {
             };
             mcpComplete: boolean;
             mcpServers: {
+                /** @enum {unknown} */
+                authMode: "none" | "bearer" | "oauth" | "unknown";
+                credentialConfigured: boolean | null;
                 editable: boolean;
                 enabled: boolean | null;
                 endpoint: string | null;
@@ -6514,6 +6982,110 @@ export interface components {
         HermesConfigStatusResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["HermesConfigStatus"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HermesCronJobs */
+        HermesCronJobs: {
+            count: number;
+            jobs: {
+                enabled: boolean;
+                id: string;
+                lastRunAt: string | null;
+                name: string;
+                nextRunAt: string | null;
+                schedule: string;
+                state: string;
+                timezone: string | null;
+            }[];
+            profile: string;
+            profileTimezone: string | null;
+            /** @description The store alone cannot prove scheduler process liveness. */
+            schedulerRunning: null;
+            sourceRevision: string;
+            storeRevision: string;
+            truncated: boolean;
+        };
+        /** HermesCronJobsResponse */
+        HermesCronJobsResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["HermesCronJobs"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HermesCronMutationReceipt */
+        HermesCronMutationReceipt: {
+            /** @constant */
+            accepted: true;
+            /** @enum {unknown} */
+            action: "create" | "update" | "pause" | "resume" | "run" | "remove";
+            /** @constant */
+            executionVerified: false;
+            jobId: string;
+            profile: string;
+            profileTimezone: string | null;
+            state: string;
+            storeRevision: string;
+        };
+        /** HermesCronMutationRequest */
+        HermesCronMutationRequest: {
+            /** @enum {unknown} */
+            action: "create" | "update" | "pause" | "resume" | "run" | "remove";
+            expectedStoreRevision: string;
+            jobId?: string;
+            name?: string;
+            profile: string;
+            profileTimezone: string | null;
+            prompt?: string;
+            schedule?: string;
+        } & (unknown & unknown & unknown);
+        /** HermesCronMutationResponse */
+        HermesCronMutationResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["HermesCronMutationReceipt"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HermesMcpOAuthRequest */
+        HermesMcpOAuthRequest: {
+            /** @constant */
+            action: "start";
+            name: string;
+        } | {
+            /** @enum {unknown} */
+            action: "status" | "cancel";
+            flowId: string;
+        };
+        /** HermesMcpOAuthResponse */
+        HermesMcpOAuthResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                authorizationUrl: string | null;
+                failureClass: string | null;
+                flowId: string;
+                revision: number | null;
+                runtimeApplied: null;
+                /** @enum {unknown} */
+                status: "starting" | "awaiting_approval" | "publishing" | "cancelling" | "configured" | "failed";
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HermesMcpProbeRequest */
+        HermesMcpProbeRequest: {
+            name: string;
+        };
+        /** HermesMcpProbeResponse */
+        HermesMcpProbeResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                /** Format: date-time */
+                checkedAt: string;
+                connected: boolean;
+                /** @enum {unknown} */
+                failureClass: "auth_required" | "config_invalid" | "connect_failed" | "protocol_failed" | "protocol_unsupported" | "redirect_rejected" | "private_or_unresolved_address" | null;
+                name: string;
+                revision: number;
+                runtimeApplied: null;
+                toolCount: number | null;
+                toolCountComplete: boolean;
+            };
             freshness: components["schemas"]["Freshness"];
         };
         /** HermesModelCatalog */
@@ -8488,6 +9060,10 @@ export interface components {
             read: boolean;
             sources: string[];
         };
+        /** ResearchCreateRequest */
+        ResearchCreateRequest: {
+            topic: string;
+        };
         /**
          * ResearchFinding
          * @description A statement together with the sources that support it and known contradictions.
@@ -8582,12 +9158,48 @@ export interface components {
             data: components["schemas"]["ResearchProject"];
             freshness: components["schemas"]["Freshness"];
         };
+        /** ResearchProvider */
+        ResearchProvider: {
+            configured: boolean;
+            endpoint: string | null;
+            maxSources: number;
+            /** @enum {string} */
+            provider: "searxng" | "wikipedia";
+            setup: {
+                available: boolean;
+                endpoint: string;
+                image: string | null;
+                reason: string | null;
+                /** @enum {string} */
+                state: "ready" | "stopped" | "unavailable";
+            };
+            /** @constant */
+            sourceVerification: "unverified";
+            timeoutMs: number;
+            version: number;
+        };
+        /** ResearchProviderResponse */
+        ResearchProviderResponse: {
+            contractVersion: string;
+            data: components["schemas"]["ResearchProvider"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** ResearchProviderUpdateRequest */
+        ResearchProviderUpdateRequest: {
+            endpoint: string;
+            /** @description Provision the pinned local SearXNG service before selecting its fixed endpoint. */
+            installLocal?: boolean;
+        };
         /** ResearchSource */
         ResearchSource: {
+            contentHash?: string | null;
+            /** @description Bounded plain-text extraction from a fetched page. Missing on legacy or mock sources. */
+            contentText?: string | null;
             /** Format: date-time */
             createdAt: string;
             domain: string;
             excerpt: string | null;
+            fetchError?: string | null;
             id: string;
             labels?: string[];
             projectId: string;
@@ -9063,6 +9675,31 @@ export interface components {
             pageInfo: components["schemas"]["PageInfo"];
             sources: components["schemas"]["SourceDescriptor"][];
         };
+        /** SttModelCancelRequest */
+        SttModelCancelRequest: {
+            jobId: string;
+        };
+        /** SttModelDownloadRequest */
+        SttModelDownloadRequest: {
+            model: string;
+        };
+        /** SttModelsStatus */
+        SttModelsStatus: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            job: null | {
+                error: string | null;
+                id: string;
+                model: string;
+                /** @enum {string} */
+                state: "downloading" | "cancelling" | "ready" | "failed" | "cancelled";
+            };
+            localMode: boolean;
+            models: {
+                cached: boolean;
+                downloadable: boolean;
+                id: string;
+            }[];
+        };
         /** SystemBackupActionRequest */
         SystemBackupActionRequest: {
             /** @enum {string} */
@@ -9197,6 +9834,7 @@ export interface components {
             parentTaskId?: string | null;
             priority: components["schemas"]["Priority"];
             progress: components["schemas"]["Progress"];
+            reasoningLevel?: components["schemas"]["ReasoningLevel"];
             runtimeMs: number | null;
             source: components["schemas"]["SourceDescriptor"];
             sourceRefs: components["schemas"]["EntityRef"][];
@@ -9246,6 +9884,8 @@ export interface components {
             labels?: string[];
             model?: string | null;
             priority?: components["schemas"]["Priority"];
+            provider?: string | null;
+            reasoningLevel?: components["schemas"]["ReasoningLevel"];
             title: string;
         };
         /**
@@ -9872,6 +10512,9 @@ export interface components {
             speakerVerificationRequired: boolean;
             /** @default false */
             storeRawRecordings: boolean;
+            /** @enum {string} */
+            sttLanguage?: "de" | "en";
+            sttModel?: string | null;
             ttsRate: number;
             ttsVoice: string;
             voiceHistoryEnabled: boolean;
@@ -10012,6 +10655,42 @@ export interface components {
             text?: string;
             utteranceId: string;
             voice?: string;
+        };
+        /** WakeEnrollmentJob */
+        WakeEnrollmentJob: {
+            jobId: string;
+        };
+        /** WakeEnrollmentSample */
+        WakeEnrollmentSample: {
+            jobId: string;
+            /** @enum {string} */
+            kind: "wake" | "short" | "negatives" | "speech";
+            pcmBase64: string;
+        };
+        /** WakeEnrollmentStart */
+        WakeEnrollmentStart: {
+            phrase: string;
+        };
+        /** WakeEnrollmentStatus */
+        WakeEnrollmentStatus: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            counts: components["schemas"]["counts"];
+            error: string | null;
+            jobId: string | null;
+            phrase: string | null;
+            quality: string | null;
+            required: components["schemas"]["counts"];
+            shortPhrase: string | null;
+            /** @enum {string} */
+            state: "idle" | "capturing" | "training" | "ready" | "failed" | "cancelled";
+            $defs: {
+                counts: {
+                    negatives: number;
+                    short: number;
+                    speech: number;
+                    wake: number;
+                };
+            };
         };
         /** WhatsappGateway */
         WhatsappGateway: {
@@ -15758,6 +16437,43 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    createResearchProject: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Generated by the server when absent; echoed in the response. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResearchCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Source discovery recorded; project remains in review */
+            201: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchProjectResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     getResearchProject: {
         parameters: {
             query?: never;
@@ -15902,6 +16618,61 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getResearchProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchProviderResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateResearchProvider: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResearchProviderUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchProviderResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -16337,6 +17108,175 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HermesConfigStatusResponse"];
                 };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    testHermesApproval: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HermesApprovalTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Approval policy verdict, not execution or running-session adoption */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesApprovalTestResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    manageHermesMcpOAuth: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HermesMcpOAuthRequest"];
+            };
+        };
+        responses: {
+            /** @description OAuth flow state; configured means native tokens and config persisted, not a running session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesMcpOAuthResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    probeHermesMcp: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HermesMcpProbeRequest"];
+            };
+        };
+        responses: {
+            /** @description One protocol handshake receipt, not a running Hermes session receipt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesMcpProbeResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listHermesCronJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Native job metadata; scheduler liveness remains unknown */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesCronJobsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    mutateHermesCronJob: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                "X-Action-Preview-Cancel"?: "true";
+                "X-Action-Preview-Id"?: string;
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HermesCronMutationRequest"];
+            };
+        };
+        responses: {
+            /** @description Native store mutation accepted; scheduler execution remains unverified */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesCronMutationResponse"];
+                };
+            };
+            /** @description Matching preview draft discarded */
+            204: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
@@ -17690,6 +18630,8 @@ export interface operations {
             header?: {
                 /** @description Repeated keys replay the stored response instead of executing again. */
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                /** @description Set to true with X-Action-Preview-Id and the unchanged body to discard that draft without creating a task. */
+                "X-Action-Preview-Cancel"?: "true";
                 /** @description Exact server draft reference from the first task-create attempt; sending it confirms the unchanged request body. */
                 "X-Action-Preview-Id"?: string;
                 /** @description Generated by the server when absent; echoed in the response. */
@@ -17718,6 +18660,15 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TaskResponse"];
                 };
+            };
+            /** @description Saved preview discarded; no task was created. */
+            204: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
@@ -17767,6 +18718,9 @@ export interface operations {
             header?: {
                 /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
                 "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Set to true with the exact preview id and unchanged task update body to discard the draft. */
+                "X-Action-Preview-Cancel"?: "true";
+                "X-Action-Preview-Id"?: string;
                 /** @description Generated by the server when absent; echoed in the response. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
                 /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
@@ -17793,6 +18747,14 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TaskResponse"];
                 };
+            };
+            /** @description The matching draft was discarded without updating the task. */
+            204: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
@@ -17858,6 +18820,9 @@ export interface operations {
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                 /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
                 "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Set to true with the exact preview id and unchanged cancellation body to discard the draft. */
+                "X-Action-Preview-Cancel"?: "true";
+                "X-Action-Preview-Id"?: string;
                 /** @description Generated by the server when absent; echoed in the response. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
                 /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
@@ -17885,6 +18850,15 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TaskResponse"];
                 };
+            };
+            /** @description The matching draft was discarded without cancelling the task. */
+            204: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
@@ -18042,6 +19016,9 @@ export interface operations {
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                 /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
                 "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Set to true with the exact preview id and unchanged retry body to discard the draft. */
+                "X-Action-Preview-Cancel"?: "true";
+                "X-Action-Preview-Id"?: string;
                 /** @description Generated by the server when absent; echoed in the response. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
                 /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
@@ -18069,6 +19046,15 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TaskResponse"];
                 };
+            };
+            /** @description The matching draft was discarded without retrying the task. */
+            204: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
@@ -18684,6 +19670,86 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    listVoiceSttModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Local STT model inventory */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SttModelsStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    cancelVoiceSttModelDownload: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SttModelCancelRequest"];
+            };
+        };
+        responses: {
+            /** @description Download job state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SttModelsStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    startVoiceSttModelDownload: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SttModelDownloadRequest"];
+            };
+        };
+        responses: {
+            /** @description Download job state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SttModelsStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     runVoiceTest: {
         parameters: {
             query?: never;
@@ -18718,6 +19784,148 @@ export interface operations {
             422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getWakeEnrollment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Wake enrollment status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WakeEnrollmentStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    discardWakeEnrollment: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WakeEnrollmentJob"];
+            };
+        };
+        responses: {
+            /** @description Wake enrollment status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WakeEnrollmentStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    addWakeEnrollmentSample: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WakeEnrollmentSample"];
+            };
+        };
+        responses: {
+            /** @description Wake enrollment status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WakeEnrollmentStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    startWakeEnrollment: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WakeEnrollmentStart"];
+            };
+        };
+        responses: {
+            /** @description Wake enrollment status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WakeEnrollmentStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    trainWakeEnrollment: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WakeEnrollmentJob"];
+            };
+        };
+        responses: {
+            /** @description Wake enrollment status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WakeEnrollmentStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getCurrentWeather: {

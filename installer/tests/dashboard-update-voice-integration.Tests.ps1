@@ -39,6 +39,9 @@ try {
     Remove-Item -LiteralPath (Join-Path $root 'voice\mail_voice.py')
     if (-not (Test-VoicePersonaUpdateNeeded @())) { throw 'Fehlendes Mailmodul wurde uebersehen.' }
     [IO.File]::WriteAllText((Join-Path $root 'voice\mail_voice.py'), 'restored')
+    Remove-Item -LiteralPath (Join-Path $root 'voice\research_voice.py')
+    if (-not (Test-VoicePersonaUpdateNeeded @())) { throw 'Fehlendes Recherchemodul wurde uebersehen.' }
+    [IO.File]::WriteAllText((Join-Path $root 'voice\research_voice.py'), 'restored')
     if (-not (Test-VoicePersonaUpdateNeeded @('installer/voice/voice_persona.py'))) { throw 'Voice-Diff wurde uebersehen.' }
     if (-not (Test-VoicePersonaUpdateNeeded @('installer/scripts/update-voice-personas.ps1'))) { throw 'Helper-only-Diff wurde uebersehen.' }
     Remove-Item -LiteralPath (Join-Path $root 'installer\voice_models\jarvis_ref.wav')

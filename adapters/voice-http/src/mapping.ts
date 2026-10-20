@@ -104,6 +104,21 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
     ...(typeof raw.tts_voice_choice === "string" || raw.tts_voice_choice === null ? { tts_voice_choice: raw.tts_voice_choice } : {}),
     ...(typeof raw.input_device_id === "string" || raw.input_device_id === null ? { input_device_id: raw.input_device_id } : {}),
     ...(typeof raw.output_device_id === "string" || raw.output_device_id === null ? { output_device_id: raw.output_device_id } : {}),
+    ...(typeof raw.ptt_active === "boolean" ? { ptt_active: raw.ptt_active } : {}),
+    ...(typeof raw.native_ptt_available === "boolean" ? { native_ptt_available: raw.native_ptt_available } : {}),
+    ...(typeof raw.runtime_settings === "object" && raw.runtime_settings !== null && !Array.isArray(raw.runtime_settings) &&
+      typeof (raw.runtime_settings as Record<string, unknown>).wakeWordEnabled === "boolean" &&
+      typeof (raw.runtime_settings as Record<string, unknown>).speakerVerificationRequired === "boolean" &&
+      typeof (raw.runtime_settings as Record<string, unknown>).storeRawRecordings === "boolean" &&
+      typeof (raw.runtime_settings as Record<string, unknown>).voiceHistoryEnabled === "boolean" &&
+      ["de", "en"].includes(String((raw.runtime_settings as Record<string, unknown>).sttLanguage)) &&
+      ((raw.runtime_settings as Record<string, unknown>).sttModel === null ||
+        (typeof (raw.runtime_settings as Record<string, unknown>).sttModel === "string" &&
+          /^[a-z0-9][a-z0-9.-]{0,63}$/.test((raw.runtime_settings as Record<string, string>).sttModel ?? ""))) &&
+      typeof (raw.runtime_settings as Record<string, unknown>).wakeWord === "string" &&
+      typeof (raw.runtime_settings as Record<string, unknown>).pushToTalkKey === "string" &&
+      typeof (raw.runtime_settings as Record<string, unknown>).ttsRate === "number"
+      ? { runtime_settings: raw.runtime_settings as RawVoiceStatus["runtime_settings"] } : {}),
   };
 }
 
@@ -161,15 +176,15 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
         inputLevel: raw.input_level ?? 0,
       },
       wakeWord: {
-        enabled: !starting && !waiting && !paused,
+        enabled: !starting && !waiting && !paused && (raw.runtime_settings?.wakeWordEnabled ?? true),
         state: starting || waiting || paused ? "disabled" : inCommand ? "triggered" : "armed",
         // The service reports the phrase chosen at install time; older services fall back to the configured value.
-        phrase: raw.wake_phrase ?? settings.wakePhrase,
+        phrase: raw.runtime_settings?.wakeWord ?? raw.wake_phrase ?? settings.wakePhrase,
       },
       // The service only starts with a speaker profile (fail closed, JV:254-255). `trusted` is set only after a
       // successful verification (JV:422); who spoke and with which score is not exposed.
       speakerVerification: {
-        enabled: true,
+        enabled: raw.runtime_settings?.speakerVerificationRequired ?? true,
         state: raw.trusted ? "verified" : "idle",
         recognizedSpeaker: null,
         confidence: null,
@@ -189,11 +204,12 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       audioOutputDeviceId: raw.output_device_id ?? null,
       serviceStartedAt: raw.service_started_at ?? null,
       ttsVoiceChoice: raw.tts_voice_choice ?? null,
-      pushToTalk: { enabled: false, active: false },
+      pushToTalk: { enabled: (raw.audio_transport === "browser" || raw.native_ptt_available === true) && raw.runtime_settings !== undefined,
+        active: raw.ptt_active === true },
       focusMode,
-      // The service never stores raw audio (module docstring); metadata goes to logs/voice.jsonl (JV:88-91).
-      rawRecordingEnabled: false,
-      voiceHistoryEnabled: true,
+      // The service only stores command audio when the owner has enabled recording.
+      rawRecordingEnabled: raw.runtime_settings?.storeRawRecordings ?? false,
+      voiceHistoryEnabled: raw.runtime_settings?.voiceHistoryEnabled ?? true,
     };
   },
 });

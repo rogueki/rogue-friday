@@ -12,6 +12,7 @@ import glob
 import json
 import os
 import sys
+import argparse
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
@@ -70,18 +71,23 @@ def piper_extras(embedder, phrase: str):
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--phrase")
+    parser.add_argument("--output-dir", default=OWW)
+    parser.add_argument("--raw-dir", default=RAW)
+    options = parser.parse_args(sys.argv[2:])
     name = pw.resolve_assistant_name(CONFIG)
-    phrase = pw.resolve_wake_phrase(CONFIG)
+    phrase = options.phrase or pw.resolve_wake_phrase(CONFIG)
     if pw.is_pretrained_phrase(phrase):
         raise SystemExit("Die Phrase 'Hey Jarvis' nutzt das vortrainierte Modell (train_owner_verifier.py), nicht dieses Skript.")
     slug, short = pw.phrase_slug(phrase), pw.short_form(phrase)
     min_bare = MIN_BARE if short else 0
     print(f"Persoenliches Wake Word fuer '{name}': '{phrase}' ...", flush=True)
     embedder = pw.ClipEmbedder(os.path.join(OWW, "melspectrogram.onnx"), os.path.join(OWW, "embedding_model.onnx"))
-    hey = embed_dir(embedder, os.path.join(RAW, f"wake_{slug}", "*.wav"), True)
-    bare = embed_dir(embedder, os.path.join(RAW, f"wake_{pw.phrase_slug(short)}", "*.wav"), True) if short else []
-    words = embed_dir(embedder, os.path.join(RAW, "negatives", "*.wav"), False)
-    speech = embed_dir(embedder, os.path.join(RAW, "speech", "*.wav"), False)
+    hey = embed_dir(embedder, os.path.join(options.raw_dir, f"wake_{slug}", "*.wav"), True)
+    bare = embed_dir(embedder, os.path.join(options.raw_dir, f"wake_{pw.phrase_slug(short)}", "*.wav"), True) if short else []
+    words = embed_dir(embedder, os.path.join(options.raw_dir, "negatives", "*.wav"), False)
+    speech = embed_dir(embedder, os.path.join(options.raw_dir, "speech", "*.wav"), False)
     print(f"   Aufnahmen: {len(hey)}x '{phrase}', {len(bare)}x '{short or '-'}', "
           f"{len(words)} Gegenbeispiele, {len(speech)} Lesetexte")
     if len(hey) < MIN_HEY or len(bare) < min_bare or not speech:
@@ -93,9 +99,9 @@ def main() -> None:
     print("   Kalibriere die Schwelle (Kreuzvalidierung auf ungesehenen Aufnahmen) ...", flush=True)
     cal = pw.cross_validate(hey, bare, words, speech, extra=extra)
     model = pw.train_window_model(hey + extra[0], bare + extra[1], words + speech + extra[2])
-    os.makedirs(OWW, exist_ok=True)
-    model.save(os.path.join(OWW, "personal_wake.npz"))
-    pw.save_meta(os.path.join(OWW, "personal_wake.json"), {
+    os.makedirs(options.output_dir, exist_ok=True)
+    model.save(os.path.join(options.output_dir, "personal_wake.npz"))
+    pw.save_meta(os.path.join(options.output_dir, "personal_wake.json"), {
         "assistant_name": name, "slug": slug, "wake_phrase": phrase, "short_form": short, "engine": "personal",
         "threshold": cal["threshold"], "quality": cal["quality"], "calibration": cal,
         "clips": {"hey": len(hey), "bare": len(bare), "negatives": len(words), "speech": len(speech),

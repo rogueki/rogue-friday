@@ -17,8 +17,11 @@ import { queryKeys } from "@/lib/api/queryKeys";
  */
 export interface StagedWrite {
   send: (previewId?: string) => Promise<unknown>;
+  /** Invalidates a saved server draft before the preview is dismissed. */
+  discard?: (previewId: string) => Promise<unknown>;
   /** Already-translated toast text for a successful execution. */
-  successMessage: string;
+  successMessage: string | ((response: unknown) => string);
+  successTone?: "green" | "amber";
   /** Subject for toasts and as fallback preview text. */
   subject: string;
   /** Queries invalidated after execution (and on CONFLICT, where the data may have moved). */
@@ -52,15 +55,24 @@ const useStagedWriteStore = create<StagedWriteStore>((set) => ({
 /** True while a staged write is in flight (staging or confirming). */
 export const useStagedWriteBusy = (): boolean => useStagedWriteStore((s) => s.busy);
 
-function stagingOf(error: unknown): { stage: string; previewId?: string; previewText?: string; approvalId?: string } | null {
+function stagingOf(
+  error: unknown,
+): { stage: string; previewId?: string; previewText?: string; approvalId?: string } | null {
   if (!isFridayApiError(error) || error.code !== "APPROVAL_REQUIRED") return null;
-  const details = error.details as { stage?: unknown; previewId?: unknown; previewText?: unknown; approvalId?: unknown };
-  return typeof details.stage === "string" ? {
-    stage: details.stage,
-    previewId: typeof details.previewId === "string" ? details.previewId : undefined,
-    previewText: typeof details.previewText === "string" ? details.previewText : undefined,
-    approvalId: typeof details.approvalId === "string" ? details.approvalId : undefined,
-  } : null;
+  const details = error.details as {
+    stage?: unknown;
+    previewId?: unknown;
+    previewText?: unknown;
+    approvalId?: unknown;
+  };
+  return typeof details.stage === "string"
+    ? {
+        stage: details.stage,
+        previewId: typeof details.previewId === "string" ? details.previewId : undefined,
+        previewText: typeof details.previewText === "string" ? details.previewText : undefined,
+        approvalId: typeof details.approvalId === "string" ? details.approvalId : undefined,
+      }
+    : null;
 }
 
 /**
@@ -82,23 +94,49 @@ export function useRunStagedWrite(): (write: StagedWrite) => Promise<StagedWrite
       try {
         const response = await write.send();
         write.onExecuted?.(response);
-        toast({ title: write.successMessage, description: write.subject, tone: "green", duration: 3500 });
+        toast({
+          title:
+            typeof write.successMessage === "function"
+              ? write.successMessage(response)
+              : write.successMessage,
+          description: write.subject,
+          tone: write.successTone ?? "green",
+          duration: 3500,
+        });
         for (const key of write.invalidateKeys) void queryClient.invalidateQueries({ queryKey: key });
         return "executed";
       } catch (error) {
         const staged = stagingOf(error);
         if (staged?.stage === "preview" && staged.previewId) {
-          setPending({ write, previewId: staged.previewId, previewText: staged.previewText ?? write.subject });
+          setPending({
+            write,
+            previewId: staged.previewId,
+            previewText: staged.previewText ?? write.subject,
+          });
           return "preview";
         }
         if (staged?.stage === "approval") {
-          toast({ title: t("command.requiresApproval"), description: staged.previewText ?? write.subject, tone: "amber",
-            action: staged.approvalId ? { label: t("command.open"), onClick: () => router.push(`/approvals?approval=${encodeURIComponent(staged.approvalId ?? "")}`) } : undefined });
+          toast({
+            title: t("command.requiresApproval"),
+            description: staged.previewText ?? write.subject,
+            tone: "amber",
+            action: staged.approvalId
+              ? {
+                  label: t("command.open"),
+                  onClick: () =>
+                    router.push(`/approvals?approval=${encodeURIComponent(staged.approvalId ?? "")}`),
+                }
+              : undefined,
+          });
           void queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all });
           return "approval";
         }
-        toast({ title: t("command.failed"), duration: 9000, tone: "red",
-          description: isFridayApiError(error) ? `${error.message} (${error.correlationId})` : String(error) });
+        toast({
+          title: t("command.failed"),
+          duration: 9000,
+          tone: "red",
+          description: isFridayApiError(error) ? `${error.message} (${error.correlationId})` : String(error),
+        });
         if (isFridayApiError(error) && error.code === "CONFLICT") {
           for (const key of write.invalidateKeys) void queryClient.invalidateQueries({ queryKey: key });
         }
@@ -129,22 +167,63 @@ export function StagedWriteConfirmHost() {
       const response = await pending.write.send(pending.previewId);
       pending.write.onExecuted?.(response);
       setPending(null);
-      toast({ title: pending.write.successMessage, description: pending.write.subject, tone: "green", duration: 3500 });
+      toast({
+        title:
+          typeof pending.write.successMessage === "function"
+            ? pending.write.successMessage(response)
+            : pending.write.successMessage,
+        description: pending.write.subject,
+        tone: pending.write.successTone ?? "green",
+        duration: 3500,
+      });
       for (const key of pending.write.invalidateKeys) void queryClient.invalidateQueries({ queryKey: key });
     } catch (error) {
       setPending(null);
       const staged = stagingOf(error);
       if (staged?.stage === "approval") {
-        toast({ title: t("command.requiresApproval"), description: pending.write.subject, tone: "amber",
-          action: staged.approvalId ? { label: t("command.open"), onClick: () => router.push(`/approvals?approval=${encodeURIComponent(staged.approvalId ?? "")}`) } : undefined });
+        toast({
+          title: t("command.requiresApproval"),
+          description: pending.write.subject,
+          tone: "amber",
+          action: staged.approvalId
+            ? {
+                label: t("command.open"),
+                onClick: () =>
+                  router.push(`/approvals?approval=${encodeURIComponent(staged.approvalId ?? "")}`),
+              }
+            : undefined,
+        });
         void queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all });
       } else {
-        toast({ title: t("command.failed"), duration: 9000, tone: "red",
-          description: isFridayApiError(error) ? error.message : String(error) });
+        toast({
+          title: t("command.failed"),
+          duration: 9000,
+          tone: "red",
+          description: isFridayApiError(error) ? error.message : String(error),
+        });
         if (isFridayApiError(error) && error.code === "CONFLICT") {
-          for (const key of pending.write.invalidateKeys) void queryClient.invalidateQueries({ queryKey: key });
+          for (const key of pending.write.invalidateKeys)
+            void queryClient.invalidateQueries({ queryKey: key });
         }
       }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const dismiss = async (): Promise<void> => {
+    if (!pending || busy) return;
+    if (!pending.write.discard) {
+      setPending(null);
+      return;
+    }
+    setBusy(true);
+    try {
+      await pending.write.discard(pending.previewId);
+      if (useStagedWriteStore.getState().pending === pending) setPending(null);
+    } catch (error) {
+      toast({ title: t("command.failed"), duration: 9000, tone: "red",
+        description: isFridayApiError(error) ? `${error.message} (${error.correlationId})` : String(error) });
     } finally {
       setBusy(false);
     }
@@ -153,7 +232,7 @@ export function StagedWriteConfirmHost() {
   return (
     <ConfirmDialog
       open={pending !== null}
-      onOpenChange={(open) => !open && setPending(null)}
+      onOpenChange={(open) => !open && void dismiss()}
       title={t("command.confirmTitle")}
       description={pending?.previewText ?? ""}
       confirmLabel={t("command.confirm")}

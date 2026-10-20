@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-cron-mutation-request.schema.json",
+  "title": "HermesCronMutationRequest",
+  "type": "object",
+  "properties": {
+    "action": { "enum": ["create", "update", "pause", "resume", "run", "remove"] },
+    "expectedStoreRevision": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "profile": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,100}$" },
+    "profileTimezone": { "type": ["string", "null"], "maxLength": 100 },
+    "jobId": { "type": "string", "pattern": "^[0-9a-f]{12}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "schedule": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "prompt": { "type": "string", "minLength": 1, "maxLength": 4000 }
+  },
+  "required": ["action", "expectedStoreRevision", "profile", "profileTimezone"],
+  "allOf": [
+    { "if": { "properties": { "action": { "const": "create" } }, "required": ["action"] }, "then": { "required": ["name", "schedule", "prompt"], "properties": { "jobId": false, "name": {}, "schedule": {}, "prompt": {} } } },
+    { "if": { "properties": { "action": { "const": "update" } }, "required": ["action"] }, "then": { "required": ["jobId", "name", "schedule", "prompt"], "properties": { "jobId": {}, "name": {}, "schedule": {}, "prompt": {} } } },
+    { "if": { "properties": { "action": { "enum": ["pause", "resume", "run", "remove"] } }, "required": ["action"] }, "then": { "required": ["jobId"], "properties": { "jobId": {}, "name": false, "schedule": false, "prompt": false } } }
+  ],
+  "additionalProperties": false
+}

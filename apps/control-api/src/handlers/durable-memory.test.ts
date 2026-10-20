@@ -9,20 +9,27 @@ const base = {
   captureEligibility: "eligible", redaction: "required", payload: { kind: "text", text: "hello" },
 };
 
-function context(body: unknown): RequestContext {
+function context(body: unknown, voiceHistoryEnabled = true): RequestContext {
   return { body, principal: null, voiceBridgeAuthorized: true, audit: {}, runtime: {
     auth: { ownerPasswordConfigured: () => true, devMode: false }, config: { server: { allowRemote: false } },
+    settings: { area: () => ({ voiceHistoryEnabled }) },
     durableMemory: { capture: vi.fn(() => ({ eventId: "voice-1", accepted: true, pending: false })) },
   } } as unknown as RequestContext;
 }
 
 describe("durable memory bridge authorization", () => {
-  it("binds a trusted voice event to the owner identity", async () => {
+  it("captures a trusted voice event for the owner when history is enabled", async () => {
     const ctx = context(base);
     await durableMemoryHandlers.captureDurableMemoryEvent!(ctx);
     const stored = vi.mocked(ctx.runtime.durableMemory.capture).mock.calls[0]![0];
     expect(stored.identityId).not.toBe("owner");
     expect(stored.actor.id).toBe(stored.identityId);
+  });
+  it("drops a trusted voice event without capture when history is disabled", async () => {
+    const ctx = context(base, false);
+    const result = await durableMemoryHandlers.captureDurableMemoryEvent!(ctx);
+    expect(result).toMatchObject({ status: 200, body: { data: { eventId: "voice-1", accepted: false, pending: false } } });
+    expect(ctx.runtime.durableMemory.capture).not.toHaveBeenCalled();
   });
   it("rejects a voice event for an arbitrary identity or source", async () => {
     for (const body of [{ ...base, identityId: "other" }, { ...base, source: "dashboard/command" }]) {

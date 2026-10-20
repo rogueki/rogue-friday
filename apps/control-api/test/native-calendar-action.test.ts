@@ -145,8 +145,74 @@ it("fails unknown or ambiguous references before any preview is staged", async (
     const ambiguous = await owner.post("/api/v1/commands", { text: "Verschieb den Termin Doppeltermin auf morgen 9 Uhr", source: "text" });
     expect(ambiguous.statusCode, ambiguous.body).toBe(409);
     expect(ambiguous.json().error.message).toContain("Mehrere Termine");
+    expect(ambiguous.json().error.details).toMatchObject({ clarificationRequired: true });
     const stagedRows = api.runtime.db.prepare("SELECT COUNT(*) AS count FROM native_approval_requests").get() as { count: number };
     expect(stagedRows.count).toBe(0);
+  } finally { await api.close(); }
+});
+
+it("resolves a duplicate calendar reference in a session-bound turn, then requires confirmation", async () => {
+  const api = await startApiAtNow();
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    await disableTier2(owner);
+    const ownerId = await ownerIdOf(owner);
+    seedEvent(api, ownerId, "Doppeltermin", "2026-10-21T08:00:00.000Z");
+    const chosen = seedEvent(api, ownerId, "Doppeltermin", "2026-10-22T08:00:00.000Z");
+    const text = "Verschieb den Termin Doppeltermin auf morgen 9 Uhr";
+    const ambiguous = await owner.post("/api/v1/commands", { text, source: "text" });
+    expect(ambiguous.statusCode).toBe(409);
+    expect(ambiguous.json().error.details).toMatchObject({ clarificationRequired: true, optionCount: 2 });
+    expect(ambiguous.json().error.message).toContain("22. Oktober 2026");
+    expect((await owner.get(`/api/v1/calendar/events/${chosen.id}`)).json().data.version).toBe(1);
+
+    const otherSession = api.client();
+    await otherSession.loginDev("owner");
+    const crossSession = await otherSession.post("/api/v1/commands", { text: "use the second one", source: "text" });
+    expect(crossSession.json().status).not.toBe("requires_confirmation");
+    expect((await owner.get(`/api/v1/calendar/events/${chosen.id}`)).json().data.version).toBe(1);
+
+    const clarification = await owner.post("/api/v1/commands", { text: "use the second one", source: "text" });
+    expect(clarification.statusCode, clarification.body).toBe(200);
+    expect(clarification.json()).toMatchObject({ status: "requires_confirmation", requiresConfirmation: true });
+    expect(clarification.json().previewText).toContain("Doppeltermin");
+    expect((await owner.get(`/api/v1/calendar/events/${chosen.id}`)).json().data.version).toBe(1);
+    const crossSessionConfirm = await otherSession.post("/api/v1/commands", {
+      text, source: "text", confirm: true, previewId: clarification.json().previewId,
+    });
+    expect(crossSessionConfirm.statusCode).toBe(409);
+    expect((await owner.get(`/api/v1/calendar/events/${chosen.id}`)).json().data.version).toBe(1);
+
+    const corrected = "Verschieb den Termin Doppeltermin auf morgen 10 Uhr";
+    const rejectedCorrection = await owner.post("/api/v1/commands", { text: corrected, source: "text", confirm: true, previewId: clarification.json().previewId });
+    expect(rejectedCorrection.statusCode).toBe(409);
+    const confirmed = await owner.post("/api/v1/commands", { text, source: "text", confirm: true, previewId: clarification.json().previewId });
+    expect(confirmed.statusCode, confirmed.body).toBe(200);
+    expect(confirmed.json().status).toBe("executed");
+    expect((await owner.get(`/api/v1/calendar/events/${chosen.id}`)).json().data.version).toBe(2);
+    expect((await owner.get(`/api/v1/calendar/events/${chosen.id}`)).json().data.start).toBe("2026-10-20T07:00:00.000Z");
+  } finally { await api.close(); }
+});
+
+it("rejects a calendar clarification if candidate revisions changed before selection", async () => {
+  const api = await startApiAtNow();
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const ownerId = await ownerIdOf(owner);
+    const first = seedEvent(api, ownerId, "Doppeltermin alt", "2026-10-21T08:00:00.000Z");
+    const second = seedEvent(api, ownerId, "Doppeltermin alt", "2026-10-22T08:00:00.000Z");
+    const ambiguous = await owner.post("/api/v1/commands", { text: "Verschieb den Termin Doppeltermin alt auf morgen 9 Uhr", source: "text" });
+    expect(ambiguous.statusCode).toBe(409);
+    new LocalCalendarService(api.runtime.db).update(second.id,
+      { title: second.title, start: second.start, end: second.end, timeZone: second.timeZone }, ownerId, second.version);
+    const clarification = await owner.post("/api/v1/commands", { text: "second", source: "text" });
+    expect(clarification.statusCode).toBe(409);
+    expect(clarification.json().error.message).toContain("geaendert");
+    const staged = api.runtime.db.prepare("SELECT COUNT(*) AS count FROM native_approval_requests").get() as { count: number };
+    expect(staged.count).toBe(0);
+    expect(new LocalCalendarService(api.runtime.db).get(first.id).version).toBe(1);
   } finally { await api.close(); }
 });
 

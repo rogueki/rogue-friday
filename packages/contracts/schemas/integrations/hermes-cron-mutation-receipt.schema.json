@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-cron-mutation-receipt.schema.json",
+  "title": "HermesCronMutationReceipt",
+  "type": "object",
+  "properties": {
+    "action": { "enum": ["create", "update", "pause", "resume", "run", "remove"] },
+    "jobId": { "type": "string", "pattern": "^[0-9a-f]{12}$" },
+    "profile": { "type": "string", "maxLength": 100 },
+    "profileTimezone": { "type": ["string", "null"] },
+    "storeRevision": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "state": { "type": "string", "maxLength": 40 },
+    "accepted": { "const": true },
+    "executionVerified": { "const": false }
+  },
+  "required": ["action", "jobId", "profile", "profileTimezone", "storeRevision", "state", "accepted", "executionVerified"],
+  "additionalProperties": false
+}

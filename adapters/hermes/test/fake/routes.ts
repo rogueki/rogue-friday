@@ -72,7 +72,7 @@ export function cardOf(board: FakeBoard, task: FakeTask, state: HermesState): Re
     completed_at: task.completed_at,
     workspace_kind: "scratch",
     workspace_path: null,
-    claim_lock: null,
+    claim_lock: task.claim_lock,
     claim_expires: null,
     tenant: task.tenant,
     branch_name: null,
@@ -84,7 +84,9 @@ export function cardOf(board: FakeBoard, task: FakeTask, state: HermesState): Re
     block_kind: task.block_kind,
     last_heartbeat_at: task.last_heartbeat_at,
     current_run_started_at: task.current_run_started_at,
+    current_run_id: task.current_run_id,
     model_override: task.model_override,
+    provider_override: task.provider_override,
     reasoning_effort: task.reasoning_effort,
     session_id: task.session_id,
     completion_contract: "local-only",
@@ -280,6 +282,8 @@ export function dashboardRoutes(state: HermesState): RouteDef[] {
           priority: typeof body.priority === "number" ? body.priority : 0,
           tenant: typeof body.tenant === "string" ? body.tenant : null,
           model_override: typeof body.model_override === "string" ? body.model_override : null,
+          provider_override: typeof body.provider_override === "string" ? body.provider_override : null,
+          reasoning_effort: typeof body.reasoning_effort === "string" ? body.reasoning_effort : null,
           idempotency_key: key,
           created_by: "dashboard",
         });
@@ -302,6 +306,9 @@ export function dashboardRoutes(state: HermesState): RouteDef[] {
             ...(typeof body.block_reason === "string" ? { reason: body.block_reason } : {}),
             ...(typeof body.result === "string" ? { result: body.result } : {}),
           });
+          if (body.status === "archived" && state.archiveWorkerSurvives) {
+            throw new HttpFail(500, { detail: "archived task still has a live worker" });
+          }
         }
         if (typeof body.priority === "number") task.priority = body.priority;
         if (typeof body.title === "string") {
@@ -401,6 +408,73 @@ export function dashboardRoutes(state: HermesState): RouteDef[] {
           count: workers.length,
           checked_at: state.now(),
         });
+      }),
+    },
+    {
+      method: "GET",
+      pattern: `${PLUGIN}/friday/run-stop-capability`,
+      handler: authed(() => {
+        if (!state.runStopPatched) throw new HttpFail(404, { detail: "not found" });
+        return json({ patch: "FRIDAY_RUN_STOP_CAS_V1", lifecycle: "FRIDAY_LIFECYCLE_CAS_V1" });
+      }),
+    },
+    {
+      method: "POST",
+      pattern: `${PLUGIN}/friday/tasks/:id/:action`,
+      handler: authed((request) => {
+        if (!state.runStopPatched) throw new HttpFail(404, { detail: "not found" });
+        const board = state.board(str(request.query.board));
+        const task = state.task(board, request.params.id ?? "");
+        const body = readBody(request);
+        const before = state.beforeLifecycleMutation;
+        state.beforeLifecycleMutation = undefined;
+        before?.();
+        const latest = board.events.filter((event) => event.task_id === task.id).at(-1)?.id ?? 0;
+        if (body.expected_event_id !== latest || body.expected_status !== task.status ||
+            (body.expected_run_id ?? null) !== task.current_run_id ||
+            (body.expected_claim_lock ?? null) !== task.claim_lock) {
+          throw new HttpFail(409, { detail: "Friday lifecycle precondition changed" });
+        }
+        if (request.params.action === "cancel") {
+          if (["done", "archived"].includes(task.status)) throw new HttpFail(409, { detail: "already terminal" });
+          if (state.archiveWorkerSurvives) throw new HttpFail(500, { detail: "worker still live; archive rolled back" });
+          state.setStatus(board, task, "archived");
+        } else if (request.params.action === "retry") {
+          if (task.current_run_id !== null || task.claim_lock !== null ||
+              !(task.status === "archived" || task.status === "blocked" &&
+                (task.last_failure_error || task.block_kind === "friday_stopped"))) {
+            throw new HttpFail(409, { detail: "not retryable" });
+          }
+          state.setStatus(board, task, "ready");
+        } else {
+          throw new HttpFail(404, { detail: "not found" });
+        }
+        return json({ task: cardOf(board, task, state) });
+      }),
+    },
+    {
+      method: "POST",
+      pattern: `${PLUGIN}/runs/:id/terminate`,
+      handler: authed((request) => {
+        const board = state.board(str(request.query.board));
+        const runId = Number(request.params.id);
+        const run = board.runs.find((candidate) => candidate.id === runId);
+        if (!run) throw new HttpFail(404, { detail: `run ${runId} not found` });
+        if (run.ended_at !== null) throw new HttpFail(409, { detail: `run ${runId} already ended` });
+        const task = state.task(board, run.task_id);
+        if (task.status !== "running") throw new HttpFail(409, { detail: "not reclaimable" });
+        const workerIndex = state.workers.findIndex((worker) => worker.board === board.slug && worker.run_id === runId);
+        if (workerIndex < 0) throw new HttpFail(409, { detail: "run no longer owns the worker" });
+        run.ended_at = state.tick();
+        run.status = "reclaimed";
+        run.outcome = "reclaimed";
+        task.status = "blocked";
+        task.block_kind = "friday_stopped";
+        task.current_run_id = null;
+        task.claim_lock = null;
+        state.workers.splice(workerIndex, 1);
+        state.addEvent(board, task, "reclaimed", null, runId);
+        return json({ ok: true, run_id: runId, task_id: task.id });
       }),
     },
     {

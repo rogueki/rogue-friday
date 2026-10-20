@@ -1,4 +1,4 @@
-import type { CallContext, HttpRequest } from "@friday/adapter-core";
+import { AdapterError, normalizeError, type CallContext, type HttpRequest } from "@friday/adapter-core";
 import type { AuthedClient } from "./clients";
 import type { TaskRef } from "./ids";
 import {
@@ -102,10 +102,67 @@ export class KanbanApi {
       query: { board: ref.board },
       body,
       operation: "updateTask",
+      // Hermes ignores the HTTP Idempotency-Key on PATCH. A timeout is an unknown outcome.
+      retry: false,
       ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
       ...extras(call),
     });
     return parseTask(asObject(response.body, "updateTask").task, "updateTask.task");
+  }
+
+  async terminateRun(board: string, runId: number, reason: string, call: CallInfo): Promise<string> {
+    let probe;
+    try {
+      probe = await this.dashboard.request({
+        method: "GET", path: `${PLUGIN}/friday/run-stop-capability`, operation: "stopAgentPatchProbe",
+        retry: false, ...extras(call),
+      });
+    } catch (error) {
+      if (normalizeError(error).code !== "NOT_FOUND") throw error;
+      throw new AdapterError({ code: "CAPABILITY_MISSING", message: "Hermes hat keine gepruefte Run-Stop-Sperre.", retryable: false });
+    }
+    if (asObject(probe.body, "runStopCapability").patch !== "FRIDAY_RUN_STOP_CAS_V1") {
+      throw new AdapterError({ code: "CAPABILITY_MISSING", message: "Hermes hat keine gepruefte Run-Stop-Sperre.", retryable: false });
+    }
+    const response = await this.dashboard.request({
+      method: "POST",
+      path: `${PLUGIN}/runs/${runId}/terminate`,
+      query: { board },
+      body: { reason },
+      operation: "stopAgent",
+      retry: false,
+      ...extras(call),
+    });
+    const result = asObject(response.body, "terminateRun");
+    if (result.ok !== true || result.run_id !== runId || typeof result.task_id !== "string") {
+      throw new AdapterError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes hat den Worker-Stop nicht bestaetigt.", retryable: false });
+    }
+    return result.task_id;
+  }
+
+  async lifecycleTask(ref: TaskRef, action: "cancel" | "retry", expected: WireTaskDetail, call: CallInfo): Promise<WireTask> {
+    const eventId = expected.events.reduce((latest, event) => Math.max(latest, event.id), 0);
+    let probe;
+    try {
+      probe = await this.dashboard.request({
+        method: "GET", path: `${PLUGIN}/friday/run-stop-capability`, operation: `${action}TaskPatchProbe`,
+        retry: false, ...extras(call),
+      });
+    } catch (error) {
+      if (normalizeError(error).code !== "NOT_FOUND") throw error;
+      throw new AdapterError({ code: "CAPABILITY_MISSING", message: "Hermes hat keine gepruefte Task-Lifecycle-Sperre.", retryable: false });
+    }
+    if (asObject(probe.body, "lifecycleCapability").lifecycle !== "FRIDAY_LIFECYCLE_CAS_V1") {
+      throw new AdapterError({ code: "CAPABILITY_MISSING", message: "Hermes hat keine gepruefte Task-Lifecycle-Sperre.", retryable: false });
+    }
+    const response = await this.dashboard.request({
+      method: "POST", path: `${PLUGIN}/friday/tasks/${encodeURIComponent(ref.taskId)}/${action}`,
+      query: { board: ref.board },
+      body: { expected_event_id: eventId, expected_status: expected.task.status,
+        expected_run_id: expected.task.currentRunId, expected_claim_lock: expected.task.claimLock },
+      operation: `${action}Task`, retry: false, ...extras(call),
+    });
+    return parseTask(asObject(response.body, `${action}Task`).task, `${action}Task.task`);
   }
 
   /** Kanban-scoped profile list (`name, model, provider, description`). */

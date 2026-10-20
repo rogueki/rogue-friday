@@ -668,6 +668,13 @@ paths:
           schema:
             type: string
             pattern: '^corr_[0-9A-Za-z]{26}$'
+        - name: X-Action-Preview-Cancel
+          in: header
+          required: false
+          description: Set to true with X-Action-Preview-Id and the unchanged body to discard that draft without creating a task.
+          schema:
+            type: string
+            enum: ['true']
       requestBody:
         required: true
         content:
@@ -675,6 +682,13 @@ paths:
             schema:
               $ref: "#/components/schemas/TaskCreateRequest"
       responses:
+        "204":
+          description: Saved preview discarded; no task was created.
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
         "201":
           description: Created
           headers:
@@ -749,6 +763,15 @@ paths:
         - $ref: "#/components/parameters/CorrelationId"
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/IfMatch"
+        - name: X-Action-Preview-Id
+          in: header
+          required: false
+          schema: { type: string, pattern: '^corr_[0-9A-Za-z]{26}$' }
+        - name: X-Action-Preview-Cancel
+          in: header
+          required: false
+          description: Set to true with the exact preview id and unchanged task update body to discard the draft.
+          schema: { type: string, enum: ['true'] }
       requestBody:
         required: true
         content:
@@ -765,6 +788,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TaskResponse"
+        "204":
+          description: The matching draft was discarded without updating the task.
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -795,6 +823,15 @@ paths:
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/IfMatch"
         - $ref: "#/components/parameters/IdempotencyKey"
+        - name: X-Action-Preview-Id
+          in: header
+          required: false
+          schema: { type: string, pattern: '^corr_[0-9A-Za-z]{26}$' }
+        - name: X-Action-Preview-Cancel
+          in: header
+          required: false
+          description: Set to true with the exact preview id and unchanged cancellation body to discard the draft.
+          schema: { type: string, enum: ['true'] }
       requestBody:
         required: false
         content:
@@ -813,6 +850,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TaskResponse"
+        "204":
+          description: The matching draft was discarded without cancelling the task.
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -843,6 +887,15 @@ paths:
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/IfMatch"
         - $ref: "#/components/parameters/IdempotencyKey"
+        - name: X-Action-Preview-Id
+          in: header
+          required: false
+          schema: { type: string, pattern: '^corr_[0-9A-Za-z]{26}$' }
+        - name: X-Action-Preview-Cancel
+          in: header
+          required: false
+          description: Set to true with the exact preview id and unchanged retry body to discard the draft.
+          schema: { type: string, enum: ['true'] }
       requestBody:
         required: false
         content:
@@ -861,6 +914,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TaskResponse"
+        "204":
+          description: The matching draft was discarded without retrying the task.
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -3205,6 +3265,46 @@ paths:
       x-capability: automations.versions
       x-required-role: viewer
   /api/v1/research/projects:
+    post:
+      operationId: createResearchProject
+      tags:
+        - research
+      summary: Search for a topic and store unverified source candidates
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchCreateRequest"
+      responses:
+        "201":
+          description: Source discovery recorded; project remains in review
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchProjectResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: research.create
+      x-required-role: operator
     get:
       operationId: listResearchProjects
       tags:
@@ -3242,6 +3342,54 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: research.read
       x-required-role: viewer
+  /api/v1/research/provider:
+    get:
+      operationId: getResearchProvider
+      tags:
+        - research
+      summary: Get local source discovery provider configuration
+      responses:
+        "200":
+          description: Current configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchProviderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+    patch:
+      operationId: updateResearchProvider
+      tags:
+        - research
+      summary: Configure Wikipedia or a local SearXNG endpoint, optionally provisioning the bundled local service
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchProviderUpdateRequest"
+      responses:
+        "200":
+          description: Saved configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchProviderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-required-role: owner
   /api/v1/research/projects/{id}:
     get:
       operationId: getResearchProject
@@ -4556,6 +4704,199 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LinuxEnrollmentStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/stt-models:
+    get:
+      operationId: listVoiceSttModels
+      tags: [voice]
+      summary: List locally cached Whisper models and explicit download progress
+      responses:
+        "200":
+          description: Local STT model inventory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SttModelsStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/stt-models/download:
+    post:
+      operationId: startVoiceSttModelDownload
+      tags: [voice]
+      summary: Download one selected Whisper model into the local cache without activating it
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SttModelDownloadRequest"
+      responses:
+        "200":
+          description: Download job state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SttModelsStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/stt-models/cancel:
+    post:
+      operationId: cancelVoiceSttModelDownload
+      tags: [voice]
+      summary: Cancel the current explicit Whisper model download
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SttModelCancelRequest"
+      responses:
+        "200":
+          description: Download job state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SttModelsStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/wake-enrollment:
+    get:
+      operationId: getWakeEnrollment
+      tags: [voice]
+      summary: Read private pending wake phrase enrollment
+      responses:
+        "200":
+          description: Wake enrollment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WakeEnrollmentStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/wake-enrollment/start:
+    post:
+      operationId: startWakeEnrollment
+      tags: [voice]
+      summary: Start one phrase-bound private wake enrollment
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WakeEnrollmentStart"
+      responses:
+        "200":
+          description: Wake enrollment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WakeEnrollmentStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/wake-enrollment/samples:
+    post:
+      operationId: addWakeEnrollmentSample
+      tags: [voice]
+      summary: Upload one bounded private wake training sample
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WakeEnrollmentSample"
+      responses:
+        "200":
+          description: Wake enrollment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WakeEnrollmentStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+      x-max-body-bytes: 260000
+  /api/v1/voice/wake-enrollment/train:
+    post:
+      operationId: trainWakeEnrollment
+      tags: [voice]
+      summary: Train staged wake model without activating it
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WakeEnrollmentJob"
+      responses:
+        "200":
+          description: Wake enrollment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WakeEnrollmentStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/wake-enrollment/discard:
+    post:
+      operationId: discardWakeEnrollment
+      tags: [voice]
+      summary: Cancel and delete a pending wake enrollment
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WakeEnrollmentJob"
+      responses:
+        "200":
+          description: Wake enrollment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WakeEnrollmentStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -6384,6 +6725,171 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HermesConfigStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/hermes-cron/jobs:
+    get:
+      operationId: listHermesCronJobs
+      tags: [settings]
+      summary: Read bounded native Hermes cron job metadata for the active profile
+      responses:
+        "200":
+          description: Native job metadata; scheduler liveness remains unknown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesCronJobsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+    post:
+      operationId: mutateHermesCronJob
+      tags: [settings]
+      summary: Stage and confirm one revision-bound native Hermes cron mutation
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: X-Action-Preview-Id
+          in: header
+          required: false
+          schema: { type: string, pattern: '^corr_[0-9A-Za-z]{26}$' }
+        - name: X-Action-Preview-Cancel
+          in: header
+          required: false
+          schema: { type: string, enum: ['true'] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HermesCronMutationRequest"
+      responses:
+        "200":
+          description: Native store mutation accepted; scheduler execution remains unverified
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesCronMutationResponse"
+        "204":
+          description: Matching preview draft discarded
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/hermes-config/mcp-probe:
+    post:
+      operationId: probeHermesMcp
+      tags: [settings]
+      summary: Probe one configured HTTPS MCP server with a bounded public-IP protocol handshake
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HermesMcpProbeRequest"
+      responses:
+        "200":
+          description: One protocol handshake receipt, not a running Hermes session receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesMcpProbeResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/hermes-config/approval-test:
+    post:
+      operationId: testHermesApproval
+      tags: [settings]
+      summary: Dry-run the pinned Hermes command approval verdict without executing a command
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HermesApprovalTestRequest"
+      responses:
+        "200":
+          description: Approval policy verdict, not execution or running-session adoption
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesApprovalTestResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/hermes-config/mcp-oauth:
+    post:
+      operationId: manageHermesMcpOAuth
+      tags: [settings]
+      summary: Start, poll or cancel one owner-bound Hermes MCP OAuth login
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HermesMcpOAuthRequest"
+      responses:
+        "200":
+          description: OAuth flow state; configured means native tokens and config persisted, not a running session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesMcpOAuthResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -9024,6 +9530,14 @@ components:
       $ref: ../schemas/research/research-finding-response.schema.json
     ResearchProject:
       $ref: ../schemas/research/research-project.schema.json
+    ResearchCreateRequest:
+      $ref: ../schemas/research/research-create-request.schema.json
+    ResearchProvider:
+      $ref: ../schemas/research/research-provider.schema.json
+    ResearchProviderUpdateRequest:
+      $ref: ../schemas/research/research-provider-update-request.schema.json
+    ResearchProviderResponse:
+      $ref: ../schemas/research/research-provider-response.schema.json
     ResearchProjectListResponse:
       $ref: ../schemas/research/research-project-list-response.schema.json
     ResearchProjectResponse:
@@ -9166,10 +9680,32 @@ components:
       $ref: ../schemas/integrations/mail-result-response.schema.json
     HermesConfigPatch:
       $ref: ../schemas/integrations/hermes-config-patch.schema.json
+    HermesCronJobs:
+      $ref: ../schemas/integrations/hermes-cron-jobs.schema.json
+    HermesCronJobsResponse:
+      $ref: ../schemas/integrations/hermes-cron-jobs-response.schema.json
+    HermesCronMutationRequest:
+      $ref: ../schemas/integrations/hermes-cron-mutation-request.schema.json
+    HermesCronMutationReceipt:
+      $ref: ../schemas/integrations/hermes-cron-mutation-receipt.schema.json
+    HermesCronMutationResponse:
+      $ref: ../schemas/integrations/hermes-cron-mutation-response.schema.json
     HermesConfigStatus:
       $ref: ../schemas/integrations/hermes-config-status.schema.json
     HermesConfigStatusResponse:
       $ref: ../schemas/integrations/hermes-config-status-response.schema.json
+    HermesMcpProbeRequest:
+      $ref: ../schemas/integrations/hermes-mcp-probe-request.schema.json
+    HermesMcpProbeResponse:
+      $ref: ../schemas/integrations/hermes-mcp-probe-response.schema.json
+    HermesApprovalTestRequest:
+      $ref: ../schemas/integrations/hermes-approval-test-request.schema.json
+    HermesApprovalTestResponse:
+      $ref: ../schemas/integrations/hermes-approval-test-response.schema.json
+    HermesMcpOAuthRequest:
+      $ref: ../schemas/integrations/hermes-mcp-oauth-request.schema.json
+    HermesMcpOAuthResponse:
+      $ref: ../schemas/integrations/hermes-mcp-oauth-response.schema.json
     HermesModelCatalog:
       $ref: ../schemas/integrations/hermes-model-catalog.schema.json
     HermesModelCatalogResponse:
@@ -9312,6 +9848,20 @@ components:
       $ref: ../schemas/voice/linux-enrollment-status.schema.json
     LinuxEnrollmentSample:
       $ref: ../schemas/voice/linux-enrollment-sample.schema.json
+    WakeEnrollmentStatus:
+      $ref: ../schemas/voice/wake-enrollment-status.schema.json
+    WakeEnrollmentStart:
+      $ref: ../schemas/voice/wake-enrollment-start.schema.json
+    WakeEnrollmentSample:
+      $ref: ../schemas/voice/wake-enrollment-sample.schema.json
+    WakeEnrollmentJob:
+      $ref: ../schemas/voice/wake-enrollment-job.schema.json
+    SttModelsStatus:
+      $ref: ../schemas/voice/stt-models-status.schema.json
+    SttModelDownloadRequest:
+      $ref: ../schemas/voice/stt-model-download-request.schema.json
+    SttModelCancelRequest:
+      $ref: ../schemas/voice/stt-model-cancel-request.schema.json
     VoiceTestKind:
       $ref: ../schemas/voice/voice-test-kind.schema.json
     VoiceTestRequest:

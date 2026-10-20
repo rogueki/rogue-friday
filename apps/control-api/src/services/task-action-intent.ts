@@ -2,7 +2,8 @@ import type { TaskStatus } from "@friday/sdk";
 
 export type TaskActionIntent =
   | { kind: "task.update"; status: TaskStatus; ref: string | null }
-  | { kind: "task.cancel"; ref: string | null };
+  | { kind: "task.cancel"; ref: string | null }
+  | { kind: "task.retry"; ref: string | null };
 
 const TASK_ID = /^task_[0-9A-Za-z]{26}$/;
 
@@ -71,6 +72,11 @@ const CANCEL_SELECTED = [
   /^(?:bitte\s+)?brich\s+(?:(?:die|das|den)\s+)?(?:aufgabe|task)\s+ab$/iu,
 ];
 
+const RETRY_WITH_REF = /^(?:(?:please|bitte)\s+)?(?:retry|restart|erneut\s+starten|starte\s+erneut|wiederhole)\s+(?:(?:the|die|das|den)\s+)?(?:task|aufgabe)\s+(.+)$/iu;
+const RETRY_SELECTED = /^(?:(?:please|bitte)\s+)?(?:retry|restart|erneut\s+starten|starte\s+erneut|wiederhole)\s+(?:(?:the|die|das|den)\s+)?(?:task|aufgabe)$/iu;
+const RETRY_POSTFIX_WITH_REF = /^(?:bitte\s+)?starte\s+(?:(?:die|das|den)\s+)?(?:task|aufgabe)\s+(.+?)\s+erneut$/iu;
+const RETRY_POSTFIX_SELECTED = /^(?:bitte\s+)?starte\s+(?:(?:die|das|den)\s+)?(?:task|aufgabe)\s+erneut$/iu;
+
 /**
  * Only an explicit status-change or cancel imperative for one task is treated as an action. The reference is a task
  * id or title; phrases without a reference resolve the single selected task of the command context at the handler.
@@ -78,6 +84,14 @@ const CANCEL_SELECTED = [
 export function parseTaskActionIntent(text: string): TaskActionIntent | null {
   const trimmed = text.trim();
   if (trimmed.includes(":")) return null;
+  const retryWithRef = RETRY_WITH_REF.exec(trimmed);
+  const retryRef = validRef(retryWithRef?.[1]);
+  if (retryWithRef && retryRef) return { kind: "task.retry", ref: retryRef };
+  if (RETRY_SELECTED.test(trimmed)) return { kind: "task.retry", ref: null };
+  const retryPostfix = RETRY_POSTFIX_WITH_REF.exec(trimmed);
+  const retryPostfixRef = validRef(retryPostfix?.[1]);
+  if (retryPostfix && retryPostfixRef) return { kind: "task.retry", ref: retryPostfixRef };
+  if (RETRY_POSTFIX_SELECTED.test(trimmed)) return { kind: "task.retry", ref: null };
   for (const pattern of STATUS_WITH_REF) {
     const match = pattern.exec(trimmed);
     const ref = validRef(match?.[1]);

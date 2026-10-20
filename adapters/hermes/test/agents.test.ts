@@ -156,13 +156,51 @@ describe("agents: read", () => {
 });
 
 describe("agents: capabilities and health", () => {
-  it("declares agents.read only and offers no pause/resume/stop", async () => {
+  it("declares agents.stop and leaves pause/resume absent", async () => {
     const h = await open();
-    expect((await h.adapter.getCapabilities()).capabilities).toEqual(["agents.read"]);
-    for (const method of ["pauseAgent", "resumeAgent", "stopAgent"]) {
+    expect((await h.adapter.getCapabilities()).capabilities).toEqual(["agents.read", "agents.stop"]);
+    for (const method of ["pauseAgent", "resumeAgent"]) {
       expect((h.adapter as unknown as Record<string, unknown>)[method]).toBeUndefined();
     }
     expect((await h.adapter.healthCheck()).status).toBe("online");
+  });
+});
+
+describe("agents: stop", () => {
+  it("fails closed when the installed Hermes has no run-scoped stop patch", async () => {
+    const task = fake.state.addTask("default", { title: "Lauf", assignee: "kira" });
+    fake.state.startWorker("default", task);
+    fake.state.runStopPatched = false;
+    const h = await open();
+    const agent = (await h.adapter.listAgents({}, h.call())).items.find((item) => item.name === "Kira")!;
+    expect((await rejection(h.adapter.stopAgent({ id: agent.id }, h.mutation()))).code).toBe("CAPABILITY_MISSING");
+    expect(fake.callsTo("dashboard", /\/terminate$/)).toHaveLength(0);
+    expect(fake.state.workers).toHaveLength(1);
+  });
+
+  it("terminates exactly one live run and checks the worker disappeared", async () => {
+    const task = fake.state.addTask("default", { title: "Lauf", assignee: "kira" });
+    fake.state.startWorker("default", task);
+    const h = await open();
+    const agent = (await h.adapter.listAgents({}, h.call())).items.find((item) => item.name === "Kira")!;
+    const stopped = await h.adapter.stopAgent({ id: agent.id }, h.mutation({ ifMatchVersion: agent.version }));
+    expect(stopped.data.status).toBe("idle");
+    expect(fake.state.workers).toHaveLength(0);
+    expect(task.status).toBe("blocked");
+    expect(task.block_kind).toBe("friday_stopped");
+    expect(fake.callsTo("dashboard", /\/terminate$/).filter((call) => call.method === "POST")).toHaveLength(1);
+  });
+
+  it("refuses zero or multiple runs without sending terminate", async () => {
+    const h = await open();
+    const agent = (await h.adapter.listAgents({}, h.call())).items.find((item) => item.name === "Kira")!;
+    expect((await rejection(h.adapter.stopAgent({ id: agent.id }, h.mutation()))).code).toBe("CONFLICT");
+    const first = fake.state.addTask("default", { title: "Erster", assignee: "kira" });
+    const second = fake.state.addTask("default", { title: "Zweiter", assignee: "kira" });
+    fake.state.startWorker("default", first);
+    fake.state.startWorker("default", second);
+    expect((await rejection(h.adapter.stopAgent({ id: agent.id }, h.mutation()))).code).toBe("CONFLICT");
+    expect(fake.callsTo("dashboard", /\/terminate$/)).toHaveLength(0);
   });
 });
 

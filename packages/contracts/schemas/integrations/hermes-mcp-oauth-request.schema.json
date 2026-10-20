@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-mcp-oauth-request.schema.json",
+  "title": "HermesMcpOAuthRequest",
+  "oneOf": [
+    { "type": "object", "properties": {
+      "action": { "const": "start" },
+      "name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$" }
+    }, "required": ["action", "name"], "additionalProperties": false },
+    { "type": "object", "properties": {
+      "action": { "enum": ["status", "cancel"] },
+      "flowId": { "type": "string", "pattern": "^[0-9a-f]{32}$" }
+    }, "required": ["action", "flowId"], "additionalProperties": false }
+  ]
+}

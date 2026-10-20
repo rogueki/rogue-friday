@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
 import { useAppSettings } from "@/lib/settings";
+import { registerCommandSelection } from "@/features/palette/commandContext";
 import { ideaTargets, parseStudioPlan, platforms, postingTargets, type ContentIdea, type ContentFormat, type Platform, type Posting, type StudioPlan } from "./plan";
 import { MediaWorkshop } from "./MediaWorkshop";
 import { SocialPublishingOnboarding } from "./SocialPublishingOnboarding";
@@ -53,6 +54,10 @@ export function ContentStudioPage() {
   const [postingPlatform, setPostingPlatform] = useState<Platform>("LinkedIn");
   const [postingFormat, setPostingFormat] = useState<ContentFormat>("Feed-Post");
   const fileInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => registerCommandSelection("/content-studio",
+    loaded && settings?.dashboard.contentStudioEnabled === true && editingId ? [editingId] : []),
+  [editingId, loaded, settings?.dashboard.contentStudioEnabled]);
 
   useEffect(() => {
     if (isLoading || settings?.dashboard.contentStudioEnabled !== true) return;

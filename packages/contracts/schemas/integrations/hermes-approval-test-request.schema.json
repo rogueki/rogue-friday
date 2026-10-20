@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-approval-test-request.schema.json",
+  "title": "HermesApprovalTestRequest",
+  "type": "object",
+  "properties": {
+    "command": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^[^\\x00-\\x1f\\x7f]+$" }
+  },
+  "required": ["command"],
+  "additionalProperties": false
+}

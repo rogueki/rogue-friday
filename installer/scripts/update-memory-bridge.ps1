@@ -13,7 +13,9 @@ $run = Join-Path $root "updates\memory-bridge-$RunId"
 $backup = Join-Path $run 'windows-backup'
 $manifest = Join-Path $run 'manifest.json'
 $result = Join-Path $run 'result.json'
-$paths = @('installer\wsl\configure_memory_bridge.py', 'installer\wsl\setup_memory_bridge.sh',
+$paths = @('installer\setup-obsidian.ps1', 'installer\find-obsidian-install.ps1',
+    'installer\ensure-obsidian-vault.ps1', 'installer\linux\find_obsidian_install.sh',
+    'installer\wsl\configure_memory_bridge.py', 'installer\wsl\setup_memory_bridge.sh',
     'installer\wsl\friday_memory_plugin\plugin.yaml', 'installer\wsl\friday_memory_plugin\__init__.py',
     'installer\wsl\calendar_accounts.py', 'installer\wsl\mail_accounts.py',
     'installer\wsl\configure_calendar_bridge.py',
@@ -22,14 +24,20 @@ $paths = @('installer\wsl\configure_memory_bridge.py', 'installer\wsl\setup_memo
     'installer\wsl\messaging_pairing.py',
     'installer\wsl\messaging_runtime.py',
     'installer\wsl\whatsapp_logout.mjs', 'installer\wsl\configure_telegram.py',
-    'installer\wsl\configure_obsidian.py', 'installer\wsl\hermes_config_bridge.py',
+    'installer\wsl\configure_obsidian.py', 'installer\wsl\hermes_config_bridge.py', 'installer\wsl\hermes_cron_read.py',
+    'installer\wsl\hermes_cron_mutate.py',
     'installer\wsl\messaging_send.py', 'installer\wsl\messaging_config_probe.py',
     'installer\wsl\messaging_catalog.py', 'installer\wsl\messaging_catalog_probe.py',
     'installer\wsl\configure_messaging_provider.py',
     'installer\wsl\messaging_provider_apply_probe.py', 'installer\wsl\messaging_provider_fields.json',
     'installer\wsl\hermes_model_credential_apply.py', 'installer\wsl\hermes_model_catalog.py',
     'installer\wsl\hermes_plugin_activation.py', 'installer\wsl\hermes_mcp_http_apply.py',
+    'installer\wsl\hermes_mcp_protocol_probe.py', 'installer\wsl\hermes_mcp_bearer_apply.py',
+    'installer\wsl\hermes_mcp_auth_probe.py',
+    'installer\wsl\patch_hermes_run_stop.py', 'installer\wsl\patch_hermes_cron_lock.py', 'installer\wsl\setup_hermes.sh',
+    'installer\wsl\hermes_mcp_oauth_transport.py', 'installer\wsl\hermes_mcp_oauth_worker.py',
     'installer\wsl\configure_messenger_inbound_bridge.py', 'installer\wsl\setup_messenger_inbound_bridge.sh',
+    'installer\wsl\setup_searxng.sh', 'installer\wsl\research_searxng_settings.py', 'installer\wsl\research_hermes_synthesis.py',
     'installer\scripts\update-memory-bridge.ps1', 'installer\scripts\update-dashboard-github.ps1',
     'installer\scripts\recover-friday.ps1')
 

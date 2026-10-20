@@ -209,6 +209,7 @@ export const de = {
   "command.confirm": "Bestätigen",
   "command.done": "Befehl ausgeführt",
   "command.failed": "Befehl fehlgeschlagen",
+  "command.clarification": "Bitte genauer angeben",
   "command.open": "Öffnen",
   "command.requiresApproval": "Freigabe erforderlich",
   "command.riskTier": "Risikostufe {tier}",

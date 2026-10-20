@@ -38,6 +38,22 @@ function setup(options: FakeApiOptions & { area?: string } = {}) {
 
 const saveButton = () => screen.getByRole("button", { name: "Speichern" });
 
+it("shows an unsupported legacy messenger account and lets the owner select the only deliverable account", async () => {
+  const user = userEvent.setup();
+  const settings = makeSettings();
+  settings.notifications.channels.push({ kind: "telegram", enabled: true, minPriority: "P2", accountId: "old-profile" });
+  const { api } = setup({ area: "area=notifications", settings });
+  const account = await screen.findByRole("combobox", { name: "Konto-ID" });
+  expect(account).toHaveValue("old-profile");
+  expect(screen.getByRole("option", { name: /old-profile.*nicht unterstützt/ })).toBeInTheDocument();
+  await user.selectOptions(account, "default");
+  await user.click(saveButton());
+  await waitFor(() => expect(api.find("PATCH", "/settings")).toHaveLength(1));
+  expect(api.find("PATCH", "/settings")[0]?.body).toMatchObject({ notifications: { channels: [
+    { kind: "dashboard" }, { kind: "telegram", enabled: true, accountId: "default" },
+  ] } });
+});
+
 beforeEach(() => {
   nav.replace.mockClear();
   nav.push.mockClear();

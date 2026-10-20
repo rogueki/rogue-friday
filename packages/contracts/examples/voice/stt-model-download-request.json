@@ -1,0 +1,4 @@
+{
+  "$schema": "https://friday.local/schemas/voice/stt-model-download-request.schema.json",
+  "model": "small"
+}

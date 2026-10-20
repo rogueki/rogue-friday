@@ -23,6 +23,8 @@
     "voiceHistoryEnabled": {
       "type": "boolean"
     },
+    "sttLanguage": { "type": "string", "enum": ["de", "en"] },
+    "sttModel": { "type": ["string", "null"], "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$" },
     "ttsVoice": {
       "type": "string"
     },

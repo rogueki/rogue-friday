@@ -4,17 +4,31 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
 import { capabilitiesOf, renderWithProviders } from "@/test/render";
-import { listOf, mockElementSize, NOW, routedFetch, SOURCE } from "@/features/system/testSupport";
-import { buildResearchJson, buildResearchMarkdown, findingsForSource, mapFindingEvidence, type ResearchBundle } from "./export";
+import { listOf, mockElementSize, NOW, routedFetch, single, SOURCE } from "@/features/system/testSupport";
+import {
+  buildResearchJson,
+  buildResearchMarkdown,
+  findingsForSource,
+  mapFindingEvidence,
+  type ResearchBundle,
+} from "./export";
 import { ResearchPage } from "./ResearchPage";
+import { StagedWriteConfirmHost } from "@/lib/api/stagedWrite";
 
 const push = vi.fn();
 const replace = vi.fn();
 let params = new URLSearchParams();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace }), usePathname: () => "/research", useSearchParams: () => params }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, replace }),
+  usePathname: () => "/research",
+  useSearchParams: () => params,
+}));
 
 const saveText = vi.fn();
-vi.mock("@/features/system/download", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/features/system/download")>()), saveText: (...args: unknown[]) => saveText(...args) }));
+vi.mock("@/features/system/download", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/features/system/download")>()),
+  saveText: (...args: unknown[]) => saveText(...args),
+}));
 
 const base = { version: 1, createdAt: NOW, updatedAt: NOW, source: SOURCE };
 const PROJECT_ID = "rsch_01JAAAAAAAAAAAAAAAAAAAAAAA";
@@ -40,14 +54,70 @@ function project(partial: Partial<ResearchProject> = {}): ResearchProject {
 }
 
 const sources: ResearchSource[] = [
-  { ...base, id: "src_01JAAAAAAAAAAAAAAAAAAAAAAA", projectId: PROJECT_ID, title: "Preisliste 2026", domain: "buero-nord.example", url: "https://buero-nord.example/preise", retrievedAt: NOW, relevance: 0.9, reliability: 0.85, supportsStatement: "Drei Wochen Lieferzeit", excerpt: "Lieferzeit: 3 Wochen", status: "retrieved" },
-  { ...base, id: "src_01JBBBBBBBBBBBBBBBBBBBBBBB", projectId: PROJECT_ID, title: "Angebot", domain: "leine.example", url: "javascript:alert(1)", retrievedAt: null, relevance: 0.7, reliability: 0.6, supportsStatement: null, excerpt: null, status: "queued" },
+  {
+    ...base,
+    id: "src_01JAAAAAAAAAAAAAAAAAAAAAAA",
+    projectId: PROJECT_ID,
+    title: "Preisliste 2026",
+    domain: "buero-nord.example",
+    url: "https://buero-nord.example/preise",
+    retrievedAt: NOW,
+    relevance: 0.9,
+    reliability: 0.85,
+    supportsStatement: "Drei Wochen Lieferzeit",
+    excerpt: "Lieferzeit: 3 Wochen",
+    contentText: "Gespeicherter Seitentext mit belegbarer Lieferzeit von drei Wochen.",
+    contentHash: "a".repeat(64),
+    status: "retrieved",
+  },
+  {
+    ...base,
+    id: "src_01JBBBBBBBBBBBBBBBBBBBBBBB",
+    projectId: PROJECT_ID,
+    title: "Angebot",
+    domain: "leine.example",
+    url: "javascript:alert(1)",
+    retrievedAt: null,
+    relevance: 0.7,
+    reliability: 0.6,
+    supportsStatement: null,
+    excerpt: null,
+    status: "queued",
+  },
 ];
 const findings: ResearchFinding[] = [
-  { ...base, id: "fnd_01JAAAAAAAAAAAAAAAAAAAAAAA", projectId: PROJECT_ID, statement: "Büro-Nord liefert am schnellsten", confidence: 0.88, supportingSourceIds: [sources[0]?.id ?? ""], contradictions: [], status: "verified" },
-  { ...base, id: "fnd_01JBBBBBBBBBBBBBBBBBBBBBBB", projectId: PROJECT_ID, statement: "Leine ist am günstigsten", confidence: 0.72, supportingSourceIds: [sources[1]?.id ?? "", "src_01JMISSINGMISSINGMISSINGMI"], contradictions: [{ sourceId: null, findingId: null, description: "Montage nicht enthalten" }], status: "draft" },
+  {
+    ...base,
+    id: "fnd_01JAAAAAAAAAAAAAAAAAAAAAAA",
+    projectId: PROJECT_ID,
+    statement: "Büro-Nord liefert am schnellsten",
+    confidence: 0.88,
+    supportingSourceIds: [sources[0]?.id ?? ""],
+    contradictions: [],
+    status: "verified",
+  },
+  {
+    ...base,
+    id: "fnd_01JBBBBBBBBBBBBBBBBBBBBBBB",
+    projectId: PROJECT_ID,
+    statement: "Leine ist am günstigsten",
+    confidence: 0.72,
+    supportingSourceIds: [sources[1]?.id ?? "", "src_01JMISSINGMISSINGMISSINGMI"],
+    contradictions: [{ sourceId: null, findingId: null, description: "Montage nicht enthalten" }],
+    status: "draft",
+  },
 ];
-const artifacts: ResearchArtifact[] = [{ ...base, id: "art_01JAAAAAAAAAAAAAAAAAAAAAAA", projectId: PROJECT_ID, name: "Vergleich.md", format: "markdown", fileId: "file_01JAAAAAAAAAAAAAAAAAAAAAAA", sizeBytes: 1200 }];
+const artifacts: ResearchArtifact[] = [
+  {
+    ...base,
+    id: "art_01JAAAAAAAAAAAAAAAAAAAAAAA",
+    projectId: PROJECT_ID,
+    name: "Vergleich.md",
+    format: "markdown",
+    fileId: "file_01JAAAAAAAAAAAAAAAAAAAAAAA",
+    sizeBytes: 1200,
+  },
+];
 
 const routes = (p: ResearchProject = project()) => ({
   "GET /api/v1/research/projects": listOf([p]),
@@ -71,14 +141,23 @@ afterEach(() => {
 });
 
 describe("evidence mapping and export", () => {
-  const bundle: ResearchBundle = { project: project(), sources, findings, artifacts, agentNames: { agent_01JAAAAAAAAAAAAAAAAAAAAAAA: "Recherche-Agent" }, exportedAt: "2026-10-14T09:00:00.000Z" };
+  const bundle: ResearchBundle = {
+    project: project(),
+    sources,
+    findings,
+    artifacts,
+    agentNames: { agent_01JAAAAAAAAAAAAAAAAAAAAAAA: "Recherche-Agent" },
+    exportedAt: "2026-10-14T09:00:00.000Z",
+  };
 
   it("maps each finding to the sources that support it and flags unknown ids", () => {
     const evidence = mapFindingEvidence(findings, sources);
     expect(evidence[0]?.supporting.map((s) => s.title)).toEqual(["Preisliste 2026"]);
     expect(evidence[1]?.supporting.map((s) => s.title)).toEqual(["Angebot"]);
     expect(evidence[1]?.missingSourceIds).toEqual(["src_01JMISSINGMISSINGMISSINGMI"]);
-    expect(findingsForSource(sources[0]?.id ?? "", findings).map((f) => f.id)).toEqual(["fnd_01JAAAAAAAAAAAAAAAAAAAAAAA"]);
+    expect(findingsForSource(sources[0]?.id ?? "", findings).map((f) => f.id)).toEqual([
+      "fnd_01JAAAAAAAAAAAAAAAAAAAAAAA",
+    ]);
   });
 
   it("writes a Markdown export in which every statement names its numbered sources", () => {
@@ -93,7 +172,11 @@ describe("evidence mapping and export", () => {
   });
 
   it("writes JSON with the API objects unchanged and escapes Markdown control characters", () => {
-    const parsed = JSON.parse(buildResearchJson(bundle)) as { project: ResearchProject; sources: unknown[]; findings: unknown[] };
+    const parsed = JSON.parse(buildResearchJson(bundle)) as {
+      project: ResearchProject;
+      sources: unknown[];
+      findings: unknown[];
+    };
     expect(parsed.project.id).toBe(PROJECT_ID);
     expect(parsed.sources).toHaveLength(2);
     expect(parsed.findings).toHaveLength(2);
@@ -103,25 +186,146 @@ describe("evidence mapping and export", () => {
 });
 
 describe("research page", () => {
+  it("offers owner setup, shows service status and selects the installed local endpoint", async () => {
+    const user = userEvent.setup();
+    let ready = false;
+    let version = 1;
+    const provider = () =>
+      single({
+        provider: "searxng",
+        endpoint: ready ? "http://127.0.0.1:43696/" : null,
+        configured: ready,
+        version,
+        maxSources: 10,
+        timeoutMs: 12_000,
+        sourceVerification: "unverified",
+        setup: {
+          available: true,
+          state: ready ? "ready" : "stopped",
+          endpoint: "http://127.0.0.1:43696/",
+          image: "ghcr.io/searxng/searxng@sha256:fixture",
+          reason: ready ? null : "SERVICE_NOT_READY",
+        },
+      });
+    const fake = routedFetch({
+      ...routes(),
+      "GET /api/v1/auth/session": single({
+        authenticated: true,
+        user: { id: "usr_00000000000000000000000001", displayName: "Owner", role: "owner" },
+        role: "owner",
+        csrfToken: "test",
+        expiresAt: null,
+        reauthUntil: null,
+      }),
+      "GET /api/v1/research/provider": () => provider(),
+      "PATCH /api/v1/research/provider": (_url: URL, request: Request) => {
+        expect(request.headers.get("if-match")).toBe("1");
+        ready = true;
+        version += 1;
+        return provider();
+      },
+    });
+    renderWithProviders(<ResearchPage />, {
+      fetchImpl: fake.fetch,
+      capabilities: capabilitiesOf({ research: { read: true, create: true } }),
+    });
+    expect(
+      await screen.findByText("Lokaler Websuchdienst ist nicht erreichbar; Einrichtung erneut starten"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Lokale Websuche einrichten oder reparieren" }));
+    await waitFor(() =>
+      expect(
+        fake.calls.some(
+          (call) =>
+            call.method === "PATCH" &&
+            JSON.parse(call.body).installLocal === true &&
+            JSON.parse(call.body).endpoint === "http://127.0.0.1:43696/",
+        ),
+      ).toBe(true),
+    );
+    expect(await screen.findByText(/Lokaler Websuchdienst läuft/)).toBeInTheDocument();
+  });
+
+  it("stages source discovery and repeats the exact topic with the server preview id", async () => {
+    const user = userEvent.setup();
+    const previewId = "corr_01JAAAAAAAAAAAAAAAAAAAAAAA";
+    const fake = routedFetch({
+      "GET /api/v1/research/projects": listOf([]),
+      "POST /api/v1/research/projects": (_url: URL, request: Request) =>
+        request.headers.get("x-action-preview-id")
+          ? new Response(
+              JSON.stringify({
+                contractVersion: "2.0.0",
+                data: project({ status: "review", sourceCount: 1, findingCount: 0 }),
+                freshness: { state: "fresh", asOf: NOW },
+              }),
+              { status: 201, headers: { "content-type": "application/json" } },
+            )
+          : new Response(
+              JSON.stringify({
+                error: {
+                  code: "APPROVAL_REQUIRED",
+                  message: "Vorschau",
+                  severity: "error",
+                  retryable: false,
+                  correlationId: previewId,
+                  details: { stage: "preview", previewId, previewText: "Unverifizierte Quellen speichern?" },
+                },
+              }),
+              { status: 403, headers: { "content-type": "application/json" } },
+            ),
+    });
+    renderWithProviders(
+      <>
+        <ResearchPage />
+        <StagedWriteConfirmHost />
+      </>,
+      { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ research: { read: true, create: true } }) },
+    );
+    await user.type(screen.getByRole("textbox", { name: "Recherchethema" }), "Energiepreise Europa");
+    await user.click(screen.getByRole("button", { name: "Quellen suchen" }));
+    expect(await screen.findByText("Unverifizierte Quellen speichern?")).toBeInTheDocument();
+    expect(fake.calls.filter((call) => call.method === "POST")).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(fake.calls.filter((call) => call.method === "POST")).toHaveLength(2));
+    const [staged, confirmed] = fake.calls.filter((call) => call.method === "POST");
+    expect(staged?.body).toBe(confirmed?.body);
+    expect(confirmed?.headers.get("x-action-preview-id")).toBe(previewId);
+    expect(replace).toHaveBeenCalledWith(`/research?project=${PROJECT_ID}`, { scroll: false });
+  });
+
   it("shows the project view with real progress, agents, runtime, cost placeholder and evidence chips", async () => {
     const fake = routedFetch(routes());
-    renderWithProviders(<ResearchPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ research: { read: true, export: true } }) });
+    renderWithProviders(<ResearchPage />, {
+      fetchImpl: fake.fetch,
+      capabilities: capabilitiesOf({ research: { read: true, export: true } }),
+    });
     expect(await screen.findAllByText("Büromöbel-Anbieter")).not.toHaveLength(0);
     expect(await screen.findByText("Büro-Nord liefert am schnellsten")).toBeInTheDocument();
-    expect(screen.getAllByRole("progressbar", { name: "Fortschritt" })[0]).toHaveAttribute("aria-valuenow", "62");
+    expect(screen.getAllByRole("progressbar", { name: "Fortschritt" })[0]).toHaveAttribute(
+      "aria-valuenow",
+      "62",
+    );
     expect(await screen.findByText("Recherche-Agent")).toBeInTheDocument();
     expect(screen.getByText("20 Min. 00 Sek.")).toBeInTheDocument();
     expect(screen.getByText("Montage nicht enthalten")).toBeInTheDocument();
     const chip = screen.getByRole("button", { name: /buero-nord\.example/ });
     expect(chip).toBeInTheDocument();
-    expect(screen.getByTitle("Diese Quelle ist nicht in der geladenen Quellenliste enthalten.")).toBeInTheDocument();
+    expect(
+      screen.getByTitle("Diese Quelle ist nicht in der geladenen Quellenliste enthalten."),
+    ).toBeInTheDocument();
     // cost is null: stated as missing, not 0
     expect(screen.queryByText(/0,00/)).toBeNull();
   });
 
   it("states unknown progress instead of inventing it", async () => {
-    const fake = routedFetch(routes(project({ progress: { mode: "none", value: null }, status: "planning" })));
-    renderWithProviders(<ResearchPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ research: { read: true } }) });
+    const fake = routedFetch(
+      routes(project({ progress: { mode: "none", value: null }, status: "planning" })),
+    );
+    renderWithProviders(<ResearchPage />, {
+      fetchImpl: fake.fetch,
+      capabilities: capabilitiesOf({ research: { read: true } }),
+    });
     expect((await screen.findAllByText("kein Fortschritt gemeldet")).length).toBeGreaterThan(0);
     expect(screen.queryByRole("progressbar", { name: "Fortschritt" })).toBeNull();
   });
@@ -129,11 +333,21 @@ describe("research page", () => {
   it("opens the source drawer from an evidence chip, shows the excerpt and only links http(s) URLs", async () => {
     const user = userEvent.setup();
     const fake = routedFetch(routes());
-    renderWithProviders(<ResearchPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ research: { read: true } }) });
+    renderWithProviders(<ResearchPage />, {
+      fetchImpl: fake.fetch,
+      capabilities: capabilitiesOf({ research: { read: true } }),
+    });
     await user.click(await screen.findByRole("button", { name: /buero-nord\.example/ }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Lieferzeit: 3 Wochen")).toBeInTheDocument();
-    expect(within(dialog).getByRole("link", { name: /Quelle im Browser öffnen/ })).toHaveAttribute("href", "https://buero-nord.example/preise");
+    await user.click(within(dialog).getByText("Gespeicherten Seitentext anzeigen"));
+    expect(
+      within(dialog).getByText("Gespeicherter Seitentext mit belegbarer Lieferzeit von drei Wochen."),
+    ).toBeVisible();
+    expect(within(dialog).getByRole("link", { name: /Quelle im Browser öffnen/ })).toHaveAttribute(
+      "href",
+      "https://buero-nord.example/preise",
+    );
     expect(within(dialog).getByText("Büro-Nord liefert am schnellsten")).toBeInTheDocument();
   });
 
@@ -141,7 +355,10 @@ describe("research page", () => {
     params = new URLSearchParams(`project=${PROJECT_ID}`);
     const user = userEvent.setup();
     const fake = routedFetch(routes());
-    renderWithProviders(<ResearchPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ research: { read: true } }) });
+    renderWithProviders(<ResearchPage />, {
+      fetchImpl: fake.fetch,
+      capabilities: capabilitiesOf({ research: { read: true } }),
+    });
     await user.click(await screen.findByRole("tab", { name: /Quellen/ }));
     const grid = await screen.findByRole("grid", { name: "Quellen" });
     await user.click(within(grid).getByText("Angebot"));
@@ -152,7 +369,10 @@ describe("research page", () => {
   it("exports Markdown and JSON when the capability is granted and keeps PDF/DOCX/PPTX at later", async () => {
     const user = userEvent.setup();
     const fake = routedFetch(routes());
-    renderWithProviders(<ResearchPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ research: { read: true, export: true } }) });
+    renderWithProviders(<ResearchPage />, {
+      fetchImpl: fake.fetch,
+      capabilities: capabilitiesOf({ research: { read: true, export: true } }),
+    });
     await user.click(await screen.findByRole("tab", { name: "Export" }));
     const markdown = screen.getByRole("button", { name: "Markdown exportieren" });
     await waitFor(() => expect(markdown).toBeEnabled());
@@ -171,7 +391,10 @@ describe("research page", () => {
   it("disables the export without the capability", async () => {
     const user = userEvent.setup();
     const fake = routedFetch(routes());
-    renderWithProviders(<ResearchPage />, { fetchImpl: fake.fetch, capabilities: capabilitiesOf({ research: { read: true, export: false } }) });
+    renderWithProviders(<ResearchPage />, {
+      fetchImpl: fake.fetch,
+      capabilities: capabilitiesOf({ research: { read: true, export: false } }),
+    });
     await user.click(await screen.findByRole("tab", { name: "Export" }));
     expect(screen.getByRole("button", { name: "Markdown exportieren" })).toBeDisabled();
     expect(screen.getAllByText(/Capability research\.export fehlt/).length).toBeGreaterThan(0);
@@ -179,10 +402,16 @@ describe("research page", () => {
 
   it("renders the empty and offline states", async () => {
     const empty = routedFetch({ "GET /api/v1/research/projects": listOf([]) });
-    const first = renderWithProviders(<ResearchPage />, { fetchImpl: empty.fetch, capabilities: capabilitiesOf({ research: { read: true } }) });
+    const first = renderWithProviders(<ResearchPage />, {
+      fetchImpl: empty.fetch,
+      capabilities: capabilitiesOf({ research: { read: true } }),
+    });
     expect(await screen.findByText("Noch keine Rechercheprojekte")).toBeInTheDocument();
     first.unmount();
-    renderWithProviders(<ResearchPage />, { fetchImpl: routedFetch({}).fetch, capabilities: capabilitiesOf({ files: { read: true } }) });
+    renderWithProviders(<ResearchPage />, {
+      fetchImpl: routedFetch({}).fetch,
+      capabilities: capabilitiesOf({ files: { read: true } }),
+    });
     expect(await screen.findByText("Nicht verbunden")).toBeInTheDocument();
     expect(screen.getByText(/Für „Recherche“ ist kein Adapter konfiguriert/)).toBeInTheDocument();
   });

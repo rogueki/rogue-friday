@@ -199,6 +199,7 @@ export const en: Record<keyof typeof de, string> = {
   "command.confirm": "Confirm",
   "command.done": "Command executed",
   "command.failed": "Command failed",
+  "command.clarification": "Please clarify",
   "command.open": "Open",
   "command.requiresApproval": "Approval required",
   "command.riskTier": "Risk tier {tier}",

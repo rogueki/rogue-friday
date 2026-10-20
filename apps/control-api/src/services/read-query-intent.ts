@@ -1,0 +1,377 @@
+import { authorize, type Role } from "@friday/auth";
+import { isAdapterError } from "@friday/adapter-core";
+import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type VoiceStatusResponse } from "@friday/sdk";
+import { createId } from "@friday/observability";
+import type { HandlerResult, RequestContext } from "../http/context";
+import { ApiError, forbidden, validationFailed } from "../util/errors";
+
+const MAX_RESULTS = 5;
+const ROLE_RANK: Record<Role, number> = { viewer: 0, operator: 1, owner: 2 };
+
+export type ReadQueryIntent =
+  | { kind: "settings.get"; area?: SettingsReadArea }
+  | { kind: "contentStudio.plan" }
+  | { kind: "activity.list"; status?: string; lookbackHours?: number }
+  | { kind: "activity.get"; id: string }
+  | { kind: "notifications.list"; status?: Array<"open" | "acknowledged" | "snoozed" | "resolved"> }
+  | { kind: "notifications.unsupportedDetail"; id: string }
+  | { kind: "approvals.list"; status?: Array<"pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed"> }
+  | { kind: "approvals.get"; id: string }
+  | { kind: "audit.list"; result?: Array<"success" | "failure" | "denied" | "pending">; securityOnly?: boolean; lookbackHours?: number }
+  | { kind: "audit.get"; id: string }
+  | { kind: "audit.exportUnsupported" }
+  | { kind: "clarify"; message: string };
+
+export type SettingsReadArea = "profile" | "dashboard" | "theme" | "orb" | "navigation" | "modelsRouting" | "voice" | "notifications" | "approvals" | "dataRetention" | "backups" | "developer" | "security";
+
+const READ_CUE = /\b(zeige|zeig|liste|list|show|search|suche|such|find|finde|get|open|abruf|abrufe|hole|detail|details|was|wie|welche|welcher|welches|what|which|recent|latest|aktuell|aktuelle|letzte|letzten|recenten|export|exportieren|exportiere|download)\b/;
+const SETTINGS_AREA_PATTERNS: Array<{ area: SettingsReadArea; pattern: RegExp }> = [
+  { area: "profile", pattern: /\b(profile|profil|konto|account)\b/ },
+  { area: "dashboard", pattern: /\b(dashboard|dashboards|uebersicht|oberflaeche)\b/ },
+  { area: "theme", pattern: /\b(theme|design|erscheinungsbild)\b/ },
+  { area: "orb", pattern: /\b(orb|kugel)\b/ },
+  { area: "navigation", pattern: /\b(navigation|seitenleiste|menue)\b/ },
+  { area: "modelsRouting", pattern: /\b(model|models|modell|modelle|routing|modellrouting)\b/ },
+  { area: "voice", pattern: /\b(voice|stimme|audio|mikrofon|sprache)\b/ },
+  { area: "notifications", pattern: /\b(notification(?:s)?(?:einstellungen|settings)?|benachrichtigung(?:en)?(?:seinstellungen|skanaele|skanale)?|meldungen|alerts|ruhezeiten)\b/ },
+  { area: "approvals", pattern: /\b(approval(?:s)?(?:einstellungen|settings)?|freigabe(?:n)?(?:einstellungen|regeln)?|freigaben)\b/ },
+  { area: "dataRetention", pattern: /\b(retention|aufbewahrung|datenaufbewahrung|loeschfristen)\b/ },
+  { area: "backups", pattern: /\b(backup|backups|sicherung|sicherungen)\b/ },
+  { area: "developer", pattern: /\b(developer|entwickler|debug|protokollierung)\b/ },
+  { area: "security", pattern: /\b(security|sicherheit|zugriffsschutz)\b/ },
+];
+const FAMILY_PATTERNS = [
+  { family: "activity", pattern: /\b(activity|activities|aktivitaet|aktivitaeten|aktivitaetsverlauf)\b/ },
+  { family: "notifications", pattern: /\b(alert|alerts|notification|notifications|benachrichtigung|benachrichtigungen|meldung|meldungen)\b/ },
+  { family: "approvals", pattern: /\b(approval|approvals|freigabe|freigaben)\b/ },
+  { family: "audit", pattern: /\b(audit|auditprotokoll|pruefprotokoll|auditlog)\b/ },
+] as const;
+export const READ_STATUS_ALIASES: Array<{ terms: string[]; mapsTo: Partial<Record<"activity" | "notifications" | "approvals" | "audit", string>> }> = [
+  { terms: ["failed", "failure", "fehlgeschlagen", "fehlgeschlagene", "fehlgeschlagenen", "fehler", "fehlerhaft"], mapsTo: { activity: "failed", approvals: "failed", audit: "failure" } },
+  { terms: ["running", "laeuft", "laufend", "in arbeit"], mapsTo: { activity: "running" } },
+  { terms: ["started", "gestartet"], mapsTo: { activity: "started" } },
+  { terms: ["succeeded", "successful", "erfolgreich", "abgeschlossen"], mapsTo: { activity: "succeeded", audit: "success" } },
+  { terms: ["cancelled", "canceled", "abgebrochen"], mapsTo: { activity: "cancelled", approvals: "cancelled" } },
+  { terms: ["info", "informational", "information", "informativ"], mapsTo: { activity: "info" } },
+  { terms: ["open", "offen", "offene", "aktiv"], mapsTo: { notifications: "open", approvals: "pending" } },
+  { terms: ["acknowledged", "acknowledge", "bestaetigt", "quittiert"], mapsTo: { notifications: "acknowledged" } },
+  { terms: ["snoozed", "zurueckgestellt", "pausiert"], mapsTo: { notifications: "snoozed" } },
+  { terms: ["resolved", "geloest", "erledigt"], mapsTo: { notifications: "resolved" } },
+  { terms: ["pending", "ausstehend", "ausstehende"], mapsTo: { approvals: "pending", audit: "pending" } },
+  { terms: ["approved", "genehmigt", "freigegeben"], mapsTo: { approvals: "approved" } },
+  { terms: ["rejected", "abgelehnt"], mapsTo: { approvals: "rejected" } },
+  { terms: ["expired", "abgelaufen"], mapsTo: { approvals: "expired" } },
+  { terms: ["executed", "ausgefuehrt"], mapsTo: { approvals: "executed" } },
+  { terms: ["denied", "verweigert", "abgewiesen"], mapsTo: { audit: "denied" } },
+  { terms: ["success", "erfolgreich"], mapsTo: { audit: "success" } },
+];
+const STATUS_WORDS = new Set(READ_STATUS_ALIASES.flatMap(({ terms }) => terms.filter((term) => !term.includes(" "))));
+const ID_PATTERN = /\b(act|ntf|appr|aud)_[0-9A-Za-z]{26}\b/g;
+
+function normalize(text: string): string {
+  return text.toLowerCase().replace(/[äæ]/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}_]+/gu, " ").trim();
+}
+
+function readStatus(text: string, family: string): string[] {
+  const result = READ_STATUS_ALIASES.flatMap(({ terms, mapsTo }) => {
+    const matched = terms.filter((term) => statusTermPattern(term).test(text));
+    return matched.length > 0 && mapsTo[family as keyof typeof mapsTo] ? [mapsTo[family as keyof typeof mapsTo]!] : [];
+  });
+  return [...new Set(result)];
+}
+
+function escapeRegex(text: string): string { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+function statusTermPattern(term: string): RegExp { return new RegExp(`\\b${term.split(" ").map(escapeRegex).join("\\s+")}\\b`); }
+
+function hasForeignStatus(text: string, family: string): boolean {
+  const matchedTerms = new Set(READ_STATUS_ALIASES.flatMap(({ terms }) => terms.filter((term) => statusTermPattern(term).test(text))));
+  return [...matchedTerms].some((term) => !READ_STATUS_ALIASES.some(({ terms, mapsTo }) =>
+    terms.includes(term) && Boolean(mapsTo[family as keyof typeof mapsTo])));
+}
+
+const LOOKBACK_PATTERN = /\b(?:last|letzte|letzten)\s+(\d{1,3})\s+(hour|hours|stunde|stunden|day|days|tag|tage|week|weeks|woche|wochen)\b/g;
+
+function lookbackHours(text: string): number | undefined {
+  // Civil-day boundaries require an explicit timezone. Do not approximate them as rolling hours.
+  if (/\b(today|heute|yesterday|gestern)\b/.test(text)) return -2;
+  const matches = [...text.matchAll(LOOKBACK_PATTERN)];
+  if (matches.length > 1) return -3;
+  const match = matches[0];
+  if (!match) return undefined;
+  const count = Number(match[1]);
+  const unit = match[2] ?? "";
+  const hours = unit.startsWith("hour") || unit.startsWith("stunde") ? count
+    : unit.startsWith("week") || unit.startsWith("woche") ? count * 168 : count * 24;
+  return hours > 0 && hours <= 24 * 30 ? hours : -1;
+}
+
+/** Deliberately finite grammar: free text is never passed as an adapter filter or interpreted as SQL. */
+export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
+  const text = normalize(input);
+  if (!READ_CUE.test(text)) return null;
+  const settingsRead = /\b(settings?|einstellungen?|konfiguration|configuration|configured|eingestellt)\b/.test(text);
+  const planRead = /\b(content studio|contentstudio|content plan|redaktionsplan)\b/.test(text) && /\b(plan|planung|redaktionsplan|postings|content)\b/.test(text);
+  const matchedSettingsAreas = SETTINGS_AREA_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ area }) => area);
+  const legacyFamilies = FAMILY_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ family }) => family);
+  if (settingsRead || planRead) {
+    const unrelatedLegacyFamily = legacyFamilies.some((family) => family !== "notifications" && family !== "approvals");
+    if (settingsRead && planRead || unrelatedLegacyFamily || matchedSettingsAreas.length > 1)
+      return { kind: "clarify", message: "Bitte frage entweder eine einzelne Einstellung oder den Content-Studio-Plan ab." };
+    if (planRead) {
+      const planWords = new Set("show zeige zeig get was what wie the der die das im in my me meine mein mir den dem meinen current currenten aktuell aktuellen saved gespeichert content studio contentstudio plan planung redaktionsplan postings bitte".split(" "));
+      const residual = text.split(/\s+/).find((word) => !planWords.has(word));
+      return residual ? { kind: "clarify", message: `Der Content-Studio-Planfilter „${residual}“ wird nicht unterstützt. Bitte nur nach dem gespeicherten Plan fragen.` }
+        : { kind: "contentStudio.plan" };
+    }
+    const controlWords = new Set("settings setting einstellung einstellungen konfiguration configuration configured eingestellt show zeige zeig what was wie ist sind my meine mein the der die das current aktuell aktuellen saved gespeichert applied angewendet effective wirksam fuer for von im in bitte".split(" "));
+    const residual = text.split(/\s+/).filter((word) => !controlWords.has(word) && !matchedSettingsAreas.some((area) => word === area.toLowerCase())
+      && !SETTINGS_AREA_PATTERNS.some(({ pattern }) => pattern.test(word)));
+    if (residual.length > 0) return { kind: "clarify", message: `Die Einstellung „${residual[0]}“ wird in dieser Abfrage nicht unterstützt. Bitte einen benannten Einstellungsbereich angeben.` };
+    return { kind: "settings.get", ...(matchedSettingsAreas[0] ? { area: matchedSettingsAreas[0] } : {}) };
+  }
+  const families = FAMILY_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ family }) => family);
+  if (families.length === 0) return null;
+  if (families.length > 1) return { kind: "clarify", message: "Meinst du Activity, Benachrichtigungen, Freigaben oder Audit? Bitte nur einen Bereich nennen." };
+
+  const family = families[0]!;
+  if (/\b(create|add|update|change|delete|remove|approve|reject|start|stop|pause|resume|erstelle|erstellen|hinzufuegen|aendere|aendern|loesche|entferne|genehmige|genehmigen|lehne|ablehnen|starte|starten|stoppe|stoppen|pausiere|pausieren)\b/.test(text))
+    return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Bitte nur die gewünschte Leseabfrage formulieren." };
+  if (family === "audit" && /\b(export|exportieren|exportiere|download)\b/.test(text)) return { kind: "audit.exportUnsupported" };
+  const ids = [...input.matchAll(ID_PATTERN)].map((match) => ({ prefix: match[1], id: match[0] }));
+  if (ids.length > 1) return { kind: "clarify", message: "Bitte nenne nur eine vollständige Kennung." };
+  const id = ids[0];
+  if (id) {
+    const expected = family === "activity" ? "act" : family === "notifications" ? "ntf" : family === "approvals" ? "appr" : "aud";
+    if (id.prefix !== expected) return { kind: "clarify", message: "Die Kennung gehört zu einem anderen Bereich. Bitte Activity, Benachrichtigung, Freigabe oder Audit passend zur Kennung nennen." };
+  }
+
+  const openIdCue = Boolean(id && /^open\b/.test(text));
+  const statusText = openIdCue ? text.replace(/^open\b\s*/, "") : text;
+  const statuses = readStatus(statusText, family);
+  if (statuses.length > 1) return { kind: "clarify", message: "Der Status ist mehrdeutig. Bitte genau einen Status angeben." };
+  if (hasForeignStatus(statusText, family))
+    return { kind: "clarify", message: "Der genannte Status gehört nicht zu diesem Lesebereich. Bitte den Status für den genannten Bereich prüfen." };
+  const hours = lookbackHours(text);
+  if (hours === -2) return { kind: "clarify", message: "Heute/Gestern benötigen eine Zeitzone für korrekte Tagesgrenzen. Bitte einen eindeutigen Zeitraum wie 'letzte 24 Stunden' angeben." };
+  if (hours === -1) return { kind: "clarify", message: "Der Zeitraum ist zu groß. Bitte höchstens 30 Tage angeben." };
+  if (hours === -3) return { kind: "clarify", message: "Bitte nur einen Zeitraum angeben." };
+  const periodMatches = [...text.matchAll(LOOKBACK_PATTERN)];
+  if (periodMatches.length > 1) return { kind: "clarify", message: "Bitte nur einen Zeitraum angeben." };
+  const periodNumber = periodMatches[0]?.[1];
+  const allowedWords = new Set(("zeige zeig liste list show search suche such find finde get open abruf abrufe hole detail details mir den die das der des im in von fuer und oder bei was what which welche welcher welches ist sind wurde wurden aktuell aktuelle aktuellen recent latest letzte letzten last today yesterday heute gestern hours hour stunden stunde days day tage tag weeks week wochen woche activity activities aktivitaet aktivitaeten aktivitaetsverlauf ereignis ereignisse verlauf event events record records entries eintrag eintraege benachrichtigung benachrichtigungen meldung meldungen alert alerts notification notifications approval approvals freigabe freigaben audit auditprotokoll pruefprotokoll auditlog logs log security sicherheit export exportieren exportiere download").split(/\s+/));
+  for (const statusWord of STATUS_WORDS) allowedWords.add(statusWord);
+  for (const alias of READ_STATUS_ALIASES.flatMap(({ terms }) => terms.filter((term) => term.includes(" ") && statusTermPattern(term).test(text))))
+    for (const word of alias.split(" ")) allowedWords.add(word);
+  let periodNumberAvailable = periodNumber !== undefined;
+  for (const word of text.split(/\s+/)) {
+    if (word === periodNumber && periodNumberAvailable) { periodNumberAvailable = false; continue; }
+    if (/^[a-z]{2,4}_[0-9a-z]{26}$/.test(word)) continue;
+    if (!allowedWords.has(word)) return { kind: "clarify", message: `Der Filter „${word}“ wird für diesen Lesebereich nicht unterstützt. Bitte Bereich und unterstützten Status nennen.` };
+  }
+  if (id) {
+    if (statuses.length > 0 || hasForeignStatus(statusText, family) || hours !== undefined || /\b(recent|latest|aktuell|aktuelle|recenten)\b/.test(text))
+      return { kind: "clarify", message: "Eine Kennung kann nicht mit einem Listenfilter oder Zeitraum kombiniert werden. Bitte nur die Kennung nennen." };
+    if (family === "activity") return { kind: "activity.get", id: id.id };
+    if (family === "notifications") return { kind: "notifications.unsupportedDetail", id: id.id };
+    if (family === "approvals") return { kind: "approvals.get", id: id.id };
+    return { kind: "audit.get", id: id.id };
+  }
+  if (hours && family !== "activity" && family !== "audit")
+    return { kind: "clarify", message: "Der Lesepfad unterstützt hier keinen Zeitraumfilter. Bitte einen Status oder eine andere Abfrage angeben." };
+  if (family === "activity") return { kind: "activity.list", ...(statuses[0] ? { status: statuses[0] } : {}), ...(hours ? { lookbackHours: hours } : {}) };
+  if (family === "notifications") return { kind: "notifications.list", ...(statuses[0] ? { status: [statuses[0] as "open" | "acknowledged" | "snoozed" | "resolved"] } : {}) };
+  if (family === "approvals") return { kind: "approvals.list", ...(statuses[0] ? { status: [statuses[0] as "pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed"] } : {}) };
+  return { kind: "audit.list", ...(statuses[0] ? { result: [statuses[0] as "success" | "failure" | "denied" | "pending"] } : {}), ...(hours ? { lookbackHours: hours } : {}), ...(/\b(security|sicherheit)\b/.test(text) ? { securityOnly: true } : {}) };
+}
+
+function requireReadRole(ctx: RequestContext, resource: string, requiredRole: Role): void {
+  const principal = ctx.principal;
+  if (!principal) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+  if (!authorize(principal.role, `read:${resource}`).allowed || ROLE_RANK[principal.role] < ROLE_RANK[requiredRole]) {
+    throw new ApiError({ code: "FORBIDDEN", message: "Für diesen Lesebereich fehlt die erforderliche Rolle.", details: { resource, requiredRole } });
+  }
+}
+
+function baseResponse(ctx: RequestContext, message: string, status: CommandResponse["status"] = "executed"): HandlerResult {
+  return { status: 200, body: {
+    contractVersion: CONTRACT_VERSION,
+    commandId: createId("cmd"),
+    correlationId: ctx.correlationId,
+    status,
+    requiresConfirmation: false,
+    previewText: null,
+    riskTier: 1,
+    approvalId: null,
+    result: { message },
+  } satisfies CommandResponse };
+}
+
+function boundedPeriod(ctx: RequestContext, hours?: number): { from?: string } {
+  return hours ? { from: new Date(ctx.runtime.nowMs() - hours * 60 * 60 * 1000).toISOString() } : {};
+}
+
+function listMessage<T>(label: string, items: T[], hasNextPage: boolean, line: (item: T) => string): string {
+  if (items.length === 0) return `Keine passenden ${label} gefunden.`;
+  const rows = items.slice(0, MAX_RESULTS).map(line);
+  return `${rows.length} ${label} geladen${hasNextPage ? " (weitere vorhanden)" : ""}: ${rows.join("; ")}`;
+}
+
+function settingAreaSummary(settings: Settings, area: SettingsReadArea): string {
+  switch (area) {
+    case "profile": return `Sprache ${settings.profile.locale}, Zeitzone ${settings.profile.timeZone}, Datumsformat ${settings.profile.dateFormat}, Zeitformat ${settings.profile.timeFormat}, Wochenstart ${settings.profile.firstDayOfWeek}`;
+    case "dashboard": return `Layout ${settings.dashboard.activeLayoutId}, Schrift ${settings.dashboard.fontScale}, kompakt ${settings.dashboard.compact}, Aktualisierung ${settings.dashboard.autoRefreshSeconds} Sekunden, Content Studio ${settings.dashboard.contentStudioEnabled === true ? "aktiviert" : "deaktiviert"}`;
+    case "theme": return `Theme ${settings.theme.activeThemeId}, Cyan-Intensität ${settings.theme.cyanIntensity}, Panel-Deckkraft ${settings.theme.panelOpacity}, Gold-Intensität ${settings.theme.goldIntensity}`;
+    case "orb": return `Preset ${settings.orb.preset}, Größe ${settings.orb.size}, Intensität ${settings.orb.intensity}, Animation ${settings.orb.animations}, Qualität ${settings.orb.quality}, Render-Modus ${settings.orb.renderMode}`;
+    case "navigation": return `Modus ${settings.navigation.mode}, Startseite ${settings.navigation.defaultPage}, ausgeblendete Bereiche ${settings.navigation.hidden.length}, Reihenfolge mit ${settings.navigation.order.length} Einträgen`;
+    case "modelsRouting": return `Standardmodell ${settings.modelsRouting.defaultModel}, lokale Modelle bevorzugt ${settings.modelsRouting.localFirst}, Aufgabenrouten ${settings.modelsRouting.routes.length}`;
+    case "voice": return `Wakeword aktiviert ${settings.voice.wakeWordEnabled}, Sprecherprüfung ${settings.voice.speakerVerificationRequired}, Rohaufnahmen speichern ${settings.voice.storeRawRecordings}, Voice-Verlauf ${settings.voice.voiceHistoryEnabled}, TTS-Stimme ${settings.voice.ttsVoice || "nicht gesetzt"}, TTS-Rate ${settings.voice.ttsRate}. Wakeword und Gerätekennungen werden nicht ausgegeben`;
+    case "notifications": return `Kanäle ${settings.notifications.channels.map((channel) => `${channel.kind} ${channel.enabled ? "an" : "aus"} ab ${channel.minPriority}`).join(", ")}, Ruhezeiten ${settings.notifications.quietHours.enabled ? `${settings.notifications.quietHours.from}–${settings.notifications.quietHours.to}` : "aus"}, Standard-Snooze ${settings.notifications.snoozeDefaultMinutes} Minuten`;
+    case "approvals": return `Standardablauf ${settings.approvals.draftOnlyByDefault ? "Entwurf" : "direkt"}, Ablauf ${settings.approvals.defaultExpiryMinutes} Minuten, Tier-2-Bestätigung ${settings.approvals.confirmTier2}, Reauth für Tier 3 ${settings.approvals.reauthTier3}, Benachrichtigung ${settings.approvals.notifyOnRequest}`;
+    case "dataRetention": return `Activity ${settings.dataRetention.activityDays} Tage, Audit ${settings.dataRetention.auditDays} Tage, Voice-Verlauf ${settings.dataRetention.voiceHistoryDays} Tage, Benachrichtigungen ${settings.dataRetention.notificationDays} Tage, temporäre Dateien ${settings.dataRetention.temporaryFileDays} Tage, Memory-Standard ${settings.dataRetention.memoryDefaultTtlDays ?? "unbegrenzt"} Tage`;
+    case "backups": return `aktiv ${settings.backups.enabled}, Zeitplan ${settings.backups.schedule}, Aufbewahrung ${settings.backups.retentionCount}, letzter Status ${settings.backups.lastBackupStatus}${settings.backups.lastBackupAt ? ` am ${settings.backups.lastBackupAt}` : ""}. Zielpfad wird nicht ausgegeben`;
+    case "developer": return `Debug ${settings.developer.debugMode}, Rohdatenansicht ${settings.developer.showRawJson}, Szenariokonsole ${settings.developer.scenarioConsole}, Log-Level ${settings.developer.logLevel}`;
+    case "security": return `Login erforderlich ${settings.security.loginRequired === true}, Remotezugriff ${settings.security.allowRemoteAccess}, Sitzungszeitlimit ${settings.security.sessionTimeoutMinutes} Minuten, Reauth-Fenster ${settings.security.reauthWindowMinutes} Minuten, Hash-Chain ${settings.security.auditHashChain}, vertrauenswürdige Origins ${settings.security.trustedOrigins.length}. Origin-Adressen werden nicht ausgegeben`;
+  }
+}
+
+const VOICE_READBACK_MAX_AGE_MS = 60_000;
+
+function knownValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+export function formatVoiceRuntimeReadback(
+  settings: Pick<Settings["voice"], "ttsVoice" | "inputDeviceId" | "outputDeviceId">,
+  response: Pick<VoiceStatusResponse, "data" | "freshness">,
+  nowMs = Date.now(),
+): string {
+  const freshness: Freshness = response.freshness;
+  const asOfMs = typeof freshness.asOf === "string" ? Date.parse(freshness.asOf) : Number.NaN;
+  const ageMs = nowMs - asOfMs;
+  if (freshness.state !== "fresh" || !Number.isFinite(asOfMs) || ageMs < -5_000 || ageMs > VOICE_READBACK_MAX_AGE_MS)
+    return "Laufzeit-Readback: nicht verifiziert (Statusquelle unbekannt, offline, veraltet oder ohne frischen Zeitstempel)";
+
+  const status = response.data;
+  const configuredVoice = knownValue(settings.ttsVoice);
+  const actualVoice = knownValue(status.ttsVoiceChoice);
+  const voiceComparison = configuredVoice && actualVoice
+    ? actualVoice === configuredVoice ? "TTS-Stimme stimmt mit dem gespeicherten Wert ueberein" : "TTS-Stimme weicht vom gespeicherten Wert ab"
+    : "TTS-Stimme nicht verglichen (gespeicherter oder aufgeloester Wert fehlt)";
+  const compareDevice = (configured: unknown, actual: unknown): string => {
+    const saved = knownValue(configured);
+    const resolved = knownValue(actual);
+    if (!saved) return "Default-Policy gespeichert; aufgeloestes Geraet nicht verglichen";
+    if (!resolved) return "Geraetevergleich nicht verifiziert (Dienst meldet keine aufgeloeste Kennung)";
+    return saved === resolved ? "Kennung stimmt ueberein" : "Kennung weicht ab";
+  };
+  return `Laufzeit-Readback (${freshness.asOf}): ${voiceComparison}; Eingabegeraet ${compareDevice(settings.inputDeviceId, status.audioInputDeviceId)}; Ausgabegeraet ${compareDevice(settings.outputDeviceId, status.audioOutputDeviceId)}; STT ${status.stt?.state ?? "unbekannt"}, TTS ${status.tts?.state ?? "unbekannt"}`;
+}
+
+async function voiceRuntimeReadback(ctx: RequestContext, settings: Settings): Promise<string> {
+  try {
+    const response = await ctx.runtime.registry.getPort("voice").getVoiceStatus({}, ctx.call);
+    return formatVoiceRuntimeReadback(settings.voice, response);
+  } catch (error) {
+    if (isAdapterError(error) && ["CAPABILITY_MISSING", "ADAPTER_UNAVAILABLE"].includes(error.code))
+      return "Laufzeit-Readback: nicht verfuegbar; angewendeter Zustand nicht verifiziert";
+    throw error;
+  }
+}
+
+const idStatus = (id: string, status: string, date: string): string => `${id} · ${status} · ${date}`;
+
+async function listApprovals(ctx: RequestContext, status?: Array<"pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed">): Promise<{ items: Approval[]; hasNextPage: boolean }> {
+  const ownerId = ctx.principal!.userId;
+  const params = { limit: MAX_RESULTS, ...(status ? { status } : {}) };
+  const native = ctx.runtime.nativeApprovals.listApprovals(ownerId).filter((approval) => !status || status.includes(approval.status));
+  try {
+    const remote = await ctx.runtime.registry.getPort("approvals").listApprovals(params, ctx.call);
+    // Match the authoritative GET handler's native-first merge, then impose the command's output bound.
+    return { items: [...native, ...remote.items].slice(0, MAX_RESULTS),
+      hasNextPage: remote.pageInfo.hasNextPage || native.length + remote.items.length > MAX_RESULTS };
+  } catch (error) {
+    if (isAdapterError(error) && ["CAPABILITY_MISSING", "ADAPTER_UNAVAILABLE"].includes(error.code))
+      return { items: native.slice(0, MAX_RESULTS), hasNextPage: native.length > MAX_RESULTS };
+    throw error;
+  }
+}
+
+export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryIntent): Promise<HandlerResult> {
+  if (intent.kind === "clarify") return baseResponse(ctx, intent.message, "rejected");
+  if (intent.kind === "settings.get") requireReadRole(ctx, "settings", "viewer");
+  if (intent.kind === "contentStudio.plan") requireReadRole(ctx, "content-studio-plan", "owner");
+  if (intent.kind.startsWith("activity.")) requireReadRole(ctx, "activity", "viewer");
+  if (intent.kind.startsWith("notifications.")) requireReadRole(ctx, "notifications", "viewer");
+  if (intent.kind.startsWith("approvals.")) requireReadRole(ctx, "approvals", "viewer");
+  if (intent.kind === "audit.exportUnsupported") requireReadRole(ctx, "audit", "owner");
+  else if (intent.kind.startsWith("audit.")) requireReadRole(ctx, "audit", "viewer");
+
+  switch (intent.kind) {
+    case "settings.get": {
+      const settings = ctx.runtime.settings.get();
+      const labels: Record<SettingsReadArea, string> = {
+        profile: "Profil", dashboard: "Dashboard", theme: "Theme", orb: "Orb", navigation: "Navigation",
+        modelsRouting: "Modelrouting", voice: "Voice", notifications: "Benachrichtigungen", approvals: "Freigaben",
+        dataRetention: "Datenaufbewahrung", backups: "Backups", developer: "Entwickler", security: "Sicherheit",
+      };
+      if (!intent.area) return baseResponse(ctx,
+        `Gespeicherter Settings-Stand einschließlich Vorgabewerten, Revision ${settings.version}, zuletzt geändert ${settings.updatedAt}. Bereiche: ${Object.values(labels).join(", ")}. Dieser Abruf bestätigt keinen angewendeten oder effektiven Laufzeitzustand.`);
+      const detail = settingAreaSummary(settings, intent.area);
+      const runtime = intent.area === "voice" ? await voiceRuntimeReadback(ctx, settings)
+        : "Angewendet/effektiv: durch diesen Abruf nicht separat verifiziert";
+      return baseResponse(ctx, `Sichere Zusammenfassung ${labels[intent.area]} des gespeicherten Settings-Stands einschließlich Vorgabewerten (Revision ${settings.version}): ${detail}. ${runtime}.`);
+    }
+    case "contentStudio.plan": {
+      if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
+      const state: ContentPlanState = ctx.runtime.contentStudioPlan.get();
+      if (!state.plan) return baseResponse(ctx, `Der gespeicherte Content-Studio-Plan ist leer (Revision ${state.revision}).`);
+      const ideaLimit = Math.min(state.plan.content.length, MAX_RESULTS);
+      const postingLimit = Math.max(0, MAX_RESULTS - ideaLimit);
+      const ideas = state.plan.content.slice(0, ideaLimit).map((item) => `${item.titel} · ${item.plattform} · ${item.status} · Ziel ${item.zieldatum || "ohne Datum"}`);
+      const postings = state.plan.postings.slice(0, postingLimit).map((item) => `${item.titel} · ${item.plattform} · ${item.status} · ${item.datum} ${item.uhrzeit}`);
+      const more = state.plan.content.length + state.plan.postings.length > MAX_RESULTS;
+      return baseResponse(ctx, `Gespeicherter Content-Studio-Plan, Revision ${state.revision}: ${state.plan.content.length} Ideen und ${state.plan.postings.length} Postings. ${[
+        ...ideas.map((item) => `Idee: ${item}`), ...postings.map((item) => `Posting: ${item}`),
+      ].join("; ") || "Keine Einträge."}${more ? " (weitere vorhanden)" : ""}`);
+    }
+    case "activity.list": {
+      const page = await ctx.runtime.registry.getPort("activity").listActivity({ limit: MAX_RESULTS, ...(intent.status ? { status: intent.status } : {}), ...boundedPeriod(ctx, intent.lookbackHours) }, ctx.call);
+      return baseResponse(ctx, listMessage("Activity-Ereignisse", page.items, page.pageInfo.hasNextPage,
+        (event: ActivityEvent) => idStatus(event.id, `${event.kind}/${event.status}/${event.severity}`, event.occurredAt)));
+    }
+    case "activity.get": {
+      const event = (await ctx.runtime.registry.getPort("activity").getActivityEvent({ id: intent.id }, ctx.call)).data;
+      return baseResponse(ctx, `Activity ${event.id}: ${event.kind}, ${event.status}, ${event.severity}, ${event.occurredAt}.`);
+    }
+    case "notifications.list": {
+      const page = await ctx.runtime.registry.getPort("notifications").listNotifications({ limit: MAX_RESULTS, ...(intent.status ? { status: intent.status } : {}) }, ctx.call);
+      return baseResponse(ctx, listMessage("Benachrichtigungen", page.items, page.pageInfo.hasNextPage,
+        (item: Notification) => idStatus(item.id, `${item.status}/${item.priority}/${item.category}`, item.updatedAt)));
+    }
+    case "notifications.unsupportedDetail":
+      return baseResponse(ctx, `Benachrichtigung ${intent.id}: Es gibt keine Detail-Leseoperation. Du kannst die Liste nach Status filtern (offen, bestätigt, zurückgestellt oder erledigt).`, "rejected");
+    case "approvals.list": {
+      const page = await listApprovals(ctx, intent.status);
+      return baseResponse(ctx, listMessage("Freigaben", page.items, page.hasNextPage,
+        (item: Approval) => idStatus(item.id, `${item.status}/Tier ${item.riskTier}`, item.updatedAt)));
+    }
+    case "approvals.get": {
+      const native = ctx.runtime.nativeApprovals.getApproval(ctx.principal!.userId, intent.id);
+      const approval = native ?? (await ctx.runtime.registry.getPort("approvals").getApproval({ id: intent.id }, ctx.call)).data;
+      return baseResponse(ctx, `Freigabe ${approval.id}: ${approval.status}, Tier ${approval.riskTier}, aktualisiert ${approval.updatedAt}.`);
+    }
+    case "audit.list": {
+      const page = await ctx.runtime.registry.getPort("audit").listAuditEvents({ limit: MAX_RESULTS, ...boundedPeriod(ctx, intent.lookbackHours), ...(intent.result ? { result: intent.result } : {}), ...(intent.securityOnly ? { category: ["security"] } : {}) }, ctx.call);
+      return baseResponse(ctx, listMessage("Audit-Ereignisse", page.items, page.pageInfo.hasNextPage,
+        (event: AuditEvent) => idStatus(event.id, `${event.category}/${event.result}/${event.severity}`, event.occurredAt)));
+    }
+    case "audit.get": {
+      const event = (await ctx.runtime.registry.getPort("audit").getAuditEvent({ id: intent.id }, ctx.call)).data;
+      return baseResponse(ctx, `Audit ${event.id}: ${event.category}, ${event.result}, ${event.severity}, ${event.occurredAt}.`);
+    }
+    case "audit.exportUnsupported":
+      return baseResponse(ctx, "Ein Audit-Export ist kein NL-Lesebefehl. Verwende den owner-berechtigten Export im Audit-Bereich.", "rejected");
+  }
+  throw validationFailed("Der Lesebefehl wird nicht unterstützt.", [{ path: "text", message: "unbekannter typed read intent" }]);
+}

@@ -222,6 +222,8 @@ describe("configuration and manifests", () => {
       "tasks.read",
       "tasks.create",
       "tasks.update",
+      "tasks.cancel",
+      "tasks.retry",
       "tasks.stream",
     ]);
     expect(manifestFor("activity").capabilities).toEqual([
@@ -229,6 +231,6 @@ describe("configuration and manifests", () => {
       "activity.stream",
       "activity.backfill",
     ]);
-    expect(manifestFor("agents").capabilities).toEqual(["agents.read"]);
+    expect(manifestFor("agents").capabilities).toEqual(["agents.read", "agents.stop"]);
   });
 });

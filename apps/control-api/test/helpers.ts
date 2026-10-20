@@ -7,9 +7,14 @@ import { loadConfig, type FridayConfig } from "@friday/config";
 import { createLogger } from "@friday/observability";
 import { createControlApi, type ControlApi } from "../src/app";
 import type { ResponseValidationMode } from "../src/runtime/types";
+import type { ResearchSetupProbe, ResearchSetupRun } from "../src/services/research-setup";
 
 export interface TestApiOptions {
   providerFetch?: typeof fetch;
+  researchPageFetch?: (url: string) => Promise<string>;
+  researchSynthesize?: import("../src/services/research-model").ResearchModelSynthesize;
+  researchSetupRun?: ResearchSetupRun;
+  researchSetupProbe?: ResearchSetupProbe;
   authMode?: "dev" | "local";
   ownerPassword?: string;
   firstRunSetup?: boolean;
@@ -89,6 +94,10 @@ ${options.yamlExtra ?? ""}
   const api = await createControlApi({
     config,
     ...(options.providerFetch ? { providerFetch: options.providerFetch } : {}),
+    researchPageFetch: options.researchPageFetch ?? (async () => { throw new Error("test page unavailable"); }),
+    researchSynthesize: options.researchSynthesize ?? (async () => null),
+    ...(options.researchSetupRun ? { researchSetupRun: options.researchSetupRun } : {}),
+    ...(options.researchSetupProbe ? { researchSetupProbe: options.researchSetupProbe } : {}),
     env,
     ...(logger ? { logger } : {}),
     responseValidation: options.responseValidation ?? "throw",

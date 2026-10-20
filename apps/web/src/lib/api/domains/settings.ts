@@ -20,6 +20,12 @@ import type {
   HermesConfigPatch,
   HermesConfigStatusResponse,
   HermesModelCatalogResponse,
+  HermesMcpProbeResponse,
+  HermesApprovalTestResponse,
+  HermesMcpOAuthResponse,
+  HermesCronJobsResponse,
+  HermesCronMutationRequest,
+  HermesCronMutationResponse,
 } from "@friday/sdk";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { call } from "../call";
@@ -65,6 +71,20 @@ export const useHermesConfig = (enabled = true) => useQuery({
   staleTime: 15000,
 });
 
+export const useHermesCronJobs = (enabled = true) => useQuery({
+  queryKey: ["settings", "hermes-cron-jobs"],
+  queryFn: (): Promise<HermesCronJobsResponse> => call(getApiClient().GET("/api/v1/settings/hermes-cron/jobs"))
+    .then((response) => response as unknown as HermesCronJobsResponse),
+  enabled,
+  staleTime: 15000,
+});
+
+export function sendHermesCronMutation(body: HermesCronMutationRequest, previewId?: string, discard = false) {
+  const headers = previewId ? { "X-Action-Preview-Id": previewId,
+    ...(discard ? { "X-Action-Preview-Cancel": "true" } : {}) } : undefined;
+  return call(getApiClient().POST("/api/v1/settings/hermes-cron/jobs", { body, ...(headers ? { headers } : {}) })) as Promise<HermesCronMutationResponse>;
+}
+
 export const useHermesModelCatalog = (providerId?: string, enabled = true) => useQuery({
   queryKey: ["hermes-model-catalog", providerId ?? null],
   queryFn: (): Promise<HermesModelCatalogResponse> => call(getApiClient().GET(
@@ -79,6 +99,59 @@ export function usePatchHermesConfig() {
       params: { header: { "If-Match": String(revision) } }, body: patch,
     })),
     invalidate: [["settings", "hermes-config"]],
+  });
+}
+export function useProbeHermesMcp() {
+  return useApiMutation<HermesMcpProbeResponse, { name: string; revision: number } & IntentVars>({
+    label: "Hermes-MCP-Verbindung pruefen",
+    mutationFn: ({ name, revision }) => call(getApiClient().POST("/api/v1/settings/hermes-config/mcp-probe", {
+      params: { header: { "If-Match": String(revision) } }, body: { name },
+    })).then((response) => {
+      if (!("runtimeApplied" in response.data) || response.data.runtimeApplied !== null)
+        throw new Error("Hermes-MCP-Probe ohne Laufzeitkennzeichnung.");
+      return response as HermesMcpProbeResponse;
+    }),
+  });
+}
+export function useTestHermesApproval() {
+  return useApiMutation<HermesApprovalTestResponse, { command: string; revision: number } & IntentVars>({
+    label: "Hermes-Befehlsfreigabe pruefen",
+    mutationFn: ({ command, revision }) => call(getApiClient().POST("/api/v1/settings/hermes-config/approval-test", {
+      params: { header: { "If-Match": String(revision) } }, body: { command },
+    })).then((response) => {
+      if (!("runtimeApplied" in response.data) || response.data.runtimeApplied !== null)
+        throw new Error("Hermes-Freigabevorschau ohne Laufzeitkennzeichnung.");
+      return response as HermesApprovalTestResponse;
+    }),
+  });
+}
+export function useManageHermesMcpOAuth() {
+  return useApiMutation<HermesMcpOAuthResponse,
+    ({ action: "start"; name: string } | { action: "status" | "cancel"; flowId: string }) &
+    { revision: number } & IntentVars>({
+    label: "Hermes-MCP-OAuth",
+    mutationFn: ({ revision, ...body }) => call(getApiClient().POST("/api/v1/settings/hermes-config/mcp-oauth", {
+      params: { header: { "If-Match": String(revision) } }, body,
+    })).then((response) => {
+      if (!("runtimeApplied" in response.data) || response.data.runtimeApplied !== null)
+        throw new Error("Hermes-MCP-OAuth ohne Laufzeitkennzeichnung.");
+      return response as HermesMcpOAuthResponse;
+    }),
+    invalidate: [["settings", "hermes-config"]],
+  });
+}
+export function useHermesMcpOAuthFlow(flowId: string | null, revision: number | null) {
+  return useQuery({
+    queryKey: ["settings", "hermes-mcp-oauth", flowId],
+    queryFn: (): Promise<HermesMcpOAuthResponse> => call(getApiClient().POST("/api/v1/settings/hermes-config/mcp-oauth", {
+      params: { header: { "If-Match": String(revision) } }, body: { action: "status", flowId: flowId! },
+    })).then((response) => {
+      if (!("runtimeApplied" in response.data) || response.data.runtimeApplied !== null)
+        throw new Error("Hermes-MCP-OAuth ohne Laufzeitkennzeichnung.");
+      return response as HermesMcpOAuthResponse;
+    }),
+    enabled: flowId !== null && revision !== null,
+    refetchInterval: (query) => ["configured", "failed"].includes(query.state.data?.data.status ?? "") ? false : 2000,
   });
 }
 /** Adapter configuration (GET /settings/adapters is owner-only, so callers pass `enabled`). Secrets arrive masked only. */

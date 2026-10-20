@@ -35,6 +35,8 @@ import { AdapterSettingsService } from "../services/adapter-settings";
 import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, summarizeAdapters } from "../services/core-views";
 import { SettingsService, seedLibrary } from "../services/settings";
 import { NativeApprovalRequests } from "../services/native-approval-requests";
+import { PendingCommandClarifications } from "../services/pending-command-clarifications";
+import { EncryptedClarifiedMailDrafts } from "../services/encrypted-clarified-mail-drafts";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
 import { DurableMemoryService } from "../services/durable-memory";
@@ -59,6 +61,9 @@ import { CalendarAccountsService } from "../services/calendar-accounts";
 import { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import { HermesConfigService } from "../services/hermes-config";
 import { CodingRunsService } from "../services/coding-runs";
+import { ResearchService } from "../services/research";
+import { hermesResearchSynthesizer, type ResearchModelSynthesize } from "../services/research-model";
+import { ResearchSetupService, type ResearchSetupProbe, type ResearchSetupRun } from "../services/research-setup";
 import { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
 import { ContentStudioProviderService } from "../services/content-studio-providers";
 import { ContentStudioPlanService } from "../services/content-studio-plan";
@@ -74,6 +79,10 @@ import type { AuditRecorder, ResponseValidationMode, Runtime } from "./types";
 export interface CreateRuntimeOptions {
   config: FridayConfig;
   providerFetch?: typeof fetch;
+  researchPageFetch?: (url: string) => Promise<string>;
+  researchSynthesize?: ResearchModelSynthesize;
+  researchSetupRun?: ResearchSetupRun;
+  researchSetupProbe?: ResearchSetupProbe;
   env?: NodeJS.ProcessEnv;
   logger?: Logger;
   /** `:memory:` for tests. Defaults to `<dataDir>/dashboard.sqlite`. */
@@ -130,9 +139,10 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const responseValidation: ResponseValidationMode = options.responseValidation ?? (config.dev.responseValidation ? "log" : "off");
 
   // ---- security primitives ------------------------------------------------------------------------------------
-  if (ContentStudioKeysService.hasPersisted(db) && !existsSync(join(config.paths.dataDir, SERVER_KEY_FILE))) {
+  if ((ContentStudioKeysService.hasPersisted(db) || PendingCommandClarifications.hasPersisted(db)
+      || EncryptedClarifiedMailDrafts.hasPersisted(db)) && !existsSync(join(config.paths.dataDir, SERVER_KEY_FILE))) {
     db.close();
-    throw new Error("Content Studio encrypted keys require the original auth.key; restore it before startup");
+    throw new Error("Persisted encrypted local records require the original auth.key; restore it before startup");
   }
   const serverKey = loadOrCreateServerKey(config.paths.dataDir);
   if (!serverKey.permissionsRestricted) logger.warn("Berechtigungen von auth.key konnten nicht eingeschränkt werden", { path: serverKey.path });
@@ -262,6 +272,17 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const settings = new SettingsService(db, config, validator, library, () => adapterSettings.list());
   if (world) world.state.settings.approvals = structuredClone(settings.area("approvals"));
   const nativeApprovals = new NativeApprovalRequests(db, settings, validator, options.now);
+  let pendingCommandClarifications: PendingCommandClarifications;
+  let encryptedClarifiedMailDrafts: EncryptedClarifiedMailDrafts;
+  try {
+    pendingCommandClarifications = new PendingCommandClarifications(db,
+      deriveKey(serverKey.key, "pending-command-clarifications"), options.now);
+    encryptedClarifiedMailDrafts = new EncryptedClarifiedMailDrafts(db,
+      deriveKey(serverKey.key, "encrypted-clarified-mail-drafts"), options.now);
+  } catch (error) {
+    db.close();
+    throw error;
+  }
   logger.setLevel?.(settings.area("developer").logLevel);
   let contentStudioKeys: ContentStudioKeysService;
   try {
@@ -319,6 +340,11 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const codingRuns: CodingRunsService = new CodingRunsService(config, skills, env);
   const powerpoint = new PowerPointService(config.paths.dataDir);
   const codingVoiceRepository = new CodingVoiceRepositoryService(db, codingRuns);
+  const research = new ResearchService(db, env.FRIDAY_RESEARCH_SEARXNG_URL, options.providerFetch,
+    options.now ? () => new Date(options.now!()) : undefined,
+    options.researchPageFetch,
+    options.researchSynthesize ?? hermesResearchSynthesizer(config.paths.dataDir));
+  const researchSetup = new ResearchSetupService(config.paths.dataDir, options.researchSetupRun, options.researchSetupProbe);
   const contentStudioProduction = new ContentStudioProductionService(db, contentStudioPlan, contentStudioKeys, contentStudioProviders,
     config.paths.dataDir, { ffmpegPath: env.FRIDAY_FFMPEG_PATH, enabled: () => settings.area("dashboard").contentStudioEnabled === true });
   settingsHolder.current = settings;
@@ -327,7 +353,16 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const orb = new OrbService({ registry, world, dataMode: config.dataMode, assistantName });
   const status = new StatusService({ registry, hub, dataMode: config.dataMode, version: buildVersion, startedAt, world, orbMode: () => orb.mode, assistantName });
 
-  const capabilities = (): ReturnType<Runtime["capabilities"]> => registry.aggregateCapabilities();
+  const capabilities = (): ReturnType<Runtime["capabilities"]> => {
+    const result = registry.aggregateCapabilities();
+    // The handler checks readiness for new work; the route remains available for replay receipts.
+    result.modules.research.create = config.dataMode !== "mock";
+    if (config.dataMode !== "mock") {
+      result.modules.research.read = true;
+      result.modules.research.export = true;
+    }
+    return result;
+  };
   const capabilityEnabled = (capability: string): boolean => {
     const [moduleName, flag] = capability.split(".");
     const module = moduleName ? (capabilities().modules as unknown as Record<string, Record<string, unknown> | undefined>)[moduleName] : undefined;
@@ -517,6 +552,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     approvalTokens,
     settings,
     nativeApprovals,
+    pendingCommandClarifications,
+    encryptedClarifiedMailDrafts,
     contentStudioKeys,
     contentStudioProviders,
     contentStudioPlan,
@@ -548,6 +585,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     hermesConfig,
     codingRuns,
     codingVoiceRepository,
+    research,
+    researchSetup,
     contentStudioProduction,
     adapterSettings,
     status,
@@ -612,10 +651,14 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
             sessions.purgeExpired();
           }, 3_600_000),
         );
+        timers.push(setInterval(() => pendingCommandClarifications.purgeExpired(), 60_000));
+        timers.push(setInterval(() => encryptedClarifiedMailDrafts.purgeExpired(), 60_000));
         for (const timer of timers) timer.unref?.();
       }
       idempotency.purgeExpired();
       sessions.purgeExpired();
+      pendingCommandClarifications.purgeExpired();
+      encryptedClarifiedMailDrafts.purgeExpired();
     },
     async close() {
       durableMemory.close();

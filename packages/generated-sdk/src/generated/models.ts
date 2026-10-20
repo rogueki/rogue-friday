@@ -186,6 +186,42 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "terminal.container_cpu";
+      value: number;
+    }
+  | {
+      key: "terminal.container_memory";
+      value: number;
+    }
+  | {
+      key: "terminal.container_disk";
+      value: number;
+    }
+  | {
+      key: "terminal.container_persistent";
+      value: boolean;
+    }
+  | {
+      key: "terminal.backend";
+      value: "local" | "docker";
+    }
+  | {
+      key: "terminal.cwd";
+      value: string;
+    }
+  | {
+      key: "terminal.docker_network";
+      value: boolean;
+    }
+  | {
+      key: "terminal.docker_mount_cwd_to_workspace";
+      value: boolean;
+    }
+  | {
+      key: "terminal.docker_volumes";
+      value: string[];
+    }
+  | {
       key: "browser.command_timeout";
       value: number;
     }
@@ -194,8 +230,178 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "browser.inactivity_timeout";
+      value: number;
+    }
+  | {
+      key: "browser.engine";
+      value: "auto" | "chrome" | "lightpanda";
+    }
+  | {
+      key: "browser.headed" | "browser.auto_local_for_private_urls";
+      value: boolean;
+    }
+  | {
+      key: "browser.dialog_policy";
+      value: "must_respond" | "auto_dismiss";
+    }
+  | {
+      key: "browser.dialog_timeout_s";
+      value: number;
+    }
+  | {
+      key: "browser.allow_private_urls";
+      value: boolean;
+    }
+  | {
+      key: "browser.use_real_profile";
+      value: boolean;
+    }
+  | {
+      key: "browser.real_profile_pin";
+      value: string;
+    }
+  | {
+      key: "browser.restrict_evaluate";
+      value: boolean;
+    }
+  | {
+      key: "browser.allow_unsafe_evaluate";
+      value: boolean;
+    }
+  | {
+      key: "code_execution.mode";
+      value: "project" | "strict";
+    }
+  | {
+      key: "code_execution.kernel_idle_timeout";
+      value: number;
+    }
+  | {
+      key: "code_execution.max_session_kernels";
+      value: number;
+    }
+  | {
+      key: "computer_use.permission_mode";
+      value: "standard" | "bounded";
+    }
+  | {
+      key: "computer_use.capability_manifest";
+      value: string;
+    }
+  | {
+      key: "computer_use.max_image_dimension";
+      value: number;
+    }
+  | {
+      key: "computer_use.ax_max_elements";
+      value: number;
+    }
+  | {
+      key: "computer_use.capture_after_mode";
+      value: "som" | "ax" | "vision";
+    }
+  | {
+      key: "toolsets";
+      value: string[];
+    }
+  | {
+      key: "command_allowlist";
+      value: string[];
+    }
+  | {
+      key: "approvals.mode";
+      value: "manual" | "smart" | "off";
+    }
+  | {
+      key: "approvals.timeout";
+      value: number;
+    }
+  | {
+      key: "approvals.denial_breaker_threshold";
+      value: number;
+    }
+  | {
+      key: "approvals.deny";
+      value: string[];
+    }
+  | {
+      key: "approvals.destructive_slash_confirm" | "approvals.mcp_reload_confirm";
+      value: boolean;
+    }
+  | {
+      key: "approvals.single_query_mode";
+      value: "deny" | "approve";
+    }
+  | {
+      key: "approvals.unattended_mode";
+      value: "deny" | "approve";
+    }
+  | {
+      key: "security.protected_instruction_files";
+      value: boolean;
+    }
+  | {
       key: "skills.disabled";
       value: string[];
+    }
+  | {
+      key:
+        | "cron.catch_up_missed"
+        | "cron.allow_agent_scheduling"
+        | "cron.preflight"
+        | "cron.require_restart_safe_scope"
+        | "gateway.loop_watchdog"
+        | "gateway.startup_watchdog";
+      value: boolean;
+    }
+  | {
+      key: "cron.max_parallel_jobs";
+      value: number | null;
+    }
+  | {
+      key: "cron.output_retention";
+      value: number;
+    }
+  | {
+      key: "cron.script_timeout_seconds";
+      value: number;
+    }
+  | {
+      key: "cron.session_db_timeout_seconds";
+      value: number;
+    }
+  | {
+      key: "cron.failure_repeat_alert_hours";
+      value: number;
+    }
+  | {
+      key: "gateway.startup_watchdog_timeout_seconds";
+      value: number;
+    }
+  | {
+      key: "gateway.restart_loop_guard.max_restarts";
+      value: number;
+    }
+  | {
+      key: "gateway.respawn_storm.max_starts";
+      value: number;
+    }
+  | {
+      key: "gateway.signal_interrupt_grace_timeout";
+      value: number;
+    }
+  | {
+      key: "logging.level";
+      value: "DEBUG" | "INFO" | "WARNING";
+    }
+  | {
+      key: "logging.max_size_mb";
+      value: number;
+    }
+  | {
+      key: "logging.backup_count";
+      value: number;
     }
   | {
       key: "plugin.activation";
@@ -209,8 +415,28 @@ export type HermesConfigPatch =
       enabled: boolean;
     }
   | {
+      key: "mcp.activation";
+      name: string;
+      enabled: boolean;
+    }
+  | {
+      key: "mcp.bearerCredential";
+      name: string;
+      token: string | null;
+    }
+  | {
       key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
       value: string | null;
+    };
+export type HermesCronMutationRequest = HermesCronMutationRequest1;
+export type HermesMcpOAuthRequest =
+  | {
+      action: "start";
+      name: string;
+    }
+  | {
+      action: "status" | "cancel";
+      flowId: string;
     };
 export type MemoryType =
   | "profile"
@@ -698,9 +924,20 @@ export interface FridayModelMap {
   HealthcheckResult: HealthcheckResult;
   HealthcheckResultResponse: HealthcheckResultResponse;
   HealthStatus: HealthStatus;
+  HermesApprovalTestRequest: HermesApprovalTestRequest;
+  HermesApprovalTestResponse: HermesApprovalTestResponse;
   HermesConfigPatch: HermesConfigPatch;
   HermesConfigStatus: HermesConfigStatus;
   HermesConfigStatusResponse: HermesConfigStatusResponse;
+  HermesCronJobs: HermesCronJobs;
+  HermesCronJobsResponse: HermesCronJobsResponse;
+  HermesCronMutationReceipt: HermesCronMutationReceipt;
+  HermesCronMutationRequest: HermesCronMutationRequest;
+  HermesCronMutationResponse: HermesCronMutationResponse;
+  HermesMcpOAuthRequest: HermesMcpOAuthRequest;
+  HermesMcpOAuthResponse: HermesMcpOAuthResponse;
+  HermesMcpProbeRequest: HermesMcpProbeRequest;
+  HermesMcpProbeResponse: HermesMcpProbeResponse;
   HermesModelCatalog: HermesModelCatalog;
   HermesModelCatalogResponse: HermesModelCatalogResponse;
   HermesSkillKeyCheck: HermesSkillKeyCheck;
@@ -845,12 +1082,16 @@ export interface FridayModelMap {
   ResearchArtifact: ResearchArtifact;
   ResearchArtifactListResponse: ResearchArtifactListResponse;
   ResearchArtifactResponse: ResearchArtifactResponse;
+  ResearchCreateRequest: ResearchCreateRequest;
   ResearchFinding: ResearchFinding;
   ResearchFindingListResponse: ResearchFindingListResponse;
   ResearchFindingResponse: ResearchFindingResponse;
   ResearchProject: ResearchProject;
   ResearchProjectListResponse: ResearchProjectListResponse;
   ResearchProjectResponse: ResearchProjectResponse;
+  ResearchProvider: ResearchProvider;
+  ResearchProviderResponse: ResearchProviderResponse;
+  ResearchProviderUpdateRequest: ResearchProviderUpdateRequest;
   ResearchSource: ResearchSource;
   ResearchSourceListResponse: ResearchSourceListResponse;
   ResearchSourceResponse: ResearchSourceResponse;
@@ -886,6 +1127,9 @@ export interface FridayModelMap {
   SourceDescriptor: SourceDescriptor;
   StorageVolume: StorageVolume;
   StorageVolumeListResponse: StorageVolumeListResponse;
+  SttModelCancelRequest: SttModelCancelRequest;
+  SttModelDownloadRequest: SttModelDownloadRequest;
+  SttModelsStatus: SttModelsStatus;
   SystemBackupActionRequest: SystemBackupActionRequest;
   SystemBackupActionResponse: SystemBackupActionResponse;
   SystemBackupStatusResponse: SystemBackupStatusResponse;
@@ -953,6 +1197,10 @@ export interface FridayModelMap {
   VoiceTranscript: VoiceTranscript;
   VoiceTtsEnded: VoiceTtsEnded;
   VoiceTtsStarted: VoiceTtsStarted;
+  WakeEnrollmentJob: WakeEnrollmentJob;
+  WakeEnrollmentSample: WakeEnrollmentSample;
+  WakeEnrollmentStart: WakeEnrollmentStart;
+  WakeEnrollmentStatus: WakeEnrollmentStatus;
   WhatsappGateway: WhatsappGateway;
   WhatsappGatewayPatch: WhatsappGatewayPatch;
   WhatsappGatewayResponse: WhatsappGatewayResponse;
@@ -3149,6 +3397,22 @@ export interface HealthcheckResultResponse {
   data: HealthcheckResult;
   freshness: Freshness;
 }
+export interface HermesApprovalTestRequest {
+  command: string;
+}
+export interface HermesApprovalTestResponse {
+  contractVersion: ContractVersion;
+  data: {
+    revision: number;
+    checkedAt: string;
+    backend: "local" | "docker";
+    verdict: "allow" | "ask-approval" | "hardline-deny" | "user-deny";
+    rule: string | null;
+    detail: string;
+    runtimeApplied: null;
+  };
+  freshness: Freshness;
+}
 export interface HermesConfigStatus {
   installed: boolean;
   sourceRevision: string | null;
@@ -3178,9 +3442,66 @@ export interface HermesConfigStatus {
       | "session.terminal_continue"
       | "max_live_sessions"
       | "terminal.timeout"
+      | "terminal.container_cpu"
+      | "terminal.container_memory"
+      | "terminal.container_disk"
+      | "terminal.container_persistent"
+      | "terminal.backend"
+      | "terminal.cwd"
+      | "terminal.docker_network"
+      | "terminal.docker_mount_cwd_to_workspace"
+      | "terminal.docker_volumes"
       | "browser.command_timeout"
       | "browser.snapshot_threshold"
-      | "skills.disabled";
+      | "browser.inactivity_timeout"
+      | "browser.engine"
+      | "browser.headed"
+      | "browser.auto_local_for_private_urls"
+      | "browser.dialog_policy"
+      | "browser.dialog_timeout_s"
+      | "browser.allow_private_urls"
+      | "browser.use_real_profile"
+      | "browser.real_profile_pin"
+      | "browser.restrict_evaluate"
+      | "browser.allow_unsafe_evaluate"
+      | "code_execution.mode"
+      | "code_execution.kernel_idle_timeout"
+      | "code_execution.max_session_kernels"
+      | "computer_use.permission_mode"
+      | "computer_use.capability_manifest"
+      | "computer_use.max_image_dimension"
+      | "computer_use.ax_max_elements"
+      | "computer_use.capture_after_mode"
+      | "toolsets"
+      | "command_allowlist"
+      | "approvals.mode"
+      | "approvals.timeout"
+      | "approvals.denial_breaker_threshold"
+      | "approvals.deny"
+      | "approvals.destructive_slash_confirm"
+      | "approvals.mcp_reload_confirm"
+      | "approvals.single_query_mode"
+      | "approvals.unattended_mode"
+      | "security.protected_instruction_files"
+      | "skills.disabled"
+      | "cron.catch_up_missed"
+      | "cron.allow_agent_scheduling"
+      | "cron.preflight"
+      | "cron.max_parallel_jobs"
+      | "cron.output_retention"
+      | "cron.script_timeout_seconds"
+      | "cron.session_db_timeout_seconds"
+      | "cron.failure_repeat_alert_hours"
+      | "cron.require_restart_safe_scope"
+      | "gateway.loop_watchdog"
+      | "gateway.startup_watchdog"
+      | "gateway.startup_watchdog_timeout_seconds"
+      | "gateway.restart_loop_guard.max_restarts"
+      | "gateway.respawn_storm.max_starts"
+      | "gateway.signal_interrupt_grace_timeout"
+      | "logging.level"
+      | "logging.max_size_mb"
+      | "logging.backup_count";
     type:
       | "integer"
       | "optionalInteger"
@@ -3189,8 +3510,9 @@ export interface HermesConfigStatus {
       | "boolean"
       | "string"
       | "fallback"
-      | "skillNames";
-    family: "agent" | "models" | "execution" | "extensions";
+      | "skillNames"
+      | "textList";
+    family: "agent" | "models" | "execution" | "extensions" | "operations";
     consumer: string;
     value:
       | (number | boolean | string | null)
@@ -3245,6 +3567,8 @@ export interface HermesConfigStatus {
     enabled: boolean | null;
     endpoint: string | null;
     editable: boolean;
+    authMode: "none" | "bearer" | "oauth" | "unknown";
+    credentialConfigured: boolean | null;
   }[];
   write: null | {
     key: string;
@@ -3267,6 +3591,95 @@ export interface Extension {
 export interface HermesConfigStatusResponse {
   contractVersion: ContractVersion;
   data: HermesConfigStatus;
+  freshness: Freshness;
+}
+export interface HermesCronJobs {
+  sourceRevision: string;
+  profile: string;
+  profileTimezone: string | null;
+  storeRevision: string;
+  count: number;
+  truncated: boolean;
+  /**
+   * The store alone cannot prove scheduler process liveness.
+   */
+  schedulerRunning: null;
+  jobs: {
+    id: string;
+    name: string;
+    schedule: string;
+    timezone: string | null;
+    enabled: boolean;
+    state: string;
+    nextRunAt: string | null;
+    lastRunAt: string | null;
+  }[];
+}
+export interface HermesCronJobsResponse {
+  contractVersion: ContractVersion;
+  data: HermesCronJobs;
+  freshness: Freshness;
+}
+export interface HermesCronMutationReceipt {
+  action: "create" | "update" | "pause" | "resume" | "run" | "remove";
+  jobId: string;
+  profile: string;
+  profileTimezone: string | null;
+  storeRevision: string;
+  state: string;
+  accepted: true;
+  executionVerified: false;
+}
+export interface HermesCronMutationRequest1 {
+  action: "create" | "update" | "pause" | "resume" | "run" | "remove";
+  expectedStoreRevision: string;
+  profile: string;
+  profileTimezone: string | null;
+  jobId?: string;
+  name?: string;
+  schedule?: string;
+  prompt?: string;
+}
+export interface HermesCronMutationResponse {
+  contractVersion: ContractVersion;
+  data: HermesCronMutationReceipt;
+  freshness: Freshness;
+}
+export interface HermesMcpOAuthResponse {
+  contractVersion: ContractVersion;
+  data: {
+    flowId: string;
+    status: "starting" | "awaiting_approval" | "publishing" | "cancelling" | "configured" | "failed";
+    authorizationUrl: string | null;
+    revision: number | null;
+    failureClass: string | null;
+    runtimeApplied: null;
+  };
+  freshness: Freshness;
+}
+export interface HermesMcpProbeRequest {
+  name: string;
+}
+export interface HermesMcpProbeResponse {
+  contractVersion: ContractVersion;
+  data: {
+    name: string;
+    revision: number;
+    checkedAt: string;
+    connected: boolean;
+    toolCount: number | null;
+    toolCountComplete: boolean;
+    failureClass:
+      | "auth_required"
+      | "config_invalid"
+      | "connect_failed"
+      | "protocol_failed"
+      | "protocol_unsupported"
+      | "redirect_rejected"
+      | "private_or_unresolved_address"
+      | null;
+    runtimeApplied: null;
+  };
   freshness: Freshness;
 }
 export interface HermesModelCatalog {
@@ -4664,6 +5077,7 @@ export interface Task {
   agentId: string | null;
   agentName?: string;
   model: string | null;
+  reasoningLevel?: ReasoningLevel;
   progress: Progress;
   startedAt: string | null;
   runtimeMs: number | null;
@@ -4872,6 +5286,9 @@ export interface ResearchArtifactResponse {
   data: ResearchArtifact;
   freshness: Freshness;
 }
+export interface ResearchCreateRequest {
+  topic: string;
+}
 /**
  * A statement together with the sources that support it and known contradictions.
  */
@@ -4958,6 +5375,34 @@ export interface ResearchProjectResponse {
   data: ResearchProject;
   freshness: Freshness;
 }
+export interface ResearchProvider {
+  provider: "searxng" | "wikipedia";
+  endpoint: string | null;
+  configured: boolean;
+  version: number;
+  maxSources: number;
+  timeoutMs: number;
+  setup: {
+    available: boolean;
+    state: "ready" | "stopped" | "unavailable";
+    endpoint: string;
+    image: string | null;
+    reason: string | null;
+  };
+  sourceVerification: "unverified";
+}
+export interface ResearchProviderResponse {
+  contractVersion: string;
+  data: ResearchProvider;
+  freshness: Freshness;
+}
+export interface ResearchProviderUpdateRequest {
+  endpoint: string;
+  /**
+   * Provision the pinned local SearXNG service before selecting its fixed endpoint.
+   */
+  installLocal?: boolean;
+}
 export interface ResearchSource {
   id: string;
   /**
@@ -4977,6 +5422,12 @@ export interface ResearchSource {
   reliability: number;
   supportsStatement: string | null;
   excerpt: string | null;
+  /**
+   * Bounded plain-text extraction from a fetched page. Missing on legacy or mock sources.
+   */
+  contentText?: string | null;
+  contentHash?: string | null;
+  fetchError?: string | null;
   status: "queued" | "retrieved" | "failed" | "excluded";
 }
 /**
@@ -5227,6 +5678,8 @@ export interface VoiceSettings {
   speakerVerificationRequired: boolean;
   storeRawRecordings: boolean;
   voiceHistoryEnabled: boolean;
+  sttLanguage?: "de" | "en";
+  sttModel?: string | null;
   ttsVoice: string;
   ttsRate: number;
   inputDeviceId: string | null;
@@ -5406,6 +5859,27 @@ export interface StorageVolumeListResponse {
   freshness: Freshness;
   sources: SourceDescriptor[];
 }
+export interface SttModelCancelRequest {
+  jobId: string;
+}
+export interface SttModelDownloadRequest {
+  model: string;
+}
+export interface SttModelsStatus {
+  contractVersion: ContractVersion;
+  localMode: boolean;
+  models: {
+    id: string;
+    cached: boolean;
+    downloadable: boolean;
+  }[];
+  job: null | {
+    id: string;
+    model: string;
+    state: "downloading" | "cancelling" | "ready" | "failed" | "cancelled";
+    error: string | null;
+  };
+}
 export interface SystemBackupActionRequest {
   action: "preview" | "run" | "verify" | "restore-test";
   path?: string;
@@ -5510,6 +5984,8 @@ export interface TaskCreateRequest {
   priority?: Priority;
   agentId?: string | null;
   model?: string | null;
+  provider?: string | null;
+  reasoningLevel?: ReasoningLevel;
   dueAt?: string | null;
   labels?: string[];
 }
@@ -6004,6 +6480,38 @@ export interface VoiceTtsStarted {
   engine: string;
   voice?: string;
   text?: string;
+}
+export interface WakeEnrollmentJob {
+  jobId: string;
+}
+export interface WakeEnrollmentSample {
+  jobId: string;
+  kind: "wake" | "short" | "negatives" | "speech";
+  pcmBase64: string;
+}
+export interface WakeEnrollmentStart {
+  phrase: string;
+}
+export interface WakeEnrollmentStatus {
+  contractVersion: ContractVersion;
+  state: "idle" | "capturing" | "training" | "ready" | "failed" | "cancelled";
+  jobId: string | null;
+  phrase: string | null;
+  shortPhrase: string | null;
+  required: {
+    wake: number;
+    short: number;
+    negatives: number;
+    speech: number;
+  };
+  counts: {
+    wake: number;
+    short: number;
+    negatives: number;
+    speech: number;
+  };
+  quality: string | null;
+  error: string | null;
 }
 export interface WhatsappGateway {
   setupUrl: string;

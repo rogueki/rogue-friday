@@ -5,6 +5,7 @@ Ausfuehren (Linux/Windows, nur numpy noetig; Modelltraining zusaetzlich scikit-l
   python3 -m pytest installer/voice/tests          oder          python3 installer/voice/tests/test_personal_wake.py
 """
 import collections
+import base64
 import importlib.util
 import json
 import os
@@ -13,6 +14,7 @@ import socket
 import sys
 import tempfile
 import threading
+import time
 import types
 import urllib.error
 import urllib.request
@@ -350,12 +352,17 @@ def load_voice_module():
     stubs = {"winsound": types.SimpleNamespace(Beep=lambda *a: None),
              "sounddevice": types.ModuleType("sounddevice")}
     # find_spec raises ValueError for a stub already registered without __spec__ (second call in one process).
-    if "torch" not in sys.modules and importlib.util.find_spec("torch") is None:
+    torch_stubbed = "torch" not in sys.modules and importlib.util.find_spec("torch") is None
+    if torch_stubbed:
         stubs["torch"] = types.ModuleType("torch")
     for name, module in stubs.items():
         sys.modules.setdefault(name, module)
     sys.modules.pop("friday_voice", None)
-    return importlib.import_module("friday_voice")
+    try:
+        return importlib.import_module("friday_voice")
+    finally:
+        if torch_stubbed:
+            sys.modules.pop("torch", None)
 
 
 class FakeSegment:
@@ -396,6 +403,9 @@ def make_service(jv, texts, engine="personal", phrase="Hey Friday"):
     svc.last_wake, svc.stage1_block_until, svc.trusted_until = 0.0, 0.0, 0.0
     svc.background_jobs, svc.background_reply_ready = set(), threading.Event()
     svc.manual_start, svc.manual_start_lock = threading.Event(), threading.Lock()
+    svc.wake_model_lock = threading.Lock()
+    svc.manual_release = threading.Event()
+    svc.ptt_active = False
     svc.control_cancel, svc.control_paused, svc.control_generation = threading.Event(), False, 0
     svc.whisper, svc.oww, svc.wake_name, svc.wake_threshold = FakeWhisper(texts), FakeDetector(), "personal", 2.0
     svc.tts = types.SimpleNamespace(speaking=threading.Event(), interrupted=0)
@@ -417,6 +427,43 @@ def test_manual_start_uses_command_handler_without_wake_audio(monkeypatch):
     svc._session(manual=True)
 
     assert recorded == [(jv.SR, None)]
+    assert svc.status["state"] == "wake_only"
+
+
+def test_unverified_speaker_has_only_public_local_voice_answers(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg["speaker_verification_required"] = False
+    svc.cfg["qwen_url"] = "http://127.0.0.1:9000/v1/chat/completions"
+    svc.verifier = types.SimpleNamespace(score=lambda audio: (_ for _ in ()).throw(AssertionError("owner verifier called")))
+    answers = []
+    requests = []
+    svc._say_if_current = lambda answer, generation: answers.append(answer)
+    svc._transcribe = lambda audio: "Lies meine E-Mails vor"
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    monkeypatch.setattr(jv, "post_json", lambda url, payload, **kwargs: (requests.append(payload) or
+                        {"choices": [{"message": {"content": "Allgemeine Antwort"}}]}))
+    svc._handle_command(np.ones(jv.SR, dtype=np.float32), None)
+    assert answers == ["Allgemeine Antwort"]
+    assert len(requests) == 1 and len(requests[0]["messages"]) == 2
+    assert requests[0]["messages"][1]["content"] == "Lies meine E-Mails vor"
+    assert "tools" not in requests[0] and "history" not in requests[0]
+    assert svc.status["commands"] == 1 and svc.trusted_until == 0
+
+
+def test_unverified_session_never_arms_owner_followup(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update(speaker_verification_required=False, command_start_timeout_s=2)
+    armed = []
+    svc.calendar_voice.arm_confirmation = lambda: armed.append("calendar")
+    svc.coding_voice.arm_confirmation = lambda: armed.append("coding")
+    svc._record_command = lambda timeout: np.ones(jv.SR, dtype=np.float32)
+    svc._handle_command = lambda audio, wake_audio: svc.tts.speaking.set()
+    svc._read_chunk = lambda: (svc.tts.speaking.clear() or np.zeros(jv.CHUNK, dtype=np.int16))
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc._session(manual=True)
+    assert armed == [] and svc.trusted_until == 0
     assert svc.status["state"] == "wake_only"
 
 
@@ -505,6 +552,292 @@ def test_voice_control_stop_pause_resume_are_authenticated_and_change_state():
         assert post("start", "a" * 44) == 202
         assert svc.manual_start.is_set()
         assert not svc._say_if_current("stale response", paused_generation)
+
+
+def test_voice_settings_http_applies_only_confirmed_private_configuration():
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.input_level = types.SimpleNamespace(value=lambda: 0)
+    svc.tts.level = types.SimpleNamespace(value=lambda: 0)
+    svc.cfg["wake_phrase"] = svc.phrase
+    svc.processing = None
+    svc.audio_transport = "browser"
+    svc.service_started_at = "fixture-process"
+    purges = []
+    svc.memory_outbox = types.SimpleNamespace(purge=lambda: purges.append(True))
+    svc.history = jv.runtime_settings.PrivacyHistory(lambda: svc.cfg.get("voice_history_enabled", True))
+    svc.tts.tts_config = svc.cfg
+    with tempfile.TemporaryDirectory() as root:
+        key_dir = os.path.join(root, "dashboard", "data", "voice-bridge")
+        os.makedirs(key_dir)
+        with open(os.path.join(key_dir, "auth.key"), "w", encoding="ascii") as key_file:
+            key_file.write("a" * 44)
+        jv.INSTALL_ROOT = root
+        svc.config_path = os.path.join(root, "config", "voice.json")
+        os.makedirs(os.path.dirname(svc.config_path))
+        with open(svc.config_path, "w", encoding="utf-8") as config_file:
+            json.dump(svc.cfg, config_file)
+        svc.config_disk_hash = jv.runtime_settings.file_hash(svc.config_path)
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            svc.cfg["health_port"] = sock.getsockname()[1]
+        svc._start_health()
+        url = f"http://127.0.0.1:{svc.cfg['health_port']}/control/settings"
+        current = jv.runtime_settings.effective(svc.cfg)
+
+        def post(payload, authenticated=True):
+            envelope = {"settings": payload, "expectedConfigRevision": svc.config_disk_hash,
+                        "expectedServiceStartedAt": svc.service_started_at}
+            request = urllib.request.Request(url, data=json.dumps(envelope).encode(), method="POST",
+                                             headers={"Authorization": "Bearer " + "a" * 44} if authenticated else {})
+            try:
+                with urllib.request.urlopen(request, timeout=2) as response:
+                    return response.status, json.load(response)
+            except urllib.error.HTTPError as error:
+                return error.code, None
+
+        assert post({**current, "voiceHistoryEnabled": False}, False)[0] == 401
+        assert post({**current, "speakerVerificationRequired": False})[0] == 200
+        assert svc.cfg["speaker_verification_required"] is False
+        assert post(current)[0] == 200
+        assert svc.cfg.get("voice_history_enabled", True) is True
+        with open(svc.config_path, "a", encoding="utf-8") as config_file:
+            config_file.write(" ")
+        assert post({**current, "voiceHistoryEnabled": False})[0] == 409
+        assert not purges
+        svc.config_disk_hash = jv.runtime_settings.file_hash(svc.config_path)
+        status, body = post({**current, "voiceHistoryEnabled": False})
+        assert status == 200 and body["applied"] and body["serviceStartedAt"] == "fixture-process"
+        assert body["settings"]["voiceHistoryEnabled"] is False
+        assert svc.cfg["voice_history_enabled"] is False
+        assert len(purges) == 1
+        assert svc.tts.tts_config is svc.cfg
+        assert json.load(open(svc.config_path, encoding="utf-8"))["voice_history_enabled"] is False
+        svc.history += [{"command": "private"}]
+        assert not svc.history
+        svc.memory_outbox.purge = lambda: (_ for _ in ()).throw(OSError("synthetic purge failure"))
+        assert post({**current, "voiceHistoryEnabled": False})[0] == 200
+        assert svc.memory_capture_error == "OSError"
+        assert svc.cfg["voice_history_enabled"] is False
+        model = os.path.join(root, "synthetic-wake.npz")
+        meta = os.path.join(root, "synthetic-wake.json")
+        open(model, "wb").close()
+        with open(meta, "w", encoding="utf-8") as target:
+            json.dump({"wake_phrase": "Hey Test", "threshold": 0.5}, target)
+        original_prepare = svc._prepare_wake_switch
+        assert post({**current, "wakeWord": "Hey Test"})[0] == 422
+        assert svc.phrase == "Hey Friday" and svc.cfg["wake_phrase"] == "Hey Friday"
+        svc.wake_enrollment = types.SimpleNamespace(prepared=lambda phrase, active_phrase, service_started_at, current_revision, expected_revision: (model, meta), committed=lambda: None)
+        svc._prepare_wake_switch = lambda phrase, paths: {"engine": "personal", "detector": FakeDetector(),
+            "name": "personal", "threshold": 0.5, "high_confidence": None,
+            "model_path": model, "meta_path": meta}
+        status, body = post({**current, "wakeWord": "Hey Test"})
+        assert status == 200 and body["settings"]["wakeWord"] == "Hey Test"
+        assert svc.phrase == "Hey Test" and svc.engine == "personal"
+        assert json.load(open(svc.config_path, encoding="utf-8"))["personal_wake_model"] == model
+        svc.audio_transport = "device"
+        selected = jv.runtime_settings.effective(svc.cfg)
+        assert post({**selected, "pushToTalkKey": "F13"})[0] == 422
+        svc.native_ptt_available = True
+        status, body = post({**selected, "pushToTalkKey": "F13"})
+        assert status == 200 and body["settings"]["pushToTalkKey"] == "F13"
+        svc._prepare_wake_switch = original_prepare
+        assert post({**jv.runtime_settings.effective(svc.cfg), "wakeWord": "Hey Friday"})[0] == 200
+        assert svc.phrase == "Hey Friday" and svc.cfg["wake_phrase"] == "Hey Friday"
+        assert svc.cfg["personal_wake_model"].endswith("personal_wake.npz")
+
+
+def test_stt_model_preflight_and_language_apply_without_late_or_remote_change(monkeypatch, tmp_path):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.input_level = types.SimpleNamespace(value=lambda: 0)
+    svc.tts.level = types.SimpleNamespace(value=lambda: 0)
+    svc.tts.tts_config = svc.cfg
+    svc.processing, svc.cloud_voice, svc.audio_transport = None, False, "browser"
+    svc.service_started_at = "fixture-stt"
+    svc.cfg.update(wake_phrase=svc.phrase, whisper_model="base", whisper_device="cpu",
+                   whisper_compute_type="int8", stt_language="de")
+    svc.config_path = str(tmp_path / "config" / "voice.json")
+    (tmp_path / "config").mkdir()
+    (tmp_path / "dashboard" / "data" / "voice-bridge").mkdir(parents=True)
+    (tmp_path / "dashboard" / "data" / "voice-bridge" / "auth.key").write_text("a" * 44, encoding="ascii")
+    with open(svc.config_path, "w", encoding="utf-8") as target:
+        json.dump(svc.cfg, target)
+    svc.config_disk_hash = jv.runtime_settings.file_hash(svc.config_path)
+    jv.INSTALL_ROOT = str(tmp_path)
+    class CachedWhisper:
+        def __init__(self, name, **kwargs):
+            assert kwargs["local_files_only"] is True
+            if name == "medium":
+                raise OSError("synthetic missing cache")
+            self.name = name
+        def transcribe(self, audio, **kwargs):
+            return iter([types.SimpleNamespace(text=kwargs["language"])]), None
+    fake = types.ModuleType("faster_whisper")
+    fake.WhisperModel = CachedWhisper
+    monkeypatch.setitem(sys.modules, "faster_whisper", fake)
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        svc.cfg["health_port"] = sock.getsockname()[1]
+    svc._start_health()
+    url = f"http://127.0.0.1:{svc.cfg['health_port']}/control/settings"
+    def post(settings):
+        body = {"settings": settings, "expectedConfigRevision": svc.config_disk_hash,
+                "expectedServiceStartedAt": svc.service_started_at}
+        request = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
+            headers={"Authorization": "Bearer " + "a" * 44})
+        try:
+            with urllib.request.urlopen(request, timeout=3) as response:
+                return response.status
+        except urllib.error.HTTPError as error:
+            return error.code
+    original = svc.whisper
+    current = jv.runtime_settings.effective(svc.cfg)
+    assert post({**current, "sttLanguage": "en", "sttModel": "medium"}) == 422
+    assert svc.whisper is original and svc.cfg["stt_language"] == "de"
+    assert post({**current, "sttLanguage": "en", "sttModel": "small"}) == 200
+    assert svc.whisper.name == "small" and svc._transcribe(np.zeros(jv.SR)) == "en"
+    assert json.load(open(svc.config_path, encoding="utf-8"))["whisper_model"] == "small"
+    class ModelJobs:
+        def __init__(self):
+            self.job = None
+        def status(self):
+            return {"localMode": True, "models": [{"id": "small", "cached": True}], "job": self.job}
+        def start(self, model):
+            self.job = {"id": "f" * 32, "model": model, "state": "downloading", "error": None}
+            return self.status()
+        def cancel(self, job_id):
+            assert job_id == "f" * 32
+            self.job["state"] = "cancelled"
+            return self.status()
+    svc.stt_models = ModelJobs()
+    base = url.removesuffix("/settings") + "/stt-models"
+    with urllib.request.urlopen(urllib.request.Request(base, headers={"Authorization": "Bearer " + "a" * 44})) as response:
+        assert json.load(response)["models"][0]["id"] == "small"
+    def model_post(path, payload):
+        request = urllib.request.Request(base + path, data=json.dumps(payload).encode(), method="POST",
+            headers={"Authorization": "Bearer " + "a" * 44})
+        try:
+            with urllib.request.urlopen(request) as response:
+                return response.status, json.load(response)
+        except urllib.error.HTTPError as error:
+            return error.code, None
+    assert model_post("/download", {"model": "medium", "expectedServiceStartedAt": "stale"})[0] == 422
+    assert svc.stt_models.job is None
+    assert model_post("/download", {"model": "medium", "expectedServiceStartedAt": svc.service_started_at})[1]["job"]["state"] == "downloading"
+    assert model_post("/cancel", {"jobId": "f" * 32})[1]["job"]["state"] == "cancelled"
+    assert svc.cfg["whisper_model"] == "small"
+    svc.cloud_voice = True
+    assert post({**jv.runtime_settings.effective(svc.cfg), "sttModel": "medium"}) == 422
+    assert svc.cfg["whisper_model"] == "small"
+    svc.cloud_voice = False
+    loading = threading.Event()
+    release = threading.Event()
+    class StuckWhisper:
+        def __init__(self, name, **kwargs):
+            loading.set()
+            assert release.wait(2)
+            self.name = name
+    fake.WhisperModel = StuckWhisper
+    monkeypatch.setattr(jv, "STT_PREFLIGHT_TIMEOUT", .02)
+    assert post({**jv.runtime_settings.effective(svc.cfg), "sttModel": "medium"}) == 503
+    assert loading.is_set() and svc.stt_preflight_busy
+    assert post({**jv.runtime_settings.effective(svc.cfg), "sttLanguage": "de"}) == 200
+    assert post({**jv.runtime_settings.effective(svc.cfg), "sttModel": "medium"}) == 423
+    assert svc.cfg["whisper_model"] == "small" and svc.whisper.name == "small"
+    release.set()
+    for _ in range(100):
+        if not svc.stt_preflight_busy:
+            break
+        time.sleep(.01)
+    assert not svc.stt_preflight_busy
+    assert svc.cfg["whisper_model"] == "small" and svc.whisper.name == "small"
+
+
+def test_wake_enrollment_http_capture_train_save_cas_and_rollback(monkeypatch, tmp_path):
+    from wake_enrollment import WakeEnrollment
+
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.input_level = types.SimpleNamespace(value=lambda: 0)
+    svc.tts.level = types.SimpleNamespace(value=lambda: 0)
+    svc.cfg["wake_phrase"] = svc.phrase
+    svc.audio_transport = "browser"
+    svc.processing = None
+    svc.service_started_at = "fixture-process"
+    svc.tts.tts_config = svc.cfg
+    svc.config_path = str(tmp_path / "config" / "voice.json")
+    (tmp_path / "config").mkdir()
+    (tmp_path / "dashboard" / "data" / "voice-bridge").mkdir(parents=True)
+    (tmp_path / "dashboard" / "data" / "voice-bridge" / "auth.key").write_text("a" * 44, encoding="ascii")
+    jv.INSTALL_ROOT = str(tmp_path)
+    with open(svc.config_path, "w", encoding="utf-8") as target:
+        json.dump(svc.cfg, target)
+    svc.config_disk_hash = jv.runtime_settings.file_hash(svc.config_path)
+    monkeypatch.setattr(jv.runtime_settings, "protect_private", lambda *args, **kwargs: None)
+    svc.wake_enrollment = WakeEnrollment(str(tmp_path), str(tmp_path / "state"))
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        svc.cfg["health_port"] = sock.getsockname()[1]
+    svc._start_health()
+    base_url = f"http://127.0.0.1:{svc.cfg['health_port']}/control"
+
+    def post(path, payload, revision=None):
+        if path == "/settings":
+            payload = {"settings": payload, "expectedConfigRevision": revision or svc.config_disk_hash,
+                       "expectedServiceStartedAt": svc.service_started_at}
+        request = urllib.request.Request(base_url + path, data=json.dumps(payload).encode(), method="POST",
+                                         headers={"Authorization": "Bearer " + "a" * 44})
+        try:
+            with urllib.request.urlopen(request, timeout=2) as response:
+                return response.status, json.load(response)
+        except urllib.error.HTTPError as error:
+            return error.code, None
+
+    def get():
+        request = urllib.request.Request(base_url + "/wake-enrollment",
+                                         headers={"Authorization": "Bearer " + "a" * 44})
+        with urllib.request.urlopen(request, timeout=2) as response:
+            return json.load(response)
+
+    current = jv.runtime_settings.effective(svc.cfg)
+    assert post("/wake-enrollment/start", {"phrase": "Hey Test", "expectedConfigRevision": "stale",
+                "expectedServiceStartedAt": svc.service_started_at})[0] == 409
+    status, job = post("/wake-enrollment/start", {"phrase": "Hey Test", "expectedConfigRevision": svc.config_disk_hash,
+                "expectedServiceStartedAt": svc.service_started_at})
+    assert status == 200 and get()["jobId"] == job["jobId"]
+    sample = base64.b64encode(b"\0\0" * 8000).decode("ascii")
+    for kind, count in job["required"].items():
+        for _ in range(count):
+            assert post("/wake-enrollment/sample", {"jobId": job["jobId"], "kind": kind,
+                        "pcmBase64": sample})[0] == 200
+    model_dir = tmp_path / "state" / "models" / "openwakeword" / ("runtime-" + "b" * 32)
+    def train(*args):
+        model_dir.mkdir()
+        (model_dir / "personal_wake.npz").write_bytes(b"synthetic model")
+        (model_dir / "personal_wake.json").write_text(json.dumps({"wake_phrase": "Hey Test"}), encoding="utf-8")
+        return str(model_dir / "personal_wake.npz"), str(model_dir / "personal_wake.json")
+    monkeypatch.setattr(jv.runtime_settings, "prepare_personal_wake", train)
+    monkeypatch.setattr(pw.WindowModel, "load", lambda path: object())
+    assert post("/wake-enrollment/train", {"jobId": job["jobId"]})[0] == 200
+    for _ in range(100):
+        if get()["state"] == "ready":
+            break
+        time.sleep(0.01)
+    assert get()["state"] == "ready" and svc.phrase == "Hey Friday"
+    svc._prepare_wake_switch = lambda phrase, paths: {"engine": "personal", "detector": FakeDetector(),
+        "name": "personal", "threshold": 0.5, "high_confidence": None,
+        "model_path": paths[0], "meta_path": paths[1]}
+    original_write = jv.runtime_settings.atomic_write
+    def fail_write(*args):
+        raise jv.runtime_settings.ConfigConflict("synthetic concurrent write")
+    monkeypatch.setattr(jv.runtime_settings, "atomic_write", fail_write)
+    assert post("/settings", {**current, "wakeWord": "Hey Test"})[0] == 409
+    assert svc.phrase == "Hey Friday" and get()["state"] == "ready" and model_dir.exists()
+    monkeypatch.setattr(jv.runtime_settings, "atomic_write", original_write)
+    assert post("/settings", {**current, "wakeWord": "Hey Test"})[0] == 200
+    assert svc.phrase == "Hey Test" and get()["state"] == "idle"
+    assert json.loads((tmp_path / "config" / "voice.json").read_text(encoding="utf-8"))["personal_wake_model"] == str(model_dir / "personal_wake.npz")
 
 
 def test_pending_hermes_answer_is_suppressed_after_stop():

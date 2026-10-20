@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/wake-enrollment-sample.schema.json",
+  "title": "WakeEnrollmentSample",
+  "type": "object",
+  "properties": {
+    "jobId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "kind": { "type": "string", "enum": ["wake", "short", "negatives", "speech"] },
+    "pcmBase64": { "type": "string", "minLength": 21336, "maxLength": 256000, "pattern": "^[A-Za-z0-9+/]+={0,2}$" }
+  },
+  "required": ["jobId", "kind", "pcmBase64"],
+  "additionalProperties": false
+}

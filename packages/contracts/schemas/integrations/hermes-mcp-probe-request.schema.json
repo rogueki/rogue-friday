@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-mcp-probe-request.schema.json",
+  "title": "HermesMcpProbeRequest",
+  "type": "object",
+  "properties": { "name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$" } },
+  "required": ["name"],
+  "additionalProperties": false
+}

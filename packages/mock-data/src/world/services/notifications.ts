@@ -230,7 +230,9 @@ export class NotificationService {
 
   private channelEligible(priority: Priority, channel: Channel): boolean {
     const configured = this.w.state.settings.notifications.channels.find((entry) => entry.kind === channel);
-    return Boolean(configured?.enabled && priorityRank(priority) <= priorityRank(configured.minPriority));
+    const supportedAccount = !["telegram", "whatsapp", "sms"].includes(channel) ||
+      configured?.accountId === undefined || configured.accountId === "default";
+    return Boolean(configured?.enabled && supportedAccount && priorityRank(priority) <= priorityRank(configured.minPriority));
   }
 
   private quietHoursActive(nowMs: number, priority: Priority): boolean {

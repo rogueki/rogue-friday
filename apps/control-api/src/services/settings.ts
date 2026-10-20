@@ -131,6 +131,8 @@ export function defaultSettingsAreas(config: FridayConfig): SettingsAreas {
       speakerVerificationRequired: true,
       storeRawRecordings: false,
       voiceHistoryEnabled: true,
+      sttLanguage: "de",
+      sttModel: null,
       ttsVoice: installedVoiceChoice(config) ?? "",
       ttsRate: 1,
       inputDeviceId: null,
@@ -339,7 +341,8 @@ export class SettingsService {
       if (json === undefined) continue;
       try {
         const value = JSON.parse(json) as unknown;
-        merged[area] = value;
+        merged[area] = area === "voice" && typeof value === "object" && value !== null && !Array.isArray(value)
+          ? { ...this.defaults.voice, ...value } : value;
       } catch {
         // A damaged row falls back to the default area instead of breaking every settings call.
       }
@@ -373,7 +376,7 @@ export class SettingsService {
         const value = JSON.parse(row.json) as SettingsAreas[K];
         if (name === "voice") {
           const installed = installedVoiceChoice(this.config);
-          if (installed) return { ...value, ttsVoice: installed } as SettingsAreas[K];
+          return { ...this.defaults.voice, ...value, ...(installed ? { ttsVoice: installed } : {}) } as SettingsAreas[K];
         }
         if (name === "security") return { ...value, allowRemoteAccess: this.config.server.allowRemote, auditHashChain: true } as SettingsAreas[K];
         if (name === "approvals") return { ...value, reauthTier3: true } as SettingsAreas[K];
@@ -429,6 +432,42 @@ export class SettingsService {
 
   /** A patch may only activate a theme/layout that exists (the UI would otherwise render with no tokens). */
   private assertReferences(patch: SettingsPatch): void {
+    if (patch.modelsRouting) {
+      const seen = new Set<string>();
+      for (const [index, route] of patch.modelsRouting.routes.entries()) {
+        if (!["voice-routine", "voice-complex", "voice-critical", "agent-task"].includes(route.taskKind) || seen.has(route.taskKind)) {
+          throw validationFailed("Jede Modellroute braucht einen eindeutigen, unterstuetzten Aufgabentyp.",
+            [{ path: `modelsRouting.routes.${index}.taskKind`, message: "nicht unterstuetzt oder doppelt" }]);
+        }
+        seen.add(route.taskKind);
+        if (route.taskKind === "agent-task") {
+          if (!/^[a-z][a-z0-9-]*:[^\s:][^\s]*$/i.test(route.model)) {
+            throw validationFailed("Agent-Aufgaben brauchen Anbieter:Modell.",
+              [{ path: `modelsRouting.routes.${index}.model`, message: "Anbieter:Modell erforderlich" }]);
+          }
+          if (route.fallbackModel !== null) {
+            throw validationFailed("Ein aufgabenspezifisches Fallback wird von Hermes Kanban nicht unterstuetzt.",
+              [{ path: `modelsRouting.routes.${index}.fallbackModel`, message: "globale Hermes-Fallback-Konfiguration verwenden" }]);
+          }
+        }
+      }
+    }
+    if (patch.profile) {
+      try { new Intl.DateTimeFormat("en", { timeZone: patch.profile.timeZone }); }
+      catch {
+        throw validationFailed("Die Profil-Zeitzone ist unbekannt.",
+          [{ path: "profile.timeZone", message: "gültige IANA-Zeitzone erforderlich" }]);
+      }
+    }
+    for (const channel of patch.notifications?.channels ?? []) {
+      // The current messenger draft/target contract is bound to the default gateway profile.
+      // An arbitrary saved account ID cannot be delivered or owner-reviewed by that path.
+      if (["telegram", "whatsapp", "sms"].includes(channel.kind) && channel.enabled &&
+          channel.accountId !== undefined && channel.accountId !== "default") {
+        throw validationFailed("Dieser Messenger-Kanal unterstützt derzeit nur das Konto default.",
+          [{ path: `notifications.channels.${channel.kind}.accountId`, message: "nur default unterstützt" }]);
+      }
+    }
     if (patch.backups) {
       try { validateBackupSchedule(patch.backups.schedule); }
       catch { throw validationFailed("Backup-Zeitplan ist ungültig.", [{ path: "backups.schedule", message: "Fünf gültige Cron-Felder erforderlich" }]); }

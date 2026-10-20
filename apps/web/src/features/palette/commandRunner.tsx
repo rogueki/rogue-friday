@@ -3,16 +3,18 @@
 import { isFridayApiError, type CommandRequest, type CommandResponse } from "@friday/sdk";
 import { ConfirmDialog, useToast } from "@friday/ui";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { create } from "zustand";
 import { useT } from "@/i18n";
 import { useExecuteCommand } from "@/lib/api/domains/commands";
+import { commandContextForRoute, needsCommandClarification } from "./commandContext";
 
 export type CommandInput = Pick<CommandRequest, "text" | "source">;
 
 interface PendingCommand {
   input: CommandInput;
   response: CommandResponse;
+  context: NonNullable<CommandRequest["context"]>;
 }
 
 interface PendingStore {
@@ -66,18 +68,20 @@ export function useRunCommand(): (input: CommandInput) => Promise<CommandRespons
   return useCallback(
     async (input) => {
       try {
-        const response = await execute.mutateAsync({ ...input, context: { route: pathname } });
+        const context = commandContextForRoute(pathname);
+        const response = await execute.mutateAsync({ ...input, context });
         if (response.status === "requires_confirmation" || response.requiresConfirmation) {
-          setPending({ input, response });
+          setPending({ input, response, context });
         } else {
           report(response);
         }
         return response;
       } catch (error) {
+        const clarificationRequired = isFridayApiError(error) && needsCommandClarification(error.details);
         toast({
-          title: t("command.failed"),
+          title: clarificationRequired ? t("command.clarification") : t("command.failed"),
           description: isFridayApiError(error) ? `${error.message} (${error.correlationId})` : String(error),
-          tone: "red",
+          tone: clarificationRequired ? "amber" : "red",
           duration: 9000,
         });
         return null;
@@ -96,13 +100,14 @@ export function CommandConfirmHost() {
   const pending = usePendingStore((s) => s.pending);
   const setPending = usePendingStore((s) => s.setPending);
   const execute = useExecuteCommand();
+  const dismissing = useRef(false);
 
   const confirm = async (): Promise<void> => {
     if (!pending) return;
     try {
       const response = await execute.mutateAsync({
         ...pending.input,
-        context: { route: pathname },
+        context: commandContextForRoute(pathname),
         confirm: true,
         previewId: pending.response.previewId,
       });
@@ -123,12 +128,26 @@ export function CommandConfirmHost() {
   };
 
   const details = pending?.response.riskTier ? [t("command.riskTier", { tier: pending.response.riskTier })] : undefined;
-  const dismiss = (): void => {
-    if (pending?.response.previewId?.startsWith("corr_")) {
-      void execute.mutateAsync({ ...pending.input, previewId: pending.response.previewId, confirm: false }).catch(() =>
-        toast({ title: t("command.failed"), description: "Der Entwurf konnte nicht verworfen werden.", tone: "red", duration: 9000 }));
+  const dismiss = async (): Promise<void> => {
+    if (!pending || dismissing.current) return;
+    if (pending.response.previewId?.startsWith("corr_")) {
+      dismissing.current = true;
+      try {
+        const discarded = await execute.mutateAsync({
+          ...pending.input,
+          context: pending.context,
+          previewId: pending.response.previewId,
+          confirm: false,
+        });
+        if (discarded.status !== "rejected") throw new Error("Der Server hat den Entwurf nicht verworfen.");
+      } catch {
+        dismissing.current = false;
+        toast({ title: t("command.failed"), description: "Der Entwurf konnte nicht verworfen werden.", tone: "red", duration: 9000 });
+        return;
+      }
     }
-    setPending(null);
+    if (usePendingStore.getState().pending === pending) setPending(null);
+    dismissing.current = false;
   };
   return (
     <ConfirmDialog

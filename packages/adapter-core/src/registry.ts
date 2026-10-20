@@ -723,7 +723,10 @@ export class AdapterRegistry {
       }
 
       const mutationKey = (call as { idempotencyKey?: string } | undefined)?.idempotencyKey;
-      const retryAllowed = !spec.mutating || Boolean(mutationKey);
+      // These lifecycle writes have no upstream idempotency contract. A Friday key only fences
+      // the local approval receipt; it cannot make an ambiguous upstream timeout safe to replay.
+      const retryAllowed = !spec.mutating || (Boolean(mutationKey) &&
+        !["cancelTask", "retryTask", "stopAgent"].includes(operation));
       const result = await correlationStore.run(correlationId, () =>
         runtime.caller.call(
           (signal) => {

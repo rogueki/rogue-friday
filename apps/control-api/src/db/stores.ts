@@ -115,15 +115,16 @@ export class CommandHistoryStore {
     return SENSITIVE_COMMAND.test(text);
   }
 
-  record(entry: Omit<CommandHistoryRecord, "text" | "redacted"> & { text: string }): CommandHistoryRecord {
-    const sensitive = CommandHistoryStore.isSensitive(entry.text);
-    const stored = sensitive ? "[REDACTED]" : redactString(entry.text);
+  record(entry: Omit<CommandHistoryRecord, "text" | "redacted"> & { text: string; redact?: boolean }): CommandHistoryRecord {
+    const { redact = false, ...record } = entry;
+    const sensitive = redact || CommandHistoryStore.isSensitive(record.text);
+    const stored = sensitive ? "[REDACTED]" : redactString(record.text);
     this.db
       .prepare(
         "INSERT INTO command_history (id, correlation_id, actor, text, redacted, origin, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       )
-      .run(entry.id, entry.correlationId, entry.actor, stored, sensitive || stored !== entry.text ? 1 : 0, entry.origin, entry.status, entry.createdAt);
-    return { ...entry, text: stored, redacted: sensitive || stored !== entry.text };
+      .run(record.id, record.correlationId, record.actor, stored, sensitive || stored !== record.text ? 1 : 0, record.origin, record.status, record.createdAt);
+    return { ...record, text: stored, redacted: sensitive || stored !== record.text };
   }
 
   recent(limit = 50): CommandHistoryRecord[] {

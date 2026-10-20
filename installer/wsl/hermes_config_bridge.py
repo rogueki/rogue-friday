@@ -8,6 +8,7 @@ import fcntl
 import os
 import re
 import secrets
+import shutil
 import signal
 from pathlib import Path
 import subprocess
@@ -15,6 +16,8 @@ import sys
 import time
 from urllib.parse import urlsplit
 import yaml
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from hermes_mcp_http_apply import valid_url
 
 
 FIELDS = {
@@ -40,9 +43,66 @@ FIELDS = {
     "session.terminal_continue": ("boolean", None, None),
     "max_live_sessions": ("integer", 0, 10000),
     "terminal.timeout": ("integer", 1, 3600),
+    "terminal.container_cpu": ("number", 0.01, 1024),
+    "terminal.container_memory": ("integer", 1, 1048576),
+    "terminal.container_disk": ("integer", 1, 1048576),
+    "terminal.container_persistent": ("boolean", None, None),
+    "terminal.backend": ("execution_backend", None, None),
+    "terminal.cwd": ("workspace_path", None, None),
+    "terminal.docker_network": ("boolean", None, None),
+    "terminal.docker_mount_cwd_to_workspace": ("boolean", None, None),
+    "terminal.docker_volumes": ("docker_mounts", None, None),
     "browser.command_timeout": ("integer", 5, 600),
     "browser.snapshot_threshold": ("integer", 1000, 200000),
+    "browser.inactivity_timeout": ("integer", 30, 3600),
+    "browser.engine": ("browser_engine", None, None),
+    "browser.headed": ("boolean", None, None),
+    "browser.auto_local_for_private_urls": ("boolean", None, None),
+    "browser.dialog_policy": ("dialog_policy", None, None),
+    "browser.dialog_timeout_s": ("integer", 1, 3600),
+    "browser.allow_private_urls": ("boolean", None, None),
+    "browser.use_real_profile": ("boolean", None, None),
+    "browser.real_profile_pin": ("profile_pin", None, None),
+    "browser.restrict_evaluate": ("boolean", None, None),
+    "browser.allow_unsafe_evaluate": ("boolean", None, None),
+    "code_execution.mode": ("code_mode", None, None),
+    "code_execution.kernel_idle_timeout": ("integer", 30, 86400),
+    "code_execution.max_session_kernels": ("integer", 1, 32),
+    "computer_use.permission_mode": ("computer_permission", None, None),
+    "computer_use.capability_manifest": ("manifest_path", None, None),
+    "computer_use.max_image_dimension": ("integer", 320, 4096),
+    "computer_use.ax_max_elements": ("integer", 50, 1000),
+    "computer_use.capture_after_mode": ("capture_after_mode", None, None),
+    "toolsets": ("toolset_names", None, None),
+    "command_allowlist": ("allowlist_subset", None, None),
+    "approvals.mode": ("approval_mode", None, None),
+    "approvals.timeout": ("integer", 15, 600),
+    "approvals.denial_breaker_threshold": ("integer", 0, 100000),
+    "approvals.deny": ("deny_globs", None, None),
+    "approvals.destructive_slash_confirm": ("boolean", None, None),
+    "approvals.mcp_reload_confirm": ("boolean", None, None),
+    "approvals.single_query_mode": ("automatic_approval", None, None),
+    "approvals.unattended_mode": ("automatic_approval", None, None),
+    "security.protected_instruction_files": ("boolean", None, None),
     "skills.disabled": ("skill_names", None, None),
+    "cron.catch_up_missed": ("boolean", None, None),
+    "cron.allow_agent_scheduling": ("boolean", None, None),
+    "cron.preflight": ("boolean", None, None),
+    "cron.max_parallel_jobs": ("optional_integer", 1, 64),
+    "cron.output_retention": ("integer", 0, 10000),
+    "cron.script_timeout_seconds": ("integer", 1, 86400),
+    "cron.session_db_timeout_seconds": ("integer", 0, 3600),
+    "cron.failure_repeat_alert_hours": ("integer", 0, 168),
+    "cron.require_restart_safe_scope": ("boolean", None, None),
+    "gateway.loop_watchdog": ("boolean", None, None),
+    "gateway.startup_watchdog": ("boolean", None, None),
+    "gateway.startup_watchdog_timeout_seconds": ("integer", 30, 3600),
+    "gateway.restart_loop_guard.max_restarts": ("integer", 0, 20),
+    "gateway.respawn_storm.max_starts": ("integer", 0, 100),
+    "gateway.signal_interrupt_grace_timeout": ("number", 0, 60),
+    "logging.level": ("log_level", None, None),
+    "logging.max_size_mb": ("integer", 1, 100),
+    "logging.backup_count": ("integer", 1, 50),
 }
 MODEL_CREDENTIALS = frozenset(("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"))
 REASONING_EFFORTS = frozenset(("", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"))
@@ -68,6 +128,42 @@ def valid_field_value(key, value, spec):
         return type(value) is str and value in REASONING_EFFORTS
     if kind == "tail_mode":
         return type(value) is str and value in ("lean", "legacy")
+    if kind == "execution_backend":
+        return type(value) is str and value in ("local", "docker")
+    if kind == "code_mode":
+        return type(value) is str and value in ("project", "strict")
+    if kind == "dialog_policy":
+        return type(value) is str and value in ("must_respond", "auto_dismiss")
+    if kind == "browser_engine":
+        return type(value) is str and value in ("auto", "chrome", "lightpanda")
+    if kind == "capture_after_mode":
+        return type(value) is str and value in ("som", "ax", "vision")
+    if kind == "computer_permission":
+        return type(value) is str and value in ("standard", "bounded")
+    if kind == "approval_mode":
+        return type(value) is str and value in ("manual", "smart", "off")
+    if kind == "automatic_approval":
+        return type(value) is str and value in ("deny", "approve")
+    if kind == "profile_pin":
+        return type(value) is str and (value == "" or re.fullmatch(r"(?:Default|Profile [0-9]{1,3})", value) is not None)
+    if kind == "manifest_path":
+        return type(value) is str and (value == "" or
+            (1 <= len(value) <= 512 and value.startswith("/") and
+             value.isprintable()))
+    if kind == "workspace_path":
+        return type(value) is str and (value == "." or
+            (1 <= len(value) <= 512 and value.startswith("/") and
+             value.isprintable()))
+    if kind in ("docker_mounts", "toolset_names", "allowlist_subset", "deny_globs"):
+        limit = 8 if kind == "docker_mounts" else 16 if kind == "toolset_names" else 128
+        return (type(value) is list and len(value) <= limit and
+                all(type(item) is str and 1 <= len(item) <= 512 and
+                    (item.isprintable() if kind in ("docker_mounts", "deny_globs") else
+                        all((32 if kind == "allowlist_subset" else 33) <= ord(char) < 127 for char in item))
+                    for item in value) and
+                len(set(value)) == len(value))
+    if kind == "log_level":
+        return type(value) is str and value in ("DEBUG", "INFO", "WARNING")
     if kind == "fallback":
         return (type(value) is list and len(value) <= 8 and all(
             type(item) is dict and set(item) == {"provider", "model"} and
@@ -234,6 +330,15 @@ def lock_config(home, name=".friday-config.lock"):
             time.sleep(0.025)
 
 
+def process_start(pid):
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+        fields = stat.rsplit(") ", 1)[1].split()
+        return None if fields[0] in ("Z", "X") else fields[19]
+    except (OSError, IndexError, ValueError):
+        return None
+
+
 def run_runtime_child(command, request, timeout):
     # runtime_command launches Python directly. A separate process group also
     # covers bootstrap/lifecycle descendants before releasing the config locks.
@@ -257,7 +362,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "model-catalog"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "approval-test"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -281,6 +386,231 @@ def locked_main(home, source, cli):
     config_path = Path(call("path"))
     commit = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3)
     source_revision = commit.stdout.strip() if commit.returncode == 0 else None
+    if sys.argv[1] == "approval-test":
+        if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
+            raise ValueError("unsupported_source_revision")
+        request = json.load(sys.stdin)
+        if (not isinstance(request, dict) or set(request) != {"command", "revision"} or
+                type(request["command"]) is not str or not 1 <= len(request["command"]) <= 512 or
+                not request["command"].strip() or
+                any(ord(char) < 32 or ord(char) == 127 for char in request["command"]) or
+                type(request["revision"]) is not int):
+            raise ValueError("invalid_request")
+        before, raw = snapshot(config_path)
+        if before != request["revision"]:
+            print(json.dumps({"error": "revision_conflict"}))
+            return 4
+        backend = nested(raw, "terminal.backend") or "local"
+        if backend not in ("local", "docker"):
+            raise ValueError("unsupported_execution_backend")
+        sys.path.insert(0, str(source))
+        from hermes_cli._launchers import runtime_command
+        code = ("import json,sys; from hermes_cli.approvals_test import evaluate_command; "
+                "request=json.load(sys.stdin); print(json.dumps(evaluate_command(request['command'], request['backend'])))")
+        child = run_runtime_child(runtime_command(source, code=code),
+                                  json.dumps({"command": request["command"], "backend": backend}), 15)
+        try:
+            verdict = json.loads(child.stdout)
+        except (TypeError, ValueError):
+            verdict = None
+        allowed = {"allow": 0, "ask-approval": 2, "hardline-deny": 3, "user-deny": 3}
+        if (child.returncode or not isinstance(verdict, dict) or
+                verdict.get("env_type") != backend or verdict.get("command") != request["command"] or
+                verdict.get("verdict") not in allowed or
+                verdict.get("exit_code") != allowed[verdict["verdict"]] or
+                not (verdict.get("rule") is None or
+                     type(verdict["rule"]) is str and len(verdict["rule"]) <= 512) or
+                type(verdict.get("detail")) is not str or len(verdict["detail"]) > 1024):
+            raise ValueError("approval_test_unconfirmed")
+        if revision(config_path) != before:
+            print(json.dumps({"error": "revision_conflict"}))
+            return 4
+        # Native rule/detail may embed the submitted command or an operator's private glob.
+        # The preview only needs the decision, so never return either native string.
+        detail = {
+            "allow": "Die aktuellen Hermes-Regeln wuerden diesen Befehl zulassen.",
+            "ask-approval": "Die aktuellen Hermes-Regeln wuerden eine Freigabe anfordern.",
+            "hardline-deny": "Die feste Hermes-Sperrliste wuerde diesen Befehl blockieren.",
+            "user-deny": "Eine eigene Hermes-Sperrregel wuerde diesen Befehl blockieren.",
+        }[verdict["verdict"]]
+        print(json.dumps({"revision": before, "backend": backend, "verdict": verdict["verdict"],
+                          "rule": None, "detail": detail}))
+        return 0
+    if sys.argv[1] in ("mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel"):
+        if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
+            raise ValueError("unsupported_source_revision")
+        request = json.load(sys.stdin)
+        action = sys.argv[1]
+        if not isinstance(request, dict):
+            raise ValueError("invalid_request")
+        root = home / ".friday-mcp-oauth"
+        if action == "mcp-oauth-start":
+            if (set(request) != {"name", "revision", "ownerId"} or not valid_mcp_name(request["name"]) or
+                    type(request["revision"]) is not int or type(request["ownerId"]) is not str or
+                    not 1 <= len(request["ownerId"]) <= 128 or
+                    any(ord(char) < 32 or ord(char) == 127 for char in request["ownerId"])):
+                raise ValueError("invalid_request")
+            before, raw = snapshot(config_path)
+            if before != request["revision"]:
+                print(json.dumps({"error": "revision_conflict"}))
+                return 4
+            entry = raw.get("mcp_servers", {}).get(request["name"]) if isinstance(raw.get("mcp_servers"), dict) else None
+            token_path = home / "mcp-tokens" / f"{request['name']}.json"
+            if (not isinstance(entry, dict) or set(entry) - {"url", "enabled", "auth"} or
+                    entry.get("auth") not in (None, "oauth") or
+                    entry.get("auth") == "oauth" and (token_path.exists() or token_path.is_symlink()) or
+                    not valid_url(entry.get("url")) or entry.get("enabled", True) is not True):
+                raise ValueError("managed_entry_conflict")
+            if root.is_symlink():
+                raise ValueError("unsafe_oauth_state")
+            root.mkdir(mode=0o700, exist_ok=True)
+            os.chmod(root, 0o700)
+            for old_flow in root.iterdir():
+                if (not re.fullmatch(r"[0-9a-f]{32}", old_flow.name) or old_flow.is_symlink() or
+                        not old_flow.is_dir() or time.time() - old_flow.stat().st_mtime < 86400 or
+                        old_flow.resolve().parent != root.resolve()):
+                    continue
+                from hermes_mcp_oauth_worker import discard_stage
+                try:
+                    discard_stage(old_flow)
+                    for filename in ("owner.json", "worker.json", "state.json", "state.tmp", "cancel"):
+                        path = old_flow / filename
+                        if path.exists() or path.is_symlink():
+                            path.unlink()
+                    old_flow.rmdir()
+                except OSError:
+                    pass
+            if len(list(root.iterdir())) >= 256:
+                raise ValueError("oauth_flow_limit")
+            flow_id = secrets.token_hex(16)
+            flow_dir = root / flow_id
+            flow_dir.mkdir(mode=0o700)
+            fd = os.open(flow_dir / "owner.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as owner_file:
+                json.dump({"ownerId": request["ownerId"]}, owner_file)
+            from hermes_mcp_oauth_worker import write_state
+            write_state(flow_dir, "starting")
+            sys.path.insert(0, str(source))
+            from hermes_cli._launchers import runtime_command
+            helper = Path(__file__).with_name("hermes_mcp_oauth_worker.py")
+            command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
+            timeout_binary = shutil.which("timeout")
+            if not timeout_binary:
+                raise ValueError("oauth_worker_timeout_unavailable")
+            # GNU timeout kills the runtime process group even if an SDK DNS
+            # lookup or slow-drip socket remains stuck in asyncio.to_thread.
+            command = [timeout_binary, "--signal=KILL", "330s", *command]
+            child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL, start_new_session=True, text=True)
+            child.stdin.write(json.dumps({"flowDir": str(flow_dir), "name": request["name"],
+                "url": entry["url"], "revision": before, "configPath": str(config_path),
+                "source": str(source)}))
+            child.stdin.close()
+            worker_path = flow_dir / "worker.json"
+            fd = os.open(worker_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as worker_file:
+                json.dump({"pid": child.pid, "start": process_start(child.pid)}, worker_file)
+            deadline = time.monotonic() + 15
+            state = {"status": "starting"}
+            while time.monotonic() < deadline:
+                state = json.loads((flow_dir / "state.json").read_text(encoding="utf-8"))
+                if state.get("status") != "starting" or child.poll() is not None:
+                    break
+                time.sleep(0.1)
+            print(json.dumps({"flowId": flow_id, **state}))
+            return 0
+        if (set(request) != {"flowId", "ownerId"} or type(request["flowId"]) is not str or
+                re.fullmatch(r"[0-9a-f]{32}", request["flowId"]) is None or
+                type(request["ownerId"]) is not str or not 1 <= len(request["ownerId"]) <= 128):
+            raise ValueError("invalid_request")
+        flow_dir = root / request["flowId"]
+        if root.is_symlink() or flow_dir.is_symlink() or not flow_dir.is_dir():
+            raise ValueError("unknown_oauth_flow")
+        owner_path = flow_dir / "owner.json"
+        if (owner_path.is_symlink() or owner_path.stat().st_size > 512 or
+                not hmac.compare_digest(json.loads(owner_path.read_text(encoding="utf-8")).get("ownerId", ""),
+                                        request["ownerId"])):
+            raise ValueError("unknown_oauth_flow")
+        state_lock = lock_config(home)
+        try:
+            state_path = flow_dir / "state.json"
+            if state_path.is_symlink() or state_path.stat().st_size > 16384:
+                raise ValueError("unsafe_oauth_state")
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            worker_path = flow_dir / "worker.json"
+            if worker_path.is_symlink() or worker_path.stat().st_size > 128:
+                raise ValueError("unsafe_oauth_state")
+            worker = json.loads(worker_path.read_text(encoding="utf-8"))
+            pid, started = worker.get("pid"), worker.get("start")
+            worker_dead = type(pid) is not int or not isinstance(started, str) or process_start(pid) != started
+            if worker_dead:
+                from hermes_mcp_oauth_worker import discard_stage, write_state
+                discard_stage(flow_dir)
+                if state.get("status") in ("starting", "awaiting_approval", "publishing", "cancelling"):
+                    write_state(flow_dir, "failed", failureClass="oauth_worker_unconfirmed")
+                    state = {"status": "failed", "failureClass": "oauth_worker_unconfirmed"}
+            if action == "mcp-oauth-cancel" and state.get("status") in ("starting", "awaiting_approval", "publishing"):
+                try:
+                    fd = os.open(flow_dir / "cancel", os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+                except FileExistsError:
+                    pass
+                else:
+                    os.close(fd)
+                state = {"status": "cancelling"}
+            elif state.get("status") in ("starting", "awaiting_approval", "publishing") and \
+                    time.time() - state.get("updatedAt", 0) > 350:
+                state = {"status": "failed", "failureClass": "oauth_worker_unconfirmed"}
+        finally:
+            if state_lock is not None:
+                fcntl.flock(state_lock, fcntl.LOCK_UN)
+                state_lock.close()
+        print(json.dumps({"flowId": request["flowId"], **state}))
+        return 0
+    if sys.argv[1] == "mcp-probe":
+        if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
+            raise ValueError("unsupported_source_revision")
+        request = json.load(sys.stdin)
+        if (not isinstance(request, dict) or set(request) != {"name", "revision"} or
+                not valid_mcp_name(request["name"]) or type(request["revision"]) is not int):
+            raise ValueError("invalid_request")
+        before, raw = snapshot(config_path)
+        if before != request["revision"]:
+            print(json.dumps({"error": "revision_conflict"}))
+            return 4
+        entry = raw.get("mcp_servers", {}).get(request["name"]) if isinstance(raw.get("mcp_servers"), dict) else None
+        if (not isinstance(entry, dict) or not valid_url(entry.get("url")) or
+                entry.get("enabled", True) is not True):
+            raise ValueError("unprobeable_server")
+        if set(entry) <= {"url", "enabled"}:
+            from hermes_mcp_protocol_probe import ProbeFailure, probe
+            try:
+                result = probe(entry["url"])
+            except ProbeFailure as exc:
+                result = {"connected": False, "toolCount": None, "toolCountComplete": False,
+                          "failureClass": exc.failure_class}
+        elif (re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", request["name"]) and
+              set(entry) <= {"url", "enabled", "headers"} and
+              entry.get("headers") == {"Authorization": "Bearer ${MCP_" + request["name"].upper() + "_API_KEY}"}):
+            sys.path.insert(0, str(source))
+            from hermes_cli._launchers import runtime_command
+            helper = Path(__file__).with_name("hermes_mcp_auth_probe.py")
+            command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
+            child = run_runtime_child(command, json.dumps({"name": request["name"], "url": entry["url"],
+                "revision": before, "configPath": str(config_path)}), 28)
+            try:
+                result = json.loads(child.stdout)
+            except (ValueError, TypeError):
+                result = None
+            if child.returncode or not isinstance(result, dict) or set(result) != {
+                    "connected", "toolCount", "toolCountComplete", "failureClass"}:
+                raise ValueError("mcp_probe_unconfirmed")
+        else:
+            raise ValueError("unprobeable_server")
+        if revision(config_path) != before:
+            print(json.dumps({"error": "revision_conflict"}))
+            return 4
+        print(json.dumps({"name": request["name"], "revision": before, **result}))
+        return 0
     if sys.argv[1] == "model-catalog":
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
@@ -302,32 +632,41 @@ def locked_main(home, source, cli):
         print(json.dumps({"sourceRevision": source_revision, "providers": response["providers"],
                           "selected": response.get("selected")}))
         return 0
-    if sys.argv[1] in ("update", "credential-update", "plugin-activation", "mcp-http"):
+    if sys.argv[1] in ("update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer"):
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
         request = json.load(sys.stdin)
         plugin_update = sys.argv[1] == "plugin-activation"
-        mcp_update = sys.argv[1] == "mcp-http"
+        mcp_activation = sys.argv[1] == "mcp-activation"
+        mcp_update = sys.argv[1] in ("mcp-http", "mcp-activation")
+        mcp_bearer = sys.argv[1] == "mcp-bearer"
         expected_keys = ({"pluginId", "enabled", "revision"} if plugin_update else
+                         {"name", "enabled", "revision"} if mcp_activation else
+                         {"name", "token", "revision"} if mcp_bearer else
                          {"name", "url", "enabled", "revision"} if mcp_update else
                          {"key", "value", "revision"})
         if not isinstance(request, dict) or set(request) != expected_keys:
             raise ValueError("invalid_request")
         key = ("plugin:" + request["pluginId"] if plugin_update and isinstance(request["pluginId"], str) else
-               "mcp:" + request["name"] if mcp_update and isinstance(request["name"], str) else request.get("key"))
-        value = request["enabled"] if plugin_update or mcp_update else request["value"]
+               "mcp:" + request["name"] if (mcp_update or mcp_bearer) and isinstance(request["name"], str) else request.get("key"))
+        value = request["enabled"] if plugin_update or mcp_update else request.get("token") if mcp_bearer else request["value"]
         credential_update = sys.argv[1] == "credential-update"
-        spec = FIELDS.get(key) if not (plugin_update or mcp_update) else None
+        spec = FIELDS.get(key) if not (plugin_update or mcp_update or mcp_bearer) else None
         if type(request["revision"]) is not int or (plugin_update and
                 (not valid_plugin_id(request["pluginId"]) or
                  type(value) is not bool)) or (mcp_update and
                  (not valid_mcp_name(request["name"]) or type(value) is not bool or
-                  not (request["url"] is None and value is False or
+                  not (mcp_activation or request["url"] is None and value is False or
                        type(request["url"]) is str and len(request["url"]) <= 2048))) or (credential_update and
                  (key not in MODEL_CREDENTIALS or not (value is None or
                  (isinstance(value, str) and 1 <= len(value) <= 4096 and
                   all(32 <= ord(char) <= 126 for char in value))))) or \
-                (not credential_update and not plugin_update and not mcp_update and
+                 (mcp_bearer and (type(request["name"]) is not str or
+                  re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", request["name"]) is None or
+                  not (request["token"] is None or type(request["token"]) is str and
+                       1 <= len(request["token"]) <= 4096 and
+                       all(33 <= ord(char) <= 126 for char in request["token"])))) or \
+                (not credential_update and not plugin_update and not mcp_update and not mcp_bearer and
                  (not spec or not valid_field_value(key, value, spec))):
             raise ValueError("unsupported_field")
         lock = lock_config(home)
@@ -336,6 +675,66 @@ def locked_main(home, source, cli):
             if request["revision"] != before or revision(config_path) != before:
                 print(json.dumps({"error": "revision_conflict"}))
                 return 4
+            if key in ("terminal.docker_mount_cwd_to_workspace", "terminal.docker_volumes") and \
+                    nested(_raw_before, "terminal.backend") not in ("docker",):
+                raise ValueError("execution_backend_required")
+            if key == "terminal.cwd" and value != ".":
+                workspace = Path(value)
+                if (workspace.is_symlink() or not workspace.is_dir() or
+                        not workspace.resolve().is_relative_to(home.parent.resolve()) or
+                        workspace.resolve().is_relative_to(home.resolve())):
+                    raise ValueError("invalid_execution_workspace")
+            if key == "terminal.docker_volumes":
+                for mount in value:
+                    host_path, separator, container_path = mount.partition(":")
+                    host = Path(host_path)
+                    if (not separator or ":" in container_path or host.is_symlink() or not host.is_dir() or
+                            not host.resolve().is_relative_to(home.parent.resolve()) or
+                            host.resolve().is_relative_to(home.resolve()) or
+                            not re.fullmatch(r"/workspace/mounts/[A-Za-z][A-Za-z0-9_-]{0,63}", container_path)):
+                        raise ValueError("invalid_docker_mount")
+            if key == "toolsets":
+                sys.path.insert(0, str(source))
+                from toolsets import TOOLSETS
+                if not value or not set(value) <= set(TOOLSETS):
+                    raise ValueError("unknown_toolset")
+            if key == "command_allowlist":
+                prior = nested(_raw_before, "command_allowlist")
+                if not isinstance(prior, list) or not all(isinstance(item, str) for item in prior) or \
+                        not set(value) <= set(prior):
+                    raise ValueError("allowlist_addition_requires_native_approval")
+            if key == "terminal.backend" and value == "docker":
+                if (nested(_raw_before, "terminal.docker_network") is not False or
+                        nested(_raw_before, "terminal.docker_mount_cwd_to_workspace") is True or
+                        nested(_raw_before, "terminal.docker_volumes") not in (None, [])):
+                    raise ValueError("docker_policy_requires_safe_baseline")
+                docker = shutil.which("docker")
+                if not docker or subprocess.run([docker, "info", "--format", "{{.ServerVersion}}"],
+                                                capture_output=True, timeout=5).returncode:
+                    raise ValueError("docker_unavailable")
+            if key == "computer_use.permission_mode" and value == "bounded":
+                manifest = nested(_raw_before, "computer_use.capability_manifest")
+                if not isinstance(manifest, str) or not manifest:
+                    raise ValueError("capability_manifest_required")
+            if key == "computer_use.capability_manifest" and value:
+                manifest_path = Path(value)
+                if (manifest_path.is_symlink() or not manifest_path.is_file() or
+                        manifest_path.stat().st_size > 65536 or
+                        not manifest_path.resolve().is_relative_to(home.resolve())):
+                    raise ValueError("invalid_capability_manifest")
+            if key == "computer_use.capability_manifest" and not value and \
+                    nested(_raw_before, "computer_use.permission_mode") == "bounded":
+                raise ValueError("capability_manifest_required")
+            if key == "browser.use_real_profile" and value is True and \
+                    not nested(_raw_before, "browser.real_profile_pin"):
+                raise ValueError("profile_pin_required")
+            if key == "browser.real_profile_pin" and not value and \
+                    nested(_raw_before, "browser.use_real_profile") is True:
+                raise ValueError("profile_pin_required")
+            if key == "browser.allow_unsafe_evaluate" and value and nested(_raw_before, "browser.restrict_evaluate") is True:
+                raise ValueError("conflicting_browser_evaluate_policy")
+            if key == "browser.restrict_evaluate" and value and nested(_raw_before, "browser.allow_unsafe_evaluate") is True:
+                raise ValueError("conflicting_browser_evaluate_policy")
             if plugin_update:
                 prior = subprocess.run([str(cli), "plugins", "list", "--json", "--user"],
                                        capture_output=True, text=True, timeout=15)
@@ -360,18 +759,49 @@ def locked_main(home, source, cli):
                 if result.returncode or not accepted:
                     raise ValueError("plugin_activation_unconfirmed")
             if mcp_update:
+                mcp_url = request.get("url")
+                if mcp_activation:
+                    existing = _raw_before.get("mcp_servers", {}).get(request["name"]) if isinstance(
+                        _raw_before.get("mcp_servers"), dict) else None
+                    if (not isinstance(existing, dict) or set(existing) - {"url", "enabled"} or
+                            not valid_url(existing.get("url"))):
+                        raise ValueError("managed_entry_conflict")
+                    mcp_url = existing["url"]
                 sys.path.insert(0, str(source))
                 from hermes_cli._launchers import runtime_command
                 helper = Path(__file__).with_name("hermes_mcp_http_apply.py")
                 command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
                 result = run_runtime_child(command, json.dumps({"name": request["name"],
-                    "url": request["url"], "enabled": value}), 30)
+                    "url": mcp_url, "enabled": value}), 30)
                 try:
                     accepted = json.loads(result.stdout).get("saved") is True
                 except (ValueError, TypeError):
                     accepted = False
                 if result.returncode or not accepted:
                     raise ValueError("mcp_write_unconfirmed")
+            if mcp_bearer:
+                existing = _raw_before.get("mcp_servers", {}).get(request["name"]) if isinstance(
+                    _raw_before.get("mcp_servers"), dict) else None
+                if not isinstance(existing, dict) or not valid_url(existing.get("url")):
+                    raise ValueError("managed_entry_conflict")
+                env_lock = lock_config(home, ".obsidian-vault.lock")
+                try:
+                    sys.path.insert(0, str(source))
+                    from hermes_cli._launchers import runtime_command
+                    helper = Path(__file__).with_name("hermes_mcp_bearer_apply.py")
+                    command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
+                    result = run_runtime_child(command, json.dumps({"name": request["name"],
+                        "token": request["token"], "expectedUrl": existing["url"],
+                        "expectedRevision": before, "configPath": str(config_path)}), 30)
+                    try:
+                        accepted = json.loads(result.stdout).get("saved") is True
+                    except (ValueError, TypeError):
+                        accepted = False
+                    if result.returncode or not accepted:
+                        raise ValueError("mcp_credential_unconfirmed")
+                finally:
+                    fcntl.flock(env_lock, fcntl.LOCK_UN)
+                    env_lock.close()
             if key == "skills.disabled":
                 roots, root_errors = inventory_roots(home, call)
                 names, scan_errors = installed_skills(roots)
@@ -395,17 +825,27 @@ def locked_main(home, source, cli):
                 finally:
                     fcntl.flock(env_lock, fcntl.LOCK_UN)
                     env_lock.close()
-            elif not plugin_update and not mcp_update:
+            elif not plugin_update and not mcp_update and not mcp_bearer:
                 # Hermes owns validation and preserving the rest of config.yaml. Never --force.
                 call("set", key, json.dumps(value, separators=(",", ":")) if isinstance(value, list) else
                      "null" if value is None else str(value).lower() if isinstance(value, bool) else str(value))
+                if key == "browser.use_real_profile" and value is False:
+                    # Revocation must remove credential snapshots now, rather
+                    # than waiting for the next browser tool invocation.
+                    snapshot_root = home / "browser-profile"
+                    if snapshot_root.is_symlink():
+                        raise ValueError("profile_snapshot_cleanup_failed")
+                    if snapshot_root.exists():
+                        shutil.rmtree(snapshot_root)
+                    if snapshot_root.exists():
+                        raise ValueError("profile_snapshot_cleanup_failed")
             current, raw = snapshot(config_path)
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
             lock.close()
     else:
         current, raw = snapshot(config_path)
-    write_key = key if sys.argv[1] in ("plugin-activation", "mcp-http") else None
+    write_key = key if sys.argv[1] in ("plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer") else None
     values = {}
     for key in FIELDS:
         if key != "skills.disabled":
@@ -444,6 +884,9 @@ def locked_main(home, source, cli):
         plugin_rows = []
         plugin_errors.append("plugin_inventory_unknown")
     mcp_rows, mcp_errors = [], []
+    env_lines = (home / ".env").read_text(encoding="utf-8-sig").splitlines() if (home / ".env").exists() else []
+    env_names = {line.partition("=")[0].strip() for line in env_lines if "=" in line and
+                 line.partition("=")[2].strip().strip('"')}
     mcp_config = raw.get("mcp_servers")
     if mcp_config is not None and not isinstance(mcp_config, dict):
         mcp_errors.append("mcp_inventory_unknown")
@@ -461,10 +904,22 @@ def locked_main(home, source, cli):
                         endpoint = f"{parts.scheme}://{parts.hostname}"
                 except ValueError:
                     pass
+            env_key = "MCP_" + re.sub(r"[^A-Za-z0-9_]", "_", name.upper()).strip("_") + "_API_KEY"
+            bearer_template = {"Authorization": "Bearer ${" + env_key + "}"}
+            auth_mode = ("oauth" if entry.get("auth") == "oauth" else
+                         "bearer" if entry.get("headers") == bearer_template else
+                         "none" if "auth" not in entry and "headers" not in entry else "unknown")
             mcp_rows.append({"id": name, "transport": transport,
                              "enabled": entry.get("enabled", True) if type(entry.get("enabled", True)) is bool else None,
                              "endpoint": endpoint,
-                             "editable": transport == "http" and set(entry) <= {"url", "enabled"}})
+                             "authMode": auth_mode,
+                             "credentialConfigured": env_key in env_names if auth_mode == "bearer" else
+                                                     (not (home / "mcp-tokens" / f"{name}.json").is_symlink() and
+                                                      (home / "mcp-tokens" / f"{name}.json").is_file())
+                                                     if auth_mode == "oauth" and
+                                                        re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", name) else None,
+                             "editable": transport == "http" and set(entry) <= {"url", "enabled"} and
+                                         valid_url(entry.get("url"))})
     if revision(config_path) != current:
         raise ValueError("concurrent_config_change")
     configured_providers = raw.get("providers")
@@ -495,10 +950,17 @@ def locked_main(home, source, cli):
         write = {"key": write_key, "persisted": len(matches) == 1 and
                  matches[0].get("status") in ("enabled", "disabled", "not enabled") and
                  (matches[0]["status"] == "enabled") == value}
-    elif sys.argv[1] == "mcp-http":
-        persisted = (not isinstance(mcp_config, dict) or request["name"] not in mcp_config) if request["url"] is None else (
+    elif sys.argv[1] in ("mcp-http", "mcp-activation"):
+        persisted = (not isinstance(mcp_config, dict) or request["name"] not in mcp_config) if not mcp_activation and request["url"] is None else (
             isinstance(mcp_config, dict) and mcp_config.get(request["name"]) ==
-            {"url": request["url"], "enabled": value})
+            {"url": mcp_url, "enabled": value})
+        write = {"key": write_key, "persisted": persisted and not mcp_errors}
+    elif sys.argv[1] == "mcp-bearer":
+        entry = mcp_config.get(request["name"]) if isinstance(mcp_config, dict) else None
+        env_key = "MCP_" + request["name"].upper() + "_API_KEY"
+        persisted = isinstance(entry, dict) and (entry.get("headers") ==
+            {"Authorization": "Bearer ${" + env_key + "}"}) == (request["token"] is not None) and \
+            (env_key in env_names) == (request["token"] is not None)
         write = {"key": write_key, "persisted": persisted and not mcp_errors}
     elif sys.argv[1] == "update":
         write = {"key": request["key"], "persisted": values[request["key"]] == request["value"]}
@@ -535,5 +997,10 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (OSError, ValueError, TypeError, ImportError, subprocess.TimeoutExpired) as error:
-        print(json.dumps({"error": str(error) if str(error) in {"config_symlink", "invalid_request", "unsupported_field", "invalid_value", "unknown_provider"} else "hermes_unavailable"}))
+        print(json.dumps({"error": str(error) if str(error) in {"config_symlink", "invalid_request", "unsupported_field", "invalid_value", "unknown_provider",
+            "managed_entry_conflict", "unknown_oauth_flow", "oauth_flow_limit", "unsafe_oauth_state", "unsupported_source_revision",
+            "execution_backend_required", "docker_policy_requires_safe_baseline", "docker_unavailable", "invalid_execution_workspace", "invalid_docker_mount",
+            "capability_manifest_required", "invalid_capability_manifest", "conflicting_browser_evaluate_policy",
+            "unknown_toolset", "allowlist_addition_requires_native_approval", "profile_snapshot_cleanup_failed",
+            "profile_pin_required"} else "hermes_unavailable"}))
         raise SystemExit(5)

@@ -6,7 +6,7 @@ import { LogOut, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useT } from "@/i18n";
-import { useLogoutAll, useLayouts } from "@/lib/api/domains/settings";
+import { useHermesModelCatalog, useLogoutAll, useLayouts, useSettings } from "@/lib/api/domains/settings";
 import { useMeta } from "@/lib/api/domains/core";
 import { useVoiceDevices, useVoiceIntegrationStatus } from "@/lib/api/domains/voice";
 import { useSession } from "@/lib/session";
@@ -17,6 +17,8 @@ import { useAreaDraft } from "./SettingsDrafts";
 import { NAV_PAGES } from "@/features/shell/navModel";
 import { DEFAULT_ASSISTANT_NAME } from "@/i18n";
 import type { MessageKey } from "@/i18n";
+import { WakeEnrollment } from "./WakeEnrollment";
+import { SttModelsControl } from "./SttModelsControl";
 
 const onOff = (t: (key: MessageKey) => string): readonly [string, string] => [t("settings.state.on"), t("settings.state.off")];
 
@@ -189,8 +191,12 @@ export function DashboardArea() {
 export function ModelsRoutingArea() {
   const { t } = useT();
   const { value, update, readOnly } = useAreaDraft("modelsRouting");
+  const taskKinds = ["voice-routine", "voice-complex", "voice-critical", "agent-task"];
+  const agentRoute = value?.routes.find((route) => route.taskKind === "agent-task");
+  const agentProvider = agentRoute?.model.split(":", 1)[0] ?? "";
+  const catalog = useHermesModelCatalog(agentProvider, !!agentRoute && !!agentProvider);
   if (!value) return null;
-
+  const nextTaskKind = taskKinds.find((kind) => !value.routes.some((route) => route.taskKind === kind));
   const setRoute = (index: number, patch: Partial<Settings["modelsRouting"]["routes"][number]>): void =>
     update({ routes: value.routes.map((route, i) => (i === index ? { ...route, ...patch } : route)) });
 
@@ -210,7 +216,7 @@ export function ModelsRoutingArea() {
         description={t("settings.models.routesDesc")}
         actions={
           readOnly ? null : (
-            <Button type="button" size="sm" variant="ghost" icon={<Plus size={14} />} onClick={() => update({ routes: [...value.routes, { taskKind: "", model: value.defaultModel, reasoningLevel: "medium", fallbackModel: null }] })}>
+            <Button type="button" size="sm" variant="ghost" icon={<Plus size={14} />} disabled={!nextTaskKind} onClick={() => nextTaskKind && update({ routes: [...value.routes, { taskKind: nextTaskKind, model: value.defaultModel, reasoningLevel: "medium", fallbackModel: null }] })}>
               {t("settings.models.addRoute")}
             </Button>
           )
@@ -220,14 +226,33 @@ export function ModelsRoutingArea() {
         <ul className="st-routes">
           {value.routes.map((route, index) => (
             <li key={index} className="st-route">
-              <TextField label={t("settings.models.taskKind")} value={route.taskKind} disabled={readOnly} onChange={(event) => setRoute(index, { taskKind: event.target.value })} />
-              <TextField label={t("settings.models.model")} value={route.model} disabled={readOnly} onChange={(event) => setRoute(index, { model: event.target.value })} />
+              <Select label={t("settings.models.taskKind")} value={route.taskKind} disabled={readOnly}
+                options={[...taskKinds.filter((kind) => kind === route.taskKind || !value.routes.some((other) => other.taskKind === kind)),
+                  ...(taskKinds.includes(route.taskKind) ? [] : [route.taskKind])].map((kind) =>
+                  ({ value: kind, label: taskKinds.includes(kind) ? kind : `${kind} (nicht unterstützt)` }))}
+                onChange={(event) => setRoute(index, { taskKind: event.target.value, fallbackModel: event.target.value === "agent-task" ? null : route.fallbackModel })} />
+              <TextField label={t("settings.models.model")} value={route.model} disabled={readOnly}
+                list={route.taskKind === "agent-task" ? "agent-task-models" : undefined}
+                onChange={(event) => setRoute(index, { model: event.target.value })} />
+              {route.taskKind === "agent-task" ? <>
+                <datalist id="agent-task-models">
+                  {(catalog.data?.data.selected?.models ?? []).map((model) =>
+                    <option key={model} value={`${agentProvider}:${model}`} />)}
+                </datalist>
+                <small role="status">{catalog.isError ? "Hermes-Modellbestand ist nicht erreichbar."
+                  : catalog.isPending ? "Hermes-Modellbestand wird gelesen…"
+                    : catalog.data?.data.selected?.origin === "endpoint_confirmed_picker"
+                      ? "Modellliste vom Anbieter abgefragt; Zugriff auf einzelne Modelle bleibt ungeprüft."
+                      : "Modellvorschläge sind kuratiert; Zugang und Modellzugriff bleiben ungeprüft."}</small>
+              </> : null}
               <Select label="Denkstufe" value={route.reasoningLevel} disabled={readOnly}
                 options={["none", "low", "medium", "high", "max"].map((level) => ({ value: level, label: level }))}
                 onChange={(event) => setRoute(index, { reasoningLevel: event.target.value as typeof route.reasoningLevel })} />
-              <TextField label="Fallback-Modell (Anbieter:Modell)" value={route.fallbackModel ?? ""} disabled={readOnly}
+              <TextField label="Fallback-Modell (Anbieter:Modell)" value={route.fallbackModel ?? ""} disabled={readOnly || route.taskKind === "agent-task"}
                 onChange={(event) => setRoute(index, { fallbackModel: event.target.value || null })} />
-              <small>Fallback nur vor dem ersten Agentaufruf, wenn kein Primärmodell eingerichtet ist. Nach jedem HTTP-Fehler oder Timeout erfolgt kein zweiter Aufruf.</small>
+              <small>{route.taskKind === "agent-task"
+                ? "Hermes erhält Modell, Anbieter und Denkstufe für neue Aufgaben. Fallback gilt hier nur gemäß der globalen Hermes-Konfiguration; pro Aufgabe gibt es keinen Fallback-Schalter."
+                : "Fallback nur vor dem ersten Agentaufruf, wenn kein Primärmodell eingerichtet ist. Nach jedem HTTP-Fehler oder Timeout erfolgt kein zweiter Aufruf."}</small>
               {readOnly ? null : (
                 <button type="button" className="st-iconbtn st-route__remove" aria-label={t("settings.list.remove", { name: route.taskKind || `#${index + 1}` })} onClick={() => update({ routes: value.routes.filter((_, i) => i !== index) })}>
                   <Trash2 size={14} strokeWidth={1.75} aria-hidden="true" />
@@ -248,6 +273,7 @@ export function VoiceArea() {
   const { value, update, readOnly } = useAreaDraft("voice");
   const devices = useVoiceDevices();
   const integration = useVoiceIntegrationStatus();
+  const saved = useSettings();
   if (!value) return null;
   const options = (kind: "input" | "output", current: string | null) => {
     const list = (devices.data?.items ?? []).filter((device) => device.kind === kind).map((device) => ({ value: device.id, label: `${device.name} · ${(device.labels ?? []).join(", ")}${device.isDefault ? ` (${t("settings.voice.systemDefault")})` : ""}` }));
@@ -264,14 +290,41 @@ export function VoiceArea() {
             {` Eingabegerät: ${integration.data.data.settings.inputDeviceId?.verification === "verified" ? "aktiv bestätigt" : "nicht bestätigt"}. Ausgabegerät: ${integration.data.data.settings.outputDeviceId?.verification === "verified" ? "aktiv bestätigt" : "nicht bestätigt"}.`}
           </p>
         ) : null}
+        {integration.data ? <ul aria-label="Sprachdienst-Einstellungen">
+          {([
+            ["wakeWordEnabled", t("settings.voice.wakeEnabled")], ["wakeWord", t("settings.voice.wakeWord")],
+            ["pushToTalkKey", t("settings.voice.ptt")], ["speakerVerificationRequired", t("settings.voice.speaker")],
+            ["storeRawRecordings", t("settings.voice.raw")], ["voiceHistoryEnabled", t("settings.voice.history")],
+            ["ttsRate", t("settings.voice.ttsRate")],
+            ["sttLanguage", "Erkennungssprache"], ["sttModel", "Whisper-Modell"],
+          ] as const).map(([field, label]) => <li key={field}>{label}: {
+            integration.data.data.settings[field]?.verification === "verified" ? "Laufzeit bestätigt" : "Wirkung nicht bestätigt"
+          }</li>)}
+        </ul> : null}
       </Section>
       <Section title={t("settings.voice.activation")}>
+        <WakeEnrollment phrase={value.wakeWord} activePhrase={saved.data?.data.voice.wakeWord ?? value.wakeWord} readOnly={readOnly} />
+        <p>Ein anderes Aktivierungswort benötigt eigene Trainingsaufnahmen. Ohne Sprecherprüfung erhalten unbestätigte Stimmen lokale Antworten ohne Verlauf oder Werkzeuge; persönliche Daten und verbundene Dienste bleiben gesperrt. Push-to-Talk funktioniert mit Browser-Audio und auf dem interaktiven Windows-Gerätedesktop.</p>
         <FieldGrid>
           <Switch label={t("settings.voice.wakeEnabled")} description={t("settings.voice.wakeEnabledDesc")} checked={value.wakeWordEnabled} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(wakeWordEnabled) => update({ wakeWordEnabled })} />
           <TextField label={t("settings.voice.wakeWord")} hint={t("settings.voice.wakeWordHint")} value={value.wakeWord} disabled={readOnly || !value.wakeWordEnabled} onChange={(event) => update({ wakeWord: event.target.value })} />
           <TextField label={t("settings.voice.ptt")} value={value.pushToTalkKey} disabled={readOnly} onChange={(event) => update({ pushToTalkKey: event.target.value })} />
           <Switch label={t("settings.voice.speaker")} description={t("settings.voice.speakerDesc")} checked={value.speakerVerificationRequired} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(speakerVerificationRequired) => update({ speakerVerificationRequired })} />
         </FieldGrid>
+      </Section>
+      <Section title="Spracherkennung" description="Ein Modellwechsel lädt ausschließlich ein bereits lokal vorhandenes Whisper-Modell. Fehlt es oder ist Cloud-Erkennung aktiv, bleibt das bisherige Modell erhalten.">
+        <FieldGrid>
+          <Select label="Erkennungssprache" value={value.sttLanguage ?? "de"} disabled={readOnly}
+            options={[{ value: "de", label: "Deutsch" }, { value: "en", label: "English" }]}
+            onChange={(event) => update({ sttLanguage: event.target.value as "de" | "en" })} />
+          <Select label="Lokales Whisper-Modell" value={value.sttModel ?? ""} disabled={readOnly}
+            options={[...(value.sttModel == null ? [{ value: "", label: "Installiertes Modell übernehmen" }] : []),
+              ...(value.sttModel != null && !["base", "small", "medium"].includes(value.sttModel) ? [{ value: value.sttModel, label: `Modell (${value.sttModel})` }] : []),
+              { value: "base", label: "base" }, { value: "small", label: "small" }, { value: "medium", label: "medium" }]}
+            onChange={(event) => update({ sttModel: event.target.value === "" ? null : event.target.value as "base" | "small" | "medium" })} />
+        </FieldGrid>
+        <SttModelsControl selected={value.sttModel ?? null} language={value.sttLanguage ?? "de"} readOnly={readOnly}
+          onSelect={(sttModel) => update({ sttModel })} />
       </Section>
       <Section title={t("settings.voice.privacy")}>
         <FieldGrid>
@@ -329,13 +382,29 @@ export function NotificationsArea() {
               />
               {channel.kind !== "dashboard" ? (
                 <>
-                  <TextField
-                    label={t("settings.notifications.accountId")}
-                    value={channel.accountId ?? "default"}
-                    disabled={readOnly || !channel.enabled}
-                    maxLength={64}
-                    onChange={(event) => setChannel(channel.kind, { accountId: event.target.value })}
-                  />
+                  {["telegram", "whatsapp", "sms"].includes(channel.kind) ? (
+                    <Select
+                      label={t("settings.notifications.accountId")}
+                      value={channel.accountId ?? "default"}
+                      disabled={readOnly || !channel.enabled}
+                      hint={t("settings.notifications.defaultAccountOnly")}
+                      options={[
+                        { value: "default", label: t("settings.notifications.defaultAccount") },
+                        ...(channel.accountId && channel.accountId !== "default"
+                          ? [{ value: channel.accountId, label: `${channel.accountId} (${t("settings.notifications.unsupportedAccount")})` }]
+                          : []),
+                      ]}
+                      onChange={(event) => setChannel(channel.kind, { accountId: event.target.value })}
+                    />
+                  ) : (
+                    <TextField
+                      label={t("settings.notifications.accountId")}
+                      value={channel.accountId ?? "default"}
+                      disabled={readOnly || !channel.enabled}
+                      maxLength={64}
+                      onChange={(event) => setChannel(channel.kind, { accountId: event.target.value })}
+                    />
+                  )}
                   <TextField
                     label={t("settings.notifications.recipient")}
                     value={channel.recipient ?? ""}

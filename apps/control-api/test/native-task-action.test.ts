@@ -1,5 +1,108 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expect, it } from "vitest";
 import { startTestApi } from "./helpers";
+
+it("routes an agent task before preview and rejects a changed route on confirmation", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const initial = (await owner.get("/api/v1/settings")).json().data;
+    const routes = [...initial.modelsRouting.routes,
+      { taskKind: "agent-task", model: "kimi-coding:k3", reasoningLevel: "high", fallbackModel: null }];
+    const configured = await owner.patch("/api/v1/settings",
+      { modelsRouting: { ...initial.modelsRouting, routes }, approvals: { ...initial.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(initial.version) } });
+    expect(configured.statusCode, configured.body).toBe(200);
+    const body = { title: "Geroutete Aufgabe" };
+    const staged = await owner.post("/api/v1/tasks", body);
+    expect(staged.statusCode).toBe(403);
+    expect(staged.json().error.details.previewText).toContain("kimi-coding:k3");
+    const previewId = staged.json().error.details.previewId as string;
+    const changed = await owner.patch("/api/v1/settings",
+      { modelsRouting: { ...initial.modelsRouting, routes: routes.map((route) => route.taskKind === "agent-task"
+        ? { ...route, model: "kimi-coding:kimi-for-coding" } : route) } },
+      { headers: { "if-match": String(configured.json().data.version) } });
+    expect(changed.statusCode, changed.body).toBe(200);
+    expect((await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId } })).statusCode).toBe(409);
+    expect((await owner.post("/api/v1/tasks", body, { headers: {
+      "x-action-preview-id": previewId, "x-action-preview-cancel": "true" } })).statusCode).toBe(204);
+    const restaged = await owner.post("/api/v1/tasks", body);
+    const created = await owner.post("/api/v1/tasks", body,
+      { headers: { "x-action-preview-id": restaged.json().error.details.previewId } });
+    expect(created.statusCode, created.body).toBe(201);
+    expect(created.json().data.model).toBe("kimi-for-coding");
+    const override = { title: "Explizites Modell", model: "claude-test", provider: "anthropic", reasoningLevel: "low" };
+    const stagedOverride = await owner.post("/api/v1/tasks", override);
+    const createdOverride = await owner.post("/api/v1/tasks", override,
+      { headers: { "x-action-preview-id": stagedOverride.json().error.details.previewId } });
+    expect(createdOverride.statusCode, createdOverride.body).toBe(201);
+    expect(createdOverride.json().data.model).toBe("claude-test");
+    const inherit = { title: "Profilmodell statt Route", model: null };
+    const stagedInherit = await owner.post("/api/v1/tasks", inherit);
+    expect(stagedInherit.json().error.details.previewText).not.toContain("kimi-coding:");
+    expect(stagedInherit.json().error.details.previewText).toContain("Denkstufe: high");
+    const createdInherit = await owner.post("/api/v1/tasks", inherit,
+      { headers: { "x-action-preview-id": stagedInherit.json().error.details.previewId } });
+    expect(createdInherit.statusCode, createdInherit.body).toBe(201);
+    expect(createdInherit.json().data.model).not.toBe("kimi-coding:kimi-for-coding");
+  } finally { await api.close(); }
+});
+
+it("keeps the agent-task preview bound across a Control API restart", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "friday-task-route-"));
+  let api = await startTestApi({ dir, responseValidation: "throw" });
+  try {
+    let owner = api.client();
+    await owner.loginDev("owner");
+    const before = (await owner.get("/api/v1/settings")).json().data;
+    const route = { taskKind: "agent-task", model: "kimi-coding:k3", reasoningLevel: "high", fallbackModel: null };
+    const saved = await owner.patch("/api/v1/settings",
+      { modelsRouting: { ...before.modelsRouting, routes: [...before.modelsRouting.routes, route] },
+        approvals: { ...before.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(before.version) } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    const body = { title: "Persistente Route" };
+    const staged = await owner.post("/api/v1/tasks", body);
+    expect(staged.statusCode).toBe(403);
+    const previewId = staged.json().error.details.previewId as string;
+    await api.close();
+    api = await startTestApi({ dir, responseValidation: "throw" });
+    owner = api.client();
+    await owner.loginDev("owner");
+    const current = (await owner.get("/api/v1/settings")).json().data;
+    expect(current.modelsRouting.routes).toContainEqual(route);
+    const changed = await owner.patch("/api/v1/settings",
+      { modelsRouting: { ...current.modelsRouting, routes: current.modelsRouting.routes.map((item: typeof route) =>
+        item.taskKind === "agent-task" ? { ...item, model: "kimi-coding:kimi-for-coding" } : item) } },
+      { headers: { "if-match": String(current.version) } });
+    expect(changed.statusCode, changed.body).toBe(200);
+    expect((await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId } })).statusCode).toBe(409);
+    expect((await owner.get("/api/v1/tasks", { query: { q: body.title } })).json().items).toHaveLength(0);
+  } finally { await api.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+it("rejects unsupported, duplicate, and per-task fallback routes before persistence", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const initial = (await owner.get("/api/v1/settings")).json().data;
+    const route = { taskKind: "agent-task", model: "kimi-coding:k3", reasoningLevel: "high", fallbackModel: null };
+    for (const routes of [
+      [...initial.modelsRouting.routes, { ...route, taskKind: "unknown" }],
+      [...initial.modelsRouting.routes, route, route],
+      [...initial.modelsRouting.routes, { ...route, fallbackModel: "anthropic:backup" }],
+    ]) {
+      const response = await owner.patch("/api/v1/settings", { modelsRouting: { ...initial.modelsRouting, routes } },
+        { headers: { "if-match": String(initial.version) } });
+      expect(response.statusCode, response.body).toBe(422);
+      expect((await owner.get("/api/v1/settings")).json().data.version).toBe(initial.version);
+    }
+  } finally { await api.close(); }
+});
 
 it("takes a text task draft through native approval and the real task port exactly once", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
@@ -156,6 +259,90 @@ it("direct task POST needs an exact preview even when tier-2 approval is disable
     expect(replay.statusCode, replay.body).toBe(201);
     expect(replay.json().data.id).toBe(confirmed.json().data.id);
     expect((await owner.get("/api/v1/tasks", { query: { q: body.title } })).json().items).toHaveLength(1);
+  } finally { await api.close(); }
+});
+
+it("discards a direct task-create preview only for its owner and never revives it", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const body = { title: "Direkt verworfener Entwurf", priority: "P2" };
+    const staged = await owner.post("/api/v1/tasks", body);
+    expect(staged.statusCode).toBe(403);
+    const previewId = staged.json().error.details.previewId as string;
+    const cancelHeaders = { "x-action-preview-id": previewId, "x-action-preview-cancel": "true" };
+
+    const otherUser = api.client();
+    await otherUser.loginDev("operator");
+    expect((await otherUser.post("/api/v1/tasks", body, { headers: cancelHeaders })).statusCode).toBe(409);
+    expect((await owner.post("/api/v1/tasks", { ...body, priority: "P1" }, { headers: cancelHeaders })).statusCode).toBe(409);
+    const firstDiscard = await owner.post("/api/v1/tasks", body,
+      { headers: { ...cancelHeaders, "idempotency-key": "discard-task-preview-001" } });
+    expect(firstDiscard.statusCode).toBe(204);
+    expect(firstDiscard.headers["idempotent-replayed"]).toBe("false");
+    const repeatedDiscard = await owner.post("/api/v1/tasks", body,
+      { headers: { ...cancelHeaders, "idempotency-key": "discard-task-preview-001" } });
+    expect(repeatedDiscard.statusCode).toBe(409);
+    expect((await owner.post("/api/v1/tasks", body, { headers: cancelHeaders })).statusCode).toBe(409);
+    expect((await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId } })).statusCode).toBe(409);
+    expect((await owner.get("/api/v1/tasks", { query: { q: body.title } })).json().items).toHaveLength(0);
+  } finally { await api.close(); }
+});
+
+it("rejects malformed direct task-preview cancellation headers without consuming the draft", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const body = { title: "Draft nach Headerfehler" };
+    const staged = await owner.post("/api/v1/tasks", body);
+    const previewId = staged.json().error.details.previewId as string;
+    expect((await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-cancel": "true" } })).statusCode).toBe(422);
+    expect((await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId, "x-action-preview-cancel": "false" } })).statusCode).toBe(422);
+    expect((await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId, "x-action-preview-cancel": "true" } })).statusCode).toBe(204);
+  } finally { await api.close(); }
+});
+
+it("discards update, cancel and retry drafts only with the same owner and action", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const otherUser = api.client();
+    await otherUser.loginDev("operator");
+    const tasks = (await owner.get("/api/v1/tasks")).json().items as Array<{
+      id: string; title: string; status: string; version: number;
+    }>;
+    const cases = [
+      { method: "patch", task: tasks.find((item) => item.status === "todo"), suffix: "", body: { title: "Nur Vorschau" } },
+      { method: "post", task: tasks.find((item) => item.status === "running"), suffix: "/cancel", body: { reason: "Nur Vorschau" } },
+      { method: "post", task: tasks.find((item) => item.status === "failed"), suffix: "/retry", body: { reason: "Nur Vorschau" } },
+    ] as const;
+    for (const entry of cases) {
+      expect(entry.task).toBeDefined();
+      const task = entry.task!;
+      const path = `/api/v1/tasks/${task.id}${entry.suffix}`;
+      const headers = { "if-match": String(task.version) };
+      const request = (client: typeof owner, body: object, extra: Record<string, string> = {}) =>
+        entry.method === "patch" ? client.patch(path, body, { headers: { ...headers, ...extra } })
+          : client.post(path, body, { headers: { ...headers, ...extra } });
+      const staged = await request(owner, entry.body);
+      expect(staged.statusCode, staged.body).toBe(403);
+      const previewId = staged.json().error.details.previewId as string;
+      const discard = { "x-action-preview-id": previewId, "x-action-preview-cancel": "true",
+        "idempotency-key": `task-draft-discard-${entry.method}-${entry.suffix || "update"}` };
+      expect((await request(otherUser, entry.body, discard)).statusCode).toBe(409);
+      expect((await request(owner, entry.method === "patch" ? { title: "Anderer Entwurf" } :
+        { reason: "Andere Nutzlast" }, discard)).statusCode).toBe(409);
+      expect((await request(owner, entry.body, { "x-action-preview-cancel": "true" })).statusCode).toBe(422);
+      const discarded = await request(owner, entry.body, discard);
+      expect(discarded.statusCode).toBe(204);
+      expect(discarded.headers["idempotent-replayed"]).toBe(entry.method === "patch" ? undefined : "false");
+      expect((await request(owner, entry.body, { "x-action-preview-id": previewId })).statusCode).toBe(409);
+      const after = await owner.get(`/api/v1/tasks/${task.id}`);
+      expect(after.json().data).toMatchObject({ id: task.id, title: task.title, status: task.status });
+    }
   } finally { await api.close(); }
 });
 
