@@ -1,7 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import type { spawn } from "node:child_process";
-import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
@@ -28,7 +28,7 @@ it("uses the bundled helper directly on native Linux without WSL install state",
     const script = join(root, "installer", "wsl", "research_hermes_synthesis.py");
     mkdirSync(join(root, "installer", "wsl"), { recursive: true });
     writeFileSync(script, "# fixture\n");
-    expect(researchModelTarget(join(root, "data", "runtime"), "linux")).toEqual({
+    expect(researchModelTarget(join(root, "data", "runtime"), "linux", {})).toEqual({
       command: "python3",
       args: [realpathSync.native(script)],
     });
@@ -38,6 +38,34 @@ it("uses the bundled helper directly on native Linux without WSL install state",
       resolve(root).startsWith(resolve(tmpdir()) + "/")
     )
       rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it("resolves the native Linux helper from the trusted install root when state data is separate", () => {
+  const sourceRoot = mkdtempSync(join(tmpdir(), "friday-research-source-"));
+  const stateRoot = mkdtempSync(join(tmpdir(), "friday-research-state-"));
+  try {
+    const scripts = join(sourceRoot, "installer", "wsl");
+    mkdirSync(scripts, { recursive: true });
+    const helper = join(scripts, "research_hermes_synthesis.py");
+    writeFileSync(helper, "# fixture\n");
+    const dataDir = join(stateRoot, "data");
+    mkdirSync(dataDir);
+    expect(researchModelTarget(dataDir, "linux", { FRIDAY_INSTALL_ROOT: sourceRoot })).toEqual({
+      command: "python3", args: [realpathSync.native(helper)],
+    });
+    expect(researchModelTarget(dataDir, "linux", { FRIDAY_INSTALL_ROOT: join(sourceRoot, "missing") })).toBeNull();
+    expect(researchModelTarget(dataDir, "linux", { FRIDAY_INSTALL_ROOT: "relative/path" })).toBeNull();
+    rmSync(helper);
+    const outside = join(stateRoot, "unexpected.py");
+    writeFileSync(outside, "# outside\n");
+    symlinkSync(outside, helper);
+    expect(researchModelTarget(dataDir, "linux", { FRIDAY_INSTALL_ROOT: sourceRoot })).toBeNull();
+  } finally {
+    for (const directory of [sourceRoot, stateRoot]) {
+      if (resolve(directory).startsWith(resolve(tmpdir()) + "\\") || resolve(directory).startsWith(resolve(tmpdir()) + "/"))
+        rmSync(directory, { recursive: true, force: true });
+    }
   }
 });
 

@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
-import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { nativeRunnerScript } from "./coding-runs";
 
 export type ResearchModelSource = { id: string; title: string; url: string; text: string };
 export type ResearchModelObservation = { sourceId: string; quote: string; statement: string };
@@ -22,29 +23,22 @@ const MODEL_TIMEOUT_MS = 75_000;
 export function researchModelTarget(
   dataDir: string,
   platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
 ): {
   command: string;
   args: string[];
 } | null {
   if (platform !== "win32" && platform !== "linux") return null;
-  const root = resolve(dataDir, "..", "..");
-  const statePath = join(root, "config", "install-state.json");
-  const scriptPath = join(root, "installer", "wsl", "research_hermes_synthesis.py");
-  if (!existsSync(scriptPath) || (platform === "win32" && !existsSync(statePath))) return null;
-  const script = realpathSync.native(scriptPath);
-  const scriptRoot = realpathSync.native(join(root, "installer", "wsl"));
-  const outside =
-    platform === "win32"
-      ? relative(scriptRoot.toLowerCase(), script.toLowerCase())
-      : relative(scriptRoot, script);
-  if (
-    outside === ".." ||
-    outside.startsWith(`..${sep}`) ||
-    isAbsolute(outside) ||
-    !lstatSync(scriptPath).isFile()
-  )
+  let root: string;
+  let script: string;
+  try {
+    ({ root, script } = nativeRunnerScript(dataDir, "research_hermes_synthesis.py", env));
+  } catch {
     return null;
+  }
   if (platform === "linux") return { command: "python3", args: [script] };
+  const statePath = join(root, "config", "install-state.json");
+  if (!existsSync(statePath)) return null;
   const state = JSON.parse(readFileSync(statePath, "utf8").replace(/^\uFEFF/, "")) as {
     distro_name?: string;
     linux_user?: string;
