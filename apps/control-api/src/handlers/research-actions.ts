@@ -130,16 +130,20 @@ export async function executeResearchCommand(
   const key = request.confirm ? request.previewId : ctx.correlationId;
   if (!key) throw validationFailed("Eine bestaetigte Vorschau fehlt.");
   if (!request.confirm && !request.previewId) ctx.runtime.research.assertConfigured();
-  const providerVersion =
+  const storedAction =
     request.confirm || request.previewId
       ? (() => {
           const stored = ctx.runtime.nativeApprovals.readAction(ownerId, request.previewId ?? key);
           if (!stored || stored.kind !== "research.create")
             throw conflict("Der Entwurf passt nicht zur Recherche.");
-          return stored.providerVersion;
+          if (ctx.voiceBridgeAuthorized && stored.channel !== "voice")
+            throw conflict("Der Entwurf stammt nicht aus diesem Sprachdialog.");
+          return stored;
         })()
-      : ctx.runtime.research.configuration().version;
-  const action: NativeExecutableAction = { kind: "research.create", body: { topic }, providerVersion };
+      : null;
+  const action: NativeExecutableAction = { kind: "research.create", body: { topic },
+    providerVersion: storedAction?.providerVersion ?? ctx.runtime.research.configuration().version,
+    ...(storedAction?.channel === "voice" || (!storedAction && ctx.voiceBridgeAuthorized) ? { channel: "voice" as const } : {}) };
   const base = {
     contractVersion: CONTRACT_VERSION,
     commandId: createId("cmd"),
@@ -147,7 +151,10 @@ export async function executeResearchCommand(
     riskTier: 2 as const,
   };
   if (!request.confirm && request.previewId) {
-    ctx.runtime.nativeApprovals.cancelDraft(ownerId, request.previewId, action);
+    if (ctx.voiceBridgeAuthorized && ctx.runtime.nativeApprovals.stateOf(ownerId, request.previewId) === "pending") {
+      ctx.runtime.nativeApprovals.cancelPending(ownerId, request.previewId, action, ctx.actor);
+      ctx.audit.action = "research.voice_approval_cancelled";
+    } else ctx.runtime.nativeApprovals.cancelDraft(ownerId, request.previewId, action);
     return {
       status: 200,
       body: {

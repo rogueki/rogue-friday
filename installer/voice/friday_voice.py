@@ -1816,7 +1816,7 @@ class VoiceService:
             if interrupted:
                 self.calendar_voice.pending = None
                 if hasattr(self, "research_voice"):
-                    self.research_voice.cancel()
+                    self.research_voice.cancel_preview()
                 if hasattr(self, "mail_voice"):
                     self.mail_voice.clear_confirmation()
                 for name in ("powerpoint_voice", "cloudtalk_voice"):
@@ -1857,7 +1857,7 @@ class VoiceService:
         self._drain()
         self.calendar_voice.pending = None
         if hasattr(self, "research_voice"):
-            self.research_voice.cancel()
+            self.research_voice.cancel_preview()
         if hasattr(self, "mail_voice"):
             self.mail_voice.clear_confirmation()
         for name in ("powerpoint_voice", "cloudtalk_voice"):

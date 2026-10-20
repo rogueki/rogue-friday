@@ -28,7 +28,8 @@ class ResearchVoice:
         self.now = now
         self.opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
         self.pending = None
-        self.discard_thread = None
+        self.awaiting_approvals = []
+        self.discard_threads = []
 
     def handles_text(self, text):
         return bool(self.pending or RESEARCH.fullmatch(text.strip()))
@@ -43,18 +44,32 @@ class ResearchVoice:
     def cancel(self):
         pending = self.pending
         self.pending = None
-        if pending is None:
+        awaiting = self.awaiting_approvals
+        self.awaiting_approvals = []
+        self._discard(([pending] if pending else []) + awaiting)
+
+    def cancel_preview(self):
+        pending = self.pending
+        self.pending = None
+        if pending:
+            self._discard([pending])
+
+    def _discard(self, to_discard):
+        if not to_discard:
             return
 
-        def discard():
+        def discard(item):
             try:
-                self._request({"text": pending["text"], "source": "voice", "previewId": pending["previewId"]},
+                self._request({"text": item["text"], "source": "voice", "previewId": item["previewId"]},
                               timeout=2)
             except (OSError, ValueError, urllib.error.HTTPError):
-                pass  # Local cancellation is immediate; the server draft also expires on its own.
+                pass  # Local cancellation is immediate; the server keeps its own expiry and decision state.
 
-        self.discard_thread = threading.Thread(target=discard, daemon=True)
-        self.discard_thread.start()
+        self.discard_threads = [thread for thread in self.discard_threads if thread.is_alive()]
+        for item in to_discard:
+            thread = threading.Thread(target=discard, args=(item,), daemon=True)
+            self.discard_threads.append(thread)
+            thread.start()
 
     def _request(self, body, key=None, timeout=12):
         with open(voice_bridge_key_path(self.root), encoding="ascii") as source:
@@ -88,7 +103,7 @@ class ResearchVoice:
             return "Die Recherche wurde verworfen."
         if pending and YES.fullmatch(words):
             if not pending["armed"]:
-                self.cancel()
+                self.cancel_preview()
                 return "Die Recherchevorschau wurde unterbrochen. Bitte beginne erneut."
             self.clear()  # Consume before any uncertain network outcome; never auto-retry.
             try:
@@ -97,14 +112,18 @@ class ResearchVoice:
             except (OSError, ValueError, urllib.error.HTTPError):
                 return "Das Rechercheergebnis ist unklar. Bitte im Dashboard prüfen, bevor du es erneut versuchst."
             if result.get("status") == "requires_approval":
+                if result.get("approvalId"):
+                    self.awaiting_approvals.append({"text": pending["text"], "previewId": pending["previewId"]})
                 return "Die Recherche wartet auf Freigabe im Dashboard. Sie wurde noch nicht gestartet."
             if result.get("status") == "executed":
                 return "Die Recherche wurde gestartet. Die Quellen und Ergebnisse erscheinen im Dashboard."
             return "Die Recherche wurde nicht gestartet. Bitte prüfe den Status im Dashboard."
         if pending:
-            self.cancel()
+            self.cancel_preview()
         if not RESEARCH.fullmatch(words):
             return None
+        if len(self.awaiting_approvals) >= 16:
+            return "Es warten bereits zu viele Sprachrecherchen auf Freigabe. Stoppe den Dialog oder entscheide sie im Dashboard."
         try:
             result = self._request({"text": words, "source": "voice"})
         except (OSError, ValueError, urllib.error.HTTPError):

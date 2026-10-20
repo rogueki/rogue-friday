@@ -112,12 +112,12 @@ class VoiceProbe:
 def main():
     scenario, root = sys.argv[1], Path(sys.argv[2])
     voice = VoiceProbe(root, guest=scenario == "guest")
-    command = "research" if scenario in ("research", "guest", "reject", "stop", "unarmed", "no") else scenario
+    command = "research" if scenario in ("research", "guest", "reject", "stop", "stop_after_yes", "unarmed", "no") else scenario
     with contextlib.redirect_stdout(io.StringIO()):
         voice._handle_command(audio(command), None)
         first = voice.spoken[-1]
         preview_id = voice.research_voice.pending["previewId"] if voice.research_voice.pending else None
-        if scenario not in ("guest", "reject", "stop"):
+        if scenario not in ("guest", "reject", "stop", "stop_after_yes"):
             if scenario != "unarmed":
                 getattr(voice, command + "_voice").arm_confirmation()
             if scenario == "no":
@@ -130,8 +130,12 @@ def main():
         elif scenario == "stop":
             voice.cancel_active_interaction()
             voice._handle_command(audio("yes"), None)
-    if voice.research_voice.discard_thread:
-        voice.research_voice.discard_thread.join(timeout=3)
+        elif scenario == "stop_after_yes":
+            voice.research_voice.arm_confirmation()
+            voice._handle_command(audio("yes"), None)
+            voice.cancel_active_interaction()
+    for thread in voice.research_voice.discard_threads:
+        thread.join(timeout=3)
     print(json.dumps({"scenario": scenario, "spoken": voice.spoken, "first": first,
                       "previewId": preview_id,
                       "pendingResearch": voice.research_voice.pending is not None,

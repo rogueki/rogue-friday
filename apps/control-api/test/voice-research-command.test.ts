@@ -26,6 +26,12 @@ it("limits the voice key to typed research and preserves native preview, approva
     expect((await voice.post(path, { text: "Schreibe eine Mail an X", source: "voice" }, { headers })).statusCode).toBe(403);
     expect((await api.fastify.inject({ method: "POST", url: path, remoteAddress: "192.0.2.7", headers,
       payload: request })).statusCode).toBe(401);
+    const uiPreview = await owner.post(path, { ...request, source: "text" });
+    expect(uiPreview.statusCode).toBe(200);
+    const uiPreviewId = uiPreview.json().previewId as string;
+    expect((await voice.post(path, { ...request, previewId: uiPreviewId }, { headers })).statusCode).toBe(409);
+    expect((await voice.post(path, { ...request, confirm: true, previewId: uiPreviewId },
+      { headers: { ...headers, "Idempotency-Key": "voice-cannot-take-ui-preview" } })).statusCode).toBe(409);
     const preview = await voice.post(path, request, { headers });
     expect(preview.statusCode, preview.body).toBe(200);
     expect(preview.json()).toMatchObject({ status: "requires_confirmation", requiresConfirmation: true,
@@ -108,6 +114,16 @@ it("carries recorded PCM speech through transcription, voice dispatch, native pr
     } });
     expect(stale.statusCode).toBe(409);
     expect(search).not.toHaveBeenCalled();
+    const stoppedAfterYes = await probe("stop_after_yes");
+    expect(stoppedAfterYes.spoken[1]).toContain("wartet auf Freigabe");
+    expect(stoppedAfterYes.pendingResearch).toBe(false);
+    const stoppedRow = api.runtime.db.prepare("SELECT result_json, state FROM native_approval_requests WHERE request_key = ?")
+      .get(stoppedAfterYes.previewId) as { result_json: string; state: string };
+    expect(stoppedRow.state).toBe("rejected");
+    const stoppedApprovalId = (JSON.parse(stoppedRow.result_json) as { approval: { id: string } }).approval.id;
+    expect((await owner.get(`/api/v1/approvals/${stoppedApprovalId}`)).json().data.status).toBe("rejected");
+    expect((await owner.post(`/api/v1/approvals/${stoppedApprovalId}/approve`, {})).statusCode).toBe(409);
+    expect(search).not.toHaveBeenCalled();
     const unarmed = await probe("unarmed");
     expect(unarmed.spoken[1]).toContain("unterbrochen");
     expect(unarmed.pendingResearch).toBe(false);
@@ -123,8 +139,8 @@ it("carries recorded PCM speech through transcription, voice dispatch, native pr
     expect(mail.spoken[0]).toContain("alex@example.test");
     expect(mail.spoken[1]).toContain("gesendet");
     expect(sent).toHaveBeenCalledTimes(1);
-    const approvals = (await owner.get("/api/v1/approvals")).json().items as Array<{ id: string; action: string }>;
-    const researchApproval = approvals.find((item) => item.action.includes("Energiepreise Europa"));
+    const approvals = (await owner.get("/api/v1/approvals")).json().items as Array<{ id: string; action: string; status: string }>;
+    const researchApproval = approvals.find((item) => item.action.includes("Energiepreise Europa") && item.status === "pending");
     expect(researchApproval).toBeDefined();
     const opened = await owner.get(`/api/v1/approvals/${researchApproval!.id}`);
     const decision = await owner.post(`/api/v1/approvals/${researchApproval!.id}/approve`, {},

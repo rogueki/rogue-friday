@@ -52,7 +52,7 @@ export type NativeExecutableAction =
   /** A test run records a run entry; a real (non-dry) run executes actions, so it is staged like every write. */
   | { kind: "automation.test"; id: string; body: AutomationTestRequest }
   | { kind: "automation.pauseAll"; body: AutomationPauseAllRequest }
-  | { kind: "research.create"; body: ResearchCreateRequest; providerVersion: number }
+| { kind: "research.create"; body: ResearchCreateRequest; providerVersion: number; channel?: "voice" }
   | { kind: "hermesCron.mutate"; body: HermesCronMutationRequest }
   | { kind: "settings.profile.locale"; expectedVersion: number; value: "de" | "en" }
   | { kind: "settings.profile.dateFormat"; expectedVersion: number; value: "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy" }
@@ -339,6 +339,16 @@ export class NativeApprovalRequests {
     const removed = this.db.prepare("DELETE FROM native_approval_requests WHERE owner_id = ? AND request_key = ? AND state = 'draft'")
       .run(ownerId, requestKey);
     if (removed.changes !== 1) throw conflict("Der Entwurf wurde bereits geaendert.");
+  }
+
+  cancelPending(ownerId: string, requestKey: string, expectedAction: NativeExecutableAction, actor: Actor): void {
+    const row = this.db.prepare("SELECT action_json, result_json, state FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
+      .get(ownerId, requestKey) as { action_json: string | null; result_json: string; state: string } | undefined;
+    if (!row?.action_json || JSON.stringify(JSON.parse(row.action_json)) !== JSON.stringify(expectedAction))
+      throw conflict("Der Entwurf passt nicht zur Aktion.");
+    const approval = (JSON.parse(row.result_json) as CapturedApprovalPolicy).approval;
+    if (row.state !== "pending" || !approval) throw conflict("Die Freigabe ist nicht mehr offen.");
+    this.reject(ownerId, approval.id, actor, "Sprachdialog gestoppt.");
   }
 
   async executeWithoutApproval(ownerId: string, requestKey: string,

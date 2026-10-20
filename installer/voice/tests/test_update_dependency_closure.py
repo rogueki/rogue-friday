@@ -47,6 +47,7 @@ class VoiceUpdateDependencyClosureTest(unittest.TestCase):
             old_runtime.mkdir()
             (old_runtime / "friday_voice.py").write_bytes((VOICE / "friday_voice.py").read_bytes())
             self.assertFalse((old_runtime / "mail_voice.py").exists())
+            self.assertFalse((old_runtime / "research_voice.py").exists())
             for name in installed:
                 (old_runtime / f"{name}.py").write_bytes((VOICE / f"{name}.py").read_bytes())
             for name in local_import_closure():

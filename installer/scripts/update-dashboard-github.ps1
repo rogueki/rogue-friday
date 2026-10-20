@@ -236,7 +236,7 @@ function Get-VoiceSourcePaths {
         'installer/voice/cloudtalk_voice.py', 'installer/voice/coding_voice.py',
         'installer/voice/content_studio_voice.py', 'installer/voice/cuda_dlls.py',
         'installer/voice/elevenlabs_cloud.py', 'installer/voice/enroll_record.py', 'installer/voice/film_filter.py',
-        'installer/voice/friday_voice.py', 'installer/voice/mail_voice.py',
+        'installer/voice/friday_voice.py', 'installer/voice/mail_voice.py', 'installer/voice/research_voice.py',
         'installer/voice/memory_outbox.py',
         'installer/voice/model_routing.py', 'installer/voice/personal_wake.py',
         'installer/voice/powerpoint_voice.py', 'installer/voice/qwen_tts.py', 'installer/voice/runtime_settings.py', 'installer/voice/stt_models.py', 'installer/voice/wake_enrollment.py',
