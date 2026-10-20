@@ -3833,6 +3833,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/stt-models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List locally cached Whisper models and explicit download progress */
+        get: operations["listVoiceSttModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/stt-models/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel the current explicit Whisper model download */
+        post: operations["cancelVoiceSttModelDownload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/stt-models/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Download one selected Whisper model into the local cache without activating it */
+        post: operations["startVoiceSttModelDownload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voice/test": {
         parameters: {
             query?: never;
@@ -9533,6 +9584,32 @@ export interface components {
             pageInfo: components["schemas"]["PageInfo"];
             sources: components["schemas"]["SourceDescriptor"][];
         };
+        /** SttModelCancelRequest */
+        SttModelCancelRequest: {
+            jobId: string;
+        };
+        /** SttModelDownloadRequest */
+        SttModelDownloadRequest: {
+            /** @enum {string} */
+            model: "base" | "small" | "medium";
+        };
+        /** SttModelsStatus */
+        SttModelsStatus: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            job: null | {
+                error: string | null;
+                id: string;
+                /** @enum {string} */
+                model: "base" | "small" | "medium";
+                /** @enum {string} */
+                state: "downloading" | "cancelling" | "ready" | "failed" | "cancelled";
+            };
+            localMode: boolean;
+            models: {
+                cached: boolean;
+                id: string;
+            }[];
+        };
         /** SystemBackupActionRequest */
         SystemBackupActionRequest: {
             /** @enum {string} */
@@ -10342,6 +10419,9 @@ export interface components {
             speakerVerificationRequired: boolean;
             /** @default false */
             storeRawRecordings: boolean;
+            /** @enum {string} */
+            sttLanguage?: "de" | "en";
+            sttModel?: string | null;
             ttsRate: number;
             ttsVoice: string;
             voiceHistoryEnabled: boolean;
@@ -19416,6 +19496,86 @@ export interface operations {
             409: components["responses"]["Conflict"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listVoiceSttModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Local STT model inventory */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SttModelsStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    cancelVoiceSttModelDownload: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SttModelCancelRequest"];
+            };
+        };
+        responses: {
+            /** @description Download job state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SttModelsStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    startVoiceSttModelDownload: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SttModelDownloadRequest"];
+            };
+        };
+        responses: {
+            /** @description Download job state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SttModelsStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     runVoiceTest: {

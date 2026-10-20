@@ -1101,6 +1101,9 @@ export interface FridayModelMap {
   SourceDescriptor: SourceDescriptor;
   StorageVolume: StorageVolume;
   StorageVolumeListResponse: StorageVolumeListResponse;
+  SttModelCancelRequest: SttModelCancelRequest;
+  SttModelDownloadRequest: SttModelDownloadRequest;
+  SttModelsStatus: SttModelsStatus;
   SystemBackupActionRequest: SystemBackupActionRequest;
   SystemBackupActionResponse: SystemBackupActionResponse;
   SystemBackupStatusResponse: SystemBackupStatusResponse;
@@ -5600,6 +5603,8 @@ export interface VoiceSettings {
   speakerVerificationRequired: boolean;
   storeRawRecordings: boolean;
   voiceHistoryEnabled: boolean;
+  sttLanguage?: "de" | "en";
+  sttModel?: string | null;
   ttsVoice: string;
   ttsRate: number;
   inputDeviceId: string | null;
@@ -5778,6 +5783,26 @@ export interface StorageVolumeListResponse {
   pageInfo: PageInfo;
   freshness: Freshness;
   sources: SourceDescriptor[];
+}
+export interface SttModelCancelRequest {
+  jobId: string;
+}
+export interface SttModelDownloadRequest {
+  model: "base" | "small" | "medium";
+}
+export interface SttModelsStatus {
+  contractVersion: ContractVersion;
+  localMode: boolean;
+  models: {
+    id: string;
+    cached: boolean;
+  }[];
+  job: null | {
+    id: string;
+    model: "base" | "small" | "medium";
+    state: "downloading" | "cancelling" | "ready" | "failed" | "cancelled";
+    error: string | null;
+  };
 }
 export interface SystemBackupActionRequest {
   action: "preview" | "run" | "verify" | "restore-test";
