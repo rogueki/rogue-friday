@@ -14,6 +14,7 @@ export type NativeExecutableAction =
   | { kind: "task.create"; body: TaskCreateRequest }
   | { kind: "task.update"; id: string; body: TaskUpdateRequest }
   | { kind: "task.cancel"; id: string; body?: TaskActionRequest }
+  | { kind: "task.retry"; id: string; body?: TaskActionRequest }
   | { kind: "calendar.create"; body: LocalEventInput }
   | { kind: "calendar.update"; id: string; version: number; body: LocalEventInput }
   /** The snapshot lets a replayed confirmation still answer with the event as it was before the deletion. */
@@ -56,6 +57,7 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "task.create": "angelegt",
   "task.update": "aktualisiert",
   "task.cancel": "abgebrochen",
+  "task.retry": "erneut gestartet",
   "calendar.create": "eingetragen",
   "calendar.update": "aktualisiert",
   "calendar.delete": "geloescht",
@@ -88,6 +90,7 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "task.create": "Aufgabe",
   "task.update": "Aufgabe",
   "task.cancel": "Aufgabe",
+  "task.retry": "Aufgabe",
   "calendar.create": "Termin",
   "calendar.update": "Termin",
   "calendar.delete": "Termin",

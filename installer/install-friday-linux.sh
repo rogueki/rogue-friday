@@ -15,6 +15,8 @@ CURRENT=/opt/friday/current
 STATE=/var/lib/friday
 CONFIG=/etc/friday
 SERVICE=friday
+HERMES_PIN=d923a5eb487a17c0a68801bba9ef0f56c81040a8
+HERMES_TREE=$STATE/.hermes/hermes-agent
 VOICE_MODE=
 ELEVENLABS_VOICE_ID=
 KEY_SOURCE=
@@ -153,6 +155,8 @@ fi
 python3 "$SOURCE/installer/linux/configure_skills.py" --check-only "$SKILLS_SOURCE" || fail 'Friday skills registry/catalog validation failed.'
 if [[ "$MODE" == validate ]]; then
   [[ -x "$STATE/.local/bin/hermes" ]] || fail "Hermes CLI missing at $STATE/.local/bin/hermes; install it as friday, then rerun."
+  [[ -d "$HERMES_TREE/.git" && "$(git -C "$HERMES_TREE" rev-parse HEAD)" == "$HERMES_PIN" ]] || fail "Hermes must be pinned to $HERMES_PIN"
+  python3 "$SOURCE/installer/wsl/patch_hermes_run_stop.py" "$HERMES_TREE" --require-patched || fail 'Hermes run-stop patch verification failed.'
   note 'VALIDATION_OK (provider account and runtime health are not checked)'
   exit 0
 fi
@@ -169,6 +173,8 @@ fi
 install -d -o "$SERVICE" -g "$SERVICE" -m 0700 "$STATE" "$STATE/.hermes" "$STATE/.local"
 [[ -x "$STATE/.local/bin/hermes" ]] || fail "Hermes CLI missing. Install Hermes under $STATE/.local/bin as friday (e.g. via its official installer), configure 'hermes model', then rerun. No Kimi key is forced."
 runuser -u "$SERVICE" -- "$STATE/.local/bin/hermes" --version >/dev/null || fail 'Hermes CLI cannot run as friday.'
+[[ -d "$HERMES_TREE/.git" && "$(git -C "$HERMES_TREE" rev-parse HEAD)" == "$HERMES_PIN" ]] || fail "Hermes must be pinned to $HERMES_PIN before installing Friday."
+runuser -u "$SERVICE" -- python3 "$SOURCE/installer/wsl/patch_hermes_run_stop.py" "$HERMES_TREE" || fail 'Hermes run-stop patch failed.'
 
 install -d -o root -g root -m 0755 /opt/friday "$RELEASES"
 install -d -o "$SERVICE" -g "$SERVICE" -m 0700 "$STATE/data" "$STATE/backups"

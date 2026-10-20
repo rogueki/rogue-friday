@@ -20,15 +20,22 @@ DASH_PORT="${FRIDAY_DASH_PORT:-43691}"
 API_PORT="${FRIDAY_API_PORT:-43693}"
 QWEN_PORT="${FRIDAY_QWEN_PORT:-43692}"
 H="$HOME/.hermes"
+HERMES_PIN="d923a5eb487a17c0a68801bba9ef0f56c81040a8"
 step() { printf '\n==> %s\n' "$*"; }
 
 step "Hermes Agent installieren"
 if ! command -v hermes >/dev/null 2>&1; then
     curl -fsSL https://hermes-agent.nousresearch.com/install.sh -o /tmp/hermes-install.sh
-    bash /tmp/hermes-install.sh --skip-setup </dev/null
+    bash /tmp/hermes-install.sh --skip-setup --commit "$HERMES_PIN" </dev/null
     export PATH="$HOME/.local/bin:$PATH"
 fi
 hermes --version | head -1
+HERMES_TREE="$H/hermes-agent"
+[ -d "$HERMES_TREE/.git" ] || { echo "FAIL Hermes-Checkout nicht gefunden: $HERMES_TREE"; exit 1; }
+[ "$(git -C "$HERMES_TREE" rev-parse HEAD)" = "$HERMES_PIN" ] || {
+    echo "FAIL Hermes-Version entspricht nicht dem geprueften Friday-Pin $HERMES_PIN"; exit 1;
+}
+python3 "$INST/wsl/patch_hermes_run_stop.py" "$HERMES_TREE"
 
 step "Kimi-Zugang"
 mkdir -p "$H"

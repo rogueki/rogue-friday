@@ -17,13 +17,13 @@ const NAMES: Readonly<Record<HermesCategory, string>> = {
 };
 
 /**
- * Exactly what is implemented and live-verified (docs/MAPPING/hermes.md §7). `tasks.cancel|retry|pause|resume` and
- * `agents.pause|resume|stop|assignTask` stay out: no verified Hermes interface (README, "Annahme (unbelegt)").
+ * Implemented against the pinned Hermes source and local HTTP tests. Deployment compatibility must
+ * still be checked against the installed Hermes build before enabling live mode.
  */
 const CAPABILITIES: Readonly<Record<HermesCategory, readonly string[]>> = {
-  tasks: ["tasks.read", "tasks.create", "tasks.update", "tasks.stream"],
+  tasks: ["tasks.read", "tasks.create", "tasks.update", "tasks.cancel", "tasks.retry", "tasks.stream"],
   activity: ["activity.read", "activity.stream", "activity.backfill"],
-  agents: ["agents.read"],
+  agents: ["agents.read", "agents.stop"],
 };
 
 /** Secret fields are resolved by the registry (`env:NAME` / `wincred:TARGET`) and only reachable through `getSecret`. */

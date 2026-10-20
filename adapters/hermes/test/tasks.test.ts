@@ -506,13 +506,67 @@ describe("tasks: write", () => {
 });
 
 describe("tasks: capabilities", () => {
-  it("declares exactly what is implemented and offers no cancel/retry/pause/resume", async () => {
+  it("declares cancel and retry but no pause/resume", async () => {
     const h = await open();
     const { capabilities } = await h.adapter.getCapabilities();
-    expect(capabilities.sort()).toEqual(["tasks.create", "tasks.read", "tasks.stream", "tasks.update"]);
-    for (const method of ["cancelTask", "retryTask", "pauseTask", "resumeTask"]) {
+    expect(capabilities.sort()).toEqual(["tasks.cancel", "tasks.create", "tasks.read", "tasks.retry", "tasks.stream", "tasks.update"]);
+    for (const method of ["pauseTask", "resumeTask"]) {
       expect((h.adapter as unknown as Record<string, unknown>)[method]).toBeUndefined();
     }
+  });
+});
+
+describe("tasks: lifecycle", () => {
+  it("archives running work and confirms that its worker was closed", async () => {
+    const raw = fake.state.addTask("default", { title: "Aktiv", assignee: "kira" });
+    fake.state.startWorker("default", raw);
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+    const result = await h.adapter.cancelTask({ id: task.id }, h.mutation({ ifMatchVersion: task.version }));
+    expect(result.data.status).toBe("cancelled");
+    expect(fake.state.workers).toHaveLength(0);
+    expect(fake.state.board("default").runs[0]?.ended_at).not.toBeNull();
+    expect(fake.callsTo("dashboard", /\/tasks\/t_/).filter((call) => call.method === "PATCH")).toHaveLength(1);
+  });
+
+  it("does not report cancel success when the archived worker survives", async () => {
+    const raw = fake.state.addTask("default", { title: "Unbeendbar", assignee: "kira" });
+    fake.state.startWorker("default", raw);
+    fake.state.archiveWorkerSurvives = true;
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+    await expect(h.adapter.cancelTask({ id: task.id }, h.mutation())).rejects.toBeDefined();
+    expect(raw.status).toBe("archived");
+    expect(fake.state.workers).toHaveLength(1);
+    expect(fake.callsTo("dashboard", /\/tasks\/t_/).filter((call) => call.method === "PATCH")).toHaveLength(1);
+  });
+
+  it("retries an archived task once and refuses an already-dispatchable failed task", async () => {
+    const raw = fake.state.addTask("default", { title: "Archiv", status: "archived" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({ status: ["cancelled"] }, h.call())).items[0]!;
+    const result = await h.adapter.retryTask({ id: task.id }, h.mutation({ ifMatchVersion: task.version }));
+    expect(result.data.status).toBe("ready");
+    expect((await rejection(h.adapter.retryTask({ id: task.id }, h.mutation()))).code).toBe("CONFLICT");
+    raw.last_failure_error = "alter Fehler";
+    expect((await rejection(h.adapter.retryTask({ id: task.id }, h.mutation()))).code).toBe("CONFLICT");
+  });
+
+  it("refuses stale If-Match before lifecycle writes", async () => {
+    fake.state.addTask("default", { title: "Alt", status: "archived" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({ status: ["cancelled"] }, h.call())).items[0]!;
+    expect((await rejection(h.adapter.retryTask({ id: task.id }, h.mutation({ ifMatchVersion: task.version + 1 })))).code).toBe("CONFLICT");
+    expect(fake.callsTo("dashboard", /\/tasks\/t_/).filter((call) => call.method === "PATCH")).toHaveLength(0);
+  });
+
+  it("reopens a task blocked by a run-specific Friday stop", async () => {
+    fake.state.addTask("default", { title: "Gestoppt", assignee: "kira", status: "blocked",
+      block_kind: "friday_stopped" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+    expect(task.status).toBe("waiting");
+    expect((await h.adapter.retryTask({ id: task.id }, h.mutation())).data.status).toBe("ready");
   });
 });
 

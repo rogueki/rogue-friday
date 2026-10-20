@@ -11,6 +11,7 @@ import {
   type IdParam,
   type ListAgentsParams,
   type MapContext,
+  type MutationContext,
   type Page,
   type Single,
 } from "@friday/adapter-core";
@@ -62,7 +63,7 @@ interface BoardWorkers {
 
 /**
  * Agents on Hermes: profiles (`/api/profiles`), Kanban assignees and active workers. Status is derived; pause, resume
- * and stop are not offered (Hermes has no verified interface for them). Events: `friday.agent.status_changed` after
+ * are not offered. Stop targets one active Kanban run. Events: `friday.agent.status_changed` after
  * Kanban events that move an agent, `friday.agent.heartbeat` when a worker's heartbeat advances.
  */
 export class HermesAgentsAdapter extends HermesAdapterBase implements AgentPort {
@@ -126,6 +127,40 @@ export class HermesAgentsAdapter extends HermesAdapterBase implements AgentPort 
     const agent = (await this.snapshot(call)).find((candidate) => candidate.id === params.id);
     if (!agent) throw notFound("Agent", params.id);
     return { data: agent, freshness: { state: "fresh", asOf: toIso(context.clock) } };
+  }
+
+  async stopAgent(params: IdParam, call: MutationContext): Promise<Single<Agent>> {
+    const { kanban, settings, context } = this.ready();
+    const agent = (await this.snapshot(call)).find((candidate) => candidate.id === params.id);
+    if (!agent) throw notFound("Agent", params.id);
+    if (call.ifMatchVersion !== undefined && call.ifMatchVersion !== agent.version) {
+      throw new AdapterError({ code: "CONFLICT", message: "Der Agentenstatus hat sich geaendert.", retryable: false,
+        details: { expectedVersion: call.ifMatchVersion, currentVersion: agent.version } });
+    }
+    const name = this.agentIds.decode(params.id);
+    if (!name) throw notFound("Agent", params.id);
+    const active = (await Promise.all(settings.boards.map(async (board) => ({
+      board, workers: await kanban.workers(board, call),
+    })))).flatMap(({ board, workers }) => workers.filter((worker) => worker.profile === name)
+      .map((worker) => ({ board, worker })));
+    if (active.length !== 1) {
+      throw new AdapterError({ code: "CONFLICT", message: active.length === 0
+        ? "Dieser Agent hat keinen aktiven Hermes-Lauf." : "Mehrere Laeufe sind aktiv; bitte einen konkreten Lauf stoppen.",
+        retryable: false });
+    }
+    const run = active[0]!;
+    const taskId = await kanban.terminateRun(run.board, run.worker.runId,
+      "Friday: Agent durch Benutzer gestoppt", call);
+    if (taskId !== run.worker.taskId) {
+      throw new AdapterError({ code: "CONFLICT", message: "Hermes hat einen anderen Lauf beendet.", retryable: false });
+    }
+    const remaining = await kanban.workers(run.board, call);
+    if (remaining.some((worker) => worker.runId === run.worker.runId)) {
+      throw new AdapterError({ code: "CONFLICT", message: "Der Hermes-Lauf ist weiterhin aktiv.", retryable: false });
+    }
+    const updated = (await this.snapshot(call)).find((candidate) => candidate.id === params.id);
+    if (!updated) throw new AdapterError({ code: "ADAPTER_UNAVAILABLE", message: "Agentenstatus nach Stop nicht lesbar.", retryable: false });
+    return { data: updated, freshness: { state: "fresh", asOf: toIso(context.clock) } };
   }
 
   // ---- events --------------------------------------------------------------------------------------------------------

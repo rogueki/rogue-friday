@@ -4,7 +4,8 @@ Echter Adapter für **Hermes Agent** (Nous Research): Aufgaben/Kanban, Aktivitä
 Er ersetzt `@friday/adapter-hermes-placeholder` (gleiche Provider-IDs `hermes-tasks`, `hermes-activity`, `hermes-agents`).
 
 Grundlage ist ausschließlich `docs/MAPPING/hermes.md` (verifiziert gegen Hermes-Quellcode `0e427d7` und eine laufende
-Instanz). Was dort nicht belegt ist, steht unten unter „Annahme (unbelegt)“ und ist **nicht** als Capability freigeschaltet.
+Instanz). Die Lifecycle-Erweiterung ist gegen die gepinnten Hermes-Quellen und lokale HTTP-Tests geprueft;
+ein echter Friday-Laufzeitnachweis steht noch aus.
 
 ## Aufbau
 
@@ -65,7 +66,7 @@ adapters:
 | `dashboardTokenFile`          | –                        | Pfad einer Datei mit dem festen Token für `dashboardAuth: file`.                                                   |
 | `boards`                      | `[default]`              | Kanban-Boards (Slugs). Das erste Board nimmt neue Aufgaben auf.                                                    |
 | `timeoutMs`                   | `10000`                  | Timeout je Versuch.                                                                                                |
-| `maxAttempts`                 | `3`                      | Versuche inkl. Erstversuch (Lesezugriffe und Mutationen **mit** Idempotency-Key; sonst genau ein Versuch).         |
+| `maxAttempts`                 | `3`                      | Versuche inkl. Erstversuch; `cancelTask`, `retryTask` und `stopAgent` werden wegen fehlender Upstream-Deduplizierung nie automatisch wiederholt. |
 | `retryBaseDelayMs`            | `200`                    | Backoff-Basis.                                                                                                     |
 | `pollIntervalMs`              | `2000`                   | Pause zwischen Event-Zyklen; `0` = kein Hintergrund-Polling (dann nur `pollEvents()` bzw. Listenaufrufe).          |
 | `eventsStartCursor`           | `tail`                   | `tail` = nur Ereignisse ab Adapterstart; Zahl = Kanban-Event-ID/Nachrichten-ID, ab der gelesen wird (`0` = alles). |
@@ -100,11 +101,13 @@ Genau das, was umgesetzt **und** belegt ist. Die Control API schaltet daran die 
 | `tasks.create`                                         |      ja      |        –        |       –       | live (§4.3); `idempotency_key` im Request, Dedup laut Quelle                                                    |
 | `tasks.update` (Titel, Text, Priorität, Agent, Status) |      ja      |        –        |       –       | live (§4.3, §5); Statusmatrix beachtet                                                                          |
 | `tasks.stream`                                         |      ja      |        –        |       –       | live (WebSocket `?since=`)                                                                                      |
-| `tasks.cancel` / `retry` / `pause` / `resume`          |   **nein**   |        –        |       –       | nicht live getestet bzw. kein Hermes-Konzept (§7)                                                               |
+| `tasks.cancel` / `retry`                              |      ja      |        –        |       –       | gepinnter Hermes-Quelltext + lokale HTTP-Tests; Liveprobe noch offen                                             |
+| `tasks.pause` / `resume`                              |   **nein**   |        –        |       –       | kein gepruefter Hermes-Vertrag                                                                                   |
 | `activity.read`                                        |      –       |       ja        |       –       | live (Sitzungen/Nachrichten, Kanban-Ereignisse)                                                                 |
 | `activity.stream`, `activity.backfill`                 |      –       |       ja        |       –       | Polling/WS (kein globaler Strom in Hermes); Backfill über adaptereigenen Puffer                                 |
 | `agents.read`                                          |      –       |        –        |      ja       | live (Profile, Workers, Assignees)                                                                              |
-| `agents.pause` / `resume` / `stop` / `assignTask`      |      –       |        –        |   **nein**    | keine belegte Schnittstelle (Run-Stop existiert nur je `run_id`); Zuweisen geht über `tasks.update` (`agentId`) |
+| `agents.stop`                                         |      –       |        –        |      ja       | Friday-CAS-Patch und lokaler Run-Race-Test; nur bei positivem Patch-Probe-GET ausfuehrbar                        |
+| `agents.pause` / `resume` / `assignTask`              |      –       |        –        |   **nein**    | keine gepruefte Schnittstelle; Zuweisen geht ueber `tasks.update` (`agentId`)                                     |
 
 Nicht angebotene Port-Methoden sind nicht implementiert (die Conformance-Suite prüft das).
 Events werden zusätzlich zu `*.stream` so geliefert: `friday.task.*` (tasks), `friday.activity.appended` (activity),
@@ -152,12 +155,12 @@ Dashboard-Token im HTML und 401-Verhalten, WebSocket mit `since`, API-Server-Aut
 
 **Annahme (unbelegt) – bewusst nicht als Capability freigeschaltet oder als Annahme dokumentiert:**
 
-1. **Abbrechen** (`tasks.cancel`): `PATCH status=archived` / `include_archived` ist im Quelltext vorhanden, aber nicht live getestet.
-2. **Wiederholen** (`tasks.retry`): nur teilweise (`PATCH status=ready`, `reclaim`), nicht live getestet.
-3. **Pausieren/Fortsetzen** von Aufgaben und Agenten sowie **Agent stoppen/zuweisen** (`agents.*`): Hermes hat keine belegte Schnittstelle.
+1. **Abbrechen** (`tasks.cancel`): ein `PATCH status=archived`; Hermes archiviert atomar und beendet den zugehoerigen Worker vor der Antwort. Liveprobe noch offen.
+2. **Wiederholen** (`tasks.retry`): `PATCH status=ready` nur fuer archivierte oder blockierte fehlgeschlagene/Friday-gestoppte Aufgaben. Ein bereits `ready`-markierter Fehler ist moeglicherweise schon im Dispatch und wird abgelehnt.
+3. **Agent stoppen** (`agents.stop`): genau einen aktiven Run per `/runs/{id}/terminate`. Der Friday-Patch bindet Run-ID und Claim atomar und blockiert die Task bis zu einem expliziten Retry. Ohne Patch-Probe wird der Aufruf abgelehnt. Echte Laufzeitprobe noch offen.
 4. **Priorität** `P0..P4 ↔ 4..0` ist ein Vorschlag (Hermes: „Tiebreaker“, Sortierrichtung nicht live verifiziert).
 5. **`failed`-Ableitung** aus `last_failure_error`: Dispatcher-Verhalten bei Worker-Absturz nicht live getestet.
-6. **Vollständigkeit der Ereignis-`kind`-Werte** und Reihenfolge der Spalten über Hermes-Versionen (Installer pinnt nicht).
+6. **Vollständigkeit der Ereignis-`kind`-Werte** und Reihenfolge der Spalten über Hermes-Versionen.
 7. **Form von `progress`** bei Kind-Aufgaben nur aus dem Quelltext; unbekannte Formen gelten als „kein Fortschritt“.
 8. **Assignee ohne Profil** (z. B. `kira`): ob der Dispatcher solche Aufgaben startet, ist offen (betrifft die Produktfunktion, nicht den Adapter).
 9. **Tool-Aufrufe je Aufgabe** (`Task.toolCalls`) bleiben leer: Kanban führt keine; sie wären über `session_id` → Nachrichten auffindbar (nicht umgesetzt).
@@ -209,4 +212,4 @@ pnpm test:conformance                          # alle Adapter, darunter adapters
 - **`agents.assignTask`** wird nicht deklariert (Zuweisen läuft über `tasks.update` mit `agentId`); ob die UI die Aktion am Agenten-Adapter oder am Task-Adapter freischalten soll, ist Sache der Control API.
 - **Unbekannte Status**: ein künftiger Hermes-Status lässt die Aufgabenliste mit `VALIDATION_FAILED` scheitern (sichtbar statt falsch einsortiert). Alternative wäre ein Fallback auf `todo` mit Warnung – Entscheidung offen.
 - **Performance**: `GET …/board` liefert das ganze Board inklusive Verlauf; es gibt keinen Cache. Bei großen Boards ein kurzes TTL-Caching ergänzen.
-- **Hermes-Version**: Der Installer pinnt nicht (`main`). Versionsabweichungen zeigen sich als `VALIDATION_FAILED`; Pinning (`--commit`) bleibt Installer-Aufgabe.
+- **Hermes-Version**: Die Friday-Installer pruefen den Pin `d923a5eb` und wenden den hashgeprueften Run-Stop-Patch vor Dienststart an. Bestehende oder zukuenftige Hermes-Versionen mit abweichendem Quelltext muessen separat geprueft werden.

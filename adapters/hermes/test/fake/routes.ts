@@ -302,6 +302,9 @@ export function dashboardRoutes(state: HermesState): RouteDef[] {
             ...(typeof body.block_reason === "string" ? { reason: body.block_reason } : {}),
             ...(typeof body.result === "string" ? { result: body.result } : {}),
           });
+          if (body.status === "archived" && state.archiveWorkerSurvives) {
+            throw new HttpFail(500, { detail: "archived task still has a live worker" });
+          }
         }
         if (typeof body.priority === "number") task.priority = body.priority;
         if (typeof body.title === "string") {
@@ -401,6 +404,37 @@ export function dashboardRoutes(state: HermesState): RouteDef[] {
           count: workers.length,
           checked_at: state.now(),
         });
+      }),
+    },
+    {
+      method: "GET",
+      pattern: `${PLUGIN}/friday/run-stop-capability`,
+      handler: authed(() => {
+        if (!state.runStopPatched) throw new HttpFail(404, { detail: "not found" });
+        return json({ patch: "FRIDAY_RUN_STOP_CAS_V1" });
+      }),
+    },
+    {
+      method: "POST",
+      pattern: `${PLUGIN}/runs/:id/terminate`,
+      handler: authed((request) => {
+        const board = state.board(str(request.query.board));
+        const runId = Number(request.params.id);
+        const run = board.runs.find((candidate) => candidate.id === runId);
+        if (!run) throw new HttpFail(404, { detail: `run ${runId} not found` });
+        if (run.ended_at !== null) throw new HttpFail(409, { detail: `run ${runId} already ended` });
+        const task = state.task(board, run.task_id);
+        if (task.status !== "running") throw new HttpFail(409, { detail: "not reclaimable" });
+        const workerIndex = state.workers.findIndex((worker) => worker.board === board.slug && worker.run_id === runId);
+        if (workerIndex < 0) throw new HttpFail(409, { detail: "run no longer owns the worker" });
+        run.ended_at = state.tick();
+        run.status = "reclaimed";
+        run.outcome = "reclaimed";
+        task.status = "blocked";
+        task.block_kind = "friday_stopped";
+        state.workers.splice(workerIndex, 1);
+        state.addEvent(board, task, "reclaimed", null, runId);
+        return json({ ok: true, run_id: runId, task_id: task.id });
       }),
     },
     {

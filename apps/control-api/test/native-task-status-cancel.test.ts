@@ -185,6 +185,31 @@ it("uses one intent key across cancel staging and approval without caching the p
   } finally { await api.close(); }
 });
 
+it("stages direct retry through the native approval journal and executes it once", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const task = await taskByTitle(api, owner, READY_TITLE);
+    const cancelled = await owner.post(`/api/v1/tasks/${task.id}/cancel`, {});
+    const cancelId = cancelled.json().error.details.previewId as string;
+    const confirmedCancel = await owner.post(`/api/v1/tasks/${task.id}/cancel`, {},
+      { headers: { "x-action-preview-id": cancelId } });
+    await approveNative(owner, confirmedCancel.json().error.details.approvalId as string);
+    const staged = await owner.post(`/api/v1/tasks/${task.id}/retry`, {},
+      { headers: { "idempotency-key": "native-retry-001" } });
+    expect(staged.statusCode).toBe(403);
+    const previewId = staged.json().error.details.previewId as string;
+    const headers = { "idempotency-key": "native-retry-001", "x-action-preview-id": previewId };
+    const confirmed = await owner.post(`/api/v1/tasks/${task.id}/retry`, {}, { headers });
+    expect(confirmed.statusCode).toBe(403);
+    const decision = await approveNative(owner, confirmed.json().error.details.approvalId as string);
+    expect(decision.executionResult).toContain("erneut gestartet");
+    expect(["ready", "running"]).toContain((await taskByTitle(api, owner, READY_TITLE)).status);
+    expect((await owner.post(`/api/v1/tasks/${task.id}/retry`, {}, { headers })).statusCode).toBe(409);
+  } finally { await api.close(); }
+});
+
 it("denies update and cancel when the capability is switched off", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {

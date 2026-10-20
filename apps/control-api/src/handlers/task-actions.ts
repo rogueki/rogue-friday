@@ -5,10 +5,10 @@ import { ApiError, conflict, validationFailed } from "../util/errors";
 import type { NativeExecutableAction } from "../services/native-approval-requests";
 
 const PREVIEW_ID = /^corr_[0-9A-Za-z]{26}$/;
-const CANCEL_FINAL = ["done", "failed", "cancelled"];
+const CANCEL_FINAL = ["done", "cancelled"];
 
 interface TaskWrite {
-  capability: "create" | "update" | "cancel";
+  capability: "create" | "update" | "cancel" | "retry";
   unavailable: string;
   action: NativeExecutableAction;
   actionText: string;
@@ -19,7 +19,8 @@ interface TaskWrite {
 /** The port method must exist and the capability module must offer the flag before anything is staged. */
 function checkCapability(ctx: RequestContext, write: TaskWrite): void {
   const tasks = ctx.runtime.registry.getPort("tasks");
-  const method = write.capability === "create" ? tasks.createTask : write.capability === "update" ? tasks.updateTask : tasks.cancelTask;
+  const method = write.capability === "create" ? tasks.createTask : write.capability === "update" ? tasks.updateTask
+    : write.capability === "retry" ? tasks.retryTask : tasks.cancelTask;
   if (!method || !ctx.runtime.capabilities().modules.tasks[write.capability]) {
     throw new ApiError({ code: "CAPABILITY_MISSING", message: write.unavailable,
       details: { capability: `tasks.${write.capability}` } });
@@ -64,6 +65,9 @@ async function executeTaskWrite(ctx: RequestContext, ownerId: string, previewId:
       }
       if (savedAction.kind === "task.cancel") {
         return (await tasks.cancelTask!({ id: savedAction.id, body: savedAction.body }, call)).data.id;
+      }
+      if (savedAction.kind === "task.retry") {
+        return (await tasks.retryTask!({ id: savedAction.id, body: savedAction.body }, call)).data.id;
       }
       throw conflict("Die Bestaetigung passt nicht zum gespeicherten Entwurf.");
     });
@@ -145,6 +149,28 @@ export const taskActionHandlers: Partial<Record<OperationId, Handler>> = {
       }
       write.actionText = `Aufgabe abbrechen: ${current.data.title}`;
       write.previewText = `Aufgabe „${current.data.title}“ abbrechen?`;
+    }
+    const previewId = enforceTaskWrite(ctx, ownerId, write);
+    return taskResponse(ctx, await executeTaskWrite(ctx, ownerId, previewId), 200);
+  },
+  async retryTask(ctx) {
+    const ownerId = ctx.principal?.userId;
+    if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+    const tasks = ctx.runtime.registry.getPort("tasks");
+    const id = ctx.pathParams.id as string;
+    const body = ctx.body as TaskActionRequest | undefined;
+    const write: TaskWrite = { capability: "retry", unavailable: "Aufgaben koennen derzeit nicht neu gestartet werden.",
+      action: body === undefined ? { kind: "task.retry", id } : { kind: "task.retry", id, body },
+      actionText: "", previewTitle: "Aufgabe erneut starten", previewText: "" };
+    checkCapability(ctx, write);
+    if (!ctx.headers["x-action-preview-id"]) {
+      const current = await tasks.getTask({ id }, ctx.call);
+      if (!["failed", "cancelled", "waiting"].includes(current.data.status)) {
+        throw conflict(`Aufgabe ${current.data.id} kann im Status ${current.data.status} nicht neu gestartet werden.`,
+          { status: current.data.status });
+      }
+      write.actionText = `Aufgabe erneut starten: ${current.data.title}`;
+      write.previewText = `Aufgabe „${current.data.title}“ erneut starten?`;
     }
     const previewId = enforceTaskWrite(ctx, ownerId, write);
     return taskResponse(ctx, await executeTaskWrite(ctx, ownerId, previewId), 200);

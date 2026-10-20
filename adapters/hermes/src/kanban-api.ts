@@ -1,4 +1,4 @@
-import type { CallContext, HttpRequest } from "@friday/adapter-core";
+import { AdapterError, normalizeError, type CallContext, type HttpRequest } from "@friday/adapter-core";
 import type { AuthedClient } from "./clients";
 import type { TaskRef } from "./ids";
 import {
@@ -102,10 +102,42 @@ export class KanbanApi {
       query: { board: ref.board },
       body,
       operation: "updateTask",
+      // Hermes ignores the HTTP Idempotency-Key on PATCH. A timeout is an unknown outcome.
+      retry: false,
       ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
       ...extras(call),
     });
     return parseTask(asObject(response.body, "updateTask").task, "updateTask.task");
+  }
+
+  async terminateRun(board: string, runId: number, reason: string, call: CallInfo): Promise<string> {
+    let probe;
+    try {
+      probe = await this.dashboard.request({
+        method: "GET", path: `${PLUGIN}/friday/run-stop-capability`, operation: "stopAgentPatchProbe",
+        retry: false, ...extras(call),
+      });
+    } catch (error) {
+      if (normalizeError(error).code !== "NOT_FOUND") throw error;
+      throw new AdapterError({ code: "CAPABILITY_MISSING", message: "Hermes hat keine gepruefte Run-Stop-Sperre.", retryable: false });
+    }
+    if (asObject(probe.body, "runStopCapability").patch !== "FRIDAY_RUN_STOP_CAS_V1") {
+      throw new AdapterError({ code: "CAPABILITY_MISSING", message: "Hermes hat keine gepruefte Run-Stop-Sperre.", retryable: false });
+    }
+    const response = await this.dashboard.request({
+      method: "POST",
+      path: `${PLUGIN}/runs/${runId}/terminate`,
+      query: { board },
+      body: { reason },
+      operation: "stopAgent",
+      retry: false,
+      ...extras(call),
+    });
+    const result = asObject(response.body, "terminateRun");
+    if (result.ok !== true || result.run_id !== runId || typeof result.task_id !== "string") {
+      throw new AdapterError({ code: "ADAPTER_UNAVAILABLE", message: "Hermes hat den Worker-Stop nicht bestaetigt.", retryable: false });
+    }
+    return result.task_id;
   }
 
   /** Kanban-scoped profile list (`name, model, provider, description`). */

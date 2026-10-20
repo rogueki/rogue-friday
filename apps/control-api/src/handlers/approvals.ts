@@ -213,6 +213,11 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
           if (!cancel) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Aufgaben koennen derzeit nicht abgebrochen werden." });
           return (await cancel({ id: action.id, body: action.body }, call)).data.id;
         }
+        if (action.kind === "task.retry") {
+          const retry = tasks.retryTask;
+          if (!retry) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Aufgaben koennen derzeit nicht neu gestartet werden." });
+          return (await retry({ id: action.id, body: action.body }, call)).data.id;
+        }
         // Local calendar writes are Friday's own database rows; no adapter port is involved.
         const calendar = new LocalCalendarService(runtime.db);
         if (action.kind === "calendar.create") return calendar.create(action.body, principal.userId).id;

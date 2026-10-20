@@ -159,6 +159,8 @@ export class HermesState {
   invalidData = false;
   /** Posts that created a task (side effects for idempotency checks). */
   createdCount = 0;
+  /** Test-only delay after a Kanban mutation has committed, before HTTP responds. */
+  mutationResponseDelayMs = 0;
 
   readonly boards = new Map<string, FakeBoard>();
   readonly profiles: FakeProfile[] = [
@@ -173,6 +175,8 @@ export class HermesState {
     },
   ];
   readonly workers: FakeWorker[] = [];
+  runStopPatched = true;
+  archiveWorkerSurvives = false;
   readonly sessions: FakeSession[] = [];
   readonly toolsets: Array<{ name: string; enabled: boolean }> = [
     { name: "web", enabled: true },
@@ -304,7 +308,7 @@ export class HermesState {
       });
     }
     if (!KNOWN_STATUSES.has(status)) throw new HttpFail(400, { detail: `unknown status: ${status}` });
-    if (!(TRANSITIONS[task.status] ?? []).includes(status) && task.status !== status) {
+    if (status !== "archived" && !(TRANSITIONS[task.status] ?? []).includes(status) && task.status !== status) {
       throw new HttpFail(409, { detail: `status transition to '${status}' not valid from current state` });
     }
     const previous = task.status;
@@ -323,6 +327,16 @@ export class HermesState {
       task.block_kind = null;
       this.addEvent(board, task, "unblocked");
     } else if (status === "archived") {
+      for (const run of board.runs.filter((candidate) => candidate.task_id === task.id && candidate.ended_at === null)) {
+        run.ended_at = this.tick();
+        run.status = "reclaimed";
+        run.outcome = "reclaimed";
+      }
+      if (!this.archiveWorkerSurvives) {
+        for (let index = this.workers.length - 1; index >= 0; index -= 1) {
+          if (this.workers[index]?.board === board.slug && this.workers[index]?.task_id === task.id) this.workers.splice(index, 1);
+        }
+      }
       this.addEvent(board, task, "archived");
     } else {
       this.addEvent(board, task, "status", { status, requested_status: status });

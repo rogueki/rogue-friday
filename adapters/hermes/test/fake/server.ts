@@ -49,6 +49,7 @@ class Listener {
     readonly name: "api" | "dashboard",
     defs: RouteDef[],
     private readonly calls: RecordedCall[],
+    private readonly state: HermesState,
     private readonly onUpgrade?: (request: IncomingMessage, socket: Socket) => void,
   ) {
     this.routes = defs.map(compile);
@@ -148,6 +149,11 @@ class Listener {
     });
     try {
       const result = route.def.handler(upstream);
+      if ((method === "PATCH" || method === "POST") && url.pathname.startsWith("/api/plugins/kanban/") &&
+          this.state.mutationResponseDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, this.state.mutationResponseDelayMs));
+      }
+      if (response.destroyed) return;
       const raw = result.raw ?? (result.body === undefined ? "" : JSON.stringify(result.body));
       this.send(response, result.status ?? 200, raw, result.headers ?? {});
     } catch (error) {
@@ -202,7 +208,7 @@ export async function createHermesFake(options: HermesFakeOptions = {}): Promise
   const pollMs = options.eventPollMs ?? 40;
   let wsConnections = 0;
 
-  const dashboard = new Listener("dashboard", dashboardRoutes(state), calls, (request, socket) => {
+  const dashboard = new Listener("dashboard", dashboardRoutes(state), calls, state, (request, socket) => {
     const url = new URL(request.url ?? "/", "http://localhost");
     calls.push({
       listener: "dashboard",
@@ -250,7 +256,7 @@ export async function createHermesFake(options: HermesFakeOptions = {}): Promise
       }, pollMs),
     );
   });
-  const api = new Listener("api", apiRoutes(state), calls);
+  const api = new Listener("api", apiRoutes(state), calls, state);
   await Promise.all([dashboard.start(), api.start()]);
 
   const listeners = { api, dashboard };

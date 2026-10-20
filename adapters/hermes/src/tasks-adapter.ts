@@ -1,4 +1,4 @@
-import type { Task, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
+import type { Task, TaskActionRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
 import {
   AdapterError,
   assertCanonicalEvent,
@@ -56,7 +56,7 @@ export function taskEventType(kind: string, task: Task): AdapterEventInput["type
 
 /**
  * Tasks/Kanban on Hermes: dashboard REST of the Kanban plugin (read + create + update) and the Kanban event WebSocket
- * (`tasks.stream`). Cancel, retry, pause and resume are not offered: no live-verified Hermes interface.
+ * (`tasks.stream`). Cancel archives atomically in Hermes; retry is restricted to non-running terminal/blocked work.
  */
 export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
   readonly manifest = manifestFor("tasks");
@@ -244,6 +244,54 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
       data: this.requireMapper().map({ board: ref.board, raw, profileModel }, this.mapContext()),
       freshness: { state: "fresh", asOf: toIso(context.clock) },
     };
+  }
+
+  async cancelTask(params: IdParam & { body?: TaskActionRequest }, call: MutationContext): Promise<Single<Task>> {
+    const { kanban, context } = this.ready();
+    const ref = await this.resolveTask(params.id, call);
+    const before = await kanban.taskDetail(ref, "cancelTask", call);
+    this.assertLifecycleVersion(before.task, call);
+    if (before.task.status === "archived" || before.task.status === "done") {
+      throw new AdapterError({ code: "CONFLICT", message: "Die Aufgabe ist bereits beendet.", retryable: false });
+    }
+    // Upstream archive_task commits the terminal status, closes an open run, then terminates its
+    // worker. Reclaiming first would return it to a dispatchable state and create a race.
+    await kanban.patchTask(ref, { status: "archived" }, {}, call);
+    const after = await kanban.taskDetail(ref, "cancelTask", call);
+    if (after.task.status !== "archived") {
+      throw new AdapterError({ code: "CONFLICT", message: "Hermes meldet die Aufgabe nicht als archiviert.", retryable: false });
+    }
+    return { data: this.mapDetail(ref.board, after, await this.profileModel(call)),
+      freshness: { state: "fresh", asOf: toIso(context.clock) } };
+  }
+
+  async retryTask(params: IdParam & { body?: TaskActionRequest }, call: MutationContext): Promise<Single<Task>> {
+    const { kanban, context } = this.ready();
+    const ref = await this.resolveTask(params.id, call);
+    const before = await kanban.taskDetail(ref, "retryTask", call);
+    this.assertLifecycleVersion(before.task, call);
+    // `ready` with last_failure_error is a historical failure marker, not a stopped task:
+    // the dispatcher may already be claiming it. Only blocked failures and archived work
+    // have a known safe transition to ready in the pinned Hermes workflow.
+    if (before.task.status !== "archived" &&
+        !(before.task.status === "blocked" &&
+          (before.task.lastFailureError || before.task.blockKind === "friday_stopped"))) {
+      throw new AdapterError({ code: "CONFLICT", message: "Nur archivierte oder blockierte fehlgeschlagene Aufgaben koennen erneut gestartet werden.", retryable: false });
+    }
+    await kanban.patchTask(ref, { status: "ready" }, {}, call);
+    const after = await kanban.taskDetail(ref, "retryTask", call);
+    if (after.task.status !== "ready" && after.task.status !== "running") {
+      throw new AdapterError({ code: "CONFLICT", message: "Hermes hat den Neustart nicht bestaetigt.", retryable: false });
+    }
+    return { data: this.mapDetail(ref.board, after, await this.profileModel(call)),
+      freshness: { state: "fresh", asOf: toIso(context.clock) } };
+  }
+
+  private assertLifecycleVersion(raw: WireTaskDetail["task"], call: MutationContext): void {
+    if (call.ifMatchVersion !== undefined && taskVersion(raw) !== call.ifMatchVersion) {
+      throw new AdapterError({ code: "CONFLICT", message: "Die Aufgabe wurde in Hermes zwischenzeitlich geaendert.",
+        retryable: false, details: { expectedVersion: call.ifMatchVersion, currentVersion: taskVersion(raw) } });
+    }
   }
 
   // ---- events (tasks.stream) ---------------------------------------------------------------------------------------------

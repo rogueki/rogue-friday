@@ -20,6 +20,43 @@ afterEach(async () => {
 });
 
 describe("Hermes adapters behind the registry (config schema, secrets, result validation)", () => {
+  it("does not replay a timed-out stop after the named run ended", async () => {
+    const raw = fake.state.addTask("default", { title: "Worker stoppen", assignee: "kira" });
+    fake.state.startWorker("default", raw);
+    registry = new AdapterRegistry({ allowlist: ["hermes-agents"], secretProvider: ({ field }) =>
+      field === "apiKey" ? fake.state.apiKey : undefined });
+    registry.registerFactory("hermes-agents", hermesFactories.find((factory) => factory.providerId === "hermes-agents")!);
+    await registry.initialize({ mode: "live", adapters: { agents: { provider: "hermes-agents", enabled: true,
+      config: { apiBaseUrl: fake.apiUrl, dashboardBaseUrl: fake.dashboardUrl, boards: ["default"],
+        pollIntervalMs: 0, timeoutMs: 300, maxAttempts: 3, retryBaseDelayMs: 1 } } } });
+    const port = registry.getPort("agents");
+    const agent = (await port.listAgents({}, { correlationId: createCorrelationId() })).items.find((item) => item.name === "kira")!;
+    fake.state.mutationResponseDelayMs = 750;
+    await expect(port.stopAgent!({ id: agent.id }, { correlationId: createCorrelationId(),
+      idempotencyKey: "stop-ambiguous-001" })).rejects.toBeDefined();
+    expect(raw.status).toBe("blocked");
+    expect(fake.state.workers).toHaveLength(0);
+    expect(fake.callsTo("dashboard", /\/terminate$/).filter((call) => call.method === "POST")).toHaveLength(1);
+  });
+
+  it("does not replay a timed-out retry after Hermes already changed the task", async () => {
+    const raw = fake.state.addTask("default", { title: "Wiederholen", status: "archived" });
+    registry = new AdapterRegistry({ allowlist: ["hermes-tasks"], secretProvider: ({ field }) =>
+      field === "apiKey" ? fake.state.apiKey : undefined });
+    const factory = hermesFactories[0]!;
+    registry.registerFactory("hermes-tasks", factory);
+    await registry.initialize({ mode: "live", adapters: { tasks: { provider: "hermes-tasks", enabled: true,
+      config: { apiBaseUrl: fake.apiUrl, dashboardBaseUrl: fake.dashboardUrl, boards: ["default"],
+        pollIntervalMs: 0, timeoutMs: 300, maxAttempts: 3, retryBaseDelayMs: 1 } } } });
+    const port = registry.getPort("tasks");
+    const task = (await port.listTasks({ status: ["cancelled"] }, { correlationId: createCorrelationId() })).items[0]!;
+    fake.state.mutationResponseDelayMs = 750;
+    await expect(port.retryTask!({ id: task.id }, { correlationId: createCorrelationId(),
+      idempotencyKey: "retry-ambiguous-001" })).rejects.toBeDefined();
+    expect(raw.status).toBe("ready");
+    expect(fake.callsTo("dashboard", /\/tasks\/t_/).filter((call) => call.method === "PATCH")).toHaveLength(1);
+  });
+
   it("load ONLINE with the documented config, resolve secrets and serve contract-valid results", async () => {
     registry = new AdapterRegistry({
       allowlist: hermesFactories.map((factory) => factory.providerId),
@@ -64,10 +101,11 @@ describe("Hermes adapters behind the registry (config schema, secrets, result va
       create: true,
       update: true,
       stream: true,
-      cancel: false,
+      cancel: true,
+      retry: true,
     });
     expect(modules.activity).toMatchObject({ read: true, stream: true, backfill: true });
-    expect(modules.agents).toMatchObject({ read: true, pause: false, resume: false, stop: false });
+    expect(modules.agents).toMatchObject({ read: true, pause: false, resume: false, stop: true });
   });
 
   it("goes OFFLINE (not crashing) when the API server is unreachable at start", async () => {
