@@ -64,7 +64,12 @@ export async function applyVoiceSettings(runtime: Runtime, requested: RuntimeVoi
   }
   if (response.status === 422) throw validationFailed("Sprachdienst kann diese Einstellung nicht sicher anwenden.");
   if (response.status === 409) throw new ApiError({ code: "CONFLICT", message: "Sprachkonfiguration wurde inzwischen geändert. Bitte neu laden." });
-  if (response.status === 423) throw new ApiError({ code: "CONFLICT", message: "Friday ist beschäftigt. Nach der Antwort erneut speichern." });
+  if (response.status === 423) {
+    const status = await voiceRuntimeStatus(runtime).catch(() => null);
+    throw new ApiError({ code: "CONFLICT", message: status?.stt_preflight_busy === true
+      ? "Das lokale Whisper-Modell wird noch geladen. Wenn dieser Zustand bestehen bleibt, den Friday-Sprachdienst neu starten. Andere Einstellungen bleiben nutzbar."
+      : "Friday ist besch\u00e4ftigt. Nach der Antwort erneut speichern." });
+  }
   if (!response.ok) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst hat die Einstellung nicht übernommen." });
   const ack: unknown = await response.json().catch(() => null);
   const data = ack as { applied?: unknown; settings?: unknown; serviceStartedAt?: unknown; configRevision?: unknown } | null;

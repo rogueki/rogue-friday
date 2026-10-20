@@ -5,7 +5,7 @@ import { readRuntimeVoiceSettings } from "./voice-settings";
 export type SttModelsStatus = {
   localMode: boolean;
   models: Array<{ id: string; cached: boolean }>;
-  job: { id: string; model: string; state: "downloading" | "ready" | "failed" | "cancelled"; error: string | null } | null;
+  job: { id: string; model: string; state: "downloading" | "cancelling" | "ready" | "failed" | "cancelled"; error: string | null } | null;
 };
 
 export async function sttModelsRequest(runtime: Runtime, action: "status" | "download" | "cancel",
@@ -26,7 +26,7 @@ export async function sttModelsRequest(runtime: Runtime, action: "status" | "dow
     response = await fetch(url, { method: action === "status" ? "GET" : "POST", headers: {
       Authorization: `Bearer ${runtime.voiceBridgeKey.toString("base64")}`,
       ...(body ? { "Content-Type": "application/json" } : {}),
-    }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(8_000), redirect: "error" });
+    }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(action === "cancel" ? 15_000 : 8_000), redirect: "error" });
   } catch { throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst nicht erreichbar." }); }
   if (response.status === 422) throw validationFailed("STT-Modell oder Downloadauftrag ist ungültig.");
   if (response.status === 423) throw new ApiError({ code: "CONFLICT", message: "Ein Modelldownload läuft bereits." });
@@ -38,7 +38,7 @@ export async function sttModelsRequest(runtime: Runtime, action: "status" | "dow
       state.models.length > 4 || !state.models.every((model) => model && typeof model.id === "string" && /^[a-z0-9][a-z0-9.-]{0,63}$/.test(model.id) && typeof model.cached === "boolean") ||
       !(state.job === null || state.job && /^[0-9a-f]{32}$/.test(state.job.id) &&
         ["base", "small", "medium"].includes(state.job.model) &&
-        ["downloading", "ready", "failed", "cancelled"].includes(state.job.state) &&
+        ["downloading", "cancelling", "ready", "failed", "cancelled"].includes(state.job.state) &&
         (state.job.error === null || typeof state.job.error === "string")))
     throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Ungültiger STT-Modellstatus." });
   return state;

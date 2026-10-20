@@ -13,7 +13,7 @@
     "job": { "oneOf": [{ "type": "null" }, { "type": "object", "properties": {
       "id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
       "model": { "type": "string", "enum": ["base", "small", "medium"] },
-      "state": { "type": "string", "enum": ["downloading", "ready", "failed", "cancelled"] },
+      "state": { "type": "string", "enum": ["downloading", "cancelling", "ready", "failed", "cancelled"] },
       "error": { "type": ["string", "null"] }
     }, "required": ["id", "model", "state", "error"], "additionalProperties": false }] }
   },

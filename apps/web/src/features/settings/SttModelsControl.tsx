@@ -7,7 +7,7 @@ import { getCsrfToken } from "@/lib/api/client";
 type Status = {
   localMode: boolean;
   models: Array<{ id: string; cached: boolean }>;
-  job: { id: string; model: string; state: "downloading" | "ready" | "failed" | "cancelled"; error: string | null } | null;
+  job: { id: string; model: string; state: "downloading" | "cancelling" | "ready" | "failed" | "cancelled"; error: string | null } | null;
 };
 
 async function request(path: string, body?: object): Promise<Status> {
@@ -46,7 +46,7 @@ export function SttModelsControl({ selected, readOnly }: { selected: string | nu
       <p role="status">Cloud-Erkennung ist aktiv. Lokale Whisper-Modelle können in diesem Modus nicht gewechselt werden.</p> : <>
         <ul>{status.models.map((model) => <li key={model.id}>
           {model.id}: {model.cached ? "lokal vorhanden" : "nicht lokal vorhanden"}
-          {!model.cached && ["base", "small", "medium"].includes(model.id) ? <Button type="button" size="sm" variant="ghost" disabled={readOnly || busy || status.job?.state === "downloading"}
+          {!model.cached && ["base", "small", "medium"].includes(model.id) ? <Button type="button" size="sm" variant="ghost" disabled={readOnly || busy || status.job?.state === "downloading" || status.job?.state === "cancelling"}
             onClick={() => void run("/download", { model: model.id })}>Herunterladen</Button> : null}
         </li>)}</ul>
         {selected && !status.models.some((model) => model.id === selected && model.cached) ?
@@ -54,6 +54,7 @@ export function SttModelsControl({ selected, readOnly }: { selected: string | nu
         {status.job?.state === "downloading" ? <p role="status">Download von {status.job.model} läuft. Das bisherige Modell bleibt aktiv.
           <Button type="button" size="sm" variant="ghost" disabled={busy || readOnly}
             onClick={() => void run("/cancel", { jobId: status.job?.id })}>Abbrechen</Button></p> : null}
+        {status.job?.state === "cancelling" ? <p role="status">Download wird beendet. Ein neuer Auftrag ist erst danach möglich.</p> : null}
         {status.job?.state === "ready" ? <p role="status">{status.job.model} ist lokal vorhanden. Wählen und speichern Sie es zur Aktivierung.</p> : null}
         {status.job?.state === "failed" ? <p role="alert">{status.job.error ?? "Download fehlgeschlagen."} Erneut versuchen.</p> : null}
       </>}

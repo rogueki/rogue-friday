@@ -70,6 +70,7 @@ from voice_runtime_paths import dashboard_port  # noqa: E402
 from memory_outbox import MemoryOutbox, private_intent  # noqa: E402
 
 SR = 16000
+STT_PREFLIGHT_TIMEOUT = 45
 CHUNK = 1280  # 80 ms, Eingabegroesse von openWakeWord
 VAD_FRAME = 512
 LOG_PATH = os.path.join(STATE_ROOT, "logs", "voice.jsonl")
@@ -1897,6 +1898,7 @@ class VoiceService:
                 "tts_voice_choice": self.cfg.get("tts_voice_choice"),
                 "runtime_settings": runtime_settings.effective(self.cfg),
                 "config_revision": getattr(self, "config_disk_hash", None),
+                "stt_preflight_busy": getattr(self, "stt_preflight_busy", False),
                 "ptt_active": self.ptt_active,
                 "native_ptt_available": getattr(self, "native_ptt_available", False),
                 "service_started_at": getattr(self, "service_started_at", None),
@@ -2034,15 +2036,16 @@ class VoiceService:
                         requested = request["settings"]
                         runtime_settings.validate(requested, service.cfg)
                         with service.manual_start_lock:
+                            model_change = requested["sttModel"] != runtime_settings.effective(service.cfg)["sttModel"]
                             if (service.processing or service.tts.speaking.is_set() or
-                                    getattr(service, "stt_preflight_busy", False) or
+                                    (model_change and getattr(service, "stt_preflight_busy", False)) or
                                     service.status["state"] in ("command", "followup", "speaking")):
-                                self.send_error(423, "Voice is busy")
+                                self.send_error(423, "Whisper loader is still running; restart voice service if it does not finish" if
+                                                model_change and getattr(service, "stt_preflight_busy", False) else "Voice is busy")
                                 return
                             if (request["expectedServiceStartedAt"] != service.service_started_at or
                                     request["expectedConfigRevision"] != service.config_disk_hash):
                                 raise runtime_settings.ConfigConflict("Voice configuration revision changed")
-                            model_change = requested["sttModel"] != runtime_settings.effective(service.cfg)["sttModel"]
                             if model_change:
                                 if service.cloud_voice or requested["sttModel"] is None:
                                     raise ValueError("Local Whisper model is unavailable in this voice mode")
@@ -2064,9 +2067,14 @@ class VoiceService:
                                     with service.manual_start_lock:
                                         service.stt_preflight_busy = False
                                     ready.set()
-                            threading.Thread(target=load_cached_model, daemon=True).start()
-                            if not ready.wait(45):
-                                raise OSError("Cached Whisper model load timed out")
+                            try:
+                                threading.Thread(target=load_cached_model, daemon=True).start()
+                            except Exception:
+                                with service.manual_start_lock:
+                                    service.stt_preflight_busy = False
+                                raise
+                            if not ready.wait(STT_PREFLIGHT_TIMEOUT):
+                                raise OSError("Cached Whisper model load timed out; restart voice service if loader remains busy")
                             if "model" not in prepared:
                                 raise ValueError("Whisper model is not cached or cannot load locally")
                             prepared_stt = prepared["model"]
@@ -2085,7 +2093,7 @@ class VoiceService:
                                 prepared_from_enrollment = True
                         with service.manual_start_lock:
                             if (service.processing or service.tts.speaking.is_set() or
-                                    getattr(service, "stt_preflight_busy", False) or
+                                    (model_change and getattr(service, "stt_preflight_busy", False)) or
                                     service.status["state"] in ("command", "followup", "speaking")):
                                 self.send_error(423, "Voice is busy")
                                 return

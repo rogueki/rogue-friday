@@ -42,4 +42,11 @@ describe("voice settings bridge", () => {
     await expect(applyVoiceSettings(runtime, requested, before)).rejects.toMatchObject({ code: "CONFLICT" });
     expect(send).toHaveBeenCalledOnce();
   });
+
+  it("reports a stuck model loader with an explicit service restart path", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { status: 423 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ stt_preflight_busy: true })));
+    await expect(applyVoiceSettings(runtime, requested, before)).rejects.toThrow("Sprachdienst neu starten");
+  });
 });

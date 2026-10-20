@@ -730,6 +730,28 @@ def test_stt_model_preflight_and_language_apply_without_late_or_remote_change(mo
     svc.cloud_voice = True
     assert post({**jv.runtime_settings.effective(svc.cfg), "sttModel": "medium"}) == 422
     assert svc.cfg["whisper_model"] == "small"
+    svc.cloud_voice = False
+    loading = threading.Event()
+    release = threading.Event()
+    class StuckWhisper:
+        def __init__(self, name, **kwargs):
+            loading.set()
+            assert release.wait(2)
+            self.name = name
+    fake.WhisperModel = StuckWhisper
+    monkeypatch.setattr(jv, "STT_PREFLIGHT_TIMEOUT", .02)
+    assert post({**jv.runtime_settings.effective(svc.cfg), "sttModel": "medium"}) == 503
+    assert loading.is_set() and svc.stt_preflight_busy
+    assert post({**jv.runtime_settings.effective(svc.cfg), "sttLanguage": "de"}) == 200
+    assert post({**jv.runtime_settings.effective(svc.cfg), "sttModel": "medium"}) == 423
+    assert svc.cfg["whisper_model"] == "small" and svc.whisper.name == "small"
+    release.set()
+    for _ in range(100):
+        if not svc.stt_preflight_busy:
+            break
+        time.sleep(.01)
+    assert not svc.stt_preflight_busy
+    assert svc.cfg["whisper_model"] == "small" and svc.whisper.name == "small"
 
 
 def test_wake_enrollment_http_capture_train_save_cas_and_rollback(monkeypatch, tmp_path):
