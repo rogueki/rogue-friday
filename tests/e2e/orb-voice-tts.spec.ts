@@ -1,4 +1,4 @@
-import { GL_ARGS, launchOptions } from "./support/browser";
+﻿import { GL_ARGS, launchOptions } from "./support/browser";
 import { test, expect } from "./support/fixtures";
 import { fakeMicArgs, maxOf, orbState, readAudio, sampleAudio, ttsFrame, writeMicFixture } from "./support/orb";
 import { openVoicePage, startMicrophone } from "./support/orbVoice";
@@ -16,9 +16,10 @@ test("TTS start activates speaking, the analyser follows the audio incl. pauses,
   await startMicrophone(page);
   await expect.poll(() => gateway.socket() !== undefined).toBe(true);
 
-  // 4.8 s of TTS: voiced for 1.1 s, a ~1 s pause, voiced again
+  // 7.2 s of TTS at 80 ms per frame: voiced for 1.1 s, a ~1 s pause, voiced again. The audio outlasts the
+  // 2.8 s analyser sample below by seconds, so a slow evaluate roundtrip cannot end the utterance early.
   const pcm = (index: number): Int16Array => (index >= 14 && index < 26 ? new Int16Array(1280) : ttsFrame(index));
-  await gateway.speak({ frames: 60, pcm });
+  await gateway.speak({ frames: 90, pcm });
   await expect.poll(async () => (await orbState(page)).primaryInteraction, { timeout: 5000, intervals: [50] }).toBe("speaking");
   const reading = await readAudio(page);
   expect(reading.output.source, "real playback analysis, not the simulated envelope").toBe("analyser");
