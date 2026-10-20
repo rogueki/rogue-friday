@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
+import { StagedWriteConfirmHost } from "@/lib/api/stagedWrite";
 import type { AutomationDto } from "@/lib/api/domains/automations";
 import { renderWithProviders } from "@/test/render";
 import { resetRouter } from "../memory/kit/testRouter";
@@ -65,6 +66,23 @@ const routes = (items: AutomationDto[] = [mail, backup, idle]) => ({
 
 beforeEach(() => resetRouter("/automations"));
 afterEach(() => setApiClient(null));
+
+const PREVIEW_PAUSE_ALL = "corr_01JTESTTESTTESTTESTTESTPAA";
+const PREVIEW_RESUME = "corr_01JTESTTESTTESTTESTTESTRES";
+
+/**
+ * The staged-write protocol of the Control API (P9 automation slice): the first call is only staged and answered with
+ * 403 APPROVAL_REQUIRED (`stage: preview`), the repeat carrying that `X-Action-Preview-Id` executes the same action.
+ */
+function staged(previewId: string, previewText: string, result: unknown): (url: URL, request: Request) => unknown {
+  return (_url, request) =>
+    request.headers.get("x-action-preview-id") === previewId
+      ? result
+      : new Response(
+          JSON.stringify({ error: { code: "APPROVAL_REQUIRED", message: "Diese Aktion muss zuerst bestätigt werden.", severity: "warning", retryable: false, correlationId: previewId, details: { stage: "preview", previewId, previewText } } }),
+          { status: 403, headers: { "content-type": "application/json" } },
+        );
+}
 
 async function openFirst(user: ReturnType<typeof userEvent.setup>, name = "Wichtige Mail eskalieren"): Promise<HTMLElement> {
   await user.click(await screen.findByRole("button", { name: `Details zu ${name} öffnen` }));
@@ -136,18 +154,21 @@ describe("automations page: Pause All", () => {
       unchangedCount: 1,
       failedCount: 0,
     };
-    const fake = routedFetch({ ...routes(), "POST /api/v1/automations/pause-all": single(result) });
-    renderWithProviders(<AutomationsPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    const fake = routedFetch({ ...routes(), "POST /api/v1/automations/pause-all": staged(PREVIEW_PAUSE_ALL, "Alle 2 aktiven Automationen pausieren?", single(result)) });
+    renderWithProviders(<><AutomationsPage /><StagedWriteConfirmHost /></>, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     await screen.findByText("Backup-Verifikation");
-    await user.click(screen.getByRole("button", { name: "Alle pausieren" }));
-    const confirm = await screen.findByRole("alertdialog");
-    expect(within(confirm).getByText(/2 aktive Automationen anzuhalten/)).toBeInTheDocument();
-    expect(within(confirm).getByText("Wichtige Mail eskalieren")).toBeInTheDocument();
     expect(fake.to("POST", "/api/v1/automations/pause-all")).toHaveLength(0);
-    await user.click(within(confirm).getByRole("button", { name: "Alle pausieren" }));
+    await user.click(screen.getByRole("button", { name: "Alle pausieren" }));
+    // Since the P9 slice the server preview is the confirmation: the first request only stages the bulk action.
     await waitFor(() => expect(fake.to("POST", "/api/v1/automations/pause-all")).toHaveLength(1));
-    expect(fake.calls.filter((call) => call.method === "PATCH")).toHaveLength(0);
     expect(fake.to("POST", "/api/v1/automations/pause-all")[0]?.headers.get("Idempotency-Key")).toBeTruthy();
+    expect(fake.to("POST", "/api/v1/automations/pause-all")[0]?.headers.get("x-action-preview-id")).toBeNull();
+    const confirm = await screen.findByRole("alertdialog", { name: "Du bist dabei:" });
+    expect(within(confirm).getByText("Alle 2 aktiven Automationen pausieren?")).toBeInTheDocument();
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(fake.to("POST", "/api/v1/automations/pause-all")).toHaveLength(2));
+    expect(fake.to("POST", "/api/v1/automations/pause-all")[1]?.headers.get("x-action-preview-id")).toBe(PREVIEW_PAUSE_ALL);
+    expect(fake.calls.filter((call) => call.method === "PATCH")).toHaveLength(0);
     expect(await screen.findByText("Alle Automationen pausiert")).toBeInTheDocument();
     expect(screen.getByText("2 pausiert, 1 unverändert, 0 fehlgeschlagen.")).toBeInTheDocument();
   });
@@ -163,11 +184,11 @@ describe("automations page: Pause All", () => {
       unchangedCount: 0,
       failedCount: 1,
     };
-    const fake = routedFetch({ ...routes(), "POST /api/v1/automations/pause-all": single(result) });
-    renderWithProviders(<AutomationsPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    const fake = routedFetch({ ...routes(), "POST /api/v1/automations/pause-all": staged(PREVIEW_PAUSE_ALL, "Alle 2 aktiven Automationen pausieren?", single(result)) });
+    renderWithProviders(<><AutomationsPage /><StagedWriteConfirmHost /></>, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     await screen.findByText("Backup-Verifikation");
     await user.click(screen.getByRole("button", { name: "Alle pausieren" }));
-    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Alle pausieren" }));
+    await user.click(within(await screen.findByRole("alertdialog", { name: "Du bist dabei:" })).getByRole("button", { name: "Bestätigen" }));
     expect(await screen.findByText("Nicht alle Automationen geändert")).toBeInTheDocument();
     expect(screen.getByText("1 pausiert, 0 unverändert, 1 fehlgeschlagen.")).toBeInTheDocument();
   });
@@ -175,13 +196,17 @@ describe("automations page: Pause All", () => {
   it("resumes with one PATCH { paused: false } per automation (no bulk operation for resuming)", async () => {
     const user = userEvent.setup();
     const paused = automation(A1, { paused: true, version: 4 });
-    const fake = routedFetch({ ...routes([paused, idle]), [`PATCH /api/v1/automations/${A1}`]: () => single({ ...paused, paused: false, version: 5 }) });
-    renderWithProviders(<AutomationsPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    const fake = routedFetch({ ...routes([paused, idle]), [`PATCH /api/v1/automations/${A1}`]: staged(PREVIEW_RESUME, "Automation fortsetzen?", single({ ...paused, paused: false, version: 5 })) });
+    renderWithProviders(<><AutomationsPage /><StagedWriteConfirmHost /></>, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
     await user.click(await screen.findByRole("button", { name: "Alle fortsetzen" }));
-    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Alle fortsetzen" }));
     await waitFor(() => expect(fake.to("PATCH", `/api/v1/automations/${A1}`)).toHaveLength(1));
-    expect(fake.to("PATCH", `/api/v1/automations/${A1}`)[0]?.body).toEqual({ paused: false });
-    expect(fake.to("PATCH", `/api/v1/automations/${A1}`)[0]?.headers.get("If-Match")).toBe("4");
+    expect(fake.to("PATCH", `/api/v1/automations/${A1}`)[0]?.headers.get("x-action-preview-id")).toBeNull();
+    await user.click(within(await screen.findByRole("alertdialog", { name: "Du bist dabei:" })).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(fake.to("PATCH", `/api/v1/automations/${A1}`)).toHaveLength(2));
+    const executed = fake.to("PATCH", `/api/v1/automations/${A1}`)[1];
+    expect(executed?.headers.get("x-action-preview-id")).toBe(PREVIEW_RESUME);
+    expect(executed?.body).toEqual({ paused: false });
+    expect(executed?.headers.get("If-Match")).toBe("4");
     expect(fake.to("POST", "/api/v1/automations/pause-all")).toHaveLength(0);
   });
 

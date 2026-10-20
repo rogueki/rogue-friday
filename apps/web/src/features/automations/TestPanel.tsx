@@ -1,16 +1,21 @@
 "use client";
 
-import type { AutomationRun } from "@friday/sdk";
+import type { AutomationRun, components } from "@friday/sdk";
 import type { AutomationDto as Automation } from "@/lib/api/domains/automations";
 import { Button } from "@friday/ui";
 import { FlaskConical, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { useT } from "@/i18n";
-import { useTestAutomation } from "@/lib/api/domains/automations";
+import { call } from "@/lib/api/call";
+import { getApiClient } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/queryKeys";
+import { useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 import { useCapability } from "@/lib/capabilities";
 import { TextArea } from "../memory/kit/fields";
 import { RunDetail } from "./RunHistory";
 import { ACTION_TONE } from "./labels";
+
+type AutomationRunResponse = components["schemas"]["AutomationRunResponse"];
 
 /** Builds nested mock data (`thread.priority` -> `{ thread: { priority } }`) from the conditions that compare for equality. */
 export function sampleFromConditions(automation: Pick<Automation, "conditions">): Record<string, unknown> {
@@ -38,7 +43,8 @@ export function sampleFromConditions(automation: Pick<Automation, "conditions">)
 export function TestPanel({ automation }: { automation: Automation }) {
   const { t } = useT();
   const canTest = useCapability("automations", "test");
-  const test = useTestAutomation();
+  const runStagedWrite = useRunStagedWrite();
+  const stagedBusy = useStagedWriteBusy();
   const [text, setText] = useState(() => JSON.stringify(sampleFromConditions(automation), null, 2));
   const [error, setError] = useState<string | undefined>();
   const [run, setRun] = useState<AutomationRun | null>(null);
@@ -54,7 +60,18 @@ export function TestPanel({ automation }: { automation: Automation }) {
       return;
     }
     setError(undefined);
-    test.mutate({ id: automation.id, dryRun: true, sampleData: sample }, { onSuccess: (response) => setRun(response.data) });
+    // A dry run is a write like any other: the server stages the exact sample and the confirmation binds it.
+    void runStagedWrite({
+      send: (previewId) =>
+        call(getApiClient().POST("/api/v1/automations/{id}/test", {
+          body: { dryRun: true, sampleData: sample },
+          params: { path: { id: automation.id } },
+          ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })) as Promise<AutomationRunResponse>,
+      successMessage: t("automations.staged.tested"),
+      subject: automation.name,
+      invalidateKeys: [queryKeys.automations.all],
+      onExecuted: (response) => setRun((response as AutomationRunResponse).data),
+    });
   };
 
   const simulated = run?.actionsExecuted.filter((entry) => entry.status === "simulated").length ?? 0;
@@ -63,7 +80,7 @@ export function TestPanel({ automation }: { automation: Automation }) {
       <p className="mk-block mk-block--green mk-note">{t("automations.test.safe")}</p>
       <TextArea label={t("automations.test.sample")} value={text} onChange={(event) => setText(event.target.value)} rows={6} error={error} hint={t("automations.test.sampleHint")} spellCheck={false} className="aut-test__sample" />
       <div className="mk-actions">
-        <Button icon={<FlaskConical size={14} />} disabled={!canTest} loading={test.isPending} title={!canTest ? t("automations.kit.noTest") : undefined} onClick={start}>
+        <Button icon={<FlaskConical size={14} />} disabled={!canTest} loading={stagedBusy} title={!canTest ? t("automations.kit.noTest") : undefined} onClick={start}>
           {t("automations.test.run")}
         </Button>
         <Button size="sm" variant="ghost" icon={<Wand2 size={14} />} onClick={() => setText(JSON.stringify(sampleFromConditions(automation), null, 2))}>
