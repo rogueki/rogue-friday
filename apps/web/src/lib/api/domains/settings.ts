@@ -24,6 +24,8 @@ import type {
   HermesApprovalTestResponse,
   HermesMcpOAuthResponse,
   HermesCronJobsResponse,
+  HermesCronMutationRequest,
+  HermesCronMutationResponse,
 } from "@friday/sdk";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { call } from "../call";
@@ -76,6 +78,12 @@ export const useHermesCronJobs = (enabled = true) => useQuery({
   enabled,
   staleTime: 15000,
 });
+
+export function sendHermesCronMutation(body: HermesCronMutationRequest, previewId?: string, discard = false) {
+  const headers = previewId ? { "X-Action-Preview-Id": previewId,
+    ...(discard ? { "X-Action-Preview-Cancel": "true" } : {}) } : undefined;
+  return call(getApiClient().POST("/api/v1/settings/hermes-cron/jobs", { body, ...(headers ? { headers } : {}) })) as Promise<HermesCronMutationResponse>;
+}
 
 export const useHermesModelCatalog = (providerId?: string, enabled = true) => useQuery({
   queryKey: ["hermes-model-catalog", providerId ?? null],

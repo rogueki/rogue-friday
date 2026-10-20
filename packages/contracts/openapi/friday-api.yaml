@@ -6755,6 +6755,54 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+    post:
+      operationId: mutateHermesCronJob
+      tags: [settings]
+      summary: Stage and confirm one revision-bound native Hermes cron mutation
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: X-Action-Preview-Id
+          in: header
+          required: false
+          schema: { type: string, pattern: '^corr_[0-9A-Za-z]{26}$' }
+        - name: X-Action-Preview-Cancel
+          in: header
+          required: false
+          schema: { type: string, enum: ['true'] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HermesCronMutationRequest"
+      responses:
+        "200":
+          description: Native store mutation accepted; scheduler execution remains unverified
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesCronMutationResponse"
+        "204":
+          description: Matching preview draft discarded
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/hermes-config/mcp-probe:
     post:
       operationId: probeHermesMcp
@@ -9636,6 +9684,12 @@ components:
       $ref: ../schemas/integrations/hermes-cron-jobs.schema.json
     HermesCronJobsResponse:
       $ref: ../schemas/integrations/hermes-cron-jobs-response.schema.json
+    HermesCronMutationRequest:
+      $ref: ../schemas/integrations/hermes-cron-mutation-request.schema.json
+    HermesCronMutationReceipt:
+      $ref: ../schemas/integrations/hermes-cron-mutation-receipt.schema.json
+    HermesCronMutationResponse:
+      $ref: ../schemas/integrations/hermes-cron-mutation-response.schema.json
     HermesConfigStatus:
       $ref: ../schemas/integrations/hermes-config-status.schema.json
     HermesConfigStatusResponse:

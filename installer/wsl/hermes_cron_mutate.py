@@ -149,8 +149,9 @@ def main() -> int:
     except ValueError as exc:
         known = {"invalid_request", "unsupported_profile", "unsupported_source_revision", "profile_conflict",
                  "timezone_conflict", "store_revision_conflict", "job_not_found", "invalid_native_store"}
-        print(json.dumps({"error": str(exc) if str(exc) in known else "cron_mutation_not_confirmed"}))
-        return 5
+        code = str(exc) if str(exc) in known else "cron_mutation_not_confirmed"
+        print(json.dumps({"error": code}))
+        return 0 if code in known else 5
     except (OSError, ImportError, RuntimeError, subprocess.TimeoutExpired):
         print(json.dumps({"error": "cron_mutation_not_confirmed"}))
         return 5

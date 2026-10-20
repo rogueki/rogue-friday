@@ -2825,7 +2825,8 @@ export interface paths {
         /** Read bounded native Hermes cron job metadata for the active profile */
         get: operations["listHermesCronJobs"];
         put?: never;
-        post?: never;
+        /** Stage and confirm one revision-bound native Hermes cron mutation */
+        post: operations["mutateHermesCronJob"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7008,6 +7009,38 @@ export interface components {
         HermesCronJobsResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["HermesCronJobs"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HermesCronMutationReceipt */
+        HermesCronMutationReceipt: {
+            /** @constant */
+            accepted: true;
+            /** @enum {unknown} */
+            action: "create" | "update" | "pause" | "resume" | "run" | "remove";
+            /** @constant */
+            executionVerified: false;
+            jobId: string;
+            profile: string;
+            profileTimezone: string | null;
+            state: string;
+            storeRevision: string;
+        };
+        /** HermesCronMutationRequest */
+        HermesCronMutationRequest: {
+            /** @enum {unknown} */
+            action: "create" | "update" | "pause" | "resume" | "run" | "remove";
+            expectedStoreRevision: string;
+            jobId?: string;
+            name?: string;
+            profile: string;
+            profileTimezone: string | null;
+            prompt?: string;
+            schedule?: string;
+        } & (unknown & unknown & unknown);
+        /** HermesCronMutationResponse */
+        HermesCronMutationResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["HermesCronMutationReceipt"];
             freshness: components["schemas"]["Freshness"];
         };
         /** HermesMcpOAuthRequest */
@@ -17204,6 +17237,51 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    mutateHermesCronJob: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeated keys replay the stored response instead of executing again. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                "X-Action-Preview-Cancel"?: "true";
+                "X-Action-Preview-Id"?: string;
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HermesCronMutationRequest"];
+            };
+        };
+        responses: {
+            /** @description Native store mutation accepted; scheduler execution remains unverified */
+            200: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesCronMutationResponse"];
+                };
+            };
+            /** @description Matching preview draft discarded */
+            204: {
+                headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

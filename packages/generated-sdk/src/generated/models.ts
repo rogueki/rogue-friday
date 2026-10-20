@@ -428,6 +428,7 @@ export type HermesConfigPatch =
       key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
       value: string | null;
     };
+export type HermesCronMutationRequest = HermesCronMutationRequest1;
 export type HermesMcpOAuthRequest =
   | {
       action: "start";
@@ -930,6 +931,9 @@ export interface FridayModelMap {
   HermesConfigStatusResponse: HermesConfigStatusResponse;
   HermesCronJobs: HermesCronJobs;
   HermesCronJobsResponse: HermesCronJobsResponse;
+  HermesCronMutationReceipt: HermesCronMutationReceipt;
+  HermesCronMutationRequest: HermesCronMutationRequest;
+  HermesCronMutationResponse: HermesCronMutationResponse;
   HermesMcpOAuthRequest: HermesMcpOAuthRequest;
   HermesMcpOAuthResponse: HermesMcpOAuthResponse;
   HermesMcpProbeRequest: HermesMcpProbeRequest;
@@ -3614,6 +3618,31 @@ export interface HermesCronJobs {
 export interface HermesCronJobsResponse {
   contractVersion: ContractVersion;
   data: HermesCronJobs;
+  freshness: Freshness;
+}
+export interface HermesCronMutationReceipt {
+  action: "create" | "update" | "pause" | "resume" | "run" | "remove";
+  jobId: string;
+  profile: string;
+  profileTimezone: string | null;
+  storeRevision: string;
+  state: string;
+  accepted: true;
+  executionVerified: false;
+}
+export interface HermesCronMutationRequest1 {
+  action: "create" | "update" | "pause" | "resume" | "run" | "remove";
+  expectedStoreRevision: string;
+  profile: string;
+  profileTimezone: string | null;
+  jobId?: string;
+  name?: string;
+  schedule?: string;
+  prompt?: string;
+}
+export interface HermesCronMutationResponse {
+  contractVersion: ContractVersion;
+  data: HermesCronMutationReceipt;
   freshness: Freshness;
 }
 export interface HermesMcpOAuthResponse {

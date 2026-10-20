@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createId } from "@friday/observability";
-import type { Approval, AutomationCreateRequest, AutomationPauseAllRequest, AutomationTestRequest, AutomationUpdateRequest, CalendarEvent, FileRenameRequest, MemoryConflictResolveRequest, MemoryCreateRequest, MemoryUpdateRequest, ResearchCreateRequest, SchemaValidator, TaskActionRequest, TaskAssignRequest, TaskCreateRequest, TaskUpdateRequest, ContentPlanDocument, Posting, Platform, ContentFormat } from "@friday/sdk";
+import type { Approval, AutomationCreateRequest, AutomationPauseAllRequest, AutomationTestRequest, AutomationUpdateRequest, CalendarEvent, FileRenameRequest, MemoryConflictResolveRequest, MemoryCreateRequest, MemoryUpdateRequest, ResearchCreateRequest, SchemaValidator, TaskActionRequest, TaskAssignRequest, TaskCreateRequest, TaskUpdateRequest, ContentPlanDocument, Posting, Platform, ContentFormat, HermesCronMutationRequest } from "@friday/sdk";
 import type { Db } from "../db/database";
 import type { LocalEventInput } from "./local-calendar";
 import type { MailSendRequest } from "./mail-send";
@@ -53,6 +53,7 @@ export type NativeExecutableAction =
   | { kind: "automation.test"; id: string; body: AutomationTestRequest }
   | { kind: "automation.pauseAll"; body: AutomationPauseAllRequest }
   | { kind: "research.create"; body: ResearchCreateRequest; providerVersion: number }
+  | { kind: "hermesCron.mutate"; body: HermesCronMutationRequest }
   | { kind: "settings.profile.locale"; expectedVersion: number; value: "de" | "en" }
   | { kind: "settings.profile.dateFormat"; expectedVersion: number; value: "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy" }
   | { kind: "settings.profile.timeFormat"; expectedVersion: number; value: "24h" | "12h" }
@@ -109,6 +110,7 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "automation.test": "getestet",
   "automation.pauseAll": "pausiert",
   "research.create": "gestartet",
+  "hermesCron.mutate": "gespeichert",
   "settings.profile.locale": "gespeichert",
   "settings.profile.dateFormat": "gespeichert",
   "settings.profile.timeFormat": "gespeichert",
@@ -169,6 +171,7 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "automation.test": "Automation",
   "automation.pauseAll": "Automationen",
   "research.create": "Recherche",
+  "hermesCron.mutate": "Hermes-Zeitplan",
   "settings.profile.locale": "Einstellung",
   "settings.profile.dateFormat": "Einstellung",
   "settings.profile.timeFormat": "Einstellung",

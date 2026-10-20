@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { isIP } from "node:net";
+import type { HermesCronMutationReceipt, HermesCronMutationRequest } from "@friday/sdk";
 import { ApiError, conflict, validationFailed } from "../util/errors";
 import { invokeCodingRunner, nativeRunnerScript, type RunnerInvoker } from "./coding-runs";
 
@@ -211,6 +212,37 @@ export class HermesConfigService {
     private readonly dataDir: string,
     private readonly invoke: RunnerInvoker = invokeCodingRunner,
   ) {}
+
+  async mutateCron(request: HermesCronMutationRequest): Promise<HermesCronMutationReceipt> {
+    nativeRunnerScript(this.dataDir, "hermes_cron_mutate.py");
+    const { script, distro, user } = this.target();
+    const cronScript = script.replace(/hermes_config_bridge\.py$/, "hermes_cron_mutate.py");
+    if (cronScript === script) throw unavailable();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(cronScript, distro, user, ["mutate"], JSON.stringify(request), 15000, 20000);
+    } catch {
+      // A bridge timeout may follow a persisted native write. The staged journal keeps this action uncertain.
+      throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Cron-Aenderung nicht bestaetigt; nativen Status neu laden." });
+    }
+    if (typeof raw.error === "string") {
+      if (["store_revision_conflict", "profile_conflict", "timezone_conflict", "job_not_found"].includes(raw.error))
+        throw conflict("Hermes-Zeitplan hat sich geaendert; Status neu laden.");
+      if (raw.error === "invalid_request" || raw.error === "unsupported_profile")
+        throw validationFailed("Hermes-Zeitplanaktion ist ungueltig.");
+      throw unavailable();
+    }
+    if (Object.keys(raw).sort().join(",") !==
+        "accepted,action,executionVerified,jobId,profile,profileTimezone,state,storeRevision" ||
+        raw.action !== request.action || raw.profile !== request.profile ||
+        raw.profileTimezone !== request.profileTimezone ||
+        typeof raw.jobId !== "string" || !/^[0-9a-f]{12}$/.test(raw.jobId) ||
+        (request.action !== "create" && raw.jobId !== request.jobId) ||
+        typeof raw.storeRevision !== "string" || !/^[0-9a-f]{64}$/.test(raw.storeRevision) ||
+        typeof raw.state !== "string" || raw.state.length > 40 ||
+        raw.accepted !== true || raw.executionVerified !== false) throw unavailable();
+    return raw as unknown as HermesCronMutationReceipt;
+  }
 
   async cronJobs(): Promise<Record<string, unknown>> {
     const { script, distro, user } = this.target();

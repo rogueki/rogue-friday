@@ -275,6 +275,10 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
         if (action.kind === "research.create") {
           return (await runtime.research.create(principal.userId, action.body.topic, idempotencyKey, action.providerVersion)).id;
         }
+        if (action.kind === "hermesCron.mutate") {
+          const receipt = await runtime.hermesConfig.mutateCron(action.body);
+          return receipt.jobId;
+        }
         throw conflict("Aktion ist nicht ausfuehrbar.");
       })) : await approveBase(ctx);
     const result = (base.body as { data: Approval }).data;

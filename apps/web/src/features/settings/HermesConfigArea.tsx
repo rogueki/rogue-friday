@@ -1,10 +1,10 @@
 "use client";
 
-import type { HermesConfigPatch } from "@friday/sdk";
+import type { HermesConfigPatch, HermesCronMutationRequest } from "@friday/sdk";
 import { useState } from "react";
+import { useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 import { useHermesConfig, useHermesCronJobs, useHermesModelCatalog, usePatchHermesConfig, useProbeHermesMcp,
-  useTestHermesApproval,
-  useManageHermesMcpOAuth, useHermesMcpOAuthFlow } from "@/lib/api/domains/settings";
+  useTestHermesApproval, useManageHermesMcpOAuth, useHermesMcpOAuthFlow, sendHermesCronMutation } from "@/lib/api/domains/settings";
 
 const LABELS: Record<string, string> = {
   "model.provider": "Hermes-Anbieterkennung",
@@ -157,6 +157,12 @@ const EXECUTION_OPTIONS: Record<string, Array<[string, string]>> = {
 export function HermesConfigArea() {
   const observed = useHermesConfig();
   const cronJobs = useHermesCronJobs(observed.data?.data.installed === true);
+  const runCronWrite = useRunStagedWrite();
+  const cronBusy = useStagedWriteBusy();
+  const [cronEditId, setCronEditId] = useState<string | null>(null);
+  const [cronName, setCronName] = useState("");
+  const [cronSchedule, setCronSchedule] = useState("");
+  const [cronPrompt, setCronPrompt] = useState("");
   const patch = usePatchHermesConfig();
   const mcpProbe = useProbeHermesMcp();
   const approvalTest = useTestHermesApproval();
@@ -198,6 +204,28 @@ export function HermesConfigArea() {
   const skillField = data.fields.find((field) => field.key === "skills.disabled");
   const disabledSkills = Array.isArray(skillField?.value) && skillField.value.every((name) => typeof name === "string")
     ? skillField.value as string[] : null;
+  const submitCron = (action: HermesCronMutationRequest["action"], jobId?: string): void => {
+    const observedCron = cronJobs.data?.data;
+    if (!observedCron) return;
+    const body: HermesCronMutationRequest = {
+      action, expectedStoreRevision: observedCron.storeRevision, profile: observedCron.profile,
+      profileTimezone: observedCron.profileTimezone,
+      ...(jobId ? { jobId } : {}),
+      ...(action === "create" || action === "update" ? {
+        name: cronName.trim(), schedule: cronSchedule.trim(), prompt: cronPrompt.trim(),
+      } : {}),
+    };
+    void runCronWrite({
+      send: (previewId) => sendHermesCronMutation(body, previewId),
+      discard: (previewId) => sendHermesCronMutation(body, previewId, true),
+      successMessage: action === "run" ? "Zeitplan fuer die naechste Scheduler-Runde vorgemerkt" : "Hermes-Zeitplan gespeichert",
+      subject: action === "create" || action === "update" ? cronName : jobId ?? "Zeitplan",
+      invalidateKeys: [["settings", "hermes-cron-jobs"]],
+      onExecuted: () => { if (action === "create" || action === "update") {
+        setCronEditId(null); setCronName(""); setCronSchedule(""); setCronPrompt("");
+      } },
+    });
+  };
   return (
     <div className="st-stack">
       {patch.isError ? <p role="alert">{patch.error instanceof Error ? patch.error.message :
@@ -218,8 +246,26 @@ export function HermesConfigArea() {
         {cronJobs.isPending ? <p role="status">Zeitpläne werden gelesen…</p> :
           <ul>{cronJobs.data?.data.jobs.map((job) => <li key={job.id}>
             {job.name} ({job.schedule || "ohne Zeitangabe"}) — {job.enabled ? "aktiviert" : "deaktiviert"}, {job.state}
+            <button type="button" disabled={cronBusy} onClick={() => {
+              setCronEditId(job.id); setCronName(job.name); setCronSchedule(job.schedule); setCronPrompt("");
+            }}>Bearbeiten</button>
+            <button type="button" disabled={cronBusy || !job.enabled} onClick={() => submitCron("pause", job.id)}>Pausieren</button>
+            <button type="button" disabled={cronBusy || job.enabled} onClick={() => submitCron("resume", job.id)}>Fortsetzen</button>
+            <button type="button" disabled={cronBusy} onClick={() => submitCron("run", job.id)}>Jetzt einplanen</button>
+            <button type="button" disabled={cronBusy} onClick={() => submitCron("remove", job.id)}>Entfernen</button>
           </li>)}</ul>}
         {cronJobs.data?.data.truncated ? <p>Weitere Zeitpläne sind im nativen Store vorhanden.</p> : null}
+        <form onSubmit={(event) => { event.preventDefault(); submitCron(cronEditId ? "update" : "create", cronEditId ?? undefined); }}>
+          <h4>{cronEditId ? "Zeitplan bearbeiten" : "Zeitplan anlegen"}</h4>
+          <label>Name <input value={cronName} maxLength={160} required onChange={(event) => setCronName(event.target.value)} /></label>
+          <label>Zeitplan <input value={cronSchedule} maxLength={200} required onChange={(event) => setCronSchedule(event.target.value)} /></label>
+          <label>Auftrag <textarea value={cronPrompt} maxLength={4000} required onChange={(event) => setCronPrompt(event.target.value)} /></label>
+          {cronEditId ? <p>Zum Bearbeiten den vollständigen Auftrag neu eingeben. Hermes gibt den vorhandenen Auftrag nicht zurück.</p> : null}
+          <button type="submit" disabled={cronBusy || !cronJobs.data}>Vorschau anzeigen</button>
+          {cronEditId ? <button type="button" onClick={() => {
+            setCronEditId(null); setCronName(""); setCronSchedule(""); setCronPrompt("");
+          }}>Bearbeitung beenden</button> : null}
+        </form>
         <button type="button" onClick={() => void cronJobs.refetch()}>Zeitpläne aktualisieren</button>
       </section>
       {data.fields.every((field) => !field.writable) ? (

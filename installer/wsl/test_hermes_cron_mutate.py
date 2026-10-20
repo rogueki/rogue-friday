@@ -1,6 +1,7 @@
 """Exercise CAS mutations against a disposable pinned Hermes source and profile."""
 
 import hashlib
+import json
 import os
 from pathlib import Path
 import shutil
@@ -45,7 +46,8 @@ class NativeCronMutationTest(unittest.TestCase):
             self.assertEqual(patcher.apply(source), "patched")
             home = root / ".hermes"
             home.mkdir()
-            code = '''import hashlib,json,os,sys
+            code = '''import hashlib,json,os,subprocess,sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 sys.path.insert(0,os.environ["FRIDAY_MUTATOR_DIR"])
 from hermes_cron_mutate import mutate
@@ -68,6 +70,23 @@ queued=mutate(source,{**base,"expectedStoreRevision":updated["storeRevision"],"a
 assert queued["executionVerified"] is False,queued
 removed=mutate(source,{**base,"expectedStoreRevision":queued["storeRevision"],"action":"remove","jobId":created["jobId"]})
 assert removed["state"]=="removed",removed
+worker=''' + repr('''import json,os,sys
+from pathlib import Path
+sys.path.insert(0,os.environ["FRIDAY_MUTATOR_DIR"])
+from hermes_cron_mutate import mutate
+try:
+ print(json.dumps({"receipt":mutate(Path(os.environ["FRIDAY_MUTATOR_SOURCE"]),json.loads(sys.argv[1]))}))
+except ValueError as exc:
+ print(json.dumps({"error":str(exc)}))
+''') + '''
+def concurrent_create(index):
+ request={**base,"expectedStoreRevision":removed["storeRevision"],"action":"create","name":f"Concurrent {index}","schedule":"30m","prompt":"PRIVATE-CONCURRENT"}
+ return subprocess.run([sys.executable,"-c",worker,json.dumps(request)],capture_output=True,text=True,check=True)
+with ThreadPoolExecutor(max_workers=2) as pool:
+ outcomes=[json.loads(process.stdout) for process in pool.map(concurrent_create,(1,2))]
+assert sum("receipt" in outcome for outcome in outcomes)==1,outcomes
+assert sum(outcome.get("error")=="store_revision_conflict" for outcome in outcomes)==1,outcomes
+assert "PRIVATE-CONCURRENT" not in str(outcomes)
 print(json.dumps({"jobId":created["jobId"],"state":removed["state"]}))
 '''
             env = {**os.environ, "HOME": str(root), "HERMES_HOME": str(home), "FRIDAY_MUTATOR_SOURCE": str(source),
@@ -78,6 +97,13 @@ print(json.dumps({"jobId":created["jobId"],"state":removed["state"]}))
             self.assertNotIn("PRIVATE-PROMPT", process.stdout)
             self.assertNotIn("PRIVATE-UPDATED", process.stdout)
             self.assertTrue((home / "cron" / "jobs.json").exists())
+            (home / "hermes-agent").symlink_to(source, target_is_directory=True)
+            stale = {"action": "pause", "expectedStoreRevision": hashlib.sha256(b'RUNNING-OLD-STORE').hexdigest(),
+                     "profile": "default", "profileTimezone": None, "jobId": "012345abcdef"}
+            cli = subprocess.run([sys.executable, str(Path(mutator.__file__)), "mutate"],
+                                 input=json.dumps(stale), env=env, capture_output=True, text=True, timeout=15)
+            self.assertEqual(cli.returncode, 0, cli.stderr)
+            self.assertEqual(json.loads(cli.stdout), {"error": "store_revision_conflict"})
 
 
 if __name__ == "__main__":

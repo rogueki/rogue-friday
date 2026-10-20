@@ -28,6 +28,85 @@ it("lists redacted native Hermes cron metadata for the owner", async () => {
     await api.close();
   }
 });
+
+it("stages owner-only Cron CAS mutations, rejects tampering, discards drafts and executes one approval", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const revision = "a".repeat(64);
+    const body = { action: "create" as const, expectedStoreRevision: revision, profile: "default",
+      profileTimezone: "UTC", name: "Morning", schedule: "30m", prompt: "PRIVATE-CRON-PROMPT" };
+    vi.spyOn(api.runtime.hermesConfig, "cronJobs").mockResolvedValue({
+      sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8", profile: "default",
+      profileTimezone: "UTC", storeRevision: revision, count: 0, truncated: false,
+      schedulerRunning: null, jobs: [],
+    });
+    const mutate = vi.spyOn(api.runtime.hermesConfig, "mutateCron").mockResolvedValue({
+      action: "create", jobId: "012345abcdef", profile: "default", profileTimezone: "UTC",
+      storeRevision: "b".repeat(64), state: "paused", accepted: true, executionVerified: false,
+    });
+    const owner = api.client();
+    const viewer = api.client();
+    await owner.loginDev("owner");
+    await viewer.loginDev("viewer");
+    expect((await api.client().post(cronPath, body)).statusCode).toBe(401);
+    expect((await viewer.post(cronPath, body)).statusCode).toBe(403);
+    expect((await owner.post(cronPath, { ...body, expectedStoreRevision: "c".repeat(64) })).statusCode).toBe(409);
+    const staged = await owner.post(cronPath, body);
+    expect(staged.statusCode).toBe(403);
+    const previewId = staged.json().error.details.previewId as string;
+    expect(staged.body).not.toContain(body.prompt);
+    const headers = { "X-Action-Preview-Id": previewId };
+    expect((await owner.post(cronPath, { ...body, schedule: "45m" }, { headers })).statusCode).toBe(409);
+    expect((await owner.post(cronPath, body, { headers: { ...headers, "X-Action-Preview-Cancel": "true" } })).statusCode).toBe(204);
+    expect((await owner.post(cronPath, body, { headers })).statusCode).toBe(409);
+    const stagedAgain = await owner.post(cronPath, body);
+    const confirm = { "X-Action-Preview-Id": stagedAgain.json().error.details.previewId as string };
+    const pending = await owner.post(cronPath, body, { headers: confirm });
+    expect(pending.statusCode).toBe(403);
+    const approvalId = pending.json().error.details.approvalId as string;
+    const opened = await owner.get(`/api/v1/approvals/${approvalId}`);
+    expect(opened.statusCode).toBe(200);
+    expect(opened.body).not.toContain(body.prompt);
+    const approved = await owner.post(`/api/v1/approvals/${approvalId}/approve`, {},
+      { headers: { "x-approval-token": String(opened.headers["x-approval-token"]) } });
+    expect(approved.statusCode, approved.body).toBe(200);
+    expect(approved.json().data.status).toBe("executed");
+    expect((await owner.post(cronPath, body, { headers: confirm })).statusCode).toBe(409);
+    expect(mutate).toHaveBeenCalledTimes(1);
+  } finally {
+    await api.close();
+  }
+});
+
+it("keeps an ambiguous native Cron dispatch uncertain and never sends it twice", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const body = { action: "create" as const, expectedStoreRevision: "a".repeat(64), profile: "default",
+      profileTimezone: "UTC", name: "Morning", schedule: "30m", prompt: "PRIVATE-CRON-PROMPT" };
+    vi.spyOn(api.runtime.hermesConfig, "cronJobs").mockResolvedValue({
+      sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8", profile: "default",
+      profileTimezone: "UTC", storeRevision: body.expectedStoreRevision, count: 0, truncated: false,
+      schedulerRunning: null, jobs: [],
+    });
+    const mutate = vi.spyOn(api.runtime.hermesConfig, "mutateCron").mockRejectedValue(new Error("ambiguous timeout"));
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const ownerId = (await owner.get("/api/v1/auth/session")).json().data.user.id as string;
+    const staged = await owner.post(cronPath, body);
+    const previewId = staged.json().error.details.previewId as string;
+    const pending = await owner.post(cronPath, body, { headers: { "X-Action-Preview-Id": previewId } });
+    const approvalId = pending.json().error.details.approvalId as string;
+    const opened = await owner.get(`/api/v1/approvals/${approvalId}`);
+    const failed = await owner.post(`/api/v1/approvals/${approvalId}/approve`, {},
+      { headers: { "x-approval-token": String(opened.headers["x-approval-token"]) } });
+    expect(failed.statusCode).toBe(503);
+    expect(api.runtime.nativeApprovals.stateOf(ownerId, previewId)).toBe("uncertain");
+    expect((await owner.post(cronPath, body, { headers: { "X-Action-Preview-Id": previewId } })).statusCode).toBe(409);
+    expect(mutate).toHaveBeenCalledTimes(1);
+  } finally {
+    await api.close();
+  }
+});
 const status = {
   installed: true as const,
   sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8",

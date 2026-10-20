@@ -22,6 +22,7 @@ function fixture(invoke: RunnerInvoker) {
   // Linux resolves the bridge from the trusted install tree before invoking the test double.
   mkdirSync(join(root, "installer", "wsl"), { recursive: true });
   writeFileSync(join(root, "installer", "wsl", "hermes_config_bridge.py"), "# bundled fixture\n");
+  writeFileSync(join(root, "installer", "wsl", "hermes_cron_mutate.py"), "# bundled fixture\n");
   return new HermesConfigService(join(root, "data"), invoke);
 }
 
@@ -46,6 +47,25 @@ it("validates native cron read output before returning it", async () => {
   expect(vi.mocked(invoke).mock.calls[0]?.[3]).toEqual(["list"]);
   vi.mocked(invoke).mockImplementationOnce(async () => ({ ...response, jobs: [{ ...response.jobs[0], prompt: "SECRET", enabled: "yes" }] }));
   await expect(service.cronJobs()).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+});
+
+it("validates native Cron receipts and leaves timed-out mutations unconfirmed", async () => {
+  const request = { action: "create" as const, expectedStoreRevision: "a".repeat(64), profile: "default",
+    profileTimezone: "UTC", name: "Morning", schedule: "30m", prompt: "PRIVATE-CRON-PROMPT" };
+  const receipt = { action: "create" as const, jobId: "012345abcdef", profile: "default", profileTimezone: "UTC",
+    storeRevision: "b".repeat(64), state: "paused", accepted: true as const, executionVerified: false as const };
+  const invoke = vi.fn(async () => receipt) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  expect(await service.mutateCron(request)).toEqual(receipt);
+  expect(vi.mocked(invoke).mock.calls[0]?.[0]).toContain("hermes_cron_mutate.py");
+  expect(vi.mocked(invoke).mock.calls[0]?.[4]).toBe(JSON.stringify(request));
+  vi.mocked(invoke).mockResolvedValueOnce({ ...receipt, prompt: request.prompt });
+  await expect(service.mutateCron(request)).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+  vi.mocked(invoke).mockResolvedValueOnce({ error: "store_revision_conflict" });
+  await expect(service.mutateCron(request)).rejects.toMatchObject({ code: "CONFLICT" });
+  vi.mocked(invoke).mockRejectedValueOnce(new Error("timeout after native write"));
+  await expect(service.mutateCron(request)).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE",
+    message: expect.stringContaining("nicht bestaetigt") });
 });
 
 const bridge = {
