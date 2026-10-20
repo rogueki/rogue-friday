@@ -1,6 +1,6 @@
 import { PORT_SPEC } from "@friday/adapter-core";
 import { redact } from "@friday/observability";
-import type { MemoryConflictResolveRequest, MemoryExport, TaskAssignRequest, FileRenameRequest, VoiceEnrollRequest, AutomationPauseAllRequest } from "@friday/sdk";
+import type { MemoryConflictResolveRequest, MemoryExport, TaskAssignRequest, FileRenameRequest, VoiceEnrollRequest } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { validationFailed } from "../util/errors";
@@ -8,13 +8,12 @@ import { portHandler } from "./ports";
 
 /**
  * Port-backed operations that need a precise audit note or an enforcement step on top of the plain port call
- * (renaming, conflict resolution, assignment, enrollment, Pause All, export, history deletion). The pipeline writes the
+ * (renaming, conflict resolution, assignment, enrollment, export, history deletion). The pipeline writes the
  * audit entry; these handlers only say what it should contain. Request bodies (free text) never go into it.
  */
 const renameFileBase = portHandler("files", "renameFile", PORT_SPEC.files.renameFile);
 const resolveBase = portHandler("memory", "resolveMemoryConflict", PORT_SPEC.memory.resolveMemoryConflict);
 const exportBase = portHandler("memory", "exportMemory", PORT_SPEC.memory.exportMemory);
-const pauseAllBase = portHandler("automations", "pauseAllAutomations", PORT_SPEC.automations.pauseAllAutomations);
 const enrollBase = portHandler("voice", "enrollVoiceProfile", PORT_SPEC.voice.enrollVoiceProfile);
 const deleteHistoryBase = portHandler("voice", "deleteVoiceHistory", PORT_SPEC.voice.deleteVoiceHistory);
 const assignBase = portHandler("agents", "assignTask", PORT_SPEC.agents.assignTask);
@@ -67,14 +66,6 @@ export const domainOpHandlers: Partial<Record<OperationId, Handler>> = {
       body: { ...document, count: items.length, omittedRestricted, items },
       headers: { ...(base.headers ?? {}), "Content-Disposition": `attachment; filename="memory-export-${document.exportedAt.slice(0, 10)}.json"` },
     };
-  },
-
-  async pauseAllAutomations(ctx) {
-    const { reason } = (ctx.body ?? {}) as AutomationPauseAllRequest;
-    ctx.audit.action = "automation.paused_all";
-    ctx.audit.severity = "warning";
-    ctx.audit.context = reason ? { reason } : {};
-    return pauseAllBase(ctx);
   },
 
   async enrollVoiceProfile(ctx) {

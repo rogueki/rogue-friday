@@ -228,16 +228,24 @@ describe("contract gaps: authorization and enforcement", () => {
   describe("automations: versions and Pause All", () => {
     it("lists the version history with exactly one current entry and one entry per change", async () => {
       const automation = (await list("/api/v1/automations"))[0];
-      await owner.patch(`/api/v1/automations/${automation.id}`, { description: "Neu beschrieben" }, { headers: { "if-match": String(automation.version) } });
+      const staged = await owner.patch(`/api/v1/automations/${automation.id}`, { description: "Neu beschrieben" }, { headers: { "if-match": String(automation.version) } });
+      expect(staged.statusCode, staged.body).toBe(403);
+      expect(errorOf(staged).details.stage).toBe("preview");
+      await owner.patch(`/api/v1/automations/${automation.id}`, { description: "Neu beschrieben" },
+        { headers: { "if-match": String(automation.version), ...confirm(staged.json().error.details.previewId).headers } });
       const versions = (await owner.get(`/api/v1/automations/${automation.id}/versions`)).json().items;
       expect(versions[0]).toMatchObject({ version: automation.version + 1, current: true, snapshot: { description: "Neu beschrieben" } });
       expect(versions.filter((entry: any) => entry.current)).toHaveLength(1);
       expect((await owner.get("/api/v1/automations/auto_00000000000000000000000000/versions")).statusCode).toBe(404);
     });
 
-    it("pauses every enabled automation, reports per automation, audits once and is idempotent", async () => {
+    it("pauses every enabled automation through the staged preview, reports per automation, audits once and is idempotent", async () => {
       const headers = { "idempotency-key": "idem-gaps-pauseall-0001" };
-      const response = await owner.post("/api/v1/automations/pause-all", { reason: "Betriebsferien" }, { headers });
+      const staged = await owner.post("/api/v1/automations/pause-all", { reason: "Betriebsferien" }, { headers });
+      expect(staged.statusCode, staged.body).toBe(403);
+      expect(errorOf(staged).details.stage).toBe("preview");
+      const response = await owner.post("/api/v1/automations/pause-all", { reason: "Betriebsferien" },
+        { headers: { ...headers, ...confirm(staged.json().error.details.previewId).headers } });
       expect(response.statusCode, response.body).toBe(200);
       const { results, pausedCount } = response.json().data;
       expect(pausedCount).toBeGreaterThan(0);
@@ -245,11 +253,15 @@ describe("contract gaps: authorization and enforcement", () => {
       const automations = await list("/api/v1/automations");
       expect(automations.filter((entry) => entry.enabled).every((entry) => entry.paused)).toBe(true);
       const replay = await owner.post("/api/v1/automations/pause-all", { reason: "Betriebsferien" }, { headers });
+      expect(replay.statusCode, replay.body).toBe(200);
       expect(replay.headers["idempotent-replayed"]).toBe("true");
       const audits = auditOf("automation.paused_all");
       expect(audits).toHaveLength(1);
       expect(audits[0]).toMatchObject({ severity: "warning" });
-      const second = await owner.post("/api/v1/automations/pause-all", undefined, { headers: { "idempotency-key": "idem-gaps-pauseall-0002" } });
+      const stagedSecond = await owner.post("/api/v1/automations/pause-all", undefined, { headers: { "idempotency-key": "idem-gaps-pauseall-0002" } });
+      expect(stagedSecond.statusCode).toBe(403);
+      const second = await owner.post("/api/v1/automations/pause-all", undefined,
+        { headers: { "idempotency-key": "idem-gaps-pauseall-0002", ...confirm(stagedSecond.json().error.details.previewId).headers } });
       expect(second.json().data.pausedCount).toBe(0);
     });
   });
