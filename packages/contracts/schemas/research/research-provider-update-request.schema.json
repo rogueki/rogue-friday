@@ -4,7 +4,11 @@
   "title": "ResearchProviderUpdateRequest",
   "type": "object",
   "properties": {
-    "endpoint": { "type": "string", "maxLength": 2048 }
+    "endpoint": { "type": "string", "maxLength": 2048 },
+    "installLocal": {
+      "type": "boolean",
+      "description": "Provision the pinned local SearXNG service before selecting its fixed endpoint."
+    }
   },
   "required": ["endpoint"],
   "additionalProperties": false

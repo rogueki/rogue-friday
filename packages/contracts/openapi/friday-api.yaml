@@ -3349,7 +3349,7 @@ paths:
       operationId: updateResearchProvider
       tags:
         - research
-      summary: Configure the local SearXNG endpoint
+      summary: Configure Wikipedia or a local SearXNG endpoint, optionally provisioning the bundled local service
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/IfMatch"
@@ -3372,6 +3372,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
       x-required-role: owner
   /api/v1/research/projects/{id}:
     get:

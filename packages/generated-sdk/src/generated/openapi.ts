@@ -2602,7 +2602,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Configure the local SearXNG endpoint */
+        /** Configure Wikipedia or a local SearXNG endpoint, optionally provisioning the bundled local service */
         patch: operations["updateResearchProvider"];
         trace?: never;
     };
@@ -8789,6 +8789,14 @@ export interface components {
             maxSources: number;
             /** @enum {string} */
             provider: "searxng" | "wikipedia";
+            setup: {
+                available: boolean;
+                endpoint: string;
+                image: string | null;
+                reason: string | null;
+                /** @enum {string} */
+                state: "ready" | "stopped" | "unavailable";
+            };
             /** @constant */
             sourceVerification: "unverified";
             timeoutMs: number;
@@ -8803,6 +8811,8 @@ export interface components {
         /** ResearchProviderUpdateRequest */
         ResearchProviderUpdateRequest: {
             endpoint: string;
+            /** @description Provision the pinned local SearXNG service before selecting its fixed endpoint. */
+            installLocal?: boolean;
         };
         /** ResearchSource */
         ResearchSource: {
@@ -16256,6 +16266,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getSettings: {

@@ -9,6 +9,7 @@ import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import type { NativeExecutableAction } from "../services/native-approval-requests";
 import { ApiError, conflict, validationFailed } from "../util/errors";
+import { LOCAL_RESEARCH_ENDPOINT } from "../services/research-setup";
 
 const PREVIEW_ID = /^corr_[0-9A-Za-z]{26}$/;
 const freshness = () => ({ state: "fresh" as const, asOf: new Date().toISOString() });
@@ -28,16 +29,25 @@ const list = (
 
 export const researchActionHandlers: Partial<Record<OperationId, Handler>> = {
   async getResearchProvider(ctx) {
-    return { status: 200, body: single(ctx.runtime.research.configuration()) };
+    const setup = await ctx.runtime.researchSetup.status();
+    return { status: 200, body: single({ ...ctx.runtime.research.configuration(), setup }) };
   },
   async updateResearchProvider(ctx) {
-    const body = ctx.body as { endpoint: string };
+    const body = ctx.body as { endpoint: string; installLocal?: boolean };
     const version = ctx.mutation.ifMatchVersion;
     if (version === undefined) throw validationFailed("If-Match-Version fuer den Suchprovider fehlt.");
+    if (body.installLocal) {
+      if (body.endpoint !== LOCAL_RESEARCH_ENDPOINT)
+        throw validationFailed("Die lokale Einrichtung erlaubt nur den festen Friday-Suchdienst-Endpunkt.");
+      if (ctx.runtime.research.configuration().version !== version)
+        throw conflict("Suchprovider wurde zwischenzeitlich geaendert.");
+      await ctx.runtime.researchSetup.install();
+    }
     const config = ctx.runtime.research.configure(body.endpoint, version);
+    const setup = await ctx.runtime.researchSetup.status();
     ctx.audit.action = "research.provider_configured";
-    ctx.audit.after = { provider: config.provider, configured: config.configured };
-    return { status: 200, body: single(config) };
+    ctx.audit.after = { provider: config.provider, configured: config.configured, localSetup: setup.state };
+    return { status: 200, body: single({ ...config, setup }) };
   },
   async createResearchProject(ctx) {
     const ownerId = ctx.principal?.userId;

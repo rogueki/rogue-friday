@@ -794,14 +794,14 @@ function ResearchProviderSetup() {
     if (config.data) setEndpoint(config.data.data.endpoint ?? "");
   }, [config.data]);
   if (role !== "owner") return null;
-  const save = async () => {
+  const save = async (installLocal = false) => {
     setSaving(true);
     try {
       if (!config.data) return;
       await call(
         getApiClient().PATCH("/api/v1/research/provider", {
           params: { header: { "If-Match": String(config.data.data.version) } },
-          body: { endpoint: endpoint.trim() },
+          body: { endpoint: installLocal ? "http://127.0.0.1:43696/" : endpoint.trim(), installLocal },
         }),
       );
       await Promise.all([
@@ -811,6 +811,7 @@ function ResearchProviderSetup() {
       toast({ title: t("research.provider.saved"), tone: "green" });
     } catch (error) {
       toast({ title: t("research.provider.failed"), description: String(error), tone: "red" });
+      await client.invalidateQueries({ queryKey: ["research", "provider"] });
     } finally {
       setSaving(false);
     }
@@ -825,6 +826,13 @@ function ResearchProviderSetup() {
     >
       <label htmlFor="research-provider">{t("research.provider.title")}</label>
       <div className="mc-toolbar">
+        <Button
+          type="button"
+          disabled={saving || !config.data?.data.setup.available}
+          onClick={() => void save(true)}
+        >
+          {saving ? t("research.provider.installing") : t("research.provider.installLocal")}
+        </Button>
         <Button
           type="button"
           disabled={saving}
@@ -844,6 +852,17 @@ function ResearchProviderSetup() {
           {t("research.provider.save")}
         </Button>
       </div>
+      {config.data && (
+        <p className="mc-note" role="status">
+          {config.data.data.setup.reason === "WINDOWS_PORT_UNREACHABLE"
+            ? t("research.provider.status.windowsPort")
+            : t(`research.provider.status.${config.data.data.setup.state}` as MessageKey)}
+          {config.data.data.setup.state === "ready" && ` · ${config.data.data.setup.endpoint}`}
+          <Button type="button" variant="ghost" disabled={saving} onClick={() => void config.refetch()}>
+            {t("research.provider.check")}
+          </Button>
+        </p>
+      )}
       <p className="mc-note mc-note--muted">{t("research.provider.help")}</p>
     </form>
   );

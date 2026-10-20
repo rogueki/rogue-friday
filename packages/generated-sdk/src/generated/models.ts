@@ -5038,6 +5038,13 @@ export interface ResearchProvider {
   version: number;
   maxSources: number;
   timeoutMs: number;
+  setup: {
+    available: boolean;
+    state: "ready" | "stopped" | "unavailable";
+    endpoint: string;
+    image: string | null;
+    reason: string | null;
+  };
   sourceVerification: "unverified";
 }
 export interface ResearchProviderResponse {
@@ -5047,6 +5054,10 @@ export interface ResearchProviderResponse {
 }
 export interface ResearchProviderUpdateRequest {
   endpoint: string;
+  /**
+   * Provision the pinned local SearXNG service before selecting its fixed endpoint.
+   */
+  installLocal?: boolean;
 }
 export interface ResearchSource {
   id: string;

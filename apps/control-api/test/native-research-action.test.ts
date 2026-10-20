@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { startTestApi } from "./helpers";
+import { LOCAL_RESEARCH_ENDPOINT } from "../src/services/research-setup";
 
 const endpoint = "http://127.0.0.1:8080/";
 const results = {
@@ -13,6 +14,74 @@ const search = vi.fn(
   async (_input: RequestInfo | URL) =>
     new Response(JSON.stringify(results), { status: 200, headers: { "content-type": "application/json" } }),
 );
+
+it("provisions and selects the fixed local provider only after a verified service receipt", async () => {
+  let installed = false;
+  const runner = vi.fn(async (mode: "status" | "install") => {
+    if (mode === "install") installed = true;
+    return { service: installed ? "active" : "inactive", http: installed ? "ready" as const : "unavailable" as const,
+      endpoint: LOCAL_RESEARCH_ENDPOINT, image: "ghcr.io/searxng/searxng@sha256:fixture" };
+  });
+  const api = await startTestApi({ dataMode: "hybrid", authMode: "local", ownerPassword: "strong-test-password",
+    researchSetupRun: runner, researchSetupProbe: async () => true, responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    expect((await owner.loginOwner("strong-test-password")).statusCode).toBe(200);
+    const initial = (await owner.get("/api/v1/research/provider")).json().data;
+    expect(initial.setup).toMatchObject({ available: true, state: "stopped" });
+    const invalid = await owner.patch("/api/v1/research/provider", { endpoint: "http://127.0.0.1:9999/", installLocal: true },
+      { headers: { "if-match": String(initial.version) } });
+    expect(invalid.statusCode).toBe(422);
+    expect(runner).not.toHaveBeenCalledWith("install");
+    const stale = await owner.patch("/api/v1/research/provider", { endpoint: LOCAL_RESEARCH_ENDPOINT, installLocal: true },
+      { headers: { "if-match": "999" } });
+    expect(stale.statusCode).toBe(409);
+    expect(runner).not.toHaveBeenCalledWith("install");
+    const installedResponse = await owner.patch("/api/v1/research/provider",
+      { endpoint: LOCAL_RESEARCH_ENDPOINT, installLocal: true },
+      { headers: { "if-match": String(initial.version) } });
+    expect(installedResponse.statusCode, installedResponse.body).toBe(200);
+    expect(installedResponse.json().data).toMatchObject({ endpoint: LOCAL_RESEARCH_ENDPOINT,
+      setup: { state: "ready", available: true } });
+    expect(runner).toHaveBeenCalledWith("install");
+    const conflict = await owner.patch("/api/v1/research/provider", { endpoint: LOCAL_RESEARCH_ENDPOINT, installLocal: true },
+      { headers: { "if-match": String(initial.version) } });
+    expect(conflict.statusCode).toBe(409);
+    expect(runner.mock.calls.filter(([mode]) => mode === "install")).toHaveLength(1);
+  } finally { await api.close(); }
+});
+
+it("does not select a provider after setup reports a failed health check", async () => {
+  const api = await startTestApi({ dataMode: "hybrid", authMode: "local", ownerPassword: "strong-test-password",
+    researchSetupRun: async () => ({ service: "inactive", http: "unavailable", endpoint: LOCAL_RESEARCH_ENDPOINT,
+      image: "ghcr.io/searxng/searxng@sha256:fixture" }), responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    expect((await owner.loginOwner("strong-test-password")).statusCode).toBe(200);
+    const before = (await owner.get("/api/v1/research/provider")).json().data;
+    const response = await owner.patch("/api/v1/research/provider", { endpoint: LOCAL_RESEARCH_ENDPOINT, installLocal: true },
+      { headers: { "if-match": String(before.version) } });
+    expect(response.statusCode, response.body).toBe(503);
+    expect((await owner.get("/api/v1/research/provider")).json().data).toMatchObject({ configured: false, version: before.version });
+  } finally { await api.close(); }
+});
+
+it("does not claim setup success when WSL is ready but the Windows API cannot reach its port", async () => {
+  const api = await startTestApi({ dataMode: "hybrid", authMode: "local", ownerPassword: "strong-test-password",
+    researchSetupRun: async () => ({ service: "active", http: "ready", endpoint: LOCAL_RESEARCH_ENDPOINT,
+      image: "ghcr.io/searxng/searxng@sha256:fixture" }),
+    researchSetupProbe: async () => false, responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    expect((await owner.loginOwner("strong-test-password")).statusCode).toBe(200);
+    const before = (await owner.get("/api/v1/research/provider")).json().data;
+    expect(before.setup).toMatchObject({ state: "stopped", reason: "WINDOWS_PORT_UNREACHABLE" });
+    const response = await owner.patch("/api/v1/research/provider", { endpoint: LOCAL_RESEARCH_ENDPOINT, installLocal: true },
+      { headers: { "if-match": String(before.version) } });
+    expect(response.statusCode, response.body).toBe(503);
+    expect((await owner.get("/api/v1/research/provider")).json().data.version).toBe(before.version);
+  } finally { await api.close(); }
+});
 
 async function disableTier2(owner: ReturnType<Awaited<ReturnType<typeof startTestApi>>["client"]>) {
   const settings = (await owner.get("/api/v1/settings")).json().data;

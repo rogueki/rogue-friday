@@ -288,6 +288,12 @@ Aufgaben (auch fremde, die auf `C:\Jarvis` zeigen, nach Rückfrage und mit XML-S
 | Wake Word wird oft überhört / spricht ohne Grund an | Eigenes Wake Word: Aufnahme in ruhigerer Umgebung wiederholen oder ein markanteres Wake Word wählen (siehe oben). Im Log `C:\Friday\logs\voice.jsonl` zeigt `wake_rejected`, wie oft Stufe 2 eine Fehlauslösung abgefangen hat |
 | Spiel ruckelt / Grafikspeicher voll | In `voice.json` bei `"game_processes"` das Spiel eintragen, z. B. `["Diablo IV.exe"]` |
 
+## Recherche und lokale Websuche
+
+Unter **Recherche → Suchprovider** kann der Eigentümer den lokalen Websuchdienst einrichten oder reparieren. Friday installiert dazu bei Bedarf Podman in seiner Ubuntu-WSL-Distribution und startet ein fest gepinntes SearXNG-Image als systemd-Dienst auf `127.0.0.1:43696`. Der Dienst wird erst ausgewählt, wenn ihn sowohl WSL als auch die Windows-Control-API erreichen. Der Status lässt sich auf derselben Seite prüfen; nach einem fehlgeschlagenen Versuch ist die Einrichtung wiederholbar. Die Installation benötigt Internet zum Herunterladen der Ubuntu-Pakete und des Container-Images. Alternativ kann Wikipedia ohne lokalen Dienst gewählt werden; diese Suche umfasst nur Enzyklopädie-Artikel. Ein eigener SearXNG-Dienst kann über seine lokale HTTP-Adresse eingetragen werden, wenn JSON-Suche aktiviert ist.
+
+Für die Diagnose in Ubuntu: `systemctl status friday-searxng.service`. Die lokale Startseite ist `http://127.0.0.1:43696/`. Die Suche ruft externe Suchmaschinen und gefundene Webseiten ab, sobald ein bestätigter Rechercheauftrag gestartet wird.
+
 ## Was noch manuell kommt (Schritt für Schritt mit dem Assistenten/Kimi)
 
 Die verfügbaren Konten und Nachrichten-Gateways richtest du im Friday Dashboard unter **Einstellungen → Skill-Konten** ein:

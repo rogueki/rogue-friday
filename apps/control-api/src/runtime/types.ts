@@ -44,6 +44,7 @@ import type { HermesConfigService } from "../services/hermes-config";
 import type { CodingRunsService } from "../services/coding-runs";
 import type { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
 import type { ResearchService } from "../services/research";
+import type { ResearchSetupService } from "../services/research-setup";
 import type { TelephonyService } from "../services/telephony";
 import type { CloudTalkService } from "../services/cloudtalk";
 import type { FrontendTelemetryService } from "../services/telemetry";
@@ -124,6 +125,7 @@ export interface Runtime {
   codingRuns: CodingRunsService;
   codingVoiceRepository: CodingVoiceRepositoryService;
   research: ResearchService;
+  researchSetup: ResearchSetupService;
   adapterSettings: AdapterSettingsService;
   status: StatusService;
   orb: OrbService;

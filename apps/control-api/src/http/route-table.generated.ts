@@ -6226,6 +6226,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         "contentTypes": [
           "application/json"
         ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
       }
     ]
   },

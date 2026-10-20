@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
 import { capabilitiesOf, renderWithProviders } from "@/test/render";
-import { listOf, mockElementSize, NOW, routedFetch, SOURCE } from "@/features/system/testSupport";
+import { listOf, mockElementSize, NOW, routedFetch, single, SOURCE } from "@/features/system/testSupport";
 import {
   buildResearchJson,
   buildResearchMarkdown,
@@ -186,6 +186,66 @@ describe("evidence mapping and export", () => {
 });
 
 describe("research page", () => {
+  it("offers owner setup, shows service status and selects the installed local endpoint", async () => {
+    const user = userEvent.setup();
+    let ready = false;
+    let version = 1;
+    const provider = () =>
+      single({
+        provider: "searxng",
+        endpoint: ready ? "http://127.0.0.1:43696/" : null,
+        configured: ready,
+        version,
+        maxSources: 10,
+        timeoutMs: 12_000,
+        sourceVerification: "unverified",
+        setup: {
+          available: true,
+          state: ready ? "ready" : "stopped",
+          endpoint: "http://127.0.0.1:43696/",
+          image: "ghcr.io/searxng/searxng@sha256:fixture",
+          reason: ready ? null : "SERVICE_NOT_READY",
+        },
+      });
+    const fake = routedFetch({
+      ...routes(),
+      "GET /api/v1/auth/session": single({
+        authenticated: true,
+        user: { id: "usr_00000000000000000000000001", displayName: "Owner", role: "owner" },
+        role: "owner",
+        csrfToken: "test",
+        expiresAt: null,
+        reauthUntil: null,
+      }),
+      "GET /api/v1/research/provider": () => provider(),
+      "PATCH /api/v1/research/provider": (_url: URL, request: Request) => {
+        expect(request.headers.get("if-match")).toBe("1");
+        ready = true;
+        version += 1;
+        return provider();
+      },
+    });
+    renderWithProviders(<ResearchPage />, {
+      fetchImpl: fake.fetch,
+      capabilities: capabilitiesOf({ research: { read: true, create: true } }),
+    });
+    expect(
+      await screen.findByText("Lokaler Websuchdienst ist nicht erreichbar; Einrichtung erneut starten"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Lokale Websuche einrichten oder reparieren" }));
+    await waitFor(() =>
+      expect(
+        fake.calls.some(
+          (call) =>
+            call.method === "PATCH" &&
+            JSON.parse(call.body).installLocal === true &&
+            JSON.parse(call.body).endpoint === "http://127.0.0.1:43696/",
+        ),
+      ).toBe(true),
+    );
+    expect(await screen.findByText(/Lokaler Websuchdienst läuft/)).toBeInTheDocument();
+  });
+
   it("stages source discovery and repeats the exact topic with the server preview id", async () => {
     const user = userEvent.setup();
     const previewId = "corr_01JAAAAAAAAAAAAAAAAAAAAAAA";
