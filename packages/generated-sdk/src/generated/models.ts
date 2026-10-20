@@ -5788,7 +5788,7 @@ export interface SttModelCancelRequest {
   jobId: string;
 }
 export interface SttModelDownloadRequest {
-  model: "base" | "small" | "medium";
+  model: string;
 }
 export interface SttModelsStatus {
   contractVersion: ContractVersion;
@@ -5796,10 +5796,11 @@ export interface SttModelsStatus {
   models: {
     id: string;
     cached: boolean;
+    downloadable: boolean;
   }[];
   job: null | {
     id: string;
-    model: "base" | "small" | "medium";
+    model: string;
     state: "downloading" | "cancelling" | "ready" | "failed" | "cancelled";
     error: string | null;
   };

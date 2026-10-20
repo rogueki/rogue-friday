@@ -9590,8 +9590,7 @@ export interface components {
         };
         /** SttModelDownloadRequest */
         SttModelDownloadRequest: {
-            /** @enum {string} */
-            model: "base" | "small" | "medium";
+            model: string;
         };
         /** SttModelsStatus */
         SttModelsStatus: {
@@ -9599,14 +9598,14 @@ export interface components {
             job: null | {
                 error: string | null;
                 id: string;
-                /** @enum {string} */
-                model: "base" | "small" | "medium";
+                model: string;
                 /** @enum {string} */
                 state: "downloading" | "cancelling" | "ready" | "failed" | "cancelled";
             };
             localMode: boolean;
             models: {
                 cached: boolean;
+                downloadable: boolean;
                 id: string;
             }[];
         };
