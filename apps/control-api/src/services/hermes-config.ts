@@ -82,8 +82,8 @@ export const HERMES_CONFIG_FIELDS = {
   command_allowlist: { type: "textList", kind: "allowlistSubset", family: "execution", consumer: "next dangerous-command approval check" },
   "approvals.mode": { type: "string", kind: "approvalMode", family: "execution", consumer: "next Hermes command approval" },
   "approvals.timeout": { type: "integer", min: 15, max: 600, family: "execution", consumer: "next Hermes approval wait" },
-  "approvals.single_query_mode": { type: "string", kind: "denyOnly", family: "execution", consumer: "next unattended single-query command" },
-  "approvals.unattended_mode": { type: "string", kind: "denyOnly", family: "execution", consumer: "next unattended gateway command" },
+  "approvals.single_query_mode": { type: "string", kind: "automaticApproval", family: "execution", consumer: "next flagged command in single-query mode" },
+  "approvals.unattended_mode": { type: "string", kind: "automaticApproval", family: "execution", consumer: "next flagged command on a notifier-blind gateway platform" },
   "security.protected_instruction_files": { type: "boolean", family: "execution", consumer: "next protected instruction file write" },
   "skills.disabled": { type: "skillNames", family: "extensions", consumer: "next Hermes skill resolution" },
   "cron.catch_up_missed": { type: "boolean", family: "operations", consumer: "Hermes cron due scan" },
@@ -122,7 +122,7 @@ function printablePath(value: string): boolean {
 }
 function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" | "executionBackend" |
   "profilePin" | "codeMode" | "computerPermission" | "manifestPath" | "workspacePath" |
-  "approvalMode" | "denyOnly" | "logLevel" | "dialogPolicy" | "captureAfterMode", value: unknown): boolean {
+  "approvalMode" | "automaticApproval" | "logLevel" | "dialogPolicy" | "captureAfterMode", value: unknown): boolean {
   if (typeof value !== "string") return false;
   if (kind === "reasoning") return REASONING_EFFORTS.has(value);
   if (kind === "tailMode") return value === "lean" || value === "legacy";
@@ -132,7 +132,7 @@ function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" 
   if (kind === "captureAfterMode") return value === "som" || value === "ax" || value === "vision";
   if (kind === "computerPermission") return value === "standard" || value === "bounded";
   if (kind === "approvalMode") return value === "manual" || value === "smart";
-  if (kind === "denyOnly") return value === "deny";
+  if (kind === "automaticApproval") return value === "deny" || value === "approve";
   if (kind === "profilePin") return value === "" || /^(Default|Profile [0-9]{1,3})$/.test(value);
   if (kind === "manifestPath") return value === "" || printablePath(value);
   if (kind === "workspacePath") return value === "." || printablePath(value);

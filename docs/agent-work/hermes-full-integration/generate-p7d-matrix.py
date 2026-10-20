@@ -17,6 +17,8 @@ CONSUMER_SOURCES = {
     "terminal.container_memory": "tools/terminal_tool.py:723;tools/environments/docker.py:786",
     "terminal.container_disk": "tools/terminal_tool.py:724;tools/environments/docker.py:786",
     "terminal.container_persistent": "tools/terminal_tool.py:428;tools/terminal_tool.py:770",
+    "approvals.single_query_mode": "tools/approval_context.py:313;tools/approval.py:940",
+    "approvals.unattended_mode": "tools/approval_context.py:319;tools/approval.py:940",
     "browser.inactivity_timeout": "tools/browser_tool.py:397",
     "browser.dialog_policy": "tools/browser_tool_cdp.py:73",
     "browser.dialog_timeout_s": "tools/browser_tool_cdp.py:73",
@@ -28,7 +30,8 @@ CONSUMER_SOURCES = {
 }
 RUNTIME_FIXTURE_KEYS = {"browser.inactivity_timeout", "code_execution.kernel_idle_timeout",
                         "code_execution.max_session_kernels", "computer_use.capture_after_mode",
-                        "terminal.container_cpu", "terminal.container_memory", "terminal.container_disk"}
+                        "terminal.container_cpu", "terminal.container_memory", "terminal.container_disk",
+                        "approvals.single_query_mode", "approvals.unattended_mode"}
 
 
 def native_fields():

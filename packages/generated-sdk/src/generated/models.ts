@@ -311,11 +311,11 @@ export type HermesConfigPatch =
     }
   | {
       key: "approvals.single_query_mode";
-      value: "deny";
+      value: "deny" | "approve";
     }
   | {
       key: "approvals.unattended_mode";
-      value: "deny";
+      value: "deny" | "approve";
     }
   | {
       key: "security.protected_instruction_files";

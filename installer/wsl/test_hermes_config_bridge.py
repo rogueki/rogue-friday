@@ -575,8 +575,7 @@ class BridgeTest(unittest.TestCase):
             self.invoke({"key": "browser.use_real_profile", "value": True, "revision": current})
         with self.assertRaisesRegex(ValueError, "unsupported_field"):
             self.invoke({"key": "computer_use.permission_mode", "value": "unrestricted", "revision": current})
-        for key, value in (("approvals.mode", "off"), ("approvals.single_query_mode", "approve"),
-                           ("approvals.unattended_mode", "approve"),
+        for key, value in (("approvals.mode", "off"),
                            ("security.protected_instruction_files", False)):
             with self.subTest(key=key), self.assertRaisesRegex(ValueError, "unsupported_field"):
                 self.invoke({"key": key, "value": value, "revision": current})
@@ -658,6 +657,22 @@ class BridgeTest(unittest.TestCase):
                                     "revision": bridge.revision(self.config)})
         self.assertEqual(code, 0)
         self.assertEqual(result["values"]["command_allowlist"], [])
+
+    def test_automatic_approval_modes_round_trip_without_changing_other_modes(self):
+        for key in ("approvals.single_query_mode", "approvals.unattended_mode"):
+            code, result = self.invoke({"key": key, "value": "approve",
+                                        "revision": bridge.revision(self.config)})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["values"][key], "approve")
+            self.assertTrue(result["write"]["persisted"])
+            self.assertEqual(result["values"]["approvals.mode"], "smart")
+            code, result = self.invoke({"key": key, "value": "deny",
+                                        "revision": bridge.revision(self.config)})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["values"][key], "deny")
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "approvals.unattended_mode", "value": "off",
+                         "revision": bridge.revision(self.config)})
 
     def test_toolsets_require_installed_native_definition(self):
         native = types.ModuleType("toolsets")

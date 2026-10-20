@@ -6674,13 +6674,13 @@ export interface components {
         } | {
             /** @constant */
             key: "approvals.single_query_mode";
-            /** @constant */
-            value: "deny";
+            /** @enum {unknown} */
+            value: "deny" | "approve";
         } | {
             /** @constant */
             key: "approvals.unattended_mode";
-            /** @constant */
-            value: "deny";
+            /** @enum {unknown} */
+            value: "deny" | "approve";
         } | {
             /** @constant */
             key: "security.protected_instruction_files";

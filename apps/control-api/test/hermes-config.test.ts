@@ -293,6 +293,21 @@ it("passes one typed field and If-Match revision, then reports persisted without
   });
 });
 
+it("passes explicit unattended approval policy by revision without claiming a command was approved", async () => {
+  const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
+    values: { ...bridge.values, "approvals.unattended_mode": "approve" },
+    write: { key: "approvals.unattended_mode", persisted: true },
+  })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const status = await service.update({ key: "approvals.unattended_mode", value: "approve" }, 123);
+  expect(status.write).toMatchObject({ persisted: true, applied: null, verification: "unverified" });
+  expect(JSON.parse((vi.mocked(invoke).mock.calls[0]?.[4] ?? "") as string)).toEqual({
+    key: "approvals.unattended_mode", value: "approve", revision: 123,
+  });
+  await expect(service.update({ key: "approvals.unattended_mode", value: "off" }, 123))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
 it("sends model credentials only through bridge stdin and reports set-state without echoing the secret", async () => {
   const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
     write: { key: "OPENROUTER_API_KEY", persisted: true },

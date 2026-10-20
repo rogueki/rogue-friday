@@ -17,6 +17,7 @@ PINNED_FILES = {
     "tools/computer_use/tool.py": "0f61a487c96ef94fde4e1ecfb52df6efafbd37c055433618a6d6f8aebb2d28fc",
     "hermes_cli/config_defaults.py": "3770f92378e37093720040de6d4813202a88edc7a196415dfc7be7b4e88064d7",
     "tools/environments/docker.py": "571cdeedd40076fd32d246f22fac804a899732659e0d486a045b14a126d19df1",
+    "tools/approval_context.py": "016e6eb6330a0d83adc5bbd260e8d9995e415a2cbff00e0a98f6ab627a6bb413",
 }
 for relative_path, expected_hash in PINNED_FILES.items():
     assert hashlib.sha256((source / relative_path).read_bytes()).hexdigest() == expected_hash, relative_path
@@ -31,7 +32,8 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
         "browser:\n  inactivity_timeout: 240\n"
         "computer_use:\n  capture_after_mode: ax\n"
         "terminal:\n  backend: docker\n  container_cpu: 1.5\n"
-        "  container_memory: 4096\n  container_disk: 16384\n",
+        "  container_memory: 4096\n  container_disk: 16384\n"
+        "approvals:\n  single_query_mode: approve\n  unattended_mode: deny\n",
         encoding="utf-8",
     )
     sys.path.insert(0, str(source))
@@ -40,11 +42,14 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
     from tools.browser_tool import _get_session_inactivity_timeout
     from hermes_cli.config import load_config_readonly
     from tools.environments.docker import DockerEnvironment
+    from tools.approval_context import _get_single_query_approval_mode, _get_unattended_approval_mode
 
     assert load_config_readonly()["code_execution"]["max_session_kernels"] == 2
     assert _lifecycle_limits() == (2, 600)
     assert _get_session_inactivity_timeout() == 240
     assert _capture_after_mode() == "ax"
+    assert _get_single_query_approval_mode() == "approve"
+    assert _get_unattended_approval_mode() == "deny"
     limits = load_config_readonly()["terminal"]
     docker = DockerEnvironment.__new__(DockerEnvironment)
     with patch("tools.environments.docker._cgroup_limits_available", return_value=True), \
@@ -64,4 +69,4 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
                                              False, "1g", [])
     assert "--cpus" not in unsupported and "--memory" not in unsupported and \
         "--storage-opt" not in unsupported, unsupported
-    print("pinned Hermes consumers: code kernels, browser idle, Computer Use capture, conditional Docker resource args = OK")
+    print("pinned Hermes consumers: code kernels, browser idle, Computer Use capture, conditional Docker resource args, approval modes = OK")

@@ -74,8 +74,8 @@ FIELDS = {
     "command_allowlist": ("allowlist_subset", None, None),
     "approvals.mode": ("approval_mode", None, None),
     "approvals.timeout": ("integer", 15, 600),
-    "approvals.single_query_mode": ("deny_only", None, None),
-    "approvals.unattended_mode": ("deny_only", None, None),
+    "approvals.single_query_mode": ("automatic_approval", None, None),
+    "approvals.unattended_mode": ("automatic_approval", None, None),
     "security.protected_instruction_files": ("true_only", None, None),
     "skills.disabled": ("skill_names", None, None),
     "cron.catch_up_missed": ("boolean", None, None),
@@ -133,8 +133,8 @@ def valid_field_value(key, value, spec):
         return type(value) is str and value in ("standard", "bounded")
     if kind == "approval_mode":
         return type(value) is str and value in ("manual", "smart")
-    if kind == "deny_only":
-        return value == "deny"
+    if kind == "automatic_approval":
+        return type(value) is str and value in ("deny", "approve")
     if kind == "true_only":
         return value is True
     if kind == "profile_pin":

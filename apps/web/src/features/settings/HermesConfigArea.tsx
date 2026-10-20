@@ -133,8 +133,10 @@ const EXECUTION_OPTIONS: Record<string, Array<[string, string]>> = {
   "computer_use.permission_mode": [["standard", "Treiber fragt nach Freigaben"],
     ["bounded", "Nur Capability-Manifest"]],
   "approvals.mode": [["manual", "Immer bei Gefahr fragen"], ["smart", "Smart-Guardian und Freigabe"]],
-  "approvals.single_query_mode": [["deny", "Gefaehrliche Befehle ablehnen"]],
-  "approvals.unattended_mode": [["deny", "Gefaehrliche Befehle ablehnen"]],
+  "approvals.single_query_mode": [["deny", "Markierte Aktionen ablehnen"],
+    ["approve", "Markierte Aktionen automatisch freigeben"]],
+  "approvals.unattended_mode": [["deny", "Markierte Aktionen ablehnen"],
+    ["approve", "Markierte Aktionen automatisch freigeben"]],
   "browser.dialog_policy": [["must_respond", "Auf Antwort warten"], ["auto_dismiss", "Automatisch ablehnen"]],
   "computer_use.capture_after_mode": [["som", "Screenshot und Elemente"], ["ax", "Nur Elemente"],
     ["vision", "Nur Bild"]],
@@ -340,6 +342,8 @@ export function HermesConfigArea() {
               <small>Diese Grenze betrifft nur neue Container. Docker kann CPU/Arbeitsspeicher ohne Cgroup-Unterstützung und Datenträger ohne geeigneten Speichertreiber nicht erzwingen.</small> : null}
             {field.key === "terminal.container_persistent" ?
               <small>Aktiv: neue Sitzungen teilen einen langlebigen Docker-Container pro Hermes-Profil. Inaktiv: neue Sitzungen erhalten getrennte Container, die beim Sitzungsende aufgeräumt werden.</small> : null}
+            {(field.key === "approvals.single_query_mode" || field.key === "approvals.unattended_mode") && value === "approve" ?
+              <small role="alert">Damit werden künftig markierte Befehle in diesem unbeaufsichtigten Hermes-Modus ohne einzelne Rückfrage automatisch freigegeben. Dies ist eine dauerhafte Modus-Einstellung, keine Freigabe eines konkreten Befehls.</small> : null}
             <button
               type="button"
               disabled={
@@ -364,7 +368,8 @@ export function HermesConfigArea() {
                 )
               }
             >
-              Speichern
+              {(field.key === "approvals.single_query_mode" || field.key === "approvals.unattended_mode") &&
+                value === "approve" ? "Automatische Freigabe aktivieren" : "Speichern"}
             </button>
           </div>
         );
