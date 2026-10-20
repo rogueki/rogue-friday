@@ -7,6 +7,10 @@ from pathlib import Path
 
 INSTALLER = Path(__file__).resolve().parents[1]
 REQUIRED = {
+    "installer/setup-obsidian.ps1",
+    "installer/find-obsidian-install.ps1",
+    "installer/ensure-obsidian-vault.ps1",
+    "installer/linux/find_obsidian_install.sh",
     "installer/wsl/hermes_config_bridge.py",
     "installer/wsl/hermes_model_credential_apply.py",
     "installer/wsl/hermes_model_catalog.py",
@@ -35,10 +39,12 @@ class WslUpdateDependencyClosureTest(unittest.TestCase):
         source_paths = {path.replace("\\", "/") for path in re.findall(r"'([^']+)'", source)
                         if path.startswith("installer/")}
         memory_paths = {path.replace("\\", "/") for path in re.findall(r"'([^']+)'", helper.split("$paths = @(", 1)[1].split(")", 1)[0])
-                        if path.startswith(("installer\\wsl\\", "installer\\scripts\\recover-friday.ps1"))}
+                        if path.startswith("installer\\")}
         self.assertTrue(REQUIRED <= source_paths)
         self.assertTrue(REQUIRED <= memory_paths)
         self.assertTrue(source_paths <= memory_paths)
+        for path in REQUIRED:
+            self.assertTrue((INSTALLER.parent / path).is_file(), path)
 
 
 if __name__ == "__main__":
