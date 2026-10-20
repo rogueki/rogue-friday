@@ -27,6 +27,7 @@ class ResearchVoice:
         self.root = root
         self.now = now
         self.opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
+        self.state_lock = threading.Lock()
         self.pending = None
         self.awaiting_approvals = []
         self.discard_threads = []
@@ -35,22 +36,26 @@ class ResearchVoice:
         return bool(self.pending or RESEARCH.fullmatch(text.strip()))
 
     def arm_confirmation(self):
-        if self.pending and self.now() <= self.pending["expires"]:
-            self.pending["armed"] = True
+        with self.state_lock:
+            if self.pending and self.now() <= self.pending["expires"]:
+                self.pending["armed"] = True
 
     def clear(self):
-        self.pending = None
+        with self.state_lock:
+            self.pending = None
 
     def cancel(self):
-        pending = self.pending
-        self.pending = None
-        awaiting = self.awaiting_approvals
-        self.awaiting_approvals = []
+        with self.state_lock:
+            pending = self.pending
+            self.pending = None
+            awaiting = self.awaiting_approvals
+            self.awaiting_approvals = []
         self._discard(([pending] if pending else []) + awaiting)
 
     def cancel_preview(self):
-        pending = self.pending
-        self.pending = None
+        with self.state_lock:
+            pending = self.pending
+            self.pending = None
         if pending:
             self._discard([pending])
 
@@ -105,17 +110,21 @@ class ResearchVoice:
             if not pending["armed"]:
                 self.cancel_preview()
                 return "Die Recherchevorschau wurde unterbrochen. Bitte beginne erneut."
-            self.clear()  # Consume before any uncertain network outcome; never auto-retry.
+            with self.state_lock:
+                if self.pending is not pending:
+                    return "Die Recherchevorschau wurde unterbrochen. Bitte beginne erneut."
+                self.pending = None  # Consume before any uncertain network outcome; never auto-retry.
+                self.awaiting_approvals.append({"text": pending["text"], "previewId": pending["previewId"]})
             try:
                 result = self._request({"text": pending["text"], "source": "voice", "confirm": True,
                                         "previewId": pending["previewId"]}, pending["key"])
             except (OSError, ValueError, urllib.error.HTTPError):
                 return "Das Rechercheergebnis ist unklar. Bitte im Dashboard prüfen, bevor du es erneut versuchst."
             if result.get("status") == "requires_approval":
-                if result.get("approvalId"):
-                    self.awaiting_approvals.append({"text": pending["text"], "previewId": pending["previewId"]})
                 return "Die Recherche wartet auf Freigabe im Dashboard. Sie wurde noch nicht gestartet."
             if result.get("status") == "executed":
+                with self.state_lock:
+                    self.awaiting_approvals = [item for item in self.awaiting_approvals if item["previewId"] != pending["previewId"]]
                 return "Die Recherche wurde gestartet. Die Quellen und Ergebnisse erscheinen im Dashboard."
             return "Die Recherche wurde nicht gestartet. Bitte prüfe den Status im Dashboard."
         if pending:

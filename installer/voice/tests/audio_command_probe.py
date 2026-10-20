@@ -112,12 +112,13 @@ class VoiceProbe:
 def main():
     scenario, root = sys.argv[1], Path(sys.argv[2])
     voice = VoiceProbe(root, guest=scenario == "guest")
-    command = "research" if scenario in ("research", "guest", "reject", "stop", "stop_after_yes", "unarmed", "no") else scenario
+    command = "research" if scenario in ("research", "guest", "reject", "stop", "stop_after_yes",
+                                  "timeout_after_yes_stop", "bad_json_after_yes_stop", "unarmed", "no") else scenario
     with contextlib.redirect_stdout(io.StringIO()):
         voice._handle_command(audio(command), None)
         first = voice.spoken[-1]
         preview_id = voice.research_voice.pending["previewId"] if voice.research_voice.pending else None
-        if scenario not in ("guest", "reject", "stop", "stop_after_yes"):
+        if scenario not in ("guest", "reject", "stop", "stop_after_yes", "timeout_after_yes_stop", "bad_json_after_yes_stop"):
             if scenario != "unarmed":
                 getattr(voice, command + "_voice").arm_confirmation()
             if scenario == "no":
@@ -133,6 +134,23 @@ def main():
         elif scenario == "stop_after_yes":
             voice.research_voice.arm_confirmation()
             voice._handle_command(audio("yes"), None)
+            voice.cancel_active_interaction()
+        elif scenario in ("timeout_after_yes_stop", "bad_json_after_yes_stop"):
+            voice.research_voice.arm_confirmation()
+            actual_open = voice.research_voice.opener.open
+
+            def lose_confirm_response(request, timeout):
+                response = actual_open(request, timeout=timeout)
+                if json.loads(request.data).get("confirm"):
+                    response.close()
+                    if scenario == "timeout_after_yes_stop":
+                        raise TimeoutError("fixture: response lost after server commit")
+                    return io.BytesIO(b"{")
+                return response
+
+            voice.research_voice.opener.open = lose_confirm_response
+            voice._handle_command(audio("yes"), None)
+            voice.research_voice.opener.open = actual_open
             voice.cancel_active_interaction()
     for thread in voice.research_voice.discard_threads:
         thread.join(timeout=3)

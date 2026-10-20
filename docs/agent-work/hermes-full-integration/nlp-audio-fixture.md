@@ -4,6 +4,8 @@
 
 The speech recognizer is a deterministic `FixtureWhisper` double keyed by the PCM hash. It verifies the audio path and transcript handoff, **not Whisper recognition accuracy**. Mail transport and Research search are simulated; the calendar write and native Research preview/approval/outcome use the temporary API's real persistence. Tests assert that a guest cannot mutate, a rejected speaker and Stop cannot confirm, a changed preview is rejected, Stop discards its server draft, and a stale confirmation fails. After a spoken confirmation, Stop rejects the still-pending Owner approval; the Owner cannot approve it later. The voice key cannot take over a dashboard-created preview. A Research query is not sent to the simulated search provider until Owner approval. No real mailbox, provider, microphone, speaker, or paid model is used.
 
+The confirmation-response fixtures also make the disposable API persist a pending approval before the Python client sees a timeout or malformed JSON. The client does not retry the uncertain confirmation; a later Stop still rejects that approval. These are controlled response-loss fixtures, not actual network or provider outages.
+
 Run from the repository root: `pnpm exec vitest run apps/control-api/test/voice-research-command.test.ts --maxWorkers=2`. A separate physical microphone/speaker path remains unverified; this fixture checkpoint does not claim that hardware gate.
 
 Incremental updater closure: `python -m unittest installer/voice/tests/test_update_dependency_closure.py` and `powershell.exe -NoProfile -ExecutionPolicy Bypass -File installer/tests/dashboard-update-voice-integration.Tests.ps1`. Both payload lists include `research_voice.py`, including an old installation where that module is absent.

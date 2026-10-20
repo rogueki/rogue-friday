@@ -124,6 +124,16 @@ it("carries recorded PCM speech through transcription, voice dispatch, native pr
     expect((await owner.get(`/api/v1/approvals/${stoppedApprovalId}`)).json().data.status).toBe("rejected");
     expect((await owner.post(`/api/v1/approvals/${stoppedApprovalId}/approve`, {})).statusCode).toBe(409);
     expect(search).not.toHaveBeenCalled();
+    for (const scenario of ["timeout_after_yes_stop", "bad_json_after_yes_stop"]) {
+      const uncertain = await probe(scenario);
+      expect(uncertain.spoken[1]).toContain("unklar");
+      const row = api.runtime.db.prepare("SELECT result_json, state FROM native_approval_requests WHERE request_key = ?")
+        .get(uncertain.previewId) as { result_json: string; state: string };
+      expect(row.state).toBe("rejected");
+      const approvalId = (JSON.parse(row.result_json) as { approval: { id: string } }).approval.id;
+      expect((await owner.post(`/api/v1/approvals/${approvalId}/approve`, {})).statusCode).toBe(409);
+      expect(search).not.toHaveBeenCalled();
+    }
     const unarmed = await probe("unarmed");
     expect(unarmed.spoken[1]).toContain("unterbrochen");
     expect(unarmed.pendingResearch).toBe(false);
