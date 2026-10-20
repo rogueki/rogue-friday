@@ -6,6 +6,7 @@ import type { Principal } from "../security/auth-service";
 import { ApiError, conflict, validationFailed } from "../util/errors";
 import { LocalCalendarService } from "../services/local-calendar";
 import { dispatchKnowledgeAction } from "./knowledge-actions";
+import { dispatchAutomationAction } from "./automation-actions";
 import { portHandler } from "./ports";
 import { PORT_SPEC, isAdapterError } from "@friday/adapter-core";
 
@@ -254,6 +255,10 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
         // Memory and file writes go through the memory/files ports with the decision's idempotency key.
         if (action.kind.startsWith("memory.") || action.kind.startsWith("file.")) {
           return (await dispatchKnowledgeAction(runtime, action, call)).receipt;
+        }
+        // Automation writes go through the automations port with the decision's idempotency key.
+        if (action.kind.startsWith("automation.")) {
+          return (await dispatchAutomationAction(runtime, action, call)).receipt;
         }
         throw conflict("Aktion ist nicht ausfuehrbar.");
       })) : await approveBase(ctx);

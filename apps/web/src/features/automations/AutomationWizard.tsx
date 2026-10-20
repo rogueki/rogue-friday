@@ -1,11 +1,16 @@
 "use client";
 
-import { FRIDAY_EVENT_TYPES } from "@friday/sdk";
+import { FRIDAY_EVENT_TYPES, createIdempotencyKey } from "@friday/sdk";
+import type { components } from "@friday/sdk";
 import { Button, Dialog, IconButton, Select, StatusChip, Switch, TextField } from "@friday/ui";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useT, type MessageKey } from "@/i18n";
-import { useCreateAutomation, useUpdateAutomation, type AutomationDto as Automation } from "@/lib/api/domains/automations";
+import { call } from "@/lib/api/call";
+import { getApiClient } from "@/lib/api/client";
+import { type AutomationDto as Automation } from "@/lib/api/domains/automations";
+import { queryKeys } from "@/lib/api/queryKeys";
+import { useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 import { actionTypeKey, channelKey, operatorKey, triggerTypeKey } from "./labels";
 import {
   ACTION_TYPES,
@@ -51,13 +56,12 @@ export function AutomationWizard(props: AutomationWizardProps) {
 
 function WizardBody({ onOpenChange, automation, onSaved }: AutomationWizardProps) {
   const { t } = useT();
-  const create = useCreateAutomation();
-  const update = useUpdateAutomation();
+  const runStagedWrite = useRunStagedWrite();
   const [draft, setDraft] = useState<WizardDraft>(() => (automation ? draftFromAutomation(automation) : emptyDraft()));
   const [step, setStep] = useState<WizardStep>("trigger");
   const [errors, setErrors] = useState<WizardErrors>({});
   const editing = automation !== undefined;
-  const busy = create.isPending || update.isPending;
+  const busy = useStagedWriteBusy();
   const stepIndex = WIZARD_STEPS.indexOf(step);
 
   const describer = useMemo<Describer>(
@@ -118,24 +122,34 @@ function WizardBody({ onOpenChange, automation, onSaved }: AutomationWizardProps
       return;
     }
     const request = toRequest(draft, describer);
-    if (automation) {
-      update.mutate(
-        { id: automation.id, version: automation.version, patch: request },
-        {
-          onSuccess: (response) => {
-            onSaved?.(response.data);
-            onOpenChange(false);
-          },
-        },
-      );
-    } else {
-      create.mutate(request, {
-        onSuccess: (response) => {
-          onSaved?.(response.data);
-          onOpenChange(false);
-        },
-      });
-    }
+    // The save is staged: the server preview in the shell dialog is the binding confirmation; the repeat is identical.
+    const write = automation
+      ? {
+          send: (previewId?: string) =>
+            call(getApiClient().PATCH("/api/v1/automations/{id}", { body: request,
+              params: { path: { id: automation.id }, header: { "If-Match": String(automation.version) } },
+              ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })) as Promise<components["schemas"]["AutomationResponse"]>,
+          successMessage: t("automations.staged.updated"),
+        }
+      : (() => {
+          const idempotencyKey = createIdempotencyKey();
+          return {
+            send: (previewId?: string) =>
+              call(getApiClient().POST("/api/v1/automations", { body: request,
+                params: { header: { "Idempotency-Key": idempotencyKey } },
+                ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })) as Promise<components["schemas"]["AutomationResponse"]>,
+            successMessage: t("automations.staged.created"),
+          };
+        })();
+    void runStagedWrite({
+      ...write,
+      subject: request.name,
+      invalidateKeys: [queryKeys.automations.all],
+      onExecuted: (response) => onSaved?.((response as components["schemas"]["AutomationResponse"]).data),
+    }).then((outcome) => {
+      // A staged or queued write is confirmed over the shell dialog; only a real failure keeps the wizard open.
+      if (outcome !== "failed") onOpenChange(false);
+    });
   };
 
   return (

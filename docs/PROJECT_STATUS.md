@@ -209,3 +209,36 @@ specification: `docs/ORB_SPECIFICATION.md`; evidence: `docs/evidence/orb-rework/
   container's font rendering → regenerate the orb/overview baselines on CI and review them (as in #23);
   real-GPU frame times; 30-min soak (`E2E_SOAK=1`); the evidence video is rendered from test-clock frames (2 fps)
   because the Playwright recorder does not work in this container; `syncing` still has no real event source.
+
+## Hermes full integration, wave 2 (2026-10-19/20)
+
+Order: implement the Hermes feature inventory end to end, package by package, with evidence. Plan, inventory, gap
+register, evidence per package and the acceptance ledger live in `docs/agent-work/hermes-full-integration/`
+(`acceptance-ledger.md` is the authority for what is proven and what is not).
+
+- **Delivered and merged (PR #26, merge commit `f48a2b3`):** the approval-aware native staged-write pipeline (P9
+  foundation) plus the action families for tasks (create/update/status/cancel), calendar, mail, messenger, agents
+  (pause/resume/stop, task assignment, coding-run stop) and files/knowledge (memory create/update/delete/
+  conflict-resolve, file rename/delete). Every direct API write and every German natural-language command stages the
+  exact action first (`403 APPROVAL_REQUIRED`, `stage: preview`, `previewId`, German `previewText`), binds the
+  confirmation to the unchanged body plus `X-Action-Preview-Id`, and either hands the action to the tier-2 approval UI
+  or executes it exactly once with a stable receipt. Replays answer the stored receipt; tampered repeats and drifted
+  versions fail 409; guards run before anything is staged.
+- **Web:** one `useRunStagedWrite` / `StagedWriteConfirmHost` runner in `apps/web/src/lib/api/stagedWrite.tsx` drives
+  tasks, calendar dialog, mail compose, messenger, agents, memory, files and automations — single confirmation host,
+  single busy state, single invalidation set.
+- **Automation action family (this branch):** create/update/enable/disable/test/pause-all through the same pipeline on
+  the direct API and the German command path (pre-staging reference resolution, pause/resume modelled as an update with
+  the pinned version), automations page, test panel and command palette on the staged runner. Evidence:
+  `p9-automation-actions.md`; ledger row `P9 automation action family`.
+- **CI:** Playwright E2E is split into 8 shards with `workers: 1`; all ten CI jobs green on `f48a2b3`
+  (run 39360295207). `e2e-shard-repair.md` attributes every spec that broke on the branch to the staged-write change
+  set (class b) versus infrastructure flake (class c) and records the fixes. The a11y/navigation palette assumption
+  (`a11y.spec.ts:203`, `navigation.spec.ts:67`) was a genuine test-side race — hit entries rank before navigation
+  entries — and is fixed with a keyboard-driven `selectPaletteOption` helper instead of an index guess.
+- **Verified locally (2026-10-20):** `contracts:check`, `typecheck`, `lint` (0 errors), `pnpm test`
+  (245 files / 3368 passed / 61 skipped), `test:conformance` (415 passed / 60 skipped), `build:app`.
+- **Still open:** the remaining P9 family (research actions) and NLP-01..06, P7-D/E/F, the P8 field-by-field settings
+  matrix and the P10 recovery/runbook acceptances. Real scheduler effects, provider-backed sends, physical
+  voice/audio and a fresh-machine install stay **NOT_RUN** — they need a live Hermes instance, real accounts or the
+  target hardware, not more local fixtures.

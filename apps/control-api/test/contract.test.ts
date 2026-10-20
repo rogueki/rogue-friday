@@ -306,15 +306,25 @@ describe("contract: all operations", () => {
       await call("listAutomations", { query: { enabled: "true" } });
       const existing = await call("getAutomation", { params: { id: ids.automation } });
       const { trigger, conditions, actions } = existing.json.data;
-      const created = await call("createAutomation", {
-        body: { name: "Wöchentlicher Rechnungscheck", enabled: false, trigger, conditions, actions },
-        headers: { "idempotency-key": "idem-contract-auto-001" },
-      });
+      const body = { name: "Wöchentlicher Rechnungscheck", enabled: false, trigger, conditions, actions };
+      const createHeaders = { "idempotency-key": "idem-contract-auto-001" };
+      const stagedCreate = await call("createAutomation", { body, headers: createHeaders, expect: 403 });
+      expect(stagedCreate.json.error).toMatchObject({ code: "APPROVAL_REQUIRED", details: { stage: "preview" } });
+      const created = await call("createAutomation", { body,
+        headers: { ...createHeaders, "x-action-preview-id": stagedCreate.json.error.details.previewId } });
       const id = created.json.data.id as string;
-      await call("updateAutomation", { params: { id }, body: { description: "Prüft offene Rechnungen." }, headers: { "if-match": String(created.json.data.version) } });
-      await call("testAutomation", { params: { id }, body: { dryRun: true } });
-      await call("enableAutomation", { params: { id } });
-      await call("disableAutomation", { params: { id } });
+      const updateHeaders = { "if-match": String(created.json.data.version) };
+      const updateBody = { description: "Prüft offene Rechnungen." };
+      const stagedUpdate = await call("updateAutomation", { params: { id }, body: updateBody, headers: updateHeaders, expect: 403 });
+      await call("updateAutomation", { params: { id }, body: updateBody,
+        headers: { ...updateHeaders, "x-action-preview-id": stagedUpdate.json.error.details.previewId } });
+      const stagedTest = await call("testAutomation", { params: { id }, body: { dryRun: true }, expect: 403 });
+      await call("testAutomation", { params: { id }, body: { dryRun: true },
+        headers: { "x-action-preview-id": stagedTest.json.error.details.previewId } });
+      const stagedEnable = await call("enableAutomation", { params: { id }, expect: 403 });
+      await call("enableAutomation", { params: { id }, headers: { "x-action-preview-id": stagedEnable.json.error.details.previewId } });
+      const stagedDisable = await call("disableAutomation", { params: { id }, expect: 403 });
+      await call("disableAutomation", { params: { id }, headers: { "x-action-preview-id": stagedDisable.json.error.details.previewId } });
       await call("listAutomationRuns", { params: { id: ids.automation } });
       const versions = await call("listAutomationVersions", { params: { id } });
       expect(versions.json.items.length).toBeGreaterThanOrEqual(4);
@@ -322,7 +332,10 @@ describe("contract: all operations", () => {
     });
 
     it("pauses all automations with one request", async () => {
-      const result = await call("pauseAllAutomations", { body: { reason: "Urlaub" }, headers: { "idempotency-key": "idem-contract-pauseall-1" } });
+      const headers = { "idempotency-key": "idem-contract-pauseall-1" };
+      const staged = await call("pauseAllAutomations", { body: { reason: "Urlaub" }, headers, expect: 403 });
+      const result = await call("pauseAllAutomations", { body: { reason: "Urlaub" },
+        headers: { ...headers, "x-action-preview-id": staged.json.error.details.previewId } });
       expect(result.json.data.pausedCount).toBeGreaterThan(0);
       expect(result.json.data.results.length).toBeGreaterThanOrEqual(result.json.data.pausedCount);
     });

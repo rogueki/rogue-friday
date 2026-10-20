@@ -1,12 +1,18 @@
 "use client";
 
 import type { AutomationDto as Automation } from "@/lib/api/domains/automations";
-import { Button, ConfirmDialog, FilterBar, HudPanel, StatusChip, useToast } from "@friday/ui";
+import type { AutomationPauseAllResponse, components } from "@friday/sdk";
+import { createIdempotencyKey } from "@friday/sdk";
+import { Button, FilterBar, HudPanel, StatusChip, useToast } from "@friday/ui";
 import { PauseCircle, PlayCircle, Plus, Workflow } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 import { PanelFrame } from "@/components/PanelFrame";
 import { useT } from "@/i18n";
-import { useAutomations, usePauseAllAutomations, useResumeAllAutomations, useToggleAutomation } from "@/lib/api/domains/automations";
+import { call } from "@/lib/api/call";
+import { getApiClient } from "@/lib/api/client";
+import { useAutomations } from "@/lib/api/domains/automations";
+import { queryKeys } from "@/lib/api/queryKeys";
+import { useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 import { useCapability, useCapabilityState } from "@/lib/capabilities";
 import { CapabilityNote, DataBadges } from "../memory/kit/Badges";
 import { useDebounced, useUrlParam } from "../memory/kit/hooks";
@@ -16,6 +22,8 @@ import { AutomationRow } from "./AutomationRow";
 import { AutomationWizard } from "./AutomationWizard";
 import { automationState, type AutomationState } from "./labels";
 import "./automations.css";
+
+type AutomationResponse = components["schemas"]["AutomationResponse"];
 
 type StateFilter = "all" | AutomationState;
 
@@ -34,7 +42,6 @@ function AutomationsPageInner() {
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
   const [wizard, setWizard] = useState<{ automation?: Automation } | null>(null);
-  const [confirmPause, setConfirmPause] = useState<"pause" | "resume" | null>(null);
 
   const term = useDebounced(search.trim(), 250);
   const query = useAutomations({ limit: 200, ...(term !== "" ? { q: term } : {}) });
@@ -44,10 +51,8 @@ function AutomationsPageInner() {
   const canDisable = useCapability("automations", "disable");
   const canPauseAll = useCapability("automations", "pauseAll");
   const canUpdate = useCapability("automations", "update");
-  const enable = useToggleAutomation(true);
-  const disable = useToggleAutomation(false);
-  const pauseAll = usePauseAllAutomations();
-  const resumeAll = useResumeAllAutomations();
+  const runStagedWrite = useRunStagedWrite();
+  const stagedBusy = useStagedWriteBusy();
 
   const items = useMemo<Automation[]>(() => query.data?.items ?? [], [query.data]);
   const counts = useMemo(() => {
@@ -80,39 +85,62 @@ function AutomationsPageInner() {
     degraded: counts.paused > 0 ? { reason: t("automations.pausedNotice", { count: counts.paused }), affected: [] } : undefined,
   });
 
-  // Pausing is one bulk request with a result per automation; resuming has no bulk operation in the contract.
+  // Pausing is one bulk request with a result per automation; resuming has no bulk operation in the contract and runs
+  // one staged write per target. The server preview is the binding confirmation for each.
   const mayRun = mode === "pause" ? canPauseAll : canPauseAll && canUpdate;
-  const runPauseAll = (): void => {
-    if (!confirmPause) return;
-    if (confirmPause === "pause") {
-      pauseAll.mutate(
-        {},
-        {
-          onSuccess: ({ data }) => {
-            setConfirmPause(null);
-            toast({
-              title: data.failedCount === 0 ? t("automations.pauseAll.done") : t("automations.pauseAll.partial"),
-              description: t("automations.pauseAll.summary", { paused: data.pausedCount, unchanged: data.unchangedCount, failed: data.failedCount }),
-              tone: data.failedCount === 0 ? "green" : "amber",
-            });
-          },
-        },
-      );
-      return;
-    }
-    resumeAll.mutate(
-      { targets: targets.map((automation) => ({ id: automation.id, version: automation.version })) },
-      {
-        onSuccess: (result) => {
-          setConfirmPause(null);
+  const toggleTarget = (target: Automation, next: boolean): void => {
+    void runStagedWrite({
+      send: (previewId) =>
+        call(getApiClient().POST(next ? "/api/v1/automations/{id}/enable" : "/api/v1/automations/{id}/disable", {
+          params: { path: { id: target.id }, header: { "If-Match": String(target.version) } },
+          ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })) as Promise<AutomationResponse>,
+      successMessage: t(next ? "automations.staged.enabled" : "automations.staged.disabled"),
+      subject: target.name,
+      invalidateKeys: [queryKeys.automations.all, queryKeys.overview],
+    });
+  };
+  const runBulk = (): void => {
+    if (mode === "pause") {
+      const idempotencyKey = createIdempotencyKey();
+      void runStagedWrite({
+        send: (previewId) =>
+          call(getApiClient().POST("/api/v1/automations/pause-all", {
+            params: { header: { "Idempotency-Key": idempotencyKey } },
+            ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })) as Promise<AutomationPauseAllResponse>,
+        successMessage: t("automations.staged.pausedAll"),
+        subject: t("automations.pauseAll"),
+        invalidateKeys: [queryKeys.automations.all, queryKeys.overview],
+        onExecuted: (response) => {
+          const data = (response as AutomationPauseAllResponse).data;
           toast({
-            title: result.failed.length === 0 ? t("automations.resumeAll.done") : t("automations.pauseAll.partial"),
-            description: t("automations.pauseAll.result", { ok: result.succeeded.length, total: result.succeeded.length + result.failed.length }),
-            tone: result.failed.length === 0 ? "green" : "amber",
+            title: data.failedCount === 0 ? t("automations.pauseAll.done") : t("automations.pauseAll.partial"),
+            description: t("automations.pauseAll.summary", { paused: data.pausedCount, unchanged: data.unchangedCount, failed: data.failedCount }),
+            tone: data.failedCount === 0 ? "green" : "amber",
           });
         },
-      },
-    );
+      });
+      return;
+    }
+    void (async () => {
+      let succeeded = 0;
+      for (const target of targets) {
+        const outcome = await runStagedWrite({
+          send: (previewId) =>
+            call(getApiClient().PATCH("/api/v1/automations/{id}", { body: { paused: false },
+              params: { path: { id: target.id }, header: { "If-Match": String(target.version) } },
+              ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })) as Promise<AutomationResponse>,
+          successMessage: t("automations.staged.resumed"),
+          subject: target.name,
+          invalidateKeys: [queryKeys.automations.all, queryKeys.overview],
+        });
+        if (outcome === "executed") succeeded += 1;
+      }
+      toast({
+        title: succeeded === targets.length ? t("automations.resumeAll.done") : t("automations.pauseAll.partial"),
+        description: t("automations.pauseAll.result", { ok: succeeded, total: targets.length }),
+        tone: succeeded === targets.length ? "green" : "amber",
+      });
+    })();
   };
 
   return (
@@ -128,9 +156,9 @@ function AutomationsPageInner() {
               size="sm"
               variant="ghost"
               icon={mode === "pause" ? <PauseCircle size={14} /> : <PlayCircle size={14} />}
-              disabled={!mayRun || targets.length === 0}
+              disabled={!mayRun || targets.length === 0 || stagedBusy}
               title={!mayRun ? t("automations.kit.noPauseAll") : undefined}
-              onClick={() => setConfirmPause(mode)}
+              onClick={runBulk}
             >
               {mode === "pause" ? t("automations.pauseAll") : t("automations.resumeAll")}
             </Button>
@@ -185,9 +213,9 @@ function AutomationsPageInner() {
               automation={automation}
               selected={automation.id === selectedId}
               canToggle={automation.enabled ? canDisable : canEnable}
-              toggling={enable.isPending || disable.isPending}
+              toggling={stagedBusy}
               onOpen={(id) => setSelectedId(id, { push: true })}
-              onToggle={(target, next) => (next ? enable : disable).mutate({ id: target.id, version: target.version })}
+              onToggle={(target, next) => toggleTarget(target, next)}
             />
           ))}
         </ul>
@@ -206,24 +234,7 @@ function AutomationsPageInner() {
           if (!open) setWizard(null);
         }}
         automation={wizard?.automation}
-        onSaved={(saved) => {
-          toast({ title: wizard?.automation ? t("automations.wizard.savedEdit") : t("automations.wizard.savedCreate"), description: t("automations.version", { version: saved.version }), tone: "green" });
-          setSelectedId(saved.id, { push: true });
-        }}
-      />
-      <ConfirmDialog
-        open={confirmPause !== null}
-        onOpenChange={(open) => {
-          if (!open) setConfirmPause(null);
-        }}
-        tone={confirmPause === "pause" ? "danger" : "default"}
-        title={confirmPause === "resume" ? t("automations.resumeAll.title") : t("automations.pauseAll.title")}
-        description={confirmPause === "resume" ? t("automations.resumeAll.description", { count: targets.length }) : t("automations.pauseAll.description", { count: targets.length })}
-        details={targets.slice(0, 8).map((automation) => automation.name)}
-        confirmLabel={confirmPause === "resume" ? t("automations.resumeAll") : t("automations.pauseAll")}
-        cancelLabel={t("common.cancel")}
-        loading={pauseAll.isPending || resumeAll.isPending}
-        onConfirm={runPauseAll}
+        onSaved={(saved) => setSelectedId(saved.id, { push: true })}
       />
     </div>
   );

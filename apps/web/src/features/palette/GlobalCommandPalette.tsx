@@ -1,7 +1,7 @@
 "use client";
 
 import type { CommandHistoryEntry } from "@friday/sdk";
-import { CommandPalette, useToast, type CommandItem } from "@friday/ui";
+import { CommandPalette, type CommandItem } from "@friday/ui";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bot,
@@ -28,11 +28,14 @@ import { EXECUTIVE_BRIEFING_COMMAND, useVoiceUi } from "@/features/voice/useVoic
 import { useT } from "@/i18n";
 import { agentQueries } from "@/lib/api/domains/agents";
 import { useMeta } from "@/lib/api/domains/core";
-import { automationQueries, useTestAutomation } from "@/lib/api/domains/automations";
+import { automationQueries } from "@/lib/api/domains/automations";
+import { call } from "@/lib/api/call";
+import { getApiClient } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/queryKeys";
+import { useRunStagedWrite } from "@/lib/api/stagedWrite";
 import { useCommandControl, useCommandHistory } from "@/lib/api/domains/commands";
 import { fileQueries } from "@/lib/api/domains/files";
 import { searchMemory } from "@/lib/api/domains/memory";
-import { queryKeys } from "@/lib/api/queryKeys";
 import { useCapability } from "@/lib/capabilities";
 import { useAppSettings } from "@/lib/settings";
 import { useUiStore } from "@/lib/uiStore";
@@ -78,7 +81,6 @@ function historyLabel(entry: CommandHistoryEntry, protectedLabel: string): strin
 
 export function GlobalCommandPalette() {
   const { t } = useT();
-  const { toast } = useToast();
   const router = useRouter();
   const { settings } = useAppSettings();
   const open = useUiStore((s) => s.paletteOpen);
@@ -89,7 +91,7 @@ export function GlobalCommandPalette() {
   const stop = useCommandControl("stop");
   const pause = useCommandControl("pause");
   const resume = useCommandControl("resume");
-  const testAutomation = useTestAutomation();
+  const runStagedWrite = useRunStagedWrite();
 
   const canExecute = useCapability("commands", "execute");
   const canStop = useCapability("commands", "stop");
@@ -254,10 +256,16 @@ export function GlobalCommandPalette() {
           preview: { title: t("palette.automation.preview", { name: automation.name }), lines: automation.actions.map((a) => a.description) },
         },
         () =>
-          testAutomation.mutate(
-            { id: automation.id, dryRun: false },
-            { onSuccess: () => toast({ title: t("palette.automation.started", { name: automation.name }), tone: "green" }) },
-          ),
+          void runStagedWrite({
+            send: (previewId) =>
+              call(getApiClient().POST("/api/v1/automations/{id}/test", {
+                body: { dryRun: false },
+                params: { path: { id: automation.id } },
+                ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })),
+            successMessage: t("palette.automation.started", { name: automation.name }),
+            subject: automation.name,
+            invalidateKeys: [queryKeys.automations.all],
+          }),
       );
     }
 
@@ -283,7 +291,7 @@ export function GlobalCommandPalette() {
     return { items: list, handlers: actions };
   }, [
     query, t, groups, canExecute, canCreateTask, canStop, canPause, canResume, canTestAutomation, voice, settings?.navigation.order, devScenarios,
-    memoryHits.data, agentHits.data, fileHits.data, automations.data, history.data, run, router, openCreateTask, stop, pause, resume, testAutomation, toast,
+    memoryHits.data, agentHits.data, fileHits.data, automations.data, history.data, run, router, openCreateTask, stop, pause, resume, runStagedWrite,
   ]);
 
   const groupOrder = useMemo(

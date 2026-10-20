@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createId } from "@friday/observability";
-import type { Approval, CalendarEvent, FileRenameRequest, MemoryConflictResolveRequest, MemoryCreateRequest, MemoryUpdateRequest, SchemaValidator, TaskActionRequest, TaskAssignRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
+import type { Approval, AutomationCreateRequest, AutomationPauseAllRequest, AutomationTestRequest, AutomationUpdateRequest, CalendarEvent, FileRenameRequest, MemoryConflictResolveRequest, MemoryCreateRequest, MemoryUpdateRequest, SchemaValidator, TaskActionRequest, TaskAssignRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
 import type { Db } from "../db/database";
 import type { LocalEventInput } from "./local-calendar";
 import type { MailSendRequest } from "./mail-send";
@@ -40,7 +40,15 @@ export type NativeExecutableAction =
   | { kind: "file.rename"; id: string; version: number; body: FileRenameRequest; previousName: string }
   /** Immediate deletion (temporary files); the gated sibling hands the deletion to the adapter's own approval. */
   | { kind: "file.delete"; id: string; version: number; name: string }
-  | { kind: "file.delete.gated"; id: string; version: number; name: string };
+  | { kind: "file.delete.gated"; id: string; version: number; name: string }
+  /** Automation writes go to the automations port with the pipeline idempotency key. */
+  | { kind: "automation.create"; body: AutomationCreateRequest }
+  | { kind: "automation.update"; id: string; version: number; body: AutomationUpdateRequest }
+  | { kind: "automation.enable"; id: string; version: number }
+  | { kind: "automation.disable"; id: string; version: number }
+  /** A test run records a run entry; a real (non-dry) run executes actions, so it is staged like every write. */
+  | { kind: "automation.test"; id: string; body: AutomationTestRequest }
+  | { kind: "automation.pauseAll"; body: AutomationPauseAllRequest };
 
 /** Receipt sentence per action kind; the create wording is asserted by existing API fixtures. */
 export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], string>> = {
@@ -65,6 +73,12 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "file.rename": "umbenannt",
   "file.delete": "geloescht",
   "file.delete.gated": "zur Loeschung angemeldet",
+  "automation.create": "angelegt",
+  "automation.update": "aktualisiert",
+  "automation.enable": "aktiviert",
+  "automation.disable": "deaktiviert",
+  "automation.test": "getestet",
+  "automation.pauseAll": "pausiert",
 };
 
 /** Receipt subject per action family; combined with the verb to the exact receipt sentence. */
@@ -90,6 +104,12 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "file.rename": "Datei",
   "file.delete": "Datei",
   "file.delete.gated": "Datei-Loeschung",
+  "automation.create": "Automation",
+  "automation.update": "Automation",
+  "automation.enable": "Automation",
+  "automation.disable": "Automation",
+  "automation.test": "Automation",
+  "automation.pauseAll": "Automationen",
 };
 
 /** The action executor supplies a reviewed preview and a stable key before any external side effect. */

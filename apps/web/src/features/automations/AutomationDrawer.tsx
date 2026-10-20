@@ -1,10 +1,15 @@
 "use client";
 
 import type { AutomationDto as Automation } from "@/lib/api/domains/automations";
+import type { components } from "@friday/sdk";
 import { Button, Drawer, StatusChip, Switch, Tabs } from "@friday/ui";
 import { Pencil } from "lucide-react";
 import { useT } from "@/i18n";
-import { useAutomationRuns, useToggleAutomation } from "@/lib/api/domains/automations";
+import { call } from "@/lib/api/call";
+import { getApiClient } from "@/lib/api/client";
+import { useAutomationRuns } from "@/lib/api/domains/automations";
+import { queryKeys } from "@/lib/api/queryKeys";
+import { useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 import { useCapability } from "@/lib/capabilities";
 import { DataBadges } from "../memory/kit/Badges";
 import { useFormat } from "../memory/kit/hooks";
@@ -13,6 +18,8 @@ import { VersionHistory } from "./VersionHistory";
 import { RunHistory } from "./RunHistory";
 import { automationState, STATE_TONE, stateKey } from "./labels";
 import { TestPanel } from "./TestPanel";
+
+type AutomationResponse = components["schemas"]["AutomationResponse"];
 
 export interface AutomationDrawerProps {
   automation: Automation | undefined;
@@ -46,13 +53,26 @@ function Detail({ automation, onEdit }: { automation: Automation; onEdit: (autom
   const canUpdate = useCapability("automations", "update");
   const canEnable = useCapability("automations", "enable");
   const canDisable = useCapability("automations", "disable");
-  const enable = useToggleAutomation(true);
-  const disable = useToggleAutomation(false);
+  const runStagedWrite = useRunStagedWrite();
+  const busy = useStagedWriteBusy();
   const state = automationState(automation);
   const runs = useAutomationRuns(automation.id, { limit: 25 });
   const byVersion = new Map<number, number>();
   for (const run of runs.data?.items ?? []) byVersion.set(run.automationVersion, (byVersion.get(run.automationVersion) ?? 0) + 1);
   const toggleAllowed = automation.enabled ? canDisable : canEnable;
+
+  /** Enable/disable as a staged write: the server preview in the shell dialog is the binding confirmation. */
+  const toggle = (next: boolean): void => {
+    void runStagedWrite({
+      send: (previewId) =>
+        call(getApiClient().POST(next ? "/api/v1/automations/{id}/enable" : "/api/v1/automations/{id}/disable", {
+          params: { path: { id: automation.id }, header: { "If-Match": String(automation.version) } },
+          ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })) as Promise<AutomationResponse>,
+      successMessage: t(next ? "automations.staged.enabled" : "automations.staged.disabled"),
+      subject: automation.name,
+      invalidateKeys: [queryKeys.automations.all, queryKeys.overview],
+    });
+  };
 
   const overview = (
     <div className="mk-stack">
@@ -111,9 +131,9 @@ function Detail({ automation, onEdit }: { automation: Automation; onEdit: (autom
         <Switch
           label={automation.enabled ? t("automations.enabled") : t("automations.disabled")}
           checked={automation.enabled}
-          disabled={!toggleAllowed || enable.isPending || disable.isPending}
+          disabled={!toggleAllowed || busy}
           stateLabels={[t("memory.kit.on"), t("memory.kit.off")]}
-          onCheckedChange={(next) => (next ? enable : disable).mutate({ id: automation.id, version: automation.version })}
+          onCheckedChange={(next) => toggle(next)}
         />
         <Button size="sm" variant="ghost" icon={<Pencil size={14} />} disabled={!canUpdate} title={!canUpdate ? t("automations.kit.noUpdate") : undefined} onClick={() => onEdit(automation)}>
           {t("automations.edit")}
