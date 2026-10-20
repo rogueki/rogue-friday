@@ -55,6 +55,7 @@ export type NativeExecutableAction =
   | { kind: "settings.profile.dateFormat"; expectedVersion: number; value: "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy" }
   | { kind: "settings.profile.timeFormat"; expectedVersion: number; value: "24h" | "12h" }
   | { kind: "settings.profile.firstDayOfWeek"; expectedVersion: number; value: "monday" | "sunday" }
+  | { kind: "settings.profile.timeZone"; expectedVersion: number; value: string }
   | { kind: "settings.dashboard.compact"; expectedVersion: number; value: boolean }
   | { kind: "settings.dashboard.refresh"; expectedVersion: number; value: number }
   | { kind: "settings.dashboard.backgroundGrid" | "settings.dashboard.soundEffects" | "settings.dashboard.contentStudioEnabled"; expectedVersion: number; value: boolean }
@@ -106,6 +107,7 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "settings.profile.dateFormat": "gespeichert",
   "settings.profile.timeFormat": "gespeichert",
   "settings.profile.firstDayOfWeek": "gespeichert",
+  "settings.profile.timeZone": "gespeichert",
   "settings.dashboard.compact": "gespeichert",
   "settings.dashboard.refresh": "gespeichert",
   "settings.dashboard.backgroundGrid": "gespeichert",
@@ -160,6 +162,7 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "settings.profile.dateFormat": "Einstellung",
   "settings.profile.timeFormat": "Einstellung",
   "settings.profile.firstDayOfWeek": "Einstellung",
+  "settings.profile.timeZone": "Einstellung",
   "settings.dashboard.compact": "Einstellung",
   "settings.dashboard.refresh": "Einstellung",
   "settings.dashboard.backgroundGrid": "Einstellung",

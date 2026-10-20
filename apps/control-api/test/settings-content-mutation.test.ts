@@ -132,6 +132,7 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
       ["Set date format to yyyy-MM-dd", "dateFormat", "yyyy-MM-dd"],
       ["Set time format to 12h", "timeFormat", "12h"],
       ["Set first day of the week to Sunday", "firstDayOfWeek", "sunday"],
+      ["Set timezone to Europe/Paris", "timeZone", "Europe/Paris"],
     ] as const;
     for (const [text, key, value] of cases) {
       const preview = await command(owner, text);
