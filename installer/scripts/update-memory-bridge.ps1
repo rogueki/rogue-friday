@@ -13,7 +13,9 @@ $run = Join-Path $root "updates\memory-bridge-$RunId"
 $backup = Join-Path $run 'windows-backup'
 $manifest = Join-Path $run 'manifest.json'
 $result = Join-Path $run 'result.json'
-$paths = @('installer\wsl\configure_memory_bridge.py', 'installer\wsl\setup_memory_bridge.sh',
+$paths = @('installer\setup-obsidian.ps1', 'installer\find-obsidian-install.ps1',
+    'installer\ensure-obsidian-vault.ps1',
+    'installer\wsl\configure_memory_bridge.py', 'installer\wsl\setup_memory_bridge.sh',
     'installer\wsl\friday_memory_plugin\plugin.yaml', 'installer\wsl\friday_memory_plugin\__init__.py',
     'installer\wsl\calendar_accounts.py', 'installer\wsl\mail_accounts.py',
     'installer\wsl\configure_calendar_bridge.py',

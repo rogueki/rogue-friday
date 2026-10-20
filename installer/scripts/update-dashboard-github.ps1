@@ -206,7 +206,9 @@ function Test-MemoryUpdateNeeded([string[]]$changedPaths) {
 }
 function Get-WslBridgeSourcePaths {
     # Runtime targets and their local sibling dependencies; never include user config or WSL credentials.
-    return @('installer/wsl/calendar_accounts.py', 'installer/wsl/mail_accounts.py',
+    return @('installer/setup-obsidian.ps1', 'installer/find-obsidian-install.ps1',
+        'installer/ensure-obsidian-vault.ps1',
+        'installer/wsl/calendar_accounts.py', 'installer/wsl/mail_accounts.py',
         'installer/wsl/configure_calendar_bridge.py',
         'installer/wsl/setup_calendar_bridge.sh', 'installer/wsl/configure_mail_bridge.py',
         'installer/wsl/setup_mail_bridge.sh', 'installer/wsl/configure_messaging_gateway.py',
