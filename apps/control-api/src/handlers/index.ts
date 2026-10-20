@@ -22,6 +22,14 @@ import { durableMemoryHandlers } from "./durable-memory";
 import { mailAccountHandlers } from "./mail-accounts";
 import { calendarAccountHandlers } from "./calendar-accounts";
 import { connectedCalendarVoiceHandlers } from "./connected-calendar-voice";
+import { dataRetentionHandlers } from "./data-retention";
+import { messengerSendHandlers } from "./messenger-send";
+import { hermesConfigHandlers } from "./hermes-config";
+import { systemBackupHandlers } from "./system-backups";
+import { messengerInboundHandlers } from "./messenger-inbound";
+import { taskActionHandlers } from "./task-actions";
+import { agentActionHandlers } from "./agent-actions";
+import { knowledgeActionHandlers } from "./knowledge-actions";
 
 /** Port-backed operations come from `PORT_SPEC`; the explicit handlers add enforcement or are served locally. */
 export function buildHandlers(): Map<OperationId, Handler> {
@@ -43,11 +51,19 @@ export function buildHandlers(): Map<OperationId, Handler> {
     mailAccountHandlers,
     calendarAccountHandlers,
     connectedCalendarVoiceHandlers,
+    dataRetentionHandlers,
+    messengerSendHandlers,
+    hermesConfigHandlers,
+    systemBackupHandlers,
+    messengerInboundHandlers,
+    taskActionHandlers,
     localReads,
     devHandlers,
     approvalHandlers,
     adapterHandlers,
     domainOpHandlers,
+    agentActionHandlers,
+    knowledgeActionHandlers,
     commandHandlers,
     observabilityHandlers,
   ];

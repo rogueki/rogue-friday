@@ -10,6 +10,7 @@ import { createSchemaValidator, type AuditEvent, type FridayEvent } from "@frida
 import { AuditAnchor } from "../src/db/audit-anchor";
 import { migrateLegacyAuditAnchor } from "../src/db/audit-anchor-migration";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
+import { createApprovedTask } from "./support/task-actions";
 
 const validator = createSchemaValidator();
 
@@ -21,7 +22,7 @@ describe("control-plane audit trail", () => {
     api = await startTestApi();
     owner = api.client();
     await owner.loginDev("owner");
-    for (let index = 0; index < 6; index += 1) expect((await owner.post("/api/v1/tasks", { title: `Audit ${index}` })).statusCode).toBe(201);
+    for (let index = 0; index < 6; index += 1) await createApprovedTask(owner, { title: `Audit ${index}` });
   });
   afterEach(async () => {
     await api.close();
@@ -58,8 +59,12 @@ describe("control-plane audit trail", () => {
 
     it("records who did what: actor, action, result and correlation id of the request", async () => {
       const correlationId = "corr_01ARZ3NDEKTSV4RRFFQ69G5FAW";
-      await owner.post("/api/v1/tasks", { title: "Mit Korrelation" }, { headers: { "x-correlation-id": correlationId } });
-      const event = api.runtime.stores.audit.recent(5).find((candidate) => candidate.correlationId === correlationId) as AuditEvent;
+      const settings = (await owner.get("/api/v1/settings")).json().data;
+      expect((await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+        { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
+      await createApprovedTask(owner, { title: "Mit Korrelation" }, undefined, { "x-correlation-id": correlationId });
+      const event = api.runtime.stores.audit.recent(10).find((candidate) =>
+        candidate.correlationId === correlationId && candidate.action === "tasks.createTask" && candidate.result === "success") as AuditEvent;
       expect(event).toBeDefined();
       expect(event.actor).toMatchObject({ type: "user" });
       expect(event.actor.id).toMatch(/^usr_[0-9A-Za-z]{26}$/);
@@ -98,10 +103,10 @@ describe("control-plane audit trail", () => {
     it("publishes each audit event on the stream as friday.audit.appended with the stored hash", async () => {
       const seen: FridayEvent[] = [];
       const off = api.runtime.hub.subscribe((event) => event.type === "friday.audit.appended" && event.source === "control-api://core" && seen.push(event));
-      await owner.post("/api/v1/tasks", { title: "Stream" });
+      await createApprovedTask(owner, { title: "Stream" });
       off();
-      expect(seen).toHaveLength(1);
-      const event = seen[0]?.data as unknown as AuditEvent;
+      expect(seen).toHaveLength(3);
+      const event = seen.at(-1)?.data as unknown as AuditEvent;
       expect(event.hash).toBe(api.runtime.stores.audit.headHash());
     });
 
@@ -161,10 +166,11 @@ describe("control-plane audit trail", () => {
         const first = await startTestApi({ dir });
         const client = first.client();
         await client.loginDev("owner");
-        await client.post("/api/v1/tasks", { title: "Vor der Manipulation" });
-        await client.post("/api/v1/tasks", { title: "Noch eine Aufgabe" });
+        await createApprovedTask(client, { title: "Vor der Manipulation" });
+        await createApprovedTask(client, { title: "Noch eine Aufgabe" });
         const victim = (first.runtime.db.prepare("SELECT seq, json FROM audit_log WHERE seq = 2").get() as { seq: number; json: string });
-        first.runtime.db.prepare("UPDATE audit_log SET json = ? WHERE seq = ?").run(victim.json.replace('"info"', '"critical"'), victim.seq);
+        const forged = { ...JSON.parse(victim.json) as Record<string, unknown>, action: "tampered" };
+        first.runtime.db.prepare("UPDATE audit_log SET json = ? WHERE seq = ?").run(JSON.stringify(forged), victim.seq);
         await first.app.close();
 
         const second = await startTestApi({ dir });
@@ -191,13 +197,13 @@ describe("control-plane audit trail", () => {
         const first = await startTestApi({ dir });
         const client = first.client();
         await client.loginDev("owner");
-        await client.post("/api/v1/tasks", { title: "Vorher" });
+        await createApprovedTask(client, { title: "Vorher" });
         await first.app.close();
         const second = await startTestApi({ dir });
         try {
           const again = second.client();
           await again.loginDev("owner");
-          await again.post("/api/v1/tasks", { title: "Nachher" });
+          await createApprovedTask(again, { title: "Nachher" });
           expect(second.runtime.stores.audit.verify()).toMatchObject({ valid: true });
           expect(second.runtime.stores.audit.count()).toBeGreaterThanOrEqual(4);
         } finally {
@@ -315,7 +321,7 @@ describe("control-plane audit trail", () => {
         const first = await startTestApi({ dir });
         const client = first.client();
         await client.loginDev("owner");
-        for (let index = 0; index < 3; index += 1) await client.post("/api/v1/tasks", { title: `Vor dem Kürzen ${index}` });
+        for (let index = 0; index < 3; index += 1) await createApprovedTask(client, { title: `Vor dem Kürzen ${index}` });
         const total = first.runtime.stores.audit.count();
         first.runtime.db.prepare("DELETE FROM audit_log WHERE seq > ?").run(total - 2);
         await first.app.close();

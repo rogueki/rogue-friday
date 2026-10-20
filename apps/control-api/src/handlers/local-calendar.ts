@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { isAdapterError } from "@friday/adapter-core";
 import { CONTRACT_VERSION, type CalendarEvent, type CalendarEventListResponse } from "@friday/sdk";
-import type { Handler } from "../http/context";
+import type { Handler, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";
-import { LocalCalendarService, type LocalEventInput } from "../services/local-calendar";
-import { ApiError, validationFailed } from "../util/errors";
+import { checkedLocalEvent, LocalCalendarService, type LocalEventInput } from "../services/local-calendar";
+import type { NativeExecutableAction } from "../services/native-approval-requests";
+import { ApiError, conflict, notFound, validationFailed } from "../util/errors";
 
 const single = (data: CalendarEvent, nowMs: number) => ({ contractVersion: CONTRACT_VERSION, data, freshness: { state: "fresh" as const, asOf: new Date(nowMs).toISOString() } });
 interface CalendarCursor { localOffset: number; connectedOffset: number; remoteCursor: string | null; remoteDone: boolean; filter: string }
@@ -48,23 +49,139 @@ async function connectedEvents(ctx: Parameters<Handler>[0], from?: string, to?: 
     failed: fetched.some((result) => result.status === "rejected") };
 }
 
+const PREVIEW_ID = /^corr_[0-9A-Za-z]{26}$/;
+
+interface CalendarWrite {
+  action: NativeExecutableAction;
+  actionText: string;
+  previewTitle: string;
+  previewText: string;
+}
+
+/**
+ * Stages the exact write as a draft, binds confirmation to the unchanged action and either hands it to the tier-2
+ * approval flow or lets the caller execute it once with a saved receipt. Throws for every non-executable stage.
+ */
+function enforceCalendarWrite(ctx: RequestContext, ownerId: string, write: CalendarWrite): string {
+  const confirmedPreviewId = ctx.headers["x-action-preview-id"];
+  if (confirmedPreviewId !== undefined && !PREVIEW_ID.test(confirmedPreviewId)) {
+    throw validationFailed("Die Vorschaukennung ist ungueltig.", [{ path: "X-Action-Preview-Id", message: "ungueltig" }]);
+  }
+  if (!confirmedPreviewId) {
+    const previewId = ctx.correlationId;
+    ctx.runtime.nativeApprovals.propose({ ownerId, requestKey: previewId, correlationId: ctx.correlationId,
+      riskTier: 2, type: "system_change", action: write.actionText,
+      rationale: "Termin aus bestaetigter API-Anfrage", preview: { kind: "text", title: write.previewTitle,
+        body: JSON.stringify(write.action) }, impacts: [], execution: write.action });
+    throw new ApiError({ code: "APPROVAL_REQUIRED", message: "Termin zuerst mit unveraenderter Vorschau bestaetigen.",
+      details: { stage: "preview", previewId, previewText: write.previewText } });
+  }
+  const policy = ctx.runtime.nativeApprovals.confirm(ownerId, confirmedPreviewId, write.action);
+  if (policy.approval) {
+    throw new ApiError({ code: "APPROVAL_REQUIRED", message: "Termin wartet auf Freigabe.",
+      details: { stage: "approval", approvalId: policy.approval.id,
+        targetRoute: `/approvals?approval=${policy.approval.id}` } });
+  }
+  return confirmedPreviewId;
+}
+
+/** Dispatches the stored calendar write once; a deleted event answers with the snapshot stored in the draft. */
+async function executeCalendarWrite(ctx: RequestContext, ownerId: string, previewId: string): Promise<CalendarEvent> {
+  let deleted: CalendarEvent | null = null;
+  const id = await ctx.runtime.nativeApprovals.executeWithoutApproval(ownerId, previewId, async (savedAction) => {
+    const calendar = new LocalCalendarService(ctx.runtime.db);
+    if (savedAction.kind === "calendar.create") return calendar.create(savedAction.body, ownerId).id;
+    if (savedAction.kind === "calendar.update") return calendar.update(savedAction.id, savedAction.body, ownerId, savedAction.version).id;
+    if (savedAction.kind === "calendar.delete") {
+      deleted = calendar.get(savedAction.id);
+      calendar.delete(savedAction.id, ownerId, savedAction.version);
+      return savedAction.id;
+    }
+    throw conflict("Die Bestaetigung passt nicht zum gespeicherten Entwurf.");
+  });
+  if (deleted) return deleted;
+  const stored = ctx.runtime.nativeApprovals.readAction(ownerId, previewId);
+  if (stored?.kind === "calendar.delete") return stored.snapshot;
+  return new LocalCalendarService(ctx.runtime.db).get(id);
+}
+
+/** If-Match is the precondition of the draft; a changed or header-less repeat never matches the staged action. */
+function requiredVersion(ctx: RequestContext): number {
+  const version = ctx.mutation.ifMatchVersion;
+  if (version === undefined || !Number.isSafeInteger(version) || version < 1) {
+    throw validationFailed("If-Match mit Terminversion ist erforderlich.");
+  }
+  return version;
+}
+
+/** The draft carries a full snapshot so a deleted event still answers a replayed confirmation truthfully. */
+type CalendarDeleteAction = Extract<NativeExecutableAction, { kind: "calendar.delete" }>;
+
+function deleteAction(id: string, event: CalendarEvent): CalendarDeleteAction {
+  return { kind: "calendar.delete", id, version: event.version, snapshot: event };
+}
+
+/** Direct API calendar writes share the same saved draft, approval decision, and receipt as command writes. */
 export const localCalendarHandlers: Partial<Record<OperationId, Handler>> = {
   async createLocalCalendarEvent(ctx) {
-    const data = new LocalCalendarService(ctx.runtime.db).create(ctx.body as LocalEventInput, ctx.principal!.userId);
+    const ownerId = ctx.principal?.userId;
+    if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+    // An invalid body fails before any preview is staged; the stored action carries the normalized values.
+    const body = checkedLocalEvent(ctx.body as LocalEventInput);
+    const write: CalendarWrite = {
+      action: { kind: "calendar.create", body }, actionText: `Termin eintragen: ${body.title}`,
+      previewTitle: "Neuer Termin", previewText: `Termin „${body.title}“ eintragen?` };
+    const previewId = enforceCalendarWrite(ctx, ownerId, write);
+    const data = await executeCalendarWrite(ctx, ownerId, previewId);
     ctx.audit.action = "calendar.local_create";
     ctx.audit.after = { id: data.id, version: data.version };
-    return { status: 201, body: single(data, ctx.runtime.nowMs()), headers: { "Idempotent-Replayed": "false" } };
+    return { status: 201, body: single(data, ctx.runtime.nowMs()) };
   },
   async updateLocalCalendarEvent(ctx) {
-    const data = new LocalCalendarService(ctx.runtime.db).update(ctx.pathParams.id!, ctx.body as LocalEventInput, ctx.principal!.userId, ctx.mutation.ifMatchVersion);
+    const ownerId = ctx.principal?.userId;
+    if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+    const calendar = new LocalCalendarService(ctx.runtime.db);
+    const id = ctx.pathParams.id!;
+    const body = checkedLocalEvent(ctx.body as LocalEventInput);
+    const version = requiredVersion(ctx);
+    let actionText = "Termin aktualisieren";
+    let previewText = "";
+    if (!ctx.headers["x-action-preview-id"]) {
+      // An unknown or stale target fails before any preview is staged.
+      const current = calendar.get(id);
+      if (current.version !== version) throw conflict("Der Termin wurde inzwischen geaendert. Bitte neu laden.");
+      actionText = `Termin aktualisieren: ${current.title}`;
+      previewText = `Termin „${current.title}“ aktualisieren?`;
+    }
+    const write: CalendarWrite = {
+      action: { kind: "calendar.update", id, version, body }, actionText,
+      previewTitle: "Termin aktualisieren", previewText };
+    const previewId = enforceCalendarWrite(ctx, ownerId, write);
+    const data = await executeCalendarWrite(ctx, ownerId, previewId);
     ctx.audit.action = "calendar.local_update";
     ctx.audit.after = { id: data.id, version: data.version };
     return { status: 200, body: single(data, ctx.runtime.nowMs()) };
   },
   async deleteLocalCalendarEvent(ctx) {
-    const service = new LocalCalendarService(ctx.runtime.db);
-    const data = service.get(ctx.pathParams.id!);
-    service.delete(data.id, ctx.principal!.userId, ctx.mutation.ifMatchVersion);
+    const ownerId = ctx.principal?.userId;
+    if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
+    const calendar = new LocalCalendarService(ctx.runtime.db);
+    const id = ctx.pathParams.id!;
+    requiredVersion(ctx);
+    const current = calendar.has(id) ? calendar.get(id) : null;
+    if (!ctx.headers["x-action-preview-id"]) {
+      // An unknown or stale target fails before any preview is staged.
+      if (!current) throw notFound("Termin", id);
+      if (current.version !== ctx.mutation.ifMatchVersion) throw conflict("Der Termin wurde inzwischen geaendert. Bitte neu laden.");
+    }
+    // A replayed confirmation after completion finds the event gone; the stored draft still proves the exact action.
+    const action = current ? deleteAction(id, current) : ctx.runtime.nativeApprovals.readAction(ownerId, ctx.headers["x-action-preview-id"] as string);
+    if (!action || action.kind !== "calendar.delete" || action.id !== id) throw conflict("Der Entwurf passt nicht zur Aktion.");
+    const write: CalendarWrite = {
+      action, actionText: current ? `Termin loeschen: ${current.title}` : "Termin loeschen",
+      previewTitle: "Termin loeschen", previewText: current ? `Termin „${current.title}“ loeschen?` : "" };
+    const previewId = enforceCalendarWrite(ctx, ownerId, write);
+    const data = await executeCalendarWrite(ctx, ownerId, previewId);
     ctx.audit.action = "calendar.local_delete";
     ctx.audit.before = { id: data.id, version: data.version };
     return { status: 200, body: single(data, ctx.runtime.nowMs()) };

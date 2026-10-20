@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://friday.local/schemas/integrations/messenger-confirm-request.schema.json","title":"MessengerConfirmRequest","type":"object","properties":{"draft":{"$ref":"../integrations/messenger-draft.schema.json"},"token":{"type":"string","minLength":16}},"required":["draft","token"],"additionalProperties":false}

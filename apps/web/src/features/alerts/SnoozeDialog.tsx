@@ -2,8 +2,9 @@
 
 import type { Notification } from "@friday/sdk";
 import { Button, Dialog, Select, TextField } from "@friday/ui";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useT } from "@/i18n";
+import { useSettings } from "@/lib/api/domains/settings";
 
 const PRESETS = [15, 60, 240, 1440] as const;
 const CUSTOM = "custom";
@@ -22,9 +23,16 @@ export function SnoozeDialog({ notification, busy, onClose, onConfirm }: SnoozeD
 
 function SnoozeBody({ notification, busy, onClose, onConfirm }: SnoozeDialogProps & { notification: Notification }) {
   const { t } = useT();
+  const settings = useSettings();
   const [choice, setChoice] = useState<string>(String(PRESETS[1]));
   const [custom, setCustom] = useState("30");
   const [error, setError] = useState<string | undefined>();
+
+  useEffect(() => {
+    const configured = settings.data?.data.notifications.snoozeDefaultMinutes;
+    if (configured) setChoice(PRESETS.includes(configured as (typeof PRESETS)[number]) ? String(configured) : CUSTOM);
+    if (configured && !PRESETS.includes(configured as (typeof PRESETS)[number])) setCustom(String(configured));
+  }, [settings.data?.data.notifications.snoozeDefaultMinutes]);
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();

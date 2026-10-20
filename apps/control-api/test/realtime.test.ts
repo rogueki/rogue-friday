@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FRIDAY_EVENT_DATA_SCHEMA_IDS, createSchemaValidator, isFridayEventType } from "@friday/sdk";
 import { ApiClient, startTestApi, type TestApi } from "./helpers";
 import { WsProbe } from "./support/ws";
+import { createApprovedTask } from "./support/task-actions";
+import { confirmedHeaders, stageKnowledgeWrite } from "./support/knowledge-actions";
 
 const validator = createSchemaValidator();
 
@@ -27,16 +29,16 @@ describe("WebSocket /api/v1/events", () => {
     open.push(probe);
     return probe;
   };
-  const createTask = async (title: string, client = owner) => {
-    const response = await client.post("/api/v1/tasks", { title });
-    expect(response.statusCode, response.body).toBe(201);
-    return response;
-  };
+  const createTask = (title: string, client = owner) => createApprovedTask(client, { title });
 
   beforeEach(async () => {
     api = await startTestApi({ listen: true, ringBufferSize: 100, heartbeatSeconds: 1 });
     owner = api.client();
     await owner.loginDev("owner");
+    // Staged knowledge writes execute directly after confirmation in these event-stream tests.
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(settings.version) } });
   });
   afterEach(async () => {
     for (const probe of open.splice(0)) probe.close();
@@ -77,9 +79,11 @@ describe("WebSocket /api/v1/events", () => {
     it("delivers contract-valid envelopes with a strictly increasing global sequence", async () => {
       const probe = await connect(owner);
       const correlationId = "corr_01ARZ3NDEKTSV4RRFFQ69G5FAV";
-      const created = await owner.post("/api/v1/tasks", { title: "Ereignistest" }, { headers: { "x-correlation-id": correlationId } });
-      const taskId = created.json().data.id as string;
-      await owner.post("/api/v1/memory", { type: "fact", content: "Ereignis aus dem Gedächtnis" });
+      const created = await createApprovedTask(owner, { title: "Ereignistest" }, undefined, { "x-correlation-id": correlationId });
+      const taskId = created.task.id;
+      const memoryPreview = await stageKnowledgeWrite(owner, "POST", "/api/v1/memory", { type: "fact", content: "Ereignis aus dem Gedächtnis" });
+      await owner.post("/api/v1/memory", { type: "fact", content: "Ereignis aus dem Gedächtnis" },
+        { headers: confirmedHeaders(memoryPreview, { "x-correlation-id": correlationId }) });
       await probe.waitFor((p) => p.events().length >= 3 && p.events().some((event) => event.type === "friday.task.created"), 3_000, "mindestens 3 Ereignisse");
 
       const events = probe.events();
@@ -257,7 +261,7 @@ describe("sequence continuity across restarts", () => {
       const first = await startTestApi({ dir, listen: true });
       const client = first.client();
       await client.loginDev("owner");
-      for (let index = 0; index < 5; index += 1) await client.post("/api/v1/tasks", { title: `Vor Neustart ${index}` });
+      for (let index = 0; index < 5; index += 1) await createApprovedTask(client, { title: `Vor Neustart ${index}` });
       const before = first.runtime.hub.latestSequence;
       await first.app.close();
 
@@ -265,7 +269,7 @@ describe("sequence continuity across restarts", () => {
       try {
         const again = second.client();
         await again.loginDev("owner");
-        await again.post("/api/v1/tasks", { title: "Nach Neustart" });
+        await createApprovedTask(again, { title: "Nach Neustart" });
         expect(second.runtime.hub.latestSequence, "sequence continues above the previous run").toBeGreaterThan(before);
         const probe = await WsProbe.connect(second, again, { since: before });
         try {

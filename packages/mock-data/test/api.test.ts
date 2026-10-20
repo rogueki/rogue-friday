@@ -210,12 +210,17 @@ describe("REST route coverage", () => {
       "actOnCalendarAccount", "backupDurableMemory", "cancelWhatsappPairing", "captureDurableMemoryEvent", "changeMailMessage",
       "checkMailAccount", "completeGoogleMailOAuth", "confirmVoiceConnectedCalendar", "correctDurableMemoryEvent",
       "createMailAccount", "deleteMailAccount", "forgetDurableMemoryEvent", "getDurableMemoryStatus", "getMailAttachment",
-      "getMailMessage", "getVoiceIntegrationStatus", "getWhatsappPairing", "listCalendarAccounts", "listMailAccounts",
+      "getMailMessage", "getHermesConfig", "getHermesModelCatalog", "getVoiceIntegrationStatus", "getWhatsappPairing", "listCalendarAccounts", "listMailAccounts",
       "listMailEnvelopes", "listMailFolders", "listMailReceipts", "logoutWhatsappGateway", "pollMailOAuth",
-      "previewVoiceConnectedCalendar", "putDurableMemorySettings", "reconcileMailArchive", "reconnectWhatsappGateway",
+      "patchHermesConfig", "previewVoiceConnectedCalendar", "putDurableMemorySettings", "reconcileMailArchive", "reconnectWhatsappGateway",
       "reindexDurableMemory", "restoreDurableMemory", "retryDurableMemory", "reviewMailReceipt", "revokeMailOAuth",
       "saveMailDraft", "searchDurableMemory", "searchMailEnvelopes", "sendMailMessage", "setDefaultMailAccount",
       "startMailOAuth", "startWhatsappPairing", "updateMailAccount",
+      "previewMessengerMessage", "confirmMessengerMessage", "listMessengerReceipts",
+      "listMessengerTargets", "registerMessengerTarget", "removeMessengerTarget", "getMessengerCatalog",
+      "getSystemBackupStatus", "performSystemBackupAction", "getDataRetentionStatus", "performDataRetentionAction",
+      "getMessengerProvider", "updateMessengerProvider", "applyMessengerProvider", "listMessengerSenders",
+      "linkMessengerSender", "unlinkMessengerSender", "captureMessengerInbound",
     ].sort();
     const mocked = ROUTES.map((route) => route.operationId).sort();
     expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);

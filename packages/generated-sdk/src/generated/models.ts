@@ -93,6 +93,125 @@ export type OrbMode =
   | "error"
   | "offline"
   | "paused";
+export type HermesConfigPatch =
+  | {
+      key: "model.provider";
+      value: string;
+    }
+  | {
+      key: "model.default";
+      value: string;
+    }
+  | {
+      key: "agent.reasoning_effort";
+      value: "" | "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
+    }
+  | {
+      key: "fallback.min_switch_reset_seconds";
+      value: number;
+    }
+  | {
+      key: "fallback_model";
+      value: {
+        provider: string;
+        model: string;
+      }[];
+    }
+  | {
+      key: "agent.auto_recovery_cycles";
+      value: number;
+    }
+  | {
+      key: "agent.run_budget_seconds";
+      value: number | null;
+    }
+  | {
+      key: "agent.budget_warning_ratio";
+      value: number | null;
+    }
+  | {
+      key: "agent.agent_cache.max_size";
+      value: number;
+    }
+  | {
+      key: "max_concurrent_sessions";
+      value: number;
+    }
+  | {
+      key: "context_file_max_chars";
+      value: number;
+    }
+  | {
+      key: "compression.enabled";
+      value: boolean;
+    }
+  | {
+      key: "compression.threshold";
+      value: number;
+    }
+  | {
+      key: "compression.target_ratio";
+      value: number;
+    }
+  | {
+      key: "compression.tail_mode";
+      value: "lean" | "legacy";
+    }
+  | {
+      key: "compression.protect_last_n";
+      value: number;
+    }
+  | {
+      key: "agent.max_turns";
+      value: number;
+    }
+  | {
+      key: "agent.gateway_timeout";
+      value: number;
+    }
+  | {
+      key: "agent.api_max_retries";
+      value: number;
+    }
+  | {
+      key: "session.terminal_continue";
+      value: boolean;
+    }
+  | {
+      key: "max_live_sessions";
+      value: number;
+    }
+  | {
+      key: "terminal.timeout";
+      value: number;
+    }
+  | {
+      key: "browser.command_timeout";
+      value: number;
+    }
+  | {
+      key: "browser.snapshot_threshold";
+      value: number;
+    }
+  | {
+      key: "skills.disabled";
+      value: string[];
+    }
+  | {
+      key: "plugin.activation";
+      pluginId: string;
+      enabled: boolean;
+    }
+  | {
+      key: "mcp.httpServer";
+      name: string;
+      url: string | null;
+      enabled: boolean;
+    }
+  | {
+      key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
+      value: string | null;
+    };
 export type MemoryType =
   | "profile"
   | "preference"
@@ -105,6 +224,270 @@ export type MemoryType =
   | "episode"
   | "decision";
 export type MemorySensitivity = "normal" | "sensitive" | "restricted";
+export type MessengerProviderUpdate =
+  | {
+      platform: "bluebubbles";
+      revision: string;
+      values: {
+        BLUEBUBBLES_SERVER_URL?: string | null;
+        BLUEBUBBLES_PASSWORD?: string | null;
+      };
+    }
+  | {
+      platform: "buzz";
+      revision: string;
+      values: {
+        BUZZ_RELAY_URL?: string | null;
+        BUZZ_PRIVATE_KEY?: string | null;
+        BUZZ_TRANSPORT?: string | null;
+        BUZZ_AUTH_TAG?: string | null;
+        BUZZ_CHANNELS?: string | null;
+        BUZZ_HOME_CHANNEL?: string | null;
+        BUZZ_ALLOWED_USERS?: string | null;
+        BUZZ_POLL_INTERVAL?: string | null;
+        BUZZ_REPLY_IN_THREAD?: string | null;
+      };
+    }
+  | {
+      platform: "dingtalk";
+      revision: string;
+      values: {
+        DINGTALK_CLIENT_ID?: string | null;
+        DINGTALK_CLIENT_SECRET?: string | null;
+        DINGTALK_WEBHOOK_URL?: string | null;
+        DINGTALK_ALLOWED_USERS?: string | null;
+        DINGTALK_HOME_CHANNEL?: string | null;
+        DINGTALK_HOME_CHANNEL_NAME?: string | null;
+      };
+    }
+  | {
+      platform: "feishu";
+      revision: string;
+      values: {
+        FEISHU_APP_ID?: string | null;
+        FEISHU_APP_SECRET?: string | null;
+        FEISHU_DOMAIN?: string | null;
+        FEISHU_ALLOWED_USERS?: string | null;
+        FEISHU_HOME_CHANNEL?: string | null;
+        FEISHU_HOME_CHANNEL_NAME?: string | null;
+      };
+    }
+  | {
+      platform: "google_chat";
+      revision: string;
+      values: {
+        GOOGLE_CHAT_SERVICE_ACCOUNT_JSON?: string | null;
+        GOOGLE_CHAT_HTTP_EVENTS_URL?: string | null;
+        GOOGLE_CHAT_HTTP_EVENTS_AUDIENCE?: string | null;
+        GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL?: string | null;
+        GOOGLE_CHAT_PROJECT_ID?: string | null;
+        GOOGLE_CHAT_SUBSCRIPTION_NAME?: string | null;
+        GOOGLE_CHAT_ALLOWED_USERS?: string | null;
+        GOOGLE_CHAT_HOME_CHANNEL?: string | null;
+      };
+    }
+  | {
+      platform: "irc";
+      revision: string;
+      values: {
+        IRC_SERVER?: string | null;
+        IRC_CHANNEL?: string | null;
+        IRC_NICKNAME?: string | null;
+        IRC_PORT?: string | null;
+        IRC_USE_TLS?: string | null;
+        IRC_SERVER_PASSWORD?: string | null;
+        IRC_NICKSERV_PASSWORD?: string | null;
+        IRC_ALLOWED_USERS?: string | null;
+        IRC_HOME_CHANNEL?: string | null;
+      };
+    }
+  | {
+      platform: "line";
+      revision: string;
+      values: {
+        LINE_CHANNEL_ACCESS_TOKEN?: string | null;
+        LINE_CHANNEL_SECRET?: string | null;
+        LINE_PORT?: string | null;
+        LINE_HOST?: string | null;
+        LINE_PUBLIC_URL?: string | null;
+        LINE_ALLOWED_USERS?: string | null;
+        LINE_ALLOWED_GROUPS?: string | null;
+        LINE_ALLOWED_ROOMS?: string | null;
+        LINE_HOME_CHANNEL?: string | null;
+        LINE_SLOW_RESPONSE_THRESHOLD?: string | null;
+      };
+    }
+  | {
+      platform: "matrix";
+      revision: string;
+      values: {
+        MATRIX_HOMESERVER?: string | null;
+        MATRIX_ACCESS_TOKEN?: string | null;
+        MATRIX_PASSWORD?: string | null;
+        MATRIX_ALLOWED_USERS?: string | null;
+        MATRIX_HOME_CHANNEL?: string | null;
+        MATRIX_HOME_CHANNEL_NAME?: string | null;
+      };
+    }
+  | {
+      platform: "mattermost";
+      revision: string;
+      values: {
+        MATTERMOST_URL?: string | null;
+        MATTERMOST_TOKEN?: string | null;
+        MATTERMOST_ALLOWED_USERS?: string | null;
+        MATTERMOST_HOME_CHANNEL?: string | null;
+        MATTERMOST_REPLY_MODE?: string | null;
+        MATTERMOST_REQUIRE_MENTION?: string | null;
+        MATTERMOST_FREE_RESPONSE_CHANNELS?: string | null;
+        MATTERMOST_ALLOWED_CHANNELS?: string | null;
+      };
+    }
+  | {
+      platform: "ntfy";
+      revision: string;
+      values: {
+        NTFY_TOPIC?: string | null;
+        NTFY_SERVER_URL?: string | null;
+        NTFY_TOKEN?: string | null;
+        NTFY_PUBLISH_TOPIC?: string | null;
+        NTFY_MARKDOWN?: string | null;
+        NTFY_ALLOWED_USERS?: string | null;
+        NTFY_HOME_CHANNEL?: string | null;
+        NTFY_HOME_CHANNEL_NAME?: string | null;
+      };
+    }
+  | {
+      platform: "photon";
+      revision: string;
+      values: {
+        PHOTON_PROJECT_ID?: string | null;
+        PHOTON_PROJECT_SECRET?: string | null;
+        PHOTON_SIDECAR_PORT?: string | null;
+        PHOTON_SIDECAR_TOKEN?: string | null;
+        PHOTON_SIDECAR_AUTOSTART?: string | null;
+        PHOTON_NODE_BIN?: string | null;
+        PHOTON_DASHBOARD_HOST?: string | null;
+        PHOTON_SPECTRUM_HOST?: string | null;
+        PHOTON_ALLOWED_USERS?: string | null;
+        PHOTON_READ_RECEIPTS?: string | null;
+        PHOTON_REQUIRE_MENTION?: string | null;
+        PHOTON_MENTION_PATTERNS?: string | null;
+        PHOTON_HOME_CHANNEL?: string | null;
+        PHOTON_HOME_CHANNEL_NAME?: string | null;
+        PHOTON_TELEMETRY?: string | null;
+        PHOTON_MARKDOWN?: string | null;
+        PHOTON_REACTIONS?: string | null;
+      };
+    }
+  | {
+      platform: "qqbot";
+      revision: string;
+      values: {
+        QQ_APP_ID?: string | null;
+        QQ_CLIENT_SECRET?: string | null;
+      };
+    }
+  | {
+      platform: "signal";
+      revision: string;
+      values: {
+        SIGNAL_HTTP_URL?: string | null;
+        SIGNAL_ACCOUNT?: string | null;
+      };
+    }
+  | {
+      platform: "simplex";
+      revision: string;
+      values: {
+        SIMPLEX_WS_URL?: string | null;
+        SIMPLEX_ALLOWED_USERS?: string | null;
+        SIMPLEX_AUTO_ACCEPT?: string | null;
+        SIMPLEX_GROUP_ALLOWED?: string | null;
+        SIMPLEX_HOME_CHANNEL?: string | null;
+        SIMPLEX_HOME_CHANNEL_NAME?: string | null;
+      };
+    }
+  | {
+      platform: "slack";
+      revision: string;
+      values: {
+        SLACK_BOT_TOKEN?: string | null;
+        SLACK_APP_TOKEN?: string | null;
+        SLACK_ALLOWED_USERS?: string | null;
+        SLACK_HOME_CHANNEL?: string | null;
+        SLACK_HOME_CHANNEL_NAME?: string | null;
+        SLACK_THREAD_REQUIRE_MENTION?: string | null;
+      };
+    }
+  | {
+      platform: "sms";
+      revision: string;
+      values: {
+        TWILIO_ACCOUNT_SID?: string | null;
+        TWILIO_AUTH_TOKEN?: string | null;
+        TWILIO_PHONE_NUMBER?: string | null;
+        SMS_ALLOWED_USERS?: string | null;
+        SMS_HOME_CHANNEL?: string | null;
+      };
+    }
+  | {
+      platform: "teams";
+      revision: string;
+      values: {
+        TEAMS_CLIENT_ID?: string | null;
+        TEAMS_CLIENT_SECRET?: string | null;
+        TEAMS_TENANT_ID?: string | null;
+        TEAMS_PORT?: string | null;
+        TEAMS_HOST?: string | null;
+        TEAMS_ALLOWED_USERS?: string | null;
+        TEAMS_REQUIRE_MENTION?: string | null;
+        TEAMS_HOME_CHANNEL?: string | null;
+        TEAMS_HOME_CHANNEL_NAME?: string | null;
+        TEAMS_INCOMING_WEBHOOK_URL?: string | null;
+        TEAMS_GRAPH_ACCESS_TOKEN?: string | null;
+      };
+    }
+  | {
+      platform: "wecom";
+      revision: string;
+      values: {
+        WECOM_BOT_ID?: string | null;
+        WECOM_SECRET?: string | null;
+        WECOM_WEBSOCKET_URL?: string | null;
+        WECOM_HOME_CHANNEL?: string | null;
+        WECOM_ALLOWED_USERS?: string | null;
+        WECOM_CALLBACK_CORP_ID?: string | null;
+        WECOM_CALLBACK_CORP_SECRET?: string | null;
+        WECOM_CALLBACK_AGENT_ID?: string | null;
+        WECOM_CALLBACK_TOKEN?: string | null;
+        WECOM_CALLBACK_ENCODING_AES_KEY?: string | null;
+      };
+    }
+  | {
+      platform: "weixin";
+      revision: string;
+      values: {
+        WEIXIN_TOKEN?: string | null;
+        WEIXIN_ACCOUNT_ID?: string | null;
+      };
+    }
+  | {
+      platform: "whatsapp_cloud";
+      revision: string;
+      values: {
+        WHATSAPP_CLOUD_PHONE_NUMBER_ID?: string | null;
+        WHATSAPP_CLOUD_ACCESS_TOKEN?: string | null;
+      };
+    }
+  | {
+      platform: "yuanbao";
+      revision: string;
+      values: {
+        YUANBAO_APP_ID?: string | null;
+        YUANBAO_APP_SECRET?: string | null;
+      };
+    };
 /**
  * P0 critical, P1 urgent, P2 important, P3 normal, P4 informational.
  */
@@ -258,7 +641,10 @@ export interface FridayModelMap {
   ControlFrame: ControlFrame;
   CurrentWeatherResponse: CurrentWeatherResponse;
   DashboardSettings: DashboardSettings;
+  DataRetentionActionRequest: DataRetentionActionRequest;
+  DataRetentionActionResponse: DataRetentionActionResponse;
   DataRetentionSettings: DataRetentionSettings;
+  DataRetentionStatusResponse: DataRetentionStatusResponse;
   DeveloperSettings: DeveloperSettings;
   DiscordGateway: DiscordGateway;
   DiscordGatewayPatch: DiscordGatewayPatch;
@@ -312,6 +698,11 @@ export interface FridayModelMap {
   HealthcheckResult: HealthcheckResult;
   HealthcheckResultResponse: HealthcheckResultResponse;
   HealthStatus: HealthStatus;
+  HermesConfigPatch: HermesConfigPatch;
+  HermesConfigStatus: HermesConfigStatus;
+  HermesConfigStatusResponse: HermesConfigStatusResponse;
+  HermesModelCatalog: HermesModelCatalog;
+  HermesModelCatalogResponse: HermesModelCatalogResponse;
   HermesSkillKeyCheck: HermesSkillKeyCheck;
   HermesSkillKeyCheckResponse: HermesSkillKeyCheckResponse;
   HermesSkillKeyPatch: HermesSkillKeyPatch;
@@ -389,6 +780,25 @@ export interface FridayModelMap {
   Message: Message;
   MessageListResponse: MessageListResponse;
   MessageResponse: MessageResponse;
+  MessengerCatalogResponse: MessengerCatalogResponse;
+  MessengerConfirmRequest: MessengerConfirmRequest;
+  MessengerDraft: MessengerDraft;
+  MessengerInboundEvent: MessengerInboundEvent;
+  MessengerInboundResponse: MessengerInboundResponse;
+  MessengerPreviewResponse: MessengerPreviewResponse;
+  MessengerProviderApply: MessengerProviderApply;
+  MessengerProviderResponse: MessengerProviderResponse;
+  MessengerProviderUpdate: MessengerProviderUpdate;
+  MessengerReceipt: MessengerReceipt;
+  MessengerReceiptResponse: MessengerReceiptResponse;
+  MessengerReceiptsResponse: MessengerReceiptsResponse;
+  MessengerSender: MessengerSender;
+  MessengerSenderResponse: MessengerSenderResponse;
+  MessengerSendersResponse: MessengerSendersResponse;
+  MessengerTarget: MessengerTarget;
+  MessengerTargetRequest: MessengerTargetRequest;
+  MessengerTargetResponse: MessengerTargetResponse;
+  MessengerTargetsResponse: MessengerTargetsResponse;
   Meta: Meta;
   ModelProvider: ModelProvider;
   ModelProviderListResponse: ModelProviderListResponse;
@@ -476,6 +886,9 @@ export interface FridayModelMap {
   SourceDescriptor: SourceDescriptor;
   StorageVolume: StorageVolume;
   StorageVolumeListResponse: StorageVolumeListResponse;
+  SystemBackupActionRequest: SystemBackupActionRequest;
+  SystemBackupActionResponse: SystemBackupActionResponse;
+  SystemBackupStatusResponse: SystemBackupStatusResponse;
   SystemMetrics: SystemMetrics;
   SystemMetricsResponse: SystemMetricsResponse;
   Task: Task;
@@ -2207,6 +2620,46 @@ export interface DashboardSettings {
     countryCode?: string;
   };
 }
+export interface DataRetentionActionRequest {
+  action: "preview" | "run" | "activate" | "deactivate";
+}
+export interface DataRetentionActionResponse {
+  contractVersion: string;
+  data:
+    | {
+        action: "preview" | "run";
+        cutoffs: {
+          activity: string;
+          voiceHistory: string;
+          auditToArchive: string;
+          notifications: string;
+          temporaryFiles: string;
+        };
+        eligible: {
+          activity: number;
+          voiceHistory: number;
+          auditToArchive: number;
+          notifications: number;
+          temporaryFiles: number;
+        };
+        removed?: {
+          activity: number;
+          voiceHistory: number;
+          auditToArchive: number;
+          notifications: number;
+          temporaryFiles: number;
+        };
+        archivedAuditRows: number;
+        memoryPolicy: "unlimited";
+        auditPolicy: "archive-local-indefinitely";
+        at?: string;
+      }
+    | {
+        action: "activate" | "deactivate";
+        automaticEnabled: boolean;
+      };
+  freshness: Freshness;
+}
 export interface DataRetentionSettings {
   activityDays: number;
   auditDays: number;
@@ -2214,6 +2667,33 @@ export interface DataRetentionSettings {
   notificationDays: number;
   temporaryFileDays: number;
   memoryDefaultTtlDays: number | null;
+}
+export interface DataRetentionStatusResponse {
+  contractVersion: string;
+  data: {
+    running: boolean;
+    last: null | {
+      at: string;
+      status: "success" | "failed";
+      counts: null | {
+        activity: number;
+        voiceHistory: number;
+        auditToArchive: number;
+        notifications: number;
+        temporaryFiles: number;
+      };
+      confirmedPartial: {
+        activity?: number;
+        voiceHistory?: number;
+        auditToArchive?: number;
+        notifications?: number;
+        temporaryFiles?: number;
+      };
+      error: string | null;
+    };
+    automaticEnabled: boolean;
+  };
+  freshness: Freshness;
 }
 export interface DeveloperSettings {
   debugMode: boolean;
@@ -2385,6 +2865,7 @@ export interface DurableMemorySettings {
     dashboard: boolean;
     voice: boolean;
     hermes: boolean;
+    messenger?: boolean;
   };
   retention: "unlimited";
   exclusions: string[];
@@ -2666,6 +3147,150 @@ export interface HealthcheckResult {
 export interface HealthcheckResultResponse {
   contractVersion: ContractVersion;
   data: HealthcheckResult;
+  freshness: Freshness;
+}
+export interface HermesConfigStatus {
+  installed: boolean;
+  sourceRevision: string | null;
+  revision: number | null;
+  checkedAt: string;
+  fields: {
+    key:
+      | "model.provider"
+      | "model.default"
+      | "agent.reasoning_effort"
+      | "fallback.min_switch_reset_seconds"
+      | "fallback_model"
+      | "agent.auto_recovery_cycles"
+      | "agent.run_budget_seconds"
+      | "agent.budget_warning_ratio"
+      | "agent.agent_cache.max_size"
+      | "max_concurrent_sessions"
+      | "context_file_max_chars"
+      | "compression.enabled"
+      | "compression.threshold"
+      | "compression.target_ratio"
+      | "compression.tail_mode"
+      | "compression.protect_last_n"
+      | "agent.max_turns"
+      | "agent.gateway_timeout"
+      | "agent.api_max_retries"
+      | "session.terminal_continue"
+      | "max_live_sessions"
+      | "terminal.timeout"
+      | "browser.command_timeout"
+      | "browser.snapshot_threshold"
+      | "skills.disabled";
+    type:
+      | "integer"
+      | "optionalInteger"
+      | "number"
+      | "optionalNumber"
+      | "boolean"
+      | "string"
+      | "fallback"
+      | "skillNames";
+    family: "agent" | "models" | "execution" | "extensions";
+    consumer: string;
+    value:
+      | (number | boolean | string | null)
+      | {
+          provider: string;
+          model: string;
+        }[]
+      | string[];
+    explicit: boolean;
+    writable: boolean;
+    verification: "unverified";
+    reasonCode: "runtime_receipt_unavailable";
+  }[];
+  secretStates: {
+    key: "model.api_key" | "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
+    configFileSet: boolean;
+    effectiveConfigured: boolean | null;
+  }[];
+  families: {
+    id: "models" | "agent" | "execution" | "extensions" | "operations";
+    roots: string[];
+    followup: string;
+    installed: boolean | null;
+    enabled: boolean | null;
+    configFileSet: boolean;
+    configured: boolean | null;
+    authenticated: boolean | null;
+    available: boolean | null;
+    needsSetup: boolean | null;
+    unsupported: boolean | null;
+    coverage: "followup";
+  }[];
+  inventory: {
+    scope: "profile";
+    skillsComplete: boolean;
+    pluginsComplete: boolean;
+    modelProvidersComplete: boolean;
+    reasons: string[];
+  };
+  skills: Extension[];
+  modelProviders: {
+    id: string;
+    configFileSet: boolean;
+    authenticated: boolean | null;
+    available: boolean | null;
+  }[];
+  plugins: Extension[];
+  mcpComplete: boolean;
+  mcpServers: {
+    id: string;
+    transport: "http" | "stdio" | "unknown";
+    enabled: boolean | null;
+    endpoint: string | null;
+    editable: boolean;
+  }[];
+  write: null | {
+    key: string;
+    persisted: boolean;
+    applied: boolean | null;
+    verification: "unverified";
+    reasonCode: "runtime_receipt_unavailable" | "readback_mismatch";
+  };
+}
+export interface Extension {
+  id: string;
+  installed: true;
+  enabled: boolean | null;
+  configured: boolean | null;
+  authenticated: boolean | null;
+  available: boolean | null;
+  needsSetup: boolean | null;
+  unsupported: boolean | null;
+}
+export interface HermesConfigStatusResponse {
+  contractVersion: ContractVersion;
+  data: HermesConfigStatus;
+  freshness: Freshness;
+}
+export interface HermesModelCatalog {
+  sourceRevision: string;
+  checkedAt: string;
+  /**
+   * Pinned picker can silently omit plugin profiles whose discovery fails.
+   */
+  providerListComplete: boolean | null;
+  providers: {
+    id: string;
+    label: string;
+  }[];
+  selected: null | {
+    id: string;
+    models: string[];
+    origin: "curated" | "endpoint_confirmed_picker";
+    probeStatus: "unsupported" | "succeeded" | "failed";
+    modelAccess: boolean | null;
+  };
+}
+export interface HermesModelCatalogResponse {
+  contractVersion: ContractVersion;
+  data: HermesModelCatalog;
   freshness: Freshness;
 }
 export interface HermesSkillKeyCheck {
@@ -3446,6 +4071,250 @@ export interface MessageResponse {
   data: Message;
   freshness: Freshness;
 }
+export interface MessengerCatalogResponse {
+  contractVersion: ContractVersion;
+  data: {
+    pin: "d923a5eb";
+    items: {
+      platform: string;
+      source: "builtin" | "bundled_plugin";
+      fields: {
+        name: string;
+        secret: boolean;
+        required: boolean;
+        present: boolean;
+      }[];
+      configured: boolean;
+      gatewayRunning: boolean;
+      connectionState: "connected" | "disconnected" | "unknown";
+      exactSendSupported: boolean;
+      nativeSetupAvailable: boolean;
+    }[];
+  };
+  freshness: Freshness;
+}
+export interface MessengerConfirmRequest {
+  draft: MessengerDraft;
+  token: string;
+}
+export interface MessengerDraft {
+  accountId: "default";
+  platform:
+    | "telegram"
+    | "discord"
+    | "whatsapp"
+    | "slack"
+    | "signal"
+    | "matrix"
+    | "mattermost"
+    | "sms"
+    | "irc"
+    | "line"
+    | "feishu"
+    | "wecom"
+    | "photon"
+    | "buzz"
+    | "ntfy"
+    | "teams"
+    | "google_chat"
+    | "simplex"
+    | "weixin"
+    | "bluebubbles"
+    | "dingtalk"
+    | "whatsapp_cloud"
+    | "qqbot"
+    | "yuanbao";
+  recipient: string;
+  text: string;
+  notificationId?: string;
+  notificationStep?: number;
+}
+export interface MessengerInboundEvent {
+  platform:
+    | "telegram"
+    | "discord"
+    | "whatsapp"
+    | "whatsapp_cloud"
+    | "slack"
+    | "signal"
+    | "mattermost"
+    | "matrix"
+    | "sms"
+    | "dingtalk"
+    | "feishu"
+    | "wecom"
+    | "weixin"
+    | "bluebubbles"
+    | "qqbot"
+    | "yuanbao"
+    | "teams"
+    | "buzz"
+    | "google_chat"
+    | "irc"
+    | "line"
+    | "ntfy"
+    | "photon"
+    | "simplex";
+  accountId: "default";
+  accountEpoch: string;
+  senderId: string;
+  chatId: string;
+  chatType: string;
+  messageId: string;
+  text: string;
+  suppressionReason?:
+    | "private"
+    | "policy_disabled"
+    | "not_private_dm"
+    | "unsupported_profile"
+    | "multi_profile_unknown"
+    | "account_changed";
+  eventType?: "assistant_response" | "action_result";
+  admissionEventId?: string;
+  turnId?: string;
+  actionId?: string;
+  outcome?: "completed" | "aborted" | "uncertain";
+}
+export interface MessengerInboundResponse {
+  contractVersion: ContractVersion;
+  data: {
+    reason:
+      | "captured"
+      | "pending"
+      | "unlinked"
+      | "policy_disabled"
+      | "private"
+      | "not_private_dm"
+      | "unsupported_profile"
+      | "multi_profile_unknown"
+      | "account_changed"
+      | "invalid";
+    eventId: string | null;
+    context?: {
+      source: string;
+      occurredAt: string;
+      text: string;
+    }[];
+  };
+  freshness: Freshness;
+}
+export interface MessengerPreviewResponse {
+  contractVersion: ContractVersion;
+  data: {
+    token: string;
+    expiresAt: string;
+    fingerprint: string;
+    draft: MessengerDraft;
+    idempotencyKey?: string;
+  };
+  freshness: Freshness;
+}
+export interface MessengerProviderApply {
+  revision: string;
+}
+export interface MessengerProviderResponse {
+  contractVersion: ContractVersion;
+  data: {
+    state: "available" | "saved" | "partial" | "uncertain" | "applied";
+    platform: string;
+    revision: string;
+    gatewayRestarted?: boolean;
+    connectionState?: "connected" | "disconnected" | "unknown";
+  };
+  freshness: Freshness;
+}
+export interface MessengerReceipt {
+  receiptId: string;
+  accountId: string;
+  platform: string;
+  recipient: string;
+  state: "pending" | "sent" | "uncertain";
+  externalId: string | null;
+  createdAt: string;
+  replayed: boolean;
+  memoryCapture?: "written" | "pending" | "skipped" | "error";
+}
+export interface MessengerReceiptResponse {
+  contractVersion: ContractVersion;
+  data: MessengerReceipt;
+  freshness: Freshness;
+}
+export interface MessengerReceiptsResponse {
+  contractVersion: ContractVersion;
+  data: {
+    items: MessengerReceipt[];
+  };
+  freshness: Freshness;
+}
+export interface MessengerSender {
+  id: string;
+  platform: string;
+  accountId: "default";
+  senderId: string;
+  chatId: string;
+  lastSeenAt: string;
+  linked: boolean;
+}
+export interface MessengerSenderResponse {
+  contractVersion: ContractVersion;
+  data: MessengerSender;
+  freshness: Freshness;
+}
+export interface MessengerSendersResponse {
+  contractVersion: ContractVersion;
+  data: {
+    items: MessengerSender[];
+  };
+  freshness: Freshness;
+}
+export interface MessengerTarget {
+  id: string;
+  accountId: "default";
+  platform: string;
+  recipient: string;
+  createdAt: string;
+}
+export interface MessengerTargetRequest {
+  accountId: "default";
+  platform:
+    | "telegram"
+    | "discord"
+    | "whatsapp"
+    | "slack"
+    | "signal"
+    | "matrix"
+    | "mattermost"
+    | "sms"
+    | "irc"
+    | "line"
+    | "feishu"
+    | "wecom"
+    | "photon"
+    | "buzz"
+    | "ntfy"
+    | "teams"
+    | "google_chat"
+    | "simplex"
+    | "weixin"
+    | "bluebubbles"
+    | "dingtalk"
+    | "whatsapp_cloud"
+    | "qqbot"
+    | "yuanbao";
+  recipient: string;
+}
+export interface MessengerTargetResponse {
+  contractVersion: ContractVersion;
+  data: MessengerTarget;
+  freshness: Freshness;
+}
+export interface MessengerTargetsResponse {
+  contractVersion: ContractVersion;
+  data: {
+    items: MessengerTarget[];
+  };
+  freshness: Freshness;
+}
 /**
  * Bootstrap document: tells the client how to reach the event stream and which mode the server runs in.
  */
@@ -3546,10 +4415,11 @@ export interface Notification {
   escalation: {
     step: number;
     channel: "dashboard" | "telegram" | "whatsapp" | "sms" | "phone" | "email";
-    state: "pending" | "sent" | "acknowledged" | "failed" | "skipped";
+    state: "pending" | "awaiting_approval" | "sent" | "uncertain" | "acknowledged" | "failed" | "skipped";
     scheduledAt: string;
     sentAt: string | null;
     acknowledgedAt: string | null;
+    stopOnAcknowledge?: boolean;
   }[];
   sourceRef: EntityRef | null;
   /**
@@ -3583,6 +4453,14 @@ export interface NotificationSettings {
     kind: "dashboard" | "telegram" | "whatsapp" | "sms" | "phone" | "email";
     enabled: boolean;
     minPriority: Priority;
+    /**
+     * Configured provider account used for owner-reviewed sends.
+     */
+    accountId?: string;
+    /**
+     * Exact owner-approved destination. Empty means external delivery is not configured.
+     */
+    recipient?: string;
   }[];
   quietHours: {
     enabled: boolean;
@@ -4527,6 +5405,45 @@ export interface StorageVolumeListResponse {
   pageInfo: PageInfo;
   freshness: Freshness;
   sources: SourceDescriptor[];
+}
+export interface SystemBackupActionRequest {
+  action: "preview" | "run" | "verify" | "restore-test";
+  path?: string;
+  targetPath?: string;
+}
+export interface SystemBackupActionResponse {
+  contractVersion: string;
+  data: {
+    action: "preview" | "run" | "verify" | "restore-test";
+    destination?: string;
+    estimatedBytes?: number;
+    path?: string;
+    createdAt?: string;
+    fileCount?: number;
+    memoryEventCount?: number;
+    verified?: boolean;
+  };
+  freshness: Freshness;
+}
+export interface SystemBackupStatusResponse {
+  contractVersion: string;
+  data: {
+    enabled: boolean;
+    schedule: string;
+    timeZone: string;
+    targetPath: string;
+    running: boolean;
+    coverage: "windows-and-memory" | "windows-wsl-and-memory";
+    restoreMode: "isolated-verification-only";
+    reprovisionRequired: true;
+    last: null | {
+      at: string;
+      status: "success" | "failed";
+      path: string | null;
+      error: string | null;
+    };
+  };
+  freshness: Freshness;
 }
 /**
  * Hardware snapshot (PLAN §40.1). Optional sensors are null when unavailable.

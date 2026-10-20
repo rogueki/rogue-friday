@@ -6,10 +6,12 @@ import type {
   OrbSnapshotResponse,
   Overview,
   OverviewResponse,
+  SettingsResponse,
   Task,
 } from "@friday/sdk";
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import { queryKeys, SNAPSHOT_ROOT_KEYS } from "../api/queryKeys";
+import { playDashboardSound, type DashboardSoundKind } from "../soundEffects";
 
 /**
  * Event -> TanStack Query cache reducer (PLAN §12, §48.6). Deterministic: the same event applied to the same cache
@@ -35,6 +37,18 @@ const ACTIVITY_LIST_CAP = 200;
 const OVERVIEW_REFRESH_DELAY_MS = 1500;
 
 const overviewTimers = new WeakMap<QueryClient, ReturnType<typeof setTimeout>>();
+const soundedEvents = new WeakMap<QueryClient, Set<string>>();
+
+function playConfiguredSound(queryClient: QueryClient, eventId: string, kind: DashboardSoundKind): void {
+  const enabled = queryClient.getQueryData<SettingsResponse>(queryKeys.settings.root)?.data.dashboard.soundEffects === true;
+  if (!enabled) return;
+  let ids = soundedEvents.get(queryClient);
+  if (!ids) { ids = new Set(); soundedEvents.set(queryClient, ids); }
+  if (ids.has(eventId)) return;
+  ids.add(eventId);
+  if (ids.size > 512) ids.delete(ids.values().next().value as string);
+  playDashboardSound(true, kind);
+}
 
 /** Coalesces derived overview sections (attention, counters) into one refetch after a burst of events. */
 function scheduleOverviewRefresh(queryClient: QueryClient): void {
@@ -262,6 +276,7 @@ export function applyEvent(queryClient: QueryClient, event: FridayEvent): void {
     case "friday.approval.resolved":
     case "friday.approval.expired": {
       const approval = event.data;
+      if (event.type === "friday.approval.requested") playConfiguredSound(queryClient, event.id, "approval");
       upsertResource(queryClient, approvalKeys, approval, { insert: event.type === "friday.approval.requested", refetchFiltered: true });
       patchOverview(queryClient, (o) => {
         const present = o.openApprovals.some((a) => a.id === approval.id);
@@ -282,6 +297,7 @@ export function applyEvent(queryClient: QueryClient, event: FridayEvent): void {
     case "friday.notification.created":
     case "friday.notification.updated": {
       const notification = event.data;
+      if (event.type === "friday.notification.created" && notification.status === "open") playConfiguredSound(queryClient, event.id, "alert");
       upsertResource(queryClient, notificationKeys, notification, { insert: event.type === "friday.notification.created", refetchFiltered: true });
       patchOverview(queryClient, (o) => {
         const present = o.criticalAlerts.some((n) => n.id === notification.id);

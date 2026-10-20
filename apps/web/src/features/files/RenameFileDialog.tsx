@@ -1,11 +1,13 @@
 "use client";
 
-import type { FileItem } from "@friday/sdk";
-import { isFridayApiError } from "@friday/sdk";
-import { Button, Dialog, TextField, useToast } from "@friday/ui";
+import type { FileItem, FileItemResponse } from "@friday/sdk";
+import { Button, Dialog, TextField } from "@friday/ui";
 import { useRef, useState, type FormEvent } from "react";
 import { useT } from "@/i18n";
-import { useRenameFile } from "@/lib/api/domains/files";
+import { call } from "@/lib/api/call";
+import { getApiClient } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/queryKeys";
+import { useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 
 /** Characters a file name must not contain (path separators, reserved Windows characters, control characters). */
 // eslint-disable-next-line no-control-regex -- control characters are exactly what is being rejected
@@ -27,32 +29,34 @@ interface RenameFileDialogProps {
   siblingNames: readonly string[];
 }
 
-/** "Umbenennen" (PLAN §37.3): one text field, validated like the contract, saved with the file's current version. */
+/** "Umbenennen" (PLAN §37.3): validated like the contract, saved as a staged write with the file's current version. */
 export function RenameFileDialog({ file, open, onOpenChange, siblingNames }: RenameFileDialogProps) {
   const { t } = useT();
-  const { toast } = useToast();
-  const rename = useRenameFile();
+  const runStagedWrite = useRunStagedWrite();
+  const busy = useStagedWriteBusy();
   const [name, setName] = useState(file.name);
   const inputRef = useRef<HTMLInputElement>(null);
   const trimmed = name.trim();
   const problem = validateFileName(name);
   const taken = trimmed.toLowerCase() !== file.name.toLowerCase() && siblingNames.some((entry) => entry.toLowerCase() === trimmed.toLowerCase());
   const unchanged = trimmed === file.name;
-  const serverError = rename.error ? (isFridayApiError(rename.error) ? rename.error.message : t("files.rename.error")) : undefined;
-  const error = problem === "invalid" ? t("files.rename.invalid") : taken ? t("files.rename.taken") : serverError;
+  const error = problem === "invalid" ? t("files.rename.invalid") : taken ? t("files.rename.taken") : undefined;
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
-    if (problem || taken || unchanged || rename.isPending) return;
-    rename.mutate(
-      { id: file.id, version: file.version, name: trimmed },
-      {
-        onSuccess: (response) => {
-          toast({ title: t("files.rename.done", { name: response.data.name }), tone: "green", duration: 3500 });
-          onOpenChange(false);
-        },
-      },
-    );
+    if (problem || taken || unchanged || busy) return;
+    // The server stages the exact write first; the shell confirm dialog binds the preview, the repeat is unchanged.
+    void runStagedWrite({
+      send: (previewId) =>
+        call(getApiClient().PATCH("/api/v1/files/{id}", { body: { name: trimmed },
+          params: { path: { id: file.id }, header: { "If-Match": String(file.version) } },
+          ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}) })) as Promise<FileItemResponse>,
+      successMessage: t("files.rename.done", { name: trimmed }),
+      subject: file.name,
+      invalidateKeys: [queryKeys.files.all],
+    }).then((outcome) => {
+      if (outcome !== "failed") onOpenChange(false);
+    });
   };
 
   return (
@@ -64,10 +68,10 @@ export function RenameFileDialog({ file, open, onOpenChange, siblingNames }: Ren
       initialFocusRef={inputRef}
       footer={
         <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={rename.isPending}>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
             {t("common.cancel")}
           </Button>
-          <Button variant="primary" type="submit" form="fl-rename-form" loading={rename.isPending} disabled={problem !== null || taken || unchanged}>
+          <Button variant="primary" type="submit" form="fl-rename-form" loading={busy} disabled={problem !== null || taken || unchanged}>
             {t("files.rename.confirm")}
           </Button>
         </>
@@ -83,10 +87,7 @@ export function RenameFileDialog({ file, open, onOpenChange, siblingNames }: Ren
           autoComplete="off"
           spellCheck={false}
           error={error}
-          onChange={(event) => {
-            setName(event.target.value);
-            if (rename.isError) rename.reset();
-          }}
+          onChange={(event) => setName(event.target.value)}
         />
       </form>
     </Dialog>

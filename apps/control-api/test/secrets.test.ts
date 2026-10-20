@@ -29,6 +29,12 @@ describe("secret hygiene", () => {
     api.runtime.hub.subscribe((event: FridayEvent) => streamed.push(JSON.stringify(event)));
     owner = api.client();
     record("login", await owner.loginOwner(OWNER_PASSWORD));
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    const debugSettings = await owner.patch("/api/v1/settings", {
+      developer: { ...settings.developer, debugMode: true, logLevel: "debug" },
+    }, { headers: { "if-match": String(settings.version) } });
+    expect(debugSettings.statusCode, debugSettings.body).toBe(200);
+    expect(debugSettings.json().data.developer).toMatchObject({ debugMode: true, logLevel: "debug" });
 
     // plant secrets through the only way in: the write-only adapter settings
     const planted = record(
@@ -99,9 +105,21 @@ describe("secret hygiene", () => {
     const calendarList = vi.spyOn(api.runtime.calendarAccounts, "list").mockResolvedValue({ revision: 1, defaultAccountId: null, accounts: [] });
     const calendarPending = vi.spyOn(api.runtime.calendarAccounts, "pendingMemory").mockResolvedValue({ events: [] });
     const mailList = vi.spyOn(api.runtime.mailAccounts, "list").mockResolvedValue({ revision: 1, defaultAccountId: null, accounts: [] });
+    const hermesConfig = vi.spyOn(api.runtime.hermesConfig, "status").mockResolvedValue({ installed: true,
+      sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8", revision: 1, checkedAt: new Date().toISOString(),
+      fields: [], secretStates: [{ key: "model.api_key", configFileSet: true, effectiveConfigured: null }],
+      families: [], skills: [], plugins: [], mcpComplete: false, mcpServers: [],
+      inventory: { scope: "profile", skillsComplete: true, pluginsComplete: true, modelProvidersComplete: true, reasons: [] }, modelProviders: [], write: null } as never);
     const memorySearch = vi.spyOn(api.runtime.durableMemory, "search").mockReturnValue([]);
     const whatsappPairing = vi.spyOn(api.runtime.whatsappGateway, "pairing").mockResolvedValue({ id: null, state: "idle",
       qr: null, expiresAt: null, linkedIdentity: null, connectionState: "disconnected" });
+    const messengerCatalog = vi.spyOn(api.runtime.messengerCatalog, "list").mockResolvedValue({ pin: "d923a5eb",
+      items: ["telegram", "discord", "whatsapp", "whatsapp_cloud", "slack", "signal", "mattermost", "matrix", "sms",
+        "dingtalk", "feishu", "wecom", "weixin", "bluebubbles", "qqbot", "yuanbao", "teams", "buzz", "google_chat",
+        "irc", "line", "ntfy", "photon", "simplex"].map((platform) => ({ platform, source: "bundled_plugin" as const,
+        fields: [{ name: "MATRIX_ACCESS_TOKEN", secret: true, required: true, present: true }],
+        configured: false, gatewayRunning: false, connectionState: "unknown" as const,
+        exactSendSupported: false, nativeSetupAvailable: false })) });
     try {
       for (const spec of ROUTE_TABLE.filter((candidate) => candidate.method === "GET" && candidate.pathParams.length === 0 && candidate.requiresSession)) {
         // Hermes-backed reads require an installed WSL distro, absent in this isolated test runtime.
@@ -110,10 +128,14 @@ describe("secret hygiene", () => {
         const response = record(spec.operationId, await owner.get(pathOf(spec), spec.operationId === "exportAudit" ? { query: { format: "json" } } :
           spec.operationId === "searchLocations" ? { query: { q: "Berlin" } } :
           spec.operationId === "searchDurableMemory" ? { query: { query: "synthetic", identityId: stableUserId("owner") } } : {}));
-        expect(response.statusCode, spec.operationId).toBe(200);
+        if (spec.operationId === "getHermesModelCatalog") {
+          expect(response.statusCode, spec.operationId).toBe(503);
+          expect((JSON.parse(response.body) as { error: { code: string } }).error.code).toBe("ADAPTER_UNAVAILABLE");
+        } else expect(response.statusCode, spec.operationId).toBe(200);
         expect(hasCanary(response.body), `${spec.operationId} body`).toBeUndefined();
         expect(response.body, `${spec.operationId} body`).not.toContain(hash);
         expect(response.body, `${spec.operationId} body`).not.toMatch(/scrypt\$|-----BEGIN [A-Z ]*PRIVATE KEY-----/);
+        if (spec.operationId === "getMessengerCatalog") expect(response.body).not.toMatch(/"value"\s*:/);
       }
       expect(providerFetch).toHaveBeenCalledWith(expect.objectContaining({ hostname: "geocoding-api.open-meteo.com" }), expect.any(Object));
     } finally {
@@ -121,8 +143,10 @@ describe("secret hygiene", () => {
       calendarList.mockRestore();
       calendarPending.mockRestore();
       mailList.mockRestore();
+      hermesConfig.mockRestore();
       memorySearch.mockRestore();
       whatsappPairing.mockRestore();
+      messengerCatalog.mockRestore();
     }
   });
 
@@ -150,8 +174,10 @@ describe("secret hygiene", () => {
   });
 
   it("keeps secrets out of the logs, including rejected login attempts", () => {
-    expect(logs.length).toBeGreaterThan(10);
-    const text = logs.join("\n");
+    const entries = logs.map((line) => JSON.parse(line));
+    expect(entries.length).toBeGreaterThan(10);
+    expect(entries).toContainEqual(expect.objectContaining({ message: "request diagnostic", operationId: "login", status: 401 }));
+    const text = entries.map((entry) => JSON.stringify(entry)).join("\n");
     expect(hasCanary(text)).toBeUndefined();
     expect(text).not.toContain(OWNER_PASSWORD + "-wrong");
     expect(text).not.toContain(api.env.FRIDAY_OWNER_PASSWORD_HASH as string);

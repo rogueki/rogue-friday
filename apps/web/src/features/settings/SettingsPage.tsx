@@ -30,6 +30,7 @@ import { useThemes } from "@/lib/api/domains/settings";
 import { AdaptersArea } from "./AdaptersArea";
 import { ContentStudioKeysArea } from "./ContentStudioKeysArea";
 import { SkillAccountsArea } from "./SkillAccountsArea";
+import { HermesConfigArea } from "./HermesConfigArea";
 import { ApprovalsArea, BackupsArea, DashboardArea, DataRetentionArea, DeveloperArea, ModelsRoutingArea, NotificationsArea, ProfileArea, SecurityArea, VoiceArea } from "./BasicAreas";
 import { LayoutArea } from "./LayoutArea";
 import { NavigationArea } from "./NavigationArea";
@@ -54,6 +55,7 @@ const AREA_ICONS: Record<SettingsAreaId, ReactNode> = {
   skillAccounts: <Sparkles {...ICON} />,
   contentStudioKeys: <Clapperboard {...ICON} />,
   modelsRouting: <Cpu {...ICON} />,
+  hermesConfig: <Cpu {...ICON} />,
   voice: <Mic {...ICON} />,
   notifications: <Bell {...ICON} />,
   security: <Lock {...ICON} />,
@@ -89,6 +91,7 @@ const AREA_COMPONENTS: Partial<Record<SettingsAreaId, () => ReactNode>> = {
   contentStudioKeys: () => <ContentStudioKeysArea />,
   skillAccounts: () => <SkillAccountsArea />,
   modelsRouting: () => <ModelsRoutingArea />,
+  hermesConfig: () => <HermesConfigArea />,
   voice: () => <VoiceArea />,
   notifications: () => <NotificationsArea />,
   security: () => <SecurityArea />,

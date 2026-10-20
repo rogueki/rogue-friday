@@ -661,6 +661,13 @@ paths:
         - $ref: "#/components/parameters/CorrelationId"
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/IdempotencyKey"
+        - name: X-Action-Preview-Id
+          in: header
+          required: false
+          description: Exact server draft reference from the first task-create attempt; sending it confirms the unchanged request body.
+          schema:
+            type: string
+            pattern: '^corr_[0-9A-Za-z]{26}$'
       requestBody:
         required: true
         content:
@@ -6188,6 +6195,86 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: viewer
+  /api/v1/data-retention:
+    get:
+      operationId: getDataRetentionStatus
+      tags: [system]
+      summary: Get scoped retention job status
+      responses:
+        "200":
+          description: Last retention result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataRetentionStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/data-retention/actions:
+    post:
+      operationId: performDataRetentionAction
+      tags: [system]
+      summary: Preview or run scoped data retention
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataRetentionActionRequest"
+      responses:
+        "200":
+          description: Retention preview or run result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataRetentionActionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/system-backups:
+    get:
+      operationId: getSystemBackupStatus
+      tags: [system]
+      summary: Get scheduled system backup status and source coverage
+      responses:
+        "200":
+          description: Current backup status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemBackupStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/system-backups/actions:
+    post:
+      operationId: performSystemBackupAction
+      tags: [system]
+      summary: Preview, create, verify or test-restore a system backup
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SystemBackupActionRequest"
+      responses:
+        "200":
+          description: Backup action result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemBackupActionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings:
     get:
       operationId: getSettings
@@ -6255,6 +6342,85 @@ paths:
           $ref: "#/components/responses/UnprocessableEntity"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/hermes-config:
+    get:
+      operationId: getHermesConfig
+      tags: [settings]
+      summary: Read effective allowlisted Hermes config and installed extension inventory
+      responses:
+        "200":
+          description: Effective Hermes configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesConfigStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+    patch:
+      operationId: patchHermesConfig
+      tags: [settings]
+      summary: Write one allowlisted typed Hermes config leaf or stdin-only model credential
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HermesConfigPatch"
+      responses:
+        "200":
+          description: Persisted readback; live runtime application is unverified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesConfigStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/settings/hermes-model-catalog:
+    get:
+      operationId: getHermesModelCatalog
+      tags: [settings]
+      summary: Read pinned Hermes picker providers; optionally probe one model catalog
+      parameters:
+        - name: providerId
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9_.-]{1,64}$"
+      responses:
+        "200":
+          description: Provider picker and optional bounded model discovery; not an inference receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesModelCatalogResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
@@ -7039,6 +7205,241 @@ paths:
           $ref: "#/components/responses/UnprocessableEntity"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/messenger/catalog:
+    get:
+      operationId: getMessengerCatalog
+      tags: [communication]
+      summary: Inspect pinned Hermes native messaging prerequisites and observed gateway state
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200": { description: Native transport catalog, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerCatalogResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/messenger/senders:
+    get:
+      operationId: listMessengerSenders
+      tags: [communication]
+      summary: Inspect admitted private-message senders without message content
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200": { description: Observed senders, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerSendersResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/messenger/senders/{id}/link:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, pattern: "^[a-f0-9]{64}$" }
+      - $ref: "#/components/parameters/CorrelationId"
+      - $ref: "#/components/parameters/CsrfToken"
+    post:
+      operationId: linkMessengerSender
+      tags: [communication]
+      summary: Explicitly link one observed authenticated sender to the owner identity
+      responses:
+        "200": { description: Linked sender, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerSenderResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-capability: settings.write
+      x-required-role: owner
+    delete:
+      operationId: unlinkMessengerSender
+      tags: [communication]
+      summary: Revoke one sender-to-owner identity link
+      responses:
+        "200": { description: Unlinked sender, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerSenderResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-capability: settings.write
+      x-required-role: owner
+  /api/v1/integrations/messenger/events:
+    post:
+      operationId: captureMessengerInbound
+      tags: [communication]
+      summary: Admit a post-gateway private message through a distinct local bridge credential
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MessengerInboundEvent" } } }
+      responses:
+        "200": { description: Inbound classification, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerInboundResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-capability: memory.write
+      x-required-role: owner
+  /api/v1/messenger/providers/{platform}:
+    parameters:
+      - name: platform
+        in: path
+        required: true
+        schema: { type: string }
+      - $ref: "#/components/parameters/CorrelationId"
+    get:
+      operationId: getMessengerProvider
+      tags: [communication]
+      summary: Read pinned Hermes provider configuration revision
+      responses:
+        "200": { description: Provider revision, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+    put:
+      operationId: updateMessengerProvider
+      tags: [communication]
+      summary: Store allowlisted provider fields in pinned Hermes without claiming gateway activation
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderUpdate" } } }
+      responses:
+        "200": { description: Provider save outcome, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: settings.write
+      x-required-role: owner
+  /api/v1/messenger/providers/{platform}/apply:
+    post:
+      operationId: applyMessengerProvider
+      tags: [communication]
+      summary: Explicitly restart the local Hermes gateway after provider credential changes
+      parameters:
+        - name: platform
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderApply" } } }
+      responses:
+        "200": { description: Observed gateway restart, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerProviderResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: settings.write
+      x-required-role: owner
+  /api/v1/messenger/targets:
+    get:
+      operationId: listMessengerTargets
+      tags: [communication]
+      summary: List owner-enrolled exact outbound targets
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200": { description: Targets, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerTargetsResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+      x-capability: meta.read
+      x-required-role: owner
+    post:
+      operationId: registerMessengerTarget
+      tags: [communication]
+      summary: Enroll an exact outbound destination for the owner
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerTargetRequest" } } } }
+      responses:
+        "200": { description: Target, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerTargetResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/messenger/targets/{id}:
+    delete:
+      operationId: removeMessengerTarget
+      tags: [communication]
+      summary: Remove one exact outbound destination
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[a-f0-9]{64}$" }
+      responses:
+        "200": { description: Removed target, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerTargetResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/messenger/preview:
+    post:
+      operationId: previewMessengerMessage
+      tags: [communication]
+      summary: Preview an exact admitted messenger target and message
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerDraft" } } } }
+      responses:
+        "200": { description: Preview, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerPreviewResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/messenger/confirm:
+    post:
+      operationId: confirmMessengerMessage
+      tags: [communication]
+      summary: Confirm and reserve an exact messenger delivery once
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerConfirmRequest" } } } }
+      responses:
+        "200":
+          description: Delivery receipt
+          headers:
+            Idempotent-Replayed: { $ref: "#/components/headers/IdempotentReplayed" }
+          content: { application/json: { schema: { $ref: "#/components/schemas/MessengerReceiptResponse" } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/messenger/receipts:
+    get:
+      operationId: listMessengerReceipts
+      tags: [communication]
+      summary: Read durable messenger delivery states for the owner
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200": { description: Receipts, content: { application/json: { schema: { $ref: "#/components/schemas/MessengerReceiptsResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
       x-capability: meta.read
       x-required-role: owner
   /api/v1/settings/obsidian-vault:
@@ -8713,6 +9114,40 @@ components:
       $ref: ../schemas/integrations/mail-attachment-response.schema.json
     MailSendRequest:
       $ref: ../schemas/integrations/mail-send-request.schema.json
+    MessengerDraft:
+      $ref: ../schemas/integrations/messenger-draft.schema.json
+    MessengerCatalogResponse:
+      $ref: ../schemas/integrations/messenger-catalog-response.schema.json
+    MessengerInboundEvent:
+      $ref: ../schemas/integrations/messenger-inbound-event.schema.json
+    MessengerInboundResponse:
+      $ref: ../schemas/integrations/messenger-inbound-response.schema.json
+    MessengerSenderResponse:
+      $ref: ../schemas/integrations/messenger-sender-response.schema.json
+    MessengerSender:
+      $ref: ../schemas/integrations/messenger-sender.schema.json
+    MessengerSendersResponse:
+      $ref: ../schemas/integrations/messenger-senders-response.schema.json
+    MessengerProviderUpdate:
+      $ref: ../schemas/integrations/messenger-provider-update.schema.json
+    MessengerProviderApply:
+      $ref: ../schemas/integrations/messenger-provider-apply.schema.json
+    MessengerProviderResponse:
+      $ref: ../schemas/integrations/messenger-provider-response.schema.json
+    MessengerTargetRequest:
+      $ref: ../schemas/integrations/messenger-target-request.schema.json
+    MessengerTargetResponse:
+      $ref: ../schemas/integrations/messenger-target-response.schema.json
+    MessengerTargetsResponse:
+      $ref: ../schemas/integrations/messenger-targets-response.schema.json
+    MessengerConfirmRequest:
+      $ref: ../schemas/integrations/messenger-confirm-request.schema.json
+    MessengerPreviewResponse:
+      $ref: ../schemas/integrations/messenger-preview-response.schema.json
+    MessengerReceiptResponse:
+      $ref: ../schemas/integrations/messenger-receipt-response.schema.json
+    MessengerReceiptsResponse:
+      $ref: ../schemas/integrations/messenger-receipts-response.schema.json
     MailDraftRequest:
       $ref: ../schemas/integrations/mail-draft-request.schema.json
     MailDraftResponse:
@@ -8729,6 +9164,16 @@ components:
       $ref: ../schemas/integrations/mail-change-request.schema.json
     MailResultResponse:
       $ref: ../schemas/integrations/mail-result-response.schema.json
+    HermesConfigPatch:
+      $ref: ../schemas/integrations/hermes-config-patch.schema.json
+    HermesConfigStatus:
+      $ref: ../schemas/integrations/hermes-config-status.schema.json
+    HermesConfigStatusResponse:
+      $ref: ../schemas/integrations/hermes-config-status-response.schema.json
+    HermesModelCatalog:
+      $ref: ../schemas/integrations/hermes-model-catalog.schema.json
+    HermesModelCatalogResponse:
+      $ref: ../schemas/integrations/hermes-model-catalog-response.schema.json
     DurableMemoryStatus:
       $ref: ../schemas/integrations/durable-memory-status.schema.json
     DurableMemoryStatusResponse:
@@ -8779,6 +9224,18 @@ components:
       $ref: ../schemas/system/system-metrics.schema.json
     SystemMetricsResponse:
       $ref: ../schemas/system/system-metrics-response.schema.json
+    DataRetentionActionRequest:
+      $ref: "../schemas/system/data-retention-action-request.schema.json"
+    DataRetentionActionResponse:
+      $ref: "../schemas/system/data-retention-action-response.schema.json"
+    DataRetentionStatusResponse:
+      $ref: "../schemas/system/data-retention-status-response.schema.json"
+    SystemBackupActionRequest:
+      $ref: ../schemas/system/system-backup-action-request.schema.json
+    SystemBackupActionResponse:
+      $ref: ../schemas/system/system-backup-action-response.schema.json
+    SystemBackupStatusResponse:
+      $ref: ../schemas/system/system-backup-status-response.schema.json
     Task:
       $ref: ../schemas/tasks/task.schema.json
     TaskActionRequest:

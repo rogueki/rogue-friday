@@ -52,15 +52,29 @@ it("serves the local event through the calendar API while requiring owner and CS
     const viewer = api.client();
     await owner.loginDev("owner");
     await viewer.loginDev("viewer");
+    // Tier-2 approval off: a confirmed preview executes directly and stores its receipt.
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    expect((await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
     const path = "/api/v1/calendar/local/events";
     const body = { title: "Lokaler Termin", start: "2026-11-02T10:00:00.000Z", end: "2026-11-02T11:00:00.000Z", timeZone: "Europe/Berlin" };
     expect((await viewer.post(path, body, { headers: { "Idempotency-Key": "local-key-123456" } })).statusCode).toBe(403);
     expect((await owner.post(path, body, { csrf: false, headers: { "Idempotency-Key": "local-key-123456" } })).statusCode).toBe(403);
-    const created = await owner.post(path, body, { headers: { "Idempotency-Key": "local-key-123456" } });
+    // The first write only stages an exact preview; nothing is persisted yet.
+    const staged = await owner.post(path, body, { headers: { "Idempotency-Key": "local-key-123456" } });
+    expect(staged.statusCode, staged.body).toBe(403);
+    expect(staged.json().error.code).toBe("APPROVAL_REQUIRED");
+    expect(staged.json().error.details.stage).toBe("preview");
+    const previewId = staged.json().error.details.previewId as string;
+    expect(api.runtime.db.prepare("SELECT COUNT(*) AS count FROM local_calendar_events").get()).toMatchObject({ count: 0 });
+    const confirmHeaders = { "Idempotency-Key": "local-key-123456", "x-action-preview-id": previewId };
+    // A changed body no longer matches the saved preview.
+    expect((await owner.post(path, { ...body, title: "Anderer Termin" }, { headers: confirmHeaders })).statusCode).toBe(409);
+    const created = await owner.post(path, body, { headers: confirmHeaders });
     expect(created.statusCode, created.body).toBe(201);
     expect(created.json().freshness.asOf).toBe(mockNow);
     const id = created.json().data.id as string;
-    const replay = await owner.post(path, body, { headers: { "Idempotency-Key": "local-key-123456" } });
+    const replay = await owner.post(path, body, { headers: confirmHeaders });
     expect(replay.statusCode).toBe(201);
     expect(replay.json().data.id).toBe(id);
     expect(replay.headers["idempotent-replayed"]).toBe("true");
@@ -78,13 +92,22 @@ it("serves the local event through the calendar API while requiring owner and CS
     expect(detail.statusCode).toBe(200);
     expect(detail.json().freshness.asOf).toBe(mockNow);
     expect(detail.json().data.source.adapterId).toBe("friday-local-calendar");
+    // Updates stage the same way; a stale If-Match fails before anything is staged.
     const stale = await owner.request("PUT", `${path}/${id}`, { body: { ...body, title: "Neu" }, headers: { "If-Match": "2" } });
     expect(stale.statusCode).toBe(409);
-    const changed = await owner.request("PUT", `${path}/${id}`, { body: { ...body, title: "Neu" }, headers: { "If-Match": "1" } });
+    const stagedUpdate = await owner.request("PUT", `${path}/${id}`, { body: { ...body, title: "Neu" }, headers: { "If-Match": "1" } });
+    expect(stagedUpdate.statusCode, stagedUpdate.body).toBe(403);
+    const updatePreviewId = stagedUpdate.json().error.details.previewId as string;
+    const changed = await owner.request("PUT", `${path}/${id}`,
+      { body: { ...body, title: "Neu" }, headers: { "If-Match": "1", "x-action-preview-id": updatePreviewId } });
     expect(changed.statusCode, changed.body).toBe(200);
     expect(changed.json().data.version).toBe(2);
     expect((await owner.request("DELETE", `${path}/${id}`, { headers: { "If-Match": "1" } })).statusCode).toBe(409);
-    expect((await owner.request("DELETE", `${path}/${id}`, { headers: { "If-Match": "2" } })).statusCode).toBe(200);
+    const stagedDelete = await owner.request("DELETE", `${path}/${id}`, { headers: { "If-Match": "2" } });
+    expect(stagedDelete.statusCode, stagedDelete.body).toBe(403);
+    const deleted = await owner.request("DELETE", `${path}/${id}`,
+      { headers: { "If-Match": "2", "x-action-preview-id": stagedDelete.json().error.details.previewId as string } });
+    expect(deleted.statusCode, deleted.body).toBe(200);
     expect((await owner.get(`/api/v1/calendar/events/${id}`)).statusCode).toBe(404);
   } finally { await api.close(); }
 });

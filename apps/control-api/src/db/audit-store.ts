@@ -2,6 +2,7 @@ import { appendToChain, GENESIS_HASH, verifyChain } from "@friday/observability"
 import type { Actor, AuditEvent } from "@friday/sdk";
 import type { AuditAnchor, AnchorRead, AnchorRecord } from "./audit-anchor";
 import type { Db } from "./database";
+import type { AuditArchive } from "./audit-archive";
 import { newAuditId } from "../util/ids";
 
 export type AuditDraft = Pick<
@@ -63,13 +64,15 @@ export class AuditStore {
     private readonly now: () => Date = () => new Date(),
     /** Remembers the chain head outside `audit_log` so a truncated tail is detected (see `AuditAnchor`). */
     private readonly anchor?: AuditAnchor,
+    private readonly archive?: AuditArchive,
   ) {
+    const archived = archive?.rows() ?? [];
     const last = db.prepare("SELECT seq, hash FROM audit_log ORDER BY seq DESC LIMIT 1").get() as
       | { seq: number; hash: string }
       | undefined;
-    this.head = last?.hash ?? null;
-    this.sequence = last?.seq ?? 0;
-    this.length = this.count();
+    this.head = last?.hash ?? archived.at(-1)?.hash ?? null;
+    this.sequence = last?.seq ?? archived.at(-1)?.seq ?? 0;
+    this.length = archived.length + (db.prepare("SELECT COUNT(*) AS n FROM audit_log").get() as { n: number }).n;
   }
 
   /** Appends one event and returns the complete, hash-sealed AuditEvent (shape of `friday.audit.appended`). */
@@ -111,8 +114,12 @@ export class AuditStore {
   }
 
   verify(): AuditVerification {
-    const rows = this.db.prepare("SELECT seq, json, prev_hash, hash FROM audit_log ORDER BY seq").all() as unknown as AuditRow[];
     const checkedAt = this.now().toISOString();
+    let archived: AuditRow[];
+    try { archived = this.archive?.rows() ?? []; }
+    catch { return { valid: false, length: this.length, headHash: null, reason: "archive_unavailable", checkedAt }; }
+    const rows = [...archived,
+      ...this.db.prepare("SELECT seq, json, prev_hash, hash FROM audit_log ORDER BY seq").all() as unknown as AuditRow[]];
     const entries = rows.map((row) => ({ event: JSON.parse(row.json) as unknown, prevHash: row.prev_hash, hash: row.hash }));
     const result = verifyChain(entries);
     if (!result.valid) {
@@ -126,6 +133,9 @@ export class AuditStore {
         checkedAt,
       };
     }
+    const gap = rows.findIndex((row, index) => row.seq !== index + 1);
+    if (gap !== -1) return { valid: false, length: rows.length, headHash: null,
+      brokenAtSequence: gap + 1, reason: "sequence_gap", checkedAt };
     const anchored = this.checkAnchor(rows);
     if (anchored) return { valid: false, length: rows.length, headHash: null, brokenAtSequence: anchored.brokenAtSequence, reason: anchored.reason, checkedAt };
     return { valid: true, length: rows.length, headHash: rows.length ? result.headHash : null, checkedAt };
@@ -166,8 +176,11 @@ export class AuditStore {
    */
   reanchorAfterKeyLoss(): boolean {
     if (!this.anchor) return false;
-    const rows = this.db.prepare("SELECT seq, json, prev_hash, hash FROM audit_log ORDER BY seq").all() as unknown as AuditRow[];
-    if (rows.length === 0) return false;
+    let archived: AuditRow[];
+    try { archived = this.archive?.rows() ?? []; } catch { return false; }
+    const rows = [...archived,
+      ...this.db.prepare("SELECT seq, json, prev_hash, hash FROM audit_log ORDER BY seq").all() as unknown as AuditRow[]];
+    if (rows.length === 0 || rows.some((row, index) => row.seq !== index + 1)) return false;
     const result = verifyChain(rows.map((row) => ({ event: JSON.parse(row.json) as unknown, prevHash: row.prev_hash, hash: row.hash })));
     if (!result.valid) return false;
     this.anchor.write({ length: rows.length, hash: (rows.at(-1) as AuditRow).hash });
@@ -175,7 +188,7 @@ export class AuditStore {
   }
 
   count(): number {
-    return (this.db.prepare("SELECT COUNT(*) AS n FROM audit_log").get() as { n: number }).n;
+    return this.length;
   }
 
   headHash(): string | null {

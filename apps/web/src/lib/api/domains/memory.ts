@@ -1,9 +1,6 @@
 "use client";
 
 import type {
-  ActionResult,
-  MemoryConflictResolveRequest,
-  MemoryCreateRequest,
   MemoryExport,
   MemoryListResponse,
   MemoryResponse,
@@ -11,7 +8,6 @@ import type {
   MemorySearchResponse,
   MemorySensitivity,
   MemoryType,
-  MemoryUpdateRequest,
 } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
@@ -67,38 +63,6 @@ export const useMemorySearch = (request: MemorySearchRequest | null) =>
 export const searchMemory = (body: MemorySearchRequest): Promise<MemorySearchResponse> =>
   call(getApiClient().POST("/api/v1/memory/search", { body }));
 
-const invalidate = [queryKeys.memory.all, queryKeys.overview] as const;
-
-export function useCreateMemory() {
-  return useApiMutation<MemoryResponse, MemoryCreateRequest & IntentVars>({
-    label: "Gedächtniseintrag anlegen",
-    mutationFn: ({ idempotencyKey, ...body }) =>
-      call(getApiClient().POST("/api/v1/memory", { body, params: { header: { "Idempotency-Key": idempotencyKey } } })),
-    invalidate,
-  });
-}
-
-export function useUpdateMemory() {
-  return useApiMutation<MemoryResponse, { id: string; version: number; patch: MemoryUpdateRequest } & IntentVars>({
-    label: "Gedächtniseintrag ändern",
-    mutationFn: ({ id, version, patch }) =>
-      call(getApiClient().PATCH("/api/v1/memory/{id}", { params: { path: { id }, header: { "If-Match": String(version) } }, body: patch })),
-    invalidate,
-    conflictKeys: [queryKeys.memory.all],
-  });
-}
-
-/** Forgetting is traceable: the server writes an audit event for every deletion (PLAN §30.4). */
-export function useDeleteMemory() {
-  return useApiMutation<ActionResult, { id: string; version: number } & IntentVars>({
-    label: "Gedächtniseintrag vergessen",
-    mutationFn: ({ id, version }) =>
-      call(getApiClient().DELETE("/api/v1/memory/{id}", { params: { path: { id }, header: { "If-Match": String(version) } } })),
-    invalidate: [...invalidate, queryKeys.audit.all],
-    conflictKeys: [queryKeys.memory.all],
-  });
-}
-
 /**
  * Complete memory export from the server (GET /memory/export, owner, capability `memory.export`). The server leaves
  * restricted memories out and masks secrets; the document is handed to the browser as a file, nothing is stored.
@@ -109,32 +73,5 @@ export function useExportMemory() {
     label: "Gedächtnis exportieren",
     mutationFn: () => call(getApiClient().GET("/api/v1/memory/export")),
     invalidate: [queryKeys.audit.all],
-  });
-}
-
-export interface ResolveConflictVars extends IntentVars {
-  /** The memory the conflict belongs to. */
-  id: string;
-  /** Id of the conflicting memory (`MemoryConflict.memoryId`). */
-  conflictId: string;
-  /** Current version of memory `id` for If-Match. */
-  version: number;
-  resolution: MemoryConflictResolveRequest["resolution"];
-  note?: string;
-}
-
-/** keep_both | replace | dismiss (POST /memory/{id}/conflicts/{conflictId}/resolve). `replace` forgets the other memory. */
-export function useResolveMemoryConflict() {
-  return useApiMutation<MemoryResponse, ResolveConflictVars>({
-    label: "Konflikt lösen",
-    mutationFn: ({ id, conflictId, version, resolution, note, idempotencyKey }) =>
-      call(
-        getApiClient().POST("/api/v1/memory/{id}/conflicts/{conflictId}/resolve", {
-          params: { path: { id, conflictId }, header: { "Idempotency-Key": idempotencyKey, "If-Match": String(version) } },
-          body: { resolution, ...(note ? { note } : {}) },
-        }),
-      ),
-    invalidate: [...invalidate, queryKeys.audit.all],
-    conflictKeys: [queryKeys.memory.all],
   });
 }

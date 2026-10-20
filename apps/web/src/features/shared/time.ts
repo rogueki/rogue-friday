@@ -4,6 +4,24 @@ export interface TimeFormatOptions {
   hour12?: boolean;
 }
 
+export type DateFormatPattern = "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy";
+
+export function formatDatePattern(date: Date, pattern: DateFormatPattern, timeZone?: string): string {
+  const parts = new Intl.DateTimeFormat("en", { year: "numeric", month: "2-digit", day: "2-digit", timeZone }).formatToParts(date);
+  const value = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  const year = value.year ?? String(date.getFullYear());
+  const month = value.month ?? String(date.getMonth() + 1).padStart(2, "0");
+  const day = value.day ?? String(date.getDate()).padStart(2, "0");
+  if (pattern === "yyyy-MM-dd") return `${year}-${month}-${day}`;
+  return pattern === "MM/dd/yyyy" ? `${month}/${day}/${year}` : `${day}.${month}.${year}`;
+}
+
+export function formatDateTimePattern(date: Date, pattern: DateFormatPattern, options: TimeFormatOptions): string {
+  const dateText = formatDatePattern(date, pattern, options.timeZone);
+  const timeText = new Intl.DateTimeFormat(options.locale, { hour: "2-digit", minute: "2-digit", hour12: options.hour12, timeZone: options.timeZone }).format(date);
+  return `${dateText}, ${timeText}`;
+}
+
 export function formatClockTime(iso: string | null | undefined, { locale, timeZone, hour12 }: TimeFormatOptions): string {
   if (!iso) return "—";
   const date = new Date(iso);

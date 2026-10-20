@@ -2253,6 +2253,23 @@ if (-not $ChangeVoice -and (IsDone 'skills') -and (IsDone 'dashboard')) {
     } else { Warn 'Hermes-Gedächtnis-Dienstschlüssel fehlt; Dashboard-API-Start prüfen.' }
 }
 
+# The gateway admission hook uses a separate scoped key; CLI Memory credentials never authenticate it.
+if (-not $ChangeVoice -and (IsDone 'skills') -and (IsDone 'dashboard')) {
+    $messengerKeyFile = "$Dash\data\hermes-messenger-bridge\auth.key"
+    $messengerHealth = Test-DashboardHealth 3
+    if ($messengerHealth.Up -and $messengerHealth.Code -ge 200 -and $messengerHealth.Code -lt 300 -and
+        (Test-Path -LiteralPath $messengerKeyFile -PathType Leaf)) {
+        $messengerKey = [IO.File]::ReadAllText($messengerKeyFile).Trim()
+        try {
+            if ($messengerKey -notmatch '^[A-Za-z0-9+/]{43}=$') { throw 'Ungültiger Messenger-Dienstschlüssel.' }
+            $messengerResult = Wsl-Run $State.linux_user "$WslInstPath/wsl/setup_messenger_inbound_bridge.sh" $messengerKey
+            if ($messengerResult -match 'FRIDAY_MESSENGER_BRIDGE_READY') { Ok 'Hermes-Messenger-Empfang mit eigenem lokalem Schlüssel eingerichtet.' }
+            else { Warn 'Hermes-Messenger-Empfang nicht eingerichtet; Hermes-Hook und Gateway prüfen.' }
+        } catch { Warn 'Hermes-Messenger-Empfang nicht eingerichtet; Hermes-Hook und Gateway prüfen.' }
+        finally { $messengerKey = $null }
+    } else { Warn 'Messenger-Dienstschlüssel oder Dashboard-Health fehlt; Messenger-Empfang nicht eingerichtet.' }
+}
+
 # ================================================================ Zusatz: Service-Watchdog (FRIDAY_Watchdog)
 # Prueft alle 5 Minuten, ob Sprachdienst, Qwen und Command Center antworten, und startet abgestuerzte Dienste ueber ihre Aufgabe neu
 # (Regeln: scripts\friday-watchdog.ps1). Laeuft unsichtbar ueber hidden.vbs (wscript), wie die uebrigen FRIDAY-Aufgaben - ein direkter

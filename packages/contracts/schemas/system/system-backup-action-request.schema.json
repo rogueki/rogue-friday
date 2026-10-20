@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/system/system-backup-action-request.schema.json",
+  "title": "SystemBackupActionRequest",
+  "type": "object",
+  "properties": {
+    "action": { "type": "string", "enum": ["preview", "run", "verify", "restore-test"] },
+    "path": { "type": "string", "minLength": 1 },
+    "targetPath": { "type": "string", "minLength": 1 }
+  },
+  "required": ["action"],
+  "additionalProperties": false
+}

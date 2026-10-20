@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-config-status.schema.json",
+  "title": "HermesConfigStatus",
+  "type": "object",
+  "properties": {
+    "installed": { "type": "boolean" },
+    "sourceRevision": { "type": ["string", "null"] },
+    "revision": { "type": ["integer", "null"], "minimum": 1 },
+    "checkedAt": { "type": "string", "format": "date-time" },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "enum": [
+              "model.provider",
+              "model.default",
+              "agent.reasoning_effort",
+              "fallback.min_switch_reset_seconds",
+              "fallback_model",
+              "agent.auto_recovery_cycles",
+              "agent.run_budget_seconds",
+              "agent.budget_warning_ratio",
+              "agent.agent_cache.max_size",
+              "max_concurrent_sessions",
+              "context_file_max_chars",
+              "compression.enabled",
+              "compression.threshold",
+              "compression.target_ratio",
+              "compression.tail_mode",
+              "compression.protect_last_n",
+              "agent.max_turns",
+              "agent.gateway_timeout",
+              "agent.api_max_retries",
+              "session.terminal_continue",
+              "max_live_sessions",
+              "terminal.timeout",
+              "browser.command_timeout",
+              "browser.snapshot_threshold",
+              "skills.disabled"
+            ]
+          },
+          "type": { "enum": ["integer", "optionalInteger", "number", "optionalNumber", "boolean", "string", "fallback", "skillNames"] },
+          "family": { "enum": ["agent", "models", "execution", "extensions"] },
+          "consumer": { "type": "string" },
+          "value": { "anyOf": [{ "type": ["number", "boolean", "string", "null"] }, { "type": "array", "maxItems": 8,
+            "items": { "type": "object", "properties": { "provider": { "type": "string" }, "model": { "type": "string" } },
+              "required": ["provider", "model"], "additionalProperties": false } },
+            { "type": "array", "maxItems": 512, "items": { "type": "string" } }] },
+          "explicit": { "type": "boolean" },
+          "writable": { "type": "boolean" },
+          "verification": { "const": "unverified" },
+          "reasonCode": { "const": "runtime_receipt_unavailable" }
+        },
+        "required": [
+          "key",
+          "type",
+          "family",
+          "consumer",
+          "value",
+          "explicit",
+          "writable",
+          "verification",
+          "reasonCode"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "secretStates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": { "enum": ["model.api_key", "OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] },
+          "configFileSet": { "type": "boolean" },
+          "effectiveConfigured": { "type": ["boolean", "null"] }
+        },
+        "required": ["key", "configFileSet", "effectiveConfigured"],
+        "additionalProperties": false
+      }
+    },
+    "families": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "enum": ["models", "agent", "execution", "extensions", "operations"] },
+          "roots": { "type": "array", "items": { "type": "string" } },
+          "followup": { "type": "string" },
+          "installed": { "type": ["boolean", "null"] },
+          "enabled": { "type": ["boolean", "null"] },
+          "configFileSet": { "type": "boolean" },
+          "configured": { "type": ["boolean", "null"] },
+          "authenticated": { "type": ["boolean", "null"] },
+          "available": { "type": ["boolean", "null"] },
+          "needsSetup": { "type": ["boolean", "null"] },
+          "unsupported": { "type": ["boolean", "null"] },
+          "coverage": { "const": "followup" }
+        },
+        "required": [
+          "id",
+          "roots",
+          "followup",
+          "installed",
+          "enabled",
+          "configFileSet",
+          "configured",
+          "authenticated",
+          "available",
+          "needsSetup",
+          "unsupported",
+          "coverage"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "properties": {
+        "scope": { "const": "profile" },
+        "skillsComplete": { "type": "boolean" },
+        "pluginsComplete": { "type": "boolean" },
+        "modelProvidersComplete": { "type": "boolean" },
+        "reasons": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["scope", "skillsComplete", "pluginsComplete", "modelProvidersComplete", "reasons"],
+      "additionalProperties": false
+    },
+    "skills": { "type": "array", "items": { "$ref": "#/$defs/extension" } },
+    "modelProviders": { "type": "array", "items": { "type": "object",
+      "properties": { "id": { "type": "string" }, "configFileSet": { "type": "boolean" },
+        "authenticated": { "type": ["boolean", "null"] }, "available": { "type": ["boolean", "null"] } },
+      "required": ["id", "configFileSet", "authenticated", "available"], "additionalProperties": false } },
+    "plugins": { "type": "array", "items": { "$ref": "#/$defs/extension" } },
+    "mcpComplete": { "type": "boolean" },
+    "mcpServers": { "type": "array", "items": { "type": "object", "properties": {
+      "id": { "type": "string" }, "transport": { "enum": ["http", "stdio", "unknown"] },
+      "enabled": { "type": ["boolean", "null"] }, "endpoint": { "type": ["string", "null"] },
+      "editable": { "type": "boolean" }
+    }, "required": ["id", "transport", "enabled", "endpoint", "editable"], "additionalProperties": false } },
+    "write": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "properties": {
+            "key": { "type": "string" },
+            "persisted": { "type": "boolean" },
+            "applied": { "type": ["boolean", "null"] },
+            "verification": { "const": "unverified" },
+            "reasonCode": { "enum": ["runtime_receipt_unavailable", "readback_mismatch"] }
+          },
+          "required": ["key", "persisted", "applied", "verification", "reasonCode"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "extension": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "installed": { "const": true },
+        "enabled": { "type": ["boolean", "null"] },
+        "configured": { "type": ["boolean", "null"] },
+        "authenticated": { "type": ["boolean", "null"] },
+        "available": { "type": ["boolean", "null"] },
+        "needsSetup": { "type": ["boolean", "null"] },
+        "unsupported": { "type": ["boolean", "null"] }
+      },
+      "required": [
+        "id",
+        "installed",
+        "enabled",
+        "configured",
+        "authenticated",
+        "available",
+        "needsSetup",
+        "unsupported"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "installed",
+    "sourceRevision",
+    "revision",
+    "checkedAt",
+    "fields",
+    "secretStates",
+    "families",
+    "inventory",
+    "modelProviders",
+    "skills",
+    "plugins",
+    "mcpComplete",
+    "mcpServers",
+    "write"
+  ],
+  "additionalProperties": false
+}

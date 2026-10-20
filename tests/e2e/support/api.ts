@@ -56,6 +56,36 @@ export class ApiClient {
   post = <T = any>(path: string, body?: unknown, headers?: Record<string, string>) => this.request<T>("POST", path, body ?? {}, headers); // eslint-disable-line @typescript-eslint/no-explicit-any
   patch = <T = any>(path: string, body: unknown, headers?: Record<string, string>) => this.request<T>("PATCH", path, body, headers); // eslint-disable-line @typescript-eslint/no-explicit-any
 
+  /**
+   * Creates a task for test set-up through the real staged direct-API flow (403 preview → confirm with
+   * `X-Action-Preview-Id` → tier-2 approval with the one-time approval token), exactly as the web UI drives it.
+   * Returns the created task. Fails loudly on any unexpected stage instead of silently seeding nothing.
+   */
+  async createTask(body: { title: string; priority?: string }): Promise<{ id: string; title: string }> {
+    const staged = await this.post("/tasks", body);
+    if (staged.status !== 403 || staged.body?.error?.details?.stage !== "preview") {
+      throw new Error(`Task-Staging fehlgeschlagen: ${staged.status} ${JSON.stringify(staged.body)}`);
+    }
+    const previewId = staged.body.error.details.previewId as string;
+    const confirmed = await this.post("/tasks", body, { "X-Action-Preview-Id": previewId });
+    if (confirmed.status === 201 || confirmed.status === 200) return confirmed.body.data;
+    if (confirmed.status !== 403 || confirmed.body?.error?.details?.stage !== "approval") {
+      throw new Error(`Task-Bestätigung fehlgeschlagen: ${confirmed.status} ${JSON.stringify(confirmed.body)}`);
+    }
+    const approvalId = confirmed.body.error.details.approvalId as string;
+    const opened = await this.get(`/approvals/${approvalId}`);
+    const token = opened.headers.get("x-approval-token");
+    if (opened.status !== 200 || !token) throw new Error(`Freigabe ${approvalId} nicht lesbar: ${opened.status}`);
+    const decision = await this.post(`/approvals/${approvalId}/approve`, {}, { "x-approval-token": token });
+    if (decision.status !== 200) throw new Error(`Freigabe ${approvalId} fehlgeschlagen: ${decision.status} ${JSON.stringify(decision.body)}`);
+    const receipt = String(decision.body.data?.executionResult ?? "");
+    const taskId = /^Aufgabe (task_[0-9A-Za-z]{26}) angelegt\.$/.exec(receipt)?.[1];
+    if (!taskId) throw new Error(`Unerwarteter Ausführungsbeleg: ${receipt}`);
+    const task = await this.get(`/tasks/${taskId}`);
+    if (task.status !== 200) throw new Error(`Angelegte Aufgabe ${taskId} nicht lesbar: ${task.status}`);
+    return task.body.data;
+  }
+
   /** Cookies of this session, for seeding a browser context without going through the login form. */
   cookieList(): Array<{ name: string; value: string; url: string }> {
     return [...this.cookies].map(([name, value]) => ({ name, value, url: new URL(API_BASE).origin }));

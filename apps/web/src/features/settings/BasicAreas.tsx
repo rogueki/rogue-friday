@@ -1,6 +1,6 @@
 "use client";
 
-import type { Settings } from "@friday/sdk";
+import type { DataRetentionActionResponse, Settings } from "@friday/sdk";
 import { Button, ConfirmDialog, Select, Slider, StatusChip, Switch, TextField } from "@friday/ui";
 import { LogOut, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,8 @@ import { useLogoutAll, useLayouts } from "@/lib/api/domains/settings";
 import { useMeta } from "@/lib/api/domains/core";
 import { useVoiceDevices, useVoiceIntegrationStatus } from "@/lib/api/domains/voice";
 import { useSession } from "@/lib/session";
+import { useSystemBackupAction, useSystemBackupStatus } from "@/lib/api/domains/system-backups";
+import { useDataRetentionAction, useDataRetentionStatus } from "@/lib/api/domains/data-retention";
 import { FieldGrid, NumberField, Section, StringListEditor } from "./controls";
 import { useAreaDraft } from "./SettingsDrafts";
 import { NAV_PAGES } from "@/features/shell/navModel";
@@ -199,7 +201,9 @@ export function ModelsRoutingArea() {
           <div>
             <TextField label={t("settings.models.defaultModel")} value={value.defaultModel} disabled={readOnly} onChange={(event) => update({ defaultModel: event.target.value })} />
           </div>
+          <Switch label="Lokale Verarbeitung zuerst" description="Bei Aktivierung entscheidet der lokale Router vor einem Cloud-Aufruf. Die lokale Uhrzeitantwort bleibt immer lokal." checked={value.localFirst} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(localFirst) => update({ localFirst })} />
         </FieldGrid>
+        <p>Monatsbudget: {value.monthlyBudgetEur === null ? "nicht gesetzt" : `${value.monthlyBudgetEur} € gespeichert`}. Friday erfasst hier keine verlässlichen Providerkosten; der Wert wird nicht als Ausgabenlimit durchgesetzt.</p>
       </Section>
       <Section
         title={t("settings.models.routes")}
@@ -218,6 +222,12 @@ export function ModelsRoutingArea() {
             <li key={index} className="st-route">
               <TextField label={t("settings.models.taskKind")} value={route.taskKind} disabled={readOnly} onChange={(event) => setRoute(index, { taskKind: event.target.value })} />
               <TextField label={t("settings.models.model")} value={route.model} disabled={readOnly} onChange={(event) => setRoute(index, { model: event.target.value })} />
+              <Select label="Denkstufe" value={route.reasoningLevel} disabled={readOnly}
+                options={["none", "low", "medium", "high", "max"].map((level) => ({ value: level, label: level }))}
+                onChange={(event) => setRoute(index, { reasoningLevel: event.target.value as typeof route.reasoningLevel })} />
+              <TextField label="Fallback-Modell (Anbieter:Modell)" value={route.fallbackModel ?? ""} disabled={readOnly}
+                onChange={(event) => setRoute(index, { fallbackModel: event.target.value || null })} />
+              <small>Fallback nur vor dem ersten Agentaufruf, wenn kein Primärmodell eingerichtet ist. Nach jedem HTTP-Fehler oder Timeout erfolgt kein zweiter Aufruf.</small>
               {readOnly ? null : (
                 <button type="button" className="st-iconbtn st-route__remove" aria-label={t("settings.list.remove", { name: route.taskKind || `#${index + 1}` })} onClick={() => update({ routes: value.routes.filter((_, i) => i !== index) })}>
                   <Trash2 size={14} strokeWidth={1.75} aria-hidden="true" />
@@ -317,6 +327,24 @@ export function NotificationsArea() {
                 options={PRIORITIES.map((p) => ({ value: p, label: t(`settings.notifications.priority.${p}` as MessageKey) }))}
                 onChange={(event) => setChannel(channel.kind, { minPriority: event.target.value as (typeof PRIORITIES)[number] })}
               />
+              {channel.kind !== "dashboard" ? (
+                <>
+                  <TextField
+                    label={t("settings.notifications.accountId")}
+                    value={channel.accountId ?? "default"}
+                    disabled={readOnly || !channel.enabled}
+                    maxLength={64}
+                    onChange={(event) => setChannel(channel.kind, { accountId: event.target.value })}
+                  />
+                  <TextField
+                    label={t("settings.notifications.recipient")}
+                    value={channel.recipient ?? ""}
+                    disabled={readOnly || !channel.enabled}
+                    maxLength={320}
+                    onChange={(event) => setChannel(channel.kind, { recipient: event.target.value })}
+                  />
+                </>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -412,8 +440,8 @@ export function SecurityArea() {
       </Section>
       <Section title={t("settings.security.network")}>
         <FieldGrid>
-          <Switch label={t("settings.security.remote")} description={t("settings.security.remoteDesc")} checked={value.allowRemoteAccess} disabled={readOnly || value.loginRequired === false} stateLabels={onOff(t)} onCheckedChange={(allowRemoteAccess) => update({ allowRemoteAccess })} />
-          <Switch label={t("settings.security.hashChain")} description={t("settings.security.hashChainDesc")} checked={value.auditHashChain} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(auditHashChain) => update({ auditHashChain })} />
+          <Switch label={t("settings.security.remote")} description={t("settings.security.remoteDesc")} checked={value.allowRemoteAccess} disabled stateLabels={onOff(t)} onCheckedChange={(allowRemoteAccess) => update({ allowRemoteAccess })} />
+          <Switch label={t("settings.security.hashChain")} description={t("settings.security.hashChainDesc")} checked={value.auditHashChain} disabled stateLabels={onOff(t)} onCheckedChange={(auditHashChain) => update({ auditHashChain })} />
         </FieldGrid>
         {value.allowRemoteAccess ? <StatusChip tone="amber">{t("settings.security.remoteWarning")}</StatusChip> : null}
         <StringListEditor label={t("settings.security.origins")} values={value.trustedOrigins} disabled={readOnly} placeholder="http://127.0.0.1:3100" onChange={(trustedOrigins) => update({ trustedOrigins })} />
@@ -445,7 +473,7 @@ export function ApprovalsArea() {
         <NumberField label={t("settings.approvals.expiry")} hint={t("settings.approvals.expiryHint")} integer min={1} value={value.defaultExpiryMinutes} disabled={readOnly} onValueChange={(next) => next !== null && update({ defaultExpiryMinutes: Math.round(next) })} />
         <Switch label={t("settings.approvals.draftOnly")} description={t("settings.approvals.draftOnlyDesc")} checked={value.draftOnlyByDefault} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(draftOnlyByDefault) => update({ draftOnlyByDefault })} />
         <Switch label={t("settings.approvals.tier2")} description={t("settings.approvals.tier2Desc")} checked={value.confirmTier2} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(confirmTier2) => update({ confirmTier2 })} />
-        <Switch label={t("settings.approvals.tier3")} description={t("settings.approvals.tier3Desc")} checked={value.reauthTier3} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(reauthTier3) => update({ reauthTier3 })} />
+        <Switch label={t("settings.approvals.tier3")} description={t("settings.approvals.tier3Desc")} checked={value.reauthTier3} disabled stateLabels={onOff(t)} onCheckedChange={(reauthTier3) => update({ reauthTier3 })} />
         <Switch label={t("settings.approvals.notify")} description={t("settings.approvals.notifyDesc")} checked={value.notifyOnRequest} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(notifyOnRequest) => update({ notifyOnRequest })} />
       </FieldGrid>
       {!value.reauthTier3 ? <StatusChip tone="amber">{t("settings.approvals.tier3Warning")}</StatusChip> : null}
@@ -457,7 +485,11 @@ export function ApprovalsArea() {
 
 export function DataRetentionArea() {
   const { t } = useT();
-  const { value, update, readOnly } = useAreaDraft("dataRetention");
+  const { value, update, dirty, readOnly } = useAreaDraft("dataRetention");
+  const { role, offline } = useSession();
+  const status = useDataRetentionStatus(role === "owner" && !offline);
+  const action = useDataRetentionAction();
+  const [preview, setPreview] = useState<Extract<DataRetentionActionResponse["data"], { eligible: unknown }> | null>(null);
   if (!value) return null;
   const days = (label: MessageKey, key: "activityDays" | "auditDays" | "notificationDays" | "temporaryFileDays", min = 1, hint?: MessageKey) => (
     <NumberField label={t(label)} hint={hint ? t(hint) : undefined} integer min={min} value={value[key]} disabled={readOnly} onValueChange={(next) => next !== null && update({ [key]: Math.round(next) })} />
@@ -470,8 +502,35 @@ export function DataRetentionArea() {
         <NumberField label={t("settings.retention.voice")} hint={t("settings.retention.voiceHint")} integer min={0} value={value.voiceHistoryDays} disabled={readOnly} onValueChange={(next) => next !== null && update({ voiceHistoryDays: Math.round(next) })} />
         {days("settings.retention.notifications", "notificationDays")}
         {days("settings.retention.temp", "temporaryFileDays")}
-        <NumberField label={t("settings.retention.memoryTtl")} hint={t("settings.retention.memoryTtlHint")} integer min={1} nullable value={value.memoryDefaultTtlDays} disabled={readOnly} onValueChange={(next) => update({ memoryDefaultTtlDays: next === null ? null : Math.round(next) })} />
+        <NumberField label={t("settings.retention.memoryTtl")} hint={t("settings.retention.memoryTtlHint")} integer min={1} nullable value={value.memoryDefaultTtlDays} disabled onValueChange={() => undefined} />
       </FieldGrid>
+      {role === "owner" && <div>
+        <p className="st-muted">{t("settings.retention.scope")}</p>
+        {status.isError && <p role="alert">{t("settings.retention.statusError")}</p>}
+        {status.data?.data.last && <p role="status">{t("settings.retention.last")}: {status.data.data.last.status} · {status.data.data.last.at}
+          {status.data.data.last.error ? ` · ${status.data.data.last.error}` : ""}
+          {status.data.data.last.status === "failed" && Object.keys(status.data.data.last.confirmedPartial).length
+            ? ` · ${t("settings.retention.partial")}: ${JSON.stringify(status.data.data.last.confirmedPartial)}` : ""}</p>}
+        {dirty && <p className="st-muted">{t("settings.retention.saveFirst")}</p>}
+        <p className="st-muted">{status.data?.data.automaticEnabled ? t("settings.retention.autoOn") : t("settings.retention.autoOff")}</p>
+        <div className="st-row">
+          <Button size="sm" variant="ghost" disabled={readOnly || dirty || action.isPending} onClick={() => void action.mutateAsync({ action: "preview" }).then((response) => { if ("eligible" in response.data) setPreview(response.data); }).catch(() => setPreview(null))}>{t("settings.retention.preview")}</Button>
+          <Button size="sm" disabled={readOnly || dirty || action.isPending} onClick={() => void action.mutateAsync({ action: "run" }).then((response) => { if ("eligible" in response.data) setPreview(response.data); }).catch(() => setPreview(null))}>{t("settings.retention.run")}</Button>
+          {!status.data?.data.automaticEnabled && <Button size="sm" variant="ghost" disabled={readOnly || dirty || action.isPending || status.isLoading || status.isError} onClick={() => void action.mutateAsync({ action: "activate" }).catch(() => setPreview(null))}>{t("settings.retention.activate")}</Button>}
+          {status.data?.data.automaticEnabled && <Button size="sm" variant="ghost" disabled={readOnly || action.isPending} onClick={() => void action.mutateAsync({ action: "deactivate" }).catch(() => setPreview(null))}>{t("settings.retention.deactivate")}</Button>}
+        </div>
+        {preview && <div role="status">
+          <p>{t(preview.action === "run" ? "settings.retention.removed" : "settings.retention.eligible")}:</p>
+          <ul>
+            <li>{t("settings.retention.activity")}: {(preview.removed ?? preview.eligible).activity}</li>
+            <li>{t("settings.retention.voice")}: {(preview.removed ?? preview.eligible).voiceHistory}</li>
+            <li>{t("settings.retention.audit")}: {(preview.removed ?? preview.eligible).auditToArchive}</li>
+            <li>{t("settings.retention.notifications")}: {(preview.removed ?? preview.eligible).notifications}</li>
+            <li>{t("settings.retention.temp")}: {(preview.removed ?? preview.eligible).temporaryFiles}</li>
+          </ul>
+        </div>}
+        {action.isError && <p role="alert">{t("settings.retention.actionError")}</p>}
+      </div>}
     </Section>
   );
 }
@@ -481,7 +540,22 @@ export function DataRetentionArea() {
 export function BackupsArea() {
   const { t, locale } = useT();
   const { value, update, readOnly } = useAreaDraft("backups");
+  const { role, offline } = useSession();
+  const status = useSystemBackupStatus(role === "owner" && !offline);
+  const action = useSystemBackupAction();
+  const [preview, setPreview] = useState<{ destination: string; estimatedBytes: number } | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState("");
+  const [result, setResult] = useState<string | null>(null);
   if (!value) return null;
+  const last = status.data?.data.last;
+  const perform = async (request: Parameters<typeof action.mutateAsync>[0]) => {
+    try {
+      const response = await action.mutateAsync(request);
+      if (request.action === "preview") setPreview({ destination: response.data.destination ?? "", estimatedBytes: response.data.estimatedBytes ?? 0 });
+      else setResult(request.action === "run" ? `Backup erstellt: ${response.data.path}` :
+        request.action === "verify" ? `Integrität geprüft: ${response.data.fileCount} Dateien` : `Restore-Test erfolgreich: ${response.data.path}`);
+    } catch { setResult(null); }
+  };
   const fmt = (iso: string | null): string => (iso ? new Intl.DateTimeFormat(locale === "de" ? "de-DE" : "en-GB", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso)) : t("settings.backups.never"));
   const tone = value.lastBackupStatus === "success" ? "green" : value.lastBackupStatus === "failed" ? "red" : "muted";
   return (
@@ -500,6 +574,24 @@ export function BackupsArea() {
           <span>{fmt(value.lastBackupAt)}</span>
         </p>
       </Section>
+      {role === "owner" && <Section title="Backup-Prüfung" description={status.data?.data.coverage === "windows-wsl-and-memory"
+        ? "Lokaler Snapshot von Windows-Konfiguration, SQLite, Obsidian-Vault und Friday-Ubuntu-Konten mit Hermes-Zustand."
+        : "Lokaler Snapshot von Windows-Konfiguration, SQLite und Obsidian-Vault; Friday-Ubuntu ist nicht konfiguriert."}>
+        {status.isError && <p role="alert">Backup-Status nicht erreichbar.</p>}
+        <p className="st-muted">Der Restore-Test prüft eine getrennte, inaktive Kopie. Eine betriebsbereite Wiederherstellung benötigt die Neuinstallation des im WSL-Manifest festgehaltenen Hermes-Revisionsstands sowie seiner Laufzeit- und Paketabhängigkeiten.</p>
+        {last?.error && <p role="alert">Letzter Fehler: {last.error}</p>}
+        <p className="st-row">Zeitplan: {status.data?.data.schedule ?? value.schedule} ({status.data?.data.timeZone ?? "Zeitzone unbekannt"})</p>
+        {preview && <p role="status">Ziel: {preview.destination} · Bedarf mindestens {Math.ceil(preview.estimatedBytes / 1024 / 1024)} MiB</p>}
+        <div className="st-row">
+          <Button size="sm" variant="ghost" disabled={readOnly || action.isPending} onClick={() => void perform({ action: "preview" })}>Ziel und Platz prüfen</Button>
+          <Button size="sm" disabled={readOnly || action.isPending} onClick={() => void perform({ action: "run" })}>Backup jetzt erstellen</Button>
+          <Button size="sm" variant="ghost" disabled={readOnly || action.isPending || !last?.path} onClick={() => void perform({ action: "verify", path: last!.path! })}>Letztes Backup prüfen</Button>
+        </div>
+        <TextField label="Neuer Ordner für isolierten Restore-Test" value={restoreTarget} disabled={readOnly} onChange={(event) => setRestoreTarget(event.target.value)} hint="Ein noch nicht vorhandener Pfad innerhalb von dashboard/data." />
+        <Button size="sm" variant="ghost" disabled={readOnly || action.isPending || !last?.path || !restoreTarget.trim()} onClick={() => void perform({ action: "restore-test", path: last!.path!, targetPath: restoreTarget.trim() })}>Restore getrennt testen</Button>
+        {result && <p role="status">{result}</p>}
+        {action.isError && <p role="alert">Backup-Aktion fehlgeschlagen. Der Backup-Status zeigt den letzten Lauf.</p>}
+      </Section>}
     </>
   );
 }
@@ -509,7 +601,9 @@ export function BackupsArea() {
 export function DeveloperArea() {
   const { t } = useT();
   const { value, update, readOnly } = useAreaDraft("developer");
-  const devScenarios = Boolean(useMeta().data?.features.devScenarios);
+  const meta = useMeta();
+  const devScenarios = Boolean(meta.data?.features.devScenarios);
+  const scenarioControls = Boolean(meta.data?.features.scenarioControls);
   const router = useRouter();
   if (!value) return null;
   return (
@@ -518,8 +612,8 @@ export function DeveloperArea() {
         <FieldGrid>
           <Switch label={t("settings.developer.debug")} description={t("settings.developer.debugDesc")} checked={value.debugMode} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(debugMode) => update({ debugMode })} />
           <Switch label={t("settings.developer.rawJson")} description={t("settings.developer.rawJsonDesc")} checked={value.showRawJson} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(showRawJson) => update({ showRawJson })} />
-          <Switch label={t("settings.developer.scenarioConsole")} description={t("settings.developer.scenarioConsoleDesc")} checked={value.scenarioConsole} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(scenarioConsole) => update({ scenarioConsole })} />
-          <Switch label={t("settings.developer.orbPerf")} description={t("settings.developer.orbPerfDesc")} checked={value.orbPerfOverlay} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(orbPerfOverlay) => update({ orbPerfOverlay })} />
+          <Switch label={t("settings.developer.scenarioConsole")} description={t("settings.developer.scenarioConsoleDesc")} checked={scenarioControls && value.scenarioConsole} disabled={readOnly || !scenarioControls} stateLabels={onOff(t)} onCheckedChange={(scenarioConsole) => update({ scenarioConsole })} />
+          <Switch label={t("settings.developer.orbPerf")} description={t("settings.developer.orbPerfDesc")} checked={value.orbPerfOverlay} disabled={readOnly || !scenarioControls} stateLabels={onOff(t)} onCheckedChange={(orbPerfOverlay) => update({ orbPerfOverlay })} />
           <Select
             label={t("settings.developer.logLevel")}
             value={value.logLevel}

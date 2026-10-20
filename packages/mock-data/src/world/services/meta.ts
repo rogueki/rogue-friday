@@ -40,7 +40,7 @@ export class MetaService {
       dataMode: "mock",
       eventsPath: "/api/v1/events",
       buildVersion: "1.0.0+mock",
-      features: { devScenarios: true, rawJsonView: this.w.state.settings.developer.showRawJson, mockData: true, eventReplay: true, ...this.w.state.uiHints },
+      features: { devScenarios: this.w.state.settings.developer.scenarioConsole, scenarioControls: true, rawJsonView: this.w.state.settings.developer.showRawJson, mockData: true, eventReplay: true, ...this.w.state.uiHints },
       serverTime: this.w.nowIso(),
       defaultLocale: this.w.state.settings.profile.locale,
     };
@@ -259,4 +259,3 @@ export class MetaService {
     };
   }
 }
-

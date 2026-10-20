@@ -64,6 +64,32 @@ beforeEach(() => resetRouter("/alerts"));
 afterEach(() => setApiClient(null));
 
 describe("alerts page", () => {
+  it("shows enabled external channels that still need an exact recipient", async () => {
+    const fake = routedFetch(routes());
+    renderWithProviders(<AlertsPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    expect(await screen.findByText("Empfänger fehlt")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Empfänger einrichten" })).toBeInTheDocument();
+  });
+
+  it("opens the native send review using only the opaque notification id", async () => {
+    const user = userEvent.setup();
+    const pending = makeNotification({
+      id: P3,
+      title: "Backup abgeschlossen",
+      escalation: [
+        { step: 1, channel: "email", state: "awaiting_approval", scheduledAt: NOW, sentAt: null, acknowledgedAt: null },
+        { step: 2, channel: "telegram", state: "awaiting_approval", scheduledAt: NOW, sentAt: null, acknowledgedAt: null },
+      ],
+    });
+    const fake = routedFetch(routes([pending]));
+    renderWithProviders(<AlertsPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });
+    const { push } = await import("../memory/kit/testRouter");
+    const card = (await screen.findByText("Backup abgeschlossen")).closest("article") as HTMLElement;
+    await user.click(within(card).getByRole("button", { name: "Details zu „Backup abgeschlossen“" }));
+    await user.click(await screen.findByRole("button", { name: /Versand prüfen.*Telegram/i }));
+    expect(push).toHaveBeenCalledWith(`/communication?messengerNotification=${P3}&messengerStep=2`);
+  });
+
   it("shows P0/P1 prominently with priority words, counts and no animation classes", async () => {
     const fake = routedFetch(routes());
     renderWithProviders(<AlertsPage />, { fetchImpl: fake.fetch, capabilities: modules(FULL) });

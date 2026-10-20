@@ -15,6 +15,7 @@ import { useSettingsDrafts } from "./SettingsDrafts";
 import { MailAccountsArea } from "./MailAccountsArea";
 import { TelegramGatewaySetup } from "./TelegramGatewaySetup";
 import { MessagingGatewaySetup } from "./MessagingGatewaySetup";
+import { MessengerCatalogPanel } from "../communication/MessengerCatalogPanel";
 import { TelephonySetup } from "./TelephonySetup";
 import { CloudTalkDesktopSetup } from "./CloudTalkDesktopSetup";
 import "@/features/skills/skills.css";
@@ -330,6 +331,7 @@ export function SkillAccountsArea() {
     <TelegramGatewaySetup owner={role === "owner"} />
     <MessagingGatewaySetup owner={role === "owner"} platform="discord" />
     <MessagingGatewaySetup owner={role === "owner"} platform="whatsapp" />
+    <MessengerCatalogPanel />
     <CloudTalkDesktopSetup owner={role === "owner"} />
     <TelephonySetup owner={role === "owner"} />
     <section aria-labelledby="wiki-path-setup-title">

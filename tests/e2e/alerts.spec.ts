@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test";
 /**
  * PLAN §39 Notifications & Alerts, §51.5: a P0 alert is prominent without blinking, can be acknowledged, snoozed and
  * resolved (P0/P1 only after a confirmation), shows the escalation chain Dashboard -> Telegram -> WhatsApp -> Telefon
- * with timestamps, lands in the history tab and drives the sidebar badge. Every UI step is verified against the API.
+ * with truthful approval/skipped states and timestamps, lands in history and drives the sidebar badge. Every UI step is verified against the API.
  */
 interface Alert {
   id: string;
@@ -35,7 +35,8 @@ async function alertByTitle(api: ApiClient, title: string): Promise<Alert> {
 /**
  * Raises the P0 scenario. Playing a scenario restores its baseline: "critical-alert" is a quiet one, i.e. every other
  * open alert is resolved (they are history afterwards) and the P0 is the only open alert. At speed 0.05 the steps are 20x further apart than in real time, so the simulated clock is
- * advanced instead: 1600 s sim-time = all four channels sent (escalation timestamps are deterministic), while the final
+ * advanced instead: 1600 s sim-time = Dashboard sent, enabled external channels awaiting owner approval and disabled
+ * WhatsApp skipped (scheduled timestamps are deterministic), while the final
  * "Alert bestätigt" step (1800 s) is still ahead, so the alert stays open for the UI to handle.
  */
 async function raiseCriticalAlert(api: ApiClient, escalated = false): Promise<Alert> {
@@ -201,10 +202,12 @@ test("resolve of a P2 alert needs no confirmation", async ({ page, api }) => {
   await expect(card(page, "P2", target.title)).toHaveCount(0);
 });
 
-test("the escalation chain shows Dashboard -> Telegram -> WhatsApp -> Telefon in order with timestamps", async ({ page, api }) => {
+test("the escalation chain shows Dashboard -> Telegram -> WhatsApp -> Telefon with truthful states and timestamps", async ({ page, api }) => {
   const p0 = await raiseCriticalAlert(api, true);
   expect(p0.escalation.map((step) => step.channel)).toEqual(["dashboard", "telegram", "whatsapp", "phone"]);
-  expect(p0.escalation.every((step) => step.state === "sent" && step.sentAt), "all four channels were triggered").toBe(true);
+  expect(p0.escalation.map((step) => step.state)).toEqual(["sent", "awaiting_approval", "skipped", "awaiting_approval"]);
+  expect(p0.escalation[0]!.sentAt).toBeTruthy();
+  expect(p0.escalation.slice(1).every((step) => step.sentAt === null)).toBe(true);
 
   await open(page, "/alerts");
   // compact one-line chain in the list: each channel with state word and time
@@ -212,11 +215,12 @@ test("the escalation chain shows Dashboard -> Telegram -> WhatsApp -> Telefon in
   const items = summary.getByRole("listitem");
   await expect(items).toHaveCount(4);
   const labels = ["Dashboard", "Telegram", "WhatsApp", "Telefon"];
+  const visibleStates = ["Gesendet", "Freigabe erforderlich", "Übersprungen", "Freigabe erforderlich"];
   for (const [index, label] of labels.entries()) {
-    await expect(items.nth(index)).toContainText(`${label} · Gesendet ${berlinTime(p0.escalation[index]!.sentAt!)}`);
+    await expect(items.nth(index)).toContainText(`${label} · ${visibleStates[index]} ${berlinTime(p0.escalation[index]!.scheduledAt)}`);
   }
 
-  // detailed view in the drawer: four steps in order, each with scheduled/sent timestamps and "Bestätigt: —"
+  // Detailed view keeps the scheduled time distinct from the real send time; only Dashboard was sent.
   await card(page, "P0", P0_TITLE).getByRole("button", { name: `Details zu „${P0_TITLE}“` }).click();
   const drawer = page.getByRole("dialog", { name: P0_TITLE });
   const chain = drawer.getByRole("list", { name: "Eskalation" });
@@ -225,11 +229,10 @@ test("the escalation chain shows Dashboard -> Telegram -> WhatsApp -> Telefon in
   for (const [index, label] of labels.entries()) {
     const step = steps.nth(index);
     await expect(step).toContainText(`Stufe ${index + 1} · ${label}`);
-    await expect(step.getByText("Gesendet", { exact: true }).first()).toBeVisible();
-    // two real timestamps (scheduled + sent) and one dash (nobody acknowledged this step)
+    await expect(step.getByText(visibleStates[index]!, { exact: true }).first()).toBeVisible();
     await expect(step.locator("dd")).toHaveText([
       new RegExp(`14\\.10\\.2026, ${berlinTime(p0.escalation[index]!.scheduledAt)}`),
-      new RegExp(`14\\.10\\.2026, ${berlinTime(p0.escalation[index]!.sentAt!)}`),
+      p0.escalation[index]!.sentAt ? new RegExp(`14\\.10\\.2026, ${berlinTime(p0.escalation[index]!.sentAt!)}`) : "—",
       "—",
     ]);
   }
@@ -246,7 +249,9 @@ test("a freshly raised P0 shows the pending channels as 'Geplant' and the channe
   await open(page, "/alerts");
   const items = card(page, "P0", P0_TITLE).getByRole("list", { name: "Eskalation" }).getByRole("listitem");
   await expect(items.nth(0)).toContainText("Dashboard · Gesendet");
-  for (const label of ["Telegram", "WhatsApp", "Telefon"]) await expect(items.filter({ hasText: label })).toContainText("Geplant");
+  for (const label of ["Telegram", "Telefon"]) await expect(items.filter({ hasText: label })).toContainText("Geplant");
+  // WhatsApp is disabled in the seeded notification settings, so the wave-2 eligibility check marks it skipped at raise time.
+  await expect(items.filter({ hasText: "WhatsApp" })).toContainText("Übersprungen");
 
   const channels = page.getByRole("list", { name: "Kanalstatus" });
   for (const label of ["Dashboard", "Telegram", "WhatsApp", "SMS", "Telefon", "E-Mail"]) await expect(channels.getByRole("listitem").filter({ hasText: label })).toHaveCount(1);

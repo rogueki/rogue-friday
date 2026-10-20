@@ -8,6 +8,7 @@ export interface Civil {
   m: number;
   d: number;
 }
+export type WeekStart = "monday" | "sunday";
 
 const pad = (value: number, width = 2): string => String(value).padStart(width, "0");
 
@@ -72,18 +73,19 @@ export function addMonths(civil: Civil, months: number): Civil {
 }
 
 /** 0 = Monday … 6 = Sunday (ISO week). */
-export function weekdayIndex(civil: Civil): number {
-  return (new Date(Date.UTC(civil.y, civil.m - 1, civil.d)).getUTCDay() + 6) % 7;
+export function weekdayIndex(civil: Civil, weekStart: WeekStart = "monday"): number {
+  const sundayBased = new Date(Date.UTC(civil.y, civil.m - 1, civil.d)).getUTCDay();
+  return weekStart === "sunday" ? sundayBased : (sundayBased + 6) % 7;
 }
 
-export const startOfWeek = (civil: Civil): Civil => addDays(civil, -weekdayIndex(civil));
+export const startOfWeek = (civil: Civil, weekStart: WeekStart = "monday"): Civil => addDays(civil, -weekdayIndex(civil, weekStart));
 export const sameDay = (a: Civil, b: Civil): boolean => a.y === b.y && a.m === b.m && a.d === b.d;
 export const compareCivil = (a: Civil, b: Civil): number => civilKey(a).localeCompare(civilKey(b));
 
 /** 42 days (6 weeks, Monday first) that cover the month of `civil`. */
-export function monthGrid(civil: Civil): Civil[] {
+export function monthGrid(civil: Civil, weekStart: WeekStart = "monday"): Civil[] {
   const first = { y: civil.y, m: civil.m, d: 1 };
-  const start = startOfWeek(first);
+  const start = startOfWeek(first, weekStart);
   return Array.from({ length: 42 }, (_, index) => addDays(start, index));
 }
 

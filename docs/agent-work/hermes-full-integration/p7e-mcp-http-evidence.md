@@ -1,0 +1,7 @@
+# P7-E MCP HTTP checkpoint
+
+The installed Hermes pin `d923a5eb487a17c0a68801bba9ef0f56c81040a8` keeps server definitions in `mcp_servers`. Its native [`mcp_config.py`](https://github.com/NousResearch/hermes-agent/blob/d923a5eb487a17c0a68801bba9ef0f56c81040a8/hermes_cli/mcp_config.py) `_save_mcp_server` validates entries and persists them; `_remove_mcp_server` removes them. The Friday bridge calls these functions via a bounded runtime child after pinned-source and revision checks. It never accepts a shell command, environment map or arbitrary config object on this route.
+
+The owner can add, activate or remove a credential-free HTTPS server. Server URL validation rejects IP literals, local hosts, userinfo, query and fragment; existing entries with auth, tools or other keys are preserved and cannot be overwritten through this control. Status reads the complete configured `mcp_servers` map from the profile, exposes transport and an origin-only endpoint, and never reports a successful connection from a persisted write. A new Hermes session or explicit MCP reload is required for an already running agent to consume a change. Native stdio setup, OAuth/token setup and explicit network probing remain separate P7-E work.
+
+Validation: Ubuntu synthetic bridge suite 19/19; native MCP helper 2/2; plugin native helper 2/2; updater closure parity 1/1; contracts generation/check, Control API and web typechecks, focused Vitest 43/43, targeted ESLint. No live Friday profile was changed.

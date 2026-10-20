@@ -63,6 +63,8 @@ describe("DurableMemoryService", () => {
     first.close();
     const restarted = new DurableMemoryService(data, vault);
     expect(restarted.capture(event("channel-off")).accepted).toBe(false);
+    expect(restarted.capture({ ...event("messenger-default-off"), channel: "messenger" }).accepted).toBe(false);
+    expect(restarted.capture({ ...event("unknown-channel"), channel: "unregistered" }).accepted).toBe(false);
     expect(restarted.status().settings).toMatchObject({ privateMode: false, retention: "unlimited",
       channels: { dashboard: false } });
     expect(restarted.search("Projekt", "owner")).toHaveLength(0);

@@ -3,12 +3,19 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setApiClient } from "@/lib/api/client";
+import { StagedWriteConfirmHost } from "@/lib/api/stagedWrite";
 import { capabilitiesOf, renderWithProviders } from "@/test/render";
 import { errorBody, listOf, NOW, routedFetch, single, SOURCE } from "@/features/system/testSupport";
 import { FilesPage } from "./FilesPage";
 import { isSameOriginPath, PreviewContent } from "./FilePreview";
 import { SafeMarkdown } from "./SafeMarkdown";
 import { validateFileName } from "./RenameFileDialog";
+
+/** The staged-write answer of the Control API: 403 APPROVAL_REQUIRED with stage `preview` (P9 slice). */
+const previewRequired = (previewText: string, previewId: string) => new Response(JSON.stringify({
+  error: { code: "APPROVAL_REQUIRED", message: "Datei zuerst mit unveraenderter Vorschau bestaetigen.", severity: "warning",
+    retryable: false, correlationId: previewId, details: { stage: "preview", previewId, previewText } },
+}), { status: 403, headers: { "content-type": "application/json" } });
 
 const push = vi.fn();
 const replace = vi.fn();
@@ -173,25 +180,32 @@ describe("files page", () => {
     expect(screen.getByRole("button", { name: "Herunterladen" })).toBeDisabled();
   });
 
-  it("deletes only after confirmation and surfaces the approval that the server raises", async () => {
+  it("deletes through the staged server preview and surfaces the approval that the adapter raises", async () => {
     params = new URLSearchParams("file=file_01JAAAAAAAAAAAAAAAAAAAAAAA");
     const user = userEvent.setup();
     const approval = { id: "appr_01JAAAAAAAAAAAAAAAAAAAAAAA" };
+    const previewId = "corr_0000000000000000000000fd1";
     const fake = routedFetch(
       filesRoutes([file()], {
-        "DELETE /api/v1/files/file_01JAAAAAAAAAAAAAAAAAAAAAAA": () => new Response(JSON.stringify(single(approval)), { status: 202, headers: { "content-type": "application/json" } }),
+        "DELETE /api/v1/files/file_01JAAAAAAAAAAAAAAAAAAAAAAA": (_url: URL, request: Request) =>
+          request.headers.get("x-action-preview-id") === previewId
+            ? new Response(JSON.stringify(single(approval)), { status: 202, headers: { "content-type": "application/json" } })
+            : previewRequired("Datei „Bericht.md“ endgültig löschen?", previewId),
       }),
     );
-    renderWithProviders(<FilesPage />, { fetchImpl: fake.fetch, capabilities: caps({ delete: true }) });
-    await user.click(await screen.findByRole("button", { name: /Löschen …/ }));
-    const dialog = await screen.findByRole("alertdialog");
-    expect(fake.calls.some((call) => call.method === "DELETE")).toBe(false);
-    expect(within(dialog).getByText(/Freigabe angefordert|Freigabe wird angefordert|eine Freigabe angefordert/)).toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "Löschen anfordern" }));
-    await waitFor(() => expect(fake.calls.some((call) => call.method === "DELETE")).toBe(true));
-    const call = fake.calls.find((entry) => entry.method === "DELETE");
-    expect(call?.headers.get("If-Match")).toBe("3");
-    expect(call?.headers.get("Idempotency-Key")).toBeTruthy();
+    renderWithProviders(<><FilesPage /><StagedWriteConfirmHost /></>, { fetchImpl: fake.fetch, capabilities: caps({ delete: true }) });
+    await user.click(await screen.findByRole("button", { name: /Löschen/ }));
+    await waitFor(() => expect(fake.calls.filter((call) => call.method === "DELETE")).toHaveLength(1));
+    const staged = fake.calls.filter((call) => call.method === "DELETE")[0]!;
+    expect(staged.headers.get("If-Match")).toBe("3");
+    expect(staged.headers.get("x-action-preview-id")).toBeNull();
+    // The staged server preview is the binding confirmation (no inline delete dialog anymore).
+    const confirm = await screen.findByRole("alertdialog");
+    expect(within(confirm).getByText("Datei „Bericht.md“ endgültig löschen?")).toBeInTheDocument();
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(fake.calls.filter((call) => call.method === "DELETE")).toHaveLength(2));
+    const executed = fake.calls.filter((call) => call.method === "DELETE")[1]!;
+    expect(executed.headers.get("x-action-preview-id")).toBe(previewId);
     expect(await screen.findByText("Freigabe angefordert")).toBeInTheDocument();
   });
 
@@ -250,19 +264,20 @@ describe("rename (PLAN §37.3)", () => {
     expect(button).toHaveAttribute("title", "Nicht verfügbar: Capability files.rename fehlt.");
   });
 
-  it("renames with If-Match, refuses unchanged, invalid and duplicate names before any request, and confirms", async () => {
+  it("renames with If-Match through the staged preview, refuses unchanged, invalid and duplicate names before any request", async () => {
     params = new URLSearchParams(`file=${ID}`);
     const user = userEvent.setup();
+    const previewId = "corr_0000000000000000000000rn1";
     const other = file({ id: "file_01JBBBBBBBBBBBBBBBBBBBBBBB", name: "Angebot.md" });
     const fake = routedFetch(
       filesRoutes([file(), other], {
-        [`PATCH /api/v1/files/${ID}`]: (_url: URL, request: Request) => {
-          void request;
-          return single(file({ name: "Bericht final.md", version: 4 }));
-        },
+        [`PATCH /api/v1/files/${ID}`]: (_url: URL, request: Request) =>
+          request.headers.get("x-action-preview-id") === previewId
+            ? single(file({ name: "Bericht final.md", version: 4 }))
+            : previewRequired("Datei „Bericht.md“ in „Bericht final.md“ umbenennen?", previewId),
       }),
     );
-    renderWithProviders(<FilesPage />, { fetchImpl: fake.fetch, capabilities: caps({ rename: true }) });
+    renderWithProviders(<><FilesPage /><StagedWriteConfirmHost /></>, { fetchImpl: fake.fetch, capabilities: caps({ rename: true }) });
     await user.click(await screen.findByRole("button", { name: "Umbenennen …" }));
     const dialog = await screen.findByRole("dialog", { name: /umbenennen/ });
     const field = within(dialog).getByRole("textbox", { name: "Neuer Name" });
@@ -286,11 +301,20 @@ describe("rename (PLAN §37.3)", () => {
     await user.type(field, "Bericht final.md");
     expect(confirm).toBeEnabled();
     await user.click(confirm);
-    await waitFor(() => expect(fake.calls.some((call) => call.method === "PATCH")).toBe(true));
-    const call = fake.calls.find((entry) => entry.method === "PATCH");
-    expect(call?.headers.get("If-Match")).toBe("3");
-    expect(JSON.parse(call?.body ?? "{}")).toEqual({ name: "Bericht final.md" });
-    expect(await screen.findByText("Umbenannt in „Bericht final.md“")).toBeInTheDocument();
+    await waitFor(() => expect(fake.calls.filter((call) => call.method === "PATCH")).toHaveLength(1));
+    const staged = fake.calls.filter((call) => call.method === "PATCH")[0]!;
+    expect(staged.headers.get("If-Match")).toBe("3");
+    expect(staged.headers.get("x-action-preview-id")).toBeNull();
+    expect(JSON.parse(String(staged.body ?? "{}"))).toEqual({ name: "Bericht final.md" });
+    // The staged server preview is the binding confirmation; the repeat must be unchanged.
+    const shellConfirm = await screen.findByRole("alertdialog");
+    expect(within(shellConfirm).getByText("Datei „Bericht.md“ in „Bericht final.md“ umbenennen?")).toBeInTheDocument();
+    await user.click(within(shellConfirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(fake.calls.filter((call) => call.method === "PATCH")).toHaveLength(2));
+    const executed = fake.calls.filter((call) => call.method === "PATCH")[1]!;
+    expect(executed.headers.get("x-action-preview-id")).toBe(previewId);
+    expect(executed.headers.get("If-Match")).toBe("3");
+    expect(executed.body).toEqual(staged.body);    expect(await screen.findByText("Umbenannt in „Bericht final.md“")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("dialog", { name: /umbenennen/ })).toBeNull());
   });
 
@@ -298,14 +322,15 @@ describe("rename (PLAN §37.3)", () => {
     params = new URLSearchParams(`file=${ID}`);
     const user = userEvent.setup();
     const fake = routedFetch(filesRoutes([file()], { [`PATCH /api/v1/files/${ID}`]: () => errorBody("VALIDATION_FAILED", "Der Dateiname ist ungültig.", 422) }));
-    renderWithProviders(<FilesPage />, { fetchImpl: fake.fetch, capabilities: caps({ rename: true }) });
+    renderWithProviders(<><FilesPage /><StagedWriteConfirmHost /></>, { fetchImpl: fake.fetch, capabilities: caps({ rename: true }) });
     await user.click(await screen.findByRole("button", { name: "Umbenennen …" }));
     const dialog = await screen.findByRole("dialog", { name: /umbenennen/ });
     const field = within(dialog).getByRole("textbox", { name: "Neuer Name" });
     await user.clear(field);
     await user.type(field, "Neu.md");
     await user.click(within(dialog).getByRole("button", { name: "Umbenennen" }));
-    expect(await within(dialog).findByText("Der Dateiname ist ungültig.")).toBeInTheDocument();
+    // The failure is toasted by the staged-write runner; the rename dialog stays open.
+    expect(await screen.findByText(/Der Dateiname ist ungültig\./)).toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: /umbenennen/ })).toBeInTheDocument();
   });
 });

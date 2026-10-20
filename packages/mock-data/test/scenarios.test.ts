@@ -157,13 +157,20 @@ describe("scenario details", () => {
     expect(alert?.escalation.map((step) => [step.channel, step.state])).toEqual([
       ["dashboard", "sent"],
       ["telegram", "pending"],
-      ["whatsapp", "pending"],
+      ["whatsapp", "skipped"],
       ["phone", "pending"],
     ]);
     world.clock.advance(85_000);
     const done = world.state.notifications.find((notification) => notification.id === alert?.id);
-    expect(done?.escalation.every((step) => step.state === "sent" && step.sentAt)).toBe(true);
-    const times = done?.escalation.map((step) => Date.parse(step.sentAt as string)) ?? [];
+    expect(done?.escalation.map((step) => [step.channel, step.state])).toEqual([
+      ["dashboard", "sent"],
+      ["telegram", "awaiting_approval"],
+      ["whatsapp", "skipped"],
+      ["phone", "awaiting_approval"],
+    ]);
+    expect(done?.escalation[0]?.sentAt).toBeTruthy();
+    expect(done?.escalation.filter((step) => step.state === "awaiting_approval").every((step) => step.sentAt === null)).toBe(true);
+    const times = done?.escalation.map((step) => Date.parse(step.scheduledAt)) ?? [];
     expect([...times].sort((a, b) => a - b)).toEqual(times);
     expect(world.orbSnapshot().status.mode).toBe("error");
     expect(world.tasks.list().items.length).toBeGreaterThan(0);
@@ -175,7 +182,7 @@ describe("scenario details", () => {
     engine.play("critical-alert", { speed: 4 });
     world.clock.advance(21_000);
     const alert = world.state.notifications.find((notification) => notification.priority === "P0");
-    expect(alert?.escalation.every((step) => step.state === "sent")).toBe(true);
+    expect(alert?.escalation.map((step) => step.state)).toEqual(["sent", "awaiting_approval", "skipped", "awaiting_approval"]);
   });
 
   it("partial-outage: mail offline, tasks online, overview degraded but usable", () => {

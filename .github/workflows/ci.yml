@@ -51,12 +51,26 @@ jobs:
             installer/voice/tests/test_headless_compat.py \
             installer/voice/tests/test_voice_runtime_paths.py \
             installer/voice/tests/test_update_dependency_closure.py \
+            installer/wsl/test_update_wsl_dependency_closure.py \
             installer/wsl/test_friday_memory_plugin.py \
             installer/wsl/test_mail_accounts.py \
             installer/wsl/test_calendar_accounts.py \
             installer/wsl/test_send_himalaya.py \
             installer/wsl/test_messaging_runtime.py \
             installer/wsl/test_messaging_pairing.py \
+            installer/wsl/test_messaging_send.py \
+            installer/wsl/test_messaging_catalog.py \
+            installer/wsl/test_configure_messaging_provider.py \
+            installer/wsl/test_hermes_config_bridge.py \
+            installer/wsl/test_hermes_model_credential_apply.py \
+            installer/wsl/test_hermes_model_catalog.py \
+            installer/wsl/test_hermes_plugin_activation.py \
+            installer/wsl/test_hermes_mcp_http_apply.py \
+            installer/wsl/test_configure_messenger_inbound_bridge.py \
+            installer/wsl/test_messenger_inbound_plugin.py \
+            installer/wsl/test_system_backup.py \
+            scripts/test_wsl_system_restore.py \
+            scripts/test_wsl_recovery_bridge_health.py \
             installer/wsl/tests/test_mail_bridge_setup.py \
             installer/wsl/tests/test_calendar_bridge_setup.py
 

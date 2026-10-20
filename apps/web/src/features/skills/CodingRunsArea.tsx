@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
+import { useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 
 const cliNames = { codex: "Codex", opencode: "OpenCode", "claude-code": "Claude Code" } as const;
 type Cli = keyof typeof cliNames;
@@ -21,6 +22,8 @@ export function CodingRunsArea({ skills }: { skills: SkillCatalogEntry[] }) {
   const [started, setStarted] = useState<CodingRun | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const runStagedWrite = useRunStagedWrite();
+  const stagedBusy = useStagedWriteBusy();
   useEffect(() => {
     const stored = window.localStorage.getItem("friday.nativeCodingRunId");
     if (stored && /^run_[a-f0-9]{32}$/.test(stored)) setRunId(stored);
@@ -50,12 +53,22 @@ export function CodingRunsArea({ skills }: { skills: SkillCatalogEntry[] }) {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Coding-Auftrag konnte nicht gestartet werden."); }
     finally { setBusy(false); }
   }
+  /**
+   * Stopping a run is a staged tier-2 write (P9 agent slice): the first call only stages the exact action, the shell
+   * confirm dialog repeats it with `X-Action-Preview-Id`, and only that confirmed call reaches the runner once.
+   */
   async function stop() {
     if (!runId) return;
-    setBusy(true); setError(null);
-    try { await call(getApiClient().POST("/api/v1/coding-runs/{runId}/stop", { params: { path: { runId } } })); await status.refetch(); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Run konnte nicht gestoppt werden."); }
-    finally { setBusy(false); }
+    setError(null);
+    await runStagedWrite({
+      send: (previewId) => call(getApiClient().POST("/api/v1/coding-runs/{runId}/stop", {
+        params: { path: { runId } },
+        ...(previewId ? { headers: { "X-Action-Preview-Id": previewId } } : {}),
+      })),
+      successMessage: "Coding-Lauf wurde abgebrochen.",
+      subject: `Run ${runId}`,
+      invalidateKeys: [["coding-run", runId]],
+    });
   }
   async function saveVoiceProject() {
     if (!voiceProject.data) return;
@@ -96,7 +109,7 @@ export function CodingRunsArea({ skills }: { skills: SkillCatalogEntry[] }) {
     {error && <p role="alert" className="sk-warning">{error}</p>}
     {runId && <div className="sk-coding__status" role="status"><strong>Run {runId}</strong> · {status.isError ? "Status derzeit nicht verfügbar" : active?.status ?? "Status wird geladen"} · Gewählte CLI: {active?.requestedCli ?? "unbekannt"} · CLI-Prozess: {active?.executionVerified ? "im gewählten Repository gestartet" : "noch nicht bestätigt"}
       {active?.output && <pre>{active.output}</pre>}{active?.error && <p className="sk-warning">{active.error}</p>}
-      {active && !terminal.has(active.status) && <button type="button" disabled={busy} onClick={() => void stop()}>Run stoppen</button>}
+      {active && !terminal.has(active.status) && <button type="button" disabled={busy || stagedBusy} onClick={() => void stop()}>Run stoppen</button>}
     </div>}
   </section>;
 }

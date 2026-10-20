@@ -80,7 +80,8 @@ export function createRequestGuards(runtime: Runtime): RequestGuards {
       } catch {
         return false;
       }
-      if (parsed.host.toLowerCase() === String(headers.host ?? "").toLowerCase()) return true;
+      const ownProtocol = config.auth.secureCookies ? "https:" : "http:";
+      if (parsed.protocol === ownProtocol && parsed.host.toLowerCase() === String(headers.host ?? "").toLowerCase()) return true;
       return trustedOrigins().has(parsed.origin);
     },
   };

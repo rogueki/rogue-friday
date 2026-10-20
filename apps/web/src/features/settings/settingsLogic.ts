@@ -18,6 +18,7 @@ export const SETTINGS_AREAS = [
   "skillAccounts",
   "contentStudioKeys",
   "modelsRouting",
+  "hermesConfig",
   "voice",
   "notifications",
   "security",

@@ -76,10 +76,10 @@ export function DurableMemoryPanel() {
         <Switch label="Standard-Gedächtnis aktiv" checked={settings.enabled} onCheckedChange={(enabled) => changeSettings({ enabled })} />
         <Switch label="Privater Modus" description="Neue Ereignisse nicht speichern" checked={settings.privateMode} onCheckedChange={(privateMode) => changeSettings({ privateMode })} />
       </div>
-      <p className="mem-durable__note">Erfasste Kanäle: Dashboard-Befehle und Antworten; Stimme bei lokaler Voice-Verbindung; eigenständige Hermes-CLI mit installiertem Plugin. Messenger-Verknüpfung ist derzeit nicht aktiv.</p>
+      <p className="mem-durable__note">Messenger-Erfassung ist standardmäßig aus. Sie benötigt den lokalen Gateway-Hook, eine Owner-Verknüpfung für die genaue Absender-ID und eine private Direktnachricht.</p>
       <div className="mem-durable__switches">
-        {(["dashboard", "voice", "hermes"] as const).map((channel) => <Switch key={channel}
-          label={channel === "dashboard" ? "Dashboard" : channel === "voice" ? "Stimme" : "Hermes-CLI"}
+        {(["dashboard", "voice", "hermes", "messenger"] as const).map((channel) => <Switch key={channel}
+          label={channel === "dashboard" ? "Dashboard" : channel === "voice" ? "Stimme" : channel === "hermes" ? "Hermes-CLI" : "Messenger"}
           checked={settings.channels[channel]} onCheckedChange={(enabled) =>
             changeSettings({ channels: { ...settings.channels, [channel]: enabled } })} />)}
       </div>

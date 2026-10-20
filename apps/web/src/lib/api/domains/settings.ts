@@ -17,6 +17,9 @@ import type {
   ThemeImportRequest,
   ThemeListResponse,
   ThemeResponse,
+  HermesConfigPatch,
+  HermesConfigStatusResponse,
+  HermesModelCatalogResponse,
 } from "@friday/sdk";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { call } from "../call";
@@ -55,6 +58,29 @@ export const settingsQueries = {
 export const useSettings = (enabled = true) => useQuery({ ...settingsQueries.root(), enabled });
 export const useLayouts = (enabled = true) => useQuery({ ...settingsQueries.layouts(), enabled });
 export const useThemes = (enabled = true) => useQuery({ ...settingsQueries.themes(), enabled });
+export const useHermesConfig = (enabled = true) => useQuery({
+  queryKey: ["settings", "hermes-config"],
+  queryFn: (): Promise<HermesConfigStatusResponse> => call(getApiClient().GET("/api/v1/settings/hermes-config")),
+  enabled,
+  staleTime: 15000,
+});
+
+export const useHermesModelCatalog = (providerId?: string, enabled = true) => useQuery({
+  queryKey: ["hermes-model-catalog", providerId ?? null],
+  queryFn: (): Promise<HermesModelCatalogResponse> => call(getApiClient().GET(
+    "/api/v1/settings/hermes-model-catalog", { params: { query: providerId ? { providerId } : {} } })),
+  enabled,
+  staleTime: 0,
+});
+export function usePatchHermesConfig() {
+  return useApiMutation<HermesConfigStatusResponse, { revision: number; patch: HermesConfigPatch } & IntentVars>({
+    label: "Hermes-Konfiguration speichern",
+    mutationFn: ({ revision, patch }) => call(getApiClient().PATCH("/api/v1/settings/hermes-config", {
+      params: { header: { "If-Match": String(revision) } }, body: patch,
+    })),
+    invalidate: [["settings", "hermes-config"]],
+  });
+}
 /** Adapter configuration (GET /settings/adapters is owner-only, so callers pass `enabled`). Secrets arrive masked only. */
 export const useAdapterSettings = (enabled = true) => useQuery({ ...settingsQueries.adapters(), enabled });
 
@@ -72,7 +98,12 @@ export function useUpdateSettings() {
         ...old,
         data: { ...old.data, ...(patch as Partial<Settings>) },
       })),
-    invalidate: [queryKeys.settings.root, ["context-weather"], ["voice", "integration-status"]],
+    invalidate: (_data, { patch }) => [
+      queryKeys.settings.root,
+      ["context-weather"],
+      ["voice", "integration-status"],
+      ...(patch.developer ? [queryKeys.meta] : []),
+    ],
     conflictKeys: [queryKeys.settings.root],
   });
 }

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dataOf, listOf, makeAgentWith, makeEvent, makeTaskWith, routerFetch } from "@/features/tasks/testkit";
 import { setApiClient } from "@/lib/api/client";
+import { StagedWriteConfirmHost } from "@/lib/api/stagedWrite";
 import { capabilitiesOf, renderWithProviders } from "@/test/render";
 import { AgentsPage } from "./AgentsPage";
 import { displayConfiguration, heartbeatDelayed, successPercent } from "./model";
@@ -13,6 +14,16 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/agents",
   useSearchParams: () => nav.params,
 }));
+
+/** The staged-write answer of the Control API: 403 APPROVAL_REQUIRED with stage `preview` (P9 slice). */
+const previewRequired = (previewText: string, previewId: string) => ({
+  status: 403,
+  body: { error: { code: "APPROVAL_REQUIRED", message: "Diese Aktion muss zuerst bestätigt werden.", severity: "warning", retryable: false, correlationId: previewId, details: { stage: "preview", previewId, previewText } } },
+});
+
+/** Staged route helper: the first call is only staged, the repeat with `X-Action-Preview-Id` executes. */
+const stagedRoute = (previewText: string, previewId: string, done: () => unknown) => (request: Request): unknown =>
+  request.headers.get("x-action-preview-id") === previewId ? done() : previewRequired(previewText, previewId);
 
 const FULL = capabilitiesOf({
   agents: { read: true, pause: true, resume: true, stop: true, assignTask: true },
@@ -183,30 +194,45 @@ describe("AgentDrawer", () => {
     expect(within(dialog).getByRole("button", { name: /Aktivität öffnen/ })).toBeDisabled();
   });
 
-  it("pauses an agent and stops it only after a confirmation", async () => {
+  it("pauses an agent and stops it only after the staged confirmations", async () => {
     const api = routes({
-      "POST /agents/:id/pause": () => dataOf({ ...agent, status: "paused" }),
-      "POST /agents/:id/stop": () => dataOf({ ...agent, status: "offline" }),
+      "POST /agents/:id/pause": stagedRoute("Agent „Recherche-Agent“ pausieren?", "corr_0000000000000000000000ag1",
+        () => dataOf({ ...agent, status: "paused" })),
+      "POST /agents/:id/stop": stagedRoute("Agent „Recherche-Agent“ stoppen? Laufende Arbeit wird beendet, Verlauf bleibt erhalten.",
+        "corr_0000000000000000000000ag2", () => dataOf({ ...agent, status: "offline" })),
     });
     const user = userEvent.setup();
-    renderWithProviders(<AgentsPage />, { capabilities: FULL, fetchImpl: api.fetch });
+    renderWithProviders(<><AgentsPage /><StagedWriteConfirmHost /></>, { capabilities: FULL, fetchImpl: api.fetch });
     const dialog = await screen.findByRole("dialog");
     await user.click(await within(dialog).findByRole("button", { name: /Pausieren/ }));
     await waitFor(() => expect(api.callsTo("POST /agents/:id/pause")).toHaveLength(1));
-    expect(api.callsTo("POST /agents/:id/pause")[0]?.headers.get("idempotency-key")).toMatch(/^idem_/);
+    expect(api.callsTo("POST /agents/:id/pause")[0]?.headers.get("x-action-preview-id")).toBeNull();
+    // The staged preview confirmation of the server binds the exact action before anything executes.
+    const preview = await screen.findByRole("alertdialog");
+    expect(within(preview).getByText("Agent „Recherche-Agent“ pausieren?")).toBeInTheDocument();
+    await user.click(within(preview).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(api.callsTo("POST /agents/:id/pause")).toHaveLength(2));
+    expect(api.callsTo("POST /agents/:id/pause")[1]?.headers.get("x-action-preview-id")).toBe("corr_0000000000000000000000ag1");
 
     await user.click(within(dialog).getByRole("button", { name: /Stoppen/ }));
-    const confirm = await screen.findByRole("alertdialog");
-    expect(within(confirm).getByText("Agent stoppen?")).toBeInTheDocument();
+    const stopCheck = await screen.findByRole("alertdialog");
+    expect(within(stopCheck).getByText("Agent stoppen?")).toBeInTheDocument();
     expect(api.callsTo("POST /agents/:id/stop")).toHaveLength(0);
-    await user.click(within(confirm).getByRole("button", { name: "Agent stoppen" }));
+    await user.click(within(stopCheck).getByRole("button", { name: "Agent stoppen" }));
     await waitFor(() => expect(api.callsTo("POST /agents/:id/stop")).toHaveLength(1));
+    const stopPreview = await screen.findByRole("alertdialog");
+    await user.click(within(stopPreview).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(api.callsTo("POST /agents/:id/stop")).toHaveLength(2));
+    expect(api.callsTo("POST /agents/:id/stop")[1]?.headers.get("x-action-preview-id")).toBe("corr_0000000000000000000000ag2");
   });
 
-  it("assigns an open task to the agent (POST /tasks/{id}/assign with If-Match)", async () => {
-    const api = routes({ "POST /tasks/:id/assign": () => dataOf({ ...open, agentId: agent.id, version: 2 }) });
+  it("assigns an open task through the staged POST /tasks/{id}/assign", async () => {
+    const api = routes({
+      "POST /tasks/:id/assign": stagedRoute("Aufgabe „Offene Aufgabe“ an Recherche-Agent zuweisen?", "corr_0000000000000000000000ag3",
+        () => dataOf({ ...open, agentId: agent.id, version: 2 })),
+    });
     const user = userEvent.setup();
-    renderWithProviders(<AgentsPage />, { capabilities: FULL, fetchImpl: api.fetch });
+    renderWithProviders(<><AgentsPage /><StagedWriteConfirmHost /></>, { capabilities: FULL, fetchImpl: api.fetch });
     const dialog = await screen.findByRole("dialog");
     await user.click(await within(dialog).findByRole("button", { name: /Aufgabe zuweisen/ }));
     const assign = await screen.findByRole("dialog", { name: "Aufgabe zuweisen" });
@@ -215,10 +241,15 @@ describe("AgentDrawer", () => {
     await user.selectOptions(await within(assign).findByRole("combobox", { name: "Aufgabe" }), open.id);
     await user.click(confirm);
     await waitFor(() => expect(api.callsTo("POST /tasks/:id/assign")).toHaveLength(1));
-    const call = api.callsTo("POST /tasks/:id/assign")[0]!;
-    expect(call.body).toEqual({ agentId: agent.id });
-    expect(call.headers.get("if-match")).toBe("1");
+    const staged = api.callsTo("POST /tasks/:id/assign")[0]!;
+    expect(staged.body).toEqual({ agentId: agent.id });
+    expect(staged.headers.get("if-match")).toBe("1");
+    expect(staged.headers.get("x-action-preview-id")).toBeNull();
     expect(api.callsTo("PATCH /tasks/:id")).toHaveLength(0);
+    const preview = await screen.findByRole("alertdialog");
+    await user.click(within(preview).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(api.callsTo("POST /tasks/:id/assign")).toHaveLength(2));
+    expect(api.callsTo("POST /tasks/:id/assign")[1]?.headers.get("x-action-preview-id")).toBe("corr_0000000000000000000000ag3");
   });
 
   it("opens the activity filtered to the agent", async () => {

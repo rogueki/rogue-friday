@@ -236,7 +236,7 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
 
 export function createWorld(
   config: FridayConfig,
-  options: { realTime: boolean; seed?: number; profile?: string; nextSequence?: (floor: number) => number; assistantName?: () => string },
+  options: { realTime: boolean; seed?: number; profile?: string; nextSequence?: (floor: number) => number; assistantName?: () => string; notifications?: { list(): import("@friday/sdk").Notification[]; save(notification: import("@friday/sdk").Notification, pendingDispatch?: boolean): void } },
 ): MockWorld | undefined {
   if (config.dataMode === "live") return undefined;
   return new MockWorld({
@@ -246,6 +246,7 @@ export function createWorld(
     profile: (options.profile ?? (config.dataMode === "hybrid" ? "empty" : "default")) as never,
     ...(options.nextSequence ? { nextSequence: options.nextSequence } : {}),
     ...(options.assistantName ? { assistantName: options.assistantName } : {}),
+    ...(config.dataMode === "hybrid" && options.notifications ? { notifications: options.notifications } : {}),
     realTime: options.realTime,
   });
 }

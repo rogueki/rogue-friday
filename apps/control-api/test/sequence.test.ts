@@ -2,6 +2,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startTestApi, type ApiClient, type TestApi } from "./helpers";
 import { WsProbe } from "./support/ws";
+import { createApprovedTask } from "./support/task-actions";
+import { confirmedHeaders, stageKnowledgeWrite } from "./support/knowledge-actions";
 
 /** In mock mode the world numbers its events with the hub's global sequence (one counter for REST backfill and stream). */
 describe("hub sequence = activity sequence (mock mode)", () => {
@@ -14,6 +16,10 @@ describe("hub sequence = activity sequence (mock mode)", () => {
     owner = api.client();
     await owner.loginDev("owner");
     probe = await WsProbe.connect(api, owner);
+    // Staged knowledge writes execute directly after confirmation in these sequence tests.
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(settings.version) } });
   });
   afterAll(async () => {
     probe.close();
@@ -27,15 +33,16 @@ describe("hub sequence = activity sequence (mock mode)", () => {
     const maxSeeded = Math.max(...seeded.map((item) => item.sequence as number));
     expect(api.runtime.hub.latestSequence).toBeGreaterThanOrEqual(maxSeeded);
     const before = api.runtime.hub.latestSequence;
-    await owner.post("/api/v1/tasks", { title: "Sequenz prüfen" });
+    await createApprovedTask(owner, { title: "Sequenz prüfen" });
     await probe.waitFor(() => activityEnvelopes().length > 0, 3_000, "activity.appended");
     expect(activityEnvelopes()[0].sequence).toBeGreaterThan(before);
     expect(activityEnvelopes()[0].sequence).toBeGreaterThan(maxSeeded);
   });
 
   it("gives the envelope of friday.activity.appended the sequence of its ActivityEvent", async () => {
-    await owner.post("/api/v1/tasks", { title: "Zweite Aufgabe" });
-    await owner.post("/api/v1/memory", { type: "fact", content: "Sequenz-Gleichheit" });
+    await createApprovedTask(owner, { title: "Zweite Aufgabe" });
+    const memoryPreview = await stageKnowledgeWrite(owner, "POST", "/api/v1/memory", { type: "fact", content: "Sequenz-Gleichheit" });
+    await owner.post("/api/v1/memory", { type: "fact", content: "Sequenz-Gleichheit" }, { headers: confirmedHeaders(memoryPreview) });
     await probe.waitFor(() => activityEnvelopes().length >= 3, 3_000, "mehrere activity.appended");
     const envelopes = activityEnvelopes();
     expect(envelopes.length).toBeGreaterThanOrEqual(3);
@@ -52,8 +59,8 @@ describe("hub sequence = activity sequence (mock mode)", () => {
   it("backfills missed events with listActivity?sinceSequence= using the stream's numbers", async () => {
     const cursor = api.runtime.hub.latestSequence;
     probe.frames.length = 0;
-    await owner.post("/api/v1/tasks", { title: "Backfill A" });
-    await owner.post("/api/v1/tasks", { title: "Backfill B" });
+    await createApprovedTask(owner, { title: "Backfill A" });
+    await createApprovedTask(owner, { title: "Backfill B" });
     const head = api.runtime.hub.latestSequence;
     await probe.waitFor(() => probe.events().some((event) => event.sequence === head), 3_000, "Strom hat den Kopf der Sequenz erreicht");
     expect(activityEnvelopes().filter((envelope) => envelope.sequence > cursor).length).toBeGreaterThanOrEqual(2);
@@ -77,7 +84,7 @@ describe("hub sequence = activity sequence (mock mode)", () => {
 
   it("stays contiguous on the stream (no gaps caused by the world's own numbering)", async () => {
     probe.frames.length = 0;
-    await owner.post("/api/v1/tasks", { title: "Lückenlos" });
+    await createApprovedTask(owner, { title: "Lückenlos" });
     await probe.waitFor(() => probe.events().length >= 2, 3_000, "Ereignisse");
     const sequences = probe.events().map((event) => event.sequence as number);
     for (let index = 1; index < sequences.length; index += 1) expect(sequences[index]).toBe((sequences[index - 1] as number) + 1);
@@ -87,7 +94,7 @@ describe("hub sequence = activity sequence (mock mode)", () => {
     await owner.post("/api/v1/dev/scenarios/control", { action: "reset" });
     const before = api.runtime.hub.latestSequence;
     probe.frames.length = 0;
-    await owner.post("/api/v1/tasks", { title: "Nach Reset" });
+    await createApprovedTask(owner, { title: "Nach Reset" });
     await probe.waitFor(() => activityEnvelopes().length > 0, 3_000, "activity.appended nach Reset");
     const envelope = activityEnvelopes()[0];
     expect(envelope.sequence).toBeGreaterThan(before);

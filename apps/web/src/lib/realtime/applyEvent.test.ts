@@ -49,6 +49,7 @@ beforeEach(() => {
 afterEach(() => {
   cancelScheduledRefresh(client);
   vi.useRealTimers();
+  vi.unstubAllGlobals();
   client.clear();
 });
 
@@ -158,6 +159,32 @@ describe("applyEvent: activity, orb, approvals, notifications", () => {
     expect(overviewData().counters.alerts).toBe(1);
     applyEvent(client, envelope("friday.notification.updated", { ...alert, version: 2, status: "resolved" }));
     expect(overviewData().counters.alerts).toBe(0);
+  });
+
+  it("plays opt-in sounds for new approvals and open alerts only once per event", async () => {
+    const instances: Array<{ frequency: { setValueAtTime: ReturnType<typeof vi.fn> } }> = [];
+    class FakeAudioContext {
+      currentTime = 0;
+      destination = {};
+      createOscillator() {
+        const oscillator = { type: "", frequency: { setValueAtTime: vi.fn() }, connect: vi.fn(), start: vi.fn(), stop: vi.fn(), onended: null as (() => void) | null };
+        instances.push(oscillator);
+        return oscillator;
+      }
+      createGain() { return { gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn() }; }
+      resume() { return Promise.resolve(); }
+      close() { return Promise.resolve(); }
+    }
+    vi.stubGlobal("AudioContext", FakeAudioContext);
+    client.setQueryData(queryKeys.settings.root, { data: { dashboard: { soundEffects: true } } } as never);
+    const approval = envelope("friday.approval.requested", { id: "appr_sound", version: 1, status: "pending" }, 50);
+    applyEvent(client, approval);
+    applyEvent(client, approval);
+    const alert = envelope("friday.notification.created", { id: "ntf_sound", version: 1, status: "open", priority: "P2" }, 51);
+    applyEvent(client, alert);
+    expect(instances).toHaveLength(2);
+    expect(instances[0]?.frequency.setValueAtTime).toHaveBeenCalledWith(520, 0);
+    expect(instances[1]?.frequency.setValueAtTime).toHaveBeenCalledWith(740, 0);
   });
 });
 

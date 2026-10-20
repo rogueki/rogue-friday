@@ -112,6 +112,7 @@ export interface FakeApiOptions {
   role?: Role;
   settings?: Settings;
   devScenarios?: boolean;
+  scenarioControls?: boolean;
   /** PATCH /settings answers 409 once (stale If-Match). */
   conflictOnce?: boolean;
   /** Extra route handler, consulted first; return undefined to fall through. */
@@ -154,7 +155,7 @@ export function createFakeApi(options: FakeApiOptions = {}) {
       return single({ authenticated: true, user: { id: "usr_01JAAAAAAAAAAAAAAAAAAAAAAA", username: "erik", displayName: "Erik Brandt", role }, role, csrfToken: "csrf", expiresAt: "2026-10-14T18:00:00Z", reauthUntil: null });
     }
     if (method === "GET" && path === "/meta") {
-      return jsonResponse({ contractVersion: "2.0.0", apiVersion: "v1", dataMode: "mock", eventsPath: "/api/v1/events", buildVersion: "test", features: { devScenarios: options.devScenarios ?? true }, defaultLocale: "de" });
+      return jsonResponse({ contractVersion: "2.0.0", apiVersion: "v1", dataMode: "mock", eventsPath: "/api/v1/events", buildVersion: "test", features: { devScenarios: options.devScenarios ?? true, scenarioControls: options.scenarioControls ?? true }, defaultLocale: "de" });
     }
     if (method === "GET" && path === "/settings") return single(state.settings);
     if (method === "PATCH" && path === "/settings") {

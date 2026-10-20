@@ -28,6 +28,13 @@ describe("contract gaps: authorization and enforcement", () => {
   const list = async (path: string, query: Record<string, string | string[]> = {}): Promise<any[]> => (await owner.get(path, { query: { limit: "100", ...query } })).json().items;
   /** Entries of the control plane's hash-chained audit log (newest first), not the mock audit adapter behind GET /audit/events. */
   const auditOf = (action: string): any[] => api.runtime.stores.audit.recent(500).filter((entry) => entry.action === action);
+  /** The staged knowledge writes execute directly after confirmation while tier-2 approvals stay tested in the native suites. */
+  const disableTier2 = async (): Promise<void> => {
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    expect((await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
+  };
+  const confirm = (previewId: string) => ({ headers: { "x-action-preview-id": previewId } });
 
   describe("roles and CSRF", () => {
     const FILE = "file_00000000000000000000000000";
@@ -63,9 +70,14 @@ describe("contract gaps: authorization and enforcement", () => {
   });
 
   describe("files: rename", () => {
-    it("renames with If-Match, audits old and new name and answers 409 for a stale version", async () => {
+    it("renames with If-Match through the staged preview, audits old and new name and answers 409 for a stale version", async () => {
+      await disableTier2();
       const file = (await list("/api/v1/files")).find((candidate) => candidate.category === "reports");
-      const renamed = await owner.patch(`/api/v1/files/${file.id}`, { name: "Quartalsbericht final.md" }, { headers: { "if-match": String(file.version) } });
+      const staged = await owner.patch(`/api/v1/files/${file.id}`, { name: "Quartalsbericht final.md" }, { headers: { "if-match": String(file.version) } });
+      expect(staged.statusCode, staged.body).toBe(403);
+      expect(errorOf(staged).details.stage).toBe("preview");
+      const renamed = await owner.patch(`/api/v1/files/${file.id}`, { name: "Quartalsbericht final.md" },
+        { headers: { "if-match": String(file.version), ...confirm(staged.json().error.details.previewId).headers } });
       expect(renamed.statusCode, renamed.body).toBe(200);
       expect(renamed.json().data).toMatchObject({ name: "Quartalsbericht final.md", version: file.version + 1 });
       const audit = auditOf("file.renamed")[0];
@@ -175,8 +187,11 @@ describe("contract gaps: authorization and enforcement", () => {
 
     it("masks secrets that slipped into a memory text", async () => {
       const secret = "sk-abcdefghijklmnopqrstuvwxyz0123456789";
-      const created = await owner.post("/api/v1/memory", { type: "fact", content: `Der Schlüssel lautet ${secret}.`, tags: ["test"] });
-      expect(created.statusCode).toBe(201);
+      const staged = await owner.post("/api/v1/memory", { type: "fact", content: `Der Schlüssel lautet ${secret}.`, tags: ["test"] });
+      expect(staged.statusCode, staged.body).toBe(403);
+      const created = await owner.post("/api/v1/memory", { type: "fact", content: `Der Schlüssel lautet ${secret}.`, tags: ["test"] },
+        confirm(staged.json().error.details.previewId));
+      expect(created.statusCode, created.body).toBe(201);
       const exported = (await owner.get("/api/v1/memory/export")).body;
       expect(exported).not.toContain(secret);
       expect(exported).toContain("[REDACTED]");
@@ -187,7 +202,11 @@ describe("contract gaps: authorization and enforcement", () => {
       const memory = memories.find((candidate) => candidate.conflicts.some((entry: any) => entry.resolution === "pending"));
       const conflictId = memory.conflicts.find((entry: any) => entry.resolution === "pending").memoryId as string;
       const path = `/api/v1/memory/${memory.id}/conflicts/${conflictId}/resolve`;
-      const resolved = await owner.post(path, { resolution: "replace", note: "Rahmenvertrag gilt." });
+      const staged = await owner.post(path, { resolution: "replace", note: "Rahmenvertrag gilt." });
+      expect(staged.statusCode, staged.body).toBe(403);
+      expect(errorOf(staged).details.stage).toBe("preview");
+      const resolved = await owner.post(path, { resolution: "replace", note: "Rahmenvertrag gilt." },
+        confirm(staged.json().error.details.previewId));
       expect(resolved.statusCode, resolved.body).toBe(200);
       expect(resolved.json().data.conflicts.find((entry: any) => entry.memoryId === conflictId).resolution).toBe("replaced");
       expect((await owner.get(`/api/v1/memory/${conflictId}`)).statusCode).toBe(404);
@@ -287,18 +306,38 @@ describe("contract gaps: authorization and enforcement", () => {
 
   describe("tasks: assign and input", () => {
     it("assigns and releases a task, audits the assignment and answers 409 for a stale version", async () => {
-      const task = (await list("/api/v1/tasks", { status: ["todo"] }))[0];
-      const agent = (await list("/api/v1/agents")).find((entry) => entry.status === "idle");
-      const assigned = await owner.post(`/api/v1/tasks/${task.id}/assign`, { agentId: agent.id }, { headers: { "if-match": String(task.version) } });
-      expect(assigned.statusCode, assigned.body).toBe(200);
-      expect(assigned.json().data).toMatchObject({ agentId: agent.id, agentName: agent.name });
-      const audit = auditOf("task.assigned")[0];
-      expect(audit).toMatchObject({ taskId: task.id, agentId: agent.id, result: "success" });
-      const stale = await owner.post(`/api/v1/tasks/${task.id}/assign`, { agentId: null }, { headers: { "if-match": String(task.version) } });
-      expect(stale.statusCode).toBe(409);
-      const released = await owner.post(`/api/v1/tasks/${task.id}/assign`, { agentId: null });
-      expect(released.json().data.agentId).toBeNull();
-      expect((await owner.post(`/api/v1/tasks/${task.id}/assign`, { agentId: "agent_00000000000000000000000000" })).statusCode).toBe(422);
+      const settings = (await owner.get("/api/v1/settings")).json().data;
+      expect((await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+        { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
+      try {
+        const task = (await list("/api/v1/tasks", { status: ["todo"] }))[0];
+        const agent = (await list("/api/v1/agents")).find((entry) => entry.status === "idle");
+        const confirm = (previewId: string) => ({ headers: { "x-action-preview-id": previewId } });
+        const stagedAssign = await owner.post(`/api/v1/tasks/${task.id}/assign`, { agentId: agent.id }, { headers: { "if-match": String(task.version) } });
+        expect(stagedAssign.statusCode, stagedAssign.body).toBe(403);
+        expect(errorOf(stagedAssign).details.stage).toBe("preview");
+        const assigned = await owner.post(`/api/v1/tasks/${task.id}/assign`, { agentId: agent.id },
+          { headers: { "if-match": String(task.version), ...confirm(stagedAssign.json().error.details.previewId).headers } });
+        expect(assigned.statusCode, assigned.body).toBe(200);
+        expect(assigned.json().data).toMatchObject({ agentId: agent.id, agentName: agent.name });
+        const audit = auditOf("task.assigned")[0];
+        expect(audit).toMatchObject({ taskId: task.id, agentId: agent.id, result: "success" });
+        // A stale If-Match survives staging unchanged and fails at dispatch.
+        const stagedStale = await owner.post(`/api/v1/tasks/${task.id}/assign`, { agentId: null }, { headers: { "if-match": String(task.version) } });
+        expect(stagedStale.statusCode).toBe(403);
+        const stale = await owner.post(`/api/v1/tasks/${task.id}/assign`, { agentId: null },
+          { headers: { "if-match": String(task.version), ...confirm(stagedStale.json().error.details.previewId).headers } });
+        expect(stale.statusCode, stale.body).toBe(409);
+        const stagedRelease = await owner.post(`/api/v1/tasks/${task.id}/assign`, { agentId: null });
+        expect(stagedRelease.statusCode).toBe(403);
+        const released = await owner.post(`/api/v1/tasks/${task.id}/assign`, { agentId: null },
+          confirm(stagedRelease.json().error.details.previewId));
+        expect(released.json().data.agentId).toBeNull();
+        expect((await owner.post(`/api/v1/tasks/${task.id}/assign`, { agentId: "agent_00000000000000000000000000" })).statusCode).toBe(422);
+      } finally {
+        const latest = (await owner.get("/api/v1/settings")).json().data;
+        await owner.patch("/api/v1/settings", { approvals: settings.approvals }, { headers: { "if-match": String(latest.version) } });
+      }
     });
 
     it("answers a waiting task, keeps the text out of the audit trail and refuses a second answer", async () => {

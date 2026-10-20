@@ -1,7 +1,7 @@
 "use client";
 
 import type { ActivityEvent, ArtifactRef, ErrorDetail, Task } from "@friday/sdk";
-import { ActivityRow, Button, ConfirmDialog, Drawer, EmptyState, ErrorState, Select, Skeleton, TagPill, Tabs, cx, type TabItem } from "@friday/ui";
+import { ActivityRow, Button, Drawer, EmptyState, ErrorState, Select, Skeleton, TagPill, Tabs, cx, type TabItem } from "@friday/ui";
 import { isFridayApiError } from "@friday/sdk";
 import { Ban, Check, CircleCheck, CircleDashed, CircleX, ExternalLink, Pause, Play, RotateCcw, ShieldCheck, SkipForward, Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -370,7 +370,6 @@ export function TaskDrawer({ taskId, tab, onTabChange, onClose }: TaskDrawerProp
   const task = query.data?.data;
   const commands = useTaskCommands();
   const states = useTaskActionStates(task);
-  const [confirmCancel, setConfirmCancel] = useState(false);
   const canReadAgents = useCapability("agents", "read");
 
   const tabs = useMemo<TabItem[]>(() => {
@@ -423,48 +422,31 @@ export function TaskDrawer({ taskId, tab, onTabChange, onClose }: TaskDrawerProp
       <GatedButton size="sm" variant="ghost" icon={<RotateCcw size={14} />} gate={states.retry.gate} blockedReason={states.retry.blockedReason} disabled={commands.pending} onClick={() => commands.run("retry", task)}>
         {t("tasks.action.retry")}
       </GatedButton>
-      <GatedButton size="sm" variant="danger" icon={<Ban size={14} />} gate={states.cancel.gate} blockedReason={states.cancel.blockedReason} disabled={commands.pending} onClick={() => setConfirmCancel(true)}>
+      <GatedButton size="sm" variant="danger" icon={<Ban size={14} />} gate={states.cancel.gate} blockedReason={states.cancel.blockedReason} disabled={commands.pending} onClick={() => commands.run("cancel", task)}>
         {t("tasks.action.cancel")}
       </GatedButton>
     </div>
   ) : null;
 
   return (
-    <>
-      <Drawer
-        open={taskId !== null}
-        onOpenChange={(open) => !open && onClose()}
-        title={t("tasks.drawer.title")}
-        subtitle={
-          task ? (
-            <span className="tk-drawer__sub">
-              <code>{task.id}</code>
-              <CopyButton value={task.id} label={t("tasks.copyId")} />
-            </span>
-          ) : undefined
-        }
-        width={640}
-        className="mod-drawer"
-        closeLabel={t("common.close")}
-        footer={footer}
-      >
-        {body}
-      </Drawer>
-      <ConfirmDialog
-        open={confirmCancel}
-        onOpenChange={setConfirmCancel}
-        title={t("tasks.cancel.title")}
-        description={t("tasks.cancel.description")}
-        details={task ? [task.title, t("tasks.cancel.history")] : undefined}
-        confirmLabel={t("tasks.cancel.confirm")}
-        cancelLabel={t("tasks.cancel.keep")}
-        tone="danger"
-        loading={commands.pending}
-        onConfirm={() => {
-          if (task) commands.run("cancel", task);
-          setConfirmCancel(false);
-        }}
-      />
-    </>
+    <Drawer
+      open={taskId !== null}
+      onOpenChange={(open) => !open && onClose()}
+      title={t("tasks.drawer.title")}
+      subtitle={
+        task ? (
+          <span className="tk-drawer__sub">
+            <code>{task.id}</code>
+            <CopyButton value={task.id} label={t("tasks.copyId")} />
+          </span>
+        ) : undefined
+      }
+      width={640}
+      className="mod-drawer"
+      closeLabel={t("common.close")}
+      footer={footer}
+    >
+      {body}
+    </Drawer>
   );
 }

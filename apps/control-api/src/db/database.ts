@@ -274,6 +274,119 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE mail_send_journal ADD COLUMN message_id TEXT;
     `,
   },
+  {
+    id: 15,
+    name: "messenger-send-journal",
+    sql: `
+      CREATE TABLE messenger_send_journal (
+        key_hash TEXT PRIMARY KEY,
+        actor TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        recipient TEXT NOT NULL,
+        payload_hash TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('pending', 'sent', 'uncertain')),
+        external_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_messenger_send_actor ON messenger_send_journal (actor, created_at);
+    `,
+  },
+  {
+    id: 16,
+    name: "messenger-outbound-targets",
+    sql: `
+      CREATE TABLE messenger_outbound_targets (
+        id TEXT PRIMARY KEY,
+        actor TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        recipient TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE(actor,account_id,platform,recipient)
+      );
+      CREATE INDEX idx_messenger_targets_actor ON messenger_outbound_targets (actor,platform);
+    `,
+  },
+  {
+    id: 17,
+    name: "messenger-send-draft-hash",
+    sql: "ALTER TABLE messenger_send_journal ADD COLUMN draft_hash TEXT;",
+  },
+  {
+    id: 18,
+    name: "durable-notifications",
+    sql: `
+      CREATE TABLE notifications (
+        id TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        resolved_at TEXT,
+        status TEXT NOT NULL CHECK (status IN ('open', 'acknowledged', 'snoozed', 'resolved')),
+        pending_dispatch INTEGER NOT NULL DEFAULT 0 CHECK (pending_dispatch IN (0, 1)),
+        json TEXT NOT NULL
+      );
+      CREATE INDEX idx_notifications_status_created ON notifications (status, created_at DESC, id DESC);
+      CREATE INDEX idx_notifications_retention ON notifications (resolved_at) WHERE status = 'resolved' AND pending_dispatch = 0;
+    `,
+  },
+  {
+    id: 19,
+    name: "audit-archive-segments",
+    sql: `
+      CREATE TABLE audit_archive_segments (
+        id TEXT PRIMARY KEY,
+        filename TEXT NOT NULL UNIQUE,
+        first_seq INTEGER NOT NULL,
+        last_seq INTEGER NOT NULL,
+        row_count INTEGER NOT NULL,
+        previous_hash TEXT NOT NULL,
+        head_hash TEXT NOT NULL,
+        sha256 TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX idx_audit_archive_first ON audit_archive_segments (first_seq);
+    `,
+  },
+  {
+    id: 20,
+    name: "notification-messenger-origin",
+    sql: `
+      CREATE TABLE notification_messenger_stages (
+        notification_id TEXT NOT NULL,
+        step INTEGER NOT NULL CHECK (step > 0),
+        actor TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        draft_json TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('staged', 'sent', 'uncertain')),
+        receipt_json TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (notification_id, step)
+      );
+    `,
+  },
+  {
+    id: 21,
+    name: "native-action-approval-requests",
+    sql: `
+      CREATE TABLE native_approval_requests (
+        owner_id TEXT NOT NULL,
+        request_key TEXT NOT NULL,
+        proposal_hash TEXT NOT NULL,
+        result_json TEXT NOT NULL,
+        action_json TEXT,
+        state TEXT NOT NULL CHECK (state IN ('draft', 'pending', 'dispatching', 'uncertain', 'completed', 'rejected', 'expired')),
+        receipt_json TEXT,
+        dispatch_token TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (owner_id, request_key)
+      );
+      CREATE INDEX idx_native_approval_owner_created ON native_approval_requests (owner_id, created_at);
+      CREATE UNIQUE INDEX idx_native_approval_id ON native_approval_requests (json_extract(result_json, '$.approval.id'));
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

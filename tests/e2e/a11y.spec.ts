@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { test, expect, open, patchSettings, freezeDate } from "./support/fixtures";
+import { test, expect, open, patchSettings, freezeDate, selectPaletteOption } from "./support/fixtures";
 
 /**
  * PLAN §51.7 Accessibility: axe-core (WCAG 2.0/2.1 A + AA) on every page and every overlay, keyboard-only
@@ -201,14 +201,15 @@ test.describe("keyboard", () => {
   });
 
   test("the whole task flow works with the keyboard only (open palette, navigate, create a task)", async ({ page, api }) => {
+    // tier-2 approvals are disabled so the confirmed preview executes directly (the approval detour is covered by tasks.spec.ts)
+    const settings = (await api.get("/settings")).body.data;
+    await patchSettings(api, { approvals: { ...settings.approvals, confirmTier2: false } });
     await open(page, "/");
     await page.keyboard.press("Control+k");
     const palette = page.getByRole("dialog", { name: "Befehlspalette" });
     await expect(palette.getByRole("combobox")).toBeFocused();
     await page.keyboard.type("Gehe zu Aufgaben");
-    await expect(palette.getByRole("option", { name: "Gehe zu Aufgaben", exact: true })).toBeVisible();
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("Enter");
+    await selectPaletteOption(page, palette, "Gehe zu Aufgaben");
     await expect(page).toHaveURL(/\/tasks\/?$/);
     await page.getByRole("button", { name: "Neue Aufgabe" }).focus();
     await page.keyboard.press("Enter");
@@ -216,6 +217,11 @@ test.describe("keyboard", () => {
     await page.keyboard.press("Tab"); // priority select
     await page.keyboard.press("Tab"); // cancel
     await page.keyboard.press("Tab"); // create
+    await page.keyboard.press("Enter");
+    // creating a task is a staged write: the server preview is confirmed (keyboard) before anything exists
+    const createPreview = page.getByRole("alertdialog", { name: "Du bist dabei:" });
+    await expect(createPreview).toBeVisible();
+    await createPreview.getByRole("button", { name: "Bestätigen" }).focus();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("article", { name: /^Tastatur-Aufgabe E2E/ })).toBeVisible();
     const found = (await api.get(`/tasks?q=${encodeURIComponent("Tastatur-Aufgabe E2E")}`)).body.items as unknown[];

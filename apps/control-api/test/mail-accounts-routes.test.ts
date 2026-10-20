@@ -20,11 +20,22 @@ it("exposes account-scoped receipts and retries only the Sent archive after SMTP
     const archive = vi.spyOn(api.runtime.mailAccounts, "archive").mockResolvedValue({ state: "archived", alreadyPresent: false });
     const owner = api.client();
     await owner.loginOwner("synthetic-test-password");
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    expect((await owner.patch("/api/v1/settings", { approvals: { ...settings.approvals, confirmTier2: false } },
+      { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);
     const base = "/api/v1/integrations/mail/accounts/work";
-    const sent = await owner.post(base + "/send", message, { headers: { "Idempotency-Key": "mail-route-key-123" } });
+    const staged = await owner.post(base + "/send", message);
+    expect(staged.statusCode, staged.body).toBe(403);
+    expect(staged.json().error.details.stage).toBe("preview");
+    expect(staged.json().error.details.previewText).toBe("E-Mail an recipient@example.test senden? Betreff: „Synthetic“");
+    const previewId = staged.json().error.details.previewId as string;
+    const tampered = await owner.post(base + "/send", { ...message, subject: "Tampered" },
+      { headers: { "X-Action-Preview-Id": previewId } });
+    expect(tampered.statusCode, tampered.body).toBe(409);
+    const sent = await owner.post(base + "/send", message, { headers: { "X-Action-Preview-Id": previewId } });
     expect(sent.statusCode, sent.body).toBe(200);
     expect(sent.headers["idempotent-replayed"]).toBe("false");
-    expect(sent.json().data).toMatchObject({ state: "sent", archivePending: true });
+    expect(sent.json().data).toMatchObject({ state: "sent", archivePending: true, replayed: false });
     const receiptId = sent.json().data.receiptId as string;
     expect(receiptId).toMatch(/^[a-f0-9]{64}$/);
     const listed = await owner.get(base + "/receipts");
@@ -36,9 +47,10 @@ it("exposes account-scoped receipts and retries only the Sent archive after SMTP
     expect(reconciled.json().data).toMatchObject({ receiptId, state: "sent", archivePending: false });
     expect(send).toHaveBeenCalledTimes(1);
     expect(archive).toHaveBeenCalledTimes(1);
-    const replay = await owner.post(base + "/send", message, { headers: { "Idempotency-Key": "mail-route-key-123" } });
+    const replay = await owner.post(base + "/send", message, { headers: { "X-Action-Preview-Id": previewId } });
     expect(replay.statusCode, replay.body).toBe(200);
     expect(replay.headers["idempotent-replayed"]).toBe("true");
+    expect(replay.json().data).toMatchObject({ receiptId, replayed: true, state: "sent" });
     expect(send).toHaveBeenCalledTimes(1);
   } finally { await api.close(); }
 });

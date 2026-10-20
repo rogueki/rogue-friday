@@ -25,15 +25,21 @@ import { kvGet, kvSet, openDatabase } from "../db/database";
 import { AuditAnchor } from "../db/audit-anchor";
 import { migrateLegacyAuditAnchor } from "../db/audit-anchor-migration";
 import { AuditStore, type AuditVerification } from "../db/audit-store";
+import { AuditArchive } from "../db/audit-archive";
 import { AdapterOverrideStore, CommandHistoryStore, IdempotencyStore, LibraryStore } from "../db/stores";
+import { NotificationStore } from "../services/notification-store";
+import { RetentionService } from "../services/retention";
 import { EventHub } from "../realtime/hub";
 import { AuthService } from "../security/auth-service";
 import { AdapterSettingsService } from "../services/adapter-settings";
 import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, summarizeAdapters } from "../services/core-views";
 import { SettingsService, seedLibrary } from "../services/settings";
+import { NativeApprovalRequests } from "../services/native-approval-requests";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
 import { DurableMemoryService } from "../services/durable-memory";
+import { SystemBackupService } from "../services/system-backup";
+import { BackupJobsService } from "../services/backup-jobs";
 import { WikiPathService } from "../services/wiki-path";
 import { HimalayaAccountService } from "../services/himalaya-account";
 import { TelegramGatewayService } from "../services/telegram-gateway";
@@ -43,10 +49,15 @@ import { CloudTalkService } from "../services/cloudtalk";
 import { HimalayaSendService } from "../services/himalaya-send";
 import { MailAccountsService } from "../services/mail-accounts";
 import { MailSendService } from "../services/mail-send";
+import { MessengerSendService } from "../services/messenger-send";
+import { MessengerCatalogService } from "../services/messenger-catalog";
+import { MessengerProviderService } from "../services/messenger-provider";
+import { MessengerInboundService } from "../services/messenger-inbound";
 import { CalDavCreateService } from "../services/caldav-create";
 import { LocalCalendarService } from "../services/local-calendar";
 import { CalendarAccountsService } from "../services/calendar-accounts";
 import { HermesSkillKeysService } from "../services/hermes-skill-keys";
+import { HermesConfigService } from "../services/hermes-config";
 import { CodingRunsService } from "../services/coding-runs";
 import { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
 import { ContentStudioProviderService } from "../services/content-studio-providers";
@@ -129,9 +140,11 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const calendarBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "calendar-bridge"));
   const mailBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "mail-bridge"));
   const hermesMemoryBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "hermes-memory-bridge"));
+  const messengerInboundBridgeKey = loadOrCreateServerKey(join(config.paths.dataDir, "hermes-messenger-bridge"));
   if (!calendarBridgeKey.permissionsRestricted) logger.warn("Calendar bridge key permissions could not be restricted", { path: calendarBridgeKey.path });
   if (!mailBridgeKey.permissionsRestricted) logger.warn("Mail bridge key permissions could not be restricted", { path: mailBridgeKey.path });
   if (!hermesMemoryBridgeKey.permissionsRestricted) logger.warn("Hermes memory bridge key permissions could not be restricted", { path: hermesMemoryBridgeKey.path });
+  if (!messengerInboundBridgeKey.permissionsRestricted) logger.warn("Hermes messenger bridge key permissions could not be restricted", { path: messengerInboundBridgeKey.path });
   if (!voiceBridgeKey.permissionsRestricted) logger.warn("Berechtigungen des Voice-Bridge-Schlüssels konnten nicht eingeschränkt werden", { path: voiceBridgeKey.path });
   const sessions = new SqliteSessionStore(db, {
     defaultTtlMs: config.auth.sessionTtlMinutes * 60_000,
@@ -161,6 +174,10 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
       if (service) service.patch({ profile: { ...service.area("profile"), displayName } });
     },
     localLoginRequired: () => settingsHolder.current?.area("security").loginRequired !== false || settingsHolder.current?.area("security").allowRemoteAccess === true,
+    securitySettings: () => settingsHolder.current?.area("security") ?? {
+      sessionTimeoutMinutes: config.auth.sessionTtlMinutes,
+      reauthWindowMinutes: config.auth.reauthWindowMinutes,
+    },
   });
 
   // ---- persistence --------------------------------------------------------------------------------------------
@@ -171,7 +188,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     ...(options.dbPath === ":memory:" ? {} : { file: join(config.paths.dataDir, "audit-head.json") }),
     onError: (error) => logger.error("Audit-Anker konnte nicht geschrieben werden", { error: error instanceof Error ? error.message : String(error) }),
   });
-  const audit = new AuditStore(db, undefined, auditAnchor);
+  const auditArchive = new AuditArchive(db, join(config.paths.dataDir, "audit-archive"));
+  const audit = new AuditStore(db, undefined, auditAnchor, auditArchive);
   if (!serverKey.created && audit.verify().reason === "anchor_tampered" &&
       migrateLegacyAuditAnchor(db, serverKey.key, join(config.paths.dataDir, "audit-head.json"), audit)) {
     logger.warn("JARVIS-Audit-Anker geprüft und mit F.R.I.D.A.Y.-Schlüssel neu versiegelt");
@@ -180,6 +198,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   // verified any more, but the data is intact. Re-seal them (only if the chain verifies) instead of reporting tampering.
   if (serverKey.created && audit.reanchorAfterKeyLoss()) logger.warn("auth.key wurde neu erzeugt: Audit-Anker mit dem neuen Schlüssel neu versiegelt; angemeldete Clients holen ein neues CSRF-Token");
   const idempotency = new IdempotencyStore(db);
+  const notifications = new NotificationStore(db);
   const commands = new CommandHistoryStore(db);
   const library = new LibraryStore(db);
   const adapterOverrides = new AdapterOverrideStore(db);
@@ -205,6 +224,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     // One global sequence: the mock world numbers its events (and `ActivityEvent.sequence`) with the hub's counter, so
     // an activity item's sequence equals the envelope sequence of its `friday.activity.appended` event.
     assistantName: () => settingsHolder.current?.area("profile").assistantName ?? DEFAULT_ASSISTANT_NAME,
+    notifications,
     nextSequence: (floor) => {
       hub.ensureSequenceAtLeast(floor);
       return hub.latestSequence + 1;
@@ -240,6 +260,9 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
 
   const adapterSettings = new AdapterSettingsService(wiring, adapterOverrides, secrets, config.dataMode);
   const settings = new SettingsService(db, config, validator, library, () => adapterSettings.list());
+  if (world) world.state.settings.approvals = structuredClone(settings.area("approvals"));
+  const nativeApprovals = new NativeApprovalRequests(db, settings, validator, options.now);
+  logger.setLevel?.(settings.area("developer").logLevel);
   let contentStudioKeys: ContentStudioKeysService;
   try {
     contentStudioKeys = new ContentStudioKeysService(db, deriveKey(serverKey.key, "content-studio-keys"), env);
@@ -253,6 +276,9 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const obsidianVault = new ObsidianVaultService(config.paths.dataDir);
   const durableMemory = new DurableMemoryService(config.paths.dataDir);
   durableMemory.flush();
+  const systemBackup = new SystemBackupService(config.paths.dataDir, db, durableMemory);
+  const backupJobs = new BackupJobsService(db, settings, systemBackup);
+  const retention = new RetentionService(db, settings, audit, auditArchive, systemBackup, notifications);
   const wikiPath = new WikiPathService(config.paths.dataDir);
   const himalayaAccount = new HimalayaAccountService(config.paths.dataDir);
   const telegramGateway = new TelegramGatewayService(config.paths.dataDir);
@@ -265,7 +291,12 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const mailAccounts = new MailAccountsService(config.paths.dataDir);
   const calendarAccounts = new CalendarAccountsService(config.paths.dataDir);
   const mailSend = new MailSendService(db, mailAccounts);
+  const messengerSend = new MessengerSendService(db, config.paths.dataDir, approvalTokens);
+  const messengerCatalog = new MessengerCatalogService(config.paths.dataDir);
+  const messengerProvider = new MessengerProviderService(config.paths.dataDir, messengerCatalog);
+  const messengerInbound = new MessengerInboundService(db, durableMemory);
   const hermesSkillKeys = new HermesSkillKeysService(config.paths.dataDir);
+  const hermesConfig = new HermesConfigService(config.paths.dataDir);
   const hermesAdapterConfig = config.adapters.tasks.config as Record<string, unknown>;
   const skills: SkillsService = new SkillsService({
     catalogPath: env.FRIDAY_SKILLS_CATALOG_PATH,
@@ -482,8 +513,10 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     calendarBridgeKey: calendarBridgeKey.key,
     mailBridgeKey: mailBridgeKey.key,
     hermesMemoryBridgeKey: hermesMemoryBridgeKey.key,
+    messengerInboundBridgeKey: messengerInboundBridgeKey.key,
     approvalTokens,
     settings,
+    nativeApprovals,
     contentStudioKeys,
     contentStudioProviders,
     contentStudioPlan,
@@ -492,6 +525,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     onboarding,
     obsidianVault,
     durableMemory,
+    backupJobs,
+    retention,
     wikiPath,
     himalayaAccount,
     telegramGateway,
@@ -503,8 +538,14 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     mailAccounts,
     calendarAccounts,
     mailSend,
+    messengerSend,
+    notifications,
+    messengerCatalog,
+    messengerProvider,
+    messengerInbound,
     caldavCreate,
     hermesSkillKeys,
+    hermesConfig,
     codingRuns,
     codingVoiceRepository,
     contentStudioProduction,
@@ -549,6 +590,16 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
       logger.info("Adapter geladen", { dataMode: config.dataMode, ...overall.summary });
       trackDerivedState();
       if (options.background !== false) {
+        const checkBackup = () => void backupJobs.tick().catch((error: unknown) =>
+          logger.warn("System backup job failed", { error: String(error) }));
+        checkBackup();
+        timers.push(setInterval(checkBackup, 60_000));
+        const checkRetention = () => {
+          try { retention.tick(); }
+          catch (error) { logger.warn("Data retention job failed", { error: String(error) }); }
+        };
+        checkRetention();
+        timers.push(setInterval(checkRetention, 3_600_000));
         contentStudioProduction.start();
         void cloudtalk.tickReminders().catch((error: unknown) => logger.warn("CloudTalk reminder scan failed", { error: String(error) }));
         timers.push(setInterval(() => void cloudtalk.tickReminders().catch((error: unknown) =>

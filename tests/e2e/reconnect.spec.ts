@@ -41,7 +41,7 @@ test("a dropped event stream is reported, retried with backoff and backfilled wi
   const firstConnects = sockets.urls.length;
   expect(firstConnects).toBeGreaterThanOrEqual(1);
   // The client resumes from the last sequence it has seen, so let it see one event before the drop.
-  await api.post("/tasks", { title: "E2E Vorlauf", priority: "P4" });
+  await api.createTask({ title: "E2E Vorlauf", priority: "P4" });
   await page.getByRole("link", { name: "Live-Aktivität" }).click();
   await expect(page.getByRole("main").getByText("E2E Vorlauf").first()).toBeVisible();
 
@@ -54,9 +54,7 @@ test("a dropped event stream is reported, retried with backoff and backfilled wi
   // events the client misses while the socket is down: three tasks created through the API
   const created = [];
   for (const title of ["E2E Lückentest 1", "E2E Lückentest 2", "E2E Lückentest 3"]) {
-    const result = await api.post("/tasks", { title, priority: "P3" });
-    expect(result.status).toBeLessThan(300);
-    created.push(result.body.data.id as string);
+    created.push((await api.createTask({ title, priority: "P3" })).id);
   }
 
   await page.waitForTimeout(2500); // at least one refused retry (backoff 0.5 s ... 15 s)
@@ -80,7 +78,7 @@ test("the live feed keeps updating after the reconnect", async ({ page, api }) =
   sockets.drop();
   await expect(eventStreamChip(page)).toContainText("online", { timeout: 40_000 }); // unblocked: immediate reconnect
   await expect.poll(() => sockets.urls.length, { timeout: 30_000 }).toBeGreaterThanOrEqual(2);
-  await api.post("/tasks", { title: "E2E nach Reconnect", priority: "P3" });
+  await api.createTask({ title: "E2E nach Reconnect", priority: "P3" });
   await expect(page.getByRole("main").getByText("E2E nach Reconnect").first()).toBeVisible({ timeout: 20_000 });
 });
 
@@ -88,7 +86,7 @@ test("a server restart notice (resync_required) makes the client reload its data
   await open(page, "/tasks");
   const before = await page.getByText(/\d+ Treffer/).innerText();
   // reset republishes resync_required to all clients and changes the world (the seeded task count differs from a created one)
-  await api.post("/tasks", { title: "E2E Resync Aufgabe", priority: "P3" });
+  await api.createTask({ title: "E2E Resync Aufgabe", priority: "P3" });
   await expect(page.getByText(/\d+ Treffer/)).not.toHaveText(before);
   await api.reset();
   await expect(page.getByText(before)).toBeVisible({ timeout: 30_000 });

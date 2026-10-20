@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-model-catalog.schema.json",
+  "title": "HermesModelCatalog",
+  "type": "object",
+  "properties": {
+    "sourceRevision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "checkedAt": { "type": "string", "format": "date-time" },
+    "providerListComplete": { "type": ["boolean", "null"], "description": "Pinned picker can silently omit plugin profiles whose discovery fails." },
+    "providers": { "type": "array", "items": { "type": "object", "properties": {
+      "id": { "type": "string" }, "label": { "type": "string" }
+    }, "required": ["id", "label"], "additionalProperties": false } },
+    "selected": { "oneOf": [
+      { "type": "null" },
+      { "type": "object", "properties": {
+        "id": { "type": "string" },
+        "models": { "type": "array", "items": { "type": "string" } },
+        "origin": { "enum": ["curated", "endpoint_confirmed_picker"] },
+        "probeStatus": { "enum": ["unsupported", "succeeded", "failed"] },
+        "modelAccess": { "type": ["boolean", "null"] }
+      }, "required": ["id", "models", "origin", "probeStatus", "modelAccess"], "additionalProperties": false }
+    ] }
+  },
+  "required": ["sourceRevision", "checkedAt", "providerListComplete", "providers", "selected"],
+  "additionalProperties": false
+}

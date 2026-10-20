@@ -102,6 +102,14 @@ export function pageRoute(id: string): string {
   return NAV_PAGES.find((page) => page.id === id)?.route ?? "/";
 }
 
+/** Only the home route follows the configured start page; deep links remain user-controlled. */
+export function defaultPageRedirect(pathname: string, defaultPage: string | undefined, contentStudioEnabled = false): string | null {
+  if (pathname !== "/" || !defaultPage || defaultPage === "overview") return null;
+  if (defaultPage === "content-studio" && !contentStudioEnabled) return null;
+  const route = pageRoute(defaultPage);
+  return route === "/" ? null : route;
+}
+
 export function useNavItems(): { items: NavItem[]; activeId: NavPageId } {
   const pathname = usePathname();
   const { t } = useT();

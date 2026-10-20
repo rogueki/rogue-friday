@@ -35,6 +35,12 @@ function validate(request: MailSendRequest) {
   }
 }
 
+/** Validates a send request before anything is staged; returns the request unchanged for the stored action. */
+export function checkedMailSend(request: MailSendRequest): MailSendRequest {
+  validate(request);
+  return request;
+}
+
 /** Persist a reservation before SMTP. A timeout is uncertain forever until explicitly reconciled. */
 export class MailSendService {
   constructor(private readonly db: Db, private readonly accounts: Pick<MailAccountsService, "list" | "check" | "send" | "archive" | "probeSent">) {}
@@ -108,6 +114,30 @@ export class MailSendService {
     const row = this.lookup(keyHash);
     if (!row) throw new Error("Mail send receipt missing");
     return { eventId: "mail:" + keyHash.slice(0, 48), receiptId: keyHash, occurredAt: row.created_at };
+  }
+
+  /**
+   * Validates the request and the target account without touching the journal: unknown mailboxes, foreign sender
+   * addresses and missing SMTP credentials fail here as 4xx, before any preview is staged.
+   */
+  async checkSendable(accountId: string, request: MailSendRequest): Promise<void> {
+    validate(request);
+    const catalog = await this.accounts.list();
+    const account = catalog.accounts.find((item) => item.id === accountId);
+    if (!account) throw validationFailed("Mail Postfach existiert nicht.");
+    if (request.from && ![account.email, ...account.aliases].includes(request.from))
+      throw validationFailed("Die Absenderadresse gehört nicht zu diesem Mail Postfach.");
+    if (!account.secretState.smtpPassword)
+      throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "SMTP für dieses Mail Postfach ist nicht eingerichtet." });
+  }
+
+  /** Journal state for a known receipt; used to answer a replayed confirmation with the stored outcome. */
+  outcomeFor(accountId: string, receiptId: string): { state: "sent" | "uncertain"; archivePending: boolean } | null {
+    if (!/^[a-f0-9]{64}$/.test(receiptId)) return null;
+    const row = this.db.prepare("SELECT state, archive_pending FROM mail_send_journal WHERE key_hash = ? AND account_id = ?")
+      .get(receiptId, accountId) as { state: string; archive_pending: number } | undefined;
+    if (!row) return null;
+    return { state: row.state === "sent" ? "sent" : "uncertain", archivePending: row.archive_pending !== 0 };
   }
 
   async send(accountId: string, request: MailSendRequest, actor: string, key: string): Promise<MailSendOutcome> {

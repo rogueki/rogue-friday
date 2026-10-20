@@ -45,7 +45,7 @@ export function streamLabel(status: RealtimeStatus, now: number, locale: string,
 export function AppTopBar() {
   const router = useRouter();
   const { t, locale } = useT();
-  const { timeZone, hour12 } = useAppSettings();
+  const { timeZone, hour12, settings } = useAppSettings();
   const status = useFridayStatus();
   const meta = useMeta();
   const session = useSession();
@@ -85,6 +85,7 @@ export function AppTopBar() {
   const statusTone = friday ? toneFromHealth(friday.status) : "muted";
   const roleText = session.role ? t(`role.${session.role}` as MessageKey) : undefined;
   const modeText = dataMode ? t(`dataMode.${dataMode}` as MessageKey) : undefined;
+  const displayName = settings?.profile.displayName || session.displayName;
 
   return (
     <TopStatusBar
@@ -97,7 +98,7 @@ export function AppTopBar() {
       onSearchClick={() => setPaletteOpen(true)}
       searchLabel={t("top.search")}
       actions={actions}
-      operator={session.displayName ? { name: session.displayName, role: [roleText, compact ? undefined : modeText].filter(Boolean).join(" · ") } : undefined}
+      operator={displayName ? { name: displayName, role: [roleText, compact ? undefined : modeText].filter(Boolean).join(" · ") } : undefined}
       menuLabel={t("top.openNav")}
     />
   );

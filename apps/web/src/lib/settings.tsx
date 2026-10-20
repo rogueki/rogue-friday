@@ -20,6 +20,8 @@ export interface AppSettingsValue {
   locale: Locale;
   timeZone: string | undefined;
   hour12: boolean | undefined;
+  dateFormat: Settings["profile"]["dateFormat"];
+  firstDayOfWeek: Settings["profile"]["firstDayOfWeek"];
 }
 
 const AppSettingsContext = createContext<AppSettingsValue>({
@@ -28,6 +30,8 @@ const AppSettingsContext = createContext<AppSettingsValue>({
   locale: "de",
   timeZone: undefined,
   hour12: undefined,
+  dateFormat: "dd.MM.yyyy",
+  firstDayOfWeek: "monday",
 });
 
 /** Server theme (wire shape) -> design-tokens theme. Invalid results fall back to the default theme inside applyTheme. */
@@ -85,6 +89,12 @@ export function AppSettingsProvider({ enabled, children }: { enabled: boolean; c
     document.documentElement.lang = locale;
   }, [locale]);
 
+  useEffect(() => {
+    if (settings?.dashboard.compact) document.documentElement.dataset.density = "compact";
+    else delete document.documentElement.dataset.density;
+    return () => { delete document.documentElement.dataset.density; };
+  }, [settings?.dashboard.compact]);
+
   const assistantName = resolveAssistantName(settings?.profile.assistantName);
   useEffect(() => {
     document.title = translate(locale, "app.title", undefined, assistantName);
@@ -97,6 +107,8 @@ export function AppSettingsProvider({ enabled, children }: { enabled: boolean; c
       locale,
       timeZone: settings?.profile.timeZone,
       hour12: settings ? settings.profile.timeFormat === "12h" : undefined,
+      dateFormat: settings?.profile.dateFormat ?? "dd.MM.yyyy",
+      firstDayOfWeek: settings?.profile.firstDayOfWeek ?? "monday",
     }),
     [settings, enabled, settingsQuery.isPending, locale],
   );

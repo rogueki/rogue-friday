@@ -17,6 +17,7 @@ import {
   type FridayStatus,
   type OrbMode,
   type OrbSnapshot,
+  type Notification,
   type SchemaName,
   type SchemaValidator,
   type SourceDescriptor,
@@ -85,6 +86,7 @@ export interface MockWorldOptions {
    * (the Control API) passes its own value; without it the world uses `state.settings.profile.assistantName`.
    */
   assistantName?: () => string;
+  notifications?: { list(): Notification[]; save(notification: Notification, pendingDispatch?: boolean): void };
 }
 
 export interface WorldSnapshot {
@@ -155,6 +157,7 @@ export class MockWorld {
   private highWater = 0;
   private readonly sequenceProvider: ((floor: number) => number) | undefined;
   private readonly assistantNameProvider: (() => string) | undefined;
+  readonly notificationPersistence: MockWorldOptions["notifications"];
   private baseline: WorldSnapshot | null = null;
   private refreshing = false;
   private transientTimer: TimerHandle | null = null;
@@ -186,6 +189,7 @@ export class MockWorld {
     this.startTime = options.startTime ?? DEFAULT_START_TIME;
     this.sequenceProvider = options.nextSequence;
     this.assistantNameProvider = options.assistantName;
+    this.notificationPersistence = options.notifications;
     this.clock = new MockClock(this.startTime);
     this.idFactory = new IdFactory(this.seed, ID_EPOCH_MS);
     this.runtimeRng = new Rng(this.seed ^ 0xa11ce);
@@ -239,6 +243,9 @@ export class MockWorld {
     this.latencyRng = new Rng(this.seed ^ 0x1a7);
     const ctx = createContextFor(this.seed, this.idFactory, this.clock.now(), profile);
     this.state = buildWorldState(ctx, profile);
+    if (profile === "empty" && this.notificationPersistence) {
+      this.state.notifications = this.notificationPersistence.list();
+    }
     this.afterStateReplaced();
     this.baseline = this.snapshot();
     if (announce) this.announceResync();

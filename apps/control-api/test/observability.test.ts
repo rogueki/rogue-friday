@@ -18,6 +18,12 @@ describe("metrics and frontend telemetry (PLAN §50.3)", () => {
     operator = api.client();
     viewer = api.client();
     await owner.loginDev("owner");
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    const debugSettings = await owner.patch("/api/v1/settings", {
+      developer: { ...settings.developer, debugMode: true, logLevel: "debug" },
+    }, { headers: { "if-match": String(settings.version) } });
+    expect(debugSettings.statusCode, debugSettings.body).toBe(200);
+    expect(debugSettings.json().data.developer).toMatchObject({ debugMode: true, logLevel: "debug" });
     await operator.loginDev("operator");
     await viewer.loginDev("viewer");
   });
@@ -40,8 +46,16 @@ describe("metrics and frontend telemetry (PLAN §50.3)", () => {
 
     it("exposes latency, error rate, WebSocket connections, events/s, adapter health and cache hits in Prometheus format", async () => {
       await owner.get("/api/v1/tasks");
-      await owner.post("/api/v1/tasks", { title: "Metrik-Test" }, { headers: { "idempotency-key": "idem-metrics-task-001" } });
-      await owner.post("/api/v1/tasks", { title: "Metrik-Test" }, { headers: { "idempotency-key": "idem-metrics-task-001" } });
+      const current = (await owner.get("/api/v1/settings")).json().data;
+      expect((await owner.patch("/api/v1/settings", { approvals: { ...current.approvals, confirmTier2: false } },
+        { headers: { "if-match": String(current.version) } })).statusCode).toBe(200);
+      const body = { title: "Metrik-Test" };
+      const staged = await owner.post("/api/v1/tasks", body);
+      expect(staged.statusCode).toBe(403);
+      const previewId = staged.json().error.details.previewId as string;
+      const headers = { "idempotency-key": "idem-metrics-task-001", "x-action-preview-id": previewId };
+      expect((await owner.post("/api/v1/tasks", body, { headers })).statusCode).toBe(201);
+      expect((await owner.post("/api/v1/tasks", body, { headers })).statusCode).toBe(201);
       const response = await owner.get("/api/v1/metrics");
       expect(response.headers["content-type"]).toBe("text/plain; version=0.0.4; charset=utf-8");
       const text = response.body;
