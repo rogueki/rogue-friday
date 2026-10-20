@@ -33,13 +33,20 @@ it("routes an agent task before preview and rejects a changed route on confirmat
     const created = await owner.post("/api/v1/tasks", body,
       { headers: { "x-action-preview-id": restaged.json().error.details.previewId } });
     expect(created.statusCode, created.body).toBe(201);
-    expect(created.json().data.model).toBe("kimi-coding:kimi-for-coding");
-    const override = { title: "Explizites Modell", model: "anthropic:claude-test", reasoningLevel: "low" };
+    expect(created.json().data.model).toBe("kimi-for-coding");
+    const override = { title: "Explizites Modell", model: "claude-test", provider: "anthropic", reasoningLevel: "low" };
     const stagedOverride = await owner.post("/api/v1/tasks", override);
     const createdOverride = await owner.post("/api/v1/tasks", override,
       { headers: { "x-action-preview-id": stagedOverride.json().error.details.previewId } });
     expect(createdOverride.statusCode, createdOverride.body).toBe(201);
-    expect(createdOverride.json().data.model).toBe("anthropic:claude-test");
+    expect(createdOverride.json().data.model).toBe("claude-test");
+    const inherit = { title: "Profilmodell statt Route", model: null };
+    const stagedInherit = await owner.post("/api/v1/tasks", inherit);
+    expect(stagedInherit.json().error.details.previewText).not.toContain("kimi-coding:");
+    const createdInherit = await owner.post("/api/v1/tasks", inherit,
+      { headers: { "x-action-preview-id": stagedInherit.json().error.details.previewId } });
+    expect(createdInherit.statusCode, createdInherit.body).toBe(201);
+    expect(createdInherit.json().data.model).not.toBe("kimi-coding:kimi-for-coding");
   } finally { await api.close(); }
 });
 

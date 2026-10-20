@@ -162,6 +162,7 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
   async createTask(params: { body: TaskCreateRequest }, call: MutationContext): Promise<Single<Task>> {
     const { kanban, settings, context } = this.ready();
     const { body } = params;
+    if (body.provider && !body.model) throw unsupported("Ein Task-Anbieter erfordert ein Modell.");
     if (body.dueAt !== undefined && body.dueAt !== null) {
       throw unsupported("Hermes kennt keine Fälligkeit; dueAt wird nicht unterstützt.");
     }
@@ -177,14 +178,13 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
         throw unsupported("Hermes kennt keine freien Labels (nur 'board:<slug>' und 'tenant:<name>').");
       }
     }
-    const routedTarget = typeof body.model === "string" ? /^([a-z][a-z0-9-]*):([^\s:][^\s]*)$/i.exec(body.model) : null;
     const payload: Json = {
       title: body.title,
       ...(body.description !== undefined ? { body: body.description } : {}),
       ...(body.agentId ? { assignee: await this.resolveAgent(body.agentId, call) } : {}),
       ...(body.priority ? { priority: toHermesPriority(body.priority) } : {}),
-      ...(body.model ? { model_override: routedTarget ? routedTarget[2] : body.model } : {}),
-      ...(routedTarget ? { provider_override: routedTarget[1] } : {}),
+      ...(body.model ? { model_override: body.model } : {}),
+      ...(body.model && body.provider ? { provider_override: body.provider } : {}),
       ...(body.reasoningLevel ? { reasoning_effort: body.reasoningLevel } : {}),
       ...(tenant ? { tenant } : {}),
       ...(call.idempotencyKey ? { idempotency_key: call.idempotencyKey } : {}),

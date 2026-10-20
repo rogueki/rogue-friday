@@ -22,6 +22,9 @@
     "model": {
       "type": ["string", "null"]
     },
+    "provider": {
+      "type": ["string", "null"]
+    },
     "reasoningLevel": {
       "$ref": "../agents/reasoning-level.schema.json"
     },

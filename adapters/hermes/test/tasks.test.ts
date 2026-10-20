@@ -339,7 +339,7 @@ describe("tasks: write", () => {
   it("pins a provider-qualified model and reasoning on the native Kanban card", async () => {
     const h = await open();
     const { data } = await h.adapter.createTask(
-      { body: { title: "Geroutete Aufgabe", model: "kimi-coding:k3", reasoningLevel: "high" } },
+      { body: { title: "Geroutete Aufgabe", model: "k3", provider: "kimi-coding", reasoningLevel: "high" } },
       h.mutation(),
     );
     expect(data.model).toBe("kimi-coding:k3");
@@ -348,6 +348,11 @@ describe("tasks: write", () => {
     expect(post?.body).toMatchObject({ model_override: "k3", provider_override: "kimi-coding", reasoning_effort: "high" });
     expect((await h.adapter.getTask({ id: data.id }, h.call())).data.model).toBe("kimi-coding:k3");
     expect((await h.adapter.getTask({ id: data.id }, h.call())).data.reasoningLevel).toBe("high");
+    const tagged = await h.adapter.createTask({ body: { title: "Lokales Tag", model: "qwen:7b" } }, h.mutation());
+    expect(tagged.data.model).toBe("qwen:7b");
+    const posts = fake.callsTo("dashboard", "/api/plugins/kanban/tasks").filter((call) => call.method === "POST");
+    expect(posts.at(-1)?.body).toMatchObject({ model_override: "qwen:7b" });
+    expect(posts.at(-1)?.body).not.toHaveProperty("provider_override");
   });
   it("creates a task on the first board with priority, assignee, model and idempotency key", async () => {
     fake.state.addTask("default", { title: "Vorhanden", assignee: "kira" });
