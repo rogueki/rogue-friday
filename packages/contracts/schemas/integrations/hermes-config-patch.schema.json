@@ -85,6 +85,9 @@
       "additionalProperties": false
     },
     { "type": "object", "properties": { "key": { "const": "terminal.timeout" }, "value": { "type": "integer", "minimum": 1, "maximum": 3600 } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "terminal.container_cpu" }, "value": { "type": "number", "minimum": 0.01, "maximum": 1024 } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "terminal.container_memory" }, "value": { "type": "integer", "minimum": 1, "maximum": 1048576 } }, "required": ["key", "value"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "terminal.container_disk" }, "value": { "type": "integer", "minimum": 1, "maximum": 1048576 } }, "required": ["key", "value"], "additionalProperties": false },
     { "type": "object", "properties": { "key": { "const": "terminal.backend" }, "value": { "enum": ["local", "docker"] } }, "required": ["key", "value"], "additionalProperties": false },
     { "type": "object", "properties": { "key": { "const": "terminal.cwd" }, "value": { "type": "string", "maxLength": 512, "pattern": "^(\\.|/[^\\x00-\\x1f\\x7f-\\x9f]+)$" } }, "required": ["key", "value"], "additionalProperties": false },
     { "type": "object", "properties": { "key": { "const": "terminal.docker_network" }, "value": { "type": "boolean" } }, "required": ["key", "value"], "additionalProperties": false },

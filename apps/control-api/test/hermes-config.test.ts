@@ -72,6 +72,9 @@ const bridge = {
     "session.terminal_continue": true,
     max_live_sessions: 16,
     "terminal.timeout": 180,
+    "terminal.container_cpu": 1,
+    "terminal.container_memory": 5120,
+    "terminal.container_disk": 51200,
     "terminal.backend": "local",
     "terminal.cwd": ".",
     "terminal.docker_network": true,
@@ -145,6 +148,9 @@ const bridge = {
     "session.terminal_continue": false,
     max_live_sessions: false,
     "terminal.timeout": false,
+    "terminal.container_cpu": false,
+    "terminal.container_memory": false,
+    "terminal.container_disk": false,
     "terminal.backend": false,
     "terminal.cwd": false,
     "terminal.docker_network": false,
@@ -220,7 +226,7 @@ const bridge = {
 it("returns only allowlisted resolved values and installed manifests without credential leakage", async () => {
   const invoke = vi.fn(async () => bridge) as unknown as RunnerInvoker;
   const status = await fixture(invoke).status();
-  expect(status.fields).toHaveLength(71);
+  expect(status.fields).toHaveLength(74);
   expect(status.fields.find((field) => field.key === "terminal.timeout")).toMatchObject({
     value: 180, family: "execution", verification: "unverified",
   });

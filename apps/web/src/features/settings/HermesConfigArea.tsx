@@ -28,6 +28,9 @@ const LABELS: Record<string, string> = {
   "session.terminal_continue": "Terminalsitzung lokal fortsetzen",
   max_live_sessions: "Sitzungen im Gateway-Speicher",
   "terminal.timeout": "Terminal-Befehlslimit (Sekunden)",
+  "terminal.container_cpu": "Container-CPU (Kerne)",
+  "terminal.container_memory": "Container-Arbeitsspeicher (MiB)",
+  "terminal.container_disk": "Container-Datenträger (MiB)",
   "terminal.backend": "Terminal-Ausfuehrungsort",
   "terminal.docker_network": "Netzwerk im Docker-Sandbox-Container",
   "terminal.docker_mount_cwd_to_workspace": "Arbeitsordner in Docker einbinden",
@@ -99,6 +102,9 @@ const NUMERIC_LIMITS: Record<string, [number, number, number]> = {
   "agent.max_turns": [1, 100000, 1],
   max_live_sessions: [0, 10000, 1],
   "terminal.timeout": [1, 3600, 1],
+  "terminal.container_cpu": [0.01, 1024, 0.01],
+  "terminal.container_memory": [1, 1048576, 1],
+  "terminal.container_disk": [1, 1048576, 1],
   "browser.command_timeout": [5, 600, 1],
   "browser.snapshot_threshold": [1000, 200000, 1000],
   "browser.inactivity_timeout": [30, 3600, 1],
@@ -328,6 +334,9 @@ export function HermesConfigArea() {
               <small>Neue Docker-Sandboxes erhalten Netzwerkzugriff.</small> : null}
             {field.key === "logging.backup_count" && field.value === 0 ?
               <small role="alert">Gespeicherter Wert 0 wird von Hermes als Standard 3 angewendet. Bitte einen Wert ab 1 setzen.</small> : null}
+            {field.key === "terminal.container_cpu" || field.key === "terminal.container_memory" ||
+              field.key === "terminal.container_disk" ?
+              <small>Diese Grenze betrifft nur neue Container. Docker kann CPU/Arbeitsspeicher ohne Cgroup-Unterstützung und Datenträger ohne geeigneten Speichertreiber nicht erzwingen.</small> : null}
             <button
               type="button"
               disabled={

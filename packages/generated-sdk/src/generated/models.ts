@@ -186,6 +186,18 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "terminal.container_cpu";
+      value: number;
+    }
+  | {
+      key: "terminal.container_memory";
+      value: number;
+    }
+  | {
+      key: "terminal.container_disk";
+      value: number;
+    }
+  | {
       key: "terminal.backend";
       value: "local" | "docker";
     }
@@ -3381,6 +3393,9 @@ export interface HermesConfigStatus {
       | "session.terminal_continue"
       | "max_live_sessions"
       | "terminal.timeout"
+      | "terminal.container_cpu"
+      | "terminal.container_memory"
+      | "terminal.container_disk"
       | "terminal.backend"
       | "terminal.cwd"
       | "terminal.docker_network"

@@ -42,7 +42,9 @@ class BridgeTest(unittest.TestCase):
                        "compression.protect_last_n": 20,
                        "agent.max_turns": 500, "agent.gateway_timeout": 1800, "agent.api_max_retries": 3,
                        "session.terminal_continue": True, "max_live_sessions": 16,
-                       "terminal.timeout": 180, "browser.command_timeout": 30,
+                       "terminal.timeout": 180, "terminal.container_cpu": 1.0,
+                       "terminal.container_memory": 5120, "terminal.container_disk": 51200,
+                       "browser.command_timeout": 30,
                        "terminal.backend": "local", "terminal.cwd": ".", "terminal.docker_network": True,
                        "terminal.docker_mount_cwd_to_workspace": False, "terminal.docker_volumes": [],
                        "browser.snapshot_threshold": 15000, "browser.inactivity_timeout": 120,
@@ -685,6 +687,20 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertTrue(result["write"]["persisted"])
 
+    def test_container_resource_values_round_trip_through_native_config(self):
+        for key, value in (("terminal.container_cpu", 1.5),
+                           ("terminal.container_memory", 4096),
+                           ("terminal.container_disk", 16384)):
+            code, result = self.invoke({"key": key, "value": value,
+                                        "revision": bridge.revision(self.config)})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["values"][key], value)
+            self.assertTrue(result["write"]["persisted"])
+            self.values[key] = value
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "terminal.container_cpu", "value": 0,
+                         "revision": bridge.revision(self.config)})
+
     def test_revoking_real_browser_profile_removes_staged_credentials(self):
         snapshot = self.home / ".hermes" / "browser-profile"
         snapshot.mkdir()
@@ -719,7 +735,9 @@ elif a[:2] == ['config', 'get']:
          'agent.max_turns': int(p.read_text().split('max_turns: ')[1].splitlines()[0]),
          'agent.gateway_timeout': 1800, 'agent.api_max_retries': 3,
          'session.terminal_continue': True, 'max_live_sessions': 16,
-         'terminal.timeout': 180, 'browser.command_timeout': 30,
+         'terminal.timeout': 180, 'terminal.container_cpu': 1.0,
+         'terminal.container_memory': 5120, 'terminal.container_disk': 51200,
+         'browser.command_timeout': 30,
          'terminal.backend': 'local', 'terminal.cwd': '.', 'terminal.docker_network': True,
          'terminal.docker_mount_cwd_to_workspace': False, 'terminal.docker_volumes': [],
          'browser.snapshot_threshold': 15000, 'browser.inactivity_timeout': 120,

@@ -13,6 +13,9 @@ PREFIXES = ("terminal.", "browser.", "computer_use.", "code_execution.",
             "approvals.", "security.")
 SINGLES = {"toolsets", "command_allowlist"}
 CONSUMER_SOURCES = {
+    "terminal.container_cpu": "tools/terminal_tool.py:722;tools/environments/docker.py:786",
+    "terminal.container_memory": "tools/terminal_tool.py:723;tools/environments/docker.py:786",
+    "terminal.container_disk": "tools/terminal_tool.py:724;tools/environments/docker.py:786",
     "browser.inactivity_timeout": "tools/browser_tool.py:397",
     "browser.dialog_policy": "tools/browser_tool_cdp.py:73",
     "browser.dialog_timeout_s": "tools/browser_tool_cdp.py:73",
@@ -23,7 +26,8 @@ CONSUMER_SOURCES = {
     "computer_use.capture_after_mode": "tools/computer_use/tool.py:908",
 }
 RUNTIME_FIXTURE_KEYS = {"browser.inactivity_timeout", "code_execution.kernel_idle_timeout",
-                        "code_execution.max_session_kernels", "computer_use.capture_after_mode"}
+                        "code_execution.max_session_kernels", "computer_use.capture_after_mode",
+                        "terminal.container_cpu", "terminal.container_memory", "terminal.container_disk"}
 
 
 def native_fields():
