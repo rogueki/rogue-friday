@@ -1,0 +1,611 @@
+{
+  "revision": "d923a5eb487a17c0a68801bba9ef0f56c81040a8",
+  "scope": "Pinned P7-F scalar config inventory. typed_persisted proves CLI read/write only, not runtime application. Other fields remain unavailable here with an explicit reason.",
+  "timezone": "Cron job schedules retain their own Hermes profile timezone; no Friday automation schedule is created.",
+  "natural_language": "No P7-F operation is yet wired to a natural-language approval action.",
+  "items": [
+    {
+      "key": "cron.allow_agent_scheduling",
+      "source": "hermes:hermes_cli/config_defaults.py:1806",
+      "owner": "Hermes cron scheduler",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "cron/scheduler.py:417",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "cron.catch_up_missed",
+      "source": "hermes:hermes_cli/config_defaults.py:1801",
+      "owner": "Hermes cron scheduler",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "cron/jobs.py:3132",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "cron.chronos.callback_url",
+      "source": "hermes:hermes_cli/config_defaults.py:1832",
+      "owner": "Hermes cron scheduler",
+      "status": "unavailable",
+      "reason": "External Chronos endpoint and identity trust require a separate authenticated provider setup.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "cron.chronos.expected_audience",
+      "source": "hermes:hermes_cli/config_defaults.py:1833",
+      "owner": "Hermes cron scheduler",
+      "status": "unavailable",
+      "reason": "External Chronos endpoint and identity trust require a separate authenticated provider setup.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "cron.chronos.nas_jwks_url",
+      "source": "hermes:hermes_cli/config_defaults.py:1836",
+      "owner": "Hermes cron scheduler",
+      "status": "unavailable",
+      "reason": "External Chronos endpoint and identity trust require a separate authenticated provider setup.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "cron.chronos.portal_url",
+      "source": "hermes:hermes_cli/config_defaults.py:1829",
+      "owner": "Hermes cron scheduler",
+      "status": "unavailable",
+      "reason": "External Chronos endpoint and identity trust require a separate authenticated provider setup.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "cron.delivery.notify",
+      "source": "hermes:hermes_cli/config_defaults.py:1845",
+      "owner": "Hermes cron scheduler",
+      "status": "unavailable",
+      "reason": "Delivery transport is owned by P6b; channel and recipient validation are not established here.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "cron.failure_repeat_alert_hours",
+      "source": "hermes:hermes_cli/config_defaults.py:1881",
+      "owner": "Hermes cron scheduler",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "cron/scheduler.py:328",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "cron.max_parallel_jobs",
+      "source": "hermes:hermes_cli/config_defaults.py:1857",
+      "owner": "Hermes cron scheduler",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "cron/scheduler.py:4225",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "cron.media_send_timeout_seconds",
+      "source": "hermes:hermes_cli/config_defaults.py:1871",
+      "owner": "Hermes cron scheduler",
+      "status": "unavailable",
+      "reason": "Delivery transport is owned by P6b; channel and recipient validation are not established here.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "cron.mirror_delivery",
+      "source": "hermes:hermes_cli/config_defaults.py:1854",
+      "owner": "Hermes cron scheduler",
+      "status": "unavailable",
+      "reason": "Delivery transport is owned by P6b; channel and recipient validation are not established here.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "cron.model",
+      "source": "hermes:hermes_cli/config_defaults.py:1815",
+      "owner": "Hermes cron scheduler",
+      "status": "unavailable",
+      "reason": "Provider/model routing belongs to P7-B and requires installed-provider validation.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "cron.model_provider",
+      "source": "hermes:hermes_cli/config_defaults.py:1818",
+      "owner": "Hermes cron scheduler",
+      "status": "unavailable",
+      "reason": "Provider/model routing belongs to P7-B and requires installed-provider validation.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "cron.output_retention",
+      "source": "hermes:hermes_cli/config_defaults.py:1860",
+      "owner": "Hermes cron scheduler",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "cron/jobs.py:3377",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "cron.preflight",
+      "source": "hermes:hermes_cli/config_defaults.py:1811",
+      "owner": "Hermes cron scheduler",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "cron/scheduler.py:1697",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "cron.provider",
+      "source": "hermes:hermes_cli/config_defaults.py:1823",
+      "owner": "Hermes cron scheduler",
+      "status": "unavailable",
+      "reason": "Switches scheduler ownership to an external provider; migration and exclusive ticker proof required.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "cron.require_restart_safe_scope",
+      "source": "hermes:hermes_cli/config_defaults.py:1875",
+      "owner": "Hermes cron scheduler",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "cron/scheduler.py:3673",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "cron.script_timeout_seconds",
+      "source": "hermes:hermes_cli/config_defaults.py:1863",
+      "owner": "Hermes cron scheduler",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "cron/scheduler_script.py:79",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "cron.session_db_timeout_seconds",
+      "source": "hermes:hermes_cli/config_defaults.py:1867",
+      "owner": "Hermes cron scheduler",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "cron/scheduler_script.py:99",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "cron.wrap_response",
+      "source": "hermes:hermes_cli/config_defaults.py:1840",
+      "owner": "Hermes cron scheduler",
+      "status": "unavailable",
+      "reason": "Delivery transport is owned by P6b; channel and recipient validation are not established here.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.allow_all_users",
+      "source": "hermes:hermes_cli/config_defaults.py:2132",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Gateway trust and access policy needs a guarded owner approval and rollback path.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.api_server.history_tool_output_max_chars",
+      "source": "hermes:hermes_cli/config_defaults.py:2242",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "API execution limit/security belongs to P7-D and needs live admission proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.api_server.max_concurrent_runs",
+      "source": "hermes:hermes_cli/config_defaults.py:2236",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "API execution limit/security belongs to P7-D and needs live admission proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.auto_multiplex_migration",
+      "source": "hermes:hermes_cli/config_defaults.py:2176",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Changes gateway profile or transport ownership; requires topology and restart reconciliation.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.bot_loop_guard.cooldown_seconds",
+      "source": "hermes:hermes_cli/config_defaults.py:2134",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Transport anti-loop policy needs validated bounds and active gateway reload proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.bot_loop_guard.enabled",
+      "source": "hermes:hermes_cli/config_defaults.py:2134",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Transport anti-loop policy needs validated bounds and active gateway reload proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.bot_loop_guard.max_events",
+      "source": "hermes:hermes_cli/config_defaults.py:2134",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Transport anti-loop policy needs validated bounds and active gateway reload proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.bot_loop_guard.window_seconds",
+      "source": "hermes:hermes_cli/config_defaults.py:2134",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Transport anti-loop policy needs validated bounds and active gateway reload proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.delivery_ledger",
+      "source": "hermes:hermes_cli/config_defaults.py:2109",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Persistent runtime data policy needs owner/storage and retention verification.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.loop_watchdog",
+      "source": "hermes:hermes_cli/config_defaults.py:2123",
+      "owner": "Hermes gateway",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "gateway/run_startup.py:672",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "gateway.loop_watchdog_max_strikes",
+      "source": "hermes:hermes_cli/config_defaults.py:2130",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Native process guard setting still needs bounded validator and restart outcome proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.loop_watchdog_probe_interval_s",
+      "source": "hermes:hermes_cli/config_defaults.py:2128",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Native process guard setting still needs bounded validator and restart outcome proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.loop_watchdog_probe_timeout_s",
+      "source": "hermes:hermes_cli/config_defaults.py:2129",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Native process guard setting still needs bounded validator and restart outcome proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.max_inbound_media_bytes",
+      "source": "hermes:hermes_cli/config_defaults.py:2206",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Messaging media/transport behavior is owned by P6b and needs channel-specific validation.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.media_delivery_allow_dirs",
+      "source": "hermes:hermes_cli/config_defaults.py:2223",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Messaging media/transport behavior is owned by P6b and needs channel-specific validation.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.message_timestamps.enabled",
+      "source": "hermes:hermes_cli/config_defaults.py:2201",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Messaging media/transport behavior is owned by P6b and needs channel-specific validation.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.multiplex_profiles",
+      "source": "hermes:hermes_cli/config_defaults.py:2169",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Changes gateway profile or transport ownership; requires topology and restart reconciliation.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.platform_connect_timeout",
+      "source": "hermes:hermes_cli/config_defaults.py:2118",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Changes gateway profile or transport ownership; requires topology and restart reconciliation.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.profile_routes",
+      "source": "hermes:hermes_cli/config_defaults.py:2180",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Changes gateway profile or transport ownership; requires topology and restart reconciliation.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.respawn_storm.max_starts",
+      "source": "hermes:hermes_cli/config_defaults.py:2197",
+      "owner": "Hermes gateway",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "hermes_cli/gateway.py:4558",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "gateway.respawn_storm.window_seconds",
+      "source": "hermes:hermes_cli/config_defaults.py:2197",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Native process guard setting still needs bounded validator and restart outcome proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.restart_loop_guard.max_gap_seconds",
+      "source": "hermes:hermes_cli/config_defaults.py:2192",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Native process guard setting still needs bounded validator and restart outcome proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.restart_loop_guard.max_restarts",
+      "source": "hermes:hermes_cli/config_defaults.py:2192",
+      "owner": "Hermes gateway",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "gateway/run_shutdown.py:362",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "gateway.restart_loop_guard.window_seconds",
+      "source": "hermes:hermes_cli/config_defaults.py:2192",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Native process guard setting still needs bounded validator and restart outcome proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.scale_to_zero.idle_timeout_minutes",
+      "source": "hermes:hermes_cli/config_defaults.py:2186",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Platform lifecycle feature requires host/service-manager support and wake-up proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.signal_interrupt_grace_timeout",
+      "source": "hermes:hermes_cli/config_defaults.py:2104",
+      "owner": "Hermes gateway",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "gateway/run_config_loaders.py:451",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "gateway.startup_watchdog",
+      "source": "hermes:hermes_cli/config_defaults.py:2139",
+      "owner": "Hermes gateway",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "hermes_cli/gateway.py:4501",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "gateway.startup_watchdog_timeout_seconds",
+      "source": "hermes:hermes_cli/config_defaults.py:2140",
+      "owner": "Hermes gateway",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active gateway/scheduler apply and restart receipt remain unverified.",
+      "consumer": "hermes_cli/gateway.py:4501",
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "gateway.strict",
+      "source": "hermes:hermes_cli/config_defaults.py:2218",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Gateway trust and access policy needs a guarded owner approval and rollback path.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.trust_env",
+      "source": "hermes:hermes_cli/config_defaults.py:2212",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Gateway trust and access policy needs a guarded owner approval and rollback path.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.trust_recent_files",
+      "source": "hermes:hermes_cli/config_defaults.py:2228",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Gateway trust and access policy needs a guarded owner approval and rollback path.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.trust_recent_files_seconds",
+      "source": "hermes:hermes_cli/config_defaults.py:2231",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Gateway trust and access policy needs a guarded owner approval and rollback path.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "gateway.write_sessions_json",
+      "source": "hermes:hermes_cli/config_defaults.py:2144",
+      "owner": "Hermes gateway",
+      "status": "unavailable",
+      "reason": "Persistent runtime data policy needs owner/storage and retention verification.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "logging.backup_count",
+      "source": "hermes:hermes_cli/config_defaults.py:2035",
+      "owner": "Hermes file logging",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active file logger consumer and reload behavior remain unverified.",
+      "consumer": null,
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "logging.level",
+      "source": "hermes:hermes_cli/config_defaults.py:2033",
+      "owner": "Hermes file logging",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active file logger consumer and reload behavior remain unverified.",
+      "consumer": null,
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "logging.max_size_mb",
+      "source": "hermes:hermes_cli/config_defaults.py:2034",
+      "owner": "Hermes file logging",
+      "status": "typed_persisted",
+      "reason": "CLI write/readback is typed; active file logger consumer and reload behavior remain unverified.",
+      "consumer": null,
+      "apply": "CLI config persisted and read back; active process state not verified"
+    },
+    {
+      "key": "monitoring.export.otlp.enabled",
+      "source": "hermes:hermes_cli/config_defaults.py:2098",
+      "owner": "Hermes monitoring",
+      "status": "unavailable",
+      "reason": "Exporter/telemetry setup needs endpoint allowlist, privacy review, dependency and active export proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "monitoring.export.otlp.endpoint",
+      "source": "hermes:hermes_cli/config_defaults.py:2098",
+      "owner": "Hermes monitoring",
+      "status": "unavailable",
+      "reason": "Exporter/telemetry setup needs endpoint allowlist, privacy review, dependency and active export proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "monitoring.gateway_health_export.diagnostic_events_enabled",
+      "source": "hermes:hermes_cli/config_defaults.py:2088",
+      "owner": "Hermes monitoring",
+      "status": "unavailable",
+      "reason": "Exporter/telemetry setup needs endpoint allowlist, privacy review, dependency and active export proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "monitoring.gateway_health_export.enabled",
+      "source": "hermes:hermes_cli/config_defaults.py:2086",
+      "owner": "Hermes monitoring",
+      "status": "unavailable",
+      "reason": "Exporter/telemetry setup needs endpoint allowlist, privacy review, dependency and active export proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "monitoring.gateway_health_export.export_interval_seconds",
+      "source": "hermes:hermes_cli/config_defaults.py:2090",
+      "owner": "Hermes monitoring",
+      "status": "unavailable",
+      "reason": "Exporter/telemetry setup needs endpoint allowlist, privacy review, dependency and active export proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "monitoring.gateway_health_export.logs_export_interval_seconds",
+      "source": "hermes:hermes_cli/config_defaults.py:2091",
+      "owner": "Hermes monitoring",
+      "status": "unavailable",
+      "reason": "Exporter/telemetry setup needs endpoint allowlist, privacy review, dependency and active export proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "monitoring.gateway_health_export.metrics_enabled",
+      "source": "hermes:hermes_cli/config_defaults.py:2087",
+      "owner": "Hermes monitoring",
+      "status": "unavailable",
+      "reason": "Exporter/telemetry setup needs endpoint allowlist, privacy review, dependency and active export proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "monitoring.gateway_health_export.resource_attributes.deployment.environment.name",
+      "source": "hermes:hermes_cli/config_defaults.py:2093",
+      "owner": "Hermes monitoring",
+      "status": "unavailable",
+      "reason": "Exporter/telemetry setup needs endpoint allowlist, privacy review, dependency and active export proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "monitoring.gateway_health_export.resource_attributes.service.name",
+      "source": "hermes:hermes_cli/config_defaults.py:2093",
+      "owner": "Hermes monitoring",
+      "status": "unavailable",
+      "reason": "Exporter/telemetry setup needs endpoint allowlist, privacy review, dependency and active export proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "monitoring.gateway_health_export.warning_error_events_enabled",
+      "source": "hermes:hermes_cli/config_defaults.py:2089",
+      "owner": "Hermes monitoring",
+      "status": "unavailable",
+      "reason": "Exporter/telemetry setup needs endpoint allowlist, privacy review, dependency and active export proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "monitoring.install_id",
+      "source": "hermes:hermes_cli/config_defaults.py:2084",
+      "owner": "Hermes monitoring",
+      "status": "unavailable",
+      "reason": "Exporter/telemetry setup needs endpoint allowlist, privacy review, dependency and active export proof.",
+      "consumer": null,
+      "apply": "not offered"
+    }
+  ]
+}
