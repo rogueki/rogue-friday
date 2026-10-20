@@ -23,6 +23,23 @@ function context(version: () => number, patch: (expected?: number) => never) {
 }
 
 describe("voice settings commit", () => {
+  it("rejects a concurrent policy write between snapshot and apply", async () => {
+    const stored = { ttsVoice: "friday-female", inputDeviceId: null, outputDeviceId: null,
+      wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
+      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, ttsRate: 1 };
+    const { ttsVoice: _ttsVoice, inputDeviceId: _inputDeviceId, outputDeviceId: _outputDeviceId, ...live } = stored;
+    const ctx = context(() => 1, () => { throw new Error("must not persist"); });
+    ctx.runtime.settings.area = vi.fn(() => stored) as never;
+    ctx.body = { voice: { ...stored, voiceHistoryEnabled: false } };
+    const send = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A" })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-A", runtime_settings: live })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-B",
+        runtime_settings: { ...live, storeRawRecordings: true } })));
+    await expect(settingsHandlers.updateSettings!(ctx)).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(send).toHaveBeenCalledTimes(3);
+  });
+
   it("rolls back only against the revision produced by its own settings apply", async () => {
     const stored = { ttsVoice: "friday-female", inputDeviceId: null, outputDeviceId: null,
       wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",

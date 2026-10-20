@@ -357,8 +357,11 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
           let runtimeInstance: string | null = null;
           if (changeRuntime) {
             const applySnapshot = await readRuntimeVoiceSettings(ctx.runtime);
-            if (applySnapshot.serviceStartedAt !== runtimeBefore?.serviceStartedAt)
+            if (!runtimeBefore || applySnapshot.serviceStartedAt !== runtimeBefore.serviceStartedAt)
               throw new ApiError({ code: "CONFLICT", message: "Sprachdienst wurde während der Änderung neu gestartet. Bitte neu laden." });
+            const previousRuntimeSettings = runtimeBefore.settings;
+            if (runtimeVoiceFields.some((field) => applySnapshot.settings[field] !== previousRuntimeSettings[field]))
+              throw new ApiError({ code: "CONFLICT", message: "Sprachrichtlinie wurde während der Änderung geändert. Bitte neu laden." });
             try {
               runtimeApplied = await applyVoiceSettings(ctx.runtime, requestedRuntime!, applySnapshot);
               runtimeInstance = runtimeApplied.serviceStartedAt;
