@@ -1,7 +1,7 @@
 # Project Status & Continuation Guide
 
 **Read this first in every new session** (then `docs/IMPLEMENTATION_CONVENTIONS.md`, then `docs/PLAN.md`).
-Last updated: 2026-10-15 (cloud session; Phase A and B complete in the cloud, Windows verification open).
+Last updated: 2026-10-20 (Hermes integration wave 3 merged; physical clean-install drill open).
 
 ## Goal
 
@@ -242,3 +242,32 @@ register, evidence per package and the acceptance ledger live in `docs/agent-wor
   matrix and the P10 recovery/runbook acceptances. Real scheduler effects, provider-backed sends, physical
   voice/audio and a fresh-machine install stay **NOT_RUN** — they need a live Hermes instance, real accounts or the
   target hardware, not more local fixtures.
+## Hermes integration wave 3 — merged 2026-10-20
+
+PR #28 (`feat/friday-completion-20261020`) merged into `main` as `164a341ff504cc4b93cd6761a9e0aba706fc2ca0`
+(2026-10-20T17:00:39Z). It carries the Hermes runtime controls (approval denylist and confirmation policy,
+command-approval dry run, browser engine and local routing, cron inventory plus CAS-guarded cron mutations,
+MCP OAuth setup and probing, task cancel/retry/stop), spoken research through the native approval pipeline,
+source-grounded research drafts, the installed Whisper catalog with cancellable downloads, staged writes for
+every action family, and the installer/update payloads that deliver the new voice modules —
+`installer/voice/research_voice.py` is in both update scripts and covered by the Pester check.
+
+Verification for the merged state: branch CI run `39453076996` on `1dd1c01` (10/10 jobs, all eight Playwright
+shards) and `main` CI run `39462421959` on `164a341` (10/10 jobs). Shard 6 failed once on that branch run
+(`settings.spec.ts:17` rename, `tasks.spec.ts:84` task preview) with dbus/SharedImage errors in the log; the
+failed-job rerun was green, so it is the known browser/software-GL instability, not a code defect. Local runs
+additionally covered `pnpm typecheck`, `pnpm contracts:check`, 12 focused voice/research API tests, the Python
+dependency-closure test and the Pester voice-integration script.
+
+Two notes worth keeping in mind:
+
+- The released-operation pin moved from 270 to 271 because the cron mutation and the approval dry run are part
+  of this release; `packages/contracts/test/openapi-additions.test.ts` states that origin.
+- The two research screenshot baselines were recaptured on the CI runner via the new `capture_baselines`
+  dispatch job. 74 of 76 baselines stayed byte-identical; only the two research pages differ because the design
+  tokens rely on an `Inter` fallback that no host ships. Their *appearance* is still unreviewed by eye — see
+  `docs/agent-work/hermes-full-integration/baseline-verification.md`.
+
+Open, deliberately: the physical clean install (`docs/agent-work/hermes-full-integration/p10-clean-install-drill.md`),
+upgrade preservation and rollback, and every acceptance that needs real providers, telephony, cloud speech keys
+or voice hardware. Those stay `NOT_RUN` in the acceptance ledger.
