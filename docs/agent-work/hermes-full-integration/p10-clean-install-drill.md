@@ -28,9 +28,21 @@ Evidenzlage heute: alle Fixture- und CI-Prüfungen sind grün, der physische Fri
   1. Geplante Aufgaben löschen — auf diesem Host registriert: `FRIDAY_Dashboard`, `FRIDAY_Voice`,
      `FRIDAY_WSL_Keepalive` (kein `FRIDAY_Watchdog`-Task, obwohl `INSTALL_STATE.md` ihn nennt; der Befund
      gehört ins Protokoll). Reihenfolge: Watchdog zuerst (falls vorhanden), dann Voice, Keepalive, Dashboard.
-  2. `wsl --unregister Friday-Ubuntu` (löscht Hermes mit) und danach `D:\Kali\wsl-friday` prüfen — der
-     Distro-Ordner muss weg sein.
-  3. `D:\Kali\Friday` löschen; eine übernommene Altinstallation (`C:\Friday`, `C:\Jarvis`) gleichermaßen.
+  2. **Die WSL-Distribution bleibt bestehen** — `wsl --unregister` ist für diesen Lauf gesperrt. Der
+     Betreiber nutzt WSL2 auch außerhalb von FRIDAY; ein Auslöschen der Distribution würde dieses System
+     treffen. Geprüft am 2026-10-20: in `Friday-Ubuntu` liegen nur `~/.hermes` (3,2 GB), `~/jarvis`
+     (Altbestand J.A.R.V.I.S.) und `~/friday-tts`; der Obsidian-Vault liegt unter `D:\obsidian\Vault` (aus
+     WSL als `/mnt/d/obsidian/Vault` erreichbar) und **nicht** in der Distribution. Entfernt werden deshalb
+     nur die FRIDAY-Bestände in der Distro: Modelle und Dashboard-Artefakte.
+
+     ```bash
+     wsl -d Friday-Ubuntu -- du -sh ~/.hermes ~/friday-tts ~/jarvis
+     wsl -d Friday-Ubuntu -- rm -rf ~/friday-tts/models ~/jarvis/dashboard
+     ```
+
+  3. `D:\Kali\Friday\models` und `D:\Kali\Friday\dashboard` löschen (beide baut der Installer neu);
+     `config`, `voice` und `logs` bleiben aus der Sicherung erhalten. Eine übernommene Altinstallation
+     (`C:\Friday`, `C:\Jarvis`) gleichermaßen entfernen.
 - Hinweis: `install-state.json` führt `dashboard_source` als lokalen Arbeitsbaum
   (`…\rogue-friday-clean`). Für den Drill muss die Quelle der gemergte `main`-Stand sein — sonst prüft der
   Lauf den falschen Code.
@@ -52,7 +64,7 @@ sind Modelle und Build-Artefakte, die der Installer neu erzeugt:
 | Logs des Altlaufs | `D:\Kali\Friday\logs` | 17 MB | ja, für die Fehleranalyse |
 | Hermes-Zustand | `~/.hermes` in `Friday-Ubuntu` | 3,2 GB | ja, **ohne** `cache`, `backups`, `audio_cache` |
 | Dashboard-Daten (falls vorhanden) | `D:\Kali\Friday\dashboard\data` | — | ja, prüfen ob vorhanden |
-| Gesamte Distro (optional) | `wsl --export Friday-Ubuntu D:\backup\friday-distro-<datum>.tar` | ~22 GB vhdx | optional, D: hat genug Platz |
+| Gesamte Distro (optional) | `wsl --export Friday-Ubuntu D:\backup\friday-distro-<datum>.tar` | ~22 GB vhdx | optional; die Distro wird **nicht** gelöscht, der Export ist nur eine Rückversicherung |
 
 Praktisch:
 
