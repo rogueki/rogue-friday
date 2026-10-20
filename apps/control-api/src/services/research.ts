@@ -1,11 +1,14 @@
 import { createId } from "@friday/observability";
+import { createHash } from "node:crypto";
 import type { ResearchProject, ResearchSource } from "@friday/sdk";
 import { kvGet, kvSet, type Db } from "../db/database";
 import { ApiError, notFound, validationFailed } from "../util/errors";
+import { fetchResearchPage } from "./research-page-fetch";
 
 const MAX_SOURCES = 10;
 const MAX_RESPONSE_BYTES = 512_000;
 const SEARCH_TIMEOUT_MS = 12_000;
+const MAX_FETCHED_PAGES = 3;
 export const WIKIPEDIA_SEARCH_URL = "https://en.wikipedia.org/w/rest.php/v1/search/page";
 
 type ProjectRow = {
@@ -27,6 +30,11 @@ type SourceRow = {
   url: string;
   domain: string;
   excerpt: string | null;
+  status: "queued" | "retrieved" | "failed";
+  retrieved_at: string | null;
+  body_text: string | null;
+  content_hash: string | null;
+  error_code: string | null;
   created_at: string;
 };
 
@@ -98,6 +106,7 @@ export class ResearchService {
     endpoint: string | undefined,
     private readonly fetcher: typeof fetch = fetch,
     private readonly now: () => Date = () => new Date(),
+    private readonly pageFetcher: (url: string) => Promise<string> = fetchResearchPage,
   ) {
     this.defaultEndpoint = providerUrl(endpoint);
     // A process that died during the provider request must never silently submit that request again.
@@ -174,6 +183,11 @@ export class ResearchService {
         n: number;
       }
     ).n;
+    const retrieved = (
+      this.db
+        .prepare("SELECT COUNT(*) AS n FROM research_sources WHERE project_id = ? AND status = 'retrieved'")
+        .get(row.id) as { n: number }
+    ).n;
     const source = {
       adapterId: row.provider === "wikipedia" ? "wikipedia-rest" : "local-searxng",
       system: row.provider,
@@ -196,7 +210,7 @@ export class ResearchService {
       artifactCount: 0,
       resultSummary:
         row.status === "review"
-          ? `${count} Suchtreffer als unverifizierte Quellen gespeichert. Seiteninhalt und Aussagen wurden nicht geprueft.`
+          ? `${count} Suchtreffer gespeichert, ${retrieved} Seiten begrenzt abgerufen. Inhalte sind Quellenmaterial; Aussagen wurden nicht geprueft.`
           : row.status === "failed"
             ? row.error_code === "INTERRUPTED"
               ? "Suche bei einem Neustart unterbrochen; Ergebnis unklar. Keine automatische Wiederholung."
@@ -231,12 +245,15 @@ export class ResearchService {
       title: row.title,
       url: row.url,
       domain: row.domain,
-      retrievedAt: null,
+      retrievedAt: row.retrieved_at,
       relevance: 0,
       reliability: 0,
       supportsStatement: null,
-      excerpt: row.excerpt,
-      status: "queued",
+      excerpt: row.status === "retrieved" ? (row.body_text?.slice(0, 1000) ?? row.excerpt) : row.excerpt,
+      contentText: row.body_text,
+      contentHash: row.content_hash,
+      fetchError: row.error_code,
+      status: row.status,
     };
   }
 
@@ -391,12 +408,45 @@ export class ResearchService {
     } finally {
       clearTimeout(timer);
     }
+    const pages: Array<{
+      status: "retrieved" | "failed";
+      text: string | null;
+      retrievedAt: string | null;
+      hash: string | null;
+      errorCode: string | null;
+    }> = [];
+    for (const source of sources.slice(0, MAX_FETCHED_PAGES)) {
+      try {
+        const content = await this.pageFetcher(source.url);
+        if (!content.trim()) throw new Error("EMPTY_PAGE");
+        const bounded = content.slice(0, 16_000);
+        pages.push({
+          status: "retrieved",
+          text: bounded,
+          retrievedAt: this.now().toISOString(),
+          hash: createHash("sha256").update(bounded).digest("hex"),
+          errorCode: null,
+        });
+      } catch (error) {
+        pages.push({
+          status: "failed",
+          text: null,
+          retrievedAt: null,
+          hash: null,
+          errorCode:
+            error instanceof Error && /^[A-Z_]{3,32}$/.test(error.message)
+              ? error.message
+              : "PAGE_UNAVAILABLE",
+        });
+      }
+    }
     this.db.exec("BEGIN");
     try {
-      for (const source of sources) {
+      for (const [index, source] of sources.entries()) {
+        const page = pages[index];
         this.db
           .prepare(
-            "INSERT INTO research_sources (id, project_id, title, url, domain, excerpt, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO research_sources (id, project_id, title, url, domain, excerpt, created_at, status, retrieved_at, body_text, content_hash, error_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           )
           .run(
             createId("src"),
@@ -406,6 +456,11 @@ export class ResearchService {
             source.domain,
             source.excerpt,
             this.now().toISOString(),
+            page?.status ?? "queued",
+            page?.retrievedAt ?? null,
+            page?.text ?? null,
+            page?.hash ?? null,
+            page?.errorCode ?? null,
           );
       }
       this.db

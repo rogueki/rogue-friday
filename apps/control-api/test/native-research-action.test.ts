@@ -46,6 +46,7 @@ it("stages exact research request, searches once, persists only unverified sourc
     responseValidation: "throw",
     env: { FRIDAY_RESEARCH_SEARXNG_URL: endpoint },
     providerFetch: search as typeof fetch,
+    researchPageFetch: async () => "Energiepreise sind laut dieser Testseite gestiegen.",
   });
   try {
     const owner = api.client();
@@ -78,7 +79,7 @@ it("stages exact research request, searches once, persists only unverified sourc
       findingCount: 0,
       artifactCount: 0,
       costEur: null,
-      resultSummary: expect.stringContaining("unverifizierte"),
+      resultSummary: expect.stringContaining("1 Seiten begrenzt abgerufen"),
     });
     expect(search).toHaveBeenCalledTimes(1);
     expect(new URL(String(search.mock.calls[0]![0])).searchParams.get("q")).toBe("Energiepreise Europa");
@@ -86,8 +87,8 @@ it("stages exact research request, searches once, persists only unverified sourc
     expect(sourceList.statusCode, sourceList.body).toBe(200);
     expect(sourceList.json().items).toMatchObject([
       {
-        status: "queued",
-        retrievedAt: null,
+        status: "retrieved",
+        retrievedAt: expect.any(String),
         reliability: 0,
         supportsStatement: null,
         url: "https://example.org/article",
@@ -359,6 +360,7 @@ it("uses the fixed keyless Wikipedia endpoint without a local search installatio
     ownerPassword: "strong-test-password",
     responseValidation: "throw",
     providerFetch: wikipedia as typeof fetch,
+    researchPageFetch: async () => "Climate change is observed in this test page.",
   });
   try {
     const owner = api.client();
@@ -386,8 +388,8 @@ it("uses the fixed keyless Wikipedia endpoint without a local search installatio
     ).toMatchObject([
       {
         url: "https://en.wikipedia.org/wiki/Climate_change",
-        excerpt: "Climate change is observed.",
-        status: "queued",
+        excerpt: "Climate change is observed in this test page.",
+        status: "retrieved",
         source: { system: "wikipedia" },
       },
     ]);

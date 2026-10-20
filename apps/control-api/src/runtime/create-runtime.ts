@@ -75,6 +75,7 @@ import type { AuditRecorder, ResponseValidationMode, Runtime } from "./types";
 export interface CreateRuntimeOptions {
   config: FridayConfig;
   providerFetch?: typeof fetch;
+  researchPageFetch?: (url: string) => Promise<string>;
   env?: NodeJS.ProcessEnv;
   logger?: Logger;
   /** `:memory:` for tests. Defaults to `<dataDir>/dashboard.sqlite`. */
@@ -320,7 +321,9 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const codingRuns: CodingRunsService = new CodingRunsService(config, skills, env);
   const powerpoint = new PowerPointService(config.paths.dataDir);
   const codingVoiceRepository = new CodingVoiceRepositoryService(db, codingRuns);
-  const research = new ResearchService(db, env.FRIDAY_RESEARCH_SEARXNG_URL, options.providerFetch);
+  const research = new ResearchService(db, env.FRIDAY_RESEARCH_SEARXNG_URL, options.providerFetch,
+    options.now ? () => new Date(options.now!()) : undefined,
+    options.researchPageFetch);
   const contentStudioProduction = new ContentStudioProductionService(db, contentStudioPlan, contentStudioKeys, contentStudioProviders,
     config.paths.dataDir, { ffmpegPath: env.FRIDAY_FFMPEG_PATH, enabled: () => settings.area("dashboard").contentStudioEnabled === true });
   settingsHolder.current = settings;

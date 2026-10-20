@@ -66,6 +66,8 @@ const sources: ResearchSource[] = [
     reliability: 0.85,
     supportsStatement: "Drei Wochen Lieferzeit",
     excerpt: "Lieferzeit: 3 Wochen",
+    contentText: "Gespeicherter Seitentext mit belegbarer Lieferzeit von drei Wochen.",
+    contentHash: "a".repeat(64),
     status: "retrieved",
   },
   {
@@ -278,6 +280,10 @@ describe("research page", () => {
     await user.click(await screen.findByRole("button", { name: /buero-nord\.example/ }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Lieferzeit: 3 Wochen")).toBeInTheDocument();
+    await user.click(within(dialog).getByText("Gespeicherten Seitentext anzeigen"));
+    expect(
+      within(dialog).getByText("Gespeicherter Seitentext mit belegbarer Lieferzeit von drei Wochen."),
+    ).toBeVisible();
     expect(within(dialog).getByRole("link", { name: /Quelle im Browser öffnen/ })).toHaveAttribute(
       "href",
       "https://buero-nord.example/preise",

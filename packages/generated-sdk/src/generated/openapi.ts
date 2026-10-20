@@ -8680,10 +8680,14 @@ export interface components {
         };
         /** ResearchSource */
         ResearchSource: {
+            contentHash?: string | null;
+            /** @description Bounded plain-text extraction from a fetched page. Missing on legacy or mock sources. */
+            contentText?: string | null;
             /** Format: date-time */
             createdAt: string;
             domain: string;
             excerpt: string | null;
+            fetchError?: string | null;
             id: string;
             labels?: string[];
             projectId: string;

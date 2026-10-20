@@ -422,6 +422,17 @@ export const MIGRATIONS: readonly Migration[] = [
     name: "research-provider-provenance",
     sql: `ALTER TABLE research_projects ADD COLUMN provider TEXT NOT NULL DEFAULT 'searxng';`,
   },
+  {
+    id: 26,
+    name: "research-page-evidence",
+    sql: `
+      ALTER TABLE research_sources ADD COLUMN status TEXT NOT NULL DEFAULT 'queued';
+      ALTER TABLE research_sources ADD COLUMN retrieved_at TEXT;
+      ALTER TABLE research_sources ADD COLUMN body_text TEXT;
+      ALTER TABLE research_sources ADD COLUMN content_hash TEXT;
+      ALTER TABLE research_sources ADD COLUMN error_code TEXT;
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

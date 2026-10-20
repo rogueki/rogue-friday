@@ -51,3 +51,9 @@
 .rs-artifact__name { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .rs-artifact__name .mc-muted { font-size: var(--jv-fs-xs); }
 .rs-later { font-size: var(--jv-fs-2xs); letter-spacing: 0.1em; text-transform: uppercase; color: var(--friday-muted); margin-left: 6px; }
+.rs-page-content p {
+  max-height: 22rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

@@ -334,9 +334,16 @@ function SourceDetail({ source, findings }: { source: ResearchSource; findings: 
           {formatFraction(source.reliability, locale)}
         </KeyValue>
       </dl>
+      {source.status === "failed" ? (
+        <p className="mc-note mc-note--muted">
+          {t("research.source.fetchFailed")}
+          {source.fetchError ? ` (${source.fetchError})` : ""}
+        </p>
+      ) : null}
       <section>
         <h3 className="mc-subtitle">
-          <Quote size={12} strokeWidth={1.5} aria-hidden="true" /> {t("research.source.excerpt")}
+          <Quote size={12} strokeWidth={1.5} aria-hidden="true" />{" "}
+          {t(source.status === "retrieved" ? "research.source.pageExcerpt" : "research.source.excerpt")}
         </h3>
         {source.excerpt ? (
           <blockquote className="rs-quote">{source.excerpt}</blockquote>
@@ -344,6 +351,13 @@ function SourceDetail({ source, findings }: { source: ResearchSource; findings: 
           <p className="mc-note mc-note--muted">{t("research.source.noExcerpt")}</p>
         )}
       </section>
+      {source.contentText ? (
+        <details className="rs-page-content">
+          <summary>{t("research.source.pageContent")}</summary>
+          <p>{source.contentText}</p>
+          {source.contentHash ? <small className="mc-mono">SHA-256: {source.contentHash}</small> : null}
+        </details>
+      ) : null}
       <section>
         <h3 className="mc-subtitle">{t("research.source.supports")}</h3>
         <p className="mc-note">{source.supportsStatement ?? <span className="mc-null">{MISSING}</span>}</p>

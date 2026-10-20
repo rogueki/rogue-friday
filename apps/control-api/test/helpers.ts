@@ -10,6 +10,7 @@ import type { ResponseValidationMode } from "../src/runtime/types";
 
 export interface TestApiOptions {
   providerFetch?: typeof fetch;
+  researchPageFetch?: (url: string) => Promise<string>;
   authMode?: "dev" | "local";
   ownerPassword?: string;
   firstRunSetup?: boolean;
@@ -89,6 +90,7 @@ ${options.yamlExtra ?? ""}
   const api = await createControlApi({
     config,
     ...(options.providerFetch ? { providerFetch: options.providerFetch } : {}),
+    researchPageFetch: options.researchPageFetch ?? (async () => { throw new Error("test page unavailable"); }),
     env,
     ...(logger ? { logger } : {}),
     responseValidation: options.responseValidation ?? "throw",

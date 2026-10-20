@@ -5040,6 +5040,12 @@ export interface ResearchSource {
   reliability: number;
   supportsStatement: string | null;
   excerpt: string | null;
+  /**
+   * Bounded plain-text extraction from a fetched page. Missing on legacy or mock sources.
+   */
+  contentText?: string | null;
+  contentHash?: string | null;
+  fetchError?: string | null;
   status: "queued" | "retrieved" | "failed" | "excluded";
 }
 /**
