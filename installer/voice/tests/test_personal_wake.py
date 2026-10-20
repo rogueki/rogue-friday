@@ -350,12 +350,17 @@ def load_voice_module():
     stubs = {"winsound": types.SimpleNamespace(Beep=lambda *a: None),
              "sounddevice": types.ModuleType("sounddevice")}
     # find_spec raises ValueError for a stub already registered without __spec__ (second call in one process).
-    if "torch" not in sys.modules and importlib.util.find_spec("torch") is None:
+    torch_stubbed = "torch" not in sys.modules and importlib.util.find_spec("torch") is None
+    if torch_stubbed:
         stubs["torch"] = types.ModuleType("torch")
     for name, module in stubs.items():
         sys.modules.setdefault(name, module)
     sys.modules.pop("friday_voice", None)
-    return importlib.import_module("friday_voice")
+    try:
+        return importlib.import_module("friday_voice")
+    finally:
+        if torch_stubbed:
+            sys.modules.pop("torch", None)
 
 
 class FakeSegment:
