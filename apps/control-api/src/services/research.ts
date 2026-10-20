@@ -6,6 +6,7 @@ import { ApiError, notFound, validationFailed } from "../util/errors";
 const MAX_SOURCES = 10;
 const MAX_RESPONSE_BYTES = 512_000;
 const SEARCH_TIMEOUT_MS = 12_000;
+export const WIKIPEDIA_SEARCH_URL = "https://en.wikipedia.org/w/rest.php/v1/search/page";
 
 type ProjectRow = {
   id: string;
@@ -15,6 +16,7 @@ type ProjectRow = {
   mission: string;
   status: "running" | "review" | "failed";
   error_code: string | null;
+  provider: "searxng" | "wikipedia";
   created_at: string;
   updated_at: string;
 };
@@ -36,6 +38,7 @@ function providerUrl(raw: string | undefined): URL | null {
   } catch {
     return null;
   }
+  if (url.href === WIKIPEDIA_SEARCH_URL) return url;
   // The operator selects the service; a research query must never select a network destination.
   if (
     url.protocol !== "http:" ||
@@ -49,6 +52,19 @@ function providerUrl(raw: string | undefined): URL | null {
   // URL resolution must preserve an operator-configured reverse-proxy prefix.
   if (!url.pathname.endsWith("/")) url.pathname += "/";
   return url;
+}
+
+function cleanWikipediaResult(value: unknown): ReturnType<typeof cleanResult> {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  if (typeof item.key !== "string" || typeof item.title !== "string" || item.key.length > 500) return null;
+  const key = item.key.trim();
+  if (!key || key.includes("/") || key.includes("#")) return null;
+  return cleanResult({
+    title: item.title,
+    url: `https://en.wikipedia.org/wiki/${encodeURIComponent(key)}`,
+    content: typeof item.excerpt === "string" ? item.excerpt.replace(/<[^>]*>/g, "") : "",
+  });
 }
 
 function cleanResult(
@@ -100,7 +116,7 @@ export class ResearchService {
   }
 
   configuration(): {
-    provider: "searxng";
+    provider: "searxng" | "wikipedia";
     endpoint: string | null;
     configured: boolean;
     version: number;
@@ -110,7 +126,7 @@ export class ResearchService {
   } {
     const endpoint = this.endpoint();
     return {
-      provider: "searxng",
+      provider: endpoint?.href === WIKIPEDIA_SEARCH_URL ? "wikipedia" : "searxng",
       endpoint: endpoint?.href ?? null,
       configured: endpoint !== null,
       version: Number(kvGet(this.db, "research.searxng.version") ?? 1),
@@ -123,7 +139,7 @@ export class ResearchService {
   configure(endpoint: string, expectedVersion: number): ReturnType<ResearchService["configuration"]> {
     if (endpoint && !providerUrl(endpoint))
       throw validationFailed(
-        "SearXNG-Adresse muss ein lokaler HTTP-Endpunkt ohne Zugangsdaten oder Query sein.",
+        "Nur der feste Wikipedia-Suchendpunkt oder ein lokaler SearXNG-HTTP-Endpunkt ist erlaubt.",
       );
     this.db.exec("BEGIN IMMEDIATE");
     try {
@@ -148,7 +164,7 @@ export class ResearchService {
     if (!this.endpoint())
       throw new ApiError({
         code: "ADAPTER_UNAVAILABLE",
-        message: "Lokaler SearXNG-Suchprovider ist nicht eingerichtet.",
+        message: "Suchprovider ist nicht eingerichtet. Wikipedia oder lokalen SearXNG-Dienst waehlen.",
       });
   }
 
@@ -158,7 +174,11 @@ export class ResearchService {
         n: number;
       }
     ).n;
-    const source = { adapterId: "local-searxng", system: "searxng", lastSyncedAt: row.updated_at };
+    const source = {
+      adapterId: row.provider === "wikipedia" ? "wikipedia-rest" : "local-searxng",
+      system: row.provider,
+      lastSyncedAt: row.updated_at,
+    };
     return {
       id: row.id,
       version: row.status === "running" ? 1 : 2,
@@ -194,12 +214,19 @@ export class ResearchService {
   }
 
   private source(row: SourceRow): ResearchSource {
+    const provider = this.db
+      .prepare("SELECT provider FROM research_projects WHERE id = ?")
+      .get(row.project_id) as { provider: ProjectRow["provider"] };
     return {
       id: row.id,
       version: 1,
       createdAt: row.created_at,
       updatedAt: row.created_at,
-      source: { adapterId: "local-searxng", system: "searxng", lastSyncedAt: row.created_at },
+      source: {
+        adapterId: provider.provider === "wikipedia" ? "wikipedia-rest" : "local-searxng",
+        system: provider.provider,
+        lastSyncedAt: row.created_at,
+      },
       projectId: row.project_id,
       title: row.title,
       url: row.url,
@@ -284,9 +311,9 @@ export class ResearchService {
     try {
       this.db
         .prepare(
-          "INSERT INTO research_projects (id, owner_id, request_key, topic, mission, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'running', ?, ?)",
+          "INSERT INTO research_projects (id, owner_id, request_key, topic, mission, status, provider, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?)",
         )
-        .run(id, ownerId, requestKey, normalized, normalized, timestamp, timestamp);
+        .run(id, ownerId, requestKey, normalized, normalized, config.provider, timestamp, timestamp);
     } catch {
       const raced = this.db
         .prepare("SELECT * FROM research_projects WHERE owner_id = ? AND request_key = ?")
@@ -294,16 +321,21 @@ export class ResearchService {
       if (raced) return this.project(raced);
       throw new ApiError({ code: "INTERNAL", message: "Rechercheauftrag konnte nicht gespeichert werden." });
     }
-    const endpoint = new URL("search", config.endpoint!);
+    const endpoint =
+      config.provider === "wikipedia" ? new URL(WIKIPEDIA_SEARCH_URL) : new URL("search", config.endpoint!);
     endpoint.searchParams.set("q", normalized);
-    endpoint.searchParams.set("format", "json");
+    if (config.provider === "wikipedia") endpoint.searchParams.set("limit", String(MAX_SOURCES));
+    else endpoint.searchParams.set("format", "json");
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS);
     let sources: Array<NonNullable<ReturnType<typeof cleanResult>>>;
     try {
       const response = await this.fetcher(endpoint, {
         signal: controller.signal,
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "FridayResearch/1.0 (https://github.com/rogueki/rogue-friday)",
+        },
         redirect: "error",
       });
       if (!response.ok)
@@ -331,14 +363,17 @@ export class ResearchService {
         chunks.push(Buffer.from(value));
       }
       const body = Buffer.concat(chunks).toString("utf8");
-      const parsed = JSON.parse(body) as { results?: unknown };
-      if (!Array.isArray(parsed.results)) throw new Error("provider_shape");
+      const parsed = JSON.parse(body) as { results?: unknown; pages?: unknown };
+      const items = config.provider === "wikipedia" ? parsed.pages : parsed.results;
+      if (!Array.isArray(items)) throw new Error("provider_shape");
       const unique = new Set<string>();
-      sources = parsed.results.map(cleanResult).filter((source) => {
-        if (!source || unique.has(source.url) || unique.size >= MAX_SOURCES) return false;
-        unique.add(source.url);
-        return true;
-      }) as Array<NonNullable<ReturnType<typeof cleanResult>>>;
+      sources = items
+        .map(config.provider === "wikipedia" ? cleanWikipediaResult : cleanResult)
+        .filter((source) => {
+          if (!source || unique.has(source.url) || unique.size >= MAX_SOURCES) return false;
+          unique.add(source.url);
+          return true;
+        }) as Array<NonNullable<ReturnType<typeof cleanResult>>>;
     } catch (error) {
       const code =
         error instanceof Error && error.name === "AbortError"

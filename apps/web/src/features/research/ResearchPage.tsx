@@ -811,6 +811,13 @@ function ResearchProviderSetup() {
     >
       <label htmlFor="research-provider">{t("research.provider.title")}</label>
       <div className="mc-toolbar">
+        <Button
+          type="button"
+          disabled={saving}
+          onClick={() => setEndpoint("https://en.wikipedia.org/w/rest.php/v1/search/page")}
+        >
+          {t("research.provider.wikipedia")}
+        </Button>
         <input
           id="research-provider"
           type="url"

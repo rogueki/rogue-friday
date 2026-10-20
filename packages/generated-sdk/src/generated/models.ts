@@ -5005,7 +5005,7 @@ export interface ResearchProjectResponse {
   freshness: Freshness;
 }
 export interface ResearchProvider {
-  provider: "searxng";
+  provider: "searxng" | "wikipedia";
   endpoint: string | null;
   configured: boolean;
   version: number;

@@ -8661,8 +8661,8 @@ export interface components {
             configured: boolean;
             endpoint: string | null;
             maxSources: number;
-            /** @constant */
-            provider: "searxng";
+            /** @enum {string} */
+            provider: "searxng" | "wikipedia";
             /** @constant */
             sourceVerification: "unverified";
             timeoutMs: number;

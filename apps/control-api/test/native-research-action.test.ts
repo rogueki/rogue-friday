@@ -207,6 +207,15 @@ it("owner configuration is revision-bound and changing provider invalidates a st
         )
       ).statusCode,
     ).toBe(422);
+    expect(
+      (
+        await owner.patch(
+          "/api/v1/research/provider",
+          { endpoint: "https://en.wikipedia.org/w/rest.php/v1/search/page?url=http://127.0.0.1/" },
+          { headers: { "if-match": String(config.version) } },
+        )
+      ).statusCode,
+    ).toBe(422);
     await disableTier2(owner);
     const body = { topic: "Aenderung zwischen Vorschau und Ausfuehrung" };
     const stage = await owner.post("/api/v1/research/projects", body);
@@ -323,6 +332,69 @@ it("German command uses the same saved action and reports only unverified source
     expect(replay.statusCode, replay.body).toBe(200);
     expect(replay.json().status).toBe("executed");
     expect(search).toHaveBeenCalledTimes(1);
+  } finally {
+    await api.close();
+  }
+});
+
+it("uses the fixed keyless Wikipedia endpoint without a local search installation", async () => {
+  const wikipedia = vi.fn(
+    async (_input: RequestInfo | URL) =>
+      new Response(
+        JSON.stringify({
+          pages: [
+            {
+              key: "Climate_change",
+              title: "Climate change",
+              excerpt: '<span class="searchmatch">Climate</span> change is observed.',
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+  );
+  const api = await startTestApi({
+    dataMode: "hybrid",
+    authMode: "local",
+    ownerPassword: "strong-test-password",
+    responseValidation: "throw",
+    providerFetch: wikipedia as typeof fetch,
+  });
+  try {
+    const owner = api.client();
+    expect((await owner.loginOwner("strong-test-password")).statusCode).toBe(200);
+    await disableTier2(owner);
+    const initial = (await owner.get("/api/v1/research/provider")).json().data;
+    const selected = await owner.patch(
+      "/api/v1/research/provider",
+      { endpoint: "https://en.wikipedia.org/w/rest.php/v1/search/page" },
+      { headers: { "if-match": String(initial.version) } },
+    );
+    expect(selected.statusCode, selected.body).toBe(200);
+    expect(selected.json().data.provider).toBe("wikipedia");
+    const body = { topic: "Climate change" };
+    const stage = await owner.post("/api/v1/research/projects", body);
+    expect(stage.json().error.details.previewText).toContain("Wikipedia");
+    const created = await owner.post("/api/v1/research/projects", body, {
+      headers: { "x-action-preview-id": stage.json().error.details.previewId as string },
+    });
+    expect(created.statusCode, created.body).toBe(201);
+    expect(created.json().data.source.system).toBe("wikipedia");
+    expect(created.json().data.sourceCount).toBe(1);
+    expect(
+      (await owner.get(`/api/v1/research/projects/${created.json().data.id}/sources`)).json().items,
+    ).toMatchObject([
+      {
+        url: "https://en.wikipedia.org/wiki/Climate_change",
+        excerpt: "Climate change is observed.",
+        status: "queued",
+        source: { system: "wikipedia" },
+      },
+    ]);
+    expect(wikipedia).toHaveBeenCalledTimes(1);
+    const called = new URL(String(wikipedia.mock.calls[0]![0]));
+    expect(called.origin + called.pathname).toBe("https://en.wikipedia.org/w/rest.php/v1/search/page");
+    expect(called.searchParams.get("limit")).toBe("10");
   } finally {
     await api.close();
   }

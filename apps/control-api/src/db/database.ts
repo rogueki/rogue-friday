@@ -417,6 +417,11 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_research_sources_project ON research_sources (project_id, created_at);
     `,
   },
+  {
+    id: 23,
+    name: "research-provider-provenance",
+    sql: `ALTER TABLE research_projects ADD COLUMN provider TEXT NOT NULL DEFAULT 'searxng';`,
+  },
 ];
 
 export function openDatabase(path: string): Db {

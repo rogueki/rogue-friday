@@ -4,7 +4,7 @@
   "title": "ResearchProvider",
   "type": "object",
   "properties": {
-    "provider": { "const": "searxng" },
+    "provider": { "type": "string", "enum": ["searxng", "wikipedia"] },
     "endpoint": { "type": ["string", "null"] },
     "configured": { "type": "boolean" },
     "version": { "type": "integer", "minimum": 1 },

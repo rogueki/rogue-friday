@@ -78,7 +78,7 @@ export const researchActionHandlers: Partial<Record<OperationId, Handler>> = {
         details: {
           stage: "preview",
           previewId: ctx.correlationId,
-          previewText: `Das Thema „${topic}“ an den konfigurierten lokalen SearXNG-Dienst senden und bis zu zehn unverifizierte Quellen speichern?`,
+          previewText: `Das Thema „${topic}“ an ${ctx.runtime.research.configuration().provider === "wikipedia" ? "Wikipedia" : "den lokalen SearXNG-Dienst"} senden und bis zu zehn unverifizierte Quellen speichern?`,
         },
       });
     }
@@ -171,7 +171,7 @@ export async function executeResearchCommand(
         status: "requires_confirmation",
         requiresConfirmation: true,
         previewId: key,
-        previewText: `„${topic}“ lokal suchen und bis zu zehn unverifizierte Quellen speichern?`,
+        previewText: `„${topic}“ bei ${ctx.runtime.research.configuration().provider === "wikipedia" ? "Wikipedia" : "SearXNG"} suchen und bis zu zehn unverifizierte Quellen speichern?`,
         approvalId: null,
         result: null,
       } satisfies CommandResponse,
