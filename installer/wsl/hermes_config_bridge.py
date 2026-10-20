@@ -8,6 +8,7 @@ import fcntl
 import os
 import re
 import secrets
+import shutil
 import signal
 from pathlib import Path
 import subprocess
@@ -236,6 +237,15 @@ def lock_config(home, name=".friday-config.lock"):
             time.sleep(0.025)
 
 
+def process_start(pid):
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+        fields = stat.rsplit(") ", 1)[1].split()
+        return None if fields[0] in ("Z", "X") else fields[19]
+    except (OSError, IndexError, ValueError):
+        return None
+
+
 def run_runtime_child(command, request, timeout):
     # runtime_command launches Python directly. A separate process group also
     # covers bootstrap/lifecycle descendants before releasing the config locks.
@@ -320,7 +330,7 @@ def locked_main(home, source, cli):
                 from hermes_mcp_oauth_worker import discard_stage
                 try:
                     discard_stage(old_flow)
-                    for filename in ("owner.json", "state.json", "state.tmp", "cancel"):
+                    for filename in ("owner.json", "worker.json", "state.json", "state.tmp", "cancel"):
                         path = old_flow / filename
                         if path.exists() or path.is_symlink():
                             path.unlink()
@@ -341,12 +351,22 @@ def locked_main(home, source, cli):
             from hermes_cli._launchers import runtime_command
             helper = Path(__file__).with_name("hermes_mcp_oauth_worker.py")
             command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
+            timeout_binary = shutil.which("timeout")
+            if not timeout_binary:
+                raise ValueError("oauth_worker_timeout_unavailable")
+            # GNU timeout kills the runtime process group even if an SDK DNS
+            # lookup or slow-drip socket remains stuck in asyncio.to_thread.
+            command = [timeout_binary, "--signal=KILL", "330s", *command]
             child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
                                      stderr=subprocess.DEVNULL, start_new_session=True, text=True)
             child.stdin.write(json.dumps({"flowDir": str(flow_dir), "name": request["name"],
                 "url": entry["url"], "revision": before, "configPath": str(config_path),
                 "source": str(source)}))
             child.stdin.close()
+            worker_path = flow_dir / "worker.json"
+            fd = os.open(worker_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as worker_file:
+                json.dump({"pid": child.pid, "start": process_start(child.pid)}, worker_file)
             deadline = time.monotonic() + 15
             state = {"status": "starting"}
             while time.monotonic() < deadline:
@@ -368,21 +388,39 @@ def locked_main(home, source, cli):
                 not hmac.compare_digest(json.loads(owner_path.read_text(encoding="utf-8")).get("ownerId", ""),
                                         request["ownerId"])):
             raise ValueError("unknown_oauth_flow")
-        state_path = flow_dir / "state.json"
-        if state_path.is_symlink() or state_path.stat().st_size > 16384:
-            raise ValueError("unsafe_oauth_state")
-        state = json.loads(state_path.read_text(encoding="utf-8"))
-        if action == "mcp-oauth-cancel" and state.get("status") in ("starting", "awaiting_approval", "publishing"):
-            try:
-                fd = os.open(flow_dir / "cancel", os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
-            except FileExistsError:
-                pass
-            else:
-                os.close(fd)
-            state = {"status": "cancelling"}
-        elif state.get("status") in ("starting", "awaiting_approval", "publishing") and \
-                time.time() - state.get("updatedAt", 0) > 350:
-            state = {"status": "failed", "failureClass": "oauth_worker_unconfirmed"}
+        state_lock = lock_config(home)
+        try:
+            state_path = flow_dir / "state.json"
+            if state_path.is_symlink() or state_path.stat().st_size > 16384:
+                raise ValueError("unsafe_oauth_state")
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            worker_path = flow_dir / "worker.json"
+            if worker_path.is_symlink() or worker_path.stat().st_size > 128:
+                raise ValueError("unsafe_oauth_state")
+            worker = json.loads(worker_path.read_text(encoding="utf-8"))
+            pid, started = worker.get("pid"), worker.get("start")
+            worker_dead = type(pid) is not int or not isinstance(started, str) or process_start(pid) != started
+            if worker_dead:
+                from hermes_mcp_oauth_worker import discard_stage, write_state
+                discard_stage(flow_dir)
+                if state.get("status") in ("starting", "awaiting_approval", "publishing", "cancelling"):
+                    write_state(flow_dir, "failed", failureClass="oauth_worker_unconfirmed")
+                    state = {"status": "failed", "failureClass": "oauth_worker_unconfirmed"}
+            if action == "mcp-oauth-cancel" and state.get("status") in ("starting", "awaiting_approval", "publishing"):
+                try:
+                    fd = os.open(flow_dir / "cancel", os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+                except FileExistsError:
+                    pass
+                else:
+                    os.close(fd)
+                state = {"status": "cancelling"}
+            elif state.get("status") in ("starting", "awaiting_approval", "publishing") and \
+                    time.time() - state.get("updatedAt", 0) > 350:
+                state = {"status": "failed", "failureClass": "oauth_worker_unconfirmed"}
+        finally:
+            if state_lock is not None:
+                fcntl.flock(state_lock, fcntl.LOCK_UN)
+                state_lock.close()
         print(json.dumps({"flowId": request["flowId"], **state}))
         return 0
     if sys.argv[1] == "mcp-probe":

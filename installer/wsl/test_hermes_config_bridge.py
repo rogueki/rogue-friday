@@ -321,10 +321,13 @@ class BridgeTest(unittest.TestCase):
                             authorizationUrl="https://auth.example.org/authorize?state=synthetic")
 
         class FakeWorker:
-            def __init__(self, test): self.stdin = FakeInput(test)
+            def __init__(self, test):
+                self.stdin = FakeInput(test)
+                self.pid = os.getpid()
             def poll(self): return None
 
-        with patch.object(bridge.subprocess, "Popen", return_value=FakeWorker(self)):
+        with patch.object(bridge.subprocess, "Popen", return_value=FakeWorker(self)), patch.object(
+                bridge.shutil, "which", return_value="/usr/bin/timeout"):
             code, result = self.invoke({"name": "sample", "revision": bridge.revision(self.config),
                                         "ownerId": "owner-1"},
                                        "mcp-oauth-start")
@@ -338,6 +341,16 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(stale, {"error": "revision_conflict"})
         with self.assertRaisesRegex(ValueError, "unknown_oauth_flow"):
             self.invoke({"flowId": result["flowId"], "ownerId": "another-owner"}, "mcp-oauth-status")
+        flow_dir = self.home / ".hermes" / ".friday-mcp-oauth" / result["flowId"]
+        staged = flow_dir / "stage" / "mcp-tokens"
+        staged.mkdir(parents=True)
+        (staged / "sample.json").write_text('{"access_token":"synthetic-private"}')
+        with patch.object(bridge, "process_start", return_value=None):
+            status_code, status = self.invoke({"flowId": result["flowId"], "ownerId": "owner-1"},
+                                              "mcp-oauth-status")
+        self.assertEqual(status_code, 0)
+        self.assertEqual(status["failureClass"], "oauth_worker_unconfirmed")
+        self.assertFalse((flow_dir / "stage").exists())
 
     def test_mcp_bearer_secret_is_redacted_and_revision_bound(self):
         self.invoke({"name": "example", "url": "https://example.org/mcp", "enabled": True,

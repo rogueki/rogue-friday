@@ -1,5 +1,10 @@
+import os
+import shutil
+import subprocess
 import sys
 import tempfile
+import threading
+import time
 import types
 from pathlib import Path
 from unittest import TestCase
@@ -8,7 +13,7 @@ from unittest.mock import patch
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from hermes_config_bridge import revision
+from hermes_config_bridge import lock_config, revision
 from hermes_mcp_oauth_worker import current_entry, discard_stage, publish, write_state
 
 
@@ -125,6 +130,66 @@ class OAuthWorkerTest(TestCase):
                     self.expected, self.storage)
         self.assertEqual(self.servers["sample"]["url"], "https://foreign.example.org/mcp")
         self.assertFalse((self.home / "mcp-tokens" / "sample.json").exists())
+
+    def test_terminal_state_is_written_before_config_lock_releases(self):
+        from hermes_mcp_oauth_worker import write_state as real_write_state
+        entered = threading.Event()
+        release = threading.Event()
+        acquired = threading.Event()
+        outcomes = []
+
+        def pause_at_terminal(flow_dir, status, **fields):
+            if status == "configured":
+                entered.set()
+                self.assertTrue(release.wait(3))
+            return real_write_state(flow_dir, status, **fields)
+
+        def do_publish():
+            try:
+                outcomes.append(publish(self.flow, self.config, "sample", "https://mcp.example.org/mcp",
+                                        self.expected, self.storage))
+            except BaseException as error:
+                outcomes.append(error)
+
+        def do_cancel_lock():
+            lock = lock_config(self.home)
+            try:
+                acquired.set()
+                self.assertEqual(__import__("json").loads((self.flow / "state.json").read_text())["status"],
+                                 "configured")
+            finally:
+                lock.close()
+
+        with patch("hermes_mcp_oauth_worker.write_state", side_effect=pause_at_terminal):
+            publisher = threading.Thread(target=do_publish)
+            publisher.start()
+            self.assertTrue(entered.wait(3))
+            canceller = threading.Thread(target=do_cancel_lock)
+            canceller.start()
+            time.sleep(0.05)
+            self.assertFalse(acquired.is_set())
+            release.set()
+            publisher.join(3)
+            canceller.join(3)
+        self.assertTrue(acquired.is_set())
+        self.assertEqual(len(outcomes), 1)
+        self.assertIsInstance(outcomes[0], int)
+
+    def test_hard_deadline_kills_runtime_process_group(self):
+        if os.name != "posix":
+            return
+        timeout = shutil.which("timeout")
+        self.assertIsNotNone(timeout)
+        marker = self.home / "late-publication"
+        grandchild = "import pathlib,time;time.sleep(0.8);pathlib.Path(__import__('sys').argv[1]).touch()"
+        parent = ("import subprocess,sys,time;"
+                  "subprocess.Popen([sys.executable,'-c',sys.argv[1],sys.argv[2]]);time.sleep(5)")
+        result = subprocess.run([timeout, "--signal=KILL", "0.2s", sys.executable, "-c",
+                                 parent, grandchild, str(marker)], start_new_session=True,
+                                capture_output=True, timeout=3)
+        self.assertNotEqual(result.returncode, 0)
+        time.sleep(0.9)
+        self.assertFalse(marker.exists())
 
     def test_state_file_excludes_token_material(self):
         write_state(self.flow, "awaiting_approval", authorizationUrl="https://auth.example.org/authorize")

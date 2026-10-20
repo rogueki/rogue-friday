@@ -117,7 +117,11 @@ def publish(flow_dir, config_path, name, url, expected_revision, storage):
                 raise ValueError("oauth_publication_unconfirmed")
             if (flow_dir / "cancel").exists():
                 raise ValueError("oauth_cancelled")
-            return revision(config_path)
+            new_revision = revision(config_path)
+            # Cancel reads the state and places its marker under the same
+            # config lock. It cannot acknowledge cancellation after commit.
+            write_state(flow_dir, "configured", revision=new_revision, runtimeApplied=None)
+            return new_revision
         except BaseException:
             for destination, data in written:
                 try:
@@ -189,8 +193,7 @@ async def login(flow_dir, name, url, config_path, expected_revision):
     if (flow_dir / "cancel").exists():
         raise ValueError("oauth_cancelled")
     write_state(flow_dir, "publishing")
-    new_revision = publish(flow_dir, config_path, name, url, expected_revision, storage)
-    write_state(flow_dir, "configured", revision=new_revision, runtimeApplied=None)
+    publish(flow_dir, config_path, name, url, expected_revision, storage)
 
 
 def main():
