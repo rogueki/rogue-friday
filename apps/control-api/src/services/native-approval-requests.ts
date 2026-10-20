@@ -60,6 +60,8 @@ export type NativeExecutableAction =
   | { kind: "settings.dashboard.compact"; expectedVersion: number; value: boolean }
   | { kind: "settings.dashboard.refresh"; expectedVersion: number; value: number }
   | { kind: "settings.dashboard.backgroundGrid" | "settings.dashboard.soundEffects" | "settings.dashboard.contentStudioEnabled"; expectedVersion: number; value: boolean }
+  | { kind: "settings.navigation.defaultPage"; expectedVersion: number; value: "overview" | "tasks" | "activity" | "memory" | "agents" | "approvals" | "communication" | "calendar" | "automations" | "research" | "content-studio" | "files" | "voice" | "alerts" | "system" | "audit" | "settings" | "skills" }
+  | { kind: "settings.navigation.mode"; expectedVersion: number; value: "compact" | "expanded" }
   | { kind: "contentStudio.idea.add"; expectedRevision: number; idea: ContentPlanDocument["content"][number] }
   | { kind: "contentStudio.idea.status"; expectedRevision: number; ideaId: string; title: string; status: "idee" | "in-arbeit" | "fertig" }
   | { kind: "contentStudio.idea.rename"; expectedRevision: number; ideaId: string; title: string; newTitle: string }
@@ -116,6 +118,8 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "settings.dashboard.backgroundGrid": "gespeichert",
   "settings.dashboard.soundEffects": "gespeichert",
   "settings.dashboard.contentStudioEnabled": "gespeichert",
+  "settings.navigation.defaultPage": "gespeichert",
+  "settings.navigation.mode": "gespeichert",
   "contentStudio.idea.add": "hinzugefuegt",
   "contentStudio.idea.status": "aktualisiert",
   "contentStudio.idea.rename": "umbenannt",
@@ -173,6 +177,8 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "settings.dashboard.backgroundGrid": "Einstellung",
   "settings.dashboard.soundEffects": "Einstellung",
   "settings.dashboard.contentStudioEnabled": "Einstellung",
+  "settings.navigation.defaultPage": "Einstellung",
+  "settings.navigation.mode": "Einstellung",
   "contentStudio.idea.add": "Content-Idee",
   "contentStudio.idea.status": "Content-Idee",
   "contentStudio.idea.rename": "Content-Idee",

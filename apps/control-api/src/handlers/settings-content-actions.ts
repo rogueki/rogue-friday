@@ -60,6 +60,8 @@ function sameIntent(action: NativeExecutableAction, intent: SettingsContentMutat
   if (intent.kind === "settings.dashboard.backgroundGrid" || intent.kind === "settings.dashboard.soundEffects"
     || intent.kind === "settings.dashboard.contentStudioEnabled")
     return action.kind === intent.kind && action.value === intent.value;
+  if (intent.kind === "settings.navigation.defaultPage" || intent.kind === "settings.navigation.mode")
+    return action.kind === intent.kind && action.value === intent.value;
   if (intent.kind === "contentStudio.idea.add")
     return action.kind === intent.kind && action.idea.titel === intent.title;
   if (intent.kind === "contentStudio.idea.status")
@@ -186,6 +188,18 @@ function makeAction(ctx: RequestContext, request: CommandRequest, intent: Settin
     ctx.runtime.settings.validateAreas({ dashboard });
     return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
   }
+  if (intent.kind === "settings.navigation.defaultPage" || intent.kind === "settings.navigation.mode") {
+    if (!authorize(ctx.principal!.role, "settings.update").allowed) throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
+    if (intent.kind === "settings.navigation.defaultPage" && intent.value === "content-studio"
+      && ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true)
+      throw forbidden("Content Studio ist deaktiviert und kann daher nicht als Startseite gesetzt werden.");
+    const current = ctx.runtime.settings.get();
+    const navigation = intent.kind === "settings.navigation.defaultPage"
+      ? { ...current.navigation, defaultPage: intent.value }
+      : { ...current.navigation, mode: intent.value };
+    ctx.runtime.settings.validateAreas({ navigation });
+    return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
+  }
   if (intent.kind === "contentStudio.plan.exportGuided" || intent.kind === "contentStudio.plan.importGuided")
     throw conflict("Diese Dateiaktion wird als angeleiteter Browser-Schritt verarbeitet.");
   if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
@@ -290,6 +304,10 @@ function proposalText(action: NativeExecutableAction): string {
   if (action.kind === "settings.dashboard.backgroundGrid" || action.kind === "settings.dashboard.soundEffects"
     || action.kind === "settings.dashboard.contentStudioEnabled")
     return `${action.kind === "settings.dashboard.backgroundGrid" ? "Dashboard-Hintergrundraster" : action.kind === "settings.dashboard.soundEffects" ? "Dashboard-Soundeffekte" : "Content Studio"} auf ${action.value ? "ein" : "aus"} setzen? Gespeicherte Revision ${action.expectedVersion}; Laufzeitwirkung wird nach dem Speichern nicht separat verifiziert.`;
+  if (action.kind === "settings.navigation.defaultPage")
+    return `Standardseite auf ${action.value} setzen? Gespeicherte Revision ${action.expectedVersion}; die Weiterleitung gilt beim naechsten Aufruf der Startseite.`;
+  if (action.kind === "settings.navigation.mode")
+    return `Navigationsmodus auf ${action.value === "compact" ? "kompakt" : "erweitert"} setzen? Gespeicherte Revision ${action.expectedVersion}; Laufzeitwirkung wird nach dem Speichern nicht separat verifiziert.`;
   if (action.kind === "contentStudio.idea.add")
     return `Content-Idee „${action.idea.titel}“ hinzufuegen? Defaults: LinkedIn, Feed-Post, Status Idee. Planrevision ${action.expectedRevision}.`;
   if (action.kind === "contentStudio.idea.status")
@@ -385,6 +403,20 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
         mutation: { ...ctx.mutation, ifMatchVersion: saved.expectedVersion, idempotencyKey } });
       const version = (result.body as { data?: { version?: number } }).data?.version;
       if (typeof version !== "number") throw conflict("Settings wurden gespeichert, aber die neue Revision ist nicht lesbar.");
+      return String(version);
+    }
+    if (saved.kind === "settings.navigation.defaultPage" || saved.kind === "settings.navigation.mode") {
+      const current = ctx.runtime.settings.get();
+      if (current.version !== saved.expectedVersion) throw conflict("Einstellungen wurden inzwischen geaendert. Bitte neu laden.");
+      if (saved.kind === "settings.navigation.defaultPage" && saved.value === "content-studio"
+        && current.dashboard.contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
+      const navigation = saved.kind === "settings.navigation.defaultPage"
+        ? { ...current.navigation, defaultPage: saved.value }
+        : { ...current.navigation, mode: saved.value };
+      const result = await settingsHandlers.updateSettings!({ ...ctx, body: { navigation },
+        mutation: { ...ctx.mutation, ifMatchVersion: saved.expectedVersion, idempotencyKey } });
+      const version = (result.body as { data?: { version?: number } }).data?.version;
+      if (typeof version !== "number") throw conflict("Navigationseinstellung wurde gespeichert, aber die neue Revision ist nicht lesbar.");
       return String(version);
     }
     if (saved.kind === "contentStudio.idea.add") {
@@ -519,6 +551,10 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
     : action.kind === "settings.dashboard.backgroundGrid" || action.kind === "settings.dashboard.soundEffects"
       || action.kind === "settings.dashboard.contentStudioEnabled"
       ? `${action.kind === "settings.dashboard.backgroundGrid" ? "Dashboard-Hintergrundraster" : action.kind === "settings.dashboard.soundEffects" ? "Dashboard-Soundeffekte" : "Content Studio"} gespeichert (Revision ${revision}). Laufzeitwirkung nicht separat verifiziert.`
+    : action.kind === "settings.navigation.defaultPage"
+      ? `Standardseite gespeichert (Revision ${revision}); Weiterleitung gilt beim naechsten Aufruf der Startseite.`
+    : action.kind === "settings.navigation.mode"
+      ? `Navigationsmodus gespeichert (Revision ${revision}). Laufzeitwirkung nicht separat verifiziert.`
     : action.kind === "contentStudio.idea.add"
       ? `Content-Idee „${action.idea.titel}“ gespeichert (Planrevision ${revision}).`
       : action.kind === "contentStudio.idea.status"

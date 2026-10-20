@@ -113,6 +113,34 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     }
   });
 
+  it("saves navigation page and mode through owner preview with CAS and rejects unavailable Content Studio", async () => {
+    let before = (await owner.get("/api/v1/settings")).json().data;
+    if (before.dashboard.contentStudioEnabled) {
+      api.runtime.settings.patch({ dashboard: { ...before.dashboard, contentStudioEnabled: false } }, before.version);
+      before = (await owner.get("/api/v1/settings")).json().data;
+    }
+    const text = "Set default page to tasks";
+    const preview = await command(owner, text);
+    expect(preview.statusCode, preview.body).toBe(200);
+    expect(preview.json().previewText).toContain("tasks");
+    const id = preview.json().previewId as string;
+    expect((await command(operator, text)).statusCode).toBe(403);
+    expect((await command(owner, text, { confirm: true, previewId: id })).statusCode).toBe(200);
+    expect((await owner.get("/api/v1/settings")).json().data.navigation.defaultPage).toBe("tasks");
+
+    const mode = "Change navigation mode to compact";
+    const modePreview = await command(owner, mode);
+    const modeId = modePreview.json().previewId as string;
+    expect((await command(owner, mode, { confirm: true, previewId: modeId })).statusCode).toBe(200);
+    const saved = (await owner.get("/api/v1/settings")).json().data;
+    expect(saved.navigation.mode).toBe("compact");
+    expect(saved.version).toBe(before.version + 2);
+
+    const unavailable = await command(owner, "Set default page to Content Studio");
+    expect(unavailable.statusCode).toBe(403);
+    expect((await owner.get("/api/v1/settings")).json().data.navigation.defaultPage).toBe("tasks");
+  });
+
   it("guides plan export and import to the actual browser file actions", async () => {
     const settings = api.runtime.settings.get();
     if (!settings.dashboard.contentStudioEnabled)

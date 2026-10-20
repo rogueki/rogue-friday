@@ -11,6 +11,8 @@ export type SettingsContentMutationIntent =
   | { kind: "settings.dashboard.backgroundGrid"; value: boolean }
   | { kind: "settings.dashboard.soundEffects"; value: boolean }
   | { kind: "settings.dashboard.contentStudioEnabled"; value: boolean }
+  | { kind: "settings.navigation.defaultPage"; value: "overview" | "tasks" | "activity" | "memory" | "agents" | "approvals" | "communication" | "calendar" | "automations" | "research" | "content-studio" | "files" | "voice" | "alerts" | "system" | "audit" | "settings" | "skills" }
+  | { kind: "settings.navigation.mode"; value: "compact" | "expanded" }
   | { kind: "contentStudio.idea.add"; title: string }
   | { kind: "contentStudio.idea.status"; title: string; status: "idee" | "in-arbeit" | "fertig" }
   | { kind: "contentStudio.idea.statusSelected"; status: "idee" | "in-arbeit" | "fertig" }
@@ -37,6 +39,8 @@ const SETTING_PROFILE_NAME = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|
 const SETTING_REFRESH = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:the\s+)?(?:dashboard\s+)?(?:refresh|aktualisierung)(?:\s+interval)?\s+(?:(?:to|auf)\s+)?([0-9]{1,4})\s*(?:seconds?|sekunden|s)?[.!?]?$/i;
 const SETTING_DASHBOARD_BOOLEAN = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:the\s+)?(?:dashboard\s+)?(background\s+grid|grid|sound\s+effects|content\s+studio)(?:\s+module)?\s+(?:(?:to|auf)\s+)?(on|off|enabled|disabled|ein|aus|aktiviert|deaktiviert)[.!?]?$/i;
 const SETTING_CONTENT_STUDIO_TOGGLE = /^(?:please\s+)?(enable|activate|disable|deactivate|aktiviere|deaktiviere)\s+(?:the\s+)?content\s+studio(?:\s+module)?[.!?]?$/i;
+const SETTING_NAV_DEFAULT = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:(?:the|my)\s+)?(?:default\s+page|startseite|standardseite)\s+(?:(?:to|auf)\s+)?(overview|tasks|activity|memory|agents|approvals|communication|calendar|automations|research|content[- ]studio|files|voice|alerts|system|audit|settings|skills)[.!?]?$/i;
+const SETTING_NAV_MODE = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:(?:the|my)\s+)?(?:navigation|sidebar|navigationsleiste)(?:\s+mode)?\s+(?:(?:to|auf)\s+)?(compact|expanded|kompakt|erweitert)[.!?]?$/i;
 const ADD_IDEA = /^(?:please\s+)?(?:add|create|erstelle|lege\s+an|fuege\s+hinzu|füge\s+hinzu)\s+(?:an\s+)?(?:content\s+)?(?:idea|idee)\s+(.+?)\s+(?:to|in|zum|im)\s+(?:the\s+)?(?:content\s+studio\s+)?(?:plan|redaktionsplan)[.!?]?$/i;
 const IDEA_STATUS = /^(?:set|change|setze|aendere|ändere)\s+(?:the\s+)?(?:status\s+(?:of|von)\s+(?:the\s+)?(?:idea|idee)|(?:idea|idee))\s+(.+?)\s+(?:to|auf)\s+(idea|idee|in\s+progress|in\s+arbeit|done|fertig)[.!?]?$/i;
 const IDEA_STATUS_SELECTED = /^(?:please\s+)?(?:(?:actually|correction|wait|instead|nein|korrektur|doch|stattdessen)\s*,?\s*)?(?:mark|set|change|make|move|update|markiere|setze|aendere|ändere|mache|versetze)\s+(?:(?:this|that|selected|the\s+selected|it|this\s+one|that\s+one|diese|dieses|diesen|ausgewaehlte|ausgewählte|die\s+ausgewaehlte|die\s+ausgewählte|es|sie)(?:\s+(?:idea|idee|one))?|(?:idea|idee))\s+(?:(?:status)\s+)?(?:(?:as|to|auf|als)\s+)?(idea|idee|in\s+progress|in\s+arbeit|done|fertig)[.!?]?$/i;
@@ -98,6 +102,10 @@ export function parseSettingsContentMutationIntent(input: string): SettingsConte
   const studioToggle = SETTING_CONTENT_STUDIO_TOGGLE.exec(text);
   if (studioToggle)
     return { kind: "settings.dashboard.contentStudioEnabled", value: /^(enable|activate|aktiviere)$/i.test(studioToggle[1]!) };
+  const navDefault = SETTING_NAV_DEFAULT.exec(text);
+  if (navDefault) return { kind: "settings.navigation.defaultPage", value: navDefault[1]!.toLocaleLowerCase("en-US").replace("content studio", "content-studio") as Extract<SettingsContentMutationIntent, { kind: "settings.navigation.defaultPage" }>["value"] };
+  const navMode = SETTING_NAV_MODE.exec(text);
+  if (navMode) return { kind: "settings.navigation.mode", value: /^(compact|kompakt)$/i.test(navMode[1]!) ? "compact" : "expanded" };
   const idea = ADD_IDEA.exec(text);
   if (idea) {
     const title = idea[1]!.trim();

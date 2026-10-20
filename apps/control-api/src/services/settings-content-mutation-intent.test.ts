@@ -29,6 +29,19 @@ describe("settings and Content Studio mutation intents", () => {
       .toEqual({ kind: "settings.dashboard.contentStudioEnabled", value: false });
   });
 
+  it("parses navigation settings only from the real page and mode options", () => {
+    expect(parseSettingsContentMutationIntent("Set default page to tasks"))
+      .toEqual({ kind: "settings.navigation.defaultPage", value: "tasks" });
+    expect(parseSettingsContentMutationIntent("Setze Startseite auf Content Studio"))
+      .toEqual({ kind: "settings.navigation.defaultPage", value: "content-studio" });
+    expect(parseSettingsContentMutationIntent("Change navigation mode to compact"))
+      .toEqual({ kind: "settings.navigation.mode", value: "compact" });
+    expect(parseSettingsContentMutationIntent("Stelle Navigationsleiste auf erweitert"))
+      .toEqual({ kind: "settings.navigation.mode", value: "expanded" });
+    expect(parseSettingsContentMutationIntent("Set default page to unknown-page")).toBeNull();
+    expect(parseSettingsContentMutationIntent("Set navigation mode to automatic")).toBeNull();
+  });
+
   it("binds a free-text idea title only in the exact add-to-plan grammar", () => {
     expect(parseSettingsContentMutationIntent("Add idea Show recent audit events to Content Studio plan"))
       .toEqual({ kind: "contentStudio.idea.add", title: "Show recent audit events" });
