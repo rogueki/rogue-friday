@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { commandContextForRoute, registerCommandSelection } from "./commandContext";
+import { commandContextForRoute, needsCommandClarification, registerCommandSelection } from "./commandContext";
 
 afterEach(() => { registerCommandSelection("/content-studio", [])(); });
 
@@ -17,5 +17,10 @@ describe("global command selection context", () => {
     registerCommandSelection("/content-studio", ["idea-2"]);
     clearFirst();
     expect(commandContextForRoute("/content-studio")).toEqual({ route: "/content-studio", selectedIds: ["idea-2"] });
+  });
+
+  it("marks only structured ambiguity errors as clarification prompts", () => {
+    expect(needsCommandClarification({ clarificationRequired: true })).toBe(true);
+    expect(needsCommandClarification({ fieldErrors: [], currentVersion: 4 })).toBe(false);
   });
 });

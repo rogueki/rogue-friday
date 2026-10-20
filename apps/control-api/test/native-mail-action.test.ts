@@ -143,6 +143,7 @@ it("fails unknown or ambiguous recipients before any preview is staged", async (
     const ambiguous = await owner.post("/api/v1/commands", { text: "Schreibe eine Mail an Becker dass hallo", source: "text" });
     expect(ambiguous.statusCode, ambiguous.body).toBe(409);
     expect(ambiguous.json().error.message).toContain("Mehrere Empfaenger");
+    expect(ambiguous.json().error.details).toMatchObject({ clarificationRequired: true });
     expect(stagedRows(api)).toBe(0);
   } finally { await api.close(); }
 });

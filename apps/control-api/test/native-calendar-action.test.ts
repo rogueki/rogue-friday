@@ -145,6 +145,7 @@ it("fails unknown or ambiguous references before any preview is staged", async (
     const ambiguous = await owner.post("/api/v1/commands", { text: "Verschieb den Termin Doppeltermin auf morgen 9 Uhr", source: "text" });
     expect(ambiguous.statusCode, ambiguous.body).toBe(409);
     expect(ambiguous.json().error.message).toContain("Mehrere Termine");
+    expect(ambiguous.json().error.details).toMatchObject({ clarificationRequired: true });
     const stagedRows = api.runtime.db.prepare("SELECT COUNT(*) AS count FROM native_approval_requests").get() as { count: number };
     expect(stagedRows.count).toBe(0);
   } finally { await api.close(); }

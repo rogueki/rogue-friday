@@ -204,7 +204,7 @@ function resolveEventRef(ctx: Parameters<Handler>[0], request: CommandRequest, r
   if (EVENT_REF_ID.test(ref)) return calendar.get(ref);
   const matches = calendar.findOwnerByTitle(ownerId, ref);
   if (matches.length === 0) throw notFound("Termin", ref);
-  if (matches.length > 1) throw conflict(`Mehrere Termine passen zu „${ref}“. Bitte die Kennung angeben.`, { ref });
+  if (matches.length > 1) throw conflict(`Mehrere Termine passen zu „${ref}“. Bitte die Kennung angeben.`, { ref, clarificationRequired: true });
   return matches[0]!;
 }
 
@@ -666,7 +666,7 @@ async function resolveMailRecipient(ctx: Parameters<Handler>[0], accountId: stri
     if (address) addresses.set(address.toLowerCase(), address);
   }
   if (addresses.size === 0) throw notFound("Empfaenger", recipient);
-  if (addresses.size > 1) throw conflict(`Mehrere Empfaenger passen zu „${recipient}“. Bitte die Adresse angeben.`, { recipient });
+  if (addresses.size > 1) throw conflict(`Mehrere Empfaenger passen zu „${recipient}“. Bitte die Adresse angeben.`, { recipient, clarificationRequired: true });
   return [...addresses.values()][0]!;
 }
 

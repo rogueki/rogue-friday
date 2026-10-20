@@ -7,7 +7,7 @@ import { useCallback, useRef } from "react";
 import { create } from "zustand";
 import { useT } from "@/i18n";
 import { useExecuteCommand } from "@/lib/api/domains/commands";
-import { commandContextForRoute } from "./commandContext";
+import { commandContextForRoute, needsCommandClarification } from "./commandContext";
 
 export type CommandInput = Pick<CommandRequest, "text" | "source">;
 
@@ -77,10 +77,11 @@ export function useRunCommand(): (input: CommandInput) => Promise<CommandRespons
         }
         return response;
       } catch (error) {
+        const clarificationRequired = isFridayApiError(error) && needsCommandClarification(error.details);
         toast({
-          title: t("command.failed"),
+          title: clarificationRequired ? t("command.clarification") : t("command.failed"),
           description: isFridayApiError(error) ? `${error.message} (${error.correlationId})` : String(error),
-          tone: "red",
+          tone: clarificationRequired ? "amber" : "red",
           duration: 9000,
         });
         return null;

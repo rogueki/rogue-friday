@@ -17,3 +17,7 @@ export function commandContextForRoute(route: string): NonNullable<CommandReques
   const selectedIds = activeSelection?.route === route ? [...activeSelection.selectedIds] : [];
   return { route, ...(selectedIds.length > 0 ? { selectedIds } : {}) };
 }
+
+export function needsCommandClarification(details: Record<string, unknown>): boolean {
+  return details.clarificationRequired === true;
+}
