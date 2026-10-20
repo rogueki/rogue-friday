@@ -54,7 +54,7 @@ describe("Hermes adapters behind the registry (config schema, secrets, result va
     await expect(port.retryTask!({ id: task.id }, { correlationId: createCorrelationId(),
       idempotencyKey: "retry-ambiguous-001" })).rejects.toBeDefined();
     expect(raw.status).toBe("ready");
-    expect(fake.callsTo("dashboard", /\/tasks\/t_/).filter((call) => call.method === "PATCH")).toHaveLength(1);
+    expect(fake.callsTo("dashboard", /\/friday\/tasks\/t_.*\/retry$/).filter((call) => call.method === "POST")).toHaveLength(1);
   });
 
   it("load ONLINE with the documented config, resolve secrets and serve contract-valid results", async () => {

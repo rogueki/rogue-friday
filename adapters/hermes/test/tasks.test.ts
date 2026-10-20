@@ -526,19 +526,19 @@ describe("tasks: lifecycle", () => {
     expect(result.data.status).toBe("cancelled");
     expect(fake.state.workers).toHaveLength(0);
     expect(fake.state.board("default").runs[0]?.ended_at).not.toBeNull();
-    expect(fake.callsTo("dashboard", /\/tasks\/t_/).filter((call) => call.method === "PATCH")).toHaveLength(1);
+    expect(fake.callsTo("dashboard", /\/friday\/tasks\/t_.*\/cancel$/).filter((call) => call.method === "POST")).toHaveLength(1);
   });
 
-  it("does not report cancel success when the archived worker survives", async () => {
+  it("rolls back cancel when the worker survives", async () => {
     const raw = fake.state.addTask("default", { title: "Unbeendbar", assignee: "kira" });
     fake.state.startWorker("default", raw);
     fake.state.archiveWorkerSurvives = true;
     const h = await open({ boards: ["default"] });
     const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
     await expect(h.adapter.cancelTask({ id: task.id }, h.mutation())).rejects.toBeDefined();
-    expect(raw.status).toBe("archived");
+    expect(raw.status).toBe("running");
     expect(fake.state.workers).toHaveLength(1);
-    expect(fake.callsTo("dashboard", /\/tasks\/t_/).filter((call) => call.method === "PATCH")).toHaveLength(1);
+    expect(fake.callsTo("dashboard", /\/friday\/tasks\/t_.*\/cancel$/).filter((call) => call.method === "POST")).toHaveLength(1);
   });
 
   it("retries an archived task once and refuses an already-dispatchable failed task", async () => {
@@ -552,12 +552,46 @@ describe("tasks: lifecycle", () => {
     expect((await rejection(h.adapter.retryTask({ id: task.id }, h.mutation()))).code).toBe("CONFLICT");
   });
 
+  it("refuses retry if a new run claims the task after the detail read", async () => {
+    const raw = fake.state.addTask("default", { title: "Rennlauf", status: "archived", assignee: "kira" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({ status: ["cancelled"] }, h.call())).items[0]!;
+    fake.state.beforeLifecycleMutation = () => {
+      fake.state.setStatus(fake.state.board("default"), raw, "ready");
+      fake.state.startWorker("default", raw);
+    };
+    expect((await rejection(h.adapter.retryTask({ id: task.id }, h.mutation()))).code).toBe("CONFLICT");
+    expect(raw.status).toBe("running");
+    expect(raw.current_run_id).not.toBeNull();
+    expect(fake.state.workers).toHaveLength(1);
+  });
+
+  it("refuses cancel when a new run claims the task after the detail read", async () => {
+    const raw = fake.state.addTask("default", { title: "Neuer Lauf", assignee: "kira" });
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+    fake.state.beforeLifecycleMutation = () => fake.state.startWorker("default", raw);
+    expect((await rejection(h.adapter.cancelTask({ id: task.id }, h.mutation()))).code).toBe("CONFLICT");
+    expect(raw.status).toBe("running");
+    expect(raw.current_run_id).not.toBeNull();
+    expect(fake.state.workers).toHaveLength(1);
+  });
+
+  it("refuses cancel when the pinned lifecycle endpoint is absent", async () => {
+    fake.state.addTask("default", { title: "Alter Hermes" });
+    fake.state.runStopPatched = false;
+    const h = await open({ boards: ["default"] });
+    const task = (await h.adapter.listTasks({}, h.call())).items[0]!;
+    expect((await rejection(h.adapter.cancelTask({ id: task.id }, h.mutation()))).code).toBe("CAPABILITY_MISSING");
+    expect(fake.callsTo("dashboard", /\/friday\/tasks\/t_.*\/cancel$/)).toHaveLength(0);
+  });
+
   it("refuses stale If-Match before lifecycle writes", async () => {
     fake.state.addTask("default", { title: "Alt", status: "archived" });
     const h = await open({ boards: ["default"] });
     const task = (await h.adapter.listTasks({ status: ["cancelled"] }, h.call())).items[0]!;
     expect((await rejection(h.adapter.retryTask({ id: task.id }, h.mutation({ ifMatchVersion: task.version + 1 })))).code).toBe("CONFLICT");
-    expect(fake.callsTo("dashboard", /\/tasks\/t_/).filter((call) => call.method === "PATCH")).toHaveLength(0);
+    expect(fake.callsTo("dashboard", /\/friday\/tasks\/t_.*\/retry$/).filter((call) => call.method === "POST")).toHaveLength(0);
   });
 
   it("reopens a task blocked by a run-specific Friday stop", async () => {

@@ -23,8 +23,10 @@ class RunStopCasTest(unittest.TestCase):
                 claim_lock TEXT, worker_pid INTEGER, worker_started_at INTEGER,
                 claim_expires INTEGER, block_kind TEXT);
             CREATE TABLE task_runs (id INTEGER PRIMARY KEY, task_id TEXT, ended_at INTEGER, status TEXT);
+            CREATE TABLE task_events (id INTEGER PRIMARY KEY, task_id TEXT);
             INSERT INTO tasks VALUES ('t_one','running',1,'lock-one',111,100,999,NULL);
             INSERT INTO task_runs VALUES (1,'t_one',NULL,'running');
+            INSERT INTO task_events VALUES (1,'t_one');
         """)
         self.signalled = []
         self.events = []
@@ -60,6 +62,7 @@ class RunStopCasTest(unittest.TestCase):
             "_worker_alive": lambda pid, started_at: False, "_append_event": event}
         exec(module.RUN_STOP, namespace)
         self.stop = namespace["friday_terminate_run"]
+        self.matches = namespace["friday_lifecycle_matches"]
 
     def tearDown(self):
         self.conn.close()
@@ -109,6 +112,16 @@ class RunStopCasTest(unittest.TestCase):
         self.assertTrue(self.stop(self.conn, 1))
         self.assertEqual(self.signalled, [])
         self.assertEqual(self.conn.execute("SELECT status FROM tasks").fetchone()[0], "blocked")
+
+    def test_event_revision_and_run_claim_are_checked_together(self):
+        expected = dict(expected_event_id=1, expected_status="running", expected_run_id=1,
+                        expected_claim_lock="lock-one")
+        self.assertTrue(self.matches(self.conn, "t_one", **expected))
+        self.conn.execute("INSERT INTO task_events VALUES (2,'t_one')")
+        self.assertFalse(self.matches(self.conn, "t_one", **expected))
+        expected["expected_event_id"] = 2
+        self.conn.execute("UPDATE tasks SET current_run_id = 2, claim_lock = 'lock-two'")
+        self.assertFalse(self.matches(self.conn, "t_one", **expected))
 
 
 if __name__ == "__main__":

@@ -140,6 +140,31 @@ export class KanbanApi {
     return result.task_id;
   }
 
+  async lifecycleTask(ref: TaskRef, action: "cancel" | "retry", expected: WireTaskDetail, call: CallInfo): Promise<WireTask> {
+    const eventId = expected.events.reduce((latest, event) => Math.max(latest, event.id), 0);
+    let probe;
+    try {
+      probe = await this.dashboard.request({
+        method: "GET", path: `${PLUGIN}/friday/run-stop-capability`, operation: `${action}TaskPatchProbe`,
+        retry: false, ...extras(call),
+      });
+    } catch (error) {
+      if (normalizeError(error).code !== "NOT_FOUND") throw error;
+      throw new AdapterError({ code: "CAPABILITY_MISSING", message: "Hermes hat keine gepruefte Task-Lifecycle-Sperre.", retryable: false });
+    }
+    if (asObject(probe.body, "lifecycleCapability").lifecycle !== "FRIDAY_LIFECYCLE_CAS_V1") {
+      throw new AdapterError({ code: "CAPABILITY_MISSING", message: "Hermes hat keine gepruefte Task-Lifecycle-Sperre.", retryable: false });
+    }
+    const response = await this.dashboard.request({
+      method: "POST", path: `${PLUGIN}/friday/tasks/${encodeURIComponent(ref.taskId)}/${action}`,
+      query: { board: ref.board },
+      body: { expected_event_id: eventId, expected_status: expected.task.status,
+        expected_run_id: expected.task.currentRunId, expected_claim_lock: expected.task.claimLock },
+      operation: `${action}Task`, retry: false, ...extras(call),
+    });
+    return parseTask(asObject(response.body, `${action}Task`).task, `${action}Task.task`);
+  }
+
   /** Kanban-scoped profile list (`name, model, provider, description`). */
   async profiles(call?: CallInfo): Promise<WireProfile[]> {
     const response = await this.dashboard.request({

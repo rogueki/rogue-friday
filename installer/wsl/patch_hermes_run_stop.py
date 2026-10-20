@@ -23,6 +23,18 @@ SOURCE_SHA = {
 MARKER = "FRIDAY_RUN_STOP_CAS_V1"
 
 RUN_STOP = '''# FRIDAY_RUN_STOP_CAS_V1: bind termination to the run and claim in one DB transaction.
+def friday_lifecycle_matches(conn: sqlite3.Connection, task_id: str, *, expected_event_id: int,
+                             expected_status: str, expected_run_id: Optional[int],
+                             expected_claim_lock: Optional[str]) -> bool:
+    row = conn.execute(
+        "SELECT status, current_run_id, claim_lock FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if row is None or (row["status"], row["current_run_id"], row["claim_lock"]) != (
+            expected_status, expected_run_id, expected_claim_lock):
+        return False
+    latest = conn.execute("SELECT COALESCE(MAX(id), 0) FROM task_events WHERE task_id = ?", (task_id,)).fetchone()[0]
+    return latest == expected_event_id
+
+
 def friday_terminate_run(conn: sqlite3.Connection, run_id: int, *, reason: Optional[str] = None,
                          signal_fn=None) -> bool:
     """Stop only the named active run and block redispatch until explicit retry.
@@ -68,10 +80,121 @@ API_NEW = "if not kanban_db.friday_terminate_run(conn, run_id, reason=payload.re
 API_ROUTE_ANCHOR = '@router.post("/runs/{run_id}/terminate")'
 API_PROBE = '''@router.get("/friday/run-stop-capability")
 def friday_run_stop_capability():
-    return {"patch": "FRIDAY_RUN_STOP_CAS_V1"}
+    return {"patch": "FRIDAY_RUN_STOP_CAS_V1", "lifecycle": "FRIDAY_LIFECYCLE_CAS_V1"}
 
 
 '''
+LIFECYCLE_API = '''class FridayLifecycleBody(BaseModel):
+    expected_event_id: int
+    expected_status: str
+    expected_run_id: Optional[int] = None
+    expected_claim_lock: Optional[str] = None
+
+
+@router.post("/friday/tasks/{task_id}/cancel")
+def friday_cancel_task(task_id: str, payload: FridayLifecycleBody, board: Optional[str] = Query(None)):
+    with _board_conn(board) as (board, conn):
+        if payload.expected_status in ("archived", "done") or not kanban_db.archive_task(
+                conn, task_id, expected_event_id=payload.expected_event_id,
+                expected_status=payload.expected_status, expected_run_id=payload.expected_run_id,
+                expected_claim_lock=payload.expected_claim_lock):
+            raise _conflict("Friday cancel precondition changed")
+        task = _require_task(conn, task_id)
+        return {"task": _task_dict(task, current_run_started_at=None)}
+
+
+@router.post("/friday/tasks/{task_id}/retry")
+def friday_retry_task(task_id: str, payload: FridayLifecycleBody, board: Optional[str] = Query(None)):
+    with _board_conn(board) as (board, conn):
+        if payload.expected_run_id is not None or payload.expected_claim_lock is not None:
+            raise _conflict("Friday retry refuses a claimed task")
+        if payload.expected_status == "archived":
+            ok = _set_status_direct(conn, task_id, "ready", expected_event_id=payload.expected_event_id,
+                expected_status=payload.expected_status, expected_run_id=payload.expected_run_id,
+                expected_claim_lock=payload.expected_claim_lock)
+        elif payload.expected_status == "blocked":
+            ok = kanban_db.unblock_task(conn, task_id, expected_event_id=payload.expected_event_id,
+                expected_status=payload.expected_status, expected_run_id=payload.expected_run_id,
+                expected_claim_lock=payload.expected_claim_lock)
+        else:
+            ok = False
+        if not ok:
+            raise _conflict("Friday retry precondition changed or task cannot be resumed")
+        task = _require_task(conn, task_id)
+        return {"task": _task_dict(task, current_run_started_at=None)}
+
+
+'''
+ARCHIVE_SIGNATURE = 'def archive_task(conn: sqlite3.Connection, task_id: str, *, signal_fn=None) -> bool:'
+ARCHIVE_SIGNATURE_PATCHED = '''def archive_task(conn: sqlite3.Connection, task_id: str, *, signal_fn=None,
+                 expected_event_id: Optional[int] = None, expected_status: Optional[str] = None,
+                 expected_run_id: Optional[int] = None,
+                 expected_claim_lock: Optional[str] = None) -> bool:'''
+ARCHIVE_CHECK = '''        if not row:
+            return False
+        was_running = row["status"] == "running"'''
+ARCHIVE_CHECK_PATCHED = '''        if not row:
+            return False
+        if expected_event_id is not None and not friday_lifecycle_matches(
+                conn, task_id, expected_event_id=expected_event_id, expected_status=expected_status,
+                expected_run_id=expected_run_id, expected_claim_lock=expected_claim_lock):
+            return False
+        was_running = row["status"] == "running"'''
+ARCHIVE_TERMINATION = '''        _append_event(conn, task_id, "archived", None, run_id=run_id)
+    if was_running:
+        termination = _terminate_reclaimed_worker(prev_pid, prev_lock, signal_fn=signal_fn, started_at=prev_started)
+        with write_txn(conn):
+            _append_event(conn, task_id, "archive_worker_termination", termination, run_id=run_id)
+'''
+ARCHIVE_TERMINATION_PATCHED = '''        _append_event(conn, task_id, "archived", None, run_id=run_id)
+        if was_running and expected_event_id is not None:  # FRIDAY_LIFECYCLE_CAS_V1
+            termination = _terminate_reclaimed_worker(
+                prev_pid, prev_lock, signal_fn=signal_fn, started_at=prev_started)
+            _append_event(conn, task_id, "archive_worker_termination", termination, run_id=run_id)
+            if not termination.get("terminated") and _worker_alive(prev_pid, prev_started):
+                raise RuntimeError(f"archived task {task_id} still has a live worker; archive rolled back")
+    if was_running and expected_event_id is None:
+        termination = _terminate_reclaimed_worker(prev_pid, prev_lock, signal_fn=signal_fn, started_at=prev_started)
+        with write_txn(conn):
+            _append_event(conn, task_id, "archive_worker_termination", termination, run_id=run_id)
+'''
+UNBLOCK_SIGNATURE = 'def unblock_task(conn: sqlite3.Connection, task_id: str) -> bool:'
+UNBLOCK_SIGNATURE_PATCHED = '''def unblock_task(conn: sqlite3.Connection, task_id: str, *,
+                 expected_event_id: Optional[int] = None, expected_status: Optional[str] = None,
+                 expected_run_id: Optional[int] = None,
+                 expected_claim_lock: Optional[str] = None) -> bool:'''
+UNBLOCK_CHECK = '''    now = int(time.time())
+    with write_txn(conn):
+        resume_status = (
+'''
+UNBLOCK_CHECK_PATCHED = '''    now = int(time.time())
+    with write_txn(conn):
+        if expected_event_id is not None:
+            if not friday_lifecycle_matches(
+                    conn, task_id, expected_event_id=expected_event_id, expected_status=expected_status,
+                    expected_run_id=expected_run_id, expected_claim_lock=expected_claim_lock):
+                return False
+            failure = conn.execute(
+                "SELECT last_failure_error, block_kind FROM tasks WHERE id = ?", (task_id,)).fetchone()
+            if not failure or not (failure["last_failure_error"] or failure["block_kind"] == "friday_stopped"):
+                return False
+        resume_status = (
+'''
+DIRECT_SIGNATURE = 'def _set_status_direct(conn: sqlite3.Connection, task_id: str, new_status: str) -> bool:'
+DIRECT_SIGNATURE_PATCHED = '''def _set_status_direct(conn: sqlite3.Connection, task_id: str, new_status: str, *,
+                       expected_event_id: Optional[int] = None, expected_status: Optional[str] = None,
+                       expected_run_id: Optional[int] = None,
+                       expected_claim_lock: Optional[str] = None) -> bool:'''
+DIRECT_CHECK = '''        if prev is None:
+            return False
+        if prev["status"] == "running" and new_status == "ready":'''
+DIRECT_CHECK_PATCHED = '''        if prev is None:
+            return False
+        if expected_event_id is not None and not kanban_db.friday_lifecycle_matches(
+                conn, task_id, expected_event_id=expected_event_id, expected_status=expected_status,
+                expected_run_id=expected_run_id, expected_claim_lock=expected_claim_lock):
+            return False
+        if prev["status"] == "running" and new_status == "ready":'''
 ARCHIVE_ANCHOR = '''    _cleanup_workspace(conn, task_id)
     return True
 
@@ -94,15 +217,25 @@ def patch(path: str, source: bytes) -> bytes:
     text = source.decode("utf-8")
     if path == DB_PATH:
         anchor = "def reclaim_task(\n"
-        if text.count(anchor) != 1 or text.count(ARCHIVE_ANCHOR) != 1:
-            raise ValueError("Hermes reclaim/archive anchors are not unique")
+        anchors = [anchor, ARCHIVE_ANCHOR, ARCHIVE_SIGNATURE, ARCHIVE_CHECK, ARCHIVE_TERMINATION,
+                   UNBLOCK_SIGNATURE, UNBLOCK_CHECK]
+        if any(text.count(item) != 1 for item in anchors):
+            raise ValueError("Hermes lifecycle DB anchors are not unique")
         text = text.replace(anchor, RUN_STOP + anchor, 1)
         text = text.replace(ARCHIVE_ANCHOR, ARCHIVE_GUARD, 1)
+        text = text.replace(ARCHIVE_SIGNATURE, ARCHIVE_SIGNATURE_PATCHED, 1)
+        text = text.replace(ARCHIVE_CHECK, ARCHIVE_CHECK_PATCHED, 1)
+        text = text.replace(ARCHIVE_TERMINATION, ARCHIVE_TERMINATION_PATCHED, 1)
+        text = text.replace(UNBLOCK_SIGNATURE, UNBLOCK_SIGNATURE_PATCHED, 1)
+        text = text.replace(UNBLOCK_CHECK, UNBLOCK_CHECK_PATCHED, 1)
     else:
-        if text.count(API_OLD) != 1 or text.count(API_ROUTE_ANCHOR) != 1:
-            raise ValueError("Hermes termination anchor is not unique")
-        text = text.replace(API_ROUTE_ANCHOR, API_PROBE + API_ROUTE_ANCHOR, 1)
+        anchors = [API_OLD, API_ROUTE_ANCHOR, DIRECT_SIGNATURE, DIRECT_CHECK]
+        if any(text.count(item) != 1 for item in anchors):
+            raise ValueError("Hermes lifecycle API anchors are not unique")
+        text = text.replace(API_ROUTE_ANCHOR, API_PROBE + LIFECYCLE_API + API_ROUTE_ANCHOR, 1)
         text = text.replace(API_OLD, API_NEW, 1)
+        text = text.replace(DIRECT_SIGNATURE, DIRECT_SIGNATURE_PATCHED, 1)
+        text = text.replace(DIRECT_CHECK, DIRECT_CHECK_PATCHED, 1)
     return text.encode("utf-8")
 
 

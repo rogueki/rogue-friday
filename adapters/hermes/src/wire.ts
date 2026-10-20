@@ -92,6 +92,8 @@ export interface WireTask {
   blockKind: string | null;
   lastHeartbeatAt: number | null;
   currentRunStartedAt: number | null;
+  currentRunId: number | null;
+  claimLock: string | null;
   modelOverride: string | null;
   reasoningEffort: string | null;
   sessionId: string | null;
@@ -137,6 +139,8 @@ export function parseTask(value: unknown, what = "Aufgabe"): WireTask {
     blockKind: optString(o, "block_kind", what),
     lastHeartbeatAt: optNumber(o, "last_heartbeat_at", what),
     currentRunStartedAt: optNumber(o, "current_run_started_at", what),
+    currentRunId: optNumber(o, "current_run_id", what),
+    claimLock: optString(o, "claim_lock", what),
     modelOverride: optString(o, "model_override", what),
     reasoningEffort: optString(o, "reasoning_effort", what),
     sessionId: optString(o, "session_id", what),

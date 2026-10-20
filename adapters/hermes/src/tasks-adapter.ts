@@ -254,9 +254,9 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
     if (before.task.status === "archived" || before.task.status === "done") {
       throw new AdapterError({ code: "CONFLICT", message: "Die Aufgabe ist bereits beendet.", retryable: false });
     }
-    // Upstream archive_task commits the terminal status, closes an open run, then terminates its
-    // worker. Reclaiming first would return it to a dispatchable state and create a race.
-    await kanban.patchTask(ref, { status: "archived" }, {}, call);
+    // Pinned Friday route checks event revision, status and current run/claim under SQLite's write lock.
+    // Upstream archive commits before killing, so a lost response is never replayed blindly.
+    await kanban.lifecycleTask(ref, "cancel", before, call);
     const after = await kanban.taskDetail(ref, "cancelTask", call);
     if (after.task.status !== "archived") {
       throw new AdapterError({ code: "CONFLICT", message: "Hermes meldet die Aufgabe nicht als archiviert.", retryable: false });
@@ -278,7 +278,7 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
           (before.task.lastFailureError || before.task.blockKind === "friday_stopped"))) {
       throw new AdapterError({ code: "CONFLICT", message: "Nur archivierte oder blockierte fehlgeschlagene Aufgaben koennen erneut gestartet werden.", retryable: false });
     }
-    await kanban.patchTask(ref, { status: "ready" }, {}, call);
+    await kanban.lifecycleTask(ref, "retry", before, call);
     const after = await kanban.taskDetail(ref, "retryTask", call);
     if (after.task.status !== "ready" && after.task.status !== "running") {
       throw new AdapterError({ code: "CONFLICT", message: "Hermes hat den Neustart nicht bestaetigt.", retryable: false });

@@ -30,6 +30,8 @@ export interface FakeTask {
   block_kind: string | null;
   last_heartbeat_at: number | null;
   current_run_started_at: number | null;
+  current_run_id: number | null;
+  claim_lock: string | null;
   model_override: string | null;
   reasoning_effort: string | null;
   session_id: string | null;
@@ -177,6 +179,7 @@ export class HermesState {
   readonly workers: FakeWorker[] = [];
   runStopPatched = true;
   archiveWorkerSurvives = false;
+  beforeLifecycleMutation: (() => void) | undefined;
   readonly sessions: FakeSession[] = [];
   readonly toolsets: Array<{ name: string; enabled: boolean }> = [
     { name: "web", enabled: true },
@@ -275,6 +278,8 @@ export class HermesState {
       block_kind: null,
       last_heartbeat_at: null,
       current_run_started_at: null,
+      current_run_id: null,
+      claim_lock: null,
       model_override: null,
       reasoning_effort: null,
       session_id: null,
@@ -332,6 +337,8 @@ export class HermesState {
         run.status = "reclaimed";
         run.outcome = "reclaimed";
       }
+      task.current_run_id = null;
+      task.claim_lock = null;
       if (!this.archiveWorkerSurvives) {
         for (let index = this.workers.length - 1; index >= 0; index -= 1) {
           if (this.workers[index]?.board === board.slug && this.workers[index]?.task_id === task.id) this.workers.splice(index, 1);
@@ -372,6 +379,8 @@ export class HermesState {
     task.status = "running";
     task.started_at ??= this.tick();
     const run = this.addRun(board, task, { started_at: this.tick() });
+    task.current_run_id = run.id;
+    task.claim_lock = `fake-lock-${run.id}`;
     task.current_run_started_at = run.started_at;
     task.last_heartbeat_at = this.tick();
     this.addEvent(board, task, "spawned", { pid }, run.id);
