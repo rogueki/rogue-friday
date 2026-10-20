@@ -96,16 +96,16 @@ export class EncryptedClarifiedMailDrafts {
   }
 
   purgeExpired(): number {
-    const expired = this.db.prepare(`SELECT id FROM encrypted_clarified_mail_drafts WHERE expires_at <= ?`).all(this.now()) as Array<{ id: string }>;
-    if (!expired.length) return 0;
-    const ids = expired.map((row) => row.id);
+    const now = this.now();
+    if (!this.db.prepare("SELECT 1 AS present FROM encrypted_clarified_mail_drafts WHERE expires_at <= ? LIMIT 1").get(now)) return 0;
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      const placeholders = ids.map(() => "?").join(",");
       this.db.prepare(`DELETE FROM native_approval_requests WHERE state = 'draft'
         AND json_extract(action_json, '$.kind') = 'mail.send.clarified'
-        AND json_extract(action_json, '$.draftId') IN (${placeholders})`).run(...ids);
-      const removed = this.db.prepare(`DELETE FROM encrypted_clarified_mail_drafts WHERE expires_at <= ?`).run(this.now()).changes;
+        AND json_extract(action_json, '$.draftId') IN (
+          SELECT id FROM encrypted_clarified_mail_drafts WHERE expires_at <= ?
+        )`).run(now);
+      const removed = this.db.prepare(`DELETE FROM encrypted_clarified_mail_drafts WHERE expires_at <= ?`).run(now).changes;
       this.db.exec("COMMIT");
       return Number(removed);
     } catch (error) {

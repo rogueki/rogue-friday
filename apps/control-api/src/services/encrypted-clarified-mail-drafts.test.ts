@@ -32,4 +32,16 @@ describe("encrypted clarified mail drafts", () => {
     expect((db.prepare("SELECT payload_ciphertext FROM encrypted_clarified_mail_drafts").get() as { payload_ciphertext: string }).payload_ciphertext).toBe(before);
     expect(new EncryptedClarifiedMailDrafts(db, key, () => 10_000).read("owner", "session-binding", created.id, "intent-hash")).toEqual(body);
   });
+
+  it("purges more expired drafts than SQLite's bind-variable limit", () => {
+    db = openDatabase(":memory:");
+    const now = 10_000;
+    const drafts = new EncryptedClarifiedMailDrafts(db, Buffer.alloc(32, 15), () => now);
+    const insert = db.prepare(`INSERT INTO encrypted_clarified_mail_drafts
+      (id, owner_id, session_binding, intent_hash, payload_ciphertext, expires_at, created_at)
+      VALUES (?, 'owner', 'session', 'hash', 'expired', ?, ?)`);
+    for (let index = 0; index < 1_200; index++) insert.run(`expired-${index}`, now - 1, now - 10);
+    expect(drafts.purgeExpired()).toBe(1_200);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM encrypted_clarified_mail_drafts").get()).toEqual({ count: 0 });
+  });
 });

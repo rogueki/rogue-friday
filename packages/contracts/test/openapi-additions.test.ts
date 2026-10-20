@@ -89,6 +89,7 @@ describe("observability operations (PLAN §50.3)", () => {
           .toContain("#/components/parameters/CsrfToken");
       }
     }
+  });
 
   it("binds all five wake enrollment routes to owner-only staged operations", () => {
     const wake = [

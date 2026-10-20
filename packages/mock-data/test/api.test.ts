@@ -215,7 +215,7 @@ describe("REST route coverage", () => {
       "patchHermesConfig", "previewVoiceConnectedCalendar", "putDurableMemorySettings", "reconcileMailArchive", "reconnectWhatsappGateway",
       "reindexDurableMemory", "restoreDurableMemory", "retryDurableMemory", "reviewMailReceipt", "revokeMailOAuth",
       "saveMailDraft", "searchDurableMemory", "searchMailEnvelopes", "sendMailMessage", "setDefaultMailAccount",
-      "startMailOAuth", "startWakeEnrollment", "addWakeEnrollmentSample", "trainWakeEnrollment", "discardWakeEnrollment", "startWhatsappPairing", "updateMailAccount",
+      "startMailOAuth", "startWhatsappPairing", "updateMailAccount",
       "previewMessengerMessage", "confirmMessengerMessage", "listMessengerReceipts",
       "listMessengerTargets", "registerMessengerTarget", "removeMessengerTarget", "getMessengerCatalog",
       "getSystemBackupStatus", "performSystemBackupAction", "getDataRetentionStatus", "performDataRetentionAction",
