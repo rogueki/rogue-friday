@@ -24,6 +24,30 @@ function isOwner(ctx: RequestContext): string {
   return ctx.principal.userId;
 }
 
+type ProfileSettingIntent = Extract<SettingsContentMutationIntent, { kind: `settings.profile.${string}` }>;
+type ProfileSettingAction = Extract<NativeExecutableAction, { kind: `settings.profile.${string}` }>;
+
+function isProfileSettingIntent(intent: SettingsContentMutationIntent): intent is ProfileSettingIntent {
+  return intent.kind.startsWith("settings.profile.");
+}
+
+function isProfileSettingAction(action: NativeExecutableAction): action is ProfileSettingAction {
+  return action.kind.startsWith("settings.profile.");
+}
+
+function profileSettingPatch(profile: ReturnType<RequestContext["runtime"]["settings"]["get"]>["profile"],
+  action: ProfileSettingAction): SettingsPatch {
+  switch (action.kind) {
+    case "settings.profile.locale": return { profile: { ...profile, locale: action.value } };
+    case "settings.profile.dateFormat": return { profile: { ...profile, dateFormat: action.value } };
+    case "settings.profile.timeFormat": return { profile: { ...profile, timeFormat: action.value } };
+    case "settings.profile.firstDayOfWeek": return { profile: { ...profile, firstDayOfWeek: action.value } };
+    case "settings.profile.timeZone": return { profile: { ...profile, timeZone: action.value } };
+    case "settings.profile.displayName": return { profile: { ...profile, displayName: action.value } };
+    case "settings.profile.assistantName": return { profile: { ...profile, assistantName: action.value } };
+  }
+}
+
 function sameIntent(action: NativeExecutableAction, intent: SettingsContentMutationIntent): boolean {
   if (intent.kind === "settings.profile.locale" || intent.kind === "settings.profile.dateFormat"
     || intent.kind === "settings.profile.timeFormat" || intent.kind === "settings.profile.firstDayOfWeek" || intent.kind === "settings.profile.timeZone"
@@ -90,20 +114,32 @@ function storedAction(ctx: RequestContext, ownerId: string, request: CommandRequ
 }
 
 function makeAction(ctx: RequestContext, intent: SettingsContentMutationIntent): NativeExecutableAction {
-  if (intent.kind === "settings.profile.locale" || intent.kind === "settings.profile.dateFormat"
-    || intent.kind === "settings.profile.timeFormat" || intent.kind === "settings.profile.firstDayOfWeek" || intent.kind === "settings.profile.timeZone"
-    || intent.kind === "settings.profile.displayName" || intent.kind === "settings.profile.assistantName") {
+  if (isProfileSettingIntent(intent)) {
     if (!authorize(ctx.principal!.role, "settings.update").allowed) throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
     const current = ctx.runtime.settings.get();
-    const key = intent.kind === "settings.profile.locale" ? "locale"
-      : intent.kind === "settings.profile.dateFormat" ? "dateFormat"
-          : intent.kind === "settings.profile.timeFormat" ? "timeFormat"
-            : intent.kind === "settings.profile.firstDayOfWeek" ? "firstDayOfWeek"
-              : intent.kind === "settings.profile.timeZone" ? "timeZone"
-                : intent.kind === "settings.profile.displayName" ? "displayName" : "assistantName";
-    const profile = { ...current.profile, [key]: intent.value };
-    ctx.runtime.settings.validateAreas({ profile } as SettingsPatch);
-    return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
+    switch (intent.kind) {
+      case "settings.profile.locale":
+        ctx.runtime.settings.validateAreas({ profile: { ...current.profile, locale: intent.value } });
+        return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
+      case "settings.profile.dateFormat":
+        ctx.runtime.settings.validateAreas({ profile: { ...current.profile, dateFormat: intent.value } });
+        return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
+      case "settings.profile.timeFormat":
+        ctx.runtime.settings.validateAreas({ profile: { ...current.profile, timeFormat: intent.value } });
+        return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
+      case "settings.profile.firstDayOfWeek":
+        ctx.runtime.settings.validateAreas({ profile: { ...current.profile, firstDayOfWeek: intent.value } });
+        return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
+      case "settings.profile.timeZone":
+        ctx.runtime.settings.validateAreas({ profile: { ...current.profile, timeZone: intent.value } });
+        return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
+      case "settings.profile.displayName":
+        ctx.runtime.settings.validateAreas({ profile: { ...current.profile, displayName: intent.value } });
+        return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
+      case "settings.profile.assistantName":
+        ctx.runtime.settings.validateAreas({ profile: { ...current.profile, assistantName: intent.value } });
+        return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
+    }
   }
   if (intent.kind === "settings.dashboard.compact") {
     if (!authorize(ctx.principal!.role, "settings.update").allowed) throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
@@ -305,19 +341,11 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
     result: { message: "Die Aenderung wartet auf Freigabe.", targetRoute: `/approvals?approval=${policy.approval.id}` } });
 
   const revision = await ctx.runtime.nativeApprovals.executeWithoutApproval(ownerId, requestKey, async (saved, idempotencyKey) => {
-    if (saved.kind === "settings.profile.locale" || saved.kind === "settings.profile.dateFormat"
-      || saved.kind === "settings.profile.timeFormat" || saved.kind === "settings.profile.firstDayOfWeek" || saved.kind === "settings.profile.timeZone"
-      || saved.kind === "settings.profile.displayName" || saved.kind === "settings.profile.assistantName") {
+    if (isProfileSettingAction(saved)) {
       const current = ctx.runtime.settings.get();
       if (current.version !== saved.expectedVersion) throw conflict("Einstellungen wurden inzwischen geaendert. Bitte neu laden.");
-      const key = saved.kind === "settings.profile.locale" ? "locale"
-        : saved.kind === "settings.profile.dateFormat" ? "dateFormat"
-          : saved.kind === "settings.profile.timeFormat" ? "timeFormat"
-            : saved.kind === "settings.profile.firstDayOfWeek" ? "firstDayOfWeek"
-              : saved.kind === "settings.profile.timeZone" ? "timeZone"
-                : saved.kind === "settings.profile.displayName" ? "displayName" : "assistantName";
       const result = await settingsHandlers.updateSettings!({ ...ctx,
-        body: { profile: { ...current.profile, [key]: saved.value } } as SettingsPatch,
+        body: profileSettingPatch(current.profile, saved),
         mutation: { ...ctx.mutation, ifMatchVersion: saved.expectedVersion, idempotencyKey } });
       const version = (result.body as { data?: { version?: number } }).data?.version;
       if (typeof version !== "number") throw conflict("Profileinstellung wurde gespeichert, aber die neue Revision ist nicht lesbar.");
