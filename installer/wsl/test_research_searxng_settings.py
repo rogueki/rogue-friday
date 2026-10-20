@@ -1,7 +1,9 @@
 import tempfile
 import unittest
 import sys
+import os
 from pathlib import Path
+from stat import S_IMODE
 
 import yaml
 
@@ -40,6 +42,25 @@ class ResearchSearxngSettingsTest(unittest.TestCase):
             with self.assertRaises(yaml.YAMLError):
                 ensure(path)
             self.assertEqual(list(path.parent.glob("settings.yml.bak-*")), [])
+
+    def test_concurrent_edit_aborts_repair_without_overwriting_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.yml"
+            path.write_text("search:\n  formats: [html]\n", encoding="utf-8")
+            def external_edit():
+                path.write_text("search:\n  formats: [rss]\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "settings_changed_during_repair"):
+                ensure(path, before_replace=external_edit)
+            self.assertEqual(path.read_text(encoding="utf-8"), "search:\n  formats: [rss]\n")
+
+    @unittest.skipIf(os.name == "nt", "POSIX file modes require Linux")
+    def test_repair_preserves_private_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.yml"
+            path.write_text("search:\n  formats: [html]\n", encoding="utf-8")
+            path.chmod(0o600)
+            self.assertTrue(ensure(path))
+            self.assertEqual(S_IMODE(path.stat().st_mode), 0o600)
 
 
 if __name__ == "__main__":
