@@ -27,7 +27,7 @@ const FAMILY_PATTERNS = [
   { family: "approvals", pattern: /\b(approval|approvals|freigabe|freigaben)\b/ },
   { family: "audit", pattern: /\b(audit|auditprotokoll|pruefprotokoll|auditlog)\b/ },
 ] as const;
-const STATUS_ALIASES: Array<{ terms: string[]; mapsTo: Partial<Record<"activity" | "notifications" | "approvals" | "audit", string>> }> = [
+export const READ_STATUS_ALIASES: Array<{ terms: string[]; mapsTo: Partial<Record<"activity" | "notifications" | "approvals" | "audit", string>> }> = [
   { terms: ["failed", "failure", "fehlgeschlagen", "fehlgeschlagene", "fehlgeschlagenen", "fehler", "fehlerhaft"], mapsTo: { activity: "failed", approvals: "failed", audit: "failure" } },
   { terms: ["running", "laeuft", "laufend", "in arbeit"], mapsTo: { activity: "running" } },
   { terms: ["started", "gestartet"], mapsTo: { activity: "started" } },
@@ -46,7 +46,7 @@ const STATUS_ALIASES: Array<{ terms: string[]; mapsTo: Partial<Record<"activity"
   { terms: ["denied", "verweigert", "abgewiesen"], mapsTo: { audit: "denied" } },
   { terms: ["success", "erfolgreich"], mapsTo: { audit: "success" } },
 ];
-const STATUS_WORDS = new Set(STATUS_ALIASES.flatMap(({ terms }) => terms.filter((term) => !term.includes(" "))));
+const STATUS_WORDS = new Set(READ_STATUS_ALIASES.flatMap(({ terms }) => terms.filter((term) => !term.includes(" "))));
 const ID_PATTERN = /\b(act|ntf|appr|aud)_[0-9A-Za-z]{26}\b/g;
 
 function normalize(text: string): string {
@@ -55,18 +55,20 @@ function normalize(text: string): string {
 }
 
 function readStatus(text: string, family: string): string[] {
-  const result = STATUS_ALIASES.flatMap(({ terms, mapsTo }) => {
-    const matched = terms.some((term) => new RegExp(`\\b${term.split(" ").map(escapeRegex).join("\\s+")}\\b`).test(text));
-    return matched && mapsTo[family as keyof typeof mapsTo] ? [mapsTo[family as keyof typeof mapsTo]!] : [];
+  const result = READ_STATUS_ALIASES.flatMap(({ terms, mapsTo }) => {
+    const matched = terms.filter((term) => statusTermPattern(term).test(text));
+    return matched.length > 0 && mapsTo[family as keyof typeof mapsTo] ? [mapsTo[family as keyof typeof mapsTo]!] : [];
   });
   return [...new Set(result)];
 }
 
 function escapeRegex(text: string): string { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+function statusTermPattern(term: string): RegExp { return new RegExp(`\\b${term.split(" ").map(escapeRegex).join("\\s+")}\\b`); }
 
 function hasForeignStatus(text: string, family: string): boolean {
-  return STATUS_ALIASES.some(({ terms, mapsTo }) => !mapsTo[family as keyof typeof mapsTo] &&
-    terms.some((term) => new RegExp(`\\b${term.split(" ").map(escapeRegex).join("\\s+")}\\b`).test(text)));
+  const matchedTerms = new Set(READ_STATUS_ALIASES.flatMap(({ terms }) => terms.filter((term) => statusTermPattern(term).test(text))));
+  return [...matchedTerms].some((term) => !READ_STATUS_ALIASES.some(({ terms, mapsTo }) =>
+    terms.includes(term) && Boolean(mapsTo[family as keyof typeof mapsTo])));
 }
 
 const LOOKBACK_PATTERN = /\b(?:last|letzte|letzten)\s+(\d{1,3})\s+(hour|hours|stunde|stunden|day|days|tag|tage|week|weeks|woche|wochen)\b/g;
@@ -105,9 +107,11 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
     if (id.prefix !== expected) return { kind: "clarify", message: "Die Kennung gehört zu einem anderen Bereich. Bitte Activity, Benachrichtigung, Freigabe oder Audit passend zur Kennung nennen." };
   }
 
-  const statuses = readStatus(text, family);
+  const openIdCue = Boolean(id && /^open\b/.test(text));
+  const statusText = openIdCue ? text.replace(/^open\b\s*/, "") : text;
+  const statuses = readStatus(statusText, family);
   if (statuses.length > 1) return { kind: "clarify", message: "Der Status ist mehrdeutig. Bitte genau einen Status angeben." };
-  if (hasForeignStatus(text, family))
+  if (hasForeignStatus(statusText, family))
     return { kind: "clarify", message: "Der genannte Status gehört nicht zu diesem Lesebereich. Bitte den Status für den genannten Bereich prüfen." };
   const hours = lookbackHours(text);
   if (hours === -2) return { kind: "clarify", message: "Heute/Gestern benötigen eine Zeitzone für korrekte Tagesgrenzen. Bitte einen eindeutigen Zeitraum wie 'letzte 24 Stunden' angeben." };
@@ -118,6 +122,8 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   const periodNumber = periodMatches[0]?.[1];
   const allowedWords = new Set(("zeige zeig liste list show search suche such find finde get open abruf abrufe hole detail details mir den die das der des im in von fuer und oder bei was what which welche welcher welches ist sind wurde wurden aktuell aktuelle aktuellen recent latest letzte letzten last today yesterday heute gestern hours hour stunden stunde days day tage tag weeks week wochen woche activity activities aktivitaet aktivitaeten aktivitaetsverlauf ereignis ereignisse verlauf event events record records entries eintrag eintraege benachrichtigung benachrichtigungen meldung meldungen alert alerts notification notifications approval approvals freigabe freigaben audit auditprotokoll pruefprotokoll auditlog logs log security sicherheit export exportieren exportiere download").split(/\s+/));
   for (const statusWord of STATUS_WORDS) allowedWords.add(statusWord);
+  for (const alias of READ_STATUS_ALIASES.flatMap(({ terms }) => terms.filter((term) => term.includes(" ") && statusTermPattern(term).test(text))))
+    for (const word of alias.split(" ")) allowedWords.add(word);
   let periodNumberAvailable = periodNumber !== undefined;
   for (const word of text.split(/\s+/)) {
     if (word === periodNumber && periodNumberAvailable) { periodNumberAvailable = false; continue; }
@@ -125,7 +131,7 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
     if (!allowedWords.has(word)) return { kind: "clarify", message: `Der Filter „${word}“ wird für diesen Lesebereich nicht unterstützt. Bitte Bereich und unterstützten Status nennen.` };
   }
   if (id) {
-    if (statuses.length > 0 || hasForeignStatus(text, family) || hours !== undefined || /\b(recent|latest|aktuell|aktuelle|recenten)\b/.test(text))
+    if (statuses.length > 0 || hasForeignStatus(statusText, family) || hours !== undefined || /\b(recent|latest|aktuell|aktuelle|recenten)\b/.test(text))
       return { kind: "clarify", message: "Eine Kennung kann nicht mit einem Listenfilter oder Zeitraum kombiniert werden. Bitte nur die Kennung nennen." };
     if (family === "activity") return { kind: "activity.get", id: id.id };
     if (family === "notifications") return { kind: "notifications.unsupportedDetail", id: id.id };

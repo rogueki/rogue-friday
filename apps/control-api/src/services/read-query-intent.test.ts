@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseReadQueryIntent } from "./read-query-intent";
+import { parseReadQueryIntent, READ_STATUS_ALIASES } from "./read-query-intent";
 
 describe("read-only command intent parsing", () => {
   it("maps German and English activity/status/time phrases to typed filters", () => {
@@ -34,6 +34,14 @@ describe("read-only command intent parsing", () => {
       else if (family === "audit") expect(intent).toMatchObject({ result: [status] });
       else expect(intent).toMatchObject({ status: [status] });
     }
+    for (const alias of READ_STATUS_ALIASES) for (const term of alias.terms) for (const [family, status] of Object.entries(alias.mapsTo)) {
+      const familyWord = family === "notifications" ? "alerts" : family;
+      const intent = parseReadQueryIntent(`Show ${term} ${familyWord}`);
+      expect(intent?.kind, `${term} -> ${family}`).toBe(`${family}.list`);
+      if (family === "activity") expect(intent).toMatchObject({ status });
+      else if (family === "audit") expect(intent).toMatchObject({ result: [status] });
+      else expect(intent).toMatchObject({ status: [status] });
+    }
     expect(parseReadQueryIntent("Zeige Aktivitäten, die fehlgeschlagen sind"))
       .toEqual({ kind: "activity.list", status: "failed" });
     expect(parseReadQueryIntent("Zeige Meldungen, die bestätigt wurden"))
@@ -54,6 +62,8 @@ describe("read-only command intent parsing", () => {
     expect(parseReadQueryIntent(`Show Activity ${activityId} failed`)?.kind).toBe("clarify");
     expect(parseReadQueryIntent(`Show Activity ${activityId} last 2 hours`)?.kind).toBe("clarify");
     expect(parseReadQueryIntent(`Show Activity ${activityId} other`)?.kind).toBe("clarify");
+    expect(parseReadQueryIntent(`open Activity ${activityId}`)).toEqual({ kind: "activity.get", id: activityId });
+    expect(parseReadQueryIntent(`Show open Activity ${activityId}`)?.kind).toBe("clarify");
     expect(parseReadQueryIntent("Zeig Audit der letzten 90 Tage")?.kind).toBe("clarify");
     expect(parseReadQueryIntent("Show notifications from the last 2 hours")?.kind).toBe("clarify");
     expect(parseReadQueryIntent("Zeige Activity für meinen Agenten Alpha")?.kind).toBe("clarify");

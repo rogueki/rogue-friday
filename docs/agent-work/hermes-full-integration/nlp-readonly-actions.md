@@ -13,9 +13,10 @@ Relative `today/heute` and `yesterday/gestern` requests clarify because a correc
 
 Verification in this worktree:
 
-- `apps/control-api/src/services/read-query-intent.test.ts`: German umlauts, English/German status phrases, finite status grammar, unsupported filters, mixed write/read text, ambiguous family/status, date boundaries, malformed domains, and unsupported notification detail.
+- `apps/control-api/src/services/read-query-intent.test.ts`: German umlauts, English/German status phrases, every contract status and its declared aliases, unsupported filters, mixed write/read text, ambiguous family/status, date boundaries, stray numbers, detail-ID filter rejection, malformed domains, and unsupported notification detail.
 - `apps/control-api/test/read-command-intents.test.ts`: local Activity fixture is read through the real port and compared with the direct API; Notifications/Approvals are compared against their direct list endpoints; a native approval is compared against owner list behavior and foreign-owner detail behavior; audit read/export role gates and private-output redaction are asserted; viewer command access is denied while viewer GET remains available.
 - `node_modules/vitest/vitest.mjs run apps/control-api/src/services/read-query-intent.test.ts apps/control-api/test/read-command-intents.test.ts`: passed (8 tests).
 - `node_modules/typescript/bin/tsc -p apps/control-api/tsconfig.json --noEmit`: passed.
 
 This is local API/test evidence, not live/hardware or freshly installed end-to-end evidence. Content Studio reads and cross-family pronoun resolution remain separate follow-up work.
+
