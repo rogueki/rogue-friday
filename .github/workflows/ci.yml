@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Screenshot baselines are only comparable on the runner that renders them: the design tokens ask
+  # for Inter and fall back to whatever the host has installed, which differs between WSL and
+  # ubuntu-latest. Dispatch this workflow with capture_baselines to regenerate them here.
+  workflow_dispatch:
+    inputs:
+      capture_baselines:
+        description: "Capture Playwright screenshot baselines on this runner and upload them"
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -18,6 +27,7 @@ permissions:
 jobs:
   python-helpers:
     name: Python voice and integration helpers
+    if: ${{ !inputs.capture_baselines }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -125,6 +135,7 @@ jobs:
 
   verify:
     name: Contracts, typecheck, lint, tests, build
+    if: ${{ !inputs.capture_baselines }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -175,6 +186,7 @@ jobs:
 
   e2e:
     name: End-to-end (Playwright ${{ matrix.shard }}/8)
+    if: ${{ !inputs.capture_baselines }}
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -215,4 +227,42 @@ jobs:
           path: |
             playwright-report
             test-results
+          retention-days: 7
+
+  baselines:
+    name: Capture Playwright baselines
+    if: ${{ inputs.capture_baselines }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build
+        run: pnpm build
+
+      # Only these two specs write screenshot baselines; running the rest would just add noise.
+      - name: Capture baselines
+        run: pnpm exec playwright test tests/e2e/visual.spec.ts tests/e2e/mobile.spec.ts --update-snapshots --workers=1
+
+      - name: Upload baselines
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-baselines
+          path: tests/e2e/__screenshots__
+          if-no-files-found: error
           retention-days: 7
