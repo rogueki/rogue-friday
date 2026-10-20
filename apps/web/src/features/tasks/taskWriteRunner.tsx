@@ -71,13 +71,28 @@ async function discardTaskCreate(write: TaskWrite, previewId: string): Promise<v
   if (result.response.status !== 204) throw new Error("Der Task-Entwurf wurde serverseitig nicht verworfen.");
 }
 
+async function discardTaskMutation(write: TaskWrite, previewId: string): Promise<void> {
+  if (!write.id) throw new Error("Task-ID fehlt.");
+  const headers = { "X-Action-Preview-Id": previewId, "X-Action-Preview-Cancel": "true" };
+  const params = { path: { id: write.id }, header: write.version === undefined ? {} : { "If-Match": String(write.version) } };
+  const result = write.kind === "update"
+    ? await getApiClient().PATCH("/api/v1/tasks/{id}", {
+        params, body: write.body as TaskUpdateRequest, headers,
+      })
+    : await getApiClient().POST(write.kind === "retry" ? "/api/v1/tasks/{id}/retry" : "/api/v1/tasks/{id}/cancel", {
+        params, ...(write.body ? { body: write.body as TaskActionRequest } : {}), headers,
+      });
+  if (result.response.status !== 204) throw new Error("Der Task-Entwurf wurde serverseitig nicht verworfen.");
+}
+
 /** Runs a task write through the shared staged preview protocol (see `lib/api/stagedWrite`). */
 export function useRunTaskWrite(): (write: TaskWrite, idempotencyKey?: string) => Promise<"executed" | "preview" | "approval" | "failed"> {
   const runStagedWrite = useRunStagedWrite();
   return useCallback(
     async (write, idempotencyKey) => runStagedWrite({
         send: (previewId) => sendTaskWrite(write, previewId, idempotencyKey),
-        ...(write.kind === "create" ? { discard: (previewId) => discardTaskCreate(write, previewId) } : {}),
+        ...(write.kind === "create" ? { discard: (previewId) => discardTaskCreate(write, previewId) }
+          : write.kind === "assign" ? {} : { discard: (previewId) => discardTaskMutation(write, previewId) }),
         successMessage: write.successMessage,
         subject: write.taskTitle,
         // An assignment also changes the agents view, so its lists refresh with the task lists.

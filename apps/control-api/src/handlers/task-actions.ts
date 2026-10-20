@@ -27,6 +27,21 @@ function checkCapability(ctx: RequestContext, write: TaskWrite): void {
   }
 }
 
+function cancelTaskDraft(ctx: RequestContext, ownerId: string, action: NativeExecutableAction): boolean {
+  const previewId = ctx.headers["x-action-preview-id"];
+  const cancel = ctx.headers["x-action-preview-cancel"];
+  if (previewId !== undefined && !PREVIEW_ID.test(previewId)) {
+    throw validationFailed("Die Vorschaukennung ist ungueltig.", [{ path: "X-Action-Preview-Id", message: "ungueltig" }]);
+  }
+  if (cancel === undefined) return false;
+  if (cancel !== "true" || !previewId) {
+    throw validationFailed("Eine Vorschaukennung ist zum Verwerfen erforderlich.",
+      [{ path: "X-Action-Preview-Cancel", message: "erfordert X-Action-Preview-Id und den Wert true" }]);
+  }
+  ctx.runtime.nativeApprovals.cancelDraft(ownerId, previewId, action);
+  return true;
+}
+
 /**
  * Stages the exact write as a draft, binds confirmation to the unchanged action and either hands it to the tier-2
  * approval flow or lets the caller execute it once with a saved receipt. Throws for every non-executable stage.
@@ -90,19 +105,7 @@ export const taskActionHandlers: Partial<Record<OperationId, Handler>> = {
       unavailable: "Aufgaben koennen derzeit nicht angelegt werden.",
       action: { kind: "task.create", body }, actionText: `Aufgabe anlegen: ${body.title}`,
       previewTitle: "Neue Aufgabe", previewText: `Aufgabe ${body.title} anlegen?` };
-    const confirmedPreviewId = ctx.headers["x-action-preview-id"];
-    const cancelPreview = ctx.headers["x-action-preview-cancel"];
-    if (confirmedPreviewId !== undefined && !PREVIEW_ID.test(confirmedPreviewId)) {
-      throw validationFailed("Die Vorschaukennung ist ungueltig.", [{ path: "X-Action-Preview-Id", message: "ungueltig" }]);
-    }
-    if (cancelPreview !== undefined && (cancelPreview !== "true" || !confirmedPreviewId)) {
-      throw validationFailed("Eine Vorschaukennung ist zum Verwerfen erforderlich.",
-        [{ path: "X-Action-Preview-Cancel", message: "erfordert X-Action-Preview-Id und den Wert true" }]);
-    }
-    if (cancelPreview === "true") {
-      ctx.runtime.nativeApprovals.cancelDraft(ownerId, confirmedPreviewId!, write.action);
-      return { status: 204 };
-    }
+    if (cancelTaskDraft(ctx, ownerId, write.action)) return { status: 204 };
     checkCapability(ctx, write);
     const previewId = enforceTaskWrite(ctx, ownerId, write);
     return taskResponse(ctx, await executeTaskWrite(ctx, ownerId, previewId), 201);
@@ -117,6 +120,7 @@ export const taskActionHandlers: Partial<Record<OperationId, Handler>> = {
     const write: TaskWrite = { capability: "update",
       unavailable: "Aufgaben koennen derzeit nicht geaendert werden.",
       action: { kind: "task.update", id, body }, actionText: "", previewTitle: "Aufgabe aktualisieren", previewText: "" };
+    if (cancelTaskDraft(ctx, ownerId, write.action)) return { status: 204 };
     checkCapability(ctx, write);
     // An unknown task fails before any preview is staged; confirmation and replay only match the stored draft.
     if (!ctx.headers["x-action-preview-id"]) {
@@ -140,6 +144,7 @@ export const taskActionHandlers: Partial<Record<OperationId, Handler>> = {
       unavailable: "Aufgaben koennen derzeit nicht abgebrochen werden.",
       action: body === undefined ? { kind: "task.cancel", id } : { kind: "task.cancel", id, body },
       actionText: "", previewTitle: "Aufgabe abbrechen", previewText: "" };
+    if (cancelTaskDraft(ctx, ownerId, write.action)) return { status: 204 };
     checkCapability(ctx, write);
     if (!ctx.headers["x-action-preview-id"]) {
       const current = await tasks.getTask({ id }, ctx.call);
@@ -162,6 +167,7 @@ export const taskActionHandlers: Partial<Record<OperationId, Handler>> = {
     const write: TaskWrite = { capability: "retry", unavailable: "Aufgaben koennen derzeit nicht neu gestartet werden.",
       action: body === undefined ? { kind: "task.retry", id } : { kind: "task.retry", id, body },
       actionText: "", previewTitle: "Aufgabe erneut starten", previewText: "" };
+    if (cancelTaskDraft(ctx, ownerId, write.action)) return { status: 204 };
     checkCapability(ctx, write);
     if (!ctx.headers["x-action-preview-id"]) {
       const current = await tasks.getTask({ id }, ctx.call);

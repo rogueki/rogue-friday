@@ -357,6 +357,26 @@ describe("task actions: retry, artifacts, create", () => {
     expect(api.callsTo("POST /tasks/:id/retry")[1]?.headers.get("if-match")).toBe("1");
   });
 
+  it("discards a retry draft on dialog dismissal and waits for the server acknowledgment", async () => {
+    nav.params = new URLSearchParams(`task=${failed.id}`);
+    const previewId = "corr_0000000000000000000000rt2";
+    const api = routes({ "POST /tasks/:id/retry": (request: Request) =>
+      request.headers.get("x-action-preview-cancel") === "true" ? { status: 204 } :
+        previewRequired("Aufgabe erneut starten?", previewId) });
+    const user = userEvent.setup();
+    renderWithProviders(<><TasksPage /><TaskWriteConfirmHost /></>, { capabilities: FULL, fetchImpl: api.fetch });
+    const dialog = await screen.findByRole("dialog");
+    await user.click(await within(dialog).findByRole("button", { name: /Wiederholen/ }));
+    const confirm = await screen.findByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: "Abbrechen" }));
+    await waitFor(() => expect(api.callsTo("POST /tasks/:id/retry")).toHaveLength(2));
+    const discarded = api.callsTo("POST /tasks/:id/retry")[1]!;
+    expect(discarded.headers.get("x-action-preview-id")).toBe(previewId);
+    expect(discarded.headers.get("x-action-preview-cancel")).toBe("true");
+    expect(discarded.headers.get("if-match")).toBe("1");
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+  });
+
   it("opens an artifact only with a file and the files capability", async () => {
     nav.params = new URLSearchParams(`task=${failed.id}&tab=artifacts`);
     const user = userEvent.setup();

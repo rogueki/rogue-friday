@@ -201,6 +201,45 @@ it("rejects malformed direct task-preview cancellation headers without consuming
   } finally { await api.close(); }
 });
 
+it("discards update, cancel and retry drafts only with the same owner and action", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const otherUser = api.client();
+    await otherUser.loginDev("operator");
+    const tasks = (await owner.get("/api/v1/tasks")).json().items as Array<{
+      id: string; title: string; status: string; version: number;
+    }>;
+    const cases = [
+      { method: "patch", task: tasks.find((item) => item.status === "todo"), suffix: "", body: { title: "Nur Vorschau" } },
+      { method: "post", task: tasks.find((item) => item.status === "running"), suffix: "/cancel", body: { reason: "Nur Vorschau" } },
+      { method: "post", task: tasks.find((item) => item.status === "failed"), suffix: "/retry", body: { reason: "Nur Vorschau" } },
+    ] as const;
+    for (const entry of cases) {
+      expect(entry.task).toBeDefined();
+      const task = entry.task!;
+      const path = `/api/v1/tasks/${task.id}${entry.suffix}`;
+      const headers = { "if-match": String(task.version) };
+      const request = (client: typeof owner, body: object, extra: Record<string, string> = {}) =>
+        entry.method === "patch" ? client.patch(path, body, { headers: { ...headers, ...extra } })
+          : client.post(path, body, { headers: { ...headers, ...extra } });
+      const staged = await request(owner, entry.body);
+      expect(staged.statusCode, staged.body).toBe(403);
+      const previewId = staged.json().error.details.previewId as string;
+      const discard = { "x-action-preview-id": previewId, "x-action-preview-cancel": "true" };
+      expect((await request(otherUser, entry.body, discard)).statusCode).toBe(409);
+      expect((await request(owner, entry.method === "patch" ? { title: "Anderer Entwurf" } :
+        { reason: "Andere Nutzlast" }, discard)).statusCode).toBe(409);
+      expect((await request(owner, entry.body, { "x-action-preview-cancel": "true" })).statusCode).toBe(422);
+      expect((await request(owner, entry.body, discard)).statusCode).toBe(204);
+      expect((await request(owner, entry.body, { "x-action-preview-id": previewId })).statusCode).toBe(409);
+      const after = await owner.get(`/api/v1/tasks/${task.id}`);
+      expect(after.json().data).toMatchObject({ id: task.id, title: task.title, status: task.status });
+    }
+  } finally { await api.close(); }
+});
+
 it("uses one intent key across preview and approval without caching the preview error", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {

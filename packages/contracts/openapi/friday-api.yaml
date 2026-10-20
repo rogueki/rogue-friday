@@ -761,6 +761,15 @@ paths:
         - $ref: "#/components/parameters/CorrelationId"
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/IfMatch"
+        - name: X-Action-Preview-Id
+          in: header
+          required: false
+          schema: { type: string, pattern: '^corr_[0-9A-Za-z]{26}$' }
+        - name: X-Action-Preview-Cancel
+          in: header
+          required: false
+          description: Set to true with the exact preview id and unchanged task update body to discard the draft.
+          schema: { type: string, enum: ['true'] }
       requestBody:
         required: true
         content:
@@ -777,6 +786,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TaskResponse"
+        "204":
+          description: The matching draft was discarded without updating the task.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -807,6 +818,15 @@ paths:
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/IfMatch"
         - $ref: "#/components/parameters/IdempotencyKey"
+        - name: X-Action-Preview-Id
+          in: header
+          required: false
+          schema: { type: string, pattern: '^corr_[0-9A-Za-z]{26}$' }
+        - name: X-Action-Preview-Cancel
+          in: header
+          required: false
+          description: Set to true with the exact preview id and unchanged cancellation body to discard the draft.
+          schema: { type: string, enum: ['true'] }
       requestBody:
         required: false
         content:
@@ -825,6 +845,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TaskResponse"
+        "204":
+          description: The matching draft was discarded without cancelling the task.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -855,6 +877,15 @@ paths:
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/IfMatch"
         - $ref: "#/components/parameters/IdempotencyKey"
+        - name: X-Action-Preview-Id
+          in: header
+          required: false
+          schema: { type: string, pattern: '^corr_[0-9A-Za-z]{26}$' }
+        - name: X-Action-Preview-Cancel
+          in: header
+          required: false
+          description: Set to true with the exact preview id and unchanged retry body to discard the draft.
+          schema: { type: string, enum: ['true'] }
       requestBody:
         required: false
         content:
@@ -873,6 +904,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TaskResponse"
+        "204":
+          description: The matching draft was discarded without retrying the task.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
