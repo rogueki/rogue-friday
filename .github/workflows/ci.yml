@@ -15,7 +15,8 @@ on:
         default: false
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # A baseline capture must not cancel the verification run for the same commit (and vice versa).
+  group: ci-${{ inputs.capture_baselines && 'baselines-' || '' }}${{ github.ref }}
   cancel-in-progress: true
 
 env:
