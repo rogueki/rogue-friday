@@ -174,7 +174,13 @@ it("discards a direct task-create preview only for its owner and never revives i
     await otherUser.loginDev("operator");
     expect((await otherUser.post("/api/v1/tasks", body, { headers: cancelHeaders })).statusCode).toBe(409);
     expect((await owner.post("/api/v1/tasks", { ...body, priority: "P1" }, { headers: cancelHeaders })).statusCode).toBe(409);
-    expect((await owner.post("/api/v1/tasks", body, { headers: cancelHeaders })).statusCode).toBe(204);
+    const firstDiscard = await owner.post("/api/v1/tasks", body,
+      { headers: { ...cancelHeaders, "idempotency-key": "discard-task-preview-001" } });
+    expect(firstDiscard.statusCode).toBe(204);
+    expect(firstDiscard.headers["idempotent-replayed"]).toBe("false");
+    const repeatedDiscard = await owner.post("/api/v1/tasks", body,
+      { headers: { ...cancelHeaders, "idempotency-key": "discard-task-preview-001" } });
+    expect(repeatedDiscard.statusCode).toBe(409);
     expect((await owner.post("/api/v1/tasks", body, { headers: cancelHeaders })).statusCode).toBe(409);
     expect((await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId } })).statusCode).toBe(409);
     expect((await owner.get("/api/v1/tasks", { query: { q: body.title } })).json().items).toHaveLength(0);

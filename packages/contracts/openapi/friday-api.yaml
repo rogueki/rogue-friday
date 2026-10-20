@@ -684,6 +684,9 @@ paths:
       responses:
         "204":
           description: Saved preview discarded; no task was created.
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
         "201":
           description: Created
           headers:

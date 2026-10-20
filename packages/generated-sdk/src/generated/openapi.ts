@@ -17945,6 +17945,7 @@ export interface operations {
             /** @description Saved preview discarded; no task was created. */
             204: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                     [name: string]: unknown;
                 };
                 content?: never;
