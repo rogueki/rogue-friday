@@ -17,9 +17,9 @@ def requested(**overrides):
             "voiceHistoryEnabled": True, "ttsRate": 1.0, **overrides}
 
 
-def test_validation_rejects_untrained_phrase_unverified_owner_and_implicit_recording():
+def test_validation_rejects_invalid_phrase_and_implicit_recording():
     cfg = {"wake_phrase": "Hey Friday"}
-    for value in (requested(wakeWord="Hey Someone"), requested(speakerVerificationRequired=False),
+    for value in (requested(wakeWord="Hey 123"),
                   requested(pushToTalkKey="Ctrl+Alt+Delete"), {**requested(), "storeRawRecordings": "true"}):
         try:
             runtime_settings.validate(value, cfg)
@@ -30,6 +30,8 @@ def test_validation_rejects_untrained_phrase_unverified_owner_and_implicit_recor
     applied = runtime_settings.validate(requested(wakeWordEnabled=False, voiceHistoryEnabled=False), cfg)
     assert runtime_settings.effective(applied) == requested(wakeWordEnabled=False, voiceHistoryEnabled=False)
     assert applied["store_raw_recordings"] is False
+    assert runtime_settings.validate(requested(speakerVerificationRequired=False), cfg)["speaker_verification_required"] is False
+    assert runtime_settings.validate(requested(wakeWord="Hey Someone"), cfg)["wake_phrase"] == "Hey Someone"
 
 
 def test_history_off_drops_entries_and_raw_recording_only_writes_accepted_command(tmp_path):
@@ -64,6 +66,63 @@ def test_tts_rate_changes_playback_duration():
     assert runtime_settings.pace(samples, 1) is samples
 
 
+def test_native_push_to_talk_edges_and_live_key_switch():
+    current = {"key": "Ctrl+Space", "down": False}
+    actions = []
+    controller = runtime_settings.NativePushToTalk(
+        lambda: current["key"], lambda key: current["down"],
+        lambda: actions.append("start"), lambda: actions.append("release"))
+    controller.step()
+    current["down"] = True
+    controller.step()
+    controller.step()
+    assert actions == ["start"]
+    current["key"] = "F13"
+    current["down"] = False
+    controller.step()
+    assert actions == ["start", "release"]
+    current["down"] = True
+    controller.step()
+    assert actions == ["start", "release", "start"]
+    current["down"] = False
+    controller.step()
+    assert actions[-1] == "release"
+
+
+def test_native_key_mapping_requires_exact_modifiers():
+    keys = {0x11, 0x20}
+    pressed = lambda code: code in keys
+    assert runtime_settings.key_pressed_from_state("Ctrl+Space", pressed)
+    assert not runtime_settings.key_pressed_from_state("Alt+Space", pressed)
+    keys.add(0x10)
+    assert not runtime_settings.key_pressed_from_state("Ctrl+Space", pressed)
+    keys.clear()
+    keys.add(0x7C)  # F13
+    assert runtime_settings.key_pressed_from_state("F13", pressed)
+
+
+def test_wake_training_uses_private_staging_and_explicit_phrase(tmp_path, monkeypatch):
+    base = tmp_path / "state" / "models" / "openwakeword"
+    base.mkdir(parents=True)
+    calls = []
+
+    def train(command, **kwargs):
+        calls.append(command)
+        stage = command[command.index("--output-dir") + 1]
+        open(os.path.join(stage, "personal_wake.npz"), "wb").close()
+        with open(os.path.join(stage, "personal_wake.json"), "w", encoding="utf-8") as target:
+            target.write('{"wake_phrase":"Hey Test","threshold":0.5}')
+
+    monkeypatch.setattr(runtime_settings.subprocess, "run", train)
+    # The ACL helper invokes PowerShell on Windows; exercise training orchestration independently.
+    monkeypatch.setattr(runtime_settings, "protect_private", lambda *args, **kwargs: None)
+    model, meta = runtime_settings.prepare_personal_wake(str(tmp_path), str(tmp_path / "state"), "Hey Test")
+    assert calls[0][0] == sys.executable and calls[0][calls[0].index("--phrase") + 1] == "Hey Test"
+    assert os.path.isfile(model) and os.path.isfile(meta)
+    runtime_settings.discard_prepared_wake(model)
+    assert not os.path.exists(os.path.dirname(model))
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Windows ACL behavior")
 def test_private_acl_failure_is_fatal(tmp_path):
     with pytest.raises(OSError, match="Cannot protect private voice file ACL"):
@@ -73,7 +132,7 @@ def test_private_acl_failure_is_fatal(tmp_path):
 if __name__ == "__main__":
     from pathlib import Path
     from tempfile import TemporaryDirectory
-    test_validation_rejects_untrained_phrase_unverified_owner_and_implicit_recording()
+    test_validation_rejects_invalid_phrase_and_implicit_recording()
     with TemporaryDirectory() as directory:
         test_history_off_drops_entries_and_raw_recording_only_writes_accepted_command(Path(directory))
     test_tts_rate_changes_playback_duration()

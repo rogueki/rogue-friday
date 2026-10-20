@@ -10,12 +10,55 @@ import uuid
 import base64
 import subprocess
 import hashlib
+import ctypes
+import shutil
+import sys
+
+import personal_wake
 
 import numpy as np
 
 
 FIELDS = ("wakeWordEnabled", "wakeWord", "pushToTalkKey", "speakerVerificationRequired",
           "storeRawRecordings", "voiceHistoryEnabled", "ttsRate")
+
+
+def key_pressed_from_state(key, pressed):
+    """Match the configured key against a virtual-key state reader."""
+    parts = key.split("+")
+    modifier, name = parts if len(parts) == 2 else (None, parts[0])
+    virtual_key = (0x20 if name == "Space" else ord(name) if len(name) == 1 else
+                   0x6F + int(name[1:]) if re.fullmatch(r"F(?:[1-9]|1[0-9]|2[0-4])", name) else None)
+    if virtual_key is None:
+        return False
+    modifiers = {"Ctrl": pressed(0x11), "Alt": pressed(0x12), "Shift": pressed(0x10),
+                 "Meta": pressed(0x5B) or pressed(0x5C)}
+    return pressed(virtual_key) and all(state == (kind == modifier) for kind, state in modifiers.items())
+
+
+def native_key_pressed(key):
+    """Read the configured key and exact modifier set from the interactive Windows desktop."""
+    if os.name != "nt":
+        return False
+    return key_pressed_from_state(key, lambda code: bool(ctypes.windll.user32.GetAsyncKeyState(code) & 0x8000))
+
+
+class NativePushToTalk:
+    def __init__(self, key, pressed, start, release):
+        self.key, self.pressed, self.start, self.release = key, pressed, start, release
+        self.held = False
+        self.last_key = None
+
+    def step(self):
+        key = self.key()
+        down = self.pressed(key)
+        if self.held and (key != self.last_key or not down):
+            self.release()
+            self.held = False
+        if down and not self.held:
+            self.start()
+            self.held = True
+        self.last_key = key
 
 
 class ConfigConflict(Exception):
@@ -102,25 +145,53 @@ def validate(request, cfg):
         if type(request[key]) is not bool:
             raise ValueError(f"Invalid {key}")
     phrase = request["wakeWord"]
-    if not isinstance(phrase, str) or not phrase.strip() or len(phrase) > 80:
+    if not isinstance(phrase, str) or not personal_wake.valid_phrase(phrase):
         raise ValueError("Invalid wake phrase")
-    # A trained wake model recognizes one phrase. Relabeling it would falsely report an applied setting.
-    if phrase != cfg.get("wake_phrase"):
-        raise ValueError("Wake phrase requires a matching trained model")
     key = request["pushToTalkKey"]
     if not isinstance(key, str) or not re.fullmatch(r"(?:(?:Ctrl|Alt|Shift|Meta)\+)?(?:[A-Z0-9]|F(?:[1-9]|1[0-9]|2[0-4])|Space)", key):
         raise ValueError("Invalid push-to-talk key")
     rate = request["ttsRate"]
     if isinstance(rate, bool) or not isinstance(rate, (float, int)) or not 0.5 <= rate <= 2:
         raise ValueError("Invalid TTS rate")
-    if request["speakerVerificationRequired"] is False:
-        # The voice bridge currently represents all utterances as the owner. It cannot assign that identity
-        # to an unverified speaker without bypassing command permissions and disclosing private data.
-        raise ValueError("Speaker verification is required for owner voice commands")
-    return {**cfg, "wake_word_enabled": request["wakeWordEnabled"],
+    return {**cfg, "wake_phrase": phrase,
+            "wake_word_enabled": request["wakeWordEnabled"],
             "push_to_talk_key": key, "speaker_verification_required": request["speakerVerificationRequired"],
             "store_raw_recordings": request["storeRawRecordings"],
             "voice_history_enabled": request["voiceHistoryEnabled"], "tts_rate": float(rate)}
+
+
+def prepare_personal_wake(install_root, state_root, phrase):
+    """Train into a private staging directory; caller activates only after model load and config CAS."""
+    base = os.path.join(state_root, "models", "openwakeword")
+    stage = os.path.join(base, "runtime-" + uuid.uuid4().hex)
+    os.makedirs(stage, mode=0o700)
+    builder = os.path.join(os.path.dirname(__file__), "build_personal_wake.py")
+    completed = False
+    try:
+        protect_private(stage, directory=True)
+        subprocess.run([sys.executable, builder, install_root, "--phrase", phrase, "--output-dir", stage],
+                       check=True, capture_output=True, timeout=240)
+        model = os.path.join(stage, "personal_wake.npz")
+        meta = os.path.join(stage, "personal_wake.json")
+        if not os.path.isfile(model) or not os.path.isfile(meta):
+            raise ValueError("Wake training did not produce a model")
+        protect_private(model)
+        protect_private(meta)
+        completed = True
+        return model, meta
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        raise ValueError("Wake training requires enrolled phrase clips and a working local trainer") from exc
+    finally:
+        if not completed:
+            shutil.rmtree(stage)
+
+
+def discard_prepared_wake(model_path):
+    if not model_path:
+        return
+    stage = os.path.dirname(model_path)
+    if os.path.basename(stage).startswith("runtime-") and os.path.basename(model_path) == "personal_wake.npz":
+        shutil.rmtree(stage)
 
 
 def atomic_write(path, config, expected_hash=None):

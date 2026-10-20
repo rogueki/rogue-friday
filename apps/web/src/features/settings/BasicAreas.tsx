@@ -276,7 +276,8 @@ export function VoiceArea() {
         </ul> : null}
       </Section>
       <Section title={t("settings.voice.activation")}>
-        <p>Ein anderes Aktivierungswort benötigt zuerst ein passend trainiertes Wake-Modell. Die Sprecherprüfung kann derzeit für Besitzerbefehle nicht abgeschaltet werden. Die Push-to-Talk-Taste steuert aktuell Browser-Audio; beim Gerätemikrofon wird eine geänderte Taste abgelehnt.</p>
+        <p>Fuer eine neue Wake-Phrase zuerst im Friday-Installationsordner <code>voice\.venv\Scripts\python.exe voice\enroll_record.py --phrase "NEUE PHRASE"</code> ausfuehren und die gefuehrte Aufnahme abschliessen. Danach die Phrase hier speichern. Ohne passende Aufnahmen bleibt das bisherige Modell aktiv.</p>
+        <p>Ein anderes Aktivierungswort benötigt eigene Trainingsaufnahmen. Ohne Sprecherprüfung erhalten unbestätigte Stimmen lokale Antworten ohne Verlauf oder Werkzeuge; persönliche Daten und verbundene Dienste bleiben gesperrt. Push-to-Talk funktioniert mit Browser-Audio und auf dem interaktiven Windows-Gerätedesktop.</p>
         <FieldGrid>
           <Switch label={t("settings.voice.wakeEnabled")} description={t("settings.voice.wakeEnabledDesc")} checked={value.wakeWordEnabled} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(wakeWordEnabled) => update({ wakeWordEnabled })} />
           <TextField label={t("settings.voice.wakeWord")} hint={t("settings.voice.wakeWordHint")} value={value.wakeWord} disabled={readOnly || !value.wakeWordEnabled} onChange={(event) => update({ wakeWord: event.target.value })} />

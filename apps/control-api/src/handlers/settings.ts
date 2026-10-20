@@ -363,7 +363,8 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
             if (runtimeVoiceFields.some((field) => applySnapshot.settings[field] !== previousRuntimeSettings[field]))
               throw new ApiError({ code: "CONFLICT", message: "Sprachrichtlinie wurde während der Änderung geändert. Bitte neu laden." });
             try {
-              runtimeApplied = await applyVoiceSettings(ctx.runtime, requestedRuntime!, applySnapshot);
+              runtimeApplied = await applyVoiceSettings(ctx.runtime, requestedRuntime!, applySnapshot,
+                requestedRuntime!.wakeWord === applySnapshot.settings.wakeWord ? 8_000 : 255_000);
               runtimeInstance = runtimeApplied.serviceStartedAt;
             }
             catch (error) {
@@ -388,7 +389,8 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
         } catch (error) {
           const recoveryErrors: unknown[] = [];
           if (runtimeApplied && runtimeBefore && !runtimeDefinitivelyRejected) {
-            try { await applyVoiceSettings(ctx.runtime, runtimeBefore.settings, runtimeApplied); }
+            try { await applyVoiceSettings(ctx.runtime, runtimeBefore.settings, runtimeApplied,
+              runtimeBefore.settings.wakeWord === requestedRuntime?.wakeWord ? 8_000 : 255_000); }
             catch (recovery) { recoveryErrors.push(recovery); }
           }
           if (audioAttempted) {

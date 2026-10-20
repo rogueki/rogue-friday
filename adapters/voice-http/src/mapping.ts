@@ -105,6 +105,7 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
     ...(typeof raw.input_device_id === "string" || raw.input_device_id === null ? { input_device_id: raw.input_device_id } : {}),
     ...(typeof raw.output_device_id === "string" || raw.output_device_id === null ? { output_device_id: raw.output_device_id } : {}),
     ...(typeof raw.ptt_active === "boolean" ? { ptt_active: raw.ptt_active } : {}),
+    ...(typeof raw.native_ptt_available === "boolean" ? { native_ptt_available: raw.native_ptt_available } : {}),
     ...(typeof raw.runtime_settings === "object" && raw.runtime_settings !== null && !Array.isArray(raw.runtime_settings) &&
       typeof (raw.runtime_settings as Record<string, unknown>).wakeWordEnabled === "boolean" &&
       typeof (raw.runtime_settings as Record<string, unknown>).speakerVerificationRequired === "boolean" &&
@@ -199,10 +200,10 @@ export const voiceStatusMapper = defineMapper<VoiceStatusInput, VoiceStatus>({
       audioOutputDeviceId: raw.output_device_id ?? null,
       serviceStartedAt: raw.service_started_at ?? null,
       ttsVoiceChoice: raw.tts_voice_choice ?? null,
-      pushToTalk: { enabled: raw.audio_transport === "browser" && raw.runtime_settings !== undefined,
-        active: raw.audio_transport === "browser" && raw.ptt_active === true },
+      pushToTalk: { enabled: (raw.audio_transport === "browser" || raw.native_ptt_available === true) && raw.runtime_settings !== undefined,
+        active: raw.ptt_active === true },
       focusMode,
-      // The service never stores raw audio (module docstring); metadata goes to logs/voice.jsonl (JV:88-91).
+      // The service only stores command audio when the owner has enabled recording.
       rawRecordingEnabled: raw.runtime_settings?.storeRawRecordings ?? false,
       voiceHistoryEnabled: raw.runtime_settings?.voiceHistoryEnabled ?? true,
     };

@@ -401,6 +401,7 @@ def make_service(jv, texts, engine="personal", phrase="Hey Friday"):
     svc.last_wake, svc.stage1_block_until, svc.trusted_until = 0.0, 0.0, 0.0
     svc.background_jobs, svc.background_reply_ready = set(), threading.Event()
     svc.manual_start, svc.manual_start_lock = threading.Event(), threading.Lock()
+    svc.wake_model_lock = threading.Lock()
     svc.manual_release = threading.Event()
     svc.ptt_active = False
     svc.control_cancel, svc.control_paused, svc.control_generation = threading.Event(), False, 0
@@ -424,6 +425,43 @@ def test_manual_start_uses_command_handler_without_wake_audio(monkeypatch):
     svc._session(manual=True)
 
     assert recorded == [(jv.SR, None)]
+    assert svc.status["state"] == "wake_only"
+
+
+def test_unverified_speaker_has_only_public_local_voice_answers(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg["speaker_verification_required"] = False
+    svc.cfg["qwen_url"] = "http://127.0.0.1:9000/v1/chat/completions"
+    svc.verifier = types.SimpleNamespace(score=lambda audio: (_ for _ in ()).throw(AssertionError("owner verifier called")))
+    answers = []
+    requests = []
+    svc._say_if_current = lambda answer, generation: answers.append(answer)
+    svc._transcribe = lambda audio: "Lies meine E-Mails vor"
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    monkeypatch.setattr(jv, "post_json", lambda url, payload, **kwargs: (requests.append(payload) or
+                        {"choices": [{"message": {"content": "Allgemeine Antwort"}}]}))
+    svc._handle_command(np.ones(jv.SR, dtype=np.float32), None)
+    assert answers == ["Allgemeine Antwort"]
+    assert len(requests) == 1 and len(requests[0]["messages"]) == 2
+    assert requests[0]["messages"][1]["content"] == "Lies meine E-Mails vor"
+    assert "tools" not in requests[0] and "history" not in requests[0]
+    assert svc.status["commands"] == 1 and svc.trusted_until == 0
+
+
+def test_unverified_session_never_arms_owner_followup(monkeypatch):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.cfg.update(speaker_verification_required=False, command_start_timeout_s=2)
+    armed = []
+    svc.calendar_voice.arm_confirmation = lambda: armed.append("calendar")
+    svc.coding_voice.arm_confirmation = lambda: armed.append("coding")
+    svc._record_command = lambda timeout: np.ones(jv.SR, dtype=np.float32)
+    svc._handle_command = lambda audio, wake_audio: svc.tts.speaking.set()
+    svc._read_chunk = lambda: (svc.tts.speaking.clear() or np.zeros(jv.CHUNK, dtype=np.int16))
+    monkeypatch.setattr(jv, "log_event", lambda **kwargs: None)
+    svc._session(manual=True)
+    assert armed == [] and svc.trusted_until == 0
     assert svc.status["state"] == "wake_only"
 
 
@@ -557,7 +595,9 @@ def test_voice_settings_http_applies_only_confirmed_private_configuration():
                 return error.code, None
 
         assert post({**current, "voiceHistoryEnabled": False}, False)[0] == 401
-        assert post({**current, "speakerVerificationRequired": False})[0] == 422
+        assert post({**current, "speakerVerificationRequired": False})[0] == 200
+        assert svc.cfg["speaker_verification_required"] is False
+        assert post(current)[0] == 200
         assert svc.cfg.get("voice_history_enabled", True) is True
         with open(svc.config_path, "a", encoding="utf-8") as config_file:
             config_file.write(" ")
@@ -577,6 +617,27 @@ def test_voice_settings_http_applies_only_confirmed_private_configuration():
         assert post({**current, "voiceHistoryEnabled": False})[0] == 200
         assert svc.memory_capture_error == "OSError"
         assert svc.cfg["voice_history_enabled"] is False
+        model = os.path.join(root, "synthetic-wake.npz")
+        meta = os.path.join(root, "synthetic-wake.json")
+        open(model, "wb").close()
+        with open(meta, "w", encoding="utf-8") as target:
+            json.dump({"wake_phrase": "Hey Test", "threshold": 0.5}, target)
+        svc._prepare_wake_switch = lambda phrase: (_ for _ in ()).throw(ValueError("missing enrollment clips"))
+        assert post({**current, "wakeWord": "Hey Test"})[0] == 422
+        assert svc.phrase == "Hey Friday" and svc.cfg["wake_phrase"] == "Hey Friday"
+        svc._prepare_wake_switch = lambda phrase: {"engine": "personal", "detector": FakeDetector(),
+            "name": "personal", "threshold": 0.5, "high_confidence": None,
+            "model_path": model, "meta_path": meta}
+        status, body = post({**current, "wakeWord": "Hey Test"})
+        assert status == 200 and body["settings"]["wakeWord"] == "Hey Test"
+        assert svc.phrase == "Hey Test" and svc.engine == "personal"
+        assert json.load(open(svc.config_path, encoding="utf-8"))["personal_wake_model"] == model
+        svc.audio_transport = "device"
+        selected = jv.runtime_settings.effective(svc.cfg)
+        assert post({**selected, "pushToTalkKey": "F13"})[0] == 422
+        svc.native_ptt_available = True
+        status, body = post({**selected, "pushToTalkKey": "F13"})
+        assert status == 200 and body["settings"]["pushToTalkKey"] == "F13"
 
 
 def test_pending_hermes_answer_is_suppressed_after_stop():

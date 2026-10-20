@@ -12,6 +12,7 @@ import glob
 import json
 import os
 import sys
+import argparse
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
@@ -70,8 +71,12 @@ def piper_extras(embedder, phrase: str):
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--phrase")
+    parser.add_argument("--output-dir", default=OWW)
+    options = parser.parse_args(sys.argv[2:])
     name = pw.resolve_assistant_name(CONFIG)
-    phrase = pw.resolve_wake_phrase(CONFIG)
+    phrase = options.phrase or pw.resolve_wake_phrase(CONFIG)
     if pw.is_pretrained_phrase(phrase):
         raise SystemExit("Die Phrase 'Hey Jarvis' nutzt das vortrainierte Modell (train_owner_verifier.py), nicht dieses Skript.")
     slug, short = pw.phrase_slug(phrase), pw.short_form(phrase)
@@ -93,9 +98,9 @@ def main() -> None:
     print("   Kalibriere die Schwelle (Kreuzvalidierung auf ungesehenen Aufnahmen) ...", flush=True)
     cal = pw.cross_validate(hey, bare, words, speech, extra=extra)
     model = pw.train_window_model(hey + extra[0], bare + extra[1], words + speech + extra[2])
-    os.makedirs(OWW, exist_ok=True)
-    model.save(os.path.join(OWW, "personal_wake.npz"))
-    pw.save_meta(os.path.join(OWW, "personal_wake.json"), {
+    os.makedirs(options.output_dir, exist_ok=True)
+    model.save(os.path.join(options.output_dir, "personal_wake.npz"))
+    pw.save_meta(os.path.join(options.output_dir, "personal_wake.json"), {
         "assistant_name": name, "slug": slug, "wake_phrase": phrase, "short_form": short, "engine": "personal",
         "threshold": cal["threshold"], "quality": cal["quality"], "calibration": cal,
         "clips": {"hey": len(hey), "bare": len(bare), "negatives": len(words), "speech": len(speech),

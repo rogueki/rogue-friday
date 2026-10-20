@@ -120,7 +120,7 @@ describe("voice settings commit", () => {
       speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, ttsRate: 1 };
     const ctx = context(() => 1, () => { throw new Error("persisted"); });
     ctx.runtime.settings.area = vi.fn(() => stored) as never;
-    ctx.body = { voice: { ...stored, speakerVerificationRequired: false } };
+    ctx.body = { voice: { ...stored, wakeWord: "Hey 123" } };
     const fetcher = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", tts_voice_choice: "friday-female" })))
       .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-A", runtime_settings: stored })))

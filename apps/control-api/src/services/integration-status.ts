@@ -51,6 +51,7 @@ export async function voiceIntegrationStatus(runtime: Runtime, call: CallContext
   let serviceStartedAt: string | null | undefined;
   let actualRuntime: Record<string, unknown> | undefined;
   let actualTransport: unknown;
+  let nativePttAvailable: unknown;
   let errorCode: string | null = configured ? null : "VOICE_NOT_CONFIGURED";
   if (configured) {
     try {
@@ -63,6 +64,7 @@ export async function voiceIntegrationStatus(runtime: Runtime, call: CallContext
       if (connected && settingsAck) {
         const raw = await voiceRuntimeStatus(runtime);
         actualTransport = raw.audio_transport;
+        nativePttAvailable = raw.native_ptt_available;
         if (raw.service_started_at === serviceStartedAt && raw.runtime_settings &&
             typeof raw.runtime_settings === "object" && !Array.isArray(raw.runtime_settings))
           actualRuntime = raw.runtime_settings as Record<string, unknown>;
@@ -81,7 +83,7 @@ export async function voiceIntegrationStatus(runtime: Runtime, call: CallContext
   const outputVerified = connected && audioAck?.revision === persistedRevision && sameVoiceProcess(audioAck.serviceStartedAt) && actualOutput !== undefined && actualOutput === audioAck.output && audioAck.output === voice.outputDeviceId;
   const runtimeFields = Object.fromEntries(runtimeVoiceFields.map((field) => {
     const fieldVerified = connected && actualRuntime !== undefined && settingsAck?.revision === persistedRevision &&
-      sameVoiceProcess(settingsAck.serviceStartedAt) && (field !== "pushToTalkKey" || actualTransport === "browser") &&
+      sameVoiceProcess(settingsAck.serviceStartedAt) && (field !== "pushToTalkKey" || actualTransport === "browser" || nativePttAvailable === true) &&
       actualRuntime[field] === settingsAck.settings[field] &&
       actualRuntime[field] === voice[field];
     return [field, { verification: fieldVerified ? "verified" : connected ? "unverified" : "failed",

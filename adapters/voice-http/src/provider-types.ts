@@ -71,4 +71,5 @@ export interface RawVoiceStatus {
     storeRawRecordings: boolean; voiceHistoryEnabled: boolean; ttsRate: number;
   };
   ptt_active?: boolean;
+  native_ptt_available?: boolean;
 }

@@ -35,7 +35,8 @@ export async function readRuntimeVoiceSettings(runtime: Runtime): Promise<{ sett
     configRevision: status.config_revision };
 }
 
-export async function applyVoiceSettings(runtime: Runtime, requested: RuntimeVoiceSettings, expected: VoiceRevision): Promise<VoiceRevision> {
+export async function applyVoiceSettings(runtime: Runtime, requested: RuntimeVoiceSettings, expected: VoiceRevision,
+  timeoutMs = 8_000): Promise<VoiceRevision> {
   const adapter = runtime.config.adapters.voice;
   const configured = adapter.config.baseUrl;
   if (adapter.provider !== "friday-voice-http" || typeof configured !== "string")
@@ -55,7 +56,7 @@ export async function applyVoiceSettings(runtime: Runtime, requested: RuntimeVoi
     response = await fetch(url, { method: "POST", headers: {
       Authorization: `Bearer ${runtime.voiceBridgeKey.toString("base64")}`, "Content-Type": "application/json",
     }, body: JSON.stringify({ settings: requested, expectedConfigRevision: expected.configRevision,
-      expectedServiceStartedAt: expected.serviceStartedAt }), signal: AbortSignal.timeout(8_000), redirect: "error" });
+      expectedServiceStartedAt: expected.serviceStartedAt }), signal: AbortSignal.timeout(timeoutMs), redirect: "error" });
   } catch {
     throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst nicht erreichbar." });
   }

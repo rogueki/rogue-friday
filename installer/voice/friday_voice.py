@@ -571,6 +571,7 @@ class VoiceService:
         self.config_path = config_path or os.path.join(INSTALL_ROOT, "config", "voice.json")
         self.config_disk_hash = runtime_settings.file_hash(self.config_path)
         self.audio_transport = cfg.get("audio_transport", "device")
+        self.native_ptt_available = self.audio_transport == "device" and os.name == "nt"
         if self.audio_transport not in ("device", "browser"):
             raise SystemExit("audio_transport muss device oder browser sein")
         if self.audio_transport == "browser" and cfg.get("voice_mode") != "elevenlabs":
@@ -599,6 +600,7 @@ class VoiceService:
         self.manual_release = threading.Event()
         self.ptt_active = False
         self.manual_start_lock = threading.Lock()
+        self.wake_model_lock = threading.Lock()
         self.control_cancel = threading.Event()
         self.control_paused = False
         # Kurzlebige Verarbeitungsphase einer Aeusserung: None | "transcribing" | "thinking" (siehe voice_phase()).
@@ -711,6 +713,45 @@ class VoiceService:
               f"{meta.get('quality', '?')}, Phrasencheck {'an' if self.cfg.get('wake_confirm', True) else 'aus'})",
               flush=True)
 
+    def _prepare_wake_switch(self, phrase: str) -> dict:
+        oww_dir = os.path.join(STATE_ROOT, "models", "openwakeword")
+        if personal_wake.is_pretrained_phrase(phrase):
+            from openwakeword.model import Model
+            model_path = self.cfg["wake_model"]
+            if not os.path.isfile(model_path):
+                raise ValueError("Pretrained wake model is missing")
+            verifier = {}
+            if os.path.exists(self.cfg["wake_verifier"]):
+                name = os.path.splitext(os.path.basename(model_path))[0]
+                verifier = {"custom_verifier_models": {name: self.cfg["wake_verifier"]},
+                            "custom_verifier_threshold": self.cfg["wake_verifier_threshold"]}
+            detector = Model(wakeword_models=[model_path], inference_framework="onnx",
+                             melspec_model_path=os.path.join(oww_dir, "melspectrogram.onnx"),
+                             embedding_model_path=os.path.join(oww_dir, "embedding_model.onnx"), **verifier)
+            detector.reset()
+            return {"engine": "openwakeword", "detector": detector, "name": list(detector.models.keys())[0],
+                    "threshold": self.cfg["wake_threshold"], "high_confidence": None,
+                    "model_path": None, "meta_path": None}
+        model_path, meta_path = runtime_settings.prepare_personal_wake(INSTALL_ROOT, STATE_ROOT, phrase)
+        try:
+            meta = personal_wake.load_meta(meta_path)
+            if personal_wake.phrase_key(meta.get("wake_phrase", "")) != personal_wake.phrase_key(phrase):
+                raise ValueError("Trained wake model phrase mismatch")
+            detector = personal_wake.PersonalWakeDetector(
+                personal_wake.WindowModel.load(model_path), os.path.join(oww_dir, "melspectrogram.onnx"),
+                os.path.join(oww_dir, "embedding_model.onnx"))
+            detector.reset()
+            threshold = meta["threshold"]
+            calibration = meta.get("calibration") or {}
+            false_maxima = (calibration.get("speech_max"), calibration.get("words_max"))
+            high = (max(threshold, *(value + 1.0 for value in false_maxima))
+                    if all(isinstance(value, (int, float)) for value in false_maxima) else None)
+            return {"engine": "personal", "detector": detector, "name": "personal", "threshold": threshold,
+                    "high_confidence": high, "model_path": model_path, "meta_path": meta_path}
+        except Exception:
+            runtime_settings.discard_prepared_wake(model_path)
+            raise
+
     # ---------- Audio ----------
     def _on_audio(self, indata, frames, time_info, status) -> None:
         self.input_level.update(indata[:, 0])
@@ -764,7 +805,7 @@ class VoiceService:
                 if len(audio) < int(0.28 * SR) or self.control_generation != generation:
                     continue
                 try:
-                    if self.verifier.score(audio) < self.cfg["speaker_threshold"]:
+                    if self.cfg.get("speaker_verification_required", True) and self.verifier.score(audio) < self.cfg["speaker_threshold"]:
                         continue
                     with self.transcribe_lock:
                         phrase = self._transcribe(audio)
@@ -821,6 +862,19 @@ class VoiceService:
                 self.control_cancel.clear()
                 self.status["state"] = "listening"
                 return
+
+    def _native_ptt_loop(self) -> None:
+        controller = runtime_settings.NativePushToTalk(
+            lambda: self.cfg.get("push_to_talk_key", "Ctrl+Space"), runtime_settings.native_key_pressed,
+            lambda: self.browser_control("start"), lambda: self.browser_control("release"))
+        while True:
+            try:
+                controller.step()
+            except OSError as exc:
+                self.native_ptt_available = False
+                log_event(event="native_ptt_error", error=type(exc).__name__)
+                return
+            time.sleep(0.02)
 
     def cancel_active_interaction(self, pause: bool = False) -> None:
         """One cancellation boundary for spoken stop, browser stop and local control."""
@@ -1152,6 +1206,24 @@ class VoiceService:
             return {"route": "cloud_low", "background": False, "priority": "P3", "needs_confirmation": False,
                     "intent": "fallback", "answer": ""}
 
+    def _guest_answer(self, text: str) -> str:
+        direct = clock_answer(text)
+        if direct:
+            return direct
+        endpoint = urllib.parse.urlparse(self.cfg.get("qwen_url", ""))
+        if endpoint.scheme != "http" or endpoint.hostname not in ("127.0.0.1", "localhost", "::1"):
+            return "Der lokale Gast-Chat ist nicht eingerichtet."
+        payload = {"model": "qwen3-router", "messages": [
+            {"role": "system", "content": "Du beantwortest nur allgemeine Fragen. Keine Werkzeuge, Dateien, Konten, Erinnerungen oder personenbezogenen Informationen verwenden."},
+            {"role": "user", "content": text}], "temperature": 0.2, "max_tokens": 300,
+            "chat_template_kwargs": {"enable_thinking": False}}
+        try:
+            answer = post_json(self.cfg["qwen_url"], payload, timeout=20)["choices"][0]["message"]["content"].strip()
+            return answer[:1500] or "Der lokale Gast-Chat hat keine Antwort geliefert."
+        except Exception as exc:
+            log_event(event="guest_chat_unavailable", error=type(exc).__name__)
+            return "Der lokale Gast-Chat ist gerade nicht verfuegbar."
+
     def _ask_hermes(self, text: str, decision: dict, task_id: str) -> str:
         route = decision["route"]
         policy = load_dashboard_voice_policy(
@@ -1228,18 +1300,19 @@ class VoiceService:
         self.processing = "transcribing"  # Sprecherpruefung + STT; das Ende setzt der Aufrufer (_session) zurueck
         t0 = time.monotonic()
         probe = np.concatenate([wake_audio, audio]) if wake_audio is not None else audio
-        combined_score = self.verifier.score(probe)
-        command_score = self.verifier.score(audio) if wake_audio is not None and len(audio) >= SR else -1.0
+        owner_required = self.cfg.get("speaker_verification_required", True)
+        combined_score = self.verifier.score(probe) if owner_required else 0.0
+        command_score = self.verifier.score(audio) if owner_required and wake_audio is not None and len(audio) >= SR else -1.0
         # A verified question is sufficient when the longer wake window contains stale/noisy audio.
         score = max(combined_score, command_score)
         probe_details = {"wake_s": round(len(wake_audio) / SR, 2) if wake_audio is not None else 0,
                          "command_s": round(len(audio) / SR, 2),
                          "command_score": round(command_score, 3) if command_score >= 0 else None}
-        if score == -1.0:
+        if owner_required and score == -1.0:
             # Zu wenig Sprache fuer ein Embedding (Raeuspern, Geraeusch): ignorieren, Session nicht beenden.
             log_event(event="too_short", followup=wake_audio is None, **probe_details)
             return
-        if score < self.cfg["speaker_threshold"]:
+        if owner_required and score < self.cfg["speaker_threshold"]:
             self.status["rejected_speaker"] += 1
             self.trusted_until = 0.0  # Plan: unbekannter Sprecher schliesst die Trusted Session sofort
             if hasattr(self, "mail_voice"):
@@ -1247,7 +1320,7 @@ class VoiceService:
             log_event(event="speaker_rejected", score=round(score, 3), followup=wake_audio is None,
                       **probe_details)
             return
-        self.trusted_until = time.monotonic() + self.cfg["trusted_session_s"]
+        self.trusted_until = time.monotonic() + self.cfg["trusted_session_s"] if owner_required else 0.0
         t_stt = time.monotonic()
         lock = getattr(self, "transcribe_lock", None)
         if lock is None:
@@ -1264,6 +1337,12 @@ class VoiceService:
         if STOP_WORDS.fullmatch(text):
             self.cancel_active_interaction()
             log_event(event="stop", generation=generation)
+            return
+        if not owner_required:
+            # No speaker identity is asserted. Guest chat receives no owner history, memories or tools.
+            self.status["commands"] += 1
+            log_event(event="guest_voice_command", identity="unverified", mode="local_chat")
+            self._say_if_current(self._guest_answer(text), generation)
             return
         if self.cfg.get("store_raw_recordings", False):
             try:
@@ -1528,6 +1607,8 @@ class VoiceService:
             self.audio_applied_revision = max(1, self.audio_applied_revision)
             if self.audio_transport == "device":
                 threading.Thread(target=self._audio_device_watcher, daemon=True).start()
+                if self.native_ptt_available:
+                    threading.Thread(target=self._native_ptt_loop, daemon=True).start()
             self.status["state"] = "listening"
             print(f"{self.name} hoert zu (sag '{self.phrase}').", flush=True)
             if self.browser_audio is not None:
@@ -1591,6 +1672,10 @@ class VoiceService:
         return False, round((time.monotonic() - t0) * 1000)
 
     def _wake_detected(self, chunk: np.ndarray) -> bool:
+        with self.wake_model_lock:
+            return self._wake_detected_locked(chunk)
+
+    def _wake_detected_locked(self, chunk: np.ndarray) -> bool:
         score = self._wake_score(chunk)
         if score < self.wake_threshold:
             return False
@@ -1705,6 +1790,9 @@ class VoiceService:
                     self._handle_command(audio, wake_audio)
                 self.processing = None
                 continue
+            if not self.cfg.get("speaker_verification_required", True):
+                # A guest reply must never establish the owner follow-up window or arm owner confirmations.
+                break
             self.coding_voice.arm_confirmation()
             self.calendar_voice.arm_confirmation()
             for name in ("mail_voice", "powerpoint_voice", "cloudtalk_voice"):
@@ -1800,6 +1888,7 @@ class VoiceService:
                 "runtime_settings": runtime_settings.effective(self.cfg),
                 "config_revision": getattr(self, "config_disk_hash", None),
                 "ptt_active": self.ptt_active,
+                "native_ptt_available": getattr(self, "native_ptt_available", False),
                 "service_started_at": getattr(self, "service_started_at", None),
                 "trusted": time.monotonic() < self.trusted_until,
                 "input_level": self.input_level.value(),
@@ -1837,6 +1926,8 @@ class VoiceService:
                     self.send_error(401)
                     return
                 if self.path == "/control/settings":
+                    prepared_wake = None
+                    wake_committed = False
                     try:
                         size = int(self.headers.get("Content-Length", "0"))
                         if not 0 < size <= 1024:
@@ -1845,6 +1936,9 @@ class VoiceService:
                         if not isinstance(request, dict) or set(request) != {"settings", "expectedConfigRevision", "expectedServiceStartedAt"}:
                             raise ValueError("Expected settings and voice revision")
                         requested = request["settings"]
+                        runtime_settings.validate(requested, service.cfg)
+                        if requested["wakeWord"] != runtime_settings.effective(service.cfg)["wakeWord"]:
+                            prepared_wake = service._prepare_wake_switch(requested["wakeWord"])
                         with service.manual_start_lock:
                             if service.processing or service.tts.speaking.is_set() or service.status["state"] in ("command", "followup", "speaking"):
                                 self.send_error(423, "Voice is busy")
@@ -1853,15 +1947,33 @@ class VoiceService:
                                     request["expectedConfigRevision"] != service.config_disk_hash):
                                 raise runtime_settings.ConfigConflict("Voice configuration revision changed")
                             updated = runtime_settings.validate(requested, service.cfg)
-                            if (service.audio_transport != "browser" and
+                            if prepared_wake is not None:
+                                updated.update({"wake_engine": prepared_wake["engine"],
+                                                "wake_aliases": personal_wake.default_aliases(updated["wake_phrase"]),
+                                                "wake_reject_words": personal_wake.default_reject_words(updated["wake_phrase"])})
+                                if prepared_wake["model_path"]:
+                                    updated["personal_wake_model"] = prepared_wake["model_path"]
+                                    updated["personal_wake_meta"] = prepared_wake["meta_path"]
+                            if (service.audio_transport != "browser" and not getattr(service, "native_ptt_available", False) and
                                     requested["pushToTalkKey"] != runtime_settings.effective(service.cfg)["pushToTalkKey"]):
-                                raise ValueError("Push-to-talk key requires browser audio transport")
+                                raise ValueError("Push-to-talk key requires browser audio or an interactive Windows device desktop")
                             config_path = getattr(service, "config_path", os.path.join(INSTALL_ROOT, "config", "voice.json"))
                             expected = getattr(service, "config_disk_hash", runtime_settings.file_hash(config_path))
-                            runtime_settings.atomic_write(config_path, updated, expected)
-                            service.cfg = updated
-                            service.config_disk_hash = runtime_settings.file_hash(config_path)
-                            service.tts.tts_config = updated
+                            with service.wake_model_lock:
+                                runtime_settings.atomic_write(config_path, updated, expected)
+                                wake_committed = prepared_wake is not None
+                                service.cfg = updated
+                                service.config_disk_hash = runtime_settings.file_hash(config_path)
+                                service.tts.tts_config = updated
+                                if prepared_wake is not None:
+                                    service.engine = prepared_wake["engine"]
+                                    service.phrase = updated["wake_phrase"]
+                                    service.oww = prepared_wake["detector"]
+                                    service.wake_name = prepared_wake["name"]
+                                    service.wake_threshold = prepared_wake["threshold"]
+                                    service.wake_high_confidence = prepared_wake["high_confidence"]
+                                    service.status["wake_phrase"] = service.phrase
+                                    service.status["wake_engine"] = service.engine
                             if not updated["voice_history_enabled"]:
                                 service.history.clear()
                                 if service.memory_outbox is not None:
@@ -1875,6 +1987,15 @@ class VoiceService:
                                             log_event(event="memory_purge_error", error=type(exc).__name__)
                                         except OSError:
                                             pass
+                            if not updated["speaker_verification_required"]:
+                                for name in ("calendar_voice", "coding_voice", "cloudtalk_voice", "powerpoint_voice",
+                                             "content_studio_voice", "skills_onboarding_voice"):
+                                    controller = getattr(service, name, None)
+                                    if controller is not None:
+                                        controller.pending = None
+                                if hasattr(service, "mail_voice"):
+                                    service.mail_voice.clear()
+                                service.history.clear()
                             service.control_generation += 1
                             service.control_cancel.set()
                             service.manual_start.clear()
@@ -1890,9 +2011,12 @@ class VoiceService:
                     except runtime_settings.ConfigConflict as exc:
                         self.send_error(409, str(exc))
                         return
-                    except OSError:
+                    except (OSError, RuntimeError, ImportError):
                         self.send_error(503, "Voice configuration could not be written")
                         return
+                    finally:
+                        if prepared_wake is not None and not wake_committed:
+                            runtime_settings.discard_prepared_wake(prepared_wake["model_path"])
                     body = json.dumps(result).encode("utf-8")
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
