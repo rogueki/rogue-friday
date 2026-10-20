@@ -22,6 +22,7 @@ import type {
   HermesModelCatalogResponse,
   HermesMcpProbeResponse,
   HermesMcpOAuthResponse,
+  HermesCronJobsResponse,
 } from "@friday/sdk";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { call } from "../call";
@@ -63,6 +64,14 @@ export const useThemes = (enabled = true) => useQuery({ ...settingsQueries.theme
 export const useHermesConfig = (enabled = true) => useQuery({
   queryKey: ["settings", "hermes-config"],
   queryFn: (): Promise<HermesConfigStatusResponse> => call(getApiClient().GET("/api/v1/settings/hermes-config")),
+  enabled,
+  staleTime: 15000,
+});
+
+export const useHermesCronJobs = (enabled = true) => useQuery({
+  queryKey: ["settings", "hermes-cron-jobs"],
+  queryFn: (): Promise<HermesCronJobsResponse> => call(getApiClient().GET("/api/v1/settings/hermes-cron/jobs"))
+    .then((response) => response as unknown as HermesCronJobsResponse),
   enabled,
   staleTime: 15000,
 });

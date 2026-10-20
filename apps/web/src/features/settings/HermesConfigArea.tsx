@@ -2,7 +2,7 @@
 
 import type { HermesConfigPatch } from "@friday/sdk";
 import { useState } from "react";
-import { useHermesConfig, useHermesModelCatalog, usePatchHermesConfig, useProbeHermesMcp,
+import { useHermesConfig, useHermesCronJobs, useHermesModelCatalog, usePatchHermesConfig, useProbeHermesMcp,
   useManageHermesMcpOAuth, useHermesMcpOAuthFlow } from "@/lib/api/domains/settings";
 
 const LABELS: Record<string, string> = {
@@ -135,6 +135,7 @@ const EXECUTION_OPTIONS: Record<string, Array<[string, string]>> = {
 
 export function HermesConfigArea() {
   const observed = useHermesConfig();
+  const cronJobs = useHermesCronJobs(observed.data?.data.installed === true);
   const patch = usePatchHermesConfig();
   const mcpProbe = useProbeHermesMcp();
   const mcpOAuth = useManageHermesMcpOAuth();
@@ -186,6 +187,18 @@ export function HermesConfigArea() {
         Die Werte stammen aus <code>hermes config get</code>. Ein Speichern mit Rücklesung bestätigt die
         Datei; ob ein laufender Prozess den Wert übernommen hat, bleibt ungeprüft.
       </p>
+      <section aria-label="Hermes-Zeitpläne">
+        <h3>Hermes-Zeitpläne</h3>
+        <p>Profil: {cronJobs.data?.data.profile ?? "unbekannt"}; Zeitzone: {cronJobs.data?.data.profileTimezone ?? "Systemzeit"}.
+          Scheduler-Laufzeitstatus: unbekannt.</p>
+        {cronJobs.isError ? <p role="alert">Zeitpläne konnten nicht gelesen werden.</p> : null}
+        {cronJobs.isPending ? <p role="status">Zeitpläne werden gelesen…</p> :
+          <ul>{cronJobs.data?.data.jobs.map((job) => <li key={job.id}>
+            {job.name} ({job.schedule || "ohne Zeitangabe"}) — {job.enabled ? "aktiviert" : "deaktiviert"}, {job.state}
+          </li>)}</ul>}
+        {cronJobs.data?.data.truncated ? <p>Weitere Zeitpläne sind im nativen Store vorhanden.</p> : null}
+        <button type="button" onClick={() => void cronJobs.refetch()}>Zeitpläne aktualisieren</button>
+      </section>
       {data.fields.every((field) => !field.writable) ? (
         <p role="alert">
           Hermes-Quellstand weicht vom geprüften Stand ab. Schreibzugriffe sind bis zur Vertragsprüfung

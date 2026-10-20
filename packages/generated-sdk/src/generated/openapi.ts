@@ -2798,6 +2798,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/hermes-cron/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read bounded native Hermes cron job metadata for the active profile */
+        get: operations["listHermesCronJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/hermes-model-catalog": {
         parameters: {
             query?: never;
@@ -6839,6 +6856,33 @@ export interface components {
         HermesConfigStatusResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["HermesConfigStatus"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HermesCronJobs */
+        HermesCronJobs: {
+            count: number;
+            jobs: {
+                enabled: boolean;
+                id: string;
+                lastRunAt: string | null;
+                name: string;
+                nextRunAt: string | null;
+                schedule: string;
+                state: string;
+                timezone: string | null;
+            }[];
+            profile: string;
+            profileTimezone: string | null;
+            /** @description The store alone cannot prove scheduler process liveness. */
+            schedulerRunning: null;
+            sourceRevision: string;
+            storeRevision: string;
+            truncated: boolean;
+        };
+        /** HermesCronJobsResponse */
+        HermesCronJobsResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["HermesCronJobs"];
             freshness: components["schemas"]["Freshness"];
         };
         /** HermesMcpOAuthRequest */
@@ -16948,6 +16992,28 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listHermesCronJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Native job metadata; scheduler liveness remains unknown */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesCronJobsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

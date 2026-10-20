@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-cron-jobs.schema.json",
+  "title": "HermesCronJobs",
+  "type": "object",
+  "properties": {
+    "sourceRevision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "profile": { "type": "string", "maxLength": 100 },
+    "profileTimezone": { "type": ["string", "null"] },
+    "storeRevision": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "count": { "type": "integer", "minimum": 0 },
+    "truncated": { "type": "boolean" },
+    "schedulerRunning": { "type": "null", "description": "The store alone cannot prove scheduler process liveness." },
+    "jobs": { "type": "array", "maxItems": 200, "items": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "name": { "type": "string", "maxLength": 160 },
+        "schedule": { "type": "string", "maxLength": 200 },
+        "timezone": { "type": ["string", "null"] },
+        "enabled": { "type": "boolean" },
+        "state": { "type": "string", "maxLength": 40 },
+        "nextRunAt": { "type": ["string", "null"] },
+        "lastRunAt": { "type": ["string", "null"] }
+      },
+      "required": ["id", "name", "schedule", "timezone", "enabled", "state", "nextRunAt", "lastRunAt"],
+      "additionalProperties": false
+    } }
+  },
+  "required": ["sourceRevision", "profile", "profileTimezone", "storeRevision", "count", "truncated", "schedulerRunning", "jobs"],
+  "additionalProperties": false
+}

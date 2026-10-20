@@ -12,6 +12,9 @@ const single = <T>(data: T) => ({
 });
 
 export const hermesConfigHandlers: Partial<Record<OperationId, Handler>> = {
+  async listHermesCronJobs(ctx) {
+    return { status: 200, body: single(await ctx.runtime.hermesConfig.cronJobs()) };
+  },
   async getHermesModelCatalog(ctx) {
     const providerId = ctx.query.providerId;
     return { status: 200, body: single(await ctx.runtime.hermesConfig.modelCatalog(

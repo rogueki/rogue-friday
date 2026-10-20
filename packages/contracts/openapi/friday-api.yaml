@@ -6670,6 +6670,24 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/hermes-cron/jobs:
+    get:
+      operationId: listHermesCronJobs
+      tags: [settings]
+      summary: Read bounded native Hermes cron job metadata for the active profile
+      responses:
+        "200":
+          description: Native job metadata; scheduler liveness remains unknown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesCronJobsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/hermes-config/mcp-probe:
     post:
       operationId: probeHermesMcp
@@ -9514,6 +9532,10 @@ components:
       $ref: ../schemas/integrations/mail-result-response.schema.json
     HermesConfigPatch:
       $ref: ../schemas/integrations/hermes-config-patch.schema.json
+    HermesCronJobs:
+      $ref: ../schemas/integrations/hermes-cron-jobs.schema.json
+    HermesCronJobsResponse:
+      $ref: ../schemas/integrations/hermes-cron-jobs-response.schema.json
     HermesConfigStatus:
       $ref: ../schemas/integrations/hermes-config-status.schema.json
     HermesConfigStatusResponse:

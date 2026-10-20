@@ -2,6 +2,32 @@ import { expect, it, vi } from "vitest";
 import { startTestApi } from "./helpers";
 
 const path = "/api/v1/settings/hermes-config";
+const cronPath = "/api/v1/settings/hermes-cron/jobs";
+
+it("lists redacted native Hermes cron metadata for the owner", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const read = vi.spyOn(api.runtime.hermesConfig, "cronJobs").mockResolvedValue({
+      sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8",
+      profile: "default", profileTimezone: "UTC",
+      storeRevision: "a".repeat(64), count: 1, truncated: false, schedulerRunning: null,
+      jobs: [{ id: "job-1", name: "Morning", schedule: "09:00 UTC", timezone: "UTC",
+        enabled: true, state: "scheduled", nextRunAt: null, lastRunAt: null }],
+    });
+    const owner = api.client();
+    const viewer = api.client();
+    await owner.loginDev("owner");
+    await viewer.loginDev("viewer");
+    expect((await api.client().get(cronPath)).statusCode).toBe(401);
+    expect((await viewer.get(cronPath)).statusCode).toBe(403);
+    const result = await owner.get(cronPath);
+    expect(result.statusCode).toBe(200);
+    expect(result.json().data.jobs[0].name).toBe("Morning");
+    expect(read).toHaveBeenCalledTimes(1);
+  } finally {
+    await api.close();
+  }
+});
 const status = {
   installed: true as const,
   sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8",

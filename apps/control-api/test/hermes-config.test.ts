@@ -21,6 +21,20 @@ function fixture(invoke: RunnerInvoker) {
   return new HermesConfigService(join(root, "data"), invoke);
 }
 
+it("validates native cron read output before returning it", async () => {
+  const response = { sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8", profile: "default", profileTimezone: "UTC",
+    storeRevision: "a".repeat(64), count: 1, truncated: false, schedulerRunning: null,
+    jobs: [{ id: "job-1", name: "Morning", schedule: "09:00 UTC", timezone: "UTC",
+      enabled: true, state: "scheduled", nextRunAt: null, lastRunAt: null }] };
+  const invoke = vi.fn(async () => response) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  expect(await service.cronJobs()).toEqual(response);
+  expect(vi.mocked(invoke).mock.calls[0]?.[0]).toContain("hermes_cron_read.py");
+  expect(vi.mocked(invoke).mock.calls[0]?.[3]).toEqual(["list"]);
+  vi.mocked(invoke).mockImplementationOnce(async () => ({ ...response, jobs: [{ ...response.jobs[0], prompt: "SECRET", enabled: "yes" }] }));
+  await expect(service.cronJobs()).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+});
+
 const bridge = {
   installed: true,
   sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8",

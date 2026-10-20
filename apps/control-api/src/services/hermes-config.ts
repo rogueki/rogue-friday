@@ -200,6 +200,39 @@ export class HermesConfigService {
     private readonly invoke: RunnerInvoker = invokeCodingRunner,
   ) {}
 
+  async cronJobs(): Promise<Record<string, unknown>> {
+    const { script, distro, user } = this.target();
+    const cronScript = script.replace(/hermes_config_bridge\.py$/, "hermes_cron_read.py");
+    if (cronScript === script) throw unavailable();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(cronScript, distro, user, ["list"], undefined, 15000, 150000);
+    } catch {
+      throw unavailable();
+    }
+    if (Object.keys(raw).sort().join(",") !==
+        "count,jobs,profile,profileTimezone,schedulerRunning,sourceRevision,storeRevision,truncated" ||
+      raw.sourceRevision !== "d923a5eb487a17c0a68801bba9ef0f56c81040a8" ||
+      typeof raw.profile !== "string" || raw.profile.length > 100 ||
+      (raw.profileTimezone !== null && typeof raw.profileTimezone !== "string") ||
+      typeof raw.storeRevision !== "string" || !/^[0-9a-f]{64}$/.test(raw.storeRevision) ||
+      !Number.isSafeInteger(raw.count) || Number(raw.count) < 0 ||
+      typeof raw.truncated !== "boolean" || raw.schedulerRunning !== null ||
+      !Array.isArray(raw.jobs) || raw.jobs.length > 200 ||
+      (raw.truncated !== (Number(raw.count) > 200)) ||
+      raw.jobs.length !== Math.min(Number(raw.count), 200) ||
+      raw.jobs.some((job) => !job || typeof job !== "object" || Array.isArray(job) ||
+        Object.keys(job).sort().join(",") !==
+          "enabled,id,lastRunAt,name,nextRunAt,schedule,state,timezone" ||
+        typeof job.id !== "string" || typeof job.name !== "string" ||
+        typeof job.schedule !== "string" || typeof job.enabled !== "boolean" ||
+        typeof job.state !== "string" ||
+        (job.timezone !== null && typeof job.timezone !== "string") ||
+        (job.nextRunAt !== null && typeof job.nextRunAt !== "string") ||
+        (job.lastRunAt !== null && typeof job.lastRunAt !== "string"))) throw unavailable();
+    return raw;
+  }
+
   private target(): { script: string; distro: string; user: string } {
     let root = resolve(this.dataDir);
     for (let depth = 0; depth < 5 && !existsSync(join(root, "config", "install-state.json")); depth += 1)

@@ -890,6 +890,8 @@ export interface FridayModelMap {
   HermesConfigPatch: HermesConfigPatch;
   HermesConfigStatus: HermesConfigStatus;
   HermesConfigStatusResponse: HermesConfigStatusResponse;
+  HermesCronJobs: HermesCronJobs;
+  HermesCronJobsResponse: HermesCronJobsResponse;
   HermesMcpOAuthRequest: HermesMcpOAuthRequest;
   HermesMcpOAuthResponse: HermesMcpOAuthResponse;
   HermesMcpProbeRequest: HermesMcpProbeRequest;
@@ -3517,6 +3519,33 @@ export interface Extension {
 export interface HermesConfigStatusResponse {
   contractVersion: ContractVersion;
   data: HermesConfigStatus;
+  freshness: Freshness;
+}
+export interface HermesCronJobs {
+  sourceRevision: string;
+  profile: string;
+  profileTimezone: string | null;
+  storeRevision: string;
+  count: number;
+  truncated: boolean;
+  /**
+   * The store alone cannot prove scheduler process liveness.
+   */
+  schedulerRunning: null;
+  jobs: {
+    id: string;
+    name: string;
+    schedule: string;
+    timezone: string | null;
+    enabled: boolean;
+    state: string;
+    nextRunAt: string | null;
+    lastRunAt: string | null;
+  }[];
+}
+export interface HermesCronJobsResponse {
+  contractVersion: ContractVersion;
+  data: HermesCronJobs;
   freshness: Freshness;
 }
 export interface HermesMcpOAuthResponse {
