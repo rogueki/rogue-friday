@@ -1229,6 +1229,9 @@ async function resumeClarificationConfirmation(ctx: Parameters<Handler>[0], requ
 export const commandHandlers: Partial<Record<OperationId, Handler>> = {
   async executeCommand(ctx) {
     const request = ctx.body as CommandRequest;
+    const voiceResearch = ctx.voiceBridgeAuthorized ? parseResearchActionIntent(request.text) : null;
+    if (ctx.voiceBridgeAuthorized && (request.source !== "voice" || !voiceResearch))
+      throw new ApiError({ code: "FORBIDDEN", message: "Die Sprachkennung erlaubt hier nur Recherchebefehle." });
     const readQuery = parseReadQueryIntent(request.text);
     const settingsContentMutation = parseSettingsContentMutationIntent(request.text);
     const parsedMailIntent = parseMailActionIntent(request.text);
@@ -1272,12 +1275,13 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
       if (dialogPending && (dialogPending.payload.kind === "calendar.clarify" || dialogPending.payload.kind === "mail.clarify")
         && dialogChoice === null && clarificationChoiceAttempt(request.text))
         throw validationFailed(`Bitte eine angezeigte Option von 1 bis ${dialogPending.payload.candidates.length} waehlen.`);
-      const result = dialogChoice !== null && dialogPending
-        && (dialogPending.payload.kind === "calendar.clarify" || dialogPending.payload.kind === "mail.clarify")
-        ? await resumeClarification(ctx, request, dialogPending.id, dialogPending.payload, dialogChoice)
-        : isDialogContinuation && dialogPending
-          && (dialogPending.payload.kind === "calendar.confirm" || dialogPending.payload.kind === "mail.confirm")
-          ? await resumeClarificationConfirmation(ctx, request, dialogPending.id, dialogPending.payload)
+      const result = voiceResearch ? await executeResearchCommand(ctx, request, voiceResearch.topic)
+        : dialogChoice !== null && dialogPending
+          && (dialogPending.payload.kind === "calendar.clarify" || dialogPending.payload.kind === "mail.clarify")
+          ? await resumeClarification(ctx, request, dialogPending.id, dialogPending.payload, dialogChoice)
+          : isDialogContinuation && dialogPending
+            && (dialogPending.payload.kind === "calendar.confirm" || dialogPending.payload.kind === "mail.confirm")
+            ? await resumeClarificationConfirmation(ctx, request, dialogPending.id, dialogPending.payload)
         : settingsContentMutation ? await executeSettingsContentMutation(ctx, request, settingsContentMutation)
         : taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
         : taskAction ? await executeTaskAction(ctx, request, taskAction)

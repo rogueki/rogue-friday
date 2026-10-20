@@ -19,6 +19,7 @@ const CORRELATION_PATTERN = /^corr_[0-9A-Za-z]{26}$/;
 const ROLE_RANK = { none: 0, viewer: 1, operator: 2, owner: 3 } as const;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const VOICE_BRIDGE_OPERATIONS = new Set<OperationId>([
+  "executeCommand", // Handler accepts only typed research intent from the local voice bridge.
   "getContentStudioPlan", "createContentProductionJob", "getContentProductionJob", "cancelContentProductionJob",
   "listSkills", "getOnboarding", "putOnboarding",
   "getCodingVoiceRepository", "createVoiceCodingRun",

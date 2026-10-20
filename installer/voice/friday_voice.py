@@ -61,6 +61,7 @@ from skills_onboarding_voice import SkillsOnboardingVoice  # noqa: E402
 from coding_voice import CodingVoice  # noqa: E402
 from calendar_voice import CalendarVoice  # noqa: E402
 from mail_voice import MailVoice  # noqa: E402
+from research_voice import ResearchVoice  # noqa: E402
 from powerpoint_voice import PowerPointVoice  # noqa: E402
 from cloudtalk_voice import CloudTalkVoice  # noqa: E402
 from audio_level import LevelMeter  # noqa: E402
@@ -646,6 +647,7 @@ class VoiceService:
         self.coding_voice = CodingVoice(INSTALL_ROOT)
         self.calendar_voice = CalendarVoice(INSTALL_ROOT, zone=cfg.get("calendar_time_zone", "Europe/Berlin"))
         self.mail_voice = MailVoice(INSTALL_ROOT, interpret=self._interpret_mail)
+        self.research_voice = ResearchVoice(INSTALL_ROOT)
         self.powerpoint_voice = PowerPointVoice(INSTALL_ROOT)
         self.cloudtalk_voice = CloudTalkVoice()
         self.skills_onboarding_voice = SkillsOnboardingVoice(
@@ -910,6 +912,8 @@ class VoiceService:
             self.processing = None
             self.status["state"] = "paused" if pause else "wake_only"
             self.tts.interrupt()
+            if hasattr(self, "research_voice"):
+                self.research_voice.cancel()
             if had_dialog:
                 self._queue_memory_event("action_result", {"kind": "action", "actionId": "dialog.cancel",
                                           "targetId": None, "externalId": None}, "aborted")
@@ -1328,6 +1332,8 @@ class VoiceService:
             self.trusted_until = 0.0  # Plan: unbekannter Sprecher schliesst die Trusted Session sofort
             if hasattr(self, "mail_voice"):
                 self.mail_voice.clear_confirmation()
+            if hasattr(self, "research_voice"):
+                self.research_voice.cancel()
             log_event(event="speaker_rejected", score=round(score, 3), followup=wake_audio is None,
                       **probe_details)
             return
@@ -1379,6 +1385,27 @@ class VoiceService:
         def with_first_use_offer(answer: str) -> str:
             offer = self.skills_onboarding_voice.offer_first_use()
             return answer if not offer else answer + " " + offer
+
+        research = getattr(self, "research_voice", None)
+        research_answer = research.handle(text) if research is not None else None
+        if self.control_cancel.is_set() or generation != self.control_generation:
+            if research is not None:
+                research.cancel()
+            return
+        if research_answer is not None:
+            if hasattr(self, "mail_voice"):
+                self.mail_voice.clear_confirmation()
+            self.calendar_voice.pending = None
+            self.cloudtalk_voice.pending = None
+            self.powerpoint_voice.pending = None
+            self.coding_voice.pending = None
+            self.content_studio_voice.pending = None
+            self.skills_onboarding_voice.pending = None
+            self.status["commands"] += 1
+            log_event(event="research_voice_command", speaker_score=round(score, 3), success=True)
+            if not self._say_if_current(research_answer, generation):
+                research.cancel()
+            return
 
         if hasattr(self, "mail_voice") and self.mail_voice.handles_text(text):
             mail_answer = self.mail_voice.handle(text)
@@ -1788,6 +1815,8 @@ class VoiceService:
                 break
             if interrupted:
                 self.calendar_voice.pending = None
+                if hasattr(self, "research_voice"):
+                    self.research_voice.cancel()
                 if hasattr(self, "mail_voice"):
                     self.mail_voice.clear_confirmation()
                 for name in ("powerpoint_voice", "cloudtalk_voice"):
@@ -1806,6 +1835,8 @@ class VoiceService:
                 break
             self.coding_voice.arm_confirmation()
             self.calendar_voice.arm_confirmation()
+            if hasattr(self, "research_voice"):
+                self.research_voice.arm_confirmation()
             for name in ("mail_voice", "powerpoint_voice", "cloudtalk_voice"):
                 controller = getattr(self, name, None)
                 if controller is not None:
@@ -1825,6 +1856,8 @@ class VoiceService:
             self.processing = None
         self._drain()
         self.calendar_voice.pending = None
+        if hasattr(self, "research_voice"):
+            self.research_voice.cancel()
         if hasattr(self, "mail_voice"):
             self.mail_voice.clear_confirmation()
         for name in ("powerpoint_voice", "cloudtalk_voice"):
@@ -2160,6 +2193,8 @@ class VoiceService:
                                     controller = getattr(service, name, None)
                                     if controller is not None:
                                         controller.pending = None
+                                if hasattr(service, "research_voice"):
+                                    service.research_voice.cancel()
                                 if hasattr(service, "mail_voice"):
                                     service.mail_voice.clear()
                                 service.history.clear()

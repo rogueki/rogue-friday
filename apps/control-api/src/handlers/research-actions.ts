@@ -10,6 +10,7 @@ import type { OperationId } from "../http/route-types";
 import type { NativeExecutableAction } from "../services/native-approval-requests";
 import { ApiError, conflict, validationFailed } from "../util/errors";
 import { LOCAL_RESEARCH_ENDPOINT } from "../services/research-setup";
+import { stableUserId } from "../security/auth-service";
 
 const PREVIEW_ID = /^corr_[0-9A-Za-z]{26}$/;
 const freshness = () => ({ state: "fresh" as const, asOf: new Date().toISOString() });
@@ -124,7 +125,7 @@ export async function executeResearchCommand(
   request: CommandRequest,
   topic: string,
 ): Promise<Awaited<ReturnType<Handler>>> {
-  const ownerId = ctx.principal?.userId;
+  const ownerId = ctx.voiceBridgeAuthorized ? stableUserId("owner") : ctx.principal?.userId;
   if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
   const key = request.confirm ? request.previewId : ctx.correlationId;
   if (!key) throw validationFailed("Eine bestaetigte Vorschau fehlt.");
