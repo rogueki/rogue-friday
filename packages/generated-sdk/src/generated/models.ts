@@ -706,6 +706,8 @@ export interface FridayModelMap {
   HermesConfigPatch: HermesConfigPatch;
   HermesConfigStatus: HermesConfigStatus;
   HermesConfigStatusResponse: HermesConfigStatusResponse;
+  HermesMcpProbeRequest: HermesMcpProbeRequest;
+  HermesMcpProbeResponse: HermesMcpProbeResponse;
   HermesModelCatalog: HermesModelCatalog;
   HermesModelCatalogResponse: HermesModelCatalogResponse;
   HermesSkillKeyCheck: HermesSkillKeyCheck;
@@ -3272,6 +3274,31 @@ export interface Extension {
 export interface HermesConfigStatusResponse {
   contractVersion: ContractVersion;
   data: HermesConfigStatus;
+  freshness: Freshness;
+}
+export interface HermesMcpProbeRequest {
+  name: string;
+}
+export interface HermesMcpProbeResponse {
+  contractVersion: ContractVersion;
+  data: {
+    name: string;
+    revision: number;
+    checkedAt: string;
+    connected: boolean;
+    toolCount: number | null;
+    toolCountComplete: boolean;
+    failureClass:
+      | "auth_required"
+      | "config_invalid"
+      | "connect_failed"
+      | "protocol_failed"
+      | "protocol_unsupported"
+      | "redirect_rejected"
+      | "private_or_unresolved_address"
+      | null;
+    runtimeApplied: null;
+  };
   freshness: Freshness;
 }
 export interface HermesModelCatalog {

@@ -20,6 +20,7 @@ import type {
   HermesConfigPatch,
   HermesConfigStatusResponse,
   HermesModelCatalogResponse,
+  HermesMcpProbeResponse,
 } from "@friday/sdk";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { call } from "../call";
@@ -79,6 +80,18 @@ export function usePatchHermesConfig() {
       params: { header: { "If-Match": String(revision) } }, body: patch,
     })),
     invalidate: [["settings", "hermes-config"]],
+  });
+}
+export function useProbeHermesMcp() {
+  return useApiMutation<HermesMcpProbeResponse, { name: string; revision: number } & IntentVars>({
+    label: "Hermes-MCP-Verbindung pruefen",
+    mutationFn: ({ name, revision }) => call(getApiClient().POST("/api/v1/settings/hermes-config/mcp-probe", {
+      params: { header: { "If-Match": String(revision) } }, body: { name },
+    })).then((response) => {
+      if (!("runtimeApplied" in response.data) || response.data.runtimeApplied !== null)
+        throw new Error("Hermes-MCP-Probe ohne Laufzeitkennzeichnung.");
+      return response as HermesMcpProbeResponse;
+    }),
   });
 }
 /** Adapter configuration (GET /settings/adapters is owner-only, so callers pass `enabled`). Secrets arrive masked only. */

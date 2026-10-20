@@ -231,6 +231,17 @@ it("activates a managed MCP entry without exposing or resending its URL", async 
     .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
 });
 
+it("returns only a revision-bound MCP protocol receipt without endpoint or server text", async () => {
+  const invoke = vi.fn(async () => ({ name: "example", revision: 123, connected: true,
+    toolCount: 2, toolCountComplete: true, failureClass: null, secret: "CANARY-PRIVATE" })) as unknown as RunnerInvoker;
+  const result = await fixture(invoke).probeMcp("example", 123);
+  expect(result).toMatchObject({ connected: true, toolCount: 2, runtimeApplied: null });
+  expect(JSON.stringify(result)).not.toContain("CANARY-PRIVATE");
+  expect(vi.mocked(invoke).mock.calls[0]?.[3]).toEqual(["mcp-probe"]);
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[0]?.[4]))).toEqual({ name: "example", revision: 123 });
+  await expect(fixture(invoke).probeMcp("bad/path", 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
 it("accepts a structured fallback chain and rejects unsafe model/provider identifiers", async () => {
   const chain = [{ provider: "openrouter", model: "example/model" }];
   const invoke = vi.fn(async () => ({ ...bridge, revision: 124,

@@ -2745,6 +2745,23 @@ export interface paths {
         patch: operations["patchHermesConfig"];
         trace?: never;
     };
+    "/api/v1/settings/hermes-config/mcp-probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Probe one configured HTTPS MCP server with a bounded public-IP protocol handshake */
+        post: operations["probeHermesMcp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/hermes-model-catalog": {
         parameters: {
             query?: never;
@@ -6519,6 +6536,27 @@ export interface components {
         HermesConfigStatusResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["HermesConfigStatus"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HermesMcpProbeRequest */
+        HermesMcpProbeRequest: {
+            name: string;
+        };
+        /** HermesMcpProbeResponse */
+        HermesMcpProbeResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                /** Format: date-time */
+                checkedAt: string;
+                connected: boolean;
+                /** @enum {unknown} */
+                failureClass: "auth_required" | "config_invalid" | "connect_failed" | "protocol_failed" | "protocol_unsupported" | "redirect_rejected" | "private_or_unresolved_address" | null;
+                name: string;
+                revision: number;
+                runtimeApplied: null;
+                toolCount: number | null;
+                toolCountComplete: boolean;
+            };
             freshness: components["schemas"]["Freshness"];
         };
         /** HermesModelCatalog */
@@ -16341,6 +16379,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HermesConfigStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    probeHermesMcp: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HermesMcpProbeRequest"];
+            };
+        };
+        responses: {
+            /** @description One protocol handshake receipt, not a running Hermes session receipt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesMcpProbeResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];

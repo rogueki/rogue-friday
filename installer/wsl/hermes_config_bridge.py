@@ -259,7 +259,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "model-catalog"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-probe", "model-catalog"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -283,6 +283,32 @@ def locked_main(home, source, cli):
     config_path = Path(call("path"))
     commit = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3)
     source_revision = commit.stdout.strip() if commit.returncode == 0 else None
+    if sys.argv[1] == "mcp-probe":
+        if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
+            raise ValueError("unsupported_source_revision")
+        request = json.load(sys.stdin)
+        if (not isinstance(request, dict) or set(request) != {"name", "revision"} or
+                not valid_mcp_name(request["name"]) or type(request["revision"]) is not int):
+            raise ValueError("invalid_request")
+        before, raw = snapshot(config_path)
+        if before != request["revision"]:
+            print(json.dumps({"error": "revision_conflict"}))
+            return 4
+        entry = raw.get("mcp_servers", {}).get(request["name"]) if isinstance(raw.get("mcp_servers"), dict) else None
+        if (not isinstance(entry, dict) or set(entry) - {"url", "enabled"} or
+                not valid_url(entry.get("url")) or entry.get("enabled", True) is not True):
+            raise ValueError("unprobeable_server")
+        from hermes_mcp_protocol_probe import ProbeFailure, probe
+        try:
+            result = probe(entry["url"])
+        except ProbeFailure as exc:
+            result = {"connected": False, "toolCount": None, "toolCountComplete": False,
+                      "failureClass": exc.failure_class}
+        if revision(config_path) != before:
+            print(json.dumps({"error": "revision_conflict"}))
+            return 4
+        print(json.dumps({"name": request["name"], "revision": before, **result}))
+        return 0
     if sys.argv[1] == "model-catalog":
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")

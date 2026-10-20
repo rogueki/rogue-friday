@@ -98,7 +98,7 @@ class BridgeTest(unittest.TestCase):
             raise AssertionError(args)
         return subprocess.CompletedProcess(command, 0, output, "")
 
-    def invoke(self, request=None):
+    def invoke(self, request=None, action=None):
         out = io.StringIO()
         bootstrap = types.ModuleType("hermes_bootstrap")
         hermes_cli = types.ModuleType("hermes_cli")
@@ -126,10 +126,10 @@ class BridgeTest(unittest.TestCase):
                                       "hermes_cli.config": config, "hermes_cli.credential_lifecycle": lifecycle,
                                       "hermes_cli._launchers": launchers}), \
              patch.object(sys, "path", sys.path.copy()), \
-             patch.object(sys, "argv", ["bridge", "plugin-activation" if request and "pluginId" in request else
+             patch.object(sys, "argv", ["bridge", action or ("plugin-activation" if request and "pluginId" in request else
                                      "mcp-activation" if request and "name" in request and "url" not in request else
                                      "mcp-http" if request and "name" in request else
-                                     "credential-update" if request and request["key"] in bridge.MODEL_CREDENTIALS else "update" if request else "status"]), \
+                                     "credential-update" if request and request["key"] in bridge.MODEL_CREDENTIALS else "update" if request else "status")]), \
              patch.object(sys, "stdin", io.StringIO(json.dumps(request) if request else "")), contextlib.redirect_stdout(out):
             code = bridge.main()
         return code, json.loads(out.getvalue())
@@ -296,6 +296,24 @@ class BridgeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "managed_entry_conflict"):
             self.invoke({"name": "example", "enabled": False,
                          "revision": bridge.revision(self.config)})
+
+    def test_mcp_probe_uses_stored_entry_and_revision_without_exposing_endpoint(self):
+        self.invoke({"name": "example", "url": "https://example.org/private/mcp", "enabled": True,
+                     "revision": bridge.revision(self.config)})
+        import hermes_mcp_protocol_probe
+        with patch.object(hermes_mcp_protocol_probe, "probe", return_value={
+            "connected": True, "toolCount": 2, "toolCountComplete": True, "failureClass": None}) as probe:
+            code, result = self.invoke({"name": "example", "revision": bridge.revision(self.config)},
+                                       action="mcp-probe")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["toolCount"], 2)
+        self.assertNotIn("/private/mcp", json.dumps(result))
+        probe.assert_called_once_with("https://example.org/private/mcp")
+        with patch.object(hermes_mcp_protocol_probe, "probe") as probe:
+            code, result = self.invoke({"name": "example", "revision": 1}, action="mcp-probe")
+        self.assertEqual(code, 4)
+        self.assertEqual(result["error"], "revision_conflict")
+        probe.assert_not_called()
 
     def test_disabled_skills_error_is_unknown(self):
         original = self.run_command

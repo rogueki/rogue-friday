@@ -196,6 +196,31 @@ it("restricts MCP lifecycle to the owner, CSRF and matching revision", async () 
   }
 });
 
+it("restricts MCP network probe to owner, CSRF and a versioned configured name", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const probe = vi.spyOn(api.runtime.hermesConfig, "probeMcp").mockResolvedValue({
+      name: "example", revision: 123, checkedAt: new Date().toISOString(), connected: true,
+      toolCount: 2, toolCountComplete: true, failureClass: null, runtimeApplied: null,
+    });
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const viewer = api.client();
+    await viewer.loginDev("viewer");
+    const path = "/api/v1/settings/hermes-config/mcp-probe";
+    expect((await viewer.post(path, { name: "example" }, { headers: { "If-Match": "123" } })).statusCode).toBe(403);
+    expect((await owner.post(path, { name: "example" }, { headers: { "If-Match": "123" }, csrf: false })).statusCode).toBe(403);
+    expect((await owner.post(path, { name: "example" })).statusCode).toBe(422);
+    expect((await owner.post(path, { name: "bad/path" }, { headers: { "If-Match": "123" } })).statusCode).toBe(422);
+    const checked = await owner.post(path, { name: "example" }, { headers: { "If-Match": "123" } });
+    expect(checked.statusCode, checked.body).toBe(200);
+    expect(checked.json().data).toMatchObject({ connected: true, toolCount: 2, runtimeApplied: null });
+    expect(probe).toHaveBeenCalledWith("example", 123);
+  } finally {
+    await api.close();
+  }
+});
+
 it("serves the model picker only to the owner and keeps catalog proof distinct from model access", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {

@@ -2,7 +2,7 @@
 
 import type { HermesConfigPatch } from "@friday/sdk";
 import { useState } from "react";
-import { useHermesConfig, useHermesModelCatalog, usePatchHermesConfig } from "@/lib/api/domains/settings";
+import { useHermesConfig, useHermesModelCatalog, usePatchHermesConfig, useProbeHermesMcp } from "@/lib/api/domains/settings";
 
 const LABELS: Record<string, string> = {
   "model.provider": "Hermes-Anbieterkennung",
@@ -59,6 +59,7 @@ const NUMERIC_LIMITS: Record<string, [number, number, number]> = {
 export function HermesConfigArea() {
   const observed = useHermesConfig();
   const patch = usePatchHermesConfig();
+  const mcpProbe = useProbeHermesMcp();
   const [showCatalog, setShowCatalog] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [probeProvider, setProbeProvider] = useState<string | null>(null);
@@ -369,8 +370,17 @@ export function HermesConfigArea() {
         </button>
         <p role={data.mcpComplete ? "status" : "alert"}>{data.mcpComplete ? "Konfigurierte Server gelesen" : "MCP-Inventar unvollstaendig"}</p>
         <ul>{data.mcpServers.map((server) => <li key={server.id}>
-          {server.id}: {server.transport}, {server.enabled === null ? "Aktivierung unbekannt" : server.enabled ? "konfiguriert aktiviert" : "konfiguriert deaktiviert"}; Verbindung ungeprueft
+          {server.id}: {server.transport}, {server.enabled === null ? "Aktivierung unbekannt" : server.enabled ? "konfiguriert aktiviert" : "konfiguriert deaktiviert"}; Konfiguration ohne Verbindungsnachweis
           {server.endpoint ? ` (${server.endpoint}; Pfad ausgeblendet)` : ""}
+          {server.editable && server.enabled ? <button type="button" disabled={mcpProbe.isPending}
+            onClick={() => mcpProbe.mutate({ name: server.id, revision })}>
+            MCP-Protokollverbindung pruefen
+          </button> : null}
+          {mcpProbe.data?.data.name === server.id && mcpProbe.data.data.revision === revision ?
+            <p role="status">Probe {mcpProbe.data.data.connected ?
+              `verbunden; ${mcpProbe.data.data.toolCount} Werkzeuge${mcpProbe.data.data.toolCountComplete ? "" : " (weitere Seiten nicht geprueft)"}` :
+              `fehlgeschlagen (${mcpProbe.data.data.failureClass})`}. Zeitpunkt: {mcpProbe.data.data.checkedAt}.
+              Uebernahme in laufende Hermes-Sitzungen ungeprueft.</p> : null}
           {server.editable && server.enabled !== null ? <button type="button" disabled={patch.isPending}
             onClick={() => patch.mutate({ revision, patch: { key: "mcp.activation", name: server.id,
               enabled: !server.enabled } })}>

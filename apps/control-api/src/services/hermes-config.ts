@@ -404,6 +404,33 @@ export class HermesConfigService {
     return this.present(observed);
   }
 
+  async probeMcp(name: string, revision: number) {
+    if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name) || !Number.isSafeInteger(revision) || revision < 1)
+      throw validationFailed("Ungueltige Hermes-MCP-Probe.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["mcp-probe"], JSON.stringify({ name, revision }), 30000, 4096);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("revision_conflict"))
+        throw conflict("Hermes-Konfiguration wurde waehrend der Probe geaendert.");
+      if (error instanceof Error && error.message.includes("unprobeable_server"))
+        throw validationFailed("Nur aktivierte HTTPS-MCP-Eintraege ohne Zugangsdaten sind pruefbar.");
+      throw unavailable();
+    }
+    const failures = ["auth_required", "config_invalid", "connect_failed", "protocol_failed",
+      "protocol_unsupported", "redirect_rejected", "private_or_unresolved_address"];
+    if (raw.name !== name || raw.revision !== revision || typeof raw.connected !== "boolean" ||
+        typeof raw.toolCountComplete !== "boolean" ||
+        !(raw.connected ? Number.isSafeInteger(raw.toolCount) && (raw.toolCount as number) >= 0 &&
+          (raw.toolCount as number) <= 10000 && raw.failureClass === null :
+          raw.toolCount === null && raw.toolCountComplete === false && failures.includes(String(raw.failureClass))))
+      throw unavailable();
+    return { name, revision, checkedAt: new Date().toISOString(), connected: raw.connected,
+      toolCount: raw.toolCount, toolCountComplete: raw.toolCountComplete,
+      failureClass: raw.failureClass, runtimeApplied: null };
+  }
+
   private present(observed: BridgeStatus) {
     const pinned = observed.sourceRevision?.startsWith("d923a5eb") === true;
     return {

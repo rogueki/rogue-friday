@@ -20,6 +20,15 @@ export const hermesConfigHandlers: Partial<Record<OperationId, Handler>> = {
   async getHermesConfig(ctx) {
     return { status: 200, body: single(await ctx.runtime.hermesConfig.status()) };
   },
+  async probeHermesMcp(ctx) {
+    if (ctx.mutation.ifMatchVersion === undefined)
+      throw validationFailed("If-Match ist fuer die Hermes-MCP-Probe erforderlich.");
+    const body = ctx.body as { name: string };
+    const result = await ctx.runtime.hermesConfig.probeMcp(body.name, ctx.mutation.ifMatchVersion);
+    ctx.audit.action = "settings.hermes_mcp_probed";
+    ctx.audit.after = { name: body.name, connected: result.connected, revision: result.revision };
+    return { status: 200, body: single(result) };
+  },
   async patchHermesConfig(ctx) {
     if (ctx.mutation.ifMatchVersion === undefined)
       throw validationFailed("If-Match ist für Hermes-Konfiguration erforderlich.");
