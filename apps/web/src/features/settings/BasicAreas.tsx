@@ -343,13 +343,29 @@ export function NotificationsArea() {
               />
               {channel.kind !== "dashboard" ? (
                 <>
-                  <TextField
-                    label={t("settings.notifications.accountId")}
-                    value={channel.accountId ?? "default"}
-                    disabled={readOnly || !channel.enabled}
-                    maxLength={64}
-                    onChange={(event) => setChannel(channel.kind, { accountId: event.target.value })}
-                  />
+                  {["telegram", "whatsapp", "sms"].includes(channel.kind) ? (
+                    <Select
+                      label={t("settings.notifications.accountId")}
+                      value={channel.accountId ?? "default"}
+                      disabled={readOnly || !channel.enabled}
+                      hint={t("settings.notifications.defaultAccountOnly")}
+                      options={[
+                        { value: "default", label: t("settings.notifications.defaultAccount") },
+                        ...(channel.accountId && channel.accountId !== "default"
+                          ? [{ value: channel.accountId, label: `${channel.accountId} (${t("settings.notifications.unsupportedAccount")})` }]
+                          : []),
+                      ]}
+                      onChange={(event) => setChannel(channel.kind, { accountId: event.target.value })}
+                    />
+                  ) : (
+                    <TextField
+                      label={t("settings.notifications.accountId")}
+                      value={channel.accountId ?? "default"}
+                      disabled={readOnly || !channel.enabled}
+                      maxLength={64}
+                      onChange={(event) => setChannel(channel.kind, { accountId: event.target.value })}
+                    />
+                  )}
                   <TextField
                     label={t("settings.notifications.recipient")}
                     value={channel.recipient ?? ""}

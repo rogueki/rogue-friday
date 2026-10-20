@@ -429,6 +429,15 @@ export class SettingsService {
 
   /** A patch may only activate a theme/layout that exists (the UI would otherwise render with no tokens). */
   private assertReferences(patch: SettingsPatch): void {
+    for (const channel of patch.notifications?.channels ?? []) {
+      // The current messenger draft/target contract is bound to the default gateway profile.
+      // An arbitrary saved account ID cannot be delivered or owner-reviewed by that path.
+      if (["telegram", "whatsapp", "sms"].includes(channel.kind) && channel.enabled &&
+          channel.accountId !== undefined && channel.accountId !== "default") {
+        throw validationFailed("Dieser Messenger-Kanal unterstützt derzeit nur das Konto default.",
+          [{ path: `notifications.channels.${channel.kind}.accountId`, message: "nur default unterstützt" }]);
+      }
+    }
     if (patch.backups) {
       try { validateBackupSchedule(patch.backups.schedule); }
       catch { throw validationFailed("Backup-Zeitplan ist ungültig.", [{ path: "backups.schedule", message: "Fünf gültige Cron-Felder erforderlich" }]); }
