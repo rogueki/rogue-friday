@@ -71,7 +71,8 @@ class SttModels:
                    "from faster_whisper.utils import download_model; import sys; download_model(sys.argv[1], cache_dir=sys.argv[2])",
                    model, self.cache_dir]
         try:
-            process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                       creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
             with self.lock:
                 if not self.job or self.job["id"] != job_id or self.job["state"] != "downloading":
                     cancelled = True

@@ -69,7 +69,7 @@ def test_explicit_download_cancel_never_marks_model_ready(monkeypatch, tmp_path)
     job_id = models.job["id"]
     assert models.cancel(job_id)["job"]["state"] in ("cancelling", "cancelled")
     for _ in range(100):
-        if models.process is None:
+        if not models.busy:
             break
         time.sleep(.01)
     assert models.job["state"] == "cancelled"
