@@ -1298,6 +1298,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         ]
       },
       {
+        "status": 204,
+        "schema": null,
+        "contentTypes": []
+      },
+      {
         "status": 400,
         "schema": "ErrorResponse",
         "contentTypes": [
@@ -1384,6 +1389,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         ]
       },
       {
+        "status": 204,
+        "schema": null,
+        "contentTypes": []
+      },
+      {
         "status": 400,
         "schema": "ErrorResponse",
         "contentTypes": [
@@ -1468,6 +1478,11 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         "contentTypes": [
           "application/json"
         ]
+      },
+      {
+        "status": 204,
+        "schema": null,
+        "contentTypes": []
       },
       {
         "status": 400,
