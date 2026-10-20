@@ -39,6 +39,38 @@ Evidenzlage heute: alle Fixture- und CI-Prüfungen sind grün, der physische Fri
   Windows-Konto für den Owner, Obsidian-Vault-Pfad, Hermes-Modellroute und ob ein echter Modellschlüssel
   hinterlegt werden darf.
 
+## 0b. Sicherung vor dem Zurückbauen
+
+Die laufende Installation auf diesem Host ist funktionsfähig (Health auf `127.0.0.1:3101` antwortet,
+Stand 2026-10-20) und enthält Nutzdaten. Vor dem Zurückbauen wenigstens diese Bestände sichern; alles andere
+sind Modelle und Build-Artefakte, die der Installer neu erzeugt:
+
+| Bestand | Pfad | Größe | Sichern? |
+|---|---|---|---|
+| Installationszustand und Konfiguration | `D:\Kali\Friday\config` | 2,9 MB | ja, komplett |
+| Stimmprofile und Voice-Konfiguration | `D:\Kali\Friday\voice\*.json`, `*.npy` | < 1 MB | ja; die Modelldateien (3,2 GB) nicht |
+| Logs des Altlaufs | `D:\Kali\Friday\logs` | 17 MB | ja, für die Fehleranalyse |
+| Hermes-Zustand | `~/.hermes` in `Friday-Ubuntu` | 3,2 GB | ja, **ohne** `cache`, `backups`, `audio_cache` |
+| Dashboard-Daten (falls vorhanden) | `D:\Kali\Friday\dashboard\data` | — | ja, prüfen ob vorhanden |
+| Gesamte Distro (optional) | `wsl --export Friday-Ubuntu D:\backup\friday-distro-<datum>.tar` | ~22 GB vhdx | optional, D: hat genug Platz |
+
+Praktisch:
+
+```powershell
+$stamp = Get-Date -Format 'yyyyMMdd-HHmm'
+$dst = "D:\backup\friday-$stamp"
+New-Item -ItemType Directory -Force $dst | Out-Null
+Get-ScheduledTask | Where-Object { $_.TaskName -like 'FRIDAY*' } | Stop-ScheduledTask
+Copy-Item 'D:\Kali\Friday\config' "$dst\config" -Recurse
+Copy-Item 'D:\Kali\Friday\logs' "$dst\logs" -Recurse
+New-Item -ItemType Directory -Force "$dst\voice" | Out-Null
+Copy-Item 'D:\Kali\Friday\voice\*.json','D:\Kali\Friday\voice\*.npy' "$dst\voice" -ErrorAction SilentlyContinue
+wsl -d Friday-Ubuntu -- bash -lc 'tar -C ~ -czf /mnt/d/backup/hermes-home.tar.gz --exclude=cache --exclude=backups --exclude=audio_cache .hermes'
+```
+
+Abnahme der Sicherung: Dateien vorhanden, `hermes-home.tar.gz` lässt sich mit `tar -tzf` auflisten, und
+`config\install-state.json` ist lesbar. Erst danach Abschnitt 0 (Zurückbauen) beginnen.
+
 ## 1. Installation
 
 Interaktiv: `install-friday.bat` bzw. `install-friday-gui.bat`. Unbeaufsichtigt:
