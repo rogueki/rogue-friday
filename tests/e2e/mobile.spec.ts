@@ -57,6 +57,7 @@ const PAGES = [
   ["overview", "/"],
   ["approvals", "/approvals"],
   ["tasks", "/tasks"],
+  ["research", "/research"],
   ["alerts", "/alerts"],
 ] as const;
 
@@ -66,6 +67,19 @@ for (const [name, path] of PAGES) {
       await load(page, path);
       await expectNoHorizontalScroll(page);
       await expectCommandBar(page, path === "/");
+      if (path === "/research") {
+        const setup = page.getByRole("button", { name: "Lokale Websuche einrichten oder reparieren" });
+        const labelFits = await setup.evaluate((button) => {
+          const label = button.querySelector(".jv-btn__label");
+          if (!label) return false;
+          const range = document.createRange();
+          range.selectNodeContents(label);
+          const bounds = button.getBoundingClientRect();
+          return Array.from(range.getClientRects()).every((rect) =>
+            rect.left >= bounds.left && rect.right <= bounds.right && rect.bottom <= bounds.bottom);
+        });
+        expect(labelFits, "the full provider setup label fits inside its button").toBe(true);
+      }
     });
 
     test("complex data is shown as cards, not as tables", async ({ page }) => {
