@@ -43,8 +43,28 @@ FIELDS = {
     "session.terminal_continue": ("boolean", None, None),
     "max_live_sessions": ("integer", 0, 10000),
     "terminal.timeout": ("integer", 1, 3600),
+    "terminal.backend": ("execution_backend", None, None),
+    "terminal.cwd": ("workspace_path", None, None),
+    "terminal.docker_network": ("boolean", None, None),
+    "terminal.docker_mount_cwd_to_workspace": ("boolean", None, None),
+    "terminal.docker_volumes": ("docker_mounts", None, None),
     "browser.command_timeout": ("integer", 5, 600),
     "browser.snapshot_threshold": ("integer", 1000, 200000),
+    "browser.allow_private_urls": ("boolean", None, None),
+    "browser.use_real_profile": ("boolean", None, None),
+    "browser.real_profile_pin": ("profile_pin", None, None),
+    "browser.restrict_evaluate": ("boolean", None, None),
+    "browser.allow_unsafe_evaluate": ("boolean", None, None),
+    "code_execution.mode": ("code_mode", None, None),
+    "computer_use.permission_mode": ("computer_permission", None, None),
+    "computer_use.capability_manifest": ("manifest_path", None, None),
+    "toolsets": ("toolset_names", None, None),
+    "command_allowlist": ("allowlist_subset", None, None),
+    "approvals.mode": ("approval_mode", None, None),
+    "approvals.timeout": ("integer", 15, 600),
+    "approvals.single_query_mode": ("deny_only", None, None),
+    "approvals.unattended_mode": ("deny_only", None, None),
+    "security.protected_instruction_files": ("true_only", None, None),
     "skills.disabled": ("skill_names", None, None),
 }
 MODEL_CREDENTIALS = frozenset(("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"))
@@ -71,6 +91,35 @@ def valid_field_value(key, value, spec):
         return type(value) is str and value in REASONING_EFFORTS
     if kind == "tail_mode":
         return type(value) is str and value in ("lean", "legacy")
+    if kind == "execution_backend":
+        return type(value) is str and value in ("local", "docker")
+    if kind == "code_mode":
+        return type(value) is str and value in ("project", "strict")
+    if kind == "computer_permission":
+        return type(value) is str and value in ("standard", "bounded")
+    if kind == "approval_mode":
+        return type(value) is str and value in ("manual", "smart")
+    if kind == "deny_only":
+        return value == "deny"
+    if kind == "true_only":
+        return value is True
+    if kind == "profile_pin":
+        return type(value) is str and (value == "" or re.fullmatch(r"(?:Default|Profile [0-9]{1,3})", value) is not None)
+    if kind == "manifest_path":
+        return type(value) is str and (value == "" or
+            (1 <= len(value) <= 512 and value.startswith("/") and
+             all(32 < ord(char) < 127 for char in value)))
+    if kind == "workspace_path":
+        return type(value) is str and (value == "." or
+            (1 <= len(value) <= 512 and value.startswith("/") and
+             all(32 < ord(char) < 127 for char in value)))
+    if kind in ("docker_mounts", "toolset_names", "allowlist_subset"):
+        limit = 8 if kind == "docker_mounts" else 16 if kind == "toolset_names" else 128
+        return (type(value) is list and len(value) <= limit and
+                all(type(item) is str and 1 <= len(item) <= 512 and
+                    all((32 if kind == "allowlist_subset" else 33) <= ord(char) < 127 for char in item)
+                    for item in value) and
+                len(set(value)) == len(value))
     if kind == "fallback":
         return (type(value) is list and len(value) <= 8 and all(
             type(item) is dict and set(item) == {"provider", "model"} and
@@ -532,6 +581,66 @@ def locked_main(home, source, cli):
             if request["revision"] != before or revision(config_path) != before:
                 print(json.dumps({"error": "revision_conflict"}))
                 return 4
+            if key in ("terminal.docker_mount_cwd_to_workspace", "terminal.docker_volumes") and \
+                    nested(_raw_before, "terminal.backend") not in ("docker",):
+                raise ValueError("execution_backend_required")
+            if key == "terminal.cwd" and value != ".":
+                workspace = Path(value)
+                if (workspace.is_symlink() or not workspace.is_dir() or
+                        not workspace.resolve().is_relative_to(home.parent.resolve()) or
+                        workspace.resolve().is_relative_to(home.resolve())):
+                    raise ValueError("invalid_execution_workspace")
+            if key == "terminal.docker_volumes":
+                for mount in value:
+                    host_path, separator, container_path = mount.partition(":")
+                    host = Path(host_path)
+                    if (not separator or ":" in container_path or host.is_symlink() or not host.is_dir() or
+                            not host.resolve().is_relative_to(home.parent.resolve()) or
+                            host.resolve().is_relative_to(home.resolve()) or
+                            not re.fullmatch(r"/workspace/mounts/[A-Za-z][A-Za-z0-9_-]{0,63}", container_path)):
+                        raise ValueError("invalid_docker_mount")
+            if key == "toolsets":
+                sys.path.insert(0, str(source))
+                from toolsets import TOOLSETS
+                if not value or not set(value) <= set(TOOLSETS):
+                    raise ValueError("unknown_toolset")
+            if key == "command_allowlist":
+                prior = nested(_raw_before, "command_allowlist")
+                if not isinstance(prior, list) or not all(isinstance(item, str) for item in prior) or \
+                        not set(value) <= set(prior):
+                    raise ValueError("allowlist_addition_requires_native_approval")
+            if key == "terminal.backend" and value == "docker":
+                if (nested(_raw_before, "terminal.docker_network") is not False or
+                        nested(_raw_before, "terminal.docker_mount_cwd_to_workspace") is True or
+                        nested(_raw_before, "terminal.docker_volumes") not in (None, [])):
+                    raise ValueError("docker_policy_requires_safe_baseline")
+                docker = shutil.which("docker")
+                if not docker or subprocess.run([docker, "info", "--format", "{{.ServerVersion}}"],
+                                                capture_output=True, timeout=5).returncode:
+                    raise ValueError("docker_unavailable")
+            if key == "computer_use.permission_mode" and value == "bounded":
+                manifest = nested(_raw_before, "computer_use.capability_manifest")
+                if not isinstance(manifest, str) or not manifest:
+                    raise ValueError("capability_manifest_required")
+            if key == "computer_use.capability_manifest" and value:
+                manifest_path = Path(value)
+                if (manifest_path.is_symlink() or not manifest_path.is_file() or
+                        manifest_path.stat().st_size > 65536 or
+                        not manifest_path.resolve().is_relative_to(home.resolve())):
+                    raise ValueError("invalid_capability_manifest")
+            if key == "computer_use.capability_manifest" and not value and \
+                    nested(_raw_before, "computer_use.permission_mode") == "bounded":
+                raise ValueError("capability_manifest_required")
+            if key == "browser.use_real_profile" and value is True and \
+                    not nested(_raw_before, "browser.real_profile_pin"):
+                raise ValueError("profile_pin_required")
+            if key == "browser.real_profile_pin" and not value and \
+                    nested(_raw_before, "browser.use_real_profile") is True:
+                raise ValueError("profile_pin_required")
+            if key == "browser.allow_unsafe_evaluate" and value and nested(_raw_before, "browser.restrict_evaluate") is True:
+                raise ValueError("conflicting_browser_evaluate_policy")
+            if key == "browser.restrict_evaluate" and value and nested(_raw_before, "browser.allow_unsafe_evaluate") is True:
+                raise ValueError("conflicting_browser_evaluate_policy")
             if plugin_update:
                 prior = subprocess.run([str(cli), "plugins", "list", "--json", "--user"],
                                        capture_output=True, text=True, timeout=15)
@@ -626,6 +735,16 @@ def locked_main(home, source, cli):
                 # Hermes owns validation and preserving the rest of config.yaml. Never --force.
                 call("set", key, json.dumps(value, separators=(",", ":")) if isinstance(value, list) else
                      "null" if value is None else str(value).lower() if isinstance(value, bool) else str(value))
+                if key == "browser.use_real_profile" and value is False:
+                    # Revocation must remove credential snapshots now, rather
+                    # than waiting for the next browser tool invocation.
+                    snapshot_root = home / "browser-profile"
+                    if snapshot_root.is_symlink():
+                        raise ValueError("profile_snapshot_cleanup_failed")
+                    if snapshot_root.exists():
+                        shutil.rmtree(snapshot_root)
+                    if snapshot_root.exists():
+                        raise ValueError("profile_snapshot_cleanup_failed")
             current, raw = snapshot(config_path)
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
@@ -784,5 +903,10 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (OSError, ValueError, TypeError, ImportError, subprocess.TimeoutExpired) as error:
-        print(json.dumps({"error": str(error) if str(error) in {"config_symlink", "invalid_request", "unsupported_field", "invalid_value", "unknown_provider", "managed_entry_conflict", "unknown_oauth_flow", "oauth_flow_limit", "unsafe_oauth_state", "unsupported_source_revision"} else "hermes_unavailable"}))
+        print(json.dumps({"error": str(error) if str(error) in {"config_symlink", "invalid_request", "unsupported_field", "invalid_value", "unknown_provider",
+            "managed_entry_conflict", "unknown_oauth_flow", "oauth_flow_limit", "unsafe_oauth_state", "unsupported_source_revision",
+            "execution_backend_required", "docker_policy_requires_safe_baseline", "docker_unavailable", "invalid_execution_workspace", "invalid_docker_mount",
+            "capability_manifest_required", "invalid_capability_manifest", "conflicting_browser_evaluate_policy",
+            "unknown_toolset", "allowlist_addition_requires_native_approval", "profile_snapshot_cleanup_failed",
+            "profile_pin_required"} else "hermes_unavailable"}))
         raise SystemExit(5)

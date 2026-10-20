@@ -28,8 +28,28 @@ const LABELS: Record<string, string> = {
   "session.terminal_continue": "Terminalsitzung lokal fortsetzen",
   max_live_sessions: "Sitzungen im Gateway-Speicher",
   "terminal.timeout": "Terminal-Befehlslimit (Sekunden)",
+  "terminal.backend": "Terminal-Ausfuehrungsort",
+  "terminal.docker_network": "Netzwerk im Docker-Sandbox-Container",
+  "terminal.docker_mount_cwd_to_workspace": "Arbeitsordner in Docker einbinden",
   "browser.command_timeout": "Browser-Befehlslimit (Sekunden)",
   "browser.snapshot_threshold": "Browser-Snapshot-Grenze (Zeichen)",
+  "browser.allow_private_urls": "Private Adressen im Browser erlauben",
+  "browser.use_real_profile": "Echtes Browserprofil als Snapshot verwenden",
+  "browser.real_profile_pin": "Browserprofil-Verzeichnis",
+  "browser.restrict_evaluate": "Browser-Konsole einschraenken",
+  "browser.allow_unsafe_evaluate": "Unsichere Browser-Auswertung erlauben",
+  "code_execution.mode": "Code-Ausfuehrungsmodus",
+  "computer_use.permission_mode": "Computer-Use-Berechtigung",
+  "computer_use.capability_manifest": "Computer-Use-Capability-Manifest",
+  "terminal.cwd": "Terminal-Arbeitsordner",
+  "terminal.docker_volumes": "Docker-Mounts (Host:Container)",
+  toolsets: "Hermes-Toolsets",
+  command_allowlist: "Dauerhaft erlaubte Befehlsmuster (nur entfernen)",
+  "approvals.mode": "Hermes-Befehlsfreigabe",
+  "approvals.timeout": "Freigabefenster (Sekunden)",
+  "approvals.single_query_mode": "Unbeaufsichtigte Einzelanfragen",
+  "approvals.unattended_mode": "Unbeaufsichtigte Gateway-Aufrufe",
+  "security.protected_instruction_files": "Agent-Anweisungsdateien schuetzen",
   "skills.disabled": "Deaktivierte Hermes-Skills",
   models: "Modelle und Anbieter",
   agent: "Agent und Sitzungen",
@@ -55,6 +75,16 @@ const NUMERIC_LIMITS: Record<string, [number, number, number]> = {
   "terminal.timeout": [1, 3600, 1],
   "browser.command_timeout": [5, 600, 1],
   "browser.snapshot_threshold": [1000, 200000, 1000],
+  "approvals.timeout": [15, 600, 1],
+};
+const EXECUTION_OPTIONS: Record<string, Array<[string, string]>> = {
+  "terminal.backend": [["local", "Lokaler WSL-Host"], ["docker", "Docker-Sandbox"]],
+  "code_execution.mode": [["project", "Projektumgebung"], ["strict", "Isoliertes Verzeichnis"]],
+  "computer_use.permission_mode": [["standard", "Treiber fragt nach Freigaben"],
+    ["bounded", "Nur Capability-Manifest"]],
+  "approvals.mode": [["manual", "Immer bei Gefahr fragen"], ["smart", "Smart-Guardian und Freigabe"]],
+  "approvals.single_query_mode": [["deny", "Gefaehrliche Befehle ablehnen"]],
+  "approvals.unattended_mode": [["deny", "Gefaehrliche Befehle ablehnen"]],
 };
 
 export function HermesConfigArea() {
@@ -69,7 +99,8 @@ export function HermesConfigArea() {
   const [probeProvider, setProbeProvider] = useState<string | null>(null);
   const catalog = useHermesModelCatalog(undefined, showCatalog);
   const selectedCatalog = useHermesModelCatalog(probeProvider ?? undefined, probeProvider !== null);
-  const [draft, setDraft] = useState<Record<string, number | boolean | string | Array<{ provider: string; model: string }> | null>>({});
+  const [draft, setDraft] = useState<Record<string, number | boolean | string | string[] |
+    Array<{ provider: string; model: string }> | null>>({});
   const [credentialDraft, setCredentialDraft] = useState<Record<string, string>>({});
   const [mcpName, setMcpName] = useState("");
   const [mcpUrl, setMcpUrl] = useState("");
@@ -99,6 +130,8 @@ export function HermesConfigArea() {
     ? skillField.value as string[] : null;
   return (
     <div className="st-stack">
+      {patch.isError ? <p role="alert">{patch.error instanceof Error ? patch.error.message :
+        "Hermes-Einstellung konnte nicht bestätigt werden. Status neu laden."}</p> : null}
       <p role="status">
         Hermes-Quelle: <code>{data.sourceRevision?.slice(0, 12) ?? "unbekannt"}</code>. Konfigurationsversion:{" "}
         {data.revision}.
@@ -151,6 +184,17 @@ export function HermesConfigArea() {
                   }))}>Fallback hinzufügen</button>
                 <small>Leere Kette deaktiviert den Fallback. Hermes prüft Anbieter und Modell beim nächsten Aufruf.</small>
               </div>
+            ) : field.type === "textList" ? (
+              <textarea id={`hermes-${field.key}`} rows={Math.max(3, Math.min(8, Array.isArray(value) ? value.length + 1 : 3))}
+                value={Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").join("\n") : ""}
+                onChange={(event) => setDraft((current) => ({ ...current, [field.key]:
+                  event.target.value.split("\n").map((line) => line.trim()).filter(Boolean) }))} />
+            ) : EXECUTION_OPTIONS[field.key] ? (
+              <select id={`hermes-${field.key}`} value={String(value ?? "")}
+                onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))}>
+                {EXECUTION_OPTIONS[field.key]!.map(([option, label]) =>
+                  <option key={option} value={option}>{label}</option>)}
+              </select>
             ) : field.key === "agent.reasoning_effort" ? (
               <select id={`hermes-${field.key}`} value={String(value ?? "")}
                 onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))}>
@@ -178,6 +222,7 @@ export function HermesConfigArea() {
                 id={`hermes-${field.key}`}
                 type="checkbox"
                 checked={value === true}
+                disabled={field.key === "security.protected_instruction_files" && value === true}
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, [field.key]: event.target.checked }))
                 }
@@ -207,6 +252,16 @@ export function HermesConfigArea() {
               {field.explicit ? "In Hermes gesetzt" : "Hermes-Standard/Overlay"} · Verbraucher:{" "}
               {field.consumer} · Laufzeitbestätigung ausstehend
             </small>
+            {field.key === "browser.use_real_profile" && value === true ?
+              <small>Neue Browsersitzungen können einen Snapshot Ihrer lokalen Logins verwenden. Zuerst den Profilverzeichnisnamen festlegen; Ausschalten entfernt den Hermes-Profilsnapshot.</small> : null}
+            {field.key === "browser.allow_private_urls" && value === true ?
+              <small>Der Browser darf damit interne und lokale Adressen erreichen.</small> : null}
+            {field.key === "terminal.docker_mount_cwd_to_workspace" && value === true ?
+              <small>Der aktuelle Host-Arbeitsordner wird im Container unter /workspace erreichbar.</small> : null}
+            {field.key === "terminal.backend" && value === "local" ?
+              <small>Terminalbefehle laufen im Friday-Ubuntu-Benutzerkonto mit dessen Dateirechten. Vor Docker-Wechsel Netzwerk deaktivieren und Mounts entfernen.</small> : null}
+            {field.key === "terminal.docker_network" && value === true ?
+              <small>Neue Docker-Sandboxes erhalten Netzwerkzugriff.</small> : null}
             <button
               type="button"
               disabled={

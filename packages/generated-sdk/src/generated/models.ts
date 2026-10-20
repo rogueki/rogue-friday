@@ -186,12 +186,92 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "terminal.backend";
+      value: "local" | "docker";
+    }
+  | {
+      key: "terminal.cwd";
+      value: string;
+    }
+  | {
+      key: "terminal.docker_network";
+      value: boolean;
+    }
+  | {
+      key: "terminal.docker_mount_cwd_to_workspace";
+      value: boolean;
+    }
+  | {
+      key: "terminal.docker_volumes";
+      value: string[];
+    }
+  | {
       key: "browser.command_timeout";
       value: number;
     }
   | {
       key: "browser.snapshot_threshold";
       value: number;
+    }
+  | {
+      key: "browser.allow_private_urls";
+      value: boolean;
+    }
+  | {
+      key: "browser.use_real_profile";
+      value: boolean;
+    }
+  | {
+      key: "browser.real_profile_pin";
+      value: string;
+    }
+  | {
+      key: "browser.restrict_evaluate";
+      value: boolean;
+    }
+  | {
+      key: "browser.allow_unsafe_evaluate";
+      value: boolean;
+    }
+  | {
+      key: "code_execution.mode";
+      value: "project" | "strict";
+    }
+  | {
+      key: "computer_use.permission_mode";
+      value: "standard" | "bounded";
+    }
+  | {
+      key: "computer_use.capability_manifest";
+      value: string;
+    }
+  | {
+      key: "toolsets";
+      value: string[];
+    }
+  | {
+      key: "command_allowlist";
+      value: string[];
+    }
+  | {
+      key: "approvals.mode";
+      value: "manual" | "smart";
+    }
+  | {
+      key: "approvals.timeout";
+      value: number;
+    }
+  | {
+      key: "approvals.single_query_mode";
+      value: "deny";
+    }
+  | {
+      key: "approvals.unattended_mode";
+      value: "deny";
+    }
+  | {
+      key: "security.protected_instruction_files";
+      value: true;
     }
   | {
       key: "skills.disabled";
@@ -3209,8 +3289,28 @@ export interface HermesConfigStatus {
       | "session.terminal_continue"
       | "max_live_sessions"
       | "terminal.timeout"
+      | "terminal.backend"
+      | "terminal.cwd"
+      | "terminal.docker_network"
+      | "terminal.docker_mount_cwd_to_workspace"
+      | "terminal.docker_volumes"
       | "browser.command_timeout"
       | "browser.snapshot_threshold"
+      | "browser.allow_private_urls"
+      | "browser.use_real_profile"
+      | "browser.real_profile_pin"
+      | "browser.restrict_evaluate"
+      | "browser.allow_unsafe_evaluate"
+      | "code_execution.mode"
+      | "computer_use.permission_mode"
+      | "computer_use.capability_manifest"
+      | "toolsets"
+      | "command_allowlist"
+      | "approvals.mode"
+      | "approvals.timeout"
+      | "approvals.single_query_mode"
+      | "approvals.unattended_mode"
+      | "security.protected_instruction_files"
       | "skills.disabled";
     type:
       | "integer"
@@ -3220,7 +3320,8 @@ export interface HermesConfigStatus {
       | "boolean"
       | "string"
       | "fallback"
-      | "skillNames";
+      | "skillNames"
+      | "textList";
     family: "agent" | "models" | "execution" | "extensions";
     consumer: string;
     value:

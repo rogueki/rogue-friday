@@ -6526,12 +6526,99 @@ export interface components {
             value: number;
         } | {
             /** @constant */
+            key: "terminal.backend";
+            /** @enum {unknown} */
+            value: "local" | "docker";
+        } | {
+            /** @constant */
+            key: "terminal.cwd";
+            value: string;
+        } | {
+            /** @constant */
+            key: "terminal.docker_network";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "terminal.docker_mount_cwd_to_workspace";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "terminal.docker_volumes";
+            value: string[];
+        } | {
+            /** @constant */
             key: "browser.command_timeout";
             value: number;
         } | {
             /** @constant */
             key: "browser.snapshot_threshold";
             value: number;
+        } | {
+            /** @constant */
+            key: "browser.allow_private_urls";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "browser.use_real_profile";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "browser.real_profile_pin";
+            value: string;
+        } | {
+            /** @constant */
+            key: "browser.restrict_evaluate";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "browser.allow_unsafe_evaluate";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "code_execution.mode";
+            /** @enum {unknown} */
+            value: "project" | "strict";
+        } | {
+            /** @constant */
+            key: "computer_use.permission_mode";
+            /** @enum {unknown} */
+            value: "standard" | "bounded";
+        } | {
+            /** @constant */
+            key: "computer_use.capability_manifest";
+            value: string;
+        } | {
+            /** @constant */
+            key: "toolsets";
+            value: string[];
+        } | {
+            /** @constant */
+            key: "command_allowlist";
+            value: string[];
+        } | {
+            /** @constant */
+            key: "approvals.mode";
+            /** @enum {unknown} */
+            value: "manual" | "smart";
+        } | {
+            /** @constant */
+            key: "approvals.timeout";
+            value: number;
+        } | {
+            /** @constant */
+            key: "approvals.single_query_mode";
+            /** @constant */
+            value: "deny";
+        } | {
+            /** @constant */
+            key: "approvals.unattended_mode";
+            /** @constant */
+            value: "deny";
+        } | {
+            /** @constant */
+            key: "security.protected_instruction_files";
+            /** @constant */
+            value: true;
         } | {
             /** @constant */
             key: "skills.disabled";
@@ -6588,11 +6675,11 @@ export interface components {
                 /** @enum {unknown} */
                 family: "agent" | "models" | "execution" | "extensions";
                 /** @enum {unknown} */
-                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "browser.command_timeout" | "browser.snapshot_threshold" | "skills.disabled";
+                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "terminal.backend" | "terminal.cwd" | "terminal.docker_network" | "terminal.docker_mount_cwd_to_workspace" | "terminal.docker_volumes" | "browser.command_timeout" | "browser.snapshot_threshold" | "browser.allow_private_urls" | "browser.use_real_profile" | "browser.real_profile_pin" | "browser.restrict_evaluate" | "browser.allow_unsafe_evaluate" | "code_execution.mode" | "computer_use.permission_mode" | "computer_use.capability_manifest" | "toolsets" | "command_allowlist" | "approvals.mode" | "approvals.timeout" | "approvals.single_query_mode" | "approvals.unattended_mode" | "security.protected_instruction_files" | "skills.disabled";
                 /** @constant */
                 reasonCode: "runtime_receipt_unavailable";
                 /** @enum {unknown} */
-                type: "integer" | "optionalInteger" | "number" | "optionalNumber" | "boolean" | "string" | "fallback" | "skillNames";
+                type: "integer" | "optionalInteger" | "number" | "optionalNumber" | "boolean" | "string" | "fallback" | "skillNames" | "textList";
                 value: (number | boolean | string | null) | {
                     model: string;
                     provider: string;

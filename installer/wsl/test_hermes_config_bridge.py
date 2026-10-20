@@ -43,7 +43,17 @@ class BridgeTest(unittest.TestCase):
                        "agent.max_turns": 500, "agent.gateway_timeout": 1800, "agent.api_max_retries": 3,
                        "session.terminal_continue": True, "max_live_sessions": 16,
                        "terminal.timeout": 180, "browser.command_timeout": 30,
+                       "terminal.backend": "local", "terminal.cwd": ".", "terminal.docker_network": True,
+                       "terminal.docker_mount_cwd_to_workspace": False, "terminal.docker_volumes": [],
                        "browser.snapshot_threshold": 15000,
+                       "browser.allow_private_urls": False, "browser.use_real_profile": False,
+                       "browser.real_profile_pin": "", "browser.restrict_evaluate": False,
+                       "browser.allow_unsafe_evaluate": False, "code_execution.mode": "project",
+                       "computer_use.permission_mode": "standard", "computer_use.capability_manifest": "",
+                       "toolsets": ["hermes-cli"], "command_allowlist": [],
+                       "approvals.mode": "smart", "approvals.timeout": 300,
+                       "approvals.single_query_mode": "deny", "approvals.unattended_mode": "deny",
+                       "security.protected_instruction_files": True,
                        "skills.disabled": [], "skills.create_dir": "", "skills.external_dirs": []}
         self.calls = []
         self.plugin_status = "enabled"
@@ -51,6 +61,8 @@ class BridgeTest(unittest.TestCase):
 
     def run_command(self, command, **_kwargs):
         self.calls.append(command)
+        if command[0] == "docker":
+            return subprocess.CompletedProcess(command, 0, "synthetic-docker\n", "")
         if command[0] == "plugin-worker":
             request = json.loads(_kwargs["input"])
             self.plugin_status = "enabled" if request["enabled"] else "disabled"
@@ -498,6 +510,115 @@ class BridgeTest(unittest.TestCase):
         self.assertIsNone(result["values"]["agent.run_budget_seconds"])
         self.assertTrue(result["write"]["persisted"])
 
+    def test_execution_policy_rejects_inert_or_unbounded_grants(self):
+        current = bridge.revision(self.config)
+        with self.assertRaisesRegex(ValueError, "execution_backend_required"):
+            self.invoke({"key": "terminal.docker_mount_cwd_to_workspace", "value": True, "revision": current})
+        with self.assertRaisesRegex(ValueError, "docker_policy_requires_safe_baseline"):
+            self.invoke({"key": "terminal.backend", "value": "docker", "revision": current})
+        with self.assertRaisesRegex(ValueError, "capability_manifest_required"):
+            self.invoke({"key": "computer_use.permission_mode", "value": "bounded", "revision": current})
+        with self.assertRaisesRegex(ValueError, "profile_pin_required"):
+            self.invoke({"key": "browser.use_real_profile", "value": True, "revision": current})
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "computer_use.permission_mode", "value": "unrestricted", "revision": current})
+        for key, value in (("approvals.mode", "off"), ("approvals.single_query_mode", "approve"),
+                           ("approvals.unattended_mode", "approve"),
+                           ("security.protected_instruction_files", False)):
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "unsupported_field"):
+                self.invoke({"key": key, "value": value, "revision": current})
+        with self.assertRaisesRegex(ValueError, "invalid_capability_manifest"):
+            self.invoke({"key": "computer_use.capability_manifest", "value": "/tmp/foreign.json",
+                         "revision": current})
+        with self.assertRaisesRegex(ValueError, "invalid_execution_workspace"):
+            self.invoke({"key": "terminal.cwd", "value": "/tmp", "revision": current})
+        with self.assertRaisesRegex(ValueError, "allowlist_addition_requires_native_approval"):
+            self.invoke({"key": "command_allowlist", "value": ["rm -rf *"], "revision": current})
+        self.config.write_text(self.config.read_text() + "\nbrowser:\n  restrict_evaluate: true\n")
+        with self.assertRaisesRegex(ValueError, "conflicting_browser_evaluate_policy"):
+            self.invoke({"key": "browser.allow_unsafe_evaluate", "value": True,
+                         "revision": bridge.revision(self.config)})
+
+    def test_execution_policy_owner_write_has_readback_only(self):
+        code, result = self.invoke({"key": "code_execution.mode", "value": "strict",
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertTrue(result["write"]["persisted"])
+        self.assertEqual(result["values"]["code_execution.mode"], "strict")
+
+    def test_docker_requires_staged_network_off_and_daemon(self):
+        code, _ = self.invoke({"key": "terminal.docker_network", "value": False,
+                               "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.config.write_text(self.config.read_text() + "\nterminal:\n  docker_network: false\n")
+        with patch.object(bridge.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(ValueError, "docker_unavailable"):
+                self.invoke({"key": "terminal.backend", "value": "docker",
+                             "revision": bridge.revision(self.config)})
+        with patch.object(bridge.shutil, "which", return_value="docker"):
+            code, result = self.invoke({"key": "terminal.backend", "value": "docker",
+                                        "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["terminal.backend"], "docker")
+        self.assertTrue(any(call[0] == "docker" and call[1] == "info" for call in self.calls))
+
+    def test_profile_consent_requires_pinned_principal(self):
+        code, _ = self.invoke({"key": "browser.real_profile_pin", "value": "Profile 2",
+                               "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.config.write_text(self.config.read_text() + "\nbrowser:\n  real_profile_pin: Profile 2\n")
+        code, result = self.invoke({"key": "browser.use_real_profile", "value": True,
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertTrue(result["values"]["browser.use_real_profile"])
+        self.config.write_text(self.config.read_text() + "\nbrowser:\n  real_profile_pin: Profile 2\n  use_real_profile: true\n")
+        with self.assertRaisesRegex(ValueError, "profile_pin_required"):
+            self.invoke({"key": "browser.real_profile_pin", "value": "",
+                         "revision": bridge.revision(self.config)})
+
+    def test_execution_policy_allows_only_removing_existing_command_approvals(self):
+        self.config.write_text(self.config.read_text() + "\ncommand_allowlist:\n  - 'git status'\n")
+        self.values["command_allowlist"] = ["git status"]
+        code, result = self.invoke({"key": "command_allowlist", "value": [],
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["command_allowlist"], [])
+
+    def test_toolsets_require_installed_native_definition(self):
+        native = types.ModuleType("toolsets")
+        native.TOOLSETS = {"hermes-cli": {}, "web": {}}
+        with patch.dict(sys.modules, {"toolsets": native}):
+            with self.assertRaisesRegex(ValueError, "unknown_toolset"):
+                self.invoke({"key": "toolsets", "value": ["unknown"],
+                             "revision": bridge.revision(self.config)})
+            code, result = self.invoke({"key": "toolsets", "value": ["web"],
+                                        "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["toolsets"], ["web"])
+
+    def test_docker_mounts_stay_inside_non_secret_user_workspace(self):
+        workspace = self.home / "workspace"
+        workspace.mkdir()
+        self.config.write_text(self.config.read_text() + "\nterminal:\n  backend: docker\n")
+        with self.assertRaisesRegex(ValueError, "invalid_docker_mount"):
+            self.invoke({"key": "terminal.docker_volumes", "value": ["/var/run/docker.sock:/workspace/mounts/docker"],
+                         "revision": bridge.revision(self.config)})
+        code, result = self.invoke({"key": "terminal.docker_volumes",
+                                    "value": [str(workspace) + ":/workspace/mounts/project"],
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertTrue(result["write"]["persisted"])
+
+    def test_revoking_real_browser_profile_removes_staged_credentials(self):
+        snapshot = self.home / ".hermes" / "browser-profile"
+        snapshot.mkdir()
+        (snapshot / "Login Data").write_text("synthetic-secret")
+        code, result = self.invoke({"key": "browser.use_real_profile", "value": False,
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertTrue(result["write"]["persisted"])
+        self.assertFalse(snapshot.exists())
+
     def test_two_real_processes_same_revision_only_one_writes(self):
         tools = self.home / "fake-bin"
         tools.mkdir()
@@ -523,7 +644,17 @@ elif a[:2] == ['config', 'get']:
          'agent.gateway_timeout': 1800, 'agent.api_max_retries': 3,
          'session.terminal_continue': True, 'max_live_sessions': 16,
          'terminal.timeout': 180, 'browser.command_timeout': 30,
+         'terminal.backend': 'local', 'terminal.cwd': '.', 'terminal.docker_network': True,
+         'terminal.docker_mount_cwd_to_workspace': False, 'terminal.docker_volumes': [],
          'browser.snapshot_threshold': 15000,
+         'browser.allow_private_urls': False, 'browser.use_real_profile': False,
+         'browser.real_profile_pin': '', 'browser.restrict_evaluate': False,
+         'browser.allow_unsafe_evaluate': False, 'code_execution.mode': 'project',
+         'computer_use.permission_mode': 'standard', 'computer_use.capability_manifest': '',
+         'toolsets': ['hermes-cli'], 'command_allowlist': [],
+         'approvals.mode': 'smart', 'approvals.timeout': 300,
+         'approvals.single_query_mode': 'deny', 'approvals.unattended_mode': 'deny',
+         'security.protected_instruction_files': True,
          'skills.disabled': [], 'skills.create_dir': '', 'skills.external_dirs': []}
     print(json.dumps(d[a[2]]))
 elif a[:2] == ['config', 'set']:

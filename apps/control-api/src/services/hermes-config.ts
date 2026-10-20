@@ -51,8 +51,28 @@ export const HERMES_CONFIG_FIELDS = {
     consumer: "Hermes gateway session cache",
   },
   "terminal.timeout": { type: "integer", min: 1, max: 3600, family: "execution", consumer: "new Hermes terminal environment" },
+  "terminal.backend": { type: "string", kind: "executionBackend", family: "execution", consumer: "new Hermes terminal environment" },
+  "terminal.cwd": { type: "string", kind: "workspacePath", family: "execution", consumer: "new Hermes terminal environment" },
+  "terminal.docker_network": { type: "boolean", family: "execution", consumer: "new Docker sandbox" },
+  "terminal.docker_mount_cwd_to_workspace": { type: "boolean", family: "execution", consumer: "new Docker sandbox" },
+  "terminal.docker_volumes": { type: "textList", kind: "dockerMounts", family: "execution", consumer: "new Docker sandbox" },
   "browser.command_timeout": { type: "integer", min: 5, max: 600, family: "execution", consumer: "new browser session or cleared browser cache" },
   "browser.snapshot_threshold": { type: "integer", min: 1000, max: 200000, family: "execution", consumer: "new browser session or cleared browser cache" },
+  "browser.allow_private_urls": { type: "boolean", family: "execution", consumer: "new Hermes browser navigation" },
+  "browser.use_real_profile": { type: "boolean", family: "execution", consumer: "new browser profile snapshot" },
+  "browser.real_profile_pin": { type: "string", kind: "profilePin", family: "execution", consumer: "new browser profile snapshot" },
+  "browser.restrict_evaluate": { type: "boolean", family: "execution", consumer: "new browser console evaluation" },
+  "browser.allow_unsafe_evaluate": { type: "boolean", family: "execution", consumer: "new browser console evaluation" },
+  "code_execution.mode": { type: "string", kind: "codeMode", family: "execution", consumer: "new execute_code kernel" },
+  "computer_use.permission_mode": { type: "string", kind: "computerPermission", family: "execution", consumer: "new computer-use session" },
+  "computer_use.capability_manifest": { type: "string", kind: "manifestPath", family: "execution", consumer: "new bounded computer-use session" },
+  toolsets: { type: "textList", kind: "toolsetNames", family: "execution", consumer: "new Hermes tool surface" },
+  command_allowlist: { type: "textList", kind: "allowlistSubset", family: "execution", consumer: "next dangerous-command approval check" },
+  "approvals.mode": { type: "string", kind: "approvalMode", family: "execution", consumer: "next Hermes command approval" },
+  "approvals.timeout": { type: "integer", min: 15, max: 600, family: "execution", consumer: "next Hermes approval wait" },
+  "approvals.single_query_mode": { type: "string", kind: "denyOnly", family: "execution", consumer: "next unattended single-query command" },
+  "approvals.unattended_mode": { type: "string", kind: "denyOnly", family: "execution", consumer: "next unattended gateway command" },
+  "security.protected_instruction_files": { type: "boolean", family: "execution", consumer: "next protected instruction file write" },
   "skills.disabled": { type: "skillNames", family: "extensions", consumer: "next Hermes skill resolution" },
 } as const;
 export type HermesConfigField = keyof typeof HERMES_CONFIG_FIELDS;
@@ -67,10 +87,20 @@ export type HermesModelCredential = typeof HERMES_MODEL_CREDENTIALS[number];
 export type HermesModelCredentialPatch = { key: HermesModelCredential; value: string | null };
 
 const REASONING_EFFORTS = new Set(["", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
-function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode", value: unknown): boolean {
+function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" | "executionBackend" |
+  "profilePin" | "codeMode" | "computerPermission" | "manifestPath" | "workspacePath" |
+  "approvalMode" | "denyOnly", value: unknown): boolean {
   if (typeof value !== "string") return false;
   if (kind === "reasoning") return REASONING_EFFORTS.has(value);
   if (kind === "tailMode") return value === "lean" || value === "legacy";
+  if (kind === "executionBackend") return value === "local" || value === "docker";
+  if (kind === "codeMode") return value === "project" || value === "strict";
+  if (kind === "computerPermission") return value === "standard" || value === "bounded";
+  if (kind === "approvalMode") return value === "manual" || value === "smart";
+  if (kind === "denyOnly") return value === "deny";
+  if (kind === "profilePin") return value === "" || /^(Default|Profile [0-9]{1,3})$/.test(value);
+  if (kind === "manifestPath") return value === "" || value.length <= 512 && /^\/[!-~]+$/.test(value);
+  if (kind === "workspacePath") return value === "." || value.length <= 512 && /^\/[!-~]+$/.test(value);
   if (kind === "provider") return /^[A-Za-z0-9_.-]{1,64}$/.test(value);
   return value.length > 0 && value.length <= 200 && !/\s/.test(value) &&
     [...value].every((character) => character.charCodeAt(0) > 31 && character.charCodeAt(0) !== 127);
@@ -83,6 +113,13 @@ function validFallback(value: unknown): value is FallbackEntry[] {
 function validSkillNames(value: unknown): value is string[] {
   return Array.isArray(value) && value.length <= 512 &&
     value.every((name) => typeof name === "string" && /^[A-Za-z0-9._/-]{1,100}$/.test(name)) &&
+    new Set(value).size === value.length;
+}
+function validExecutionList(kind: "dockerMounts" | "toolsetNames" | "allowlistSubset", value: unknown): value is string[] {
+  const limit = kind === "dockerMounts" ? 8 : kind === "toolsetNames" ? 16 : 128;
+  return Array.isArray(value) && value.length <= limit && value.every((item) =>
+    typeof item === "string" && item.length >= 1 && item.length <= 512 &&
+    (kind === "allowlistSubset" ? /^[ -~]+$/ : /^[!-~]+$/).test(item)) &&
     new Set(value).size === value.length;
 }
 function validMcpUrl(value: unknown): value is string {
@@ -197,6 +234,26 @@ export class HermesConfigService {
         return null;
       if (error instanceof Error && error.message.includes("revision_conflict"))
         throw conflict("Hermes-Konfiguration wurde außerhalb von Friday geändert.");
+      if (action === "update" && error instanceof Error) {
+        if (error.message.includes("profile_snapshot_cleanup_failed"))
+          throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+            message: "Browserprofil-Zustimmung wurde geändert, aber der Hermes-Snapshot konnte nicht bestätigt entfernt werden. Status neu laden und den lokalen Profilordner prüfen." });
+        if (error.message.includes("docker_unavailable"))
+          throw validationFailed("Der Docker-Daemon ist in Friday-Ubuntu nicht erreichbar.");
+        if (error.message.includes("execution_backend_required"))
+          throw validationFailed("Docker-Optionen erfordern zuerst das Docker-Terminal-Backend.");
+        if (error.message.includes("docker_policy_requires_safe_baseline"))
+          throw validationFailed("Vor dem Docker-Wechsel Netzwerk deaktivieren und Host-Mounts entfernen; danach Berechtigungen einzeln einschalten.");
+        if (error.message.includes("capability_manifest_required") || error.message.includes("invalid_capability_manifest"))
+          throw validationFailed("Computer Use braucht ein vorhandenes Manifest im Hermes-Profil.");
+        if (error.message.includes("profile_pin_required"))
+          throw validationFailed("Vor dem echten Browserprofil muss dessen Verzeichnisname festgelegt bleiben.");
+        if (error.message.includes("allowlist_addition_requires_native_approval"))
+          throw validationFailed("Neue dauerhafte Befehlsfreigaben müssen über Hermes' Freigabedialog erfolgen.");
+        if (["invalid_execution_workspace", "invalid_docker_mount", "conflicting_browser_evaluate_policy", "unknown_toolset"]
+          .some((code) => error.message.includes(code)))
+          throw validationFailed("Hermes-Ausführungsrichtlinie ist für diese Installation ungültig.");
+      }
       if (action === "mcp-activation" && error instanceof Error && error.message.includes("managed_entry_conflict"))
         throw conflict("Nur HTTPS-MCP-Eintraege ohne Zugangsdaten sind hier schaltbar.");
       if (action === "mcp-bearer" && error instanceof Error &&
@@ -242,7 +299,8 @@ export class HermesConfigService {
           spec.type === "number" || spec.type === "optionalNumber" ? typeof value !== "number" || !Number.isFinite(value) :
           spec.type === "boolean" ? typeof value !== "boolean" :
           spec.type === "fallback" ? !validFallback(value) :
-          spec.type === "skillNames" ? !validSkillNames(value) : typeof value !== "string")
+          spec.type === "skillNames" ? !validSkillNames(value) :
+          spec.type === "textList" ? !validExecutionList(spec.kind, value) : typeof value !== "string")
       )
         throw unavailable();
       if (typeof (raw.explicit as Record<string, unknown>)[key] !== "boolean") throw unavailable();
@@ -363,9 +421,12 @@ export class HermesConfigService {
         : spec.type === "boolean" ? typeof patch.value !== "boolean"
         : spec.type === "fallback" ? !validFallback(patch.value)
         : spec.type === "skillNames" ? !validSkillNames(patch.value)
+        : spec.type === "textList" ? !validExecutionList(spec.kind, patch.value)
         : !validStringPatch(spec.kind, patch.value)
     )
       throw validationFailed("Ungültiger Hermes-Konfigurationswert.");
+    if (patch.key === "security.protected_instruction_files" && patch.value !== true)
+      throw validationFailed("Schutz fuer Agent-Anweisungsdateien darf nicht deaktiviert werden.");
     if (!Number.isSafeInteger(revision) || revision < 1)
       throw validationFailed("Ungültige Hermes-Konfigurationsversion.");
     const observed = await this.run("update", patch, revision);
