@@ -19,4 +19,3 @@ Verification in this worktree:
 - `node_modules/typescript/bin/tsc -p apps/control-api/tsconfig.json --noEmit`: passed.
 
 This is local API/test evidence, not live/hardware or freshly installed end-to-end evidence. Content Studio reads and cross-family pronoun resolution remain separate follow-up work.
-
