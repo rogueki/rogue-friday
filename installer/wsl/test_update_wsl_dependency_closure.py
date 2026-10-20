@@ -13,6 +13,7 @@ REQUIRED = {
     "installer/linux/find_obsidian_install.sh",
     "installer/wsl/hermes_config_bridge.py",
     "installer/wsl/hermes_cron_read.py",
+    "installer/wsl/hermes_cron_mutate.py",
     "installer/wsl/hermes_model_credential_apply.py",
     "installer/wsl/hermes_model_catalog.py",
     "installer/wsl/hermes_plugin_activation.py",

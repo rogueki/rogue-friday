@@ -25,6 +25,7 @@ $paths = @('installer\setup-obsidian.ps1', 'installer\find-obsidian-install.ps1'
     'installer\wsl\messaging_runtime.py',
     'installer\wsl\whatsapp_logout.mjs', 'installer\wsl\configure_telegram.py',
     'installer\wsl\configure_obsidian.py', 'installer\wsl\hermes_config_bridge.py', 'installer\wsl\hermes_cron_read.py',
+    'installer\wsl\hermes_cron_mutate.py',
     'installer\wsl\messaging_send.py', 'installer\wsl\messaging_config_probe.py',
     'installer\wsl\messaging_catalog.py', 'installer\wsl\messaging_catalog_probe.py',
     'installer\wsl\configure_messaging_provider.py',
