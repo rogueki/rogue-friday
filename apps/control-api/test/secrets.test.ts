@@ -110,6 +110,13 @@ describe("secret hygiene", () => {
       fields: [], secretStates: [{ key: "model.api_key", configFileSet: true, effectiveConfigured: null }],
       families: [], skills: [], plugins: [], mcpComplete: false, mcpServers: [],
       inventory: { scope: "profile", skillsComplete: true, pluginsComplete: true, modelProvidersComplete: true, reasons: [] }, modelProviders: [], write: null } as never);
+    const hermesCron = vi.spyOn(api.runtime.hermesConfig, "cronJobs").mockResolvedValue({
+      sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8", profile: "default",
+      profileTimezone: "Europe/Berlin", storeRevision: "a".repeat(64), count: 1,
+      truncated: false, schedulerRunning: null,
+      jobs: [{ id: "fixture-1", name: "Morning", schedule: "09:00", timezone: null,
+        enabled: true, state: "scheduled", nextRunAt: null, lastRunAt: null }],
+    });
     const memorySearch = vi.spyOn(api.runtime.durableMemory, "search").mockReturnValue([]);
     const whatsappPairing = vi.spyOn(api.runtime.whatsappGateway, "pairing").mockResolvedValue({ id: null, state: "idle",
       qr: null, expiresAt: null, linkedIdentity: null, connectionState: "disconnected" });
@@ -144,6 +151,7 @@ describe("secret hygiene", () => {
       calendarPending.mockRestore();
       mailList.mockRestore();
       hermesConfig.mockRestore();
+      hermesCron.mockRestore();
       memorySearch.mockRestore();
       whatsappPairing.mockRestore();
       messengerCatalog.mockRestore();
