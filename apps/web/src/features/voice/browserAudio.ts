@@ -166,6 +166,12 @@ export const browserAudio = {
     if (context && micSource) orbVoice.microphoneOpened(context, micSource, { passive: passiveProbe() });
     publish({ paused: false });
   },
+  pushToTalkStart() {
+    if (socket?.readyState === WebSocket.OPEN && state.active && !state.paused) socket.send('{"type":"start"}');
+  },
+  pushToTalkRelease() {
+    if (socket?.readyState === WebSocket.OPEN && state.active) socket.send('{"type":"release"}');
+  },
 };
 
 function clearPlayback(): void {

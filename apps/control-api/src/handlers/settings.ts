@@ -9,8 +9,9 @@ import type { HimalayaSendRequest } from "../services/himalaya-send";
 import { ApiError, conflict, forbidden, validationFailed } from "../util/errors";
 import { LocationWeatherService } from "../services/location-weather";
 import { applyVoicePersona, VOICE_PERSONAS, type VoicePersona } from "../services/voice-persona";
-import { recordAudioAck, recordVoiceAck } from "../services/integration-status";
+import { recordAudioAck, recordVoiceAck, recordVoiceSettingsAck } from "../services/integration-status";
 import { applyVoiceAudio, voiceRuntimeStatus } from "../services/voice-audio";
+import { applyVoiceSettings, readRuntimeVoiceSettings, runtimeVoiceSettings, runtimeVoiceFields } from "../services/voice-settings";
 import type { SettingsService } from "../services/settings";
 import { localList } from "./meta";
 import { captureMailSend } from "./mail-memory";
@@ -315,10 +316,12 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
     const input = patch.voice?.inputDeviceId !== undefined ? patch.voice.inputDeviceId : previousVoice.inputDeviceId;
     const output = patch.voice?.outputDeviceId !== undefined ? patch.voice.outputDeviceId : previousVoice.outputDeviceId;
     const changeAudio = patch.voice !== undefined && (input !== previousVoice.inputDeviceId || output !== previousVoice.outputDeviceId);
+    let requestedRuntime = patch.voice ? runtimeVoiceSettings(patch.voice) : null;
+    const changeRuntime = requestedRuntime !== null && runtimeVoiceFields.some((field) => requestedRuntime![field] !== previousVoice[field]);
     if (patch.voice && voiceChanges.has(ctx.runtime.settings)) {
       throw new ApiError({ code: "CONFLICT", message: "Eine Stimmenänderung läuft bereits." });
     }
-    if (changeVoice || changeAudio) {
+    if (changeVoice || changeAudio || changeRuntime) {
       if (changeVoice && !VOICE_PERSONAS.includes(requested as VoicePersona)) {
         throw validationFailed("Bitte F.R.I.D.A.Y. oder J.A.R.V.I.S. wählen.", [{ path: "voice.ttsVoice", message: "unbekannte Stimme" }]);
       }
@@ -328,32 +331,69 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
       }
       ctx.runtime.settings.validateAreas(patch);
       voiceChanges.add(ctx.runtime.settings);
+      let runtimeDefinitivelyRejected = false;
+      let runtimeBefore: Awaited<ReturnType<typeof readRuntimeVoiceSettings>> | null = null;
+      let voiceBefore: Awaited<ReturnType<typeof voiceRuntimeStatus>> | null = null;
+      let voiceAttempted = false;
+      let audioAttempted = false;
+      let runtimeAttempted = false;
       try {
         try {
-          if (changeVoice) await applyVoicePersona(ctx.runtime, requested as VoicePersona);
-          const audioInstance = changeAudio ? await applyVoiceAudio(ctx.runtime, input, output) : null;
+          voiceBefore = await voiceRuntimeStatus(ctx.runtime);
+          if (changeRuntime && patch.voice && requestedRuntime) {
+            runtimeBefore = await readRuntimeVoiceSettings(ctx.runtime);
+            if (runtimeBefore.serviceStartedAt !== voiceBefore.service_started_at)
+              throw new ApiError({ code: "CONFLICT", message: "Sprachdienst wurde während des Einlesens neu gestartet. Bitte erneut speichern." });
+            const fromDisk = { ...runtimeBefore.settings };
+            for (const field of runtimeVoiceFields) {
+              if (patch.voice[field] !== previousVoice[field]) (fromDisk as Record<string, unknown>)[field] = patch.voice[field];
+            }
+            requestedRuntime = fromDisk;
+            patch.voice = { ...patch.voice, ...fromDisk };
+          }
+          if (changeVoice) { voiceAttempted = true; await applyVoicePersona(ctx.runtime, requested as VoicePersona); }
+          let audioInstance: string | null = null;
+          if (changeAudio) { audioAttempted = true; audioInstance = await applyVoiceAudio(ctx.runtime, input, output); }
+          let runtimeInstance: string | null = null;
+          if (changeRuntime) {
+            runtimeAttempted = true;
+            try { runtimeInstance = await applyVoiceSettings(ctx.runtime, requestedRuntime!); }
+            catch (error) {
+              runtimeDefinitivelyRejected = error instanceof ApiError && error.code === "VALIDATION_FAILED";
+              throw error;
+            }
+          }
           const status = await voiceRuntimeStatus(ctx.runtime);
           const instance = status.service_started_at;
-          if (typeof instance !== "string" || (changeVoice && status.tts_voice_choice !== requested) || (audioInstance && instance !== audioInstance))
+          if (typeof instance !== "string" || (changeVoice && status.tts_voice_choice !== requested) ||
+              (audioInstance && instance !== audioInstance) || (runtimeInstance && instance !== runtimeInstance))
             throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst hat die Änderung nicht bestätigt." });
           const result = ctx.runtime.settings.patch(patch, originalVersion);
           if (patch.approvals && ctx.runtime.world) ctx.runtime.world.state.settings.approvals = structuredClone(result.settings.approvals);
           if (result.changed.includes("developer")) ctx.runtime.logger.setLevel?.(result.settings.developer.logLevel);
           if (changeVoice) recordVoiceAck(ctx.runtime, result.settings.version, requested as VoicePersona, instance);
           if (changeAudio) recordAudioAck(ctx.runtime, result.settings.version, input, output, instance);
+          if (changeRuntime) recordVoiceSettingsAck(ctx.runtime, result.settings.version, requestedRuntime!, instance);
           ctx.audit.action = "settings.voice_changed";
           ctx.audit.after = { ...(changeVoice ? { voice: requested } : {}), ...(changeAudio ? { audioDeviceChanged: true } : {}), version: result.settings.version };
           return { status: 200, body: single(result.settings) };
         } catch (error) {
           const recoveryErrors: unknown[] = [];
-          if (changeAudio) {
-            try { await applyVoiceAudio(ctx.runtime, previousVoice.inputDeviceId, previousVoice.outputDeviceId); }
+          if (runtimeAttempted && runtimeBefore && !runtimeDefinitivelyRejected) {
+            try { await applyVoiceSettings(ctx.runtime, runtimeBefore.settings); }
             catch (recovery) { recoveryErrors.push(recovery); }
           }
-          if (changeVoice) {
+          if (audioAttempted) {
+            try { await applyVoiceAudio(ctx.runtime,
+              typeof voiceBefore?.input_device_id === "string" || voiceBefore?.input_device_id === null ? voiceBefore.input_device_id : previousVoice.inputDeviceId,
+              typeof voiceBefore?.output_device_id === "string" || voiceBefore?.output_device_id === null ? voiceBefore.output_device_id : previousVoice.outputDeviceId); }
+            catch (recovery) { recoveryErrors.push(recovery); }
+          }
+          if (voiceAttempted) {
             try {
-              if (!VOICE_PERSONAS.includes(previous as VoicePersona)) throw new Error("Vorherige Stimme unbekannt", { cause: error });
-              await applyVoicePersona(ctx.runtime, previous as VoicePersona);
+              const actual = typeof voiceBefore?.tts_voice_choice === "string" ? voiceBefore.tts_voice_choice : previous;
+              if (!VOICE_PERSONAS.includes(actual as VoicePersona)) throw new Error("Vorherige Stimme unbekannt", { cause: error });
+              await applyVoicePersona(ctx.runtime, actual as VoicePersona);
             } catch (recovery) { recoveryErrors.push(recovery); }
           }
           if (recoveryErrors.length)
@@ -430,7 +470,51 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
   },
 
   async importSettings(ctx) {
-    const { settings, repairs } = ctx.runtime.settings.import(ctx.body as SettingsExport);
+    const document = ctx.body as SettingsExport;
+    const importedVoice = document.settings.voice;
+    const beforeVoice = ctx.runtime.settings.area("voice");
+    const voiceChanged = importedVoice && Object.keys(importedVoice).some((key) =>
+      importedVoice[key as keyof typeof importedVoice] !== beforeVoice[key as keyof typeof beforeVoice]);
+    let restoreVoice = beforeVoice;
+    let effectiveDocument = document;
+    if (voiceChanged) {
+      const raw = await voiceRuntimeStatus(ctx.runtime);
+      const live = await readRuntimeVoiceSettings(ctx.runtime);
+      restoreVoice = { ...beforeVoice, ...live.settings,
+        ttsVoice: typeof raw.tts_voice_choice === "string" ? raw.tts_voice_choice : beforeVoice.ttsVoice,
+        inputDeviceId: typeof raw.input_device_id === "string" || raw.input_device_id === null ? raw.input_device_id : beforeVoice.inputDeviceId,
+        outputDeviceId: typeof raw.output_device_id === "string" || raw.output_device_id === null ? raw.output_device_id : beforeVoice.outputDeviceId };
+      const applied = await settingsHandlers.updateSettings!({ ...ctx, body: { voice: importedVoice },
+        mutation: { ...ctx.mutation, ifMatchVersion: ctx.runtime.settings.version() } });
+      // The voice bridge may preserve a legacy value that the export did not actually change.
+      // Import the acknowledged values, otherwise the second write would undo that reconciliation.
+      const appliedVoice = (applied.body as { data: { voice: typeof beforeVoice } }).data.voice;
+      effectiveDocument = { ...document, settings: { ...document.settings, voice: appliedVoice } };
+    }
+    let result: ReturnType<SettingsService["import"]>;
+    try { result = ctx.runtime.settings.import(effectiveDocument); }
+    catch (error) {
+      if (voiceChanged) {
+        try { await settingsHandlers.updateSettings!({ ...ctx, body: { voice: restoreVoice },
+          mutation: { ...ctx.mutation, ifMatchVersion: ctx.runtime.settings.version() } }); }
+        catch (recovery) {
+          throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Import und Rückkehr zur vorherigen Spracheinstellung konnten nicht bestätigt werden.",
+            cause: new AggregateError([error, recovery], "Import rollback incomplete") });
+        }
+      }
+      throw error;
+    }
+    const { settings, repairs } = result;
+    if (voiceChanged) {
+      const raw = await voiceRuntimeStatus(ctx.runtime);
+      const instance = raw.service_started_at;
+      if (typeof instance !== "string") throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Importiert, aber Sprachdienst-Readback fehlt." });
+      recordVoiceSettingsAck(ctx.runtime, settings.version, runtimeVoiceSettings(settings.voice), instance);
+      if (typeof raw.tts_voice_choice === "string" && raw.tts_voice_choice === settings.voice.ttsVoice)
+        recordVoiceAck(ctx.runtime, settings.version, settings.voice.ttsVoice, instance);
+      if (raw.input_device_id === settings.voice.inputDeviceId && raw.output_device_id === settings.voice.outputDeviceId)
+        recordAudioAck(ctx.runtime, settings.version, settings.voice.inputDeviceId, settings.voice.outputDeviceId, instance);
+    }
     ctx.audit.action = "settings.imported";
     ctx.audit.severity = "warning";
     ctx.audit.after = { version: settings.version, repairs };

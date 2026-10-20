@@ -133,7 +133,7 @@ export class BrowserVoiceGateway {
       } else {
         let command: unknown;
         try { command = JSON.parse(data.toString()); } catch { return stop(); }
-        if (!command || typeof command !== "object" || Object.keys(command).length !== 1 || !["stop", "pause", "resume"].includes(String((command as { type?: unknown }).type))) return stop();
+        if (!command || typeof command !== "object" || Object.keys(command).length !== 1 || !["stop", "pause", "resume", "start", "release"].includes(String((command as { type?: unknown }).type))) return stop();
         voice.send(JSON.stringify(command));
       }
     });

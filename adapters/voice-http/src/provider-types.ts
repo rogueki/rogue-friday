@@ -66,4 +66,9 @@ export interface RawVoiceStatus {
   tts_voice_choice?: string | null;
   input_device_id?: string | null;
   output_device_id?: string | null;
+  runtime_settings?: {
+    wakeWordEnabled: boolean; wakeWord: string; pushToTalkKey: string; speakerVerificationRequired: boolean;
+    storeRawRecordings: boolean; voiceHistoryEnabled: boolean; ttsRate: number;
+  };
+  ptt_active?: boolean;
 }

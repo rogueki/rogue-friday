@@ -13,6 +13,7 @@ import { createContext, useContext, useEffect, useMemo, type ReactNode } from "r
 import { useSettings, useThemes } from "./api/domains/settings";
 import { useMeta } from "./api/domains/core";
 import { I18nProvider, resolveAssistantName, translate, type Locale } from "@/i18n";
+import { installPushToTalkShortcut } from "@/features/voice/pushToTalkShortcut";
 
 export interface AppSettingsValue {
   settings: Settings | undefined;
@@ -68,6 +69,9 @@ export function AppSettingsProvider({ enabled, children }: { enabled: boolean; c
   const meta = useMeta();
   const settings = settingsQuery.data?.data;
   const themes = themesQuery.data?.items;
+  useEffect(() => enabled && settings?.voice.pushToTalkKey
+    ? installPushToTalkShortcut(settings.voice.pushToTalkKey) : undefined,
+  [enabled, settings?.voice.pushToTalkKey]);
 
   useEffect(() => {
     if (!settings) return;

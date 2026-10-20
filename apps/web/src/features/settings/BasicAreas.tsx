@@ -264,8 +264,19 @@ export function VoiceArea() {
             {` Eingabegerät: ${integration.data.data.settings.inputDeviceId?.verification === "verified" ? "aktiv bestätigt" : "nicht bestätigt"}. Ausgabegerät: ${integration.data.data.settings.outputDeviceId?.verification === "verified" ? "aktiv bestätigt" : "nicht bestätigt"}.`}
           </p>
         ) : null}
+        {integration.data ? <ul aria-label="Sprachdienst-Einstellungen">
+          {([
+            ["wakeWordEnabled", t("settings.voice.wakeEnabled")], ["wakeWord", t("settings.voice.wakeWord")],
+            ["pushToTalkKey", t("settings.voice.ptt")], ["speakerVerificationRequired", t("settings.voice.speaker")],
+            ["storeRawRecordings", t("settings.voice.raw")], ["voiceHistoryEnabled", t("settings.voice.history")],
+            ["ttsRate", t("settings.voice.ttsRate")],
+          ] as const).map(([field, label]) => <li key={field}>{label}: {
+            integration.data.data.settings[field]?.verification === "verified" ? "Laufzeit bestätigt" : "Wirkung nicht bestätigt"
+          }</li>)}
+        </ul> : null}
       </Section>
       <Section title={t("settings.voice.activation")}>
+        <p>Ein anderes Aktivierungswort benötigt zuerst ein passend trainiertes Wake-Modell. Die Sprecherprüfung kann derzeit für Besitzerbefehle nicht abgeschaltet werden. Die Push-to-Talk-Taste steuert aktuell Browser-Audio; beim Gerätemikrofon wird eine geänderte Taste abgelehnt.</p>
         <FieldGrid>
           <Switch label={t("settings.voice.wakeEnabled")} description={t("settings.voice.wakeEnabledDesc")} checked={value.wakeWordEnabled} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(wakeWordEnabled) => update({ wakeWordEnabled })} />
           <TextField label={t("settings.voice.wakeWord")} hint={t("settings.voice.wakeWordHint")} value={value.wakeWord} disabled={readOnly || !value.wakeWordEnabled} onChange={(event) => update({ wakeWord: event.target.value })} />

@@ -396,6 +396,8 @@ def make_service(jv, texts, engine="personal", phrase="Hey Friday"):
     svc.last_wake, svc.stage1_block_until, svc.trusted_until = 0.0, 0.0, 0.0
     svc.background_jobs, svc.background_reply_ready = set(), threading.Event()
     svc.manual_start, svc.manual_start_lock = threading.Event(), threading.Lock()
+    svc.manual_release = threading.Event()
+    svc.ptt_active = False
     svc.control_cancel, svc.control_paused, svc.control_generation = threading.Event(), False, 0
     svc.whisper, svc.oww, svc.wake_name, svc.wake_threshold = FakeWhisper(texts), FakeDetector(), "personal", 2.0
     svc.tts = types.SimpleNamespace(speaking=threading.Event(), interrupted=0)
@@ -505,6 +507,58 @@ def test_voice_control_stop_pause_resume_are_authenticated_and_change_state():
         assert post("start", "a" * 44) == 202
         assert svc.manual_start.is_set()
         assert not svc._say_if_current("stale response", paused_generation)
+
+
+def test_voice_settings_http_applies_only_confirmed_private_configuration():
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.input_level = types.SimpleNamespace(value=lambda: 0)
+    svc.tts.level = types.SimpleNamespace(value=lambda: 0)
+    svc.cfg["wake_phrase"] = svc.phrase
+    svc.processing = None
+    svc.audio_transport = "browser"
+    svc.service_started_at = "fixture-process"
+    svc.memory_outbox = None
+    svc.history = jv.runtime_settings.PrivacyHistory(lambda: svc.cfg.get("voice_history_enabled", True))
+    svc.tts.tts_config = svc.cfg
+    with tempfile.TemporaryDirectory() as root:
+        key_dir = os.path.join(root, "dashboard", "data", "voice-bridge")
+        os.makedirs(key_dir)
+        with open(os.path.join(key_dir, "auth.key"), "w", encoding="ascii") as key_file:
+            key_file.write("a" * 44)
+        jv.INSTALL_ROOT = root
+        svc.config_path = os.path.join(root, "config", "voice.json")
+        os.makedirs(os.path.dirname(svc.config_path))
+        with open(svc.config_path, "w", encoding="utf-8") as config_file:
+            json.dump(svc.cfg, config_file)
+        svc.config_disk_hash = jv.runtime_settings.file_hash(svc.config_path)
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            svc.cfg["health_port"] = sock.getsockname()[1]
+        svc._start_health()
+        url = f"http://127.0.0.1:{svc.cfg['health_port']}/control/settings"
+        current = jv.runtime_settings.effective(svc.cfg)
+
+        def post(payload, authenticated=True):
+            request = urllib.request.Request(url, data=json.dumps(payload).encode(), method="POST",
+                                             headers={"Authorization": "Bearer " + "a" * 44} if authenticated else {})
+            try:
+                with urllib.request.urlopen(request, timeout=2) as response:
+                    return response.status, json.load(response)
+            except urllib.error.HTTPError as error:
+                return error.code, None
+
+        assert post({**current, "voiceHistoryEnabled": False}, False)[0] == 401
+        assert post({**current, "speakerVerificationRequired": False})[0] == 422
+        assert svc.cfg.get("voice_history_enabled", True) is True
+        status, body = post({**current, "voiceHistoryEnabled": False})
+        assert status == 200 and body["applied"] and body["serviceStartedAt"] == "fixture-process"
+        assert body["settings"]["voiceHistoryEnabled"] is False
+        assert svc.cfg["voice_history_enabled"] is False
+        assert svc.tts.tts_config is svc.cfg
+        assert json.load(open(svc.config_path, encoding="utf-8"))["voice_history_enabled"] is False
+        svc.history += [{"command": "private"}]
+        assert not svc.history
 
 
 def test_pending_hermes_answer_is_suppressed_after_stop():

@@ -43,6 +43,9 @@ export const durableMemoryHandlers: Partial<Record<OperationId, Handler>> = {
           event.eventType !== "user_utterance" && (event.actor.type !== "assistant" || event.actor.id !== "friday")) {
         throw forbidden("Voice-Gedächtnisereignis ist nicht an den lokalen Besitzer gebunden.");
       }
+      if (!ctx.runtime.settings.area("voice").voiceHistoryEnabled) {
+        return { status: 200, body: single({ eventId: event.eventId, accepted: false, pending: false }) };
+      }
       const owner = stableUserId("owner");
       event = { ...event, identityId: owner, actor: event.actor.type === "user" ? { ...event.actor, id: owner } : event.actor };
     } else if (!ctx.principal || event.identityId !== ctx.principal.userId ||
