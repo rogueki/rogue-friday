@@ -7,12 +7,14 @@ import { useCallback, useRef } from "react";
 import { create } from "zustand";
 import { useT } from "@/i18n";
 import { useExecuteCommand } from "@/lib/api/domains/commands";
+import { commandContextForRoute } from "./commandContext";
 
 export type CommandInput = Pick<CommandRequest, "text" | "source">;
 
 interface PendingCommand {
   input: CommandInput;
   response: CommandResponse;
+  context: NonNullable<CommandRequest["context"]>;
 }
 
 interface PendingStore {
@@ -66,9 +68,10 @@ export function useRunCommand(): (input: CommandInput) => Promise<CommandRespons
   return useCallback(
     async (input) => {
       try {
-        const response = await execute.mutateAsync({ ...input, context: { route: pathname } });
+        const context = commandContextForRoute(pathname);
+        const response = await execute.mutateAsync({ ...input, context });
         if (response.status === "requires_confirmation" || response.requiresConfirmation) {
-          setPending({ input, response });
+          setPending({ input, response, context });
         } else {
           report(response);
         }
@@ -103,7 +106,7 @@ export function CommandConfirmHost() {
     try {
       const response = await execute.mutateAsync({
         ...pending.input,
-        context: { route: pathname },
+        context: commandContextForRoute(pathname),
         confirm: true,
         previewId: pending.response.previewId,
       });
@@ -131,6 +134,7 @@ export function CommandConfirmHost() {
       try {
         const discarded = await execute.mutateAsync({
           ...pending.input,
+          context: pending.context,
           previewId: pending.response.previewId,
           confirm: false,
         });

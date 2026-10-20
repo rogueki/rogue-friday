@@ -273,6 +273,11 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     expect(confirmed.statusCode, confirmed.body).toBe(200);
     expect(confirmed.json()).toMatchObject({ status: "executed", result: { message: expect.stringContaining("gespeichert") } });
     expect(api.runtime.contentStudioPlan.get().plan?.content.find((entry) => entry.id === item.id)?.status).toBe("fertig");
+
+    const cancellable = await command(owner, text, { context });
+    const cancelled = await command(owner, text, { context, confirm: false, previewId: cancellable.json().previewId as string });
+    expect(cancelled.statusCode, cancelled.body).toBe(200);
+    expect(cancelled.json()).toMatchObject({ status: "rejected", result: { message: "Entwurf verworfen." } });
   });
 
   it("renames an idea and changes its description through the captured plan revision", async () => {
