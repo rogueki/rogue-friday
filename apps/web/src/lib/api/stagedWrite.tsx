@@ -17,6 +17,8 @@ import { queryKeys } from "@/lib/api/queryKeys";
  */
 export interface StagedWrite {
   send: (previewId?: string) => Promise<unknown>;
+  /** Invalidates a saved server draft before the preview is dismissed. */
+  discard?: (previewId: string) => Promise<unknown>;
   /** Already-translated toast text for a successful execution. */
   successMessage: string;
   /** Subject for toasts and as fallback preview text. */
@@ -150,10 +152,28 @@ export function StagedWriteConfirmHost() {
     }
   };
 
+  const dismiss = async (): Promise<void> => {
+    if (!pending || busy) return;
+    if (!pending.write.discard) {
+      setPending(null);
+      return;
+    }
+    setBusy(true);
+    try {
+      await pending.write.discard(pending.previewId);
+      if (useStagedWriteStore.getState().pending === pending) setPending(null);
+    } catch (error) {
+      toast({ title: t("command.failed"), duration: 9000, tone: "red",
+        description: isFridayApiError(error) ? `${error.message} (${error.correlationId})` : String(error) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <ConfirmDialog
       open={pending !== null}
-      onOpenChange={(open) => !open && setPending(null)}
+      onOpenChange={(open) => !open && void dismiss()}
       title={t("command.confirmTitle")}
       description={pending?.previewText ?? ""}
       confirmLabel={t("command.confirm")}

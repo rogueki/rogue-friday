@@ -86,6 +86,19 @@ export const taskActionHandlers: Partial<Record<OperationId, Handler>> = {
       unavailable: "Aufgaben koennen derzeit nicht angelegt werden.",
       action: { kind: "task.create", body }, actionText: `Aufgabe anlegen: ${body.title}`,
       previewTitle: "Neue Aufgabe", previewText: `Aufgabe ${body.title} anlegen?` };
+    const confirmedPreviewId = ctx.headers["x-action-preview-id"];
+    const cancelPreview = ctx.headers["x-action-preview-cancel"];
+    if (confirmedPreviewId !== undefined && !PREVIEW_ID.test(confirmedPreviewId)) {
+      throw validationFailed("Die Vorschaukennung ist ungueltig.", [{ path: "X-Action-Preview-Id", message: "ungueltig" }]);
+    }
+    if (cancelPreview !== undefined && (cancelPreview !== "true" || !confirmedPreviewId)) {
+      throw validationFailed("Eine Vorschaukennung ist zum Verwerfen erforderlich.",
+        [{ path: "X-Action-Preview-Cancel", message: "erfordert X-Action-Preview-Id und den Wert true" }]);
+    }
+    if (cancelPreview === "true") {
+      ctx.runtime.nativeApprovals.cancelDraft(ownerId, confirmedPreviewId!, write.action);
+      return { status: 204 };
+    }
     checkCapability(ctx, write);
     const previewId = enforceTaskWrite(ctx, ownerId, write);
     return taskResponse(ctx, await executeTaskWrite(ctx, ownerId, previewId), 201);

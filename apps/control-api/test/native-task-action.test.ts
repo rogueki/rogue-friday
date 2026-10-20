@@ -159,6 +159,42 @@ it("direct task POST needs an exact preview even when tier-2 approval is disable
   } finally { await api.close(); }
 });
 
+it("discards a direct task-create preview only for its owner and never revives it", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const body = { title: "Direkt verworfener Entwurf", priority: "P2" };
+    const staged = await owner.post("/api/v1/tasks", body);
+    expect(staged.statusCode).toBe(403);
+    const previewId = staged.json().error.details.previewId as string;
+    const cancelHeaders = { "x-action-preview-id": previewId, "x-action-preview-cancel": "true" };
+
+    const otherUser = api.client();
+    await otherUser.loginDev("operator");
+    expect((await otherUser.post("/api/v1/tasks", body, { headers: cancelHeaders })).statusCode).toBe(409);
+    expect((await owner.post("/api/v1/tasks", { ...body, priority: "P1" }, { headers: cancelHeaders })).statusCode).toBe(409);
+    expect((await owner.post("/api/v1/tasks", body, { headers: cancelHeaders })).statusCode).toBe(204);
+    expect((await owner.post("/api/v1/tasks", body, { headers: cancelHeaders })).statusCode).toBe(409);
+    expect((await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId } })).statusCode).toBe(409);
+    expect((await owner.get("/api/v1/tasks", { query: { q: body.title } })).json().items).toHaveLength(0);
+  } finally { await api.close(); }
+});
+
+it("rejects malformed direct task-preview cancellation headers without consuming the draft", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const body = { title: "Draft nach Headerfehler" };
+    const staged = await owner.post("/api/v1/tasks", body);
+    const previewId = staged.json().error.details.previewId as string;
+    expect((await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-cancel": "true" } })).statusCode).toBe(422);
+    expect((await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId, "x-action-preview-cancel": "false" } })).statusCode).toBe(422);
+    expect((await owner.post("/api/v1/tasks", body, { headers: { "x-action-preview-id": previewId, "x-action-preview-cancel": "true" } })).statusCode).toBe(204);
+  } finally { await api.close(); }
+});
+
 it("uses one intent key across preview and approval without caching the preview error", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {

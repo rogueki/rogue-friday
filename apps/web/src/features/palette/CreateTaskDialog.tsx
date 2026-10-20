@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { useT, type MessageKey } from "@/i18n";
 import { useCapability } from "@/lib/capabilities";
-import { useRunCommand } from "./commandRunner";
+import { useRunTaskWrite } from "@/features/tasks/taskWriteRunner";
 
 interface CreateTaskStore {
   open: boolean;
@@ -23,7 +23,7 @@ export function CreateTaskDialog() {
   const open = useCreateTaskDialog((s) => s.open);
   const setOpen = useCreateTaskDialog((s) => s.setOpen);
   const canCreate = useCapability("tasks", "create");
-  const runCommand = useRunCommand();
+  const runTaskWrite = useRunTaskWrite();
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<Priority>("P2");
   const [busy, setBusy] = useState(false);
@@ -41,7 +41,9 @@ export function CreateTaskDialog() {
     if (!trimmed || !canCreate || busy) return;
     setBusy(true);
     try {
-      if (await runCommand({ text: `Neue Aufgabe (${priority}): ${trimmed}`, source: "palette" })) setOpen(false);
+      const outcome = await runTaskWrite({ kind: "create", body: { title: trimmed, priority },
+        successMessage: t("task.created"), taskTitle: trimmed });
+      if (outcome !== "failed") setOpen(false);
     } finally { setBusy(false); }
   };
 

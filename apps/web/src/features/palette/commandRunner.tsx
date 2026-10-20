@@ -3,7 +3,7 @@
 import { isFridayApiError, type CommandRequest, type CommandResponse } from "@friday/sdk";
 import { ConfirmDialog, useToast } from "@friday/ui";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { create } from "zustand";
 import { useT } from "@/i18n";
 import { useExecuteCommand } from "@/lib/api/domains/commands";
@@ -96,6 +96,7 @@ export function CommandConfirmHost() {
   const pending = usePendingStore((s) => s.pending);
   const setPending = usePendingStore((s) => s.setPending);
   const execute = useExecuteCommand();
+  const dismissing = useRef(false);
 
   const confirm = async (): Promise<void> => {
     if (!pending) return;
@@ -123,12 +124,25 @@ export function CommandConfirmHost() {
   };
 
   const details = pending?.response.riskTier ? [t("command.riskTier", { tier: pending.response.riskTier })] : undefined;
-  const dismiss = (): void => {
-    if (pending?.response.previewId?.startsWith("corr_")) {
-      void execute.mutateAsync({ ...pending.input, previewId: pending.response.previewId, confirm: false }).catch(() =>
-        toast({ title: t("command.failed"), description: "Der Entwurf konnte nicht verworfen werden.", tone: "red", duration: 9000 }));
+  const dismiss = async (): Promise<void> => {
+    if (!pending || dismissing.current) return;
+    if (pending.response.previewId?.startsWith("corr_")) {
+      dismissing.current = true;
+      try {
+        const discarded = await execute.mutateAsync({
+          ...pending.input,
+          previewId: pending.response.previewId,
+          confirm: false,
+        });
+        if (discarded.status !== "rejected") throw new Error("Der Server hat den Entwurf nicht verworfen.");
+      } catch {
+        dismissing.current = false;
+        toast({ title: t("command.failed"), description: "Der Entwurf konnte nicht verworfen werden.", tone: "red", duration: 9000 });
+        return;
+      }
     }
-    setPending(null);
+    if (usePendingStore.getState().pending === pending) setPending(null);
+    dismissing.current = false;
   };
   return (
     <ConfirmDialog

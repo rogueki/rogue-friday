@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useCreateTaskDialog } from "@/features/palette/CreateTaskDialog";
+import { CreateTaskDialog, useCreateTaskDialog } from "@/features/palette/CreateTaskDialog";
 import { setApiClient } from "@/lib/api/client";
 import { capabilitiesOf, renderWithProviders } from "@/test/render";
 import { decisionKind, isOverdue, progressPercent, showsIndeterminate } from "./model";
@@ -381,6 +381,84 @@ describe("task actions: retry, artifacts, create", () => {
     await waitFor(() => expect(useCreateTaskDialog.getState().open).toBe(true));
     expect(nav.replace).toHaveBeenCalledWith("/tasks");
     useCreateTaskDialog.setState({ open: false });
+  });
+
+  it("discards a staged direct task-create preview through the task API before closing", async () => {
+    const user = userEvent.setup();
+    const previewId = "corr_00000000000000000000000031";
+    let releaseCancel = (): void => {};
+    const cancellationGate = new Promise<void>((resolve) => { releaseCancel = resolve; });
+    const api = routerFetch({
+      "POST /tasks": (request: Request, body: unknown) => {
+        if (request.headers.get("x-action-preview-cancel") === "true") {
+          return cancellationGate.then(() => ({ status: 204 }));
+        }
+        if (request.headers.get("x-action-preview-id") === previewId) return dataOf(makeTaskWith({ title: (body as { title: string }).title }));
+        return previewRequired("Direkter Task-Entwurf", previewId);
+      },
+    });
+    useCreateTaskDialog.setState({ open: true });
+    renderWithProviders(<><CreateTaskDialog /><TaskWriteConfirmHost /></>, { capabilities: FULL, fetchImpl: api.fetch });
+
+    await user.type(screen.getByRole("textbox", { name: "Titel der Aufgabe" }), "API Task verwerfen");
+    await user.click(screen.getByRole("button", { name: "Aufgabe anlegen" }));
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(api.callsTo("POST /tasks")).toHaveLength(1);
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Abbrechen" }));
+    await waitFor(() => expect(api.callsTo("POST /tasks")).toHaveLength(2));
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(api.callsTo("POST /tasks")[1]?.body).toEqual({ title: "API Task verwerfen", priority: "P2" });
+    expect(api.callsTo("POST /tasks")[1]?.headers.get("x-action-preview-id")).toBe(previewId);
+    expect(api.callsTo("POST /tasks")[1]?.headers.get("x-action-preview-cancel")).toBe("true");
+    releaseCancel();
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(api.callsTo("POST /tasks")).toHaveLength(2);
+  });
+
+  it("confirms a direct task-create preview with the unchanged request body", async () => {
+    const user = userEvent.setup();
+    const previewId = "corr_00000000000000000000000033";
+    const api = routerFetch({
+      "POST /tasks": (request: Request, body: unknown) => request.headers.get("x-action-preview-id") === previewId
+        ? dataOf(makeTaskWith({ title: (body as { title: string }).title }))
+        : previewRequired("Direkter Task-Entwurf", previewId),
+    });
+    useCreateTaskDialog.setState({ open: true });
+    renderWithProviders(<><CreateTaskDialog /><TaskWriteConfirmHost /></>, { capabilities: FULL, fetchImpl: api.fetch });
+
+    await user.type(screen.getByRole("textbox", { name: "Titel der Aufgabe" }), "API Task bestätigen");
+    await user.click(screen.getByRole("button", { name: "Aufgabe anlegen" }));
+    const confirm = await screen.findByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(api.callsTo("POST /tasks")).toHaveLength(2));
+    expect(api.callsTo("POST /tasks")[1]?.body).toEqual({ title: "API Task bestätigen", priority: "P2" });
+    expect(api.callsTo("POST /tasks")[1]?.headers.get("x-action-preview-id")).toBe(previewId);
+    expect(api.callsTo("POST /tasks")[1]?.headers.get("x-action-preview-cancel")).toBeNull();
+    expect(await screen.findByText("Aufgabe angelegt")).toBeInTheDocument();
+  });
+
+  it("keeps the direct task-create preview open when backend discard fails", async () => {
+    const user = userEvent.setup();
+    const previewId = "corr_00000000000000000000000032";
+    const api = routerFetch({
+      "POST /tasks": (request: Request, body: unknown) => {
+        if (request.headers.get("x-action-preview-cancel") === "true") {
+          return { status: 409, body: { error: { code: "CONFLICT", message: "Draft nicht mehr offen.", severity: "warning", retryable: false,
+            correlationId: previewId, details: {} } } };
+        }
+        if (request.headers.get("x-action-preview-id") === previewId) return dataOf(makeTaskWith({ title: (body as { title: string }).title }));
+        return previewRequired("Direkter Task-Entwurf", previewId);
+      },
+    });
+    useCreateTaskDialog.setState({ open: true });
+    renderWithProviders(<><CreateTaskDialog /><TaskWriteConfirmHost /></>, { capabilities: FULL, fetchImpl: api.fetch });
+
+    await user.type(screen.getByRole("textbox", { name: "Titel der Aufgabe" }), "API Task bleibt sichtbar");
+    await user.click(screen.getByRole("button", { name: "Aufgabe anlegen" }));
+    const confirm = await screen.findByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: "Abbrechen" }));
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(api.callsTo("POST /tasks")).toHaveLength(2);
   });
 });
 

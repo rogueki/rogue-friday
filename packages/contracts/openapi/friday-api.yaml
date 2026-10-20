@@ -668,6 +668,13 @@ paths:
           schema:
             type: string
             pattern: '^corr_[0-9A-Za-z]{26}$'
+        - name: X-Action-Preview-Cancel
+          in: header
+          required: false
+          description: Set to true with X-Action-Preview-Id and the unchanged body to discard that draft without creating a task.
+          schema:
+            type: string
+            enum: ['true']
       requestBody:
         required: true
         content:
@@ -675,6 +682,8 @@ paths:
             schema:
               $ref: "#/components/schemas/TaskCreateRequest"
       responses:
+        "204":
+          description: Saved preview discarded; no task was created.
         "201":
           description: Created
           headers:
