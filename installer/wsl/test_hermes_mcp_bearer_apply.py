@@ -28,13 +28,20 @@ class McpBearerApplyTest(unittest.TestCase):
             self.env[mcp._env_key_for_server(name)] = token
             return mcp._bearer_auth_headers(name)
         mcp._save_bearer_auth_token = save
+        mcp._strip_bearer_prefix = lambda token: token
+        self.mcp = mcp
         security = types.ModuleType("hermes_cli.mcp_security")
         security.validate_mcp_server_entry = lambda name, entry: []
+        bridge = types.ModuleType("hermes_config_bridge")
+        bridge.revision = lambda path: 123
+        self.bridge = bridge
         self.modules = {"hermes_cli": types.ModuleType("hermes_cli"), "hermes_cli.config": config,
-                        "hermes_cli.mcp_config": mcp, "hermes_cli.mcp_security": security}
+                        "hermes_cli.mcp_config": mcp, "hermes_cli.mcp_security": security,
+                        "hermes_config_bridge": bridge}
 
     def invoke(self, request):
-        request = {"expectedUrl": "https://example.org/mcp", **request}
+        request = {"expectedUrl": "https://example.org/mcp", "expectedRevision": 123,
+                   "configPath": "/synthetic/config.yaml", **request}
         module = importlib.util.module_from_spec(spec)
         output = io.StringIO()
         with patch.dict(sys.modules, self.modules), patch.object(sys, "stdin", io.StringIO(json.dumps(request))), \
@@ -65,6 +72,38 @@ class McpBearerApplyTest(unittest.TestCase):
         self.entries["example"]["headers"] = {"Authorization": "Bearer CANARY-FOREIGN"}
         with self.assertRaisesRegex(ValueError, "managed_entry_conflict"):
             self.invoke({"name": "example", "token": None})
+
+    def test_partial_writes_leave_no_new_secret_at_a_changed_endpoint(self):
+        self.mcp._save_mcp_server = lambda name, entry: False
+        with self.assertRaisesRegex(ValueError, "config_rejected"):
+            self.invoke({"name": "example", "token": "CANARY-NEW"})
+        self.assertNotIn("MCP_EXAMPLE_API_KEY", self.env)
+        self.assertNotIn("headers", self.entries["example"])
+
+        self.mcp._save_mcp_server = lambda name, entry: self.entries.__setitem__(name, entry) or True
+        self.invoke({"name": "example", "token": "CANARY-OLD"})
+        self.mcp._save_mcp_server = lambda name, entry: False
+        with self.assertRaisesRegex(ValueError, "config_rejected"):
+            self.invoke({"name": "example", "token": None})
+        self.assertNotIn("MCP_EXAMPLE_API_KEY", self.env)
+        self.assertIn("headers", self.entries["example"])
+
+    def test_rejects_stale_revision_and_revokes_own_token_after_foreign_config_change(self):
+        self.bridge.revision = lambda path: 999
+        with self.assertRaisesRegex(ValueError, "revision_conflict"):
+            self.invoke({"name": "example", "token": "CANARY-NEW"})
+        self.assertNotIn("MCP_EXAMPLE_API_KEY", self.env)
+        self.bridge.revision = lambda path: 123
+        def concurrent_save(name, token):
+            self.env["MCP_EXAMPLE_API_KEY"] = token
+            self.entries[name] = {"url": "https://different.example.org/mcp", "enabled": True,
+                                  "headers": {"Authorization": "Bearer ${MCP_EXAMPLE_API_KEY}"}}
+            return {"Authorization": "Bearer ${MCP_EXAMPLE_API_KEY}"}
+        self.mcp._save_bearer_auth_token = concurrent_save
+        with self.assertRaisesRegex(ValueError, "concurrent_config_change"):
+            self.invoke({"name": "example", "token": "CANARY-NEW"})
+        self.assertNotIn("MCP_EXAMPLE_API_KEY", self.env)
+        self.assertEqual(self.entries["example"]["url"], "https://different.example.org/mcp")
 
 
 if __name__ == "__main__":

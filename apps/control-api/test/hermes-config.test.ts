@@ -262,6 +262,13 @@ it("sends a write-only MCP Bearer credential through the bounded bridge", async 
     token: "CANARY" }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
 });
 
+it("treats an MCP credential timeout as an unknown result and requires status refresh", async () => {
+  const invoke = vi.fn(async () => { throw new Error("runner timed out"); }) as unknown as RunnerInvoker;
+  await expect(fixture(invoke).updateMcpBearer({ key: "mcp.bearerCredential",
+    name: "example", token: "CANARY-MCP-PRIVATE" }, 123))
+    .rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE", message: expect.stringContaining("Status neu laden") });
+});
+
 it("accepts a structured fallback chain and rejects unsafe model/provider identifiers", async () => {
   const chain = [{ provider: "openrouter", model: "example/model" }];
   const invoke = vi.fn(async () => ({ ...bridge, revision: 124,

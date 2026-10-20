@@ -429,7 +429,8 @@ def locked_main(home, source, cli):
                     helper = Path(__file__).with_name("hermes_mcp_bearer_apply.py")
                     command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
                     result = run_runtime_child(command, json.dumps({"name": request["name"],
-                        "token": request["token"], "expectedUrl": existing["url"]}), 30)
+                        "token": request["token"], "expectedUrl": existing["url"],
+                        "expectedRevision": before, "configPath": str(config_path)}), 30)
                     try:
                         accepted = json.loads(result.stdout).get("saved") is True
                     except (ValueError, TypeError):
