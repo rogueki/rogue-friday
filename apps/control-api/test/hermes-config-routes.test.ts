@@ -30,7 +30,8 @@ it("lists redacted native Hermes cron metadata for the owner", async () => {
 });
 
 it("stages owner-only Cron CAS mutations, rejects tampering, discards drafts and executes one approval", async () => {
-  const api = await startTestApi({ responseValidation: "throw" });
+  const logs: string[] = [];
+  const api = await startTestApi({ responseValidation: "throw", logs });
   try {
     const revision = "a".repeat(64);
     const body = { action: "create" as const, expectedStoreRevision: revision, profile: "default",
@@ -54,11 +55,19 @@ it("stages owner-only Cron CAS mutations, rejects tampering, discards drafts and
     const staged = await owner.post(cronPath, body);
     expect(staged.statusCode).toBe(403);
     const previewId = staged.json().error.details.previewId as string;
-    expect(staged.body).not.toContain(body.prompt);
+    expect(staged.json().error.details.previewText).toContain(body.prompt);
+    expect(staged.json().error.details.previewText).toContain(body.schedule);
+    expect(staged.json().error.details.previewText).toContain("pausiert anlegen");
     const headers = { "X-Action-Preview-Id": previewId };
     expect((await owner.post(cronPath, { ...body, schedule: "45m" }, { headers })).statusCode).toBe(409);
     expect((await owner.post(cronPath, body, { headers: { ...headers, "X-Action-Preview-Cancel": "true" } })).statusCode).toBe(204);
     expect((await owner.post(cronPath, body, { headers })).statusCode).toBe(409);
+    const runPreview = await owner.post(cronPath, { action: "run", expectedStoreRevision: revision,
+      profile: "default", profileTimezone: "UTC", jobId: "012345abcdef" });
+    expect(runPreview.json().error.details.previewText).toContain("Modellaufrufe");
+    const resumePreview = await owner.post(cronPath, { action: "resume", expectedStoreRevision: revision,
+      profile: "default", profileTimezone: "UTC", jobId: "012345abcdef" });
+    expect(resumePreview.json().error.details.previewText).toContain("während der Pause fällig");
     const stagedAgain = await owner.post(cronPath, body);
     const confirm = { "X-Action-Preview-Id": stagedAgain.json().error.details.previewId as string };
     const pending = await owner.post(cronPath, body, { headers: confirm });
@@ -66,13 +75,14 @@ it("stages owner-only Cron CAS mutations, rejects tampering, discards drafts and
     const approvalId = pending.json().error.details.approvalId as string;
     const opened = await owner.get(`/api/v1/approvals/${approvalId}`);
     expect(opened.statusCode).toBe(200);
-    expect(opened.body).not.toContain(body.prompt);
+    expect(opened.json().data.preview.body).toContain(body.prompt);
     const approved = await owner.post(`/api/v1/approvals/${approvalId}/approve`, {},
       { headers: { "x-approval-token": String(opened.headers["x-approval-token"]) } });
     expect(approved.statusCode, approved.body).toBe(200);
     expect(approved.json().data.status).toBe("executed");
     expect((await owner.post(cronPath, body, { headers: confirm })).statusCode).toBe(409);
     expect(mutate).toHaveBeenCalledTimes(1);
+    expect(logs.join("\n")).not.toContain(body.prompt);
   } finally {
     await api.close();
   }

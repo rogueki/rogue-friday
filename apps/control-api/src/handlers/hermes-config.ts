@@ -35,16 +35,26 @@ async function mutateCron(ctx: Parameters<Handler>[0]) {
         observed.profileTimezone !== body.profileTimezone)
       throw conflict("Hermes-Zeitplan hat sich geaendert; Status neu laden.");
     const label = body.action === "create" ? body.name : body.jobId;
+    const previewText = body.action === "create"
+      ? `Zeitplan „${body.name}“ pausiert anlegen? Zeit: ${body.schedule}. Auftrag: ${body.prompt}. Es startet noch kein Lauf.`
+      : body.action === "update"
+      ? `Zeitplan ${body.jobId} bearbeiten? Zeit: ${body.schedule}. Neuer vollständiger Auftrag: ${body.prompt}. Der nächste Lauf kann sich ändern.`
+      : body.action === "run"
+      ? `Zeitplan ${body.jobId} für die nächste Scheduler-Runde vormerken? Das kann einen Agentenlauf und Modellaufrufe auslösen; die Ausführung ist damit noch nicht bestätigt.`
+      : body.action === "resume"
+      ? `Zeitplan ${body.jobId} fortsetzen? Ein während der Pause fällig gewordener Lauf kann bei der nächsten Scheduler-Runde ausgeführt werden.`
+      : body.action === "remove"
+      ? `Zeitplan ${body.jobId} aus dem nativen Hermes-Store entfernen?`
+      : `Zeitplan ${body.jobId} pausieren?`;
+    const scopedPreview = `Profil ${body.profile}, Zeitzone ${body.profileTimezone ?? "Systemzeit"}. ${previewText}`;
     const requestKey = ctx.correlationId;
     ctx.runtime.nativeApprovals.propose({ ownerId, requestKey, correlationId: ctx.correlationId,
       riskTier: 2, type: "system_change", action: `Hermes-Zeitplan ${body.action}: ${label ?? ""}`,
       rationale: "Native Cron-Aktion aus bestaetigter API-Anfrage",
-      preview: { kind: "text", title: "Hermes-Zeitplan", body: JSON.stringify({ action: body.action,
-        target: label, schedule: body.schedule, profile: body.profile, timezone: body.profileTimezone }) },
+      preview: { kind: "text", title: "Hermes-Zeitplan", body: scopedPreview },
       impacts: [], execution: action });
     throw new ApiError({ code: "APPROVAL_REQUIRED", message: "Zeitplanaktion zuerst bestaetigen.",
-      details: { stage: "preview", previewId: requestKey,
-        previewText: `Hermes-Zeitplan ${String(label ?? "")} ${body.action}?` } });
+      details: { stage: "preview", previewId: requestKey, previewText: scopedPreview } });
   }
   const policy = ctx.runtime.nativeApprovals.confirm(ownerId, previewId, action);
   if (policy.approval) throw new ApiError({ code: "APPROVAL_REQUIRED", message: "Zeitplanaktion wartet auf Freigabe.",
