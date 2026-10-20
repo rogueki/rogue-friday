@@ -416,8 +416,16 @@ def locked_main(home, source, cli):
         if revision(config_path) != before:
             print(json.dumps({"error": "revision_conflict"}))
             return 4
+        # Native rule/detail may embed the submitted command or an operator's private glob.
+        # The preview only needs the decision, so never return either native string.
+        detail = {
+            "allow": "Die aktuellen Hermes-Regeln wuerden diesen Befehl zulassen.",
+            "ask-approval": "Die aktuellen Hermes-Regeln wuerden eine Freigabe anfordern.",
+            "hardline-deny": "Die feste Hermes-Sperrliste wuerde diesen Befehl blockieren.",
+            "user-deny": "Eine eigene Hermes-Sperrregel wuerde diesen Befehl blockieren.",
+        }[verdict["verdict"]]
         print(json.dumps({"revision": before, "backend": backend, "verdict": verdict["verdict"],
-                          "rule": verdict["rule"], "detail": verdict["detail"]}))
+                          "rule": None, "detail": detail}))
         return 0
     if sys.argv[1] in ("mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel"):
         if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":

@@ -127,8 +127,9 @@ class BridgeTest(unittest.TestCase):
             request = json.loads(_kwargs["input"])
             return subprocess.CompletedProcess(command, 0, json.dumps({
                 "command": request["command"], "env_type": request["backend"],
-                "verdict": "ask-approval", "exit_code": 2, "rule": "synthetic risky pattern",
-                "detail": "would request approval", "normalized_variants": [request["command"]],
+                "verdict": "ask-approval", "exit_code": 2, "rule": "private " + request["command"],
+                "detail": "would request approval for " + request["command"],
+                "normalized_variants": [request["command"]],
             }), "")
         if command[0] == "credential-worker":
             request = json.loads(_kwargs["input"])
@@ -685,6 +686,8 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(result["verdict"], "ask-approval")
         self.assertEqual(result["backend"], "local")
         self.assertNotIn("command", result)
+        self.assertNotIn("rm -rf build", json.dumps(result))
+        self.assertIsNone(result["rule"])
         self.assertEqual(self.config.read_bytes(), original)
         self.assertEqual(self.calls[-1][0], "approval-test-worker")
 

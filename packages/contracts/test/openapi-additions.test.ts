@@ -70,8 +70,8 @@ describe("observability operations (PLAN §50.3)", () => {
     expect(Object.keys(telemetry?.op.responses ?? {})).toEqual(expect.arrayContaining(["202", "401", "403", "413", "422", "429"]));
   });
 
-  it("the contract includes the 269 released operations", () => {
-    expect(operations).toHaveLength(269);
+  it("the contract includes the 270 released operations", () => {
+    expect(operations).toHaveLength(270);
   });
 
   it("binds STT inventory and explicit download control to the owner", () => {
@@ -89,7 +89,6 @@ describe("observability operations (PLAN §50.3)", () => {
           .toContain("#/components/parameters/CsrfToken");
       }
     }
-  });
 
   it("binds all five wake enrollment routes to owner-only staged operations", () => {
     const wake = [
@@ -116,6 +115,7 @@ describe("observability operations (PLAN §50.3)", () => {
     const get = operations.find(({ op }) => op.operationId === "getHermesConfig");
     const patch = operations.find(({ op }) => op.operationId === "patchHermesConfig");
     const catalog = operations.find(({ op }) => op.operationId === "getHermesModelCatalog");
+    const approvalTest = operations.find(({ op }) => op.operationId === "testHermesApproval");
     expect(get).toMatchObject({ path: "/api/v1/settings/hermes-config", method: "get" });
     expect(patch).toMatchObject({ path: "/api/v1/settings/hermes-config", method: "patch" });
     expect(get?.op["x-required-role"]).toBe("owner");
@@ -126,6 +126,11 @@ describe("observability operations (PLAN §50.3)", () => {
       "#/components/parameters/CsrfToken", "#/components/parameters/IfMatch",
     ]));
     expect(patch?.op.requestBody).toBeDefined();
+    expect(approvalTest).toMatchObject({ path: "/api/v1/settings/hermes-config/approval-test", method: "post" });
+    expect(approvalTest?.op["x-required-role"]).toBe("owner");
+    expect((approvalTest?.op.parameters ?? []).map((parameter) => parameter.$ref)).toEqual(expect.arrayContaining([
+      "#/components/parameters/CsrfToken", "#/components/parameters/IfMatch",
+    ]));
   });
 
   it("marks owner telephony actions with a call capability", () => {

@@ -273,6 +273,33 @@ it("restricts MCP network probe to owner, CSRF and a versioned configured name",
   }
 });
 
+it("routes native approval preview only for an owner with CSRF and revision without echoing a command", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const preview = vi.spyOn(api.runtime.hermesConfig, "testApproval").mockResolvedValue({
+      revision: 123, checkedAt: new Date().toISOString(), backend: "local",
+      verdict: "ask-approval", rule: null, detail: "Hermes would request approval.", runtimeApplied: null,
+    });
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const viewer = api.client();
+    await viewer.loginDev("viewer");
+    const route = "/api/v1/settings/hermes-config/approval-test";
+    const body = { command: "CANARY-PRIVATE-COMMAND" };
+    expect((await viewer.post(route, body, { headers: { "If-Match": "123" } })).statusCode).toBe(403);
+    expect((await owner.post(route, body, { headers: { "If-Match": "123" }, csrf: false })).statusCode).toBe(403);
+    expect((await owner.post(route, body)).statusCode).toBe(422);
+    expect((await owner.post(route, { command: "" }, { headers: { "If-Match": "123" } })).statusCode).toBe(422);
+    const checked = await owner.post(route, body, { headers: { "If-Match": "123" } });
+    expect(checked.statusCode, checked.body).toBe(200);
+    expect(checked.json().data).toMatchObject({ verdict: "ask-approval", revision: 123, runtimeApplied: null });
+    expect(checked.body).not.toContain(body.command);
+    expect(preview).toHaveBeenCalledWith(body.command, 123);
+  } finally {
+    await api.close();
+  }
+});
+
 it("restricts MCP OAuth start, poll and cancel to owner intent and keeps token material out of responses", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {
