@@ -599,9 +599,13 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(result["values"]["code_execution.mode"], "strict")
 
     def test_bounded_browser_kernel_and_capture_controls_read_back(self):
+        for invalid in (15, 29):
+            with self.subTest(invalid_browser_idle=invalid), self.assertRaisesRegex(ValueError, "unsupported_field"):
+                self.invoke({"key": "browser.inactivity_timeout", "value": invalid,
+                             "revision": bridge.revision(self.config)})
         for key, value in (("browser.dialog_policy", "auto_dismiss"),
                            ("browser.dialog_timeout_s", 45),
-                           ("browser.inactivity_timeout", 300),
+                           ("browser.inactivity_timeout", 30),
                            ("code_execution.kernel_idle_timeout", 600),
                            ("code_execution.max_session_kernels", 2),
                            ("computer_use.ax_max_elements", 250),

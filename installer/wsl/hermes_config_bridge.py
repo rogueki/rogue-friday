@@ -50,7 +50,7 @@ FIELDS = {
     "terminal.docker_volumes": ("docker_mounts", None, None),
     "browser.command_timeout": ("integer", 5, 600),
     "browser.snapshot_threshold": ("integer", 1000, 200000),
-    "browser.inactivity_timeout": ("integer", 15, 3600),
+    "browser.inactivity_timeout": ("integer", 30, 3600),
     "browser.dialog_policy": ("dialog_policy", None, None),
     "browser.dialog_timeout_s": ("integer", 1, 3600),
     "browser.allow_private_urls": ("boolean", None, None),

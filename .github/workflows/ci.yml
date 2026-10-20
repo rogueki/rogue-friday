@@ -93,13 +93,25 @@ jobs:
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" init -q
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" remote add origin https://github.com/NousResearch/hermes-agent.git
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" config core.sparseCheckout true
-          printf 'hermes_cli/\nplugins/kanban/dashboard/plugin_api.py\ntoolsets.py\nagent/delegation_context.py\ngateway/status.py\nhermes_state*.py\nhermes_constants.py\nutils.py\nhermes_yaml.py\n' > "$FRIDAY_HERMES_OFFICIAL_SOURCE/.git/info/sparse-checkout"
+          printf 'hermes_cli/\nplugins/kanban/dashboard/plugin_api.py\nplugins/browser/\ntoolsets.py\ntools/\nagent/\nhermes_platform/\ngateway/status.py\nhermes_state*.py\nhermes_constants.py\nhermes_time.py\nutils.py\nhermes_yaml.py\n' > "$FRIDAY_HERMES_OFFICIAL_SOURCE/.git/info/sparse-checkout"
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" fetch --depth 1 origin d923a5eb487a17c0a68801bba9ef0f56c81040a8
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" checkout -q --detach FETCH_HEAD
           test "$(git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" rev-parse HEAD)" = d923a5eb487a17c0a68801bba9ef0f56c81040a8
           python -m pip install fastapi==0.133.1 python-multipart==0.0.20 ruamel.yaml==0.18.16
           python installer/wsl/patch_hermes_run_stop.py "$FRIDAY_HERMES_OFFICIAL_SOURCE"
           python -m unittest -v installer.wsl.tests.test_patch_hermes_official_runtime
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Pinned Hermes execution consumer fixture
+        env:
+          HERMES_PIN_SOURCE: ${{ runner.temp }}/friday-hermes-d923
+        run: |
+          test "$(git -C "$HERMES_PIN_SOURCE" rev-parse HEAD)" = d923a5eb487a17c0a68801bba9ef0f56c81040a8
+          python -m pip install ruamel.yaml==0.18.16 requests==2.33.0
+          PYTHONDONTWRITEBYTECODE=1 python docs/agent-work/hermes-full-integration/p7d-runtime-fixture.py
 
   verify:
     name: Contracts, typecheck, lint, tests, build

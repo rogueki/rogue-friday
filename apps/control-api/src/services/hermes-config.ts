@@ -58,7 +58,7 @@ export const HERMES_CONFIG_FIELDS = {
   "terminal.docker_volumes": { type: "textList", kind: "dockerMounts", family: "execution", consumer: "new Docker sandbox" },
   "browser.command_timeout": { type: "integer", min: 5, max: 600, family: "execution", consumer: "new browser session or cleared browser cache" },
   "browser.snapshot_threshold": { type: "integer", min: 1000, max: 200000, family: "execution", consumer: "new browser session or cleared browser cache" },
-  "browser.inactivity_timeout": { type: "integer", min: 15, max: 3600, family: "execution", consumer: "new browser module session" },
+  "browser.inactivity_timeout": { type: "integer", min: 30, max: 3600, family: "execution", consumer: "new browser module session" },
   "browser.dialog_policy": { type: "string", kind: "dialogPolicy", family: "execution", consumer: "new CDP dialog supervisor" },
   "browser.dialog_timeout_s": { type: "integer", min: 1, max: 3600, family: "execution", consumer: "new CDP dialog supervisor" },
   "browser.allow_private_urls": { type: "boolean", family: "execution", consumer: "new Hermes browser navigation" },

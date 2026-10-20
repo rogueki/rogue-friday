@@ -22,6 +22,8 @@ CONSUMER_SOURCES = {
     "computer_use.ax_max_elements": "tools/computer_use/cua_backend_capture.py:251",
     "computer_use.capture_after_mode": "tools/computer_use/tool.py:908",
 }
+RUNTIME_FIXTURE_KEYS = {"browser.inactivity_timeout", "code_execution.kernel_idle_timeout",
+                        "code_execution.max_session_kernels", "computer_use.capture_after_mode"}
 
 
 def native_fields():
@@ -50,12 +52,13 @@ def main():
             "native_default": json.dumps(item.get("default"), ensure_ascii=False, separators=(",", ":")),
             "bridge_status": "typed_config_readback_runtime_unverified" if typed else "open_native_mapping",
             "consumer_source": CONSUMER_SOURCES.get(key, ""),
+            "runtime_proof": "pinned_disposable_consumer_fixture" if key in RUNTIME_FIXTURE_KEYS else "",
             "remaining_gate": "disposable_runtime_consumer_proof" if typed else
                               "trace_validator_consumer_platform_and_native_ui_or_operation",
         })
     assert len(rows) == 97, f"P7-D source inventory changed: {len(rows)} keys"
     with (HERE / "p7d-config-matrix.csv").open("w", encoding="utf-8", newline="") as output:
-        writer = csv.DictWriter(output, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(output, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(sorted(rows, key=lambda row: row["key"]))
 

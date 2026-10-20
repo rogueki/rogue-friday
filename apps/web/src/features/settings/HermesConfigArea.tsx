@@ -101,7 +101,7 @@ const NUMERIC_LIMITS: Record<string, [number, number, number]> = {
   "terminal.timeout": [1, 3600, 1],
   "browser.command_timeout": [5, 600, 1],
   "browser.snapshot_threshold": [1000, 200000, 1000],
-  "browser.inactivity_timeout": [15, 3600, 1],
+  "browser.inactivity_timeout": [30, 3600, 1],
   "browser.dialog_timeout_s": [1, 3600, 1],
   "code_execution.kernel_idle_timeout": [30, 86400, 1],
   "code_execution.max_session_kernels": [1, 32, 1],
