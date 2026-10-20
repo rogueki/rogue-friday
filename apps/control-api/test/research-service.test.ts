@@ -3,6 +3,10 @@ import { openDatabase } from "../src/db/database";
 import { ResearchService } from "../src/services/research";
 import { createId } from "@friday/observability";
 import { fetchResearchPage, isPublicResearchAddress } from "../src/services/research-page-fetch";
+import { createServer as createHttpServer } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 it("stops reading an oversized provider stream before buffering more than the cap", async () => {
   const db = openDatabase(":memory:");
@@ -168,6 +172,9 @@ it("rejects local, metadata, mapped and documentation addresses before page requ
     "fc00::1",
     "::ffff:127.0.0.1",
     "2001:db8::1",
+    "2001::1",
+    "2002:c0a8:101::1",
+    "3fff::1",
   ]) {
     expect(isPublicResearchAddress(address), address).toBe(false);
   }
@@ -179,3 +186,79 @@ it("does not request loopback or non-HTTP pages found in search results", async 
   await expect(fetchResearchPage("http://127.0.0.1:12345/internal")).rejects.toThrow("UNSAFE_ADDRESS");
   await expect(fetchResearchPage("file:///etc/passwd")).rejects.toThrow("UNSAFE_URL");
 });
+
+const fixtureNetwork = {
+  resolve: async (_hostname: string) => [{ address: "127.0.0.1", family: 4 as const }],
+  allowAddress: (address: string) => address === "127.0.0.1",
+};
+
+it("pins the checked DNS address while preserving HTTP Host and refusing redirects", async () => {
+  const requests: string[] = [];
+  const server = createHttpServer((request, response) => {
+    requests.push(`${request.headers.host} ${request.url}`);
+    if (request.url === "/redirect") {
+      response.writeHead(302, { Location: "http://127.0.0.1/private" }).end();
+    } else {
+      response.writeHead(200, { "Content-Type": "text/html" }).end("<h1>Verified page</h1>");
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Missing fixture port");
+    const url = `http://example.test:${address.port}`;
+    expect(await fetchResearchPage(`${url}/article`, fixtureNetwork)).toBe("Verified page");
+    await expect(fetchResearchPage(`${url}/redirect`, fixtureNetwork)).rejects.toThrow("PAGE_UNAVAILABLE");
+    expect(requests).toEqual([`example.test:${address.port} /article`, `example.test:${address.port} /redirect`]);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+it("keeps TLS verification and SNI bound to the original hostname after DNS pinning", async () => {
+  const certificate = readFileSync(fileURLToPath(new URL("./fixtures/research-test.crt", import.meta.url)), "utf8");
+  const key = readFileSync(fileURLToPath(new URL("./fixtures/research-test.key", import.meta.url)), "utf8");
+  const names: string[] = [];
+  const server = createHttpsServer({ cert: certificate, key }, (request, response) => {
+    response.writeHead(200, { "Content-Type": "text/plain" }).end(`secure ${request.headers.host}`);
+  });
+  server.on("secureConnection", (socket) => names.push(String(socket.servername)));
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Missing fixture port");
+    expect(await fetchResearchPage(`https://example.test:${address.port}/`, { ...fixtureNetwork, ca: certificate }))
+      .toBe(`secure example.test:${address.port}`);
+    expect(names).toEqual(["example.test"]);
+    await expect(fetchResearchPage(`https://wrong.test:${address.port}/`, { ...fixtureNetwork, ca: certificate }))
+      .rejects.toThrow();
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+it("stops oversized and stalled pages on the actual socket", async () => {
+  const server = createHttpServer((request, response) => {
+    if (request.url === "/large") {
+      response.writeHead(200, { "Content-Type": "text/plain" });
+      response.end("x".repeat(129_000));
+    } else {
+      response.writeHead(200, { "Content-Type": "text/plain" });
+      response.write("start");
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Missing fixture port");
+    await expect(fetchResearchPage(`http://example.test:${address.port}/large`, fixtureNetwork))
+      .rejects.toThrow("PAGE_TOO_LARGE");
+    await expect(fetchResearchPage(`http://example.test:${address.port}/stall`, fixtureNetwork))
+      .rejects.toThrow("PAGE_TIMEOUT");
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}, 8_000);

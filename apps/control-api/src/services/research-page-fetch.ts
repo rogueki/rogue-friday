@@ -3,6 +3,13 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { BlockList, isIP } from "node:net";
 
+type ResolvedAddress = { address: string; family: 4 | 6 };
+type PageFetchDependencies = {
+  resolve?: (hostname: string) => Promise<ResolvedAddress[]>;
+  allowAddress?: (address: string) => boolean;
+  ca?: string;
+};
+
 const MAX_PAGE_BYTES = 128_000;
 const PAGE_TIMEOUT_MS = 5_000;
 const denied4 = new BlockList();
@@ -30,6 +37,11 @@ for (const [address, prefix] of [
   ["::1", 128],
   ["2001:db8::", 32],
   ["2001:10::", 28],
+  ["2001::", 32], // Teredo embeds an IPv4 address.
+  ["2001:2::", 48], // Benchmarking.
+  ["2001:20::", 28], // ORCHIDv2 is not globally routable.
+  ["2002::", 16], // 6to4 embeds an IPv4 address.
+  ["3fff::", 20], // Documentation.
 ] as const)
   denied6.addSubnet(address, prefix, "ipv6");
 
@@ -59,33 +71,42 @@ function pageText(input: string): string {
 }
 
 /** Pin DNS to a checked public address. The HTTP client must never resolve the name again. */
-export async function fetchResearchPage(rawUrl: string): Promise<string> {
+export async function fetchResearchPage(rawUrl: string, dependencies: PageFetchDependencies = {}): Promise<string> {
   const url = new URL(rawUrl);
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.href.length > 2048)
     throw new Error("UNSAFE_URL");
+  const deadlineAt = Date.now() + PAGE_TIMEOUT_MS;
+  const resolveAddress = dependencies.resolve ?? ((hostname: string) => lookup(hostname, { all: true, verbatim: true }));
+  const allowAddress = dependencies.allowAddress ?? isPublicResearchAddress;
   let dnsTimer: ReturnType<typeof setTimeout> | undefined;
   const addresses = await Promise.race([
-    lookup(url.hostname, { all: true, verbatim: true }),
+    resolveAddress(url.hostname.replace(/^\[|\]$/g, "")),
     new Promise<never>((_, reject) => {
       dnsTimer = setTimeout(() => reject(new Error("DNS_TIMEOUT")), PAGE_TIMEOUT_MS);
     }),
   ]).finally(() => clearTimeout(dnsTimer));
-  if (!addresses.length || addresses.some((entry) => !isPublicResearchAddress(entry.address)))
+  if (!addresses.length || addresses.some((entry) => !allowAddress(entry.address)))
     throw new Error("UNSAFE_ADDRESS");
   const pinned = addresses[0]!;
+  const remainingMs = deadlineAt - Date.now();
+  if (remainingMs <= 0) throw new Error("PAGE_TIMEOUT");
   return new Promise<string>((resolve, reject) => {
     const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(
       url,
       {
         agent: false,
-        timeout: PAGE_TIMEOUT_MS,
+        ca: dependencies.ca,
+        timeout: remainingMs,
         maxHeaderSize: 8_192,
         headers: {
           Accept: "text/html,text/plain;q=0.9",
           "Accept-Encoding": "identity",
           "User-Agent": "FridayResearch/1.0 (https://github.com/rogueki/rogue-friday)",
         },
-        lookup: (_hostname, _options, callback) => callback(null, pinned.address, pinned.family),
+        lookup: (_hostname, options, callback) => {
+          if (options.all) callback(null, [{ address: pinned.address, family: pinned.family }]);
+          else callback(null, pinned.address, pinned.family);
+        },
       },
       (response) => {
         if (
@@ -115,7 +136,7 @@ export async function fetchResearchPage(rawUrl: string): Promise<string> {
     );
     request.on("timeout", () => request.destroy(new Error("PAGE_TIMEOUT")));
     request.on("error", reject);
-    const deadline = setTimeout(() => request.destroy(new Error("PAGE_TIMEOUT")), PAGE_TIMEOUT_MS);
+    const deadline = setTimeout(() => request.destroy(new Error("PAGE_TIMEOUT")), remainingMs);
     request.on("close", () => clearTimeout(deadline));
     request.end();
   });
