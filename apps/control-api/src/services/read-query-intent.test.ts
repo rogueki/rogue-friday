@@ -13,6 +13,27 @@ describe("read-only command intent parsing", () => {
       .toEqual({ kind: "approvals.list", status: ["pending"] });
     expect(parseReadQueryIntent("Zeige Security-Audit-Ereignisse"))
       .toEqual({ kind: "audit.list", securityOnly: true });
+    const supportedStatuses: Array<[string, string, string]> = [
+      ["activity", "failed", "failed"], ["activity", "running", "running"],
+      ["activity", "started", "started"], ["activity", "succeeded", "succeeded"],
+      ["activity", "cancelled", "cancelled"], ["activity", "info", "info"],
+      ["notifications", "open", "open"], ["notifications", "acknowledged", "acknowledged"],
+      ["notifications", "snoozed", "snoozed"], ["notifications", "resolved", "resolved"],
+      ["approvals", "pending", "pending"], ["approvals", "approved", "approved"],
+      ["approvals", "rejected", "rejected"], ["approvals", "expired", "expired"],
+      ["approvals", "cancelled", "cancelled"], ["approvals", "executed", "executed"],
+      ["approvals", "failed", "failed"], ["audit", "failed", "failure"],
+      ["audit", "denied", "denied"], ["audit", "successful", "success"],
+      ["audit", "pending", "pending"],
+    ];
+    for (const [family, phrase, status] of supportedStatuses) {
+      const familyWord = family === "notifications" ? "alerts" : family === "approvals" ? "approvals" : family;
+      const intent = parseReadQueryIntent(`Show ${phrase} ${familyWord}`);
+      expect(intent?.kind, `${family} ${phrase}`).toBe(`${family}.list`);
+      if (family === "activity") expect(intent).toMatchObject({ status });
+      else if (family === "audit") expect(intent).toMatchObject({ result: [status] });
+      else expect(intent).toMatchObject({ status: [status] });
+    }
     expect(parseReadQueryIntent("Zeige Aktivitäten, die fehlgeschlagen sind"))
       .toEqual({ kind: "activity.list", status: "failed" });
     expect(parseReadQueryIntent("Zeige Meldungen, die bestätigt wurden"))
@@ -26,6 +47,13 @@ describe("read-only command intent parsing", () => {
     expect(parseReadQueryIntent("Show open and resolved alerts")?.kind).toBe("clarify");
     expect(parseReadQueryIntent("Show approved Activity")?.kind).toBe("clarify");
     expect(parseReadQueryIntent("Show pending notifications")?.kind).toBe("clarify");
+    expect(parseReadQueryIntent("Show 9999 Activity")?.kind).toBe("clarify");
+    expect(parseReadQueryIntent("Show last 2 hours and 3 Activity events")?.kind).toBe("clarify");
+    expect(parseReadQueryIntent("Show last 2 hours and last 3 days Activity events")?.kind).toBe("clarify");
+    const activityId = `act_${"z".repeat(26)}`;
+    expect(parseReadQueryIntent(`Show Activity ${activityId} failed`)?.kind).toBe("clarify");
+    expect(parseReadQueryIntent(`Show Activity ${activityId} last 2 hours`)?.kind).toBe("clarify");
+    expect(parseReadQueryIntent(`Show Activity ${activityId} other`)?.kind).toBe("clarify");
     expect(parseReadQueryIntent("Zeig Audit der letzten 90 Tage")?.kind).toBe("clarify");
     expect(parseReadQueryIntent("Show notifications from the last 2 hours")?.kind).toBe("clarify");
     expect(parseReadQueryIntent("Zeige Activity für meinen Agenten Alpha")?.kind).toBe("clarify");

@@ -27,12 +27,26 @@ const FAMILY_PATTERNS = [
   { family: "approvals", pattern: /\b(approval|approvals|freigabe|freigaben)\b/ },
   { family: "audit", pattern: /\b(audit|auditprotokoll|pruefprotokoll|auditlog)\b/ },
 ] as const;
-const FOREIGN_STATUS_PATTERNS: Record<string, RegExp> = {
-  activity: /\b(open|offen|offene|acknowledged|acknowledge|bestaetigt|quittiert|snoozed|zurueckgestellt|resolved|geloest|erledigt|pending|ausstehend|ausstehende|approved|genehmigt|freigegeben|rejected|abgelehnt|expired|abgelaufen|cancelled|canceled|abgebrochen|executed|ausgefuehrt)\b/,
-  notifications: /\b(running|laeuft|laufend|started|gestartet|succeeded|successful|erfolgreich|failed|failure|fehlgeschlagen|fehlerhaft|pending|ausstehend|ausstehende|approved|genehmigt|freigegeben|rejected|abgelehnt|expired|abgelaufen|cancelled|canceled|abgebrochen|executed|ausgefuehrt)\b/,
-  approvals: /\b(running|laeuft|laufend|started|gestartet|succeeded|successful|erfolgreich|failed|failure|fehlgeschlagen|fehlerhaft|acknowledged|acknowledge|bestaetigt|quittiert|snoozed|zurueckgestellt|resolved|geloest|erledigt)\b/,
-  audit: /\b(running|laeuft|laufend|started|gestartet|succeeded|successful|open|offen|offene|acknowledged|acknowledge|bestaetigt|quittiert|snoozed|zurueckgestellt|resolved|geloest|erledigt|approved|genehmigt|freigegeben|rejected|abgelehnt|expired|abgelaufen|cancelled|canceled|abgebrochen|executed|ausgefuehrt)\b/,
-};
+const STATUS_ALIASES: Array<{ terms: string[]; mapsTo: Partial<Record<"activity" | "notifications" | "approvals" | "audit", string>> }> = [
+  { terms: ["failed", "failure", "fehlgeschlagen", "fehlgeschlagene", "fehlgeschlagenen", "fehler", "fehlerhaft"], mapsTo: { activity: "failed", approvals: "failed", audit: "failure" } },
+  { terms: ["running", "laeuft", "laufend", "in arbeit"], mapsTo: { activity: "running" } },
+  { terms: ["started", "gestartet"], mapsTo: { activity: "started" } },
+  { terms: ["succeeded", "successful", "erfolgreich", "abgeschlossen"], mapsTo: { activity: "succeeded", audit: "success" } },
+  { terms: ["cancelled", "canceled", "abgebrochen"], mapsTo: { activity: "cancelled", approvals: "cancelled" } },
+  { terms: ["info", "informational", "information", "informativ"], mapsTo: { activity: "info" } },
+  { terms: ["open", "offen", "offene", "aktiv"], mapsTo: { notifications: "open", approvals: "pending" } },
+  { terms: ["acknowledged", "acknowledge", "bestaetigt", "quittiert"], mapsTo: { notifications: "acknowledged" } },
+  { terms: ["snoozed", "zurueckgestellt", "pausiert"], mapsTo: { notifications: "snoozed" } },
+  { terms: ["resolved", "geloest", "erledigt"], mapsTo: { notifications: "resolved" } },
+  { terms: ["pending", "ausstehend", "ausstehende"], mapsTo: { approvals: "pending", audit: "pending" } },
+  { terms: ["approved", "genehmigt", "freigegeben"], mapsTo: { approvals: "approved" } },
+  { terms: ["rejected", "abgelehnt"], mapsTo: { approvals: "rejected" } },
+  { terms: ["expired", "abgelaufen"], mapsTo: { approvals: "expired" } },
+  { terms: ["executed", "ausgefuehrt"], mapsTo: { approvals: "executed" } },
+  { terms: ["denied", "verweigert", "abgewiesen"], mapsTo: { audit: "denied" } },
+  { terms: ["success", "erfolgreich"], mapsTo: { audit: "success" } },
+];
+const STATUS_WORDS = new Set(STATUS_ALIASES.flatMap(({ terms }) => terms.filter((term) => !term.includes(" "))));
 const ID_PATTERN = /\b(act|ntf|appr|aud)_[0-9A-Za-z]{26}\b/g;
 
 function normalize(text: string): string {
@@ -41,40 +55,28 @@ function normalize(text: string): string {
 }
 
 function readStatus(text: string, family: string): string[] {
-  const result: string[] = [];
-  const add = (pattern: RegExp, value: string): void => { if (pattern.test(text)) result.push(value); };
-  if (family === "activity") {
-    add(/\b(failed|failure|fehlgeschlag\w*|fehlerhaft)\b/, "failed");
-    add(/\b(running|laeuft|laufend|in arbeit)\b/, "running");
-    add(/\b(started|gestartet)\b/, "started");
-    add(/\b(succeeded|successful|erfolgreich|abgeschlossen)\b/, "succeeded");
-    add(/\b(cancelled|canceled|abgebrochen)\b/, "cancelled");
-  } else if (family === "notifications") {
-    add(/\b(open|offen|offene|aktiv)\b/, "open");
-    add(/\b(acknowledged|acknowledge|bestaetigt|quittiert)\b/, "acknowledged");
-    add(/\b(snoozed|zurueckgestellt|pausiert)\b/, "snoozed");
-    add(/\b(resolved|geloest|erledigt)\b/, "resolved");
-  } else if (family === "approvals") {
-    add(/\b(pending|open|offen|ausstehend|ausstehende)\b/, "pending");
-    add(/\b(approved|genehmigt|freigegeben)\b/, "approved");
-    add(/\b(rejected|abgelehnt)\b/, "rejected");
-    add(/\b(expired|abgelaufen)\b/, "expired");
-    add(/\b(cancelled|canceled|abgebrochen)\b/, "cancelled");
-    add(/\b(executed|ausgefuehrt)\b/, "executed");
-    add(/\b(failed|fehlgeschlagen)\b/, "failed");
-  } else if (family === "audit") {
-    add(/\b(failed|failure|fehlgeschlagen|fehler)\b/, "failure");
-    add(/\b(denied|denied|verweigert|abgewiesen)\b/, "denied");
-    add(/\b(success|successful|erfolgreich)\b/, "success");
-    add(/\b(pending|ausstehend)\b/, "pending");
-  }
+  const result = STATUS_ALIASES.flatMap(({ terms, mapsTo }) => {
+    const matched = terms.some((term) => new RegExp(`\\b${term.split(" ").map(escapeRegex).join("\\s+")}\\b`).test(text));
+    return matched && mapsTo[family as keyof typeof mapsTo] ? [mapsTo[family as keyof typeof mapsTo]!] : [];
+  });
   return [...new Set(result)];
 }
+
+function escapeRegex(text: string): string { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+function hasForeignStatus(text: string, family: string): boolean {
+  return STATUS_ALIASES.some(({ terms, mapsTo }) => !mapsTo[family as keyof typeof mapsTo] &&
+    terms.some((term) => new RegExp(`\\b${term.split(" ").map(escapeRegex).join("\\s+")}\\b`).test(text)));
+}
+
+const LOOKBACK_PATTERN = /\b(?:last|letzte|letzten)\s+(\d{1,3})\s+(hour|hours|stunde|stunden|day|days|tag|tage|week|weeks|woche|wochen)\b/g;
 
 function lookbackHours(text: string): number | undefined {
   // Civil-day boundaries require an explicit timezone. Do not approximate them as rolling hours.
   if (/\b(today|heute|yesterday|gestern)\b/.test(text)) return -2;
-  const match = /\b(?:last|letzte|letzten)\s+(\d{1,3})\s+(hour|hours|stunde|stunden|day|days|tag|tage|week|weeks|woche|wochen)\b/.exec(text);
+  const matches = [...text.matchAll(LOOKBACK_PATTERN)];
+  if (matches.length > 1) return -3;
+  const match = matches[0];
   if (!match) return undefined;
   const count = Number(match[1]);
   const unit = match[2] ?? "";
@@ -101,23 +103,34 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   if (id) {
     const expected = family === "activity" ? "act" : family === "notifications" ? "ntf" : family === "approvals" ? "appr" : "aud";
     if (id.prefix !== expected) return { kind: "clarify", message: "Die Kennung gehört zu einem anderen Bereich. Bitte Activity, Benachrichtigung, Freigabe oder Audit passend zur Kennung nennen." };
-    if (family === "activity") return { kind: "activity.get", id: id.id };
-    if (family === "notifications") return { kind: "notifications.unsupportedDetail", id: id.id };
-    if (family === "approvals") return { kind: "approvals.get", id: id.id };
-    return { kind: "audit.get", id: id.id };
   }
 
   const statuses = readStatus(text, family);
   if (statuses.length > 1) return { kind: "clarify", message: "Der Status ist mehrdeutig. Bitte genau einen Status angeben." };
-  if (FOREIGN_STATUS_PATTERNS[family]?.test(text))
+  if (hasForeignStatus(text, family))
     return { kind: "clarify", message: "Der genannte Status gehört nicht zu diesem Lesebereich. Bitte den Status für den genannten Bereich prüfen." };
   const hours = lookbackHours(text);
   if (hours === -2) return { kind: "clarify", message: "Heute/Gestern benötigen eine Zeitzone für korrekte Tagesgrenzen. Bitte einen eindeutigen Zeitraum wie 'letzte 24 Stunden' angeben." };
   if (hours === -1) return { kind: "clarify", message: "Der Zeitraum ist zu groß. Bitte höchstens 30 Tage angeben." };
-  const allowedWords = new Set(("zeige zeig liste list show search suche such find finde get open abruf abrufe hole detail details mir den die das der des im in von fuer und oder bei was what which welche welcher welches ist sind wurde wurden aktuell aktuelle aktuellen recent latest letzte letzten last today yesterday heute gestern hours hour stunden stunde days day tage tag weeks week wochen woche activity activities aktivitaet aktivitaeten aktivitaetsverlauf ereignis ereignisse verlauf event events record records entries eintrag eintraege benachrichtigung benachrichtigungen meldung meldungen alert alerts notification notifications open offene offen acknowledged acknowledge bestaetigt quittiert snoozed zurueckgestellt pausiert resolved geloest erledigt approval approvals freigabe freigaben pending ausstehend ausstehende approved genehmigt freigegeben rejected abgelehnt expired abgelaufen cancelled canceled abgebrochen executed ausgefuehrt failed failure fehlgeschlagene fehlgeschlagen fehlerhaft running laeuft laufend gestartet started succeeded successful erfolgreich abgeschlossen audit auditprotokoll pruefprotokoll auditlog logs log security sicherheit denied verweigert abgewiesen success export exportieren exportiere download").split(/\s+/));
+  if (hours === -3) return { kind: "clarify", message: "Bitte nur einen Zeitraum angeben." };
+  const periodMatches = [...text.matchAll(LOOKBACK_PATTERN)];
+  if (periodMatches.length > 1) return { kind: "clarify", message: "Bitte nur einen Zeitraum angeben." };
+  const periodNumber = periodMatches[0]?.[1];
+  const allowedWords = new Set(("zeige zeig liste list show search suche such find finde get open abruf abrufe hole detail details mir den die das der des im in von fuer und oder bei was what which welche welcher welches ist sind wurde wurden aktuell aktuelle aktuellen recent latest letzte letzten last today yesterday heute gestern hours hour stunden stunde days day tage tag weeks week wochen woche activity activities aktivitaet aktivitaeten aktivitaetsverlauf ereignis ereignisse verlauf event events record records entries eintrag eintraege benachrichtigung benachrichtigungen meldung meldungen alert alerts notification notifications approval approvals freigabe freigaben audit auditprotokoll pruefprotokoll auditlog logs log security sicherheit export exportieren exportiere download").split(/\s+/));
+  for (const statusWord of STATUS_WORDS) allowedWords.add(statusWord);
+  let periodNumberAvailable = periodNumber !== undefined;
   for (const word of text.split(/\s+/)) {
-    if (/^\d+$/.test(word) || /^[a-z]{2,4}_[0-9a-z]{26}$/.test(word)) continue;
+    if (word === periodNumber && periodNumberAvailable) { periodNumberAvailable = false; continue; }
+    if (/^[a-z]{2,4}_[0-9a-z]{26}$/.test(word)) continue;
     if (!allowedWords.has(word)) return { kind: "clarify", message: `Der Filter „${word}“ wird für diesen Lesebereich nicht unterstützt. Bitte Bereich und unterstützten Status nennen.` };
+  }
+  if (id) {
+    if (statuses.length > 0 || hasForeignStatus(text, family) || hours !== undefined || /\b(recent|latest|aktuell|aktuelle|recenten)\b/.test(text))
+      return { kind: "clarify", message: "Eine Kennung kann nicht mit einem Listenfilter oder Zeitraum kombiniert werden. Bitte nur die Kennung nennen." };
+    if (family === "activity") return { kind: "activity.get", id: id.id };
+    if (family === "notifications") return { kind: "notifications.unsupportedDetail", id: id.id };
+    if (family === "approvals") return { kind: "approvals.get", id: id.id };
+    return { kind: "audit.get", id: id.id };
   }
   if (hours && family !== "activity" && family !== "audit")
     return { kind: "clarify", message: "Der Lesepfad unterstützt hier keinen Zeitraumfilter. Bitte einen Status oder eine andere Abfrage angeben." };
