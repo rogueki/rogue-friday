@@ -165,7 +165,7 @@ async function disconnectProvider(owner: ReturnType<Awaited<ReturnType<typeof st
   expect(response.statusCode, response.body).toBe(200);
 }
 
-it("stages exact research request, searches once, persists only unverified sources and replays", async () => {
+it("stages exact research request, stores a verbatim draft finding with its source and replays", async () => {
   search.mockClear();
   const api = await startTestApi({
     dataMode: "hybrid",
@@ -204,10 +204,10 @@ it("stages exact research request, searches once, persists only unverified sourc
     expect(project).toMatchObject({
       status: "review",
       sourceCount: 1,
-      findingCount: 0,
+      findingCount: 1,
       artifactCount: 0,
       costEur: null,
-      resultSummary: expect.stringContaining("1 Seiten begrenzt abgerufen"),
+      resultSummary: expect.stringContaining("1 wörtliche Belegpassagen als Entwurf"),
     });
     expect(search).toHaveBeenCalledTimes(1);
     expect(new URL(String(search.mock.calls[0]![0])).searchParams.get("q")).toBe("Energiepreise Europa");
@@ -220,6 +220,16 @@ it("stages exact research request, searches once, persists only unverified sourc
         reliability: 0,
         supportsStatement: null,
         url: "https://example.org/article",
+      },
+    ]);
+    const findings = await owner.get(`/api/v1/research/projects/${project.id}/findings`);
+    expect(findings.statusCode, findings.body).toBe(200);
+    expect(findings.json().items).toMatchObject([
+      {
+        statement: "Energiepreise sind laut dieser Testseite gestiegen.",
+        supportingSourceIds: [sourceList.json().items[0].id],
+        confidence: 0,
+        status: "draft",
       },
     ]);
     const replay = await owner.post(

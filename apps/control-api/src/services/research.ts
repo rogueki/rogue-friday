@@ -1,6 +1,6 @@
 import { createId } from "@friday/observability";
 import { createHash } from "node:crypto";
-import type { ResearchProject, ResearchSource } from "@friday/sdk";
+import type { ResearchFinding, ResearchProject, ResearchSource } from "@friday/sdk";
 import { kvGet, kvSet, type Db } from "../db/database";
 import { ApiError, notFound, validationFailed } from "../util/errors";
 import { fetchResearchPage } from "./research-page-fetch";
@@ -20,6 +20,7 @@ type ProjectRow = {
   status: "running" | "review" | "failed";
   error_code: string | null;
   provider: "searxng" | "wikipedia";
+  result_summary: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -37,6 +38,26 @@ type SourceRow = {
   error_code: string | null;
   created_at: string;
 };
+type FindingRow = {
+  id: string;
+  project_id: string;
+  source_id: string;
+  statement: string;
+  created_at: string;
+};
+
+/** Keep only a complete sentence that actually appears in the retrieved page. No generated claim is inferred. */
+function evidenceExcerpt(topic: string, page: string): string | null {
+  const words = topic.toLocaleLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? [];
+  if (!words.length) return null;
+  for (const sentence of page.split(/(?<=[.!?])\s+/u)) {
+    const passage = sentence.trim();
+    if (passage.length < 30 || passage.length > 500) continue;
+    const folded = passage.toLocaleLowerCase();
+    if (words.some((word) => folded.includes(word))) return passage;
+  }
+  return null;
+}
 
 function providerUrl(raw: string | undefined): URL | null {
   if (!raw) return null;
@@ -188,6 +209,11 @@ export class ResearchService {
         .prepare("SELECT COUNT(*) AS n FROM research_sources WHERE project_id = ? AND status = 'retrieved'")
         .get(row.id) as { n: number }
     ).n;
+    const findings = (
+      this.db.prepare("SELECT COUNT(*) AS n FROM research_findings WHERE project_id = ?").get(row.id) as {
+        n: number;
+      }
+    ).n;
     const source = {
       adapterId: row.provider === "wikipedia" ? "wikipedia-rest" : "local-searxng",
       system: row.provider,
@@ -205,12 +231,13 @@ export class ResearchService {
       agentIds: [],
       progress: { mode: row.status === "running" ? "indeterminate" : "none", value: null },
       sourceCount: count,
-      findingCount: 0,
+      findingCount: findings,
       contradictionCount: 0,
       artifactCount: 0,
       resultSummary:
         row.status === "review"
-          ? `${count} Suchtreffer gespeichert, ${retrieved} Seiten begrenzt abgerufen. Inhalte sind Quellenmaterial; Aussagen wurden nicht geprueft.`
+          ? (row.result_summary ??
+            `${count} Suchtreffer gespeichert, ${retrieved} Seiten begrenzt abgerufen. Inhalte sind Quellenmaterial; Aussagen wurden nicht geprueft.`)
           : row.status === "failed"
             ? row.error_code === "INTERRUPTED"
               ? "Suche bei einem Neustart unterbrochen; Ergebnis unklar. Keine automatische Wiederholung."
@@ -297,6 +324,26 @@ export class ResearchService {
         .prepare("SELECT * FROM research_sources WHERE project_id = ? ORDER BY created_at, id LIMIT ?")
         .all(id, Math.min(Math.max(limit, 1), 200)) as SourceRow[]
     ).map((row) => this.source(row));
+  }
+
+  findings(ownerId: string, id: string, limit = 200): ResearchFinding[] {
+    const project = this.get(ownerId, id);
+    const rows = this.db
+      .prepare("SELECT * FROM research_findings WHERE project_id = ? ORDER BY created_at, id LIMIT ?")
+      .all(id, Math.min(Math.max(limit, 1), 200)) as FindingRow[];
+    return rows.map((row) => ({
+      id: row.id,
+      version: 1,
+      createdAt: row.created_at,
+      updatedAt: row.created_at,
+      source: project.source,
+      projectId: id,
+      statement: row.statement,
+      confidence: 0,
+      supportingSourceIds: [row.source_id],
+      contradictions: [],
+      status: "draft",
+    }));
   }
 
   async create(
@@ -444,12 +491,13 @@ export class ResearchService {
     try {
       for (const [index, source] of sources.entries()) {
         const page = pages[index];
+        const sourceId = createId("src");
         this.db
           .prepare(
             "INSERT INTO research_sources (id, project_id, title, url, domain, excerpt, created_at, status, retrieved_at, body_text, content_hash, error_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           )
           .run(
-            createId("src"),
+            sourceId,
             id,
             source.title,
             source.url,
@@ -462,10 +510,30 @@ export class ResearchService {
             page?.hash ?? null,
             page?.errorCode ?? null,
           );
+        const passage =
+          page?.status === "retrieved" && page.text ? evidenceExcerpt(normalized, page.text) : null;
+        if (passage)
+          this.db
+            .prepare(
+              "INSERT INTO research_findings (id, project_id, source_id, statement, created_at) VALUES (?, ?, ?, ?, ?)",
+            )
+            .run(createId("fnd"), id, sourceId, passage, this.now().toISOString());
       }
+      const retrievedCount = pages.filter((page) => page.status === "retrieved").length;
+      const draftCount = (
+        this.db.prepare("SELECT COUNT(*) AS n FROM research_findings WHERE project_id = ?").get(id) as {
+          n: number;
+        }
+      ).n;
       this.db
-        .prepare("UPDATE research_projects SET status = 'review', updated_at = ? WHERE id = ?")
-        .run(this.now().toISOString(), id);
+        .prepare(
+          "UPDATE research_projects SET status = 'review', result_summary = ?, updated_at = ? WHERE id = ?",
+        )
+        .run(
+          `${sources.length} Suchtreffer gespeichert, ${retrievedCount} Seiten abgerufen, ${draftCount} wörtliche Belegpassagen als Entwurf markiert. Aussagen wurden nicht verifiziert.`,
+          this.now().toISOString(),
+          id,
+        );
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");

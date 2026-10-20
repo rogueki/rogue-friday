@@ -277,8 +277,13 @@ export function researchReads(base: Map<OperationId, Handler>): Partial<Record<O
       if (ctx.runtime.config.dataMode === "mock") return fallback("listResearchFindings", ctx);
       const ownerId = ctx.principal?.userId;
       if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
-      ctx.runtime.research.get(ownerId, ctx.pathParams.id!);
-      return { status: 200, body: list([]) };
+      if (ctx.query.cursor) throw validationFailed("Recherche-Cursor wird derzeit nicht unterstuetzt.");
+      return {
+        status: 200,
+        body: list(
+          ctx.runtime.research.findings(ownerId, ctx.pathParams.id!, Number(ctx.query.limit ?? 200)),
+        ),
+      };
     },
     async listResearchArtifacts(ctx) {
       if (ctx.runtime.config.dataMode === "mock") return fallback("listResearchArtifacts", ctx);

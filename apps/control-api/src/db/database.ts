@@ -433,6 +433,22 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE research_sources ADD COLUMN error_code TEXT;
     `,
   },
+  {
+    id: 27,
+    name: "research-draft-findings",
+    sql: `
+      CREATE TABLE research_findings (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES research_projects(id) ON DELETE CASCADE,
+        source_id TEXT NOT NULL REFERENCES research_sources(id) ON DELETE CASCADE,
+        statement TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE (project_id, source_id)
+      );
+      CREATE INDEX idx_research_findings_project ON research_findings (project_id, created_at);
+      ALTER TABLE research_projects ADD COLUMN result_summary TEXT;
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {
@@ -445,8 +461,12 @@ export function openDatabase(path: string): Db {
 }
 
 export function migrate(db: Db): number[] {
-  db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)");
-  const applied = new Set((db.prepare("SELECT id FROM schema_migrations").all() as Array<{ id: number }>).map((row) => row.id));
+  db.exec(
+    "CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)",
+  );
+  const applied = new Set(
+    (db.prepare("SELECT id FROM schema_migrations").all() as Array<{ id: number }>).map((row) => row.id),
+  );
   const ran: number[] = [];
   for (const migration of MIGRATIONS) {
     if (applied.has(migration.id)) continue;
@@ -462,9 +482,12 @@ export function migrate(db: Db): number[] {
       ran.push(migration.id);
     } catch (error) {
       db.exec("ROLLBACK");
-      throw new Error(`Migration ${migration.id} (${migration.name}) failed: ${error instanceof Error ? error.message : String(error)}`, {
-        cause: error,
-      });
+      throw new Error(
+        `Migration ${migration.id} (${migration.name}) failed: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          cause: error,
+        },
+      );
     }
   }
   return ran;
