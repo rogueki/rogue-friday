@@ -74,6 +74,24 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     expect((await owner.get("/api/v1/settings")).json().data.version).toBe(after.version);
   });
 
+  it("saves a typed dashboard refresh interval through the canonical settings handler", async () => {
+    const before = (await owner.get("/api/v1/settings")).json().data;
+    const next = before.dashboard.autoRefreshSeconds === 3600 ? 3599 : before.dashboard.autoRefreshSeconds + 1;
+    const text = `Set dashboard refresh to ${next} seconds`;
+    const preview = await command(owner, text);
+    expect(preview.statusCode, preview.body).toBe(200);
+    expect(preview.json().previewText).toContain(`${next} Sekunden`);
+    const previewId = preview.json().previewId as string;
+    const confirmed = await command(owner, text, { confirm: true, previewId });
+    expect(confirmed.statusCode, confirmed.body).toBe(200);
+    expect(confirmed.json().result.message).toContain("Laufzeitwirkung nicht separat verifiziert");
+    const after = (await owner.get("/api/v1/settings")).json().data;
+    expect(after.dashboard.autoRefreshSeconds).toBe(next);
+    expect(after.version).toBe(before.version + 1);
+    expect((await command(owner, text, { confirm: true, previewId })).json().status).toBe("executed");
+    expect((await owner.get("/api/v1/settings")).json().data.version).toBe(after.version);
+  });
+
   it("adds an idea through a typed action even when its title looks like a read, with plan CAS and replay", async () => {
     const settings = (await owner.get("/api/v1/settings")).json().data;
     if (!settings.dashboard.contentStudioEnabled)

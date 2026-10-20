@@ -27,6 +27,8 @@ function isOwner(ctx: RequestContext): string {
 function sameIntent(action: NativeExecutableAction, intent: SettingsContentMutationIntent): boolean {
   if (intent.kind === "settings.dashboard.compact")
     return action.kind === intent.kind && action.value === intent.value;
+  if (intent.kind === "settings.dashboard.refresh")
+    return action.kind === intent.kind && action.value === intent.value;
   if (intent.kind === "contentStudio.idea.add")
     return action.kind === intent.kind && action.idea.titel === intent.title;
   if (intent.kind === "contentStudio.idea.status")
@@ -85,6 +87,13 @@ function makeAction(ctx: RequestContext, intent: SettingsContentMutationIntent):
     if (!authorize(ctx.principal!.role, "settings.update").allowed) throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
     const current = ctx.runtime.settings.get();
     const patch: SettingsPatch = { dashboard: { ...current.dashboard, compact: intent.value } };
+    ctx.runtime.settings.validateAreas(patch);
+    return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
+  }
+  if (intent.kind === "settings.dashboard.refresh") {
+    if (!authorize(ctx.principal!.role, "settings.update").allowed) throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
+    const current = ctx.runtime.settings.get();
+    const patch: SettingsPatch = { dashboard: { ...current.dashboard, autoRefreshSeconds: intent.value } };
     ctx.runtime.settings.validateAreas(patch);
     return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
   }
@@ -171,6 +180,8 @@ function makeAction(ctx: RequestContext, intent: SettingsContentMutationIntent):
 function proposalText(action: NativeExecutableAction): string {
   if (action.kind === "settings.dashboard.compact")
     return `Dashboard-Kompaktansicht auf ${action.value ? "ein" : "aus"} setzen? Gespeicherte Revision ${action.expectedVersion}; Laufzeitwirkung wird nach dem Speichern nicht separat verifiziert.`;
+  if (action.kind === "settings.dashboard.refresh")
+    return `Dashboard-Aktualisierungsintervall auf ${action.value} Sekunden setzen? Gespeicherte Revision ${action.expectedVersion}; Laufzeitwirkung wird nach dem Speichern nicht separat verifiziert.`;
   if (action.kind === "contentStudio.idea.add")
     return `Content-Idee „${action.idea.titel}“ hinzufuegen? Defaults: LinkedIn, Feed-Post, Status Idee. Planrevision ${action.expectedRevision}.`;
   if (action.kind === "contentStudio.idea.status")
@@ -201,7 +212,7 @@ function proposalText(action: NativeExecutableAction): string {
 export async function executeSettingsContentMutation(ctx: RequestContext, request: CommandRequest,
   intent: SettingsContentMutationIntent): Promise<HandlerResult> {
   const ownerId = isOwner(ctx);
-  if (intent.kind === "settings.dashboard.compact" && !authorize(ctx.principal!.role, "settings.update").allowed)
+  if (intent.kind.startsWith("settings.") && !authorize(ctx.principal!.role, "settings.update").allowed)
     throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
   if (intent.kind.startsWith("contentStudio.") && ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true)
     throw forbidden("Content Studio ist deaktiviert.");
@@ -234,10 +245,12 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
     result: { message: "Die Aenderung wartet auf Freigabe.", targetRoute: `/approvals?approval=${policy.approval.id}` } });
 
   const revision = await ctx.runtime.nativeApprovals.executeWithoutApproval(ownerId, requestKey, async (saved, idempotencyKey) => {
-    if (saved.kind === "settings.dashboard.compact") {
+    if (saved.kind === "settings.dashboard.compact" || saved.kind === "settings.dashboard.refresh") {
       const current = ctx.runtime.settings.get();
       if (current.version !== saved.expectedVersion) throw conflict("Einstellungen wurden inzwischen geaendert. Bitte neu laden.");
-      const patch: SettingsPatch = { dashboard: { ...current.dashboard, compact: saved.value } };
+      const patch: SettingsPatch = saved.kind === "settings.dashboard.compact"
+        ? { dashboard: { ...current.dashboard, compact: saved.value } }
+        : { dashboard: { ...current.dashboard, autoRefreshSeconds: saved.value } };
       const result = await settingsHandlers.updateSettings!({ ...ctx, body: patch,
         mutation: { ...ctx.mutation, ifMatchVersion: saved.expectedVersion, idempotencyKey } });
       const version = (result.body as { data?: { version?: number } }).data?.version;
@@ -367,6 +380,8 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
   });
   const message = action.kind === "settings.dashboard.compact"
     ? `Dashboard-Kompaktansicht gespeichert (Revision ${revision}). Laufzeitwirkung nicht separat verifiziert.`
+    : action.kind === "settings.dashboard.refresh"
+      ? `Dashboard-Aktualisierungsintervall gespeichert (Revision ${revision}). Laufzeitwirkung nicht separat verifiziert.`
     : action.kind === "contentStudio.idea.add"
       ? `Content-Idee „${action.idea.titel}“ gespeichert (Planrevision ${revision}).`
       : action.kind === "contentStudio.idea.status"

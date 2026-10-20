@@ -11,6 +11,15 @@ describe("settings and Content Studio mutation intents", () => {
     expect(parseSettingsContentMutationIntent(text)).toEqual({ kind: "settings.dashboard.compact", value });
   });
 
+  it("parses dashboard refresh only within the settings schema bounds", () => {
+    expect(parseSettingsContentMutationIntent("Set dashboard refresh to 30 seconds"))
+      .toEqual({ kind: "settings.dashboard.refresh", value: 30 });
+    expect(parseSettingsContentMutationIntent("Setze Aktualisierung auf 5 Sekunden"))
+      .toEqual({ kind: "settings.dashboard.refresh", value: 5 });
+    expect(parseSettingsContentMutationIntent("Set dashboard refresh to 3601 seconds")).toBeNull();
+    expect(parseSettingsContentMutationIntent("Set dashboard refresh to 5.5 seconds")).toBeNull();
+  });
+
   it("binds a free-text idea title only in the exact add-to-plan grammar", () => {
     expect(parseSettingsContentMutationIntent("Add idea Show recent audit events to Content Studio plan"))
       .toEqual({ kind: "contentStudio.idea.add", title: "Show recent audit events" });

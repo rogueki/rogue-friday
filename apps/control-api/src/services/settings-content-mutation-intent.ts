@@ -1,5 +1,6 @@
 export type SettingsContentMutationIntent =
   | { kind: "settings.dashboard.compact"; value: boolean }
+  | { kind: "settings.dashboard.refresh"; value: number }
   | { kind: "contentStudio.idea.add"; title: string }
   | { kind: "contentStudio.idea.status"; title: string; status: "idee" | "in-arbeit" | "fertig" }
   | { kind: "contentStudio.idea.rename"; title: string; newTitle: string }
@@ -14,6 +15,7 @@ export type SettingsContentMutationIntent =
   | { kind: "contentStudio.posting.remove"; title: string; date: string; time: string };
 
 const SETTING_COMPACT = /^(?:please\s+)?(?:set|change|stelle|aendere|ändere)\s+(?:my\s+)?(?:dashboard\s+)?(?:compact|kompakt)(?:\s+mode)?\s+(?:(?:to|auf)\s+)?(on|off|enabled|disabled|ein|aus)(?:[.!?])?$/i;
+const SETTING_REFRESH = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:the\s+)?(?:dashboard\s+)?(?:refresh|aktualisierung)(?:\s+interval)?\s+(?:(?:to|auf)\s+)?([0-9]{1,4})\s*(?:seconds?|sekunden|s)?[.!?]?$/i;
 const ADD_IDEA = /^(?:please\s+)?(?:add|create|erstelle|lege\s+an|fuege\s+hinzu|füge\s+hinzu)\s+(?:an\s+)?(?:content\s+)?(?:idea|idee)\s+(.+?)\s+(?:to|in|zum|im)\s+(?:the\s+)?(?:content\s+studio\s+)?(?:plan|redaktionsplan)[.!?]?$/i;
 const IDEA_STATUS = /^(?:set|change|setze|aendere|ändere)\s+(?:the\s+)?(?:status\s+(?:of|von)\s+(?:the\s+)?(?:idea|idee)|(?:idea|idee))\s+(.+?)\s+(?:to|auf)\s+(idea|idee|in\s+progress|in\s+arbeit|done|fertig)[.!?]?$/i;
 const RENAME_IDEA = /^(?:rename|benenne)\s+(?:the\s+)?(?:idea|idee)\s+"([^"\r\n]{1,200})"\s+(?:to|in)\s+"([^"\r\n]{1,200})"(?:\s+um)?[.!?]?$/i;
@@ -33,6 +35,12 @@ export function parseSettingsContentMutationIntent(input: string): SettingsConte
   const text = rawText.replace(/\s+/g, " ");
   const compact = SETTING_COMPACT.exec(text);
   if (compact) return { kind: "settings.dashboard.compact", value: /^(on|enabled|ein)$/i.test(compact[1]!) };
+  const refresh = SETTING_REFRESH.exec(text);
+  if (refresh) {
+    const value = Number(refresh[1]);
+    if (Number.isInteger(value) && value >= 5 && value <= 3600) return { kind: "settings.dashboard.refresh", value };
+    return null;
+  }
   const idea = ADD_IDEA.exec(text);
   if (idea) {
     const title = idea[1]!.trim();
