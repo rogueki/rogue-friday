@@ -93,7 +93,7 @@ jobs:
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" init -q
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" remote add origin https://github.com/NousResearch/hermes-agent.git
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" config core.sparseCheckout true
-          printf 'hermes_cli/\nplugins/kanban/dashboard/plugin_api.py\nplugins/browser/\ntoolsets.py\ntools/\nagent/\nhermes_platform/\ngateway/status.py\nhermes_state*.py\nhermes_constants.py\nhermes_time.py\nutils.py\nhermes_yaml.py\n' > "$FRIDAY_HERMES_OFFICIAL_SOURCE/.git/info/sparse-checkout"
+          printf 'hermes_cli/\nplugins/kanban/dashboard/plugin_api.py\nplugins/browser/\ntoolsets.py\ntools/\nagent/\nhermes_platform/\ngateway/status.py\nhermes_state*.py\nhermes_constants.py\nhermes_time.py\nutils.py\nhermes_yaml.py\nhermes_logging.py\n' > "$FRIDAY_HERMES_OFFICIAL_SOURCE/.git/info/sparse-checkout"
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" fetch --depth 1 origin d923a5eb487a17c0a68801bba9ef0f56c81040a8
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" checkout -q --detach FETCH_HEAD
           test "$(git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" rev-parse HEAD)" = d923a5eb487a17c0a68801bba9ef0f56c81040a8
@@ -112,6 +112,13 @@ jobs:
           test "$(git -C "$HERMES_PIN_SOURCE" rev-parse HEAD)" = d923a5eb487a17c0a68801bba9ef0f56c81040a8
           python -m pip install ruamel.yaml==0.18.16 requests==2.33.0
           PYTHONDONTWRITEBYTECODE=1 python docs/agent-work/hermes-full-integration/p7d-runtime-fixture.py
+
+      - name: Pinned Hermes logging consumer fixture
+        env:
+          FRIDAY_HERMES_SOURCE_FIXTURE: ${{ runner.temp }}/friday-hermes-d923
+        run: |
+          test "$(git -C "$FRIDAY_HERMES_SOURCE_FIXTURE" rev-parse HEAD)" = d923a5eb487a17c0a68801bba9ef0f56c81040a8
+          PYTHONDONTWRITEBYTECODE=1 python installer/wsl/test_hermes_logging_runtime.py
 
   verify:
     name: Contracts, typecheck, lint, tests, build
