@@ -39,6 +39,7 @@ jobs:
           HOME: ${{ runner.temp }}/friday-python-home
         run: |
           mkdir -p "$HOME"
+          openssl version
           PYTHONPATH=installer/voice:installer/wsl python -m pytest -q \
             installer/voice/test_audio_devices.py \
             installer/voice/test_memory_outbox.py \
@@ -66,6 +67,7 @@ jobs:
             installer/wsl/test_hermes_model_catalog.py \
             installer/wsl/test_hermes_plugin_activation.py \
             installer/wsl/test_hermes_mcp_http_apply.py \
+            installer/wsl/test_hermes_mcp_protocol_probe.py \
             installer/wsl/test_configure_messenger_inbound_bridge.py \
             installer/wsl/test_messenger_inbound_plugin.py \
             installer/wsl/test_system_backup.py \

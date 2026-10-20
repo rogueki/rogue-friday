@@ -56,8 +56,7 @@ class Connection:
 
 class ProtocolProbeTest(TestCase):
     def test_real_tls_streamable_http_round_trip_to_pinned_socket(self):
-        if not shutil.which("openssl"):
-            self.skipTest("openssl is required for synthetic TLS fixture")
+        self.assertIsNotNone(shutil.which("openssl"), "openssl is required for synthetic TLS fixture")
         with tempfile.TemporaryDirectory() as directory:
             cert, key = Path(directory) / "cert.pem", Path(directory) / "key.pem"
             subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
@@ -65,6 +64,8 @@ class ProtocolProbeTest(TestCase):
                 "-addext", "subjectAltName=DNS:example.org"], check=True, capture_output=True)
             methods = []
             class Handler(http.server.BaseHTTPRequestHandler):
+                protocol_version = "HTTP/1.1"
+
                 def do_POST(self):
                     message = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                     methods.append(message["method"])
@@ -73,17 +74,25 @@ class ProtocolProbeTest(TestCase):
                         body, status = {"jsonrpc": "2.0", "id": 1,
                             "result": {"protocolVersion": "2025-03-26"}}, 200
                     elif message["method"] == "notifications/initialized":
+                        if self.headers["Mcp-Session-Id"] != "fixture-session":
+                            raise AssertionError("session ID was not preserved")
                         body, status = None, 202
                     else:
+                        if self.headers["Mcp-Session-Id"] != "fixture-session":
+                            raise AssertionError("session ID was not preserved")
                         body, status = {"jsonrpc": "2.0", "id": 2,
                             "result": {"tools": [{"name": "read_only"}]}}, 200
                     encoded = json.dumps(body).encode() if body is not None else b""
+                    if message["method"] == "initialize":
+                        encoded = b"data: " + encoded + b"\n\n"
                     self.send_response(status)
-                    self.send_header("Content-Type", "application/json")
-                    self.send_header("Content-Length", str(len(encoded)))
+                    self.send_header("Content-Type", "text/event-stream" if message["method"] == "initialize" else "application/json")
+                    if message["method"] != "initialize":
+                        self.send_header("Content-Length", str(len(encoded)))
                     self.send_header("Mcp-Session-Id", "fixture-session")
                     self.end_headers()
                     self.wfile.write(encoded)
+                    self.wfile.flush()
 
                 def assert_host(self):
                     if self.headers["Host"] != "example.org":
@@ -115,7 +124,7 @@ class ProtocolProbeTest(TestCase):
                 thread.join(timeout=2)
             self.assertEqual(result["toolCount"], 1)
             self.assertEqual(methods, ["initialize", "notifications/initialized", "tools/list"])
-            self.assertTrue(dialed)
+            self.assertEqual(len(dialed), 3)
             self.assertTrue(all(address == ("93.184.215.14", 443) for address in dialed))
 
     def test_dns_rejects_private_answers_before_any_dial(self):
@@ -140,16 +149,18 @@ class ProtocolProbeTest(TestCase):
             "protocolVersion": "2025-03-26"}}).encode(), session="session-1")
         listed = Response(200, json.dumps({"jsonrpc": "2.0", "id": 2,
             "result": {"tools": [{"name": "one"}], "nextCursor": "more"}}).encode())
-        connection = Connection("example.org", "93.184.215.14", [first, Response(202), listed])
+        connections = [Connection("example.org", "93.184.215.14", [first]),
+                       Connection("example.org", "93.184.215.14", [Response(202)]),
+                       Connection("example.org", "93.184.215.14", [listed])]
         with patch.object(probe_module, "public_address", return_value="93.184.215.14"), \
-             patch.object(probe_module, "PinnedHTTPSConnection", return_value=connection):
+             patch.object(probe_module, "PinnedHTTPSConnection", side_effect=connections):
             result = probe_module.probe("https://example.org/mcp")
         self.assertEqual(result, {"connected": True, "toolCount": 1,
                                   "toolCountComplete": False, "failureClass": None})
-        self.assertEqual([call[2]["method"] for call in connection.requests],
+        self.assertEqual([connection.requests[0][2]["method"] for connection in connections],
                          ["initialize", "notifications/initialized", "tools/list"])
-        self.assertEqual(connection.requests[2][3]["Mcp-Session-Id"], "session-1")
-        self.assertTrue(connection.closed)
+        self.assertEqual(connections[2].requests[0][3]["Mcp-Session-Id"], "session-1")
+        self.assertTrue(all(connection.closed for connection in connections))
 
         redirect = Connection("example.org", "93.184.215.14", [Response(302)])
         with patch.object(probe_module, "public_address", return_value="93.184.215.14"), \

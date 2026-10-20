@@ -391,6 +391,8 @@ export function HermesConfigArea() {
             HTTP-Servereintrag entfernen
           </button> : null}
         </li>)}</ul>
+        {mcpProbe.isError ? <p role="alert">MCP-Probe nicht bestaetigt: {mcpProbe.error.message}.
+          Konfiguration neu laden und den gewuenschten Server erneut pruefen.</p> : null}
       </section>
     </div>
   );

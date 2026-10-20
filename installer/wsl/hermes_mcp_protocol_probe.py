@@ -92,30 +92,47 @@ def request(connection, path, payload, session=None, protocol=None):
     return connection.getresponse()
 
 
+def exchange(host, address, path, payload, request_id=None, session=None, protocol=None):
+    connection = PinnedHTTPSConnection(host, address)
+    try:
+        response = request(connection, path, payload, session, protocol)
+        if request_id is None:
+            if response.status in (401, 403):
+                raise ProbeFailure("auth_required")
+            if response.status in (301, 302, 303, 307, 308):
+                raise ProbeFailure("redirect_rejected")
+            if response.status not in (200, 202, 204):
+                raise ProbeFailure("protocol_failed")
+            return None, None
+        session_id = response.getheader("Mcp-Session-Id")
+        return response_message(response, request_id), session_id
+    finally:
+        # An SSE response can remain open after its matching frame. Never reuse it
+        # for the next POST; a fresh connection still dials the same pinned IP.
+        connection.close()
+
+
 def probe(url):
     if not valid_url(url):
         raise ProbeFailure("config_invalid")
     parsed = urlsplit(url)
-    connection = PinnedHTTPSConnection(parsed.hostname, public_address(parsed.hostname))
+    host = parsed.hostname
+    address = public_address(host)
     path = parsed.path or "/"
     try:
-        first = request(connection, path, {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+        initialized, session = exchange(host, address, path, {"jsonrpc": "2.0", "id": 1, "method": "initialize",
             "params": {"protocolVersion": PROTOCOL, "capabilities": {},
-                       "clientInfo": {"name": "friday-mcp-probe", "version": "1"}}})
-        session = first.getheader("Mcp-Session-Id")
+                       "clientInfo": {"name": "friday-mcp-probe", "version": "1"}}}, request_id=1)
         if session is not None and (not 1 <= len(session) <= 256 or any(ord(ch) < 33 or ord(ch) > 126 for ch in session)):
             raise ProbeFailure("protocol_failed")
-        initialized = response_message(first, 1)
         result = initialized.get("result")
         if not isinstance(result, dict) or result.get("protocolVersion") != PROTOCOL:
             raise ProbeFailure("protocol_unsupported")
-        notice = request(connection, path, {"jsonrpc": "2.0", "method": "notifications/initialized"}, session, PROTOCOL)
-        if notice.status not in (200, 202, 204):
-            raise ProbeFailure("protocol_failed")
-        if len(notice.read(MAX_RESPONSE + 1)) > MAX_RESPONSE:
-            raise ProbeFailure("protocol_failed")
-        listed = request(connection, path, {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}, session, PROTOCOL)
-        listing = response_message(listed, 2)
+        exchange(host, address, path, {"jsonrpc": "2.0", "method": "notifications/initialized"},
+                 session=session, protocol=PROTOCOL)
+        listing, _ = exchange(host, address, path,
+                              {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+                              request_id=2, session=session, protocol=PROTOCOL)
         tools = listing.get("result", {}).get("tools") if isinstance(listing.get("result"), dict) else None
         if not isinstance(tools, list) or len(tools) > 10000:
             raise ProbeFailure("protocol_failed")
@@ -123,5 +140,3 @@ def probe(url):
                 not bool(listing["result"].get("nextCursor")), "failureClass": None}
     except (OSError, ssl.SSLError, http.client.HTTPException):
         raise ProbeFailure("connect_failed") from None
-    finally:
-        connection.close()
