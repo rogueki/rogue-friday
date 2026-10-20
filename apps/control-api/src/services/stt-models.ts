@@ -4,7 +4,7 @@ import { readRuntimeVoiceSettings } from "./voice-settings";
 
 export type SttModelsStatus = {
   localMode: boolean;
-  models: Array<{ id: string; cached: boolean }>;
+  models: Array<{ id: string; cached: boolean; downloadable: boolean }>;
   job: { id: string; model: string; state: "downloading" | "cancelling" | "ready" | "failed" | "cancelled"; error: string | null } | null;
 };
 
@@ -35,9 +35,9 @@ export async function sttModelsRequest(runtime: Runtime, action: "status" | "dow
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Ungültiger STT-Modellstatus." });
   const state = data as SttModelsStatus;
   if (typeof state.localMode !== "boolean" || !Array.isArray(state.models) ||
-      state.models.length > 4 || !state.models.every((model) => model && typeof model.id === "string" && /^[a-z0-9][a-z0-9.-]{0,63}$/.test(model.id) && typeof model.cached === "boolean") ||
+      state.models.length > 32 || !state.models.every((model) => model && typeof model.id === "string" && /^[a-z0-9][a-z0-9.-]{0,63}$/.test(model.id) && typeof model.cached === "boolean" && typeof model.downloadable === "boolean") ||
       !(state.job === null || state.job && /^[0-9a-f]{32}$/.test(state.job.id) &&
-        ["base", "small", "medium"].includes(state.job.model) &&
+        typeof state.job.model === "string" && /^[a-z0-9][a-z0-9.-]{0,63}$/.test(state.job.model) &&
         ["downloading", "cancelling", "ready", "failed", "cancelled"].includes(state.job.state) &&
         (state.job.error === null || typeof state.job.error === "string")))
     throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Ungültiger STT-Modellstatus." });
@@ -45,7 +45,10 @@ export async function sttModelsRequest(runtime: Runtime, action: "status" | "dow
 }
 
 export async function startSttModelDownload(runtime: Runtime, model: string): Promise<SttModelsStatus> {
-  if (!["base", "small", "medium"].includes(model)) throw validationFailed("Unbekanntes Whisper-Modell.");
+  if (!/^[a-z0-9][a-z0-9.-]{0,63}$/.test(model)) throw validationFailed("Unbekanntes Whisper-Modell.");
+  const inventory = await sttModelsRequest(runtime, "status");
+  if (!inventory.models.some((entry) => entry.id === model && entry.downloadable))
+    throw validationFailed("Dieses Whisper-Modell kann nicht heruntergeladen werden.");
   const revision = await readRuntimeVoiceSettings(runtime);
   return sttModelsRequest(runtime, "download", { model, expectedServiceStartedAt: revision.serviceStartedAt });
 }

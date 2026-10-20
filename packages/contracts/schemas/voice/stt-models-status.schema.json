@@ -8,11 +8,12 @@
     "localMode": { "type": "boolean" },
     "models": { "type": "array", "items": { "type": "object", "properties": {
       "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$" },
-      "cached": { "type": "boolean" }
-    }, "required": ["id", "cached"], "additionalProperties": false } },
+      "cached": { "type": "boolean" },
+      "downloadable": { "type": "boolean" }
+    }, "required": ["id", "cached", "downloadable"], "additionalProperties": false } },
     "job": { "oneOf": [{ "type": "null" }, { "type": "object", "properties": {
       "id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
-      "model": { "type": "string", "enum": ["base", "small", "medium"] },
+      "model": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$" },
       "state": { "type": "string", "enum": ["downloading", "cancelling", "ready", "failed", "cancelled"] },
       "error": { "type": ["string", "null"] }
     }, "required": ["id", "model", "state", "error"], "additionalProperties": false }] }

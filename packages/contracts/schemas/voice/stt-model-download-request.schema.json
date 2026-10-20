@@ -4,7 +4,7 @@
   "title": "SttModelDownloadRequest",
   "type": "object",
   "properties": {
-    "model": { "type": "string", "enum": ["base", "small", "medium"] }
+    "model": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$" }
   },
   "required": ["model"],
   "additionalProperties": false

@@ -8,8 +8,8 @@ const runtime = {
   config: { adapters: { voice: { provider: "friday-voice-http", config: { baseUrl: "http://127.0.0.1:43794" } } } },
   voiceBridgeKey: Buffer.from("synthetic-key"),
 } as unknown as Runtime;
-const status = { localMode: true, models: [{ id: "base", cached: true }, { id: "small", cached: false },
-  { id: "medium", cached: false }], job: null };
+const status = { localMode: true, models: [{ id: "base", cached: true, downloadable: true }, { id: "small", cached: false, downloadable: true },
+  { id: "large-v3", cached: false, downloadable: true }], job: null };
 
 it("routes owner STT inventory, explicit download and cancel to the local service", async () => {
   const calls: Array<{ path: string; body: unknown }> = [];
@@ -27,8 +27,8 @@ it("routes owner STT inventory, explicit download and cancel to the local servic
   expect((await browserVoiceHandlers.startVoiceSttModelDownload!(context({ model: "small" }))).body).toMatchObject(status);
   expect((await browserVoiceHandlers.cancelVoiceSttModelDownload!(context({ jobId: "a".repeat(32) }))).body).toMatchObject(status);
   expect(calls.map((call) => call.path)).toEqual([
-    "/control/stt-models", "/", "/control/stt-models/download", "/control/stt-models/cancel",
+    "/control/stt-models", "/control/stt-models", "/", "/control/stt-models/download", "/control/stt-models/cancel",
   ]);
-  expect(calls[2]?.body).toEqual({ model: "small", expectedServiceStartedAt: "process-A" });
-  expect(calls[3]?.body).toEqual({ jobId: "a".repeat(32) });
+  expect(calls[3]?.body).toEqual({ model: "small", expectedServiceStartedAt: "process-A" });
+  expect(calls[4]?.body).toEqual({ jobId: "a".repeat(32) });
 });

@@ -7,9 +7,6 @@ import threading
 import uuid
 
 
-MODELS = ("base", "small", "medium")
-
-
 class SttModels:
     def __init__(self, cache_dir, local_mode=True, current_model=None):
         self.cache_dir = cache_dir
@@ -23,22 +20,26 @@ class SttModels:
     def status(self):
         inventory = []
         if self.local_mode:
-            from faster_whisper.utils import download_model
+            from faster_whisper.utils import available_models, download_model
+            supported = tuple(model for model in available_models() if len(model) <= 64)
             configured = self.current_model() if self.current_model else None
-            choices = (*MODELS, *((configured,) if configured and configured not in MODELS else ()))
+            choices = (*supported, *((configured,) if configured and configured not in supported else ()))
             for model in choices:
                 try:
                     path = download_model(model, local_files_only=True, cache_dir=self.cache_dir)
                     available = os.path.isfile(os.path.join(path, "model.bin"))
                 except Exception:
                     available = False
-                inventory.append({"id": model, "cached": available})
+                inventory.append({"id": model, "cached": available, "downloadable": model in supported})
         with self.lock:
             job = dict(self.job) if self.job else None
         return {"localMode": self.local_mode, "models": inventory, "job": job}
 
     def start(self, model):
-        if not self.local_mode or model not in MODELS:
+        if not self.local_mode or not isinstance(model, str):
+            raise ValueError("Model download is available only for local Whisper")
+        from faster_whisper.utils import available_models
+        if model not in available_models():
             raise ValueError("Model download is available only for local Whisper")
         with self.lock:
             if self.busy:

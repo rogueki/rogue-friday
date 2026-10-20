@@ -160,6 +160,8 @@ def validate(request, cfg):
     if request["sttModel"] is not None and (not isinstance(request["sttModel"], str) or
             not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,63}", request["sttModel"])):
         raise ValueError("Invalid STT model")
+    if isinstance(request["sttModel"], str) and request["sttModel"].endswith(".en") and request["sttLanguage"] != "en":
+        raise ValueError("English-only Whisper model requires English transcription")
     return {**cfg, "wake_phrase": phrase,
             "wake_word_enabled": request["wakeWordEnabled"],
             "push_to_talk_key": key, "speaker_verification_required": request["speakerVerificationRequired"],

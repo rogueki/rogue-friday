@@ -11,6 +11,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from stt_models import SttModels
 
 
+def stub_supported(monkeypatch):
+    monkeypatch.setitem(sys.modules, "faster_whisper", types.ModuleType("faster_whisper"))
+    utils = types.ModuleType("faster_whisper.utils")
+    utils.available_models = lambda: ["base", "small", "medium", "large-v3"]
+    monkeypatch.setitem(sys.modules, "faster_whisper.utils", utils)
+    return utils
+
+
 def test_inventory_is_local_only_and_cloud_mode_does_not_import_whisper(monkeypatch, tmp_path):
     seen = []
     def local_model(model, *, local_files_only, cache_dir):
@@ -21,20 +29,21 @@ def test_inventory_is_local_only_and_cloud_mode_does_not_import_whisper(monkeypa
         path.mkdir(exist_ok=True)
         (path / "model.bin").write_bytes(b"synthetic")
         return str(path)
-    monkeypatch.setitem(sys.modules, "faster_whisper", types.ModuleType("faster_whisper"))
-    utils = types.ModuleType("faster_whisper.utils")
+    utils = stub_supported(monkeypatch)
     utils.download_model = local_model
-    monkeypatch.setitem(sys.modules, "faster_whisper.utils", utils)
     status = SttModels(str(tmp_path)).status()
-    assert status["models"] == [{"id": "base", "cached": True}, {"id": "small", "cached": False},
-                                 {"id": "medium", "cached": False}]
+    assert status["models"] == [{"id": "base", "cached": True, "downloadable": True},
+        {"id": "small", "cached": False, "downloadable": True},
+        {"id": "medium", "cached": False, "downloadable": True},
+        {"id": "large-v3", "cached": False, "downloadable": True}]
     assert all(local and cache == str(tmp_path) for _, local, cache in seen)
-    legacy = SttModels(str(tmp_path), current_model=lambda: "large-v3").status()
-    assert legacy["models"][-1] == {"id": "large-v3", "cached": False}
+    legacy = SttModels(str(tmp_path), current_model=lambda: "legacy-x").status()
+    assert legacy["models"][-1] == {"id": "legacy-x", "cached": False, "downloadable": False}
     assert SttModels(str(tmp_path), local_mode=False).status()["models"] == []
 
 
 def test_explicit_download_cancel_never_marks_model_ready(monkeypatch, tmp_path):
+    stub_supported(monkeypatch)
     finished = threading.Event()
     started = threading.Event()
     class FakeProcess:
@@ -53,6 +62,8 @@ def test_explicit_download_cancel_never_marks_model_ready(monkeypatch, tmp_path)
     monkeypatch.setattr("stt_models.subprocess.Popen", FakeProcess)
     models = SttModels(str(tmp_path))
     monkeypatch.setattr(models, "status", lambda: {"job": dict(models.job)})
+    with pytest.raises(ValueError):
+        models.start("unlisted-model")
     assert models.start("small")["job"]["state"] == "downloading"
     assert started.wait(2)
     job_id = models.job["id"]
@@ -67,6 +78,7 @@ def test_explicit_download_cancel_never_marks_model_ready(monkeypatch, tmp_path)
 
 
 def test_cancel_reaps_sigterm_ignoring_process_before_next_job(monkeypatch, tmp_path):
+    stub_supported(monkeypatch)
     first_waiting = threading.Event()
     release_first = threading.Event()
     processes = []

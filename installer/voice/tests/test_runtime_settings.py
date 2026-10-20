@@ -23,7 +23,7 @@ def test_validation_rejects_invalid_phrase_and_implicit_recording():
     cfg = {"wake_phrase": "Hey Friday"}
     for value in (requested(wakeWord="Hey 123"),
                   requested(pushToTalkKey="Ctrl+Alt+Delete"), {**requested(), "storeRawRecordings": "true"},
-                  requested(sttLanguage="zz"), requested(sttModel="../remote/path")):
+                   requested(sttLanguage="zz"), requested(sttModel="../remote/path"), requested(sttModel="base.en")):
         try:
             runtime_settings.validate(value, cfg)
         except ValueError:

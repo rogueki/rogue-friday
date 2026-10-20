@@ -296,11 +296,12 @@ export function VoiceArea() {
             onChange={(event) => update({ sttLanguage: event.target.value as "de" | "en" })} />
           <Select label="Lokales Whisper-Modell" value={value.sttModel ?? ""} disabled={readOnly}
             options={[...(value.sttModel == null ? [{ value: "", label: "Installiertes Modell übernehmen" }] : []),
-              ...(value.sttModel != null && !["base", "small", "medium"].includes(value.sttModel) ? [{ value: value.sttModel, label: `Bisheriges Modell (${value.sttModel})` }] : []),
+              ...(value.sttModel != null && !["base", "small", "medium"].includes(value.sttModel) ? [{ value: value.sttModel, label: `Modell (${value.sttModel})` }] : []),
               { value: "base", label: "base" }, { value: "small", label: "small" }, { value: "medium", label: "medium" }]}
             onChange={(event) => update({ sttModel: event.target.value === "" ? null : event.target.value as "base" | "small" | "medium" })} />
         </FieldGrid>
-        <SttModelsControl selected={value.sttModel ?? null} readOnly={readOnly} />
+        <SttModelsControl selected={value.sttModel ?? null} language={value.sttLanguage ?? "de"} readOnly={readOnly}
+          onSelect={(sttModel) => update({ sttModel })} />
       </Section>
       <Section title={t("settings.voice.privacy")}>
         <FieldGrid>
