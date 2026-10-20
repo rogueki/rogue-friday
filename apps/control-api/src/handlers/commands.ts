@@ -1072,9 +1072,12 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         : parseMailActionIntent(request.text);
       const researchAction = taskCreate || taskAction || calendarAction || agentAction || messengerAction || knowledgeAction || automationAction || mailAction ? null
         : parseResearchActionIntent(request.text);
+      // Typed action parsers bind the full request, including free-text title/body/topic payloads. A read-shaped
+      // phrase inside that payload must not replace the action that actually matched.
+      const readQueryWins = Boolean(readQuery && !taskCreate && !taskAction && !calendarAction && !knowledgeAction
+        && !automationAction && !agentAction && !messengerAction && !mailAction && !researchAction);
       const intent = request.confirm ? null : matchBuiltinIntent(request.text);
-      const result = readQuery ? await executeReadQuery(ctx, readQuery)
-        : taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
+      const result = taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
         : taskAction ? await executeTaskAction(ctx, request, taskAction)
         : calendarAction ? await executeCalendarAction(ctx, request, calendarAction)
         : knowledgeAction ? await executeKnowledgeAction(ctx, request, knowledgeAction)
@@ -1083,6 +1086,7 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         : messengerAction ? await executeMessengerAction(ctx, request, messengerAction)
         : mailAction ? await executeMailAction(ctx, request, mailAction)
         : researchAction ? await executeResearchCommand(ctx, request, researchAction.topic)
+        : readQueryWins ? await executeReadQuery(ctx, readQuery!)
         : intent ? await executeBuiltinIntent(ctx, intent, () => executeBase(ctx)) : await executeBase(ctx);
       const response = result.body as CommandResponse;
       status = response.status;
@@ -1092,7 +1096,7 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         riskTier: response.riskTier,
         approvalId: response.approvalId,
         source: request.source,
-        ...(readQuery ? { intent: `read_${readQuery.kind}` } : intent ? { intent } : taskCreate ? { intent: "task_create" } : taskAction ? { intent: taskAction.kind.replace(".", "_") }
+        ...(readQueryWins ? { intent: `read_${readQuery!.kind}` } : intent ? { intent } : taskCreate ? { intent: "task_create" } : taskAction ? { intent: taskAction.kind.replace(".", "_") }
           : calendarAction ? { intent: calendarAction.kind.replace(".", "_") }
           : knowledgeAction ? { intent: knowledgeAction.kind.replace(".", "_") }
           : automationAction ? { intent: automationAction.kind.replace(".", "_") }
