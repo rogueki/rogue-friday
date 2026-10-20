@@ -13,6 +13,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import types
 import unittest
 from unittest.mock import patch
@@ -87,6 +88,61 @@ class OfficialHermesLifecycleTest(unittest.TestCase):
         with self.kanban.write_txn(self.db):
             self.db.execute("UPDATE tasks SET worker_pid = ?, worker_started_at = NULL WHERE id = ?", (pid, task_id))
         return self.expected(task_id)
+
+    def claim_with_real_worker(self, task_id):
+        worker = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"],
+                                  start_new_session=True)
+        try:
+            fingerprint = self.dispatch._process_fingerprint(worker.pid)
+            self.assertIsNotNone(fingerprint)
+            claimed = self.kanban.claim_task(
+                self.db, task_id, claimer=self.kanban._host_prefix() + "friday-real-worker")
+            self.assertIsNotNone(claimed)
+            with self.kanban.write_txn(self.db):
+                self.db.execute("UPDATE tasks SET worker_pid = ?, worker_started_at = ? WHERE id = ?",
+                                (worker.pid, fingerprint, task_id))
+            # Reap on a separate thread: a zombie still answers kill(pid, 0) on Linux.
+            threading.Thread(target=worker.wait, daemon=True).start()
+            return worker, self.expected(task_id)
+        except BaseException:
+            worker.kill()
+            worker.wait(timeout=5)
+            raise
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "POSIX process fixture runs in Linux CI")
+    def test_real_child_cancel_terminates_before_archive(self):
+        task_id = self.task()
+        worker, expected = self.claim_with_real_worker(task_id)
+        try:
+            self.assertTrue(self.kanban.archive_task(self.db, task_id, **expected))
+            self.assertIsNotNone(worker.poll())
+            task = self.kanban.get_task(self.db, task_id)
+            self.assertEqual((task.status, task.current_run_id), ("archived", None))
+            run = self.db.execute("SELECT ended_at FROM task_runs WHERE id = ?",
+                                  (expected["expected_run_id"],)).fetchone()
+            self.assertIsNotNone(run[0])
+        finally:
+            if worker.poll() is None:
+                worker.kill()
+            worker.wait(timeout=5)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "POSIX process fixture runs in Linux CI")
+    def test_real_child_named_stop_blocks_and_ends_run(self):
+        task_id = self.task()
+        worker, expected = self.claim_with_real_worker(task_id)
+        try:
+            self.assertTrue(self.kanban.friday_terminate_run(self.db, expected["expected_run_id"]))
+            self.assertIsNotNone(worker.poll())
+            task = self.kanban.get_task(self.db, task_id)
+            self.assertEqual((task.status, task.block_kind, task.current_run_id),
+                             ("blocked", "friday_stopped", None))
+            run = self.db.execute("SELECT ended_at FROM task_runs WHERE id = ?",
+                                  (expected["expected_run_id"],)).fetchone()
+            self.assertIsNotNone(run[0])
+        finally:
+            if worker.poll() is None:
+                worker.kill()
+            worker.wait(timeout=5)
 
     def test_running_cancel_ends_the_named_run_and_signals_once(self):
         task_id = self.task()
