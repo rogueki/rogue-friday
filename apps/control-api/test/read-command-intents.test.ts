@@ -132,4 +132,57 @@ describe("read-only command intents use local read services", () => {
     expect((await viewer.get("/api/v1/activity")).statusCode).toBe(200);
     expect((await run(viewer, "Zeige Activity")).statusCode).toBe(403);
   });
+
+  it("reads only redacted saved settings and states when runtime application is not verified", async () => {
+    const saved = (await owner.get("/api/v1/settings")).json().data;
+    const privateWakeWord = "PRIVATE_WAKEWORD_NLP_READ_TEST";
+    const updated = await owner.patch("/api/v1/settings", { voice: { ...saved.voice, wakeWord: privateWakeWord } },
+      { headers: { "if-match": String(saved.version) } });
+    expect(updated.statusCode, updated.body).toBe(200);
+
+    const response = await run(operator, "Wie sind meine Voice-Einstellungen?");
+    expect(response.statusCode, response.body).toBe(200);
+    const message = response.json().result.message as string;
+    const runtimeStatus = await operator.get("/api/v1/voice/status");
+    expect(runtimeStatus.statusCode, runtimeStatus.body).toBe(200);
+    const status = runtimeStatus.json().data;
+    expect(message).toContain("gespeichert");
+    expect(message).toContain("Revision");
+    expect(message).toContain("Laufzeit-Readback");
+    expect(message).toContain(`STT ${status.stt.state}, TTS ${status.tts.state}`);
+    expect(message).not.toContain(privateWakeWord);
+    if (typeof saved.voice.inputDeviceId === "string") expect(message).not.toContain(saved.voice.inputDeviceId);
+    if (typeof saved.voice.outputDeviceId === "string") expect(message).not.toContain(saved.voice.outputDeviceId);
+    expect((await viewer.get("/api/v1/settings")).statusCode).toBe(200);
+    expect((await run(viewer, "Wie sind meine Voice-Einstellungen?")).statusCode).toBe(403);
+  });
+
+  it("reads bounded Content Studio plan metadata through the owner-only endpoint", async () => {
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    const enabled = await owner.patch("/api/v1/settings", {
+      dashboard: { ...settings.dashboard, contentStudioEnabled: true },
+    }, { headers: { "if-match": String(settings.version) } });
+    expect(enabled.statusCode, enabled.body).toBe(200);
+    const content = Array.from({ length: 6 }, (_, index) => ({
+      id: `idea-${index}`, titel: `Synthetic idea ${index}`, plattform: "Instagram", format: "Story",
+      beschreibung: "PRIVATE_CONTENT_DESCRIPTION_MUST_NOT_LEAK", zieldatum: "2026-10-22", status: "idee",
+    }));
+    const stored = await owner.request("PUT", "/api/v1/content-studio/plan", {
+      body: { version: 1, exportiert_am: "2026-10-20T00:00:00.000Z", content, postings: [] },
+      headers: { "if-match": "0" },
+    });
+    expect(stored.statusCode, stored.body).toBe(200);
+
+    const response = await run(owner, "Zeige mir den Content Studio Plan");
+    expect(response.statusCode, response.body).toBe(200);
+    const message = response.json().result.message as string;
+    expect(message).toContain("6 Ideen");
+    expect(message).toContain("Revision 1");
+    for (const idea of content.slice(0, 5)) expect(message).toContain(idea.titel);
+    expect(message).not.toContain(content[5]!.titel);
+    expect(message).toContain("weitere vorhanden");
+    expect(message).not.toContain("PRIVATE_CONTENT_DESCRIPTION_MUST_NOT_LEAK");
+    expect((await operator.get("/api/v1/content-studio/plan")).statusCode).toBe(403);
+    expect((await run(operator, "Zeige Content Studio Plan")).statusCode).toBe(403);
+  });
 });

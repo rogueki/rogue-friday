@@ -81,4 +81,14 @@ describe("read-only command intent parsing", () => {
     expect(parseReadQueryIntent(`Zeige Benachrichtigung ${notificationId}`)).toEqual({ kind: "notifications.unsupportedDetail", id: notificationId });
     expect(parseReadQueryIntent(`Zeige Activity ${notificationId}`)?.kind).toBe("clarify");
   });
+
+  it("parses bounded settings and Content Studio plan reads without swallowing extra filters", () => {
+    expect(parseReadQueryIntent("Wie sind meine Voice-Einstellungen?"))
+      .toEqual({ kind: "settings.get", area: "voice" });
+    expect(parseReadQueryIntent("Show my notification settings"))
+      .toEqual({ kind: "settings.get", area: "notifications" });
+    expect(parseReadQueryIntent("Zeige mir den Content Studio Plan"))
+      .toEqual({ kind: "contentStudio.plan" });
+    expect(parseReadQueryIntent("Zeige den Content Studio Plan für nächste Woche")?.kind).toBe("clarify");
+  });
 });

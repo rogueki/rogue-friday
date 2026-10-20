@@ -1,14 +1,16 @@
 import { authorize, type Role } from "@friday/auth";
 import { isAdapterError } from "@friday/adapter-core";
-import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, type CommandResponse, type Notification } from "@friday/sdk";
+import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, type CommandResponse, type ContentPlanState, type Notification, type Settings, type VoiceStatus } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import type { HandlerResult, RequestContext } from "../http/context";
-import { ApiError, validationFailed } from "../util/errors";
+import { ApiError, forbidden, validationFailed } from "../util/errors";
 
 const MAX_RESULTS = 5;
 const ROLE_RANK: Record<Role, number> = { viewer: 0, operator: 1, owner: 2 };
 
 export type ReadQueryIntent =
+  | { kind: "settings.get"; area?: SettingsReadArea }
+  | { kind: "contentStudio.plan" }
   | { kind: "activity.list"; status?: string; lookbackHours?: number }
   | { kind: "activity.get"; id: string }
   | { kind: "notifications.list"; status?: Array<"open" | "acknowledged" | "snoozed" | "resolved"> }
@@ -20,7 +22,24 @@ export type ReadQueryIntent =
   | { kind: "audit.exportUnsupported" }
   | { kind: "clarify"; message: string };
 
-const READ_CUE = /\b(zeige|zeig|liste|list|show|search|suche|such|find|finde|get|open|abruf|abrufe|hole|detail|details|was|welche|welcher|welches|what|which|recent|latest|aktuell|aktuelle|letzte|letzten|recenten|export|exportieren|exportiere|download)\b/;
+export type SettingsReadArea = "profile" | "dashboard" | "theme" | "orb" | "navigation" | "modelsRouting" | "voice" | "notifications" | "approvals" | "dataRetention" | "backups" | "developer" | "security";
+
+const READ_CUE = /\b(zeige|zeig|liste|list|show|search|suche|such|find|finde|get|open|abruf|abrufe|hole|detail|details|was|wie|welche|welcher|welches|what|which|recent|latest|aktuell|aktuelle|letzte|letzten|recenten|export|exportieren|exportiere|download)\b/;
+const SETTINGS_AREA_PATTERNS: Array<{ area: SettingsReadArea; pattern: RegExp }> = [
+  { area: "profile", pattern: /\b(profile|profil|konto|account)\b/ },
+  { area: "dashboard", pattern: /\b(dashboard|dashboards|uebersicht|oberflaeche)\b/ },
+  { area: "theme", pattern: /\b(theme|design|erscheinungsbild)\b/ },
+  { area: "orb", pattern: /\b(orb|kugel)\b/ },
+  { area: "navigation", pattern: /\b(navigation|seitenleiste|menue)\b/ },
+  { area: "modelsRouting", pattern: /\b(model|models|modell|modelle|routing|modellrouting)\b/ },
+  { area: "voice", pattern: /\b(voice|stimme|audio|mikrofon|sprache)\b/ },
+  { area: "notifications", pattern: /\b(notification(?:s)?(?:einstellungen|settings)?|benachrichtigung(?:en)?(?:seinstellungen|skanaele|skanale)?|meldungen|alerts|ruhezeiten)\b/ },
+  { area: "approvals", pattern: /\b(approval(?:s)?(?:einstellungen|settings)?|freigabe(?:n)?(?:einstellungen|regeln)?|freigaben)\b/ },
+  { area: "dataRetention", pattern: /\b(retention|aufbewahrung|datenaufbewahrung|loeschfristen)\b/ },
+  { area: "backups", pattern: /\b(backup|backups|sicherung|sicherungen)\b/ },
+  { area: "developer", pattern: /\b(developer|entwickler|debug|protokollierung)\b/ },
+  { area: "security", pattern: /\b(security|sicherheit|zugriffsschutz)\b/ },
+];
 const FAMILY_PATTERNS = [
   { family: "activity", pattern: /\b(activity|activities|aktivitaet|aktivitaeten|aktivitaetsverlauf)\b/ },
   { family: "notifications", pattern: /\b(alert|alerts|notification|notifications|benachrichtigung|benachrichtigungen|meldung|meldungen)\b/ },
@@ -91,6 +110,26 @@ function lookbackHours(text: string): number | undefined {
 export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   const text = normalize(input);
   if (!READ_CUE.test(text)) return null;
+  const settingsRead = /\b(settings?|einstellungen?|konfiguration|configuration|configured|eingestellt)\b/.test(text);
+  const planRead = /\b(content studio|contentstudio|content plan|redaktionsplan)\b/.test(text) && /\b(plan|planung|redaktionsplan|postings|content)\b/.test(text);
+  const matchedSettingsAreas = SETTINGS_AREA_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ area }) => area);
+  const legacyFamilies = FAMILY_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ family }) => family);
+  if (settingsRead || planRead) {
+    const unrelatedLegacyFamily = legacyFamilies.some((family) => family !== "notifications" && family !== "approvals");
+    if (settingsRead && planRead || unrelatedLegacyFamily || matchedSettingsAreas.length > 1)
+      return { kind: "clarify", message: "Bitte frage entweder eine einzelne Einstellung oder den Content-Studio-Plan ab." };
+    if (planRead) {
+      const planWords = new Set("show zeige zeig get was what wie the der die das im in my me meine mein mir den dem meinen current currenten aktuell aktuellen saved gespeichert content studio contentstudio plan planung redaktionsplan postings bitte".split(" "));
+      const residual = text.split(/\s+/).find((word) => !planWords.has(word));
+      return residual ? { kind: "clarify", message: `Der Content-Studio-Planfilter „${residual}“ wird nicht unterstützt. Bitte nur nach dem gespeicherten Plan fragen.` }
+        : { kind: "contentStudio.plan" };
+    }
+    const controlWords = new Set("settings setting einstellung einstellungen konfiguration configuration configured eingestellt show zeige zeig what was wie ist sind my meine mein the der die das current aktuell aktuellen saved gespeichert applied angewendet effective wirksam fuer for von im in bitte".split(" "));
+    const residual = text.split(/\s+/).filter((word) => !controlWords.has(word) && !matchedSettingsAreas.some((area) => word === area.toLowerCase())
+      && !SETTINGS_AREA_PATTERNS.some(({ pattern }) => pattern.test(word)));
+    if (residual.length > 0) return { kind: "clarify", message: `Die Einstellung „${residual[0]}“ wird in dieser Abfrage nicht unterstützt. Bitte einen benannten Einstellungsbereich angeben.` };
+    return { kind: "settings.get", ...(matchedSettingsAreas[0] ? { area: matchedSettingsAreas[0] } : {}) };
+  }
   const families = FAMILY_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ family }) => family);
   if (families.length === 0) return null;
   if (families.length > 1) return { kind: "clarify", message: "Meinst du Activity, Benachrichtigungen, Freigaben oder Audit? Bitte nur einen Bereich nennen." };
@@ -178,6 +217,40 @@ function listMessage<T>(label: string, items: T[], hasNextPage: boolean, line: (
   return `${rows.length} ${label} geladen${hasNextPage ? " (weitere vorhanden)" : ""}: ${rows.join("; ")}`;
 }
 
+function settingAreaSummary(settings: Settings, area: SettingsReadArea): string {
+  switch (area) {
+    case "profile": return `Sprache ${settings.profile.locale}, Zeitzone ${settings.profile.timeZone}, Datumsformat ${settings.profile.dateFormat}, Zeitformat ${settings.profile.timeFormat}, Wochenstart ${settings.profile.firstDayOfWeek}`;
+    case "dashboard": return `Layout ${settings.dashboard.activeLayoutId}, Schrift ${settings.dashboard.fontScale}, kompakt ${settings.dashboard.compact}, Aktualisierung ${settings.dashboard.autoRefreshSeconds} Sekunden, Content Studio ${settings.dashboard.contentStudioEnabled === true ? "aktiviert" : "deaktiviert"}`;
+    case "theme": return `Theme ${settings.theme.activeThemeId}, Cyan-Intensität ${settings.theme.cyanIntensity}, Panel-Deckkraft ${settings.theme.panelOpacity}, Gold-Intensität ${settings.theme.goldIntensity}`;
+    case "orb": return `Preset ${settings.orb.preset}, Größe ${settings.orb.size}, Intensität ${settings.orb.intensity}, Animation ${settings.orb.animations}, Qualität ${settings.orb.quality}, Render-Modus ${settings.orb.renderMode}`;
+    case "navigation": return `Modus ${settings.navigation.mode}, Startseite ${settings.navigation.defaultPage}, ausgeblendete Bereiche ${settings.navigation.hidden.length}, Reihenfolge mit ${settings.navigation.order.length} Einträgen`;
+    case "modelsRouting": return `Standardmodell ${settings.modelsRouting.defaultModel}, lokale Modelle bevorzugt ${settings.modelsRouting.localFirst}, Aufgabenrouten ${settings.modelsRouting.routes.length}`;
+    case "voice": return `Wakeword aktiviert ${settings.voice.wakeWordEnabled}, Sprecherprüfung ${settings.voice.speakerVerificationRequired}, Rohaufnahmen speichern ${settings.voice.storeRawRecordings}, Voice-Verlauf ${settings.voice.voiceHistoryEnabled}, TTS-Stimme ${settings.voice.ttsVoice || "nicht gesetzt"}, TTS-Rate ${settings.voice.ttsRate}. Wakeword und Gerätekennungen werden nicht ausgegeben`;
+    case "notifications": return `Kanäle ${settings.notifications.channels.map((channel) => `${channel.kind} ${channel.enabled ? "an" : "aus"} ab ${channel.minPriority}`).join(", ")}, Ruhezeiten ${settings.notifications.quietHours.enabled ? `${settings.notifications.quietHours.from}–${settings.notifications.quietHours.to}` : "aus"}, Standard-Snooze ${settings.notifications.snoozeDefaultMinutes} Minuten`;
+    case "approvals": return `Standardablauf ${settings.approvals.draftOnlyByDefault ? "Entwurf" : "direkt"}, Ablauf ${settings.approvals.defaultExpiryMinutes} Minuten, Tier-2-Bestätigung ${settings.approvals.confirmTier2}, Reauth für Tier 3 ${settings.approvals.reauthTier3}, Benachrichtigung ${settings.approvals.notifyOnRequest}`;
+    case "dataRetention": return `Activity ${settings.dataRetention.activityDays} Tage, Audit ${settings.dataRetention.auditDays} Tage, Voice-Verlauf ${settings.dataRetention.voiceHistoryDays} Tage, Benachrichtigungen ${settings.dataRetention.notificationDays} Tage, temporäre Dateien ${settings.dataRetention.temporaryFileDays} Tage, Memory-Standard ${settings.dataRetention.memoryDefaultTtlDays ?? "unbegrenzt"} Tage`;
+    case "backups": return `aktiv ${settings.backups.enabled}, Zeitplan ${settings.backups.schedule}, Aufbewahrung ${settings.backups.retentionCount}, letzter Status ${settings.backups.lastBackupStatus}${settings.backups.lastBackupAt ? ` am ${settings.backups.lastBackupAt}` : ""}. Zielpfad wird nicht ausgegeben`;
+    case "developer": return `Debug ${settings.developer.debugMode}, Rohdatenansicht ${settings.developer.showRawJson}, Szenariokonsole ${settings.developer.scenarioConsole}, Log-Level ${settings.developer.logLevel}`;
+    case "security": return `Login erforderlich ${settings.security.loginRequired === true}, Remotezugriff ${settings.security.allowRemoteAccess}, Sitzungszeitlimit ${settings.security.sessionTimeoutMinutes} Minuten, Reauth-Fenster ${settings.security.reauthWindowMinutes} Minuten, Hash-Chain ${settings.security.auditHashChain}, vertrauenswürdige Origins ${settings.security.trustedOrigins.length}. Origin-Adressen werden nicht ausgegeben`;
+  }
+}
+
+async function voiceRuntimeReadback(ctx: RequestContext, settings: Settings): Promise<string> {
+  try {
+    const status: VoiceStatus = (await ctx.runtime.registry.getPort("voice").getVoiceStatus({}, ctx.call)).data;
+    const voiceMatch = typeof status.ttsVoiceChoice === "string"
+      ? status.ttsVoiceChoice === settings.voice.ttsVoice ? "TTS-Stimme stimmt mit dem gespeicherten Wert überein" : "TTS-Stimme weicht vom gespeicherten Wert ab"
+      : "TTS-Stimme im Dienststatus nicht ausgewiesen";
+    const inputMatch = status.audioInputDeviceId === settings.voice.inputDeviceId;
+    const outputMatch = status.audioOutputDeviceId === settings.voice.outputDeviceId;
+    return `Laufzeit-Readback: ${voiceMatch}; gespeicherte Ein-/Ausgabegeräte ${inputMatch && outputMatch ? "stimmen mit dem Dienststatus überein" : "weichen vom Dienststatus ab"}; STT ${status.stt.state}, TTS ${status.tts.state}`;
+  } catch (error) {
+    if (isAdapterError(error) && ["CAPABILITY_MISSING", "ADAPTER_UNAVAILABLE"].includes(error.code))
+      return "Laufzeit-Readback: nicht verfügbar; angewendeter Zustand nicht verifiziert";
+    throw error;
+  }
+}
+
 const idStatus = (id: string, status: string, date: string): string => `${id} · ${status} · ${date}`;
 
 async function listApprovals(ctx: RequestContext, status?: Array<"pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed">): Promise<{ items: Approval[]; hasNextPage: boolean }> {
@@ -198,6 +271,8 @@ async function listApprovals(ctx: RequestContext, status?: Array<"pending" | "ap
 
 export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryIntent): Promise<HandlerResult> {
   if (intent.kind === "clarify") return baseResponse(ctx, intent.message, "rejected");
+  if (intent.kind === "settings.get") requireReadRole(ctx, "settings", "viewer");
+  if (intent.kind === "contentStudio.plan") requireReadRole(ctx, "content-studio-plan", "owner");
   if (intent.kind.startsWith("activity.")) requireReadRole(ctx, "activity", "viewer");
   if (intent.kind.startsWith("notifications.")) requireReadRole(ctx, "notifications", "viewer");
   if (intent.kind.startsWith("approvals.")) requireReadRole(ctx, "approvals", "viewer");
@@ -205,6 +280,31 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
   else if (intent.kind.startsWith("audit.")) requireReadRole(ctx, "audit", "viewer");
 
   switch (intent.kind) {
+    case "settings.get": {
+      const settings = ctx.runtime.settings.get();
+      const labels: Record<SettingsReadArea, string> = {
+        profile: "Profil", dashboard: "Dashboard", theme: "Theme", orb: "Orb", navigation: "Navigation",
+        modelsRouting: "Modelrouting", voice: "Voice", notifications: "Benachrichtigungen", approvals: "Freigaben",
+        dataRetention: "Datenaufbewahrung", backups: "Backups", developer: "Entwickler", security: "Sicherheit",
+      };
+      if (!intent.area) return baseResponse(ctx,
+        `Gespeicherter Settings-Stand einschließlich Vorgabewerten, Revision ${settings.version}, zuletzt geändert ${settings.updatedAt}. Bereiche: ${Object.values(labels).join(", ")}. Dieser Abruf bestätigt keinen angewendeten oder effektiven Laufzeitzustand.`);
+      const detail = settingAreaSummary(settings, intent.area);
+      const runtime = intent.area === "voice" ? await voiceRuntimeReadback(ctx, settings)
+        : "Angewendet/effektiv: durch diesen Abruf nicht separat verifiziert";
+      return baseResponse(ctx, `Sichere Zusammenfassung ${labels[intent.area]} des gespeicherten Settings-Stands einschließlich Vorgabewerten (Revision ${settings.version}): ${detail}. ${runtime}.`);
+    }
+    case "contentStudio.plan": {
+      if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
+      const state: ContentPlanState = ctx.runtime.contentStudioPlan.get();
+      if (!state.plan) return baseResponse(ctx, `Der gespeicherte Content-Studio-Plan ist leer (Revision ${state.revision}).`);
+      const ideas = state.plan.content.slice(0, MAX_RESULTS).map((item) => `${item.titel} · ${item.plattform} · ${item.status} · Ziel ${item.zieldatum || "ohne Datum"}`);
+      const postings = state.plan.postings.slice(0, MAX_RESULTS).map((item) => `${item.titel} · ${item.plattform} · ${item.status} · ${item.datum} ${item.uhrzeit}`);
+      const more = state.plan.content.length > MAX_RESULTS || state.plan.postings.length > MAX_RESULTS;
+      return baseResponse(ctx, `Gespeicherter Content-Studio-Plan, Revision ${state.revision}: ${state.plan.content.length} Ideen und ${state.plan.postings.length} Postings. ${[
+        ...ideas.map((item) => `Idee: ${item}`), ...postings.map((item) => `Posting: ${item}`),
+      ].join("; ") || "Keine Einträge."}${more ? " (weitere vorhanden)" : ""}`);
+    }
     case "activity.list": {
       const page = await ctx.runtime.registry.getPort("activity").listActivity({ limit: MAX_RESULTS, ...(intent.status ? { status: intent.status } : {}), ...boundedPeriod(ctx, intent.lookbackHours) }, ctx.call);
       return baseResponse(ctx, listMessage("Activity-Ereignisse", page.items, page.pageInfo.hasNextPage,
