@@ -66,6 +66,24 @@ FIELDS = {
     "approvals.unattended_mode": ("deny_only", None, None),
     "security.protected_instruction_files": ("true_only", None, None),
     "skills.disabled": ("skill_names", None, None),
+    "cron.catch_up_missed": ("boolean", None, None),
+    "cron.allow_agent_scheduling": ("boolean", None, None),
+    "cron.preflight": ("boolean", None, None),
+    "cron.max_parallel_jobs": ("optional_integer", 1, 64),
+    "cron.output_retention": ("integer", 0, 10000),
+    "cron.script_timeout_seconds": ("integer", 1, 86400),
+    "cron.session_db_timeout_seconds": ("integer", 0, 3600),
+    "cron.failure_repeat_alert_hours": ("integer", 0, 168),
+    "cron.require_restart_safe_scope": ("boolean", None, None),
+    "gateway.loop_watchdog": ("boolean", None, None),
+    "gateway.startup_watchdog": ("boolean", None, None),
+    "gateway.startup_watchdog_timeout_seconds": ("integer", 30, 3600),
+    "gateway.restart_loop_guard.max_restarts": ("integer", 0, 20),
+    "gateway.respawn_storm.max_starts": ("integer", 0, 100),
+    "gateway.signal_interrupt_grace_timeout": ("number", 0, 60),
+    "logging.level": ("log_level", None, None),
+    "logging.max_size_mb": ("integer", 1, 100),
+    "logging.backup_count": ("integer", 0, 50),
 }
 MODEL_CREDENTIALS = frozenset(("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"))
 REASONING_EFFORTS = frozenset(("", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"))
@@ -120,6 +138,8 @@ def valid_field_value(key, value, spec):
                     all((32 if kind == "allowlist_subset" else 33) <= ord(char) < 127 for char in item)
                     for item in value) and
                 len(set(value)) == len(value))
+    if kind == "log_level":
+        return type(value) is str and value in ("DEBUG", "INFO", "WARNING")
     if kind == "fallback":
         return (type(value) is list and len(value) <= 8 and all(
             type(item) is dict and set(item) == {"provider", "model"} and

@@ -54,6 +54,18 @@ class BridgeTest(unittest.TestCase):
                        "approvals.mode": "smart", "approvals.timeout": 300,
                        "approvals.single_query_mode": "deny", "approvals.unattended_mode": "deny",
                        "security.protected_instruction_files": True,
+                       "cron.catch_up_missed": True, "cron.allow_agent_scheduling": False,
+                       "cron.preflight": True, "cron.max_parallel_jobs": None,
+                       "cron.output_retention": 50, "cron.script_timeout_seconds": 3600,
+                       "cron.session_db_timeout_seconds": 10, "cron.failure_repeat_alert_hours": 6,
+                       "cron.require_restart_safe_scope": False,
+                       "gateway.loop_watchdog": True, "gateway.startup_watchdog": True,
+                       "gateway.startup_watchdog_timeout_seconds": 300,
+                       "gateway.restart_loop_guard.max_restarts": 3,
+                       "gateway.respawn_storm.max_starts": 5,
+                       "gateway.signal_interrupt_grace_timeout": 1.0,
+                       "logging.level": "INFO", "logging.max_size_mb": 5,
+                       "logging.backup_count": 3,
                        "skills.disabled": [], "skills.create_dir": "", "skills.external_dirs": []}
         self.calls = []
         self.plugin_status = "enabled"
@@ -261,6 +273,33 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(result["revision"], bridge.revision(self.config))
         self.assertEqual(result["values"]["agent.max_turns"], 600)
         self.assertEqual(len([command for command in self.calls if command[2:3] == ["set"]]), 1)
+
+    def test_cron_parallel_limit_persists_with_readback(self):
+        revision = bridge.revision(self.config)
+        code, result = self.invoke({"key": "cron.max_parallel_jobs", "value": 4,
+                                    "revision": revision})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["write"], {"key": "cron.max_parallel_jobs", "persisted": True})
+        self.assertEqual(result["values"]["cron.max_parallel_jobs"], 4)
+        self.assertEqual(len([command for command in self.calls if command[2:3] == ["set"]]), 1)
+
+    def test_cron_parallel_limit_rejects_out_of_range_without_write(self):
+        revision = bridge.revision(self.config)
+        for value in (0, 65):
+            with self.assertRaisesRegex(ValueError, "unsupported_field"):
+                self.invoke({"key": "cron.max_parallel_jobs", "value": value,
+                             "revision": revision})
+        self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
+
+    def test_log_level_is_bounded_to_native_levels(self):
+        revision = bridge.revision(self.config)
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "logging.level", "value": "TRACE", "revision": revision})
+        self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
+        code, result = self.invoke({"key": "logging.level", "value": "WARNING",
+                                    "revision": revision})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["logging.level"], "WARNING")
 
     def test_browser_timeout_guard_rejects_value_below_runtime_floor(self):
         current = bridge.revision(self.config)
@@ -655,6 +694,18 @@ elif a[:2] == ['config', 'get']:
          'approvals.mode': 'smart', 'approvals.timeout': 300,
          'approvals.single_query_mode': 'deny', 'approvals.unattended_mode': 'deny',
          'security.protected_instruction_files': True,
+         'cron.catch_up_missed': True, 'cron.allow_agent_scheduling': False,
+         'cron.preflight': True, 'cron.max_parallel_jobs': None,
+         'cron.output_retention': 50, 'cron.script_timeout_seconds': 3600,
+         'cron.session_db_timeout_seconds': 10, 'cron.failure_repeat_alert_hours': 6,
+         'cron.require_restart_safe_scope': False,
+         'gateway.loop_watchdog': True, 'gateway.startup_watchdog': True,
+         'gateway.startup_watchdog_timeout_seconds': 300,
+         'gateway.restart_loop_guard.max_restarts': 3,
+         'gateway.respawn_storm.max_starts': 5,
+         'gateway.signal_interrupt_grace_timeout': 1.0,
+         'logging.level': 'INFO', 'logging.max_size_mb': 5,
+         'logging.backup_count': 3,
          'skills.disabled': [], 'skills.create_dir': '', 'skills.external_dirs': []}
     print(json.dumps(d[a[2]]))
 elif a[:2] == ['config', 'set']:

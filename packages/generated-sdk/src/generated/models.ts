@@ -278,6 +278,64 @@ export type HermesConfigPatch =
       value: string[];
     }
   | {
+      key:
+        | "cron.catch_up_missed"
+        | "cron.allow_agent_scheduling"
+        | "cron.preflight"
+        | "cron.require_restart_safe_scope"
+        | "gateway.loop_watchdog"
+        | "gateway.startup_watchdog";
+      value: boolean;
+    }
+  | {
+      key: "cron.max_parallel_jobs";
+      value: number | null;
+    }
+  | {
+      key: "cron.output_retention";
+      value: number;
+    }
+  | {
+      key: "cron.script_timeout_seconds";
+      value: number;
+    }
+  | {
+      key: "cron.session_db_timeout_seconds";
+      value: number;
+    }
+  | {
+      key: "cron.failure_repeat_alert_hours";
+      value: number;
+    }
+  | {
+      key: "gateway.startup_watchdog_timeout_seconds";
+      value: number;
+    }
+  | {
+      key: "gateway.restart_loop_guard.max_restarts";
+      value: number;
+    }
+  | {
+      key: "gateway.respawn_storm.max_starts";
+      value: number;
+    }
+  | {
+      key: "gateway.signal_interrupt_grace_timeout";
+      value: number;
+    }
+  | {
+      key: "logging.level";
+      value: "DEBUG" | "INFO" | "WARNING";
+    }
+  | {
+      key: "logging.max_size_mb";
+      value: number;
+    }
+  | {
+      key: "logging.backup_count";
+      value: number;
+    }
+  | {
       key: "plugin.activation";
       pluginId: string;
       enabled: boolean;
@@ -3311,7 +3369,25 @@ export interface HermesConfigStatus {
       | "approvals.single_query_mode"
       | "approvals.unattended_mode"
       | "security.protected_instruction_files"
-      | "skills.disabled";
+      | "skills.disabled"
+      | "cron.catch_up_missed"
+      | "cron.allow_agent_scheduling"
+      | "cron.preflight"
+      | "cron.max_parallel_jobs"
+      | "cron.output_retention"
+      | "cron.script_timeout_seconds"
+      | "cron.session_db_timeout_seconds"
+      | "cron.failure_repeat_alert_hours"
+      | "cron.require_restart_safe_scope"
+      | "gateway.loop_watchdog"
+      | "gateway.startup_watchdog"
+      | "gateway.startup_watchdog_timeout_seconds"
+      | "gateway.restart_loop_guard.max_restarts"
+      | "gateway.respawn_storm.max_starts"
+      | "gateway.signal_interrupt_grace_timeout"
+      | "logging.level"
+      | "logging.max_size_mb"
+      | "logging.backup_count";
     type:
       | "integer"
       | "optionalInteger"
@@ -3322,7 +3398,7 @@ export interface HermesConfigStatus {
       | "fallback"
       | "skillNames"
       | "textList";
-    family: "agent" | "models" | "execution" | "extensions";
+    family: "agent" | "models" | "execution" | "extensions" | "operations";
     consumer: string;
     value:
       | (number | boolean | string | null)

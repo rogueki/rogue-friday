@@ -74,6 +74,24 @@ export const HERMES_CONFIG_FIELDS = {
   "approvals.unattended_mode": { type: "string", kind: "denyOnly", family: "execution", consumer: "next unattended gateway command" },
   "security.protected_instruction_files": { type: "boolean", family: "execution", consumer: "next protected instruction file write" },
   "skills.disabled": { type: "skillNames", family: "extensions", consumer: "next Hermes skill resolution" },
+  "cron.catch_up_missed": { type: "boolean", family: "operations", consumer: "Hermes cron due scan" },
+  "cron.allow_agent_scheduling": { type: "boolean", family: "operations", consumer: "Hermes cron toolset for new runs" },
+  "cron.preflight": { type: "boolean", family: "operations", consumer: "Hermes cron pre-dispatch validation" },
+  "cron.max_parallel_jobs": { type: "optionalInteger", min: 1, max: 64, family: "operations", consumer: "Hermes cron per-profile pool" },
+  "cron.output_retention": { type: "integer", min: 0, max: 10000, family: "operations", consumer: "Hermes cron output pruning" },
+  "cron.script_timeout_seconds": { type: "integer", min: 1, max: 86400, family: "operations", consumer: "new Hermes cron script runs" },
+  "cron.session_db_timeout_seconds": { type: "integer", min: 0, max: 3600, family: "operations", consumer: "new Hermes cron session DB opens" },
+  "cron.failure_repeat_alert_hours": { type: "integer", min: 0, max: 168, family: "operations", consumer: "Hermes cron failure incident notifier" },
+  "cron.require_restart_safe_scope": { type: "boolean", family: "operations", consumer: "Hermes cron worker scope admission" },
+  "gateway.loop_watchdog": { type: "boolean", family: "operations", consumer: "next Hermes gateway start" },
+  "gateway.startup_watchdog": { type: "boolean", family: "operations", consumer: "next Hermes gateway process start" },
+  "gateway.startup_watchdog_timeout_seconds": { type: "integer", min: 30, max: 3600, family: "operations", consumer: "next Hermes gateway process start" },
+  "gateway.restart_loop_guard.max_restarts": { type: "integer", min: 0, max: 20, family: "operations", consumer: "next Hermes gateway restart" },
+  "gateway.respawn_storm.max_starts": { type: "integer", min: 0, max: 100, family: "operations", consumer: "next Hermes gateway process start" },
+  "gateway.signal_interrupt_grace_timeout": { type: "number", min: 0, max: 60, family: "operations", consumer: "next Hermes gateway signal drain" },
+  "logging.level": { type: "string", kind: "logLevel", family: "operations", consumer: "next Hermes log handler setup" },
+  "logging.max_size_mb": { type: "integer", min: 1, max: 100, family: "operations", consumer: "next Hermes log handler setup" },
+  "logging.backup_count": { type: "integer", min: 0, max: 50, family: "operations", consumer: "next Hermes log handler setup" },
 } as const;
 export type HermesConfigField = keyof typeof HERMES_CONFIG_FIELDS;
 type FallbackEntry = { provider: string; model: string };
@@ -89,7 +107,7 @@ export type HermesModelCredentialPatch = { key: HermesModelCredential; value: st
 const REASONING_EFFORTS = new Set(["", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
 function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" | "executionBackend" |
   "profilePin" | "codeMode" | "computerPermission" | "manifestPath" | "workspacePath" |
-  "approvalMode" | "denyOnly", value: unknown): boolean {
+  "approvalMode" | "denyOnly" | "logLevel", value: unknown): boolean {
   if (typeof value !== "string") return false;
   if (kind === "reasoning") return REASONING_EFFORTS.has(value);
   if (kind === "tailMode") return value === "lean" || value === "legacy";
@@ -101,6 +119,7 @@ function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" 
   if (kind === "profilePin") return value === "" || /^(Default|Profile [0-9]{1,3})$/.test(value);
   if (kind === "manifestPath") return value === "" || value.length <= 512 && /^\/[!-~]+$/.test(value);
   if (kind === "workspacePath") return value === "." || value.length <= 512 && /^\/[!-~]+$/.test(value);
+  if (kind === "logLevel") return value === "DEBUG" || value === "INFO" || value === "WARNING";
   if (kind === "provider") return /^[A-Za-z0-9_.-]{1,64}$/.test(value);
   return value.length > 0 && value.length <= 200 && !/\s/.test(value) &&
     [...value].every((character) => character.charCodeAt(0) > 31 && character.charCodeAt(0) !== 127);

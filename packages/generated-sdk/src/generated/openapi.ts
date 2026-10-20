@@ -6624,6 +6624,59 @@ export interface components {
             key: "skills.disabled";
             value: string[];
         } | {
+            /** @enum {unknown} */
+            key: "cron.catch_up_missed" | "cron.allow_agent_scheduling" | "cron.preflight" | "cron.require_restart_safe_scope" | "gateway.loop_watchdog" | "gateway.startup_watchdog";
+            value: boolean;
+        } | {
+            /** @constant */
+            key: "cron.max_parallel_jobs";
+            value: number | null;
+        } | {
+            /** @constant */
+            key: "cron.output_retention";
+            value: number;
+        } | {
+            /** @constant */
+            key: "cron.script_timeout_seconds";
+            value: number;
+        } | {
+            /** @constant */
+            key: "cron.session_db_timeout_seconds";
+            value: number;
+        } | {
+            /** @constant */
+            key: "cron.failure_repeat_alert_hours";
+            value: number;
+        } | {
+            /** @constant */
+            key: "gateway.startup_watchdog_timeout_seconds";
+            value: number;
+        } | {
+            /** @constant */
+            key: "gateway.restart_loop_guard.max_restarts";
+            value: number;
+        } | {
+            /** @constant */
+            key: "gateway.respawn_storm.max_starts";
+            value: number;
+        } | {
+            /** @constant */
+            key: "gateway.signal_interrupt_grace_timeout";
+            value: number;
+        } | {
+            /** @constant */
+            key: "logging.level";
+            /** @enum {unknown} */
+            value: "DEBUG" | "INFO" | "WARNING";
+        } | {
+            /** @constant */
+            key: "logging.max_size_mb";
+            value: number;
+        } | {
+            /** @constant */
+            key: "logging.backup_count";
+            value: number;
+        } | {
             enabled: boolean;
             /** @constant */
             key: "plugin.activation";
@@ -6673,9 +6726,9 @@ export interface components {
                 consumer: string;
                 explicit: boolean;
                 /** @enum {unknown} */
-                family: "agent" | "models" | "execution" | "extensions";
+                family: "agent" | "models" | "execution" | "extensions" | "operations";
                 /** @enum {unknown} */
-                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "terminal.backend" | "terminal.cwd" | "terminal.docker_network" | "terminal.docker_mount_cwd_to_workspace" | "terminal.docker_volumes" | "browser.command_timeout" | "browser.snapshot_threshold" | "browser.allow_private_urls" | "browser.use_real_profile" | "browser.real_profile_pin" | "browser.restrict_evaluate" | "browser.allow_unsafe_evaluate" | "code_execution.mode" | "computer_use.permission_mode" | "computer_use.capability_manifest" | "toolsets" | "command_allowlist" | "approvals.mode" | "approvals.timeout" | "approvals.single_query_mode" | "approvals.unattended_mode" | "security.protected_instruction_files" | "skills.disabled";
+                key: "model.provider" | "model.default" | "agent.reasoning_effort" | "fallback.min_switch_reset_seconds" | "fallback_model" | "agent.auto_recovery_cycles" | "agent.run_budget_seconds" | "agent.budget_warning_ratio" | "agent.agent_cache.max_size" | "max_concurrent_sessions" | "context_file_max_chars" | "compression.enabled" | "compression.threshold" | "compression.target_ratio" | "compression.tail_mode" | "compression.protect_last_n" | "agent.max_turns" | "agent.gateway_timeout" | "agent.api_max_retries" | "session.terminal_continue" | "max_live_sessions" | "terminal.timeout" | "terminal.backend" | "terminal.cwd" | "terminal.docker_network" | "terminal.docker_mount_cwd_to_workspace" | "terminal.docker_volumes" | "browser.command_timeout" | "browser.snapshot_threshold" | "browser.allow_private_urls" | "browser.use_real_profile" | "browser.real_profile_pin" | "browser.restrict_evaluate" | "browser.allow_unsafe_evaluate" | "code_execution.mode" | "computer_use.permission_mode" | "computer_use.capability_manifest" | "toolsets" | "command_allowlist" | "approvals.mode" | "approvals.timeout" | "approvals.single_query_mode" | "approvals.unattended_mode" | "security.protected_instruction_files" | "skills.disabled" | "cron.catch_up_missed" | "cron.allow_agent_scheduling" | "cron.preflight" | "cron.max_parallel_jobs" | "cron.output_retention" | "cron.script_timeout_seconds" | "cron.session_db_timeout_seconds" | "cron.failure_repeat_alert_hours" | "cron.require_restart_safe_scope" | "gateway.loop_watchdog" | "gateway.startup_watchdog" | "gateway.startup_watchdog_timeout_seconds" | "gateway.restart_loop_guard.max_restarts" | "gateway.respawn_storm.max_starts" | "gateway.signal_interrupt_grace_timeout" | "logging.level" | "logging.max_size_mb" | "logging.backup_count";
                 /** @constant */
                 reasonCode: "runtime_receipt_unavailable";
                 /** @enum {unknown} */

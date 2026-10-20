@@ -51,6 +51,24 @@ const LABELS: Record<string, string> = {
   "approvals.unattended_mode": "Unbeaufsichtigte Gateway-Aufrufe",
   "security.protected_instruction_files": "Agent-Anweisungsdateien schuetzen",
   "skills.disabled": "Deaktivierte Hermes-Skills",
+  "cron.catch_up_missed": "Verpassten Hermes-Cron-Termin nachholen",
+  "cron.allow_agent_scheduling": "Cron-Agenten dürfen Hermes-Jobs planen",
+  "cron.preflight": "Cron-Konfiguration vor Ausführung prüfen",
+  "cron.max_parallel_jobs": "Gleichzeitige Hermes-Cron-Jobs je Profil",
+  "cron.output_retention": "Cron-Ausgaben je Job behalten",
+  "cron.script_timeout_seconds": "Cron-Skriptlimit (Sekunden)",
+  "cron.session_db_timeout_seconds": "Cron-Datenbanklimit (Sekunden)",
+  "cron.failure_repeat_alert_hours": "Gleichen Cron-Fehler nach Stunden erneut melden",
+  "cron.require_restart_safe_scope": "Cron nur in neustartsicherem Scope",
+  "gateway.loop_watchdog": "Gateway-Ereignisschleife überwachen",
+  "gateway.startup_watchdog": "Gateway-Start überwachen",
+  "gateway.startup_watchdog_timeout_seconds": "Gateway-Startlimit (Sekunden)",
+  "gateway.restart_loop_guard.max_restarts": "Gateway-Neustartkette begrenzen",
+  "gateway.respawn_storm.max_starts": "Gateway-Starts pro Zeitfenster begrenzen",
+  "gateway.signal_interrupt_grace_timeout": "Gateway-Signalablauf (Sekunden)",
+  "logging.level": "Hermes-Dateilogstufe",
+  "logging.max_size_mb": "Hermes-Logdatei (MiB)",
+  "logging.backup_count": "Hermes-Logrotationen",
   models: "Modelle und Anbieter",
   agent: "Agent und Sitzungen",
   execution: "Ausführung und Werkzeuge",
@@ -76,6 +94,17 @@ const NUMERIC_LIMITS: Record<string, [number, number, number]> = {
   "browser.command_timeout": [5, 600, 1],
   "browser.snapshot_threshold": [1000, 200000, 1000],
   "approvals.timeout": [15, 600, 1],
+  "cron.max_parallel_jobs": [1, 64, 1],
+  "cron.output_retention": [0, 10000, 1],
+  "cron.script_timeout_seconds": [1, 86400, 1],
+  "cron.session_db_timeout_seconds": [0, 3600, 1],
+  "cron.failure_repeat_alert_hours": [0, 168, 1],
+  "gateway.startup_watchdog_timeout_seconds": [30, 3600, 1],
+  "gateway.restart_loop_guard.max_restarts": [0, 20, 1],
+  "gateway.respawn_storm.max_starts": [0, 100, 1],
+  "gateway.signal_interrupt_grace_timeout": [0, 60, 0.1],
+  "logging.max_size_mb": [1, 100, 1],
+  "logging.backup_count": [0, 50, 1],
 };
 const EXECUTION_OPTIONS: Record<string, Array<[string, string]>> = {
   "terminal.backend": [["local", "Lokaler WSL-Host"], ["docker", "Docker-Sandbox"]],
@@ -147,7 +176,7 @@ export function HermesConfigArea() {
         </p>
       ) : null}
       <h3>Freigegebene Einstellungen</h3>
-      {(["models", "agent", "execution"] as const).map((family) => <section key={family} aria-label={LABELS[family]}>
+      {(["models", "agent", "execution", "operations"] as const).map((family) => <section key={family} aria-label={LABELS[family]}>
         <h4>{LABELS[family]}</h4>
       {data.fields.filter((field) => field.family === family && field.type !== "skillNames").map((field) => {
         const value = field.key in draft ? draft[field.key] : field.value;
@@ -156,7 +185,12 @@ export function HermesConfigArea() {
         return (
           <div key={field.key} className="st-field">
             <label htmlFor={`hermes-${field.key}`}>{LABELS[field.key] ?? field.key}</label>
-            {field.key === "compression.tail_mode" ? (
+            {field.key === "logging.level" ? (
+              <select id={`hermes-${field.key}`} value={String(value ?? "INFO")}
+                onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))}>
+                <option value="DEBUG">DEBUG</option><option value="INFO">INFO</option><option value="WARNING">WARNING</option>
+              </select>
+            ) : field.key === "compression.tail_mode" ? (
               <select id={`hermes-${field.key}`} value={String(value ?? "lean")}
                 onChange={(event) => setDraft((current) => ({ ...current, [field.key]: event.target.value }))}>
                 <option value="lean">Kompakt</option><option value="legacy">Verbatim-Verlauf</option>

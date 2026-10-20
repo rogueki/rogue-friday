@@ -71,6 +71,24 @@ const bridge = {
     "approvals.unattended_mode": "deny",
     "security.protected_instruction_files": true,
     "skills.disabled": [],
+    "cron.catch_up_missed": true,
+    "cron.allow_agent_scheduling": false,
+    "cron.preflight": true,
+    "cron.max_parallel_jobs": null,
+    "cron.output_retention": 50,
+    "cron.script_timeout_seconds": 3600,
+    "cron.session_db_timeout_seconds": 10,
+    "cron.failure_repeat_alert_hours": 6,
+    "cron.require_restart_safe_scope": false,
+    "gateway.loop_watchdog": true,
+    "gateway.startup_watchdog": true,
+    "gateway.startup_watchdog_timeout_seconds": 300,
+    "gateway.restart_loop_guard.max_restarts": 3,
+    "gateway.respawn_storm.max_starts": 5,
+    "gateway.signal_interrupt_grace_timeout": 1,
+    "logging.level": "INFO",
+    "logging.max_size_mb": 5,
+    "logging.backup_count": 3,
   },
   explicit: {
     "model.provider": true,
@@ -118,6 +136,24 @@ const bridge = {
     "approvals.unattended_mode": false,
     "security.protected_instruction_files": false,
     "skills.disabled": false,
+    "cron.catch_up_missed": false,
+    "cron.allow_agent_scheduling": false,
+    "cron.preflight": false,
+    "cron.max_parallel_jobs": false,
+    "cron.output_retention": false,
+    "cron.script_timeout_seconds": false,
+    "cron.session_db_timeout_seconds": false,
+    "cron.failure_repeat_alert_hours": false,
+    "cron.require_restart_safe_scope": false,
+    "gateway.loop_watchdog": false,
+    "gateway.startup_watchdog": false,
+    "gateway.startup_watchdog_timeout_seconds": false,
+    "gateway.restart_loop_guard.max_restarts": false,
+    "gateway.respawn_storm.max_starts": false,
+    "gateway.signal_interrupt_grace_timeout": false,
+    "logging.level": false,
+    "logging.max_size_mb": false,
+    "logging.backup_count": false,
   },
   secrets: { "model.api_key": true, OPENROUTER_API_KEY: true, OPENAI_API_KEY: false,
     ANTHROPIC_API_KEY: false, rawCredential: "CANARY-DO-NOT-RETURN" },
@@ -144,7 +180,7 @@ const bridge = {
 it("returns only allowlisted resolved values and installed manifests without credential leakage", async () => {
   const invoke = vi.fn(async () => bridge) as unknown as RunnerInvoker;
   const status = await fixture(invoke).status();
-  expect(status.fields).toHaveLength(45);
+  expect(status.fields).toHaveLength(63);
   expect(status.fields.find((field) => field.key === "terminal.timeout")).toMatchObject({
     value: 180, family: "execution", verification: "unverified",
   });
