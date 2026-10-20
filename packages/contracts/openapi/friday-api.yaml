@@ -4709,6 +4709,73 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
       x-required-role: owner
+  /api/v1/voice/stt-models:
+    get:
+      operationId: listVoiceSttModels
+      tags: [voice]
+      summary: List locally cached Whisper models and explicit download progress
+      responses:
+        "200":
+          description: Local STT model inventory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SttModelsStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/stt-models/download:
+    post:
+      operationId: startVoiceSttModelDownload
+      tags: [voice]
+      summary: Download one selected Whisper model into the local cache without activating it
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SttModelDownloadRequest"
+      responses:
+        "200":
+          description: Download job state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SttModelsStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/stt-models/cancel:
+    post:
+      operationId: cancelVoiceSttModelDownload
+      tags: [voice]
+      summary: Cancel the current explicit Whisper model download
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SttModelCancelRequest"
+      responses:
+        "200":
+          description: Download job state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SttModelsStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
   /api/v1/voice/wake-enrollment:
     get:
       operationId: getWakeEnrollment
@@ -9698,6 +9765,12 @@ components:
       $ref: ../schemas/voice/wake-enrollment-sample.schema.json
     WakeEnrollmentJob:
       $ref: ../schemas/voice/wake-enrollment-job.schema.json
+    SttModelsStatus:
+      $ref: ../schemas/voice/stt-models-status.schema.json
+    SttModelDownloadRequest:
+      $ref: ../schemas/voice/stt-model-download-request.schema.json
+    SttModelCancelRequest:
+      $ref: ../schemas/voice/stt-model-cancel-request.schema.json
     VoiceTestKind:
       $ref: ../schemas/voice/voice-test-kind.schema.json
     VoiceTestRequest:

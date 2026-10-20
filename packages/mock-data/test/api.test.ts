@@ -223,6 +223,7 @@ describe("REST route coverage", () => {
       "linkMessengerSender", "unlinkMessengerSender", "captureMessengerInbound",
       "probeHermesMcp", "manageHermesMcpOAuth", "createResearchProject", "getResearchProvider", "updateResearchProvider",
       "getWakeEnrollment", "startWakeEnrollment", "addWakeEnrollmentSample", "trainWakeEnrollment", "discardWakeEnrollment",
+      "listVoiceSttModels", "startVoiceSttModelDownload", "cancelVoiceSttModelDownload",
     ].sort();
     const mocked = ROUTES.map((route) => route.operationId).sort();
     expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);

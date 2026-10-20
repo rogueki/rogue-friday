@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/stt-model-download-request.schema.json",
+  "title": "SttModelDownloadRequest",
+  "type": "object",
+  "properties": {
+    "model": { "type": "string", "enum": ["base", "small", "medium"] }
+  },
+  "required": ["model"],
+  "additionalProperties": false
+}

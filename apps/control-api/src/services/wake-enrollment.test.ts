@@ -23,7 +23,7 @@ describe("private wake enrollment bridge", () => {
       requests.push({ path: url.pathname, init });
       if (url.pathname === "/") return { ok: true, json: async () => ({
         runtime_settings: { wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
-          speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, ttsRate: 1 },
+          speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", ttsRate: 1 },
         service_started_at: "instance", config_revision: "revision",
       }) };
       return { ok: true, json: async () => ({ state: "capturing", jobId: "a".repeat(32), phrase: "Hey Test",
@@ -44,7 +44,7 @@ describe("private wake enrollment bridge", () => {
       paths.push(url.pathname);
       if (url.pathname === "/") return { ok: true, json: async () => ({
         runtime_settings: { wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
-          speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, ttsRate: 1 },
+          speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, sttLanguage: "de", sttModel: "small", ttsRate: 1 },
         service_started_at: "instance", config_revision: "revision",
       }) };
       return { ok: true, json: async () => ({ state: "capturing", jobId: "a".repeat(32), phrase: "Hey Test",

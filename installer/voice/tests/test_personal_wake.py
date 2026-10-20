@@ -647,6 +647,91 @@ def test_voice_settings_http_applies_only_confirmed_private_configuration():
         assert svc.cfg["personal_wake_model"].endswith("personal_wake.npz")
 
 
+def test_stt_model_preflight_and_language_apply_without_late_or_remote_change(monkeypatch, tmp_path):
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.input_level = types.SimpleNamespace(value=lambda: 0)
+    svc.tts.level = types.SimpleNamespace(value=lambda: 0)
+    svc.tts.tts_config = svc.cfg
+    svc.processing, svc.cloud_voice, svc.audio_transport = None, False, "browser"
+    svc.service_started_at = "fixture-stt"
+    svc.cfg.update(wake_phrase=svc.phrase, whisper_model="base", whisper_device="cpu",
+                   whisper_compute_type="int8", stt_language="de")
+    svc.config_path = str(tmp_path / "config" / "voice.json")
+    (tmp_path / "config").mkdir()
+    (tmp_path / "dashboard" / "data" / "voice-bridge").mkdir(parents=True)
+    (tmp_path / "dashboard" / "data" / "voice-bridge" / "auth.key").write_text("a" * 44, encoding="ascii")
+    with open(svc.config_path, "w", encoding="utf-8") as target:
+        json.dump(svc.cfg, target)
+    svc.config_disk_hash = jv.runtime_settings.file_hash(svc.config_path)
+    jv.INSTALL_ROOT = str(tmp_path)
+    class CachedWhisper:
+        def __init__(self, name, **kwargs):
+            assert kwargs["local_files_only"] is True
+            if name == "medium":
+                raise OSError("synthetic missing cache")
+            self.name = name
+        def transcribe(self, audio, **kwargs):
+            return iter([types.SimpleNamespace(text=kwargs["language"])]), None
+    fake = types.ModuleType("faster_whisper")
+    fake.WhisperModel = CachedWhisper
+    monkeypatch.setitem(sys.modules, "faster_whisper", fake)
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        svc.cfg["health_port"] = sock.getsockname()[1]
+    svc._start_health()
+    url = f"http://127.0.0.1:{svc.cfg['health_port']}/control/settings"
+    def post(settings):
+        body = {"settings": settings, "expectedConfigRevision": svc.config_disk_hash,
+                "expectedServiceStartedAt": svc.service_started_at}
+        request = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
+            headers={"Authorization": "Bearer " + "a" * 44})
+        try:
+            with urllib.request.urlopen(request, timeout=3) as response:
+                return response.status
+        except urllib.error.HTTPError as error:
+            return error.code
+    original = svc.whisper
+    current = jv.runtime_settings.effective(svc.cfg)
+    assert post({**current, "sttLanguage": "en", "sttModel": "medium"}) == 422
+    assert svc.whisper is original and svc.cfg["stt_language"] == "de"
+    assert post({**current, "sttLanguage": "en", "sttModel": "small"}) == 200
+    assert svc.whisper.name == "small" and svc._transcribe(np.zeros(jv.SR)) == "en"
+    assert json.load(open(svc.config_path, encoding="utf-8"))["whisper_model"] == "small"
+    class ModelJobs:
+        def __init__(self):
+            self.job = None
+        def status(self):
+            return {"localMode": True, "models": [{"id": "small", "cached": True}], "job": self.job}
+        def start(self, model):
+            self.job = {"id": "f" * 32, "model": model, "state": "downloading", "error": None}
+            return self.status()
+        def cancel(self, job_id):
+            assert job_id == "f" * 32
+            self.job["state"] = "cancelled"
+            return self.status()
+    svc.stt_models = ModelJobs()
+    base = url.removesuffix("/settings") + "/stt-models"
+    with urllib.request.urlopen(urllib.request.Request(base, headers={"Authorization": "Bearer " + "a" * 44})) as response:
+        assert json.load(response)["models"][0]["id"] == "small"
+    def model_post(path, payload):
+        request = urllib.request.Request(base + path, data=json.dumps(payload).encode(), method="POST",
+            headers={"Authorization": "Bearer " + "a" * 44})
+        try:
+            with urllib.request.urlopen(request) as response:
+                return response.status, json.load(response)
+        except urllib.error.HTTPError as error:
+            return error.code, None
+    assert model_post("/download", {"model": "medium", "expectedServiceStartedAt": "stale"})[0] == 422
+    assert svc.stt_models.job is None
+    assert model_post("/download", {"model": "medium", "expectedServiceStartedAt": svc.service_started_at})[1]["job"]["state"] == "downloading"
+    assert model_post("/cancel", {"jobId": "f" * 32})[1]["job"]["state"] == "cancelled"
+    assert svc.cfg["whisper_model"] == "small"
+    svc.cloud_voice = True
+    assert post({**jv.runtime_settings.effective(svc.cfg), "sttModel": "medium"}) == 422
+    assert svc.cfg["whisper_model"] == "small"
+
+
 def test_wake_enrollment_http_capture_train_save_cas_and_rollback(monkeypatch, tmp_path):
     from wake_enrollment import WakeEnrollment
 

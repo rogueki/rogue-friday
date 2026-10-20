@@ -68,7 +68,8 @@ export interface RawVoiceStatus {
   output_device_id?: string | null;
   runtime_settings?: {
     wakeWordEnabled: boolean; wakeWord: string; pushToTalkKey: string; speakerVerificationRequired: boolean;
-    storeRawRecordings: boolean; voiceHistoryEnabled: boolean; ttsRate: number;
+    storeRawRecordings: boolean; voiceHistoryEnabled: boolean; sttLanguage: "de" | "en";
+      sttModel: string | null; ttsRate: number;
   };
   ptt_active?: boolean;
   native_ptt_available?: boolean;

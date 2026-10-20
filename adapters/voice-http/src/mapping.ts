@@ -111,6 +111,10 @@ export function parseRawVoiceStatus(body: unknown): RawVoiceStatus {
       typeof (raw.runtime_settings as Record<string, unknown>).speakerVerificationRequired === "boolean" &&
       typeof (raw.runtime_settings as Record<string, unknown>).storeRawRecordings === "boolean" &&
       typeof (raw.runtime_settings as Record<string, unknown>).voiceHistoryEnabled === "boolean" &&
+      ["de", "en"].includes(String((raw.runtime_settings as Record<string, unknown>).sttLanguage)) &&
+      ((raw.runtime_settings as Record<string, unknown>).sttModel === null ||
+        (typeof (raw.runtime_settings as Record<string, unknown>).sttModel === "string" &&
+          /^[a-z0-9][a-z0-9.-]{0,63}$/.test((raw.runtime_settings as Record<string, string>).sttModel ?? ""))) &&
       typeof (raw.runtime_settings as Record<string, unknown>).wakeWord === "string" &&
       typeof (raw.runtime_settings as Record<string, unknown>).pushToTalkKey === "string" &&
       typeof (raw.runtime_settings as Record<string, unknown>).ttsRate === "number"

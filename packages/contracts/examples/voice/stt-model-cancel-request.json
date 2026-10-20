@@ -1,0 +1,4 @@
+{
+  "$schema": "https://friday.local/schemas/voice/stt-model-cancel-request.schema.json",
+  "jobId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

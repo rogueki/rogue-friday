@@ -20,7 +20,7 @@ import numpy as np
 
 
 FIELDS = ("wakeWordEnabled", "wakeWord", "pushToTalkKey", "speakerVerificationRequired",
-          "storeRawRecordings", "voiceHistoryEnabled", "ttsRate")
+          "storeRawRecordings", "voiceHistoryEnabled", "sttLanguage", "sttModel", "ttsRate")
 
 
 def key_pressed_from_state(key, pressed):
@@ -135,12 +135,14 @@ def effective(cfg):
             "speakerVerificationRequired": cfg.get("speaker_verification_required", True),
             "storeRawRecordings": cfg.get("store_raw_recordings", False),
             "voiceHistoryEnabled": cfg.get("voice_history_enabled", True),
+            "sttLanguage": cfg.get("stt_language", "de"),
+            "sttModel": cfg.get("whisper_model"),
             "ttsRate": cfg.get("tts_rate", 1.0)}
 
 
 def validate(request, cfg):
     if not isinstance(request, dict) or set(request) != set(FIELDS):
-        raise ValueError("Voice settings require exactly seven fields")
+        raise ValueError("Voice settings require exactly nine fields")
     for key in ("wakeWordEnabled", "speakerVerificationRequired", "storeRawRecordings", "voiceHistoryEnabled"):
         if type(request[key]) is not bool:
             raise ValueError(f"Invalid {key}")
@@ -153,11 +155,18 @@ def validate(request, cfg):
     rate = request["ttsRate"]
     if isinstance(rate, bool) or not isinstance(rate, (float, int)) or not 0.5 <= rate <= 2:
         raise ValueError("Invalid TTS rate")
+    if request["sttLanguage"] not in ("de", "en"):
+        raise ValueError("Invalid STT language")
+    if request["sttModel"] is not None and (not isinstance(request["sttModel"], str) or
+            not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,63}", request["sttModel"])):
+        raise ValueError("Invalid STT model")
     return {**cfg, "wake_phrase": phrase,
             "wake_word_enabled": request["wakeWordEnabled"],
             "push_to_talk_key": key, "speaker_verification_required": request["speakerVerificationRequired"],
             "store_raw_recordings": request["storeRawRecordings"],
-            "voice_history_enabled": request["voiceHistoryEnabled"], "tts_rate": float(rate)}
+            "voice_history_enabled": request["voiceHistoryEnabled"],
+            "stt_language": request["sttLanguage"], "whisper_model": request["sttModel"],
+            "tts_rate": float(rate)}
 
 
 def prepare_personal_wake(install_root, state_root, phrase, raw_dir=None, cancel_event=None):

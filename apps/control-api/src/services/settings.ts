@@ -131,6 +131,8 @@ export function defaultSettingsAreas(config: FridayConfig): SettingsAreas {
       speakerVerificationRequired: true,
       storeRawRecordings: false,
       voiceHistoryEnabled: true,
+      sttLanguage: "de",
+      sttModel: null,
       ttsVoice: installedVoiceChoice(config) ?? "",
       ttsRate: 1,
       inputDeviceId: null,
@@ -339,7 +341,8 @@ export class SettingsService {
       if (json === undefined) continue;
       try {
         const value = JSON.parse(json) as unknown;
-        merged[area] = value;
+        merged[area] = area === "voice" && typeof value === "object" && value !== null && !Array.isArray(value)
+          ? { ...this.defaults.voice, ...value } : value;
       } catch {
         // A damaged row falls back to the default area instead of breaking every settings call.
       }
@@ -373,7 +376,7 @@ export class SettingsService {
         const value = JSON.parse(row.json) as SettingsAreas[K];
         if (name === "voice") {
           const installed = installedVoiceChoice(this.config);
-          if (installed) return { ...value, ttsVoice: installed } as SettingsAreas[K];
+          return { ...this.defaults.voice, ...value, ...(installed ? { ttsVoice: installed } : {}) } as SettingsAreas[K];
         }
         if (name === "security") return { ...value, allowRemoteAccess: this.config.server.allowRemote, auditHashChain: true } as SettingsAreas[K];
         if (name === "approvals") return { ...value, reauthTier3: true } as SettingsAreas[K];

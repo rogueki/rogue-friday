@@ -15,13 +15,15 @@ import runtime_settings
 def requested(**overrides):
     return {"wakeWordEnabled": True, "wakeWord": "Hey Friday", "pushToTalkKey": "Ctrl+Space",
             "speakerVerificationRequired": True, "storeRawRecordings": False,
-            "voiceHistoryEnabled": True, "ttsRate": 1.0, **overrides}
+            "voiceHistoryEnabled": True, "sttLanguage": "de", "sttModel": None,
+            "ttsRate": 1.0, **overrides}
 
 
 def test_validation_rejects_invalid_phrase_and_implicit_recording():
     cfg = {"wake_phrase": "Hey Friday"}
     for value in (requested(wakeWord="Hey 123"),
-                  requested(pushToTalkKey="Ctrl+Alt+Delete"), {**requested(), "storeRawRecordings": "true"}):
+                  requested(pushToTalkKey="Ctrl+Alt+Delete"), {**requested(), "storeRawRecordings": "true"},
+                  requested(sttLanguage="zz"), requested(sttModel="../remote/path")):
         try:
             runtime_settings.validate(value, cfg)
         except ValueError:
@@ -33,6 +35,8 @@ def test_validation_rejects_invalid_phrase_and_implicit_recording():
     assert applied["store_raw_recordings"] is False
     assert runtime_settings.validate(requested(speakerVerificationRequired=False), cfg)["speaker_verification_required"] is False
     assert runtime_settings.validate(requested(wakeWord="Hey Someone"), cfg)["wake_phrase"] == "Hey Someone"
+    updated = runtime_settings.validate(requested(sttLanguage="en", sttModel="base"), cfg)
+    assert updated["stt_language"] == "en" and updated["whisper_model"] == "base"
 
 
 def test_history_off_drops_entries_and_raw_recording_only_writes_accepted_command(tmp_path):

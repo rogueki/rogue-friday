@@ -364,7 +364,8 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
               throw new ApiError({ code: "CONFLICT", message: "Sprachrichtlinie wurde während der Änderung geändert. Bitte neu laden." });
             try {
               runtimeApplied = await applyVoiceSettings(ctx.runtime, requestedRuntime!, applySnapshot,
-                requestedRuntime!.wakeWord === applySnapshot.settings.wakeWord ? 8_000 : 255_000);
+                requestedRuntime!.wakeWord !== applySnapshot.settings.wakeWord ? 255_000 :
+                  requestedRuntime!.sttModel !== applySnapshot.settings.sttModel ? 55_000 : 8_000);
               runtimeInstance = runtimeApplied.serviceStartedAt;
             }
             catch (error) {
@@ -390,7 +391,8 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
           const recoveryErrors: unknown[] = [];
           if (runtimeApplied && runtimeBefore && !runtimeDefinitivelyRejected) {
             try { await applyVoiceSettings(ctx.runtime, runtimeBefore.settings, runtimeApplied,
-              runtimeBefore.settings.wakeWord === requestedRuntime?.wakeWord ? 8_000 : 255_000); }
+              runtimeBefore.settings.wakeWord !== requestedRuntime?.wakeWord ? 255_000 :
+                runtimeBefore.settings.sttModel !== requestedRuntime?.sttModel ? 55_000 : 8_000); }
             catch (recovery) { recoveryErrors.push(recovery); }
           }
           if (audioAttempted) {
@@ -481,8 +483,8 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
 
   async importSettings(ctx) {
     const document = ctx.body as SettingsExport;
-    const importedVoice = document.settings.voice;
     const beforeVoice = ctx.runtime.settings.area("voice");
+    const importedVoice = document.settings.voice ? { ...beforeVoice, ...document.settings.voice } : undefined;
     const voiceChanged = importedVoice && Object.keys(importedVoice).some((key) =>
       importedVoice[key as keyof typeof importedVoice] !== beforeVoice[key as keyof typeof beforeVoice]);
     let restoreVoice = beforeVoice;

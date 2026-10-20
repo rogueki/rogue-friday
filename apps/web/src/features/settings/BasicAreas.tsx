@@ -18,6 +18,7 @@ import { NAV_PAGES } from "@/features/shell/navModel";
 import { DEFAULT_ASSISTANT_NAME } from "@/i18n";
 import type { MessageKey } from "@/i18n";
 import { WakeEnrollment } from "./WakeEnrollment";
+import { SttModelsControl } from "./SttModelsControl";
 
 const onOff = (t: (key: MessageKey) => string): readonly [string, string] => [t("settings.state.on"), t("settings.state.off")];
 
@@ -272,6 +273,7 @@ export function VoiceArea() {
             ["pushToTalkKey", t("settings.voice.ptt")], ["speakerVerificationRequired", t("settings.voice.speaker")],
             ["storeRawRecordings", t("settings.voice.raw")], ["voiceHistoryEnabled", t("settings.voice.history")],
             ["ttsRate", t("settings.voice.ttsRate")],
+            ["sttLanguage", "Erkennungssprache"], ["sttModel", "Whisper-Modell"],
           ] as const).map(([field, label]) => <li key={field}>{label}: {
             integration.data.data.settings[field]?.verification === "verified" ? "Laufzeit bestätigt" : "Wirkung nicht bestätigt"
           }</li>)}
@@ -286,6 +288,19 @@ export function VoiceArea() {
           <TextField label={t("settings.voice.ptt")} value={value.pushToTalkKey} disabled={readOnly} onChange={(event) => update({ pushToTalkKey: event.target.value })} />
           <Switch label={t("settings.voice.speaker")} description={t("settings.voice.speakerDesc")} checked={value.speakerVerificationRequired} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(speakerVerificationRequired) => update({ speakerVerificationRequired })} />
         </FieldGrid>
+      </Section>
+      <Section title="Spracherkennung" description="Ein Modellwechsel lädt ausschließlich ein bereits lokal vorhandenes Whisper-Modell. Fehlt es oder ist Cloud-Erkennung aktiv, bleibt das bisherige Modell erhalten.">
+        <FieldGrid>
+          <Select label="Erkennungssprache" value={value.sttLanguage ?? "de"} disabled={readOnly}
+            options={[{ value: "de", label: "Deutsch" }, { value: "en", label: "English" }]}
+            onChange={(event) => update({ sttLanguage: event.target.value as "de" | "en" })} />
+          <Select label="Lokales Whisper-Modell" value={value.sttModel ?? ""} disabled={readOnly}
+            options={[...(value.sttModel == null ? [{ value: "", label: "Installiertes Modell übernehmen" }] : []),
+              ...(value.sttModel != null && !["base", "small", "medium"].includes(value.sttModel) ? [{ value: value.sttModel, label: `Bisheriges Modell (${value.sttModel})` }] : []),
+              { value: "base", label: "base" }, { value: "small", label: "small" }, { value: "medium", label: "medium" }]}
+            onChange={(event) => update({ sttModel: event.target.value === "" ? null : event.target.value as "base" | "small" | "medium" })} />
+        </FieldGrid>
+        <SttModelsControl selected={value.sttModel ?? null} readOnly={readOnly} />
       </Section>
       <Section title={t("settings.voice.privacy")}>
         <FieldGrid>

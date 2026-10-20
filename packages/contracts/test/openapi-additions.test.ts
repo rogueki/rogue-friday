@@ -70,8 +70,25 @@ describe("observability operations (PLAN §50.3)", () => {
     expect(Object.keys(telemetry?.op.responses ?? {})).toEqual(expect.arrayContaining(["202", "401", "403", "413", "422", "429"]));
   });
 
-  it("the contract includes the 266 released operations", () => {
-    expect(operations).toHaveLength(266);
+  it("the contract includes the 269 released operations", () => {
+    expect(operations).toHaveLength(269);
+  });
+
+  it("binds STT inventory and explicit download control to the owner", () => {
+    for (const [operationId, method, path] of [
+      ["listVoiceSttModels", "get", "/api/v1/voice/stt-models"],
+      ["startVoiceSttModelDownload", "post", "/api/v1/voice/stt-models/download"],
+      ["cancelVoiceSttModelDownload", "post", "/api/v1/voice/stt-models/cancel"],
+    ]) {
+      const found = operations.find(({ op }) => op.operationId === operationId);
+      expect(found, operationId).toMatchObject({ method, path });
+      expect(found?.op["x-required-role"]).toBe("owner");
+      if (method === "post") {
+        expect(found?.op.requestBody).toBeDefined();
+        expect((found?.op.parameters ?? []).map((parameter) => parameter.$ref))
+          .toContain("#/components/parameters/CsrfToken");
+      }
+    }
   });
 
   it("binds all five wake enrollment routes to owner-only staged operations", () => {

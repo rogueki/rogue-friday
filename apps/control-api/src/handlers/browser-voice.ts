@@ -4,8 +4,21 @@ import type { OperationId } from "../http/route-types";
 import { addEnrollmentSample, enrollmentStatus, startEnrollmentTraining } from "../services/linux-voice-enrollment";
 import { ApiError } from "../util/errors";
 import { startWakeEnrollment, wakeEnrollmentRequest } from "../services/wake-enrollment";
+import { startSttModelDownload, sttModelsRequest } from "../services/stt-models";
 
 export const browserVoiceHandlers: Partial<Record<OperationId, Handler>> = {
+  async listVoiceSttModels(ctx) {
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, ...await sttModelsRequest(ctx.runtime, "status") } };
+  },
+  async startVoiceSttModelDownload(ctx) {
+    const { model } = ctx.body as { model: string };
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, ...await startSttModelDownload(ctx.runtime, model) } };
+  },
+  async cancelVoiceSttModelDownload(ctx) {
+    const { jobId } = ctx.body as { jobId: string };
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION,
+      ...await sttModelsRequest(ctx.runtime, "cancel", { jobId }) } };
+  },
   async getWakeEnrollment(ctx) {
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, ...await wakeEnrollmentRequest(ctx.runtime, "") } };
   },

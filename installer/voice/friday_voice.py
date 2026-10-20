@@ -13,6 +13,7 @@ Fail closed: ohne Sprecherprofil/ECAPA startet der Dienst nicht; unbekannte Spre
 Rohaudio wird nur nach ausdruecklicher Aktivierung fuer akzeptierte Befehle gespeichert.
 """
 import argparse
+import atexit
 import collections
 import datetime
 import http.server
@@ -54,6 +55,7 @@ import torch  # noqa: E402
 import personal_wake  # noqa: E402
 import runtime_settings  # noqa: E402
 from wake_enrollment import WakeEnrollment  # noqa: E402
+from stt_models import SttModels  # noqa: E402
 from content_studio_voice import ContentStudioVoice  # noqa: E402
 from skills_onboarding_voice import SkillsOnboardingVoice  # noqa: E402
 from coding_voice import CodingVoice  # noqa: E402
@@ -603,6 +605,10 @@ class VoiceService:
         self.manual_start_lock = threading.Lock()
         self.wake_model_lock = threading.Lock()
         self.wake_enrollment = WakeEnrollment(INSTALL_ROOT, STATE_ROOT)
+        self.stt_models = SttModels(os.path.join(STATE_ROOT, "models", "whisper"),
+                                    local_mode=cfg.get("voice_mode") != "elevenlabs",
+                                    current_model=lambda: self.cfg.get("whisper_model"))
+        atexit.register(self.stt_models.close)
         self.control_cancel = threading.Event()
         self.control_paused = False
         # Kurzlebige Verarbeitungsphase einer Aeusserung: None | "transcribing" | "thinking" (siehe voice_phase()).
@@ -1144,8 +1150,8 @@ class VoiceService:
     # ---------- Verarbeitung ----------
     def _transcribe(self, audio: np.ndarray) -> str:
         if self.cloud_voice:
-            return elevenlabs_cloud.transcribe(audio, self.cloud_key)
-        segs, _ = self.whisper.transcribe(audio, language="de", beam_size=1, vad_filter=False,
+            return elevenlabs_cloud.transcribe(audio, self.cloud_key, language=self.cfg.get("stt_language", "de"))
+        segs, _ = self.whisper.transcribe(audio, language=self.cfg.get("stt_language", "de"), beam_size=1, vad_filter=False,
                                           initial_prompt=f"{self.name}, Sprachassistent.")
         return " ".join(s.text.strip() for s in segs).strip()
 
@@ -1938,10 +1944,33 @@ class VoiceService:
             def do_POST(self):
                 enrollment_paths = ("/control/wake-enrollment/start", "/control/wake-enrollment/sample",
                                     "/control/wake-enrollment/train", "/control/wake-enrollment/discard")
-                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/audio", "/control/settings", *enrollment_paths):
+                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/audio", "/control/settings", "/control/stt-models/download", "/control/stt-models/cancel", *enrollment_paths):
                     self.send_error(404)
                     return
                 if not self._authorized():
+                    return
+                if self.path in ("/control/stt-models/download", "/control/stt-models/cancel"):
+                    try:
+                        size = int(self.headers.get("Content-Length", "0"))
+                        if not 0 < size <= 256:
+                            raise ValueError("Invalid STT model request size")
+                        request = json.loads(self.rfile.read(size))
+                        if not isinstance(request, dict):
+                            raise ValueError("Invalid STT model request")
+                        if self.path.endswith("/download"):
+                            if set(request) != {"model", "expectedServiceStartedAt"} or request["expectedServiceStartedAt"] != service.service_started_at:
+                                raise ValueError("STT model selection is stale")
+                            self._json(service.stt_models.start(request["model"]))
+                        else:
+                            if set(request) != {"jobId"}:
+                                raise ValueError("Invalid STT download cancellation")
+                            self._json(service.stt_models.cancel(request["jobId"]))
+                    except (ValueError, KeyError, TypeError) as exc:
+                        self.send_error(422, str(exc))
+                    except RuntimeError as exc:
+                        self.send_error(423, str(exc))
+                    except (OSError, ImportError):
+                        self.send_error(503, "STT model cache unavailable")
                     return
                 if self.path in enrollment_paths:
                     if service.wake_enrollment is None:
@@ -1994,6 +2023,7 @@ class VoiceService:
                 if self.path == "/control/settings":
                     prepared_wake = None
                     prepared_from_enrollment = False
+                    prepared_stt = None
                     try:
                         size = int(self.headers.get("Content-Length", "0"))
                         if not 0 < size <= 1024:
@@ -2004,12 +2034,42 @@ class VoiceService:
                         requested = request["settings"]
                         runtime_settings.validate(requested, service.cfg)
                         with service.manual_start_lock:
-                            if service.processing or service.tts.speaking.is_set() or service.status["state"] in ("command", "followup", "speaking"):
+                            if (service.processing or service.tts.speaking.is_set() or
+                                    getattr(service, "stt_preflight_busy", False) or
+                                    service.status["state"] in ("command", "followup", "speaking")):
                                 self.send_error(423, "Voice is busy")
                                 return
                             if (request["expectedServiceStartedAt"] != service.service_started_at or
                                     request["expectedConfigRevision"] != service.config_disk_hash):
                                 raise runtime_settings.ConfigConflict("Voice configuration revision changed")
+                            model_change = requested["sttModel"] != runtime_settings.effective(service.cfg)["sttModel"]
+                            if model_change:
+                                if service.cloud_voice or requested["sttModel"] is None:
+                                    raise ValueError("Local Whisper model is unavailable in this voice mode")
+                                service.stt_preflight_busy = True
+                        if model_change:
+                            ready = threading.Event()
+                            prepared = {}
+                            def load_cached_model():
+                                try:
+                                    from faster_whisper import WhisperModel
+                                    prepared["model"] = WhisperModel(requested["sttModel"],
+                                        device=service.cfg.get("whisper_device", "cuda"),
+                                        compute_type=service.cfg["whisper_compute_type"],
+                                        download_root=os.path.join(STATE_ROOT, "models", "whisper"),
+                                        local_files_only=True)
+                                except Exception as exc:
+                                    prepared["error"] = type(exc).__name__
+                                finally:
+                                    with service.manual_start_lock:
+                                        service.stt_preflight_busy = False
+                                    ready.set()
+                            threading.Thread(target=load_cached_model, daemon=True).start()
+                            if not ready.wait(45):
+                                raise OSError("Cached Whisper model load timed out")
+                            if "model" not in prepared:
+                                raise ValueError("Whisper model is not cached or cannot load locally")
+                            prepared_stt = prepared["model"]
                         if requested["wakeWord"] != runtime_settings.effective(service.cfg)["wakeWord"]:
                             phrase = requested["wakeWord"]
                             if personal_wake.is_pretrained_phrase(phrase) or (getattr(service, "wake_rollback", None) is not None and
@@ -2024,7 +2084,9 @@ class VoiceService:
                                 prepared_wake = service._prepare_wake_switch(phrase, paths)
                                 prepared_from_enrollment = True
                         with service.manual_start_lock:
-                            if service.processing or service.tts.speaking.is_set() or service.status["state"] in ("command", "followup", "speaking"):
+                            if (service.processing or service.tts.speaking.is_set() or
+                                    getattr(service, "stt_preflight_busy", False) or
+                                    service.status["state"] in ("command", "followup", "speaking")):
                                 self.send_error(423, "Voice is busy")
                                 return
                             if (request["expectedServiceStartedAt"] != service.service_started_at or
@@ -2052,6 +2114,8 @@ class VoiceService:
                                     "meta_path": (service.cfg.get("personal_wake_meta") or os.path.join(STATE_ROOT, "models", "openwakeword", "personal_wake.json")) if service.engine == "personal" else None}}
                                 runtime_settings.atomic_write(config_path, updated, expected)
                                 service.cfg = updated
+                                if prepared_stt is not None:
+                                    service.whisper = prepared_stt
                                 service.config_disk_hash = runtime_settings.file_hash(config_path)
                                 service.tts.tts_config = updated
                                 if prepared_wake is not None:
@@ -2219,6 +2283,14 @@ class VoiceService:
                 self.wfile.write(b'{"accepted":true}')
 
             def do_GET(self):
+                if self.path == "/control/stt-models":
+                    if not self._authorized():
+                        return
+                    try:
+                        self._json(service.stt_models.status())
+                    except (OSError, ImportError):
+                        self.send_error(503, "STT model cache unavailable")
+                    return
                 if self.path == "/control/wake-enrollment":
                     if not self._authorized():
                         return

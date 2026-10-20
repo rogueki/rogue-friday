@@ -1,0 +1,7 @@
+{
+  "$schema": "https://friday.local/schemas/voice/stt-models-status.schema.json",
+  "contractVersion": "2.0.0",
+  "localMode": true,
+  "models": [{ "id": "base", "cached": true }, { "id": "small", "cached": false }, { "id": "medium", "cached": false }],
+  "job": null
+}
