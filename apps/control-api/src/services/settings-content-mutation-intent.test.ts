@@ -27,4 +27,21 @@ describe("settings and Content Studio mutation intents", () => {
       .toEqual({ kind: "contentStudio.idea.status", title: "Quartalsbericht", status: "fertig" });
     expect(parseSettingsContentMutationIntent("Set idea Quarterly report to published")).toBeNull();
   });
+
+  it("binds quoted Content Studio rename and description fields", () => {
+    expect(parseSettingsContentMutationIntent('Rename idea "Q2 report" to "Quarterly report"'))
+      .toEqual({ kind: "contentStudio.idea.rename", title: "Q2 report", newTitle: "Quarterly report" });
+    expect(parseSettingsContentMutationIntent('Set description of idea "Quarterly report" to "Show recent audit events"'))
+      .toEqual({ kind: "contentStudio.idea.description", title: "Quarterly report", description: "Show recent audit events" });
+    expect(parseSettingsContentMutationIntent('Set description of idea "Quarterly report" to "Line one\nLine two"'))
+      .toEqual({ kind: "contentStudio.idea.description", title: "Quarterly report", description: "Line one\nLine two" });
+    expect(parseSettingsContentMutationIntent('Rename idea "Q2 report" to ""')).toBeNull();
+  });
+
+  it("accepts only a valid explicit date when scheduling an idea", () => {
+    expect(parseSettingsContentMutationIntent('Schedule idea "Quarterly report" for 2026-10-22'))
+      .toEqual({ kind: "contentStudio.posting.fromIdea", title: "Quarterly report", date: "2026-10-22" });
+    expect(parseSettingsContentMutationIntent('Plane Idee "Quartalsbericht" für 2026-02-30')).toBeNull();
+    expect(parseSettingsContentMutationIntent('Schedule idea "Quarterly report"')).toBeNull();
+  });
 });

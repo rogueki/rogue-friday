@@ -167,4 +167,79 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     expect(response.statusCode).toBe(409);
     expect(api.runtime.contentStudioPlan.get().plan?.content.filter((entry) => entry.titel === "Duplicate title").every((entry) => entry.status === "idee")).toBe(true);
   });
+
+  it("renames an idea and changes its description through the captured plan revision", async () => {
+    const settings = api.runtime.settings.get();
+    if (!settings.dashboard.contentStudioEnabled)
+      api.runtime.settings.patch({ dashboard: { ...settings.dashboard, contentStudioEnabled: true } }, settings.version);
+    const current = api.runtime.contentStudioPlan.get();
+    const item = { id: "rename-target", titel: "Original title", plattform: "LinkedIn" as const,
+      ziele: ["LinkedIn" as const], format: "Feed-Post" as const, beschreibung: "Old notes", zieldatum: "", status: "idee" as const };
+    api.runtime.contentStudioPlan.put({ version: 1, exportiert_am: new Date().toISOString(),
+      content: [...(current.plan?.content ?? []), item], postings: current.plan?.postings ?? [] }, current.revision);
+
+    const renameText = 'Rename idea "original title" to "Updated title"';
+    const discardedRename = await command(owner, renameText);
+    expect((await command(owner, renameText, { previewId: discardedRename.json().previewId as string })).json().status).toBe("rejected");
+    expect(api.runtime.contentStudioPlan.get().plan?.content.find((entry) => entry.id === item.id)?.titel).toBe("Original title");
+    const renamePreview = await command(owner, renameText);
+    expect(renamePreview.statusCode, renamePreview.body).toBe(200);
+    expect(renamePreview.json().previewText).toContain("Updated title");
+    const renameId = renamePreview.json().previewId as string;
+    expect((await command(owner, 'Rename idea "original title" to "Correction"', { confirm: true, previewId: renameId })).statusCode).toBe(409);
+    const renamed = await command(owner, renameText, { confirm: true, previewId: renameId });
+    expect(renamed.statusCode, renamed.body).toBe(200);
+    expect(api.runtime.contentStudioPlan.get().plan?.content.find((entry) => entry.id === item.id)?.titel).toBe("Updated title");
+    expect((await command(owner, renameText, { confirm: true, previewId: renameId })).json().status).toBe("executed");
+
+    const descriptionText = 'Set description of idea "Updated title" to "Show recent audit events"';
+    const descriptionPreview = await command(owner, descriptionText);
+    const descriptionId = descriptionPreview.json().previewId as string;
+    expect(descriptionPreview.json().previewText).toContain("Show recent audit events");
+    const described = await command(owner, descriptionText, { confirm: true, previewId: descriptionId });
+    expect(described.statusCode, described.body).toBe(200);
+    expect(api.runtime.contentStudioPlan.get().plan?.content.find((entry) => entry.id === item.id)?.beschreibung).toBe("Show recent audit events");
+    expect((await command(owner, descriptionText, { confirm: true, previewId: descriptionId })).json().status).toBe("executed");
+  });
+
+  it("schedules an idea as a posting with the UI default time and plan CAS", async () => {
+    const settings = api.runtime.settings.get();
+    if (!settings.dashboard.contentStudioEnabled)
+      api.runtime.settings.patch({ dashboard: { ...settings.dashboard, contentStudioEnabled: true } }, settings.version);
+    const current = api.runtime.contentStudioPlan.get();
+    const item = { id: "posting-source", titel: "Campaign draft", plattform: "Beide" as const,
+      ziele: ["Instagram" as const, "Facebook" as const], format: "Story" as const, beschreibung: "", zieldatum: "", status: "idee" as const };
+    api.runtime.contentStudioPlan.put({ version: 1, exportiert_am: new Date().toISOString(),
+      content: [...(current.plan?.content ?? []), item], postings: current.plan?.postings ?? [] }, current.revision);
+    const text = 'Schedule idea "campaign draft" for 2026-10-22';
+    const discarded = await command(owner, text);
+    const beforeDiscard = api.runtime.contentStudioPlan.get();
+    expect((await command(owner, text, { previewId: discarded.json().previewId as string })).json().status).toBe("rejected");
+    expect(api.runtime.contentStudioPlan.get().revision).toBe(beforeDiscard.revision);
+    const preview = await command(owner, text);
+    expect(preview.statusCode, preview.body).toBe(200);
+    expect(preview.json().previewText).toContain("09:00");
+    const previewId = preview.json().previewId as string;
+    expect((await command(operator, text)).statusCode).toBe(403);
+    const confirmed = await command(owner, text, { confirm: true, previewId });
+    expect(confirmed.statusCode, confirmed.body).toBe(200);
+    const saved = api.runtime.contentStudioPlan.get();
+    expect(saved.plan?.postings.at(-1)).toMatchObject({ titel: item.titel, datum: "2026-10-22", uhrzeit: "09:00",
+      plattform: "Instagram", ziele: ["Instagram", "Facebook"], format: "Story", status: "geplant" });
+    const revision = saved.revision;
+    expect((await command(owner, text, { confirm: true, previewId })).json().status).toBe("executed");
+    expect(api.runtime.contentStudioPlan.get().revision).toBe(revision);
+
+    const stalePreview = await command(owner, text);
+    const staleId = stalePreview.json().previewId as string;
+    const concurrent = api.runtime.contentStudioPlan.get();
+    api.runtime.contentStudioPlan.put({ ...concurrent.plan!, content: concurrent.plan!.content.map((entry) =>
+      entry.id === item.id ? { ...entry, beschreibung: "Changed by dashboard" } : entry) }, concurrent.revision);
+    expect((await command(owner, text, { confirm: true, previewId: staleId })).statusCode).toBe(409);
+    const afterStale = api.runtime.contentStudioPlan.get();
+    expect(afterStale.plan?.postings.filter((entry) => entry.titel === item.titel)).toHaveLength(1);
+    expect(afterStale.plan?.content.find((entry) => entry.id === item.id)?.beschreibung).toBe("Changed by dashboard");
+    const ownerId = api.runtime.auth.issueDevSession("owner").principal.userId;
+    expect(api.runtime.nativeApprovals.stateOf(ownerId, staleId)).toBe("uncertain");
+  });
 });

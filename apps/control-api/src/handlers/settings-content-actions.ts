@@ -1,5 +1,5 @@
 ﻿import { authorize } from "@friday/auth";
-import { CONTRACT_VERSION, parseStudioPlan, type CommandRequest, type CommandResponse, type ContentPlanDocument, type SettingsPatch } from "@friday/sdk";
+import { CONTRACT_VERSION, ideaTargets, parseStudioPlan, type CommandRequest, type CommandResponse, type ContentPlanDocument, type SettingsPatch, type Posting } from "@friday/sdk";
 import { Buffer } from "node:buffer";
 import { createId } from "@friday/observability";
 import type { HandlerResult, RequestContext } from "../http/context";
@@ -32,7 +32,24 @@ function sameIntent(action: NativeExecutableAction, intent: SettingsContentMutat
   if (intent.kind === "contentStudio.idea.status")
     return action.kind === intent.kind && action.title.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE")
       && action.status === intent.status;
+  if (intent.kind === "contentStudio.idea.rename")
+    return action.kind === intent.kind && action.title.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE")
+      && action.newTitle === intent.newTitle;
+  if (intent.kind === "contentStudio.idea.description")
+    return action.kind === intent.kind && action.title.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE")
+      && action.description === intent.description;
+  if (intent.kind === "contentStudio.posting.fromIdea")
+    return action.kind === intent.kind && action.posting.titel.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE")
+      && action.posting.datum === intent.date;
   return false;
+}
+
+function resolveUniqueIdea(ctx: RequestContext, title: string) {
+  const current = ctx.runtime.contentStudioPlan.get();
+  const matches = (current.plan?.content ?? []).filter((idea) => idea.titel.toLocaleLowerCase("de-DE") === title.toLocaleLowerCase("de-DE"));
+  if (matches.length === 0) throw validationFailed("Keine Idee mit diesem Titel gefunden.");
+  if (matches.length !== 1) throw conflict("Mehrere Ideen haben diesen Titel. Bitte im Dashboard eindeutig auswaehlen.");
+  return { current, idea: matches[0]! };
 }
 
 function storedAction(ctx: RequestContext, ownerId: string, request: CommandRequest,
@@ -54,10 +71,29 @@ function makeAction(ctx: RequestContext, intent: SettingsContentMutationIntent):
   if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
   const current = ctx.runtime.contentStudioPlan.get();
   if (intent.kind === "contentStudio.idea.status") {
-    const matches = (current.plan?.content ?? []).filter((idea) => idea.titel.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE"));
-    if (matches.length === 0) throw validationFailed("Keine Idee mit diesem Titel gefunden.");
-    if (matches.length !== 1) throw conflict("Mehrere Ideen haben diesen Titel. Bitte im Dashboard eindeutig auswaehlen.");
-    return { kind: intent.kind, expectedRevision: current.revision, ideaId: matches[0]!.id, title: matches[0]!.titel, status: intent.status };
+    const { idea } = resolveUniqueIdea(ctx, intent.title);
+    return { kind: intent.kind, expectedRevision: current.revision, ideaId: idea.id, title: idea.titel, status: intent.status };
+  }
+  if (intent.kind === "contentStudio.idea.rename") {
+    const { idea } = resolveUniqueIdea(ctx, intent.title);
+    if ((current.plan?.content ?? []).some((entry) => entry.id !== idea.id && entry.titel.toLocaleLowerCase("de-DE") === intent.newTitle.toLocaleLowerCase("de-DE")))
+      throw conflict("Eine andere Idee hat bereits diesen Titel. Bitte einen eindeutigen Titel waehlen.");
+    return { kind: intent.kind, expectedRevision: current.revision, ideaId: idea.id, title: idea.titel, newTitle: intent.newTitle };
+  }
+  if (intent.kind === "contentStudio.idea.description") {
+    const { idea } = resolveUniqueIdea(ctx, intent.title);
+    return { kind: intent.kind, expectedRevision: current.revision, ideaId: idea.id, title: idea.titel, description: intent.description };
+  }
+  if (intent.kind === "contentStudio.posting.fromIdea") {
+    const { idea } = resolveUniqueIdea(ctx, intent.title);
+    const postings = current.plan?.postings ?? [];
+    if (postings.length >= 1000) throw validationFailed("Der Content-Plan enthaelt bereits die maximale Zahl von 1000 Postings.");
+    const targets = ideaTargets(idea);
+    const posting: Posting = { id: createId("posting"), titel: idea.titel, datum: intent.date, uhrzeit: "09:00",
+      plattform: targets[0]!, ziele: targets, format: idea.format, status: "geplant" };
+    parseStudioPlan({ version: 1, exportiert_am: current.plan?.exportiert_am ?? new Date(ctx.runtime.nowMs()).toISOString(),
+      content: current.plan?.content ?? [], postings: [...postings, posting] });
+    return { kind: intent.kind, expectedRevision: current.revision, posting };
   }
   if ((current.plan?.content.length ?? 0) >= 1000) throw validationFailed("Der Content-Plan enthaelt bereits die maximale Zahl von 1000 Ideen.");
   const exportiert_am = current.plan?.exportiert_am ?? new Date(ctx.runtime.nowMs()).toISOString();
@@ -82,6 +118,12 @@ function proposalText(action: NativeExecutableAction): string {
     return `Content-Idee „${action.idea.titel}“ hinzufuegen? Defaults: LinkedIn, Feed-Post, Status Idee. Planrevision ${action.expectedRevision}.`;
   if (action.kind === "contentStudio.idea.status")
     return `Status der Idee „${action.title}“ auf ${action.status} setzen? Planrevision ${action.expectedRevision}.`;
+  if (action.kind === "contentStudio.idea.rename")
+    return `Idee „${action.title}“ in „${action.newTitle}“ umbenennen? Planrevision ${action.expectedRevision}.`;
+  if (action.kind === "contentStudio.idea.description")
+    return `Beschreibung der Idee „${action.title}“ auf „${action.description}“ setzen? Planrevision ${action.expectedRevision}.`;
+  if (action.kind === "contentStudio.posting.fromIdea")
+    return `Posting „${action.posting.titel}“ fuer ${action.posting.datum} um 09:00 einplanen? Plattform: ${action.posting.ziele?.join(" + ") ?? action.posting.plattform}. Planrevision ${action.expectedRevision}.`;
   throw conflict("Nicht unterstuetzte Einstellungen-/Content-Studio-Aktion.");
 }
 
@@ -90,7 +132,7 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
   const ownerId = isOwner(ctx);
   if (intent.kind === "settings.dashboard.compact" && !authorize(ctx.principal!.role, "settings.update").allowed)
     throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
-  if (intent.kind.startsWith("contentStudio.idea.") && ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true)
+  if (intent.kind.startsWith("contentStudio.") && ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true)
     throw forbidden("Content Studio ist deaktiviert.");
 
   let action: NativeExecutableAction;
@@ -164,6 +206,37 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
       if (typeof nextRevision !== "number") throw conflict("Der Content-Plan wurde aktualisiert, aber die neue Revision ist nicht lesbar.");
       return String(nextRevision);
     }
+    if (saved.kind === "contentStudio.idea.rename" || saved.kind === "contentStudio.idea.description") {
+      if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
+      const current = ctx.runtime.contentStudioPlan.get();
+      if (current.revision !== saved.expectedRevision) throw conflict("Der Plan wurde inzwischen geaendert. Bitte neu laden und die Aenderung erneut pruefen.");
+      const ideas = current.plan?.content ?? [];
+      const target = ideas.find((idea) => idea.id === saved.ideaId && idea.titel === saved.title);
+      if (!target) throw conflict("Die ausgewaehlte Idee ist nicht mehr vorhanden.");
+      const content = ideas.map((idea) => idea.id !== saved.ideaId ? idea : saved.kind === "contentStudio.idea.rename"
+        ? { ...idea, titel: saved.newTitle } : { ...idea, beschreibung: saved.description });
+      const plan: ContentPlanDocument = parseStudioPlan({ version: 1 as const,
+        exportiert_am: current.plan?.exportiert_am ?? new Date(ctx.runtime.nowMs()).toISOString(), content,
+        postings: current.plan?.postings ?? [] });
+      const result = await contentStudioHandlers.putContentStudioPlan!({ ...ctx, body: plan,
+        mutation: { ...ctx.mutation, ifMatchVersion: saved.expectedRevision, idempotencyKey } });
+      const nextRevision = (result.body as { data?: { revision?: number } }).data?.revision;
+      if (typeof nextRevision !== "number") throw conflict("Die Idee wurde gespeichert, aber die neue Revision ist nicht lesbar.");
+      return String(nextRevision);
+    }
+    if (saved.kind === "contentStudio.posting.fromIdea") {
+      if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
+      const current = ctx.runtime.contentStudioPlan.get();
+      if (current.revision !== saved.expectedRevision) throw conflict("Der Plan wurde inzwischen geaendert. Bitte neu laden und das Posting erneut pruefen.");
+      const plan: ContentPlanDocument = parseStudioPlan({ version: 1 as const,
+        exportiert_am: current.plan?.exportiert_am ?? new Date(ctx.runtime.nowMs()).toISOString(),
+        content: current.plan?.content ?? [], postings: [...(current.plan?.postings ?? []), saved.posting] });
+      const result = await contentStudioHandlers.putContentStudioPlan!({ ...ctx, body: plan,
+        mutation: { ...ctx.mutation, ifMatchVersion: saved.expectedRevision, idempotencyKey } });
+      const nextRevision = (result.body as { data?: { revision?: number } }).data?.revision;
+      if (typeof nextRevision !== "number") throw conflict("Das Posting wurde gespeichert, aber die neue Revision ist nicht lesbar.");
+      return String(nextRevision);
+    }
     throw conflict("Gespeicherte Aktion passt nicht zu diesem Mutationspfad.");
   });
   const message = action.kind === "settings.dashboard.compact"
@@ -172,6 +245,12 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
       ? `Content-Idee „${action.idea.titel}“ gespeichert (Planrevision ${revision}).`
       : action.kind === "contentStudio.idea.status"
         ? `Status der Idee „${action.title}“ gespeichert (Planrevision ${revision}).`
+      : action.kind === "contentStudio.idea.rename"
+        ? `Idee „${action.title}“ in „${action.newTitle}“ umbenannt (Planrevision ${revision}).`
+      : action.kind === "contentStudio.idea.description"
+        ? `Beschreibung der Idee „${action.title}“ gespeichert (Planrevision ${revision}).`
+      : action.kind === "contentStudio.posting.fromIdea"
+        ? `Posting „${action.posting.titel}“ fuer ${action.posting.datum} eingeplant (Planrevision ${revision}).`
       : (() => { throw conflict("Gespeicherte Aktion passt nicht zu diesem Mutationspfad."); })();
   return baseResponse(ctx, "executed", { requiresConfirmation: false, previewText: null, result: { message } });
 }

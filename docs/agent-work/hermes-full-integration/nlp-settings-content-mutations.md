@@ -2,7 +2,9 @@
 
 This document records only the local behavior added in the isolated
 `feat/nlp-settings-content-mutations-20261020` worktree. It is not an NLP
-acceptance claim and does not change `acceptance-ledger.md` statuses.
+acceptance claim and does not change `acceptance-ledger.md` statuses. The
+rename, description and scheduling actions described below are a second local
+slice after commit `763ac9a`; they are pending review and are not yet committed.
 
 ## Implemented actions and source path
 
@@ -11,9 +13,12 @@ acceptance claim and does not change `acceptance-ledger.md` statuses.
 | `set dashboard compact mode on/off` / German equivalents | `settings.dashboard.compact` | Owner-authenticated command stages a preview, then calls `settingsHandlers.updateSettings` with the captured `ifMatchVersion`; stale settings fail closed. | `services/settings-content-mutation-intent.ts`, `handlers/settings-content-actions.ts`; runtime effect is explicitly not separately verified. |
 | `add/create idea <title> to the Content Studio plan` / German equivalents | `contentStudio.idea.add` | Owner-authenticated command stages a preview, then appends one idea through `contentStudioHandlers.putContentStudioPlan` with captured plan revision. Defaults are LinkedIn, Feed-Post, empty description/date, status Idee. | `handlers/content-studio.ts` is the canonical persistence route; no provider is called. Exact UI counterpart is `ContentStudioPage.tsx` `addIdea`; this NL action currently covers creation only, not edit/status/delete. |
 | `set status of idea <exact title> to in progress/done/idea` / German equivalents | `contentStudio.idea.status` | Resolves one unique exact title before staging, previews the target status, then updates only that idea through the canonical plan handler with captured plan revision. Missing or duplicate titles fail before a draft is created. | Exact UI counterpart is `ContentStudioPage.tsx` Kanban `onStatus`; tests cover owner-only access, persisted status, replay, and duplicate-title clarification by failure. |
+| `rename idea "<old>" to "<new>"` | `contentStudio.idea.rename` | Resolves one unique case-insensitive title before staging; disallows colliding new titles; previews both titles and updates the canonical plan with captured revision. | Exact UI counterpart is `ContentStudioPage.tsx` `editIdea`/`addIdea`; tests cover discard, corrected-preview rejection and replay. Only the title field is exposed by this NL action. |
+| `set description of idea "<title>" to "<text>"` | `contentStudio.idea.description` | Resolves one unique case-insensitive title, binds the full bounded description in the preview, and changes only that field through the canonical plan handler with captured revision. Newlines are preserved. | Exact UI counterpart is the description field in `addIdea`; test confirms stored description. Quotes are delimiters; embedded literal quote escaping is not implemented. |
+| `schedule idea "<title>" for YYYY-MM-DD` / German equivalents | `contentStudio.posting.fromIdea` | Resolves one unique case-insensitive title before staging; creates one planned posting with the explicit date, UI default time 09:00, and the idea's current targets/format. Existing target list is preserved; no provider call or publication occurs. | Exact UI counterpart is Kanban `onPlan`/`addPosting`; tests verify discard, multi-target metadata, owner-only access, replay, stale CAS and no lost concurrent plan edit. |
 | `retry task <id/title>` / selected task, including German restart phrasing | `task.retry` | Resolves task before staging, checks retryable state, captures `task.retry` in the native approval journal, and calls the existing task port with the journal idempotency key after confirmation. | Exact operation is `retryTask`; preview/approval/replay tested against a failed fixture task. This adds a missing NL consumer to the existing direct retry endpoint. |
 
-Both operations pin the concrete payload and revision in the native preview,
+These actions pin the concrete payload and revision in the native preview,
 reject a corrected payload against an old preview, and use the existing native
 confirmation executor for idempotent replay/uncertain-result handling. Inputs
 are redacted from command history; audit records contain typed intent metadata,
@@ -33,10 +38,10 @@ physical voice behavior or full natural-language coverage.
 
 | ID | Exact requirement | Current evidence | Remaining work / boundary |
 |---|---|---|---|
-| NLP-01 | Every UI action has an accessible language/text action or justified guided physical step. | Three Settings/Content Studio mutations plus task.retry; read consumers for Settings and plan exist in the earlier read slice. | Inventory and map each UI callback to a real typed command or a justified guided step. Settings field actions and Content Studio edit/remove/posting/import/export remain unmapped; the dashboard-wide inventory is not closed. |
-| NLP-02 | References/pronouns resolve to the intended entity. | No cross-turn entity/reference behavior added in this mutation slice. Exact idea title is stored as action data, not resolved at confirm time. | Add scoped reference context, unique resolution, and multi-turn fixtures across entity families. |
-| NLP-03 | Ambiguous recipients/calendars prompt for clarification. | Settings has no entity reference. Content Studio status mutation refuses duplicate exact titles before staging. | Add ambiguity fixtures for recipient/calendar selectors and other title-based Content Studio operations; no action before clarification. |
-| NLP-04 | Any material correction invalidates prior approval. | These three native drafts bind their intent payload; tests reject a changed intent with an existing preview. | Cross-family recipient/channel corrections and existing approval-edit paths remain unverified. |
+| NLP-01 | Every UI action has an accessible language/text action or justified guided physical step. | Settings compact, Content Studio add/status/rename/description/schedule, task.retry; Settings and plan read consumers exist in the earlier read slice. | Still unmapped: other Settings fields; Content Studio idea date/platform/format edits and removal; manual posting create/status/remove; import/export; media, production and publishing UI actions. Continue the dashboard-wide callback inventory. |
+| NLP-02 | References/pronouns resolve to the intended entity. | Content Studio title references resolve exact unique idea title before staging; no cross-turn pronoun context is added. | Add scoped context and multi-turn references across entity families. |
+| NLP-03 | Ambiguous recipients/calendars prompt for clarification. | Title-based Content Studio actions refuse duplicate titles before staging. | Implement conversational clarification turn for recipient/calendar and title ambiguity; current duplicate rejection is safe but not a clarification exchange. |
+| NLP-04 | Any material correction invalidates prior approval. | Native mutation drafts bind exact new title, description, status and plan date/payload; rename tests reject a corrected title against the old preview. | Cross-family recipient/channel corrections and existing approval-edit paths remain unverified. |
 | NLP-05 | Spoken/text claims match backend outcome. | Local saved revision is returned for these writes; stale writes fail closed. Settings message distinguishes saved state from unverified runtime effect. | Test injected success/rejection/timeout and compare response claims with persisted/provider outcome across all action families. |
 | NLP-06 | End-to-end passes synthetic audio fixtures and separately documents real device path. | No audio fixture or physical device execution in this slice. | Synthetic audio E2E remains required; physical microphone/speaker evidence is a separate external/hardware step. |
 
