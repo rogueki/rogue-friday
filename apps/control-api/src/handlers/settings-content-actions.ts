@@ -188,15 +188,20 @@ function makeAction(ctx: RequestContext, request: CommandRequest, intent: Settin
     ctx.runtime.settings.validateAreas({ dashboard });
     return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
   }
-  if (intent.kind === "settings.navigation.defaultPage" || intent.kind === "settings.navigation.mode") {
+  if (intent.kind === "settings.navigation.defaultPage") {
     if (!authorize(ctx.principal!.role, "settings.update").allowed) throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
-    if (intent.kind === "settings.navigation.defaultPage" && intent.value === "content-studio"
+    if (intent.value === "content-studio"
       && ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true)
       throw forbidden("Content Studio ist deaktiviert und kann daher nicht als Startseite gesetzt werden.");
     const current = ctx.runtime.settings.get();
-    const navigation = intent.kind === "settings.navigation.defaultPage"
-      ? { ...current.navigation, defaultPage: intent.value }
-      : { ...current.navigation, mode: intent.value };
+    const navigation = { ...current.navigation, defaultPage: intent.value };
+    ctx.runtime.settings.validateAreas({ navigation });
+    return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
+  }
+  if (intent.kind === "settings.navigation.mode") {
+    if (!authorize(ctx.principal!.role, "settings.update").allowed) throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
+    const current = ctx.runtime.settings.get();
+    const navigation = { ...current.navigation, mode: intent.value };
     ctx.runtime.settings.validateAreas({ navigation });
     return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
   }
