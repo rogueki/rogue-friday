@@ -209,6 +209,11 @@ export type HermesConfigPatch =
       enabled: boolean;
     }
   | {
+      key: "mcp.activation";
+      name: string;
+      enabled: boolean;
+    }
+  | {
       key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
       value: string | null;
     };

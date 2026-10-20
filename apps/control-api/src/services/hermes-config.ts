@@ -60,6 +60,7 @@ type FallbackEntry = { provider: string; model: string };
 export type HermesConfigPatch = { key: HermesConfigField; value: number | boolean | string | FallbackEntry[] | string[] | null };
 export type HermesPluginPatch = { key: "plugin.activation"; pluginId: string; enabled: boolean };
 export type HermesMcpPatch = { key: "mcp.httpServer"; name: string; url: string | null; enabled: boolean };
+export type HermesMcpActivationPatch = { key: "mcp.activation"; name: string; enabled: boolean };
 export const HERMES_MODEL_CREDENTIALS = ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] as const;
 export type HermesModelCredential = typeof HERMES_MODEL_CREDENTIALS[number];
 export type HermesModelCredentialPatch = { key: HermesModelCredential; value: string | null };
@@ -163,8 +164,8 @@ export class HermesConfigService {
   }
 
   private async run(
-    action: "status" | "update" | "credential-update" | "plugin-activation" | "mcp-http",
-    patch?: HermesConfigPatch | HermesModelCredentialPatch | HermesPluginPatch | HermesMcpPatch,
+    action: "status" | "update" | "credential-update" | "plugin-activation" | "mcp-http" | "mcp-activation",
+    patch?: HermesConfigPatch | HermesModelCredentialPatch | HermesPluginPatch | HermesMcpPatch | HermesMcpActivationPatch,
     revision?: number,
   ): Promise<BridgeStatus | null> {
     const { script, distro, user } = this.target();
@@ -175,13 +176,16 @@ export class HermesConfigService {
         distro,
         user,
         [action],
-        patch ? JSON.stringify(action === "mcp-http"
+        patch ? JSON.stringify(action === "mcp-activation"
+          ? { name: (patch as HermesMcpActivationPatch).name,
+            enabled: (patch as HermesMcpActivationPatch).enabled, revision }
+          : action === "mcp-http"
           ? { name: (patch as HermesMcpPatch).name, url: (patch as HermesMcpPatch).url,
             enabled: (patch as HermesMcpPatch).enabled, revision }
           : action === "plugin-activation"
           ? { pluginId: (patch as HermesPluginPatch).pluginId, enabled: (patch as HermesPluginPatch).enabled, revision }
           : { ...patch, revision }) : undefined,
-        action === "credential-update" || action === "plugin-activation" || action === "mcp-http" ? 60000 : 30000,
+        action === "credential-update" || action === "plugin-activation" || action === "mcp-http" || action === "mcp-activation" ? 60000 : 30000,
         150000,
       );
     } catch (error) {
@@ -189,12 +193,17 @@ export class HermesConfigService {
         return null;
       if (error instanceof Error && error.message.includes("revision_conflict"))
         throw conflict("Hermes-Konfiguration wurde außerhalb von Friday geändert.");
+      if (action === "mcp-activation" && error instanceof Error && error.message.includes("managed_entry_conflict"))
+        throw conflict("Nur HTTPS-MCP-Eintraege ohne Zugangsdaten sind hier schaltbar.");
       if (action === "credential-update")
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
           message: "Hermes-Schlüsselvorgang nicht bestätigt. Status neu laden; eine Wiederholung könnte den bereits gespeicherten Schlüssel überschreiben." });
       if (action === "plugin-activation")
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
           message: "Hermes-Plugin-Aktivierung nicht bestätigt. Status neu laden, bevor sie erneut versucht wird." });
+      if (action === "mcp-activation")
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Hermes-MCP-Aktivierung nicht bestaetigt. Status neu laden, bevor sie erneut versucht wird." });
       throw unavailable();
     }
     if (
@@ -245,8 +254,8 @@ export class HermesConfigService {
       (!raw.write ||
         typeof raw.write !== "object" ||
         (raw.write as Record<string, unknown>).key !== (action === "plugin-activation"
-          ? `plugin:${(patch as HermesPluginPatch).pluginId}` : action === "mcp-http"
-          ? `mcp:${(patch as HermesMcpPatch).name}` : patch?.key) ||
+          ? `plugin:${(patch as HermesPluginPatch).pluginId}` : action === "mcp-http" || action === "mcp-activation"
+          ? `mcp:${(patch as HermesMcpPatch | HermesMcpActivationPatch).name}` : patch?.key) ||
         typeof (raw.write as Record<string, unknown>).persisted !== "boolean")
     )
       throw unavailable();
@@ -382,6 +391,15 @@ export class HermesConfigService {
         !(patch.url === null && patch.enabled === false || validMcpUrl(patch.url)))
       throw validationFailed("Ungueltiger Hermes-MCP-Server.");
     const observed = await this.run("mcp-http", patch, revision);
+    if (!observed) throw unavailable();
+    return this.present(observed);
+  }
+
+  async activateMcp(patch: HermesMcpActivationPatch, revision: number) {
+    if (patch.key !== "mcp.activation" || !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(patch.name) ||
+        typeof patch.enabled !== "boolean" || !Number.isSafeInteger(revision) || revision < 1)
+      throw validationFailed("Ungueltige Hermes-MCP-Aktivierung.");
+    const observed = await this.run("mcp-activation", patch, revision);
     if (!observed) throw unavailable();
     return this.present(observed);
   }

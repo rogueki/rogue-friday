@@ -90,6 +90,7 @@
     { "type": "object", "properties": { "key": { "const": "skills.disabled" }, "value": { "type": "array", "maxItems": 512, "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z0-9._/-]{1,100}$" } } }, "required": ["key", "value"], "additionalProperties": false },
     { "type": "object", "properties": { "key": { "const": "plugin.activation" }, "pluginId": { "type": "string", "pattern": "^(?!.*\\.\\.)(?!/)(?!.*//)[A-Za-z0-9._/-]{1,100}$" }, "enabled": { "type": "boolean" } }, "required": ["key", "pluginId", "enabled"], "additionalProperties": false },
     { "type": "object", "properties": { "key": { "const": "mcp.httpServer" }, "name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$" }, "url": { "anyOf": [{ "type": "string", "minLength": 10, "maxLength": 2048, "pattern": "^https://" }, { "type": "null" }] }, "enabled": { "type": "boolean" } }, "required": ["key", "name", "url", "enabled"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "mcp.activation" }, "name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$" }, "enabled": { "type": "boolean" } }, "required": ["key", "name", "enabled"], "additionalProperties": false },
     {
       "type": "object",
       "properties": {

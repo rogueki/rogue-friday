@@ -213,6 +213,24 @@ it("activates only a typed installed-plugin request and leaves runtime adoption 
     .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
 });
 
+it("activates a managed MCP entry without exposing or resending its URL", async () => {
+  const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
+    mcpServers: [{ id: "example", transport: "http", enabled: false,
+      endpoint: "https://example.org", editable: true }],
+    write: { key: "mcp:example", persisted: true },
+  })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const result = await service.activateMcp({ key: "mcp.activation", name: "example", enabled: false }, 123);
+  expect(result.mcpServers[0]?.enabled).toBe(false);
+  expect(result.write).toMatchObject({ persisted: true, applied: null });
+  expect(vi.mocked(invoke).mock.calls[0]?.[3]).toEqual(["mcp-activation"]);
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[0]?.[4]))).toEqual({
+    name: "example", enabled: false, revision: 123,
+  });
+  await expect(service.activateMcp({ key: "mcp.activation", name: "bad/path", enabled: true }, 123))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
 it("accepts a structured fallback chain and rejects unsafe model/provider identifiers", async () => {
   const chain = [{ provider: "openrouter", model: "example/model" }];
   const invoke = vi.fn(async () => ({ ...bridge, revision: 124,

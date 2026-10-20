@@ -127,6 +127,7 @@ class BridgeTest(unittest.TestCase):
                                       "hermes_cli._launchers": launchers}), \
              patch.object(sys, "path", sys.path.copy()), \
              patch.object(sys, "argv", ["bridge", "plugin-activation" if request and "pluginId" in request else
+                                     "mcp-activation" if request and "name" in request and "url" not in request else
                                      "mcp-http" if request and "name" in request else
                                      "credential-update" if request and request["key"] in bridge.MODEL_CREDENTIALS else "update" if request else "status"]), \
              patch.object(sys, "stdin", io.StringIO(json.dumps(request) if request else "")), contextlib.redirect_stdout(out):
@@ -274,6 +275,27 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertTrue(result["write"]["persisted"])
         self.assertEqual(result["mcpServers"], [])
+
+    def test_mcp_activation_reuses_stored_url_and_rejects_nonmanaged_entry(self):
+        self.invoke({"name": "example", "url": "https://example.org/mcp", "enabled": True,
+                     "revision": bridge.revision(self.config)})
+        code, disabled = self.invoke({"name": "example", "enabled": False,
+                                      "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertTrue(disabled["write"]["persisted"])
+        self.assertFalse(disabled["mcpServers"][0]["enabled"])
+        code, enabled = self.invoke({"name": "example", "enabled": True,
+                                     "revision": disabled["revision"]})
+        self.assertEqual(code, 0)
+        self.assertTrue(enabled["mcpServers"][0]["enabled"])
+        self.mcp_servers["example"]["headers"] = {"Authorization": "CANARY"}
+        import yaml
+        raw = yaml.safe_load(self.config.read_text())
+        raw["mcp_servers"] = self.mcp_servers
+        self.config.write_text(yaml.safe_dump(raw))
+        with self.assertRaisesRegex(ValueError, "managed_entry_conflict"):
+            self.invoke({"name": "example", "enabled": False,
+                         "revision": bridge.revision(self.config)})
 
     def test_disabled_skills_error_is_unknown(self):
         original = self.run_command

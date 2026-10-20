@@ -170,6 +170,32 @@ it("restricts MCP setup to owner, CSRF, revision and typed HTTPS endpoint", asyn
   }
 });
 
+it("restricts MCP lifecycle to the owner, CSRF and matching revision", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const update = vi.spyOn(api.runtime.hermesConfig, "activateMcp").mockResolvedValue({ ...status,
+      revision: 124, mcpServers: [{ id: "example", transport: "http", enabled: false,
+        endpoint: "https://example.org", editable: true }],
+      write: { key: "mcp:example", persisted: true, applied: null,
+        verification: "unverified", reasonCode: "runtime_receipt_unavailable" },
+    } as never);
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const viewer = api.client();
+    await viewer.loginDev("viewer");
+    const body = { key: "mcp.activation", name: "example", enabled: false };
+    expect((await viewer.patch(path, body, { headers: { "If-Match": "123" } })).statusCode).toBe(403);
+    expect((await owner.patch(path, body, { headers: { "If-Match": "123" }, csrf: false })).statusCode).toBe(403);
+    expect((await owner.patch(path, body)).statusCode).toBe(422);
+    const saved = await owner.patch(path, body, { headers: { "If-Match": "123" } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(saved.json().data.write).toMatchObject({ key: "mcp:example", persisted: true, applied: null });
+    expect(update).toHaveBeenCalledWith(body, 123);
+  } finally {
+    await api.close();
+  }
+});
+
 it("serves the model picker only to the owner and keeps catalog proof distinct from model access", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {

@@ -15,6 +15,8 @@ import sys
 import time
 from urllib.parse import urlsplit
 import yaml
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from hermes_mcp_http_apply import valid_url
 
 
 FIELDS = {
@@ -257,7 +259,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "model-catalog"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "model-catalog"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -302,13 +304,15 @@ def locked_main(home, source, cli):
         print(json.dumps({"sourceRevision": source_revision, "providers": response["providers"],
                           "selected": response.get("selected")}))
         return 0
-    if sys.argv[1] in ("update", "credential-update", "plugin-activation", "mcp-http"):
+    if sys.argv[1] in ("update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation"):
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
         request = json.load(sys.stdin)
         plugin_update = sys.argv[1] == "plugin-activation"
-        mcp_update = sys.argv[1] == "mcp-http"
+        mcp_activation = sys.argv[1] == "mcp-activation"
+        mcp_update = sys.argv[1] in ("mcp-http", "mcp-activation")
         expected_keys = ({"pluginId", "enabled", "revision"} if plugin_update else
+                         {"name", "enabled", "revision"} if mcp_activation else
                          {"name", "url", "enabled", "revision"} if mcp_update else
                          {"key", "value", "revision"})
         if not isinstance(request, dict) or set(request) != expected_keys:
@@ -322,7 +326,7 @@ def locked_main(home, source, cli):
                 (not valid_plugin_id(request["pluginId"]) or
                  type(value) is not bool)) or (mcp_update and
                  (not valid_mcp_name(request["name"]) or type(value) is not bool or
-                  not (request["url"] is None and value is False or
+                  not (mcp_activation or request["url"] is None and value is False or
                        type(request["url"]) is str and len(request["url"]) <= 2048))) or (credential_update and
                  (key not in MODEL_CREDENTIALS or not (value is None or
                  (isinstance(value, str) and 1 <= len(value) <= 4096 and
@@ -360,12 +364,20 @@ def locked_main(home, source, cli):
                 if result.returncode or not accepted:
                     raise ValueError("plugin_activation_unconfirmed")
             if mcp_update:
+                mcp_url = request.get("url")
+                if mcp_activation:
+                    existing = _raw_before.get("mcp_servers", {}).get(request["name"]) if isinstance(
+                        _raw_before.get("mcp_servers"), dict) else None
+                    if (not isinstance(existing, dict) or set(existing) - {"url", "enabled"} or
+                            not valid_url(existing.get("url"))):
+                        raise ValueError("managed_entry_conflict")
+                    mcp_url = existing["url"]
                 sys.path.insert(0, str(source))
                 from hermes_cli._launchers import runtime_command
                 helper = Path(__file__).with_name("hermes_mcp_http_apply.py")
                 command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
                 result = run_runtime_child(command, json.dumps({"name": request["name"],
-                    "url": request["url"], "enabled": value}), 30)
+                    "url": mcp_url, "enabled": value}), 30)
                 try:
                     accepted = json.loads(result.stdout).get("saved") is True
                 except (ValueError, TypeError):
@@ -405,7 +417,7 @@ def locked_main(home, source, cli):
             lock.close()
     else:
         current, raw = snapshot(config_path)
-    write_key = key if sys.argv[1] in ("plugin-activation", "mcp-http") else None
+    write_key = key if sys.argv[1] in ("plugin-activation", "mcp-http", "mcp-activation") else None
     values = {}
     for key in FIELDS:
         if key != "skills.disabled":
@@ -464,7 +476,8 @@ def locked_main(home, source, cli):
             mcp_rows.append({"id": name, "transport": transport,
                              "enabled": entry.get("enabled", True) if type(entry.get("enabled", True)) is bool else None,
                              "endpoint": endpoint,
-                             "editable": transport == "http" and set(entry) <= {"url", "enabled"}})
+                             "editable": transport == "http" and set(entry) <= {"url", "enabled"} and
+                                         valid_url(entry.get("url"))})
     if revision(config_path) != current:
         raise ValueError("concurrent_config_change")
     configured_providers = raw.get("providers")
@@ -495,10 +508,10 @@ def locked_main(home, source, cli):
         write = {"key": write_key, "persisted": len(matches) == 1 and
                  matches[0].get("status") in ("enabled", "disabled", "not enabled") and
                  (matches[0]["status"] == "enabled") == value}
-    elif sys.argv[1] == "mcp-http":
-        persisted = (not isinstance(mcp_config, dict) or request["name"] not in mcp_config) if request["url"] is None else (
+    elif sys.argv[1] in ("mcp-http", "mcp-activation"):
+        persisted = (not isinstance(mcp_config, dict) or request["name"] not in mcp_config) if not mcp_activation and request["url"] is None else (
             isinstance(mcp_config, dict) and mcp_config.get(request["name"]) ==
-            {"url": request["url"], "enabled": value})
+            {"url": mcp_url, "enabled": value})
         write = {"key": write_key, "persisted": persisted and not mcp_errors}
     elif sys.argv[1] == "update":
         write = {"key": request["key"], "persisted": values[request["key"]] == request["value"]}

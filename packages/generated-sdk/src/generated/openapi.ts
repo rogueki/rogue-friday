@@ -6410,6 +6410,11 @@ export interface components {
             name: string;
             url: string | null;
         } | {
+            enabled: boolean;
+            /** @constant */
+            key: "mcp.activation";
+            name: string;
+        } | {
             /** @enum {unknown} */
             key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
             value: string | null;

@@ -371,6 +371,11 @@ export function HermesConfigArea() {
         <ul>{data.mcpServers.map((server) => <li key={server.id}>
           {server.id}: {server.transport}, {server.enabled === null ? "Aktivierung unbekannt" : server.enabled ? "konfiguriert aktiviert" : "konfiguriert deaktiviert"}; Verbindung ungeprueft
           {server.endpoint ? ` (${server.endpoint}; Pfad ausgeblendet)` : ""}
+          {server.editable && server.enabled !== null ? <button type="button" disabled={patch.isPending}
+            onClick={() => patch.mutate({ revision, patch: { key: "mcp.activation", name: server.id,
+              enabled: !server.enabled } })}>
+            {server.enabled ? "Server fuer neue Sitzungen deaktivieren" : "Server fuer neue Sitzungen aktivieren"}
+          </button> : null}
           {server.editable ? <button type="button" disabled={patch.isPending}
             onClick={() => patch.mutate({ revision, patch: { key: "mcp.httpServer", name: server.id, url: null, enabled: false } })}>
             HTTP-Servereintrag entfernen
