@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Runtime } from "../runtime/types";
 import { startWakeEnrollment, wakeEnrollmentRequest } from "./wake-enrollment";
+import { browserVoiceHandlers } from "../handlers/browser-voice";
 
 const runtime = (baseUrl: string) => ({
   config: { adapters: { voice: { provider: "friday-voice-http", config: { baseUrl } } } },
@@ -35,5 +36,30 @@ describe("private wake enrollment bridge", () => {
     expect(JSON.parse(String(post.init?.body))).toEqual({ phrase: "Hey Test", expectedConfigRevision: "revision",
       expectedServiceStartedAt: "instance" });
     expect(new Headers(post.init?.headers).get("Authorization")).toBe(`Bearer ${Buffer.alloc(32, 7).toString("base64")}`);
+  });
+
+  it("routes all five owner wake operations to the local voice bridge", async () => {
+    const paths: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: URL) => {
+      paths.push(url.pathname);
+      if (url.pathname === "/") return { ok: true, json: async () => ({
+        runtime_settings: { wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
+          speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, ttsRate: 1 },
+        service_started_at: "instance", config_revision: "revision",
+      }) };
+      return { ok: true, json: async () => ({ state: "capturing", jobId: "a".repeat(32), phrase: "Hey Test",
+        shortPhrase: "Test", required: { wake: 12, short: 8, negatives: 8, speech: 8 },
+        counts: { wake: 0, short: 0, negatives: 0, speech: 0 }, error: null }) };
+    }));
+    const context = (body?: object) => ({ runtime: runtime("http://127.0.0.1:43694"), body }) as never;
+    await browserVoiceHandlers.getWakeEnrollment!(context());
+    await browserVoiceHandlers.startWakeEnrollment!(context({ phrase: "Hey Test" }));
+    await browserVoiceHandlers.addWakeEnrollmentSample!(context({ jobId: "a".repeat(32), kind: "wake", pcmBase64: "cGNt" }));
+    await browserVoiceHandlers.trainWakeEnrollment!(context({ jobId: "a".repeat(32) }));
+    await browserVoiceHandlers.discardWakeEnrollment!(context({ jobId: "a".repeat(32) }));
+    expect(paths.filter((path) => path.startsWith("/control/wake-enrollment"))).toEqual([
+      "/control/wake-enrollment", "/control/wake-enrollment/start", "/control/wake-enrollment/sample",
+      "/control/wake-enrollment/train", "/control/wake-enrollment/discard",
+    ]);
   });
 });

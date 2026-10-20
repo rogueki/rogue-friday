@@ -5,6 +5,7 @@ Ausfuehren (Linux/Windows, nur numpy noetig; Modelltraining zusaetzlich scikit-l
   python3 -m pytest installer/voice/tests          oder          python3 installer/voice/tests/test_personal_wake.py
 """
 import collections
+import base64
 import importlib.util
 import json
 import os
@@ -13,6 +14,7 @@ import socket
 import sys
 import tempfile
 import threading
+import time
 import types
 import urllib.error
 import urllib.request
@@ -643,6 +645,92 @@ def test_voice_settings_http_applies_only_confirmed_private_configuration():
         assert post({**jv.runtime_settings.effective(svc.cfg), "wakeWord": "Hey Friday"})[0] == 200
         assert svc.phrase == "Hey Friday" and svc.cfg["wake_phrase"] == "Hey Friday"
         assert svc.cfg["personal_wake_model"].endswith("personal_wake.npz")
+
+
+def test_wake_enrollment_http_capture_train_save_cas_and_rollback(monkeypatch, tmp_path):
+    from wake_enrollment import WakeEnrollment
+
+    jv = load_voice_module()
+    svc = make_service(jv, {})
+    svc.input_level = types.SimpleNamespace(value=lambda: 0)
+    svc.tts.level = types.SimpleNamespace(value=lambda: 0)
+    svc.cfg["wake_phrase"] = svc.phrase
+    svc.audio_transport = "browser"
+    svc.processing = None
+    svc.service_started_at = "fixture-process"
+    svc.tts.tts_config = svc.cfg
+    svc.config_path = str(tmp_path / "config" / "voice.json")
+    (tmp_path / "config").mkdir()
+    (tmp_path / "dashboard" / "data" / "voice-bridge").mkdir(parents=True)
+    (tmp_path / "dashboard" / "data" / "voice-bridge" / "auth.key").write_text("a" * 44, encoding="ascii")
+    jv.INSTALL_ROOT = str(tmp_path)
+    with open(svc.config_path, "w", encoding="utf-8") as target:
+        json.dump(svc.cfg, target)
+    svc.config_disk_hash = jv.runtime_settings.file_hash(svc.config_path)
+    monkeypatch.setattr(jv.runtime_settings, "protect_private", lambda *args, **kwargs: None)
+    svc.wake_enrollment = WakeEnrollment(str(tmp_path), str(tmp_path / "state"))
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        svc.cfg["health_port"] = sock.getsockname()[1]
+    svc._start_health()
+    base_url = f"http://127.0.0.1:{svc.cfg['health_port']}/control"
+
+    def post(path, payload, revision=None):
+        if path == "/settings":
+            payload = {"settings": payload, "expectedConfigRevision": revision or svc.config_disk_hash,
+                       "expectedServiceStartedAt": svc.service_started_at}
+        request = urllib.request.Request(base_url + path, data=json.dumps(payload).encode(), method="POST",
+                                         headers={"Authorization": "Bearer " + "a" * 44})
+        try:
+            with urllib.request.urlopen(request, timeout=2) as response:
+                return response.status, json.load(response)
+        except urllib.error.HTTPError as error:
+            return error.code, None
+
+    def get():
+        request = urllib.request.Request(base_url + "/wake-enrollment",
+                                         headers={"Authorization": "Bearer " + "a" * 44})
+        with urllib.request.urlopen(request, timeout=2) as response:
+            return json.load(response)
+
+    current = jv.runtime_settings.effective(svc.cfg)
+    assert post("/wake-enrollment/start", {"phrase": "Hey Test", "expectedConfigRevision": "stale",
+                "expectedServiceStartedAt": svc.service_started_at})[0] == 409
+    status, job = post("/wake-enrollment/start", {"phrase": "Hey Test", "expectedConfigRevision": svc.config_disk_hash,
+                "expectedServiceStartedAt": svc.service_started_at})
+    assert status == 200 and get()["jobId"] == job["jobId"]
+    sample = base64.b64encode(b"\0\0" * 8000).decode("ascii")
+    for kind, count in job["required"].items():
+        for _ in range(count):
+            assert post("/wake-enrollment/sample", {"jobId": job["jobId"], "kind": kind,
+                        "pcmBase64": sample})[0] == 200
+    model_dir = tmp_path / "state" / "models" / "openwakeword" / ("runtime-" + "b" * 32)
+    def train(*args):
+        model_dir.mkdir()
+        (model_dir / "personal_wake.npz").write_bytes(b"synthetic model")
+        (model_dir / "personal_wake.json").write_text(json.dumps({"wake_phrase": "Hey Test"}), encoding="utf-8")
+        return str(model_dir / "personal_wake.npz"), str(model_dir / "personal_wake.json")
+    monkeypatch.setattr(jv.runtime_settings, "prepare_personal_wake", train)
+    monkeypatch.setattr(pw.WindowModel, "load", lambda path: object())
+    assert post("/wake-enrollment/train", {"jobId": job["jobId"]})[0] == 200
+    for _ in range(100):
+        if get()["state"] == "ready":
+            break
+        time.sleep(0.01)
+    assert get()["state"] == "ready" and svc.phrase == "Hey Friday"
+    svc._prepare_wake_switch = lambda phrase, paths: {"engine": "personal", "detector": FakeDetector(),
+        "name": "personal", "threshold": 0.5, "high_confidence": None,
+        "model_path": paths[0], "meta_path": paths[1]}
+    original_write = jv.runtime_settings.atomic_write
+    def fail_write(*args):
+        raise jv.runtime_settings.ConfigConflict("synthetic concurrent write")
+    monkeypatch.setattr(jv.runtime_settings, "atomic_write", fail_write)
+    assert post("/settings", {**current, "wakeWord": "Hey Test"})[0] == 409
+    assert svc.phrase == "Hey Friday" and get()["state"] == "ready" and model_dir.exists()
+    monkeypatch.setattr(jv.runtime_settings, "atomic_write", original_write)
+    assert post("/settings", {**current, "wakeWord": "Hey Test"})[0] == 200
+    assert svc.phrase == "Hey Test" and get()["state"] == "idle"
+    assert json.loads((tmp_path / "config" / "voice.json").read_text(encoding="utf-8"))["personal_wake_model"] == str(model_dir / "personal_wake.npz")
 
 
 def test_pending_hermes_answer_is_suppressed_after_stop():

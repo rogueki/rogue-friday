@@ -46,6 +46,7 @@ jobs:
             installer/voice/test_connected_calendar_voice.py \
             installer/voice/tests/test_browser_audio.py \
             installer/voice/tests/test_personal_wake.py \
+            installer/voice/tests/test_wake_enrollment.py \
             installer/voice/tests/test_runtime_settings.py \
             installer/voice/tests/test_mail_voice.py \
             installer/voice/tests/test_mail_voice_pipeline.py \
