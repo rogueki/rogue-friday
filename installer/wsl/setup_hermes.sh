@@ -36,6 +36,7 @@ HERMES_TREE="$H/hermes-agent"
     echo "FAIL Hermes-Version entspricht nicht dem geprueften Friday-Pin $HERMES_PIN"; exit 1;
 }
 python3 "$INST/wsl/patch_hermes_run_stop.py" "$HERMES_TREE"
+python3 "$INST/wsl/patch_hermes_cron_lock.py" "$HERMES_TREE"
 
 step "Hermes MCP OAuth-Laufzeit"
 # The Friday OAuth worker uses the same SDK and HTTP stack as pinned Hermes.

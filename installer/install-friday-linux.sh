@@ -164,6 +164,7 @@ if [[ "$MODE" == validate ]]; then
   [[ -x "$STATE/.local/bin/hermes" ]] || fail "Hermes CLI missing at $STATE/.local/bin/hermes; install it as friday, then rerun."
   [[ -d "$HERMES_TREE/.git" && "$(git -C "$HERMES_TREE" rev-parse HEAD)" == "$HERMES_PIN" ]] || fail "Hermes must be pinned to $HERMES_PIN"
   python3 "$SOURCE/installer/wsl/patch_hermes_run_stop.py" "$HERMES_TREE" --require-patched || fail 'Hermes run-stop patch verification failed.'
+  python3 "$SOURCE/installer/wsl/patch_hermes_cron_lock.py" "$HERMES_TREE" --require-patched || fail 'Hermes cron-lock patch verification failed.'
   note 'VALIDATION_OK (provider account and runtime health are not checked)'
   exit 0
 fi
@@ -182,6 +183,7 @@ install -d -o "$SERVICE" -g "$SERVICE" -m 0700 "$STATE" "$STATE/.hermes" "$STATE
 runuser -u "$SERVICE" -- "$STATE/.local/bin/hermes" --version >/dev/null || fail 'Hermes CLI cannot run as friday.'
 [[ -d "$HERMES_TREE/.git" && "$(git -C "$HERMES_TREE" rev-parse HEAD)" == "$HERMES_PIN" ]] || fail "Hermes must be pinned to $HERMES_PIN before installing Friday."
 runuser -u "$SERVICE" -- python3 "$SOURCE/installer/wsl/patch_hermes_run_stop.py" "$HERMES_TREE" || fail 'Hermes run-stop patch failed.'
+runuser -u "$SERVICE" -- python3 "$SOURCE/installer/wsl/patch_hermes_cron_lock.py" "$HERMES_TREE" || fail 'Hermes cron-lock patch failed.'
 
 install -d -o root -g root -m 0755 /opt/friday "$RELEASES"
 install -d -o "$SERVICE" -g "$SERVICE" -m 0700 "$STATE/data" "$STATE/backups"

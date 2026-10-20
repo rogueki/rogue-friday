@@ -1,0 +1,7 @@
+# P7-F native cron write-lock gate
+
+The pinned Hermes source `d923a5eb487a17c0a68801bba9ef0f56c81040a8` has `cron/jobs.py` SHA-256 `76ec76f0c3854c4ab23deb8a883633756dd8e3ca9223013af3edf658d2d41862`. Its `_jobs_lock()` degrades to a process-local lock after cross-process flock failure/timeout; concurrent gateway/CLI writes can then race. Friday's compare-and-mutate cannot be sound under that behavior.
+
+`patch_hermes_cron_lock.py` admits only those exact original bytes or its own exact patched bytes backed by `.friday-cron-original`. It changes native writes to fail closed when cross-process locking is unavailable, and adds `friday_strict_jobs_lock()` for a bounded, non-degrading compare-and-mutate section. Unknown source bytes fail before changes. `--check`, `--require-patched` and `--rollback` are supported; rollback requires the original backup. Both clean installer paths apply the patch before Friday services start, Linux validation requires it, and both verified updater payloads include the patcher. Ordinary dashboard updates only carry files and do not patch a live Hermes process.
+
+The isolated official-source test checks apply, idempotent verification, rollback, unknown-byte refusal, and the actual patched lock functions with failed/acquired flock. It does not yet prove a Friday mutation or journal. No live Hermes profile was modified. Cron CRUD, staged owner approval, persistent at-most-once dispatch and postcondition reconciliation are separate release gates.

@@ -73,6 +73,7 @@ jobs:
             installer/wsl/test_hermes_mcp_auth_probe.py \
             installer/wsl/test_hermes_mcp_protocol_probe.py \
             installer/wsl/tests/test_patch_hermes_run_stop.py \
+            installer/wsl/test_patch_hermes_cron_lock.py \
             installer/wsl/test_hermes_mcp_oauth_transport.py \
             installer/wsl/test_hermes_mcp_oauth_sdk_transport.py \
             installer/wsl/test_hermes_mcp_oauth_worker.py \
@@ -93,12 +94,13 @@ jobs:
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" init -q
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" remote add origin https://github.com/NousResearch/hermes-agent.git
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" config core.sparseCheckout true
-          printf 'hermes_cli/\nplugins/kanban/dashboard/plugin_api.py\nplugins/browser/\ntoolsets.py\ntools/\nagent/\nhermes_platform/\ngateway/\npm/\nhermes_state*.py\nhermes_constants.py\nhermes_time.py\nutils.py\nhermes_yaml.py\nhermes_logging.py\n' > "$FRIDAY_HERMES_OFFICIAL_SOURCE/.git/info/sparse-checkout"
+          printf 'hermes_cli/\nplugins/kanban/dashboard/plugin_api.py\nplugins/browser/\ntoolsets.py\ntools/\nagent/\nhermes_platform/\ngateway/\npm/\nhermes_state*.py\nhermes_constants.py\nhermes_time.py\nutils.py\nhermes_yaml.py\nhermes_logging.py\ncron/\n' > "$FRIDAY_HERMES_OFFICIAL_SOURCE/.git/info/sparse-checkout"
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" fetch --depth 1 origin d923a5eb487a17c0a68801bba9ef0f56c81040a8
           git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" checkout -q --detach FETCH_HEAD
           test "$(git -C "$FRIDAY_HERMES_OFFICIAL_SOURCE" rev-parse HEAD)" = d923a5eb487a17c0a68801bba9ef0f56c81040a8
           python -m pip install fastapi==0.133.1 python-multipart==0.0.20 ruamel.yaml==0.18.16
           python installer/wsl/patch_hermes_run_stop.py "$FRIDAY_HERMES_OFFICIAL_SOURCE"
+          FRIDAY_HERMES_SOURCE_FIXTURE="$FRIDAY_HERMES_OFFICIAL_SOURCE" python installer/wsl/test_patch_hermes_cron_lock.py -v
           python -m unittest -v installer.wsl.tests.test_patch_hermes_official_runtime
 
       - uses: actions/setup-python@v5
