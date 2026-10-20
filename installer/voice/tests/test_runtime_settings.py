@@ -3,6 +3,7 @@ import sys
 import time
 import wave
 import subprocess
+import pytest
 
 import numpy as np
 
@@ -61,6 +62,12 @@ def test_tts_rate_changes_playback_duration():
     assert len(runtime_settings.pace(samples, 2)) == 800
     assert len(runtime_settings.pace(samples, .5)) == 3200
     assert runtime_settings.pace(samples, 1) is samples
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows ACL behavior")
+def test_private_acl_failure_is_fatal(tmp_path):
+    with pytest.raises(OSError, match="Cannot protect private voice file ACL"):
+        runtime_settings.protect_private(str(tmp_path / "missing.wav"))
 
 
 if __name__ == "__main__":

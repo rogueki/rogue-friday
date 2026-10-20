@@ -13,20 +13,29 @@ export function runtimeVoiceSettings(voice: Settings["voice"]): RuntimeVoiceSett
   return Object.fromEntries(runtimeVoiceFields.map((field) => [field, voice[field]])) as unknown as RuntimeVoiceSettings;
 }
 
-export async function readRuntimeVoiceSettings(runtime: Runtime): Promise<{ settings: RuntimeVoiceSettings; serviceStartedAt: string }> {
+export type VoiceRevision = { serviceStartedAt: string; configRevision: string };
+
+function sameSettings(value: unknown, requested: RuntimeVoiceSettings): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const fields = value as Record<string, unknown>;
+  return runtimeVoiceFields.every((field) => fields[field] === requested[field]);
+}
+
+export async function readRuntimeVoiceSettings(runtime: Runtime): Promise<{ settings: RuntimeVoiceSettings } & VoiceRevision> {
   const status = await voiceRuntimeStatus(runtime);
   const value = status.runtime_settings as Record<string, unknown> | undefined;
-  if (!value || typeof status.service_started_at !== "string" ||
+  if (!value || typeof status.service_started_at !== "string" || typeof status.config_revision !== "string" ||
       runtimeVoiceFields.some((field) => value[field] === undefined) ||
       typeof value.wakeWord !== "string" || typeof value.pushToTalkKey !== "string" ||
       typeof value.wakeWordEnabled !== "boolean" || typeof value.speakerVerificationRequired !== "boolean" ||
       typeof value.storeRawRecordings !== "boolean" || typeof value.voiceHistoryEnabled !== "boolean" ||
       typeof value.ttsRate !== "number" || !Number.isFinite(value.ttsRate))
     throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst meldet keine vollständigen Laufzeiteinstellungen." });
-  return { settings: value as RuntimeVoiceSettings, serviceStartedAt: status.service_started_at };
+  return { settings: value as RuntimeVoiceSettings, serviceStartedAt: status.service_started_at,
+    configRevision: status.config_revision };
 }
 
-export async function applyVoiceSettings(runtime: Runtime, requested: RuntimeVoiceSettings): Promise<string> {
+export async function applyVoiceSettings(runtime: Runtime, requested: RuntimeVoiceSettings, expected: VoiceRevision): Promise<VoiceRevision> {
   const adapter = runtime.config.adapters.voice;
   const configured = adapter.config.baseUrl;
   if (adapter.provider !== "friday-voice-http" || typeof configured !== "string")
@@ -45,19 +54,23 @@ export async function applyVoiceSettings(runtime: Runtime, requested: RuntimeVoi
   try {
     response = await fetch(url, { method: "POST", headers: {
       Authorization: `Bearer ${runtime.voiceBridgeKey.toString("base64")}`, "Content-Type": "application/json",
-    }, body: JSON.stringify(requested), signal: AbortSignal.timeout(8_000), redirect: "error" });
+    }, body: JSON.stringify({ settings: requested, expectedConfigRevision: expected.configRevision,
+      expectedServiceStartedAt: expected.serviceStartedAt }), signal: AbortSignal.timeout(8_000), redirect: "error" });
   } catch {
     throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst nicht erreichbar." });
   }
   if (response.status === 422) throw validationFailed("Sprachdienst kann diese Einstellung nicht sicher anwenden.");
+  if (response.status === 409) throw new ApiError({ code: "CONFLICT", message: "Sprachkonfiguration wurde inzwischen geändert. Bitte neu laden." });
   if (response.status === 423) throw new ApiError({ code: "CONFLICT", message: "Friday ist beschäftigt. Nach der Antwort erneut speichern." });
   if (!response.ok) throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst hat die Einstellung nicht übernommen." });
   const ack: unknown = await response.json().catch(() => null);
-  const data = ack as { applied?: unknown; settings?: unknown; serviceStartedAt?: unknown } | null;
-  if (data?.applied !== true || typeof data.serviceStartedAt !== "string" || JSON.stringify(data.settings) !== JSON.stringify(requested))
+  const data = ack as { applied?: unknown; settings?: unknown; serviceStartedAt?: unknown; configRevision?: unknown } | null;
+  if (data?.applied !== true || data.serviceStartedAt !== expected.serviceStartedAt ||
+      typeof data.configRevision !== "string" || !sameSettings(data.settings, requested))
     throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Sprachdienst hat die Einstellung nicht bestätigt." });
   const status = await voiceRuntimeStatus(runtime);
-  if (status.service_started_at !== data.serviceStartedAt || JSON.stringify(status.runtime_settings) !== JSON.stringify(requested))
+  if (status.service_started_at !== data.serviceStartedAt || status.config_revision !== data.configRevision ||
+      !sameSettings(status.runtime_settings, requested))
     throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Aktive Spracheinstellung stimmt nicht mit der Auswahl überein." });
-  return data.serviceStartedAt;
+  return { serviceStartedAt: data.serviceStartedAt, configRevision: data.configRevision };
 }

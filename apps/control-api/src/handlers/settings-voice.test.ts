@@ -23,6 +23,28 @@ function context(version: () => number, patch: (expected?: number) => never) {
 }
 
 describe("voice settings commit", () => {
+  it("rolls back only against the revision produced by its own settings apply", async () => {
+    const stored = { ttsVoice: "friday-female", inputDeviceId: null, outputDeviceId: null,
+      wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
+      speakerVerificationRequired: true, storeRawRecordings: false, voiceHistoryEnabled: true, ttsRate: 1 };
+    const { ttsVoice: _ttsVoice, inputDeviceId: _inputDeviceId, outputDeviceId: _outputDeviceId, ...live } = stored;
+    const target = { ...live, voiceHistoryEnabled: false };
+    const ctx = context(() => 1, () => { throw new Error("synthetic persistence failure"); });
+    ctx.runtime.settings.area = vi.fn(() => stored) as never;
+    ctx.body = { voice: { ...stored, voiceHistoryEnabled: false } };
+    const send = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A" })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-A", runtime_settings: live })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-A", runtime_settings: live })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ applied: true, serviceStartedAt: "process-A", configRevision: "rev-B", settings: target })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-B", runtime_settings: target })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-B" })))
+      .mockResolvedValueOnce(new Response(null, { status: 409 }));
+    await expect(settingsHandlers.updateSettings!(ctx)).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
+    expect(JSON.parse(String(send.mock.calls[6]?.[1]?.body))).toEqual({ settings: live,
+      expectedConfigRevision: "rev-B", expectedServiceStartedAt: "process-A" });
+  });
+
   it("imports the voice settings through runtime apply and keeps the acknowledged legacy phrase", async () => {
     const stored = { ttsVoice: "friday-female", inputDeviceId: null, outputDeviceId: null,
       wakeWordEnabled: true, wakeWord: "Hey Friday", pushToTalkKey: "Ctrl+Space",
@@ -38,7 +60,7 @@ describe("voice settings commit", () => {
     ctx.body = { settings: { voice: { ...stored, ttsVoice: "classic" } }, themes: [], layouts: [] } as never;
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", tts_voice_choice: "friday-female" })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", runtime_settings: live })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-A", runtime_settings: live })))
       .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", tts_voice_choice: "friday-female" })))
       .mockResolvedValueOnce(new Response(JSON.stringify({ applied: true, voice: "classic" })))
       .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", tts_voice_choice: "classic" })))
@@ -64,12 +86,14 @@ describe("voice settings commit", () => {
     ctx.body = { voice: { ...stored, voiceHistoryEnabled: false } };
     const fetcher = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", tts_voice_choice: "friday-female" })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", runtime_settings: live })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ applied: true, serviceStartedAt: "process-A", settings: desired })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", runtime_settings: desired })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-A", runtime_settings: live })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-A", runtime_settings: live })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ applied: true, serviceStartedAt: "process-A", configRevision: "rev-B", settings: desired })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-B", runtime_settings: desired })))
       .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", runtime_settings: desired })));
     await settingsHandlers.updateSettings!(ctx);
-    expect(JSON.parse(String(fetcher.mock.calls[2]?.[1]?.body))).toEqual(desired);
+    expect(JSON.parse(String(fetcher.mock.calls[3]?.[1]?.body))).toEqual({ settings: desired,
+      expectedConfigRevision: "rev-A", expectedServiceStartedAt: "process-A" });
     expect(write.mock.calls[0]?.[0].voice.wakeWord).toBe("Hey Jarvis");
   });
 
@@ -82,10 +106,11 @@ describe("voice settings commit", () => {
     ctx.body = { voice: { ...stored, speakerVerificationRequired: false } };
     const fetcher = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", tts_voice_choice: "friday-female" })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", runtime_settings: stored })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-A", runtime_settings: stored })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ service_started_at: "process-A", config_revision: "rev-A", runtime_settings: stored })))
       .mockResolvedValueOnce(new Response(null, { status: 422 }));
     await expect(settingsHandlers.updateSettings!(ctx)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
-    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher).toHaveBeenCalledTimes(4);
   });
 
   it("uses the captured settings version after the voice acknowledgement and restores on conflict", async () => {

@@ -53,6 +53,7 @@ def protect_private(path, directory=False):
     # Match the installer's protected directory ACL. chmod on Windows does not remove inherited readers.
     script = r'''
 $path = $env:FRIDAY_PRIVATE_PATH
+$ErrorActionPreference = 'Stop'
 $acl = if ($env:FRIDAY_PRIVATE_DIRECTORY -eq '1') { New-Object Security.AccessControl.DirectorySecurity } else { New-Object Security.AccessControl.FileSecurity }
 $acl.SetAccessRuleProtection($true, $false)
 foreach ($principal in @([Security.Principal.WindowsIdentity]::GetCurrent().User,
@@ -77,8 +78,11 @@ else { [IO.File]::SetAccessControl($path, $acl) }
     encoded = base64.b64encode(script.encode("utf-16le")).decode("ascii")
     env = {**os.environ, "FRIDAY_PRIVATE_PATH": path,
            "FRIDAY_PRIVATE_DIRECTORY": "1" if directory else "0"}
-    subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
-                   env=env, check=True, capture_output=True, timeout=15)
+    try:
+        subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+                       env=env, check=True, capture_output=True, timeout=15)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        raise OSError("Cannot protect private voice file ACL") from exc
 
 
 def effective(cfg):

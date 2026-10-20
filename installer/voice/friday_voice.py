@@ -10,7 +10,7 @@ Wake-Engines (voice.json "wake_engine"):
   die ECAPA-Sprecherpruefung.
 
 Fail closed: ohne Sprecherprofil/ECAPA startet der Dienst nicht; unbekannte Sprecher werden still ignoriert.
-Keine Rohaudios werden gespeichert, nur Metadaten in logs/voice.jsonl.
+Rohaudio wird nur nach ausdruecklicher Aktivierung fuer akzeptierte Befehle gespeichert.
 """
 import argparse
 import collections
@@ -1798,6 +1798,7 @@ class VoiceService:
         return {**self.status, "speaking": speaking,
                 "tts_voice_choice": self.cfg.get("tts_voice_choice"),
                 "runtime_settings": runtime_settings.effective(self.cfg),
+                "config_revision": getattr(self, "config_disk_hash", None),
                 "ptt_active": self.ptt_active,
                 "service_started_at": getattr(self, "service_started_at", None),
                 "trusted": time.monotonic() < self.trusted_until,
@@ -1840,17 +1841,21 @@ class VoiceService:
                         size = int(self.headers.get("Content-Length", "0"))
                         if not 0 < size <= 1024:
                             raise ValueError("Invalid request size")
-                        requested = json.loads(self.rfile.read(size))
+                        request = json.loads(self.rfile.read(size))
+                        if not isinstance(request, dict) or set(request) != {"settings", "expectedConfigRevision", "expectedServiceStartedAt"}:
+                            raise ValueError("Expected settings and voice revision")
+                        requested = request["settings"]
                         with service.manual_start_lock:
                             if service.processing or service.tts.speaking.is_set() or service.status["state"] in ("command", "followup", "speaking"):
                                 self.send_error(423, "Voice is busy")
                                 return
+                            if (request["expectedServiceStartedAt"] != service.service_started_at or
+                                    request["expectedConfigRevision"] != service.config_disk_hash):
+                                raise runtime_settings.ConfigConflict("Voice configuration revision changed")
                             updated = runtime_settings.validate(requested, service.cfg)
                             if (service.audio_transport != "browser" and
                                     requested["pushToTalkKey"] != runtime_settings.effective(service.cfg)["pushToTalkKey"]):
                                 raise ValueError("Push-to-talk key requires browser audio transport")
-                            if not updated["voice_history_enabled"] and service.memory_outbox is not None:
-                                service.memory_outbox.purge()
                             config_path = getattr(service, "config_path", os.path.join(INSTALL_ROOT, "config", "voice.json"))
                             expected = getattr(service, "config_disk_hash", runtime_settings.file_hash(config_path))
                             runtime_settings.atomic_write(config_path, updated, expected)
@@ -1859,6 +1864,17 @@ class VoiceService:
                             service.tts.tts_config = updated
                             if not updated["voice_history_enabled"]:
                                 service.history.clear()
+                                if service.memory_outbox is not None:
+                                    try:
+                                        service.memory_outbox.purge()
+                                        service.memory_capture_error = None
+                                    except Exception as exc:
+                                        # The committed policy still stops capture/delivery; retry on the worker loop.
+                                        service.memory_capture_error = type(exc).__name__
+                                        try:
+                                            log_event(event="memory_purge_error", error=type(exc).__name__)
+                                        except OSError:
+                                            pass
                             service.control_generation += 1
                             service.control_cancel.set()
                             service.manual_start.clear()
@@ -1866,7 +1882,8 @@ class VoiceService:
                             service.ring.clear()
                             service.preroll.clear()
                             result = {"applied": True, "settings": runtime_settings.effective(service.cfg),
-                                      "serviceStartedAt": service.service_started_at}
+                                      "serviceStartedAt": service.service_started_at,
+                                      "configRevision": service.config_disk_hash}
                     except (ValueError, TypeError, KeyError) as exc:
                         self.send_error(422, str(exc))
                         return

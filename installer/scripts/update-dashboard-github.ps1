@@ -233,7 +233,7 @@ function Get-VoiceSourcePaths {
         'installer/voice/friday_voice.py', 'installer/voice/mail_voice.py',
         'installer/voice/memory_outbox.py',
         'installer/voice/model_routing.py', 'installer/voice/personal_wake.py',
-        'installer/voice/powerpoint_voice.py', 'installer/voice/qwen_tts.py',
+        'installer/voice/powerpoint_voice.py', 'installer/voice/qwen_tts.py', 'installer/voice/runtime_settings.py',
         'installer/voice/skills_onboarding_voice.py', 'installer/voice/voice_persona.py',
         'installer/voice/voice_runtime_paths.py', 'installer/voice/prepare_voice_pairs.py',
         'installer/fast_tts/server.py',

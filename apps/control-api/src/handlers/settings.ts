@@ -336,7 +336,7 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
       let voiceBefore: Awaited<ReturnType<typeof voiceRuntimeStatus>> | null = null;
       let voiceAttempted = false;
       let audioAttempted = false;
-      let runtimeAttempted = false;
+      let runtimeApplied: Awaited<ReturnType<typeof applyVoiceSettings>> | null = null;
       try {
         try {
           voiceBefore = await voiceRuntimeStatus(ctx.runtime);
@@ -356,8 +356,13 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
           if (changeAudio) { audioAttempted = true; audioInstance = await applyVoiceAudio(ctx.runtime, input, output); }
           let runtimeInstance: string | null = null;
           if (changeRuntime) {
-            runtimeAttempted = true;
-            try { runtimeInstance = await applyVoiceSettings(ctx.runtime, requestedRuntime!); }
+            const applySnapshot = await readRuntimeVoiceSettings(ctx.runtime);
+            if (applySnapshot.serviceStartedAt !== runtimeBefore?.serviceStartedAt)
+              throw new ApiError({ code: "CONFLICT", message: "Sprachdienst wurde während der Änderung neu gestartet. Bitte neu laden." });
+            try {
+              runtimeApplied = await applyVoiceSettings(ctx.runtime, requestedRuntime!, applySnapshot);
+              runtimeInstance = runtimeApplied.serviceStartedAt;
+            }
             catch (error) {
               runtimeDefinitivelyRejected = error instanceof ApiError && error.code === "VALIDATION_FAILED";
               throw error;
@@ -379,8 +384,8 @@ export const settingsHandlers: Partial<Record<OperationId, Handler>> = {
           return { status: 200, body: single(result.settings) };
         } catch (error) {
           const recoveryErrors: unknown[] = [];
-          if (runtimeAttempted && runtimeBefore && !runtimeDefinitivelyRejected) {
-            try { await applyVoiceSettings(ctx.runtime, runtimeBefore.settings); }
+          if (runtimeApplied && runtimeBefore && !runtimeDefinitivelyRejected) {
+            try { await applyVoiceSettings(ctx.runtime, runtimeBefore.settings, runtimeApplied); }
             catch (recovery) { recoveryErrors.push(recovery); }
           }
           if (audioAttempted) {

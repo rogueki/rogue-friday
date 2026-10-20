@@ -518,7 +518,8 @@ def test_voice_settings_http_applies_only_confirmed_private_configuration():
     svc.processing = None
     svc.audio_transport = "browser"
     svc.service_started_at = "fixture-process"
-    svc.memory_outbox = None
+    purges = []
+    svc.memory_outbox = types.SimpleNamespace(purge=lambda: purges.append(True))
     svc.history = jv.runtime_settings.PrivacyHistory(lambda: svc.cfg.get("voice_history_enabled", True))
     svc.tts.tts_config = svc.cfg
     with tempfile.TemporaryDirectory() as root:
@@ -540,7 +541,9 @@ def test_voice_settings_http_applies_only_confirmed_private_configuration():
         current = jv.runtime_settings.effective(svc.cfg)
 
         def post(payload, authenticated=True):
-            request = urllib.request.Request(url, data=json.dumps(payload).encode(), method="POST",
+            envelope = {"settings": payload, "expectedConfigRevision": svc.config_disk_hash,
+                        "expectedServiceStartedAt": svc.service_started_at}
+            request = urllib.request.Request(url, data=json.dumps(envelope).encode(), method="POST",
                                              headers={"Authorization": "Bearer " + "a" * 44} if authenticated else {})
             try:
                 with urllib.request.urlopen(request, timeout=2) as response:
@@ -551,14 +554,24 @@ def test_voice_settings_http_applies_only_confirmed_private_configuration():
         assert post({**current, "voiceHistoryEnabled": False}, False)[0] == 401
         assert post({**current, "speakerVerificationRequired": False})[0] == 422
         assert svc.cfg.get("voice_history_enabled", True) is True
+        with open(svc.config_path, "a", encoding="utf-8") as config_file:
+            config_file.write(" ")
+        assert post({**current, "voiceHistoryEnabled": False})[0] == 409
+        assert not purges
+        svc.config_disk_hash = jv.runtime_settings.file_hash(svc.config_path)
         status, body = post({**current, "voiceHistoryEnabled": False})
         assert status == 200 and body["applied"] and body["serviceStartedAt"] == "fixture-process"
         assert body["settings"]["voiceHistoryEnabled"] is False
         assert svc.cfg["voice_history_enabled"] is False
+        assert len(purges) == 1
         assert svc.tts.tts_config is svc.cfg
         assert json.load(open(svc.config_path, encoding="utf-8"))["voice_history_enabled"] is False
         svc.history += [{"command": "private"}]
         assert not svc.history
+        svc.memory_outbox.purge = lambda: (_ for _ in ()).throw(OSError("synthetic purge failure"))
+        assert post({**current, "voiceHistoryEnabled": False})[0] == 200
+        assert svc.memory_capture_error == "OSError"
+        assert svc.cfg["voice_history_enabled"] is False
 
 
 def test_pending_hermes_answer_is_suppressed_after_stop():
