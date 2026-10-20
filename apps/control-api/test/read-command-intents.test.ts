@@ -136,9 +136,9 @@ describe("read-only command intents use local read services", () => {
   it("reads only redacted saved settings and states when runtime application is not verified", async () => {
     const saved = (await owner.get("/api/v1/settings")).json().data;
     const privateWakeWord = "PRIVATE_WAKEWORD_NLP_READ_TEST";
-    const updated = await owner.patch("/api/v1/settings", { voice: { ...saved.voice, wakeWord: privateWakeWord } },
-      { headers: { "if-match": String(saved.version) } });
-    expect(updated.statusCode, updated.body).toBe(200);
+    // Seed a persisted SettingsService value directly: PATCH /settings applies voice changes to a runtime
+    // provider, while this read/redaction test is specifically about stored values and must not fake that apply.
+    api.runtime.settings.patch({ voice: { ...saved.voice, wakeWord: privateWakeWord } }, saved.version);
 
     const response = await run(operator, "Wie sind meine Voice-Einstellungen?");
     expect(response.statusCode, response.body).toBe(200);
