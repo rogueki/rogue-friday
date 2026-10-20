@@ -46,6 +46,7 @@ FIELDS = {
     "terminal.container_cpu": ("number", 0.01, 1024),
     "terminal.container_memory": ("integer", 1, 1048576),
     "terminal.container_disk": ("integer", 1, 1048576),
+    "terminal.container_persistent": ("boolean", None, None),
     "terminal.backend": ("execution_backend", None, None),
     "terminal.cwd": ("workspace_path", None, None),
     "terminal.docker_network": ("boolean", None, None),

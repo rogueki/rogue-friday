@@ -16,6 +16,7 @@ CONSUMER_SOURCES = {
     "terminal.container_cpu": "tools/terminal_tool.py:722;tools/environments/docker.py:786",
     "terminal.container_memory": "tools/terminal_tool.py:723;tools/environments/docker.py:786",
     "terminal.container_disk": "tools/terminal_tool.py:724;tools/environments/docker.py:786",
+    "terminal.container_persistent": "tools/terminal_tool.py:428;tools/terminal_tool.py:770",
     "browser.inactivity_timeout": "tools/browser_tool.py:397",
     "browser.dialog_policy": "tools/browser_tool_cdp.py:73",
     "browser.dialog_timeout_s": "tools/browser_tool_cdp.py:73",

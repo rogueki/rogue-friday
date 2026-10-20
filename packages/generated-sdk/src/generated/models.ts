@@ -198,6 +198,10 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "terminal.container_persistent";
+      value: boolean;
+    }
+  | {
       key: "terminal.backend";
       value: "local" | "docker";
     }
@@ -3396,6 +3400,7 @@ export interface HermesConfigStatus {
       | "terminal.container_cpu"
       | "terminal.container_memory"
       | "terminal.container_disk"
+      | "terminal.container_persistent"
       | "terminal.backend"
       | "terminal.cwd"
       | "terminal.docker_network"

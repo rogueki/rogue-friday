@@ -44,6 +44,7 @@ class BridgeTest(unittest.TestCase):
                        "session.terminal_continue": True, "max_live_sessions": 16,
                        "terminal.timeout": 180, "terminal.container_cpu": 1.0,
                        "terminal.container_memory": 5120, "terminal.container_disk": 51200,
+                       "terminal.container_persistent": True,
                        "browser.command_timeout": 30,
                        "terminal.backend": "local", "terminal.cwd": ".", "terminal.docker_network": True,
                        "terminal.docker_mount_cwd_to_workspace": False, "terminal.docker_volumes": [],
@@ -700,6 +701,10 @@ class BridgeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported_field"):
             self.invoke({"key": "terminal.container_cpu", "value": 0,
                          "revision": bridge.revision(self.config)})
+        code, result = self.invoke({"key": "terminal.container_persistent", "value": False,
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["terminal.container_persistent"], False)
 
     def test_revoking_real_browser_profile_removes_staged_credentials(self):
         snapshot = self.home / ".hermes" / "browser-profile"
@@ -737,6 +742,7 @@ elif a[:2] == ['config', 'get']:
          'session.terminal_continue': True, 'max_live_sessions': 16,
          'terminal.timeout': 180, 'terminal.container_cpu': 1.0,
          'terminal.container_memory': 5120, 'terminal.container_disk': 51200,
+         'terminal.container_persistent': True,
          'browser.command_timeout': 30,
          'terminal.backend': 'local', 'terminal.cwd': '.', 'terminal.docker_network': True,
          'terminal.docker_mount_cwd_to_workspace': False, 'terminal.docker_volumes': [],

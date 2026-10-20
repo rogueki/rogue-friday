@@ -54,6 +54,7 @@ export const HERMES_CONFIG_FIELDS = {
   "terminal.container_cpu": { type: "number", min: 0.01, max: 1024, family: "execution", consumer: "new container environment; Docker CPU enforcement depends on cgroups" },
   "terminal.container_memory": { type: "integer", min: 1, max: 1048576, family: "execution", consumer: "new container environment; Docker memory enforcement depends on cgroups" },
   "terminal.container_disk": { type: "integer", min: 1, max: 1048576, family: "execution", consumer: "new container environment; Docker disk quota depends on storage driver" },
+  "terminal.container_persistent": { type: "boolean", family: "execution", consumer: "new Docker session scope and container lifetime" },
   "terminal.backend": { type: "string", kind: "executionBackend", family: "execution", consumer: "new Hermes terminal environment" },
   "terminal.cwd": { type: "string", kind: "workspacePath", family: "execution", consumer: "new Hermes terminal environment" },
   "terminal.docker_network": { type: "boolean", family: "execution", consumer: "new Docker sandbox" },

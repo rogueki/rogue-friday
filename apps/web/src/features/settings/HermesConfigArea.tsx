@@ -31,6 +31,7 @@ const LABELS: Record<string, string> = {
   "terminal.container_cpu": "Container-CPU (Kerne)",
   "terminal.container_memory": "Container-Arbeitsspeicher (MiB)",
   "terminal.container_disk": "Container-Datenträger (MiB)",
+  "terminal.container_persistent": "Container zwischen Sitzungen behalten",
   "terminal.backend": "Terminal-Ausfuehrungsort",
   "terminal.docker_network": "Netzwerk im Docker-Sandbox-Container",
   "terminal.docker_mount_cwd_to_workspace": "Arbeitsordner in Docker einbinden",
@@ -337,6 +338,8 @@ export function HermesConfigArea() {
             {field.key === "terminal.container_cpu" || field.key === "terminal.container_memory" ||
               field.key === "terminal.container_disk" ?
               <small>Diese Grenze betrifft nur neue Container. Docker kann CPU/Arbeitsspeicher ohne Cgroup-Unterstützung und Datenträger ohne geeigneten Speichertreiber nicht erzwingen.</small> : null}
+            {field.key === "terminal.container_persistent" ?
+              <small>Aktiv: neue Sitzungen teilen einen langlebigen Docker-Container pro Hermes-Profil. Inaktiv: neue Sitzungen erhalten getrennte Container, die beim Sitzungsende aufgeräumt werden.</small> : null}
             <button
               type="button"
               disabled={
