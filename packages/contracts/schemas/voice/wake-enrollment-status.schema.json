@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/wake-enrollment-status.schema.json",
+  "title": "WakeEnrollmentStatus",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "state": { "type": "string", "enum": ["idle", "capturing", "training", "ready", "failed", "cancelled"] },
+    "jobId": { "type": ["string", "null"] },
+    "phrase": { "type": ["string", "null"] },
+    "shortPhrase": { "type": ["string", "null"] },
+    "required": { "$ref": "#/$defs/counts" },
+    "counts": { "$ref": "#/$defs/counts" },
+    "quality": { "type": ["string", "null"] },
+    "error": { "type": ["string", "null"] }
+  },
+  "required": ["contractVersion", "state", "jobId", "phrase", "shortPhrase", "required", "counts", "quality", "error"],
+  "additionalProperties": false,
+  "$defs": {
+    "counts": {
+      "type": "object",
+      "properties": {
+        "wake": { "type": "integer", "minimum": 0 },
+        "short": { "type": "integer", "minimum": 0 },
+        "negatives": { "type": "integer", "minimum": 0 },
+        "speech": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["wake", "short", "negatives", "speech"],
+      "additionalProperties": false
+    }
+  }
+}

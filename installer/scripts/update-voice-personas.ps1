@@ -21,7 +21,7 @@ $files = @(
     'voice\content_studio_voice.py', 'voice\cuda_dlls.py', 'voice\elevenlabs_cloud.py', 'voice\enroll_record.py',
     'voice\film_filter.py', 'voice\friday_voice.py', 'voice\mail_voice.py',
     'voice\model_routing.py', 'voice\personal_wake.py', 'voice\powerpoint_voice.py', 'voice\runtime_settings.py',
-    'voice\qwen_tts.py', 'voice\skills_onboarding_voice.py', 'voice\voice_persona.py',
+    'voice\qwen_tts.py', 'voice\skills_onboarding_voice.py', 'voice\voice_persona.py', 'voice\wake_enrollment.py',
     'voice\voice_runtime_paths.py', 'voice\prepare_voice_pairs.py',
     'installer\fast_tts\server.py', 'installer\fast_tts\install_wsl.sh', 'installer\fast_tts\update_personas.sh',
     'installer\voice_models\friday_ref.wav', 'installer\voice_models\friday_ref.txt',

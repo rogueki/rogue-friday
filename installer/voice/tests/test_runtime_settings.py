@@ -3,6 +3,7 @@ import sys
 import time
 import wave
 import subprocess
+import threading
 import pytest
 
 import numpy as np
@@ -121,6 +122,23 @@ def test_wake_training_uses_private_staging_and_explicit_phrase(tmp_path, monkey
     assert os.path.isfile(model) and os.path.isfile(meta)
     runtime_settings.discard_prepared_wake(model)
     assert not os.path.exists(os.path.dirname(model))
+
+
+def test_cancelled_wake_training_terminates_worker_and_cleans_stage(tmp_path, monkeypatch):
+    base = tmp_path / "state" / "models" / "openwakeword"
+    base.mkdir(parents=True)
+    monkeypatch.setattr(runtime_settings, "protect_private", lambda *args, **kwargs: None)
+    events = []
+    class Child:
+        def poll(self): return None
+        def terminate(self): events.append("terminate")
+        def wait(self, timeout): events.append("wait"); return 0
+    monkeypatch.setattr(runtime_settings.subprocess, "Popen", lambda *args, **kwargs: Child())
+    cancelled = threading.Event(); cancelled.set()
+    with pytest.raises(ValueError, match="cancelled"):
+        runtime_settings.prepare_personal_wake(str(tmp_path), str(tmp_path / "state"), "Hey Test", str(tmp_path), cancelled)
+    assert events == ["terminate", "wait"]
+    assert list(base.glob("runtime-*")) == []
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows ACL behavior")

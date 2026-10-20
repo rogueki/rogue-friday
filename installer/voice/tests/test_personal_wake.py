@@ -622,10 +622,11 @@ def test_voice_settings_http_applies_only_confirmed_private_configuration():
         open(model, "wb").close()
         with open(meta, "w", encoding="utf-8") as target:
             json.dump({"wake_phrase": "Hey Test", "threshold": 0.5}, target)
-        svc._prepare_wake_switch = lambda phrase: (_ for _ in ()).throw(ValueError("missing enrollment clips"))
+        original_prepare = svc._prepare_wake_switch
         assert post({**current, "wakeWord": "Hey Test"})[0] == 422
         assert svc.phrase == "Hey Friday" and svc.cfg["wake_phrase"] == "Hey Friday"
-        svc._prepare_wake_switch = lambda phrase: {"engine": "personal", "detector": FakeDetector(),
+        svc.wake_enrollment = types.SimpleNamespace(prepared=lambda phrase, active_phrase, service_started_at, current_revision, expected_revision: (model, meta), committed=lambda: None)
+        svc._prepare_wake_switch = lambda phrase, paths: {"engine": "personal", "detector": FakeDetector(),
             "name": "personal", "threshold": 0.5, "high_confidence": None,
             "model_path": model, "meta_path": meta}
         status, body = post({**current, "wakeWord": "Hey Test"})
@@ -638,6 +639,10 @@ def test_voice_settings_http_applies_only_confirmed_private_configuration():
         svc.native_ptt_available = True
         status, body = post({**selected, "pushToTalkKey": "F13"})
         assert status == 200 and body["settings"]["pushToTalkKey"] == "F13"
+        svc._prepare_wake_switch = original_prepare
+        assert post({**jv.runtime_settings.effective(svc.cfg), "wakeWord": "Hey Friday"})[0] == 200
+        assert svc.phrase == "Hey Friday" and svc.cfg["wake_phrase"] == "Hey Friday"
+        assert svc.cfg["personal_wake_model"].endswith("personal_wake.npz")
 
 
 def test_pending_hermes_answer_is_suppressed_after_stop():

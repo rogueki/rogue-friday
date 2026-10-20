@@ -53,6 +53,7 @@ import torch  # noqa: E402
 
 import personal_wake  # noqa: E402
 import runtime_settings  # noqa: E402
+from wake_enrollment import WakeEnrollment  # noqa: E402
 from content_studio_voice import ContentStudioVoice  # noqa: E402
 from skills_onboarding_voice import SkillsOnboardingVoice  # noqa: E402
 from coding_voice import CodingVoice  # noqa: E402
@@ -601,6 +602,7 @@ class VoiceService:
         self.ptt_active = False
         self.manual_start_lock = threading.Lock()
         self.wake_model_lock = threading.Lock()
+        self.wake_enrollment = WakeEnrollment(INSTALL_ROOT, STATE_ROOT)
         self.control_cancel = threading.Event()
         self.control_paused = False
         # Kurzlebige Verarbeitungsphase einer Aeusserung: None | "transcribing" | "thinking" (siehe voice_phase()).
@@ -713,8 +715,12 @@ class VoiceService:
               f"{meta.get('quality', '?')}, Phrasencheck {'an' if self.cfg.get('wake_confirm', True) else 'aus'})",
               flush=True)
 
-    def _prepare_wake_switch(self, phrase: str) -> dict:
+    def _prepare_wake_switch(self, phrase: str, prepared_paths=None) -> dict:
         oww_dir = os.path.join(STATE_ROOT, "models", "openwakeword")
+        rollback = getattr(self, "wake_rollback", None)
+        if rollback is not None and personal_wake.phrase_key(rollback["phrase"]) == personal_wake.phrase_key(phrase):
+            rollback["prepared"]["detector"].reset()
+            return rollback["prepared"]
         if personal_wake.is_pretrained_phrase(phrase):
             from openwakeword.model import Model
             model_path = self.cfg["wake_model"]
@@ -732,25 +738,23 @@ class VoiceService:
             return {"engine": "openwakeword", "detector": detector, "name": list(detector.models.keys())[0],
                     "threshold": self.cfg["wake_threshold"], "high_confidence": None,
                     "model_path": None, "meta_path": None}
-        model_path, meta_path = runtime_settings.prepare_personal_wake(INSTALL_ROOT, STATE_ROOT, phrase)
-        try:
-            meta = personal_wake.load_meta(meta_path)
-            if personal_wake.phrase_key(meta.get("wake_phrase", "")) != personal_wake.phrase_key(phrase):
-                raise ValueError("Trained wake model phrase mismatch")
-            detector = personal_wake.PersonalWakeDetector(
-                personal_wake.WindowModel.load(model_path), os.path.join(oww_dir, "melspectrogram.onnx"),
-                os.path.join(oww_dir, "embedding_model.onnx"))
-            detector.reset()
-            threshold = meta["threshold"]
-            calibration = meta.get("calibration") or {}
-            false_maxima = (calibration.get("speech_max"), calibration.get("words_max"))
-            high = (max(threshold, *(value + 1.0 for value in false_maxima))
-                    if all(isinstance(value, (int, float)) for value in false_maxima) else None)
-            return {"engine": "personal", "detector": detector, "name": "personal", "threshold": threshold,
-                    "high_confidence": high, "model_path": model_path, "meta_path": meta_path}
-        except Exception:
-            runtime_settings.discard_prepared_wake(model_path)
-            raise
+        if prepared_paths is None:
+            raise ValueError("Train the selected wake phrase in the dashboard before saving")
+        model_path, meta_path = prepared_paths
+        meta = personal_wake.load_meta(meta_path)
+        if personal_wake.phrase_key(meta.get("wake_phrase", "")) != personal_wake.phrase_key(phrase):
+            raise ValueError("Trained wake model phrase mismatch")
+        detector = personal_wake.PersonalWakeDetector(
+            personal_wake.WindowModel.load(model_path), os.path.join(oww_dir, "melspectrogram.onnx"),
+            os.path.join(oww_dir, "embedding_model.onnx"))
+        detector.reset()
+        threshold = meta["threshold"]
+        calibration = meta.get("calibration") or {}
+        false_maxima = (calibration.get("speech_max"), calibration.get("words_max"))
+        high = (max(threshold, *(value + 1.0 for value in false_maxima))
+                if all(isinstance(value, (int, float)) for value in false_maxima) else None)
+        return {"engine": "personal", "detector": detector, "name": "personal", "threshold": threshold,
+                "high_confidence": high, "model_path": model_path, "meta_path": meta_path}
 
     # ---------- Audio ----------
     def _on_audio(self, indata, frames, time_info, status) -> None:
@@ -1910,24 +1914,86 @@ class VoiceService:
         service = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
-            def do_POST(self):
-                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/audio", "/control/settings"):
-                    self.send_error(404)
-                    return
-                key_path = voice_bridge_key_path(service.cfg)
+            def _authorized(self):
                 try:
-                    with open(key_path, encoding="ascii") as source:
+                    with open(voice_bridge_key_path(service.cfg), encoding="ascii") as source:
                         expected = source.read().strip()
                 except (OSError, UnicodeError):
                     self.send_error(503)
-                    return
+                    return False
                 supplied = self.headers.get("Authorization", "")
                 if not expected or len(supplied) > 100 or not supplied.isascii() or not hmac.compare_digest(supplied, "Bearer " + expected):
                     self.send_error(401)
+                    return False
+                return True
+
+            def _json(self, value):
+                body = json.dumps(value).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_POST(self):
+                enrollment_paths = ("/control/wake-enrollment/start", "/control/wake-enrollment/sample",
+                                    "/control/wake-enrollment/train", "/control/wake-enrollment/discard")
+                if self.path not in ("/control/start", "/control/stop", "/control/pause", "/control/resume", "/control/voice", "/control/audio", "/control/settings", *enrollment_paths):
+                    self.send_error(404)
+                    return
+                if not self._authorized():
+                    return
+                if self.path in enrollment_paths:
+                    if service.wake_enrollment is None:
+                        self.send_error(503, "Wake enrollment is unavailable")
+                        return
+                    try:
+                        size = int(self.headers.get("Content-Length", "0"))
+                        if not 0 < size <= 260_000:
+                            raise ValueError("Invalid enrollment request size")
+                        request = json.loads(self.rfile.read(size))
+                        if not isinstance(request, dict):
+                            raise ValueError("Invalid enrollment request")
+                        if self.path.endswith("/start"):
+                            if set(request) != {"phrase", "expectedConfigRevision", "expectedServiceStartedAt"}:
+                                raise ValueError("Invalid enrollment start")
+                            with service.manual_start_lock:
+                                if service.processing or service.tts.speaking.is_set() or service.status["state"] in ("command", "followup", "speaking"):
+                                    self.send_error(423, "Voice is busy")
+                                    return
+                                result = service.wake_enrollment.start(request["phrase"], service.config_disk_hash,
+                                    request["expectedConfigRevision"], service.service_started_at,
+                                    request["expectedServiceStartedAt"], service.phrase)
+                        elif self.path.endswith("/sample"):
+                            if set(request) != {"jobId", "kind", "pcmBase64"}:
+                                raise ValueError("Invalid enrollment sample")
+                            result = service.wake_enrollment.add_sample(request["jobId"], request["kind"], request["pcmBase64"])
+                        elif self.path.endswith("/train"):
+                            if set(request) != {"jobId"}:
+                                raise ValueError("Invalid enrollment train")
+                            if (service.wake_enrollment.job is None or
+                                    service.wake_enrollment.job["service_started_at"] != service.service_started_at or
+                                    personal_wake.phrase_key(service.wake_enrollment.job["active_phrase"]) != personal_wake.phrase_key(service.phrase)):
+                                raise runtime_settings.ConfigConflict("Voice configuration revision changed")
+                            result = service.wake_enrollment.train(request["jobId"])
+                        else:
+                            if set(request) != {"jobId"}:
+                                raise ValueError("Invalid enrollment discard")
+                            result = service.wake_enrollment.discard(request["jobId"])
+                    except runtime_settings.ConfigConflict as exc:
+                        self.send_error(409, str(exc))
+                        return
+                    except (ValueError, TypeError, KeyError) as exc:
+                        self.send_error(422, str(exc))
+                        return
+                    except OSError:
+                        self.send_error(503, "Wake enrollment storage unavailable")
+                        return
+                    self._json(result)
                     return
                 if self.path == "/control/settings":
                     prepared_wake = None
-                    wake_committed = False
+                    prepared_from_enrollment = False
                     try:
                         size = int(self.headers.get("Content-Length", "0"))
                         if not 0 < size <= 1024:
@@ -1937,8 +2003,26 @@ class VoiceService:
                             raise ValueError("Expected settings and voice revision")
                         requested = request["settings"]
                         runtime_settings.validate(requested, service.cfg)
+                        with service.manual_start_lock:
+                            if service.processing or service.tts.speaking.is_set() or service.status["state"] in ("command", "followup", "speaking"):
+                                self.send_error(423, "Voice is busy")
+                                return
+                            if (request["expectedServiceStartedAt"] != service.service_started_at or
+                                    request["expectedConfigRevision"] != service.config_disk_hash):
+                                raise runtime_settings.ConfigConflict("Voice configuration revision changed")
                         if requested["wakeWord"] != runtime_settings.effective(service.cfg)["wakeWord"]:
-                            prepared_wake = service._prepare_wake_switch(requested["wakeWord"])
+                            phrase = requested["wakeWord"]
+                            if personal_wake.is_pretrained_phrase(phrase) or (getattr(service, "wake_rollback", None) is not None and
+                                personal_wake.phrase_key(service.wake_rollback["phrase"]) == personal_wake.phrase_key(phrase)):
+                                prepared_wake = service._prepare_wake_switch(phrase)
+                            else:
+                                enrollment = getattr(service, "wake_enrollment", None)
+                                if enrollment is None:
+                                    raise ValueError("Wake enrollment is unavailable")
+                                paths = enrollment.prepared(phrase, service.phrase, service.service_started_at,
+                                                            service.config_disk_hash, request["expectedConfigRevision"])
+                                prepared_wake = service._prepare_wake_switch(phrase, paths)
+                                prepared_from_enrollment = True
                         with service.manual_start_lock:
                             if service.processing or service.tts.speaking.is_set() or service.status["state"] in ("command", "followup", "speaking"):
                                 self.send_error(423, "Voice is busy")
@@ -1960,8 +2044,13 @@ class VoiceService:
                             config_path = getattr(service, "config_path", os.path.join(INSTALL_ROOT, "config", "voice.json"))
                             expected = getattr(service, "config_disk_hash", runtime_settings.file_hash(config_path))
                             with service.wake_model_lock:
+                                previous_wake = {"phrase": service.phrase, "prepared": {
+                                    "engine": service.engine, "detector": service.oww, "name": service.wake_name,
+                                    "threshold": service.wake_threshold,
+                                    "high_confidence": getattr(service, "wake_high_confidence", None),
+                                    "model_path": (service.cfg.get("personal_wake_model") or os.path.join(STATE_ROOT, "models", "openwakeword", "personal_wake.npz")) if service.engine == "personal" else None,
+                                    "meta_path": (service.cfg.get("personal_wake_meta") or os.path.join(STATE_ROOT, "models", "openwakeword", "personal_wake.json")) if service.engine == "personal" else None}}
                                 runtime_settings.atomic_write(config_path, updated, expected)
-                                wake_committed = prepared_wake is not None
                                 service.cfg = updated
                                 service.config_disk_hash = runtime_settings.file_hash(config_path)
                                 service.tts.tts_config = updated
@@ -1974,6 +2063,12 @@ class VoiceService:
                                     service.wake_high_confidence = prepared_wake["high_confidence"]
                                     service.status["wake_phrase"] = service.phrase
                                     service.status["wake_engine"] = service.engine
+                                    service.wake_rollback = previous_wake
+                                    if prepared_from_enrollment:
+                                        try:
+                                            service.wake_enrollment.committed()
+                                        except OSError as exc:
+                                            log_event(event="wake_enrollment_cleanup_error", error=type(exc).__name__)
                             if not updated["voice_history_enabled"]:
                                 service.history.clear()
                                 if service.memory_outbox is not None:
@@ -2014,9 +2109,6 @@ class VoiceService:
                     except (OSError, RuntimeError, ImportError):
                         self.send_error(503, "Voice configuration could not be written")
                         return
-                    finally:
-                        if prepared_wake is not None and not wake_committed:
-                            runtime_settings.discard_prepared_wake(prepared_wake["model_path"])
                     body = json.dumps(result).encode("utf-8")
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
@@ -2127,6 +2219,14 @@ class VoiceService:
                 self.wfile.write(b'{"accepted":true}')
 
             def do_GET(self):
+                if self.path == "/control/wake-enrollment":
+                    if not self._authorized():
+                        return
+                    if service.wake_enrollment is None:
+                        self.send_error(503)
+                        return
+                    self._json(service.wake_enrollment.status())
+                    return
                 if self.path == "/devices":
                     from audio_devices import inventory
                     try:

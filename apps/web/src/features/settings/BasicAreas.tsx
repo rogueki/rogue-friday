@@ -6,7 +6,7 @@ import { LogOut, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useT } from "@/i18n";
-import { useLogoutAll, useLayouts } from "@/lib/api/domains/settings";
+import { useLogoutAll, useLayouts, useSettings } from "@/lib/api/domains/settings";
 import { useMeta } from "@/lib/api/domains/core";
 import { useVoiceDevices, useVoiceIntegrationStatus } from "@/lib/api/domains/voice";
 import { useSession } from "@/lib/session";
@@ -17,6 +17,7 @@ import { useAreaDraft } from "./SettingsDrafts";
 import { NAV_PAGES } from "@/features/shell/navModel";
 import { DEFAULT_ASSISTANT_NAME } from "@/i18n";
 import type { MessageKey } from "@/i18n";
+import { WakeEnrollment } from "./WakeEnrollment";
 
 const onOff = (t: (key: MessageKey) => string): readonly [string, string] => [t("settings.state.on"), t("settings.state.off")];
 
@@ -248,6 +249,7 @@ export function VoiceArea() {
   const { value, update, readOnly } = useAreaDraft("voice");
   const devices = useVoiceDevices();
   const integration = useVoiceIntegrationStatus();
+  const saved = useSettings();
   if (!value) return null;
   const options = (kind: "input" | "output", current: string | null) => {
     const list = (devices.data?.items ?? []).filter((device) => device.kind === kind).map((device) => ({ value: device.id, label: `${device.name} · ${(device.labels ?? []).join(", ")}${device.isDefault ? ` (${t("settings.voice.systemDefault")})` : ""}` }));
@@ -276,7 +278,7 @@ export function VoiceArea() {
         </ul> : null}
       </Section>
       <Section title={t("settings.voice.activation")}>
-        <p>Fuer eine neue Wake-Phrase zuerst im Friday-Installationsordner <code>voice\.venv\Scripts\python.exe voice\enroll_record.py --phrase "NEUE PHRASE"</code> ausfuehren und die gefuehrte Aufnahme abschliessen. Danach die Phrase hier speichern. Ohne passende Aufnahmen bleibt das bisherige Modell aktiv.</p>
+        <WakeEnrollment phrase={value.wakeWord} activePhrase={saved.data?.data.voice.wakeWord ?? value.wakeWord} readOnly={readOnly} />
         <p>Ein anderes Aktivierungswort benötigt eigene Trainingsaufnahmen. Ohne Sprecherprüfung erhalten unbestätigte Stimmen lokale Antworten ohne Verlauf oder Werkzeuge; persönliche Daten und verbundene Dienste bleiben gesperrt. Push-to-Talk funktioniert mit Browser-Audio und auf dem interaktiven Windows-Gerätedesktop.</p>
         <FieldGrid>
           <Switch label={t("settings.voice.wakeEnabled")} description={t("settings.voice.wakeEnabledDesc")} checked={value.wakeWordEnabled} disabled={readOnly} stateLabels={onOff(t)} onCheckedChange={(wakeWordEnabled) => update({ wakeWordEnabled })} />

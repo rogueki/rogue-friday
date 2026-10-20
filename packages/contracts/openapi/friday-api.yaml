@@ -4659,6 +4659,132 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
       x-required-role: owner
+  /api/v1/voice/wake-enrollment:
+    get:
+      operationId: getWakeEnrollment
+      tags: [voice]
+      summary: Read private pending wake phrase enrollment
+      responses:
+        "200":
+          description: Wake enrollment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WakeEnrollmentStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/wake-enrollment/start:
+    post:
+      operationId: startWakeEnrollment
+      tags: [voice]
+      summary: Start one phrase-bound private wake enrollment
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WakeEnrollmentStart"
+      responses:
+        "200":
+          description: Wake enrollment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WakeEnrollmentStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/wake-enrollment/samples:
+    post:
+      operationId: addWakeEnrollmentSample
+      tags: [voice]
+      summary: Upload one bounded private wake training sample
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WakeEnrollmentSample"
+      responses:
+        "200":
+          description: Wake enrollment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WakeEnrollmentStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+      x-max-body-bytes: 260000
+  /api/v1/voice/wake-enrollment/train:
+    post:
+      operationId: trainWakeEnrollment
+      tags: [voice]
+      summary: Train staged wake model without activating it
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WakeEnrollmentJob"
+      responses:
+        "200":
+          description: Wake enrollment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WakeEnrollmentStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+  /api/v1/voice/wake-enrollment/discard:
+    post:
+      operationId: discardWakeEnrollment
+      tags: [voice]
+      summary: Cancel and delete a pending wake enrollment
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WakeEnrollmentJob"
+      responses:
+        "200":
+          description: Wake enrollment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WakeEnrollmentStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
   /api/v1/voice/linux-enrollment/samples:
     post:
       operationId: addLinuxVoiceSample
@@ -9492,6 +9618,14 @@ components:
       $ref: ../schemas/voice/linux-enrollment-status.schema.json
     LinuxEnrollmentSample:
       $ref: ../schemas/voice/linux-enrollment-sample.schema.json
+    WakeEnrollmentStatus:
+      $ref: ../schemas/voice/wake-enrollment-status.schema.json
+    WakeEnrollmentStart:
+      $ref: ../schemas/voice/wake-enrollment-start.schema.json
+    WakeEnrollmentSample:
+      $ref: ../schemas/voice/wake-enrollment-sample.schema.json
+    WakeEnrollmentJob:
+      $ref: ../schemas/voice/wake-enrollment-job.schema.json
     VoiceTestKind:
       $ref: ../schemas/voice/voice-test-kind.schema.json
     VoiceTestRequest:

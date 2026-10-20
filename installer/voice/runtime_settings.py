@@ -160,7 +160,7 @@ def validate(request, cfg):
             "voice_history_enabled": request["voiceHistoryEnabled"], "tts_rate": float(rate)}
 
 
-def prepare_personal_wake(install_root, state_root, phrase):
+def prepare_personal_wake(install_root, state_root, phrase, raw_dir=None, cancel_event=None):
     """Train into a private staging directory; caller activates only after model load and config CAS."""
     base = os.path.join(state_root, "models", "openwakeword")
     stage = os.path.join(base, "runtime-" + uuid.uuid4().hex)
@@ -169,8 +169,37 @@ def prepare_personal_wake(install_root, state_root, phrase):
     completed = False
     try:
         protect_private(stage, directory=True)
-        subprocess.run([sys.executable, builder, install_root, "--phrase", phrase, "--output-dir", stage],
-                       check=True, capture_output=True, timeout=240)
+        command = [sys.executable, builder, install_root, "--phrase", phrase, "--output-dir", stage]
+        if raw_dir is not None:
+            command += ["--raw-dir", raw_dir]
+        if cancel_event is None:
+            subprocess.run(command, check=True, capture_output=True, timeout=240)
+        else:
+            flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+            process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags)
+            deadline = time.monotonic() + 240
+            try:
+                while True:
+                    if cancel_event.is_set():
+                        raise ValueError("Wake training cancelled")
+                    if time.monotonic() >= deadline:
+                        raise ValueError("Wake training timed out")
+                    try:
+                        code = process.wait(timeout=0.25)
+                        break
+                    except subprocess.TimeoutExpired:
+                        continue
+                if code != 0:
+                    raise ValueError("Wake training requires enrolled phrase clips and a working local trainer")
+            except Exception:
+                if process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
+                raise
         model = os.path.join(stage, "personal_wake.npz")
         meta = os.path.join(stage, "personal_wake.json")
         if not os.path.isfile(model) or not os.path.isfile(meta):

@@ -3,8 +3,28 @@ import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { addEnrollmentSample, enrollmentStatus, startEnrollmentTraining } from "../services/linux-voice-enrollment";
 import { ApiError } from "../util/errors";
+import { startWakeEnrollment, wakeEnrollmentRequest } from "../services/wake-enrollment";
 
 export const browserVoiceHandlers: Partial<Record<OperationId, Handler>> = {
+  async getWakeEnrollment(ctx) {
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, ...await wakeEnrollmentRequest(ctx.runtime, "") } };
+  },
+  async startWakeEnrollment(ctx) {
+    const { phrase } = ctx.body as { phrase: string };
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, ...await startWakeEnrollment(ctx.runtime, phrase) } };
+  },
+  async addWakeEnrollmentSample(ctx) {
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION,
+      ...await wakeEnrollmentRequest(ctx.runtime, "/sample", ctx.body as object) } };
+  },
+  async trainWakeEnrollment(ctx) {
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION,
+      ...await wakeEnrollmentRequest(ctx.runtime, "/train", ctx.body as object) } };
+  },
+  async discardWakeEnrollment(ctx) {
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION,
+      ...await wakeEnrollmentRequest(ctx.runtime, "/discard", ctx.body as object) } };
+  },
   async getBrowserAudioAvailability(ctx) {
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, available: await ctx.runtime.hub.browserAudioAvailable() } };
   },

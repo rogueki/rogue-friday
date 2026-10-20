@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/voice/wake-enrollment-start.schema.json",
+  "title": "WakeEnrollmentStart",
+  "type": "object",
+  "properties": {
+    "phrase": { "type": "string", "minLength": 3, "maxLength": 30 }
+  },
+  "required": ["phrase"],
+  "additionalProperties": false
+}
