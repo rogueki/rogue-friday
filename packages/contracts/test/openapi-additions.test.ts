@@ -70,8 +70,29 @@ describe("observability operations (PLAN §50.3)", () => {
     expect(Object.keys(telemetry?.op.responses ?? {})).toEqual(expect.arrayContaining(["202", "401", "403", "413", "422", "429"]));
   });
 
-  it("the contract includes the 259 released operations", () => {
-    expect(operations).toHaveLength(259);
+  it("the contract includes the 265 released operations", () => {
+    expect(operations).toHaveLength(265);
+  });
+
+  it("binds all five wake enrollment routes to owner-only staged operations", () => {
+    const wake = [
+      ["getWakeEnrollment", "get", "/api/v1/voice/wake-enrollment"],
+      ["startWakeEnrollment", "post", "/api/v1/voice/wake-enrollment/start"],
+      ["addWakeEnrollmentSample", "post", "/api/v1/voice/wake-enrollment/samples"],
+      ["trainWakeEnrollment", "post", "/api/v1/voice/wake-enrollment/train"],
+      ["discardWakeEnrollment", "post", "/api/v1/voice/wake-enrollment/discard"],
+    ];
+    for (const [operationId, method, path] of wake) {
+      const found = operations.find(({ op }) => op.operationId === operationId);
+      expect(found, operationId).toMatchObject({ method, path });
+      expect(found?.op["x-required-role"], operationId).toBe("owner");
+      if (method === "post") {
+        expect(found?.op.requestBody, operationId).toBeDefined();
+        expect((found?.op.parameters ?? []).map((parameter) => parameter.$ref), operationId)
+          .toContain("#/components/parameters/CsrfToken");
+      }
+    }
+    expect(operations.find(({ op }) => op.operationId === "addWakeEnrollmentSample")?.op["x-max-body-bytes"]).toBe(260000);
   });
 
   it("Hermes config is owner-only and its typed mutation requires CSRF and If-Match", () => {
