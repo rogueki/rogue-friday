@@ -18,6 +18,7 @@ PINNED_FILES = {
     "hermes_cli/config_defaults.py": "3770f92378e37093720040de6d4813202a88edc7a196415dfc7be7b4e88064d7",
     "tools/environments/docker.py": "571cdeedd40076fd32d246f22fac804a899732659e0d486a045b14a126d19df1",
     "tools/approval_context.py": "016e6eb6330a0d83adc5bbd260e8d9995e415a2cbff00e0a98f6ab627a6bb413",
+    "tools/approval.py": "aaf3c2956a7f031e4f61ee58536bedfb2b50901d7158ff03560ee5977f4049e2",
 }
 for relative_path, expected_hash in PINNED_FILES.items():
     assert hashlib.sha256((source / relative_path).read_bytes()).hexdigest() == expected_hash, relative_path
@@ -43,6 +44,7 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
     from hermes_cli.config import load_config_readonly
     from tools.environments.docker import DockerEnvironment
     from tools.approval_context import _get_single_query_approval_mode, _get_unattended_approval_mode
+    from tools.approval import request_tool_approval
 
     assert load_config_readonly()["code_execution"]["max_session_kernels"] == 2
     assert _lifecycle_limits() == (2, 600)
@@ -50,6 +52,26 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
     assert _capture_after_mode() == "ax"
     assert _get_single_query_approval_mode() == "approve"
     assert _get_unattended_approval_mode() == "deny"
+    os.environ["HERMES_SINGLE_QUERY_SESSION"] = "1"
+    try:
+        assert request_tool_approval("fixture-tool", "synthetic flagged action")["approved"] is True
+        Path(profile, "config.yaml").write_text(
+            Path(profile, "config.yaml").read_text().replace("single_query_mode: approve", "single_query_mode: deny"),
+            encoding="utf-8",
+        )
+        assert request_tool_approval("fixture-tool", "synthetic flagged action")["approved"] is False
+    finally:
+        os.environ.pop("HERMES_SINGLE_QUERY_SESSION", None)
+    os.environ["HERMES_SESSION_PLATFORM"] = "webhook"
+    try:
+        assert request_tool_approval("fixture-tool", "synthetic flagged action")["approved"] is False
+        Path(profile, "config.yaml").write_text(
+            Path(profile, "config.yaml").read_text().replace("unattended_mode: deny", "unattended_mode: approve"),
+            encoding="utf-8",
+        )
+        assert request_tool_approval("fixture-tool", "synthetic flagged action")["approved"] is True
+    finally:
+        os.environ.pop("HERMES_SESSION_PLATFORM", None)
     limits = load_config_readonly()["terminal"]
     docker = DockerEnvironment.__new__(DockerEnvironment)
     with patch("tools.environments.docker._cgroup_limits_available", return_value=True), \
@@ -69,4 +91,4 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
                                              False, "1g", [])
     assert "--cpus" not in unsupported and "--memory" not in unsupported and \
         "--storage-opt" not in unsupported, unsupported
-    print("pinned Hermes consumers: code kernels, browser idle, Computer Use capture, conditional Docker resource args, approval modes = OK")
+    print("pinned Hermes consumers: code kernels, browser idle, Computer Use capture, conditional Docker resource args, approval dispatch = OK")
