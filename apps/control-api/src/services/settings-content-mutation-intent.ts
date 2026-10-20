@@ -1,6 +1,9 @@
 export type SettingsContentMutationIntent =
   | { kind: "settings.dashboard.compact"; value: boolean }
   | { kind: "settings.dashboard.refresh"; value: number }
+  | { kind: "settings.dashboard.backgroundGrid"; value: boolean }
+  | { kind: "settings.dashboard.soundEffects"; value: boolean }
+  | { kind: "settings.dashboard.contentStudioEnabled"; value: boolean }
   | { kind: "contentStudio.idea.add"; title: string }
   | { kind: "contentStudio.idea.status"; title: string; status: "idee" | "in-arbeit" | "fertig" }
   | { kind: "contentStudio.idea.rename"; title: string; newTitle: string }
@@ -16,6 +19,8 @@ export type SettingsContentMutationIntent =
 
 const SETTING_COMPACT = /^(?:please\s+)?(?:set|change|stelle|aendere|ändere)\s+(?:my\s+)?(?:dashboard\s+)?(?:compact|kompakt)(?:\s+mode)?\s+(?:(?:to|auf)\s+)?(on|off|enabled|disabled|ein|aus)(?:[.!?])?$/i;
 const SETTING_REFRESH = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:the\s+)?(?:dashboard\s+)?(?:refresh|aktualisierung)(?:\s+interval)?\s+(?:(?:to|auf)\s+)?([0-9]{1,4})\s*(?:seconds?|sekunden|s)?[.!?]?$/i;
+const SETTING_DASHBOARD_BOOLEAN = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:the\s+)?(?:dashboard\s+)?(background\s+grid|grid|sound\s+effects|content\s+studio)(?:\s+module)?\s+(?:(?:to|auf)\s+)?(on|off|enabled|disabled|ein|aus|aktiviert|deaktiviert)[.!?]?$/i;
+const SETTING_CONTENT_STUDIO_TOGGLE = /^(?:please\s+)?(enable|activate|disable|deactivate|aktiviere|deaktiviere)\s+(?:the\s+)?content\s+studio(?:\s+module)?[.!?]?$/i;
 const ADD_IDEA = /^(?:please\s+)?(?:add|create|erstelle|lege\s+an|fuege\s+hinzu|füge\s+hinzu)\s+(?:an\s+)?(?:content\s+)?(?:idea|idee)\s+(.+?)\s+(?:to|in|zum|im)\s+(?:the\s+)?(?:content\s+studio\s+)?(?:plan|redaktionsplan)[.!?]?$/i;
 const IDEA_STATUS = /^(?:set|change|setze|aendere|ändere)\s+(?:the\s+)?(?:status\s+(?:of|von)\s+(?:the\s+)?(?:idea|idee)|(?:idea|idee))\s+(.+?)\s+(?:to|auf)\s+(idea|idee|in\s+progress|in\s+arbeit|done|fertig)[.!?]?$/i;
 const RENAME_IDEA = /^(?:rename|benenne)\s+(?:the\s+)?(?:idea|idee)\s+"([^"\r\n]{1,200})"\s+(?:to|in)\s+"([^"\r\n]{1,200})"(?:\s+um)?[.!?]?$/i;
@@ -41,6 +46,16 @@ export function parseSettingsContentMutationIntent(input: string): SettingsConte
     if (Number.isInteger(value) && value >= 5 && value <= 3600) return { kind: "settings.dashboard.refresh", value };
     return null;
   }
+  const dashboardBoolean = SETTING_DASHBOARD_BOOLEAN.exec(text);
+  if (dashboardBoolean) {
+    const key = dashboardBoolean[1]!.toLocaleLowerCase("en-US").replace(/\s+/g, " ");
+    const value = /^(on|enabled|ein|aktiviert)$/i.test(dashboardBoolean[2]!);
+    return { kind: key === "grid" || key === "background grid" ? "settings.dashboard.backgroundGrid"
+      : key === "sound effects" ? "settings.dashboard.soundEffects" : "settings.dashboard.contentStudioEnabled", value };
+  }
+  const studioToggle = SETTING_CONTENT_STUDIO_TOGGLE.exec(text);
+  if (studioToggle)
+    return { kind: "settings.dashboard.contentStudioEnabled", value: /^(enable|activate|aktiviere)$/i.test(studioToggle[1]!) };
   const idea = ADD_IDEA.exec(text);
   if (idea) {
     const title = idea[1]!.trim();

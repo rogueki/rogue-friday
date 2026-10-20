@@ -53,6 +53,7 @@ export type NativeExecutableAction =
   | { kind: "research.create"; body: ResearchCreateRequest; providerVersion: number }
   | { kind: "settings.dashboard.compact"; expectedVersion: number; value: boolean }
   | { kind: "settings.dashboard.refresh"; expectedVersion: number; value: number }
+  | { kind: "settings.dashboard.backgroundGrid" | "settings.dashboard.soundEffects" | "settings.dashboard.contentStudioEnabled"; expectedVersion: number; value: boolean }
   | { kind: "contentStudio.idea.add"; expectedRevision: number; idea: ContentPlanDocument["content"][number] }
   | { kind: "contentStudio.idea.status"; expectedRevision: number; ideaId: string; title: string; status: "idee" | "in-arbeit" | "fertig" }
   | { kind: "contentStudio.idea.rename"; expectedRevision: number; ideaId: string; title: string; newTitle: string }
@@ -99,6 +100,9 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "research.create": "gestartet",
   "settings.dashboard.compact": "gespeichert",
   "settings.dashboard.refresh": "gespeichert",
+  "settings.dashboard.backgroundGrid": "gespeichert",
+  "settings.dashboard.soundEffects": "gespeichert",
+  "settings.dashboard.contentStudioEnabled": "gespeichert",
   "contentStudio.idea.add": "hinzugefuegt",
   "contentStudio.idea.status": "aktualisiert",
   "contentStudio.idea.rename": "umbenannt",
@@ -146,6 +150,9 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "research.create": "Recherche",
   "settings.dashboard.compact": "Einstellung",
   "settings.dashboard.refresh": "Einstellung",
+  "settings.dashboard.backgroundGrid": "Einstellung",
+  "settings.dashboard.soundEffects": "Einstellung",
+  "settings.dashboard.contentStudioEnabled": "Einstellung",
   "contentStudio.idea.add": "Content-Idee",
   "contentStudio.idea.status": "Content-Idee",
   "contentStudio.idea.rename": "Content-Idee",

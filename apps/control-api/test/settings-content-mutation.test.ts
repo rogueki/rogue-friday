@@ -92,6 +92,25 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     expect((await owner.get("/api/v1/settings")).json().data.version).toBe(after.version);
   });
 
+  it("saves dashboard grid, sound and Content Studio switches through typed actions", async () => {
+    const before = (await owner.get("/api/v1/settings")).json().data;
+    const grid = !before.dashboard.backgroundGrid;
+    const sound = !before.dashboard.soundEffects;
+    const settingsEnabled = before.dashboard.contentStudioEnabled !== true;
+    const actions = [
+      [`Set dashboard background grid to ${grid ? "on" : "off"}`, "backgroundGrid", grid],
+      [`Set sound effects to ${sound ? "on" : "off"}`, "soundEffects", sound],
+      [`${settingsEnabled ? "Enable" : "Disable"} Content Studio`, "contentStudioEnabled", settingsEnabled],
+    ] as const;
+    for (const [text, key, value] of actions) {
+      const preview = await command(owner, text);
+      expect(preview.statusCode, preview.body).toBe(200);
+      const previewId = preview.json().previewId as string;
+      expect((await command(owner, text, { confirm: true, previewId })).statusCode).toBe(200);
+      expect((await owner.get("/api/v1/settings")).json().data.dashboard[key]).toBe(value);
+    }
+  });
+
   it("adds an idea through a typed action even when its title looks like a read, with plan CAS and replay", async () => {
     const settings = (await owner.get("/api/v1/settings")).json().data;
     if (!settings.dashboard.contentStudioEnabled)

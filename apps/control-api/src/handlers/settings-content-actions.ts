@@ -29,6 +29,9 @@ function sameIntent(action: NativeExecutableAction, intent: SettingsContentMutat
     return action.kind === intent.kind && action.value === intent.value;
   if (intent.kind === "settings.dashboard.refresh")
     return action.kind === intent.kind && action.value === intent.value;
+  if (intent.kind === "settings.dashboard.backgroundGrid" || intent.kind === "settings.dashboard.soundEffects"
+    || intent.kind === "settings.dashboard.contentStudioEnabled")
+    return action.kind === intent.kind && action.value === intent.value;
   if (intent.kind === "contentStudio.idea.add")
     return action.kind === intent.kind && action.idea.titel === intent.title;
   if (intent.kind === "contentStudio.idea.status")
@@ -95,6 +98,18 @@ function makeAction(ctx: RequestContext, intent: SettingsContentMutationIntent):
     const current = ctx.runtime.settings.get();
     const patch: SettingsPatch = { dashboard: { ...current.dashboard, autoRefreshSeconds: intent.value } };
     ctx.runtime.settings.validateAreas(patch);
+    return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
+  }
+  if (intent.kind === "settings.dashboard.backgroundGrid" || intent.kind === "settings.dashboard.soundEffects"
+    || intent.kind === "settings.dashboard.contentStudioEnabled") {
+    if (!authorize(ctx.principal!.role, "settings.update").allowed) throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
+    const current = ctx.runtime.settings.get();
+    const dashboard = { ...current.dashboard,
+      ...(intent.kind === "settings.dashboard.backgroundGrid" ? { backgroundGrid: intent.value } : {}),
+      ...(intent.kind === "settings.dashboard.soundEffects" ? { soundEffects: intent.value } : {}),
+      ...(intent.kind === "settings.dashboard.contentStudioEnabled" ? { contentStudioEnabled: intent.value } : {}),
+    };
+    ctx.runtime.settings.validateAreas({ dashboard });
     return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
   }
   if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
@@ -182,6 +197,9 @@ function proposalText(action: NativeExecutableAction): string {
     return `Dashboard-Kompaktansicht auf ${action.value ? "ein" : "aus"} setzen? Gespeicherte Revision ${action.expectedVersion}; Laufzeitwirkung wird nach dem Speichern nicht separat verifiziert.`;
   if (action.kind === "settings.dashboard.refresh")
     return `Dashboard-Aktualisierungsintervall auf ${action.value} Sekunden setzen? Gespeicherte Revision ${action.expectedVersion}; Laufzeitwirkung wird nach dem Speichern nicht separat verifiziert.`;
+  if (action.kind === "settings.dashboard.backgroundGrid" || action.kind === "settings.dashboard.soundEffects"
+    || action.kind === "settings.dashboard.contentStudioEnabled")
+    return `${action.kind === "settings.dashboard.backgroundGrid" ? "Dashboard-Hintergrundraster" : action.kind === "settings.dashboard.soundEffects" ? "Dashboard-Soundeffekte" : "Content Studio"} auf ${action.value ? "ein" : "aus"} setzen? Gespeicherte Revision ${action.expectedVersion}; Laufzeitwirkung wird nach dem Speichern nicht separat verifiziert.`;
   if (action.kind === "contentStudio.idea.add")
     return `Content-Idee „${action.idea.titel}“ hinzufuegen? Defaults: LinkedIn, Feed-Post, Status Idee. Planrevision ${action.expectedRevision}.`;
   if (action.kind === "contentStudio.idea.status")
@@ -245,12 +263,17 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
     result: { message: "Die Aenderung wartet auf Freigabe.", targetRoute: `/approvals?approval=${policy.approval.id}` } });
 
   const revision = await ctx.runtime.nativeApprovals.executeWithoutApproval(ownerId, requestKey, async (saved, idempotencyKey) => {
-    if (saved.kind === "settings.dashboard.compact" || saved.kind === "settings.dashboard.refresh") {
+    if (saved.kind === "settings.dashboard.compact" || saved.kind === "settings.dashboard.refresh"
+      || saved.kind === "settings.dashboard.backgroundGrid" || saved.kind === "settings.dashboard.soundEffects"
+      || saved.kind === "settings.dashboard.contentStudioEnabled") {
       const current = ctx.runtime.settings.get();
       if (current.version !== saved.expectedVersion) throw conflict("Einstellungen wurden inzwischen geaendert. Bitte neu laden.");
-      const patch: SettingsPatch = saved.kind === "settings.dashboard.compact"
-        ? { dashboard: { ...current.dashboard, compact: saved.value } }
-        : { dashboard: { ...current.dashboard, autoRefreshSeconds: saved.value } };
+      const dashboard = saved.kind === "settings.dashboard.compact" ? { ...current.dashboard, compact: saved.value }
+        : saved.kind === "settings.dashboard.refresh" ? { ...current.dashboard, autoRefreshSeconds: saved.value }
+          : saved.kind === "settings.dashboard.backgroundGrid" ? { ...current.dashboard, backgroundGrid: saved.value }
+            : saved.kind === "settings.dashboard.soundEffects" ? { ...current.dashboard, soundEffects: saved.value }
+              : { ...current.dashboard, contentStudioEnabled: saved.value };
+      const patch: SettingsPatch = { dashboard };
       const result = await settingsHandlers.updateSettings!({ ...ctx, body: patch,
         mutation: { ...ctx.mutation, ifMatchVersion: saved.expectedVersion, idempotencyKey } });
       const version = (result.body as { data?: { version?: number } }).data?.version;
@@ -382,6 +405,9 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
     ? `Dashboard-Kompaktansicht gespeichert (Revision ${revision}). Laufzeitwirkung nicht separat verifiziert.`
     : action.kind === "settings.dashboard.refresh"
       ? `Dashboard-Aktualisierungsintervall gespeichert (Revision ${revision}). Laufzeitwirkung nicht separat verifiziert.`
+    : action.kind === "settings.dashboard.backgroundGrid" || action.kind === "settings.dashboard.soundEffects"
+      || action.kind === "settings.dashboard.contentStudioEnabled"
+      ? `${action.kind === "settings.dashboard.backgroundGrid" ? "Dashboard-Hintergrundraster" : action.kind === "settings.dashboard.soundEffects" ? "Dashboard-Soundeffekte" : "Content Studio"} gespeichert (Revision ${revision}). Laufzeitwirkung nicht separat verifiziert.`
     : action.kind === "contentStudio.idea.add"
       ? `Content-Idee „${action.idea.titel}“ gespeichert (Planrevision ${revision}).`
       : action.kind === "contentStudio.idea.status"

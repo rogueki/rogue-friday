@@ -20,6 +20,15 @@ describe("settings and Content Studio mutation intents", () => {
     expect(parseSettingsContentMutationIntent("Set dashboard refresh to 5.5 seconds")).toBeNull();
   });
 
+  it("parses only explicit dashboard booleans and Content Studio enablement", () => {
+    expect(parseSettingsContentMutationIntent("Set dashboard background grid to off"))
+      .toEqual({ kind: "settings.dashboard.backgroundGrid", value: false });
+    expect(parseSettingsContentMutationIntent("Set sound effects to on"))
+      .toEqual({ kind: "settings.dashboard.soundEffects", value: true });
+    expect(parseSettingsContentMutationIntent("Disable Content Studio"))
+      .toEqual({ kind: "settings.dashboard.contentStudioEnabled", value: false });
+  });
+
   it("binds a free-text idea title only in the exact add-to-plan grammar", () => {
     expect(parseSettingsContentMutationIntent("Add idea Show recent audit events to Content Studio plan"))
       .toEqual({ kind: "contentStudio.idea.add", title: "Show recent audit events" });

@@ -6,8 +6,9 @@ acceptance claim and does not change `acceptance-ledger.md` statuses. The
 rename, description and scheduling actions described below are a second local
 slice after commit `763ac9a`. Date, format and platform edits are a third local
 slice. Manual posting create/status and bounded idea/post removals were added in
-the fourth slice; dashboard refresh interval is a fifth local slice, pending
-review and commit.
+the fourth slice; dashboard refresh interval is a fifth slice and background
+grid, sound effects and Content Studio gating are a sixth local slice. The
+fifth and sixth slices are pending review and commit.
 
 ## Implemented actions and source path
 
@@ -15,6 +16,7 @@ review and commit.
 |---|---|---|---|
 | `set dashboard compact mode on/off` / German equivalents | `settings.dashboard.compact` | Owner-authenticated command stages a preview, then calls `settingsHandlers.updateSettings` with the captured `ifMatchVersion`; stale settings fail closed. | `services/settings-content-mutation-intent.ts`, `handlers/settings-content-actions.ts`; runtime effect is explicitly not separately verified. |
 | `set dashboard refresh to <5..3600> seconds` / German equivalents | `settings.dashboard.refresh` | Accepts only the dashboard schema integer range and calls the canonical settings update handler with captured Settings version. | UI callback is the refresh NumberField in `BasicAreas.tsx`; `AppShell.tsx` consumes the stored value for refresh fallback. API test verifies persisted readback, version bump and replay; runtime timing is not separately verified. |
+| `set dashboard background grid/sound effects/content studio to on/off` or `enable/disable content studio` | `settings.dashboard.backgroundGrid`, `settings.dashboard.soundEffects`, `settings.dashboard.contentStudioEnabled` | Three separate typed intents update one schema field each through the canonical settings handler with captured Settings version. | UI callbacks are the switches in `BasicAreas.tsx`; grid applies in `lib/settings.tsx`, sound is consumed by `lib/realtime/applyEvent.ts`, and Content Studio gate is enforced by its route/handler. API tests verify persisted values. Runtime effect is not separately verified. |
 | `add/create idea <title> to the Content Studio plan` / German equivalents | `contentStudio.idea.add` | Owner-authenticated command stages a preview, then appends one idea through `contentStudioHandlers.putContentStudioPlan` with captured plan revision. Defaults are LinkedIn, Feed-Post, empty description/date, status Idee. | `handlers/content-studio.ts` is the canonical persistence route; no provider is called. Exact UI counterpart is `ContentStudioPage.tsx` `addIdea`; this NL action currently covers creation only, not edit/status/delete. |
 | `set status of idea <exact title> to in progress/done/idea` / German equivalents | `contentStudio.idea.status` | Resolves one unique exact title before staging, previews the target status, then updates only that idea through the canonical plan handler with captured plan revision. Missing or duplicate titles fail before a draft is created. | Exact UI counterpart is `ContentStudioPage.tsx` Kanban `onStatus`; tests cover owner-only access, persisted status, replay, and duplicate-title clarification by failure. |
 | `rename idea "<old>" to "<new>"` | `contentStudio.idea.rename` | Resolves one unique case-insensitive title before staging; disallows colliding new titles; previews both titles and updates the canonical plan with captured revision. | Exact UI counterpart is `ContentStudioPage.tsx` `editIdea`/`addIdea`; tests cover discard, corrected-preview rejection and replay. Only the title field is exposed by this NL action. |
@@ -49,7 +51,7 @@ physical voice behavior or full natural-language coverage.
 
 | ID | Exact requirement | Current evidence | Remaining work / boundary |
 |---|---|---|---|
-| NLP-01 | Every UI action has an accessible language/text action or justified guided physical step. | Settings compact/refresh; Content Studio add/status/rename/description/date/format/platform/idea schedule/manual posting create/status and idea/post removal; task.retry; Settings and plan read consumers exist in the earlier read slice. | Still unmapped: other Settings fields; plan import/export; media, production and publishing UI actions. Continue the dashboard-wide callback inventory. |
+| NLP-01 | Every UI action has an accessible language/text action or justified guided physical step. | Settings compact/refresh/grid/sound/Content Studio gate; Content Studio add/status/rename/description/date/format/platform/idea schedule/manual posting create/status and idea/post removal; task.retry; Settings and plan read consumers exist in the earlier read slice. | Still unmapped: other Settings fields; plan import/export; media, production and publishing UI actions. Continue the dashboard-wide callback inventory. |
 | NLP-02 | References/pronouns resolve to the intended entity. | Content Studio title references resolve exact unique idea title before staging; no cross-turn pronoun context is added. | Add scoped context and multi-turn references across entity families. |
 | NLP-03 | Ambiguous recipients/calendars prompt for clarification. | Title-based Content Studio actions refuse duplicate titles before staging. | Implement conversational clarification turn for recipient/calendar and title ambiguity; current duplicate rejection is safe but not a clarification exchange. |
 | NLP-04 | Any material correction invalidates prior approval. | Native mutation drafts bind exact new title, description, status and plan date/payload; rename tests reject a corrected title against the old preview. | Cross-family recipient/channel corrections and existing approval-edit paths remain unverified. |
