@@ -19,6 +19,9 @@ function fixture(invoke: RunnerInvoker) {
     join(root, "config", "install-state.json"),
     JSON.stringify({ distro_name: "Friday-Ubuntu", linux_user: "friday" }),
   );
+  // Linux resolves the bridge from the trusted install tree before invoking the test double.
+  mkdirSync(join(root, "installer", "wsl"), { recursive: true });
+  writeFileSync(join(root, "installer", "wsl", "hermes_config_bridge.py"), "# bundled fixture\n");
   return new HermesConfigService(join(root, "data"), invoke);
 }
 
@@ -255,8 +258,8 @@ it("returns only allowlisted resolved values and installed manifests without cre
   expect(JSON.stringify(status)).not.toContain("CANARY-DO-NOT-RETURN");
   expect(invoke).toHaveBeenCalledWith(
     expect.stringContaining("hermes_config_bridge.py"),
-    "Friday-Ubuntu",
-    "friday",
+    process.platform === "win32" ? "Friday-Ubuntu" : "",
+    process.platform === "win32" ? "friday" : "",
     ["status"],
     undefined,
     30000,
