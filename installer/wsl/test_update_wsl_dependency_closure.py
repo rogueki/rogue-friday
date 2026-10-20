@@ -17,6 +17,8 @@ REQUIRED = {
     "installer/wsl/hermes_mcp_auth_probe.py",
     "installer/wsl/patch_hermes_run_stop.py",
     "installer/wsl/setup_hermes.sh",
+    "installer/wsl/hermes_mcp_oauth_transport.py",
+    "installer/wsl/hermes_mcp_oauth_worker.py",
     "installer/scripts/recover-friday.ps1",
     "installer/wsl/configure_messenger_inbound_bridge.py",
     "installer/wsl/setup_messenger_inbound_bridge.sh",

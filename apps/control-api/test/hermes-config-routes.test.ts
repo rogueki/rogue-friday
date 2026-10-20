@@ -247,6 +247,39 @@ it("restricts MCP network probe to owner, CSRF and a versioned configured name",
   }
 });
 
+it("restricts MCP OAuth start, poll and cancel to owner intent and keeps token material out of responses", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const manage = vi.spyOn(api.runtime.hermesConfig, "manageMcpOAuth").mockResolvedValue({
+      flowId: "a".repeat(32), status: "awaiting_approval",
+      authorizationUrl: "https://auth.example.org/authorize?state=sample", revision: null,
+      failureClass: null, runtimeApplied: null,
+    });
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const viewer = api.client();
+    await viewer.loginDev("viewer");
+    const path = "/api/v1/settings/hermes-config/mcp-oauth";
+    const body = { action: "start", name: "example" };
+    expect((await viewer.post(path, body, { headers: { "If-Match": "123" } })).statusCode).toBe(403);
+    expect((await owner.post(path, body, { headers: { "If-Match": "123" }, csrf: false })).statusCode).toBe(403);
+    expect((await owner.post(path, body)).statusCode).toBe(422);
+    expect((await owner.post(path, { action: "start", name: "../bad" },
+      { headers: { "If-Match": "123" } })).statusCode).toBe(422);
+    const started = await owner.post(path, body, { headers: { "If-Match": "123" } });
+    expect(started.statusCode, started.body).toBe(200);
+    expect(started.json().data).toMatchObject({ status: "awaiting_approval", runtimeApplied: null });
+    expect(started.body).not.toContain("access_token");
+    expect(manage).toHaveBeenCalledWith(body, 123, expect.any(String));
+    expect((await owner.post(path, { action: "status", flowId: "a".repeat(32) },
+      { headers: { "If-Match": "123" } })).statusCode).toBe(200);
+    expect((await owner.post(path, { action: "cancel", flowId: "a".repeat(32) },
+      { headers: { "If-Match": "123" } })).statusCode).toBe(200);
+  } finally {
+    await api.close();
+  }
+});
+
 it("serves the model picker only to the owner and keeps catalog proof distinct from model access", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {

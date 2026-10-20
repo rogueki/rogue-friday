@@ -452,6 +452,42 @@ export class HermesConfigService {
       failureClass: raw.failureClass, runtimeApplied: null };
   }
 
+  async manageMcpOAuth(body: { action: "start"; name: string } | { action: "status" | "cancel"; flowId: string }, revision: number,
+    ownerId: string) {
+    if (!Number.isSafeInteger(revision) || revision < 1 ||
+        typeof ownerId !== "string" || ownerId.length < 1 || ownerId.length > 128 ||
+        [...ownerId].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127) ||
+        (body.action === "start" ? !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(body.name) :
+          !/^[0-9a-f]{32}$/.test(body.flowId)))
+      throw validationFailed("Ungueltiger Hermes-MCP-OAuth-Vorgang.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, [`mcp-oauth-${body.action}`], JSON.stringify(
+        body.action === "start" ? { name: body.name, revision, ownerId } : { flowId: body.flowId, ownerId }), 30000, 10000);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("revision_conflict"))
+        throw conflict("Hermes-Konfiguration wurde vor dem OAuth-Start geaendert.");
+      if (error instanceof Error && error.message.includes("managed_entry_conflict"))
+        throw conflict("Nur aktive verwaltete HTTPS-MCP-Server ohne vorhandene Authentifizierung koennen OAuth starten.");
+      throw unavailable();
+    }
+    if (!/^[0-9a-f]{32}$/.test(String(raw.flowId)) ||
+        body.action !== "start" && raw.flowId !== body.flowId ||
+        !["starting", "awaiting_approval", "publishing", "cancelling", "configured", "failed"].includes(String(raw.status)) ||
+        !(raw.authorizationUrl === undefined || typeof raw.authorizationUrl === "string" &&
+          raw.authorizationUrl.length <= 8192 && raw.authorizationUrl.startsWith("https://")) ||
+        !(raw.revision === undefined || Number.isSafeInteger(raw.revision) && (raw.revision as number) >= 1) ||
+        !(raw.failureClass === undefined || typeof raw.failureClass === "string" && raw.failureClass.length <= 80))
+      throw unavailable();
+    return { flowId: raw.flowId as string, status: raw.status as
+      "starting" | "awaiting_approval" | "publishing" | "cancelling" | "configured" | "failed",
+      authorizationUrl: typeof raw.authorizationUrl === "string" ? raw.authorizationUrl : null,
+      revision: typeof raw.revision === "number" ? raw.revision : null,
+      failureClass: typeof raw.failureClass === "string" ? raw.failureClass : null,
+      runtimeApplied: null };
+  }
+
   private present(observed: BridgeStatus) {
     const pinned = observed.sourceRevision?.startsWith("d923a5eb") === true;
     return {

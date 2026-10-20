@@ -29,6 +29,15 @@ export const hermesConfigHandlers: Partial<Record<OperationId, Handler>> = {
     ctx.audit.after = { name: body.name, connected: result.connected, revision: result.revision };
     return { status: 200, body: single(result) };
   },
+  async manageHermesMcpOAuth(ctx) {
+    if (ctx.mutation.ifMatchVersion === undefined)
+      throw validationFailed("If-Match ist fuer Hermes-MCP-OAuth erforderlich.");
+    const body = ctx.body as { action: "start"; name: string } | { action: "status" | "cancel"; flowId: string };
+    const result = await ctx.runtime.hermesConfig.manageMcpOAuth(body, ctx.mutation.ifMatchVersion, ctx.principal!.userId);
+    ctx.audit.action = "settings.hermes_mcp_oauth";
+    ctx.audit.after = { action: body.action, status: result.status, flowId: result.flowId };
+    return { status: 200, body: single(result) };
+  },
   async patchHermesConfig(ctx) {
     if (ctx.mutation.ifMatchVersion === undefined)
       throw validationFailed("If-Match ist für Hermes-Konfiguration erforderlich.");

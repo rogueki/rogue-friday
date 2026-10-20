@@ -2764,6 +2764,23 @@ export interface paths {
         patch: operations["patchHermesConfig"];
         trace?: never;
     };
+    "/api/v1/settings/hermes-config/mcp-oauth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start, poll or cancel one owner-bound Hermes MCP OAuth login */
+        post: operations["manageHermesMcpOAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/hermes-config/mcp-probe": {
         parameters: {
             query?: never;
@@ -6563,6 +6580,30 @@ export interface components {
         HermesConfigStatusResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["HermesConfigStatus"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** HermesMcpOAuthRequest */
+        HermesMcpOAuthRequest: {
+            /** @constant */
+            action: "start";
+            name: string;
+        } | {
+            /** @enum {unknown} */
+            action: "status" | "cancel";
+            flowId: string;
+        };
+        /** HermesMcpOAuthResponse */
+        HermesMcpOAuthResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                authorizationUrl: string | null;
+                failureClass: string | null;
+                flowId: string;
+                revision: number | null;
+                runtimeApplied: null;
+                /** @enum {unknown} */
+                status: "starting" | "awaiting_approval" | "publishing" | "cancelling" | "configured" | "failed";
+            };
             freshness: components["schemas"]["Freshness"];
         };
         /** HermesMcpProbeRequest */
@@ -16527,6 +16568,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HermesConfigStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    manageHermesMcpOAuth: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HermesMcpOAuthRequest"];
+            };
+        };
+        responses: {
+            /** @description OAuth flow state; configured means native tokens and config persisted, not a running session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesMcpOAuthResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];

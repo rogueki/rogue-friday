@@ -21,6 +21,7 @@ import type {
   HermesConfigStatusResponse,
   HermesModelCatalogResponse,
   HermesMcpProbeResponse,
+  HermesMcpOAuthResponse,
 } from "@friday/sdk";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { call } from "../call";
@@ -92,6 +93,35 @@ export function useProbeHermesMcp() {
         throw new Error("Hermes-MCP-Probe ohne Laufzeitkennzeichnung.");
       return response as HermesMcpProbeResponse;
     }),
+  });
+}
+export function useManageHermesMcpOAuth() {
+  return useApiMutation<HermesMcpOAuthResponse,
+    ({ action: "start"; name: string } | { action: "status" | "cancel"; flowId: string }) &
+    { revision: number } & IntentVars>({
+    label: "Hermes-MCP-OAuth",
+    mutationFn: ({ revision, ...body }) => call(getApiClient().POST("/api/v1/settings/hermes-config/mcp-oauth", {
+      params: { header: { "If-Match": String(revision) } }, body,
+    })).then((response) => {
+      if (!("runtimeApplied" in response.data) || response.data.runtimeApplied !== null)
+        throw new Error("Hermes-MCP-OAuth ohne Laufzeitkennzeichnung.");
+      return response as HermesMcpOAuthResponse;
+    }),
+    invalidate: [["settings", "hermes-config"]],
+  });
+}
+export function useHermesMcpOAuthFlow(flowId: string | null, revision: number | null) {
+  return useQuery({
+    queryKey: ["settings", "hermes-mcp-oauth", flowId],
+    queryFn: (): Promise<HermesMcpOAuthResponse> => call(getApiClient().POST("/api/v1/settings/hermes-config/mcp-oauth", {
+      params: { header: { "If-Match": String(revision) } }, body: { action: "status", flowId: flowId! },
+    })).then((response) => {
+      if (!("runtimeApplied" in response.data) || response.data.runtimeApplied !== null)
+        throw new Error("Hermes-MCP-OAuth ohne Laufzeitkennzeichnung.");
+      return response as HermesMcpOAuthResponse;
+    }),
+    enabled: flowId !== null && revision !== null,
+    refetchInterval: (query) => ["configured", "failed"].includes(query.state.data?.data.status ?? "") ? false : 2000,
   });
 }
 /** Adapter configuration (GET /settings/adapters is owner-only, so callers pass `enabled`). Secrets arrive masked only. */

@@ -6527,6 +6527,39 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/hermes-config/mcp-oauth:
+    post:
+      operationId: manageHermesMcpOAuth
+      tags: [settings]
+      summary: Start, poll or cancel one owner-bound Hermes MCP OAuth login
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HermesMcpOAuthRequest"
+      responses:
+        "200":
+          description: OAuth flow state; configured means native tokens and config persisted, not a running session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesMcpOAuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/hermes-model-catalog:
     get:
       operationId: getHermesModelCatalog
@@ -9313,6 +9346,10 @@ components:
       $ref: ../schemas/integrations/hermes-mcp-probe-request.schema.json
     HermesMcpProbeResponse:
       $ref: ../schemas/integrations/hermes-mcp-probe-response.schema.json
+    HermesMcpOAuthRequest:
+      $ref: ../schemas/integrations/hermes-mcp-oauth-request.schema.json
+    HermesMcpOAuthResponse:
+      $ref: ../schemas/integrations/hermes-mcp-oauth-response.schema.json
     HermesModelCatalog:
       $ref: ../schemas/integrations/hermes-model-catalog.schema.json
     HermesModelCatalogResponse:

@@ -2,7 +2,8 @@
 
 import type { HermesConfigPatch } from "@friday/sdk";
 import { useState } from "react";
-import { useHermesConfig, useHermesModelCatalog, usePatchHermesConfig, useProbeHermesMcp } from "@/lib/api/domains/settings";
+import { useHermesConfig, useHermesModelCatalog, usePatchHermesConfig, useProbeHermesMcp,
+  useManageHermesMcpOAuth, useHermesMcpOAuthFlow } from "@/lib/api/domains/settings";
 
 const LABELS: Record<string, string> = {
   "model.provider": "Hermes-Anbieterkennung",
@@ -60,6 +61,9 @@ export function HermesConfigArea() {
   const observed = useHermesConfig();
   const patch = usePatchHermesConfig();
   const mcpProbe = useProbeHermesMcp();
+  const mcpOAuth = useManageHermesMcpOAuth();
+  const [oauthFlow, setOAuthFlow] = useState<{ flowId: string; revision: number; name: string } | null>(null);
+  const oauthStatus = useHermesMcpOAuthFlow(oauthFlow?.flowId ?? null, oauthFlow?.revision ?? null);
   const [showCatalog, setShowCatalog] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [probeProvider, setProbeProvider] = useState<string | null>(null);
@@ -373,7 +377,7 @@ export function HermesConfigArea() {
           {server.id}: {server.transport}, {server.enabled === null ? "Aktivierung unbekannt" : server.enabled ? "konfiguriert aktiviert" : "konfiguriert deaktiviert"}; Konfiguration ohne Verbindungsnachweis
           {server.endpoint ? ` (${server.endpoint}; Pfad ausgeblendet)` : ""}
           {server.authMode === "bearer" ? `; Bearer-Schluessel ${server.credentialConfigured ? "hinterlegt" : "fehlt"}` :
-            server.authMode === "oauth" ? "; OAuth konfiguriert, Anmeldung hier noch nicht verfuegbar" :
+            server.authMode === "oauth" ? `; OAuth-Token-Datei ${server.credentialConfigured ? "hinterlegt" : "fehlt"}` :
             server.authMode === "unknown" ? "; Authentifizierung unbekannt" : ""}
           {server.transport === "http" && (server.authMode === "none" || server.authMode === "bearer") &&
             /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(server.id) ? <div>
@@ -403,6 +407,30 @@ export function HermesConfigArea() {
               `verbunden; ${mcpProbe.data.data.toolCount} Werkzeuge${mcpProbe.data.data.toolCountComplete ? "" : " (weitere Seiten nicht geprueft)"}` :
               `fehlgeschlagen (${mcpProbe.data.data.failureClass})`}. Zeitpunkt: {mcpProbe.data.data.checkedAt}.
               Uebernahme in laufende Hermes-Sitzungen ungeprueft.</p> : null}
+          {server.transport === "http" && (server.authMode === "none" && server.editable ||
+            server.authMode === "oauth" && server.credentialConfigured === false) && server.enabled &&
+            /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(server.id) ? <button type="button" disabled={mcpOAuth.isPending}
+            onClick={() => mcpOAuth.mutate({ action: "start", name: server.id, revision },
+              { onSuccess: (response) => setOAuthFlow({ flowId: response.data.flowId, revision, name: server.id }) })}>
+            {server.authMode === "oauth" ? "Unvollstaendige OAuth-Anmeldung wiederholen" : "OAuth-Anmeldung starten"}
+          </button> : null}
+          {oauthFlow?.name === server.id && oauthStatus.data ? <div role="status">
+            <p>OAuth: {oauthStatus.data.data.status === "configured" ?
+              "Hermes-Zugangsdaten und Konfiguration gespeichert; neue Sitzung oder MCP-Reload erforderlich" :
+              oauthStatus.data.data.status === "failed" ? `fehlgeschlagen (${oauthStatus.data.data.failureClass})` :
+              oauthStatus.data.data.status === "awaiting_approval" ? "Freigabe im Browser erwartet" :
+              oauthStatus.data.data.status}.</p>
+            {oauthStatus.data.data.status === "awaiting_approval" && oauthStatus.data.data.authorizationUrl ?
+              <a href={oauthStatus.data.data.authorizationUrl} target="_blank" rel="noopener noreferrer">
+                OAuth-Freigabe im Browser oeffnen
+              </a> : null}
+            {["starting", "awaiting_approval"].includes(oauthStatus.data.data.status) ?
+              <button type="button" disabled={mcpOAuth.isPending}
+                onClick={() => mcpOAuth.mutate({ action: "cancel", flowId: oauthFlow.flowId,
+                  revision: oauthFlow.revision }, { onSuccess: () => void oauthStatus.refetch() })}>
+                Anmeldung abbrechen
+              </button> : null}
+          </div> : null}
           {server.editable && server.enabled !== null ? <button type="button" disabled={patch.isPending}
             onClick={() => patch.mutate({ revision, patch: { key: "mcp.activation", name: server.id,
               enabled: !server.enabled } })}>
@@ -415,6 +443,8 @@ export function HermesConfigArea() {
         </li>)}</ul>
         {mcpProbe.isError ? <p role="alert">MCP-Probe nicht bestaetigt: {mcpProbe.error.message}.
           Konfiguration neu laden und den gewuenschten Server erneut pruefen.</p> : null}
+        {mcpOAuth.isError ? <p role="alert">OAuth-Vorgang nicht bestaetigt: {mcpOAuth.error.message}.</p> : null}
+        {oauthStatus.isError ? <p role="alert">OAuth-Status nicht lesbar: {oauthStatus.error.message}.</p> : null}
       </section>
     </div>
   );

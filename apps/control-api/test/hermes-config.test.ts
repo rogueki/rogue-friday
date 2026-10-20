@@ -363,3 +363,20 @@ it("fails closed when a catalog response claims an unrequested provider", async 
   })) as unknown as RunnerInvoker);
   await expect(service.modelCatalog("openai-api")).rejects.toMatchObject({ code: "ADAPTER_UNAVAILABLE" });
 });
+
+it("binds MCP OAuth start to the revision and returns only bounded state", async () => {
+  const invoke = vi.fn(async () => ({ flowId: "a".repeat(32), status: "awaiting_approval",
+    authorizationUrl: "https://auth.example.org/authorize?state=sample", updatedAt: 1,
+    access_token: "CANARY-DO-NOT-RETURN" })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const result = await service.manageMcpOAuth({ action: "start", name: "sample" }, 123, "owner-1");
+  expect(result).toMatchObject({ status: "awaiting_approval", revision: null, runtimeApplied: null });
+  expect(JSON.stringify(result)).not.toContain("CANARY-DO-NOT-RETURN");
+  expect(vi.mocked(invoke).mock.calls[0]?.[3]).toEqual(["mcp-oauth-start"]);
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[0]?.[4]))).toEqual({ name: "sample", revision: 123,
+    ownerId: "owner-1" });
+  await expect(service.manageMcpOAuth({ action: "start", name: "bad/name" }, 123, "owner-1"))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  await expect(service.manageMcpOAuth({ action: "status", flowId: "bad" }, 123, "owner-1"))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});

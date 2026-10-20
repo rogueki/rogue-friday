@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-mcp-oauth-response.schema.json",
+  "title": "HermesMcpOAuthResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "../common/contract-version.schema.json" },
+    "data": { "type": "object", "properties": {
+      "flowId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+      "status": { "enum": ["starting", "awaiting_approval", "publishing", "cancelling", "configured", "failed"] },
+      "authorizationUrl": { "type": ["string", "null"], "maxLength": 8192 },
+      "revision": { "type": ["integer", "null"], "minimum": 1 },
+      "failureClass": { "type": ["string", "null"], "maxLength": 80 },
+      "runtimeApplied": { "type": "null" }
+    }, "required": ["flowId", "status", "authorizationUrl", "revision", "failureClass", "runtimeApplied"],
+      "additionalProperties": false },
+    "freshness": { "$ref": "../common/freshness.schema.json" }
+  },
+  "required": ["contractVersion", "data", "freshness"],
+  "additionalProperties": false
+}

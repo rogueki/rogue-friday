@@ -222,6 +222,15 @@ export type HermesConfigPatch =
       key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
       value: string | null;
     };
+export type HermesMcpOAuthRequest =
+  | {
+      action: "start";
+      name: string;
+    }
+  | {
+      action: "status" | "cancel";
+      flowId: string;
+    };
 export type MemoryType =
   | "profile"
   | "preference"
@@ -711,6 +720,8 @@ export interface FridayModelMap {
   HermesConfigPatch: HermesConfigPatch;
   HermesConfigStatus: HermesConfigStatus;
   HermesConfigStatusResponse: HermesConfigStatusResponse;
+  HermesMcpOAuthRequest: HermesMcpOAuthRequest;
+  HermesMcpOAuthResponse: HermesMcpOAuthResponse;
   HermesMcpProbeRequest: HermesMcpProbeRequest;
   HermesMcpProbeResponse: HermesMcpProbeResponse;
   HermesModelCatalog: HermesModelCatalog;
@@ -3285,6 +3296,18 @@ export interface Extension {
 export interface HermesConfigStatusResponse {
   contractVersion: ContractVersion;
   data: HermesConfigStatus;
+  freshness: Freshness;
+}
+export interface HermesMcpOAuthResponse {
+  contractVersion: ContractVersion;
+  data: {
+    flowId: string;
+    status: "starting" | "awaiting_approval" | "publishing" | "cancelling" | "configured" | "failed";
+    authorizationUrl: string | null;
+    revision: number | null;
+    failureClass: string | null;
+    runtimeApplied: null;
+  };
   freshness: Freshness;
 }
 export interface HermesMcpProbeRequest {

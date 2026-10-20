@@ -32,6 +32,7 @@ $paths = @('installer\wsl\configure_memory_bridge.py', 'installer\wsl\setup_memo
     'installer\wsl\hermes_mcp_protocol_probe.py', 'installer\wsl\hermes_mcp_bearer_apply.py',
     'installer\wsl\hermes_mcp_auth_probe.py',
     'installer\wsl\patch_hermes_run_stop.py', 'installer\wsl\setup_hermes.sh',
+    'installer\wsl\hermes_mcp_oauth_transport.py', 'installer\wsl\hermes_mcp_oauth_worker.py',
     'installer\wsl\configure_messenger_inbound_bridge.py', 'installer\wsl\setup_messenger_inbound_bridge.sh',
     'installer\scripts\update-memory-bridge.ps1', 'installer\scripts\update-dashboard-github.ps1',
     'installer\scripts\recover-friday.ps1')

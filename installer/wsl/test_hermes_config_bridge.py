@@ -303,6 +303,42 @@ class BridgeTest(unittest.TestCase):
         self.assertTrue(result["write"]["persisted"])
         self.assertEqual(result["mcpServers"], [])
 
+    def test_mcp_oauth_start_is_revision_bound_and_returns_only_browser_link(self):
+        self.invoke({"name": "sample", "url": "https://mcp.example.org/mcp", "enabled": True,
+                     "revision": bridge.revision(self.config)})
+        stale_dir = self.home / ".hermes" / ".friday-mcp-oauth" / ("b" * 32)
+        stale_dir.mkdir(parents=True)
+        (stale_dir / "state.json").write_text('{"status":"failed"}')
+        os.utime(stale_dir, (time.time() - 90000, time.time() - 90000))
+
+        class FakeInput:
+            def __init__(self, test): self.test = test
+            def write(self, body):
+                self.request = json.loads(body)
+            def close(self):
+                from hermes_mcp_oauth_worker import write_state
+                write_state(Path(self.request["flowDir"]), "awaiting_approval",
+                            authorizationUrl="https://auth.example.org/authorize?state=synthetic")
+
+        class FakeWorker:
+            def __init__(self, test): self.stdin = FakeInput(test)
+            def poll(self): return None
+
+        with patch.object(bridge.subprocess, "Popen", return_value=FakeWorker(self)):
+            code, result = self.invoke({"name": "sample", "revision": bridge.revision(self.config),
+                                        "ownerId": "owner-1"},
+                                       "mcp-oauth-start")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["status"], "awaiting_approval")
+        self.assertRegex(result["flowId"], r"^[0-9a-f]{32}$")
+        self.assertNotIn("mcp.example.org/mcp", json.dumps(result))
+        self.assertFalse(stale_dir.exists())
+        stale_code, stale = self.invoke({"name": "sample", "revision": 0, "ownerId": "owner-1"}, "mcp-oauth-start")
+        self.assertEqual(stale_code, 4)
+        self.assertEqual(stale, {"error": "revision_conflict"})
+        with self.assertRaisesRegex(ValueError, "unknown_oauth_flow"):
+            self.invoke({"flowId": result["flowId"], "ownerId": "another-owner"}, "mcp-oauth-status")
+
     def test_mcp_bearer_secret_is_redacted_and_revision_bound(self):
         self.invoke({"name": "example", "url": "https://example.org/mcp", "enabled": True,
                      "revision": bridge.revision(self.config)})

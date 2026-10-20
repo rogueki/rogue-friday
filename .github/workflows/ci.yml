@@ -72,6 +72,9 @@ jobs:
             installer/wsl/test_hermes_mcp_auth_probe.py \
             installer/wsl/test_hermes_mcp_protocol_probe.py \
             installer/wsl/tests/test_patch_hermes_run_stop.py \
+            installer/wsl/test_hermes_mcp_oauth_transport.py \
+            installer/wsl/test_hermes_mcp_oauth_sdk_transport.py \
+            installer/wsl/test_hermes_mcp_oauth_worker.py \
             installer/wsl/test_configure_messenger_inbound_bridge.py \
             installer/wsl/test_messenger_inbound_plugin.py \
             installer/wsl/test_system_backup.py \

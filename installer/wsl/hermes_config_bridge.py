@@ -259,7 +259,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "model-catalog"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -283,6 +283,108 @@ def locked_main(home, source, cli):
     config_path = Path(call("path"))
     commit = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3)
     source_revision = commit.stdout.strip() if commit.returncode == 0 else None
+    if sys.argv[1] in ("mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel"):
+        if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
+            raise ValueError("unsupported_source_revision")
+        request = json.load(sys.stdin)
+        action = sys.argv[1]
+        if not isinstance(request, dict):
+            raise ValueError("invalid_request")
+        root = home / ".friday-mcp-oauth"
+        if action == "mcp-oauth-start":
+            if (set(request) != {"name", "revision", "ownerId"} or not valid_mcp_name(request["name"]) or
+                    type(request["revision"]) is not int or type(request["ownerId"]) is not str or
+                    not 1 <= len(request["ownerId"]) <= 128 or
+                    any(ord(char) < 32 or ord(char) == 127 for char in request["ownerId"])):
+                raise ValueError("invalid_request")
+            before, raw = snapshot(config_path)
+            if before != request["revision"]:
+                print(json.dumps({"error": "revision_conflict"}))
+                return 4
+            entry = raw.get("mcp_servers", {}).get(request["name"]) if isinstance(raw.get("mcp_servers"), dict) else None
+            token_path = home / "mcp-tokens" / f"{request['name']}.json"
+            if (not isinstance(entry, dict) or set(entry) - {"url", "enabled", "auth"} or
+                    entry.get("auth") not in (None, "oauth") or
+                    entry.get("auth") == "oauth" and (token_path.exists() or token_path.is_symlink()) or
+                    not valid_url(entry.get("url")) or entry.get("enabled", True) is not True):
+                raise ValueError("managed_entry_conflict")
+            if root.is_symlink():
+                raise ValueError("unsafe_oauth_state")
+            root.mkdir(mode=0o700, exist_ok=True)
+            os.chmod(root, 0o700)
+            for old_flow in root.iterdir():
+                if (not re.fullmatch(r"[0-9a-f]{32}", old_flow.name) or old_flow.is_symlink() or
+                        not old_flow.is_dir() or time.time() - old_flow.stat().st_mtime < 86400 or
+                        old_flow.resolve().parent != root.resolve()):
+                    continue
+                from hermes_mcp_oauth_worker import discard_stage
+                try:
+                    discard_stage(old_flow)
+                    for filename in ("owner.json", "state.json", "state.tmp", "cancel"):
+                        path = old_flow / filename
+                        if path.exists() or path.is_symlink():
+                            path.unlink()
+                    old_flow.rmdir()
+                except OSError:
+                    pass
+            if len(list(root.iterdir())) >= 256:
+                raise ValueError("oauth_flow_limit")
+            flow_id = secrets.token_hex(16)
+            flow_dir = root / flow_id
+            flow_dir.mkdir(mode=0o700)
+            fd = os.open(flow_dir / "owner.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as owner_file:
+                json.dump({"ownerId": request["ownerId"]}, owner_file)
+            from hermes_mcp_oauth_worker import write_state
+            write_state(flow_dir, "starting")
+            sys.path.insert(0, str(source))
+            from hermes_cli._launchers import runtime_command
+            helper = Path(__file__).with_name("hermes_mcp_oauth_worker.py")
+            command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
+            child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL, start_new_session=True, text=True)
+            child.stdin.write(json.dumps({"flowDir": str(flow_dir), "name": request["name"],
+                "url": entry["url"], "revision": before, "configPath": str(config_path),
+                "source": str(source)}))
+            child.stdin.close()
+            deadline = time.monotonic() + 15
+            state = {"status": "starting"}
+            while time.monotonic() < deadline:
+                state = json.loads((flow_dir / "state.json").read_text(encoding="utf-8"))
+                if state.get("status") != "starting" or child.poll() is not None:
+                    break
+                time.sleep(0.1)
+            print(json.dumps({"flowId": flow_id, **state}))
+            return 0
+        if (set(request) != {"flowId", "ownerId"} or type(request["flowId"]) is not str or
+                re.fullmatch(r"[0-9a-f]{32}", request["flowId"]) is None or
+                type(request["ownerId"]) is not str or not 1 <= len(request["ownerId"]) <= 128):
+            raise ValueError("invalid_request")
+        flow_dir = root / request["flowId"]
+        if root.is_symlink() or flow_dir.is_symlink() or not flow_dir.is_dir():
+            raise ValueError("unknown_oauth_flow")
+        owner_path = flow_dir / "owner.json"
+        if (owner_path.is_symlink() or owner_path.stat().st_size > 512 or
+                not hmac.compare_digest(json.loads(owner_path.read_text(encoding="utf-8")).get("ownerId", ""),
+                                        request["ownerId"])):
+            raise ValueError("unknown_oauth_flow")
+        state_path = flow_dir / "state.json"
+        if state_path.is_symlink() or state_path.stat().st_size > 16384:
+            raise ValueError("unsafe_oauth_state")
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        if action == "mcp-oauth-cancel" and state.get("status") in ("starting", "awaiting_approval", "publishing"):
+            try:
+                fd = os.open(flow_dir / "cancel", os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+            except FileExistsError:
+                pass
+            else:
+                os.close(fd)
+            state = {"status": "cancelling"}
+        elif state.get("status") in ("starting", "awaiting_approval", "publishing") and \
+                time.time() - state.get("updatedAt", 0) > 350:
+            state = {"status": "failed", "failureClass": "oauth_worker_unconfirmed"}
+        print(json.dumps({"flowId": request["flowId"], **state}))
+        return 0
     if sys.argv[1] == "mcp-probe":
         if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
             raise ValueError("unsupported_source_revision")
@@ -560,7 +662,11 @@ def locked_main(home, source, cli):
                              "enabled": entry.get("enabled", True) if type(entry.get("enabled", True)) is bool else None,
                              "endpoint": endpoint,
                              "authMode": auth_mode,
-                             "credentialConfigured": env_key in env_names if auth_mode == "bearer" else None,
+                             "credentialConfigured": env_key in env_names if auth_mode == "bearer" else
+                                                     (not (home / "mcp-tokens" / f"{name}.json").is_symlink() and
+                                                      (home / "mcp-tokens" / f"{name}.json").is_file())
+                                                     if auth_mode == "oauth" and
+                                                        re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", name) else None,
                              "editable": transport == "http" and set(entry) <= {"url", "enabled"} and
                                          valid_url(entry.get("url"))})
     if revision(config_path) != current:
@@ -640,5 +746,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (OSError, ValueError, TypeError, ImportError, subprocess.TimeoutExpired) as error:
-        print(json.dumps({"error": str(error) if str(error) in {"config_symlink", "invalid_request", "unsupported_field", "invalid_value", "unknown_provider"} else "hermes_unavailable"}))
+        print(json.dumps({"error": str(error) if str(error) in {"config_symlink", "invalid_request", "unsupported_field", "invalid_value", "unknown_provider", "managed_entry_conflict", "unknown_oauth_flow", "oauth_flow_limit", "unsafe_oauth_state", "unsupported_source_revision"} else "hermes_unavailable"}))
         raise SystemExit(5)

@@ -37,6 +37,11 @@ HERMES_TREE="$H/hermes-agent"
 }
 python3 "$INST/wsl/patch_hermes_run_stop.py" "$HERMES_TREE"
 
+step "Hermes MCP OAuth-Laufzeit"
+# The Friday OAuth worker uses the same SDK and HTTP stack as pinned Hermes.
+# Keep this after the pinned-source verification gate when installer patches are composed.
+hermes pm install --extra mcp
+
 step "Kimi-Zugang"
 mkdir -p "$H"
 touch "$H/.env" && chmod 600 "$H/.env"
