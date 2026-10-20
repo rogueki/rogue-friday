@@ -50,14 +50,22 @@ FIELDS = {
     "terminal.docker_volumes": ("docker_mounts", None, None),
     "browser.command_timeout": ("integer", 5, 600),
     "browser.snapshot_threshold": ("integer", 1000, 200000),
+    "browser.inactivity_timeout": ("integer", 15, 3600),
+    "browser.dialog_policy": ("dialog_policy", None, None),
+    "browser.dialog_timeout_s": ("integer", 1, 3600),
     "browser.allow_private_urls": ("boolean", None, None),
     "browser.use_real_profile": ("boolean", None, None),
     "browser.real_profile_pin": ("profile_pin", None, None),
     "browser.restrict_evaluate": ("boolean", None, None),
     "browser.allow_unsafe_evaluate": ("boolean", None, None),
     "code_execution.mode": ("code_mode", None, None),
+    "code_execution.kernel_idle_timeout": ("integer", 30, 86400),
+    "code_execution.max_session_kernels": ("integer", 1, 32),
     "computer_use.permission_mode": ("computer_permission", None, None),
     "computer_use.capability_manifest": ("manifest_path", None, None),
+    "computer_use.max_image_dimension": ("integer", 320, 4096),
+    "computer_use.ax_max_elements": ("integer", 50, 1000),
+    "computer_use.capture_after_mode": ("capture_after_mode", None, None),
     "toolsets": ("toolset_names", None, None),
     "command_allowlist": ("allowlist_subset", None, None),
     "approvals.mode": ("approval_mode", None, None),
@@ -113,6 +121,10 @@ def valid_field_value(key, value, spec):
         return type(value) is str and value in ("local", "docker")
     if kind == "code_mode":
         return type(value) is str and value in ("project", "strict")
+    if kind == "dialog_policy":
+        return type(value) is str and value in ("must_respond", "auto_dismiss")
+    if kind == "capture_after_mode":
+        return type(value) is str and value in ("som", "ax", "vision")
     if kind == "computer_permission":
         return type(value) is str and value in ("standard", "bounded")
     if kind == "approval_mode":
@@ -126,16 +138,17 @@ def valid_field_value(key, value, spec):
     if kind == "manifest_path":
         return type(value) is str and (value == "" or
             (1 <= len(value) <= 512 and value.startswith("/") and
-             all(32 < ord(char) < 127 for char in value)))
+             value.isprintable()))
     if kind == "workspace_path":
         return type(value) is str and (value == "." or
             (1 <= len(value) <= 512 and value.startswith("/") and
-             all(32 < ord(char) < 127 for char in value)))
+             value.isprintable()))
     if kind in ("docker_mounts", "toolset_names", "allowlist_subset"):
         limit = 8 if kind == "docker_mounts" else 16 if kind == "toolset_names" else 128
         return (type(value) is list and len(value) <= limit and
                 all(type(item) is str and 1 <= len(item) <= 512 and
-                    all((32 if kind == "allowlist_subset" else 33) <= ord(char) < 127 for char in item)
+                    (item.isprintable() if kind == "docker_mounts" else
+                        all((32 if kind == "allowlist_subset" else 33) <= ord(char) < 127 for char in item))
                     for item in value) and
                 len(set(value)) == len(value))
     if kind == "log_level":

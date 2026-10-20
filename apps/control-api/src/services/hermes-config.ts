@@ -58,14 +58,22 @@ export const HERMES_CONFIG_FIELDS = {
   "terminal.docker_volumes": { type: "textList", kind: "dockerMounts", family: "execution", consumer: "new Docker sandbox" },
   "browser.command_timeout": { type: "integer", min: 5, max: 600, family: "execution", consumer: "new browser session or cleared browser cache" },
   "browser.snapshot_threshold": { type: "integer", min: 1000, max: 200000, family: "execution", consumer: "new browser session or cleared browser cache" },
+  "browser.inactivity_timeout": { type: "integer", min: 15, max: 3600, family: "execution", consumer: "new browser module session" },
+  "browser.dialog_policy": { type: "string", kind: "dialogPolicy", family: "execution", consumer: "new CDP dialog supervisor" },
+  "browser.dialog_timeout_s": { type: "integer", min: 1, max: 3600, family: "execution", consumer: "new CDP dialog supervisor" },
   "browser.allow_private_urls": { type: "boolean", family: "execution", consumer: "new Hermes browser navigation" },
   "browser.use_real_profile": { type: "boolean", family: "execution", consumer: "new browser profile snapshot" },
   "browser.real_profile_pin": { type: "string", kind: "profilePin", family: "execution", consumer: "new browser profile snapshot" },
   "browser.restrict_evaluate": { type: "boolean", family: "execution", consumer: "new browser console evaluation" },
   "browser.allow_unsafe_evaluate": { type: "boolean", family: "execution", consumer: "new browser console evaluation" },
   "code_execution.mode": { type: "string", kind: "codeMode", family: "execution", consumer: "new execute_code kernel" },
+  "code_execution.kernel_idle_timeout": { type: "integer", min: 30, max: 86400, family: "execution", consumer: "new code-kernel idle sweep" },
+  "code_execution.max_session_kernels": { type: "integer", min: 1, max: 32, family: "execution", consumer: "new code-kernel admission" },
   "computer_use.permission_mode": { type: "string", kind: "computerPermission", family: "execution", consumer: "new computer-use session" },
   "computer_use.capability_manifest": { type: "string", kind: "manifestPath", family: "execution", consumer: "new bounded computer-use session" },
+  "computer_use.max_image_dimension": { type: "integer", min: 320, max: 4096, family: "execution", consumer: "new computer-use driver session" },
+  "computer_use.ax_max_elements": { type: "integer", min: 50, max: 1000, family: "execution", consumer: "next computer-use accessibility capture" },
+  "computer_use.capture_after_mode": { type: "string", kind: "captureAfterMode", family: "execution", consumer: "next computer-use action capture" },
   toolsets: { type: "textList", kind: "toolsetNames", family: "execution", consumer: "new Hermes tool surface" },
   command_allowlist: { type: "textList", kind: "allowlistSubset", family: "execution", consumer: "next dangerous-command approval check" },
   "approvals.mode": { type: "string", kind: "approvalMode", family: "execution", consumer: "next Hermes command approval" },
@@ -105,20 +113,25 @@ export type HermesModelCredential = typeof HERMES_MODEL_CREDENTIALS[number];
 export type HermesModelCredentialPatch = { key: HermesModelCredential; value: string | null };
 
 const REASONING_EFFORTS = new Set(["", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
+function printablePath(value: string): boolean {
+  return value.length <= 512 && value.startsWith("/") && !/[\p{C}\p{Zl}\p{Zp}]/u.test(value);
+}
 function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" | "executionBackend" |
   "profilePin" | "codeMode" | "computerPermission" | "manifestPath" | "workspacePath" |
-  "approvalMode" | "denyOnly" | "logLevel", value: unknown): boolean {
+  "approvalMode" | "denyOnly" | "logLevel" | "dialogPolicy" | "captureAfterMode", value: unknown): boolean {
   if (typeof value !== "string") return false;
   if (kind === "reasoning") return REASONING_EFFORTS.has(value);
   if (kind === "tailMode") return value === "lean" || value === "legacy";
   if (kind === "executionBackend") return value === "local" || value === "docker";
   if (kind === "codeMode") return value === "project" || value === "strict";
+  if (kind === "dialogPolicy") return value === "must_respond" || value === "auto_dismiss";
+  if (kind === "captureAfterMode") return value === "som" || value === "ax" || value === "vision";
   if (kind === "computerPermission") return value === "standard" || value === "bounded";
   if (kind === "approvalMode") return value === "manual" || value === "smart";
   if (kind === "denyOnly") return value === "deny";
   if (kind === "profilePin") return value === "" || /^(Default|Profile [0-9]{1,3})$/.test(value);
-  if (kind === "manifestPath") return value === "" || value.length <= 512 && /^\/[!-~]+$/.test(value);
-  if (kind === "workspacePath") return value === "." || value.length <= 512 && /^\/[!-~]+$/.test(value);
+  if (kind === "manifestPath") return value === "" || printablePath(value);
+  if (kind === "workspacePath") return value === "." || printablePath(value);
   if (kind === "logLevel") return value === "DEBUG" || value === "INFO" || value === "WARNING";
   if (kind === "provider") return /^[A-Za-z0-9_.-]{1,64}$/.test(value);
   return value.length > 0 && value.length <= 200 && !/\s/.test(value) &&
@@ -138,7 +151,8 @@ function validExecutionList(kind: "dockerMounts" | "toolsetNames" | "allowlistSu
   const limit = kind === "dockerMounts" ? 8 : kind === "toolsetNames" ? 16 : 128;
   return Array.isArray(value) && value.length <= limit && value.every((item) =>
     typeof item === "string" && item.length >= 1 && item.length <= 512 &&
-    (kind === "allowlistSubset" ? /^[ -~]+$/ : /^[!-~]+$/).test(item)) &&
+    (kind === "dockerMounts" ? !/[\p{C}\p{Zl}\p{Zp}]/u.test(item) :
+      (kind === "allowlistSubset" ? /^[ -~]+$/ : /^[!-~]+$/).test(item))) &&
     new Set(value).size === value.length;
 }
 function validMcpUrl(value: unknown): value is string {

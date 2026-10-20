@@ -214,6 +214,18 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "browser.inactivity_timeout";
+      value: number;
+    }
+  | {
+      key: "browser.dialog_policy";
+      value: "must_respond" | "auto_dismiss";
+    }
+  | {
+      key: "browser.dialog_timeout_s";
+      value: number;
+    }
+  | {
       key: "browser.allow_private_urls";
       value: boolean;
     }
@@ -238,12 +250,32 @@ export type HermesConfigPatch =
       value: "project" | "strict";
     }
   | {
+      key: "code_execution.kernel_idle_timeout";
+      value: number;
+    }
+  | {
+      key: "code_execution.max_session_kernels";
+      value: number;
+    }
+  | {
       key: "computer_use.permission_mode";
       value: "standard" | "bounded";
     }
   | {
       key: "computer_use.capability_manifest";
       value: string;
+    }
+  | {
+      key: "computer_use.max_image_dimension";
+      value: number;
+    }
+  | {
+      key: "computer_use.ax_max_elements";
+      value: number;
+    }
+  | {
+      key: "computer_use.capture_after_mode";
+      value: "som" | "ax" | "vision";
     }
   | {
       key: "toolsets";
@@ -3354,14 +3386,22 @@ export interface HermesConfigStatus {
       | "terminal.docker_volumes"
       | "browser.command_timeout"
       | "browser.snapshot_threshold"
+      | "browser.inactivity_timeout"
+      | "browser.dialog_policy"
+      | "browser.dialog_timeout_s"
       | "browser.allow_private_urls"
       | "browser.use_real_profile"
       | "browser.real_profile_pin"
       | "browser.restrict_evaluate"
       | "browser.allow_unsafe_evaluate"
       | "code_execution.mode"
+      | "code_execution.kernel_idle_timeout"
+      | "code_execution.max_session_kernels"
       | "computer_use.permission_mode"
       | "computer_use.capability_manifest"
+      | "computer_use.max_image_dimension"
+      | "computer_use.ax_max_elements"
+      | "computer_use.capture_after_mode"
       | "toolsets"
       | "command_allowlist"
       | "approvals.mode"

@@ -45,11 +45,16 @@ class BridgeTest(unittest.TestCase):
                        "terminal.timeout": 180, "browser.command_timeout": 30,
                        "terminal.backend": "local", "terminal.cwd": ".", "terminal.docker_network": True,
                        "terminal.docker_mount_cwd_to_workspace": False, "terminal.docker_volumes": [],
-                       "browser.snapshot_threshold": 15000,
+                       "browser.snapshot_threshold": 15000, "browser.inactivity_timeout": 120,
+                       "browser.dialog_policy": "must_respond", "browser.dialog_timeout_s": 300,
                        "browser.allow_private_urls": False, "browser.use_real_profile": False,
                        "browser.real_profile_pin": "", "browser.restrict_evaluate": False,
                        "browser.allow_unsafe_evaluate": False, "code_execution.mode": "project",
+                       "code_execution.kernel_idle_timeout": 1800,
+                       "code_execution.max_session_kernels": 4,
                        "computer_use.permission_mode": "standard", "computer_use.capability_manifest": "",
+                       "computer_use.max_image_dimension": 1456, "computer_use.ax_max_elements": 200,
+                       "computer_use.capture_after_mode": "som",
                        "toolsets": ["hermes-cli"], "command_allowlist": [],
                        "approvals.mode": "smart", "approvals.timeout": 300,
                        "approvals.single_query_mode": "deny", "approvals.unattended_mode": "deny",
@@ -571,6 +576,8 @@ class BridgeTest(unittest.TestCase):
                          "revision": current})
         with self.assertRaisesRegex(ValueError, "invalid_execution_workspace"):
             self.invoke({"key": "terminal.cwd", "value": "/tmp", "revision": current})
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "browser.dialog_policy", "value": "auto_accept", "revision": current})
         with self.assertRaisesRegex(ValueError, "allowlist_addition_requires_native_approval"):
             self.invoke({"key": "command_allowlist", "value": ["rm -rf *"], "revision": current})
         self.config.write_text(self.config.read_text() + "\nbrowser:\n  restrict_evaluate: true\n")
@@ -584,6 +591,22 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertTrue(result["write"]["persisted"])
         self.assertEqual(result["values"]["code_execution.mode"], "strict")
+
+    def test_bounded_browser_kernel_and_capture_controls_read_back(self):
+        for key, value in (("browser.dialog_policy", "auto_dismiss"),
+                           ("browser.dialog_timeout_s", 45),
+                           ("browser.inactivity_timeout", 300),
+                           ("code_execution.kernel_idle_timeout", 600),
+                           ("code_execution.max_session_kernels", 2),
+                           ("computer_use.ax_max_elements", 250),
+                           ("computer_use.max_image_dimension", 1024),
+                           ("computer_use.capture_after_mode", "ax")):
+            with self.subTest(key=key):
+                code, result = self.invoke({"key": key, "value": value,
+                                            "revision": bridge.revision(self.config)})
+                self.assertEqual(code, 0)
+                self.assertEqual(result["values"][key], value)
+                self.assertTrue(result["write"]["persisted"])
 
     def test_docker_requires_staged_network_off_and_daemon(self):
         code, _ = self.invoke({"key": "terminal.docker_network", "value": False,
@@ -636,8 +659,12 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(result["values"]["toolsets"], ["web"])
 
     def test_docker_mounts_stay_inside_non_secret_user_workspace(self):
-        workspace = self.home / "workspace"
+        workspace = self.home / "Arbeits Fläche"
         workspace.mkdir()
+        code, result = self.invoke({"key": "terminal.cwd", "value": str(workspace),
+                                    "revision": bridge.revision(self.config)})
+        self.assertEqual(code, 0)
+        self.assertEqual(result["values"]["terminal.cwd"], str(workspace))
         self.config.write_text(self.config.read_text() + "\nterminal:\n  backend: docker\n")
         with self.assertRaisesRegex(ValueError, "invalid_docker_mount"):
             self.invoke({"key": "terminal.docker_volumes", "value": ["/var/run/docker.sock:/workspace/mounts/docker"],
@@ -685,11 +712,15 @@ elif a[:2] == ['config', 'get']:
          'terminal.timeout': 180, 'browser.command_timeout': 30,
          'terminal.backend': 'local', 'terminal.cwd': '.', 'terminal.docker_network': True,
          'terminal.docker_mount_cwd_to_workspace': False, 'terminal.docker_volumes': [],
-         'browser.snapshot_threshold': 15000,
+         'browser.snapshot_threshold': 15000, 'browser.inactivity_timeout': 120,
+         'browser.dialog_policy': 'must_respond', 'browser.dialog_timeout_s': 300,
          'browser.allow_private_urls': False, 'browser.use_real_profile': False,
          'browser.real_profile_pin': '', 'browser.restrict_evaluate': False,
          'browser.allow_unsafe_evaluate': False, 'code_execution.mode': 'project',
+         'code_execution.kernel_idle_timeout': 1800, 'code_execution.max_session_kernels': 4,
          'computer_use.permission_mode': 'standard', 'computer_use.capability_manifest': '',
+         'computer_use.max_image_dimension': 1456, 'computer_use.ax_max_elements': 200,
+         'computer_use.capture_after_mode': 'som',
          'toolsets': ['hermes-cli'], 'command_allowlist': [],
          'approvals.mode': 'smart', 'approvals.timeout': 300,
          'approvals.single_query_mode': 'deny', 'approvals.unattended_mode': 'deny',
