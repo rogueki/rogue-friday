@@ -5021,6 +5021,7 @@ export interface Task {
   agentId: string | null;
   agentName?: string;
   model: string | null;
+  reasoningLevel?: ReasoningLevel;
   progress: Progress;
   startedAt: string | null;
   runtimeMs: number | null;
@@ -5927,6 +5928,8 @@ export interface TaskCreateRequest {
   priority?: Priority;
   agentId?: string | null;
   model?: string | null;
+  provider?: string | null;
+  reasoningLevel?: ReasoningLevel;
   dueAt?: string | null;
   labels?: string[];
 }

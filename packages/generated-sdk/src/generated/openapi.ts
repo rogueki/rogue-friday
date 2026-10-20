@@ -9780,6 +9780,7 @@ export interface components {
             parentTaskId?: string | null;
             priority: components["schemas"]["Priority"];
             progress: components["schemas"]["Progress"];
+            reasoningLevel?: components["schemas"]["ReasoningLevel"];
             runtimeMs: number | null;
             source: components["schemas"]["SourceDescriptor"];
             sourceRefs: components["schemas"]["EntityRef"][];
@@ -9829,6 +9830,8 @@ export interface components {
             labels?: string[];
             model?: string | null;
             priority?: components["schemas"]["Priority"];
+            provider?: string | null;
+            reasoningLevel?: components["schemas"]["ReasoningLevel"];
             title: string;
         };
         /**
