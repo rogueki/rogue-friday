@@ -227,12 +227,15 @@ it("discards update, cancel and retry drafts only with the same owner and action
       const staged = await request(owner, entry.body);
       expect(staged.statusCode, staged.body).toBe(403);
       const previewId = staged.json().error.details.previewId as string;
-      const discard = { "x-action-preview-id": previewId, "x-action-preview-cancel": "true" };
+      const discard = { "x-action-preview-id": previewId, "x-action-preview-cancel": "true",
+        "idempotency-key": `task-draft-discard-${entry.method}-${entry.suffix || "update"}` };
       expect((await request(otherUser, entry.body, discard)).statusCode).toBe(409);
       expect((await request(owner, entry.method === "patch" ? { title: "Anderer Entwurf" } :
         { reason: "Andere Nutzlast" }, discard)).statusCode).toBe(409);
       expect((await request(owner, entry.body, { "x-action-preview-cancel": "true" })).statusCode).toBe(422);
-      expect((await request(owner, entry.body, discard)).statusCode).toBe(204);
+      const discarded = await request(owner, entry.body, discard);
+      expect(discarded.statusCode).toBe(204);
+      expect(discarded.headers["idempotent-replayed"]).toBe(entry.method === "patch" ? undefined : "false");
       expect((await request(owner, entry.body, { "x-action-preview-id": previewId })).statusCode).toBe(409);
       const after = await owner.get(`/api/v1/tasks/${task.id}`);
       expect(after.json().data).toMatchObject({ id: task.id, title: task.title, status: task.status });

@@ -18157,6 +18157,7 @@ export interface operations {
             204: {
                 headers: {
                     "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -18242,6 +18243,7 @@ export interface operations {
             /** @description The matching draft was discarded without updating the task. */
             204: {
                 headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -18344,6 +18346,8 @@ export interface operations {
             /** @description The matching draft was discarded without cancelling the task. */
             204: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -18538,6 +18542,8 @@ export interface operations {
             /** @description The matching draft was discarded without retrying the task. */
             204: {
                 headers: {
+                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
                     [name: string]: unknown;
                 };
                 content?: never;

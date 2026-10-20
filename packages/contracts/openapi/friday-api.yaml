@@ -685,6 +685,8 @@ paths:
         "204":
           description: Saved preview discarded; no task was created.
           headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
             Idempotent-Replayed:
               $ref: "#/components/headers/IdempotentReplayed"
         "201":
@@ -788,6 +790,9 @@ paths:
                 $ref: "#/components/schemas/TaskResponse"
         "204":
           description: The matching draft was discarded without updating the task.
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -847,6 +852,11 @@ paths:
                 $ref: "#/components/schemas/TaskResponse"
         "204":
           description: The matching draft was discarded without cancelling the task.
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -906,6 +916,11 @@ paths:
                 $ref: "#/components/schemas/TaskResponse"
         "204":
           description: The matching draft was discarded without retrying the task.
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
