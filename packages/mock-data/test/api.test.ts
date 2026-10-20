@@ -210,7 +210,7 @@ describe("REST route coverage", () => {
       "actOnCalendarAccount", "backupDurableMemory", "cancelWhatsappPairing", "captureDurableMemoryEvent", "changeMailMessage",
       "checkMailAccount", "completeGoogleMailOAuth", "confirmVoiceConnectedCalendar", "correctDurableMemoryEvent",
       "createMailAccount", "deleteMailAccount", "forgetDurableMemoryEvent", "getDurableMemoryStatus", "getMailAttachment",
-      "getMailMessage", "getHermesConfig", "getHermesModelCatalog", "getVoiceIntegrationStatus", "getWhatsappPairing", "listCalendarAccounts", "listMailAccounts",
+      "getMailMessage", "getHermesConfig", "getHermesModelCatalog", "getVoiceIntegrationStatus", "getWhatsappPairing", "listCalendarAccounts", "listHermesCronJobs", "listMailAccounts",
       "listMailEnvelopes", "listMailFolders", "listMailReceipts", "logoutWhatsappGateway", "pollMailOAuth",
       "patchHermesConfig", "previewVoiceConnectedCalendar", "putDurableMemorySettings", "reconcileMailArchive", "reconnectWhatsappGateway",
       "reindexDurableMemory", "restoreDurableMemory", "retryDurableMemory", "reviewMailReceipt", "revokeMailOAuth",
