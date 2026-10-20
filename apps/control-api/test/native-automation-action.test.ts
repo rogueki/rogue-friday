@@ -152,6 +152,38 @@ it("stages enable/disable with pre-staging guards and runs a disable through the
   } finally { await api.close(); }
 });
 
+it("rechecks the disabled capability when an approved automation write is dispatched", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const automation = await byName(owner, "Morgenbriefing erstellen");
+    expect(automation.enabled).toBe(true);
+
+    const staged = await owner.post(`/api/v1/automations/${automation.id}/disable`);
+    expect(staged.statusCode, staged.body).toBe(403);
+    const previewId = staged.json().error.details.previewId as string;
+    const approvalStage = await owner.post(`/api/v1/automations/${automation.id}/disable`, undefined,
+      { headers: confirmedHeaders(previewId) });
+    expect(approvalStage.statusCode, approvalStage.body).toBe(403);
+    expect(approvalStage.json().error.details.stage).toBe("approval");
+
+    const revoked = await owner.post("/api/v1/dev/scenarios/control", {
+      action: "capability_toggle", module: "automations", capability: "disable", enabled: false,
+    });
+    expect(revoked.statusCode, revoked.body).toBe(200);
+    const approvalId = approvalStage.json().error.details.approvalId as string;
+    const opened = await owner.get(`/api/v1/approvals/${approvalId}`);
+    expect(opened.statusCode, opened.body).toBe(200);
+    const decision = await owner.post(`/api/v1/approvals/${approvalId}/approve`, {},
+      { headers: { "x-approval-token": String(opened.headers["x-approval-token"]) } });
+
+    expect(decision.statusCode, decision.body).toBe(403);
+    expect(decision.json().error.code).toBe("CAPABILITY_MISSING");
+    expect((await owner.get(`/api/v1/automations/${automation.id}`)).json().data.enabled).toBe(true);
+  } finally { await api.close(); }
+});
+
 it("stages a dry run and a real test run, recording exactly one run entry each", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {
