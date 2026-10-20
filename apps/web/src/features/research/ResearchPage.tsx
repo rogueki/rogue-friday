@@ -835,7 +835,7 @@ function ResearchProviderSetup() {
         </Button>
         <Button
           type="button"
-          disabled={saving}
+          disabled={saving || !config.data}
           onClick={() => setEndpoint("https://en.wikipedia.org/w/rest.php/v1/search/page")}
         >
           {t("research.provider.wikipedia")}
@@ -846,9 +846,9 @@ function ResearchProviderSetup() {
           value={endpoint}
           onChange={(event) => setEndpoint(event.target.value)}
           placeholder="http://127.0.0.1:8080/"
-          disabled={saving}
+          disabled={saving || !config.data}
         />
-        <Button type="submit" disabled={saving}>
+        <Button type="submit" disabled={saving || !config.data}>
           {t("research.provider.save")}
         </Button>
       </div>
@@ -856,11 +856,20 @@ function ResearchProviderSetup() {
         <p className="mc-note" role="status">
           {config.data.data.setup.reason === "WINDOWS_PORT_UNREACHABLE"
             ? t("research.provider.status.windowsPort")
-            : t(`research.provider.status.${config.data.data.setup.state}` as MessageKey)}
+            : config.data.data.setup.reason === "JSON_UNAVAILABLE"
+              ? t("research.provider.status.jsonUnavailable")
+              : config.data.data.setup.reason === "WRONG_IMAGE"
+                ? t("research.provider.status.wrongImage")
+                : t(`research.provider.status.${config.data.data.setup.state}` as MessageKey)}
           {config.data.data.setup.state === "ready" && ` · ${config.data.data.setup.endpoint}`}
           <Button type="button" variant="ghost" disabled={saving} onClick={() => void config.refetch()}>
             {t("research.provider.check")}
           </Button>
+        </p>
+      )}
+      {config.isError && (
+        <p className="mc-note" role="alert">
+          {t("research.provider.failed")}
         </p>
       )}
       <p className="mc-note mc-note--muted">{t("research.provider.help")}</p>
@@ -929,33 +938,35 @@ function ResearchContent() {
 
   return (
     <div className="mc-page rs-page">
-      <form
-        className="rs-create"
-        onSubmit={(event) => {
-          event.preventDefault();
-          startResearch();
-        }}
-      >
-        <label htmlFor="research-topic">{t("research.create.topic")}</label>
-        <div className="mc-toolbar">
-          <input
-            id="research-topic"
-            value={topic}
-            onChange={(event) => setTopic(event.target.value)}
-            minLength={3}
-            maxLength={500}
-            disabled={!canCreate || stagedBusy}
-            placeholder={t("research.create.placeholder")}
-          />
-          <Button type="submit" disabled={!canCreate || stagedBusy || topic.trim().length < 3}>
-            {t("research.create.start")}
-          </Button>
-        </div>
-        <p className="mc-note mc-note--muted">
-          {canCreate ? t("research.create.disclosure") : t("research.create.unavailable")}
-        </p>
-      </form>
-      <ResearchProviderSetup />
+      <div className="rs-controls">
+        <form
+          className="rs-create"
+          onSubmit={(event) => {
+            event.preventDefault();
+            startResearch();
+          }}
+        >
+          <label htmlFor="research-topic">{t("research.create.topic")}</label>
+          <div className="mc-toolbar">
+            <input
+              id="research-topic"
+              value={topic}
+              onChange={(event) => setTopic(event.target.value)}
+              minLength={3}
+              maxLength={500}
+              disabled={!canCreate || stagedBusy}
+              placeholder={t("research.create.placeholder")}
+            />
+            <Button type="submit" disabled={!canCreate || stagedBusy || topic.trim().length < 3}>
+              {t("research.create.start")}
+            </Button>
+          </div>
+          <p className="mc-note mc-note--muted">
+            {canCreate ? t("research.create.disclosure") : t("research.create.unavailable")}
+          </p>
+        </form>
+        <ResearchProviderSetup />
+      </div>
       <div className="mc-grid rs-layout">
         <PanelFrame
           title={t("research.list.title")}

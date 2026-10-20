@@ -233,6 +233,8 @@ export const deC = {
   "research.provider.status.ready": "Lokaler Websuchdienst läuft",
   "research.provider.status.stopped": "Lokaler Websuchdienst ist nicht erreichbar; Einrichtung erneut starten",
   "research.provider.status.windowsPort": "SearXNG läuft in WSL, ist aber von Windows nicht erreichbar. WSL-Netzwerk prüfen.",
+  "research.provider.status.jsonUnavailable": "SearXNG antwortet, aber die JSON-Suche ist nicht verfügbar. Einrichtung reparieren.",
+  "research.provider.status.wrongImage": "Der laufende Suchcontainer entspricht nicht der geprüften Version. Einrichtung reparieren.",
   "research.provider.status.unavailable": "Lokale Einrichtung fehlt. Friday-Installer aktualisieren.",
   "research.provider.save": "Suchdienst speichern",
   "research.provider.saved": "Suchdienst gespeichert",

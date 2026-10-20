@@ -4,7 +4,15 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { ApiError } from "../util/errors";
 
 export const LOCAL_RESEARCH_ENDPOINT = "http://127.0.0.1:43696/";
-type HelperResult = { service: string; http: "ready" | "unavailable"; endpoint: string; image: string };
+export const PINNED_RESEARCH_IMAGE =
+  "ghcr.io/searxng/searxng@sha256:5ed0323b5f5f8701264ef65e239a2bd83cb57098f2b971fa30bf79c06eeae271";
+type HelperResult = {
+  service: string;
+  http: "ready" | "unavailable";
+  endpoint: string;
+  image: string;
+  imageVerified: boolean;
+};
 export type ResearchSetupState = {
   available: boolean;
   state: "ready" | "stopped" | "unavailable";
@@ -15,15 +23,43 @@ export type ResearchSetupState = {
 export type ResearchSetupRun = (mode: "status" | "install") => Promise<HelperResult>;
 export type ResearchSetupProbe = (endpoint: string) => Promise<boolean>;
 
-const localProbe: ResearchSetupProbe = async (endpoint) => {
+export const localProbe: ResearchSetupProbe = async (endpoint) => {
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(new URL("search?format=json", endpoint), {
       method: "GET",
       signal: AbortSignal.timeout(2_000),
       redirect: "error",
+      headers: { Accept: "application/json" },
     });
-    await response.body?.cancel();
-    return response.status === 200 && String(response.headers.get("content-type")).startsWith("text/html");
+    if (
+      response.status !== 400 ||
+      !String(response.headers.get("content-type")).startsWith("application/json")
+    ) {
+      await response.body?.cancel();
+      return false;
+    }
+    const reader = response.body?.getReader();
+    if (!reader) return false;
+    const chunks: Buffer[] = [];
+    let size = 0;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > 4_096) {
+        await reader.cancel();
+        return false;
+      }
+      chunks.push(Buffer.from(value));
+    }
+    const payload: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    return (
+      !!payload &&
+      typeof payload === "object" &&
+      !Array.isArray(payload) &&
+      Object.keys(payload).length === 1 &&
+      (payload as { error?: unknown }).error === "No query"
+    );
   } catch {
     return false;
   }
@@ -116,7 +152,8 @@ async function invoke(dataDir: string, mode: "status" | "install"): Promise<Help
         typeof result.service !== "string" ||
         !["ready", "unavailable"].includes(String(result.http)) ||
         result.endpoint !== LOCAL_RESEARCH_ENDPOINT ||
-        typeof result.image !== "string"
+        typeof result.image !== "string" ||
+        typeof result.imageVerified !== "boolean"
       )
         return fail(new Error("research_setup_invalid_response"));
       settled = true;
@@ -135,18 +172,27 @@ export class ResearchSetupService {
   async status(): Promise<ResearchSetupState> {
     try {
       const result = await this.runner("status");
+      const pinned = result.imageVerified && result.image === PINNED_RESEARCH_IMAGE;
       const reachable =
-        result.service === "active" && result.http === "ready" && (await this.probe(LOCAL_RESEARCH_ENDPOINT));
+        pinned &&
+        result.service === "active" &&
+        result.http === "ready" &&
+        (await this.probe(LOCAL_RESEARCH_ENDPOINT));
+      const reason = reachable
+        ? null
+        : result.service !== "active"
+          ? "SERVICE_NOT_READY"
+          : !pinned
+            ? "WRONG_IMAGE"
+            : result.http !== "ready"
+              ? "JSON_UNAVAILABLE"
+              : "WINDOWS_PORT_UNREACHABLE";
       return {
         available: true,
         state: reachable ? "ready" : "stopped",
         endpoint: LOCAL_RESEARCH_ENDPOINT,
         image: result.image,
-        reason: reachable
-          ? null
-          : result.service === "active" && result.http === "ready"
-            ? "WINDOWS_PORT_UNREACHABLE"
-            : "SERVICE_NOT_READY",
+        reason,
       };
     } catch {
       return {
@@ -167,13 +213,18 @@ export class ResearchSetupService {
       const reason = error instanceof Error ? error.message : "research_setup_failed";
       throw new ApiError({
         code: "ADAPTER_UNAVAILABLE",
-        message: `Lokaler Suchdienst konnte nicht eingerichtet werden (${reason}). Status pruefen und erneut versuchen.`,
+        message:
+          reason === "research_setup_timeout"
+            ? "Die Einrichtung hat das Zeitlimit erreicht; ein WSL-Kindprozess kann noch laufen. Status pruefen, bevor die Einrichtung erneut gestartet wird."
+            : `Lokaler Suchdienst konnte nicht eingerichtet werden (${reason}). Status pruefen und erneut versuchen.`,
       });
     }
     if (
       result.service !== "active" ||
       result.http !== "ready" ||
       result.endpoint !== LOCAL_RESEARCH_ENDPOINT ||
+      !result.imageVerified ||
+      result.image !== PINNED_RESEARCH_IMAGE ||
       !(await this.probe(LOCAL_RESEARCH_ENDPOINT))
     )
       throw new ApiError({

@@ -235,6 +235,8 @@ export const enC: Record<keyof typeof deC, string> = {
   "research.provider.status.ready": "Local web search is running",
   "research.provider.status.stopped": "Local web search is unavailable; run setup again",
   "research.provider.status.windowsPort": "SearXNG runs in WSL but Windows cannot reach it. Check WSL networking.",
+  "research.provider.status.jsonUnavailable": "SearXNG responds, but JSON search is unavailable. Repair setup.",
+  "research.provider.status.wrongImage": "The running search container does not match the pinned version. Repair setup.",
   "research.provider.status.unavailable": "Local setup is missing. Update the Friday installer.",
   "research.provider.save": "Save search service",
   "research.provider.saved": "Search service saved",

@@ -225,6 +225,7 @@ function Get-WslBridgeSourcePaths {
         'installer/wsl/patch_hermes_run_stop.py', 'installer/wsl/setup_hermes.sh',
         'installer/wsl/hermes_mcp_oauth_transport.py', 'installer/wsl/hermes_mcp_oauth_worker.py',
         'installer/wsl/configure_messenger_inbound_bridge.py', 'installer/wsl/setup_messenger_inbound_bridge.sh',
+        'installer/wsl/setup_searxng.sh', 'installer/wsl/research_searxng_settings.py',
         'installer/scripts/recover-friday.ps1')
 }
 function Get-VoiceSourcePaths {

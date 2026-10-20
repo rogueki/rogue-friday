@@ -22,6 +22,8 @@ REQUIRED = {
     "installer/scripts/recover-friday.ps1",
     "installer/wsl/configure_messenger_inbound_bridge.py",
     "installer/wsl/setup_messenger_inbound_bridge.sh",
+    "installer/wsl/setup_searxng.sh",
+    "installer/wsl/research_searxng_settings.py",
 }
 
 
