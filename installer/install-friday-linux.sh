@@ -141,6 +141,13 @@ if [[ "$VOICE_MODE" == local ]]; then
 fi
 
 note "Mode: $MODE | source: $SOURCE"
+if [[ -f "$SOURCE/installer/linux/find_obsidian_install.sh" ]]; then
+  if obsidian_app=$(bash "$SOURCE/installer/linux/find_obsidian_install.sh"); then
+    note "Existing Obsidian app: $obsidian_app (reused; no application installation)"
+  else
+    note 'Obsidian GUI app not found; existing vault data is not changed by this installer.'
+  fi
+fi
 note "Plan: $RELEASES/<revision> -> $CURRENT; config $CONFIG; persistent state $STATE; dashboard 127.0.0.1:$FRIDAY_PORT, Hermes 127.0.0.1:$HERMES_PORT, Hermes API 127.0.0.1:$HERMES_API_PORT, voice 127.0.0.1:$VOICE_PORT"
 note "Friday skills source: ${SKILLS_SOURCE:-missing}"
 note "Voice selection: ${VOICE_MODE:-choose at install}; ElevenLabs voice starts after private enrollment and Hermes API prerequisites"
