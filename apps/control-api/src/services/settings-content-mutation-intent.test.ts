@@ -97,10 +97,16 @@ describe("settings and Content Studio mutation intents", () => {
     expect(parseSettingsContentMutationIntent("Importiere den Redaktionsplan")).toEqual({ kind: "contentStudio.plan.importGuided" });
   });
 
-  it("maps a selected idea pronoun to a typed status action that requires context", () => {
-    expect(parseSettingsContentMutationIntent("Mark it as done")).toEqual({ kind: "contentStudio.idea.statusSelected", status: "fertig" });
-    expect(parseSettingsContentMutationIntent("Set selected idea status to in progress")).toEqual({ kind: "contentStudio.idea.statusSelected", status: "in-arbeit" });
-    expect(parseSettingsContentMutationIntent("Mark this idea done")).toEqual({ kind: "contentStudio.idea.statusSelected", status: "fertig" });
+  it.each([
+    ["Mark it as done", "fertig"],
+    ["Set selected idea status to in progress", "in-arbeit"],
+    ["Mark this idea done", "fertig"],
+    ["Set this one to done", "fertig"],
+    ["Actually make it in progress", "in-arbeit"],
+    ["Ändere diese auf fertig", "fertig"],
+    ["Markiere sie als fertig", "fertig"],
+  ] as const)("maps selected idea reference and correction to a typed status action: %s", (text, status) => {
+    expect(parseSettingsContentMutationIntent(text)).toEqual({ kind: "contentStudio.idea.statusSelected", status });
   });
 
   it("maps profile enum choices and rejects unsupported free-form values", () => {

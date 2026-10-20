@@ -263,9 +263,10 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     const previewId = preview.json().previewId as string;
     expect((await command(operator, text, { context })).statusCode).toBe(403);
 
-    expect((await command(owner, "Mark it as in progress", { context, confirm: true, previewId })).statusCode).toBe(409);
+    expect((await command(owner, "Actually make it in progress", { context, confirm: true, previewId })).statusCode).toBe(409);
     expect((await command(owner, text, { context: { route: "/content-studio", selectedIds: ["another-idea"] }, confirm: true, previewId })).statusCode).toBe(409);
     expect(api.runtime.contentStudioPlan.get().plan?.content.find((entry) => entry.id === item.id)?.status).toBe("idee");
+    expect((await command(owner, text)).statusCode).toBe(422);
     expect((await command(owner, text, { context: { route: "/content-studio", selectedIds: [item.id, "another-idea"] } })).statusCode).toBe(422);
     expect((await command(owner, text, { context: { route: "/tasks", selectedIds: [item.id] } })).statusCode).toBe(422);
 
