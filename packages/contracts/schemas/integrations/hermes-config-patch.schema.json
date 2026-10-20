@@ -91,6 +91,7 @@
     { "type": "object", "properties": { "key": { "const": "plugin.activation" }, "pluginId": { "type": "string", "pattern": "^(?!.*\\.\\.)(?!/)(?!.*//)[A-Za-z0-9._/-]{1,100}$" }, "enabled": { "type": "boolean" } }, "required": ["key", "pluginId", "enabled"], "additionalProperties": false },
     { "type": "object", "properties": { "key": { "const": "mcp.httpServer" }, "name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$" }, "url": { "anyOf": [{ "type": "string", "minLength": 10, "maxLength": 2048, "pattern": "^https://" }, { "type": "null" }] }, "enabled": { "type": "boolean" } }, "required": ["key", "name", "url", "enabled"], "additionalProperties": false },
     { "type": "object", "properties": { "key": { "const": "mcp.activation" }, "name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$" }, "enabled": { "type": "boolean" } }, "required": ["key", "name", "enabled"], "additionalProperties": false },
+    { "type": "object", "properties": { "key": { "const": "mcp.bearerCredential" }, "name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$" }, "token": { "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^[\\x21-\\x7e]+$" }, { "type": "null" }] } }, "required": ["key", "name", "token"], "additionalProperties": false },
     {
       "type": "object",
       "properties": {

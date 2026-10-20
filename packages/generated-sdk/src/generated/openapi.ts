@@ -6451,6 +6451,11 @@ export interface components {
             key: "mcp.activation";
             name: string;
         } | {
+            /** @constant */
+            key: "mcp.bearerCredential";
+            name: string;
+            token: string | null;
+        } | {
             /** @enum {unknown} */
             key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
             value: string | null;
@@ -6505,6 +6510,9 @@ export interface components {
             };
             mcpComplete: boolean;
             mcpServers: {
+                /** @enum {unknown} */
+                authMode: "none" | "bearer" | "oauth" | "unknown";
+                credentialConfigured: boolean | null;
                 editable: boolean;
                 enabled: boolean | null;
                 endpoint: string | null;

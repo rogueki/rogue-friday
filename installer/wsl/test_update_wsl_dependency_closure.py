@@ -13,6 +13,7 @@ REQUIRED = {
     "installer/wsl/hermes_plugin_activation.py",
     "installer/wsl/hermes_mcp_http_apply.py",
     "installer/wsl/hermes_mcp_protocol_probe.py",
+    "installer/wsl/hermes_mcp_bearer_apply.py",
     "installer/scripts/recover-friday.ps1",
     "installer/wsl/configure_messenger_inbound_bridge.py",
     "installer/wsl/setup_messenger_inbound_bridge.sh",

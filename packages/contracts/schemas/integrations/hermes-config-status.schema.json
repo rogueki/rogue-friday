@@ -138,8 +138,9 @@
     "mcpServers": { "type": "array", "items": { "type": "object", "properties": {
       "id": { "type": "string" }, "transport": { "enum": ["http", "stdio", "unknown"] },
       "enabled": { "type": ["boolean", "null"] }, "endpoint": { "type": ["string", "null"] },
-      "editable": { "type": "boolean" }
-    }, "required": ["id", "transport", "enabled", "endpoint", "editable"], "additionalProperties": false } },
+      "editable": { "type": "boolean" }, "authMode": { "enum": ["none", "bearer", "oauth", "unknown"] },
+      "credentialConfigured": { "type": ["boolean", "null"] }
+    }, "required": ["id", "transport", "enabled", "endpoint", "editable", "authMode", "credentialConfigured"], "additionalProperties": false } },
     "write": {
       "oneOf": [
         { "type": "null" },

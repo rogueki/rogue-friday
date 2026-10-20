@@ -214,6 +214,11 @@ export type HermesConfigPatch =
       enabled: boolean;
     }
   | {
+      key: "mcp.bearerCredential";
+      name: string;
+      token: string | null;
+    }
+  | {
       key: "OPENROUTER_API_KEY" | "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
       value: string | null;
     };
@@ -3256,6 +3261,8 @@ export interface HermesConfigStatus {
     enabled: boolean | null;
     endpoint: string | null;
     editable: boolean;
+    authMode: "none" | "bearer" | "oauth" | "unknown";
+    credentialConfigured: boolean | null;
   }[];
   write: null | {
     key: string;

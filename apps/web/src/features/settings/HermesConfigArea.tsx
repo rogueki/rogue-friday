@@ -358,7 +358,7 @@ export function HermesConfigArea() {
       </details>
       <section aria-label="Hermes-MCP-Server">
         <h3>Hermes-MCP-Server</h3>
-        <p>Friday kann HTTPS-MCP-Endpunkte ohne eingebettete Zugangsdaten hinterlegen. Der gespeicherte Eintrag bestaetigt keine Verbindung; Hermes laedt ihn erst in einer neuen Sitzung oder nach einem MCP-Reload.</p>
+        <p>Friday kann HTTPS-MCP-Endpunkte und zugehoerige Bearer-Schluessel im Hermes-Profil hinterlegen. Ein gespeicherter Eintrag bestaetigt keine Verbindung; Hermes laedt ihn erst in einer neuen Sitzung oder nach einem MCP-Reload.</p>
         <label htmlFor="hermes-mcp-name">Serverkennung</label>
         <input id="hermes-mcp-name" value={mcpName} maxLength={64} onChange={(event) => setMcpName(event.target.value)} />
         <label htmlFor="hermes-mcp-url">HTTPS-Endpunkt</label>
@@ -372,6 +372,27 @@ export function HermesConfigArea() {
         <ul>{data.mcpServers.map((server) => <li key={server.id}>
           {server.id}: {server.transport}, {server.enabled === null ? "Aktivierung unbekannt" : server.enabled ? "konfiguriert aktiviert" : "konfiguriert deaktiviert"}; Konfiguration ohne Verbindungsnachweis
           {server.endpoint ? ` (${server.endpoint}; Pfad ausgeblendet)` : ""}
+          {server.authMode === "bearer" ? `; Bearer-Schluessel ${server.credentialConfigured ? "hinterlegt" : "fehlt"}` :
+            server.authMode === "oauth" ? "; OAuth konfiguriert, Anmeldung hier noch nicht verfuegbar" :
+            server.authMode === "unknown" ? "; Authentifizierung unbekannt" : ""}
+          {server.transport === "http" && (server.authMode === "none" || server.authMode === "bearer") &&
+            /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(server.id) ? <div>
+              <label htmlFor={`hermes-mcp-token-${server.id}`}>Bearer-Schluessel fuer {server.id}</label>
+              <input id={`hermes-mcp-token-${server.id}`} type="password" autoComplete="off" maxLength={4096}
+                value={credentialDraft[`mcp:${server.id}`] ?? ""}
+                onChange={(event) => setCredentialDraft((current) => ({ ...current,
+                  [`mcp:${server.id}`]: event.target.value }))} />
+              <button type="button" disabled={patch.isPending || !/^[\x21-\x7e]{1,4096}$/.test(credentialDraft[`mcp:${server.id}`] ?? "")}
+                onClick={() => patch.mutate({ revision, patch: { key: "mcp.bearerCredential", name: server.id,
+                  token: credentialDraft[`mcp:${server.id}`] ?? "" } },
+                { onSuccess: () => setCredentialDraft((current) => ({ ...current, [`mcp:${server.id}`]: "" })) })}>
+                Bearer-Schluessel hinterlegen
+              </button>
+              {server.authMode === "bearer" ? <button type="button" disabled={patch.isPending}
+                onClick={() => patch.mutate({ revision, patch: { key: "mcp.bearerCredential", name: server.id, token: null } })}>
+                Bearer-Schluessel entfernen
+              </button> : null}
+            </div> : null}
           {server.editable && server.enabled ? <button type="button" disabled={mcpProbe.isPending}
             onClick={() => mcpProbe.mutate({ name: server.id, revision })}>
             MCP-Protokollverbindung pruefen

@@ -216,7 +216,7 @@ it("activates only a typed installed-plugin request and leaves runtime adoption 
 it("activates a managed MCP entry without exposing or resending its URL", async () => {
   const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
     mcpServers: [{ id: "example", transport: "http", enabled: false,
-      endpoint: "https://example.org", editable: true }],
+      endpoint: "https://example.org", editable: true, authMode: "none", credentialConfigured: null }],
     write: { key: "mcp:example", persisted: true },
   })) as unknown as RunnerInvoker;
   const service = fixture(invoke);
@@ -240,6 +240,26 @@ it("returns only a revision-bound MCP protocol receipt without endpoint or serve
   expect(vi.mocked(invoke).mock.calls[0]?.[3]).toEqual(["mcp-probe"]);
   expect(JSON.parse(String(vi.mocked(invoke).mock.calls[0]?.[4]))).toEqual({ name: "example", revision: 123 });
   await expect(fixture(invoke).probeMcp("bad/path", 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
+it("sends a write-only MCP Bearer credential through the bounded bridge", async () => {
+  const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
+    mcpServers: [{ id: "example", transport: "http", enabled: true,
+      endpoint: "https://example.org", editable: false, authMode: "bearer", credentialConfigured: true }],
+    write: { key: "mcp:example", persisted: true },
+  })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const result = await service.updateMcpBearer({ key: "mcp.bearerCredential", name: "example",
+    token: "CANARY-MCP-PRIVATE" }, 123);
+  expect(result.mcpServers[0]?.credentialConfigured).toBe(true);
+  expect(result.write).toMatchObject({ persisted: true, applied: null });
+  expect(JSON.stringify(result)).not.toContain("CANARY-MCP-PRIVATE");
+  expect(vi.mocked(invoke).mock.calls[0]?.[3]).toEqual(["mcp-bearer"]);
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[0]?.[4]))).toEqual({
+    name: "example", token: "CANARY-MCP-PRIVATE", revision: 123,
+  });
+  await expect(service.updateMcpBearer({ key: "mcp.bearerCredential", name: "bad-name",
+    token: "CANARY" }, 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
 });
 
 it("accepts a structured fallback chain and rejects unsafe model/provider identifiers", async () => {

@@ -61,6 +61,7 @@ export type HermesConfigPatch = { key: HermesConfigField; value: number | boolea
 export type HermesPluginPatch = { key: "plugin.activation"; pluginId: string; enabled: boolean };
 export type HermesMcpPatch = { key: "mcp.httpServer"; name: string; url: string | null; enabled: boolean };
 export type HermesMcpActivationPatch = { key: "mcp.activation"; name: string; enabled: boolean };
+export type HermesMcpBearerPatch = { key: "mcp.bearerCredential"; name: string; token: string | null };
 export const HERMES_MODEL_CREDENTIALS = ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] as const;
 export type HermesModelCredential = typeof HERMES_MODEL_CREDENTIALS[number];
 export type HermesModelCredentialPatch = { key: HermesModelCredential; value: string | null };
@@ -112,7 +113,8 @@ interface BridgeStatus {
   plugins: Array<{ id: string; installed: true; enabled: boolean | null; configured: null }>;
   mcpComplete: boolean;
   mcpServers: Array<{ id: string; transport: "http" | "stdio" | "unknown"; enabled: boolean | null;
-    endpoint: string | null; editable: boolean }>;
+    endpoint: string | null; editable: boolean; authMode: "none" | "bearer" | "oauth" | "unknown";
+    credentialConfigured: boolean | null }>;
   write: { key: string; persisted: boolean } | null;
 }
 
@@ -164,8 +166,8 @@ export class HermesConfigService {
   }
 
   private async run(
-    action: "status" | "update" | "credential-update" | "plugin-activation" | "mcp-http" | "mcp-activation",
-    patch?: HermesConfigPatch | HermesModelCredentialPatch | HermesPluginPatch | HermesMcpPatch | HermesMcpActivationPatch,
+    action: "status" | "update" | "credential-update" | "plugin-activation" | "mcp-http" | "mcp-activation" | "mcp-bearer",
+    patch?: HermesConfigPatch | HermesModelCredentialPatch | HermesPluginPatch | HermesMcpPatch | HermesMcpActivationPatch | HermesMcpBearerPatch,
     revision?: number,
   ): Promise<BridgeStatus | null> {
     const { script, distro, user } = this.target();
@@ -176,7 +178,9 @@ export class HermesConfigService {
         distro,
         user,
         [action],
-        patch ? JSON.stringify(action === "mcp-activation"
+        patch ? JSON.stringify(action === "mcp-bearer"
+          ? { name: (patch as HermesMcpBearerPatch).name, token: (patch as HermesMcpBearerPatch).token, revision }
+          : action === "mcp-activation"
           ? { name: (patch as HermesMcpActivationPatch).name,
             enabled: (patch as HermesMcpActivationPatch).enabled, revision }
           : action === "mcp-http"
@@ -185,7 +189,7 @@ export class HermesConfigService {
           : action === "plugin-activation"
           ? { pluginId: (patch as HermesPluginPatch).pluginId, enabled: (patch as HermesPluginPatch).enabled, revision }
           : { ...patch, revision }) : undefined,
-        action === "credential-update" || action === "plugin-activation" || action === "mcp-http" || action === "mcp-activation" ? 60000 : 30000,
+        action === "credential-update" || action === "plugin-activation" || action === "mcp-http" || action === "mcp-activation" || action === "mcp-bearer" ? 60000 : 30000,
         150000,
       );
     } catch (error) {
@@ -195,6 +199,12 @@ export class HermesConfigService {
         throw conflict("Hermes-Konfiguration wurde außerhalb von Friday geändert.");
       if (action === "mcp-activation" && error instanceof Error && error.message.includes("managed_entry_conflict"))
         throw conflict("Nur HTTPS-MCP-Eintraege ohne Zugangsdaten sind hier schaltbar.");
+      if (action === "mcp-bearer" && error instanceof Error &&
+          (error.message.includes("managed_entry_conflict") || error.message.includes("credential_name_conflict")))
+        throw conflict("MCP-Zugangsdaten gehoeren nicht eindeutig zu diesem verwalteten HTTPS-Server.");
+      if (action === "mcp-bearer")
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Hermes-MCP-Schluesselvorgang nicht bestaetigt. Status neu laden, bevor er wiederholt wird." });
       if (action === "credential-update")
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
           message: "Hermes-Schlüsselvorgang nicht bestätigt. Status neu laden; eine Wiederholung könnte den bereits gespeicherten Schlüssel überschreiben." });
@@ -254,8 +264,8 @@ export class HermesConfigService {
       (!raw.write ||
         typeof raw.write !== "object" ||
         (raw.write as Record<string, unknown>).key !== (action === "plugin-activation"
-          ? `plugin:${(patch as HermesPluginPatch).pluginId}` : action === "mcp-http" || action === "mcp-activation"
-          ? `mcp:${(patch as HermesMcpPatch | HermesMcpActivationPatch).name}` : patch?.key) ||
+          ? `plugin:${(patch as HermesPluginPatch).pluginId}` : action === "mcp-http" || action === "mcp-activation" || action === "mcp-bearer"
+          ? `mcp:${(patch as HermesMcpPatch | HermesMcpActivationPatch | HermesMcpBearerPatch).name}` : patch?.key) ||
         typeof (raw.write as Record<string, unknown>).persisted !== "boolean")
     )
       throw unavailable();
@@ -404,6 +414,17 @@ export class HermesConfigService {
     return this.present(observed);
   }
 
+  async updateMcpBearer(patch: HermesMcpBearerPatch, revision: number) {
+    if (patch.key !== "mcp.bearerCredential" || !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(patch.name) ||
+        !(patch.token === null || typeof patch.token === "string" && patch.token.length >= 1 &&
+          patch.token.length <= 4096 && /^[\x21-\x7e]+$/.test(patch.token)) ||
+        !Number.isSafeInteger(revision) || revision < 1)
+      throw validationFailed("Ungueltige Hermes-MCP-Zugangsdaten.");
+    const observed = await this.run("mcp-bearer", patch, revision);
+    if (!observed) throw unavailable();
+    return this.present(observed);
+  }
+
   async probeMcp(name: string, revision: number) {
     if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name) || !Number.isSafeInteger(revision) || revision < 1)
       throw validationFailed("Ungueltige Hermes-MCP-Probe.");
@@ -511,9 +532,12 @@ export class HermesConfigService {
         ["http", "stdio", "unknown"].includes(server.transport) &&
         (server.enabled === null || typeof server.enabled === "boolean") &&
         (server.endpoint === null || typeof server.endpoint === "string") &&
-        typeof server.editable === "boolean").map((server) => ({
+        typeof server.editable === "boolean" &&
+        ["none", "bearer", "oauth", "unknown"].includes(server.authMode) &&
+        (server.credentialConfigured === null || typeof server.credentialConfigured === "boolean")).map((server) => ({
         id: server.id, transport: server.transport, enabled: server.enabled,
-        endpoint: server.endpoint, editable: server.editable,
+        endpoint: server.endpoint, editable: server.editable, authMode: server.authMode,
+        credentialConfigured: server.credentialConfigured,
       })),
       write: observed.write
         ? {

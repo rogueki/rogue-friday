@@ -259,7 +259,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-probe", "model-catalog"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "model-catalog"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -330,24 +330,26 @@ def locked_main(home, source, cli):
         print(json.dumps({"sourceRevision": source_revision, "providers": response["providers"],
                           "selected": response.get("selected")}))
         return 0
-    if sys.argv[1] in ("update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation"):
+    if sys.argv[1] in ("update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer"):
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
             raise ValueError("unsupported_source_revision")
         request = json.load(sys.stdin)
         plugin_update = sys.argv[1] == "plugin-activation"
         mcp_activation = sys.argv[1] == "mcp-activation"
         mcp_update = sys.argv[1] in ("mcp-http", "mcp-activation")
+        mcp_bearer = sys.argv[1] == "mcp-bearer"
         expected_keys = ({"pluginId", "enabled", "revision"} if plugin_update else
                          {"name", "enabled", "revision"} if mcp_activation else
+                         {"name", "token", "revision"} if mcp_bearer else
                          {"name", "url", "enabled", "revision"} if mcp_update else
                          {"key", "value", "revision"})
         if not isinstance(request, dict) or set(request) != expected_keys:
             raise ValueError("invalid_request")
         key = ("plugin:" + request["pluginId"] if plugin_update and isinstance(request["pluginId"], str) else
-               "mcp:" + request["name"] if mcp_update and isinstance(request["name"], str) else request.get("key"))
-        value = request["enabled"] if plugin_update or mcp_update else request["value"]
+               "mcp:" + request["name"] if (mcp_update or mcp_bearer) and isinstance(request["name"], str) else request.get("key"))
+        value = request["enabled"] if plugin_update or mcp_update else request.get("token") if mcp_bearer else request["value"]
         credential_update = sys.argv[1] == "credential-update"
-        spec = FIELDS.get(key) if not (plugin_update or mcp_update) else None
+        spec = FIELDS.get(key) if not (plugin_update or mcp_update or mcp_bearer) else None
         if type(request["revision"]) is not int or (plugin_update and
                 (not valid_plugin_id(request["pluginId"]) or
                  type(value) is not bool)) or (mcp_update and
@@ -357,7 +359,12 @@ def locked_main(home, source, cli):
                  (key not in MODEL_CREDENTIALS or not (value is None or
                  (isinstance(value, str) and 1 <= len(value) <= 4096 and
                   all(32 <= ord(char) <= 126 for char in value))))) or \
-                (not credential_update and not plugin_update and not mcp_update and
+                 (mcp_bearer and (type(request["name"]) is not str or
+                  re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", request["name"]) is None or
+                  not (request["token"] is None or type(request["token"]) is str and
+                       1 <= len(request["token"]) <= 4096 and
+                       all(33 <= ord(char) <= 126 for char in request["token"])))) or \
+                (not credential_update and not plugin_update and not mcp_update and not mcp_bearer and
                  (not spec or not valid_field_value(key, value, spec))):
             raise ValueError("unsupported_field")
         lock = lock_config(home)
@@ -410,6 +417,28 @@ def locked_main(home, source, cli):
                     accepted = False
                 if result.returncode or not accepted:
                     raise ValueError("mcp_write_unconfirmed")
+            if mcp_bearer:
+                existing = _raw_before.get("mcp_servers", {}).get(request["name"]) if isinstance(
+                    _raw_before.get("mcp_servers"), dict) else None
+                if not isinstance(existing, dict) or not valid_url(existing.get("url")):
+                    raise ValueError("managed_entry_conflict")
+                env_lock = lock_config(home, ".obsidian-vault.lock")
+                try:
+                    sys.path.insert(0, str(source))
+                    from hermes_cli._launchers import runtime_command
+                    helper = Path(__file__).with_name("hermes_mcp_bearer_apply.py")
+                    command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
+                    result = run_runtime_child(command, json.dumps({"name": request["name"],
+                        "token": request["token"], "expectedUrl": existing["url"]}), 30)
+                    try:
+                        accepted = json.loads(result.stdout).get("saved") is True
+                    except (ValueError, TypeError):
+                        accepted = False
+                    if result.returncode or not accepted:
+                        raise ValueError("mcp_credential_unconfirmed")
+                finally:
+                    fcntl.flock(env_lock, fcntl.LOCK_UN)
+                    env_lock.close()
             if key == "skills.disabled":
                 roots, root_errors = inventory_roots(home, call)
                 names, scan_errors = installed_skills(roots)
@@ -433,7 +462,7 @@ def locked_main(home, source, cli):
                 finally:
                     fcntl.flock(env_lock, fcntl.LOCK_UN)
                     env_lock.close()
-            elif not plugin_update and not mcp_update:
+            elif not plugin_update and not mcp_update and not mcp_bearer:
                 # Hermes owns validation and preserving the rest of config.yaml. Never --force.
                 call("set", key, json.dumps(value, separators=(",", ":")) if isinstance(value, list) else
                      "null" if value is None else str(value).lower() if isinstance(value, bool) else str(value))
@@ -443,7 +472,7 @@ def locked_main(home, source, cli):
             lock.close()
     else:
         current, raw = snapshot(config_path)
-    write_key = key if sys.argv[1] in ("plugin-activation", "mcp-http", "mcp-activation") else None
+    write_key = key if sys.argv[1] in ("plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer") else None
     values = {}
     for key in FIELDS:
         if key != "skills.disabled":
@@ -482,6 +511,9 @@ def locked_main(home, source, cli):
         plugin_rows = []
         plugin_errors.append("plugin_inventory_unknown")
     mcp_rows, mcp_errors = [], []
+    env_lines = (home / ".env").read_text(encoding="utf-8-sig").splitlines() if (home / ".env").exists() else []
+    env_names = {line.partition("=")[0].strip() for line in env_lines if "=" in line and
+                 line.partition("=")[2].strip().strip('"')}
     mcp_config = raw.get("mcp_servers")
     if mcp_config is not None and not isinstance(mcp_config, dict):
         mcp_errors.append("mcp_inventory_unknown")
@@ -499,9 +531,16 @@ def locked_main(home, source, cli):
                         endpoint = f"{parts.scheme}://{parts.hostname}"
                 except ValueError:
                     pass
+            env_key = "MCP_" + re.sub(r"[^A-Za-z0-9_]", "_", name.upper()).strip("_") + "_API_KEY"
+            bearer_template = {"Authorization": "Bearer ${" + env_key + "}"}
+            auth_mode = ("oauth" if entry.get("auth") == "oauth" else
+                         "bearer" if entry.get("headers") == bearer_template else
+                         "none" if "auth" not in entry and "headers" not in entry else "unknown")
             mcp_rows.append({"id": name, "transport": transport,
                              "enabled": entry.get("enabled", True) if type(entry.get("enabled", True)) is bool else None,
                              "endpoint": endpoint,
+                             "authMode": auth_mode,
+                             "credentialConfigured": env_key in env_names if auth_mode == "bearer" else None,
                              "editable": transport == "http" and set(entry) <= {"url", "enabled"} and
                                          valid_url(entry.get("url"))})
     if revision(config_path) != current:
@@ -538,6 +577,13 @@ def locked_main(home, source, cli):
         persisted = (not isinstance(mcp_config, dict) or request["name"] not in mcp_config) if not mcp_activation and request["url"] is None else (
             isinstance(mcp_config, dict) and mcp_config.get(request["name"]) ==
             {"url": mcp_url, "enabled": value})
+        write = {"key": write_key, "persisted": persisted and not mcp_errors}
+    elif sys.argv[1] == "mcp-bearer":
+        entry = mcp_config.get(request["name"]) if isinstance(mcp_config, dict) else None
+        env_key = "MCP_" + request["name"].upper() + "_API_KEY"
+        persisted = isinstance(entry, dict) and (entry.get("headers") ==
+            {"Authorization": "Bearer ${" + env_key + "}"}) == (request["token"] is not None) and \
+            (env_key in env_names) == (request["token"] is not None)
         write = {"key": write_key, "persisted": persisted and not mcp_errors}
     elif sys.argv[1] == "update":
         write = {"key": request["key"], "persisted": values[request["key"]] == request["value"]}

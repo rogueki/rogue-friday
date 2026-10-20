@@ -147,7 +147,7 @@ it("restricts MCP setup to owner, CSRF, revision and typed HTTPS endpoint", asyn
   try {
     const update = vi.spyOn(api.runtime.hermesConfig, "updateMcp").mockResolvedValue({ ...status,
       revision: 124, mcpServers: [{ id: "example", transport: "http", enabled: true,
-        endpoint: "https://example.org", editable: true }],
+        endpoint: "https://example.org", editable: true, authMode: "none", credentialConfigured: null }],
       write: { key: "mcp:example", persisted: true, applied: null,
         verification: "unverified", reasonCode: "runtime_receipt_unavailable" },
     } as never);
@@ -175,7 +175,7 @@ it("restricts MCP lifecycle to the owner, CSRF and matching revision", async () 
   try {
     const update = vi.spyOn(api.runtime.hermesConfig, "activateMcp").mockResolvedValue({ ...status,
       revision: 124, mcpServers: [{ id: "example", transport: "http", enabled: false,
-        endpoint: "https://example.org", editable: true }],
+        endpoint: "https://example.org", editable: true, authMode: "none", credentialConfigured: null }],
       write: { key: "mcp:example", persisted: true, applied: null,
         verification: "unverified", reasonCode: "runtime_receipt_unavailable" },
     } as never);
@@ -190,6 +190,32 @@ it("restricts MCP lifecycle to the owner, CSRF and matching revision", async () 
     const saved = await owner.patch(path, body, { headers: { "If-Match": "123" } });
     expect(saved.statusCode, saved.body).toBe(200);
     expect(saved.json().data.write).toMatchObject({ key: "mcp:example", persisted: true, applied: null });
+    expect(update).toHaveBeenCalledWith(body, 123);
+  } finally {
+    await api.close();
+  }
+});
+
+it("keeps MCP Bearer writes owner-only, versioned and absent from responses", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const update = vi.spyOn(api.runtime.hermesConfig, "updateMcpBearer").mockResolvedValue({ ...status,
+      revision: 124, mcpServers: [{ id: "example", transport: "http", enabled: true,
+        endpoint: "https://example.org", editable: false, authMode: "bearer", credentialConfigured: true }],
+      write: { key: "mcp:example", persisted: true, applied: null,
+        verification: "unverified", reasonCode: "runtime_receipt_unavailable" },
+    } as never);
+    const owner = api.client();
+    await owner.loginDev("owner");
+    const viewer = api.client();
+    await viewer.loginDev("viewer");
+    const body = { key: "mcp.bearerCredential", name: "example", token: "CANARY-MCP-PRIVATE" };
+    expect((await viewer.patch(path, body, { headers: { "If-Match": "123" } })).statusCode).toBe(403);
+    expect((await owner.patch(path, body, { headers: { "If-Match": "123" }, csrf: false })).statusCode).toBe(403);
+    expect((await owner.patch(path, body)).statusCode).toBe(422);
+    const saved = await owner.patch(path, body, { headers: { "If-Match": "123" } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(saved.body).not.toContain(body.token);
     expect(update).toHaveBeenCalledWith(body, 123);
   } finally {
     await api.close();

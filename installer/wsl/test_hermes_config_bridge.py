@@ -70,6 +70,21 @@ class BridgeTest(unittest.TestCase):
                 raw.pop("mcp_servers", None)
             self.config.write_text(yaml.safe_dump(raw))
             return subprocess.CompletedProcess(command, 0, '{"saved":true}', "")
+        if command[0] == "mcp-bearer-worker":
+            request = json.loads(_kwargs["input"])
+            entry = self.mcp_servers[request["name"]]
+            env_path = self.home / ".hermes" / ".env"
+            if request["token"] is None:
+                entry.pop("headers", None)
+                env_path.write_text("")
+            else:
+                entry["headers"] = {"Authorization": "Bearer ${MCP_" + request["name"].upper() + "_API_KEY}"}
+                env_path.write_text("MCP_" + request["name"].upper() + "_API_KEY=" + request["token"] + "\n")
+            import yaml
+            raw = yaml.safe_load(self.config.read_text())
+            raw["mcp_servers"] = self.mcp_servers
+            self.config.write_text(yaml.safe_dump(raw))
+            return subprocess.CompletedProcess(command, 0, '{"saved":true}', "")
         if command[0] == "credential-worker":
             request = json.loads(_kwargs["input"])
             env_path = self.home / ".hermes" / ".env"
@@ -108,6 +123,10 @@ class BridgeTest(unittest.TestCase):
         launchers.runtime_command = lambda *args, **kwargs: [
             "plugin-worker" if "hermes_plugin_activation.py" in kwargs.get("code", "") else
             "mcp-worker" if "hermes_mcp_http_apply.py" in kwargs.get("code", "") else "credential-worker"]
+        launchers.runtime_command = lambda *args, **kwargs: [
+            "plugin-worker" if "hermes_plugin_activation.py" in kwargs.get("code", "") else
+            "mcp-worker" if "hermes_mcp_http_apply.py" in kwargs.get("code", "") else
+            "mcp-bearer-worker" if "hermes_mcp_bearer_apply.py" in kwargs.get("code", "") else "credential-worker"]
         env_path = self.home / ".hermes" / ".env"
         def load_env():
             return dict(line.split("=", 1) for line in env_path.read_text().splitlines()) if env_path.exists() else {}
@@ -269,12 +288,35 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(result["write"], {"key": "mcp:example", "persisted": True})
         self.assertEqual(result["mcpServers"], [{"id": "example", "transport": "http", "enabled": True,
-                                                  "endpoint": "https://example.org", "editable": True}])
+                                                  "endpoint": "https://example.org", "editable": True,
+                                                  "authMode": "none", "credentialConfigured": None}])
         code, result = self.invoke({**request, "url": None, "enabled": False,
                                     "revision": result["revision"]})
         self.assertEqual(code, 0)
         self.assertTrue(result["write"]["persisted"])
         self.assertEqual(result["mcpServers"], [])
+
+    def test_mcp_bearer_secret_is_redacted_and_revision_bound(self):
+        self.invoke({"name": "example", "url": "https://example.org/mcp", "enabled": True,
+                     "revision": bridge.revision(self.config)})
+        secret = "CANARY-MCP-PRIVATE"
+        code, result = self.invoke({"name": "example", "token": secret,
+                                    "revision": bridge.revision(self.config)}, action="mcp-bearer")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["write"], {"key": "mcp:example", "persisted": True})
+        self.assertEqual(result["mcpServers"][0]["authMode"], "bearer")
+        self.assertTrue(result["mcpServers"][0]["credentialConfigured"])
+        self.assertNotIn(secret, json.dumps(result))
+        self.assertFalse(any(secret in " ".join(map(str, command)) for command in self.calls))
+        code, conflict = self.invoke({"name": "example", "token": "another",
+                                      "revision": 1}, action="mcp-bearer")
+        self.assertEqual(code, 4)
+        self.assertEqual(conflict["error"], "revision_conflict")
+        code, cleared = self.invoke({"name": "example", "token": None,
+                                     "revision": result["revision"]}, action="mcp-bearer")
+        self.assertEqual(code, 0)
+        self.assertTrue(cleared["write"]["persisted"])
+        self.assertEqual(cleared["mcpServers"][0]["authMode"], "none")
 
     def test_mcp_activation_reuses_stored_url_and_rejects_nonmanaged_entry(self):
         self.invoke({"name": "example", "url": "https://example.org/mcp", "enabled": True,

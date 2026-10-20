@@ -2,7 +2,7 @@ import { CONTRACT_VERSION, type HermesConfigPatch } from "@friday/sdk";
 import type { Handler } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { validationFailed } from "../util/errors";
-import { HERMES_MODEL_CREDENTIALS, type HermesPluginPatch, type HermesMcpPatch, type HermesMcpActivationPatch, type HermesModelCredentialPatch,
+import { HERMES_MODEL_CREDENTIALS, type HermesPluginPatch, type HermesMcpPatch, type HermesMcpActivationPatch, type HermesMcpBearerPatch, type HermesModelCredentialPatch,
   type HermesConfigPatch as ServiceHermesConfigPatch } from "../services/hermes-config";
 
 const single = <T>(data: T) => ({
@@ -35,6 +35,8 @@ export const hermesConfigHandlers: Partial<Record<OperationId, Handler>> = {
     const patch = ctx.body as HermesConfigPatch;
     const status = patch.key === "plugin.activation"
       ? await ctx.runtime.hermesConfig.updatePlugin(patch as HermesPluginPatch, ctx.mutation.ifMatchVersion)
+      : patch.key === "mcp.bearerCredential"
+      ? await ctx.runtime.hermesConfig.updateMcpBearer(patch as HermesMcpBearerPatch, ctx.mutation.ifMatchVersion)
       : patch.key === "mcp.activation"
       ? await ctx.runtime.hermesConfig.activateMcp(patch as HermesMcpActivationPatch, ctx.mutation.ifMatchVersion)
       : patch.key === "mcp.httpServer"
@@ -44,7 +46,7 @@ export const hermesConfigHandlers: Partial<Record<OperationId, Handler>> = {
       : await ctx.runtime.hermesConfig.update(patch as ServiceHermesConfigPatch, ctx.mutation.ifMatchVersion);
     ctx.audit.action = "settings.hermes_config_updated";
     ctx.audit.after = { key: patch.key, ...(patch.key === "plugin.activation" ? { pluginId: patch.pluginId } : {}),
-      ...(patch.key === "mcp.httpServer" || patch.key === "mcp.activation" ? { name: patch.name } : {}),
+      ...(patch.key === "mcp.httpServer" || patch.key === "mcp.activation" || patch.key === "mcp.bearerCredential" ? { name: patch.name } : {}),
       persisted: status.write?.persisted, revision: status.revision };
     return { status: 200, body: single(status) };
   },
