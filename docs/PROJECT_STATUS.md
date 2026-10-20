@@ -271,3 +271,11 @@ Two notes worth keeping in mind:
 Open, deliberately: the physical clean install (`docs/agent-work/hermes-full-integration/p10-clean-install-drill.md`),
 upgrade preservation and rollback, and every acceptance that needs real providers, telephony, cloud speech keys
 or voice hardware. Those stay `NOT_RUN` in the acceptance ledger.
+Follow-up the same evening: PR #30 (`fix/orb-tts-timing-20261020`) merged as `5c7b969` and `main` CI run
+`39494581690` is green. The orb TTS test sampled 2.8 s of analyser output and then expected the orb to still
+be speaking; with 4.8 s of queued audio that margin fell below a second on a loaded runner, so the fixture now
+queues 7.2 s and the pause window stays where the sampler sees it. Three other red jobs that day were
+runner flakes, not code: `settings.spec.ts:17` and `tasks.spec.ts:84` (dbus/SharedImage errors in the log,
+green on rerun) and one `durable-memory.test.ts` run that failed with "Credential-bearing Vault edit requires
+review" and did not reproduce in 27 local runs of the file, 12 of them with the offending note path
+instrumented; the job passed on rerun.
