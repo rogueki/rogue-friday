@@ -74,6 +74,10 @@ FIELDS = {
     "command_allowlist": ("allowlist_subset", None, None),
     "approvals.mode": ("approval_mode", None, None),
     "approvals.timeout": ("integer", 15, 600),
+    "approvals.denial_breaker_threshold": ("integer", 0, 100000),
+    "approvals.deny": ("deny_globs", None, None),
+    "approvals.destructive_slash_confirm": ("boolean", None, None),
+    "approvals.mcp_reload_confirm": ("boolean", None, None),
     "approvals.single_query_mode": ("automatic_approval", None, None),
     "approvals.unattended_mode": ("automatic_approval", None, None),
     "security.protected_instruction_files": ("boolean", None, None),
@@ -145,11 +149,11 @@ def valid_field_value(key, value, spec):
         return type(value) is str and (value == "." or
             (1 <= len(value) <= 512 and value.startswith("/") and
              value.isprintable()))
-    if kind in ("docker_mounts", "toolset_names", "allowlist_subset"):
+    if kind in ("docker_mounts", "toolset_names", "allowlist_subset", "deny_globs"):
         limit = 8 if kind == "docker_mounts" else 16 if kind == "toolset_names" else 128
         return (type(value) is list and len(value) <= limit and
                 all(type(item) is str and 1 <= len(item) <= 512 and
-                    (item.isprintable() if kind == "docker_mounts" else
+                    (item.isprintable() if kind in ("docker_mounts", "deny_globs") else
                         all((32 if kind == "allowlist_subset" else 33) <= ord(char) < 127 for char in item))
                     for item in value) and
                 len(set(value)) == len(value))

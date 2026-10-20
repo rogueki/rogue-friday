@@ -60,6 +60,8 @@ class BridgeTest(unittest.TestCase):
                        "computer_use.capture_after_mode": "som",
                        "toolsets": ["hermes-cli"], "command_allowlist": [],
                        "approvals.mode": "smart", "approvals.timeout": 300,
+                       "approvals.denial_breaker_threshold": 3, "approvals.deny": [],
+                       "approvals.destructive_slash_confirm": True, "approvals.mcp_reload_confirm": True,
                        "approvals.single_query_mode": "deny", "approvals.unattended_mode": "deny",
                        "security.protected_instruction_files": True,
                        "cron.catch_up_missed": True, "cron.allow_agent_scheduling": False,
@@ -691,6 +693,20 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(self.config.read_bytes(), original)
         self.assertEqual(self.calls[-1][0], "approval-test-worker")
 
+    def test_native_deny_globs_and_slash_confirmation_controls_round_trip(self):
+        for key, value in (("approvals.deny", ["git push --force*", "rm -rf *"]),
+                           ("approvals.denial_breaker_threshold", 0),
+                           ("approvals.destructive_slash_confirm", False),
+                           ("approvals.mcp_reload_confirm", False)):
+            code, result = self.invoke({"key": key, "value": value,
+                                        "revision": bridge.revision(self.config)})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["values"][key], value)
+            self.assertTrue(result["write"]["persisted"])
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "approvals.deny", "value": ["bad\npattern"],
+                         "revision": bridge.revision(self.config)})
+
     def test_owner_can_set_native_bypass_and_instruction_file_policy(self):
         for key, value in (("approvals.mode", "off"),
                            ("security.protected_instruction_files", False)):
@@ -798,6 +814,8 @@ elif a[:2] == ['config', 'get']:
          'computer_use.capture_after_mode': 'som',
          'toolsets': ['hermes-cli'], 'command_allowlist': [],
          'approvals.mode': 'smart', 'approvals.timeout': 300,
+         'approvals.denial_breaker_threshold': 3, 'approvals.deny': [],
+         'approvals.destructive_slash_confirm': True, 'approvals.mcp_reload_confirm': True,
          'approvals.single_query_mode': 'deny', 'approvals.unattended_mode': 'deny',
          'security.protected_instruction_files': True,
          'cron.catch_up_missed': True, 'cron.allow_agent_scheduling': False,

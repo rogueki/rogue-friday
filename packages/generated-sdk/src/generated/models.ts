@@ -310,6 +310,18 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "approvals.denial_breaker_threshold";
+      value: number;
+    }
+  | {
+      key: "approvals.deny";
+      value: string[];
+    }
+  | {
+      key: "approvals.destructive_slash_confirm" | "approvals.mcp_reload_confirm";
+      value: boolean;
+    }
+  | {
       key: "approvals.single_query_mode";
       value: "deny" | "approve";
     }
@@ -3449,6 +3461,10 @@ export interface HermesConfigStatus {
       | "command_allowlist"
       | "approvals.mode"
       | "approvals.timeout"
+      | "approvals.denial_breaker_threshold"
+      | "approvals.deny"
+      | "approvals.destructive_slash_confirm"
+      | "approvals.mcp_reload_confirm"
       | "approvals.single_query_mode"
       | "approvals.unattended_mode"
       | "security.protected_instruction_files"

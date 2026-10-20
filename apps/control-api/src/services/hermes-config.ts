@@ -82,6 +82,10 @@ export const HERMES_CONFIG_FIELDS = {
   command_allowlist: { type: "textList", kind: "allowlistSubset", family: "execution", consumer: "next dangerous-command approval check" },
   "approvals.mode": { type: "string", kind: "approvalMode", family: "execution", consumer: "next Hermes command approval" },
   "approvals.timeout": { type: "integer", min: 15, max: 600, family: "execution", consumer: "next Hermes approval wait" },
+  "approvals.denial_breaker_threshold": { type: "integer", min: 0, max: 100000, family: "execution", consumer: "next smart-guardian denial sequence" },
+  "approvals.deny": { type: "textList", kind: "denyGlobs", family: "execution", consumer: "next Hermes terminal command approval" },
+  "approvals.destructive_slash_confirm": { type: "boolean", family: "execution", consumer: "next Hermes destructive slash command" },
+  "approvals.mcp_reload_confirm": { type: "boolean", family: "execution", consumer: "next Hermes MCP reload command" },
   "approvals.single_query_mode": { type: "string", kind: "automaticApproval", family: "execution", consumer: "next flagged command in single-query mode" },
   "approvals.unattended_mode": { type: "string", kind: "automaticApproval", family: "execution", consumer: "next flagged command on a notifier-blind gateway platform" },
   "security.protected_instruction_files": { type: "boolean", family: "execution", consumer: "next protected instruction file write" },
@@ -151,11 +155,11 @@ function validSkillNames(value: unknown): value is string[] {
     value.every((name) => typeof name === "string" && /^[A-Za-z0-9._/-]{1,100}$/.test(name)) &&
     new Set(value).size === value.length;
 }
-function validExecutionList(kind: "dockerMounts" | "toolsetNames" | "allowlistSubset", value: unknown): value is string[] {
+function validExecutionList(kind: "dockerMounts" | "toolsetNames" | "allowlistSubset" | "denyGlobs", value: unknown): value is string[] {
   const limit = kind === "dockerMounts" ? 8 : kind === "toolsetNames" ? 16 : 128;
   return Array.isArray(value) && value.length <= limit && value.every((item) =>
     typeof item === "string" && item.length >= 1 && item.length <= 512 &&
-    (kind === "dockerMounts" ? !/[\p{C}\p{Zl}\p{Zp}]/u.test(item) :
+    (kind === "dockerMounts" || kind === "denyGlobs" ? !/[\p{C}\p{Zl}\p{Zp}]/u.test(item) :
       (kind === "allowlistSubset" ? /^[ -~]+$/ : /^[!-~]+$/).test(item))) &&
     new Set(value).size === value.length;
 }

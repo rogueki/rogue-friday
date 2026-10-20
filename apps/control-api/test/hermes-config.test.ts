@@ -106,6 +106,10 @@ const bridge = {
     command_allowlist: [],
     "approvals.mode": "smart",
     "approvals.timeout": 300,
+    "approvals.denial_breaker_threshold": 3,
+    "approvals.deny": [],
+    "approvals.destructive_slash_confirm": true,
+    "approvals.mcp_reload_confirm": true,
     "approvals.single_query_mode": "deny",
     "approvals.unattended_mode": "deny",
     "security.protected_instruction_files": true,
@@ -183,6 +187,10 @@ const bridge = {
     command_allowlist: false,
     "approvals.mode": false,
     "approvals.timeout": false,
+    "approvals.denial_breaker_threshold": false,
+    "approvals.deny": false,
+    "approvals.destructive_slash_confirm": false,
+    "approvals.mcp_reload_confirm": false,
     "approvals.single_query_mode": false,
     "approvals.unattended_mode": false,
     "security.protected_instruction_files": false,
@@ -231,7 +239,7 @@ const bridge = {
 it("returns only allowlisted resolved values and installed manifests without credential leakage", async () => {
   const invoke = vi.fn(async () => bridge) as unknown as RunnerInvoker;
   const status = await fixture(invoke).status();
-  expect(status.fields).toHaveLength(75);
+  expect(status.fields).toHaveLength(79);
   expect(status.fields.find((field) => field.key === "terminal.timeout")).toMatchObject({
     value: 180, family: "execution", verification: "unverified",
   });
@@ -346,6 +354,22 @@ it("previews a command through native approval test without a write receipt or c
     command: "rm -rf build", revision: 123,
   });
   await expect(service.testApproval("bad\ncommand", 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
+it("passes native unconditional deny globs with a revision and rejects control characters", async () => {
+  const value = ["git push --force*"];
+  const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
+    values: { ...bridge.values, "approvals.deny": value },
+    write: { key: "approvals.deny", persisted: true },
+  })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const status = await service.update({ key: "approvals.deny", value }, 123);
+  expect(status.write).toMatchObject({ persisted: true, applied: null });
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[0]?.[4]))).toEqual({
+    key: "approvals.deny", value, revision: 123,
+  });
+  await expect(service.update({ key: "approvals.deny", value: ["bad\npattern"] }, 123))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
 });
 
 it("sends model credentials only through bridge stdin and reports set-state without echoing the secret", async () => {

@@ -60,6 +60,10 @@ const LABELS: Record<string, string> = {
   command_allowlist: "Dauerhaft erlaubte Befehlsmuster (nur entfernen)",
   "approvals.mode": "Hermes-Befehlsfreigabe",
   "approvals.timeout": "Freigabefenster (Sekunden)",
+  "approvals.denial_breaker_threshold": "Smart-Freigabe: Abbruchsgrenze nach Ablehnungen",
+  "approvals.deny": "Immer gesperrte Befehlsmuster",
+  "approvals.destructive_slash_confirm": "Risikoreiche Slash-Befehle bestaetigen",
+  "approvals.mcp_reload_confirm": "MCP-Neuladen bestaetigen",
   "approvals.single_query_mode": "Unbeaufsichtigte Einzelanfragen",
   "approvals.unattended_mode": "Unbeaufsichtigte Gateway-Aufrufe",
   "security.protected_instruction_files": "Agent-Anweisungsdateien schuetzen",
@@ -116,6 +120,7 @@ const NUMERIC_LIMITS: Record<string, [number, number, number]> = {
   "computer_use.max_image_dimension": [320, 4096, 1],
   "computer_use.ax_max_elements": [50, 1000, 1],
   "approvals.timeout": [15, 600, 1],
+  "approvals.denial_breaker_threshold": [0, 100000, 1],
   "cron.max_parallel_jobs": [1, 64, 1],
   "cron.output_retention": [0, 10000, 1],
   "cron.script_timeout_seconds": [1, 86400, 1],
@@ -351,6 +356,10 @@ export function HermesConfigArea() {
               <small role="alert">Damit umgeht Hermes künftig die normale Freigabeebene für markierte Aktionen. Unbedingte Sperrregeln bleiben aktiv. Dies ist keine Freigabe eines konkreten Befehls.</small> : null}
             {field.key === "security.protected_instruction_files" && value === false ?
               <small role="alert">Hermes schützt Anweisungsdateien künftig nicht mehr mit dieser zusätzlichen Schreibfreigabe. Dateisystemrechte gelten weiter.</small> : null}
+            {field.key === "approvals.deny" ?
+              <small>Ein Muster pro Zeile. Hermes sperrt Treffer auch bei deaktivierter Freigabeebene und im Docker-Backend. Entfernen eines Musters hebt diese Sperre für künftige Befehle auf.</small> : null}
+            {(field.key === "approvals.destructive_slash_confirm" || field.key === "approvals.mcp_reload_confirm") && value === false ?
+              <small role="alert">Hermes fragt künftig bei dieser Befehlsfamilie nicht mehr gesondert nach. Diese Einstellung gilt für künftige Aufrufe.</small> : null}
             <button
               type="button"
               disabled={
@@ -378,6 +387,8 @@ export function HermesConfigArea() {
               {(field.key === "approvals.single_query_mode" || field.key === "approvals.unattended_mode") &&
                 value === "approve" ? "Automatische Freigabe aktivieren" :
                 field.key === "approvals.mode" && value === "off" ? "Freigabeebene deaktivieren" :
+                (field.key === "approvals.destructive_slash_confirm" || field.key === "approvals.mcp_reload_confirm") && value === false ?
+                  "Zusatzabfrage deaktivieren" :
                 field.key === "security.protected_instruction_files" && value === false ?
                   "Zusatzschutz deaktivieren" : "Speichern"}
             </button>

@@ -52,7 +52,7 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
     from hermes_cli.config import load_config_readonly
     from tools.environments.docker import DockerEnvironment
     from tools.approval_context import _get_single_query_approval_mode, _get_unattended_approval_mode
-    from tools.approval import request_tool_approval
+    from tools.approval import request_tool_approval, _get_denial_breaker_threshold
     from tools.file_tools_write_guards import _protected_instruction_config, _protected_instruction_reason
     from hermes_cli.approvals_test import evaluate_command
 
@@ -112,6 +112,14 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
     assert preview["verdict"] == "allow" and preview["exit_code"] == 0
     blocked = evaluate_command("rm -rf /", "local")
     assert blocked["verdict"] == "hardline-deny" and blocked["exit_code"] == 3
+    Path(profile, "config.yaml").write_text(
+        Path(profile, "config.yaml").read_text().replace(
+            "  mode: 'off'\n", "  mode: 'off'\n  denial_breaker_threshold: 0\n  deny:\n    - 'echo synthetic-*'\n"),
+        encoding="utf-8",
+    )
+    denied_by_owner = evaluate_command("echo synthetic-preview", "local")
+    assert denied_by_owner["verdict"] == "user-deny" and denied_by_owner["exit_code"] == 3
+    assert _get_denial_breaker_threshold() == 0
     limits = load_config_readonly()["terminal"]
     docker = DockerEnvironment.__new__(DockerEnvironment)
     with patch("tools.environments.docker._cgroup_limits_available", return_value=True), \
