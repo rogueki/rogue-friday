@@ -21,6 +21,10 @@ class CronReadTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unsupported_source_revision"):
                 reader.read_jobs(Path(directory))
 
+    def test_container_values_cannot_be_projected_into_visible_metadata(self):
+        with self.assertRaisesRegex(ValueError, "invalid_native_result"):
+            reader.project({"id": "job-1", "name": {"prompt": "PRIVATE"}})
+
     @unittest.skipUnless(os.environ.get("FRIDAY_HERMES_SOURCE_FIXTURE"), "opt-in pinned source checkout")
     def test_pinned_native_store_lists_synthetic_job(self):
         source = Path(os.environ["FRIDAY_HERMES_SOURCE_FIXTURE"])
@@ -56,6 +60,28 @@ class CronReadTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 reader.read_jobs(source)
             self.assertEqual(store.read_bytes(), b'[bad private content]')
+
+    @unittest.skipUnless(os.environ.get("FRIDAY_HERMES_SOURCE_FIXTURE"), "opt-in pinned source checkout")
+    def test_growing_store_is_bounded_at_read_time(self):
+        source = Path(os.environ["FRIDAY_HERMES_SOURCE_FIXTURE"])
+        with tempfile.TemporaryDirectory(prefix="friday-cron-large-") as directory, \
+                patch.dict(os.environ, {"HERMES_HOME": directory}):
+            cron_dir = Path(directory) / "cron"
+            cron_dir.mkdir()
+            store = cron_dir / "jobs.json"
+            store.write_bytes(b'{"jobs":[]}')
+            original_open = Path.open
+
+            def grow_before_open(path, *args, **kwargs):
+                if path == store:
+                    with original_open(path, "ab") as output:
+                        output.write(b"x" * (reader.MAX_STORE_BYTES + 1))
+                return original_open(path, *args, **kwargs)
+
+            with patch.object(Path, "open", grow_before_open), \
+                    self.assertRaisesRegex(ValueError, "invalid_native_result"):
+                reader.read_jobs(source)
+            self.assertGreater(store.stat().st_size, reader.MAX_STORE_BYTES)
 
 
 if __name__ == "__main__":

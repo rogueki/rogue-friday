@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { isIP } from "node:net";
 import { ApiError, conflict, validationFailed } from "../util/errors";
-import { invokeCodingRunner, type RunnerInvoker } from "./coding-runs";
+import { invokeCodingRunner, nativeRunnerScript, type RunnerInvoker } from "./coding-runs";
 
 export const HERMES_CONFIG_FIELDS = {
   "model.provider": { type: "string", kind: "provider", family: "models", consumer: "new Hermes provider route" },
@@ -234,6 +234,9 @@ export class HermesConfigService {
   }
 
   private target(): { script: string; distro: string; user: string } {
+    if (process.platform !== "win32")
+      return { script: nativeRunnerScript(this.dataDir, "hermes_config_bridge.py").script,
+        distro: "", user: "" };
     let root = resolve(this.dataDir);
     for (let depth = 0; depth < 5 && !existsSync(join(root, "config", "install-state.json")); depth += 1)
       root = resolve(root, "..");
@@ -253,12 +256,6 @@ export class HermesConfigService {
       !/^[a-zA-Z0-9_-]+$/.test(state.linux_user)
     )
       throw unavailable();
-    if (process.platform !== "win32")
-      return {
-        distro: state.distro_name,
-        user: state.linux_user,
-        script: join(root, "installer", "wsl", "hermes_config_bridge.py"),
-      };
     const match = root.match(/^([a-zA-Z]):\\(.*)$/);
     if (!match) throw unavailable();
     return {

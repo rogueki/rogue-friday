@@ -19,7 +19,7 @@ function under(path: string, root: string): boolean {
 }
 
 /** Resolve only a bundled script below Friday's trusted installation root. */
-export function nativeRunnerScript(dataDir: string, filename: "coding_runner.py" | "powerpoint_runner.py",
+export function nativeRunnerScript(dataDir: string, filename: "coding_runner.py" | "powerpoint_runner.py" | "hermes_config_bridge.py",
   env: NodeJS.ProcessEnv = process.env): { root: string; script: string } {
   const atRoot = (root: string): { root: string; script: string } | null => {
     try {

@@ -10,6 +10,7 @@ from pathlib import Path
 
 PIN = "d923a5eb487a17c0a68801bba9ef0f56c81040a8"
 LIMIT = 200
+MAX_STORE_BYTES = 4 * 1024 * 1024
 
 
 def pinned(source: Path) -> bool:
@@ -22,14 +23,27 @@ def pinned(source: Path) -> bool:
 
 def project(job: dict) -> dict:
     # Prompts, output, origins, delivery routes and tool arguments stay inside Hermes.
+    for key in ("id", "name", "schedule_display", "state"):
+        if key in job and not isinstance(job[key], str):
+            raise ValueError("invalid_native_result")
+    if "enabled" in job and not isinstance(job["enabled"], bool):
+        raise ValueError("invalid_native_result")
+    for key in ("next_run_at", "last_run_at"):
+        if key in job and job[key] is not None and not isinstance(job[key], str):
+            raise ValueError("invalid_native_result")
+    if "schedule" in job and job["schedule"] is not None and not isinstance(job["schedule"], dict):
+        raise ValueError("invalid_native_result")
+    if isinstance(job.get("schedule"), dict) and (job["schedule"].get("tz") is not None
+                                                  and not isinstance(job["schedule"]["tz"], str)):
+        raise ValueError("invalid_native_result")
     return {
-        "id": str(job.get("id", ""))[:100],
-        "name": str(job.get("name", ""))[:160],
-        "schedule": str(job.get("schedule_display", ""))[:200],
+        "id": job.get("id", "")[:100],
+        "name": job.get("name", "")[:160],
+        "schedule": job.get("schedule_display", "")[:200],
         "timezone": (job.get("schedule") or {}).get("tz") if isinstance(job.get("schedule"), dict)
                     and isinstance((job.get("schedule") or {}).get("tz"), str) else None,
         "enabled": job.get("enabled") is True,
-        "state": str(job.get("state", "unknown"))[:40],
+        "state": job.get("state", "unknown")[:40],
         "nextRunAt": job.get("next_run_at") if isinstance(job.get("next_run_at"), str) else None,
         "lastRunAt": job.get("last_run_at") if isinstance(job.get("last_run_at"), str) else None,
     }
@@ -53,10 +67,12 @@ def read_jobs(source: Path) -> dict:
         profile = "custom"
     timezone = get_timezone_name() if get_timezone() is not None else None
     store = home / "cron" / "jobs.json"
-    if store.exists() and store.stat().st_size > 4 * 1024 * 1024:
-        raise ValueError("invalid_native_result")
-    raw = store.read_bytes() if store.exists() else b'{"jobs":[]}'
-    if len(raw) > 4 * 1024 * 1024:
+    if store.exists():
+        with store.open("rb") as file:
+            raw = file.read(MAX_STORE_BYTES + 1)
+    else:
+        raw = b'{"jobs":[]}'
+    if len(raw) > MAX_STORE_BYTES:
         raise ValueError("invalid_native_result")
     data = json.loads(raw.decode("utf-8-sig"))
     jobs = data.get("jobs") if isinstance(data, dict) else None

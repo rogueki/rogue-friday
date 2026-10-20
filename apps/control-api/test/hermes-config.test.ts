@@ -1,8 +1,9 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HermesConfigService } from "../src/services/hermes-config";
+import { nativeRunnerScript } from "../src/services/coding-runs";
 import type { RunnerInvoker } from "../src/services/coding-runs";
 
 const roots: string[] = [];
@@ -20,6 +21,15 @@ function fixture(invoke: RunnerInvoker) {
   );
   return new HermesConfigService(join(root, "data"), invoke);
 }
+
+it("resolves the bundled native Linux Hermes bridge without WSL install-state fields", () => {
+  const root = mkdtempSync(join(tmpdir(), "friday-hermes-native-"));
+  roots.push(root);
+  mkdirSync(join(root, "installer", "wsl"), { recursive: true });
+  writeFileSync(join(root, "installer", "wsl", "hermes_config_bridge.py"), "# bundled fixture\n");
+  expect(nativeRunnerScript(join(root, "data"), "hermes_config_bridge.py", {}).script)
+    .toBe(realpathSync.native(join(root, "installer", "wsl", "hermes_config_bridge.py")));
+});
 
 it("validates native cron read output before returning it", async () => {
   const response = { sourceRevision: "d923a5eb487a17c0a68801bba9ef0f56c81040a8", profile: "default", profileTimezone: "UTC",
