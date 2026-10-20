@@ -1,6 +1,6 @@
 import { authorize, type Role } from "@friday/auth";
 import { isAdapterError } from "@friday/adapter-core";
-import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, type CommandResponse, type ContentPlanState, type Notification, type Settings, type VoiceStatus } from "@friday/sdk";
+import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type VoiceStatusResponse } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import type { HandlerResult, RequestContext } from "../http/context";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
@@ -235,18 +235,46 @@ function settingAreaSummary(settings: Settings, area: SettingsReadArea): string 
   }
 }
 
+const VOICE_READBACK_MAX_AGE_MS = 60_000;
+
+function knownValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+export function formatVoiceRuntimeReadback(
+  settings: Pick<Settings["voice"], "ttsVoice" | "inputDeviceId" | "outputDeviceId">,
+  response: Pick<VoiceStatusResponse, "data" | "freshness">,
+  nowMs = Date.now(),
+): string {
+  const freshness: Freshness = response.freshness;
+  const asOfMs = typeof freshness.asOf === "string" ? Date.parse(freshness.asOf) : Number.NaN;
+  const ageMs = nowMs - asOfMs;
+  if (freshness.state !== "fresh" || !Number.isFinite(asOfMs) || ageMs < -5_000 || ageMs > VOICE_READBACK_MAX_AGE_MS)
+    return "Laufzeit-Readback: nicht verifiziert (Statusquelle unbekannt, offline, veraltet oder ohne frischen Zeitstempel)";
+
+  const status = response.data;
+  const configuredVoice = knownValue(settings.ttsVoice);
+  const actualVoice = knownValue(status.ttsVoiceChoice);
+  const voiceComparison = configuredVoice && actualVoice
+    ? actualVoice === configuredVoice ? "TTS-Stimme stimmt mit dem gespeicherten Wert ueberein" : "TTS-Stimme weicht vom gespeicherten Wert ab"
+    : "TTS-Stimme nicht verglichen (gespeicherter oder aufgeloester Wert fehlt)";
+  const compareDevice = (configured: unknown, actual: unknown): string => {
+    const saved = knownValue(configured);
+    const resolved = knownValue(actual);
+    if (!saved) return "Default-Policy gespeichert; aufgeloestes Geraet nicht verglichen";
+    if (!resolved) return "Geraetevergleich nicht verifiziert (Dienst meldet keine aufgeloeste Kennung)";
+    return saved === resolved ? "Kennung stimmt ueberein" : "Kennung weicht ab";
+  };
+  return `Laufzeit-Readback (${freshness.asOf}): ${voiceComparison}; Eingabegeraet ${compareDevice(settings.inputDeviceId, status.audioInputDeviceId)}; Ausgabegeraet ${compareDevice(settings.outputDeviceId, status.audioOutputDeviceId)}; STT ${status.stt?.state ?? "unbekannt"}, TTS ${status.tts?.state ?? "unbekannt"}`;
+}
+
 async function voiceRuntimeReadback(ctx: RequestContext, settings: Settings): Promise<string> {
   try {
-    const status: VoiceStatus = (await ctx.runtime.registry.getPort("voice").getVoiceStatus({}, ctx.call)).data;
-    const voiceMatch = typeof status.ttsVoiceChoice === "string"
-      ? status.ttsVoiceChoice === settings.voice.ttsVoice ? "TTS-Stimme stimmt mit dem gespeicherten Wert überein" : "TTS-Stimme weicht vom gespeicherten Wert ab"
-      : "TTS-Stimme im Dienststatus nicht ausgewiesen";
-    const inputMatch = status.audioInputDeviceId === settings.voice.inputDeviceId;
-    const outputMatch = status.audioOutputDeviceId === settings.voice.outputDeviceId;
-    return `Laufzeit-Readback: ${voiceMatch}; gespeicherte Ein-/Ausgabegeräte ${inputMatch && outputMatch ? "stimmen mit dem Dienststatus überein" : "weichen vom Dienststatus ab"}; STT ${status.stt.state}, TTS ${status.tts.state}`;
+    const response = await ctx.runtime.registry.getPort("voice").getVoiceStatus({}, ctx.call);
+    return formatVoiceRuntimeReadback(settings.voice, response);
   } catch (error) {
     if (isAdapterError(error) && ["CAPABILITY_MISSING", "ADAPTER_UNAVAILABLE"].includes(error.code))
-      return "Laufzeit-Readback: nicht verfügbar; angewendeter Zustand nicht verifiziert";
+      return "Laufzeit-Readback: nicht verfuegbar; angewendeter Zustand nicht verifiziert";
     throw error;
   }
 }
@@ -298,9 +326,11 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
       if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
       const state: ContentPlanState = ctx.runtime.contentStudioPlan.get();
       if (!state.plan) return baseResponse(ctx, `Der gespeicherte Content-Studio-Plan ist leer (Revision ${state.revision}).`);
-      const ideas = state.plan.content.slice(0, MAX_RESULTS).map((item) => `${item.titel} · ${item.plattform} · ${item.status} · Ziel ${item.zieldatum || "ohne Datum"}`);
-      const postings = state.plan.postings.slice(0, MAX_RESULTS).map((item) => `${item.titel} · ${item.plattform} · ${item.status} · ${item.datum} ${item.uhrzeit}`);
-      const more = state.plan.content.length > MAX_RESULTS || state.plan.postings.length > MAX_RESULTS;
+      const ideaLimit = Math.min(state.plan.content.length, MAX_RESULTS);
+      const postingLimit = Math.max(0, MAX_RESULTS - ideaLimit);
+      const ideas = state.plan.content.slice(0, ideaLimit).map((item) => `${item.titel} · ${item.plattform} · ${item.status} · Ziel ${item.zieldatum || "ohne Datum"}`);
+      const postings = state.plan.postings.slice(0, postingLimit).map((item) => `${item.titel} · ${item.plattform} · ${item.status} · ${item.datum} ${item.uhrzeit}`);
+      const more = state.plan.content.length + state.plan.postings.length > MAX_RESULTS;
       return baseResponse(ctx, `Gespeicherter Content-Studio-Plan, Revision ${state.revision}: ${state.plan.content.length} Ideen und ${state.plan.postings.length} Postings. ${[
         ...ideas.map((item) => `Idee: ${item}`), ...postings.map((item) => `Posting: ${item}`),
       ].join("; ") || "Keine Einträge."}${more ? " (weitere vorhanden)" : ""}`);

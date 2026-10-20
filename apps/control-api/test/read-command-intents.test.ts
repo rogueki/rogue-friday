@@ -143,13 +143,10 @@ describe("read-only command intents use local read services", () => {
     const response = await run(operator, "Wie sind meine Voice-Einstellungen?");
     expect(response.statusCode, response.body).toBe(200);
     const message = response.json().result.message as string;
-    const runtimeStatus = await operator.get("/api/v1/voice/status");
-    expect(runtimeStatus.statusCode, runtimeStatus.body).toBe(200);
-    const status = runtimeStatus.json().data;
     expect(message).toContain("gespeichert");
     expect(message).toContain("Revision");
     expect(message).toContain("Laufzeit-Readback");
-    expect(message).toContain(`STT ${status.stt.state}, TTS ${status.tts.state}`);
+    expect(message).toContain("Laufzeit-Readback: nicht verifiziert");
     expect(message).not.toContain(privateWakeWord);
     if (typeof saved.voice.inputDeviceId === "string") expect(message).not.toContain(saved.voice.inputDeviceId);
     if (typeof saved.voice.outputDeviceId === "string") expect(message).not.toContain(saved.voice.outputDeviceId);
@@ -184,5 +181,24 @@ describe("read-only command intents use local read services", () => {
     expect(message).not.toContain("PRIVATE_CONTENT_DESCRIPTION_MUST_NOT_LEAK");
     expect((await operator.get("/api/v1/content-studio/plan")).statusCode).toBe(403);
     expect((await run(operator, "Zeige Content Studio Plan")).statusCode).toBe(403);
+
+    const mixed = await owner.request("PUT", "/api/v1/content-studio/plan", {
+      body: {
+        version: 1, exportiert_am: "2026-10-20T00:00:00.000Z",
+        content: content.slice(0, 3),
+        postings: Array.from({ length: 4 }, (_, index) => ({
+          id: `posting-${index}`, titel: `Synthetic posting ${index}`, plattform: "Instagram", format: "Story",
+          ziele: ["Instagram"], datum: "2026-10-22", uhrzeit: "12:00", status: "geplant",
+        })),
+      },
+      headers: { "if-match": "1" },
+    });
+    expect(mixed.statusCode, mixed.body).toBe(200);
+    const mixedMessage = (await run(owner, "Zeige mir den Content Studio Plan")).json().result.message as string;
+    for (const item of content.slice(0, 3)) expect(mixedMessage).toContain(item.titel);
+    expect(mixedMessage).toContain("Synthetic posting 0");
+    expect(mixedMessage).toContain("Synthetic posting 1");
+    expect(mixedMessage).not.toContain("Synthetic posting 2");
+    expect(mixedMessage).not.toContain("Synthetic posting 3");
   });
 });

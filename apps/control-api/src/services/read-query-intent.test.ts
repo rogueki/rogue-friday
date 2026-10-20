@@ -1,7 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { parseReadQueryIntent, READ_STATUS_ALIASES } from "./read-query-intent";
+import { formatVoiceRuntimeReadback, parseReadQueryIntent, READ_STATUS_ALIASES } from "./read-query-intent";
 
 describe("read-only command intent parsing", () => {
+  it("only compares known voice values from a recent fresh status and treats default device policy separately", () => {
+    const now = Date.parse("2026-10-20T12:00:00.000Z");
+    const response = (data: Record<string, unknown>, state: "fresh" | "stale" = "fresh", asOf: string | null = "2026-10-20T11:59:50.000Z") => ({
+      data: data as never, freshness: { state, asOf },
+    });
+    const settings = { ttsVoice: "classic", inputDeviceId: "mic-1", outputDeviceId: "speaker-1" };
+    const fresh = formatVoiceRuntimeReadback(settings, response({
+      ttsVoiceChoice: "classic", audioInputDeviceId: "mic-1", audioOutputDeviceId: "speaker-1",
+      stt: { state: "ready" }, tts: { state: "ready" },
+    }), now);
+    expect(fresh).toContain("TTS-Stimme stimmt");
+    expect(fresh).toContain("Eingabegeraet Kennung stimmt");
+
+    const bothMissing = formatVoiceRuntimeReadback(settings, response({
+      ttsVoiceChoice: null, audioInputDeviceId: null, audioOutputDeviceId: null,
+      stt: { state: "ready" }, tts: { state: "ready" },
+    }), now);
+    expect(bothMissing).toContain("TTS-Stimme nicht verglichen");
+    expect(bothMissing).toContain("Geraetevergleich nicht verifiziert");
+    expect(bothMissing).not.toContain("stimmt ueberein");
+
+    const defaultPolicy = formatVoiceRuntimeReadback({ ttsVoice: "", inputDeviceId: null, outputDeviceId: null }, response({
+      ttsVoiceChoice: "system-default", audioInputDeviceId: "resolved-mic", audioOutputDeviceId: null,
+      stt: { state: "ready" }, tts: { state: "ready" },
+    }), now);
+    expect(defaultPolicy).toContain("Default-Policy gespeichert");
+    expect(defaultPolicy).not.toContain("weicht ab");
+
+    for (const stale of [
+      response({ audioInputDeviceId: "mic-1" }, "stale"),
+      response({ audioInputDeviceId: "mic-1" }, "fresh", "2026-10-20T11:58:59.000Z"),
+      response({ audioInputDeviceId: "mic-1" }, "fresh", null),
+    ]) expect(formatVoiceRuntimeReadback(settings, stale, now)).toContain("nicht verifiziert");
+  });
   it("maps German and English activity/status/time phrases to typed filters", () => {
     expect(parseReadQueryIntent("Zeig mir fehlgeschlagene Activity-Ereignisse der letzten 12 Stunden"))
       .toEqual({ kind: "activity.list", status: "failed", lookbackHours: 12 });
