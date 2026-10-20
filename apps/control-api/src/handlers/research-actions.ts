@@ -88,7 +88,7 @@ export const researchActionHandlers: Partial<Record<OperationId, Handler>> = {
         details: {
           stage: "preview",
           previewId: ctx.correlationId,
-          previewText: `Das Thema „${topic}“ an ${ctx.runtime.research.configuration().provider === "wikipedia" ? "Wikipedia" : "den lokalen SearXNG-Dienst"} senden und bis zu zehn unverifizierte Quellen speichern?`,
+          previewText: `Das Thema „${topic}“ an ${ctx.runtime.research.configuration().provider === "wikipedia" ? "Wikipedia" : "den lokalen SearXNG-Dienst"} senden, bis zu zehn Treffer und drei Seiten speichern und bei eingerichtetem Hermes-Modell einen Syntheseversuch mit maximal 700 Ausgabetokens starten? Ein Modellaufruf kann Kosten verursachen; Belege bleiben unverifiziert. Keine automatische Wiederholung.`,
         },
       });
     }
@@ -181,7 +181,7 @@ export async function executeResearchCommand(
         status: "requires_confirmation",
         requiresConfirmation: true,
         previewId: key,
-        previewText: `„${topic}“ bei ${ctx.runtime.research.configuration().provider === "wikipedia" ? "Wikipedia" : "SearXNG"} suchen und bis zu zehn unverifizierte Quellen speichern?`,
+        previewText: `„${topic}“ bei ${ctx.runtime.research.configuration().provider === "wikipedia" ? "Wikipedia" : "SearXNG"} suchen, bis zu zehn Treffer und drei Seiten speichern und bei eingerichtetem Hermes-Modell einen Syntheseversuch mit maximal 700 Ausgabetokens starten? Ein Modellaufruf kann Kosten verursachen; Belege bleiben unverifiziert. Keine automatische Wiederholung.`,
         approvalId: null,
         result: null,
       } satisfies CommandResponse,

@@ -33,6 +33,7 @@ import {
   Quote,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelFrame } from "@/components/PanelFrame";
@@ -963,6 +964,14 @@ function ResearchContent() {
           </div>
           <p className="mc-note mc-note--muted">
             {canCreate ? t("research.create.disclosure") : t("research.create.unavailable")}
+            {canCreate ? (
+              <>
+                {" "}
+                <Link className="rs-link" href="/settings?area=hermesConfig">
+                  {t("research.create.modelSettings")}
+                </Link>
+              </>
+            ) : null}
           </p>
         </form>
         <ResearchProviderSetup />

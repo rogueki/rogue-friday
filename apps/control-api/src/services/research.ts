@@ -4,6 +4,11 @@ import type { ResearchFinding, ResearchProject, ResearchSource } from "@friday/s
 import { kvGet, kvSet, type Db } from "../db/database";
 import { ApiError, notFound, validationFailed } from "../util/errors";
 import { fetchResearchPage } from "./research-page-fetch";
+import {
+  validateResearchModelOutput,
+  type ResearchModelSynthesize,
+  type ResearchModelSource,
+} from "./research-model";
 
 const MAX_SOURCES = 10;
 const MAX_RESPONSE_BYTES = 512_000;
@@ -128,6 +133,7 @@ export class ResearchService {
     private readonly fetcher: typeof fetch = fetch,
     private readonly now: () => Date = () => new Date(),
     private readonly pageFetcher: (url: string) => Promise<string> = fetchResearchPage,
+    private readonly synthesize?: ResearchModelSynthesize,
   ) {
     this.defaultEndpoint = providerUrl(endpoint);
     // A process that died during the provider request must never silently submit that request again.
@@ -487,11 +493,12 @@ export class ResearchService {
         });
       }
     }
+    const sourceIds = sources.map(() => createId("src"));
     this.db.exec("BEGIN");
     try {
       for (const [index, source] of sources.entries()) {
         const page = pages[index];
-        const sourceId = createId("src");
+        const sourceId = sourceIds[index]!;
         this.db
           .prepare(
             "INSERT INTO research_sources (id, project_id, title, url, domain, excerpt, created_at, status, retrieved_at, body_text, content_hash, error_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -538,6 +545,71 @@ export class ResearchService {
     } catch (error) {
       this.db.exec("ROLLBACK");
       throw error;
+    }
+    const modelSources: ResearchModelSource[] = sources.flatMap((source, index) => {
+      const page = pages[index];
+      return page?.status === "retrieved" && page.text
+        ? [{ id: sourceIds[index]!, title: source.title, url: source.url, text: page.text }]
+        : [];
+    });
+    if (modelSources.length && this.synthesize) {
+      let modelStatus =
+        "Hermes-Modellsynthese nicht verfügbar; wörtliche Belegpassagen bleiben erhalten. Modell und Zugang in den Einstellungen prüfen.";
+      try {
+        const result = await this.synthesize(normalized, modelSources);
+        if (result) {
+          const valid = validateResearchModelOutput(
+            JSON.stringify({ observations: result.observations }),
+            modelSources,
+          );
+          if (valid.length) {
+            this.db.exec("BEGIN");
+            try {
+              for (const observation of valid) {
+                this.db
+                  .prepare(
+                    "INSERT INTO research_findings (id, project_id, source_id, statement, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT (project_id, source_id) DO UPDATE SET statement = excluded.statement",
+                  )
+                  .run(
+                    createId("fnd"),
+                    id,
+                    observation.sourceId,
+                    `${observation.statement} — Beleg: „${observation.quote}“`,
+                    this.now().toISOString(),
+                  );
+              }
+              const count = (
+                this.db
+                  .prepare("SELECT COUNT(*) AS n FROM research_findings WHERE project_id = ?")
+                  .get(id) as { n: number }
+              ).n;
+              this.db
+                .prepare("UPDATE research_projects SET result_summary = ?, updated_at = ? WHERE id = ?")
+                .run(
+                  `${sources.length} Suchtreffer, ${modelSources.length} Seiten abgerufen, ${count} quellgebundene Entwurfsbefunde. Hermes-Modell ${result.model} (${result.provider}) formulierte ${valid.length} davon; Zitate sind im gespeicherten Seitentext enthalten, Aussagen bleiben unverifiziert. Modellkosten unbekannt.`,
+                  this.now().toISOString(),
+                  id,
+                );
+              this.db.exec("COMMIT");
+              modelStatus = "";
+            } catch (error) {
+              this.db.exec("ROLLBACK");
+              throw error;
+            }
+          } else {
+            modelStatus =
+              "Hermes-Modellsynthese lieferte keine belegten Aussagen; wörtliche Belegpassagen bleiben erhalten.";
+          }
+        }
+      } catch {
+        // Source and extractive drafts were committed first. A model outage never erases evidence or retries.
+      }
+      if (modelStatus)
+        this.db
+          .prepare(
+            "UPDATE research_projects SET result_summary = result_summary || ' ' || ?, updated_at = ? WHERE id = ?",
+          )
+          .run(modelStatus, this.now().toISOString(), id);
     }
     return this.get(ownerId, id);
   }

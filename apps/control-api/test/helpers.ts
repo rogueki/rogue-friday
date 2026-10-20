@@ -12,6 +12,7 @@ import type { ResearchSetupProbe, ResearchSetupRun } from "../src/services/resea
 export interface TestApiOptions {
   providerFetch?: typeof fetch;
   researchPageFetch?: (url: string) => Promise<string>;
+  researchSynthesize?: import("../src/services/research-model").ResearchModelSynthesize;
   researchSetupRun?: ResearchSetupRun;
   researchSetupProbe?: ResearchSetupProbe;
   authMode?: "dev" | "local";
@@ -94,6 +95,7 @@ ${options.yamlExtra ?? ""}
     config,
     ...(options.providerFetch ? { providerFetch: options.providerFetch } : {}),
     researchPageFetch: options.researchPageFetch ?? (async () => { throw new Error("test page unavailable"); }),
+    researchSynthesize: options.researchSynthesize ?? (async () => null),
     ...(options.researchSetupRun ? { researchSetupRun: options.researchSetupRun } : {}),
     ...(options.researchSetupProbe ? { researchSetupProbe: options.researchSetupProbe } : {}),
     env,

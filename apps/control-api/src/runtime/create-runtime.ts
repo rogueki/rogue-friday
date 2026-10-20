@@ -60,6 +60,7 @@ import { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import { HermesConfigService } from "../services/hermes-config";
 import { CodingRunsService } from "../services/coding-runs";
 import { ResearchService } from "../services/research";
+import { hermesResearchSynthesizer, type ResearchModelSynthesize } from "../services/research-model";
 import { ResearchSetupService, type ResearchSetupProbe, type ResearchSetupRun } from "../services/research-setup";
 import { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
 import { ContentStudioProviderService } from "../services/content-studio-providers";
@@ -77,6 +78,7 @@ export interface CreateRuntimeOptions {
   config: FridayConfig;
   providerFetch?: typeof fetch;
   researchPageFetch?: (url: string) => Promise<string>;
+  researchSynthesize?: ResearchModelSynthesize;
   researchSetupRun?: ResearchSetupRun;
   researchSetupProbe?: ResearchSetupProbe;
   env?: NodeJS.ProcessEnv;
@@ -326,7 +328,8 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const codingVoiceRepository = new CodingVoiceRepositoryService(db, codingRuns);
   const research = new ResearchService(db, env.FRIDAY_RESEARCH_SEARXNG_URL, options.providerFetch,
     options.now ? () => new Date(options.now!()) : undefined,
-    options.researchPageFetch);
+    options.researchPageFetch,
+    options.researchSynthesize ?? hermesResearchSynthesizer(config.paths.dataDir));
   const researchSetup = new ResearchSetupService(config.paths.dataDir, options.researchSetupRun, options.researchSetupProbe);
   const contentStudioProduction = new ContentStudioProductionService(db, contentStudioPlan, contentStudioKeys, contentStudioProviders,
     config.paths.dataDir, { ffmpegPath: env.FRIDAY_FFMPEG_PATH, enabled: () => settings.area("dashboard").contentStudioEnabled === true });
