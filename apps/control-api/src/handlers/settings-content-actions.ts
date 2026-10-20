@@ -26,7 +26,8 @@ function isOwner(ctx: RequestContext): string {
 
 function sameIntent(action: NativeExecutableAction, intent: SettingsContentMutationIntent): boolean {
   if (intent.kind === "settings.profile.locale" || intent.kind === "settings.profile.dateFormat"
-    || intent.kind === "settings.profile.timeFormat" || intent.kind === "settings.profile.firstDayOfWeek" || intent.kind === "settings.profile.timeZone")
+    || intent.kind === "settings.profile.timeFormat" || intent.kind === "settings.profile.firstDayOfWeek" || intent.kind === "settings.profile.timeZone"
+    || intent.kind === "settings.profile.displayName" || intent.kind === "settings.profile.assistantName")
     return action.kind === intent.kind && action.value === intent.value;
   if (intent.kind === "settings.dashboard.compact")
     return action.kind === intent.kind && action.value === intent.value;
@@ -90,13 +91,16 @@ function storedAction(ctx: RequestContext, ownerId: string, request: CommandRequ
 
 function makeAction(ctx: RequestContext, intent: SettingsContentMutationIntent): NativeExecutableAction {
   if (intent.kind === "settings.profile.locale" || intent.kind === "settings.profile.dateFormat"
-    || intent.kind === "settings.profile.timeFormat" || intent.kind === "settings.profile.firstDayOfWeek" || intent.kind === "settings.profile.timeZone") {
+    || intent.kind === "settings.profile.timeFormat" || intent.kind === "settings.profile.firstDayOfWeek" || intent.kind === "settings.profile.timeZone"
+    || intent.kind === "settings.profile.displayName" || intent.kind === "settings.profile.assistantName") {
     if (!authorize(ctx.principal!.role, "settings.update").allowed) throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
     const current = ctx.runtime.settings.get();
     const key = intent.kind === "settings.profile.locale" ? "locale"
       : intent.kind === "settings.profile.dateFormat" ? "dateFormat"
           : intent.kind === "settings.profile.timeFormat" ? "timeFormat"
-            : intent.kind === "settings.profile.firstDayOfWeek" ? "firstDayOfWeek" : "timeZone";
+            : intent.kind === "settings.profile.firstDayOfWeek" ? "firstDayOfWeek"
+              : intent.kind === "settings.profile.timeZone" ? "timeZone"
+                : intent.kind === "settings.profile.displayName" ? "displayName" : "assistantName";
     const profile = { ...current.profile, [key]: intent.value };
     ctx.runtime.settings.validateAreas({ profile } as SettingsPatch);
     return { kind: intent.kind, expectedVersion: current.version, value: intent.value };
@@ -220,6 +224,10 @@ function proposalText(action: NativeExecutableAction): string {
     return `Wochenbeginn auf ${action.value === "monday" ? "Montag" : "Sonntag"} setzen? Gespeicherte Revision ${action.expectedVersion}.`;
   if (action.kind === "settings.profile.timeZone")
     return `Zeitzone auf ${action.value} setzen? Gespeicherte Revision ${action.expectedVersion}.`;
+  if (action.kind === "settings.profile.displayName")
+    return `Anzeigenamen auf „${action.value}“ setzen? Gespeicherte Revision ${action.expectedVersion}.`;
+  if (action.kind === "settings.profile.assistantName")
+    return `Assistentennamen auf „${action.value}“ setzen? Gespeicherte Revision ${action.expectedVersion}.`;
   if (action.kind === "settings.dashboard.compact")
     return `Dashboard-Kompaktansicht auf ${action.value ? "ein" : "aus"} setzen? Gespeicherte Revision ${action.expectedVersion}; Laufzeitwirkung wird nach dem Speichern nicht separat verifiziert.`;
   if (action.kind === "settings.dashboard.refresh")
@@ -298,13 +306,16 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
 
   const revision = await ctx.runtime.nativeApprovals.executeWithoutApproval(ownerId, requestKey, async (saved, idempotencyKey) => {
     if (saved.kind === "settings.profile.locale" || saved.kind === "settings.profile.dateFormat"
-      || saved.kind === "settings.profile.timeFormat" || saved.kind === "settings.profile.firstDayOfWeek" || saved.kind === "settings.profile.timeZone") {
+      || saved.kind === "settings.profile.timeFormat" || saved.kind === "settings.profile.firstDayOfWeek" || saved.kind === "settings.profile.timeZone"
+      || saved.kind === "settings.profile.displayName" || saved.kind === "settings.profile.assistantName") {
       const current = ctx.runtime.settings.get();
       if (current.version !== saved.expectedVersion) throw conflict("Einstellungen wurden inzwischen geaendert. Bitte neu laden.");
       const key = saved.kind === "settings.profile.locale" ? "locale"
         : saved.kind === "settings.profile.dateFormat" ? "dateFormat"
           : saved.kind === "settings.profile.timeFormat" ? "timeFormat"
-            : saved.kind === "settings.profile.firstDayOfWeek" ? "firstDayOfWeek" : "timeZone";
+            : saved.kind === "settings.profile.firstDayOfWeek" ? "firstDayOfWeek"
+              : saved.kind === "settings.profile.timeZone" ? "timeZone"
+                : saved.kind === "settings.profile.displayName" ? "displayName" : "assistantName";
       const result = await settingsHandlers.updateSettings!({ ...ctx,
         body: { profile: { ...current.profile, [key]: saved.value } } as SettingsPatch,
         mutation: { ...ctx.mutation, ifMatchVersion: saved.expectedVersion, idempotencyKey } });
@@ -452,6 +463,7 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
   });
   const message = action.kind === "settings.profile.locale" || action.kind === "settings.profile.dateFormat"
     || action.kind === "settings.profile.timeFormat" || action.kind === "settings.profile.firstDayOfWeek" || action.kind === "settings.profile.timeZone"
+    || action.kind === "settings.profile.displayName" || action.kind === "settings.profile.assistantName"
     ? `Profileinstellung gespeichert (Revision ${revision}).`
     : action.kind === "settings.dashboard.compact"
     ? `Dashboard-Kompaktansicht gespeichert (Revision ${revision}). Laufzeitwirkung nicht separat verifiziert.`

@@ -133,6 +133,8 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
       ["Set time format to 12h", "timeFormat", "12h"],
       ["Set first day of the week to Sunday", "firstDayOfWeek", "sunday"],
       ["Set timezone to Europe/Paris", "timeZone", "Europe/Paris"],
+      ['Set my display name to "Nina Test"', "displayName", "Nina Test"],
+      ['Set assistant name to "Friday Assistant"', "assistantName", "Friday Assistant"],
     ] as const;
     for (const [text, key, value] of cases) {
       const preview = await command(owner, text);
@@ -145,6 +147,9 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
       expect(saved.profile[key]).toBe(value);
       expect(saved.version).toBeGreaterThan(before.version);
     }
+    const auditRows = api.runtime.db.prepare("SELECT json FROM audit_log").all() as Array<{ json: string }>;
+    expect(auditRows.map((row) => row.json).join("\n")).not.toContain("Nina Test");
+    expect(auditRows.map((row) => row.json).join("\n")).not.toContain("Friday Assistant");
   });
 
   it("adds an idea through a typed action even when its title looks like a read, with plan CAS and replay", async () => {

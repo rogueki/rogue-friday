@@ -4,6 +4,8 @@ export type SettingsContentMutationIntent =
   | { kind: "settings.profile.timeFormat"; value: "24h" | "12h" }
   | { kind: "settings.profile.firstDayOfWeek"; value: "monday" | "sunday" }
   | { kind: "settings.profile.timeZone"; value: string }
+  | { kind: "settings.profile.displayName"; value: string }
+  | { kind: "settings.profile.assistantName"; value: string }
   | { kind: "settings.dashboard.compact"; value: boolean }
   | { kind: "settings.dashboard.refresh"; value: number }
   | { kind: "settings.dashboard.backgroundGrid"; value: boolean }
@@ -30,6 +32,7 @@ const SETTING_PROFILE_DATE = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|
 const SETTING_PROFILE_TIME = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:my\s+)?(?:time\s+format|zeitformat)\s+(?:(?:to|auf)\s+)?(24h|12h|24-stunden|12-stunden)[.!?]?$/i;
 const SETTING_PROFILE_WEEK = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:my\s+)?(?:first\s+day\s+of\s+the\s+week|wochenbeginn|ersten\s+wochentag)\s+(?:(?:to|auf)\s+)?(monday|montag|sunday|sonntag)[.!?]?$/i;
 const SETTING_PROFILE_TIME_ZONE = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:my\s+)?(?:time\s*zone|timezone|zeitzone)\s+(?:(?:to|auf)\s+)?([A-Za-z_+-]{1,32}(?:\/[A-Za-z0-9_+-]{1,32}){0,3})[.!?]?$/i;
+const SETTING_PROFILE_NAME = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:my\s+)?(display\s+name|anzeigename|assistant\s+name|assistentenname)\s+(?:(?:to|auf)\s+)?"([^"\r\n]{1,80})"[.!?]?$/i;
 const SETTING_REFRESH = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:the\s+)?(?:dashboard\s+)?(?:refresh|aktualisierung)(?:\s+interval)?\s+(?:(?:to|auf)\s+)?([0-9]{1,4})\s*(?:seconds?|sekunden|s)?[.!?]?$/i;
 const SETTING_DASHBOARD_BOOLEAN = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:the\s+)?(?:dashboard\s+)?(background\s+grid|grid|sound\s+effects|content\s+studio)(?:\s+module)?\s+(?:(?:to|auf)\s+)?(on|off|enabled|disabled|ein|aus|aktiviert|deaktiviert)[.!?]?$/i;
 const SETTING_CONTENT_STUDIO_TOGGLE = /^(?:please\s+)?(enable|activate|disable|deactivate|aktiviere|deaktiviere)\s+(?:the\s+)?content\s+studio(?:\s+module)?[.!?]?$/i;
@@ -68,6 +71,12 @@ export function parseSettingsContentMutationIntent(input: string): SettingsConte
       new Intl.DateTimeFormat("en", { timeZone: timeZone[1]! });
       return { kind: "settings.profile.timeZone", value: timeZone[1]! };
     } catch { return null; }
+  }
+  const profileName = SETTING_PROFILE_NAME.exec(rawText);
+  if (profileName) {
+    const value = profileName[2]!.trim();
+    if (!value || value.length > (profileName[1]!.toLocaleLowerCase("en-US").includes("assistant") || profileName[1]!.toLocaleLowerCase("de-DE").includes("assistent") ? 40 : 80)) return null;
+    return { kind: /^(assistant\s+name|assistentenname)$/i.test(profileName[1]!) ? "settings.profile.assistantName" : "settings.profile.displayName", value };
   }
   const compact = SETTING_COMPACT.exec(text);
   if (compact) return { kind: "settings.dashboard.compact", value: /^(on|enabled|ein)$/i.test(compact[1]!) };

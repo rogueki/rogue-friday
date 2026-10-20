@@ -103,6 +103,9 @@ describe("settings and Content Studio mutation intents", () => {
     expect(parseSettingsContentMutationIntent("Change time format to 12h")).toEqual({ kind: "settings.profile.timeFormat", value: "12h" });
     expect(parseSettingsContentMutationIntent("Set first day of the week to Sunday")).toEqual({ kind: "settings.profile.firstDayOfWeek", value: "sunday" });
     expect(parseSettingsContentMutationIntent("Set timezone to Europe/Paris")).toEqual({ kind: "settings.profile.timeZone", value: "Europe/Paris" });
+    expect(parseSettingsContentMutationIntent('Set my display name to "Nina Test"')).toEqual({ kind: "settings.profile.displayName", value: "Nina Test" });
+    expect(parseSettingsContentMutationIntent('Set assistant name to "Friday Assistant"')).toEqual({ kind: "settings.profile.assistantName", value: "Friday Assistant" });
+    expect(parseSettingsContentMutationIntent(`Set assistant name to "${"x".repeat(41)}"`)).toBeNull();
     expect(parseSettingsContentMutationIntent("Set timezone to Mars/Phobos")).toBeNull();
     expect(parseSettingsContentMutationIntent("Set date format to dd/MM/yyyy")).toBeNull();
   });
