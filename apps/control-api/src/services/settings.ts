@@ -429,6 +429,13 @@ export class SettingsService {
 
   /** A patch may only activate a theme/layout that exists (the UI would otherwise render with no tokens). */
   private assertReferences(patch: SettingsPatch): void {
+    if (patch.profile) {
+      try { new Intl.DateTimeFormat("en", { timeZone: patch.profile.timeZone }); }
+      catch {
+        throw validationFailed("Die Profil-Zeitzone ist unbekannt.",
+          [{ path: "profile.timeZone", message: "gültige IANA-Zeitzone erforderlich" }]);
+      }
+    }
     for (const channel of patch.notifications?.channels ?? []) {
       // The current messenger draft/target contract is bound to the default gateway profile.
       // An arbitrary saved account ID cannot be delivered or owner-reviewed by that path.
