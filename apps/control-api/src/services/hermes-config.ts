@@ -436,7 +436,7 @@ export class HermesConfigService {
       if (error instanceof Error && error.message.includes("revision_conflict"))
         throw conflict("Hermes-Konfiguration wurde waehrend der Probe geaendert.");
       if (error instanceof Error && error.message.includes("unprobeable_server"))
-        throw validationFailed("Nur aktivierte HTTPS-MCP-Eintraege ohne Zugangsdaten sind pruefbar.");
+        throw validationFailed("Nur aktivierte verwaltete HTTPS-MCP-Eintraege ohne Auth oder mit hinterlegtem Bearer-Schluessel sind pruefbar.");
       throw unavailable();
     }
     const failures = ["auth_required", "config_invalid", "connect_failed", "protocol_failed",

@@ -85,6 +85,12 @@ class BridgeTest(unittest.TestCase):
             raw["mcp_servers"] = self.mcp_servers
             self.config.write_text(yaml.safe_dump(raw))
             return subprocess.CompletedProcess(command, 0, '{"saved":true}', "")
+        if command[0] == "mcp-auth-probe-worker":
+            request = json.loads(_kwargs["input"])
+            if "token" in request:
+                raise AssertionError("token crossed from native profile to bridge")
+            return subprocess.CompletedProcess(command, 0, json.dumps({"connected": True, "toolCount": 1,
+                "toolCountComplete": True, "failureClass": None}), "")
         if command[0] == "credential-worker":
             request = json.loads(_kwargs["input"])
             env_path = self.home / ".hermes" / ".env"
@@ -126,6 +132,7 @@ class BridgeTest(unittest.TestCase):
         launchers.runtime_command = lambda *args, **kwargs: [
             "plugin-worker" if "hermes_plugin_activation.py" in kwargs.get("code", "") else
             "mcp-worker" if "hermes_mcp_http_apply.py" in kwargs.get("code", "") else
+            "mcp-auth-probe-worker" if "hermes_mcp_auth_probe.py" in kwargs.get("code", "") else
             "mcp-bearer-worker" if "hermes_mcp_bearer_apply.py" in kwargs.get("code", "") else "credential-worker"]
         env_path = self.home / ".hermes" / ".env"
         def load_env():
@@ -356,6 +363,19 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(code, 4)
         self.assertEqual(result["error"], "revision_conflict")
         probe.assert_not_called()
+
+    def test_mcp_bearer_probe_uses_native_secret_without_crossing_bridge(self):
+        self.invoke({"name": "example", "url": "https://example.org/private/mcp", "enabled": True,
+                     "revision": bridge.revision(self.config)})
+        self.invoke({"name": "example", "token": "CANARY-MCP-PRIVATE",
+                     "revision": bridge.revision(self.config)}, action="mcp-bearer")
+        code, result = self.invoke({"name": "example", "revision": bridge.revision(self.config)},
+                                   action="mcp-probe")
+        self.assertEqual(code, 0)
+        self.assertTrue(result["connected"])
+        self.assertNotIn("CANARY-MCP-PRIVATE", json.dumps(result))
+        self.assertNotIn("/private/mcp", json.dumps(result))
+        self.assertTrue(any(command[0] == "mcp-auth-probe-worker" for command in self.calls))
 
     def test_disabled_skills_error_is_unknown(self):
         original = self.run_command

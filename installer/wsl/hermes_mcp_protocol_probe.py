@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded credential-free MCP HTTP handshake with a pinned public-IP TLS dial."""
+"""Bounded MCP HTTP handshake with a pinned public-IP TLS dial."""
 
 import http.client
 import ipaddress
@@ -82,20 +82,22 @@ def response_message(response, request_id):
     raise ProbeFailure("protocol_failed")
 
 
-def request(connection, path, payload, session=None, protocol=None):
+def request(connection, path, payload, session=None, protocol=None, bearer_token=None):
     headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
     if session:
         headers["Mcp-Session-Id"] = session
     if protocol:
         headers["MCP-Protocol-Version"] = protocol
+    if bearer_token:
+        headers["Authorization"] = "Bearer " + bearer_token
     connection.request("POST", path, json.dumps(payload, separators=(",", ":")), headers)
     return connection.getresponse()
 
 
-def exchange(host, address, path, payload, request_id=None, session=None, protocol=None):
+def exchange(host, address, path, payload, request_id=None, session=None, protocol=None, bearer_token=None):
     connection = PinnedHTTPSConnection(host, address)
     try:
-        response = request(connection, path, payload, session, protocol)
+        response = request(connection, path, payload, session, protocol, bearer_token)
         if request_id is None:
             if response.status in (401, 403):
                 raise ProbeFailure("auth_required")
@@ -112,8 +114,11 @@ def exchange(host, address, path, payload, request_id=None, session=None, protoc
         connection.close()
 
 
-def probe(url):
+def probe(url, bearer_token=None):
     if not valid_url(url):
+        raise ProbeFailure("config_invalid")
+    if bearer_token is not None and (not isinstance(bearer_token, str) or
+            not 1 <= len(bearer_token) <= 4096 or any(ord(ch) < 33 or ord(ch) > 126 for ch in bearer_token)):
         raise ProbeFailure("config_invalid")
     parsed = urlsplit(url)
     host = parsed.hostname
@@ -122,17 +127,18 @@ def probe(url):
     try:
         initialized, session = exchange(host, address, path, {"jsonrpc": "2.0", "id": 1, "method": "initialize",
             "params": {"protocolVersion": PROTOCOL, "capabilities": {},
-                       "clientInfo": {"name": "friday-mcp-probe", "version": "1"}}}, request_id=1)
+                       "clientInfo": {"name": "friday-mcp-probe", "version": "1"}}},
+                       request_id=1, bearer_token=bearer_token)
         if session is not None and (not 1 <= len(session) <= 256 or any(ord(ch) < 33 or ord(ch) > 126 for ch in session)):
             raise ProbeFailure("protocol_failed")
         result = initialized.get("result")
         if not isinstance(result, dict) or result.get("protocolVersion") != PROTOCOL:
             raise ProbeFailure("protocol_unsupported")
         exchange(host, address, path, {"jsonrpc": "2.0", "method": "notifications/initialized"},
-                 session=session, protocol=PROTOCOL)
+                 session=session, protocol=PROTOCOL, bearer_token=bearer_token)
         listing, _ = exchange(host, address, path,
                               {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
-                              request_id=2, session=session, protocol=PROTOCOL)
+                              request_id=2, session=session, protocol=PROTOCOL, bearer_token=bearer_token)
         tools = listing.get("result", {}).get("tools") if isinstance(listing.get("result"), dict) else None
         if not isinstance(tools, list) or len(tools) > 10000:
             raise ProbeFailure("protocol_failed")

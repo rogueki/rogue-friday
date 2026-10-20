@@ -221,6 +221,7 @@ function Get-WslBridgeSourcePaths {
         'installer/wsl/hermes_model_credential_apply.py', 'installer/wsl/hermes_model_catalog.py',
         'installer/wsl/hermes_plugin_activation.py', 'installer/wsl/hermes_mcp_http_apply.py',
         'installer/wsl/hermes_mcp_protocol_probe.py', 'installer/wsl/hermes_mcp_bearer_apply.py',
+        'installer/wsl/hermes_mcp_auth_probe.py',
         'installer/wsl/configure_messenger_inbound_bridge.py', 'installer/wsl/setup_messenger_inbound_bridge.sh',
         'installer/scripts/recover-friday.ps1')
 }

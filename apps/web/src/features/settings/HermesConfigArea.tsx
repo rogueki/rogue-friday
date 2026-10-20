@@ -393,7 +393,8 @@ export function HermesConfigArea() {
                 Bearer-Schluessel entfernen
               </button> : null}
             </div> : null}
-          {server.editable && server.enabled ? <button type="button" disabled={mcpProbe.isPending}
+          {(server.editable || server.authMode === "bearer" && server.credentialConfigured) && server.enabled ?
+            <button type="button" disabled={mcpProbe.isPending}
             onClick={() => mcpProbe.mutate({ name: server.id, revision })}>
             MCP-Protokollverbindung pruefen
           </button> : null}

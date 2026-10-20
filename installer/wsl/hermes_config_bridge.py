@@ -295,15 +295,34 @@ def locked_main(home, source, cli):
             print(json.dumps({"error": "revision_conflict"}))
             return 4
         entry = raw.get("mcp_servers", {}).get(request["name"]) if isinstance(raw.get("mcp_servers"), dict) else None
-        if (not isinstance(entry, dict) or set(entry) - {"url", "enabled"} or
-                not valid_url(entry.get("url")) or entry.get("enabled", True) is not True):
+        if (not isinstance(entry, dict) or not valid_url(entry.get("url")) or
+                entry.get("enabled", True) is not True):
             raise ValueError("unprobeable_server")
-        from hermes_mcp_protocol_probe import ProbeFailure, probe
-        try:
-            result = probe(entry["url"])
-        except ProbeFailure as exc:
-            result = {"connected": False, "toolCount": None, "toolCountComplete": False,
-                      "failureClass": exc.failure_class}
+        if set(entry) <= {"url", "enabled"}:
+            from hermes_mcp_protocol_probe import ProbeFailure, probe
+            try:
+                result = probe(entry["url"])
+            except ProbeFailure as exc:
+                result = {"connected": False, "toolCount": None, "toolCountComplete": False,
+                          "failureClass": exc.failure_class}
+        elif (re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", request["name"]) and
+              set(entry) <= {"url", "enabled", "headers"} and
+              entry.get("headers") == {"Authorization": "Bearer ${MCP_" + request["name"].upper() + "_API_KEY}"}):
+            sys.path.insert(0, str(source))
+            from hermes_cli._launchers import runtime_command
+            helper = Path(__file__).with_name("hermes_mcp_auth_probe.py")
+            command = runtime_command(source, code=f"import runpy; runpy.run_path({str(helper)!r}, run_name='__main__')")
+            child = run_runtime_child(command, json.dumps({"name": request["name"], "url": entry["url"],
+                "revision": before, "configPath": str(config_path)}), 28)
+            try:
+                result = json.loads(child.stdout)
+            except (ValueError, TypeError):
+                result = None
+            if child.returncode or not isinstance(result, dict) or set(result) != {
+                    "connected", "toolCount", "toolCountComplete", "failureClass"}:
+                raise ValueError("mcp_probe_unconfirmed")
+        else:
+            raise ValueError("unprobeable_server")
         if revision(config_path) != before:
             print(json.dumps({"error": "revision_conflict"}))
             return 4

@@ -199,6 +199,28 @@ class ProtocolProbeTest(TestCase):
         self.assertEqual(error.exception.failure_class, "redirect_rejected")
         self.assertEqual(len(redirect.requests), 1)
 
+    def test_bearer_is_sent_only_to_pinned_tls_endpoint_and_never_followed(self):
+        first = Response(200, json.dumps({"jsonrpc": "2.0", "id": 1,
+            "result": {"protocolVersion": "2025-03-26"}}).encode())
+        listing = Response(200, json.dumps({"jsonrpc": "2.0", "id": 2,
+            "result": {"tools": []}}).encode())
+        connections = [Connection("example.org", "93.184.215.14", [first]),
+                       Connection("example.org", "93.184.215.14", [Response(202)]),
+                       Connection("example.org", "93.184.215.14", [listing])]
+        with patch.object(probe_module, "public_address", return_value="93.184.215.14"), \
+             patch.object(probe_module, "PinnedHTTPSConnection", side_effect=connections):
+            self.assertTrue(probe_module.probe("https://example.org/mcp", "CANARY-MCP-PRIVATE")["connected"])
+        self.assertTrue(all(connection.requests[0][3]["Authorization"] == "Bearer CANARY-MCP-PRIVATE"
+                            for connection in connections))
+        self.assertTrue(all(connection.address == "93.184.215.14" for connection in connections))
+        redirect = Connection("example.org", "93.184.215.14", [Response(302)])
+        with patch.object(probe_module, "public_address", return_value="93.184.215.14"), \
+             patch.object(probe_module, "PinnedHTTPSConnection", return_value=redirect):
+            with self.assertRaises(probe_module.ProbeFailure) as error:
+                probe_module.probe("https://example.org/mcp", "CANARY-MCP-PRIVATE")
+        self.assertEqual(error.exception.failure_class, "redirect_rejected")
+        self.assertEqual(len(redirect.requests), 1)
+
     def test_sse_reply_is_bounded_and_rejects_unmatched_frames(self):
         payload = b": keepalive\n\ndata: {\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[]}}\n\n"
         message = probe_module.response_message(Response(200, payload, "text/event-stream"), 2)
