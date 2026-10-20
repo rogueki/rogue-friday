@@ -152,7 +152,11 @@ describe("contract: all operations", () => {
       expect(stagedCancel.json.error).toMatchObject({ code: "APPROVAL_REQUIRED", details: { stage: "preview" } });
       await call("cancelTask", { params: { id: ids.cancelTask }, body: cancelBody,
         headers: { "x-action-preview-id": stagedCancel.json.error.details.previewId } });
-      await call("retryTask", { params: { id: ids.retryTask } });
+      const stagedRetry = await call("retryTask", { params: { id: ids.retryTask }, expect: 403 });
+      expect(stagedRetry.json.error).toMatchObject({ code: "APPROVAL_REQUIRED", details: { stage: "preview" } });
+      const retried = await call("retryTask", { params: { id: ids.retryTask },
+        headers: { "x-action-preview-id": stagedRetry.json.error.details.previewId } });
+      expect(retried.json.data.id).toBe(ids.retryTask);
       const latest = (await owner.get("/api/v1/settings")).json().data;
       expect((await owner.patch("/api/v1/settings", { approvals: settings.approvals },
         { headers: { "if-match": String(latest.version) } })).statusCode).toBe(200);

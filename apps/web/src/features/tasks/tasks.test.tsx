@@ -335,9 +335,12 @@ describe("task actions: retry, artifacts, create", () => {
 
   it("retries a failed task and keeps the history entry", async () => {
     nav.params = new URLSearchParams(`task=${failed.id}`);
-    const api = routes({ "POST /tasks/:id/retry": () => dataOf({ ...failed, status: "running", version: 2 }) });
+    const previewId = "corr_0000000000000000000000rt1";
+    const api = routes({ "POST /tasks/:id/retry": stagedRoute(
+      "Aufgabe „Update fehlgeschlagen“ erneut starten?", previewId,
+      () => dataOf({ ...failed, status: "running", version: 2 })) });
     const user = userEvent.setup();
-    renderWithProviders(<TasksPage />, { capabilities: FULL, fetchImpl: api.fetch });
+    renderWithProviders(<><TasksPage /><TaskWriteConfirmHost /></>, { capabilities: FULL, fetchImpl: api.fetch });
     const dialog = await screen.findByRole("dialog");
     const retry = await within(dialog).findByRole("button", { name: /Wiederholen/ });
     expect(retry).toBeEnabled();
@@ -345,6 +348,13 @@ describe("task actions: retry, artifacts, create", () => {
     await user.click(retry);
     await waitFor(() => expect(api.callsTo("POST /tasks/:id/retry")).toHaveLength(1));
     expect(api.callsTo("POST /tasks/:id/retry")[0]?.headers.get("if-match")).toBe("1");
+    expect(api.callsTo("POST /tasks/:id/retry")[0]?.headers.get("x-action-preview-id")).toBeNull();
+    const confirm = await screen.findByRole("alertdialog");
+    expect(within(confirm).getByText("Aufgabe „Update fehlgeschlagen“ erneut starten?")).toBeInTheDocument();
+    await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+    await waitFor(() => expect(api.callsTo("POST /tasks/:id/retry")).toHaveLength(2));
+    expect(api.callsTo("POST /tasks/:id/retry")[1]?.headers.get("x-action-preview-id")).toBe(previewId);
+    expect(api.callsTo("POST /tasks/:id/retry")[1]?.headers.get("if-match")).toBe("1");
   });
 
   it("opens an artifact only with a file and the files capability", async () => {

@@ -71,18 +71,15 @@ export const useTask = (id: string | null | undefined) => useQuery({ ...taskQuer
 
 const invalidateTasks = [queryKeys.tasks.all, queryKeys.overview] as const;
 
-// Task status changes, cancels and field updates are staged writes since the P9 slice and run through
-// `taskWriteRunner`; only pause/resume/retry stay one-shot adapter actions here.
-type TaskAction = "retry" | "pause" | "resume";
+// Task status changes, cancel, retry and field updates run through taskWriteRunner.
+type TaskAction = "pause" | "resume";
 
 const TASK_ACTION_LABELS: Record<TaskAction, string> = {
-  retry: "Aufgabe wiederholen",
   pause: "Aufgabe pausieren",
   resume: "Aufgabe fortsetzen",
 };
 
 const TASK_ACTION_PATHS = {
-  retry: "/api/v1/tasks/{id}/retry",
   pause: "/api/v1/tasks/{id}/pause",
   resume: "/api/v1/tasks/{id}/resume",
 } as const;

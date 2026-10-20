@@ -7,9 +7,9 @@ import { getApiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { StagedWriteConfirmHost, useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 
-/** One staged task write (status change, field update, agent assignment or cancel) as the Control API gates it since the P9 slice. */
+/** One staged task write as the Control API gates it. */
 export interface TaskWrite {
-  kind: "create" | "update" | "cancel" | "assign";
+  kind: "create" | "update" | "cancel" | "retry" | "assign";
   id?: string;
   version?: number;
   body?: TaskCreateRequest | TaskUpdateRequest | TaskActionRequest | TaskAssignRequest;
@@ -36,6 +36,14 @@ function sendTaskWrite(write: TaskWrite, previewId?: string, idempotencyKey?: st
   if (write.kind === "cancel") {
     if (idempotencyKey) header["Idempotency-Key"] = idempotencyKey;
     return call(getApiClient().POST("/api/v1/tasks/{id}/cancel", {
+      params: { path: { id: write.id }, header },
+      ...(write.body ? { body: write.body as TaskActionRequest } : {}),
+      ...(confirmHeaders ? { headers: confirmHeaders } : {}),
+    }));
+  }
+  if (write.kind === "retry") {
+    if (idempotencyKey) header["Idempotency-Key"] = idempotencyKey;
+    return call(getApiClient().POST("/api/v1/tasks/{id}/retry", {
       params: { path: { id: write.id }, header },
       ...(write.body ? { body: write.body as TaskActionRequest } : {}),
       ...(confirmHeaders ? { headers: confirmHeaders } : {}),
