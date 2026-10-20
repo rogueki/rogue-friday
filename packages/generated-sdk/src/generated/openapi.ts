@@ -3833,6 +3833,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voice/wake-enrollment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read private pending wake phrase enrollment */
+        get: operations["getWakeEnrollment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/wake-enrollment/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel and delete a pending wake enrollment */
+        post: operations["discardWakeEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/wake-enrollment/samples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload one bounded private wake training sample */
+        post: operations["addWakeEnrollmentSample"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/wake-enrollment/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start one phrase-bound private wake enrollment */
+        post: operations["startWakeEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voice/wake-enrollment/train": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Train staged wake model without activating it */
+        post: operations["trainWakeEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/weather/current": {
         parameters: {
             query?: never;
@@ -10153,6 +10238,42 @@ export interface components {
             text?: string;
             utteranceId: string;
             voice?: string;
+        };
+        /** WakeEnrollmentJob */
+        WakeEnrollmentJob: {
+            jobId: string;
+        };
+        /** WakeEnrollmentSample */
+        WakeEnrollmentSample: {
+            jobId: string;
+            /** @enum {string} */
+            kind: "wake" | "short" | "negatives" | "speech";
+            pcmBase64: string;
+        };
+        /** WakeEnrollmentStart */
+        WakeEnrollmentStart: {
+            phrase: string;
+        };
+        /** WakeEnrollmentStatus */
+        WakeEnrollmentStatus: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            counts: components["schemas"]["counts"];
+            error: string | null;
+            jobId: string | null;
+            phrase: string | null;
+            quality: string | null;
+            required: components["schemas"]["counts"];
+            shortPhrase: string | null;
+            /** @enum {string} */
+            state: "idle" | "capturing" | "training" | "ready" | "failed" | "cancelled";
+            $defs: {
+                counts: {
+                    negatives: number;
+                    short: number;
+                    speech: number;
+                    wake: number;
+                };
+            };
         };
         /** WhatsappGateway */
         WhatsappGateway: {
@@ -19028,6 +19149,148 @@ export interface operations {
             422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getWakeEnrollment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Wake enrollment status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WakeEnrollmentStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    discardWakeEnrollment: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WakeEnrollmentJob"];
+            };
+        };
+        responses: {
+            /** @description Wake enrollment status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WakeEnrollmentStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    addWakeEnrollmentSample: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WakeEnrollmentSample"];
+            };
+        };
+        responses: {
+            /** @description Wake enrollment status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WakeEnrollmentStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    startWakeEnrollment: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WakeEnrollmentStart"];
+            };
+        };
+        responses: {
+            /** @description Wake enrollment status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WakeEnrollmentStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    trainWakeEnrollment: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WakeEnrollmentJob"];
+            };
+        };
+        responses: {
+            /** @description Wake enrollment status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WakeEnrollmentStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getCurrentWeather: {

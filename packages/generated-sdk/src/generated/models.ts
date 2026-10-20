@@ -980,6 +980,10 @@ export interface FridayModelMap {
   VoiceTranscript: VoiceTranscript;
   VoiceTtsEnded: VoiceTtsEnded;
   VoiceTtsStarted: VoiceTtsStarted;
+  WakeEnrollmentJob: WakeEnrollmentJob;
+  WakeEnrollmentSample: WakeEnrollmentSample;
+  WakeEnrollmentStart: WakeEnrollmentStart;
+  WakeEnrollmentStatus: WakeEnrollmentStatus;
   WhatsappGateway: WhatsappGateway;
   WhatsappGatewayPatch: WhatsappGatewayPatch;
   WhatsappGatewayResponse: WhatsappGatewayResponse;
@@ -6096,6 +6100,38 @@ export interface VoiceTtsStarted {
   engine: string;
   voice?: string;
   text?: string;
+}
+export interface WakeEnrollmentJob {
+  jobId: string;
+}
+export interface WakeEnrollmentSample {
+  jobId: string;
+  kind: "wake" | "short" | "negatives" | "speech";
+  pcmBase64: string;
+}
+export interface WakeEnrollmentStart {
+  phrase: string;
+}
+export interface WakeEnrollmentStatus {
+  contractVersion: ContractVersion;
+  state: "idle" | "capturing" | "training" | "ready" | "failed" | "cancelled";
+  jobId: string | null;
+  phrase: string | null;
+  shortPhrase: string | null;
+  required: {
+    wake: number;
+    short: number;
+    negatives: number;
+    speech: number;
+  };
+  counts: {
+    wake: number;
+    short: number;
+    negatives: number;
+    speech: number;
+  };
+  quality: string | null;
+  error: string | null;
 }
 export interface WhatsappGateway {
   setupUrl: string;
