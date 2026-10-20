@@ -44,4 +44,25 @@ describe("settings and Content Studio mutation intents", () => {
     expect(parseSettingsContentMutationIntent('Plane Idee "Quartalsbericht" für 2026-02-30')).toBeNull();
     expect(parseSettingsContentMutationIntent('Schedule idea "Quarterly report"')).toBeNull();
   });
+
+  it("accepts only valid idea date, format, and target field values", () => {
+    expect(parseSettingsContentMutationIntent('Set target date of idea "Quarterly report" to 2026-10-22'))
+      .toEqual({ kind: "contentStudio.idea.date", title: "Quarterly report", date: "2026-10-22" });
+    expect(parseSettingsContentMutationIntent('Set zieldatum von Idee "Quarterly report" auf "clear"'))
+      .toEqual({ kind: "contentStudio.idea.date", title: "Quarterly report", date: "" });
+    expect(parseSettingsContentMutationIntent('Set format of idea "Quarterly report" to "YouTube-Short"'))
+      .toEqual({ kind: "contentStudio.idea.format", title: "Quarterly report", format: "YouTube-Short" });
+    expect(parseSettingsContentMutationIntent('Set platforms of idea "Quarterly report" to "Instagram and Facebook"'))
+      .toEqual({ kind: "contentStudio.idea.targets", title: "Quarterly report", targets: ["Instagram", "Facebook"] });
+    expect(parseSettingsContentMutationIntent('Set format of idea "Quarterly report" to "whatever"')).toBeNull();
+    expect(parseSettingsContentMutationIntent('Set platforms of idea "Quarterly report" to "Instagram, Instagram"')).toBeNull();
+  });
+
+  it("parses explicit manual posting details and status enum", () => {
+    expect(parseSettingsContentMutationIntent('Schedule posting "Release note" for 2026-10-23 at 14:30 on instagram as "Story"'))
+      .toEqual({ kind: "contentStudio.posting.create", title: "Release note", date: "2026-10-23", time: "14:30", platform: "Instagram", format: "Story" });
+    expect(parseSettingsContentMutationIntent('Set status of posting "Release note" on 2026-10-23 at 14:30 to posted'))
+      .toEqual({ kind: "contentStudio.posting.status", title: "Release note", date: "2026-10-23", time: "14:30", status: "gepostet" });
+    expect(parseSettingsContentMutationIntent('Schedule posting "Release note" for 2026-10-23 at 25:30 on Instagram as "Story"')).toBeNull();
+  });
 });

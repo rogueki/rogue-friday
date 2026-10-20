@@ -242,4 +242,52 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     const ownerId = api.runtime.auth.issueDevSession("owner").principal.userId;
     expect(api.runtime.nativeApprovals.stateOf(ownerId, staleId)).toBe("uncertain");
   });
+
+  it("updates idea date, format and target platforms using only allowed typed values", async () => {
+    const settings = api.runtime.settings.get();
+    if (!settings.dashboard.contentStudioEnabled)
+      api.runtime.settings.patch({ dashboard: { ...settings.dashboard, contentStudioEnabled: true } }, settings.version);
+    const current = api.runtime.contentStudioPlan.get();
+    const item = { id: "field-target", titel: "Field target", plattform: "LinkedIn" as const,
+      ziele: ["LinkedIn" as const], format: "Feed-Post" as const, beschreibung: "", zieldatum: "", status: "idee" as const };
+    api.runtime.contentStudioPlan.put({ version: 1, exportiert_am: new Date().toISOString(),
+      content: [...(current.plan?.content ?? []), item], postings: current.plan?.postings ?? [] }, current.revision);
+    const actions = [
+      ['Set target date of idea "Field target" to 2026-10-22', { zieldatum: "2026-10-22" }],
+      ['Set format of idea "Field target" to "YouTube-Short"', { format: "YouTube-Short" }],
+      ['Set platforms of idea "Field target" to "TikTok and YouTube"', { plattform: "TikTok", ziele: ["TikTok", "YouTube"] }],
+    ] as const;
+    for (const [text, expected] of actions) {
+      const preview = await command(owner, text);
+      expect(preview.statusCode, preview.body).toBe(200);
+      const previewId = preview.json().previewId as string;
+      expect((await command(owner, text, { confirm: true, previewId })).statusCode).toBe(200);
+      expect(api.runtime.contentStudioPlan.get().plan?.content.find((entry) => entry.id === item.id)).toMatchObject(expected);
+    }
+  });
+
+  it("creates a manual posting and updates its status through canonical plan writes", async () => {
+    const settings = api.runtime.settings.get();
+    if (!settings.dashboard.contentStudioEnabled)
+      api.runtime.settings.patch({ dashboard: { ...settings.dashboard, contentStudioEnabled: true } }, settings.version);
+    const text = 'Schedule posting "Release note" for 2026-10-23 at 14:30 on Instagram as "Story"';
+    const preview = await command(owner, text);
+    expect(preview.statusCode, preview.body).toBe(200);
+    expect(preview.json().previewText).toContain("14:30");
+    const previewId = preview.json().previewId as string;
+    const confirmed = await command(owner, text, { confirm: true, previewId });
+    expect(confirmed.statusCode, confirmed.body).toBe(200);
+    const saved = api.runtime.contentStudioPlan.get();
+    const posting = saved.plan?.postings.find((entry) => entry.titel === "Release note");
+    expect(posting).toMatchObject({ datum: "2026-10-23", uhrzeit: "14:30", plattform: "Instagram", format: "Story", status: "geplant" });
+    expect((await command(owner, text, { confirm: true, previewId })).json().status).toBe("executed");
+    expect(api.runtime.contentStudioPlan.get().revision).toBe(saved.revision);
+
+    const statusText = 'Set status of posting "Release note" on 2026-10-23 at 14:30 to posted';
+    const statusPreview = await command(owner, statusText);
+    const statusId = statusPreview.json().previewId as string;
+    expect(statusPreview.json().previewText).toContain("gepostet");
+    expect((await command(owner, statusText, { confirm: true, previewId: statusId })).statusCode).toBe(200);
+    expect(api.runtime.contentStudioPlan.get().plan?.postings.find((entry) => entry.id === posting?.id)?.status).toBe("gepostet");
+  });
 });
