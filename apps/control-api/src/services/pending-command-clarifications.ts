@@ -41,6 +41,13 @@ export function parseClarificationChoice(text: string, optionCount: number): num
 export class PendingCommandClarifications {
   constructor(private readonly db: Db, private readonly key: Buffer, private readonly now: () => number = Date.now) {
     if (key.length !== 32) throw new Error("Pending clarification encryption key is invalid");
+    const row = db.prepare("SELECT owner_id, session_hash, id, payload_ciphertext, expires_at FROM pending_command_clarifications WHERE expires_at > ? LIMIT 1")
+      .get(now()) as { owner_id: string; session_hash: string; id: string; payload_ciphertext: string; expires_at: number } | undefined;
+    if (row) this.decrypt(row.owner_id, row.session_hash, row);
+  }
+
+  static hasPersisted(db: Db): boolean {
+    return Boolean(db.prepare("SELECT 1 AS present FROM pending_command_clarifications LIMIT 1").get());
   }
 
   private sessionHash(ownerId: string, sessionId: string): string {
@@ -53,6 +60,24 @@ export class PendingCommandClarifications {
 
   private aad(ownerId: string, sessionHash: string, id: string, expiresAt: number): Buffer {
     return Buffer.from(`${PURPOSE}\n${ownerId}\n${sessionHash}\n${id}\n${expiresAt}`, "utf8");
+  }
+
+  private decrypt(ownerId: string, sessionHash: string,
+    row: { id: string; payload_ciphertext: string; expires_at: number }): PendingCommandClarification {
+    try {
+      const [version, nonce64, tag64, encrypted64] = row.payload_ciphertext.split(":");
+      if (version !== VERSION || !nonce64 || !tag64 || !encrypted64) throw new Error("invalid envelope");
+      const nonce = Buffer.from(nonce64, "base64"), tag = Buffer.from(tag64, "base64"), encrypted = Buffer.from(encrypted64, "base64");
+      if (nonce.length !== 12 || tag.length !== 16 || !encrypted.length) throw new Error("invalid envelope");
+      const decipher = createDecipheriv("aes-256-gcm", this.key, nonce);
+      decipher.setAAD(this.aad(ownerId, sessionHash, row.id, row.expires_at));
+      decipher.setAuthTag(tag);
+      const value = JSON.parse(Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8")) as PendingCommandClarification;
+      if (!new Set(["calendar.clarify", "mail.clarify", "calendar.confirm", "mail.confirm"]).has(value.kind)) throw new Error("invalid payload");
+      return value;
+    } catch {
+      throw new Error("Pending clarification cannot be decrypted; restore the original auth.key and preserve the encrypted row");
+    }
   }
 
   put(ownerId: string, sessionId: string, payload: PendingCommandClarification): { id: string; expiresAt: number } {
@@ -88,22 +113,7 @@ export class PendingCommandClarifications {
         .run(ownerId, sessionHash, row.id);
       return null;
     }
-    try {
-      const [version, nonce64, tag64, encrypted64] = row.payload_ciphertext.split(":");
-      if (version !== VERSION || !nonce64 || !tag64 || !encrypted64) throw new Error("invalid envelope");
-      const nonce = Buffer.from(nonce64, "base64"), tag = Buffer.from(tag64, "base64"), encrypted = Buffer.from(encrypted64, "base64");
-      if (nonce.length !== 12 || tag.length !== 16 || !encrypted.length) throw new Error("invalid envelope");
-      const decipher = createDecipheriv("aes-256-gcm", this.key, nonce);
-      decipher.setAAD(this.aad(ownerId, sessionHash, row.id, row.expires_at));
-      decipher.setAuthTag(tag);
-      const value = JSON.parse(Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8")) as PendingCommandClarification;
-      if (!new Set(["calendar.clarify", "mail.clarify", "calendar.confirm", "mail.confirm"]).has(value.kind)) throw new Error("invalid payload");
-      return { id: row.id, payload: value };
-    } catch {
-      this.db.prepare("DELETE FROM pending_command_clarifications WHERE owner_id = ? AND session_hash = ? AND id = ?")
-        .run(ownerId, sessionHash, row.id);
-      throw new Error("Pending clarification cannot be decrypted; restore the original auth.key");
-    }
+    return { id: row.id, payload: this.decrypt(ownerId, sessionHash, row) };
   }
 
   /** Read and consume are synchronous; the compare-delete makes a competing follow-up lose safely. */

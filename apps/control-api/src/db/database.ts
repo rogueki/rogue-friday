@@ -465,6 +465,22 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_pending_command_clarifications_expiry ON pending_command_clarifications (expires_at);
     `,
   },
+  {
+    id: 29,
+    name: "encrypted-clarified-mail-drafts",
+    sql: `
+      CREATE TABLE encrypted_clarified_mail_drafts (
+        id TEXT PRIMARY KEY,
+        owner_id TEXT NOT NULL,
+        session_binding TEXT NOT NULL,
+        intent_hash TEXT NOT NULL,
+        payload_ciphertext TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX idx_encrypted_clarified_mail_drafts_expiry ON encrypted_clarified_mail_drafts (expires_at);
+    `,
+  },
 ];
 
 export function openDatabase(path: string): Db {

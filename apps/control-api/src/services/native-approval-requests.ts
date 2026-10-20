@@ -21,6 +21,8 @@ export type NativeExecutableAction =
   | { kind: "calendar.delete"; id: string; version: number; snapshot: CalendarEvent; sessionBinding?: string }
   /** The journal in MailSendService makes the actual SMTP call durable and at-most-once per staged action. */
   | { kind: "mail.send"; accountId: string; body: MailSendRequest; sessionBinding?: string }
+  /** Clarification-created mail stores only an encrypted draft reference in the approval ledger. */
+  | { kind: "mail.send.clarified"; accountId: string; draftId: string; intentHash: string; sessionBinding: string }
   | { kind: "mail.change"; accountId: string; mailbox: string; uid: string; uidValidity: string; change: "move" | "flag"; destination?: string }
   /** The journal in MessengerSendService keeps provider delivery at-most-once per staged action. */
   | { kind: "messenger.send"; draft: MessengerSendDraft }
@@ -85,6 +87,7 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "calendar.update": "aktualisiert",
   "calendar.delete": "geloescht",
   "mail.send": "versendet",
+  "mail.send.clarified": "versendet",
   "mail.change": "aktualisiert",
   "messenger.send": "versendet",
   "agent.pause": "pausiert",
@@ -144,6 +147,7 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "calendar.update": "Termin",
   "calendar.delete": "Termin",
   "mail.send": "Mail",
+  "mail.send.clarified": "Mail",
   "mail.change": "Mail",
   "messenger.send": "Nachricht",
   "agent.pause": "Agent",
@@ -290,6 +294,12 @@ export class NativeApprovalRequests {
   readAction(ownerId: string, requestKey: string): NativeExecutableAction | null {
     const row = this.db.prepare("SELECT action_json FROM native_approval_requests WHERE owner_id = ? AND request_key = ?")
       .get(ownerId, requestKey) as { action_json: string | null } | undefined;
+    return row?.action_json ? JSON.parse(row.action_json) as NativeExecutableAction : null;
+  }
+
+  readActionForApproval(ownerId: string, approvalId: string): NativeExecutableAction | null {
+    const row = this.db.prepare("SELECT action_json FROM native_approval_requests WHERE owner_id = ? AND json_extract(result_json, '$.approval.id') = ?")
+      .get(ownerId, approvalId) as { action_json: string | null } | undefined;
     return row?.action_json ? JSON.parse(row.action_json) as NativeExecutableAction : null;
   }
 

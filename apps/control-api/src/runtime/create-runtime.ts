@@ -36,6 +36,7 @@ import { DEFAULT_ASSISTANT_NAME, OrbService, OverviewService, StatusService, sum
 import { SettingsService, seedLibrary } from "../services/settings";
 import { NativeApprovalRequests } from "../services/native-approval-requests";
 import { PendingCommandClarifications } from "../services/pending-command-clarifications";
+import { EncryptedClarifiedMailDrafts } from "../services/encrypted-clarified-mail-drafts";
 import { ContentStudioKeysService } from "../services/content-studio-keys";
 import { ObsidianVaultService } from "../services/obsidian-vault";
 import { DurableMemoryService } from "../services/durable-memory";
@@ -138,9 +139,10 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const responseValidation: ResponseValidationMode = options.responseValidation ?? (config.dev.responseValidation ? "log" : "off");
 
   // ---- security primitives ------------------------------------------------------------------------------------
-  if (ContentStudioKeysService.hasPersisted(db) && !existsSync(join(config.paths.dataDir, SERVER_KEY_FILE))) {
+  if ((ContentStudioKeysService.hasPersisted(db) || PendingCommandClarifications.hasPersisted(db)
+      || EncryptedClarifiedMailDrafts.hasPersisted(db)) && !existsSync(join(config.paths.dataDir, SERVER_KEY_FILE))) {
     db.close();
-    throw new Error("Content Studio encrypted keys require the original auth.key; restore it before startup");
+    throw new Error("Persisted encrypted local records require the original auth.key; restore it before startup");
   }
   const serverKey = loadOrCreateServerKey(config.paths.dataDir);
   if (!serverKey.permissionsRestricted) logger.warn("Berechtigungen von auth.key konnten nicht eingeschränkt werden", { path: serverKey.path });
@@ -270,8 +272,17 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const settings = new SettingsService(db, config, validator, library, () => adapterSettings.list());
   if (world) world.state.settings.approvals = structuredClone(settings.area("approvals"));
   const nativeApprovals = new NativeApprovalRequests(db, settings, validator, options.now);
-  const pendingCommandClarifications = new PendingCommandClarifications(db,
-    deriveKey(serverKey.key, "pending-command-clarifications"), options.now);
+  let pendingCommandClarifications: PendingCommandClarifications;
+  let encryptedClarifiedMailDrafts: EncryptedClarifiedMailDrafts;
+  try {
+    pendingCommandClarifications = new PendingCommandClarifications(db,
+      deriveKey(serverKey.key, "pending-command-clarifications"), options.now);
+    encryptedClarifiedMailDrafts = new EncryptedClarifiedMailDrafts(db,
+      deriveKey(serverKey.key, "encrypted-clarified-mail-drafts"), options.now);
+  } catch (error) {
+    db.close();
+    throw error;
+  }
   logger.setLevel?.(settings.area("developer").logLevel);
   let contentStudioKeys: ContentStudioKeysService;
   try {
@@ -542,6 +553,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     settings,
     nativeApprovals,
     pendingCommandClarifications,
+    encryptedClarifiedMailDrafts,
     contentStudioKeys,
     contentStudioProviders,
     contentStudioPlan,
@@ -640,11 +652,13 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
           }, 3_600_000),
         );
         timers.push(setInterval(() => pendingCommandClarifications.purgeExpired(), 60_000));
+        timers.push(setInterval(() => encryptedClarifiedMailDrafts.purgeExpired(), 60_000));
         for (const timer of timers) timer.unref?.();
       }
       idempotency.purgeExpired();
       sessions.purgeExpired();
       pendingCommandClarifications.purgeExpired();
+      encryptedClarifiedMailDrafts.purgeExpired();
     },
     async close() {
       durableMemory.close();

@@ -231,6 +231,13 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
           await runtime.mailSend.send(action.accountId, action.body, principal.userId, idempotencyKey);
           return runtime.mailSend.receipt(action.accountId, principal.userId, idempotencyKey).receiptId;
         }
+        if (action.kind === "mail.send.clarified") {
+          const body = runtime.encryptedClarifiedMailDrafts.consume(principal.userId, action.sessionBinding,
+            action.draftId, action.intentHash);
+          if (!body) throw conflict("Der verschluesselte Mailentwurf ist abgelaufen oder wurde bereits verwendet.");
+          await runtime.mailSend.send(action.accountId, body, principal.userId, idempotencyKey);
+          return runtime.mailSend.receipt(action.accountId, principal.userId, idempotencyKey).receiptId;
+        }
         if (action.kind === "mail.change") {
           await runtime.mailAccounts.change(action.accountId, action.mailbox, action.uid, action.uidValidity,
             action.change, action.destination);
@@ -284,6 +291,11 @@ export const approvalHandlers: Partial<Record<OperationId, Handler>> = {
       throw conflict("Die Freigabe wurde zwischenzeitlich geaendert.", { currentVersion: native.version });
     const base = native ? nativeResponse(ctx, ctx.runtime.nativeApprovals.reject(principal.userId, native.id, ctx.actor,
       (ctx.body as ApprovalDecisionRequest | undefined)?.comment ?? null)) : await rejectBase(ctx);
+    if (native) {
+      const action = ctx.runtime.nativeApprovals.readActionForApproval(principal.userId, native.id);
+      if (action?.kind === "mail.send.clarified")
+        ctx.runtime.encryptedClarifiedMailDrafts.delete(principal.userId, action.sessionBinding, action.draftId);
+    }
     ctx.audit.after = { status: (base.body as { data: Approval }).data.status };
     return base;
   },

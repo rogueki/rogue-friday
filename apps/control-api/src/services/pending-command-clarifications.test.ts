@@ -39,6 +39,21 @@ describe("pending command clarification storage", () => {
     expect(store.read("owner", "session")).toBeNull();
   });
 
+  it("preserves ciphertext on key mismatch so restoring the original key recovers the turn", () => {
+    db = openDatabase(":memory:");
+    const key = Buffer.alloc(32, 11);
+    const store = new PendingCommandClarifications(db, key, () => 10_000);
+    const payload: PendingCommandClarification = { kind: "calendar.clarify", intent: {
+      kind: "calendar.delete", ref: "Private event",
+    }, candidates: [{ id: "cal_4", version: 1, title: "Private event", start: "2026-10-20T10:00:00.000Z" }] };
+    store.put("owner", "session", payload);
+    const before = (db.prepare("SELECT payload_ciphertext FROM pending_command_clarifications").get() as { payload_ciphertext: string }).payload_ciphertext;
+    expect(() => new PendingCommandClarifications(db!, Buffer.alloc(32, 12), () => 10_000))
+      .toThrow("restore the original auth.key");
+    expect((db.prepare("SELECT payload_ciphertext FROM pending_command_clarifications").get() as { payload_ciphertext: string }).payload_ciphertext).toBe(before);
+    expect(new PendingCommandClarifications(db, key, () => 10_000).read("owner", "session")?.payload).toEqual(payload);
+  });
+
   it("parses only a bounded one-based option choice", () => {
     expect(parseClarificationChoice("use the second one", 2)).toBe(1);
     expect(parseClarificationChoice("Nimm den zweiten", 2)).toBe(1);

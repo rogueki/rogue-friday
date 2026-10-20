@@ -764,11 +764,15 @@ async function resolveMailReplyTarget(ctx: Parameters<Handler>[0], request: Comm
  */
 async function executeMailAction(ctx: Parameters<Handler>[0], request: CommandRequest,
   intent: MailActionIntent | null, sessionBinding?: string,
-  stagedAction?: Extract<NativeExecutableAction, { kind: "mail.send" }>): Promise<Awaited<ReturnType<Handler>>> {
+  stagedAction?: Extract<NativeExecutableAction, { kind: "mail.send" | "mail.send.clarified" }>): Promise<Awaited<ReturnType<Handler>>> {
   const ownerId = ctx.principal?.userId;
   if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
   const accountId = stagedAction?.accountId ?? await mailAccountFor(ctx);
-  const body: MailSendRequest | null = stagedAction?.body ?? (intent?.kind === "mail.compose"
+  const stagedBody = stagedAction?.kind === "mail.send" ? stagedAction.body
+    : stagedAction?.kind === "mail.send.clarified"
+      ? ctx.runtime.encryptedClarifiedMailDrafts.read(ownerId, stagedAction.sessionBinding, stagedAction.draftId, stagedAction.intentHash)
+      : null;
+  const body: MailSendRequest | null = stagedBody ?? (intent?.kind === "mail.compose"
     ? checkedMailSend({ to: [await resolveMailRecipient(ctx, accountId, intent.recipient, intent)],
         subject: intent.subject ?? derivedSubject(intent.body), body: intent.body })
     : intent?.kind === "mail.reply" ? await (async () => {
@@ -778,22 +782,39 @@ async function executeMailAction(ctx: Parameters<Handler>[0], request: CommandRe
           ...(target.references ? { references: target.references } : {}) });
       })() : null);
   if (!body) throw conflict("Gespeicherter Mailentwurf ist nicht mehr verfuegbar.");
-  const action: NativeExecutableAction = stagedAction ?? { kind: "mail.send", accountId, body, ...(sessionBinding ? { sessionBinding } : {}) };
+  let action: NativeExecutableAction = stagedAction ?? { kind: "mail.send", accountId, body, ...(sessionBinding ? { sessionBinding } : {}) };
+  let encryptedDraft: { id: string; expiresAt: number } | null = null;
+  if (!stagedAction && sessionBinding) {
+    const intentHash = createHash("sha256").update(JSON.stringify(body)).digest("hex");
+    encryptedDraft = ctx.runtime.encryptedClarifiedMailDrafts.create(ownerId, sessionBinding, intentHash, body);
+    action = { kind: "mail.send.clarified", accountId, draftId: encryptedDraft.id, intentHash, sessionBinding };
+  }
   const actionText = `Mail senden: ${body.subject}`;
   const previewText = `E-Mail an ${body.to.join(", ")} senden? Betreff: „${body.subject}“`;
   if (!request.confirm && request.previewId) {
     ctx.runtime.nativeApprovals.cancelDraft(ownerId, request.previewId, action);
+    if (action.kind === "mail.send.clarified") ctx.runtime.encryptedClarifiedMailDrafts.delete(ownerId, action.sessionBinding, action.draftId);
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"),
       correlationId: ctx.correlationId, riskTier: 2, status: "rejected", requiresConfirmation: false,
       previewText: null, approvalId: null, result: { message: "Entwurf verworfen." } } satisfies CommandResponse };
   }
   const requestKey = request.confirm ? request.previewId : ctx.correlationId;
   if (!requestKey) throw validationFailed("Eine bestaetigte Vorschau fehlt.", [{ path: "previewId", message: "erforderlich" }]);
-  const policy = request.confirm
-    ? ctx.runtime.nativeApprovals.confirm(ownerId, requestKey, action)
-    : ctx.runtime.nativeApprovals.propose({ ownerId, requestKey, correlationId: ctx.correlationId, riskTier: 2,
+  let policy;
+  try {
+    policy = request.confirm
+      ? ctx.runtime.nativeApprovals.confirm(ownerId, requestKey, action)
+      : ctx.runtime.nativeApprovals.propose({ ownerId, requestKey, correlationId: ctx.correlationId, riskTier: 2,
         type: "system_change", action: actionText, rationale: "E-Mail aus bestaetigtem Befehl",
         preview: { kind: "text", title: actionText, body: previewText }, impacts: [], execution: action });
+  } catch (error) {
+    if (encryptedDraft) ctx.runtime.encryptedClarifiedMailDrafts.delete(ownerId, sessionBinding!, encryptedDraft.id);
+    throw error;
+  }
+  if (policy.approval && action.kind === "mail.send.clarified" && policy.approval.expiresAt) {
+    ctx.runtime.encryptedClarifiedMailDrafts.extend(ownerId, action.sessionBinding, action.draftId,
+      action.intentHash, Date.parse(policy.approval.expiresAt));
+  }
   const base = { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"), correlationId: ctx.correlationId,
     riskTier: 2 as const };
   let response: CommandResponse;
@@ -807,9 +828,18 @@ async function executeMailAction(ctx: Parameters<Handler>[0], request: CommandRe
   } else {
     const receiptId = await ctx.runtime.nativeApprovals.executeWithoutApproval(ownerId, requestKey,
       async (actionToRun, idempotencyKey) => {
-        if (actionToRun.kind !== "mail.send") throw conflict("Die Bestaetigung passt nicht zum gespeicherten Entwurf.");
-        await ctx.runtime.mailSend.send(actionToRun.accountId, actionToRun.body, ownerId, idempotencyKey);
-        return ctx.runtime.mailSend.receipt(actionToRun.accountId, ownerId, idempotencyKey).receiptId;
+        if (actionToRun.kind === "mail.send") {
+          await ctx.runtime.mailSend.send(actionToRun.accountId, actionToRun.body, ownerId, idempotencyKey);
+          return ctx.runtime.mailSend.receipt(actionToRun.accountId, ownerId, idempotencyKey).receiptId;
+        }
+        if (actionToRun.kind === "mail.send.clarified") {
+          const draftBody = ctx.runtime.encryptedClarifiedMailDrafts.consume(ownerId, actionToRun.sessionBinding,
+            actionToRun.draftId, actionToRun.intentHash);
+          if (!draftBody) throw conflict("Der verschluesselte Mailentwurf ist abgelaufen oder wurde bereits verwendet.");
+          await ctx.runtime.mailSend.send(actionToRun.accountId, draftBody, ownerId, idempotencyKey);
+          return ctx.runtime.mailSend.receipt(actionToRun.accountId, ownerId, idempotencyKey).receiptId;
+        }
+        throw conflict("Die Bestaetigung passt nicht zum gespeicherten Entwurf.");
       });
     const outcome = ctx.runtime.mailSend.outcomeFor(accountId, receiptId)
       ?? { state: "uncertain" as const, archivePending: false };
@@ -1148,6 +1178,20 @@ async function resumeClarification(ctx: Parameters<Handler>[0], request: Command
 async function resumeClarificationConfirmation(ctx: Parameters<Handler>[0], request: CommandRequest,
   pendingId: string, payload: Extract<PendingCommandClarification, { kind: "calendar.confirm" | "mail.confirm" }>): Promise<Awaited<ReturnType<Handler>>> {
   if (request.previewId !== payload.previewId) throw conflict("Die Bestaetigung gehoert nicht zu dieser geklaerten Vorschau.");
+  if (payload.kind === "mail.confirm" && !request.confirm) {
+    const sessionBinding = ctx.runtime.pendingCommandClarifications.sessionBinding(ctx.principal!.userId, ctx.principal!.sessionId);
+    const staged = ctx.runtime.nativeApprovals.readAction(ctx.principal!.userId, payload.previewId);
+    if (!staged || staged.kind !== "mail.send.clarified" || staged.sessionBinding !== sessionBinding
+      || staged.accountId !== payload.accountId)
+      throw conflict("Der verschluesselte Mailentwurf passt nicht mehr zur geklaerten Vorschau.");
+    ctx.runtime.nativeApprovals.cancelDraft(ctx.principal!.userId, payload.previewId, staged);
+    ctx.runtime.encryptedClarifiedMailDrafts.delete(ctx.principal!.userId, sessionBinding, staged.draftId);
+    const consumed = ctx.runtime.pendingCommandClarifications.consume(ctx.principal!.userId, ctx.principal!.sessionId, pendingId);
+    if (!consumed || consumed.kind !== "mail.confirm") throw conflict("Die geklaerte Vorschau wurde bereits verwendet.");
+    return { status: 200, body: { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"),
+      correlationId: ctx.correlationId, riskTier: 2, status: "rejected", requiresConfirmation: false,
+      previewText: null, approvalId: null, result: { message: "Entwurf verworfen." } } satisfies CommandResponse };
+  }
   const timeZone = ctx.runtime.settings.area("profile").timeZone;
   const parsedCalendar = parseCalendarActionIntent(request.text, ctx.runtime.nowMs(), timeZone);
   const parsedMail = parseMailActionIntent(request.text);
@@ -1165,8 +1209,10 @@ async function resumeClarificationConfirmation(ctx: Parameters<Handler>[0], requ
   const currentAccountId = await mailAccountFor(ctx);
   if (currentAccountId !== payload.accountId) throw conflict("Das Mail-Postfach hat sich seit der Vorschau geaendert.");
   const staged = ctx.runtime.nativeApprovals.readAction(ctx.principal!.userId, payload.previewId);
-  if (!staged || staged.kind !== "mail.send" || staged.sessionBinding !== sessionBinding
-    || staged.accountId !== payload.accountId || staged.body.to[0]?.toLowerCase() !== payload.selectedAddress.toLowerCase())
+  const stagedBody = staged?.kind === "mail.send.clarified"
+    ? ctx.runtime.encryptedClarifiedMailDrafts.read(ctx.principal!.userId, staged.sessionBinding, staged.draftId, staged.intentHash) : null;
+  if (!staged || staged.kind !== "mail.send.clarified" || staged.sessionBinding !== sessionBinding
+    || staged.accountId !== payload.accountId || stagedBody?.to[0]?.toLowerCase() !== payload.selectedAddress.toLowerCase())
     throw conflict("Der gespeicherte Mailentwurf passt nicht mehr zur geklaerten Vorschau.");
   return executeMailAction(ctx, request, null, sessionBinding, staged);
 }
