@@ -122,9 +122,9 @@ def run_bounded_child(command: list[str], request_bytes: bytes, *, timeout_secon
                             output.extend(chunk)
         process.wait(timeout=max(0.001, deadline - time.monotonic()))
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
-        if process.poll() is None:
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(process.pid, signal.SIGKILL)
+        # A descendant can retain stdout after the leader has exited.
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
         process.wait()
         if isinstance(error, subprocess.TimeoutExpired):
             raise ValueError("model_timeout") from error

@@ -1,5 +1,7 @@
 import os
 import sys
+import tempfile
+import time
 import types
 import unittest
 from pathlib import Path
@@ -25,6 +27,21 @@ class ResearchHermesSynthesisTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "model_timeout"):
             run_bounded_child([sys.executable, "-c", "import time; time.sleep(10)"], b"{}",
                               timeout_seconds=0.1)
+
+    @unittest.skipUnless(os.name == "posix", "Hermes helper runs under WSL/Linux")
+    def test_bounded_child_kills_descendant_after_leader_exits(self):
+        with tempfile.TemporaryDirectory() as directory:
+            marker = Path(directory) / "descendant-survived"
+            child_code = f"import time; from pathlib import Path; time.sleep(.5); Path({str(marker)!r}).write_text('alive')"
+            leader_code = (
+                "import subprocess, sys; "
+                f"subprocess.Popen([sys.executable, '-c', {child_code!r}], "
+                "stdin=subprocess.DEVNULL, stdout=sys.stdout, stderr=subprocess.DEVNULL)"
+            )
+            with self.assertRaisesRegex(ValueError, "model_timeout"):
+                run_bounded_child([sys.executable, "-c", leader_code], b"{}", timeout_seconds=0.1)
+            time.sleep(0.6)
+            self.assertFalse(marker.exists(), "descendant kept running after the timeout")
 
     def test_uses_existing_route_with_no_tools_context_or_retries(self):
         captured = {}
