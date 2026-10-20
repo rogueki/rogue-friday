@@ -125,6 +125,27 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     expect(api.runtime.contentStudioPlan.get().revision).toBe(before.revision);
   });
 
+  it("saves typed profile enum choices through the canonical settings handler", async () => {
+    const before = (await owner.get("/api/v1/settings")).json().data;
+    const cases = [
+      ["Set language to English", "locale", "en"],
+      ["Set date format to yyyy-MM-dd", "dateFormat", "yyyy-MM-dd"],
+      ["Set time format to 12h", "timeFormat", "12h"],
+      ["Set first day of the week to Sunday", "firstDayOfWeek", "sunday"],
+    ] as const;
+    for (const [text, key, value] of cases) {
+      const preview = await command(owner, text);
+      expect(preview.statusCode, preview.body).toBe(200);
+      expect(preview.json().previewText).toContain(key === "firstDayOfWeek" ? "Sonntag" : value);
+      const previewId = preview.json().previewId as string;
+      expect((await command(operator, text)).statusCode).toBe(403);
+      expect((await command(owner, text, { confirm: true, previewId })).statusCode).toBe(200);
+      const saved = (await owner.get("/api/v1/settings")).json().data;
+      expect(saved.profile[key]).toBe(value);
+      expect(saved.version).toBeGreaterThan(before.version);
+    }
+  });
+
   it("adds an idea through a typed action even when its title looks like a read, with plan CAS and replay", async () => {
     const settings = (await owner.get("/api/v1/settings")).json().data;
     if (!settings.dashboard.contentStudioEnabled)

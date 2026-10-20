@@ -96,4 +96,13 @@ describe("settings and Content Studio mutation intents", () => {
     expect(parseSettingsContentMutationIntent("Export Content Studio plan")).toEqual({ kind: "contentStudio.plan.exportGuided" });
     expect(parseSettingsContentMutationIntent("Importiere den Redaktionsplan")).toEqual({ kind: "contentStudio.plan.importGuided" });
   });
+
+  it("maps profile enum choices and rejects unsupported free-form values", () => {
+    expect(parseSettingsContentMutationIntent("Set language to German")).toEqual({ kind: "settings.profile.locale", value: "de" });
+    expect(parseSettingsContentMutationIntent("Set Datumsformat auf yyyy-MM-dd")).toEqual({ kind: "settings.profile.dateFormat", value: "yyyy-MM-dd" });
+    expect(parseSettingsContentMutationIntent("Change time format to 12h")).toEqual({ kind: "settings.profile.timeFormat", value: "12h" });
+    expect(parseSettingsContentMutationIntent("Set first day of the week to Sunday")).toEqual({ kind: "settings.profile.firstDayOfWeek", value: "sunday" });
+    expect(parseSettingsContentMutationIntent("Set timezone to Mars/Phobos")).toBeNull();
+    expect(parseSettingsContentMutationIntent("Set date format to dd/MM/yyyy")).toBeNull();
+  });
 });

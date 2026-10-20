@@ -1,4 +1,8 @@
 export type SettingsContentMutationIntent =
+  | { kind: "settings.profile.locale"; value: "de" | "en" }
+  | { kind: "settings.profile.dateFormat"; value: "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy" }
+  | { kind: "settings.profile.timeFormat"; value: "24h" | "12h" }
+  | { kind: "settings.profile.firstDayOfWeek"; value: "monday" | "sunday" }
   | { kind: "settings.dashboard.compact"; value: boolean }
   | { kind: "settings.dashboard.refresh"; value: number }
   | { kind: "settings.dashboard.backgroundGrid"; value: boolean }
@@ -20,6 +24,10 @@ export type SettingsContentMutationIntent =
   | { kind: "contentStudio.plan.importGuided" };
 
 const SETTING_COMPACT = /^(?:please\s+)?(?:set|change|stelle|aendere|ändere)\s+(?:my\s+)?(?:dashboard\s+)?(?:compact|kompakt)(?:\s+mode)?\s+(?:(?:to|auf)\s+)?(on|off|enabled|disabled|ein|aus)(?:[.!?])?$/i;
+const SETTING_PROFILE_LOCALE = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:my\s+)?(?:profile\s+)?(?:language|sprache|locale)\s+(?:(?:to|auf)\s+)?(german|deutsch|de|english|englisch|en)[.!?]?$/i;
+const SETTING_PROFILE_DATE = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:my\s+)?(?:date\s+format|datumsformat)\s+(?:(?:to|auf)\s+)?(dd\.MM\.yyyy|yyyy-MM-dd|MM\/dd\/yyyy)[.!?]?$/i;
+const SETTING_PROFILE_TIME = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:my\s+)?(?:time\s+format|zeitformat)\s+(?:(?:to|auf)\s+)?(24h|12h|24-stunden|12-stunden)[.!?]?$/i;
+const SETTING_PROFILE_WEEK = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:my\s+)?(?:first\s+day\s+of\s+the\s+week|wochenbeginn|ersten\s+wochentag)\s+(?:(?:to|auf)\s+)?(monday|montag|sunday|sonntag)[.!?]?$/i;
 const SETTING_REFRESH = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:the\s+)?(?:dashboard\s+)?(?:refresh|aktualisierung)(?:\s+interval)?\s+(?:(?:to|auf)\s+)?([0-9]{1,4})\s*(?:seconds?|sekunden|s)?[.!?]?$/i;
 const SETTING_DASHBOARD_BOOLEAN = /^(?:please\s+)?(?:set|change|stelle|setze|aendere|ändere)\s+(?:the\s+)?(?:dashboard\s+)?(background\s+grid|grid|sound\s+effects|content\s+studio)(?:\s+module)?\s+(?:(?:to|auf)\s+)?(on|off|enabled|disabled|ein|aus|aktiviert|deaktiviert)[.!?]?$/i;
 const SETTING_CONTENT_STUDIO_TOGGLE = /^(?:please\s+)?(enable|activate|disable|deactivate|aktiviere|deaktiviere)\s+(?:the\s+)?content\s+studio(?:\s+module)?[.!?]?$/i;
@@ -44,6 +52,14 @@ export function parseSettingsContentMutationIntent(input: string): SettingsConte
   const guidedPlan = PLAN_GUIDED.exec(text);
   if (guidedPlan) return /^(export|download|exportiere|exportier)$/i.test(guidedPlan[0]!.split(/\s+/)[0]!)
     ? { kind: "contentStudio.plan.exportGuided" } : { kind: "contentStudio.plan.importGuided" };
+  const locale = SETTING_PROFILE_LOCALE.exec(text);
+  if (locale) return { kind: "settings.profile.locale", value: /^(german|deutsch|de)$/i.test(locale[1]!) ? "de" : "en" };
+  const dateFormat = SETTING_PROFILE_DATE.exec(text);
+  if (dateFormat) return { kind: "settings.profile.dateFormat", value: dateFormat[1]! as "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy" };
+  const timeFormat = SETTING_PROFILE_TIME.exec(text);
+  if (timeFormat) return { kind: "settings.profile.timeFormat", value: /^(24h|24-stunden)$/i.test(timeFormat[1]!) ? "24h" : "12h" };
+  const weekStart = SETTING_PROFILE_WEEK.exec(text);
+  if (weekStart) return { kind: "settings.profile.firstDayOfWeek", value: /^(monday|montag)$/i.test(weekStart[1]!) ? "monday" : "sunday" };
   const compact = SETTING_COMPACT.exec(text);
   if (compact) return { kind: "settings.dashboard.compact", value: /^(on|enabled|ein)$/i.test(compact[1]!) };
   const refresh = SETTING_REFRESH.exec(text);

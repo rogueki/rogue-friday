@@ -51,6 +51,10 @@ export type NativeExecutableAction =
   | { kind: "automation.test"; id: string; body: AutomationTestRequest }
   | { kind: "automation.pauseAll"; body: AutomationPauseAllRequest }
   | { kind: "research.create"; body: ResearchCreateRequest; providerVersion: number }
+  | { kind: "settings.profile.locale"; expectedVersion: number; value: "de" | "en" }
+  | { kind: "settings.profile.dateFormat"; expectedVersion: number; value: "dd.MM.yyyy" | "yyyy-MM-dd" | "MM/dd/yyyy" }
+  | { kind: "settings.profile.timeFormat"; expectedVersion: number; value: "24h" | "12h" }
+  | { kind: "settings.profile.firstDayOfWeek"; expectedVersion: number; value: "monday" | "sunday" }
   | { kind: "settings.dashboard.compact"; expectedVersion: number; value: boolean }
   | { kind: "settings.dashboard.refresh"; expectedVersion: number; value: number }
   | { kind: "settings.dashboard.backgroundGrid" | "settings.dashboard.soundEffects" | "settings.dashboard.contentStudioEnabled"; expectedVersion: number; value: boolean }
@@ -98,6 +102,10 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "automation.test": "getestet",
   "automation.pauseAll": "pausiert",
   "research.create": "gestartet",
+  "settings.profile.locale": "gespeichert",
+  "settings.profile.dateFormat": "gespeichert",
+  "settings.profile.timeFormat": "gespeichert",
+  "settings.profile.firstDayOfWeek": "gespeichert",
   "settings.dashboard.compact": "gespeichert",
   "settings.dashboard.refresh": "gespeichert",
   "settings.dashboard.backgroundGrid": "gespeichert",
@@ -148,6 +156,10 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "automation.test": "Automation",
   "automation.pauseAll": "Automationen",
   "research.create": "Recherche",
+  "settings.profile.locale": "Einstellung",
+  "settings.profile.dateFormat": "Einstellung",
+  "settings.profile.timeFormat": "Einstellung",
+  "settings.profile.firstDayOfWeek": "Einstellung",
   "settings.dashboard.compact": "Einstellung",
   "settings.dashboard.refresh": "Einstellung",
   "settings.dashboard.backgroundGrid": "Einstellung",
