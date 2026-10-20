@@ -1,4 +1,4 @@
-import { test, expect, open } from "./support/fixtures";
+import { test, expect, open, selectPaletteOption } from "./support/fixtures";
 
 /** PLAN §51.5 Navigation, §26, §43.1 (palette, shortcuts), §44.6 (/dev/scenarios). */
 const PAGES = [
@@ -63,9 +63,7 @@ test("Ctrl+K opens the command palette, filters, navigates with Enter and closes
   await expect(palette.getByRole("combobox")).toBeFocused();
 
   await palette.getByRole("combobox").fill("Gehe zu Kalender");
-  await expect(palette.getByRole("option", { name: "Gehe zu Kalender", exact: true })).toBeVisible();
-  await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("Enter");
+  await selectPaletteOption(page, palette, "Gehe zu Kalender");
   await expect(page).toHaveURL(/\/calendar\/?$/);
   await expect(palette).toBeHidden();
 

@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { test, expect, open, patchSettings, freezeDate } from "./support/fixtures";
+import { test, expect, open, patchSettings, freezeDate, selectPaletteOption } from "./support/fixtures";
 
 /**
  * PLAN §51.7 Accessibility: axe-core (WCAG 2.0/2.1 A + AA) on every page and every overlay, keyboard-only
@@ -209,9 +209,7 @@ test.describe("keyboard", () => {
     const palette = page.getByRole("dialog", { name: "Befehlspalette" });
     await expect(palette.getByRole("combobox")).toBeFocused();
     await page.keyboard.type("Gehe zu Aufgaben");
-    await expect(palette.getByRole("option", { name: "Gehe zu Aufgaben", exact: true })).toBeVisible();
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("Enter");
+    await selectPaletteOption(page, palette, "Gehe zu Aufgaben");
     await expect(page).toHaveURL(/\/tasks\/?$/);
     await page.getByRole("button", { name: "Neue Aufgabe" }).focus();
     await page.keyboard.press("Enter");

@@ -143,3 +143,23 @@ export async function freezeDate(page: Page, iso = "2026-10-14T08:15:30.000Z"): 
 
 /** Waits for the websocket status chip of the top bar ("Event-Stream online ..."). */
 export const eventStreamChip = (page: Page): Locator => page.getByRole("banner").getByText(/Event-Stream/);
+
+/**
+ * Picks a palette option by its exact label with the keyboard only.
+ *
+ * The palette mixes its static commands with live search hits (memory, agents, files) that arrive while the user is
+ * already pressing keys, so an option's index is not stable: a fixed number of ArrowDown presses can land on a search
+ * hit that appeared in between. Walk the list until the wanted option is the active one instead.
+ */
+export async function selectPaletteOption(page: Page, palette: Locator, label: string): Promise<void> {
+  const option = palette.getByRole("option", { name: label, exact: true });
+  await expect(option).toBeVisible();
+  for (let step = 0; step <= 30; step += 1) {
+    if ((await option.getAttribute("aria-selected")) === "true") {
+      await page.keyboard.press("Enter");
+      return;
+    }
+    await page.keyboard.press("ArrowDown");
+  }
+  throw new Error(`Palette-Option "${label}" ließ sich nicht per Tastatur auswählen.`);
+}

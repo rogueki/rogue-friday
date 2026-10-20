@@ -70,3 +70,27 @@ The CI diff screenshots (expected vs actual) show two intended changes on /commu
 - scenarios.spec.ts:4 and tasks.spec.ts:84 are documented infrastructure flakes with no product fix; if they recur on CI, a bounded orb-mount wait or runner investigation would be a separate change.
 - performance.spec.ts:21 fails intermittently on this Windows host only (frame-time threshold under software rendering); green on CI. No code change.
 - Visual baselines were produced in WSL, not on a GitHub runner; CI remains the final verification for the two new PNGs.
+
+## Follow-up fix 2026-10-20 — a11y.spec.ts:203 and navigation.spec.ts:67 (palette index assumption)
+
+CI run 39341575370 on `028e9f8` ("Add staged memory and file write actions") failed only in shard 1: `a11y.spec.ts:215`
+(`toHaveURL(/\/tasks\/?$/)`) received `http://127.0.0.1:3200/memory?memory=mem_01KDVDNA0ENVFXHS8TPQRW2C05`, on the first
+attempt and on the retry.
+
+**Root cause (test assumption, not a product defect).** The palette builds its list from static commands plus live
+search hits (`GlobalCommandPalette.tsx:114-124`), and for a non-empty query `groupOrder` ranks the search group before
+the navigation group (`:290`). Both specs typed an exact navigation command and pressed `ArrowDown` once, assuming the
+navigation entry sits at index 1. That only holds while no memory/agent/file hit is present: the first hit then takes
+index 1 and Enter navigates to `/memory?...` instead. Whether the hits are already in the list depends on the 250 ms
+search debounce and the response time, i.e. on runner load — which is why the test used to pass and now failed twice.
+Reproduced locally on the clean `028e9f8` tree: `--repeat-each=2` gave 1 passed / 1 failed with the identical received
+URL.
+
+**Fix.** New `selectPaletteOption(page, palette, label)` helper in `tests/e2e/support/fixtures.ts`: it asserts the exact
+option is visible, then presses `ArrowDown` until that option reports `aria-selected="true"` and confirms with `Enter`.
+Keyboard-only navigation, exact-label assertion and the URL assertions stay unchanged; only the assumed list position
+is gone. `navigation.spec.ts:67` (same pattern, "Gehe zu Kalender") uses the helper as well.
+
+**Verification.** `--repeat-each=3` over both tests: 6/6 passed. Full files afterwards on Windows: `a11y.spec.ts` +
+`navigation.spec.ts` 43/43 passed (8.1 min). ESLint on the three touched files: clean. Platform-neutral, no snapshots
+touched.
