@@ -1,5 +1,7 @@
 ﻿import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startTestApi, type ApiClient, type TestApi } from "./helpers";
+import { contentStudioHandlers } from "../src/handlers/content-studio";
+import { vi } from "vitest";
 
 describe("owner NLP mutations use native preview, revision checks and replay receipts", () => {
   let api: TestApi;
@@ -282,6 +284,34 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     const cancelled = await command(owner, text, { context, confirm: false, previewId: cancellable.json().previewId as string });
     expect(cancelled.statusCode, cancelled.body).toBe(200);
     expect(cancelled.json()).toMatchObject({ status: "rejected", result: { message: "Entwurf verworfen." } });
+  });
+
+  it("does not claim a selected status change succeeded when plan persistence fails uncertainly", async () => {
+    const settings = (await owner.get("/api/v1/settings")).json().data;
+    if (!settings.dashboard.contentStudioEnabled)
+      api.runtime.settings.patch({ dashboard: { ...settings.dashboard, contentStudioEnabled: true } }, settings.version);
+    const current = api.runtime.contentStudioPlan.get();
+    const item = { id: "uncertain-status-idea", titel: "Uncertain status idea", plattform: "LinkedIn" as const,
+      ziele: ["LinkedIn" as const], format: "Feed-Post" as const, beschreibung: "", zieldatum: "", status: "idee" as const };
+    api.runtime.contentStudioPlan.put({ version: 1, exportiert_am: new Date().toISOString(),
+      content: [...(current.plan?.content ?? []), item], postings: current.plan?.postings ?? [] }, current.revision);
+    const text = "Mark it as done";
+    const context = { route: "/content-studio", selectedIds: [item.id] };
+    const preview = await command(owner, text, { context });
+    const previewId = preview.json().previewId as string;
+    const ownerId = api.runtime.auth.issueDevSession("owner").principal.userId;
+    const write = vi.spyOn(contentStudioHandlers, "putContentStudioPlan").mockImplementationOnce(async () => {
+      throw new Error("simulated local write timeout");
+    });
+    let failed: Awaited<ReturnType<typeof command>>;
+    try { failed = await command(owner, text, { context, confirm: true, previewId }); }
+    finally { write.mockRestore(); }
+
+    expect(failed.statusCode).toBe(503);
+    expect(JSON.stringify(failed.json())).not.toContain("gespeichert");
+    expect(api.runtime.contentStudioPlan.get().plan?.content.find((entry) => entry.id === item.id)?.status).toBe("idee");
+    expect(api.runtime.nativeApprovals.stateOf(ownerId, previewId)).toBe("uncertain");
+    expect((await command(owner, text, { context, confirm: true, previewId })).statusCode).toBe(409);
   });
 
   it("renames an idea and changes its description through the captured plan revision", async () => {
