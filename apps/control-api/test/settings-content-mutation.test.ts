@@ -270,10 +270,13 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     expect((await command(owner, text, { context: { route: "/content-studio", selectedIds: [item.id, "another-idea"] } })).statusCode).toBe(422);
     expect((await command(owner, text, { context: { route: "/tasks", selectedIds: [item.id] } })).statusCode).toBe(422);
 
-    const confirmed = await command(owner, text, { context, confirm: true, previewId });
-    expect(confirmed.statusCode, confirmed.body).toBe(200);
-    expect(confirmed.json()).toMatchObject({ status: "executed", result: { message: expect.stringContaining("gespeichert") } });
-    expect(api.runtime.contentStudioPlan.get().plan?.content.find((entry) => entry.id === item.id)?.status).toBe("fertig");
+    const correctedText = "Actually make it in progress";
+    const correctedPreview = await command(owner, correctedText, { context });
+    expect(correctedPreview.json()).toMatchObject({ status: "requires_confirmation", previewText: expect.stringContaining(item.titel) });
+    const corrected = await command(owner, correctedText, { context, confirm: true, previewId: correctedPreview.json().previewId as string });
+    expect(corrected.statusCode, corrected.body).toBe(200);
+    expect(corrected.json()).toMatchObject({ status: "executed", result: { message: expect.stringContaining("gespeichert") } });
+    expect(api.runtime.contentStudioPlan.get().plan?.content.find((entry) => entry.id === item.id)?.status).toBe("in-arbeit");
 
     const cancellable = await command(owner, text, { context });
     const cancelled = await command(owner, text, { context, confirm: false, previewId: cancellable.json().previewId as string });

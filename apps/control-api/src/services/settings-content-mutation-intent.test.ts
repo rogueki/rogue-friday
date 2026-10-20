@@ -105,6 +105,9 @@ describe("settings and Content Studio mutation intents", () => {
     ["Actually make it in progress", "in-arbeit"],
     ["Ändere diese auf fertig", "fertig"],
     ["Markiere sie als fertig", "fertig"],
+    ["Move the selected idea to in progress", "in-arbeit"],
+    ["Please change that to done", "fertig"],
+    ["Setze diese Idee auf Idee", "idee"],
   ] as const)("maps selected idea reference and correction to a typed status action: %s", (text, status) => {
     expect(parseSettingsContentMutationIntent(text)).toEqual({ kind: "contentStudio.idea.statusSelected", status });
   });
