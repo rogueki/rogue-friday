@@ -620,8 +620,10 @@ export function createOrbController(options: CreateOrbControllerOptions = {}): O
   // ---- frame path ------------------------------------------------------------------------------------------------
   function fillInput(nowMs: number, out: OrbAudioFrame): void {
     if (inputSource) {
-      if (micOpen) micUntil = Math.max(micUntil, nowMs + leaseMs);
       inputSource.sample(nowMs, out);
+      // An installed service-level source remains installed after its last event. Only a live local analyser
+      // proves that a browser microphone is still open; stale service frames must not renew the mic lease.
+      if (micOpen && out.source === "analyser") micUntil = Math.max(micUntil, nowMs + leaseMs);
     } else if (manualIn) {
       manualIn.sample(nowMs, out);
     } else {
