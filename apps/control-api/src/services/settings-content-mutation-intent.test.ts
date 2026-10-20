@@ -97,6 +97,12 @@ describe("settings and Content Studio mutation intents", () => {
     expect(parseSettingsContentMutationIntent("Importiere den Redaktionsplan")).toEqual({ kind: "contentStudio.plan.importGuided" });
   });
 
+  it("maps a selected idea pronoun to a typed status action that requires context", () => {
+    expect(parseSettingsContentMutationIntent("Mark it as done")).toEqual({ kind: "contentStudio.idea.statusSelected", status: "fertig" });
+    expect(parseSettingsContentMutationIntent("Set selected idea status to in progress")).toEqual({ kind: "contentStudio.idea.statusSelected", status: "in-arbeit" });
+    expect(parseSettingsContentMutationIntent("Mark this idea done")).toEqual({ kind: "contentStudio.idea.statusSelected", status: "fertig" });
+  });
+
   it("maps profile enum choices and rejects unsupported free-form values", () => {
     expect(parseSettingsContentMutationIntent("Set language to German")).toEqual({ kind: "settings.profile.locale", value: "de" });
     expect(parseSettingsContentMutationIntent("Set Datumsformat auf yyyy-MM-dd")).toEqual({ kind: "settings.profile.dateFormat", value: "yyyy-MM-dd" });

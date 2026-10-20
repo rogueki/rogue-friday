@@ -16,7 +16,7 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
 
   afterAll(async () => { await api.close(); });
 
-  const command = (client: ApiClient, text: string, options: { confirm?: boolean; previewId?: string; csrf?: boolean } = {}) => {
+  const command = (client: ApiClient, text: string, options: { confirm?: boolean; previewId?: string; csrf?: boolean; context?: { route: string; selectedIds?: string[] } } = {}) => {
     const { csrf, ...bodyOptions } = options;
     return client.post("/api/v1/commands", { text, source: "text", ...bodyOptions }, { csrf });
   };
@@ -244,6 +244,35 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     const response = await command(owner, "Set status of idea Duplicate title to done");
     expect(response.statusCode).toBe(409);
     expect(api.runtime.contentStudioPlan.get().plan?.content.filter((entry) => entry.titel === "Duplicate title").every((entry) => entry.status === "idee")).toBe(true);
+  });
+
+  it("resolves a pronoun through the selected Content Studio idea and binds selection plus correction", async () => {
+    const settings = api.runtime.settings.get();
+    if (!settings.dashboard.contentStudioEnabled)
+      api.runtime.settings.patch({ dashboard: { ...settings.dashboard, contentStudioEnabled: true } }, settings.version);
+    const current = api.runtime.contentStudioPlan.get();
+    const item = { id: "selected-pronoun-idea", titel: "Selected campaign", plattform: "LinkedIn" as const,
+      ziele: ["LinkedIn" as const], format: "Feed-Post" as const, beschreibung: "", zieldatum: "", status: "idee" as const };
+    api.runtime.contentStudioPlan.put({ version: 1, exportiert_am: new Date().toISOString(),
+      content: [...(current.plan?.content ?? []), item], postings: current.plan?.postings ?? [] }, current.revision);
+    const context = { route: "/content-studio", selectedIds: [item.id] };
+    const text = "Mark it as done";
+    const preview = await command(owner, text, { context });
+    expect(preview.statusCode, preview.body).toBe(200);
+    expect(preview.json()).toMatchObject({ status: "requires_confirmation", previewText: expect.stringContaining(item.titel) });
+    const previewId = preview.json().previewId as string;
+    expect((await command(operator, text, { context })).statusCode).toBe(403);
+
+    expect((await command(owner, "Mark it as in progress", { context, confirm: true, previewId })).statusCode).toBe(409);
+    expect((await command(owner, text, { context: { route: "/content-studio", selectedIds: ["another-idea"] }, confirm: true, previewId })).statusCode).toBe(409);
+    expect(api.runtime.contentStudioPlan.get().plan?.content.find((entry) => entry.id === item.id)?.status).toBe("idee");
+    expect((await command(owner, text, { context: { route: "/content-studio", selectedIds: [item.id, "another-idea"] } })).statusCode).toBe(422);
+    expect((await command(owner, text, { context: { route: "/tasks", selectedIds: [item.id] } })).statusCode).toBe(422);
+
+    const confirmed = await command(owner, text, { context, confirm: true, previewId });
+    expect(confirmed.statusCode, confirmed.body).toBe(200);
+    expect(confirmed.json()).toMatchObject({ status: "executed", result: { message: expect.stringContaining("gespeichert") } });
+    expect(api.runtime.contentStudioPlan.get().plan?.content.find((entry) => entry.id === item.id)?.status).toBe("fertig");
   });
 
   it("renames an idea and changes its description through the captured plan revision", async () => {

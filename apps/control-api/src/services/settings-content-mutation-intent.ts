@@ -13,6 +13,7 @@ export type SettingsContentMutationIntent =
   | { kind: "settings.dashboard.contentStudioEnabled"; value: boolean }
   | { kind: "contentStudio.idea.add"; title: string }
   | { kind: "contentStudio.idea.status"; title: string; status: "idee" | "in-arbeit" | "fertig" }
+  | { kind: "contentStudio.idea.statusSelected"; status: "idee" | "in-arbeit" | "fertig" }
   | { kind: "contentStudio.idea.rename"; title: string; newTitle: string }
   | { kind: "contentStudio.idea.description"; title: string; description: string }
   | { kind: "contentStudio.idea.date"; title: string; date: string }
@@ -38,6 +39,7 @@ const SETTING_DASHBOARD_BOOLEAN = /^(?:please\s+)?(?:set|change|stelle|setze|aen
 const SETTING_CONTENT_STUDIO_TOGGLE = /^(?:please\s+)?(enable|activate|disable|deactivate|aktiviere|deaktiviere)\s+(?:the\s+)?content\s+studio(?:\s+module)?[.!?]?$/i;
 const ADD_IDEA = /^(?:please\s+)?(?:add|create|erstelle|lege\s+an|fuege\s+hinzu|füge\s+hinzu)\s+(?:an\s+)?(?:content\s+)?(?:idea|idee)\s+(.+?)\s+(?:to|in|zum|im)\s+(?:the\s+)?(?:content\s+studio\s+)?(?:plan|redaktionsplan)[.!?]?$/i;
 const IDEA_STATUS = /^(?:set|change|setze|aendere|ändere)\s+(?:the\s+)?(?:status\s+(?:of|von)\s+(?:the\s+)?(?:idea|idee)|(?:idea|idee))\s+(.+?)\s+(?:to|auf)\s+(idea|idee|in\s+progress|in\s+arbeit|done|fertig)[.!?]?$/i;
+const IDEA_STATUS_SELECTED = /^(?:mark|set|change|markiere|setze|aendere|ändere)\s+(?:(?:this|that|selected|the\s+selected|it|diese|dieses|ausgewaehlte|ausgewählte|die\s+ausgewaehlte|die\s+ausgewählte|es|sie)(?:\s+(?:idea|idee))?|(?:idea|idee))\s+(?:(?:status)\s+)?(?:(?:as|to|auf)\s+)?(idea|idee|in\s+progress|in\s+arbeit|done|fertig)[.!?]?$/i;
 const RENAME_IDEA = /^(?:rename|benenne)\s+(?:the\s+)?(?:idea|idee)\s+"([^"\r\n]{1,200})"\s+(?:to|in)\s+"([^"\r\n]{1,200})"(?:\s+um)?[.!?]?$/i;
 const IDEA_DESCRIPTION = /^(?:set|change|update|setze|aendere|ändere)\s+(?:the\s+)?(?:description|beschreibung)\s+(?:of|von)\s+(?:the\s+)?(?:idea|idee)\s+"([^"\r\n]{1,200})"\s+(?:to|auf)\s+"([\s\S]{0,10000})"[.!?]?$/i;
 const IDEA_DATE = /^(?:set|change|setze|aendere|ändere)\s+(?:target\s+date|zieldatum)\s+(?:of|von)\s+(?:the\s+)?(?:idea|idee)\s+"([^"\r\n]{1,200})"\s+(?:to|auf)\s+(?:"([0-9]{4}-[0-9]{2}-[0-9]{2}|clear|leer)"|([0-9]{4}-[0-9]{2}-[0-9]{2}|clear|leer))[.!?]?$/i;
@@ -110,6 +112,12 @@ export function parseSettingsContentMutationIntent(input: string): SettingsConte
     return { kind: "contentStudio.idea.status", title, status:
       normalized === "idea" || normalized === "idee" ? "idee" :
         normalized === "done" || normalized === "fertig" ? "fertig" : "in-arbeit" };
+  }
+  const selectedStatus = IDEA_STATUS_SELECTED.exec(text);
+  if (selectedStatus) {
+    const normalized = selectedStatus[1]!.toLocaleLowerCase("en-US").replace(/\s+/g, " ");
+    return { kind: "contentStudio.idea.statusSelected", status:
+      normalized === "idea" || normalized === "idee" ? "idee" : normalized === "done" || normalized === "fertig" ? "fertig" : "in-arbeit" };
   }
   const rename = RENAME_IDEA.exec(rawText);
   if (rename && rename[1]!.trim() && rename[2]!.trim())

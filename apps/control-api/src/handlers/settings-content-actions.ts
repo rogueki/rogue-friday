@@ -48,7 +48,7 @@ function profileSettingPatch(profile: ReturnType<RequestContext["runtime"]["sett
   }
 }
 
-function sameIntent(action: NativeExecutableAction, intent: SettingsContentMutationIntent): boolean {
+function sameIntent(action: NativeExecutableAction, intent: SettingsContentMutationIntent, request: CommandRequest): boolean {
   if (intent.kind === "settings.profile.locale" || intent.kind === "settings.profile.dateFormat"
     || intent.kind === "settings.profile.timeFormat" || intent.kind === "settings.profile.firstDayOfWeek" || intent.kind === "settings.profile.timeZone"
     || intent.kind === "settings.profile.displayName" || intent.kind === "settings.profile.assistantName")
@@ -65,6 +65,11 @@ function sameIntent(action: NativeExecutableAction, intent: SettingsContentMutat
   if (intent.kind === "contentStudio.idea.status")
     return action.kind === intent.kind && action.title.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE")
       && action.status === intent.status;
+  if (intent.kind === "contentStudio.idea.statusSelected") {
+    const selectedIds = request.context?.selectedIds ?? [];
+    return action.kind === "contentStudio.idea.status" && request.context?.route === "/content-studio"
+      && selectedIds.length === 1 && action.ideaId === selectedIds[0] && action.status === intent.status;
+  }
   if (intent.kind === "contentStudio.idea.rename")
     return action.kind === intent.kind && action.title.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE")
       && action.newTitle === intent.newTitle;
@@ -105,15 +110,29 @@ function resolveUniqueIdea(ctx: RequestContext, title: string) {
   return { current, idea: matches[0]! };
 }
 
+function resolveSelectedIdea(ctx: RequestContext, request: CommandRequest) {
+  if (request.context?.route !== "/content-studio")
+    throw validationFailed("Bitte fuehre diese Referenz im Content Studio aus und waehle die gemeinte Idee.",
+      [{ path: "context.route", message: "Content Studio erforderlich" }]);
+  const selectedIds = request.context.selectedIds ?? [];
+  if (selectedIds.length !== 1)
+    throw validationFailed("Welche Idee meinst du? Bitte genau eine Idee im Content Studio auswaehlen.",
+      [{ path: "context.selectedIds", message: "genau eine Idee erforderlich" }]);
+  const current = ctx.runtime.contentStudioPlan.get();
+  const matches = (current.plan?.content ?? []).filter((idea) => idea.id === selectedIds[0]);
+  if (matches.length !== 1) throw conflict("Die ausgewaehlte Idee ist nicht mehr eindeutig verfuegbar. Bitte neu auswaehlen.");
+  return { current, idea: matches[0]! };
+}
+
 function storedAction(ctx: RequestContext, ownerId: string, request: CommandRequest,
   intent: SettingsContentMutationIntent): NativeExecutableAction | null {
   if (!request.previewId) return null;
   const action = ctx.runtime.nativeApprovals.readAction(ownerId, request.previewId);
-  if (!action || !sameIntent(action, intent)) throw conflict("Der Entwurf passt nicht zur beschriebenen Aenderung.");
+  if (!action || !sameIntent(action, intent, request)) throw conflict("Der Entwurf passt nicht zur beschriebenen Aenderung oder Auswahl.");
   return action;
 }
 
-function makeAction(ctx: RequestContext, intent: SettingsContentMutationIntent): NativeExecutableAction {
+function makeAction(ctx: RequestContext, request: CommandRequest, intent: SettingsContentMutationIntent): NativeExecutableAction {
   if (isProfileSettingIntent(intent)) {
     if (!authorize(ctx.principal!.role, "settings.update").allowed) throw forbidden("Einstellungen duerfen nur vom Owner geaendert werden.");
     const current = ctx.runtime.settings.get();
@@ -171,9 +190,9 @@ function makeAction(ctx: RequestContext, intent: SettingsContentMutationIntent):
     throw conflict("Diese Dateiaktion wird als angeleiteter Browser-Schritt verarbeitet.");
   if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
   const current = ctx.runtime.contentStudioPlan.get();
-  if (intent.kind === "contentStudio.idea.status") {
-    const { idea } = resolveUniqueIdea(ctx, intent.title);
-    return { kind: intent.kind, expectedRevision: current.revision, ideaId: idea.id, title: idea.titel, status: intent.status };
+  if (intent.kind === "contentStudio.idea.status" || intent.kind === "contentStudio.idea.statusSelected") {
+    const { idea } = intent.kind === "contentStudio.idea.status" ? resolveUniqueIdea(ctx, intent.title) : resolveSelectedIdea(ctx, request);
+    return { kind: "contentStudio.idea.status", expectedRevision: current.revision, ideaId: idea.id, title: idea.titel, status: intent.status };
   }
   if (intent.kind === "contentStudio.idea.rename") {
     const { idea } = resolveUniqueIdea(ctx, intent.title);
@@ -316,7 +335,7 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
   if (request.previewId) action = storedAction(ctx, ownerId, request, intent)!;
   else {
     if (request.confirm) throw validationFailed("Eine bestaetigte Vorschau fehlt.", [{ path: "previewId", message: "erforderlich" }]);
-    action = makeAction(ctx, intent);
+    action = makeAction(ctx, request, intent);
   }
 
   if (!request.confirm && request.previewId) {
