@@ -27,6 +27,9 @@ describe("task status language", () => {
     ["Brich die Aufgabe Quartalsbericht ab", { kind: "task.cancel", ref: "Quartalsbericht" }],
     ["Entferne die Aufgabe Quartalsbericht", { kind: "task.cancel", ref: "Quartalsbericht" }],
     [`Cancel task ${TASK_ID}`, { kind: "task.cancel", ref: TASK_ID }],
+    [`Retry task ${TASK_ID}`, { kind: "task.retry", ref: TASK_ID }],
+    ["Starte Aufgabe Quartalsbericht erneut", { kind: "task.retry", ref: "Quartalsbericht" }],
+    ["Bitte wiederhole die Aufgabe", { kind: "task.retry", ref: null }],
     ["Lösche die Aufgabe", { kind: "task.cancel", ref: null }],
     ["Brich den Task ab", { kind: "task.cancel", ref: null }],
   ];
@@ -53,4 +56,5 @@ describe("task status language", () => {
 
 type TaskActionExpected =
   | { kind: "task.update"; status: string; ref: string | null }
-  | { kind: "task.cancel"; ref: string | null };
+  | { kind: "task.cancel"; ref: string | null }
+  | { kind: "task.retry"; ref: string | null };

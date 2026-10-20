@@ -17,6 +17,8 @@ import { dispatchAutomationAction } from "./automation-actions";
 import { parseAutomationActionIntent, type AutomationActionIntent } from "../services/automation-action-intent";
 import { parseResearchActionIntent } from "../services/research-action-intent";
 import { executeResearchCommand } from "./research-actions";
+import { executeSettingsContentMutation } from "./settings-content-actions";
+import { parseSettingsContentMutationIntent } from "../services/settings-content-mutation-intent";
 import { executeReadQuery, parseReadQueryIntent } from "../services/read-query-intent";
 import { checkedLocalEvent, LocalCalendarService } from "../services/local-calendar";
 import { checkedMailSend, type MailSendRequest } from "../services/mail-send";
@@ -114,23 +116,28 @@ async function executeTaskAction(ctx: Parameters<Handler>[0], request: CommandRe
   const ownerId = ctx.principal?.userId;
   if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
   const tasks = ctx.runtime.registry.getPort("tasks");
-  const write = intent.kind === "task.update" ? tasks.updateTask : tasks.cancelTask;
+  const write = intent.kind === "task.update" ? tasks.updateTask : intent.kind === "task.retry" ? tasks.retryTask : tasks.cancelTask;
   if (!write) {
     throw new ApiError({ code: "CAPABILITY_MISSING",
       message: intent.kind === "task.update" ? "Aufgaben koennen derzeit nicht geaendert werden."
-        : "Aufgaben koennen derzeit nicht abgebrochen werden." });
+        : intent.kind === "task.retry" ? "Aufgaben koennen derzeit nicht neu gestartet werden."
+          : "Aufgaben koennen derzeit nicht abgebrochen werden." });
   }
   const task = await resolveTaskRef(ctx, request, intent.ref);
   if (!request.confirm && intent.kind === "task.cancel" && ["done", "failed", "cancelled"].includes(task.status)) {
     throw conflict(`Aufgabe ${task.id} ist bereits beendet (${task.status}) und kann nicht abgebrochen werden.`, { status: task.status });
   }
+  if (!request.confirm && intent.kind === "task.retry" && !["failed", "cancelled", "waiting"].includes(task.status)) {
+    throw conflict(`Aufgabe ${task.id} kann im Status ${task.status} nicht neu gestartet werden.`, { status: task.status });
+  }
   const action: NativeExecutableAction = intent.kind === "task.update"
     ? { kind: "task.update", id: task.id, body: { status: intent.status } }
-    : { kind: "task.cancel", id: task.id };
-  const actionText = intent.kind === "task.update" ? `Aufgabe aktualisieren: ${task.title}` : `Aufgabe abbrechen: ${task.title}`;
+    : intent.kind === "task.retry" ? { kind: "task.retry", id: task.id } : { kind: "task.cancel", id: task.id };
+  const actionText = intent.kind === "task.update" ? `Aufgabe aktualisieren: ${task.title}`
+    : intent.kind === "task.retry" ? `Aufgabe erneut starten: ${task.title}` : `Aufgabe abbrechen: ${task.title}`;
   const previewText = intent.kind === "task.update"
     ? `Aufgabe „${task.title}“ als ${STATUS_LABEL[intent.status]} markieren?`
-    : `Aufgabe „${task.title}“ abbrechen?`;
+    : intent.kind === "task.retry" ? `Aufgabe „${task.title}“ erneut starten?` : `Aufgabe „${task.title}“ abbrechen?`;
   if (!request.confirm && request.previewId) {
     ctx.runtime.nativeApprovals.cancelDraft(ownerId, request.previewId, action);
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"),
@@ -163,10 +170,14 @@ async function executeTaskAction(ctx: Parameters<Handler>[0], request: CommandRe
         if (actionToRun.kind === "task.cancel") {
           return (await tasks.cancelTask!({ id: actionToRun.id, body: actionToRun.body }, call)).data.id;
         }
+        if (actionToRun.kind === "task.retry") {
+          return (await tasks.retryTask!({ id: actionToRun.id, body: actionToRun.body }, call)).data.id;
+        }
         throw conflict("Die Bestaetigung passt nicht zum gespeicherten Entwurf.");
       });
     response = { ...base, status: "executed", requiresConfirmation: false, previewText: null,
-      approvalId: null, result: { message: intent.kind === "task.update" ? "Aufgabe wurde aktualisiert." : "Aufgabe wurde abgebrochen.",
+      approvalId: null, result: { message: intent.kind === "task.update" ? "Aufgabe wurde aktualisiert."
+          : intent.kind === "task.retry" ? "Aufgabe wurde erneut gestartet." : "Aufgabe wurde abgebrochen.",
         taskId, targetRoute: `/tasks?task=${taskId}` } };
   }
   return { status: 200, body: response };
@@ -1049,13 +1060,14 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
   async executeCommand(ctx) {
     const request = ctx.body as CommandRequest;
     const readQuery = parseReadQueryIntent(request.text);
-    const sensitive = CommandHistoryStore.isSensitive(request.text) || readQuery !== null;
+    const settingsContentMutation = parseSettingsContentMutationIntent(request.text);
+    const sensitive = CommandHistoryStore.isSensitive(request.text) || readQuery !== null || settingsContentMutation !== null;
     const privateInput = sensitive || /(?:dieses gespräch nicht speichern|nicht merken|do not store|private mode)/i.test(request.text);
     captureCommand(ctx, `${ctx.correlationId}-u`, "user_utterance", request.text, "completed", privateInput);
     ctx.audit.action = "command.executed";
     let status = "failed";
     try {
-      const taskCreate = parseTaskCreateIntent(request.text);
+      const taskCreate = settingsContentMutation ? null : parseTaskCreateIntent(request.text);
       const taskAction = taskCreate ? null : parseTaskActionIntent(request.text);
       const timeZone = ctx.runtime.settings.area("profile").timeZone;
       const calendarAction = taskCreate || taskAction ? null
@@ -1074,10 +1086,11 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         : parseResearchActionIntent(request.text);
       // Typed action parsers bind the full request, including free-text title/body/topic payloads. A read-shaped
       // phrase inside that payload must not replace the action that actually matched.
-      const readQueryWins = Boolean(readQuery && !taskCreate && !taskAction && !calendarAction && !knowledgeAction
+      const readQueryWins = Boolean(readQuery && !settingsContentMutation && !taskCreate && !taskAction && !calendarAction && !knowledgeAction
         && !automationAction && !agentAction && !messengerAction && !mailAction && !researchAction);
       const intent = request.confirm ? null : matchBuiltinIntent(request.text);
-      const result = taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
+      const result = settingsContentMutation ? await executeSettingsContentMutation(ctx, request, settingsContentMutation)
+        : taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
         : taskAction ? await executeTaskAction(ctx, request, taskAction)
         : calendarAction ? await executeCalendarAction(ctx, request, calendarAction)
         : knowledgeAction ? await executeKnowledgeAction(ctx, request, knowledgeAction)
@@ -1096,7 +1109,8 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         riskTier: response.riskTier,
         approvalId: response.approvalId,
         source: request.source,
-        ...(readQueryWins ? { intent: `read_${readQuery!.kind}` } : intent ? { intent } : taskCreate ? { intent: "task_create" } : taskAction ? { intent: taskAction.kind.replace(".", "_") }
+        ...(settingsContentMutation ? { intent: settingsContentMutation.kind.replaceAll(".", "_") }
+          : readQueryWins ? { intent: `read_${readQuery!.kind}` } : intent ? { intent } : taskCreate ? { intent: "task_create" } : taskAction ? { intent: taskAction.kind.replace(".", "_") }
           : calendarAction ? { intent: calendarAction.kind.replace(".", "_") }
           : knowledgeAction ? { intent: knowledgeAction.kind.replace(".", "_") }
           : automationAction ? { intent: automationAction.kind.replace(".", "_") }

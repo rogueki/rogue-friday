@@ -79,6 +79,30 @@ it("executes a spoken cancel by id once when tier-2 approval is disabled", async
   } finally { await api.close(); }
 });
 
+it("routes a spoken retry through the native approval journal exactly once", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const owner = api.client();
+    await owner.loginDev("owner");
+    await disableTier2(owner);
+    const failed = await owner.get("/api/v1/tasks", { query: { status: "failed", limit: "50" } });
+    expect(failed.statusCode, failed.body).toBe(200);
+    const task = (failed.json().items as Array<{ id: string; title: string; status: string }>).find((entry) => entry.status === "failed");
+    expect(task).toBeTruthy();
+    const text = `Retry task ${task!.id}`;
+    const preview = await owner.post("/api/v1/commands", { text, source: "text" });
+    expect(preview.statusCode, preview.body).toBe(200);
+    expect(preview.json()).toMatchObject({ status: "requires_confirmation", previewText: expect.stringContaining("erneut starten") });
+    const previewId = preview.json().previewId as string;
+    const confirmed = await owner.post("/api/v1/commands", { text, source: "text", confirm: true, previewId });
+    expect(confirmed.statusCode, confirmed.body).toBe(200);
+    expect(confirmed.json()).toMatchObject({ status: "executed", result: { taskId: task!.id, message: "Aufgabe wurde erneut gestartet." } });
+    const replay = await owner.post("/api/v1/commands", { text, source: "text", confirm: true, previewId });
+    expect(replay.statusCode, replay.body).toBe(200);
+    expect(replay.json().result.taskId).toBe(task!.id);
+  } finally { await api.close(); }
+});
+
 it("cancels a status preview and never revives its action", async () => {
   const api = await startTestApi({ responseValidation: "throw" });
   try {

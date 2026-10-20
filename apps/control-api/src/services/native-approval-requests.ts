@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createId } from "@friday/observability";
-import type { Approval, AutomationCreateRequest, AutomationPauseAllRequest, AutomationTestRequest, AutomationUpdateRequest, CalendarEvent, FileRenameRequest, MemoryConflictResolveRequest, MemoryCreateRequest, MemoryUpdateRequest, ResearchCreateRequest, SchemaValidator, TaskActionRequest, TaskAssignRequest, TaskCreateRequest, TaskUpdateRequest } from "@friday/sdk";
+import type { Approval, AutomationCreateRequest, AutomationPauseAllRequest, AutomationTestRequest, AutomationUpdateRequest, CalendarEvent, FileRenameRequest, MemoryConflictResolveRequest, MemoryCreateRequest, MemoryUpdateRequest, ResearchCreateRequest, SchemaValidator, TaskActionRequest, TaskAssignRequest, TaskCreateRequest, TaskUpdateRequest, ContentPlanDocument } from "@friday/sdk";
 import type { Db } from "../db/database";
 import type { LocalEventInput } from "./local-calendar";
 import type { MailSendRequest } from "./mail-send";
@@ -50,7 +50,10 @@ export type NativeExecutableAction =
   /** A test run records a run entry; a real (non-dry) run executes actions, so it is staged like every write. */
   | { kind: "automation.test"; id: string; body: AutomationTestRequest }
   | { kind: "automation.pauseAll"; body: AutomationPauseAllRequest }
-  | { kind: "research.create"; body: ResearchCreateRequest; providerVersion: number };
+  | { kind: "research.create"; body: ResearchCreateRequest; providerVersion: number }
+  | { kind: "settings.dashboard.compact"; expectedVersion: number; value: boolean }
+  | { kind: "contentStudio.idea.add"; expectedRevision: number; idea: ContentPlanDocument["content"][number] }
+  | { kind: "contentStudio.idea.status"; expectedRevision: number; ideaId: string; title: string; status: "idee" | "in-arbeit" | "fertig" };
 
 /** Receipt sentence per action kind; the create wording is asserted by existing API fixtures. */
 export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], string>> = {
@@ -83,6 +86,9 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "automation.test": "getestet",
   "automation.pauseAll": "pausiert",
   "research.create": "gestartet",
+  "settings.dashboard.compact": "gespeichert",
+  "contentStudio.idea.add": "hinzugefuegt",
+  "contentStudio.idea.status": "aktualisiert",
 };
 
 /** Receipt subject per action family; combined with the verb to the exact receipt sentence. */
@@ -116,6 +122,9 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "automation.test": "Automation",
   "automation.pauseAll": "Automationen",
   "research.create": "Recherche",
+  "settings.dashboard.compact": "Einstellung",
+  "contentStudio.idea.add": "Content-Idee",
+  "contentStudio.idea.status": "Content-Idee",
 };
 
 /** The action executor supplies a reviewed preview and a stable key before any external side effect. */
