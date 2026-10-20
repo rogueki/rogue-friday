@@ -43,6 +43,7 @@ import type { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import type { HermesConfigService } from "../services/hermes-config";
 import type { CodingRunsService } from "../services/coding-runs";
 import type { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
+import type { ResearchService } from "../services/research";
 import type { TelephonyService } from "../services/telephony";
 import type { CloudTalkService } from "../services/cloudtalk";
 import type { FrontendTelemetryService } from "../services/telemetry";
@@ -122,6 +123,7 @@ export interface Runtime {
   hermesConfig: HermesConfigService;
   codingRuns: CodingRunsService;
   codingVoiceRepository: CodingVoiceRepositoryService;
+  research: ResearchService;
   adapterSettings: AdapterSettingsService;
   status: StatusService;
   orb: OrbService;

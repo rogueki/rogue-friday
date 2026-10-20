@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/research/research-provider.schema.json",
+  "title": "ResearchProvider",
+  "type": "object",
+  "properties": {
+    "provider": { "const": "searxng" },
+    "endpoint": { "type": ["string", "null"] },
+    "configured": { "type": "boolean" },
+    "version": { "type": "integer", "minimum": 1 },
+    "maxSources": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 12000 },
+    "sourceVerification": { "const": "unverified" }
+  },
+  "required": ["provider", "endpoint", "configured", "version", "maxSources", "timeoutMs", "sourceVerification"],
+  "additionalProperties": false
+}

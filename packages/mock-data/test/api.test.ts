@@ -221,6 +221,7 @@ describe("REST route coverage", () => {
       "getSystemBackupStatus", "performSystemBackupAction", "getDataRetentionStatus", "performDataRetentionAction",
       "getMessengerProvider", "updateMessengerProvider", "applyMessengerProvider", "listMessengerSenders",
       "linkMessengerSender", "unlinkMessengerSender", "captureMessengerInbound",
+      "probeHermesMcp", "createResearchProject", "getResearchProvider", "updateResearchProvider",
     ].sort();
     const mocked = ROUTES.map((route) => route.operationId).sort();
     expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);

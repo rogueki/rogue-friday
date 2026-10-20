@@ -59,6 +59,7 @@ import { CalendarAccountsService } from "../services/calendar-accounts";
 import { HermesSkillKeysService } from "../services/hermes-skill-keys";
 import { HermesConfigService } from "../services/hermes-config";
 import { CodingRunsService } from "../services/coding-runs";
+import { ResearchService } from "../services/research";
 import { CodingVoiceRepositoryService } from "../services/coding-voice-repository";
 import { ContentStudioProviderService } from "../services/content-studio-providers";
 import { ContentStudioPlanService } from "../services/content-studio-plan";
@@ -319,6 +320,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const codingRuns: CodingRunsService = new CodingRunsService(config, skills, env);
   const powerpoint = new PowerPointService(config.paths.dataDir);
   const codingVoiceRepository = new CodingVoiceRepositoryService(db, codingRuns);
+  const research = new ResearchService(db, env.FRIDAY_RESEARCH_SEARXNG_URL, options.providerFetch);
   const contentStudioProduction = new ContentStudioProductionService(db, contentStudioPlan, contentStudioKeys, contentStudioProviders,
     config.paths.dataDir, { ffmpegPath: env.FRIDAY_FFMPEG_PATH, enabled: () => settings.area("dashboard").contentStudioEnabled === true });
   settingsHolder.current = settings;
@@ -327,7 +329,16 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
   const orb = new OrbService({ registry, world, dataMode: config.dataMode, assistantName });
   const status = new StatusService({ registry, hub, dataMode: config.dataMode, version: buildVersion, startedAt, world, orbMode: () => orb.mode, assistantName });
 
-  const capabilities = (): ReturnType<Runtime["capabilities"]> => registry.aggregateCapabilities();
+  const capabilities = (): ReturnType<Runtime["capabilities"]> => {
+    const result = registry.aggregateCapabilities();
+    // The handler checks readiness for new work; the route remains available for replay receipts.
+    result.modules.research.create = config.dataMode !== "mock";
+    if (config.dataMode !== "mock") {
+      result.modules.research.read = true;
+      result.modules.research.export = true;
+    }
+    return result;
+  };
   const capabilityEnabled = (capability: string): boolean => {
     const [moduleName, flag] = capability.split(".");
     const module = moduleName ? (capabilities().modules as unknown as Record<string, Record<string, unknown> | undefined>)[moduleName] : undefined;
@@ -548,6 +559,7 @@ export async function createRuntime(options: CreateRuntimeOptions): Promise<Runt
     hermesConfig,
     codingRuns,
     codingVoiceRepository,
+    research,
     contentStudioProduction,
     adapterSettings,
     status,

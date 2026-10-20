@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/research/research-provider-update-request.schema.json",
+  "title": "ResearchProviderUpdateRequest",
+  "type": "object",
+  "properties": {
+    "endpoint": { "type": "string", "maxLength": 2048 }
+  },
+  "required": ["endpoint"],
+  "additionalProperties": false
+}

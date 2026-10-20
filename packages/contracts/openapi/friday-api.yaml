@@ -3214,6 +3214,46 @@ paths:
       x-capability: automations.versions
       x-required-role: viewer
   /api/v1/research/projects:
+    post:
+      operationId: createResearchProject
+      tags:
+        - research
+      summary: Search for a topic and store unverified source candidates
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchCreateRequest"
+      responses:
+        "201":
+          description: Source discovery recorded; project remains in review
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchProjectResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: research.create
+      x-required-role: operator
     get:
       operationId: listResearchProjects
       tags:
@@ -3251,6 +3291,52 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: research.read
       x-required-role: viewer
+  /api/v1/research/provider:
+    get:
+      operationId: getResearchProvider
+      tags:
+        - research
+      summary: Get local source discovery provider configuration
+      responses:
+        "200":
+          description: Current configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchProviderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-required-role: owner
+    patch:
+      operationId: updateResearchProvider
+      tags:
+        - research
+      summary: Configure the local SearXNG endpoint
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchProviderUpdateRequest"
+      responses:
+        "200":
+          description: Saved configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchProviderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+      x-required-role: owner
   /api/v1/research/projects/{id}:
     get:
       operationId: getResearchProject
@@ -9066,6 +9152,14 @@ components:
       $ref: ../schemas/research/research-finding-response.schema.json
     ResearchProject:
       $ref: ../schemas/research/research-project.schema.json
+    ResearchCreateRequest:
+      $ref: ../schemas/research/research-create-request.schema.json
+    ResearchProvider:
+      $ref: ../schemas/research/research-provider.schema.json
+    ResearchProviderUpdateRequest:
+      $ref: ../schemas/research/research-provider-update-request.schema.json
+    ResearchProviderResponse:
+      $ref: ../schemas/research/research-provider-response.schema.json
     ResearchProjectListResponse:
       $ref: ../schemas/research/research-project-list-response.schema.json
     ResearchProjectResponse:

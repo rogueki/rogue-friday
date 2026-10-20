@@ -852,12 +852,16 @@ export interface FridayModelMap {
   ResearchArtifact: ResearchArtifact;
   ResearchArtifactListResponse: ResearchArtifactListResponse;
   ResearchArtifactResponse: ResearchArtifactResponse;
+  ResearchCreateRequest: ResearchCreateRequest;
   ResearchFinding: ResearchFinding;
   ResearchFindingListResponse: ResearchFindingListResponse;
   ResearchFindingResponse: ResearchFindingResponse;
   ResearchProject: ResearchProject;
   ResearchProjectListResponse: ResearchProjectListResponse;
   ResearchProjectResponse: ResearchProjectResponse;
+  ResearchProvider: ResearchProvider;
+  ResearchProviderResponse: ResearchProviderResponse;
+  ResearchProviderUpdateRequest: ResearchProviderUpdateRequest;
   ResearchSource: ResearchSource;
   ResearchSourceListResponse: ResearchSourceListResponse;
   ResearchSourceResponse: ResearchSourceResponse;
@@ -4904,6 +4908,9 @@ export interface ResearchArtifactResponse {
   data: ResearchArtifact;
   freshness: Freshness;
 }
+export interface ResearchCreateRequest {
+  topic: string;
+}
 /**
  * A statement together with the sources that support it and known contradictions.
  */
@@ -4989,6 +4996,23 @@ export interface ResearchProjectResponse {
   contractVersion: ContractVersion;
   data: ResearchProject;
   freshness: Freshness;
+}
+export interface ResearchProvider {
+  provider: "searxng";
+  endpoint: string | null;
+  configured: boolean;
+  version: number;
+  maxSources: number;
+  timeoutMs: number;
+  sourceVerification: "unverified";
+}
+export interface ResearchProviderResponse {
+  contractVersion: string;
+  data: ResearchProvider;
+  freshness: Freshness;
+}
+export interface ResearchProviderUpdateRequest {
+  endpoint: string;
 }
 export interface ResearchSource {
   id: string;

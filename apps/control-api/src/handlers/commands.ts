@@ -15,6 +15,8 @@ import { parseKnowledgeActionIntent, type KnowledgeActionIntent } from "../servi
 import { assertMemoryWritable, assertRenameTargetFree, assertValidFileName, dispatchKnowledgeAction, fileDeleteAction, memoryLabel } from "./knowledge-actions";
 import { dispatchAutomationAction } from "./automation-actions";
 import { parseAutomationActionIntent, type AutomationActionIntent } from "../services/automation-action-intent";
+import { parseResearchActionIntent } from "../services/research-action-intent";
+import { executeResearchCommand } from "./research-actions";
 import { checkedLocalEvent, LocalCalendarService } from "../services/local-calendar";
 import { checkedMailSend, type MailSendRequest } from "../services/mail-send";
 import { checkedMessengerDraft, type MessengerSendDraft } from "../services/messenger-send";
@@ -1066,6 +1068,8 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         : parseMessengerActionIntent(request.text);
       const mailAction = taskCreate || taskAction || calendarAction || agentAction || messengerAction || knowledgeAction || automationAction ? null
         : parseMailActionIntent(request.text);
+      const researchAction = taskCreate || taskAction || calendarAction || agentAction || messengerAction || knowledgeAction || automationAction || mailAction ? null
+        : parseResearchActionIntent(request.text);
       const intent = request.confirm ? null : matchBuiltinIntent(request.text);
       const result = taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
         : taskAction ? await executeTaskAction(ctx, request, taskAction)
@@ -1075,6 +1079,7 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         : agentAction ? await executeAgentAction(ctx, request, agentAction)
         : messengerAction ? await executeMessengerAction(ctx, request, messengerAction)
         : mailAction ? await executeMailAction(ctx, request, mailAction)
+        : researchAction ? await executeResearchCommand(ctx, request, researchAction.topic)
         : intent ? await executeBuiltinIntent(ctx, intent, () => executeBase(ctx)) : await executeBase(ctx);
       const response = result.body as CommandResponse;
       status = response.status;
@@ -1090,7 +1095,8 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
           : automationAction ? { intent: automationAction.kind.replace(".", "_") }
           : agentAction ? { intent: agentAction.kind.replace(".", "_") }
           : messengerAction ? { intent: messengerAction.kind.replace(".", "_") }
-          : mailAction ? { intent: mailAction.kind.replace(".", "_") } : {}),
+          : mailAction ? { intent: mailAction.kind.replace(".", "_") }
+          : researchAction ? { intent: "research_create" } : {}),
         redacted: sensitive,
         ...(sensitive ? {} : { text: request.text.slice(0, 200) }),
       };
