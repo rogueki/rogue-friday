@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import os
 from pathlib import Path
+import stat
 import tempfile
 
 
@@ -44,8 +45,8 @@ ADDITION = '''# FRIDAY_STRICT_CRON_LOCK_V1: Friday mutations may never use Herme
 def friday_strict_jobs_lock():
     """Hold the native store lock across Friday's compare-and-mutate operation.
 
-    Native scheduler writers retain their normal policy. Friday's mutation aborts
-    when cross-process locking is absent or not acquired within two seconds.
+    All native writers now fail closed on a missing cross-process lock. Friday's
+    compare-and-mutate section uses a separate two-second deadline.
     """
     if getattr(_jobs_lock_state, "depth", 0):
         raise RuntimeError("friday cron lock cannot be nested")
@@ -89,6 +90,7 @@ def apply(root: Path, *, check: bool = False, require_patched: bool = False,
     target = root / RELATIVE
     backup = target.with_suffix(target.suffix + ".friday-cron-original")
     current = target.read_bytes()
+    original_mode = stat.S_IMODE(target.stat().st_mode)
     if digest(current) == ORIGINAL_SHA:
         state = "original"
     elif backup.is_file() and digest(backup.read_bytes()) == ORIGINAL_SHA and current == patched(backup.read_bytes()):
@@ -101,6 +103,7 @@ def apply(root: Path, *, check: bool = False, require_patched: bool = False,
         with tempfile.NamedTemporaryFile(dir=target.parent, prefix=".friday-cron-rollback-", delete=False) as temp:
             staged = Path(temp.name)
             temp.write(backup.read_bytes())
+        os.chmod(staged, original_mode)
         try:
             os.replace(staged, target)
             backup.unlink()
@@ -119,6 +122,7 @@ def apply(root: Path, *, check: bool = False, require_patched: bool = False,
     with tempfile.NamedTemporaryFile(dir=target.parent, prefix=".friday-cron-", delete=False) as temp:
         staged = Path(temp.name)
         temp.write(modified)
+    os.chmod(staged, original_mode)
     try:
         backup.write_bytes(current)
         os.replace(staged, target)
