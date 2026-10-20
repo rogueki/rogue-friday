@@ -1,4 +1,4 @@
-﻿export type SettingsContentMutationIntent =
+export type SettingsContentMutationIntent =
   | { kind: "settings.dashboard.compact"; value: boolean }
   | { kind: "contentStudio.idea.add"; title: string }
   | { kind: "contentStudio.idea.status"; title: string; status: "idee" | "in-arbeit" | "fertig" };
@@ -29,4 +29,3 @@ export function parseSettingsContentMutationIntent(input: string): SettingsConte
   }
   return null;
 }
-
