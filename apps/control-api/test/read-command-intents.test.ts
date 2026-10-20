@@ -69,6 +69,40 @@ describe("read-only command intents use local read services", () => {
     }
   });
 
+  it("matches approval-list ordering and keeps native approval details owner-scoped", async () => {
+    const ownerId = api.runtime.auth.issueDevSession("owner").principal.userId;
+    const proposed = api.runtime.nativeApprovals.propose({
+      ownerId,
+      requestKey: "nlp-owner-scope-test",
+      correlationId: `corr_${"o".repeat(26)}`,
+      riskTier: 3,
+      type: "system_change",
+      action: "PRIVATE_NATIVE_APPROVAL_ACTION",
+      rationale: "PRIVATE_NATIVE_APPROVAL_RATIONALE",
+      preview: { kind: "text", title: "private test", body: "private approval preview" },
+      impacts: [],
+      execution: { kind: "task.cancel", id: `task_${"t".repeat(26)}` },
+    });
+    const id = proposed.approval?.id;
+    expect(id).toBeTruthy();
+    api.runtime.nativeApprovals.confirm(ownerId, "nlp-owner-scope-test", { kind: "task.cancel", id: `task_${"t".repeat(26)}` });
+    const ownerList = await owner.get("/api/v1/approvals", { query: { status: ["pending"], limit: "5" } });
+    expect(ownerList.statusCode).toBe(200);
+    expect(ownerList.json().items.some((item: { id: string }) => item.id === id)).toBe(true);
+    const commandList = await run(owner, "Liste ausstehende Freigaben");
+    expect(commandList.statusCode).toBe(200);
+    expect(commandList.json().result.message).toContain(id);
+    expect(commandList.json().result.message).not.toContain("PRIVATE_NATIVE_APPROVAL_ACTION");
+    expect(commandList.json().result.message).not.toContain("PRIVATE_NATIVE_APPROVAL_RATIONALE");
+
+    const directForeign = await operator.get(`/api/v1/approvals/${id}`);
+    const commandForeign = await run(operator, `Zeige Freigabe ${id}`);
+    expect(commandForeign.statusCode).toBe(directForeign.statusCode);
+    expect(commandForeign.statusCode).not.toBe(200);
+    expect(commandForeign.body).not.toContain("PRIVATE_NATIVE_APPROVAL_ACTION");
+    expect(commandForeign.body).not.toContain("PRIVATE_NATIVE_APPROVAL_RATIONALE");
+  });
+
   it("respects the audit GET role and keeps private event fields out of command results", async () => {
     const denied = await run(operator, "Show recent audit events");
     expect(denied.statusCode).toBe(200);

@@ -20,17 +20,24 @@ export type ReadQueryIntent =
   | { kind: "audit.exportUnsupported" }
   | { kind: "clarify"; message: string };
 
-const READ_CUE = /\b(zeige|zeig|liste|list|show|search|suche|such|find|finde|was|welche|welcher|welches|what|which|recent|latest|aktuell|aktuelle|letzte|letzten|recenten|export|exportieren|exportiere|download)\b/;
+const READ_CUE = /\b(zeige|zeig|liste|list|show|search|suche|such|find|finde|get|open|abruf|abrufe|hole|detail|details|was|welche|welcher|welches|what|which|recent|latest|aktuell|aktuelle|letzte|letzten|recenten|export|exportieren|exportiere|download)\b/;
 const FAMILY_PATTERNS = [
   { family: "activity", pattern: /\b(activity|activities|aktivitaet|aktivitaeten|aktivitaetsverlauf)\b/ },
   { family: "notifications", pattern: /\b(alert|alerts|notification|notifications|benachrichtigung|benachrichtigungen|meldung|meldungen)\b/ },
   { family: "approvals", pattern: /\b(approval|approvals|freigabe|freigaben)\b/ },
   { family: "audit", pattern: /\b(audit|auditprotokoll|pruefprotokoll|auditlog)\b/ },
 ] as const;
+const FOREIGN_STATUS_PATTERNS: Record<string, RegExp> = {
+  activity: /\b(open|offen|offene|acknowledged|acknowledge|bestaetigt|quittiert|snoozed|zurueckgestellt|resolved|geloest|erledigt|pending|ausstehend|ausstehende|approved|genehmigt|freigegeben|rejected|abgelehnt|expired|abgelaufen|cancelled|canceled|abgebrochen|executed|ausgefuehrt)\b/,
+  notifications: /\b(running|laeuft|laufend|started|gestartet|succeeded|successful|erfolgreich|failed|failure|fehlgeschlagen|fehlerhaft|pending|ausstehend|ausstehende|approved|genehmigt|freigegeben|rejected|abgelehnt|expired|abgelaufen|cancelled|canceled|abgebrochen|executed|ausgefuehrt)\b/,
+  approvals: /\b(running|laeuft|laufend|started|gestartet|succeeded|successful|erfolgreich|failed|failure|fehlgeschlagen|fehlerhaft|acknowledged|acknowledge|bestaetigt|quittiert|snoozed|zurueckgestellt|resolved|geloest|erledigt)\b/,
+  audit: /\b(running|laeuft|laufend|started|gestartet|succeeded|successful|open|offen|offene|acknowledged|acknowledge|bestaetigt|quittiert|snoozed|zurueckgestellt|resolved|geloest|erledigt|approved|genehmigt|freigegeben|rejected|abgelehnt|expired|abgelaufen|cancelled|canceled|abgebrochen|executed|ausgefuehrt)\b/,
+};
 const ID_PATTERN = /\b(act|ntf|appr|aud)_[0-9A-Za-z]{26}\b/g;
 
 function normalize(text: string): string {
-  return text.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}_]+/gu, " ").trim();
+  return text.toLowerCase().replace(/[äæ]/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}_]+/gu, " ").trim();
 }
 
 function readStatus(text: string, family: string): string[] {
@@ -48,7 +55,7 @@ function readStatus(text: string, family: string): string[] {
     add(/\b(snoozed|zurueckgestellt|pausiert)\b/, "snoozed");
     add(/\b(resolved|geloest|erledigt)\b/, "resolved");
   } else if (family === "approvals") {
-    add(/\b(pending|offen|ausstehend|ausstehende)\b/, "pending");
+    add(/\b(pending|open|offen|ausstehend|ausstehende)\b/, "pending");
     add(/\b(approved|genehmigt|freigegeben)\b/, "approved");
     add(/\b(rejected|abgelehnt)\b/, "rejected");
     add(/\b(expired|abgelaufen)\b/, "expired");
@@ -65,8 +72,8 @@ function readStatus(text: string, family: string): string[] {
 }
 
 function lookbackHours(text: string): number | undefined {
-  if (/\b(today|heute)\b/.test(text)) return 24;
-  if (/\b(yesterday|gestern)\b/.test(text)) return 48;
+  // Civil-day boundaries require an explicit timezone. Do not approximate them as rolling hours.
+  if (/\b(today|heute|yesterday|gestern)\b/.test(text)) return -2;
   const match = /\b(?:last|letzte|letzten)\s+(\d{1,3})\s+(hour|hours|stunde|stunden|day|days|tag|tage|week|weeks|woche|wochen)\b/.exec(text);
   if (!match) return undefined;
   const count = Number(match[1]);
@@ -85,6 +92,8 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   if (families.length > 1) return { kind: "clarify", message: "Meinst du Activity, Benachrichtigungen, Freigaben oder Audit? Bitte nur einen Bereich nennen." };
 
   const family = families[0]!;
+  if (/\b(create|add|update|change|delete|remove|approve|reject|start|stop|pause|resume|erstelle|erstellen|hinzufuegen|aendere|aendern|loesche|entferne|genehmige|genehmigen|lehne|ablehnen|starte|starten|stoppe|stoppen|pausiere|pausieren)\b/.test(text))
+    return { kind: "clarify", message: "Der Text enthält zugleich eine Leseabfrage und eine Änderungsaktion. Bitte nur die gewünschte Leseabfrage formulieren." };
   if (family === "audit" && /\b(export|exportieren|exportiere|download)\b/.test(text)) return { kind: "audit.exportUnsupported" };
   const ids = [...input.matchAll(ID_PATTERN)].map((match) => ({ prefix: match[1], id: match[0] }));
   if (ids.length > 1) return { kind: "clarify", message: "Bitte nenne nur eine vollständige Kennung." };
@@ -100,8 +109,16 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
 
   const statuses = readStatus(text, family);
   if (statuses.length > 1) return { kind: "clarify", message: "Der Status ist mehrdeutig. Bitte genau einen Status angeben." };
+  if (FOREIGN_STATUS_PATTERNS[family]?.test(text))
+    return { kind: "clarify", message: "Der genannte Status gehört nicht zu diesem Lesebereich. Bitte den Status für den genannten Bereich prüfen." };
   const hours = lookbackHours(text);
+  if (hours === -2) return { kind: "clarify", message: "Heute/Gestern benötigen eine Zeitzone für korrekte Tagesgrenzen. Bitte einen eindeutigen Zeitraum wie 'letzte 24 Stunden' angeben." };
   if (hours === -1) return { kind: "clarify", message: "Der Zeitraum ist zu groß. Bitte höchstens 30 Tage angeben." };
+  const allowedWords = new Set(("zeige zeig liste list show search suche such find finde get open abruf abrufe hole detail details mir den die das der des im in von fuer und oder bei was what which welche welcher welches ist sind wurde wurden aktuell aktuelle aktuellen recent latest letzte letzten last today yesterday heute gestern hours hour stunden stunde days day tage tag weeks week wochen woche activity activities aktivitaet aktivitaeten aktivitaetsverlauf ereignis ereignisse verlauf event events record records entries eintrag eintraege benachrichtigung benachrichtigungen meldung meldungen alert alerts notification notifications open offene offen acknowledged acknowledge bestaetigt quittiert snoozed zurueckgestellt pausiert resolved geloest erledigt approval approvals freigabe freigaben pending ausstehend ausstehende approved genehmigt freigegeben rejected abgelehnt expired abgelaufen cancelled canceled abgebrochen executed ausgefuehrt failed failure fehlgeschlagene fehlgeschlagen fehlerhaft running laeuft laufend gestartet started succeeded successful erfolgreich abgeschlossen audit auditprotokoll pruefprotokoll auditlog logs log security sicherheit denied verweigert abgewiesen success export exportieren exportiere download").split(/\s+/));
+  for (const word of text.split(/\s+/)) {
+    if (/^\d+$/.test(word) || /^[a-z]{2,4}_[0-9a-z]{26}$/.test(word)) continue;
+    if (!allowedWords.has(word)) return { kind: "clarify", message: `Der Filter „${word}“ wird für diesen Lesebereich nicht unterstützt. Bitte Bereich und unterstützten Status nennen.` };
+  }
   if (hours && family !== "activity" && family !== "audit")
     return { kind: "clarify", message: "Der Lesepfad unterstützt hier keinen Zeitraumfilter. Bitte einen Status oder eine andere Abfrage angeben." };
   if (family === "activity") return { kind: "activity.list", ...(statuses[0] ? { status: statuses[0] } : {}), ...(hours ? { lookbackHours: hours } : {}) };
@@ -150,9 +167,9 @@ async function listApprovals(ctx: RequestContext, status?: Array<"pending" | "ap
   const native = ctx.runtime.nativeApprovals.listApprovals(ownerId).filter((approval) => !status || status.includes(approval.status));
   try {
     const remote = await ctx.runtime.registry.getPort("approvals").listApprovals(params, ctx.call);
-    return { items: [...native, ...remote.items]
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
-      .slice(0, MAX_RESULTS), hasNextPage: remote.pageInfo.hasNextPage || native.length + remote.items.length > MAX_RESULTS };
+    // Match the authoritative GET handler's native-first merge, then impose the command's output bound.
+    return { items: [...native, ...remote.items].slice(0, MAX_RESULTS),
+      hasNextPage: remote.pageInfo.hasNextPage || native.length + remote.items.length > MAX_RESULTS };
   } catch (error) {
     if (isAdapterError(error) && ["CAPABILITY_MISSING", "ADAPTER_UNAVAILABLE"].includes(error.code))
       return { items: native.slice(0, MAX_RESULTS), hasNextPage: native.length > MAX_RESULTS };
@@ -184,7 +201,7 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
         (item: Notification) => idStatus(item.id, `${item.status}/${item.priority}/${item.category}`, item.updatedAt)));
     }
     case "notifications.unsupportedDetail":
-      return baseResponse(ctx, `Benachrichtigung ${intent.id}: Es gibt keine Detail-Leseoperation. Bitte nach Status oder Priorität filtern.`, "rejected");
+      return baseResponse(ctx, `Benachrichtigung ${intent.id}: Es gibt keine Detail-Leseoperation. Du kannst die Liste nach Status filtern (offen, bestätigt, zurückgestellt oder erledigt).`, "rejected");
     case "approvals.list": {
       const page = await listApprovals(ctx, intent.status);
       return baseResponse(ctx, listMessage("Freigaben", page.items, page.hasNextPage,
