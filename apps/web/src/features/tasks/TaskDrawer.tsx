@@ -93,6 +93,7 @@ function OverviewTab({ task, assignable }: { task: Task; assignable: boolean }) 
             ),
           },
           { label: t("tasks.field.model"), value: task.model ?? "—" },
+          ...(task.reasoningLevel ? [{ label: "Denkstufe", value: task.reasoningLevel }] : []),
           { label: t("tasks.field.runtime"), value: format.duration(task.runtimeMs) },
           { label: t("tasks.field.started"), value: format.dateTime(task.startedAt) },
           { label: t("tasks.field.due"), value: format.dateTime(task.dueAt) },

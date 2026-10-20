@@ -3,6 +3,7 @@ import type { Handler, RequestContext } from "../http/context";
 import type { OperationId } from "../http/route-types";
 import { ApiError, conflict, validationFailed } from "../util/errors";
 import type { NativeExecutableAction } from "../services/native-approval-requests";
+import { routeAgentTask, taskModelPreview } from "../services/task-model-routing";
 
 const PREVIEW_ID = /^corr_[0-9A-Za-z]{26}$/;
 const CANCEL_FINAL = ["done", "cancelled"];
@@ -100,12 +101,28 @@ export const taskActionHandlers: Partial<Record<OperationId, Handler>> = {
   async createTask(ctx) {
     const ownerId = ctx.principal?.userId;
     if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
-    const body = ctx.body as TaskCreateRequest;
+    const sourceBody = ctx.body as TaskCreateRequest;
+    const body = routeAgentTask(sourceBody, ctx.runtime.settings.area("modelsRouting"));
     const write: TaskWrite = { capability: "create",
       unavailable: "Aufgaben koennen derzeit nicht angelegt werden.",
-      action: { kind: "task.create", body }, actionText: `Aufgabe anlegen: ${body.title}`,
-      previewTitle: "Neue Aufgabe", previewText: `Aufgabe ${body.title} anlegen?` };
-    if (cancelTaskDraft(ctx, ownerId, write.action)) return { status: 204 };
+      action: { kind: "task.create", body, sourceBody }, actionText: `Aufgabe anlegen: ${body.title}`,
+      previewTitle: "Neue Aufgabe", previewText: `Aufgabe ${body.title} anlegen?${taskModelPreview(body)}` };
+    const confirmedPreviewId = ctx.headers["x-action-preview-id"];
+    const cancelPreview = ctx.headers["x-action-preview-cancel"];
+    if (confirmedPreviewId !== undefined && !PREVIEW_ID.test(confirmedPreviewId)) {
+      throw validationFailed("Die Vorschaukennung ist ungueltig.", [{ path: "X-Action-Preview-Id", message: "ungueltig" }]);
+    }
+    if (cancelPreview !== undefined && (cancelPreview !== "true" || !confirmedPreviewId)) {
+      throw validationFailed("Eine Vorschaukennung ist zum Verwerfen erforderlich.",
+        [{ path: "X-Action-Preview-Cancel", message: "erfordert X-Action-Preview-Id und den Wert true" }]);
+    }
+    if (cancelPreview === "true") {
+      const stored = ctx.runtime.nativeApprovals.readAction(ownerId, confirmedPreviewId!);
+      if (!stored || stored.kind !== "task.create" || JSON.stringify(stored.sourceBody ?? stored.body) !== JSON.stringify(sourceBody))
+        throw conflict("Der Entwurf passt nicht zur Aktion.");
+      ctx.runtime.nativeApprovals.cancelDraft(ownerId, confirmedPreviewId!, stored);
+      return { status: 204 };
+    }
     checkCapability(ctx, write);
     const previewId = enforceTaskWrite(ctx, ownerId, write);
     return taskResponse(ctx, await executeTaskWrite(ctx, ownerId, previewId), 201);

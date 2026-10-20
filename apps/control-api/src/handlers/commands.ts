@@ -7,6 +7,7 @@ import { CommandHistoryStore } from "../db/stores";
 import type { IntegrationEvent } from "../services/durable-memory";
 import { controlLiveVoice, executeBuiltinIntent, matchBuiltinIntent } from "../services/command-intents";
 import { parseTaskCreateIntent } from "../services/task-create-intent";
+import { routeAgentTask, taskModelPreview } from "../services/task-model-routing";
 import { parseTaskActionIntent, type TaskActionIntent } from "../services/task-action-intent";
 import { parseCalendarActionIntent, type CalendarActionIntent } from "../services/calendar-action-intent";
 import { derivedSubject, parseMailActionIntent, type MailActionIntent } from "../services/mail-action-intent";
@@ -47,9 +48,13 @@ async function executeTaskCreate(ctx: Parameters<Handler>[0], request: CommandRe
   if (!ownerId) throw new ApiError({ code: "UNAUTHENTICATED", message: "Anmeldung erforderlich." });
   const create = ctx.runtime.registry.getPort("tasks").createTask;
   if (!create) throw new ApiError({ code: "CAPABILITY_MISSING", message: "Aufgaben koennen derzeit nicht angelegt werden." });
-  const action = { kind: "task.create" as const, body };
+  const action = { kind: "task.create" as const,
+    body: routeAgentTask(body, ctx.runtime.settings.area("modelsRouting")), sourceBody: body };
   if (!request.confirm && request.previewId) {
-    ctx.runtime.nativeApprovals.cancelDraft(ownerId, request.previewId, action);
+    const stored = ctx.runtime.nativeApprovals.readAction(ownerId, request.previewId);
+    if (!stored || stored.kind !== "task.create" || JSON.stringify(stored.sourceBody ?? stored.body) !== JSON.stringify(body))
+      throw conflict("Der Entwurf passt nicht zur Aktion.");
+    ctx.runtime.nativeApprovals.cancelDraft(ownerId, request.previewId, stored);
     return { status: 200, body: { contractVersion: CONTRACT_VERSION, commandId: createId("cmd"),
       correlationId: ctx.correlationId, riskTier: 2, status: "rejected", requiresConfirmation: false,
       previewText: null, approvalId: null, result: { message: "Entwurf verworfen." } } satisfies CommandResponse };
@@ -66,7 +71,7 @@ async function executeTaskCreate(ctx: Parameters<Handler>[0], request: CommandRe
   let response: CommandResponse;
   if (!request.confirm) {
     response = { ...base, status: "requires_confirmation", requiresConfirmation: true,
-      previewText: `Aufgabe „${body.title}“ mit Prioritaet ${body.priority} anlegen?`, previewId: requestKey,
+      previewText: `Aufgabe „${body.title}“ mit Prioritaet ${body.priority} anlegen?${taskModelPreview(action.body)}`, previewId: requestKey,
       approvalId: null, result: null };
   } else if (policy.approval) {
     response = { ...base, status: "requires_approval", requiresConfirmation: false, previewText: null,

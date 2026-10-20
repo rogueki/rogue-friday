@@ -22,6 +22,9 @@
     "model": {
       "type": ["string", "null"]
     },
+    "reasoningLevel": {
+      "$ref": "../agents/reasoning-level.schema.json"
+    },
     "dueAt": {
       "type": ["string", "null"],
       "format": "date-time"

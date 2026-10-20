@@ -336,6 +336,19 @@ describe("tasks: credentials", () => {
 });
 
 describe("tasks: write", () => {
+  it("pins a provider-qualified model and reasoning on the native Kanban card", async () => {
+    const h = await open();
+    const { data } = await h.adapter.createTask(
+      { body: { title: "Geroutete Aufgabe", model: "kimi-coding:k3", reasoningLevel: "high" } },
+      h.mutation(),
+    );
+    expect(data.model).toBe("kimi-coding:k3");
+    expect(data.reasoningLevel).toBe("high");
+    const post = fake.callsTo("dashboard", "/api/plugins/kanban/tasks").find((call) => call.method === "POST");
+    expect(post?.body).toMatchObject({ model_override: "k3", provider_override: "kimi-coding", reasoning_effort: "high" });
+    expect((await h.adapter.getTask({ id: data.id }, h.call())).data.model).toBe("kimi-coding:k3");
+    expect((await h.adapter.getTask({ id: data.id }, h.call())).data.reasoningLevel).toBe("high");
+  });
   it("creates a task on the first board with priority, assignee, model and idempotency key", async () => {
     fake.state.addTask("default", { title: "Vorhanden", assignee: "kira" });
     const h = await open({ boards: ["business", "default"] });

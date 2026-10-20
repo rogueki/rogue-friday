@@ -11,7 +11,7 @@ import type { Actor } from "@friday/sdk";
 
 /** Persisted command payload. Add a kind only with a matching, idempotent dispatch branch and regression tests. */
 export type NativeExecutableAction =
-  | { kind: "task.create"; body: TaskCreateRequest }
+  | { kind: "task.create"; body: TaskCreateRequest; sourceBody?: TaskCreateRequest }
   | { kind: "task.update"; id: string; body: TaskUpdateRequest }
   | { kind: "task.cancel"; id: string; body?: TaskActionRequest }
   | { kind: "task.retry"; id: string; body?: TaskActionRequest }

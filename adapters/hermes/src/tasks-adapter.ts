@@ -177,12 +177,15 @@ export class HermesTasksAdapter extends HermesAdapterBase implements TaskPort {
         throw unsupported("Hermes kennt keine freien Labels (nur 'board:<slug>' und 'tenant:<name>').");
       }
     }
+    const routedTarget = typeof body.model === "string" ? /^([a-z][a-z0-9-]*):([^\s:][^\s]*)$/i.exec(body.model) : null;
     const payload: Json = {
       title: body.title,
       ...(body.description !== undefined ? { body: body.description } : {}),
       ...(body.agentId ? { assignee: await this.resolveAgent(body.agentId, call) } : {}),
       ...(body.priority ? { priority: toHermesPriority(body.priority) } : {}),
-      ...(body.model ? { model_override: body.model } : {}),
+      ...(body.model ? { model_override: routedTarget ? routedTarget[2] : body.model } : {}),
+      ...(routedTarget ? { provider_override: routedTarget[1] } : {}),
+      ...(body.reasoningLevel ? { reasoning_effort: body.reasoningLevel } : {}),
       ...(tenant ? { tenant } : {}),
       ...(call.idempotencyKey ? { idempotency_key: call.idempotencyKey } : {}),
     };

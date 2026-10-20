@@ -33,6 +33,7 @@ export interface FakeTask {
   current_run_id: number | null;
   claim_lock: string | null;
   model_override: string | null;
+  provider_override: string | null;
   reasoning_effort: string | null;
   session_id: string | null;
   consecutive_failures: number;
@@ -281,6 +282,7 @@ export class HermesState {
       current_run_id: null,
       claim_lock: null,
       model_override: null,
+      provider_override: null,
       reasoning_effort: null,
       session_id: null,
       consecutive_failures: 0,

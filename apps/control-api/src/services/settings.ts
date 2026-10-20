@@ -432,6 +432,26 @@ export class SettingsService {
 
   /** A patch may only activate a theme/layout that exists (the UI would otherwise render with no tokens). */
   private assertReferences(patch: SettingsPatch): void {
+    if (patch.modelsRouting) {
+      const seen = new Set<string>();
+      for (const [index, route] of patch.modelsRouting.routes.entries()) {
+        if (!["voice-routine", "voice-complex", "voice-critical", "agent-task"].includes(route.taskKind) || seen.has(route.taskKind)) {
+          throw validationFailed("Jede Modellroute braucht einen eindeutigen, unterstuetzten Aufgabentyp.",
+            [{ path: `modelsRouting.routes.${index}.taskKind`, message: "nicht unterstuetzt oder doppelt" }]);
+        }
+        seen.add(route.taskKind);
+        if (route.taskKind === "agent-task") {
+          if (!/^[a-z][a-z0-9-]*:[^\s:][^\s]*$/i.test(route.model)) {
+            throw validationFailed("Agent-Aufgaben brauchen Anbieter:Modell.",
+              [{ path: `modelsRouting.routes.${index}.model`, message: "Anbieter:Modell erforderlich" }]);
+          }
+          if (route.fallbackModel !== null) {
+            throw validationFailed("Ein aufgabenspezifisches Fallback wird von Hermes Kanban nicht unterstuetzt.",
+              [{ path: `modelsRouting.routes.${index}.fallbackModel`, message: "globale Hermes-Fallback-Konfiguration verwenden" }]);
+          }
+        }
+      }
+    }
     if (patch.profile) {
       try { new Intl.DateTimeFormat("en", { timeZone: patch.profile.timeZone }); }
       catch {

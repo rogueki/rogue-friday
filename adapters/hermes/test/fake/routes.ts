@@ -86,6 +86,7 @@ export function cardOf(board: FakeBoard, task: FakeTask, state: HermesState): Re
     current_run_started_at: task.current_run_started_at,
     current_run_id: task.current_run_id,
     model_override: task.model_override,
+    provider_override: task.provider_override,
     reasoning_effort: task.reasoning_effort,
     session_id: task.session_id,
     completion_contract: "local-only",
@@ -281,6 +282,8 @@ export function dashboardRoutes(state: HermesState): RouteDef[] {
           priority: typeof body.priority === "number" ? body.priority : 0,
           tenant: typeof body.tenant === "string" ? body.tenant : null,
           model_override: typeof body.model_override === "string" ? body.model_override : null,
+          provider_override: typeof body.provider_override === "string" ? body.provider_override : null,
+          reasoning_effort: typeof body.reasoning_effort === "string" ? body.reasoning_effort : null,
           idempotency_key: key,
           created_by: "dashboard",
         });

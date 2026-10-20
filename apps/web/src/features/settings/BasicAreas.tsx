@@ -6,7 +6,7 @@ import { LogOut, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useT } from "@/i18n";
-import { useLogoutAll, useLayouts, useSettings } from "@/lib/api/domains/settings";
+import { useHermesModelCatalog, useLogoutAll, useLayouts, useSettings } from "@/lib/api/domains/settings";
 import { useMeta } from "@/lib/api/domains/core";
 import { useVoiceDevices, useVoiceIntegrationStatus } from "@/lib/api/domains/voice";
 import { useSession } from "@/lib/session";
@@ -191,8 +191,12 @@ export function DashboardArea() {
 export function ModelsRoutingArea() {
   const { t } = useT();
   const { value, update, readOnly } = useAreaDraft("modelsRouting");
+  const taskKinds = ["voice-routine", "voice-complex", "voice-critical", "agent-task"];
+  const agentRoute = value?.routes.find((route) => route.taskKind === "agent-task");
+  const agentProvider = agentRoute?.model.split(":", 1)[0] ?? "";
+  const catalog = useHermesModelCatalog(agentProvider, !!agentRoute && !!agentProvider);
   if (!value) return null;
-
+  const nextTaskKind = taskKinds.find((kind) => !value.routes.some((route) => route.taskKind === kind));
   const setRoute = (index: number, patch: Partial<Settings["modelsRouting"]["routes"][number]>): void =>
     update({ routes: value.routes.map((route, i) => (i === index ? { ...route, ...patch } : route)) });
 
@@ -212,7 +216,7 @@ export function ModelsRoutingArea() {
         description={t("settings.models.routesDesc")}
         actions={
           readOnly ? null : (
-            <Button type="button" size="sm" variant="ghost" icon={<Plus size={14} />} onClick={() => update({ routes: [...value.routes, { taskKind: "", model: value.defaultModel, reasoningLevel: "medium", fallbackModel: null }] })}>
+            <Button type="button" size="sm" variant="ghost" icon={<Plus size={14} />} disabled={!nextTaskKind} onClick={() => nextTaskKind && update({ routes: [...value.routes, { taskKind: nextTaskKind, model: value.defaultModel, reasoningLevel: "medium", fallbackModel: null }] })}>
               {t("settings.models.addRoute")}
             </Button>
           )
@@ -222,14 +226,33 @@ export function ModelsRoutingArea() {
         <ul className="st-routes">
           {value.routes.map((route, index) => (
             <li key={index} className="st-route">
-              <TextField label={t("settings.models.taskKind")} value={route.taskKind} disabled={readOnly} onChange={(event) => setRoute(index, { taskKind: event.target.value })} />
-              <TextField label={t("settings.models.model")} value={route.model} disabled={readOnly} onChange={(event) => setRoute(index, { model: event.target.value })} />
+              <Select label={t("settings.models.taskKind")} value={route.taskKind} disabled={readOnly}
+                options={[...taskKinds.filter((kind) => kind === route.taskKind || !value.routes.some((other) => other.taskKind === kind)),
+                  ...(taskKinds.includes(route.taskKind) ? [] : [route.taskKind])].map((kind) =>
+                  ({ value: kind, label: taskKinds.includes(kind) ? kind : `${kind} (nicht unterstützt)` }))}
+                onChange={(event) => setRoute(index, { taskKind: event.target.value, fallbackModel: event.target.value === "agent-task" ? null : route.fallbackModel })} />
+              <TextField label={t("settings.models.model")} value={route.model} disabled={readOnly}
+                list={route.taskKind === "agent-task" ? "agent-task-models" : undefined}
+                onChange={(event) => setRoute(index, { model: event.target.value })} />
+              {route.taskKind === "agent-task" ? <>
+                <datalist id="agent-task-models">
+                  {(catalog.data?.data.selected?.models ?? []).map((model) =>
+                    <option key={model} value={`${agentProvider}:${model}`} />)}
+                </datalist>
+                <small role="status">{catalog.isError ? "Hermes-Modellbestand ist nicht erreichbar."
+                  : catalog.isPending ? "Hermes-Modellbestand wird gelesen…"
+                    : catalog.data?.data.selected?.origin === "endpoint_confirmed_picker"
+                      ? "Modellliste vom Anbieter abgefragt; Zugriff auf einzelne Modelle bleibt ungeprüft."
+                      : "Modellvorschläge sind kuratiert; Zugang und Modellzugriff bleiben ungeprüft."}</small>
+              </> : null}
               <Select label="Denkstufe" value={route.reasoningLevel} disabled={readOnly}
                 options={["none", "low", "medium", "high", "max"].map((level) => ({ value: level, label: level }))}
                 onChange={(event) => setRoute(index, { reasoningLevel: event.target.value as typeof route.reasoningLevel })} />
-              <TextField label="Fallback-Modell (Anbieter:Modell)" value={route.fallbackModel ?? ""} disabled={readOnly}
+              <TextField label="Fallback-Modell (Anbieter:Modell)" value={route.fallbackModel ?? ""} disabled={readOnly || route.taskKind === "agent-task"}
                 onChange={(event) => setRoute(index, { fallbackModel: event.target.value || null })} />
-              <small>Fallback nur vor dem ersten Agentaufruf, wenn kein Primärmodell eingerichtet ist. Nach jedem HTTP-Fehler oder Timeout erfolgt kein zweiter Aufruf.</small>
+              <small>{route.taskKind === "agent-task"
+                ? "Hermes erhält Modell, Anbieter und Denkstufe für neue Aufgaben. Fallback gilt hier nur gemäß der globalen Hermes-Konfiguration; pro Aufgabe gibt es keinen Fallback-Schalter."
+                : "Fallback nur vor dem ersten Agentaufruf, wenn kein Primärmodell eingerichtet ist. Nach jedem HTTP-Fehler oder Timeout erfolgt kein zweiter Aufruf."}</small>
               {readOnly ? null : (
                 <button type="button" className="st-iconbtn st-route__remove" aria-label={t("settings.list.remove", { name: route.taskKind || `#${index + 1}` })} onClick={() => update({ routes: value.routes.filter((_, i) => i !== index) })}>
                   <Trash2 size={14} strokeWidth={1.75} aria-hidden="true" />

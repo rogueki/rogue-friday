@@ -180,7 +180,11 @@ export function createTaskMapper(deps: {
       priority: toPriority(raw.priority),
       agentId: raw.assignee ? agentIds.encode(raw.assignee) : null,
       ...(raw.assignee ? { agentName: raw.assignee } : {}),
-      model: raw.modelOverride ?? profileModel(raw.assignee),
+      model: raw.modelOverride
+        ? raw.providerOverride ? `${raw.providerOverride}:${raw.modelOverride}` : raw.modelOverride
+        : profileModel(raw.assignee),
+      ...(["none", "low", "medium", "high", "max"].includes(raw.reasoningEffort ?? "")
+        ? { reasoningLevel: raw.reasoningEffort as "none" | "low" | "medium" | "high" | "max" } : {}),
       progress: raw.progress
         ? { mode: "determinate", value: raw.progress.done / raw.progress.total }
         : running

@@ -95,6 +95,7 @@ export interface WireTask {
   currentRunId: number | null;
   claimLock: string | null;
   modelOverride: string | null;
+  providerOverride: string | null;
   reasoningEffort: string | null;
   sessionId: string | null;
   consecutiveFailures: number;
@@ -142,6 +143,7 @@ export function parseTask(value: unknown, what = "Aufgabe"): WireTask {
     currentRunId: optNumber(o, "current_run_id", what),
     claimLock: optString(o, "claim_lock", what),
     modelOverride: optString(o, "model_override", what),
+    providerOverride: optString(o, "provider_override", what),
     reasoningEffort: optString(o, "reasoning_effort", what),
     sessionId: optString(o, "session_id", what),
     consecutiveFailures: optNumber(o, "consecutive_failures", what) ?? 0,
