@@ -4,9 +4,11 @@
 import contextlib
 import json
 import os
+import selectors
 import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -23,18 +25,26 @@ def child(request: dict) -> dict:
 
     if TOOLSETS.get("bot_room", {}).get("tools") != [] or TOOLSETS["bot_room"].get("includes") != []:
         raise ValueError("tool_free_toolset_changed")
-    cli = HermesCLI(toolsets=["bot_room"], reasoning="none", max_turns=1,
-                    run_budget=45, verbose=False, ignore_rules=True)
-    if not cli._ensure_runtime_credentials() or not cli.model:
-        raise ValueError("model_unavailable")
-    prompt = request["prompt"]
-    route = cli._resolve_turn_agent_config(prompt)
-    runtime = route["runtime"]
-    if runtime.get("api_mode") == "acp" or runtime.get("command"):
-        raise ValueError("unsupported_model_route")
-    # AIAgent normally discovers profile plugins even for an empty toolset. This turn must
-    # neither load them nor run left-core migrations while handling untrusted page text.
-    with patch("hermes_cli.left_core_migration.recover_at_startup"), patch("hermes_cli.plugins.discover_plugins"):
+    def no_session_store(instance):
+        instance._session_db = None
+        instance._session_db_unavailable = False
+
+    # HermesCLI normally opens/maintains its session DB and writes a terminal breadcrumb;
+    # AIAgent normally discovers profile plugins. This isolated turn needs none of them.
+    with (patch.object(HermesCLI, "_init_session_store", no_session_store),
+          patch.object(HermesCLI, "_write_terminal_breadcrumb", create=True),
+          patch.object(HermesCLI, "_maybe_print_free_tier_available_notice", create=True),
+          patch("hermes_cli.left_core_migration.recover_at_startup"),
+          patch("hermes_cli.plugins.discover_plugins")):
+        cli = HermesCLI(toolsets=["bot_room"], reasoning="none", max_turns=1,
+                        run_budget=45, verbose=False, ignore_rules=True)
+        if not cli._ensure_runtime_credentials() or not cli.model:
+            raise ValueError("model_unavailable")
+        prompt = request["prompt"]
+        route = cli._resolve_turn_agent_config(prompt)
+        runtime = route["runtime"]
+        if runtime.get("api_mode") == "acp" or runtime.get("command"):
+            raise ValueError("unsupported_model_route")
         agent = AIAgent(
             model=route["model"], api_key=runtime.get("api_key"),
             base_url=runtime.get("base_url"), provider=runtime.get("provider"),
@@ -69,6 +79,66 @@ def child(request: dict) -> dict:
             "model": str(route["model"])[:200]}
 
 
+def run_bounded_child(command: list[str], request_bytes: bytes, *, timeout_seconds: float = 55) -> bytes:
+    environment = os.environ.copy()
+    environment["FRIDAY_RESEARCH_CHILD"] = "1"
+    process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                               stderr=subprocess.DEVNULL, start_new_session=True, env=environment)
+    deadline = time.monotonic() + timeout_seconds
+    output = bytearray()
+    pending = memoryview(request_bytes)
+    try:
+        if process.stdin is None or process.stdout is None:
+            raise ValueError("model_stream_unavailable")
+        os.set_blocking(process.stdin.fileno(), False)
+        os.set_blocking(process.stdout.fileno(), False)
+        with selectors.DefaultSelector() as selector:
+            selector.register(process.stdin, selectors.EVENT_WRITE)
+            selector.register(process.stdout, selectors.EVENT_READ)
+            while selector.get_map():
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise ValueError("model_timeout")
+                for key, _ in selector.select(remaining):
+                    if key.fileobj is process.stdin:
+                        try:
+                            sent = os.write(process.stdin.fileno(), pending[:4096])
+                            pending = pending[sent:]
+                        except BlockingIOError:
+                            continue
+                        except BrokenPipeError:
+                            pending = memoryview(b"")
+                        if not pending:
+                            selector.unregister(process.stdin)
+                            process.stdin.close()
+                    else:
+                        chunk = os.read(process.stdout.fileno(), 4096)
+                        if not chunk:
+                            selector.unregister(process.stdout)
+                            process.stdout.close()
+                        elif len(output) + len(chunk) > 16_000:
+                            raise ValueError("model_output_too_large")
+                        else:
+                            output.extend(chunk)
+        process.wait(timeout=max(0.001, deadline - time.monotonic()))
+    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        if process.poll() is None:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+        process.wait()
+        if isinstance(error, subprocess.TimeoutExpired):
+            raise ValueError("model_timeout") from error
+        raise
+    finally:
+        if process.stdin and not process.stdin.closed:
+            process.stdin.close()
+        if process.stdout and not process.stdout.closed:
+            process.stdout.close()
+    if process.returncode:
+        raise ValueError("model_unavailable")
+    return bytes(output)
+
+
 def parent(source: Path, request_bytes: bytes) -> dict:
     revision = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"],
                               capture_output=True, text=True, timeout=3)
@@ -78,19 +148,7 @@ def parent(source: Path, request_bytes: bytes) -> dict:
     from hermes_cli._launchers import runtime_command
     script = Path(__file__).resolve()
     command = runtime_command(source, code=f"import runpy; runpy.run_path({str(script)!r}, run_name='__main__')")
-    environment = os.environ.copy()
-    environment["FRIDAY_RESEARCH_CHILD"] = "1"
-    process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                               stderr=subprocess.DEVNULL, start_new_session=True, env=environment)
-    try:
-        stdout, _ = process.communicate(request_bytes, timeout=55)
-    except subprocess.TimeoutExpired:
-        os.killpg(process.pid, signal.SIGKILL)
-        process.communicate()
-        raise ValueError("model_timeout")
-    if process.returncode or len(stdout) > 16_000:
-        raise ValueError("model_unavailable")
-    response = json.loads(stdout)
+    response = json.loads(run_bounded_child(command, request_bytes))
     if not isinstance(response, dict) or set(response) != {"output", "provider", "model"}:
         raise ValueError("model_response_invalid")
     return response

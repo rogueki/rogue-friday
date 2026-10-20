@@ -1,3 +1,4 @@
+import os
 import sys
 import types
 import unittest
@@ -5,14 +6,33 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from research_hermes_synthesis import child
+from research_hermes_synthesis import child, run_bounded_child
 
 
 class ResearchHermesSynthesisTest(unittest.TestCase):
+    @unittest.skipUnless(os.name == "posix", "Hermes helper runs under WSL/Linux")
+    def test_bounded_child_rejects_oversized_output(self):
+        with self.assertRaisesRegex(ValueError, "model_output_too_large"):
+            run_bounded_child([sys.executable, "-c", "import sys; sys.stdout.write('x'*20000)"], b"{}")
+
+    @unittest.skipUnless(os.name == "posix", "Hermes helper runs under WSL/Linux")
+    def test_bounded_child_handles_early_exit(self):
+        with self.assertRaisesRegex(ValueError, "model_unavailable"):
+            run_bounded_child([sys.executable, "-c", "import sys; sys.exit(2)"], b"x" * 10000)
+
+    @unittest.skipUnless(os.name == "posix", "Hermes helper runs under WSL/Linux")
+    def test_bounded_child_enforces_deadline(self):
+        with self.assertRaisesRegex(ValueError, "model_timeout"):
+            run_bounded_child([sys.executable, "-c", "import time; time.sleep(10)"], b"{}",
+                              timeout_seconds=0.1)
+
     def test_uses_existing_route_with_no_tools_context_or_retries(self):
         captured = {}
 
         class FakeCli:
+            def _init_session_store(self):
+                raise AssertionError("session store must not be opened")
+
             def __init__(self, **kwargs):
                 captured["cli"] = kwargs
                 self.model = "fixture-model"
@@ -84,6 +104,9 @@ class ResearchHermesSynthesisTest(unittest.TestCase):
         class FakeCli:
             model = "fixture"
             reasoning_config = None
+
+            def _init_session_store(self):
+                raise AssertionError("session store must not be opened")
 
             def __init__(self, **_kwargs):
                 pass
