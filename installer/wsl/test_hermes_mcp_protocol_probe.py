@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import http.server
+import os
 from pathlib import Path
 import shutil
 import socket
@@ -10,7 +11,7 @@ import sys
 import tempfile
 import threading
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -56,10 +57,17 @@ class Connection:
 
 class ProtocolProbeTest(TestCase):
     def test_real_tls_streamable_http_round_trip_to_pinned_socket(self):
-        self.assertIsNotNone(shutil.which("openssl"), "openssl is required for synthetic TLS fixture")
+        openssl = shutil.which("openssl")
+        if openssl is None and os.name == "nt":
+            for candidate in (Path("C:/Program Files/Git/usr/bin/openssl.exe"),
+                              Path("C:/Program Files/Git/mingw64/bin/openssl.exe")):
+                if candidate.is_file():
+                    openssl = str(candidate)
+                    break
+        self.assertIsNotNone(openssl, "openssl is required for synthetic TLS fixture")
         with tempfile.TemporaryDirectory() as directory:
             cert, key = Path(directory) / "cert.pem", Path(directory) / "key.pem"
-            subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+            subprocess.run([openssl, "req", "-x509", "-newkey", "rsa:2048", "-nodes",
                 "-keyout", str(key), "-out", str(cert), "-days", "1", "-subj", "/CN=example.org",
                 "-addext", "subjectAltName=DNS:example.org"], check=True, capture_output=True)
             methods = []
@@ -136,7 +144,10 @@ class ProtocolProbeTest(TestCase):
 
     def test_socket_dials_pinned_ip_while_tls_checks_original_host(self):
         plain = object()
-        context = type("Context", (), {"wrap_socket": lambda self, sock, server_hostname: (sock, server_hostname)})()
+        context = Mock(spec=ssl.SSLContext)
+        context.verify_mode = ssl.CERT_REQUIRED
+        context.check_hostname = True
+        context.wrap_socket.side_effect = lambda sock, server_hostname: (sock, server_hostname)
         with patch.object(probe_module.ssl, "create_default_context", return_value=context), \
              patch.object(probe_module.socket, "create_connection", return_value=plain) as dial:
             connection = probe_module.PinnedHTTPSConnection("example.org", "93.184.215.14")
