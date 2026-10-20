@@ -19,15 +19,24 @@ const MAX_MODEL_OUTPUT = 16_000;
 // The WSL helper enforces a 55-second process-group deadline; leave startup and teardown room.
 const MODEL_TIMEOUT_MS = 75_000;
 
-function target(dataDir: string): { distro: string; user: string; script: string } | null {
-  if (process.platform !== "win32") return null;
+export function researchModelTarget(
+  dataDir: string,
+  platform: NodeJS.Platform = process.platform,
+): {
+  command: string;
+  args: string[];
+} | null {
+  if (platform !== "win32" && platform !== "linux") return null;
   const root = resolve(dataDir, "..", "..");
   const statePath = join(root, "config", "install-state.json");
   const scriptPath = join(root, "installer", "wsl", "research_hermes_synthesis.py");
-  if (!existsSync(statePath) || !existsSync(scriptPath)) return null;
+  if (!existsSync(scriptPath) || (platform === "win32" && !existsSync(statePath))) return null;
   const script = realpathSync.native(scriptPath);
   const scriptRoot = realpathSync.native(join(root, "installer", "wsl"));
-  const outside = relative(scriptRoot.toLowerCase(), script.toLowerCase());
+  const outside =
+    platform === "win32"
+      ? relative(scriptRoot.toLowerCase(), script.toLowerCase())
+      : relative(scriptRoot, script);
   if (
     outside === ".." ||
     outside.startsWith(`..${sep}`) ||
@@ -35,6 +44,7 @@ function target(dataDir: string): { distro: string; user: string; script: string
     !lstatSync(scriptPath).isFile()
   )
     return null;
+  if (platform === "linux") return { command: "python3", args: [script] };
   const state = JSON.parse(readFileSync(statePath, "utf8").replace(/^\uFEFF/, "")) as {
     distro_name?: string;
     linux_user?: string;
@@ -49,9 +59,16 @@ function target(dataDir: string): { distro: string; user: string; script: string
   const match = script.match(/^([A-Za-z]):\\(.*)$/);
   if (!match) return null;
   return {
-    distro: state.distro_name,
-    user: state.linux_user,
-    script: `/mnt/${match[1]!.toLowerCase()}/${match[2]!.replaceAll("\\", "/")}`,
+    command: "wsl.exe",
+    args: [
+      "-d",
+      state.distro_name,
+      "-u",
+      state.linux_user,
+      "--exec",
+      "python3",
+      `/mnt/${match[1]!.toLowerCase()}/${match[2]!.replaceAll("\\", "/")}`,
+    ],
   };
 }
 
@@ -118,61 +135,76 @@ export function validateResearchModelOutput(
 export function hermesResearchSynthesizer(dataDir: string): ResearchModelSynthesize {
   return async (topic, sources) => {
     if (!sources.length) return null;
-    const installation = target(dataDir);
+    const installation = researchModelTarget(dataDir);
     if (!installation) return null;
     const input = JSON.stringify({ prompt: prompt(topic, sources) });
     if (Buffer.byteLength(input, "utf8") > 16_000) return null;
-    return new Promise((resolveResult) => {
-      const child = spawn(
-        "wsl.exe",
-        ["-d", installation.distro, "-u", installation.user, "--exec", "python3", installation.script],
-        { windowsHide: true, shell: false, stdio: ["pipe", "pipe", "ignore"] },
-      );
-      let output = "";
-      let settled = false;
-      const finish = (value: ResearchModelResult | null) => {
-        if (!settled) {
-          settled = true;
-          resolveResult(value);
-        }
-      };
-      const timer = setTimeout(() => {
+    return runResearchModelProcess(installation.command, installation.args, input, sources);
+  };
+}
+
+export function runResearchModelProcess(
+  command: string,
+  args: string[],
+  input: string,
+  sources: ResearchModelSource[],
+  spawnChild: typeof spawn = spawn,
+): Promise<ResearchModelResult | null> {
+  return new Promise((resolveResult) => {
+    const child = spawnChild(command, args, {
+      windowsHide: true,
+      shell: false,
+      stdio: ["pipe", "pipe", "ignore"],
+    });
+    let output = "";
+    let settled = false;
+    const finish = (value: ResearchModelResult | null) => {
+      if (!settled) {
+        settled = true;
+        resolveResult(value);
+      }
+    };
+    const timer = setTimeout(() => {
+      child.kill();
+      finish(null);
+    }, MODEL_TIMEOUT_MS);
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      output += chunk;
+      if (Buffer.byteLength(output, "utf8") > MAX_MODEL_OUTPUT) {
         child.kill();
         finish(null);
-      }, MODEL_TIMEOUT_MS);
-      child.stdout.setEncoding("utf8");
-      child.stdout.on("data", (chunk: string) => {
-        output += chunk;
-        if (Buffer.byteLength(output, "utf8") > MAX_MODEL_OUTPUT) {
-          child.kill();
-          finish(null);
-        }
-      });
-      child.on("error", () => {
-        clearTimeout(timer);
-        finish(null);
-      });
-      child.on("close", (code) => {
-        clearTimeout(timer);
-        if (code !== 0 || settled) return finish(null);
-        try {
-          const result = JSON.parse(output) as { output?: unknown; model?: unknown; provider?: unknown };
-          if (
-            typeof result.output !== "string" ||
-            typeof result.model !== "string" ||
-            typeof result.provider !== "string"
-          )
-            return finish(null);
-          finish({
-            observations: validateResearchModelOutput(result.output, sources),
-            model: result.model.slice(0, 200),
-            provider: result.provider.slice(0, 100),
-          });
-        } catch {
-          finish(null);
-        }
-      });
-      child.stdin.end(input);
+      }
     });
-  };
+    child.on("error", () => {
+      clearTimeout(timer);
+      finish(null);
+    });
+    child.stdin.on("error", () => {
+      child.kill();
+      clearTimeout(timer);
+      finish(null);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0 || settled) return finish(null);
+      try {
+        const result = JSON.parse(output) as { output?: unknown; model?: unknown; provider?: unknown };
+        if (
+          typeof result.output !== "string" ||
+          typeof result.model !== "string" ||
+          typeof result.provider !== "string"
+        )
+          return finish(null);
+        finish({
+          observations: validateResearchModelOutput(result.output, sources),
+          model: result.model.slice(0, 200),
+          provider: result.provider.slice(0, 100),
+        });
+      } catch {
+        finish(null);
+      }
+    });
+    child.stdin.end(input);
+  });
 }

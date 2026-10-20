@@ -494,6 +494,12 @@ export class ResearchService {
       }
     }
     const sourceIds = sources.map(() => createId("src"));
+    const modelSources: ResearchModelSource[] = sources.flatMap((source, index) => {
+      const page = pages[index];
+      return page?.status === "retrieved" && page.text
+        ? [{ id: sourceIds[index]!, title: source.title, url: source.url, text: page.text }]
+        : [];
+    });
     this.db.exec("BEGIN");
     try {
       for (const [index, source] of sources.entries()) {
@@ -533,10 +539,9 @@ export class ResearchService {
         }
       ).n;
       this.db
-        .prepare(
-          "UPDATE research_projects SET status = 'review', result_summary = ?, updated_at = ? WHERE id = ?",
-        )
+        .prepare("UPDATE research_projects SET status = ?, result_summary = ?, updated_at = ? WHERE id = ?")
         .run(
+          modelSources.length && this.synthesize ? "running" : "review",
           `${sources.length} Suchtreffer gespeichert, ${retrievedCount} Seiten abgerufen, ${draftCount} wörtliche Belegpassagen als Entwurf markiert. Aussagen wurden nicht verifiziert.`,
           this.now().toISOString(),
           id,
@@ -546,12 +551,6 @@ export class ResearchService {
       this.db.exec("ROLLBACK");
       throw error;
     }
-    const modelSources: ResearchModelSource[] = sources.flatMap((source, index) => {
-      const page = pages[index];
-      return page?.status === "retrieved" && page.text
-        ? [{ id: sourceIds[index]!, title: source.title, url: source.url, text: page.text }]
-        : [];
-    });
     if (modelSources.length && this.synthesize) {
       let modelStatus =
         "Hermes-Modellsynthese nicht verfügbar; wörtliche Belegpassagen bleiben erhalten. Modell und Zugang in den Einstellungen prüfen.";
@@ -583,10 +582,18 @@ export class ResearchService {
                   .prepare("SELECT COUNT(*) AS n FROM research_findings WHERE project_id = ?")
                   .get(id) as { n: number }
               ).n;
+              const draftSummary = valid
+                .map((observation) => {
+                  const source = modelSources.find((entry) => entry.id === observation.sourceId)!;
+                  return `${observation.statement} (Quelle: ${source.title})`;
+                })
+                .join(" ");
               this.db
-                .prepare("UPDATE research_projects SET result_summary = ?, updated_at = ? WHERE id = ?")
+                .prepare(
+                  "UPDATE research_projects SET status = 'review', result_summary = ?, updated_at = ? WHERE id = ?",
+                )
                 .run(
-                  `${sources.length} Suchtreffer, ${modelSources.length} Seiten abgerufen, ${count} quellgebundene Entwurfsbefunde. Hermes-Modell ${result.model} (${result.provider}) formulierte ${valid.length} davon; Zitate sind im gespeicherten Seitentext enthalten, Aussagen bleiben unverifiziert. Modellkosten unbekannt.`,
+                  `Unverifizierte Ergebnis-Kurzfassung: ${draftSummary} ${sources.length} Suchtreffer, ${modelSources.length} Seiten abgerufen, ${count} quellgebundene Entwurfsbefunde. Hermes-Modell ${result.model} (${result.provider}) formulierte ${valid.length} davon; Zitate sind im gespeicherten Seitentext enthalten, Aussagen bleiben unverifiziert. Modellkosten unbekannt.`,
                   this.now().toISOString(),
                   id,
                 );
@@ -607,7 +614,7 @@ export class ResearchService {
       if (modelStatus)
         this.db
           .prepare(
-            "UPDATE research_projects SET result_summary = result_summary || ' ' || ?, updated_at = ? WHERE id = ?",
+            "UPDATE research_projects SET status = 'review', result_summary = result_summary || ' ' || ?, updated_at = ? WHERE id = ?",
           )
           .run(modelStatus, this.now().toISOString(), id);
     }

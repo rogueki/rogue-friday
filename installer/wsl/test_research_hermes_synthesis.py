@@ -30,6 +30,7 @@ class ResearchHermesSynthesisTest(unittest.TestCase):
         class FakeAgent:
             def __init__(self, **kwargs):
                 captured["agent"] = kwargs
+                self.tools = []
 
             def run_conversation(self, **kwargs):
                 captured["retries"] = self._api_max_retries
@@ -41,7 +42,13 @@ class ResearchHermesSynthesisTest(unittest.TestCase):
             "cli": types.ModuleType("cli"),
             "run_agent": types.ModuleType("run_agent"),
             "toolsets": types.ModuleType("toolsets"),
+            "hermes_cli": types.ModuleType("hermes_cli"),
+            "hermes_cli.left_core_migration": types.ModuleType("hermes_cli.left_core_migration"),
+            "hermes_cli.plugins": types.ModuleType("hermes_cli.plugins"),
         }
+        modules["hermes_cli"].__path__ = []
+        modules["hermes_cli.left_core_migration"].recover_at_startup = lambda **_kwargs: None
+        modules["hermes_cli.plugins"].discover_plugins = lambda: None
         modules["cli"].HermesCLI = FakeCli
         modules["run_agent"].AIAgent = FakeAgent
         modules["toolsets"].TOOLSETS = {"bot_room": {"tools": [], "includes": []}}
@@ -71,6 +78,36 @@ class ResearchHermesSynthesisTest(unittest.TestCase):
         modules["toolsets"].TOOLSETS = {"bot_room": {"tools": ["terminal"], "includes": []}}
         with patch.dict(sys.modules, modules):
             with self.assertRaisesRegex(ValueError, "tool_free_toolset_changed"):
+                child({"prompt": "fixture"})
+
+    def test_rejects_effective_tool_injection(self):
+        class FakeCli:
+            model = "fixture"
+            reasoning_config = None
+
+            def __init__(self, **_kwargs):
+                pass
+
+            def _ensure_runtime_credentials(self):
+                return True
+
+            def _resolve_turn_agent_config(self, _prompt):
+                return {"model": "fixture", "runtime": {"api_key": "fixture", "base_url": "http://127.0.0.1:9"}}
+
+        class FakeAgent:
+            def __init__(self, **_kwargs):
+                self.tools = [{"function": {"name": "terminal"}}]
+
+        modules = {name: types.ModuleType(name) for name in (
+            "cli", "run_agent", "toolsets", "hermes_cli", "hermes_cli.left_core_migration", "hermes_cli.plugins")}
+        modules["hermes_cli"].__path__ = []
+        modules["cli"].HermesCLI = FakeCli
+        modules["run_agent"].AIAgent = FakeAgent
+        modules["toolsets"].TOOLSETS = {"bot_room": {"tools": [], "includes": []}}
+        modules["hermes_cli.left_core_migration"].recover_at_startup = lambda **_kwargs: None
+        modules["hermes_cli.plugins"].discover_plugins = lambda: None
+        with patch.dict(sys.modules, modules):
+            with self.assertRaisesRegex(ValueError, "tool_surface_not_empty"):
                 child({"prompt": "fixture"})
 
 
