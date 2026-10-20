@@ -55,6 +55,9 @@ FIELDS = {
     "browser.command_timeout": ("integer", 5, 600),
     "browser.snapshot_threshold": ("integer", 1000, 200000),
     "browser.inactivity_timeout": ("integer", 30, 3600),
+    "browser.engine": ("browser_engine", None, None),
+    "browser.headed": ("boolean", None, None),
+    "browser.auto_local_for_private_urls": ("boolean", None, None),
     "browser.dialog_policy": ("dialog_policy", None, None),
     "browser.dialog_timeout_s": ("integer", 1, 3600),
     "browser.allow_private_urls": ("boolean", None, None),
@@ -131,6 +134,8 @@ def valid_field_value(key, value, spec):
         return type(value) is str and value in ("project", "strict")
     if kind == "dialog_policy":
         return type(value) is str and value in ("must_respond", "auto_dismiss")
+    if kind == "browser_engine":
+        return type(value) is str and value in ("auto", "chrome", "lightpanda")
     if kind == "capture_after_mode":
         return type(value) is str and value in ("som", "ax", "vision")
     if kind == "computer_permission":

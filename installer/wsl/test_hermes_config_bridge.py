@@ -49,6 +49,8 @@ class BridgeTest(unittest.TestCase):
                        "terminal.backend": "local", "terminal.cwd": ".", "terminal.docker_network": True,
                        "terminal.docker_mount_cwd_to_workspace": False, "terminal.docker_volumes": [],
                        "browser.snapshot_threshold": 15000, "browser.inactivity_timeout": 120,
+                       "browser.engine": "auto", "browser.headed": False,
+                       "browser.auto_local_for_private_urls": True,
                        "browser.dialog_policy": "must_respond", "browser.dialog_timeout_s": 300,
                        "browser.allow_private_urls": False, "browser.use_real_profile": False,
                        "browser.real_profile_pin": "", "browser.restrict_evaluate": False,
@@ -707,6 +709,18 @@ class BridgeTest(unittest.TestCase):
             self.invoke({"key": "approvals.deny", "value": ["bad\npattern"],
                          "revision": bridge.revision(self.config)})
 
+    def test_local_browser_engine_and_route_controls_round_trip(self):
+        for key, value in (("browser.engine", "lightpanda"),
+                           ("browser.headed", True),
+                           ("browser.auto_local_for_private_urls", False)):
+            code, result = self.invoke({"key": key, "value": value,
+                                        "revision": bridge.revision(self.config)})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["values"][key], value)
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "browser.engine", "value": "unknown",
+                         "revision": bridge.revision(self.config)})
+
     def test_owner_can_set_native_bypass_and_instruction_file_policy(self):
         for key, value in (("approvals.mode", "off"),
                            ("security.protected_instruction_files", False)):
@@ -804,6 +818,8 @@ elif a[:2] == ['config', 'get']:
          'terminal.backend': 'local', 'terminal.cwd': '.', 'terminal.docker_network': True,
          'terminal.docker_mount_cwd_to_workspace': False, 'terminal.docker_volumes': [],
          'browser.snapshot_threshold': 15000, 'browser.inactivity_timeout': 120,
+         'browser.engine': 'auto', 'browser.headed': False,
+         'browser.auto_local_for_private_urls': True,
          'browser.dialog_policy': 'must_respond', 'browser.dialog_timeout_s': 300,
          'browser.allow_private_urls': False, 'browser.use_real_profile': False,
          'browser.real_profile_pin': '', 'browser.restrict_evaluate': False,

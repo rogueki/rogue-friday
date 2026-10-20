@@ -234,6 +234,14 @@ export type HermesConfigPatch =
       value: number;
     }
   | {
+      key: "browser.engine";
+      value: "auto" | "chrome" | "lightpanda";
+    }
+  | {
+      key: "browser.headed" | "browser.auto_local_for_private_urls";
+      value: boolean;
+    }
+  | {
       key: "browser.dialog_policy";
       value: "must_respond" | "auto_dismiss";
     }
@@ -3442,6 +3450,9 @@ export interface HermesConfigStatus {
       | "browser.command_timeout"
       | "browser.snapshot_threshold"
       | "browser.inactivity_timeout"
+      | "browser.engine"
+      | "browser.headed"
+      | "browser.auto_local_for_private_urls"
       | "browser.dialog_policy"
       | "browser.dialog_timeout_s"
       | "browser.allow_private_urls"

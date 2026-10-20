@@ -14,6 +14,7 @@ source = Path(os.environ["HERMES_PIN_SOURCE"]).resolve()
 PINNED_FILES = {
     "tools/code_kernel.py": "b29daa95d3bd7b49d40c4139a88d7f644727e6321155b41a38d1764b773600a6",
     "tools/browser_tool.py": "9ac7722d4c403e0a30ee777802f723795da49eba1639bc95adf3d74a4d29b8b8",
+    "tools/browser_tool_cloud.py": "0d5b8c168fef8b85b56e61052a398137af0cce2ce6b025888013934d8f05f065",
     "tools/computer_use/tool.py": "0f61a487c96ef94fde4e1ecfb52df6efafbd37c055433618a6d6f8aebb2d28fc",
     "hermes_cli/config_defaults.py": "3770f92378e37093720040de6d4813202a88edc7a196415dfc7be7b4e88064d7",
     "tools/environments/docker.py": "571cdeedd40076fd32d246f22fac804a899732659e0d486a045b14a126d19df1",
@@ -33,7 +34,8 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
     os.environ["HERMES_HOME"] = profile
     Path(profile, "config.yaml").write_text(
         "code_execution:\n  max_session_kernels: 2\n  kernel_idle_timeout: 600\n"
-        "browser:\n  inactivity_timeout: 240\n  restrict_evaluate: true\n"
+        "browser:\n  inactivity_timeout: 240\n  engine: lightpanda\n"
+        "  headed: true\n  auto_local_for_private_urls: false\n  restrict_evaluate: true\n"
         "  allow_private_urls: false\n"
         "  allow_unsafe_evaluate: false\n"
         "computer_use:\n  capture_after_mode: ax\n"
@@ -59,6 +61,9 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
     assert load_config_readonly()["code_execution"]["max_session_kernels"] == 2
     assert _lifecycle_limits() == (2, 600)
     assert _get_session_inactivity_timeout() == 240
+    assert browser_cloud._get_browser_engine() == "lightpanda"
+    assert browser_cloud._is_headed_mode() is True
+    assert browser_cloud._auto_local_for_private_urls() is False
     assert _enforce_browser_eval_policy("document.cookie") is not None
     assert _enforce_browser_eval_policy("document.title") is None
     with patch.object(browser_cloud, "_is_local_backend", return_value=False):

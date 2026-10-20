@@ -39,6 +39,9 @@ const LABELS: Record<string, string> = {
   "browser.command_timeout": "Browser-Befehlslimit (Sekunden)",
   "browser.snapshot_threshold": "Browser-Snapshot-Grenze (Zeichen)",
   "browser.inactivity_timeout": "Browser-Sitzung nach Inaktivitaet beenden (Sekunden)",
+  "browser.engine": "Lokale Browser-Engine",
+  "browser.headed": "Lokalen Browser mit sichtbarem Fenster starten",
+  "browser.auto_local_for_private_urls": "Private Adressen ueber lokalen Browser oeffnen",
   "browser.dialog_policy": "Browser-Dialoge",
   "browser.dialog_timeout_s": "Browser-Dialog-Timeout (Sekunden)",
   "browser.allow_private_urls": "Private Adressen im Browser erlauben",
@@ -145,6 +148,8 @@ const EXECUTION_OPTIONS: Record<string, Array<[string, string]>> = {
   "approvals.unattended_mode": [["deny", "Markierte Aktionen ablehnen"],
     ["approve", "Markierte Aktionen automatisch freigeben"]],
   "browser.dialog_policy": [["must_respond", "Auf Antwort warten"], ["auto_dismiss", "Automatisch ablehnen"]],
+  "browser.engine": [["auto", "Automatisch (Chrome)"], ["chrome", "Chrome"],
+    ["lightpanda", "Lightpanda (ohne Screenshots)"]],
   "computer_use.capture_after_mode": [["som", "Screenshot und Elemente"], ["ax", "Nur Elemente"],
     ["vision", "Nur Bild"]],
 };
@@ -358,6 +363,12 @@ export function HermesConfigArea() {
               <small role="alert">Hermes schützt Anweisungsdateien künftig nicht mehr mit dieser zusätzlichen Schreibfreigabe. Dateisystemrechte gelten weiter.</small> : null}
             {field.key === "approvals.deny" ?
               <small>Ein Muster pro Zeile. Hermes sperrt Treffer auch bei deaktivierter Freigabeebene und im Docker-Backend. Entfernen eines Musters hebt diese Sperre für künftige Befehle auf.</small> : null}
+            {field.key === "browser.auto_local_for_private_urls" && value === true ?
+              <small>Hermes kann bei einem Cloud-Browser fuer private Adressen einen lokalen Browser verwenden. Ob die Adresse erreichbar ist, wird erst bei einer neuen Browser-Sitzung geprueft.</small> : null}
+            {field.key === "browser.engine" && value === "lightpanda" ?
+              <small>Lightpanda benoetigt eine lokal installierte Engine und liefert keine Screenshots. Laufzeitverfuegbarkeit wird durch diese Einstellung nicht bestaetigt.</small> : null}
+            {field.key === "browser.headed" && value === true ?
+              <small>Ein sichtbares Fenster setzt einen lokalen Chromium-Desktop voraus; Cloud-Browser und Lightpanda verwenden diese Einstellung nicht.</small> : null}
             {(field.key === "approvals.destructive_slash_confirm" || field.key === "approvals.mcp_reload_confirm") && value === false ?
               <small role="alert">Hermes fragt künftig bei dieser Befehlsfamilie nicht mehr gesondert nach. Diese Einstellung gilt für künftige Aufrufe.</small> : null}
             <button

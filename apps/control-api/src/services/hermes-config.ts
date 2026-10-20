@@ -63,6 +63,9 @@ export const HERMES_CONFIG_FIELDS = {
   "browser.command_timeout": { type: "integer", min: 5, max: 600, family: "execution", consumer: "new browser session or cleared browser cache" },
   "browser.snapshot_threshold": { type: "integer", min: 1000, max: 200000, family: "execution", consumer: "new browser session or cleared browser cache" },
   "browser.inactivity_timeout": { type: "integer", min: 30, max: 3600, family: "execution", consumer: "new browser module session" },
+  "browser.engine": { type: "string", kind: "browserEngine", family: "execution", consumer: "new local browser session" },
+  "browser.headed": { type: "boolean", family: "execution", consumer: "new local Chromium window" },
+  "browser.auto_local_for_private_urls": { type: "boolean", family: "execution", consumer: "next cloud-backend private URL route" },
   "browser.dialog_policy": { type: "string", kind: "dialogPolicy", family: "execution", consumer: "new CDP dialog supervisor" },
   "browser.dialog_timeout_s": { type: "integer", min: 1, max: 3600, family: "execution", consumer: "new CDP dialog supervisor" },
   "browser.allow_private_urls": { type: "boolean", family: "execution", consumer: "new Hermes browser navigation" },
@@ -125,7 +128,7 @@ function printablePath(value: string): boolean {
   return value.length <= 512 && value.startsWith("/") && !/[\p{C}\p{Zl}\p{Zp}]/u.test(value);
 }
 function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" | "executionBackend" |
-  "profilePin" | "codeMode" | "computerPermission" | "manifestPath" | "workspacePath" |
+  "profilePin" | "codeMode" | "computerPermission" | "manifestPath" | "workspacePath" | "browserEngine" |
   "approvalMode" | "automaticApproval" | "logLevel" | "dialogPolicy" | "captureAfterMode", value: unknown): boolean {
   if (typeof value !== "string") return false;
   if (kind === "reasoning") return REASONING_EFFORTS.has(value);
@@ -133,6 +136,7 @@ function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" 
   if (kind === "executionBackend") return value === "local" || value === "docker";
   if (kind === "codeMode") return value === "project" || value === "strict";
   if (kind === "dialogPolicy") return value === "must_respond" || value === "auto_dismiss";
+  if (kind === "browserEngine") return value === "auto" || value === "chrome" || value === "lightpanda";
   if (kind === "captureAfterMode") return value === "som" || value === "ax" || value === "vision";
   if (kind === "computerPermission") return value === "standard" || value === "bounded";
   if (kind === "approvalMode") return value === "manual" || value === "smart" || value === "off";

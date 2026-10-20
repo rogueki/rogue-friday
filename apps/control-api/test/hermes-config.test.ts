@@ -87,6 +87,9 @@ const bridge = {
     "browser.command_timeout": 30,
     "browser.snapshot_threshold": 15000,
     "browser.inactivity_timeout": 120,
+    "browser.engine": "auto",
+    "browser.headed": false,
+    "browser.auto_local_for_private_urls": true,
     "browser.dialog_policy": "must_respond",
     "browser.dialog_timeout_s": 300,
     "browser.allow_private_urls": false,
@@ -168,6 +171,9 @@ const bridge = {
     "browser.command_timeout": false,
     "browser.snapshot_threshold": false,
     "browser.inactivity_timeout": false,
+    "browser.engine": false,
+    "browser.headed": false,
+    "browser.auto_local_for_private_urls": false,
     "browser.dialog_policy": false,
     "browser.dialog_timeout_s": false,
     "browser.allow_private_urls": false,
@@ -239,7 +245,7 @@ const bridge = {
 it("returns only allowlisted resolved values and installed manifests without credential leakage", async () => {
   const invoke = vi.fn(async () => bridge) as unknown as RunnerInvoker;
   const status = await fixture(invoke).status();
-  expect(status.fields).toHaveLength(79);
+  expect(status.fields).toHaveLength(82);
   expect(status.fields.find((field) => field.key === "terminal.timeout")).toMatchObject({
     value: 180, family: "execution", verification: "unverified",
   });
