@@ -23,5 +23,7 @@ export function routeAgentTask(body: TaskCreateRequest, settings: Settings["mode
 }
 
 export function taskModelPreview(body: TaskCreateRequest): string {
-  return body.model ? ` Modell: ${body.provider ? `${body.provider}:` : ""}${body.model}; Denkstufe: ${body.reasoningLevel ?? "Profilvorgabe"}.` : "";
+  if (!body.model && !body.reasoningLevel) return "";
+  const model = body.model ? ` Modell: ${body.provider ? `${body.provider}:` : ""}${body.model};` : "";
+  return `${model} Denkstufe: ${body.reasoningLevel ?? "Profilvorgabe"}.`;
 }

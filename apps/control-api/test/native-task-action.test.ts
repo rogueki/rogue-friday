@@ -43,6 +43,7 @@ it("routes an agent task before preview and rejects a changed route on confirmat
     const inherit = { title: "Profilmodell statt Route", model: null };
     const stagedInherit = await owner.post("/api/v1/tasks", inherit);
     expect(stagedInherit.json().error.details.previewText).not.toContain("kimi-coding:");
+    expect(stagedInherit.json().error.details.previewText).toContain("Denkstufe: high");
     const createdInherit = await owner.post("/api/v1/tasks", inherit,
       { headers: { "x-action-preview-id": stagedInherit.json().error.details.previewId } });
     expect(createdInherit.statusCode, createdInherit.body).toBe(201);
