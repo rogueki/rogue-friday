@@ -290,4 +290,36 @@ describe("owner NLP mutations use native preview, revision checks and replay rec
     expect((await command(owner, statusText, { confirm: true, previewId: statusId })).statusCode).toBe(200);
     expect(api.runtime.contentStudioPlan.get().plan?.postings.find((entry) => entry.id === posting?.id)?.status).toBe("gepostet");
   });
+
+  it("removes an idea and a posting only after their exact preview is confirmed", async () => {
+    const settings = api.runtime.settings.get();
+    if (!settings.dashboard.contentStudioEnabled)
+      api.runtime.settings.patch({ dashboard: { ...settings.dashboard, contentStudioEnabled: true } }, settings.version);
+    const current = api.runtime.contentStudioPlan.get();
+    const idea = { id: "remove-idea", titel: "Delete this idea", plattform: "LinkedIn" as const,
+      ziele: ["LinkedIn" as const], format: "Feed-Post" as const, beschreibung: "", zieldatum: "", status: "idee" as const };
+    const posting = { id: "remove-posting", titel: "Delete this posting", datum: "2026-10-24", uhrzeit: "10:15",
+      plattform: "Instagram" as const, ziele: ["Instagram" as const], format: "Story" as const, status: "geplant" as const };
+    api.runtime.contentStudioPlan.put({ version: 1, exportiert_am: new Date().toISOString(),
+      content: [...(current.plan?.content ?? []), idea], postings: [...(current.plan?.postings ?? []), posting] }, current.revision);
+
+    const ideaText = 'Remove idea "Delete this idea"';
+    const ideaPreview = await command(owner, ideaText);
+    expect(ideaPreview.json().previewText).toContain("Zugehoerige Postings bleiben bestehen");
+    const ideaId = ideaPreview.json().previewId as string;
+    expect((await command(owner, ideaText, { previewId: ideaId })).json().status).toBe("rejected");
+    expect(api.runtime.contentStudioPlan.get().plan?.content.some((entry) => entry.id === idea.id)).toBe(true);
+    const confirmedIdeaPreview = await command(owner, ideaText);
+    const confirmedIdeaId = confirmedIdeaPreview.json().previewId as string;
+    expect((await command(owner, ideaText, { confirm: true, previewId: confirmedIdeaId })).statusCode).toBe(200);
+    expect(api.runtime.contentStudioPlan.get().plan?.content.some((entry) => entry.id === idea.id)).toBe(false);
+    expect(api.runtime.contentStudioPlan.get().plan?.postings.some((entry) => entry.id === posting.id)).toBe(true);
+
+    const postingText = 'Remove posting "Delete this posting" on 2026-10-24 at 10:15';
+    const postingPreview = await command(owner, postingText);
+    const postingId = postingPreview.json().previewId as string;
+    expect(postingPreview.json().previewText).toContain("Delete this posting");
+    expect((await command(owner, postingText, { confirm: true, previewId: postingId })).statusCode).toBe(200);
+    expect(api.runtime.contentStudioPlan.get().plan?.postings.some((entry) => entry.id === posting.id)).toBe(false);
+  });
 });

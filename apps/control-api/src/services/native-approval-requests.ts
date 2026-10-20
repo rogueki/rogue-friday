@@ -59,9 +59,11 @@ export type NativeExecutableAction =
   | { kind: "contentStudio.idea.date"; expectedRevision: number; ideaId: string; title: string; date: string }
   | { kind: "contentStudio.idea.format"; expectedRevision: number; ideaId: string; title: string; format: ContentFormat }
   | { kind: "contentStudio.idea.targets"; expectedRevision: number; ideaId: string; title: string; targets: Platform[] }
+  | { kind: "contentStudio.idea.remove"; expectedRevision: number; ideaId: string; title: string }
   | { kind: "contentStudio.posting.fromIdea"; expectedRevision: number; posting: Posting }
   | { kind: "contentStudio.posting.create"; expectedRevision: number; posting: Posting }
-  | { kind: "contentStudio.posting.status"; expectedRevision: number; postingId: string; title: string; date: string; time: string; status: Posting["status"] };
+  | { kind: "contentStudio.posting.status"; expectedRevision: number; postingId: string; title: string; date: string; time: string; status: Posting["status"] }
+  | { kind: "contentStudio.posting.remove"; expectedRevision: number; postingId: string; title: string; date: string; time: string };
 
 /** Receipt sentence per action kind; the create wording is asserted by existing API fixtures. */
 export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], string>> = {
@@ -102,9 +104,11 @@ export const ACTION_DONE_VERB: Readonly<Record<NativeExecutableAction["kind"], s
   "contentStudio.idea.date": "aktualisiert",
   "contentStudio.idea.format": "aktualisiert",
   "contentStudio.idea.targets": "aktualisiert",
+  "contentStudio.idea.remove": "geloescht",
   "contentStudio.posting.fromIdea": "eingeplant",
   "contentStudio.posting.create": "eingeplant",
   "contentStudio.posting.status": "aktualisiert",
+  "contentStudio.posting.remove": "entfernt",
 };
 
 /** Receipt subject per action family; combined with the verb to the exact receipt sentence. */
@@ -146,9 +150,11 @@ export const ACTION_SUBJECT: Readonly<Record<NativeExecutableAction["kind"], str
   "contentStudio.idea.date": "Content-Idee",
   "contentStudio.idea.format": "Content-Idee",
   "contentStudio.idea.targets": "Content-Idee",
+  "contentStudio.idea.remove": "Content-Idee",
   "contentStudio.posting.fromIdea": "Posting",
   "contentStudio.posting.create": "Posting",
   "contentStudio.posting.status": "Posting",
+  "contentStudio.posting.remove": "Posting",
 };
 
 /** The action executor supplies a reviewed preview and a stable key before any external side effect. */

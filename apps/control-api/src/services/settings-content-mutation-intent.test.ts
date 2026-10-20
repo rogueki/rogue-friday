@@ -65,4 +65,12 @@ describe("settings and Content Studio mutation intents", () => {
       .toEqual({ kind: "contentStudio.posting.status", title: "Release note", date: "2026-10-23", time: "14:30", status: "gepostet" });
     expect(parseSettingsContentMutationIntent('Schedule posting "Release note" for 2026-10-23 at 25:30 on Instagram as "Story"')).toBeNull();
   });
+
+  it("parses exact removal commands for ideas and scheduled postings", () => {
+    expect(parseSettingsContentMutationIntent('Remove idea "Old campaign"'))
+      .toEqual({ kind: "contentStudio.idea.remove", title: "Old campaign" });
+    expect(parseSettingsContentMutationIntent('Entferne Posting "Release note" am 2026-10-23 um 14:30'))
+      .toEqual({ kind: "contentStudio.posting.remove", title: "Release note", date: "2026-10-23", time: "14:30" });
+    expect(parseSettingsContentMutationIntent('Remove posting "Release note" on 2026-02-30 at 14:30')).toBeNull();
+  });
 });

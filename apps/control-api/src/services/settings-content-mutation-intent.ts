@@ -7,9 +7,11 @@ export type SettingsContentMutationIntent =
   | { kind: "contentStudio.idea.date"; title: string; date: string }
   | { kind: "contentStudio.idea.format"; title: string; format: string }
   | { kind: "contentStudio.idea.targets"; title: string; targets: string[] }
+  | { kind: "contentStudio.idea.remove"; title: string }
   | { kind: "contentStudio.posting.fromIdea"; title: string; date: string }
   | { kind: "contentStudio.posting.create"; title: string; date: string; time: string; platform: string; format: string }
-  | { kind: "contentStudio.posting.status"; title: string; date: string; time: string; status: "geplant" | "gepostet" | "verpasst" };
+  | { kind: "contentStudio.posting.status"; title: string; date: string; time: string; status: "geplant" | "gepostet" | "verpasst" }
+  | { kind: "contentStudio.posting.remove"; title: string; date: string; time: string };
 
 const SETTING_COMPACT = /^(?:please\s+)?(?:set|change|stelle|aendere|ändere)\s+(?:my\s+)?(?:dashboard\s+)?(?:compact|kompakt)(?:\s+mode)?\s+(?:(?:to|auf)\s+)?(on|off|enabled|disabled|ein|aus)(?:[.!?])?$/i;
 const ADD_IDEA = /^(?:please\s+)?(?:add|create|erstelle|lege\s+an|fuege\s+hinzu|füge\s+hinzu)\s+(?:an\s+)?(?:content\s+)?(?:idea|idee)\s+(.+?)\s+(?:to|in|zum|im)\s+(?:the\s+)?(?:content\s+studio\s+)?(?:plan|redaktionsplan)[.!?]?$/i;
@@ -22,6 +24,8 @@ const IDEA_TARGETS = /^(?:set|change|setze|aendere|ändere)\s+(?:platforms?|ziel
 const SCHEDULE_IDEA = /^(?:schedule|plan|plane(?:\s+ein)?|trage\s+ein)\s+(?:the\s+)?(?:idea|idee)\s+"([^"\r\n]{1,200})"\s+(?:for|fuer|für|am)\s+([0-9]{4}-[0-9]{2}-[0-9]{2})[.!?]?$/i;
 const CREATE_POSTING = /^(?:schedule|create|plan|plane(?:\s+ein)?|trage\s+ein)\s+(?:a\s+|ein\s+)?posting\s+"([^"\r\n]{1,200})"\s+(?:for|fuer|für|am)\s+([0-9]{4}-[0-9]{2}-[0-9]{2})\s+(?:at|um)\s+([0-2][0-9]:[0-5][0-9])\s+(?:on|auf)\s+(LinkedIn|Instagram|Facebook|TikTok|YouTube)\s+(?:as|im\s+format)\s+"([^"]+)"[.!?]?$/i;
 const POSTING_STATUS = /^(?:set|change|setze|aendere|ändere)\s+status\s+(?:of|von)\s+(?:the\s+)?posting\s+"([^"\r\n]{1,200})"\s+(?:on|am)\s+([0-9]{4}-[0-9]{2}-[0-9]{2})\s+(?:at|um)\s+([0-2][0-9]:[0-5][0-9])\s+(?:to|auf)\s+(planned|geplant|posted|gepostet|missed|verpasst)[.!?]?$/i;
+const REMOVE_IDEA = /^(?:remove|delete|entferne|loesche|lösche)\s+(?:the\s+)?(?:idea|idee)\s+"([^"\r\n]{1,200})"[.!?]?$/i;
+const REMOVE_POSTING = /^(?:remove|delete|entferne|loesche|lösche)\s+(?:the\s+)?posting\s+"([^"\r\n]{1,200})"\s+(?:on|am)\s+([0-9]{4}-[0-9]{2}-[0-9]{2})\s+(?:at|um)\s+([0-2][0-9]:[0-5][0-9])[.!?]?$/i;
 
 /** Small typed write grammar; free text is data only inside the exact terminal idea-title slot. */
 export function parseSettingsContentMutationIntent(input: string): SettingsContentMutationIntent | null {
@@ -100,6 +104,16 @@ export function parseSettingsContentMutationIntent(input: string): SettingsConte
     const status = /^(planned|geplant)$/i.test(postingStatus[4]!) ? "geplant" : /^(posted|gepostet)$/i.test(postingStatus[4]!) ? "gepostet" : "verpasst";
     if (Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === postingStatus[2] && /^([01]\d|2[0-3]):[0-5]\d$/.test(time))
       return { kind: "contentStudio.posting.status", title: postingStatus[1]!.trim(), date: postingStatus[2]!, time, status };
+    return null;
+  }
+  const removeIdea = REMOVE_IDEA.exec(rawText);
+  if (removeIdea && removeIdea[1]!.trim()) return { kind: "contentStudio.idea.remove", title: removeIdea[1]!.trim() };
+  const removePosting = REMOVE_POSTING.exec(rawText);
+  if (removePosting && removePosting[1]!.trim()) {
+    const date = new Date(`${removePosting[2]}T00:00:00.000Z`);
+    const time = removePosting[3]!;
+    if (Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === removePosting[2] && /^([01]\d|2[0-3]):[0-5]\d$/.test(time))
+      return { kind: "contentStudio.posting.remove", title: removePosting[1]!.trim(), date: removePosting[2]!, time };
     return null;
   }
   return null;

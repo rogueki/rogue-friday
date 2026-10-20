@@ -47,6 +47,8 @@ function sameIntent(action: NativeExecutableAction, intent: SettingsContentMutat
   if (intent.kind === "contentStudio.idea.targets")
     return action.kind === intent.kind && action.title.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE")
       && JSON.stringify(action.targets) === JSON.stringify(intent.targets);
+  if (intent.kind === "contentStudio.idea.remove")
+    return action.kind === intent.kind && action.title.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE");
   if (intent.kind === "contentStudio.posting.fromIdea")
     return action.kind === intent.kind && action.posting.titel.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE")
       && action.posting.datum === intent.date;
@@ -56,6 +58,9 @@ function sameIntent(action: NativeExecutableAction, intent: SettingsContentMutat
   if (intent.kind === "contentStudio.posting.status")
     return action.kind === intent.kind && action.title.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE")
       && action.date === intent.date && action.time === intent.time && action.status === intent.status;
+  if (intent.kind === "contentStudio.posting.remove")
+    return action.kind === intent.kind && action.title.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE")
+      && action.date === intent.date && action.time === intent.time;
   return false;
 }
 
@@ -107,6 +112,10 @@ function makeAction(ctx: RequestContext, intent: SettingsContentMutationIntent):
       return { kind: intent.kind, expectedRevision: current.revision, ideaId: idea.id, title: idea.titel, format: intent.format as ContentFormat };
     return { kind: intent.kind, expectedRevision: current.revision, ideaId: idea.id, title: idea.titel, targets: intent.targets as Platform[] };
   }
+  if (intent.kind === "contentStudio.idea.remove") {
+    const { idea } = resolveUniqueIdea(ctx, intent.title);
+    return { kind: intent.kind, expectedRevision: current.revision, ideaId: idea.id, title: idea.titel };
+  }
   if (intent.kind === "contentStudio.posting.fromIdea") {
     const { idea } = resolveUniqueIdea(ctx, intent.title);
     const postings = current.plan?.postings ?? [];
@@ -134,6 +143,14 @@ function makeAction(ctx: RequestContext, intent: SettingsContentMutationIntent):
     if (matches.length !== 1) throw conflict("Mehrere Postings passen zu Titel und Zeit. Bitte im Dashboard eindeutig auswaehlen.");
     return { kind: intent.kind, expectedRevision: current.revision, postingId: matches[0]!.id, title: matches[0]!.titel,
       date: intent.date, time: intent.time, status: intent.status };
+  }
+  if (intent.kind === "contentStudio.posting.remove") {
+    const matches = (current.plan?.postings ?? []).filter((posting) => posting.titel.toLocaleLowerCase("de-DE") === intent.title.toLocaleLowerCase("de-DE")
+      && posting.datum === intent.date && posting.uhrzeit === intent.time);
+    if (matches.length === 0) throw validationFailed("Kein Posting mit diesem Titel und Zeitplan gefunden.");
+    if (matches.length !== 1) throw conflict("Mehrere Postings passen zu Titel und Zeit. Bitte im Dashboard eindeutig auswaehlen.");
+    return { kind: intent.kind, expectedRevision: current.revision, postingId: matches[0]!.id, title: matches[0]!.titel,
+      date: intent.date, time: intent.time };
   }
   if ((current.plan?.content.length ?? 0) >= 1000) throw validationFailed("Der Content-Plan enthaelt bereits die maximale Zahl von 1000 Ideen.");
   const exportiert_am = current.plan?.exportiert_am ?? new Date(ctx.runtime.nowMs()).toISOString();
@@ -168,12 +185,16 @@ function proposalText(action: NativeExecutableAction): string {
     return `Format der Idee „${action.title}“ auf ${action.format} setzen? Planrevision ${action.expectedRevision}.`;
   if (action.kind === "contentStudio.idea.targets")
     return `Zielplattformen der Idee „${action.title}“ auf ${action.targets.join(" + ")} setzen? Planrevision ${action.expectedRevision}.`;
+  if (action.kind === "contentStudio.idea.remove")
+    return `Idee „${action.title}“ aus dem Content-Plan entfernen? Zugehoerige Postings bleiben bestehen. Planrevision ${action.expectedRevision}.`;
   if (action.kind === "contentStudio.posting.fromIdea")
     return `Posting „${action.posting.titel}“ fuer ${action.posting.datum} um 09:00 einplanen? Plattform: ${action.posting.ziele?.join(" + ") ?? action.posting.plattform}. Planrevision ${action.expectedRevision}.`;
   if (action.kind === "contentStudio.posting.create")
     return `Posting „${action.posting.titel}“ fuer ${action.posting.datum} um ${action.posting.uhrzeit} auf ${action.posting.plattform} als ${action.posting.format} einplanen? Planrevision ${action.expectedRevision}.`;
   if (action.kind === "contentStudio.posting.status")
     return `Status des Postings „${action.title}“ vom ${action.date} um ${action.time} auf ${action.status} setzen? Planrevision ${action.expectedRevision}.`;
+  if (action.kind === "contentStudio.posting.remove")
+    return `Posting „${action.title}“ vom ${action.date} um ${action.time} entfernen? Planrevision ${action.expectedRevision}.`;
   throw conflict("Nicht unterstuetzte Einstellungen-/Content-Studio-Aktion.");
 }
 
@@ -281,6 +302,21 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
       if (typeof nextRevision !== "number") throw conflict("Die Idee wurde gespeichert, aber die neue Revision ist nicht lesbar.");
       return String(nextRevision);
     }
+    if (saved.kind === "contentStudio.idea.remove") {
+      if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
+      const current = ctx.runtime.contentStudioPlan.get();
+      if (current.revision !== saved.expectedRevision) throw conflict("Der Plan wurde inzwischen geaendert. Bitte neu laden und die Entfernung erneut pruefen.");
+      const ideas = current.plan?.content ?? [];
+      if (!ideas.some((idea) => idea.id === saved.ideaId && idea.titel === saved.title)) throw conflict("Die ausgewaehlte Idee ist nicht mehr vorhanden.");
+      const plan: ContentPlanDocument = parseStudioPlan({ version: 1 as const,
+        exportiert_am: current.plan?.exportiert_am ?? new Date(ctx.runtime.nowMs()).toISOString(),
+        content: ideas.filter((idea) => idea.id !== saved.ideaId), postings: current.plan?.postings ?? [] });
+      const result = await contentStudioHandlers.putContentStudioPlan!({ ...ctx, body: plan,
+        mutation: { ...ctx.mutation, ifMatchVersion: saved.expectedRevision, idempotencyKey } });
+      const nextRevision = (result.body as { data?: { revision?: number } }).data?.revision;
+      if (typeof nextRevision !== "number") throw conflict("Die Idee wurde entfernt, aber die neue Revision ist nicht lesbar.");
+      return String(nextRevision);
+    }
     if (saved.kind === "contentStudio.posting.fromIdea" || saved.kind === "contentStudio.posting.create") {
       if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
       const current = ctx.runtime.contentStudioPlan.get();
@@ -311,6 +347,22 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
       if (typeof nextRevision !== "number") throw conflict("Der Postingstatus wurde gespeichert, aber die neue Revision ist nicht lesbar.");
       return String(nextRevision);
     }
+    if (saved.kind === "contentStudio.posting.remove") {
+      if (ctx.runtime.settings.area("dashboard").contentStudioEnabled !== true) throw forbidden("Content Studio ist deaktiviert.");
+      const current = ctx.runtime.contentStudioPlan.get();
+      if (current.revision !== saved.expectedRevision) throw conflict("Der Plan wurde inzwischen geaendert. Bitte neu laden und die Entfernung erneut pruefen.");
+      const postings = current.plan?.postings ?? [];
+      if (!postings.some((posting) => posting.id === saved.postingId && posting.titel === saved.title
+        && posting.datum === saved.date && posting.uhrzeit === saved.time)) throw conflict("Das ausgewaehlte Posting ist nicht mehr vorhanden.");
+      const plan: ContentPlanDocument = parseStudioPlan({ version: 1 as const,
+        exportiert_am: current.plan?.exportiert_am ?? new Date(ctx.runtime.nowMs()).toISOString(),
+        content: current.plan?.content ?? [], postings: postings.filter((posting) => posting.id !== saved.postingId) });
+      const result = await contentStudioHandlers.putContentStudioPlan!({ ...ctx, body: plan,
+        mutation: { ...ctx.mutation, ifMatchVersion: saved.expectedRevision, idempotencyKey } });
+      const nextRevision = (result.body as { data?: { revision?: number } }).data?.revision;
+      if (typeof nextRevision !== "number") throw conflict("Das Posting wurde entfernt, aber die neue Revision ist nicht lesbar.");
+      return String(nextRevision);
+    }
     throw conflict("Gespeicherte Aktion passt nicht zu diesem Mutationspfad.");
   });
   const message = action.kind === "settings.dashboard.compact"
@@ -329,12 +381,16 @@ export async function executeSettingsContentMutation(ctx: RequestContext, reques
         ? `Format der Idee „${action.title}“ gespeichert (Planrevision ${revision}).`
       : action.kind === "contentStudio.idea.targets"
         ? `Zielplattformen der Idee „${action.title}“ gespeichert (Planrevision ${revision}).`
+      : action.kind === "contentStudio.idea.remove"
+        ? `Idee „${action.title}“ entfernt (Planrevision ${revision}).`
       : action.kind === "contentStudio.posting.fromIdea"
         ? `Posting „${action.posting.titel}“ fuer ${action.posting.datum} eingeplant (Planrevision ${revision}).`
       : action.kind === "contentStudio.posting.create"
         ? `Posting „${action.posting.titel}“ fuer ${action.posting.datum} eingeplant (Planrevision ${revision}).`
       : action.kind === "contentStudio.posting.status"
         ? `Status des Postings „${action.title}“ gespeichert (Planrevision ${revision}).`
+      : action.kind === "contentStudio.posting.remove"
+        ? `Posting „${action.title}“ entfernt (Planrevision ${revision}).`
       : (() => { throw conflict("Gespeicherte Aktion passt nicht zu diesem Mutationspfad."); })();
   return baseResponse(ctx, "executed", { requiresConfirmation: false, previewText: null, result: { message } });
 }
