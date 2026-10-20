@@ -311,6 +311,29 @@ it("passes explicit unattended approval policy by revision without claiming a co
     .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
 });
 
+it("allows explicit owner policy bypass values but still requires typed values and revision", async () => {
+  const invoke = vi.fn()
+    .mockResolvedValueOnce({ ...bridge, revision: 124,
+      values: { ...bridge.values, "approvals.mode": "off" },
+      write: { key: "approvals.mode", persisted: true },
+    })
+    .mockResolvedValueOnce({ ...bridge, revision: 125,
+      values: { ...bridge.values, "security.protected_instruction_files": false },
+      write: { key: "security.protected_instruction_files", persisted: true },
+    }) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  await service.update({ key: "approvals.mode", value: "off" }, 123);
+  await service.update({ key: "security.protected_instruction_files", value: false }, 124);
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[0]?.[4]))).toEqual({
+    key: "approvals.mode", value: "off", revision: 123,
+  });
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[1]?.[4]))).toEqual({
+    key: "security.protected_instruction_files", value: false, revision: 124,
+  });
+  await expect(service.update({ key: "approvals.mode", value: "auto" }, 123))
+    .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
 it("sends model credentials only through bridge stdin and reports set-state without echoing the secret", async () => {
   const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
     write: { key: "OPENROUTER_API_KEY", persisted: true },

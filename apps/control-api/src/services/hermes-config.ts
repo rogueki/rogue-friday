@@ -131,7 +131,7 @@ function validStringPatch(kind: "provider" | "model" | "reasoning" | "tailMode" 
   if (kind === "dialogPolicy") return value === "must_respond" || value === "auto_dismiss";
   if (kind === "captureAfterMode") return value === "som" || value === "ax" || value === "vision";
   if (kind === "computerPermission") return value === "standard" || value === "bounded";
-  if (kind === "approvalMode") return value === "manual" || value === "smart";
+  if (kind === "approvalMode") return value === "manual" || value === "smart" || value === "off";
   if (kind === "automaticApproval") return value === "deny" || value === "approve";
   if (kind === "profilePin") return value === "" || /^(Default|Profile [0-9]{1,3})$/.test(value);
   if (kind === "manifestPath") return value === "" || printablePath(value);
@@ -492,8 +492,6 @@ export class HermesConfigService {
         : !validStringPatch(spec.kind, patch.value)
     )
       throw validationFailed("Ungültiger Hermes-Konfigurationswert.");
-    if (patch.key === "security.protected_instruction_files" && patch.value !== true)
-      throw validationFailed("Schutz fuer Agent-Anweisungsdateien darf nicht deaktiviert werden.");
     if (!Number.isSafeInteger(revision) || revision < 1)
       throw validationFailed("Ungültige Hermes-Konfigurationsversion.");
     const observed = await this.run("update", patch, revision);

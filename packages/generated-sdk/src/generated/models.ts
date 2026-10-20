@@ -303,7 +303,7 @@ export type HermesConfigPatch =
     }
   | {
       key: "approvals.mode";
-      value: "manual" | "smart";
+      value: "manual" | "smart" | "off";
     }
   | {
       key: "approvals.timeout";
@@ -319,7 +319,7 @@ export type HermesConfigPatch =
     }
   | {
       key: "security.protected_instruction_files";
-      value: true;
+      value: boolean;
     }
   | {
       key: "skills.disabled";

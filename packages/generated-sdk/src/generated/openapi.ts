@@ -6717,7 +6717,7 @@ export interface components {
             /** @constant */
             key: "approvals.mode";
             /** @enum {unknown} */
-            value: "manual" | "smart";
+            value: "manual" | "smart" | "off";
         } | {
             /** @constant */
             key: "approvals.timeout";
@@ -6735,8 +6735,7 @@ export interface components {
         } | {
             /** @constant */
             key: "security.protected_instruction_files";
-            /** @constant */
-            value: true;
+            value: boolean;
         } | {
             /** @constant */
             key: "skills.disabled";

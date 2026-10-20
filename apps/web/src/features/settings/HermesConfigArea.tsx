@@ -132,7 +132,8 @@ const EXECUTION_OPTIONS: Record<string, Array<[string, string]>> = {
   "code_execution.mode": [["project", "Projektumgebung"], ["strict", "Isoliertes Verzeichnis"]],
   "computer_use.permission_mode": [["standard", "Treiber fragt nach Freigaben"],
     ["bounded", "Nur Capability-Manifest"]],
-  "approvals.mode": [["manual", "Immer bei Gefahr fragen"], ["smart", "Smart-Guardian und Freigabe"]],
+  "approvals.mode": [["manual", "Immer bei Gefahr fragen"], ["smart", "Smart-Guardian und Freigabe"],
+    ["off", "Freigabeebene deaktivieren"]],
   "approvals.single_query_mode": [["deny", "Markierte Aktionen ablehnen"],
     ["approve", "Markierte Aktionen automatisch freigeben"]],
   "approvals.unattended_mode": [["deny", "Markierte Aktionen ablehnen"],
@@ -295,7 +296,6 @@ export function HermesConfigArea() {
                 id={`hermes-${field.key}`}
                 type="checkbox"
                 checked={value === true}
-                disabled={field.key === "security.protected_instruction_files" && value === true}
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, [field.key]: event.target.checked }))
                 }
@@ -344,6 +344,10 @@ export function HermesConfigArea() {
               <small>Aktiv: neue Sitzungen teilen einen langlebigen Docker-Container pro Hermes-Profil. Inaktiv: neue Sitzungen erhalten getrennte Container, die beim Sitzungsende aufgeräumt werden.</small> : null}
             {(field.key === "approvals.single_query_mode" || field.key === "approvals.unattended_mode") && value === "approve" ?
               <small role="alert">Damit werden künftig markierte Befehle in diesem unbeaufsichtigten Hermes-Modus ohne einzelne Rückfrage automatisch freigegeben. Dies ist eine dauerhafte Modus-Einstellung, keine Freigabe eines konkreten Befehls.</small> : null}
+            {field.key === "approvals.mode" && value === "off" ?
+              <small role="alert">Damit umgeht Hermes künftig die normale Freigabeebene für markierte Aktionen. Unbedingte Sperrregeln bleiben aktiv. Dies ist keine Freigabe eines konkreten Befehls.</small> : null}
+            {field.key === "security.protected_instruction_files" && value === false ?
+              <small role="alert">Hermes schützt Anweisungsdateien künftig nicht mehr mit dieser zusätzlichen Schreibfreigabe. Dateisystemrechte gelten weiter.</small> : null}
             <button
               type="button"
               disabled={
@@ -369,7 +373,10 @@ export function HermesConfigArea() {
               }
             >
               {(field.key === "approvals.single_query_mode" || field.key === "approvals.unattended_mode") &&
-                value === "approve" ? "Automatische Freigabe aktivieren" : "Speichern"}
+                value === "approve" ? "Automatische Freigabe aktivieren" :
+                field.key === "approvals.mode" && value === "off" ? "Freigabeebene deaktivieren" :
+                field.key === "security.protected_instruction_files" && value === false ?
+                  "Zusatzschutz deaktivieren" : "Speichern"}
             </button>
           </div>
         );

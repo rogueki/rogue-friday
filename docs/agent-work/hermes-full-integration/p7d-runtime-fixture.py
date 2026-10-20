@@ -19,6 +19,7 @@ PINNED_FILES = {
     "tools/environments/docker.py": "571cdeedd40076fd32d246f22fac804a899732659e0d486a045b14a126d19df1",
     "tools/approval_context.py": "016e6eb6330a0d83adc5bbd260e8d9995e415a2cbff00e0a98f6ab627a6bb413",
     "tools/approval.py": "aaf3c2956a7f031e4f61ee58536bedfb2b50901d7158ff03560ee5977f4049e2",
+    "tools/file_tools_write_guards.py": "315a33d6735c4d1f0b328bf57c5a8021b9592fa4aa00677ea69fbc6a69b71598",
 }
 for relative_path, expected_hash in PINNED_FILES.items():
     assert hashlib.sha256((source / relative_path).read_bytes()).hexdigest() == expected_hash, relative_path
@@ -45,6 +46,7 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
     from tools.environments.docker import DockerEnvironment
     from tools.approval_context import _get_single_query_approval_mode, _get_unattended_approval_mode
     from tools.approval import request_tool_approval
+    from tools.file_tools_write_guards import _protected_instruction_config, _protected_instruction_reason
 
     assert load_config_readonly()["code_execution"]["max_session_kernels"] == 2
     assert _lifecycle_limits() == (2, 600)
@@ -72,6 +74,16 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
         assert request_tool_approval("fixture-tool", "synthetic flagged action")["approved"] is True
     finally:
         os.environ.pop("HERMES_SESSION_PLATFORM", None)
+    Path(profile, "config.yaml").write_text(
+        Path(profile, "config.yaml").read_text().replace(
+            "approvals:\n", "approvals:\n  mode: 'off'\n") +
+        "security:\n  protected_instruction_files: false\n",
+        encoding="utf-8",
+    )
+    assert request_tool_approval("fixture-tool", "synthetic flagged action")["approved"] is True
+    assert _protected_instruction_config()[0] is False
+    assert _protected_instruction_reason("/tmp/AGENTS.md", enabled=True, extra_patterns=[]) is not None
+    assert _protected_instruction_reason("/tmp/AGENTS.md", enabled=False, extra_patterns=[]) is None
     limits = load_config_readonly()["terminal"]
     docker = DockerEnvironment.__new__(DockerEnvironment)
     with patch("tools.environments.docker._cgroup_limits_available", return_value=True), \
@@ -91,4 +103,4 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
                                              False, "1g", [])
     assert "--cpus" not in unsupported and "--memory" not in unsupported and \
         "--storage-opt" not in unsupported, unsupported
-    print("pinned Hermes consumers: code kernels, browser idle, Computer Use capture, conditional Docker resource args, approval dispatch = OK")
+    print("pinned Hermes consumers: code kernels, browser idle, Computer Use capture, conditional Docker resource args, approval and write-guard dispatch = OK")

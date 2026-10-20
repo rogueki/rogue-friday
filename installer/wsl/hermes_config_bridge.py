@@ -76,7 +76,7 @@ FIELDS = {
     "approvals.timeout": ("integer", 15, 600),
     "approvals.single_query_mode": ("automatic_approval", None, None),
     "approvals.unattended_mode": ("automatic_approval", None, None),
-    "security.protected_instruction_files": ("true_only", None, None),
+    "security.protected_instruction_files": ("boolean", None, None),
     "skills.disabled": ("skill_names", None, None),
     "cron.catch_up_missed": ("boolean", None, None),
     "cron.allow_agent_scheduling": ("boolean", None, None),
@@ -132,11 +132,9 @@ def valid_field_value(key, value, spec):
     if kind == "computer_permission":
         return type(value) is str and value in ("standard", "bounded")
     if kind == "approval_mode":
-        return type(value) is str and value in ("manual", "smart")
+        return type(value) is str and value in ("manual", "smart", "off")
     if kind == "automatic_approval":
         return type(value) is str and value in ("deny", "approve")
-    if kind == "true_only":
-        return value is True
     if kind == "profile_pin":
         return type(value) is str and (value == "" or re.fullmatch(r"(?:Default|Profile [0-9]{1,3})", value) is not None)
     if kind == "manifest_path":

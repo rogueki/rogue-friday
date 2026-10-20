@@ -575,10 +575,8 @@ class BridgeTest(unittest.TestCase):
             self.invoke({"key": "browser.use_real_profile", "value": True, "revision": current})
         with self.assertRaisesRegex(ValueError, "unsupported_field"):
             self.invoke({"key": "computer_use.permission_mode", "value": "unrestricted", "revision": current})
-        for key, value in (("approvals.mode", "off"),
-                           ("security.protected_instruction_files", False)):
-            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "unsupported_field"):
-                self.invoke({"key": key, "value": value, "revision": current})
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "approvals.mode", "value": "auto", "revision": current})
         with self.assertRaisesRegex(ValueError, "invalid_capability_manifest"):
             self.invoke({"key": "computer_use.capability_manifest", "value": "/tmp/foreign.json",
                          "revision": current})
@@ -673,6 +671,15 @@ class BridgeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported_field"):
             self.invoke({"key": "approvals.unattended_mode", "value": "off",
                          "revision": bridge.revision(self.config)})
+
+    def test_owner_can_set_native_bypass_and_instruction_file_policy(self):
+        for key, value in (("approvals.mode", "off"),
+                           ("security.protected_instruction_files", False)):
+            code, result = self.invoke({"key": key, "value": value,
+                                        "revision": bridge.revision(self.config)})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["values"][key], value)
+            self.assertTrue(result["write"]["persisted"])
 
     def test_toolsets_require_installed_native_definition(self):
         native = types.ModuleType("toolsets")
