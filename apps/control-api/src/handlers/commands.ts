@@ -17,6 +17,7 @@ import { dispatchAutomationAction } from "./automation-actions";
 import { parseAutomationActionIntent, type AutomationActionIntent } from "../services/automation-action-intent";
 import { parseResearchActionIntent } from "../services/research-action-intent";
 import { executeResearchCommand } from "./research-actions";
+import { executeReadQuery, parseReadQueryIntent } from "../services/read-query-intent";
 import { checkedLocalEvent, LocalCalendarService } from "../services/local-calendar";
 import { checkedMailSend, type MailSendRequest } from "../services/mail-send";
 import { checkedMessengerDraft, type MessengerSendDraft } from "../services/messenger-send";
@@ -1047,7 +1048,8 @@ async function controlCommand(ctx: Parameters<Handler>[0], action: "stop" | "pau
 export const commandHandlers: Partial<Record<OperationId, Handler>> = {
   async executeCommand(ctx) {
     const request = ctx.body as CommandRequest;
-    const sensitive = CommandHistoryStore.isSensitive(request.text);
+    const readQuery = parseReadQueryIntent(request.text);
+    const sensitive = CommandHistoryStore.isSensitive(request.text) || readQuery !== null;
     const privateInput = sensitive || /(?:dieses gespräch nicht speichern|nicht merken|do not store|private mode)/i.test(request.text);
     captureCommand(ctx, `${ctx.correlationId}-u`, "user_utterance", request.text, "completed", privateInput);
     ctx.audit.action = "command.executed";
@@ -1071,7 +1073,8 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
       const researchAction = taskCreate || taskAction || calendarAction || agentAction || messengerAction || knowledgeAction || automationAction || mailAction ? null
         : parseResearchActionIntent(request.text);
       const intent = request.confirm ? null : matchBuiltinIntent(request.text);
-      const result = taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
+      const result = readQuery ? await executeReadQuery(ctx, readQuery)
+        : taskCreate ? await executeTaskCreate(ctx, request, taskCreate)
         : taskAction ? await executeTaskAction(ctx, request, taskAction)
         : calendarAction ? await executeCalendarAction(ctx, request, calendarAction)
         : knowledgeAction ? await executeKnowledgeAction(ctx, request, knowledgeAction)
@@ -1089,7 +1092,7 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         riskTier: response.riskTier,
         approvalId: response.approvalId,
         source: request.source,
-        ...(intent ? { intent } : taskCreate ? { intent: "task_create" } : taskAction ? { intent: taskAction.kind.replace(".", "_") }
+        ...(readQuery ? { intent: `read_${readQuery.kind}` } : intent ? { intent } : taskCreate ? { intent: "task_create" } : taskAction ? { intent: taskAction.kind.replace(".", "_") }
           : calendarAction ? { intent: calendarAction.kind.replace(".", "_") }
           : knowledgeAction ? { intent: knowledgeAction.kind.replace(".", "_") }
           : automationAction ? { intent: automationAction.kind.replace(".", "_") }
@@ -1114,6 +1117,7 @@ export const commandHandlers: Partial<Record<OperationId, Handler>> = {
         origin: request.source,
         status,
         createdAt: new Date().toISOString(),
+        redact: sensitive,
       });
     }
   },
