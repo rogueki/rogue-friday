@@ -1,6 +1,6 @@
 {
   "revision": "d923a5eb487a17c0a68801bba9ef0f56c81040a8",
-  "scope": "Pinned P7-F scalar config inventory. typed_persisted proves CLI read/write only, not runtime application. Other fields remain unavailable here with an explicit reason.",
+  "scope": "Pinned P7-F config inventory (75 leaves across cron/gateway/logging/monitoring/updates/hooks_auto_accept). typed_persisted proves CLI read/write only, not runtime application. Other fields remain unavailable here with an explicit reason.",
   "timezone": "Cron job schedules retain their own Hermes profile timezone; no Friday automation schedule is created.",
   "natural_language": "No P7-F operation is yet wired to a natural-language approval action.",
   "items": [
@@ -482,6 +482,15 @@
       "apply": "not offered"
     },
     {
+      "key": "hooks_auto_accept",
+      "source": "hermes:hermes_cli/config_defaults.py:1750",
+      "owner": "Hermes hooks",
+      "status": "unavailable",
+      "reason": "Automatic hook acceptance changes execution trust and requires owner approval and a verified revocation path.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
       "key": "logging.backup_count",
       "source": "hermes:hermes_cli/config_defaults.py:2035",
       "owner": "Hermes file logging",
@@ -604,6 +613,69 @@
       "owner": "Hermes monitoring",
       "status": "unavailable",
       "reason": "Exporter/telemetry setup needs endpoint allowlist, privacy review, dependency and active export proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "updates.auto_switch_parked_branch",
+      "source": "hermes:hermes_cli/config_defaults.py:2374",
+      "owner": "Hermes updater",
+      "status": "unavailable",
+      "reason": "Update policy or checkout mutation requires pinned patch preservation, backup and rollback proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "updates.backup_keep",
+      "source": "hermes:hermes_cli/config_defaults.py:2364",
+      "owner": "Hermes updater",
+      "status": "unavailable",
+      "reason": "Update policy or checkout mutation requires pinned patch preservation, backup and rollback proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "updates.check",
+      "source": "hermes:hermes_cli/config_defaults.py:2351",
+      "owner": "Hermes updater",
+      "status": "unavailable",
+      "reason": "Update policy or checkout mutation requires pinned patch preservation, backup and rollback proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "updates.non_interactive_local_changes",
+      "source": "hermes:hermes_cli/config_defaults.py:2369",
+      "owner": "Hermes updater",
+      "status": "unavailable",
+      "reason": "Update policy or checkout mutation requires pinned patch preservation, backup and rollback proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "updates.parked_branch_strategy",
+      "source": "hermes:hermes_cli/config_defaults.py:2379",
+      "owner": "Hermes updater",
+      "status": "unavailable",
+      "reason": "Update policy or checkout mutation requires pinned patch preservation, backup and rollback proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "updates.pre_update_backup",
+      "source": "hermes:hermes_cli/config_defaults.py:2361",
+      "owner": "Hermes updater",
+      "status": "unavailable",
+      "reason": "Update policy or checkout mutation requires pinned patch preservation, backup and rollback proof.",
+      "consumer": null,
+      "apply": "not offered"
+    },
+    {
+      "key": "updates.refresh_cua_driver",
+      "source": "hermes:hermes_cli/config_defaults.py:2382",
+      "owner": "Hermes updater",
+      "status": "unavailable",
+      "reason": "Update policy or checkout mutation requires pinned patch preservation, backup and rollback proof.",
       "consumer": null,
       "apply": "not offered"
     }

@@ -9,7 +9,7 @@ import hermes_config_bridge as bridge
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs" / "agent-work" / "hermes-full-integration"
-PREFIXES = ("cron.", "gateway.", "logging.", "monitoring.")
+PREFIXES = ("cron.", "gateway.", "logging.", "monitoring.", "updates.", "hooks_auto_accept")
 
 
 class P7FCoverageTest(unittest.TestCase):
