@@ -97,9 +97,9 @@ export const HERMES_CONFIG_FIELDS = {
   "gateway.restart_loop_guard.max_restarts": { type: "integer", min: 0, max: 20, family: "operations", consumer: "next Hermes gateway restart" },
   "gateway.respawn_storm.max_starts": { type: "integer", min: 0, max: 100, family: "operations", consumer: "next Hermes gateway process start" },
   "gateway.signal_interrupt_grace_timeout": { type: "number", min: 0, max: 60, family: "operations", consumer: "next Hermes gateway signal drain" },
-  "logging.level": { type: "string", kind: "logLevel", family: "operations", consumer: "No verified Hermes runtime consumer; config CLI persistence only" },
-  "logging.max_size_mb": { type: "integer", min: 1, max: 100, family: "operations", consumer: "No verified Hermes runtime consumer; config CLI persistence only" },
-  "logging.backup_count": { type: "integer", min: 0, max: 50, family: "operations", consumer: "No verified Hermes runtime consumer; config CLI persistence only" },
+  "logging.level": { type: "string", kind: "logLevel", family: "operations", consumer: "Hermes setup_logging(): agent.log; new process required" },
+  "logging.max_size_mb": { type: "integer", min: 1, max: 100, family: "operations", consumer: "Hermes setup_logging(): agent.log rotation; new process required" },
+  "logging.backup_count": { type: "integer", min: 1, max: 50, family: "operations", consumer: "Hermes setup_logging(): agent.log rotation; new process required" },
 } as const;
 export type HermesConfigField = keyof typeof HERMES_CONFIG_FIELDS;
 type FallbackEntry = { provider: string; model: string };

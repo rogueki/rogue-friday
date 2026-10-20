@@ -306,6 +306,12 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(result["values"]["logging.level"], "WARNING")
 
+    def test_zero_log_backups_is_rejected_because_native_default_would_override_it(self):
+        revision = bridge.revision(self.config)
+        with self.assertRaisesRegex(ValueError, "unsupported_field"):
+            self.invoke({"key": "logging.backup_count", "value": 0, "revision": revision})
+        self.assertFalse(any(command[2:3] == ["set"] for command in self.calls))
+
     def test_browser_timeout_guard_rejects_value_below_runtime_floor(self):
         current = bridge.revision(self.config)
         with self.assertRaisesRegex(ValueError, "unsupported_field"):

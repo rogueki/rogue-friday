@@ -91,7 +91,7 @@ FIELDS = {
     "gateway.signal_interrupt_grace_timeout": ("number", 0, 60),
     "logging.level": ("log_level", None, None),
     "logging.max_size_mb": ("integer", 1, 100),
-    "logging.backup_count": ("integer", 0, 50),
+    "logging.backup_count": ("integer", 1, 50),
 }
 MODEL_CREDENTIALS = frozenset(("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"))
 REASONING_EFFORTS = frozenset(("", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"))

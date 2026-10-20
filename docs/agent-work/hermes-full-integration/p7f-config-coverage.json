@@ -495,27 +495,27 @@
       "source": "hermes:hermes_cli/config_defaults.py:2035",
       "owner": "Hermes file logging",
       "status": "typed_persisted",
-      "reason": "CLI write/readback is typed; active file logger consumer and reload behavior remain unverified.",
-      "consumer": null,
-      "apply": "CLI config persisted and read back; active process state not verified"
+      "reason": "Pinned hermes_logging.py:957 reads logging.*; setup_logging() binds values to agent.log at process initialization.",
+      "consumer": "hermes_logging.py:326-400,957-977; agent/agent_init.py:721; cron/scheduler.py:4431; gateway/run.py:5181",
+      "apply": "CLI config persisted and read back; new process setup_logging() consumes it; live installed process not verified"
     },
     {
       "key": "logging.level",
       "source": "hermes:hermes_cli/config_defaults.py:2033",
       "owner": "Hermes file logging",
       "status": "typed_persisted",
-      "reason": "CLI write/readback is typed; active file logger consumer and reload behavior remain unverified.",
-      "consumer": null,
-      "apply": "CLI config persisted and read back; active process state not verified"
+      "reason": "Pinned hermes_logging.py:957 reads logging.*; setup_logging() binds values to agent.log at process initialization.",
+      "consumer": "hermes_logging.py:326-400,957-977; agent/agent_init.py:721; cron/scheduler.py:4431; gateway/run.py:5181",
+      "apply": "CLI config persisted and read back; new process setup_logging() consumes it; live installed process not verified"
     },
     {
       "key": "logging.max_size_mb",
       "source": "hermes:hermes_cli/config_defaults.py:2034",
       "owner": "Hermes file logging",
       "status": "typed_persisted",
-      "reason": "CLI write/readback is typed; active file logger consumer and reload behavior remain unverified.",
-      "consumer": null,
-      "apply": "CLI config persisted and read back; active process state not verified"
+      "reason": "Pinned hermes_logging.py:957 reads logging.*; setup_logging() binds values to agent.log at process initialization.",
+      "consumer": "hermes_logging.py:326-400,957-977; agent/agent_init.py:721; cron/scheduler.py:4431; gateway/run.py:5181",
+      "apply": "CLI config persisted and read back; new process setup_logging() consumes it; live installed process not verified"
     },
     {
       "key": "monitoring.export.otlp.enabled",

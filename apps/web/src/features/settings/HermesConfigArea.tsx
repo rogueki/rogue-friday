@@ -118,7 +118,7 @@ const NUMERIC_LIMITS: Record<string, [number, number, number]> = {
   "gateway.respawn_storm.max_starts": [0, 100, 1],
   "gateway.signal_interrupt_grace_timeout": [0, 60, 0.1],
   "logging.max_size_mb": [1, 100, 1],
-  "logging.backup_count": [0, 50, 1],
+  "logging.backup_count": [1, 50, 1],
 };
 const EXECUTION_OPTIONS: Record<string, Array<[string, string]>> = {
   "terminal.backend": [["local", "Lokaler WSL-Host"], ["docker", "Docker-Sandbox"]],
@@ -313,6 +313,8 @@ export function HermesConfigArea() {
               <small>Terminalbefehle laufen im Friday-Ubuntu-Benutzerkonto mit dessen Dateirechten. Vor Docker-Wechsel Netzwerk deaktivieren und Mounts entfernen.</small> : null}
             {field.key === "terminal.docker_network" && value === true ?
               <small>Neue Docker-Sandboxes erhalten Netzwerkzugriff.</small> : null}
+            {field.key === "logging.backup_count" && field.value === 0 ?
+              <small role="alert">Gespeicherter Wert 0 wird von Hermes als Standard 3 angewendet. Bitte einen Wert ab 1 setzen.</small> : null}
             <button
               type="button"
               disabled={

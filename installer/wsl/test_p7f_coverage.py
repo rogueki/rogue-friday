@@ -32,10 +32,8 @@ class P7FCoverageTest(unittest.TestCase):
             self.assertTrue(row["reason"])
             self.assertTrue(row["owner"])
             self.assertTrue(row["apply"])
-            if row["status"] == "typed_persisted" and not row["key"].startswith("logging."):
+            if row["status"] == "typed_persisted":
                 self.assertTrue(row["consumer"], row["key"])
-            if row["key"].startswith("logging."):
-                self.assertIsNone(row["consumer"], row["key"])
 
 
 if __name__ == "__main__":
