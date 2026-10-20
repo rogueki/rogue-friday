@@ -3,6 +3,7 @@
 import type { HermesConfigPatch } from "@friday/sdk";
 import { useState } from "react";
 import { useHermesConfig, useHermesCronJobs, useHermesModelCatalog, usePatchHermesConfig, useProbeHermesMcp,
+  useTestHermesApproval,
   useManageHermesMcpOAuth, useHermesMcpOAuthFlow } from "@/lib/api/domains/settings";
 
 const LABELS: Record<string, string> = {
@@ -148,6 +149,8 @@ export function HermesConfigArea() {
   const cronJobs = useHermesCronJobs(observed.data?.data.installed === true);
   const patch = usePatchHermesConfig();
   const mcpProbe = useProbeHermesMcp();
+  const approvalTest = useTestHermesApproval();
+  const [approvalCommand, setApprovalCommand] = useState("");
   const mcpOAuth = useManageHermesMcpOAuth();
   const [oauthFlow, setOAuthFlow] = useState<{ flowId: string; revision: number; name: string } | null>(null);
   const oauthStatus = useHermesMcpOAuthFlow(oauthFlow?.flowId ?? null, oauthFlow?.revision ?? null);
@@ -382,6 +385,24 @@ export function HermesConfigArea() {
         );
       })}
       </section>)}
+      <section aria-label="Hermes-Befehlsfreigabe pruefen">
+        <h3>Befehlsfreigabe vorab pruefen</h3>
+        <p>Hermes prueft den Befehl mit den aktuellen lokalen Regeln. Die Vorschau fuehrt ihn nicht aus, stellt keine Freigabefrage und aendert keine Erlaubnis. Die Uebernahme in bereits laufende Sitzungen bleibt ungeprueft.</p>
+        <label htmlFor="hermes-approval-command">Befehl zur Vorschau</label>
+        <input id="hermes-approval-command" value={approvalCommand} maxLength={512}
+          disabled={approvalTest.isPending}
+          onChange={(event) => { setApprovalCommand(event.target.value); approvalTest.reset(); }} />
+        <button type="button" disabled={approvalTest.isPending || !approvalCommand.trim()}
+          onClick={() => approvalTest.mutate({ command: approvalCommand, revision })}>
+          Freigabeentscheidung pruefen
+        </button>
+        {approvalTest.data?.data.revision === revision ?
+          <p role="status">Ergebnis fuer {approvalTest.data.data.backend === "docker" ? "Docker" : "lokal"}: {
+            approvalTest.data.data.verdict === "allow" ? "waere erlaubt" :
+            approvalTest.data.data.verdict === "ask-approval" ? "wuerde Rueckfrage ausloesen" :
+            "waere gesperrt"}. {approvalTest.data.data.detail}</p> : null}
+        {approvalTest.isError ? <p role="alert">Vorschau fehlgeschlagen: {approvalTest.error.message}</p> : null}
+      </section>
       {data.write ? (
         <p role="status">
           {data.write.persisted ? "Gespeichert und rückgelesen" : "Rücklesung abweichend"}; laufender

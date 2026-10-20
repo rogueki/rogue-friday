@@ -334,6 +334,20 @@ it("allows explicit owner policy bypass values but still requires typed values a
     .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
 });
 
+it("previews a command through native approval test without a write receipt or command echo", async () => {
+  const invoke = vi.fn(async () => ({ revision: 123, backend: "local", verdict: "ask-approval",
+    rule: "synthetic pattern", detail: "would ask", })) as unknown as RunnerInvoker;
+  const service = fixture(invoke);
+  const result = await service.testApproval("rm -rf build", 123);
+  expect(result).toMatchObject({ verdict: "ask-approval", backend: "local", runtimeApplied: null });
+  expect(JSON.stringify(result)).not.toContain("rm -rf build");
+  expect(vi.mocked(invoke).mock.calls[0]?.[3]).toEqual(["approval-test"]);
+  expect(JSON.parse(String(vi.mocked(invoke).mock.calls[0]?.[4]))).toEqual({
+    command: "rm -rf build", revision: 123,
+  });
+  await expect(service.testApproval("bad\ncommand", 123)).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+});
+
 it("sends model credentials only through bridge stdin and reports set-state without echoing the secret", async () => {
   const invoke = vi.fn(async () => ({ ...bridge, revision: 124,
     write: { key: "OPENROUTER_API_KEY", persisted: true },

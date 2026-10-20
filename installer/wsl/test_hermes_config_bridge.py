@@ -123,6 +123,13 @@ class BridgeTest(unittest.TestCase):
                 raise AssertionError("token crossed from native profile to bridge")
             return subprocess.CompletedProcess(command, 0, json.dumps({"connected": True, "toolCount": 1,
                 "toolCountComplete": True, "failureClass": None}), "")
+        if command[0] == "approval-test-worker":
+            request = json.loads(_kwargs["input"])
+            return subprocess.CompletedProcess(command, 0, json.dumps({
+                "command": request["command"], "env_type": request["backend"],
+                "verdict": "ask-approval", "exit_code": 2, "rule": "synthetic risky pattern",
+                "detail": "would request approval", "normalized_variants": [request["command"]],
+            }), "")
         if command[0] == "credential-worker":
             request = json.loads(_kwargs["input"])
             env_path = self.home / ".hermes" / ".env"
@@ -159,9 +166,7 @@ class BridgeTest(unittest.TestCase):
         lifecycle = types.ModuleType("hermes_cli.credential_lifecycle")
         launchers = types.ModuleType("hermes_cli._launchers")
         launchers.runtime_command = lambda *args, **kwargs: [
-            "plugin-worker" if "hermes_plugin_activation.py" in kwargs.get("code", "") else
-            "mcp-worker" if "hermes_mcp_http_apply.py" in kwargs.get("code", "") else "credential-worker"]
-        launchers.runtime_command = lambda *args, **kwargs: [
+            "approval-test-worker" if "hermes_cli.approvals_test" in kwargs.get("code", "") else
             "plugin-worker" if "hermes_plugin_activation.py" in kwargs.get("code", "") else
             "mcp-worker" if "hermes_mcp_http_apply.py" in kwargs.get("code", "") else
             "mcp-auth-probe-worker" if "hermes_mcp_auth_probe.py" in kwargs.get("code", "") else
@@ -671,6 +676,17 @@ class BridgeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported_field"):
             self.invoke({"key": "approvals.unattended_mode", "value": "off",
                          "revision": bridge.revision(self.config)})
+
+    def test_approval_preview_returns_native_verdict_without_command_echo_or_write(self):
+        original = self.config.read_bytes()
+        code, result = self.invoke({"command": "rm -rf build", "revision": bridge.revision(self.config)},
+                                   action="approval-test")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["verdict"], "ask-approval")
+        self.assertEqual(result["backend"], "local")
+        self.assertNotIn("command", result)
+        self.assertEqual(self.config.read_bytes(), original)
+        self.assertEqual(self.calls[-1][0], "approval-test-worker")
 
     def test_owner_can_set_native_bypass_and_instruction_file_policy(self):
         for key, value in (("approvals.mode", "off"),

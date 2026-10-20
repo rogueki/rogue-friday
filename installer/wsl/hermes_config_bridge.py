@@ -353,7 +353,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "approval-test"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -377,6 +377,48 @@ def locked_main(home, source, cli):
     config_path = Path(call("path"))
     commit = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3)
     source_revision = commit.stdout.strip() if commit.returncode == 0 else None
+    if sys.argv[1] == "approval-test":
+        if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
+            raise ValueError("unsupported_source_revision")
+        request = json.load(sys.stdin)
+        if (not isinstance(request, dict) or set(request) != {"command", "revision"} or
+                type(request["command"]) is not str or not 1 <= len(request["command"]) <= 512 or
+                not request["command"].strip() or
+                any(ord(char) < 32 or ord(char) == 127 for char in request["command"]) or
+                type(request["revision"]) is not int):
+            raise ValueError("invalid_request")
+        before, raw = snapshot(config_path)
+        if before != request["revision"]:
+            print(json.dumps({"error": "revision_conflict"}))
+            return 4
+        backend = nested(raw, "terminal.backend") or "local"
+        if backend not in ("local", "docker"):
+            raise ValueError("unsupported_execution_backend")
+        sys.path.insert(0, str(source))
+        from hermes_cli._launchers import runtime_command
+        code = ("import json,sys; from hermes_cli.approvals_test import evaluate_command; "
+                "request=json.load(sys.stdin); print(json.dumps(evaluate_command(request['command'], request['backend'])))")
+        child = run_runtime_child(runtime_command(source, code=code),
+                                  json.dumps({"command": request["command"], "backend": backend}), 15)
+        try:
+            verdict = json.loads(child.stdout)
+        except (TypeError, ValueError):
+            verdict = None
+        allowed = {"allow": 0, "ask-approval": 2, "hardline-deny": 3, "user-deny": 3}
+        if (child.returncode or not isinstance(verdict, dict) or
+                verdict.get("env_type") != backend or verdict.get("command") != request["command"] or
+                verdict.get("verdict") not in allowed or
+                verdict.get("exit_code") != allowed[verdict["verdict"]] or
+                not (verdict.get("rule") is None or
+                     type(verdict["rule"]) is str and len(verdict["rule"]) <= 512) or
+                type(verdict.get("detail")) is not str or len(verdict["detail"]) > 1024):
+            raise ValueError("approval_test_unconfirmed")
+        if revision(config_path) != before:
+            print(json.dumps({"error": "revision_conflict"}))
+            return 4
+        print(json.dumps({"revision": before, "backend": backend, "verdict": verdict["verdict"],
+                          "rule": verdict["rule"], "detail": verdict["detail"]}))
+        return 0
     if sys.argv[1] in ("mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel"):
         if source_revision != "d923a5eb487a17c0a68801bba9ef0f56c81040a8":
             raise ValueError("unsupported_source_revision")

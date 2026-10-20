@@ -903,6 +903,8 @@ export interface FridayModelMap {
   HealthcheckResult: HealthcheckResult;
   HealthcheckResultResponse: HealthcheckResultResponse;
   HealthStatus: HealthStatus;
+  HermesApprovalTestRequest: HermesApprovalTestRequest;
+  HermesApprovalTestResponse: HermesApprovalTestResponse;
   HermesConfigPatch: HermesConfigPatch;
   HermesConfigStatus: HermesConfigStatus;
   HermesConfigStatusResponse: HermesConfigStatusResponse;
@@ -3369,6 +3371,22 @@ export interface HealthcheckResult {
 export interface HealthcheckResultResponse {
   contractVersion: ContractVersion;
   data: HealthcheckResult;
+  freshness: Freshness;
+}
+export interface HermesApprovalTestRequest {
+  command: string;
+}
+export interface HermesApprovalTestResponse {
+  contractVersion: ContractVersion;
+  data: {
+    revision: number;
+    checkedAt: string;
+    backend: "local" | "docker";
+    verdict: "allow" | "ask-approval" | "hardline-deny" | "user-deny";
+    rule: string | null;
+    detail: string;
+    runtimeApplied: null;
+  };
   freshness: Freshness;
 }
 export interface HermesConfigStatus {

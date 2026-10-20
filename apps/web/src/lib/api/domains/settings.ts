@@ -21,6 +21,7 @@ import type {
   HermesConfigStatusResponse,
   HermesModelCatalogResponse,
   HermesMcpProbeResponse,
+  HermesApprovalTestResponse,
   HermesMcpOAuthResponse,
   HermesCronJobsResponse,
 } from "@friday/sdk";
@@ -101,6 +102,18 @@ export function useProbeHermesMcp() {
       if (!("runtimeApplied" in response.data) || response.data.runtimeApplied !== null)
         throw new Error("Hermes-MCP-Probe ohne Laufzeitkennzeichnung.");
       return response as HermesMcpProbeResponse;
+    }),
+  });
+}
+export function useTestHermesApproval() {
+  return useApiMutation<HermesApprovalTestResponse, { command: string; revision: number } & IntentVars>({
+    label: "Hermes-Befehlsfreigabe pruefen",
+    mutationFn: ({ command, revision }) => call(getApiClient().POST("/api/v1/settings/hermes-config/approval-test", {
+      params: { header: { "If-Match": String(revision) } }, body: { command },
+    })).then((response) => {
+      if (!("runtimeApplied" in response.data) || response.data.runtimeApplied !== null)
+        throw new Error("Hermes-Freigabevorschau ohne Laufzeitkennzeichnung.");
+      return response as HermesApprovalTestResponse;
     }),
   });
 }

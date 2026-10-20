@@ -21,6 +21,7 @@ PINNED_FILES = {
     "tools/approval.py": "aaf3c2956a7f031e4f61ee58536bedfb2b50901d7158ff03560ee5977f4049e2",
     "tools/file_tools_write_guards.py": "315a33d6735c4d1f0b328bf57c5a8021b9592fa4aa00677ea69fbc6a69b71598",
     "tools/browser_tool_eval_policy.py": "d015e62ddc19350bce4823058c87a4928a66b276959725d9d05299d5abe6bbc1",
+    "hermes_cli/approvals_test.py": "7c73754300574a6ab363d8aeb1651adfc215b0df09267030bfc50aa214d13729",
 }
 for relative_path, expected_hash in PINNED_FILES.items():
     assert hashlib.sha256((source / relative_path).read_bytes()).hexdigest() == expected_hash, relative_path
@@ -53,6 +54,7 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
     from tools.approval_context import _get_single_query_approval_mode, _get_unattended_approval_mode
     from tools.approval import request_tool_approval
     from tools.file_tools_write_guards import _protected_instruction_config, _protected_instruction_reason
+    from hermes_cli.approvals_test import evaluate_command
 
     assert load_config_readonly()["code_execution"]["max_session_kernels"] == 2
     assert _lifecycle_limits() == (2, 600)
@@ -106,6 +108,10 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
     assert _protected_instruction_config()[0] is False
     assert _protected_instruction_reason("/tmp/AGENTS.md", enabled=True, extra_patterns=[]) is not None
     assert _protected_instruction_reason("/tmp/AGENTS.md", enabled=False, extra_patterns=[]) is None
+    preview = evaluate_command("echo synthetic-preview", "local")
+    assert preview["verdict"] == "allow" and preview["exit_code"] == 0
+    blocked = evaluate_command("rm -rf /", "local")
+    assert blocked["verdict"] == "hardline-deny" and blocked["exit_code"] == 3
     limits = load_config_readonly()["terminal"]
     docker = DockerEnvironment.__new__(DockerEnvironment)
     with patch("tools.environments.docker._cgroup_limits_available", return_value=True), \
@@ -125,4 +131,4 @@ with tempfile.TemporaryDirectory(prefix="friday-p7d-runtime-") as profile:
                                              False, "1g", [])
     assert "--cpus" not in unsupported and "--memory" not in unsupported and \
         "--storage-opt" not in unsupported, unsupported
-    print("pinned Hermes consumers: code kernels, browser guards, Computer Use capture, conditional Docker resource args, approval and write-guard dispatch = OK")
+    print("pinned Hermes consumers: code kernels, browser guards, Computer Use capture, conditional Docker resource args, approval preview and write-guard dispatch = OK")

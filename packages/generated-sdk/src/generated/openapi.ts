@@ -2764,6 +2764,23 @@ export interface paths {
         patch: operations["patchHermesConfig"];
         trace?: never;
     };
+    "/api/v1/settings/hermes-config/approval-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dry-run the pinned Hermes command approval verdict without executing a command */
+        post: operations["testHermesApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/hermes-config/mcp-oauth": {
         parameters: {
             query?: never;
@@ -6498,6 +6515,27 @@ export interface components {
          * @enum {string}
          */
         HealthStatus: "online" | "degraded" | "offline" | "unknown" | "paused";
+        /** HermesApprovalTestRequest */
+        HermesApprovalTestRequest: {
+            command: string;
+        };
+        /** HermesApprovalTestResponse */
+        HermesApprovalTestResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: {
+                /** @enum {unknown} */
+                backend: "local" | "docker";
+                /** Format: date-time */
+                checkedAt: string;
+                detail: string;
+                revision: number;
+                rule: string | null;
+                runtimeApplied: null;
+                /** @enum {unknown} */
+                verdict: "allow" | "ask-approval" | "hardline-deny" | "user-deny";
+            };
+            freshness: components["schemas"]["Freshness"];
+        };
         /** HermesConfigPatch */
         HermesConfigPatch: {
             /** @constant */
@@ -17012,6 +17050,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HermesConfigStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    testHermesApproval: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Resource version for optimistic concurrency; a mismatch yields 409 CONFLICT. Set by the SDK callers. */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description CSRF double-submit token from GET /auth/session. Added automatically by the SDK on mutating requests. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HermesApprovalTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Approval policy verdict, not execution or running-session adoption */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesApprovalTestResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];

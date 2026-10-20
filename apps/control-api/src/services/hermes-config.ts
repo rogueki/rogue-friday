@@ -578,6 +578,33 @@ export class HermesConfigService {
       failureClass: raw.failureClass, runtimeApplied: null };
   }
 
+  async testApproval(command: string, revision: number) {
+    if (typeof command !== "string" || !command.trim() || command.length > 512 ||
+        [...command].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127) ||
+        !Number.isSafeInteger(revision) || revision < 1)
+      throw validationFailed("Ungueltige Hermes-Freigabevorschau.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["approval-test"],
+        JSON.stringify({ command, revision }), 30000, 4096);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("revision_conflict"))
+        throw conflict("Hermes-Konfiguration wurde waehrend der Vorschau geaendert.");
+      if (error instanceof Error && error.message.includes("unsupported_execution_backend"))
+        throw validationFailed("Hermes-Freigabevorschau ist nur fuer lokale oder Docker-Terminals verfuegbar.");
+      throw unavailable();
+    }
+    const verdicts = ["allow", "ask-approval", "hardline-deny", "user-deny"];
+    if (raw.revision !== revision || (raw.backend !== "local" && raw.backend !== "docker") ||
+        !verdicts.includes(String(raw.verdict)) ||
+        !(raw.rule === null || typeof raw.rule === "string" && raw.rule.length <= 512) ||
+        typeof raw.detail !== "string" || raw.detail.length > 1024)
+      throw unavailable();
+    return { revision, checkedAt: new Date().toISOString(), backend: raw.backend,
+      verdict: raw.verdict, rule: raw.rule, detail: raw.detail, runtimeApplied: null };
+  }
+
   async manageMcpOAuth(body: { action: "start"; name: string } | { action: "status" | "cancel"; flowId: string }, revision: number,
     ownerId: string) {
     if (!Number.isSafeInteger(revision) || revision < 1 ||

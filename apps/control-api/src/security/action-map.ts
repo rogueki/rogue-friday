@@ -71,6 +71,7 @@ export const ACTION_BY_OPERATION: Partial<Record<OperationId, Action>> = {
   updateSettings: "settings.update",
   patchHermesConfig: "settings.update",
   probeHermesMcp: "settings.update",
+  testHermesApproval: "settings.update",
   getContentStudioKeys: "settings.update",
   updateContentStudioKey: "settings.update",
   getObsidianVault: "settings.update",

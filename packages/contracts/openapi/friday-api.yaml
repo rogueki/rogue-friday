@@ -6788,6 +6788,39 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/hermes-config/approval-test:
+    post:
+      operationId: testHermesApproval
+      tags: [settings]
+      summary: Dry-run the pinned Hermes command approval verdict without executing a command
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HermesApprovalTestRequest"
+      responses:
+        "200":
+          description: Approval policy verdict, not execution or running-session adoption
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesApprovalTestResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/hermes-config/mcp-oauth:
     post:
       operationId: manageHermesMcpOAuth
@@ -9611,6 +9644,10 @@ components:
       $ref: ../schemas/integrations/hermes-mcp-probe-request.schema.json
     HermesMcpProbeResponse:
       $ref: ../schemas/integrations/hermes-mcp-probe-response.schema.json
+    HermesApprovalTestRequest:
+      $ref: ../schemas/integrations/hermes-approval-test-request.schema.json
+    HermesApprovalTestResponse:
+      $ref: ../schemas/integrations/hermes-approval-test-response.schema.json
     HermesMcpOAuthRequest:
       $ref: ../schemas/integrations/hermes-mcp-oauth-request.schema.json
     HermesMcpOAuthResponse:
