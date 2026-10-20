@@ -12,10 +12,28 @@ Evidenzlage heute: alle Fixture- und CI-Prüfungen sind grün, der physische Fri
 
 - Windows 11 (23H2+), WSL2 aktiv (`wsl --status`), mindestens 40 GB frei, Internetzugang.
 - Installationsquelle: der gemergte `main`-Stand (Commit-SHA im Protokoll festhalten), nicht der lokale Arbeitsbaum.
-- Sauberer Ausgangszustand, sonst vorher zurückbauen (ANLEITUNG, Abschnitt *Deinstallation*):
-  1. `FRIDAY_Watchdog` zuerst löschen, dann `FRIDAY_Voice`, ggf. `FRIDAY_Qwen`, `FRIDAY_WSL_Keepalive`, `FRIDAY_Dashboard`.
-  2. `wsl --unregister <Distro>` (löscht Hermes mit).
-  3. `C:\Friday` löschen; eine übernommene Altinstallation (`C:\Jarvis`) gleichermaßen.
+- Alle Werte unten sind Parameter, keine Konstanten. Auf dem Operator-Host gilt:
+
+  | Parameter | Wert auf diesem Host | Herkunft |
+  |---|---|---|
+  | `-InstallRoot` | `D:\Kali\Friday` | `config\install-state.json` |
+  | `-DistroName` | `Friday-Ubuntu` | `distro_name` |
+  | `-DistroLocation` | `D:\Kali\wsl-friday` | `distro_location` |
+  | Command Center | `http://127.0.0.1:3101` | `ports.CommandCenter` |
+  | Hermes Dashboard / API / Qwen / Voice | `43791` / `43793` / `43792` / `43794` | `ports` |
+
+  Der Installer-Default ist `C:\Friday` mit den Ports 3100 und 43691–43694; ein abweichender Wurzelpfad
+  verlangt `-DistroName` **und** `-DistroLocation`.
+- Sauberer Ausgangszustand, sonst vorher zurückbauen:
+  1. Geplante Aufgaben löschen — auf diesem Host registriert: `FRIDAY_Dashboard`, `FRIDAY_Voice`,
+     `FRIDAY_WSL_Keepalive` (kein `FRIDAY_Watchdog`-Task, obwohl `INSTALL_STATE.md` ihn nennt; der Befund
+     gehört ins Protokoll). Reihenfolge: Watchdog zuerst (falls vorhanden), dann Voice, Keepalive, Dashboard.
+  2. `wsl --unregister Friday-Ubuntu` (löscht Hermes mit) und danach `D:\Kali\wsl-friday` prüfen — der
+     Distro-Ordner muss weg sein.
+  3. `D:\Kali\Friday` löschen; eine übernommene Altinstallation (`C:\Friday`, `C:\Jarvis`) gleichermaßen.
+- Hinweis: `install-state.json` führt `dashboard_source` als lokalen Arbeitsbaum
+  (`…\rogue-friday-clean`). Für den Drill muss die Quelle der gemergte `main`-Stand sein — sonst prüft der
+  Lauf den falschen Code.
 - Altdaten gesichert: Backup mit `verified: true` und `wslIncluded: true`, Vault separat kopiert.
 - Vorher festgelegt (sonst entscheidet der Drill willkürlich): Lokalbetrieb (llama.cpp + Qwen) oder Cloud,
   Windows-Konto für den Owner, Obsidian-Vault-Pfad, Hermes-Modellroute und ob ein echter Modellschlüssel
@@ -26,32 +44,38 @@ Evidenzlage heute: alle Fixture- und CI-Prüfungen sind grün, der physische Fri
 Interaktiv: `install-friday.bat` bzw. `install-friday-gui.bat`. Unbeaufsichtigt:
 
 ```powershell
-.\install-friday.ps1 -InstallRoot 'C:\Friday' -DistroName 'Ubuntu' -DistroLocation 'C:\Friday\wsl'
+.\install-friday.ps1 -InstallRoot 'D:\Kali\Friday' -DistroName 'Friday-Ubuntu' -DistroLocation 'D:\Kali\wsl-friday'
 ```
 
 Abnahme:
 
-- Skript endet mit Erfolg, keine Phase in `C:\Friday\config\install-state.json` steht auf `failed`.
-- `C:\Friday` enthält `dashboard`, `installer`, `config`; die WSL-Distribution ist registriert (`wsl -l -v`).
-- Logs eingesammelt: `%LOCALAPPDATA%\FridayInstaller\*.log` und `C:\Friday\logs\*`.
+- Skript endet mit Erfolg, keine Phase in `<InstallRoot>\config\install-state.json` steht auf `failed`.
+- `<InstallRoot>` enthält `dashboard`, `installer`, `config`; die WSL-Distribution ist registriert (`wsl -l -v`)
+  und ihr `BasePath` zeigt auf `-DistroLocation`.
+- Logs eingesammelt: `%LOCALAPPDATA%\FridayInstaller\*.log` und `<InstallRoot>\logs\*`.
 
 Typische Fehler: Neustart zwischen Phasen nötig → `install-friday.bat -Resume`; blockierte Downloads;
-WSL-Distro mit gleichem Namen existiert noch.
+WSL-Distro mit gleichem Namen existiert noch; abweichender `-InstallRoot` ohne `-DistroName`/`-DistroLocation`
+bricht sofort ab.
 
 ## 2. Dienste und Ports
 
+Die FRIDAY-Komponenten laufen als **geplante Aufgaben** (Windows) plus **systemd** in der Distro — nicht als
+Windows-Dienste (`Get-Service 'FRIDAY*'` bleibt leer).
+
 ```powershell
-Get-ScheduledTask -TaskName 'FRIDAY_*' | Select-Object TaskName, State
-Get-NetTCPConnection -State Listen -LocalPort 3100, 43691, 43692, 43693, 43694
-Invoke-RestMethod http://127.0.0.1:3100/api/v1/health
+Get-ScheduledTask | Where-Object { $_.TaskName -like 'FRIDAY*' } | Select-Object TaskName, State
+Get-NetTCPConnection -State Listen -LocalPort 3101, 43791, 43792, 43793, 43794
+Invoke-RestMethod http://127.0.0.1:3101/api/v1/health
 ```
 
-Abnahme: alle erwarteten Aufgaben vorhanden, Health antwortet mit `status` und Komponenten, alle Ports
-**nur** auf `127.0.0.1`. Kein Dienst in einer Neustartschleife (`Get-WinEvent -LogName Application`).
+Abnahme: alle erwarteten Aufgaben vorhanden und `Ready`/`Running`, Health antwortet mit `status` und
+Komponenten, alle Ports **nur** auf `127.0.0.1`. Kein Dienst in einer Neustartschleife
+(`Get-WinEvent -LogName Application`).
 
 ## 3. Dashboard, Login und Owner-Setup
 
-Aufruf `http://127.0.0.1:3100`, Owner anlegen, Consent bestätigen, keine Fremddaten eintragen.
+Aufruf `http://127.0.0.1:3101`, Owner anlegen, Consent bestätigen, keine Fremddaten eintragen.
 
 Abnahme: Session besteht, `Einstellungen` zeigen eine Version, der erste Audit-Eintrag existiert,
 Abmelden/Anmelden funktioniert, ein zweiter Browser ohne Session wird abgewiesen.
