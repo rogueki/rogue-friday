@@ -440,3 +440,14 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   (OAuth-Anbieter sichtbar gesperrt statt halb eingerichtet).
 - **Offen**: echte Anmeldung/Modellaufruf je Anbieter, OAuth-Erfolg/Ablehnung/Timeout, Key-Ablage fuer
   `kimi-coding`/`custom` im Credential-Pool statt `.env`; N-008 (403) unveraendert.
+
+## 2026-10-22 INS-04 (Teil) Drei Stimmen und geprueftes Referenzaudio
+
+- **N-011 behoben**: der Assistent kannte zwei Stimmen, der Installer drei — die eigene MP3/WAV war ueber die
+  Oberflaeche unerreichbar. Jetzt drei Optionen im GUI mit Pflichtfeldpruefung, und `Test-VoiceReferenceFile`
+  prueft im Backend den Dateiinhalt (RIFF/WAVE-Kopf bzw. MP3-Sync, Dauer 1–120 s, Endung) in beiden Zweigen.
+- **Nachweis**: `voice-reference.Tests.ps1` mit echten Dateien (gueltig, leer, beschaedigt, zu kurz, fremde Endung,
+  fehlend) gruen; GUI- und I/O-Vertragstests unveraendert gruen. Referenzaudio der laufenden Installation
+  ausgemessen: 9,25 s / 9,56 s bei 24 kHz, Peak 9340 / 22656.
+- **Offen**: Hoerprobe am Ausgabegeraet (TTS-Dienst laeuft auf Windows, Anfrageformat undokumentiert), Kopplung
+  Persona/Wake beim Stimmenwechsel, echter ElevenLabs-Aufruf.

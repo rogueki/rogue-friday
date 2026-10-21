@@ -1,4 +1,4 @@
-# Safe GUI/backend protocol test. No installation, restart, downloads, or API calls.
+﻿# Safe GUI/backend protocol test. No installation, restart, downloads, or API calls.
 $gui = Join-Path $PSScriptRoot '..\install-friday-gui.ps1'
 $backend = Join-Path $PSScriptRoot '..\install-friday.ps1'
 foreach ($file in @($gui, $backend)) {

@@ -231,6 +231,44 @@ function Find-VoiceReference([string]$Choice, [string]$SavedReference, [string]$
     return ''
 }
 
+# Eine Referenzdatei ist nur brauchbar, wenn sie wirklich Audio enthaelt. Piper/Qwen scheitern
+# sonst erst mitten in der Einrichtung, nachdem der halbe Klon gebaut wurde.
+function Test-VoiceReferenceFile([string]$Path) {
+    if (-not $Path) { return @{ Ok = $false; Reason = 'kein Pfad' } }
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return @{ Ok = $false; Reason = 'Datei nicht gefunden' }
+    }
+    $extension = [IO.Path]::GetExtension($Path).ToLowerInvariant()
+    if ($extension -notin @('.wav', '.mp3')) { return @{ Ok = $false; Reason = 'nur WAV oder MP3' } }
+    $length = (Get-Item -LiteralPath $Path).Length
+    if ($length -lt 1024) { return @{ Ok = $false; Reason = 'Datei ist leer oder zu kurz' } }
+    $head = New-Object byte[] 64
+    $read = 0
+    $stream = [IO.File]::OpenRead($Path)
+    try { $read = $stream.Read($head, 0, $head.Length) } finally { $stream.Dispose() }
+    if ($extension -eq '.wav') {
+        if ($read -lt 44 -or [Text.Encoding]::ASCII.GetString($head, 0, 4) -ne 'RIFF' -or
+            [Text.Encoding]::ASCII.GetString($head, 8, 4) -ne 'WAVE') {
+            return @{ Ok = $false; Reason = 'WAV-Kopf ist beschaedigt' }
+        }
+        $channels = [BitConverter]::ToUInt16($head, 22)
+        $rate = [BitConverter]::ToUInt32($head, 24)
+        $bits = [BitConverter]::ToUInt16($head, 34)
+        if ($channels -lt 1 -or $rate -lt 8000 -or $bits -lt 8) {
+            return @{ Ok = $false; Reason = 'WAV-Format ist ungueltig' }
+        }
+        $seconds = ($length - 44) / ($rate * $channels * ($bits / 8))
+        if ($seconds -lt 1) { return @{ Ok = $false; Reason = 'Audio ist kuerzer als eine Sekunde' } }
+        if ($seconds -gt 120) { return @{ Ok = $false; Reason = 'Audio ist laenger als zwei Minuten' } }
+        return @{ Ok = $true; Reason = '' }
+    }
+    $sync = ($head[0] -eq 0xFF) -and (($head[1] -band 0xE0) -eq 0xE0)
+    if ([Text.Encoding]::ASCII.GetString($head, 0, 3) -ne 'ID3' -and -not $sync) {
+        return @{ Ok = $false; Reason = 'MP3-Kopf ist beschaedigt' }
+    }
+    return @{ Ok = $true; Reason = '' }
+}
+
 # ---------------------------------------------------------------- Helfer
 function Native([scriptblock]$cmd) { & $cmd 2>&1 | ForEach-Object { "$_" } }
 function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '') {
@@ -1155,13 +1193,17 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
             $prompt = '  Pfad zur eigenen MP3/WAV (3 bis 30 Sekunden, Pflichtfeld)'
             $reference = $(if ($GuiMode) { Gui-Answer 'voiceReference' } else { Read-Host $prompt }).Trim().Trim('"')
             if (-not $reference) { Stop-Install "Für 'Eigene MP3/WAV' wird eine Stimmdatei benötigt. Installation erneut starten und den Pfad angeben." }
-            if (-not (Test-Path -LiteralPath $reference -PathType Leaf)) { Stop-Install "Stimmdatei nicht gefunden: $reference" }
+            $voiceFile = Test-VoiceReferenceFile $reference
+            if (-not $voiceFile.Ok) { Stop-Install "Stimmdatei ist nicht verwendbar: $reference ($($voiceFile.Reason))" }
         } else {
             $defaultReference = Find-VoiceReference $newChoice $choiceReference $Root $PSScriptRoot
             if ($defaultReference) { Info "Stimmreferenz wird automatisch verwendet: $defaultReference" }
             $reference = $(if ($GuiMode) { Gui-Answer 'voiceReference' } else { Read-Host '  Andere MP3/WAV-Stimmreferenz (leer = angezeigte Stimme oder Piper-Basisstimme)' }).Trim().Trim('"')
             if (-not $reference) { $reference = $defaultReference }
-            if ($reference -and -not (Test-Path -LiteralPath $reference -PathType Leaf)) { Stop-Install "Stimmreferenz nicht gefunden: $reference" }
+            if ($reference) {
+                $voiceFile = Test-VoiceReferenceFile $reference
+                if (-not $voiceFile.Ok) { Stop-Install "Stimmreferenz ist nicht verwendbar: $reference ($($voiceFile.Reason))" }
+            }
             if (-not $reference) { Warn 'Ohne Referenz wird die passende Piper-Basisstimme installiert. Du kannst später mit change-voice.bat eine eigene Referenz wählen.' }
         }
     }

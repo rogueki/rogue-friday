@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $updaterText = Get-Content -LiteralPath (Join-Path $repo 'installer\scripts\update-dashboard-github.ps1') -Raw
 $helperText = Get-Content -LiteralPath (Join-Path $repo 'installer\scripts\update-memory-bridge.ps1') -Raw

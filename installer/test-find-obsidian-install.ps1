@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'find-obsidian-install.ps1')
 . (Join-Path $PSScriptRoot 'ensure-obsidian-vault.ps1')
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('friday-obsidian-resolver-' + [guid]::NewGuid().ToString('N'))

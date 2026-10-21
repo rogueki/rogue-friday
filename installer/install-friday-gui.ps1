@@ -123,8 +123,15 @@ function Test-Wizard {
         $existingCloudKey = Test-Path -LiteralPath (Join-Path $root 'config\elevenlabs_api.key.dpapi') -PathType Leaf
         if (-not $existingCloudKey) { throw 'ElevenLabs-API-Schlüssel fehlt.' }
     }
+    $ownVoice = $script:fields['voiceChoice'].SelectedIndex -eq 2 -and $script:fields['voiceMode'].SelectedIndex -eq 0
+    if ($ownVoice -and (Value 'voiceReference') -eq '') { throw 'Für die eigene Stimme wird eine MP3- oder WAV-Datei benötigt.' }
     if ((Value 'voiceReference') -and -not ($state -and $state.voice_mode) -and
         -not (Test-Path -LiteralPath (Value 'voiceReference') -PathType Leaf)) { throw 'Die gewählte Stimmreferenz wurde nicht gefunden.' }
+    if ((Value 'voiceReference') -and (Test-Path -LiteralPath (Value 'voiceReference') -PathType Leaf)) {
+        $referenceFile = Get-Item -LiteralPath (Value 'voiceReference')
+        if ($referenceFile.Extension.ToLowerInvariant() -notin @('.wav', '.mp3')) { throw 'Die Stimmreferenz muss eine WAV- oder MP3-Datei sein.' }
+        if ($referenceFile.Length -lt 1024) { throw 'Die Stimmreferenz ist leer oder beschädigt.' }
+    }
     if ($state -and @($state.done) -contains 'voicepython' -and
         ($script:fields.inputDevice.SelectedIndex -gt 0 -or $script:fields.outputDevice.SelectedIndex -gt 0)) {
         throw 'Die Gerätewahl gilt bei neuer Spracheinrichtung.'
@@ -215,7 +222,7 @@ $script:fields.installRoot.Add_Leave({ Update-PathFields; Load-RootState; $refre
 $voice = $tabs.TabPages[2]
 [void](Add-Text $voice 'Wähle die Sprachverarbeitung und die Stimme. Lokale Stimmen bleiben auf deinem PC; ElevenLabs benötigt Internet und einen geeigneten API-Tarif.' 25 65)
 [void](Add-Choice $voice 'voiceMode' 'Sprachbetrieb' 102 @('Lokal (NVIDIA 6 GB VRAM)', 'ElevenLabs Cloud'))
-[void](Add-Choice $voice 'voiceChoice' 'Lokale Ausgabestimme' 147 @('F.R.I.D.A.Y. weiblich', 'J.A.R.V.I.S. klassisch (beiliegende WAV)'))
+[void](Add-Choice $voice 'voiceChoice' 'Lokale Ausgabestimme' 147 @('F.R.I.D.A.Y. weiblich', 'J.A.R.V.I.S. klassisch (beiliegende WAV)', 'Eigene MP3/WAV (3–30 s)'))
 [void](Add-Row $voice 'voiceReference' 'Eigene MP3/WAV (optional)' 193)
 $browse = New-Object Windows.Forms.Button; $browse.Text = 'Datei wählen'; $browse.Location = New-Object Drawing.Point(340, 235)
 $browse.Size = New-Object Drawing.Size(120, 31)

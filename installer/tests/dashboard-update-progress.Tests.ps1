@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $scriptFile = Join-Path $PSScriptRoot '..\scripts\update-dashboard-github.ps1'
 $tokens = $null
 $errors = $null

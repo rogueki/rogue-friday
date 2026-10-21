@@ -1,4 +1,4 @@
-# Static contract test for the installer I/O layer. Parses only; no installation, no processes.
+﻿# Static contract test for the installer I/O layer. Parses only; no installation, no processes.
 # Proves: every answer/secret the backend asks for exists in the GUI transport, and no prompt can block a GUI run.
 $ErrorActionPreference = 'Stop'
 $backendPath = Join-Path $PSScriptRoot '..\install-friday.ps1'

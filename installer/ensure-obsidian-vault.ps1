@@ -1,4 +1,4 @@
-function Ensure-FridayObsidianVault {
+﻿function Ensure-FridayObsidianVault {
     param([Parameter(Mandatory)][string]$Path)
     $vault = [IO.Path]::GetFullPath($Path)
     if ($vault -notmatch '^[A-Za-z]:\\[^<>:"|?*]+$') { throw 'Vault muss ein lokaler absoluter Pfad sein.' }

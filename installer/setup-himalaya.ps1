@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 param(
     [ValidateSet('status', 'install')][string]$Action = 'status',
     [string]$InstallRoot = 'C:\Friday'

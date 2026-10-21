@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 param(
     [ValidateSet('status', 'set', 'ensure')][string]$Action = 'status',
     [string]$VaultPath,
