@@ -48,9 +48,17 @@ if ($GuiMode) {
                       'repeatEnrollment','retryEnrollment','openBrowser','useExistingKimi','restartNow')) {
         if (-not $GuiConfig.answers.PSObject.Properties[$key]) { throw "GUI-Antwort fehlt: $key" }
     }
-    foreach ($key in @('voiceMode','voiceChoice','length')) {
+    foreach ($key in @('voiceMode','length')) {
         if ([string]$GuiConfig.answers.$key -notin @('1','2')) { throw "Ungültige GUI-Auswahl: $key" }
     }
+    # Drei Stimmen: die dritte ist die eigene MP3/WAV. Ob die Datei vorliegt, prueft der
+    # Stimmschritt selbst - hier waere die Pruefung falsch, weil ein fortgesetzter Lauf die
+    # Referenz bereits im Zustand hat und das Feld dann leer bleiben darf.
+    if ([string]$GuiConfig.answers.voiceChoice -notin @('1','2','3')) { throw 'Ungültige GUI-Auswahl: voiceChoice' }
+    if ([string]$GuiConfig.answers.modelName -and ([string]$GuiConfig.answers.modelName).Length -gt 200) {
+        throw 'Ungültiger Modellname.'
+    }
+    if ($env:FRIDAY_INSTALL_RUN) { Write-Host "[GUI] Lauf $($env:FRIDAY_INSTALL_RUN)" }
     foreach ($key in @('address','character')) {
         if ([string]$GuiConfig.answers.$key -notin @('1','2','3')) { throw "Ungültige GUI-Auswahl: $key" }
     }

@@ -451,3 +451,14 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   ausgemessen: 9,25 s / 9,56 s bei 24 kHz, Peak 9340 / 22656.
 - **Offen**: Hoerprobe am Ausgabegeraet (TTS-Dienst laeuft auf Windows, Anfrageformat undokumentiert), Kopplung
   Persona/Wake beim Stimmenwechsel, echter ElevenLabs-Aufruf.
+
+## 2026-10-22 INS-05 (Teil) Laufkennung, Stillstandsmeldung und Transportfix
+
+- **N-012 behoben**: das Backend lehnte `voiceChoice=3` ab, obwohl die Oberflaeche die eigene MP3/WAV anbietet —
+  die dritte Stimme war ueber den echten Transport unbenutzbar. Jetzt `1,2,3` (Transporttest: 3 angenommen, 4
+  abgelehnt).
+- **Laufkennung**: jeder Start erzeugt eine 12-stellige Kennung, gibt sie als `FRIDAY_INSTALL_RUN` an den
+  Kindprozess und schreibt sie ins Protokoll; das Backend meldet `[GUI] Lauf <id>`.
+- **Stillstandsmeldung**: nach 15 Minuten ohne Ausgabe ein einmaliger Hinweis, bewusst ohne Abbruch.
+- **Nachweis**: `gui-run-tracker.Tests.ps1` gruen; GUI-, I/O-Vertrags- und Stimmtests ebenfalls gruen.
+- **Offen**: strukturierte Ereignisse (Protokoll 2) und harte Zeitlimits je Schritt.

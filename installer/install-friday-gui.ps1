@@ -476,8 +476,21 @@ $script:stderrTask = $null
 $script:guiExitCode = 0
 $script:redactions = @()
 $script:configPath = $null
+$script:runId = ''
+$script:lastOutputAt = $null
+$script:stalledReported = $false
+# Jede Installation bekommt eine eigene Kennung. Ohne sie laesst sich ein Protokoll nach einer
+# Wiederholung nicht eindeutig einem Lauf zuordnen.
+function New-RunId { return ([guid]::NewGuid().ToString('N').Substring(0, 12)) }
+# Ein Lauf ohne Ausgabe ist nicht dasselbe wie ein haengender Lauf: der Assistent meldet die Stille,
+# beendet aber nichts, weil ein Abbruch mitten in der Einrichtung mehr zerstoert als rettet.
+function Test-RunStalled([object]$LastOutput, [object]$Now, [int]$Minutes = 15) {
+    if (-not $LastOutput -or -not $Now) { return $false }
+    return ($Now - $LastOutput).TotalMinutes -ge $Minutes
+}
 $timer = New-Object Windows.Forms.Timer; $timer.Interval = 150
 function Append-Log([string]$line) {
+    $script:lastOutputAt = Get-Date
     foreach ($secret in $script:redactions) {
         if ($secret) { $line = $line.Replace($secret, '[verdeckt]') }
     }
@@ -532,7 +545,12 @@ function Start-Backend {
         if ($Simulation) { $psi.Arguments += ' -GuiSimulation'; $psi.EnvironmentVariables['FRIDAY_GUI_TEST'] = '1' }
         $script:process = New-Object Diagnostics.Process
         $script:process.StartInfo = $psi
+        $script:runId = New-RunId
+        $psi.EnvironmentVariables['FRIDAY_INSTALL_RUN'] = $script:runId
         if (-not $script:process.Start()) { throw 'Installationsprozess konnte nicht gestartet werden.' }
+        Append-Log "Lauf $($script:runId) gestartet."
+        $script:lastOutputAt = Get-Date
+        $script:stalledReported = $false
         $script:stdoutTask = $script:process.StandardOutput.ReadLineAsync()
         $script:stderrTask = $script:process.StandardError.ReadLineAsync()
         $script:fields.linuxPassword.Clear(); $script:fields.linuxPasswordRepeat.Clear()
@@ -564,6 +582,11 @@ $timer.Add_Tick({
             $task = $reader.ReadLineAsync(); $read++
         }
         Set-Variable -Name $taskName -Scope Script -Value $task
+    }
+    if ($script:process -and -not $script:process.HasExited -and -not $script:stalledReported -and
+        (Test-RunStalled $script:lastOutputAt (Get-Date))) {
+        $script:stalledReported = $true
+        Append-Log "[HINWEIS] Seit 15 Minuten keine Ausgabe aus der Installation. Der Lauf arbeitet weiter; bitte Protokoll und Status prüfen, bevor du abbrichst."
     }
     if ($script:process -and $script:process.HasExited) {
         $timer.Stop()
