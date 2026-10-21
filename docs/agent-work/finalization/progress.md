@@ -13,7 +13,8 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | BASE-04 Abnahmeumgebung | PASS (Umgebung) | `acceptance-environment.md`, 35/35 hashgleich |
 | DASH-01.01–.05 Istbestand einfrieren | PASS | `inventory.md`, `installer-inventory.csv` |
 | INS-01 Bestands- und Fehler-ID-Matrix | PASS | `issue-ledger.csv` |
-| DASH-03 Produktionspfad ohne Simulation | 03.01/03.03 PASS; 03.02/03.04/03.05 open | `dash-03-production-path.md` |
+| DASH-03 Produktionspfad ohne Simulation | PASS | `dash-03-production-path.md`, `live-empty-sources.test.ts`, Rollback-Drill |
+| DASH-04 Einstellungen ehrlich | 04.01-04.03 in Arbeit, Browser-Abnahme offen | `dash-04-settings.md`, 87 Settings-Tests |
 | all other INS/DASH/KEEP/REL | OPEN | owner rows in `requirements.csv` |
 
 ## Task records (format from master §3.3)

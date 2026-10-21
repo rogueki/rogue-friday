@@ -335,3 +335,25 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   Session verursacht, im Issue-Ledger erfasst.
 - **Nächste Schritte in Reihenfolge:** DASH-03.04/03.05 abschließen, dann DASH-04 (Einstellungen zeigen
   echte Adapteridentität und „nicht eingerichtet“ statt Simulation), DASH-07, INS-02.
+
+## 2026-10-22 DASH-03 abgeschlossen, DASH-04 begonnen
+
+- **DASH-03 jetzt PASS** (`dash-03-production-path.md`): `live-empty-sources.test.ts` belegt die frische Runtime im
+  Live-Betrieb mit leeren Quellen (nur `tasks`, toter Upstream) — keine `mock-*`-Komponente, `/tasks` liefert Fehler
+  oder 0 Einträge, `memory`/`automations`/`communication/channels`/`agents` ≥ 400, `/skills` leer, Neustart erzeugt
+  keine Demo-Automation. `scripts/finalization/rollback-drill.ps1` spielt den BASE-04-Snapshot in
+  `D:\Dokumente\F.R.I.D.A.Y-acceptance\rollback-drill-20261021-233904` zurück: unverändert hybrid → 19 Komponenten,
+  15 simulierte Adapter online; mit `Set-ProductionDataMode` → `live`, 4 Komponenten, 0 Adapter, Health online.
+  `dataMode: turbo` bricht den Start mit Exit 2 und klarer Meldung ab. Physischer Installer-Lauf bleibt INS-13.
+- **Snapshot erweitert**: `prepare-acceptance-env.ps1` sichert jetzt auch `dashboard\config` (56 Dateien, 48 kopiert,
+  0 Abweichungen, 3× SQLite `ok`) — ohne diese Dateien wäre ein Rollback der Dashboard-Konfiguration unmöglich.
+- **DASH-04 begonnen** (`dash-04-settings.md`): Die Einstellungsseite existierte bereits vollständig (Master-Detail,
+  Deep Links `?area`/`?adapter`, Schemaformular, Draft-Provider, 409-Konflikte, Read-only-Rolle, 87 Tests). Drei echte
+  Mängel behoben: „Kalenderansicht verwendet Simulation“ stand auch im Live-Betrieb; Kategorien ohne Adapter waren
+  unsichtbar (jetzt „Nicht eingerichtete Bereiche“ aus dem Vertrags-Enum); Bereichs-/Adapterwechsel verwarf Entwürfe
+  stillschweigend (jetzt `alertdialog` mit Behalten/Verwerfen/Escape). 5 neue Tests, Settings-Suite 87 grün,
+  `pnpm typecheck` und `pnpm lint` grün.
+- **Offen in DASH-04**: Browser-Abnahme 390/1024/1920 px + Tastatur über `tests/e2e/settings.spec.ts` (braucht
+  `pnpm build:app`), 04.05 Fehlkonfigurations-Isolation, Suche nach Quelle/Status im Skillkonto erst nach DASH-07-Inventar.
+- **Nächster Schritt:** e2e-Abnahme DASH-04.04, dann DASH-07.01/.02 (Hermes-Inventar) — INS-02 und der lesende
+  Studiovergleich (`../rogue-friday-content-studio`, `fd79ee2`) laufen parallel.
