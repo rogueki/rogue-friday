@@ -377,3 +377,18 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
 - **Weiter offen in DASH-04**: zwei Skills im e2e-Stack (kein Skills-Katalog, Hermes in WSL nicht erreichbar),
   Suche nach Quelle/Status (braucht DASH-07-Inventar), 04.05 Isolations-/Recovery-Drill.
 - **Naechster Schritt:** DASH-07.01/.02 (Hermes-Inventar), dann INS-02 ff. nach Masterplan 8.1.
+
+## 2026-10-22 DASH-02 Vertrags- und Durchsetzungsguard
+
+- **Neuer Guard** `apps/control-api/test/authorization-contract.test.ts` (4 Tests, gruen): parst den OpenAPI-Vertrag,
+  prueft bekannte Rolle je Operation, Capability fuer jede schreibende Operation (ausser owner-only und
+  Auth-/Telemetrie-/Dev-Routen) und vergleicht alle 271 Operationen mit der generierten Route-Tabelle
+  (Methode, Pfad, Rolle, Capability) — 0 Abweichungen. Damit ist die Rollen-/Capability-Durchsetzung bei jedem
+  Testlauf erzwungen statt nur dokumentiert.
+- **Vertragsumfang**: 271 Operationen (151 schreibend), Rollen 163 owner / 62 viewer / 44 operator / 2 none,
+  236 mit Capability. Details in `docs/agent-work/finalization/dash-02-contracts.md`.
+- **Ergebnis-Matrix** (Erfolg, Konflikt, 403/Capability, Timeout, unbekannter Ausgang, idempotente Wiederholung
+  inkl. Neustart) auf bestehende Tests abgebildet und frisch ausgefuehrt: 176 Tests in 10 Dateien gruen;
+  `pnpm contracts:check`, `pnpm typecheck` exit 0, `pnpm lint` 0 Fehler.
+- **Weiter offen**: 02.03 Sprach-/UI-Paritaet mit Rueckleseprobe je Feld (KEEP-04), 02.04 Migrationsdrill mit
+  Konten/Entwuerfen/Enrollment, 02.05 kontrolliertes Lesen der alten Vertragsversion.

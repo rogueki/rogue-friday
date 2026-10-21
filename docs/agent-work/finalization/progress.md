@@ -14,6 +14,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | DASH-01.01–.05 Istbestand einfrieren | PASS | `inventory.md`, `installer-inventory.csv` |
 | INS-01 Bestands- und Fehler-ID-Matrix | PASS | `issue-ledger.csv` |
 | DASH-03 Produktionspfad ohne Simulation | PASS | `dash-03-production-path.md`, `live-empty-sources.test.ts`, Rollback-Drill |
+| DASH-02 Vertraege | 02.01/02.02 PASS, 02.03/02.05 offen, 02.04 teilweise | `dash-02-contracts.md`, `authorization-contract.test.ts` (4 gruen), 176 Handler-/Event-Tests gruen |
 | DASH-04 Einstellungen ehrlich | 04.01/04.02 PASS, 04.04 Adapter-Haelfte PASS; 04.03/04.05 offen | `dash-04-settings.md`, `tests/e2e/settings-acceptance.spec.ts` (3 gruen), 92 Settings-Tests |
 | all other INS/DASH/KEEP/REL | OPEN | owner rows in `requirements.csv` |
 
@@ -66,6 +67,27 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - observed: four inventories exist and are named with their source revision; the installer inventory proves
   13 of 16 rows against the live installation and marks 15b (data mode) as FAIL
 - status: PASS for the inventory; the defect itself is DASH-03
+
+### DASH-02
+
+- requirement_ids: DASH-02.01/02.02 (PASS), DASH-02.03/02.04/02.05 (teilweise bzw. offen)
+- predecessor: BASE-03 (gemeinsamer Vertragsmeilenstein)
+- base_revision: `15d90af`; result_revision: (offen bis Commit)
+- implementation_paths: `apps/control-api/test/authorization-contract.test.ts` (neu),
+  `docs/agent-work/finalization/dash-02-contracts.md`
+- test_command: `npx vitest run test/authorization-contract.test.ts`, `npx vitest run test/mutations.test.ts
+  test/degradation.test.ts test/cloudtalk.test.ts test/contract-gaps.test.ts`, `npx vitest run
+  test/himalaya-send.test.ts test/messenger-send-routes.test.ts test/contract.test.ts test/security.test.ts
+  test/settings-content-mutation.test.ts test/adapter-settings.test.ts`, `pnpm contracts:check`, `pnpm typecheck`,
+  `pnpm lint`
+- expected: jede Vertragsoperation deklariert Rolle und Capability, die Durchsetzung entspricht dem Vertrag, und
+  Erfolg, Timeout, 403, Konflikt sowie unbekannter Ausgang sind durch gezielte Tests belegt
+- observed: 271 Operationen (163 owner, 62 viewer, 44 operator, 2 none), 236 mit Capability; der neue Guard
+  vergleicht alle 271 mit der generierten Route-Tabelle (0 Abweichungen); 4 + 81 + 95 = 180 Tests gruen, davon
+  176 in den Vertrags-/Handler-Dateien; `contracts:check` und `typecheck` exit 0, `lint` 0 Fehler
+- evidence_paths: `dash-02-contracts.md`; status: PASS fuer 02.01/02.02
+- remaining_work: 02.03 (Rueckleseprobe pro Feld, KEEP-04), 02.04 Migrationsdrill mit Konten/Entwuerfen/
+  Enrollment, 02.05 kontrolliertes Lesen der alten Vertragsversion
 
 ### DASH-03
 
