@@ -121,7 +121,7 @@
 "BASE-01","Master §3.1","Basis festhalten (Checkout, Revision, Runtime, Ports, Versionen, Nichtpruefungen)","BASE-01","docs/agent-work/finalization/baseline.md","PASS"
 "BASE-02","Master §3.1","Vollstaendiges Delta inventarisieren (REQ, Einzelplaene, Vollintegration, Journal, TODO)","BASE-02","requirements.csv 168 / issue-ledger.csv 80 / inventory.md; 0 fehlende IDs","PASS"
 "BASE-03","Master §3.1","Gemeinsame Vertraege und Schreibbereiche fixieren","BASE-03","contract-freeze.md; contracts:check exit 0","PASS"
-"BASE-04","Master §3.1","Abnahmeumgebung vorbereiten (isolierte Ziele, Rollbackmanifest)","BASE-04","Reproduzierbare Umgebung ohne Nutzerinstallation","OPEN"
+"BASE-04","Master §3.1","Abnahmeumgebung vorbereiten (isolierte Ziele, Rollbackmanifest)","BASE-04","acceptance-environment.md: 35/35 hashgleich, 3x SQLite ok, fresh-target; Testkonten offen","PASS"
 "KEEP-01","Master §5","Obsidian/Gedaechtnis vollstaendig erhalten","KEEP-01","MEM-01 bis MEM-09","OPEN"
 "KEEP-02","Master §5","Sprach-Stop und Wake erhalten","KEEP-02","STOP/UI-STOP","OPEN"
 "KEEP-03","Master §5","Natuerlichsprachliche Bedienung ueber dieselben Aktionen","KEEP-03","NLP-01 bis NLP-06","OPEN"
