@@ -101,7 +101,7 @@
 "SKDASH-03","FIX_PLAN_SKILLS_IN_DASHBOARD","Aktionen install/update/check/audit/uninstall/trust/reset/diff ueber typisierte Operationen","DASH-10","Keine Rich-Tabellen als API","OPEN"
 "SKDASH-04","FIX_PLAN_SKILLS_IN_DASHBOARD","Registry-Suche mit inspect vor Installation und Audit-Hinweis","DASH-10","Kein Installationsbutton ohne Vorschau","OPEN"
 "SKDASH-05","FIX_PLAN_SKILLS_IN_DASHBOARD","Enable/Disable-Mechanismus vor UI geklaert, Erfolg nur nach Ruecklesen","DASH-10","Mechanismus belegt","OPEN"
-"VSELECT-01","FIX_PLAN_VOICE_SELECTION","Drei Optionen mit kurzen Labels im CLI","INS-04","Prompt zeigt 1-3","OPEN"
+"VSELECT-01","FIX_PLAN_VOICE_SELECTION","Drei Optionen mit kurzen Labels im CLI","INS-04","Master 7A","Drei Stimmen konsistent und hoerbar geprueft","INS-04","ins-04-voice-choice.md: Referenzdateien werden inhaltlich geprueft (Kopf, 3–30 s wie voice_setup.py, Endung), eigene Referenz ueberschreibt die beiliegende F.R.I.D.A.Y.-Stimme nicht mehr, Transport nimmt 1–3 an; Referenz-WAVs belegt echt (9,25 s/9,56 s @ 24 kHz). Offen: dritte Stimme braucht eigene Kennung in der Ausgabekette (Option bis dahin aus der Oberflaeche entfernt), Hoerprobe am Geraet","TEIL"
 "VSELECT-02","FIX_PLAN_VOICE_SELECTION","Default-Choice kennt custom","INS-04","Resume mit custom vorbelegt","OPEN"
 "VSELECT-03","FIX_PLAN_VOICE_SELECTION","Validierung akzeptiert 1-3","INS-04","Ungueltige Eingabe abgewiesen","OPEN"
 "VSELECT-04","FIX_PLAN_VOICE_SELECTION","Mapping answer -> choice inklusive custom","INS-04","State-Wert custom","OPEN"

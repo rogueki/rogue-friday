@@ -57,8 +57,9 @@ try {
     Remove-Item -LiteralPath $bundled
     if ((Find-VoiceReference 'classic' '' $installed $package)) { throw 'Fehlende Referenz wurde als vorhanden gemeldet.' }
 
-    $good = Join-Path $fixture 'referenz.wav'; Write-TestWav $good 2.0
+    $good = Join-Path $fixture 'referenz.wav'; Write-TestWav $good 5.0
     $short = Join-Path $fixture 'kurz.wav'; Write-TestWav $short 0.2
+    $long = Join-Path $fixture 'lang.wav'; Write-TestWav $long 45
     $empty = Join-Path $fixture 'leer.wav'; New-Item -ItemType File -Path $empty | Out-Null
     $broken = Join-Path $fixture 'kaputt.wav'; [IO.File]::WriteAllBytes($broken, (New-Object byte[] 4096))
     $ogg = Join-Path $fixture 'stimme.ogg'; [IO.File]::WriteAllBytes($ogg, (New-Object byte[] 4096))
@@ -68,7 +69,8 @@ try {
 
     if (-not (Test-VoiceReferenceFile $good).Ok) { throw 'Gueltige WAV wurde abgelehnt.' }
     if (-not (Test-VoiceReferenceFile $mp3).Ok) { throw 'Gueltige MP3 wurde abgelehnt.' }
-    if ((Test-VoiceReferenceFile $short).Ok) { throw 'Audio unter einer Sekunde wurde akzeptiert.' }
+    if ((Test-VoiceReferenceFile $short).Ok) { throw 'Audio unter drei Sekunden wurde akzeptiert.' }
+    if ((Test-VoiceReferenceFile $long).Ok) { throw 'Audio ueber 30 Sekunden wurde akzeptiert.' }
     if ((Test-VoiceReferenceFile $empty).Ok) { throw 'Leere Datei wurde akzeptiert.' }
     if ((Test-VoiceReferenceFile $broken).Ok) { throw 'Beschaedigter WAV-Kopf wurde akzeptiert.' }
     if ((Test-VoiceReferenceFile $ogg).Ok) { throw 'Fremde Endung wurde akzeptiert.' }
@@ -78,8 +80,8 @@ try {
     if ((Test-VoiceReferenceFile $broken).Reason -eq '') { throw 'Ablehnung nennt keinen Grund.' }
 
     $guiText = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '..\install-friday-gui.ps1'))
-    if ($guiText -notmatch "'voiceChoice'[^\r\n]*'Eigene MP3/WAV \(3–30 s\)'") { throw 'GUI bietet die eigene Stimme nicht als dritte Option an.' }
-    if ($guiText -notmatch 'Für die eigene Stimme wird eine MP3- oder WAV-Datei benötigt') { throw 'GUI verlangt keine Datei fuer die eigene Stimme.' }
+    if ($guiText -notmatch "'voiceChoice'[^\r\n]*'J\.A\.R\.V\.I\.S\. klassisch \(beiliegende WAV\)'\)") { throw 'GUI bietet die beiden beiliegenden Stimmen nicht an.' }
+    if ($guiText -notmatch "Die Stimmreferenz muss eine WAV- oder MP3-Datei sein") { throw 'GUI prueft die Endung der Referenz nicht.' }
     $installerText = [IO.File]::ReadAllText($installer)
     if ($installerText -notmatch "\`$answer -notin @\('1', '2', '3'\)") { throw 'Backend akzeptiert nicht alle drei Stimmen.' }
     if ($installerText -notmatch 'Test-VoiceReferenceFile \$reference') { throw 'Backend prueft die Referenzdatei nicht inhaltlich.' }

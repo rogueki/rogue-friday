@@ -266,8 +266,10 @@ function Test-VoiceReferenceFile([string]$Path) {
             return @{ Ok = $false; Reason = 'WAV-Format ist ungueltig' }
         }
         $seconds = ($length - 44) / ($rate * $channels * ($bits / 8))
-        if ($seconds -lt 1) { return @{ Ok = $false; Reason = 'Audio ist kuerzer als eine Sekunde' } }
-        if ($seconds -gt 120) { return @{ Ok = $false; Reason = 'Audio ist laenger als zwei Minuten' } }
+        # voice_setup.py verlangt 3 bis 30 Sekunden; eine andere Grenze hier wuerde die Datei erst
+        # nach den Downloads im Stimmschritt scheitern lassen.
+        if ($seconds -lt 3) { return @{ Ok = $false; Reason = 'Audio ist kuerzer als drei Sekunden' } }
+        if ($seconds -gt 30) { return @{ Ok = $false; Reason = 'Audio ist laenger als 30 Sekunden' } }
         return @{ Ok = $true; Reason = '' }
     }
     $sync = ($head[0] -eq 0xFF) -and (($head[1] -band 0xE0) -eq 0xE0)
@@ -1218,7 +1220,14 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
     $changed = $State.voice_choice -ne $newChoice -or $State.voice_reference -ne $reference
     $State.voice_choice = $newChoice
     $State.voice_reference = $reference
-    $State["voice_reference_$newChoice"] = $reference
+    if ($ownReference) {
+        # Die eigene Stimme belegt den weiblichen Stimmplatz (fast_tts und die Stimmenliste kennen nur
+        # zwei Plaetze), darf dessen gespeicherte Referenz aber nicht ueberschreiben: sonst liefert ein
+        # Zurueckwechseln auf F.R.I.D.A.Y. die eigene Aufnahme statt der beiliegenden Stimme.
+        $State['voice_reference_own'] = $reference
+    } else {
+        $State["voice_reference_$newChoice"] = $reference
+    }
     if (($changed -or $ChangeVoice) -and (IsDone 'voicepython')) {
         $State.done = @(@($State.done) | Where-Object { $_ -notin @('voicepython', 'voiceservice') })
         Warn 'Die Ausgabestimme wird neu eingerichtet; vorhandene persönliche Aufnahmen bleiben erhalten.'

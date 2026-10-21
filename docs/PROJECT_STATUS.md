@@ -462,3 +462,16 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
 - **Stillstandsmeldung**: nach 15 Minuten ohne Ausgabe ein einmaliger Hinweis, bewusst ohne Abbruch.
 - **Nachweis**: `gui-run-tracker.Tests.ps1` gruen; GUI-, I/O-Vertrags- und Stimmtests ebenfalls gruen.
 - **Offen**: strukturierte Ereignisse (Protokoll 2) und harte Zeitlimits je Schritt.
+
+## 2026-10-22 INS-04 Korrektur: eigene Stimme vorerst zurueckgezogen
+
+- **N-013 behoben**: die Dateipruefung akzeptierte 1–120 s, `voice_setup.py` verlangt 3–30 s. Grenze
+  vereinheitlicht; eine 45-s-Datei wird jetzt sofort mit Begruendung abgelehnt statt nach den Downloads.
+- **N-014 gefunden und entschaerft**: die eigene MP3/WAV belegte den weiblichen Stimmplatz und wurde als
+  `voice_reference_friday-female` gespeichert — ein Zurueckwechseln auf F.R.I.D.A.Y. haette die eigene Aufnahme
+  geliefert. Die Oberflaeche bietet die Option wieder nur mit den zwei Stimmen an, die die Ausgabekette kennt; die
+  eigene Referenz wird getrennt als `voice_reference_own` gespeichert. Vollstaendig wird die Option erst, wenn
+  `voice_persona`, `server.py`, `prepare_voice_pairs.py`, `update-voice-personas.ps1`, `friday_voice.py` und das
+  Dashboard dieselbe dritte Kennung kennen.
+- **Nachweis**: `voice-reference.Tests.ps1`, `gui-run-tracker.Tests.ps1`, `gui-installer.Tests.ps1` und
+  `installer-io-contract.Tests.ps1` gruen.
