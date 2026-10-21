@@ -47,11 +47,35 @@ So the defect sat in the shipped configuration plus one stale-override hole, not
   "nicht eingerichtet" — that is exactly the work of DASH-04/05/06/08/09 and the reason they are next in order.
 - `voice`, `tasks`, `activity`, `agents`, `system` keep working through their real adapters.
 
-## 5. Still open for DASH-03 (not claimed as done)
+## 5. Acceptance run 2026-10-21 23:43 (DASH-03.04 / 03.05)
 
-- `DASH-03.04` acceptance demands a **fresh installation** with empty real sources: 0 business entries, an
-  outage shows an error, a restart creates no demo automation. That run belongs to INS-13/REL-03; the current
-  evidence is a live-mode runtime test with an empty data directory, which is necessary but not sufficient.
-- `DASH-03.05` recovery requires the snapshot rollback from `acceptance-environment.md` to be exercised once
-  against the new configuration (documented procedure, not yet drilled).
-- Honest UI labelling of a *deliberately* simulated development instance (hybrid) is part of DASH-04.
+**Fresh runtime with empty real sources** — `apps/control-api/test/live-empty-sources.test.ts`, live mode, new
+data directory, one configured adapter pointing at a dead upstream:
+
+| Check | Result |
+|---|---|
+| adapter list | exactly `tasks:hermes-tasks`, no `mock-*` |
+| health components | no `mock-*` component |
+| `/api/v1/tasks` with dead upstream | error (≥ 500) or 200 with `items: []` — never fabricated tasks |
+| `/api/v1/memory`, `/api/v1/automations`, `/api/v1/communication/channels`, `/api/v1/agents` | each ≥ 400 (category not configured) |
+| `/api/v1/skills` | 200 with `data: []` (real catalog, empty installation) |
+| restart with the same data directory | same adapter list, automations still ≥ 400 — no demo automation is created |
+
+**Rollback drill** — `scripts/finalization/rollback-drill.ps1` restores the BASE-04 snapshot into
+`D:\Dokumente\F.R.I.D.A.Y-acceptance\rollback-drill-20261021-233904`, rewrites port/paths (live installation
+untouched) and boots the built control API:
+
+| Run | Result |
+|---|---|
+| restored configuration as-is (`hybrid`, adapters off) | health `online`, contract 2.0.0, **19 components, 15 simulated adapters online** — the defect reproduced on a restored snapshot |
+| same snapshot + `Set-ProductionDataMode` (`-Migrate`) | `dataMode: live`, health `online`, contract 2.0.0, **4 components, 0 adapters online**, no mock warning in the log |
+
+That is the A/B proof that the migration flips a restored installation from simulation to live without losing
+its database (the restored `dashboard.sqlite` checked `ok` before the boot).
+
+**Honest not-ready state** — booting the built API with `dataMode: turbo` exits with code 2 and
+`Invalid configuration (1 problem): [dashboard.yaml] dataMode: must be one of: mock, hybrid, live (got "turbo")`.
+No silent fallback to a default mode.
+
+**Limit of this evidence:** the runtime acceptance is a fresh runtime, not a physical installer run on a clean
+machine. That run stays with INS-13/REL-03 and is not claimed here.

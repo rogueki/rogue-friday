@@ -29,6 +29,7 @@ $secretPatterns = @('hermes_api.key', 'dashboard_owner.hash', 'auth.key', '.env'
 # Relative state paths that constitute a restorable installation without models or build output.
 $statePaths = @(
     'config',
+    'dashboard\config',
     'dashboard\data',
     'memory',
     'skills\friday-skills\registry'

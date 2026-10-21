@@ -92,4 +92,14 @@ describe("adapter wiring", () => {
       cleanup();
     }
   });
+
+  it("does not claim a missing build for the built-in mock allowlist in live mode", () => {
+    const { logger, cleanup } = wiring("live");
+    try {
+      const warnings = logger.warn.mock.calls.map((call) => String(call[0]));
+      expect(warnings.some((warning) => warning.includes("nicht im Build enthalten"))).toBe(false);
+    } finally {
+      cleanup();
+    }
+  });
 });

@@ -18,7 +18,7 @@ export interface TestApiOptions {
   authMode?: "dev" | "local";
   ownerPassword?: string;
   firstRunSetup?: boolean;
-  dataMode?: "mock" | "hybrid";
+  dataMode?: "mock" | "hybrid" | "live";
   yamlExtra?: string;
   secureCookies?: boolean;
   adaptersYaml?: string;

@@ -153,6 +153,9 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
   const factories = new Map<string, AdapterFactory>();
   const available = packageFactories(world);
   for (const [providerId, packageName] of Object.entries(config.allowlist)) {
+    // Built-in mock providers stay in the allowlist, but a live runtime has no mock factories by design.
+    // Warning about them would claim a broken build for a provider the operator never configured.
+    if (!world && isMockProvider(providerId)) continue;
     const successor = SUPERSEDED_BY[packageName];
     const real = successor ? available[successor]?.find((candidate) => candidate.providerId === providerId) : undefined;
     if (real) {
