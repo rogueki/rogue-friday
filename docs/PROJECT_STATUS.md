@@ -357,3 +357,23 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   `pnpm build:app`), 04.05 Fehlkonfigurations-Isolation, Suche nach Quelle/Status im Skillkonto erst nach DASH-07-Inventar.
 - **Nächster Schritt:** e2e-Abnahme DASH-04.04, dann DASH-07.01/.02 (Hermes-Inventar) — INS-02 und der lesende
   Studiovergleich (`../rogue-friday-content-studio`, `fd79ee2`) laufen parallel.
+
+## 2026-10-22 DASH-04.04 Browser-Abnahme und Adapter-Versionsfehler
+
+- **Neue Abnahmespezifikation** `tests/e2e/settings-acceptance.spec.ts` (3 Tests, gruen): zwei Adapter nacheinander
+  (`mock-tasks` 111 verworfen, `mock-memory` 333 gespeichert), Entwurf behalten ueber "Hier bleiben", verwerfen ueber
+  "Verwerfen und wechseln", `page.reload()` liest 333 zurueck; `dev-viewer` sieht "Nur lesend", deaktiviertes
+  Speichern und keine Adapter-Zugangsdaten; 390/1024/1920 px ohne horizontalen Ueberlauf; Tastatur oeffnet den
+  Draft-Dialog per Enter und schliesst ihn per Escape. Die 6 bestehenden `settings.spec.ts`-Tests bleiben gruen.
+- **Echter Fehler gefunden und behoben**: Das Adapterformular sendete die *Settings*-Version als `If-Match`
+  (`AdaptersArea.tsx`), der Server vergleicht aber die Revision des Adapters. Sobald beide Zaehler auseinanderliefen,
+  schlug das Speichern mit `409 CONFLICT` fehl, obwohl nichts veraltet war. Jetzt `adapter.version ?? 1`; die alten
+  Unit-Erwartungen (`If-Match: 3`) wurden auf die Adapterrevision (`7`) umgestellt.
+- **Fixture erweitert**: `cleanWorld` sichert und restauriert jetzt auch alle Adapter ueber
+  `PATCH /settings/adapters/{id}` (`restoreAdapters`), weil `adapters` im Settings-Payload nur ein Spiegel ist und
+  `PATCH /settings` es mit 422 `additionalProperties` ablehnt.
+- **Gruene Nachweise**: 3 neue e2e-Tests, 6 bestehende e2e-Tests, 92 Unit-Tests (`src/features/settings` + `src/i18n`),
+  `pnpm typecheck` exit 0, `pnpm lint` 0 Fehler (3 alte Hook-Warnungen). Commit `d03527e`.
+- **Weiter offen in DASH-04**: zwei Skills im e2e-Stack (kein Skills-Katalog, Hermes in WSL nicht erreichbar),
+  Suche nach Quelle/Status (braucht DASH-07-Inventar), 04.05 Isolations-/Recovery-Drill.
+- **Naechster Schritt:** DASH-07.01/.02 (Hermes-Inventar), dann INS-02 ff. nach Masterplan 8.1.

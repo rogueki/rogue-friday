@@ -14,7 +14,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | DASH-01.01–.05 Istbestand einfrieren | PASS | `inventory.md`, `installer-inventory.csv` |
 | INS-01 Bestands- und Fehler-ID-Matrix | PASS | `issue-ledger.csv` |
 | DASH-03 Produktionspfad ohne Simulation | PASS | `dash-03-production-path.md`, `live-empty-sources.test.ts`, Rollback-Drill |
-| DASH-04 Einstellungen ehrlich | 04.01-04.03 in Arbeit, Browser-Abnahme offen | `dash-04-settings.md`, 87 Settings-Tests |
+| DASH-04 Einstellungen ehrlich | 04.01/04.02 PASS, 04.04 Adapter-Haelfte PASS; 04.03/04.05 offen | `dash-04-settings.md`, `tests/e2e/settings-acceptance.spec.ts` (3 gruen), 92 Settings-Tests |
 | all other INS/DASH/KEEP/REL | OPEN | owner rows in `requirements.csv` |
 
 ## Task records (format from master §3.3)
@@ -67,15 +67,53 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   13 of 16 rows against the live installation and marks 15b (data mode) as FAIL
 - status: PASS for the inventory; the defect itself is DASH-03
 
+### DASH-03
+
+- requirement_ids: DASH-03.01-.05; predecessor: BASE-02/BASE-03
+- implementation_paths: `apps/control-api/src/runtime/adapter-wiring.ts`, `apps/control-api/src/handlers/meta.ts`,
+  `apps/web/src/features/settings/AdaptersArea.tsx`, `installer/lib/data-mode.ps1`, `installer/install-friday.ps1`,
+  `packages/config/src/load.ts`, `scripts/finalization/rollback-drill.ps1`
+- test_command: `vitest run test/live-empty-sources.test.ts test/adapter-wiring.test.ts` (control-api),
+  `pnpm test:conformance`, `scripts/finalization/rollback-drill.ps1` with and without `-Migrate`
+- expected: a live runtime without configured sources creates no mock adapter and shows no simulated data;
+  the delivered configuration is honest; a rollback restores the previous behaviour
+- observed: live with an empty allowlist lists only the configured `tasks:hermes-tasks` (dead upstream
+  `127.0.0.1:9`), no `mock-*` health component, memory/automations/communication/channels/agents answer 4xx,
+  `/skills` returns `data: []`; `/api/v1/meta` reports `dataMode: live`, `features.mockData: false`; the
+  rollback drill without migration boots 19 components with 15 simulated adapters, with `-Migrate` 4 components
+  and 0 adapters; an invalid `dataMode: turbo` is rejected with exit 2
+- evidence_paths: `dash-03-production-path.md`, `acceptance-environment.md`; status: PASS; remaining_work: none
+
+### DASH-04
+
+- requirement_ids: DASH-04.01/04.02 (PASS), DASH-04.03/04.04 Skill-Haelfte/04.05 (open)
+- predecessor: DASH-02, DASH-03
+- base_revision: `5efaac9`; result_revision: `d03527e`
+- implementation_paths: `apps/web/src/features/settings/{SettingsPage,AdaptersArea,settings.css,testApi}.tsx`,
+  `apps/web/src/i18n/modules/d.{de,en}.ts`, `tests/e2e/settings-acceptance.spec.ts`,
+  `tests/e2e/support/fixtures.ts`
+- test_command: `npx playwright test tests/e2e/settings-acceptance.spec.ts`, `npx playwright test
+  tests/e2e/settings.spec.ts`, `npx vitest run src/features/settings src/i18n` (apps/web), `pnpm typecheck`,
+  `pnpm lint`
+- expected: master-detail opens the selected adapter, drafts survive or are dropped only after confirmation,
+  a saved configuration is read back after a reload, the owner writes while a read-only role cannot, and the
+  page works at 390/1024/1920 px and by keyboard alone
+- observed: 3 e2e tests green (mock-tasks 111 discarded, mock-memory 333 persisted and read back after reload,
+  `dev-viewer` sees "Nur lesend" with a disabled save button and no adapter credentials, no horizontal overflow
+  at all three widths, Enter opens and Escape cancels the draft dialog); 6 existing settings e2e tests stay
+  green; 92 settings/i18n unit tests green; `If-Match` defect fixed (adapter revision instead of settings
+  version), proven by a 409 before and a 200 after
+- evidence_paths: `dash-04-settings.md` §4; status: PASS for 04.01/04.02 and the adapter half of 04.04
+- remaining_work: 04.03 search over source/status needs the DASH-07 inventory; 04.04 needs a stack with a
+  skills catalog and a Hermes bridge for the "two skills" half; 04.05 recovery drill
+
 ## Next (in the order of master §8.1)
 
-1. **BASE-03** — freeze shared contracts and write scopes: integration/account ID, config revision,
-   `ApplyResult`, credential references, job ID, events/sequence, cancellation, capabilities, voice status,
-   install manifest. Contracts first in `packages/contracts`, then `pnpm contracts:generate`.
-2. **DASH-02** (same milestone) — API/job/event/migration contracts, role and capability checks per new operation.
-3. **DASH-03** — remove the production mock fallback. Concrete starting point is proven: the installer ships
-   `dataMode: hybrid` with ten `mock-*` categories (`N-001`), and the live health endpoint reports them as `online`.
-4. Parallel while read-only: INS-02 (prompt/state inventory) and the Studio comparison for DASH-14.
+1. **DASH-07.01/.02** — Hermes inventory (skills, accounts, sources, status) as the base for DASH-04.03 and
+   the skill half of DASH-04.04.
+2. **INS-02 .. INS-07** — installer follow-ups in the order of master §8.1.
+3. **DASH-04.05** recovery drill once a single-area misconfiguration can be staged in the acceptance copy.
+4. Parallel while read-only: the Studio comparison for DASH-14/KEEP-05.
 
 ## Open risks / notes for the next session
 

@@ -34,13 +34,46 @@ banner were already implemented before this work unit:
 | typecheck | `pnpm typecheck` | exit 0 |
 | lint | `pnpm lint` | 0 errors (3 pre-existing hook warnings) |
 
-## 4. Still open for DASH-04
+## 4. Browser acceptance (DASH-04.04) in the isolated e2e stack
 
-- **04.04 acceptance** (two adapters + two skills configured one after another, restart read-back, owner writes
-  vs. read-only role, 390/1024/1920 px and keyboard): the unit level is green, but the plan demands a real
-  browser pass. `tests/e2e/settings.spec.ts` exists against the isolated e2e stack; the run is the next step and
-  needs `pnpm build:app`.
-- **04.05 recovery** (a misconfiguration isolates only its own page, all other settings stay reachable, existing
-  accounts migrate): needs the restore path from `acceptance-environment.md` plus a broken single area.
-- Skill-account selection currently filters over id/setup text; searching by *source* and *status* columns of
-  `IntegrationStatus` needs the DASH-07 inventory first, because only that tells which sources exist.
+`tests/e2e/settings-acceptance.spec.ts` (3 tests, green against the built artefacts: `pnpm build:app` plus the
+stack from `tests/e2e/stack.ts`, mock mode, dev login, its own temp data dir):
+
+| Step | Evidence |
+|---|---|
+| Two adapters one after another | `mock-tasks` latency 111 typed, `mock-memory` selected and saved with 333; `GET /settings/adapters` reports `mock-memory.config.latencyMs = 333` |
+| Draft kept | Leaving the dirty form opens `role="alertdialog"` naming `mock-memory`; "Hier bleiben" closes it and the field still holds 111 |
+| Draft discarded | Second attempt with "Verwerfen und wechseln" switches to `mock-memory` (`aria-current`) and the discarded 111 never reaches the server (`config.latencyMs !== 111`) |
+| Restart read-back | Full `page.reload()`, adapter selected again, the form shows 333 from the server |
+| Owner writes, read-only does not | Browser session logged in as `dev-viewer`: "Nur lesend" banner, `Speichern` disabled, adapters area "Nur für Eigentümer" instead of credentials |
+| 390/1024/1920 px | `document.documentElement.scrollWidth - innerWidth <= 1` at all three widths, settings navigation and area buttons visible |
+| Keyboard only | Focus the "Theme" area button, `Enter` opens the draft dialog, focus lands on "Hier bleiben", `Escape` closes it and the typed value survives |
+
+`tests/e2e/settings.spec.ts` (6 existing settings/theme tests) stays green with the extended fixtures.
+
+### Defect found and fixed by the browser pass
+
+The adapter form sent the **settings** version as `If-Match` (`AdaptersArea.tsx:64`). Each adapter carries its
+own revision (`AdapterSettingsService.patch` compares `AdapterConfigSettings.version`), so as soon as the two
+counters diverged the save failed with `409 CONFLICT` ("erwartet Version 1, aktuell 2") although nothing was
+stale. Fixed to `adapter.version ?? 1`; proved by the e2e save (adapter revision 2, settings revision 1) and by
+`SettingsPage.test.tsx` / `HonestAdapters.test.tsx`, which now assert `If-Match: 7` against a fake settings
+version of 3.
+
+### Fixture change
+
+`cleanWorld` restored only `/settings`; it now also captures and restores every adapter through
+`PATCH /settings/adapters/{id}` (`restoreAdapters`), because `adapters` is a read-only mirror inside the
+settings payload and `PATCH /settings` rejects it with 422 `additionalProperties`.
+
+## 5. Still open for DASH-04
+
+- **04.03** skill-account search by *source* and *status*: the filter covers id and setup text only. The source
+  and status columns come from `IntegrationStatus`, whose authoritative list is the DASH-07 inventory.
+- **04.04** two *skills* configured one after another: the e2e stack has no skills catalog
+  (`GET /skills` → `catalogError: "Skills-Katalogpfad nicht konfiguriert"`) and skill accounts live in
+  Hermes inside Friday-Ubuntu, which is not reachable from the stack (`ADAPTER_UNAVAILABLE`). The adapter half,
+  draft handling, read-back, roles, widths and keyboard are proven; the skill half needs a stack with a catalog
+  path and a Hermes bridge.
+- **04.05** recovery (one broken area isolates only its own page, all other settings stay reachable, existing
+  accounts migrate): the adapter-level conflict handling is now correct, the isolation drill is still open.
