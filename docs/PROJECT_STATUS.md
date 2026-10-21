@@ -292,3 +292,10 @@ instrumented; the job passed on rerun.
   Nach der Deaktivierung läuft der Installer durch — der nächste Anlauf startet sauber mit freien Ports.
 - **Offen**: physische Neuinstallation nach Absprache (Drill-Checkliste `p10-clean-install-drill.md`), jetzt
   unterbrochen für Neustart und Nutzerabstimmung. Keine Mock-Provider in der laufenden Installation.
+### Nachtrag 2026-10-21: Rückbau abgeschlossen, ohne Sicherung der Altinstallation
+`C:\Jarvis` und `D:\Kali\Friday` (je 25,5 GB) sowie `~/friday-tts`, `~/jarvis` und `~/.hermes` in
+`Friday-Ubuntu` sind gelöscht; die vier Aufgaben `FRIDAY_Dashboard`, `FRIDAY_Voice`, `FRIDAY_WSL_Keepalive`
+und `JARVIS_Qwen` sind entfernt (nicht nur deaktiviert). Auf Wunsch kein Distro-Export und kein
+`.hermes`-Archiv — erhalten bleibt nur `D:\backup\friday-20261021-0120` (config, voice-JSONs, Logs; 20,3 MB).
+Alle fünf FRIDAY-Ports sind frei, es läuft kein FRIDAY-/JARVIS-Prozess mehr. Die Distro `Friday-Ubuntu`
+selbst bleibt bestehen und wird von der Neuinstallation nicht angefasst.
