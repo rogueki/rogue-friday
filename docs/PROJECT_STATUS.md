@@ -279,3 +279,16 @@ runner flakes, not code: `settings.spec.ts:17` and `tasks.spec.ts:84` (dbus/Shar
 green on rerun) and one `durable-memory.test.ts` run that failed with "Credential-bearing Vault edit requires
 review" and did not reproduce in 27 local runs of the file, 12 of them with the offending note path
 instrumented; the job passed on rerun.
+## 2026-10-21 Nachtsession: Distro 1 bereinigt, Neuinstallations-Versuch abgebrochen
+- **Distro 1 (Friday-Ubuntu)**: `~/friday-tts` (11 GB Modelle + venv) und `~/jarvis` (44 KB J.A.R.V.I.S.-Altlast)
+  gelöscht. `~/.hermes` (3,2 GB) bleibt. Keine FRIDAY-Artefakte mehr in der Distro.
+- **Alte Dashboard-Installation (D:\Kali\Friday) stillgelegt**: `main.js` umbenannt, alle node-Prozesse auf
+  FRIDAY-Ports (3101/43791–43794) beendet, geplante Aufgaben `FRIDAY_Dashboard`, `FRIDAY_Voice`,
+  `FRIDAY_WSL_Keepalive` deaktiviert. Backups liegen unter `D:\backup\friday-20261021-0120` (config, voice,
+  logs, 1,1 GB).
+- **Neuinstallations-Versuch abgebrochen**: Die neue Distro (FRIDAY-2) und die Verzeichnisse
+  `D:\Dokumente\F.R.I.D.A.Y`/`F.R.I.D.A.Y-wsl` wurden wieder entfernt. Der Installer brach mehrfach ab, weil
+  der alte Dashboard-Prozess Port 3101 neu startete (Watchdog-ähnlicher Mechanismus außerhalb der Tasks).
+  Nach der Deaktivierung läuft der Installer durch — der nächste Anlauf startet sauber mit freien Ports.
+- **Offen**: physische Neuinstallation nach Absprache (Drill-Checkliste `p10-clean-install-drill.md`), jetzt
+  unterbrochen für Neustart und Nutzerabstimmung. Keine Mock-Provider in der laufenden Installation.
