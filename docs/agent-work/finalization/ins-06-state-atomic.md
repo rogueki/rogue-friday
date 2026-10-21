@@ -37,3 +37,20 @@ Damit gilt: entweder liegt die alte oder die neue vollstaendige Datei vor, nie e
 - **Startzeit/Task-Konflikte**: geplante Aufgabe und manueller Start sind nicht gegeneinander abgesichert.
 - **Sichere Fortsetzung** nach unerwartetem Abbruch: `done[]` wird nur ergaenzt, ein halb erledigter Schritt wird
   nicht erkannt und zurueckgesetzt.
+
+## 5. Befund 2026-10-22 (Runde 9): keine Sperre im Installer selbst
+
+`install-friday.ps1` enthaelt keine `Mutex`-, `SingleInstance`- oder Sperrlogik. Der einzige Treffer ist ein
+**Kommentar** in Zeile 405 („Die Launcher halten ausserdem einen benannten Mutex"), und ein Kommentar ist kein
+Nachweis; der GUI-Weg startet `install-friday.ps1` direkt. Zwei Laeufe (GUI plus geplante Aufgabe oder ein zweiter
+manueller Start) koennen daher denselben Zustand abwechselnd ersetzen: das Schreiben ist seit `813a430` atomar,
+aber der letzte Lauf gewinnt und die Schrittmarken vermischen sich.
+
+Geplanter Zuschnitt (lokal pruefbar, ohne Audio, Cloud oder WSL):
+
+1. benannter, systemweiter Mutex (`Global\FRIDAY-Installer`) mit kurzem Warteversuch; belegt ⇒ klare Meldung mit
+   laufender PID statt Doppelstart,
+2. Startzeit und PID in der Zustandsdatei ablegen, damit eine tote Sperre nach hartem Absturz nicht dauerhaft
+   blockiert (PID allein ist kein Beweis — PIDs werden wiederverwendet),
+3. Test: zwei gleichzeitige Prozesse, genau einer darf laufen, der andere bricht mit definiertem Exitcode ab;
+   danach Sperre freigeben und erneuter Start besteht.
