@@ -14,6 +14,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | DASH-01.01–.05 Istbestand einfrieren | PASS | `inventory.md`, `installer-inventory.csv` |
 | INS-01 Bestands- und Fehler-ID-Matrix | PASS | `issue-ledger.csv` |
 | DASH-03 Produktionspfad ohne Simulation | PASS | `dash-03-production-path.md`, `live-empty-sources.test.ts`, Rollback-Drill |
+| INS-03 Anbieterfaehigkeiten | TEIL (Sonde+Katalogcheck, echte Authnachweise offen) | `ins-03-provider-capabilities.md`, `hermes_provider_auth.py`, `setup_hermes.sh`, `hermes_config_bridge.py` |
 | INS-02 Installer-Vertraege | PASS | `ins-02-installer-io.md`, `installer-io-contract.Tests.ps1`, `gui-installer.Tests.ps1` (Renderprobe 8 Reiter) |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
 | DASH-02 Vertraege | 02.01/02.02 PASS, 02.03/02.05 offen, 02.04 teilweise | `dash-02-contracts.md`, `authorization-contract.test.ts` (4 gruen), 176 Handler-/Event-Tests gruen |

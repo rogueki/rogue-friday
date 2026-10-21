@@ -428,3 +428,15 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   alle uebrigen Installer-Testskripte ebenfalls gruen.
 - **Naechster Schritt**: INS-03 (echte Auth-Pruefung fuer OpenAI/Anthropic/Kimi/Custom, OAuth-Ablehnung und
   Timeout, Konfiguration transaktional erhalten) — der Vertrag steht, die fachliche Pruefung fehlt noch.
+
+## 2026-10-22 INS-03 (Teil) Anbieterfaehigkeiten aus dem installierten Hermes
+
+- **Neue Sonde** `installer/wsl/hermes_provider_auth.py` mit Bridge-Aufruf `provider-auth`: Picker-Mitgliedschaft,
+  Authart, Env-Variablen und Key-Praefixe kommen aus Hermes 0.22.2 statt aus Installer-Annahmen. 7 Unit-Tests und
+  43 Bridge-Tests gruen.
+- **Befund**: `normalize_provider("openai")` ergibt `openrouter`, `"kimi-coding"` ergibt `kimi-for-coding`; die
+  Version kennt nur `openrouter` als Key-Praefix. Deshalb schreibt der Installer jetzt den Katalognamen
+  `openai-api` und `setup_hermes.sh` lehnt Anbieter ab, die nicht als API-Key-Anbieter im Katalog stehen
+  (OAuth-Anbieter sichtbar gesperrt statt halb eingerichtet).
+- **Offen**: echte Anmeldung/Modellaufruf je Anbieter, OAuth-Erfolg/Ablehnung/Timeout, Key-Ablage fuer
+  `kimi-coding`/`custom` im Credential-Pool statt `.env`; N-008 (403) unveraendert.

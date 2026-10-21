@@ -130,7 +130,7 @@
 "KEEP-06","Master §5","Versionsgebundene vollstaendige Hermes-Paritaet","KEEP-06","100 Prozent Zuordnung","OPEN"
 "INS-01","Master 7A","Bestands- und Fehler-ID-Matrix vollstaendig","INS-01","I-001..I-062 + FP-01..12 + N-001..006 zugeordnet","PASS"
 "INS-02","Master 7A","Vertraege, Promptinventar und Zustandsmaschine eingefroren","INS-02","ins-02-installer-io.md: Transportprotokoll 1 (28 Antworten, 7 Geheimnisse), Ereignis- und Zustandsvertrag, 19 Read-Host-Stellen vollstaendig zugeordnet, stiller Kimi-Standard durch Reiter KI-Zugang + Abbruch ersetzt; installer-io-contract.Tests.ps1 (AST-Waechter) und gui-installer.Tests.ps1 gruen","PASS"
-"INS-03","Master 7A","Provider-/Auth-Integration verifiziert","INS-03","Capability-Beleg","OPEN"
+"INS-03","Master 7A","Provider-/Auth-Integration verifiziert","INS-03","ins-03-provider-capabilities.md: Katalog, Autharten und Key-Praefixe aus Hermes 0.22.2 (52 Picker-Anbieter, 7 Autharten, nur openrouter hat einen Praefix); Installer schreibt openai-api und lehnt Nicht-Katalog-/OAuth-Anbieter sichtbar ab; 7 neue + 43 bestehende Tests gruen. Offen: echte Auth-/Modellnachweise je Anbieter, OAuth-Ablehnung/Timeout","TEIL"
 "INS-04","Master 7A","Drei Stimmen konsistent und hoerbar geprueft","INS-04","Drei Optionen mit Audio","OPEN"
 "INS-05","Master 7A","Strukturierte Fortschritts-/Fehlerereignisse integriert","INS-05","Eventstrom + UI-Reader","OPEN"
 "INS-06","Master 7A","State/Resume/Mutex/Neustart sicher","INS-06","Resume-/Mutex-Proben","OPEN"

@@ -1445,12 +1445,13 @@ if (-not (IsDone 'hermes')) {
             $answer = $(if ($GuiMode) { Gui-Answer 'providerChoice' } else { Read-Host '  Anbieter [1-3, Standard 1]' }).Trim()
             if (-not $answer) { $answer = '1' }
         } while ($answer -notin @('1', '2', '3'))
-        $provider = switch ($answer) { '2' { 'anthropic' } '3' { 'custom' } default { 'openai' } }
+        $provider = switch ($answer) { '2' { 'anthropic' } '3' { 'custom' } default { 'openai-api' } }
     }
     $modelName = [string]$State.model_name
     $baseUrl = [string]$State.model_base_url
     $key = ''
-    if ($provider -eq 'openai') {
+    if ($provider -in @('openai', 'openai-api')) {
+        $provider = 'openai-api'
         if (-not $modelName) { $modelName = 'gpt-5' }
         Info "OpenAI - Modell: $modelName"
         Info 'OpenAI-API-Key eingeben (bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
@@ -1471,8 +1472,10 @@ if (-not (IsDone 'hermes')) {
             $key = Plain $(if ($GuiMode) { Gui-Secret 'kimiKey' } else { Read-Host '  Kimi-API-Key' -AsSecureString })
         }
     } else {
-        # Ein Kimi-Code-Key (sk-kimi-...) gehoert nicht an die Moonshot-API, sondern an den eigenen
-        # Hermes-Provider kimi-coding (Modell k3) - so lief es hier bereits verifiziert.
+        # Hermes 0.22.2 kennt keinen Key-Prefix fuer kimi-coding (nur openrouter ist in
+        # KNOWN_PROVIDER_KEY_PREFIXES) und normalisiert "openai" auf einen Aggregator. Diese
+        # Zuordnung bleibt daher eine Installer-Heuristik; setup_hermes.sh prueft anschliessend
+        # gegen den installierten Katalog, ob der Anbieter ueberhaupt als API-Key-Anbieter existiert.
         if ($detectedKimi -and $detectedKimi -match '^sk-kimi-') {
             $provider = 'kimi-coding'
             $modelName = 'k3'

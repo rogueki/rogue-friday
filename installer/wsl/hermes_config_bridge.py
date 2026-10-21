@@ -362,7 +362,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "approval-test"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -631,6 +631,26 @@ def locked_main(home, source, cli):
             raise ValueError("catalog_unavailable")
         print(json.dumps({"sourceRevision": source_revision, "providers": response["providers"],
                           "selected": response.get("selected")}))
+        return 0
+    if sys.argv[1] == "provider-auth":
+        if not source_revision or not source_revision.startswith(PINNED_SOURCE):
+            raise ValueError("unsupported_source_revision")
+        request = json.load(sys.stdin)
+        if (not isinstance(request, dict) or set(request) != {"names"} or
+                not isinstance(request["names"], list) or not 1 <= len(request["names"]) <= 8 or
+                any(not isinstance(name, str) or re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", name) is None
+                    for name in request["names"])):
+            raise ValueError("invalid_request")
+        sys.path.insert(0, str(source))
+        from hermes_cli._launchers import runtime_command
+        probe = Path(__file__).with_name("hermes_provider_auth.py")
+        command = runtime_command(source, code=f"import runpy; runpy.run_path({str(probe)!r}, run_name='__main__')")
+        result = run_runtime_child(command, json.dumps(request), 25)
+        response = json.loads(result.stdout)
+        if result.returncode or not isinstance(response, dict) or not isinstance(response.get("providers"), list):
+            raise ValueError("capability_unavailable")
+        print(json.dumps({"sourceRevision": source_revision, "providers": response["providers"],
+                          "keyPrefixes": response.get("keyPrefixes") or {}}))
         return 0
     if sys.argv[1] in ("update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer"):
         if not source_revision or not source_revision.startswith(PINNED_SOURCE):
