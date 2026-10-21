@@ -225,8 +225,9 @@ function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '') {
 function Get-WslPath([string]$WindowsPath) {
     $output = @(& wsl.exe -d $Distro -u root --exec wslpath -a -u $WindowsPath 2>$null)
     $exitCode = $LASTEXITCODE
-    $linuxPath = $output | Select-Object -First 1
-    if ($exitCode -ne 0 -or -not "$linuxPath".StartsWith('/')) { Stop-Install "WSL kann den Installationspfad nicht einbinden: $WindowsPath" }
+    # Erste Zeile, die ein Linux-Pfad ist (WSL stellt ggf. Warnungen voran).
+    $linuxPath = $output | Where-Object { "$_".Trim().StartsWith('/') } | Select-Object -First 1
+    if ($exitCode -ne 0 -or -not $linuxPath) { Stop-Install "WSL kann den Installationspfad nicht einbinden: $WindowsPath" }
     return "$linuxPath".Trim()
 }
 function Assert-CustomDistroLocation {
@@ -1506,16 +1507,18 @@ if (-not (IsDone 'voicepython')) {
         foreach ($windowsPath in $windowsPaths) {
             $pathOutput = @(& wsl.exe -d $Distro -u $State.linux_user --exec wslpath -a -u $windowsPath 2>&1)
             $exitCode = $LASTEXITCODE
-            $linuxPath = $pathOutput | Select-Object -First 1
-            if ($exitCode -ne 0 -or -not "$linuxPath".StartsWith('/')) { Stop-Install "WSL-Pfad konnte nicht aufgeloest werden: $windowsPath" }
-            $linuxPaths += [string]$linuxPath
+            # WSL kann vor dem Pfad Warnungen ausgeben (z. B. wsl2.localhostForwarding bei gespiegeltem Netzwerk).
+            # Frueher wurde blind die erste Zeile genommen, wodurch der Lauf daran abbrach.
+            $linuxPath = $pathOutput | Where-Object { "$_".Trim().StartsWith('/') } | Select-Object -First 1
+            if ($exitCode -ne 0 -or -not $linuxPath) { Stop-Install "WSL-Pfad konnte nicht aufgeloest werden: $windowsPath" }
+            $linuxPaths += "$linuxPath".Trim()
         }
         $ttsArgs = @($linuxPaths[0], $linuxPaths[1], $linuxPaths[2], [string]$ttsPort)
         if ($linuxPaths.Count -eq 7) { $ttsArgs += $linuxPaths[3..6] }
         & wsl.exe -d $Distro -u $State.linux_user --exec bash @ttsArgs 2>&1 |
             ForEach-Object { Info "$_" }
         if ($LASTEXITCODE -ne 0) { Stop-Install 'Lokaler TTS-Dienst konnte nicht installiert werden.' }
-        if (-not (Wait-Http "http://127.0.0.1:$ttsPort/health" 240)) {
+        if (-not (Wait-Http "http://127.0.0.1:$ttsPort/health" 600)) {
             Stop-Install 'Lokaler TTS-Dienst meldet sich nach dem Modellstart nicht bereit.'
         }
         Ok "Lokaler TTS-Dienst bereit (Port $ttsPort)."
