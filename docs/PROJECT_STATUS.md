@@ -299,3 +299,39 @@ und `JARVIS_Qwen` sind entfernt (nicht nur deaktiviert). Auf Wunsch kein Distro-
 `.hermes`-Archiv — erhalten bleibt nur `D:\backup\friday-20261021-0120` (config, voice-JSONs, Logs; 20,3 MB).
 Alle fünf FRIDAY-Ports sind frei, es läuft kein FRIDAY-/JARVIS-Prozess mehr. Die Distro `Friday-Ubuntu`
 selbst bleibt bestehen und wird von der Neuinstallation nicht angefasst.
+
+## 2026-10-21 Finalisierungs-Session: Masterplan §8.1 gestartet (BASE-01…04, DASH-01, INS-01, DASH-03 teilweise)
+
+Arbeitsbranch `feat/friday-finalization-20261021` (Basis `e98cbf5`), sieben Commits, nichts gepusht.
+Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.md`, `inventory.md`,
+`requirements.csv` (168 Zeilen), `issue-ledger.csv` (81 Zeilen), `installer-inventory.csv`,
+`progress.md`, `contract-freeze.md`, `acceptance-environment.md`, `dash-03-production-path.md`.
+
+- **BASE-01 Basis festhalten – PASS.** Checkout/HEAD/Worktrees, Ist-Runtime `D:\Dokumente\F.R.I.D.A.Y`
+  (Distro `FRIDAY-2`, Ports 3101/43791–43795, Hermes 0.22.2, Node 24.13.0, pnpm 10.28.2), Nichtprüfungen
+  ausdrücklich notiert.
+- **BASE-02 Delta inventarisieren – PASS.** 154 Checklistenpunkte gezählt (141 fett + 13 INS), 0 fehlende
+  Master-IDs, 0 Duplikate; jede Zeile mit Quellpfad/Runtime-Consumer/Status.
+- **BASE-03 Verträge/Schreibbereiche – PASS.** Zehn geforderte Konzepte auf vorhandene Vertragstypen
+  abgebildet (keine neuen DTOs): `IntegrationAccount`, `IntegrationStatus`, `ApplyResult`,
+  `SecretStatus`, Job-Familien, `EventEnvelope.sequence`, Cancellation-Routen, `Capabilities`,
+  `VoiceStatus`, `install-state.json` als installer-internes Manifest. `pnpm contracts:check` exit 0.
+- **BASE-04 Abnahmeumgebung – PASS (Umgebung).** `scripts/finalization/prepare-acceptance-env.ps1` erzeugt
+  Snapshot + Rollback-Manifest unter `D:\Dokumente\F.R.I.D.A.Y-acceptance`; 35/35 Dateien hashgleich
+  zurückgespielt, drei `PRAGMA integrity_check` = ok, `fresh-target` leer, Live-Installation unberührt.
+  Offen: reale Testkonten (BLOCKED_EXTERNAL) und der Fresh-Install-Lauf (INS-13).
+- **DASH-01 / INS-01 – PASS.** Vier Inventare revisionsgebunden, I-001–I-062 + FP-01–12 + N-001–006
+  vollständig zugeordnet; historische Löschvorgänge I-002/I-037/I-039 nicht als Installationsaufgabe.
+- **DASH-03 – teilweise.** Ursache belegt: der Installer lieferte `dataMode: hybrid`, dadurch zehn
+  `mock-*`-Adapter und `/api/v1/health` meldete sie als `online` (N-001). Behoben: Installer schreibt
+  `live`, neues Modul `installer/lib/data-mode.ps1` migriert bestehende Konfigurationen mit Backup,
+  `load.ts` warnt bei Simulationsmodus im Produktionslauf, `adapter-wiring.ts` ignoriert gespeicherte
+  Mock-Provider-Wahlen im Live-Betrieb. Neue Tests: `installer/test/data-mode.test.ps1` (grün),
+  `adapter-wiring.test.ts` (2 grün), `config.test.ts` 54 grün. **Offen:** Abnahme auf echter
+  Neuinstallation (03.04) und Rollback-Drill (03.05).
+- **Umgebungsbefund N-007.** `test/voice-research-command.test.ts` löst den Python-Probe relativ zum
+  Package-cwd auf (`apps/control-api/installer/...`) und scheitert deshalb auch auf unverändertem Stand;
+  einziger roter Test der Control-API-Suite (`--maxWorkers=2`: 1050/1052 grün). Nicht durch diese
+  Session verursacht, im Issue-Ledger erfasst.
+- **Nächste Schritte in Reihenfolge:** DASH-03.04/03.05 abschließen, dann DASH-04 (Einstellungen zeigen
+  echte Adapteridentität und „nicht eingerichtet“ statt Simulation), DASH-07, INS-02.

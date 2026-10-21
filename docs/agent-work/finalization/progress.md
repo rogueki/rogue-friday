@@ -9,10 +9,11 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 |---|---|---|
 | BASE-01 Basis festhalten | PASS | `baseline.md` |
 | BASE-02 Delta inventarisieren | PASS | `requirements.csv`, `issue-ledger.csv`, `inventory.md` |
-| BASE-03 Verträge/Schreibbereiche fixieren | NEXT | this page, §"Next" |
-| BASE-04 Abnahmeumgebung | OPEN | — |
+| BASE-03 Verträge/Schreibbereiche fixieren | PASS | `contract-freeze.md`, `pnpm contracts:check` exit 0 |
+| BASE-04 Abnahmeumgebung | PASS (Umgebung) | `acceptance-environment.md`, 35/35 hashgleich |
 | DASH-01.01–.05 Istbestand einfrieren | PASS | `inventory.md`, `installer-inventory.csv` |
 | INS-01 Bestands- und Fehler-ID-Matrix | PASS | `issue-ledger.csv` |
+| DASH-03 Produktionspfad ohne Simulation | 03.01/03.03 PASS; 03.02/03.04/03.05 open | `dash-03-production-path.md` |
 | all other INS/DASH/KEEP/REL | OPEN | owner rows in `requirements.csv` |
 
 ## Task records (format from master §3.3)
