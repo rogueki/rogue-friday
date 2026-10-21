@@ -392,3 +392,20 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   `pnpm contracts:check`, `pnpm typecheck` exit 0, `pnpm lint` 0 Fehler.
 - **Weiter offen**: 02.03 Sprach-/UI-Paritaet mit Rueckleseprobe je Feld (KEEP-04), 02.04 Migrationsdrill mit
   Konten/Entwuerfen/Enrollment, 02.05 kontrolliertes Lesen der alten Vertragsversion.
+
+## 2026-10-22 DASH-07.01/.02 Hermes-Inventar live erfasst
+
+- **Live-Inventar** (`docs/agent-work/finalization/dash-07-hermes-inventory.md`): Hermes Agent v0.22.2
+  (local d923a5eb487a), Configschema 50, 232 Provider / 9168 Modelle, 58 Skills in 12 Kategorien, 3 aktive
+  Plugins (friday-dashboard-calendar/-mail, friday-memory), Gateway als systemd-Service aktiv, 1 Session,
+  keine Cronjobs, leere Fallback-Kette, Modell `k3` ueber `kimi-coding`.
+- **Paritaetsmatrix**: alle 18 Zeilen des alten `PLAN_DASHBOARD_HERMES_PARITY.md` zugeordnet; Friday-Flaeche sind
+  11 Hermes-Vertragsoperationen und 82 typisierte Felder in `HERMES_CONFIG_FIELDS` (execution 42, operations 18,
+  agent 16, models 5, extensions 1). Luecken fuer 07.03/07.04 ausdruecklich benannt: Customendpoints,
+  Provider-Keys jenseits der drei vorhandenen, Pool-Limits/`hermes auth`, `memory.*`, lokale Modelle,
+  Session-Verwaltung, Kanban.
+- **Neues Issue N-008**: die einzige Inferenz-Credential (`kimi-coding`, `KIMI_API_KEY`) meldet zuletzt
+  `auth failed permission_error (403)`, waehrend `hermes auth status` „logged in" sagt. Ein Erfolgsnachweis fuer
+  den KI-Zugang braucht einen echten Modellaufruf; das ist DASH-07.05, nicht der Inventarschritt.
+- **Planstand**: DASH-07.01 und 07.02 abgehakt; naechster Schritt DASH-07.03 (KI-Zugang: Provider/Keys,
+  Customendpoints, lokale Modelle, Gedaechtnis-Felder).

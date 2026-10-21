@@ -147,7 +147,7 @@
 "DASH-04","Master 7B","Gefuehrte Einstellungsstruktur","DASH-04","dash-04-settings.md: Browser-Abnahme in tests/e2e/settings-acceptance.spec.ts (2 Adapter + Draft behalten/verwerfen + Reload-Rueckleseprobe + Nur-lesend + 390/1024/1920 px + Tastatur) gruen, If-Match-Fehler der Adapterrevision behoben; offen: 2 Skills (kein Katalog/Hermes im Stack), Suche nach Quelle/Status (DASH-07), Recovery 04.05","IN_PROGRESS"
 "DASH-05","Master 7B","E-Mail Postfach als integrierter Kanal","DASH-05","Sechs Filter, echte Konten","OPEN"
 "DASH-06","Master 7B","Kalenderkonfiguration umziehen und fuehren","DASH-06","Kein Kontoblock auf Fachseite","OPEN"
-"DASH-07","Master 7B","Vollstaendige Hermes-Paritaetsmatrix und KI-Zugaenge","DASH-07","Jede Inventarzeile zugeordnet","OPEN"
+"DASH-07","Master 7B","Vollstaendige Hermes-Paritaetsmatrix und KI-Zugaenge","DASH-07","dash-07-hermes-inventory.md: Hermes 0.22.2 (Schema 50) live erfasst, 18 Zeilen des alten Paritaetsplans zugeordnet, 11 Vertragsoperationen + 82 Konfigurationsfelder als Flaeche belegt, Luecken fuer 07.03/07.04 benannt (Customendpoints, Provider-Keys jenseits von 3, Pool-Limits, memory.*, lokale Modelle); N-008: einzige Inferenz-Credential meldet 403","IN_PROGRESS"
 "DASH-08","Master 7B","Telegram, Discord und Telefon real einrichten","DASH-08","Drei Kanaele nativ","OPEN"
 "DASH-09","Master 7B","WhatsApp-Pairing nativ","DASH-09","QR-Zustandsautomat","OPEN"
 "DASH-10","Master 7B","Hermes- und Friday-Skills vollstaendig fuehren","DASH-10","Enable/Disable mit Readback","OPEN"

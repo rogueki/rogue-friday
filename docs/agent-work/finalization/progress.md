@@ -14,6 +14,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | DASH-01.01–.05 Istbestand einfrieren | PASS | `inventory.md`, `installer-inventory.csv` |
 | INS-01 Bestands- und Fehler-ID-Matrix | PASS | `issue-ledger.csv` |
 | DASH-03 Produktionspfad ohne Simulation | PASS | `dash-03-production-path.md`, `live-empty-sources.test.ts`, Rollback-Drill |
+| DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
 | DASH-02 Vertraege | 02.01/02.02 PASS, 02.03/02.05 offen, 02.04 teilweise | `dash-02-contracts.md`, `authorization-contract.test.ts` (4 gruen), 176 Handler-/Event-Tests gruen |
 | DASH-04 Einstellungen ehrlich | 04.01/04.02 PASS, 04.04 Adapter-Haelfte PASS; 04.03/04.05 offen | `dash-04-settings.md`, `tests/e2e/settings-acceptance.spec.ts` (3 gruen), 92 Settings-Tests |
 | all other INS/DASH/KEEP/REL | OPEN | owner rows in `requirements.csv` |
@@ -67,6 +68,28 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - observed: four inventories exist and are named with their source revision; the installer inventory proves
   13 of 16 rows against the live installation and marks 15b (data mode) as FAIL
 - status: PASS for the inventory; the defect itself is DASH-03
+
+### DASH-07 (07.01/07.02)
+
+- requirement_ids: DASH-07.01/07.02; predecessor: DASH-01, DASH-02, DASH-04
+- implementation_paths: `docs/agent-work/finalization/dash-07-hermes-inventory.md`; erfasst
+  `apps/control-api/src/services/hermes-config.ts` (82 Felder), `handlers/hermes-config.ts` (7 Handler),
+  `HermesConfigArea.tsx` (685 Zeilen), 11 Hermes-Vertragsoperationen
+- test_command: rein lesende Live-Abfragen in `FRIDAY-2` (`hermes --version`, `hermes auth list/status`,
+  `hermes fallback list`, `hermes gateway status/list`, `hermes sessions list`, `hermes cron list`,
+  `hermes config get model`, `hermes config check`, `config.yaml`-Struktur, `models_dev_cache.json`) sowie
+  `py -3`-Zaehlung der Friday-Felder und `openapi`-Abfrage
+- expected: installierte Hermes-Version, CLI-Umfang, Configschema und Plugins real erfassen; jede Faehigkeit des
+  alten Paritaetsplans einer Friday-Flaeche mit wirksamer Backendoperation oder einer begruendeten
+  Nichtverfuegbarkeit zuordnen
+- observed: Hermes 0.22.2 (Schema 50, 232 Provider/9168 Modelle, 58 Skills, 3 Plugins, Gateway aktiv, 1 Session,
+  keine Cronjobs, leere Fallback-Kette); 18 Paritaetszeilen zugeordnet, 11 Operationen und 82 Felder als Flaeche
+  belegt; Luecken fuer 07.03/07.04 explizit benannt; neue Erkenntnis N-008 (einzige Credential `kimi-coding`
+  meldet 403)
+- evidence_paths: `dash-07-hermes-inventory.md`; status: PASS fuer 07.01/07.02
+- remaining_work: 07.03 (Provider-/Key-Flaeche, Customendpoints, lokale Modelle, `memory.*`), 07.04 (OAuth-Flow
+  ueber Hermes, ohne eigenen Client), 07.05 (echter Modellaufruf inkl. N-008, Fallback, zweiter Zugang), 07.06
+- (Recovery)
 
 ### DASH-02
 
