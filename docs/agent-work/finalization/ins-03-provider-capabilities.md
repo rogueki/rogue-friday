@@ -46,3 +46,14 @@ Installation und über den neuen Bridge-Aufruf `provider-auth` belegt.
 - OAuth-Erfolg, -Ablehnung und -Timeout im Installer (OAuth-Anbieter sind derzeit bewusst gesperrt, nicht geführt).
 - `kimi-coding`/`custom` ohne Env-Variable: der Key gehört in den Credential-Pool (`hermes auth add … --type
   api-key`), der Installer schreibt weiterhin `.env` und verlässt sich auf den Verbindungstest.
+
+## 5. OAuth-Messung: warum sie isoliert (noch) nicht belegbar ist
+
+Versuch am 2026-10-22, `hermes auth add openai-codex --type oauth --no-browser --timeout 5` in einem eigenen
+`HERMES_HOME` (`mktemp -d`) auszufuehren: die CLI bootstrapet fuer ein fremdes Datenverzeichnis zuerst die
+komplette Python-Laufzeit ("Preparing the isolated Hermes runtime … Installing Python dependencies") und laeuft
+dann in den 40-s-Abbruch — kein verwertbarer OAuth-Abbruchbeleg.
+
+Wichtig fuer die Sicherheit: die **Live-Konfiguration blieb unveraendert**, `sha256` von `~/.hermes/auth.json` war
+vor und nach dem Versuch identisch (`3470107d…597b`). Der Installer selbst fuehrt keinen OAuth-Flow aus; OAuth
+gehoert damit zu DASH-07.04 (Command Center) bzw. zu einem spaeteren INS-03-Schritt mit vorbereitetem Profil.
