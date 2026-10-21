@@ -59,6 +59,9 @@ if ($GuiMode) {
         if ([string]$GuiConfig.answers.$key -notin @('true','false')) { throw "Ungültige GUI-Entscheidung: $key" }
     }
 }
+# Data-mode migration lives in its own module so installer/test/data-mode.test.ps1 can prove it without a full run.
+. (Join-Path $PSScriptRoot 'lib\data-mode.ps1')
+
 if ($GuiSimulation) {
     if (-not $GuiMode -or -not $GuiConfig.simulation -or $env:FRIDAY_GUI_TEST -ne '1') { throw 'Simulation nur im lokalen GUI-Testmodus.' }
     [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
@@ -2113,11 +2116,11 @@ function Write-DashboardConfig {
         if ($new -ne $old) { [IO.File]::WriteAllText("$cfg\dashboard.yaml", $new, (New-Object Text.UTF8Encoding $false)); Info "Anzeigename in dashboard.yaml auf '$AN' gesetzt." }
     }
     $dashboardYaml = @"
-# F.R.I.D.A.Y. Command Center - Dashboard-Konfiguration (vom Installer erzeugt, HYBRID-Betrieb; frei editierbar).
+# F.R.I.D.A.Y. Command Center - Dashboard-Konfiguration (vom Installer erzeugt, LIVE-Betrieb; frei editierbar).
 # Der Installer ueberschreibt diese Datei nie ohne Rueckfrage. Mehr: docs/DEPLOYMENT.md, config/dashboard.example.yaml.
 # Geaendert wird nach einem Neustart der Aufgabe FRIDAY_Dashboard wirksam.
 
-dataMode: hybrid # mock | hybrid | live - hybrid: in adapters.yaml genannte Kategorien live, der Rest mock
+dataMode: live # mock | hybrid | live - live: nur eingerichtete Kategorien, keine Simulation; mock/hybrid nur fuer Entwicklung
 
 server:
   host: 127.0.0.1 # nur Loopback
@@ -2165,10 +2168,11 @@ logging:
     maxFiles: 5
 "@
     $adaptersYaml = @"
-# F.R.I.D.A.Y. Command Center - Adapter (vom Installer erzeugt, HYBRID-Betrieb; frei editierbar).
+# F.R.I.D.A.Y. Command Center - Adapter (vom Installer erzeugt, LIVE-Betrieb; frei editierbar).
 # Live: Aufgaben/Aktivitaet/Agenten ueber Hermes, Sprache ueber den Voice-Dienst, Systemstatus vom lokalen Rechner.
-# Alle anderen Kategorien (memory, approvals, communication, calendar, automations, research, files, notifications,
-# audit, commands) bleiben im Hybrid-Modus mock-* und sind in der Oberflaeche als Simulation erkennbar.
+# Nicht eingerichtete Kategorien (memory, approvals, communication, calendar, automations, research, files,
+# notifications, audit, commands) bleiben deaktiviert und werden in der Oberflaeche als nicht eingerichtet gezeigt -
+# es gibt keinen Mock-Fallback. Eine Kategorie wird erst aktiv, wenn hier ein Provider eingetragen ist.
 # Ports werden aus dem gespeicherten Installationszustand uebernommen.
 # Geheimnisse nie im Klartext: file:<absoluter Pfad> (nur serverseitig gelesen), env:NAME oder wincred:ZIEL.
 
@@ -2232,6 +2236,14 @@ adapters:
 "@
     Write-DashFile "$cfg\dashboard.yaml" $dashboardYaml 'dashboard.yaml'
     Write-DashFile "$cfg\adapters.yaml" $adaptersYaml 'adapters.yaml'
+    # An earlier installation keeps its own dashboard.yaml; move it to live so an upgrade does not keep the
+    # simulation. The migration writes a backup next to the file and logs the previous mode.
+    $modeResult = Set-ProductionDataMode -DashboardYaml "$cfg\dashboard.yaml" -BackupDir "$Root\backups"
+    if ($modeResult.Changed) {
+        Warn "dashboard.yaml stand auf dataMode: $($modeResult.From). Auf live umgestellt (Simulation deaktiviert); Sicherung: $($modeResult.Backup). Wirksam nach Neustart der Aufgabe FRIDAY_Dashboard."
+    } elseif ($modeResult.Reason -eq 'unknown-mode') {
+        Warn "dashboard.yaml enthaelt den unbekannten dataMode '$($modeResult.From)'. Bitte auf live setzen; der Dienst startet sonst nicht."
+    }
     # Existing installations keep their adapter choices. Only add the dormant ICS provider to the allowlist.
     if ($UpdateDashboard -and (Test-Path -LiteralPath "$cfg\adapters.yaml")) {
         $adapterPath = "$cfg\adapters.yaml"

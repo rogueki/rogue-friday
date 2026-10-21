@@ -143,7 +143,7 @@
 "INS-13","Master 7A","Echte Ende-zu-Ende-Laeufe und Recoverybelege vorhanden","INS-13;REL-03","Gesamtlauf","OPEN"
 "DASH-01","Master 7B","Istbestand und Releasequellen einfrieren","DASH-01","inventory.md + installer-inventory.csv; Quell-/Installationsstand getrennt","PASS"
 "DASH-02","Master 7B","API-, Job-, Event- und Migrationsvertraege","DASH-02","Contractcheck + Handler-Tests","OPEN"
-"DASH-03","Master 7B","Produktive Datenverdrahtung ohne Mockfallback","DASH-03","Mockfreie Runtime bewiesen","OPEN"
+"DASH-03","Master 7B","Produktive Datenverdrahtung ohne Mockfallback","DASH-03","Installer live + Migration + Wiring-Guard PASS; offen: Fresh-Install-Abnahme (03.04) und Rollback-Drill (03.05)","IN_PROGRESS"
 "DASH-04","Master 7B","Gefuehrte Einstellungsstruktur","DASH-04","Zwei Adapter + zwei Skills gefuehrt","OPEN"
 "DASH-05","Master 7B","E-Mail Postfach als integrierter Kanal","DASH-05","Sechs Filter, echte Konten","OPEN"
 "DASH-06","Master 7B","Kalenderkonfiguration umziehen und fuehren","DASH-06","Kein Kontoblock auf Fachseite","OPEN"

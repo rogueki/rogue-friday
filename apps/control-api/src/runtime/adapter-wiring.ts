@@ -176,7 +176,19 @@ export function wireAdapters(options: AdapterWiringOptions): AdapterWiring {
     const saved = savedOverrides.get(category);
     const { values, refs } = splitConfig(resolved.config);
     const mock = isMockProvider(resolved.provider);
-    const provider = saved?.provider && (!mock || category === "calendar") && config.dataMode !== "mock" ? saved.provider : resolved.provider;
+    // A saved provider choice from an earlier hybrid run can point at a mock adapter. Without a mock world
+    // (live mode) that choice can never work, so it is ignored instead of reporting a simulated adapter.
+    if (saved?.provider && isMockProvider(saved.provider) && !world && config.dataMode !== "mock") {
+      logger.warn("Gespeicherte Provider-Wahl wird ignoriert: im Live-Betrieb gibt es keinen Mock-Adapter", {
+        category,
+        savedProvider: saved.provider,
+      });
+    }
+    const staleMockOverride = !world && config.dataMode !== "mock";
+    const provider = saved?.provider && (!mock || category === "calendar") && config.dataMode !== "mock" &&
+      !(staleMockOverride && isMockProvider(saved.provider))
+      ? saved.provider
+      : resolved.provider;
     const entry: AdapterEntryConfig = {
       provider,
       enabled: saved?.enabled ?? resolved.enabled,
