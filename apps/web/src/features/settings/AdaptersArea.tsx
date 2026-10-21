@@ -1,10 +1,11 @@
 "use client";
 
-import type { AdapterConfigSettings, AdapterTestResult } from "@friday/sdk";
+import type { AdapterCategory, AdapterConfigSettings, AdapterTestResult } from "@friday/sdk";
 import { Button, EmptyState, HealthBadge, StatusChip, Switch } from "@friday/ui";
 import { Plug, Save, TestTube2, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/i18n";
+import { useMeta } from "@/lib/api/domains/core";
 import { useAdapterSettings, useTestAdapterSettings, useUpdateAdapterSettings } from "@/lib/api/domains/settings";
 import { useCapability } from "@/lib/capabilities";
 import { PanelFrame, type PanelState } from "@/components/PanelFrame";
@@ -145,6 +146,29 @@ function AdapterForm({ adapter }: { adapter: AdapterConfigSettings }) {
   );
 }
 
+const ALL_CATEGORIES: readonly AdapterCategory[] = [
+  "tasks", "activity", "memory", "agents", "approvals", "communication", "calendar", "automations",
+  "research", "files", "voice", "notifications", "system", "audit", "commands",
+];
+
+const CATEGORY_LABEL: Record<AdapterCategory, string> = {
+  tasks: "Aufgaben",
+  activity: "Aktivität",
+  memory: "Gedächtnis",
+  agents: "Agenten",
+  approvals: "Freigaben",
+  communication: "Kommunikation",
+  calendar: "Kalender",
+  automations: "Automatisierungen",
+  research: "Recherche",
+  files: "Dateien",
+  voice: "Stimme",
+  notifications: "Benachrichtigungen",
+  system: "System",
+  audit: "Audit",
+  commands: "Befehle",
+};
+
 export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string) => void }) {
   const { t } = useT();
   const { readOnly, role } = useSettingsDrafts();
@@ -152,6 +176,14 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
   const ownerOnly = role === "owner";
   const query = useAdapterSettings(ownerOnly);
   const items = query.data?.items ?? [];
+  const dataMode = useMeta().data?.dataMode;
+  const live = dataMode === "live";
+  // A live runtime builds no adapter for an unconfigured category: the pages then report "not configured"
+  // instead of showing sample data. Everything else here would repeat the old hybrid promise of simulation.
+  const unconfigured = useMemo(
+    () => (live ? ALL_CATEGORIES.filter((category) => !items.some((item) => item.category === category)) : []),
+    [live, items],
+  );
   const calendar = items.find((item) => item.category === "calendar");
   const calendarUpdate = useUpdateAdapterSettings();
   const [calendarSource, setCalendarSource] = useState<"google" | "outlook" | "windows" | "ics" | "caldav">("ics");
@@ -229,9 +261,28 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
         </>}
         <Button type="button" disabled={readOnly || calendarUpdate.isPending || (calendarMode === "ics" ? !feedUrl.trim() : !calendarUrl.trim() || !calendarUsername.trim() || !calendarPassword)} loading={calendarUpdate.isPending} onClick={() => void saveCalendar()}>Kalenderzugang speichern</Button>
         <p className="st-muted">Nach dem Speichern den Kalender in der Adapterliste wählen und „Verbindung testen“ ausführen. Erst ein erfolgreicher Test bestätigt den Zugriff.</p>
-        <p role="status">{calendar.provider === "caldav-calendar" && (calendar.config.mode === "caldav" ? calendar.secretFields.calendarUrl?.configured && calendar.secretFields.username?.configured && calendar.secretFields.password?.configured : calendar.secretFields.feedUrl?.configured) ? (calendar.config.mode === "caldav" ? "CalDAV-Zugang hinterlegt; Lesen und Terminanlage hängen vom Anbieterzugriff ab. Verbindung separat testen." : "ICS-Zugang hinterlegt (nur lesen); Verbindung separat testen.") : "Noch kein Kalenderzugang hinterlegt; Kalenderansicht verwendet Simulation."}</p>
+        <p role="status">{calendar.provider === "caldav-calendar" && (calendar.config.mode === "caldav" ? calendar.secretFields.calendarUrl?.configured && calendar.secretFields.username?.configured && calendar.secretFields.password?.configured : calendar.secretFields.feedUrl?.configured) ? (calendar.config.mode === "caldav" ? "CalDAV-Zugang hinterlegt; Lesen und Terminanlage hängen vom Anbieterzugriff ab. Verbindung separat testen." : "ICS-Zugang hinterlegt (nur lesen); Verbindung separat testen.") : live ? "Noch kein Kalenderzugang hinterlegt. Im Live-Betrieb bleibt die Kalenderansicht leer, bis ein Zugang hinterlegt und erfolgreich getestet ist." : dataMode ? "Noch kein Kalenderzugang hinterlegt; die Kalenderansicht verwendet Simulation." : ""}</p>
         {calendarMessage ? <p role="status">{calendarMessage}</p> : null}
       </section> : null}
+      {unconfigured.length > 0 ? (
+        <section aria-labelledby="unconfigured-title" className="st-adapter">
+          <h3 id="unconfigured-title">Nicht eingerichtete Bereiche</h3>
+          <p className="st-muted">
+            Für diese Bereiche ist kein Anbieter hinterlegt. Friday erzeugt dafür keinen Ersatzadapter; die jeweilige Seite meldet
+            „nicht eingerichtet“, statt Beispieldaten zu zeigen. Trage den Anbieter in <code>adapters.yaml</code> ein und starte das
+            Dashboard neu.
+          </p>
+          <ul className="st-chiplist">
+            {unconfigured.map((category) => (
+              <li key={category}>
+                <StatusChip tone="muted" dot={false}>
+                  {CATEGORY_LABEL[category]} · nicht eingerichtet
+                </StatusChip>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <div className="st-master">
         <nav className="st-master__list" aria-label={t("settings.adapters.title")}>
           <ul>
