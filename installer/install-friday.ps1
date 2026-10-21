@@ -117,9 +117,27 @@ function Ok($text)    { Write-Host "  [OK] $text" -ForegroundColor Green }
 function Warn($text)  { Write-Host "  [!]  $text" -ForegroundColor Yellow }
 function Stop-Install($text) {
     Write-Host ""; Write-Host "  [FEHLER] $text" -ForegroundColor Red
-    $retryLauncher = if ($GuiMode) { 'Friday installieren.bat' } else { 'install-friday.bat' }
-    Write-Host "  Problem beheben und $retryLauncher erneut starten - es geht an dieser Stelle weiter." -ForegroundColor Red
-    Stop-Transcript | Out-Null
+    # Frueher stand hier nur "install-friday.bat erneut starten". Diese .bat startet das Skript ohne
+    # Parameter und faellt damit auf C:\Friday + Standard-Distribution zurueck: bei einem eigenen
+    # Zielordner begann so eine zweite, falsche Installation (2026-10-21 real passiert).
+    $resumeArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-Resume')
+    if ($Root) { $resumeArgs += @('-InstallRoot', "`"$Root`"") }
+    if ($Distro) { $resumeArgs += @('-DistroName', "`"$Distro`"") }
+    if ($DistroLocation) { $resumeArgs += @('-DistroLocation', "`"$DistroLocation`"") }
+    $resumeCmd = 'powershell.exe ' + ($resumeArgs -join ' ')
+    if (-not $GuiMode -and $Root -and (Test-Path -LiteralPath $Root)) {
+        try {
+            $resumeBat = "@echo off`r`n" + $resumeCmd + "`r`n"
+            [IO.File]::WriteAllText((Join-Path $Root 'resume.bat'), $resumeBat, [Text.Encoding]::Default)
+        } catch { }
+    }
+    Write-Host "  So geht es an dieser Stelle weiter:" -ForegroundColor Yellow
+    Write-Host "  $resumeCmd" -ForegroundColor Yellow
+    if (-not $GuiMode -and $Root) { Write-Host "  Oder einfach doppelklicken: $(Join-Path $Root 'resume.bat')" -ForegroundColor Yellow }
+    # Marker entfernen: ein -NoExit-Fenster hielt ihn mit lebendem PID, Watchdogs hielten den Installer
+    # dadurch faelschlich fuer laufend.
+    if ($ActiveFile) { Remove-Item -LiteralPath $ActiveFile -Force -ErrorAction SilentlyContinue }
+    try { Stop-Transcript | Out-Null } catch { }
     if (-not $GuiMode) { Read-Host "  Enter zum Beenden" }
     exit 1
 }
@@ -238,11 +256,79 @@ function Assert-CustomDistroLocation {
     }
 }
 function Wait-Http($url, $seconds, $headers = @{}) {
+    # Bewusst ohne Invoke-WebRequest: waehrend des Modellstarts antwortet der Server erwartbar mit
+    # HTTP 503 ({"error":{"message":"Loading model"}}), und PowerShell schrieb diese Fehlversuche als
+    # "PS>TerminatingError(Invoke-WebRequest): ..." ins Transcript - das sah wie ein Abbruch aus.
     $until = (Get-Date).AddSeconds($seconds)
     while ((Get-Date) -lt $until) {
-        try { Invoke-WebRequest -UseBasicParsing $url -Headers $headers -TimeoutSec 3 | Out-Null; return $true } catch { Start-Sleep 3 }
+        $response = $null
+        try {
+            $request = [Net.WebRequest]::Create($url)
+            $request.Method = 'GET'
+            $request.Timeout = 3000
+            $request.Proxy = $null
+            foreach ($name in $headers.Keys) { $request.Headers[$name] = $headers[$name] }
+            $response = $request.GetResponse()
+            return $true
+        } catch {
+            Start-Sleep 3
+        } finally {
+            if ($response) { $response.Close() }
+        }
     }
     return $false
+}
+function Test-WslKeepalive {
+    $procs = Get-CimInstance Win32_Process -Filter "Name='wsl.exe'" -ErrorAction SilentlyContinue
+    foreach ($proc in $procs) {
+        if ($proc.CommandLine -match [regex]::Escape("-d $Distro ") -and $proc.CommandLine -match 'sleep\s+infinity') { return $true }
+    }
+    return $false
+}
+function Assert-WslKeepalive {
+    # Ohne laufenden Keepalive faehrt die WSL-VM nach ~60 s Idle herunter und reisst den gerade
+    # startenden TTS-Dienst mit; der Health-Check laeuft dann zwangslaeufig ins Leere (2026-10-21).
+    if (Test-WslKeepalive) { return }
+    Start-Process -FilePath 'wsl.exe' -ArgumentList @('-d', $Distro, '--exec', '/bin/sleep', 'infinity') -WindowStyle Hidden | Out-Null
+    for ($i = 0; $i -lt 20; $i++) {
+        Start-Sleep -Milliseconds 500
+        if (Test-WslKeepalive) { Ok 'WSL bleibt aktiv (Keepalive gestartet).'; return }
+    }
+    Warn "WSL-Keepalive startet nicht - der TTS-Dienst kann beim Laden abbrechen. Log: $Root\logs"
+}
+function Invoke-Pip([string]$Python, [string[]]$PipArgs, [string]$Label) {
+    # Fortschritt sichtbar machen: pip lief bisher mit -q und ohne jede Meldung 10-20 min lang, waehrend
+    # das Terminal still blieb. Jetzt laeuft pip im Hintergrund und der Installer meldet im Takt weiter.
+    # Der Exitcode kommt ueber eine cmd-Datei: Start-Process liefert ihn in PowerShell 5.1 nicht zuverlaessig.
+    $log = "$Root\logs\pip-$Label.log"
+    $marker = "$log.code"
+    $cmdFile = "$Root\logs\pip-$Label.cmd"
+    Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
+    $quotedArgs = (@('-m', 'pip', 'install', '--progress-bar', 'off', '--no-input') + $PipArgs) |
+        ForEach-Object { '"' + $_ + '"' }
+    # Fuehrende Umleitung (> "datei" echo ...) ist noetig: die Form "echo %RC%> datei" wurde von cmd als
+    # echo ohne Argument gelesen, dadurch blieb die Datei leer.
+    $cmdBody = (@('@echo off',
+                  ('"' + $Python + '" ' + ($quotedArgs -join ' ') + ' > "' + $log + '" 2>&1'),
+                  'set RC=%ERRORLEVEL%',
+                  ('> "' + $marker + '" echo %RC%')) -join "`r`n") + "`r`n"
+    [IO.File]::WriteAllText($cmdFile, $cmdBody, [Text.Encoding]::Default)
+    $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c', "`"$cmdFile`"") -NoNewWindow -PassThru
+    $start = Get-Date
+    while (-not (Test-Path -LiteralPath $marker)) {
+        $mins = [math]::Floor(((Get-Date) - $start).TotalMinutes)
+        Write-Host ("`r  laeuft weiter ... {0} min" -f $mins).PadRight(48) -NoNewline
+        if ($proc.HasExited -and (Test-Path -LiteralPath $marker)) { break }
+        if (((Get-Date) - $start).TotalMinutes -gt 120) { break }
+        Start-Sleep -Seconds 5
+    }
+    Write-Host ("`r  abgeschlossen nach {0} s" -f [math]::Round(((Get-Date) - $start).TotalSeconds)).PadRight(48)
+    Remove-Item -LiteralPath $cmdFile -Force -ErrorAction SilentlyContinue
+    if (-not (Test-Path -LiteralPath $marker)) { return 1 }
+    $code = 1
+    try { $code = [int](Get-Content -LiteralPath $marker -Raw).Trim() } catch { $code = 1 }
+    Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
+    return $code
 }
 function Register-UserTask($name, $vbsArgs, $description, $delaySeconds = 0, $repeatMinutes = 0, $timeLimitMinutes = 0) {
     # repeatMinutes > 0: zusaetzlich zur Anmeldung wiederholt die Aufgabe sich endlos in diesem Abstand (ueberlebt Neustarts).
@@ -758,6 +844,29 @@ Set-Content -Path $ActiveFile -Value "$PID" -Encoding Ascii
 Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action ([scriptblock]::Create("Remove-Item '$ActiveFile' -Force -ErrorAction SilentlyContinue")) | Out-Null
 Start-Transcript -Path "$Root\logs\install-$(Get-Date -Format yyyyMMdd-HHmmss).log" -Append | Out-Null
 
+# Schutz vor einer zweiten, falschen Installation: Ein Start ohne -InstallRoot landet in C:\Friday. Existiert
+# auf dem PC bereits eine Installation (erkennbar an den Aufgaben, die auf <Root>\installer\... zeigen), wird
+# gewarnt statt still eine zweite anzulegen. Genau das passierte am 2026-10-21.
+if (-not $Resume -and -not $PSBoundParameters.ContainsKey('InstallRoot')) {
+    $knownRoot = $null
+    foreach ($taskName in @('FRIDAY_Dashboard', 'FRIDAY_Qwen', 'FRIDAY_Voice')) {
+        $knownTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+        if (-not $knownTask) { continue }
+        $taskArguments = (@($knownTask.Actions | ForEach-Object { "$($_.Arguments)" }) -join ' ')
+        if ($taskArguments -match '([A-Za-z]:\\[^"]*?)\\installer\\') { $knownRoot = $Matches[1]; break }
+    }
+    $rootHasState = Test-Path -LiteralPath (Join-Path $Root 'config\install-state.json')
+    if ($knownRoot -and -not $rootHasState -and
+        [IO.Path]::GetFullPath($knownRoot).TrimEnd('\') -ine [IO.Path]::GetFullPath($Root).TrimEnd('\')) {
+        Warn "Auf diesem PC ist bereits eine F.R.I.D.A.Y.-Installation eingerichtet: $knownRoot"
+        Info "Dieser Start wuerde eine ZWEITE Installation in $Root anlegen."
+        Info ('Vorhandene Installation fortsetzen: powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' + $PSCommandPath + '" -Resume -InstallRoot "' + $knownRoot + '"')
+        if (-not (YesNo "Trotzdem eine zweite Installation in $Root anlegen?")) {
+            Stop-Install 'Abgebrochen, damit keine zweite Installation entsteht.'
+        }
+    }
+}
+
 # ---------------------------------------------------------------- Fortschritt
 $StateFile = "$Root\config\install-state.json"
 $State = @{ done = @() }
@@ -1015,31 +1124,43 @@ if ($State.voice_mode -eq 'elevenlabs' -and $State.voice_choice -notin @('friday
 if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
     ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic'))) {
     Title 'Ausgabestimme wählen'
-    Info '1  F.R.I.D.A.Y.: weibliche Stimme aus eigener 3-30-Sekunden-Referenz (Qwen3-TTS, lokal)'
-    Info '2  Klassisch: unsere J.A.R.V.I.S.-Stimme (Qwen3-TTS, lokal), eigene Referenz oder ONNX'
+    Info '1  F.R.I.D.A.Y. (weiblich)'
+    Info '2  J.A.R.V.I.S. (männlich)'
+    Info '3  Eigene MP3/WAV'
     $classicSaved = $State['voice_reference_classic']
     if (-not $classicSaved -and $State.voice_choice -eq 'classic') { $classicSaved = $State.voice_reference }
     $classicAvailable = Find-VoiceReference 'classic' $classicSaved $Root $PSScriptRoot
     if (-not $classicAvailable -and -not (Test-Path "$PSScriptRoot\voice_models\jarvis_de.onnx") -and
         -not (Test-Path "$Inst\voice_models\jarvis_de.onnx")) {
-        Warn 'Ohne eigene J.A.R.V.I.S.-Referenz/ONNX verwendet Option 2 Thorsten mit Filmfilter.'
+        Warn 'Ohne eigene J.A.R.V.I.S.-Referenz/ONNX klingt Option 2 heller (Thorsten mit Filmfilter).'
     }
     $defaultChoice = if ($State.voice_choice -eq 'classic') { '2' } elseif ($State.voice_choice -eq 'friday-female') { '1' } elseif ($AN -eq 'Jarvis') { '2' } else { '1' }
     do {
-        $answer = $(if ($GuiMode) { Gui-Answer 'voiceChoice' } else { Read-Host "  Stimme [1/2, Standard $defaultChoice]" }).Trim()
+        $answer = $(if ($GuiMode) { Gui-Answer 'voiceChoice' } else { Read-Host "  Stimme [1-3, Standard $defaultChoice]" }).Trim()
         if (-not $answer) { $answer = $defaultChoice }
-    } while ($answer -notin @('1', '2'))
-    $newChoice = if ($answer -eq '1') { 'friday-female' } else { 'classic' }
+    } while ($answer -notin @('1', '2', '3'))
+    # Option 3 nutzt denselben Stimmplatz wie F.R.I.D.A.Y.: der Qwen-Klon entsteht ohnehin aus der
+    # Referenzdatei. Ein eigener Platz muesste fast_tts, prepare_voice_pairs und die Stimmenliste im
+    # Dashboard mitziehen - die Referenz ist der eigentliche Unterschied.
+    $newChoice = if ($answer -eq '2') { 'classic' } else { 'friday-female' }
+    $ownReference = ($answer -eq '3')
     $reference = ''
     if ($State.voice_mode -eq 'local' -and $newChoice -in @('friday-female', 'classic')) {
         $choiceReference = $State["voice_reference_$newChoice"]
         if (-not $choiceReference -and $State.voice_choice -eq $newChoice) { $choiceReference = $State.voice_reference }
-        $defaultReference = Find-VoiceReference $newChoice $choiceReference $Root $PSScriptRoot
-        if ($defaultReference) { Info "Stimmreferenz wird automatisch verwendet: $defaultReference" }
-        $reference = $(if ($GuiMode) { Gui-Answer 'voiceReference' } else { Read-Host '  Andere MP3/WAV-Stimmreferenz (leer = angezeigte Stimme oder Piper-Basisstimme)' }).Trim().Trim('"')
-        if (-not $reference) { $reference = $defaultReference }
-        if ($reference -and -not (Test-Path -LiteralPath $reference -PathType Leaf)) { Stop-Install "Stimmreferenz nicht gefunden: $reference" }
-        if (-not $reference) { Warn 'Ohne Referenz wird die passende Piper-Basisstimme installiert. Du kannst später mit change-voice.bat eine eigene Referenz wählen.' }
+        if ($ownReference) {
+            $prompt = '  Pfad zur eigenen MP3/WAV (3 bis 30 Sekunden, Pflichtfeld)'
+            $reference = $(if ($GuiMode) { Gui-Answer 'voiceReference' } else { Read-Host $prompt }).Trim().Trim('"')
+            if (-not $reference) { Stop-Install "Für 'Eigene MP3/WAV' wird eine Stimmdatei benötigt. Installation erneut starten und den Pfad angeben." }
+            if (-not (Test-Path -LiteralPath $reference -PathType Leaf)) { Stop-Install "Stimmdatei nicht gefunden: $reference" }
+        } else {
+            $defaultReference = Find-VoiceReference $newChoice $choiceReference $Root $PSScriptRoot
+            if ($defaultReference) { Info "Stimmreferenz wird automatisch verwendet: $defaultReference" }
+            $reference = $(if ($GuiMode) { Gui-Answer 'voiceReference' } else { Read-Host '  Andere MP3/WAV-Stimmreferenz (leer = angezeigte Stimme oder Piper-Basisstimme)' }).Trim().Trim('"')
+            if (-not $reference) { $reference = $defaultReference }
+            if ($reference -and -not (Test-Path -LiteralPath $reference -PathType Leaf)) { Stop-Install "Stimmreferenz nicht gefunden: $reference" }
+            if (-not $reference) { Warn 'Ohne Referenz wird die passende Piper-Basisstimme installiert. Du kannst später mit change-voice.bat eine eigene Referenz wählen.' }
+        }
     }
     $changed = $State.voice_choice -ne $newChoice -or $State.voice_reference -ne $reference
     $State.voice_choice = $newChoice
@@ -1294,19 +1415,91 @@ if (-not (IsDone 'keepalive')) {
     Register-UserTask 'FRIDAY_WSL_Keepalive' "`"$Inst\scripts\wsl-keepalive.vbs`" `"$Distro`"" 'Hält Ubuntu/WSL für Hermes dauerhaft aktiv'
     Start-ScheduledTask -TaskName 'FRIDAY_WSL_Keepalive'
     Ok 'Aufgabe FRIDAY_WSL_Keepalive eingerichtet (startet bei jeder Anmeldung).'
+    Assert-WslKeepalive
     MarkDone 'keepalive'
 }
 
 # ================================================================ 10 Hermes + Kimi
 if (-not (IsDone 'hermes')) {
-    Title 'Schritt 10/15 – Hermes Agent + Kimi K3'
-    $key = [Environment]::GetEnvironmentVariable('KIMI_API_KEY', 'User')
-    if ($key -and (YesNo 'Kimi-API-Key aus der Kimi-Code-Einrichtung gefunden. Verwenden?')) { }
-    else {
-        Info 'Kimi-API-Key eingeben (Eingabe bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
-        $key = Plain $(if ($GuiMode) { Gui-Secret 'kimiKey' } else { Read-Host '  Kimi-API-Key' -AsSecureString })
+    Title 'Schritt 10/15 – Hermes Agent + KI-Anbieter'
+    # Der Anbieter kommt aus dem Installer statt fest verdrahtet aus Kimi. Verknuepft wird ueber Hermes'
+    # eigene Konfiguration (~/.hermes/.env + `hermes config set`) - kein eigener Auth-Stack, damit wir
+    # update-fest bleiben. Das Hermes-Dashboard braucht der Nutzer dafuer nie zu oeffnen.
+    $detectedKimi = [Environment]::GetEnvironmentVariable('KIMI_API_KEY', 'User')
+    if ($GuiMode -and -not $State.model_provider -and -not $GuiConfig.answers.PSObject.Properties['providerChoice']) {
+        # Der grafische Assistent fragt den Anbieter noch nicht ab; dort bleibt es beim bisherigen Weg.
+        $State.model_provider = 'kimi-coding'
+        $State.model_name = 'k3'
     }
-    if (-not $key) { Stop-Install "Ohne Kimi-API-Key kann $AN nicht denken." }
+    $provider = [string]$State.model_provider
+    if (-not $provider) {
+        Info 'Wie soll F.R.I.D.A.Y. denken?'
+        Info '1  OpenAI      (empfohlen)'
+        Info '2  Anthropic   (Claude)'
+        Info '3  Erweitert   Kimi, DeepSeek, OpenRouter oder eigener OpenAI-kompatibler Server'
+        if ($detectedKimi) { Info '   (Auf diesem PC liegt ein Kimi-Key bereit - er passt zu Option 3.)' }
+        do {
+            $answer = $(if ($GuiMode) { Gui-Answer 'providerChoice' } else { Read-Host '  Anbieter [1-3, Standard 1]' }).Trim()
+            if (-not $answer) { $answer = '1' }
+        } while ($answer -notin @('1', '2', '3'))
+        $provider = switch ($answer) { '2' { 'anthropic' } '3' { 'custom' } default { 'openai' } }
+    }
+    $modelName = [string]$State.model_name
+    $baseUrl = [string]$State.model_base_url
+    $key = ''
+    if ($provider -eq 'openai') {
+        if (-not $modelName) { $modelName = 'gpt-5' }
+        Info "OpenAI - Modell: $modelName"
+        Info 'OpenAI-API-Key eingeben (bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
+        $key = Plain $(if ($GuiMode) { Gui-Secret 'openaiKey' } else { Read-Host '  OpenAI-API-Key' -AsSecureString })
+    } elseif ($provider -eq 'anthropic') {
+        if (-not $modelName) { $modelName = 'claude-sonnet-4-5' }
+        Info "Anthropic - Modell: $modelName"
+        Info 'Anthropic-API-Key eingeben (bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
+        $key = Plain $(if ($GuiMode) { Gui-Secret 'anthropicKey' } else { Read-Host '  Anthropic-API-Key' -AsSecureString })
+    } elseif ($provider -eq 'kimi-coding') {
+        if (-not $modelName) { $modelName = 'k3' }
+        $baseUrl = ''
+        if ($detectedKimi) {
+            $key = $detectedKimi
+            Info 'Kimi-Code-Zugang auf diesem PC gefunden - eingerichtet wird Modell k3.'
+        } else {
+            Info 'Kimi-API-Key eingeben (bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
+            $key = Plain $(if ($GuiMode) { Gui-Secret 'kimiKey' } else { Read-Host '  Kimi-API-Key' -AsSecureString })
+        }
+    } else {
+        # Ein Kimi-Code-Key (sk-kimi-...) gehoert nicht an die Moonshot-API, sondern an den eigenen
+        # Hermes-Provider kimi-coding (Modell k3) - so lief es hier bereits verifiziert.
+        if ($detectedKimi -and $detectedKimi -match '^sk-kimi-') {
+            $provider = 'kimi-coding'
+            $modelName = 'k3'
+            $baseUrl = ''
+            $key = $detectedKimi
+            Info 'Kimi-Code-Key auf diesem PC gefunden - eingerichtet wird der Kimi-Coding-Zugang (Modell k3).'
+        } else {
+            Info 'Erweitert - OpenAI-kompatibler Anbieter, z. B. DeepSeek https://api.deepseek.com/v1 oder OpenRouter https://openrouter.ai/api/v1'
+            do {
+                $enteredUrl = $(if ($GuiMode) { Gui-Answer 'modelBaseUrl' } else { Read-Host "  Basis-URL [Standard $baseUrl]" }).Trim()
+                if ($enteredUrl) { $baseUrl = $enteredUrl }
+            } while ($baseUrl -notmatch '^https?://')
+            if (-not $modelName) {
+                $enteredModel = $(if ($GuiMode) { Gui-Answer 'modelName' } else { Read-Host '  Modellname (z. B. deepseek-chat)' }).Trim()
+                $modelName = if ($enteredModel) { $enteredModel } else { 'deepseek-chat' }
+            }
+            Info 'API-Key eingeben (bleibt unsichtbar; wird nur in Ubuntu unter ~/.hermes/.env gespeichert).'
+            $key = Plain $(if ($GuiMode) { Gui-Secret 'customKey' } else { Read-Host '  API-Key' -AsSecureString })
+            if ($key -and $key -match '^sk-kimi-') {
+                $provider = 'kimi-coding'; $modelName = 'k3'; $baseUrl = ''
+                Info 'Der eingegebene Key ist ein Kimi-Code-Key - es wird der Kimi-Coding-Zugang (Modell k3) eingerichtet.'
+            }
+        }
+    }
+    if (-not $key) { Stop-Install "Ohne API-Key kann $AN nicht denken." }
+    if (-not $modelName) { Stop-Install 'Kein Modellname gewaehlt.' }
+    $State.model_provider = $provider
+    $State.model_name = $modelName
+    $State.model_base_url = $baseUrl
+    Save-State
     # Datei zuerst leer anlegen und absichern, dann erst den Schluessel hineinschreiben (kein Fenster mit geerbten Rechten);
     # die Rechte werden bei jedem Lauf neu gesetzt, damit ein frueherer Fehlschlag nicht dauerhaft ungeschuetzt bleibt.
     $apiKeyFile = "$Root\config\hermes_api.key"
@@ -1318,11 +1511,22 @@ if (-not (IsDone 'hermes')) {
         [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
         [IO.File]::WriteAllText($apiKeyFile, (-join ($bytes | ForEach-Object { $_.ToString('x2') })))
     }
-    Info 'Installiere Hermes, verbinde Kimi, richte Persönlichkeit, Kanban, Dashboard und Gateway ein (10–20 min) …'
-    $out = Wsl-Run $State.linux_user "$WslInstPath/wsl/setup_hermes.sh" $key
-    $key = $null
+    # Anbieter, Modell und Basis-URL gehen ueber eine eigene Datei im Austauschordner (keine Secrets),
+    # der Key weiterhin ueber stdin - so taucht er in keiner Prozessliste auf. Datei danach loeschen.
+    $modelSetupFile = "$Root\exchange\model-setup.env"
+    New-Item -ItemType Directory -Force (Split-Path $modelSetupFile) | Out-Null
+    $modelSetupLines = @("FRIDAY_MODEL_PROVIDER=$provider", "FRIDAY_MODEL_NAME=$modelName", "FRIDAY_MODEL_BASE_URL=$baseUrl")
+    [IO.File]::WriteAllText($modelSetupFile, (($modelSetupLines -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding $false))
+    Info "Installiere Hermes, verbinde $provider, richte Persönlichkeit, Kanban, Dashboard und Gateway ein (10–20 min) …"
+    try {
+        $out = Wsl-Run $State.linux_user "$WslInstPath/wsl/setup_hermes.sh" $key
+    } finally {
+        $key = $null
+        Remove-Item -LiteralPath $modelSetupFile -Force -ErrorAction SilentlyContinue
+    }
     if ($out -notmatch 'HERMES_SETUP_DONE') { Stop-Install 'Hermes-Einrichtung fehlgeschlagen (siehe graue Ausgabe oben).' }
-    if ($out -match 'KIMI_OK') { Ok 'Kimi K3 antwortet.' } else { Warn 'Kimi-Test nicht bestanden – Key prüfen; später in Ubuntu: hermes model' }
+    if ($out -match 'MODEL_OK') { Ok "KI-Anbieter $provider antwortet (Modell $modelName)." }
+    else { Warn 'Antwort-Test nicht bestanden - Key und Modellname pruefen. Spaeter im Command Center unter Einstellungen aenderbar.' }
     if (Wait-Http "http://127.0.0.1:$($Ports.Dashboard)/" 60) { Ok "Dashboard von Windows erreichbar: http://127.0.0.1:$($Ports.Dashboard)" }
     else { Warn 'Dashboard von Windows nicht erreichbar (mirrored networking?).' }
     MarkDone 'hermes'
@@ -1451,12 +1655,16 @@ if (-not (IsDone 'voicepython')) {
     if (-not (Test-Path "$venv\Scripts\python.exe")) { & $py -m venv $venv }
     $vpy = "$venv\Scripts\python.exe"
     $env:PIP_CACHE_DIR = "$Root\cache\pip"
-    Info 'Python-Pakete installieren …'
+    Info 'Python-Pakete installieren (PyTorch + Whisper: zusammen ca. 1,3 GB, 10–20 min) …'
     & $vpy -m pip install -q --upgrade pip wheel 2>&1 | Out-Null
-    & $vpy -m pip install -q torch torchaudio --index-url https://download.pytorch.org/whl/cpu 2>&1 | Out-File "$Root\logs\pip.log" -Append
+    if ((Invoke-Pip $vpy @('torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cpu') 'torch') -ne 0) {
+        Stop-Install "PyTorch konnte nicht installiert werden ($Root\logs\pip-torch.log)."
+    }
     if ($State.voice_mode -eq 'elevenlabs') {
-        & $vpy -m pip install -q openwakeword speechbrain silero-vad sounddevice soundfile scipy scikit-learn `
-            huggingface_hub tzdata av 2>&1 | Out-File "$Root\logs\pip.log" -Append
+        if ((Invoke-Pip $vpy @('openwakeword', 'speechbrain', 'silero-vad', 'sounddevice', 'soundfile', 'scipy',
+                               'scikit-learn', 'huggingface_hub', 'tzdata', 'av') 'voice') -ne 0) {
+            Stop-Install "Python-Pakete konnten nicht installiert werden ($Root\logs\pip-voice.log)."
+        }
         $secretPath = "$Root\config\elevenlabs_api.key.dpapi"
         if (-not (Test-Path -LiteralPath $secretPath -PathType Leaf)) {
             Info 'ElevenLabs API-Schlüssel wird verschlüsselt für diesen Windows-Benutzer gespeichert.'
@@ -1466,8 +1674,11 @@ if (-not (IsDone 'voicepython')) {
             $secret.Dispose()
         }
     } else {
-        & $vpy -m pip install -q faster-whisper nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*" openwakeword speechbrain silero-vad `
-            piper-tts sounddevice soundfile scipy scikit-learn huggingface_hub tzdata av 2>&1 | Out-File "$Root\logs\pip.log" -Append
+        if ((Invoke-Pip $vpy @('faster-whisper', 'nvidia-cublas-cu12', 'nvidia-cudnn-cu12==9.*', 'openwakeword',
+                               'speechbrain', 'silero-vad', 'piper-tts', 'sounddevice', 'soundfile', 'scipy',
+                               'scikit-learn', 'huggingface_hub', 'tzdata', 'av') 'voice') -ne 0) {
+            Stop-Install "Python-Pakete konnten nicht installiert werden ($Root\logs\pip-voice.log)."
+        }
     }
     if ($LASTEXITCODE -ne 0) { Stop-Install "Python-Pakete konnten nicht installiert werden ($Root\logs\pip.log)." }
     Info 'Richte Sprachsteuerung ein …'
@@ -1513,13 +1724,17 @@ if (-not (IsDone 'voicepython')) {
             if ($exitCode -ne 0 -or -not $linuxPath) { Stop-Install "WSL-Pfad konnte nicht aufgeloest werden: $windowsPath" }
             $linuxPaths += "$linuxPath".Trim()
         }
+        Assert-WslKeepalive
         $ttsArgs = @($linuxPaths[0], $linuxPaths[1], $linuxPaths[2], [string]$ttsPort)
         if ($linuxPaths.Count -eq 7) { $ttsArgs += $linuxPaths[3..6] }
         & wsl.exe -d $Distro -u $State.linux_user --exec bash @ttsArgs 2>&1 |
             ForEach-Object { Info "$_" }
         if ($LASTEXITCODE -ne 0) { Stop-Install 'Lokaler TTS-Dienst konnte nicht installiert werden.' }
-        if (-not (Wait-Http "http://127.0.0.1:$ttsPort/health" 600)) {
-            Stop-Install 'Lokaler TTS-Dienst meldet sich nach dem Modellstart nicht bereit.'
+        # Kaltstart inkl. Modellpruefung und CUDA-Graphs braucht bis ~150 s, mit Download deutlich mehr.
+        Info 'Lade die Stimme (Modell wird in den Grafikspeicher geladen, kann einige Minuten dauern) …'
+        if (-not (Wait-Http "http://127.0.0.1:$ttsPort/health" 900)) {
+            if (-not (Test-WslKeepalive)) { Warn 'Die WSL-VM lief zwischenzeitlich nicht - Keepalive pruefen.' }
+            Stop-Install 'Lokaler TTS-Dienst meldet sich nach dem Modellstart nicht bereit. Pruefen: wsl -d <Distro> -- journalctl --user -u friday-tts -n 50'
         }
         Ok "Lokaler TTS-Dienst bereit (Port $ttsPort)."
     } else {

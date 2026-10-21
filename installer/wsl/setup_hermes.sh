@@ -1,7 +1,7 @@
 #!/bin/bash
-# F.R.I.D.A.Y.-Installer, WSL-Teil 2 (als Linux-Benutzer): Hermes Agent + Kimi K3 + Persoenlichkeit + Kanban +
+# F.R.I.D.A.Y.-Installer, WSL-Teil 2 (als Linux-Benutzer): Hermes Agent + KI-Anbieter + Persoenlichkeit + Kanban +
 # API-Server (fuer die Sprachsteuerung) + Dashboard + Gateway als systemd-Dienste.
-# stdin: Zeile 1 = Kimi-API-Key. Ports per Umgebung ueberschreibbar (Tests).
+# stdin: Zeile 1 = API-Key des gewaehlten Anbieters. Anbieter/Modell/Basis-URL: siehe unten. Ports per Umgebung ueberschreibbar (Tests).
 set -euo pipefail
 read -r KEY || true
 # PowerShell 5.1 stellt beim Pipen ein UTF-8-BOM voran (getestet) - entfernen, ebenso CR/LF/Leerzeichen.
@@ -43,32 +43,73 @@ step "Hermes MCP OAuth-Laufzeit"
 # Keep this after the pinned-source verification gate when installer patches are composed.
 hermes pm install --extra mcp
 
-step "Kimi-Zugang"
+step "KI-Anbieter"
+# Anbieter, Modell und Basis-URL legt der Installer in $ROOT/exchange/model-setup.env ab (keine Secrets);
+# der API-Key kommt weiterhin ueber stdin und landet nur in ~/.hermes/.env.
+PROVIDER="custom"
+MODEL=""
+BASE_URL=""
+MODEL_SETUP="$ROOT/exchange/model-setup.env"
+if [ -f "$MODEL_SETUP" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$MODEL_SETUP"
+    set +a
+    PROVIDER="${FRIDAY_MODEL_PROVIDER:-custom}"
+    MODEL="${FRIDAY_MODEL_NAME:-}"
+    BASE_URL="${FRIDAY_MODEL_BASE_URL:-}"
+fi
 mkdir -p "$H"
 touch "$H/.env" && chmod 600 "$H/.env"
-sed -i '/^KIMI_API_KEY=/d' "$H/.env"
-printf 'KIMI_API_KEY=%s\n' "$KEY" >> "$H/.env"
+case "$PROVIDER" in
+    openai)
+        KEY_VAR=OPENAI_API_KEY
+        [ -n "$MODEL" ] || MODEL=gpt-5
+        BASE_URL=""
+        ;;
+    anthropic)
+        KEY_VAR=ANTHROPIC_API_KEY
+        [ -n "$MODEL" ] || MODEL=claude-sonnet-4-5
+        BASE_URL=""
+        ;;
+    kimi-coding)
+        KEY_VAR=KIMI_API_KEY
+        [ -n "$MODEL" ] || MODEL=k3
+        BASE_URL=""
+        ;;
+    *)
+        PROVIDER=custom
+        KEY_VAR=OPENAI_API_KEY
+        [ -n "$MODEL" ] || MODEL=deepseek-chat
+        if [ -z "$BASE_URL" ]; then echo "FAIL Basis-URL fuer den eigenen Anbieter fehlt"; exit 1; fi
+        ;;
+esac
+sed -i "/^${KEY_VAR}=/d" "$H/.env"
+printf '%s=%s\n' "$KEY_VAR" "$KEY" >> "$H/.env"
+# Eine alte Basis-URL darf einen anderen Anbieter nicht verfaelschen.
+sed -i '/^OPENAI_BASE_URL=/d' "$H/.env"
+if [ "$PROVIDER" = "custom" ]; then printf 'OPENAI_BASE_URL=%s\n' "$BASE_URL" >> "$H/.env"; fi
 unset KEY
-if grep -q '^KIMI_API_KEY=sk-kimi-' "$H/.env"; then
-    # Kimi-Code-Key (wie fuer die Kimi Code CLI): Provider kimi-coding, Modell k3 (bei uns verifiziert).
-    hermes config set model.provider kimi-coding
-    hermes config set model.default k3
-    # Der Kimi-Coding-Provider verwendet den Anthropic-Client. Die Hermes-Basisinstallation
-    # bringt dieses optionale Paket nicht in jedem Release mit; ohne es antwortet die API mit HTTP 500.
-    hermes pm install --extra anthropic
-else
-    echo "WARN Key ist kein Kimi-Code-Key (sk-kimi-...). Bitte danach 'hermes model' ausfuehren und Kimi/Moonshot waehlen."
-fi
+hermes config set model.provider "$PROVIDER"
+hermes config set model.default "$MODEL"
+printf 'ANBIETER=%s MODELL=%s\n' "$PROVIDER" "$MODEL"
+case "$PROVIDER" in
+    anthropic|kimi-coding)
+        # Beide laufen ueber den Anthropic-Client. Die Hermes-Basisinstallation bringt dieses optionale
+        # Paket nicht in jedem Release mit; ohne es antwortet die API mit HTTP 500.
+        hermes pm install --extra anthropic
+        ;;
+esac
 hermes config set agent.reasoning_effort low
 hermes config set stt.language de
 hermes config set terminal.cwd "$ROOT/exchange"
 
 if [ "${FRIDAY_PAID_PROVIDER_SMOKE_TEST:-0}" = "1" ]; then
-    step "Kimi K3 testen"
-    OUT="$(timeout 240 hermes -z "Antworte exakt mit: KIMI_K3_OK" </dev/null 2>&1 | tail -5 || true)"
-    if printf '%s' "$OUT" | grep -q "KIMI_K3_OK"; then echo "KIMI_OK"; else echo "WARN Kimi-Test fehlgeschlagen: $OUT"; fi
+    step "KI-Anbieter testen"
+    OUT="$(timeout 240 hermes -z "Antworte exakt mit: MODEL_OK" </dev/null 2>&1 | tail -5 || true)"
+    if printf '%s' "$OUT" | grep -q "MODEL_OK"; then echo "MODEL_OK"; else echo "WARN Modell-Test fehlgeschlagen: $OUT"; fi
 else
-    echo "Kimi-Live-Test uebersprungen (keine kostenpflichtige Installationsprobe)."
+    echo "Modell-Live-Test uebersprungen (keine kostenpflichtige Installationsprobe)."
 fi
 
 step "Persoenlichkeit (SOUL.md)"
