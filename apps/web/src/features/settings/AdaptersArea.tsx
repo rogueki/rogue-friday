@@ -62,7 +62,9 @@ function AdapterForm({ adapter }: { adapter: AdapterConfigSettings }) {
     try {
       await update.mutateAsync({
         id: adapter.adapterId,
-        version: settings.version,
+        // Each adapter carries its own optimistic-concurrency token. Sending the settings version made the
+        // save fail with 409 as soon as the two counters diverged (for example after another adapter change).
+        version: adapter.version ?? 1,
         patch: {
           enabled,
           config: stripSecrets(config, schema, secretNames),

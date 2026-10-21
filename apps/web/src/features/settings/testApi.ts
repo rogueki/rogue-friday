@@ -86,6 +86,7 @@ export const ADAPTERS: AdapterConfigSettings[] = [
     category: "communication",
     provider: "mock-communication",
     enabled: true,
+    version: 7,
     config: { latencyMs: 0, imapHost: "imap.example" },
     configSchema: {
       type: "object",

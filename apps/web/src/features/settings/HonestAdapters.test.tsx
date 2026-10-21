@@ -115,3 +115,24 @@ describe("leaving a dirty settings area", () => {
     await waitFor(() => expect(nav.replaced.at(-1)).toBe("/settings?area=theme"));
   });
 });
+
+describe("adapter save uses the adapter's own revision", () => {
+  it("sends the adapter version as If-Match, not the settings version", async () => {
+    const user = userEvent.setup();
+    const api = createFakeApi({ dataMode: "live" });
+    renderWithProviders(<SettingsPage />, { fetchImpl: api.fetchImpl, capabilities: capabilitiesOf({ system: { read: true } }) });
+
+    const latency = await screen.findByRole("spinbutton", { name: /Latenz/ });
+    await user.clear(latency);
+    await user.type(latency, "42");
+    await user.click(screen.getByRole("button", { name: "Konfiguration speichern" }));
+
+    const patch = await waitFor(() => {
+      const call = api.calls.find((entry) => entry.method === "PATCH" && entry.path.startsWith("/settings/adapters/"));
+      expect(call).toBeTruthy();
+      return call!;
+    });
+    expect(patch.ifMatch).toBe("7");
+    expect(patch.ifMatch).not.toBe("3");
+  });
+});
