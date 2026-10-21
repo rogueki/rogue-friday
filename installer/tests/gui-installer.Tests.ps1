@@ -28,7 +28,7 @@ foreach ($case in @(@{ mode='success'; expected=0 }, @{ mode='failure'; expected
     $screenshot = Join-Path $env:TEMP "friday-gui-$($case.mode).png"
     if (-not (Test-Path -LiteralPath $screenshot -PathType Leaf)) { throw "Missing rendered screenshot: $screenshot" }
 }
-foreach ($page in 0..5) {
+foreach ($page in 0..6) {
     if (-not (Test-Path -LiteralPath (Join-Path $env:TEMP "friday-gui-page-$page.png") -PathType Leaf)) { throw "Page $page did not render." }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $env:TEMP 'friday-gui-cloud.png') -PathType Leaf)) { throw 'ElevenLabs page did not render.' }

@@ -143,7 +143,7 @@ $form.Font = New-Object Drawing.Font('Segoe UI', 10)
 $tabs = New-Object Windows.Forms.TabControl
 $tabs.Location = New-Object Drawing.Point(10, 10); $tabs.Size = New-Object Drawing.Size(785, 580)
 $form.Controls.Add($tabs)
-foreach ($title in @('Systemprüfung','Installationsort','Sprache & Stimme','Persönlichkeit','Zugänge','Zusammenfassung','Installation')) {
+foreach ($title in @('Systemprüfung','Installationsort','Sprache & Stimme','Persönlichkeit','KI-Zugang','Zugänge','Zusammenfassung','Installation')) {
     $page = New-Object Windows.Forms.TabPage
     $page.Text = $title; $page.AutoScroll = $true
     [void]$tabs.TabPages.Add($page)
@@ -255,7 +255,25 @@ $identity = $tabs.TabPages[3]
 [void](Add-Text $identity 'Für ein persönliches Wake Word werden später Sprachproben aufgenommen. Die Aufnahme führt dich mit sichtbaren Dialogen und Hörsignalen durch die Sätze.' 434 70)
 $script:fields.assistantName.Add_Leave({ if ($script:fields.wakePhrase.Text -eq 'Hey Friday') { $script:fields.wakePhrase.Text = 'Hey ' + $script:fields.assistantName.Text.Trim() } })
 
-$keys = $tabs.TabPages[4]
+$model = $tabs.TabPages[4]
+[void](Add-Choice $model 'providerChoice' 'Anbieter' 35 @(
+    'OpenAI (empfohlen)', 'Anthropic (Claude)', 'Erweitert: Kimi, DeepSeek, OpenRouter oder eigener Server'))
+[void](Add-Row $model 'modelBaseUrl' 'Basis-URL (nur Erweitert, z. B. https://api.deepseek.com/v1)' 79)
+[void](Add-Row $model 'modelName' 'Modellname (leer = Standard des Anbieters)' 123)
+[void](Add-Row $model 'openaiKey' 'OpenAI-API-Key' 167 '' $true)
+[void](Add-Row $model 'anthropicKey' 'Anthropic-API-Key' 211 '' $true)
+[void](Add-Row $model 'customKey' 'API-Key des erweiterten Anbieters' 255 '' $true)
+$modelHelp = Add-Text $model 'Der Schlüssel wird verdeckt eingegeben und nur an den Installer übergeben. Er landet ausschließlich in der WSL-Installation unter ~/.hermes/.env. Ein hier gefundener Kimi-Code-Schlüssel (sk-kimi-…) richtet automatisch den Kimi-Coding-Zugang ein.' 305 110
+function Update-ProviderFields {
+    $choice = $script:fields.providerChoice.SelectedIndex
+    $script:fields.openaiKey.Enabled = $choice -eq 0
+    $script:fields.anthropicKey.Enabled = $choice -eq 1
+    foreach ($name in @('customKey', 'modelBaseUrl', 'modelName')) { $script:fields[$name].Enabled = $choice -eq 2 }
+}
+$script:fields.providerChoice.Add_SelectedIndexChanged({ Update-ProviderFields })
+Update-ProviderFields
+
+$keys = $tabs.TabPages[5]
 [void](Add-Row $keys 'linuxUser' 'Linux-Benutzername' 35 'friday')
 [void](Add-Row $keys 'linuxPassword' 'Linux-Passwort' 78 '' $true)
 [void](Add-Row $keys 'linuxPasswordRepeat' 'Linux-Passwort wiederholen' 121 '' $true)
@@ -272,12 +290,12 @@ if (-not $kimiEnvironment) {
     $script:fields.kimiKey.Enabled = $true
 }
 
-$summary = $tabs.TabPages[5]
+$summary = $tabs.TabPages[6]
 $summaryText = New-Object Windows.Forms.TextBox
 $summaryText.Multiline = $true; $summaryText.ReadOnly = $true; $summaryText.ScrollBars = 'Vertical'
 $summaryText.Location = New-Object Drawing.Point(24, 25); $summaryText.Size = New-Object Drawing.Size(730, 470)
 $summary.Controls.Add($summaryText)
-$progress = $tabs.TabPages[6]
+$progress = $tabs.TabPages[7]
 $status = Add-Text $progress 'Bereit.' 20 40
 $details = New-Object Windows.Forms.TextBox
 $details.Multiline = $true; $details.ReadOnly = $true; $details.ScrollBars = 'Vertical'
@@ -312,7 +330,7 @@ function Load-RootState {
     $script:fields.linuxUser.Text = if ($saved -and $saved.linux_user) { $saved.linux_user } else { 'friday' }
     $script:fields.about.Text = ''
     $script:fields.address.SelectedIndex = 0; $script:fields.character.SelectedIndex = 0; $script:fields.length.SelectedIndex = 0
-    foreach ($field in @('linuxPassword','linuxPasswordRepeat','kimiKey','elevenlabsKey')) { $script:fields[$field].Clear() }
+    foreach ($field in @('linuxPassword','linuxPasswordRepeat','kimiKey','elevenlabsKey','openaiKey','anthropicKey','customKey')) { $script:fields[$field].Clear() }
     $script:fields.voiceMode.SelectedIndex = if ($saved -and $saved.voice_mode -eq 'elevenlabs') { 1 } else { 0 }
     $script:fields.voiceChoice.SelectedIndex = if ($saved -and $saved.voice_choice -eq 'classic') { 1 } else { 0 }
     $script:fields.voiceId.Text = if ($saved -and $saved.elevenlabs_voice_id) { $saved.elevenlabs_voice_id } else { '' }
@@ -477,12 +495,16 @@ function Start-Backend {
         keepIdentity = BoolText (Checked 'keepIdentity'); repeatEnrollment = BoolText (Checked 'repeatEnrollment')
         retryEnrollment = 'false'; openBrowser = BoolText (Checked 'openBrowser')
         useExistingKimi = BoolText (Checked 'useExistingKimi'); restartNow = 'false'
+        providerChoice = [string]($script:fields.providerChoice.SelectedIndex + 1)
+        modelBaseUrl = Value 'modelBaseUrl'; modelName = Value 'modelName'
     }
     $secrets = @{
         linuxPassword = Secure-Field 'linuxPassword'; linuxPasswordRepeat = Secure-Field 'linuxPasswordRepeat'
         kimiKey = Secure-Field 'kimiKey'; elevenlabsKey = Secure-Field 'elevenlabsKey'
+        openaiKey = Secure-Field 'openaiKey'; anthropicKey = Secure-Field 'anthropicKey'
+        customKey = Secure-Field 'customKey'
     }
-    $script:redactions = @(@('linuxPassword','linuxPasswordRepeat','kimiKey','elevenlabsKey') |
+    $script:redactions = @(@('linuxPassword','linuxPasswordRepeat','kimiKey','elevenlabsKey','openaiKey','anthropicKey','customKey') |
         ForEach-Object { $script:fields[$_].Text } | Where-Object { $_ })
     $config = @{ protocol = 1; answers = $answers; secrets = $secrets }
     if ($Simulation) { $config.simulation = $Simulation }
@@ -508,6 +530,7 @@ function Start-Backend {
         $script:stderrTask = $script:process.StandardError.ReadLineAsync()
         $script:fields.linuxPassword.Clear(); $script:fields.linuxPasswordRepeat.Clear()
         $script:fields.kimiKey.Clear(); $script:fields.elevenlabsKey.Clear()
+        foreach ($name in @('openaiKey','anthropicKey','customKey')) { $script:fields[$name].Clear() }
         $details.Clear(); $status.Text = 'Installation läuft …'
         $tabs.SelectedIndex = 6; $timer.Start(); $retry.Enabled = $false
         $back.Enabled = $false; $next.Enabled = $false; $start.Enabled = $false
@@ -615,7 +638,11 @@ $form.Add_Shown({
         $script:fields.kimiKey.Text = 'synthetic-test-key'
         $script:fields.linuxPassword.Text = 'synthetic-test-password'
         $script:fields.linuxPasswordRepeat.Text = 'synthetic-test-password'
-        foreach ($index in 0..5) {
+        foreach ($required in @('providerChoice', 'modelBaseUrl', 'modelName', 'openaiKey', 'anthropicKey', 'customKey')) {
+            if (-not $script:fields.ContainsKey($required)) { throw "GUI provider field missing: $required" }
+        }
+        if ($tabs.TabPages[4].Text -ne 'KI-Zugang' -or $tabs.TabPages.Count -ne 8) { throw 'GUI provider page missing.' }
+        foreach ($index in 0..6) {
             $tabs.SelectedIndex = $index
             if ($index -eq 2) { $script:fields.voiceMode.SelectedIndex = 0 }
             $bitmap = New-Object Drawing.Bitmap($form.Width, $form.Height)
@@ -631,7 +658,7 @@ $form.Add_Shown({
             $bitmap.Save((Join-Path $env:TEMP 'friday-gui-cloud.png'))
         } finally { $bitmap.Dispose() }
         $script:fields.voiceMode.SelectedIndex = 0
-        $tabs.SelectedIndex = 5
+        $tabs.SelectedIndex = 6
         Start-Backend
     }
 })

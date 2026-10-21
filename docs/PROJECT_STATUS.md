@@ -409,3 +409,22 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   den KI-Zugang braucht einen echten Modellaufruf; das ist DASH-07.05, nicht der Inventarschritt.
 - **Planstand**: DASH-07.01 und 07.02 abgehakt; naechster Schritt DASH-07.03 (KI-Zugang: Provider/Keys,
   Customendpoints, lokale Modelle, Gedaechtnis-Felder).
+
+## 2026-10-22 INS-02 Installer-I/O-Vertrag, Promptinventur und KI-Zugang
+
+- **Vertrag eingefroren** (`docs/agent-work/finalization/ins-02-installer-io.md`): Transportprotokoll 1 mit
+  28 Antworten und 7 Geheimnissen, Ereignisvertrag der GUI (Schritt-/`[GUI]`/`[OK]`/`[FEHLER]`-Zeilen, Exitcodes
+  0/1/10), Zustandsvertrag von `install-state.json` und die Schrittmenge der Zustandsmaschine.
+- **Promptinventur vollstaendig**: 19 `Read-Host`-Stellen in `install-friday.ps1`, jede an eine GUI-Route
+  gebunden; `Ask`/`Choose`/`YesNo` werfen bei unbekanntem Fragetext statt auf stdin zurueckzufallen.
+- **Echte Luecke gefunden und behoben (N-009)**: der Assistent fragte den Anbieter nicht ab und setzte in
+  GUI-Laeufen still `kimi-coding`/`k3`. Neuer Reiter **KI-Zugang** mit `providerChoice`, `modelBaseUrl`,
+  `modelName`, `openaiKey`, `anthropicKey`, `customKey` (Felder passend zur Auswahl aktiv), Transport-,
+  Redaktions- und Aufraeumlisten erweitert; der stille Standard ist durch einen klaren Abbruch ersetzt.
+- **Ausfuehrbarer Waechter**: `installer/tests/installer-io-contract.Tests.ps1` (neu, gruen) prueft per AST, dass
+  jeder gefragte Schluessel im Transport existiert, kein `Read-Host` ungeschuetzt ist und kein interaktiver
+  Python-Prompt ausserhalb der Aufnahmeprotokolle liegt — Ausgabe `28 answers, 7 secrets, 19 guarded prompts`.
+- **Renderprobe**: `gui-installer.Tests.ps1` gruen mit acht Reitern, DPAPI-Rundlauf und den Exitcodes 0/1/10;
+  alle uebrigen Installer-Testskripte ebenfalls gruen.
+- **Naechster Schritt**: INS-03 (echte Auth-Pruefung fuer OpenAI/Anthropic/Kimi/Custom, OAuth-Ablehnung und
+  Timeout, Konfiguration transaktional erhalten) — der Vertrag steht, die fachliche Pruefung fehlt noch.

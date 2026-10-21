@@ -1430,9 +1430,9 @@ if (-not (IsDone 'hermes')) {
     # update-fest bleiben. Das Hermes-Dashboard braucht der Nutzer dafuer nie zu oeffnen.
     $detectedKimi = [Environment]::GetEnvironmentVariable('KIMI_API_KEY', 'User')
     if ($GuiMode -and -not $State.model_provider -and -not $GuiConfig.answers.PSObject.Properties['providerChoice']) {
-        # Der grafische Assistent fragt den Anbieter noch nicht ab; dort bleibt es beim bisherigen Weg.
-        $State.model_provider = 'kimi-coding'
-        $State.model_name = 'k3'
+        # Kein stiller Standardanbieter: fehlt die Antwort der Oberflaeche, bricht der Lauf ab, statt
+        # eine vom Benutzer nie getroffene Wahl zu installieren.
+        Stop-Install 'Die Oberflaeche hat keinen Anbieter uebermittelt.'
     }
     $provider = [string]$State.model_provider
     if (-not $provider) {

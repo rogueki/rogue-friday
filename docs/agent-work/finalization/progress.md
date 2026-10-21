@@ -14,6 +14,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | DASH-01.01–.05 Istbestand einfrieren | PASS | `inventory.md`, `installer-inventory.csv` |
 | INS-01 Bestands- und Fehler-ID-Matrix | PASS | `issue-ledger.csv` |
 | DASH-03 Produktionspfad ohne Simulation | PASS | `dash-03-production-path.md`, `live-empty-sources.test.ts`, Rollback-Drill |
+| INS-02 Installer-Vertraege | PASS | `ins-02-installer-io.md`, `installer-io-contract.Tests.ps1`, `gui-installer.Tests.ps1` (Renderprobe 8 Reiter) |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
 | DASH-02 Vertraege | 02.01/02.02 PASS, 02.03/02.05 offen, 02.04 teilweise | `dash-02-contracts.md`, `authorization-contract.test.ts` (4 gruen), 176 Handler-/Event-Tests gruen |
 | DASH-04 Einstellungen ehrlich | 04.01/04.02 PASS, 04.04 Adapter-Haelfte PASS; 04.03/04.05 offen | `dash-04-settings.md`, `tests/e2e/settings-acceptance.spec.ts` (3 gruen), 92 Settings-Tests |
@@ -68,6 +69,25 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - observed: four inventories exist and are named with their source revision; the installer inventory proves
   13 of 16 rows against the live installation and marks 15b (data mode) as FAIL
 - status: PASS for the inventory; the defect itself is DASH-03
+
+### INS-02
+
+- requirement_ids: INS-02; predecessor: INS-01
+- implementation_paths: `installer/install-friday-gui.ps1` (Reiter KI-Zugang, Transport, Selbstpruefung),
+  `installer/install-friday.ps1` (kein stiller Standardanbieter), `installer/tests/installer-io-contract.Tests.ps1`
+  (neu), `installer/tests/gui-installer.Tests.ps1` (acht Reiter), `docs/agent-work/finalization/ins-02-installer-io.md`
+- test_command: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File installer/tests/installer-io-contract.Tests.ps1`;
+  `powershell.exe -NoProfile -ExecutionPolicy Bypass -File installer/tests/gui-installer.Tests.ps1`; alle uebrigen
+  `installer/tests/*.Tests.ps1` und `installer/test/data-mode.test.ps1`
+- expected: jede Backendinteraktion hat eine GUI-Route oder eine vorausgehende Antwort, keine versteckte
+  stdin-Abfrage, Vertrag vor der UI eingefroren
+- observed: Transportprotokoll 1 mit 28 Antworten und 7 Geheimnissen; 19 `Read-Host`-Stellen ausnahmslos durch
+  `$GuiMode` oder `Ask`/`Choose`/`YesNo` gedeckt; vorher fehlende Anbieterroute (OpenAI/Anthropic/Erweitert)
+  ergaenzt und der stille Kimi-Standard durch einen Abbruch ersetzt; AST-Waechter und Renderprobe (8 Reiter,
+  DPAPI, Exitcodes 0/1/10) gruen; alle 11 Installer-Testskripte gruen
+- evidence_paths: `ins-02-installer-io.md`; status: PASS
+- remaining_work: INS-03 (echte Auth-Pruefung je Anbieter, Custom-Endpoint, OAuth-Ablehnung/Timeout),
+  INS-04 (voiceChoice 1/2/3 synchron), INS-05, INS-06
 
 ### DASH-07 (07.01/07.02)
 
