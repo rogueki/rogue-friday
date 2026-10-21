@@ -1014,7 +1014,24 @@ if ($CustomRoot) {
     if (-not $ExistingState) { [IO.File]::WriteAllText($StateFile, ($State | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false))) }
 }
 function Save-State {
-    [IO.File]::WriteAllText($StateFile, ($State | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false)))
+    $directory = Split-Path -Parent $StateFile
+    if ($directory -and -not (Test-Path -LiteralPath $directory -PathType Container)) {
+        New-Item -ItemType Directory -Force -Path $directory | Out-Null
+    }
+    # Erst vollstaendig daneben schreiben, dann ersetzen: ein Absturz mitten im Schreiben darf den
+    # Fortschritt (done[]) nicht auf eine halbe JSON-Datei reduzieren, sonst ist die Fortsetzung weg.
+    $temporary = "$StateFile.tmp"
+    [IO.File]::WriteAllText($temporary, ($State | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false)))
+    if (Test-Path -LiteralPath $StateFile) {
+        try { [IO.File]::Replace($temporary, $StateFile, [NullString]::Value, $true) }
+        catch {
+            # Replace braucht NTFS-Semantik; wenn es scheitert, bleibt der Zustand trotzdem erhalten.
+            Remove-Item -LiteralPath $StateFile -Force
+            [IO.File]::Move($temporary, $StateFile)
+        }
+    } else {
+        [IO.File]::Move($temporary, $StateFile)
+    }
 }
 function MarkDone($n) { $State.done = @(@($State.done) + $n | Select-Object -Unique); Save-State }
 if ($GuiMode -and -not (IsDone 'voicepython')) {

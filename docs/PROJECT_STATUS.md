@@ -475,3 +475,12 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   Dashboard dieselbe dritte Kennung kennen.
 - **Nachweis**: `voice-reference.Tests.ps1`, `gui-run-tracker.Tests.ps1`, `gui-installer.Tests.ps1` und
   `installer-io-contract.Tests.ps1` gruen.
+
+## 2026-10-22 INS-06 (Teil) Installationszustand wird atomar geschrieben
+
+- **N-015 behoben**: `Save-State` schrieb `install-state.json` direkt; ein Abbruch mitten im Schreiben haette eine
+  halbe JSON-Datei hinterlassen und damit Fortschritt (`done[]`) und Entscheidungen gekostet. Jetzt `.tmp` plus
+  `[IO.File]::Replace` mit Rueckfallebene, Zielverzeichnis wird angelegt.
+- **Nachweis**: `installer/tests/state-atomic.Tests.ps1` (neu) prueft vollstaendigen Inhalt, Ersetzen statt
+  Anhaengen und das Fehlen von Restdateien.
+- **Offen**: Mutex gegen Parallellauf, Konflikte mit der geplanten Aufgabe, Ruecksetzen halb erledigter Schritte.
