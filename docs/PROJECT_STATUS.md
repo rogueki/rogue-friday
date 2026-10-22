@@ -642,6 +642,19 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   `interaction=visible:True ok:True` in `gui-wizard-pages.Tests.ps1` (108), Installer-Suite 32/32 Exit 0.
 - **Offen**: echte Aufnahme mit Mikrofon/Headset (hoerbarer Start, vollstaendiger Durchlauf, erzeugte Modelle
   und Embeddings, Wake-Phrase gegen die Metadaten). Der Sprechergrenzwert bleibt unveraendert.
+## 2026-10-22 DASH-02.03/02.04 Vertraege abgeschlossen
+
+- UI-PATCH und bestaetigter Sprachdialog laufen beide ueber `settingsHandlers.updateSettings`; neuer Test
+  `settings-shared-action.test.ts` belegt Revisionsschritt, gemeinsame Auditaktion `settings.updated`, 409 bei
+  veralteter Revision und Bindung der Bestaetigung an den gestagten Inhalt (Replay ohne zweiten Audit-Eintrag).
+- Migrationen sind wiederholbar belegt: `db-migrate-repeatable.test.ts` schreibt Konto, Mail-Entwurf, Studio-Plan
+  und Bibliothekseintrag in eine echte SQLite-Datei, migriert erneut und nach Neustart erneut - keine
+  Doppelanwendung, alle Zeilen byte-gleich, `integrity_check=ok`, Schreiben danach moeglich. Enrollment liegt
+  ausserhalb dieser Datenbank.
+- **Nachweis**: `contracts:check` ok (lint/validate/check-generated/breaking), 21 Testdateien / 495 Tests gruen,
+  `tsc` Control API 0 Fehler.
+- **Offen (N-043)**: keine Sicherung vor Migration und keine Laufzeitpruefung alter Vertragsversionen -> DASH-02.05.
+
 ## 2026-10-22 INS-12 Starter, Parameter und Abbruch
 
 - `install-friday-gui.bat` reichte keine Parameter weiter, `install-friday-gui.vbs` gar keine, und

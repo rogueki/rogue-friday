@@ -42,15 +42,48 @@ Frisch ausgeführt in dieser Arbeitseinheit (`vitest run`, `--maxWorkers=2`, all
 | Unbekannter Ausgang | `himalaya-send.test.ts` „keeps ambiguous SMTP outcome permanently unknown and stores no message text", „sends once through the authenticated route and replays the same key"; `messenger-send-routes.test.ts` (`state: "uncertain"`); `settings.ts` bildet `uncertain` auf `state: "unknown"` ab | grün |
 | Idempotente Wiederholung, auch nach Neustart | `mutations.test.ts` „replays the stored response for a repeated key and executes only once", „treats parallel requests with one key as one execution", „keeps replaying after a restart of the API"; `himalaya-send.test.ts` „reserves before SMTP and replays across parallel calls and database restart" | grün |
 
-## 4. Was noch offen ist
+## 4. Abschluss 2026-10-22 (Nachtrag)
 
-- **DASH-02.03** — Einstellungsänderung aus UI und Sprachdialog auf dieselbe Aktion: der Intent-Layer
-  (`settings-content-actions.ts`) berechnet `expectedVersion` selbst; die Rückleseprobe pro Feld gehört zu
-  KEEP-04 und ist dort noch nicht erbracht.
-- **DASH-02.04 (Migrationshälfte)** — Wiederholbarkeit ist für Idempotenz-Journale und Neustarts belegt, nicht
-  für eine echte Schema-Migration mit vorhandenen Konten, Entwürfen und Enrollment. Dafür fehlt ein Drill auf
-  einer Kopie mit Migrationsvorgängerversion.
-- **DASH-02.05** — `packages/contracts/test/breaking.test.ts` und die Baseline beweisen die Erkennung von
-  Vertragsbrüchen; das kontrollierte *Lesen* einer alten Vertragsversion zur Laufzeit und die geprüfte
-  Rückspielanleitung vor einer Migration stehen noch aus (`acceptance-environment.md` beschreibt den
-  Snapshot-Rollback, nicht den Vertragsversionswechsel).
+Beide offenen Punkte sind jetzt belegt; 02.03 und 02.04 sind abgehakt.
+
+**DASH-02.03 - UI und Sprachdialog, dieselbe Aktion.** `executeSettingsContentMutation`
+(`handlers/settings-content-actions.ts`) ruft für den Schreibvorgang `settingsHandlers.updateSettings` - denselben
+Handler wie `PATCH /api/v1/settings`. Neuer Test `apps/control-api/test/settings-shared-action.test.ts` (3 Tests,
+grün) beweist:
+
+- UI-PATCH mit `if-match` R führt zu R+1, danach staged und bestätigt der Sprachdialog und führt zu R+2; beide
+  Felder bleiben gesetzt, beide Wege hinterlassen die Auditaktion `settings.updated`; ein Replay bleibt bei R+2 und
+  schreibt keinen zweiten Audit-Eintrag.
+- Wird zwischen Vorschau und Bestätigung von anderer Stelle geschrieben, antwortet die Bestätigung mit **409** und
+  der gestagte Wert bleibt unangetastet.
+- Eine Bestätigung mit derselben `previewId`, aber anderem gesprochenem Text, übernimmt den **gestagten** Inhalt
+  oder wird abgelehnt - nie den neu gesprochenen Text.
+
+Damit ist `expectedVersion` nicht mehr nur selbst berechnet, sondern gegen eine konkurrierende Schreiboperation
+geprüft. Die feldweise Rückleseprobe bleibt Teil von KEEP-04.
+
+**DASH-02.04 - Migrationshälfte.** `apps/control-api/test/db-migrate-repeatable.test.ts` (2 Tests, grün) arbeitet
+auf einer echten SQLite-Datei: Konto (`owner_onboarding`), Mail-Entwurf (`mail_send_journal`, `state=pending`),
+Studio-Plan (`content_studio_plan`, Revision 7) und Bibliothekseintrag werden geschrieben, `migrate` erneut
+aufgerufen (`[]`), der Prozess neu geöffnet, erneut migriert (`[]`). Alle Zeilen sind byte-gleich vorhanden,
+`schema_migrations` behält seine Zeilenzahl, `PRAGMA integrity_check` meldet `ok`, eine Schreiboperation danach
+funktioniert. Enrollment liegt nachweislich außerhalb dieser Datenbank (keine Migrations-SQL und keine Tabelle
+enthält `enrollment`; die Aufnahme läuft über den Voice-Dienst).
+
+Frische Läufe dieser Arbeitseinheit:
+
+| Nachweis | Ergebnis |
+|---|---|
+| `pnpm --filter @friday/contracts check` | `ok lint`, `ok validate`, `ok check-generated`, `ok breaking` - passed |
+| `vitest run --project node contract settings approvals audit migrate` | 21 Dateien / 495 Tests grün |
+| `vitest run --project node settings-shared-action db-migrate-repeatable` | 3 + 2 Tests grün |
+| `tsc -p apps/control-api/tsconfig.json --noEmit` | 0 Fehler |
+
+## 5. Was noch offen ist
+
+- **DASH-02.05** — Vor einer Migration entsteht **keine** Sicherung (kein `.bak`, kein Backup-Aufruf in
+  `openDatabase`/`migrate`), und eine dokumentierte Lesbarkeit alter Vertragsversionen zur Laufzeit fehlt
+  (`CONTRACT_VERSION` wird nur gesendet, es gibt keine Kompatibilitätsprüfung mit klarer Ablehnung). Beides ist
+  Umsetzungsarbeit samt geprüfter Rückspielanleitung; Ledger `N-043`.
+- `packages/contracts/test/breaking.test.ts` und die Baseline beweisen weiterhin die Erkennung von
+  Vertragsbrüchen; `acceptance-environment.md` beschreibt den Snapshot-Rollback, nicht den Vertragsversionswechsel.
