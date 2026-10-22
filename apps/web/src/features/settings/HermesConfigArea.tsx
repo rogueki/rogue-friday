@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRunStagedWrite, useStagedWriteBusy } from "@/lib/api/stagedWrite";
 import { useHermesConfig, useHermesCronJobs, useHermesModelCatalog, usePatchHermesConfig, useProbeHermesMcp,
   useTestHermesApproval, useManageHermesMcpOAuth, useHermesMcpOAuthFlow, sendHermesCronMutation } from "@/lib/api/domains/settings";
+import { HermesAccessArea } from "./HermesAccessArea";
 
 const LABELS: Record<string, string> = {
   "model.provider": "Hermes-Anbieterkennung",
@@ -238,6 +239,7 @@ export function HermesConfigArea() {
         Die Werte stammen aus <code>hermes config get</code>. Ein Speichern mit Rücklesung bestätigt die
         Datei; ob ein laufender Prozess den Wert übernommen hat, bleibt ungeprüft.
       </p>
+      <HermesAccessArea />
       <section aria-label="Hermes-Zeitpläne">
         <h3>Hermes-Zeitpläne</h3>
         <p>Profil: {cronJobs.data?.data.profile ?? "unbekannt"}; Zeitzone: {cronJobs.data?.data.profileTimezone ?? "Systemzeit"}.

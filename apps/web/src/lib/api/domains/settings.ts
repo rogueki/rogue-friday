@@ -7,6 +7,7 @@ import type {
   AdapterConfigSettingsListResponse,
   AdapterConfigSettingsResponse,
   AdapterTestResultResponse,
+  HermesAccessResponse,
   LayoutImportRequest,
   LayoutListResponse,
   LayoutResponse,
@@ -92,6 +93,13 @@ export const useHermesModelCatalog = (providerId?: string, enabled = true) => us
   enabled,
   staleTime: 0,
 });
+export const useHermesAccess = (enabled = true) => useQuery({
+  queryKey: ["settings", "hermes-access"],
+  queryFn: (): Promise<HermesAccessResponse> => call(getApiClient().GET("/api/v1/settings/hermes-access")),
+  enabled,
+  staleTime: 0,
+});
+
 export function usePatchHermesConfig() {
   return useApiMutation<HermesConfigStatusResponse, { revision: number; patch: HermesConfigPatch } & IntentVars>({
     label: "Hermes-Konfiguration speichern",
