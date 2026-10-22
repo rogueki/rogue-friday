@@ -642,6 +642,24 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   `interaction=visible:True ok:True` in `gui-wizard-pages.Tests.ps1` (108), Installer-Suite 32/32 Exit 0.
 - **Offen**: echte Aufnahme mit Mikrofon/Headset (hoerbarer Start, vollstaendiger Durchlauf, erzeugte Modelle
   und Embeddings, Wake-Phrase gegen die Metadaten). Der Sprechergrenzwert bleibt unveraendert.
+## 2026-10-22 DASH-05.01/05.02 Kanalleiste und integrierte Postfaecher
+
+- Die Kommunikation zeigt genau sechs Navigationseintraege in fester Reihenfolge: Alle Kanaele, E-Mail Postfach,
+  Telegram, WhatsApp, Telefon, Discord. SMS und weitere Kanaele bleiben als Daten und unter Einstellungen
+  konfigurierbar, erscheinen aber nicht als Filter; ein Hinweis benennt das.
+- Mail-Postfach und Messenger-Schritt stehen nicht mehr global ueber der Seite, sondern nur im jeweils gewaehlten
+  Kanal: Postfach bei E-Mail, Nachrichtenformular bei Telegram/WhatsApp/Discord, ohne Auswahl keines von beiden.
+  Titel sind "E-Mail Postfach" und "Nachricht ueber den gewaehlten Kanal".
+- Vertrag: `ChannelKind` additiv um `discord` erweitert (`packages/contracts` -> `pnpm contracts:generate`),
+  danach `contracts:check` mit lint/validate/check-generated/breaking gruen. Keine Werte entfernt.
+- Mock-Seed: E-Mail-Kanal heisst "E-Mail Postfach", Discord-Kanal neu (nicht konfiguriert), SMS bleibt erhalten.
+- **Nachweis**: `channelList.test.ts` (4), `communication.test.tsx` (20, davon 2 neu), volle Laeufe web 81/648 und
+  node 191/2789 gruen, `tsc` 0 Fehler, `pnpm build:app` 0, neuer Browsertest
+  `playwright test tests/e2e/communication.spec.ts` 2/2 gruen in 23,7 s (sechs Eintraege, keine oberen Formulare,
+  Postfach/Messenger am richtigen Ort, 390/1024/1920 px ohne horizontalen Overflow).
+- **Offen**: Wizard DASH-05.03, Mehrkonten/UIDVALIDITY/Sendjournal DASH-05.04, echte Testpostfaecher DASH-05.05,
+  Recovery DASH-05.06. Einzelheiten in `docs/agent-work/finalization/dash-05-communication.md`.
+
 ## 2026-10-22 DASH-04.03/04.04/04.05 Skillkonten als Master-Detail
 
 - Die Skillkonten-Seite hat jetzt links eine Skillliste mit Name, Quelle (Friday/Hermes) und Zustand, durchsuchbar
