@@ -173,3 +173,28 @@ nicht zuruecksetzen und den Schritt wiederholen koennen.
 
 Damit ist der Punkt "Ruecksetzen halb erledigter Schritte" aus Abschnitt 7 belegt. Offen bleibt die
 systematische Quotierung (`&`, sehr lange Pfade), die als eigener Punkt weiterlaeuft.
+## 11. Nachtrag 2026-10-22: Quotierung von Sonderzeichen und langen Pfaden
+
+Der Fortsetzungsbefehl bettete den Zielordner woertlich ein. Zwei Zeichen brechen das in `cmd.exe` auch
+innerhalb von Anfuehrungszeichen nicht zuverlaessig: `%` wird expandiert, und ein Pfad mit abschliessendem
+Backslash kann das schliessende Anfuehrungszeichen maskieren. Zusaetzlich war der Ordner in der Datei
+festgeschrieben, sodass ein Verschieben die Datei falsch werden liess (N-029).
+
+Jetzt wechselt `resume.bat` zuerst in den eigenen Ordner (`cd /d "%~dp0"`) und uebergibt `-InstallRoot "%CD%"`.
+Damit steht der Zielordner nicht mehr woertlich in der Datei. Eingebettete Werte (Skriptpfad, Distributionsname,
+Ablageort) laufen durch `ConvertTo-BatchArgument`: Anfuehrungszeichen, `%` verdoppelt, abschliessender Backslash
+als `\.`.
+
+**Nachweis `installer/tests/path-quoting.Tests.ps1` (neu, PASS):**
+
+- `ConvertTo-BatchArgument`: `&` bleibt unveraendert, `%` wird verdoppelt, `\` am Ende wird entschaerft, Umlaute
+  und `!` bleiben, leerer Wert ergibt `""`.
+- Lauf mit Zielordner `Ziel & 100% !wichtig! ü'ordner`: erreicht die erwartete Pruefung, schreibt `resume.bat` mit
+  `cd /d "%~dp0"`, `-InstallRoot "%CD%"` und entschaerftem Ablageort; der Sonderzeichenpfad steht nicht woertlich
+  in der Datei.
+- `resume.bat` wird aus einem Ordner `Kopie & 100% !x! ü'ordner` heraus aufgerufen (wie ein Doppelklick) und nennt
+  genau diesen Ordner in seiner Ausgabe - kein Rueckfall auf `C:\Friday`.
+- Sehr langer Zielordner mit ueber 260 Zeichen: Sperrdatei wird dort angelegt, der Pfad kommt unveraendert an und
+  die Sperre wird wieder entfernt (`LongPathsEnabled=1` auf diesem Host).
+
+Offen bleibt nur die Fortsetzung in einer echten WSL-Distribution (INS-13).

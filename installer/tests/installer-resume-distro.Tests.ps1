@@ -58,12 +58,16 @@ try {
     $after = Get-Content -LiteralPath $stateFile -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($after.distro_name -ne 'FRIDAY-Test' -or @($after.done).Count -ne 1) { throw 'Der gespeicherte Zustand wurde durch die abgebrochenen Laeufe veraendert.' }
 
-    # Der Abbruch hinterlaesst einen Fortsetzungsbefehl. Er muss den Pfad mit Leerzeichen und Umlaut
-    # sowie Distribution und Ablageort korrekt zitieren - und in dieser Form auch wirklich laufen.
+    # Der Abbruch hinterlaesst einen Fortsetzungsbefehl. Er muss Distribution und Ablageort korrekt
+    # zitieren - und in dieser Form auch wirklich laufen.
     $resumeBat = Join-Path $root 'resume.bat'
     if (-not (Test-Path -LiteralPath $resumeBat -PathType Leaf)) { throw "Stop-Install hat keinen Fortsetzungsbefehl geschrieben (Inhalt: $((Get-ChildItem -LiteralPath $root -Force).Name -join ', '); Ausgabe: $($resumed.Out) $($resumed.Err))" }
     $resumeText = Get-Content -LiteralPath $resumeBat -Raw -Encoding UTF8
-    if ($resumeText -notmatch [regex]::Escape("`"$root`"")) { throw "Fortsetzungsbefehl zitiert den Zielordner nicht: $resumeText" }
+    # Der Zielordner steht bewusst nicht woertlich in der Datei: sie wechselt in den eigenen Ordner und
+    # uebergibt %CD%. Damit sind &, %, ! und Umlaute im Pfad entschaerft, und der Ordner darf verschoben werden.
+    if ($resumeText -notmatch 'cd /d "%~dp0"') { throw "Fortsetzungsbefehl wechselt nicht in den eigenen Ordner: $resumeText" }
+    if ($resumeText -notmatch '-InstallRoot "%CD%"') { throw "Fortsetzungsbefehl uebergibt den Zielordner nicht als %CD%: $resumeText" }
+    if ($resumeText -match [regex]::Escape($root)) { throw "Fortsetzungsbefehl enthaelt den Zielordner woertlich und bleibt damit fuer Sonderzeichen anfaellig: $resumeText" }
     if ($resumeText -notmatch '-Resume') { throw 'Fortsetzungsbefehl setzt den Lauf nicht fort.' }
     if ($resumeText -notmatch [regex]::Escape('FRIDAY-Test')) { throw "Fortsetzungsbefehl nennt die Distribution nicht: $resumeText" }
     if ($resumeText -match [regex]::Escape('"Ubuntu"')) { throw "Fortsetzungsbefehl leitet auf die Standarddistribution um: $resumeText" }

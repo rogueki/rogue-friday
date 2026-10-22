@@ -136,23 +136,38 @@ function Title($text) { Write-Host ""; Write-Host ("=" * 70) -ForegroundColor Da
 function Info($text)  { Write-Host "  $text" }
 function Ok($text)    { Write-Host "  [OK] $text" -ForegroundColor Green }
 function Warn($text)  { Write-Host "  [!]  $text" -ForegroundColor Yellow }
+function ConvertTo-BatchArgument([string]$Value) {
+    # Argument fuer eine Batchdatei: in Anfuehrungszeichen sind &, ^ und ! unkritisch, Prozentzeichen
+    # expandiert cmd aber auch dort - es muss verdoppelt werden. Ein Pfad mit abschliessendem Backslash
+    # wuerde in der Kindzeile das Anfuehrungszeichen maskieren, daher wird "\." angehaengt.
+    if ($null -eq $Value) { return '""' }
+    $escaped = $Value -replace '%', '%%'
+    if ($escaped.EndsWith('\')) { $escaped += '.' }
+    return '"' + $escaped + '"'
+}
 function Stop-Install($text) {
     Write-GuiRunDone 1 'failed'
     Write-Host ""; Write-Host "  [FEHLER] $text" -ForegroundColor Red
     # Frueher stand hier nur "install-friday.bat erneut starten". Diese .bat startet das Skript ohne
     # Parameter und faellt damit auf C:\Friday + Standard-Distribution zurueck: bei einem eigenen
     # Zielordner begann so eine zweite, falsche Installation (2026-10-21 real passiert).
-    $resumeArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-Resume')
-    if ($Root) { $resumeArgs += @('-InstallRoot', "`"$Root`"") }
-    if ($Distro) { $resumeArgs += @('-DistroName', "`"$Distro`"") }
-    if ($DistroLocation) { $resumeArgs += @('-DistroLocation', "`"$DistroLocation`"") }
+    $resumeArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (ConvertTo-BatchArgument $PSCommandPath), '-Resume')
+    if ($Distro) { $resumeArgs += @('-DistroName', (ConvertTo-BatchArgument $Distro)) }
+    if ($DistroLocation) { $resumeArgs += @('-DistroLocation', (ConvertTo-BatchArgument $DistroLocation)) }
     $resumeCmd = 'powershell.exe ' + ($resumeArgs -join ' ')
     if (-not $GuiMode -and $Root -and (Test-Path -LiteralPath $Root)) {
         try {
             # chcp 65001 plus UTF-8 ohne BOM: cmd liest die Datei sonst in der OEM-Codepage und
             # verstuemmelt Umlaute im Zielpfad, wodurch der Fortsetzungsbefehl den Zustand nicht mehr
             # findet und eine frische Installation an einem falschen Pfad prueft (real reproduziert).
-            $resumeBat = "@echo off`r`nchcp 65001>nul`r`n" + $resumeCmd + "`r`n"
+            # Der Zielordner kommt aus dem Ordner der Datei selbst (%CD% nach cd /d %~dp0): damit koennen
+            # &, %, ! und Umlaute im Pfad den Fortsetzungsbefehl nicht mehr verstuemmeln, und der Ordner
+            # bleibt auch nach einem Verschieben richtig. Bewusst ohne abschliessenden Backslash, den die
+            # Kindzeile als maskierendes Zeichen lesen koennte.
+            $batArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (ConvertTo-BatchArgument $PSCommandPath), '-Resume', '-InstallRoot', '"%CD%"')
+            if ($Distro) { $batArgs += @('-DistroName', (ConvertTo-BatchArgument $Distro)) }
+            if ($DistroLocation) { $batArgs += @('-DistroLocation', (ConvertTo-BatchArgument $DistroLocation)) }
+            $resumeBat = "@echo off`r`nchcp 65001>nul`r`ncd /d `"%~dp0`"`r`npowershell.exe " + ($batArgs -join ' ') + "`r`n"
             [IO.File]::WriteAllText((Join-Path $Root 'resume.bat'), $resumeBat, (New-Object Text.UTF8Encoding($false)))
         } catch { }
     }
