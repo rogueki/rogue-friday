@@ -256,6 +256,27 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   typecheck, build:app und Browser 2/2 in 27,4 s gruen
 - evidence_paths: `dash-05-mail-accounts.md`; status: PASS fuer DASH-05.04 (ohne echte Postfaecher)
 - remaining_work: 05.05 echte Testpostfaecher und Fehlererklaerung, 05.06 Abbruch/Timeout
+### DASH-05.06
+
+- requirement_ids: DASH-05.06 (PASS), DASH-05.05 (TEIL); predecessor: DASH-05.04
+- base_revision: `2315b22`; result_revision: folgt mit dem Commit dieses Blocks
+- implementation_paths: `apps/web/src/features/settings/MailAccountWizard.tsx`,
+  `apps/web/src/lib/api/stagedWrite.tsx`, `apps/web/src/features/communication/MailCompose.tsx`,
+  `apps/control-api/src/services/mail-accounts.ts`, Tests: `MailAccountWizard.test.tsx`,
+  `MailCompose.test.tsx`, `HimalayaMailbox.test.tsx`, `mail-account-errors.test.ts`,
+  `installer/wsl/tests/test_mail_accounts_bridge.py`
+- test_command: `py -3.11 installer/wsl/tests/test_mail_accounts_bridge.py`,
+  `vitest --project web MailAccountWizard MailCompose HimalayaMailbox`,
+  `vitest --project node mail-account-errors`, volle web- und node-Laeufe, `pnpm lint`, `pnpm typecheck`,
+  `pnpm build:app`, `playwright test tests/e2e/mail-wizard.spec.ts`
+- expected: Abbruch ohne teilaktivierte Verbindung, Timeout als "unbekannt" ohne Wiederholung, kein Loeschen
+  bestehender Nachrichten/Entwuerfe; fuer 05.05 zusaetzlich erklaerbare Passwort-/TLS-/Tokenfehler und
+  Konten nach UI-Neustart
+- observed: Abbruchtest ohne Schreibaufruf; Timeouttest mit genau zwei Send-Aufrufen und "Antwort unbekannt";
+  Brueckentest ohne EXPUNGE/Deleted; OAuth-Abbildung in beiden Fehlerpfaden; Neustarttest mit erneuter
+  Konten-/Ordnerabfrage. Web 84/669, node 2801 (60 skipped) gruen, lint/typecheck/build 0, Browser 2/2
+- evidence_paths: `dash-05-recovery.md`; status: PASS fuer DASH-05.06, TEIL fuer DASH-05.05
+- remaining_work: 05.05 zwei echte kontrollierte Testpostfaecher, danach DASH-06
 ### INS-06
 
 - requirement_ids: INS-06; predecessor: INS-02

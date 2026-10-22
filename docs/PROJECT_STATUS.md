@@ -792,3 +792,20 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   web 84/666, node 2800 (60 skipped, Exit 0), lint 0 Fehler, typecheck, build:app 0, Browser 2/2 in 27,4 s.
   Details: `docs/agent-work/finalization/dash-05-mail-accounts.md`.
 - **Offen**: DASH-05.05 mit zwei echten kontrollierten Testpostfaechern, DASH-05.06 Abbruch-/Timeout-Probe.
+
+## 2026-10-22 DASH-05.06 Recovery und DASH-05.05 Teilstand
+
+- Wizardabbruch: sichtbarer Knopf "Einrichtung verwerfen" setzt den Entwurf zurueck; ein Test belegt, dass
+  danach kein Konto, kein Standardkonto und kein `onCreated` geschrieben wurde.
+- Sendetimeout: der gestufte Schreibpfad meldet Fehler ueber `onFailed`; ein bestaetigter Versand mit
+  Netzwerkfehler zeigt "Antwort unbekannt", markiert `uncertain`, laedt die Versandbelege neu und wiederholt
+  nichts. 4xx-Antworten werden stattdessen mit der Servermeldung erklaert.
+- Kein Loeschpfad: der Brueckentest belegt kein `EXPUNGE`/`\Deleted`, nur `\Flagged` und Entwuerfe per
+  `append`; `delete-message` wird abgelehnt.
+- DASH-05.05 teilweise: sechs Filter/SMS/obere Formulare (05.02), Passwort-/TLS-/Tokenfehler erklaert
+  (Wizard und `mail-account-errors` inklusive OAuth-Luecke im `{error}`-Zweig), UI-Neustart laedt Konten und
+  Quelle erneut. Offen bleiben zwei echte Testpostfaecher (keine Zugangsdaten/Server in dieser Umgebung).
+- **Nachweis**: Bridge 25, Wizard 7, Compose 8, Postfach-UI 4, Fehlerabbildung 5; web 84/669, node 2801
+  (60 skipped, Exit 0), lint/typecheck/build 0, Browser 2/2 in 24,4 s.
+  Details: `docs/agent-work/finalization/dash-05-recovery.md`.
+- **Offen**: DASH-05.05 mit echten Testpostfaechern; danach DASH-06.
