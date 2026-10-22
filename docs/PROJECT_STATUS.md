@@ -642,6 +642,23 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   `interaction=visible:True ok:True` in `gui-wizard-pages.Tests.ps1` (108), Installer-Suite 32/32 Exit 0.
 - **Offen**: echte Aufnahme mit Mikrofon/Headset (hoerbarer Start, vollstaendiger Durchlauf, erzeugte Modelle
   und Embeddings, Wake-Phrase gegen die Metadaten). Der Sprechergrenzwert bleibt unveraendert.
+## 2026-10-22 INS-12 Starter, Parameter und Abbruch
+
+- `install-friday-gui.bat` reichte keine Parameter weiter, `install-friday-gui.vbs` gar keine, und
+  `Friday installieren.vbs` nur `-Simulation` bei genau zwei Argumenten. Jetzt: `%*` in der Batch, bekannte
+  Parameter (`-ResumeRoot`, `-Simulation`) in beiden VBS-Startern, unbekannte bleiben aussen vor.
+- `installer/lib/elevation.ps1`: `Start-ElevatedPowerShell` startet mit `-Verb RunAs` und meldet
+  `Started`/`Canceled`/`Message`; `Test-ElevationCanceled` erkennt Win32 1223. Assistent und CLI beenden einen
+  Abbruch mit Exitcode 3 und ohne Aenderung, andere Fehler mit Exitcode 4 und Meldung.
+- Simulation nur im Testmodus: der Assistent verlangt `FRIDAY_GUI_TEST=1`, sonst Exitcode 2; die beiden
+  GUI-Tests setzen den Marker jetzt selbst.
+- Dokumentation: `installer/ANLEITUNG.md` Abschnitt "Starter und Kommandozeile" (Tabelle, Parameter, Abbruch,
+  kein Trockenlauf per Doppelklick), `README.md` nennt den CLI-Weg und `resume.bat`.
+- **Nachweis**: `launcher.Tests.ps1` 49 Zusicherungen (echter cmd- und cscript-Lauf, echter Win32 1223,
+  Dateibaum vorher/nachher mit SHA-256 gleich), gui-installer PASS, gui-wizard-pages 108 PASS,
+  Installer-Suite 35/35 Exit 0 in 457 s.
+- **Offen**: echter UAC-Abbruch per Klick und Start aus dem entpackten ZIP auf sauberem Windows -> INS-13.
+
 ## 2026-10-22 INS-11 Creator Studio im Command Center
 
 - Der Assistent lieferte das Creator Studio zwar mit, im frischen Zielordner war es aber unsichtbar: der Standard

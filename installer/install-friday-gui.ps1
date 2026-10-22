@@ -1,20 +1,29 @@
 ﻿#Requires -Version 5.1
 param([string]$ResumeRoot = '', [ValidateSet('','success','failure','restart')][string]$Simulation = '')
 
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-[System.Windows.Forms.Application]::EnableVisualStyles()
+# Simulation nur im lokalen Testmodus: ohne Marker keine Trockenlaeufe, die einen Erfolg vortaeuschen.
+if ($Simulation -and $env:FRIDAY_GUI_TEST -ne '1') {
+    [Console]::Error.WriteLine('Simulation ist nur im lokalen GUI-Testmodus erlaubt (FRIDAY_GUI_TEST=1).')
+    exit 2
+}
 
+# Start mit Administratorrechten: nur fester Skriptpfad und optionaler Zielordner, keine Geheimnisse.
+. (Join-Path $PSScriptRoot 'lib\elevation.ps1')
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
-    # Escalate before collecting credentials. Only the fixed script path and optional root are passed to UAC.
-    $arguments = '-NoProfile -STA -ExecutionPolicy Bypass -File "' + $PSCommandPath + '"'
-    if ($ResumeRoot) { $arguments += ' -ResumeRoot "' + $ResumeRoot + '"' }
-    if ($Simulation) { $arguments += ' -Simulation ' + $Simulation }
-    Start-Process -FilePath powershell.exe -ArgumentList $arguments -Verb RunAs
+    $forward = @()
+    if ($ResumeRoot) { $forward += @('-ResumeRoot', ('"' + $ResumeRoot + '"')) }
+    if ($Simulation) { $forward += @('-Simulation', $Simulation) }
+    $elevation = Start-ElevatedPowerShell -ScriptPath $PSCommandPath -ForwardedArguments $forward -Sta
+    if ($elevation.Canceled) { exit 3 }
+    if (-not $elevation.Started) { [Console]::Error.WriteLine('Start mit Administratorrechten fehlgeschlagen: ' + $elevation.Message); exit 4 }
     exit
 }
+
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+[System.Windows.Forms.Application]::EnableVisualStyles()
 
 # Kooperativer Abbruch: dieselbe Bitte, die der Installer an seinen Schrittgrenzen prueft.
 . (Join-Path $PSScriptRoot 'lib\installer-cancel.ps1')

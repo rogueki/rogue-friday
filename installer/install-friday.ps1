@@ -144,7 +144,18 @@ if (-not $admin) {
     if ($GuiMode) { $fwd += ' -GuiConfigPath "' + $GuiConfigPath + '"' }
     $fwd += ' -InstallRoot "' + $InstallRoot + '"'
     if ($DistroName) { $fwd += ' -DistroName "' + $DistroName + '" -DistroLocation "' + $DistroLocation + '"' }
-    Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"$fwd"
+    # Ein Abbruch der Windows-Abfrage ist kein Fehler: es wurde noch nichts angelegt oder geaendert.
+    . (Join-Path $PSScriptRoot 'lib\elevation.ps1')
+    $elevation = Start-ElevatedPowerShell -ScriptPath $PSCommandPath -ForwardedArguments @($fwd.Trim())
+    if ($elevation.Canceled) {
+        Write-Host ''
+        Write-Host '  Abgebrochen: ohne Administratorrechte wurde nichts installiert oder geaendert.' -ForegroundColor Yellow
+        exit 3
+    }
+    if (-not $elevation.Started) {
+        Write-Host ('  Start mit Administratorrechten fehlgeschlagen: ' + $elevation.Message) -ForegroundColor Yellow
+        exit 4
+    }
     exit
 }
 $Host.UI.RawUI.WindowTitle = 'F.R.I.D.A.Y. Installation'

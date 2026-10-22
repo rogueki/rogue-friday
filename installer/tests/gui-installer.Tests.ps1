@@ -22,6 +22,8 @@ $rejected = $false
 try { [void](Gui-Secret 'linuxPassword') } catch { $rejected = $true }
 if (-not $rejected) { throw 'Corrupt DPAPI ciphertext was accepted.' }
 $synthetic.Dispose(); $decoded = $null; $script:GuiConfig = $null
+# Der Assistent akzeptiert -Simulation nur im Testmodus; dieser Test ist der Testmodus.
+$env:FRIDAY_GUI_TEST = '1'
 foreach ($case in @(@{ mode='success'; expected=0 }, @{ mode='failure'; expected=1 }, @{ mode='restart'; expected=10 })) {
     $result = & powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File $gui -Simulation $case.mode 2>&1 | Out-String
     if ($result -notmatch "GUI_TEST mode=$($case.mode) exit=$($case.expected)") { throw "Unexpected GUI result for $($case.mode): $result" }

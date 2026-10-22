@@ -27,6 +27,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | INS-09 Grafische Aufnahme | TEIL (Aufnahme fordert jede Aktion als Datei an; Assistentenseite mit Aufforderung, Fortschritt, "Jetzt sprechen", "Anhören", "Überspringen" und Abbruch; Wiederaufnahme je Block; Profil vor der Aufnahme mit Pruefsummen gesichert; echte Mikrofonaufnahme offen) | `ins-09-voice-enrollment.md`, `gui-interaction.Tests.ps1`, `voice-profile-backup.Tests.ps1`, `gui-wizard-pages.Tests.ps1` (Selbsttest interaction=visible:True ok:True), `test_gui_interaction.py` |
 | INS-10 Installerregressionen | PASS (wslpath-Filterung, 503 als Laden, Keepalive als Prozess, 900/120/60/3600 s getrennt, Pruefsummen mit Loeschung, Kindprozess-PATH, WSL-Update begrenzt und abschaltbar; je Regression eine isolierte Probe) | `ins-10-installer-regressions.md`, `installer-regressions.Tests.ps1` (60), `wsl-timeout.Tests.ps1`, `warmup-cancel.Tests.ps1` |
 | INS-11 Creator Studio im Command Center | TEIL (Lieferung, Menue und Sicherung belegt: Sync-Modul mit Hash, Creator-Studio-Artefakte im Ziel, Build-Ausgaben ausgeschlossen, Menue standardmaessig aktiv, Sicherung mit Manifest und lesbarer SQLite-Datenbank; physischer Lauf im frischen Zielordner -> INS-13) | `ins-11-dashboard-creator-studio.md`, `dashboard-sync-backup.Tests.ps1` (72), vitest content-studio (18) |
+| INS-12 Starter und Abbruch | TEIL (Doppelklick startet die Oberflaeche, CLI-Modus dokumentiert, Parameter kommen durch cmd und cscript unveraendert an, Abbruch der Windows-Abfrage ohne Aenderung, Simulation nur im Testmodus; echter Dialog und Start aus dem ZIP -> INS-13) | `ins-12-launcher.md`, `launcher.Tests.ps1` (49) |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
@@ -345,6 +346,26 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - remaining_work: physischer Lauf in einen frischen Zielordner mit Browser (Menue, Route, Plan nach
   Dienstneustart, Produktion mit synthetischen Medien) gehoert zu INS-13/REL-03; Wiederherstellung im laufenden
   Betrieb als Betriebsprobe -> REL
+
+### INS-12
+
+- requirement_ids: INS-12; predecessor: INS-03..INS-11
+- base_revision: `0d9ae58`; result_revision: working tree (commit follows)
+- write_scope: `installer/` (lib, tests, Starter, ANLEITUNG), `Friday installieren.vbs`, `README.md`,
+  `docs/agent-work/finalization/`
+- implementation_paths: `installer/lib/elevation.ps1`, `installer/install-friday-gui.ps1`,
+  `installer/install-friday.ps1`, `installer/install-friday-gui.bat`, `installer/install-friday-gui.vbs`,
+  `Friday installieren.vbs`
+- test_command: `powershell -NoProfile -ExecutionPolicy Bypass -File installer/tests/launcher.Tests.ps1`,
+  `... gui-installer.Tests.ps1`, `... gui-wizard-pages.Tests.ps1`, alle `installer/tests/*.Tests.ps1`
+- expected: Doppelklick startet die Oberflaeche, der CLI-Modus ist dokumentiert, alle Parameter kommen an, ein Abbruch
+  der Windows-Abfrage aendert nichts, Simulation nur im Testmodus
+- observed: 49 Zusicherungen PASS (echter cmd- und cscript-Lauf, echter Win32-Fehler 1223, Dateibaum mit SHA-256
+  vorher/nachher gleich), gui-installer PASS, gui-wizard-pages 108 Zusicherungen PASS, Installer-Suite 35/35 Exit 0
+  in 457 s
+- evidence_paths: `ins-12-launcher.md`; status: TEIL
+- remaining_work: echter Abbruch des UAC-Dialogs per Klick und Start aus dem entpackten ZIP auf sauberem Windows
+  gehoeren zu INS-13
 
 ## Open risks / notes for the next session
 

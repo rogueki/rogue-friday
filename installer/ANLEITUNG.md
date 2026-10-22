@@ -24,6 +24,25 @@ Wake Word *„Hey Friday“*.
 
 ---
 
+## Starter und Kommandozeile
+
+| Starter | Verhalten |
+|---|---|
+| `Friday installieren.bat` im Hauptordner | Doppelklick oeffnet den grafischen Assistenten. `Friday installieren.vbs` leistet dasselbe ohne Konsolenfenster. Beide starten `installer\install-friday-gui.ps1`. |
+| `installer\install-friday.bat` | Kommandozeilenmodus mit sichtbarem Fenster; reicht alle Parameter unveraendert weiter. |
+| `installer\install-friday-gui.bat` bzw. `.vbs` | Rueckweg zur Oberflaeche, wenn der Starter im Hauptordner fehlt. Gleicher Zielordner, gleiche Parameter. |
+| `installer\update-dashboard.bat` | Spielt ein neueres Command Center ein (`-UpdateDashboard`). |
+| `<Installationsordner>\resume.bat` | Entsteht nach einem Abbruch oder benoetigten Neustart. Der Starter nennt den eigenen Zielordner und die Distribution, damit keine zweite Installation an einem anderen Pfad beginnt. |
+
+`installer\install-friday.bat` versteht unter anderem:
+
+- `-InstallRoot "D:\F.R.I.D.A.Y"`, `-DistroName "FRIDAY-2"`, `-DistroLocation "D:\WSL\FRIDAY-2"`
+- `-Resume` (an der gespeicherten Stelle weitermachen) und `-SkipWslUpdate` (WSL-Update ueberspringen)
+- `-UpdateDashboard`, `-ChangeName`, `-ChangeVoice`
+
+Der Assistent fragt Administratorrechte an, bevor er Zugangsdaten erfasst. Ein Abbruch dieser Abfrage beendet den
+Start ohne Aenderung am Zielordner. Trockenlaeufe (`-Simulation success|failure|restart`) sind nur im lokalen
+GUI-Testmodus erlaubt und ausserhalb davon gesperrt; ein Doppelklick startet immer die echte Installation.
 ## Vorher erledigen (5 Minuten)
 
 1. **Windows 11** (Windows 10 geht eingeschränkt), alle Updates installiert.

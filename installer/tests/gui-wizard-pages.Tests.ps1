@@ -51,6 +51,8 @@ Assert-True ($guiSource -match 'Request-InstallerCancel') 'Die Oberflaeche kennt
 
 # --- 3. Echter Simulationslauf: acht gezeichnete Seiten
 $gui = Join-Path $root 'install-friday-gui.ps1'
+# Simulation nur im Testmodus: dieser Lauf ist der Testmodus.
+$env:FRIDAY_GUI_TEST = '1'
 $output = & powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File $gui -Simulation success 2>&1
 $exitCode = $LASTEXITCODE
 $testLine = @($output | Where-Object { $_ -match '^GUI_TEST ' }) | Select-Object -Last 1
