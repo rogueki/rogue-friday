@@ -214,6 +214,29 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - remaining_work: 05.03 gefuehrter E-Mail-Wizard (heute flaches Formular), 05.04 Mehrkonten/Alias/UIDVALIDITY/
   Sendjournal gegen die Anforderung pruefen, 05.05 zwei echte Testpostfaecher, 05.06 Wizardabbruch und Sendetimeout
 
+### DASH-05.03
+
+- requirement_ids: DASH-05.03; predecessor: DASH-05.02
+- base_revision: `57857a3`; result_revision: folgt mit dem Commit dieses Blocks
+- implementation_paths: `packages/contracts/schemas/settings/mail-connection-test-{request,response}.schema.json`,
+  `packages/contracts/openapi/friday-api.yaml`, `packages/generated-sdk/src/generated/*`,
+  `installer/wsl/mail_accounts.py`, `installer/wsl/tests/test_mail_accounts_candidate.py`,
+  `apps/control-api/src/{services/mail-accounts.ts,handlers/settings.ts,http/route-table.generated.ts}`,
+  `apps/control-api/test/mail-connection-test.test.ts`,
+  `apps/web/src/features/settings/{mailPresets.ts,MailAccountWizard.tsx,MailAccountsArea.tsx}` plus Tests,
+  `tests/e2e/mail-wizard.spec.ts`, `apps/control-api/src/db/database.ts` (Lint-Korrektur)
+- test_command: `py -3.11 installer/wsl/tests/test_mail_accounts_candidate.py`, `pnpm contracts:check`,
+  `tsc -p apps/control-api`, `tsc -p apps/web`, `vitest --project node mail-connection-test`,
+  `vitest --project web MailAccountWizard`, `vitest --project web mailPresets`, volle web- und node-Laeufe,
+  `pnpm lint`, `pnpm typecheck`, `pnpm build:app`, `playwright test tests/e2e/mail-wizard.spec.ts`
+- expected: Adresse -> Absendername -> erkannte bearbeitbare Server -> Authentifizierung -> getrennte
+  Verbindungstests -> Ordner/Standard -> Zusammenfassung; keine geratenen Server, kein Speichern vor dem
+  letzten Schritt, keine Nachricht durch die Tests, ehrlicher Zustand ohne Bruecke
+- observed: alle sieben Schritte im Browser belegt; Python 11, API 5, Wizard 6, Vorschlaege 5 Tests;
+  web 83 Dateien/659 Tests und node 192 Dateien/2794 Tests (60 skipped) gruen; `contracts:check`, `tsc`,
+  `pnpm lint` (0 Fehler), `pnpm typecheck`, `build:app` und Browser 2/2 in 33,2 s gruen
+- evidence_paths: `dash-05-email-wizard.md`; status: PASS fuer DASH-05.03
+- remaining_work: 05.04 Abnahme, 05.05 echte Testpostfaecher, 05.06 Abbruch-/Timeout-Probe
 ### INS-06
 
 - requirement_ids: INS-06; predecessor: INS-02

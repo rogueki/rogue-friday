@@ -755,3 +755,21 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   `cmd /c where`-Kindprozess mit nachgestelltem PATH-Fehler, Pruefsummen, Gegenproben), Gegenprobe 503 -> Exit 1
   und byte-identisch wiederhergestellt, `wsl-timeout` und `warmup-cancel` gruen, Installer-Suite 33/33.
 - **Offen**: Beobachtung der Fenster unter realer Last (INS-13), echter haengender Download (INS-07).
+
+## 2026-10-22 DASH-05.03 Gefuehrter E-Mail-Wizard
+
+- Neuer Vertrag `POST /api/v1/settings/mail-connection-test` (Operation 272) testet einen **ungespeicherten**
+  Postfach-Entwurf je Protokoll und antwortet mit `{ ok, reason }` aus `ok|auth|tls|network|protocol`;
+  die Bridge `installer/wsl/mail_accounts.py` bekam dafuer `check-candidate` (kein Speichern, kein Versand).
+- `features/settings/MailAccountWizard.tsx` fuehrt in sieben Schritten von der Adresse ueber erkannte,
+  editierbare Servervorschlaege (`mailPresets.ts`) und getrennte Verbindungstests bis zur Ordnerzuordnung,
+  zum Standardkonto und zur Zusammenfassung; gespeichert wird nur im letzten Schritt.
+- Unbekannte Domains erzeugen keinen Vorschlag; fehlt die Postfach-Bruecke (503), sagt der Wizard das und
+  verlangt eine bewusste Bestaetigung, statt die Pruefung still zu ueberspringen.
+- `MailAccountsArea` nutzt den Wizard fuer "Neues Konto"; das Formular bleibt fuer bestehende Konten (OAuth).
+- **Nachweis**: Python 11 Pruefungen, API-Routentests 5, Wizard 6, Vorschlaege 5, web 83/659, node 192/2794
+  (60 skipped, Exit 0), `contracts:check`, `tsc` web+api, `pnpm lint` 0 Fehler, `pnpm typecheck`, `build:app`
+  und `playwright mail-wizard.spec.ts` 2/2 in 33,2 s. Details:
+  `docs/agent-work/finalization/dash-05-email-wizard.md`.
+- **Offen**: DASH-05.04 Abnahme (Mehrkonten/Alias/UIDVALIDITY/Sent-Kopie/Sendjournal), DASH-05.05 mit zwei
+  echten Testpostfaechern, DASH-05.06 Abbruch- und Timeout-Probe.
