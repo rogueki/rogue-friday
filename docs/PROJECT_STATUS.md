@@ -841,3 +841,14 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
 - **Nachweis**: rein lesende CLI-Abfragen, node 2801/60 skipped, web 85/674, lint/typecheck/build 0.
   Details: `docs/agent-work/finalization/dash-07-access-partial.md`.
 - **Offen**: 07.03 Zugaenge-Vertrag und UI, 07.04 Flow, 07.05 Modellaufruf/Worker-Version, 07.06 Login-Recovery.
+
+## 2026-10-23 DASH-07.03 Leseweg: Zugaenge bis zur Oberflaeche
+
+- Bridge-Aktion `auth-list` (strenger Parser, keine Secrets) -> `GET /api/v1/settings/hermes-access` (owner,
+  Vertrag/SDK/Routen generiert) -> `HermesAccessArea` im Hermes-Bereich mit Anbieter, Anzahl, Typ
+  (API-Key/Abo-Anmeldung), maskierter Quelle und Aktivstatus; Laden/Fehler/leer sind ehrliche Zustaende.
+- Nachweise: Parser-Test WSL 4/4, Service-Tests 4/4, Routentest (401/403/200) in 14/14, UI-Tests 3/3,
+  web 86/677, typecheck und lint 0 Fehler, contracts:check 0.
+- **Offen (07.03)**: Hinzufuegen/Erneuern/Trennen (`auth add/remove/reset/logout`, Key ueber stdin) und die
+  Trennung OpenAI/Anthropic als Hauptauswahl gegen "Erweitert". Beides braucht echte Credentials und eine
+  sichere, verifizierte CLI-Interaktion; ohne diese bleibt es TEIL. Ledger N-050 teilweise.
