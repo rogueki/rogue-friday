@@ -43,7 +43,7 @@ describe("settings recovery around a broken skill catalog", () => {
     const { api } = setup("profile");
     const name = await screen.findByLabelText("Anzeigename");
     fireEvent.change(name, { target: { value: "Wieder erreichbar" } });
-    const save = await screen.findByRole("button", { name: "Speichern", exact: true });
+    const save = await screen.findByRole("button", { name: "Speichern" });
     await waitFor(() => expect(save.hasAttribute("disabled")).toBe(false));
     fireEvent.click(save);
     await waitFor(() => expect(api.calls.some((call) => call.method === "PATCH" && call.path === "/settings")).toBe(true));

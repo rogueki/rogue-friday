@@ -89,7 +89,7 @@ export const FILE_KEYS = [
 ] as const;
 export type FileKey = (typeof FILE_KEYS)[number];
 
-export const CHANNEL_KEYS = ["email", "telegram", "whatsapp", "sms", "phone"] as const;
+export const CHANNEL_KEYS = ["email", "telegram", "whatsapp", "discord", "sms", "phone"] as const;
 export type ChannelKey = (typeof CHANNEL_KEYS)[number];
 
 export const AUTOMATION_KEYS = ["wichtigeMail", "morgenBriefing", "backupCheck", "terminKonflikt", "rechnungen", "nachtruhe"] as const;

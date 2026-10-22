@@ -5447,7 +5447,7 @@ export interface components {
          * ChannelKind
          * @enum {string}
          */
-        ChannelKind: "email" | "telegram" | "whatsapp" | "sms" | "phone" | "other";
+        ChannelKind: "email" | "telegram" | "whatsapp" | "discord" | "sms" | "phone" | "other";
         /**
          * ChannelListResponse
          * @description Cursor-paginated list envelope for Channel.

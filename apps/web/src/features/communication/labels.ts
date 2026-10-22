@@ -5,7 +5,7 @@ import type { MessageKey } from "@/i18n";
 export type ThreadStatus = Thread["status"];
 
 export const THREAD_STATUSES: readonly ThreadStatus[] = ["open", "waiting", "replied", "archived"];
-export const CHANNEL_KINDS: readonly ChannelKind[] = ["email", "telegram", "whatsapp", "sms", "phone", "other"];
+export const CHANNEL_KINDS: readonly ChannelKind[] = ["email", "telegram", "whatsapp", "discord", "sms", "phone", "other"];
 
 export const threadStatusKey = (status: ThreadStatus): MessageKey => `communication.threadStatus.${status}` as MessageKey;
 export const draftStatusKey = (status: DraftStatus): MessageKey => `communication.draftStatus.${status}` as MessageKey;

@@ -87,10 +87,10 @@ export function HimalayaMailbox() {
       await client.invalidateQueries({ queryKey: [...KEY, accountId, mailbox] });
     } catch (error) { setActionStatus(error instanceof Error ? error.message : "Änderung nicht bestätigt."); }
   }
-  return <section className="com-live-mail" aria-label="Mail Postfach">
-    <h2>Mail Postfach (IMAP/SMTP)</h2>
+  return <section className="com-live-mail" aria-label="E-Mail Postfach">
+    <h2>E-Mail Postfach</h2>
     <p>Jedes Konto und jeder Ordner bleiben getrennt. Lesen markiert Nachrichten nicht als gelesen.</p>
-    {!open ? <button type="button" onClick={() => setOpen(true)}>Mail Postfach öffnen</button> : <>
+    {!open ? <button type="button" onClick={() => setOpen(true)}>E-Mail Postfach öffnen</button> : <>
       <button type="button" onClick={() => { setOpen(false); chooseAccount(null); client.removeQueries({ queryKey: KEY }); }}>Schließen</button>
       {accounts.isPending && <p role="status">Konten werden geladen …</p>}
       {accounts.isError && <p role="alert">Konten nicht erreichbar. Einrichtung unter Einstellungen → Skill-Konten prüfen.</p>}

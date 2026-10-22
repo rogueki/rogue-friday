@@ -72,7 +72,7 @@ export type RequiredAuth = "none" | "confirm" | "reauth";
 export type ApprovalStatus =
   "pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed";
 export type CalendarProposalType = "create" | "reschedule" | "cancel" | "invite" | "respond";
-export type ChannelKind = "email" | "telegram" | "whatsapp" | "sms" | "phone" | "other";
+export type ChannelKind = "email" | "telegram" | "whatsapp" | "discord" | "sms" | "phone" | "other";
 export type ChannelStatus = "online" | "degraded" | "offline" | "read_only" | "not_configured";
 export type DraftStatus = "draft" | "pending_approval" | "approved" | "sent" | "failed" | "discarded";
 export type FileCategory =
