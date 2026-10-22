@@ -150,4 +150,29 @@ $guiBodyCheck = Get-Content -LiteralPath $gui -Raw -Encoding UTF8
 if ($guiBodyCheck -notmatch "'warmup'") { throw 'GUI kennt den Warmup-Ereignistyp nicht.' }
 if ($guiBodyCheck -notmatch '\$script:sawRunDone') { throw 'GUI merkt sich das Abschlussereignis nicht.' }
 if ($guiBodyCheck -notmatch 'kein Abschlussereignis') { throw 'GUI weist fehlendes Abschlussereignis nicht aus.' }
+# --- Voice-Warmup und Lastfall: 10 000 gemischte Zeilen durch den Adapter
+$voiceStart = $body.IndexOf("state = 'start'; service = 'voice'", [StringComparison]::Ordinal)
+$voiceDone = $body.IndexOf("state = 'done'; service = 'voice'", [StringComparison]::Ordinal)
+$voiceWait = $body.IndexOf('state -eq ''listening''', [StringComparison]::Ordinal)
+if ($voiceStart -lt 0 -or $voiceDone -lt 0) { throw 'Voice-Warmup-Ereignisse fehlen.' }
+if (-not ($voiceStart -lt $voiceWait -and $voiceWait -lt $voiceDone)) { throw 'Voice-Warmup liegt nicht um die Bereitschaftspruefung.' }
+
+$lines = New-Object System.Collections.Generic.List[string]
+for ($i = 0; $i -lt 2500; $i++) {
+    $lines.Add((ConvertTo-GuiEventLine @{ type = 'step'; state = 'start'; step = "schritt-$i"; text = "Umlaute äöüß $i" }))
+    $lines.Add("pip sammelt Ausgabe $i")
+    $lines.Add('[FRIDAY-EVENT]{"v":3,"type":"step"}')
+    $lines.Add('')
+}
+$watch = [System.Diagnostics.Stopwatch]::StartNew()
+$events = 0; $texts = 0
+foreach ($line in $lines) {
+    $read = ConvertFrom-GuiEventLine $line
+    if ($read.Kind -eq 'event') { $events++ } else { $texts++ }
+}
+$watch.Stop()
+if ($events -ne 2500) { throw "Lastfall: $events Ereignisse statt 2500 erkannt." }
+if ($texts -ne 7500) { throw "Lastfall: $texts Textzeilen statt 7500 erkannt." }
+if ($watch.Elapsed.TotalSeconds -gt 60) { throw "Lastfall zu langsam: $($watch.Elapsed.TotalSeconds) s fuer $($lines.Count) Zeilen." }
+Write-Host ("  Lastfall: {0} Zeilen in {1:N2} s" -f $lines.Count, $watch.Elapsed.TotalSeconds)
 Write-Host 'Ereignisstrom Protokoll 2: PASS'

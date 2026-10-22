@@ -602,3 +602,15 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   Abschlussereignis mit `state=failed`, `exitCode=1`. 20/20 Installer-Tests Exit 0.
 - **Offen**: Abschlussereignis fuer den Fall "Prozess abgestuerzt, ohne Ereignis" ist bewusst nur ein Hinweis
   (kein zweiter Kanal); TTS-/Voice-Service-Warmup meldet noch kein eigenes Ereignis; Lastfall Paketspam.
+## 2026-10-22 INS-05 (Teil 4) Voice-Warmup und Lastfall
+
+- **N-025 behoben**: Der Sprachdienst meldete seine Ladezeit (bis zu 3 Minuten) nur als Textzeile, und der
+  Ereignisleser war nie mit Paketspam konfrontiert. Neu: Schritt 14 meldet `warmup start/done` fuer den Dienst
+  `voice` (mit Sekunden) um die Bereitschaftspruefung (`state -eq 'listening'`) herum - dieselbe Form wie beim
+  Qwen-Start, damit beide Ladephasen in der GUI getrennt sichtbar sind.
+- **Lastfall**: `gui-protocol.Tests.ps1` schickt 10 000 gemischte Zeilen durch `ConvertFrom-GuiEventLine`
+  (2 500 Ereignisse mit Umlauten, 2 500 Klartextzeilen, 2 500 Zeilen mit unbekannter Version, 2 500 leere Zeilen).
+  Ergebnis: 2 500 Ereignisse und 7 500 Textzeilen korrekt getrennt, Laufzeit 0,68 s. Kein Verschlucken, kein
+  Umschalten auf Ereignis bei unbekannter Version.
+- **Offen**: Die tatsaechliche Reaktionsfaehigkeit der Fensteroberflaeche unter dieser Last ist headless nicht
+  belegbar (dafuer braucht es eine interaktive Sitzung); `wsl.exe`-Aufrufe haben weiterhin kein Zeitlimit.

@@ -2043,6 +2043,9 @@ if (-not (IsDone 'voiceservice')) {
     Stop-VoiceService
     Start-ScheduledTask -TaskName 'FRIDAY_Voice'
     Info 'Lade die Sprachmodelle (bis zu 3 Minuten) …'
+    # Wie beim Modellstart: die Ladezeit des Sprachdienstes als eigenes Ereignis, nicht als stille Schrittzeit.
+    Write-GuiEvent 'warmup' @{ state = 'start'; service = 'voice' }
+    $voiceWarmupStart = Get-Date
     $ok = $false
     foreach ($i in 1..90) {
         try { if ((Invoke-RestMethod "http://127.0.0.1:$($Ports.Voice)" -TimeoutSec 2).state -eq 'listening') { $ok = $true; break } } catch {}
@@ -2050,6 +2053,7 @@ if (-not (IsDone 'voiceservice')) {
     }
     if (-not $ok) { Stop-Install "Sprachdienst startet nicht ($Root\logs\voice-service.log)." }
     Ok "$AN antwortet auf dem Sprachport (state=listening)."
+    Write-GuiEvent 'warmup' @{ state = 'done'; service = 'voice'; seconds = [math]::Round(((Get-Date) - $voiceWarmupStart).TotalSeconds, 1) }
     if ($State.voice_mode -eq 'elevenlabs') {
         Info 'Cloud-Stimme wird erst beim ersten Sprachkommando verwendet; kein kostenpflichtiger Installations-Testaufruf.'
     } else {

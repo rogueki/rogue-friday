@@ -79,7 +79,8 @@ Gesamtstand nach diesem Schritt: **20/20 Installer-Tests Exit 0**.
 
 - **Harte Zeitlimits pro Schritt**: für Download (3600 s) und pip (gezieltes Beenden bei Abbruch) umgesetzt und in
   `supervised-processes.md` belegt; weiterhin offen sind Zeitlimits für `wsl.exe`-Aufrufe.
-- **Voice-/TTS-Warmup** meldet noch kein eigenes Ereignis (bisher nur Qwen).
+- **Voice-Warmup**: Schritt 14 meldet `warmup start/done` fuer `voice` (mit Sekunden) um die `listening`-Pruefung.
 - **Abgestürzter Prozess**: stirbt der Installer ohne Ereignis, bleibt nur der Exitcode plus der Hinweis der GUI.
-- Lange stille Phasen und Paketspam sind über den asynchronen Leser abgedeckt, aber nicht mit einem
-  Lastfall-Test (z. B. 10 000 Zeilen in kurzer Zeit) belegt.
+- **Lastfall belegt**: 10 000 gemischte Zeilen (2 500 Ereignisse, 2 500 Klartext, 2 500 unbekannte Version, 2 500 leer)
+  werden in 0,68 s korrekt getrennt. Die Reaktionsfähigkeit der Fensteroberfläche unter dieser Last ist headless
+  nicht belegbar.

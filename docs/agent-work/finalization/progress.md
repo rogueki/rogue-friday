@@ -1,6 +1,6 @@
 # Finalization progress — session handoff
 
-Last updated: 2026-10-22 14:40 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
+Last updated: 2026-10-22 14:47 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
 Read `baseline.md` first, then this page. Every status below is backed by a file in this folder.
 
 ## Status board
@@ -21,6 +21,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | INS-06 State/Resume/Mutex | TEIL (Sperre, Zustandssicherung, Fortsetzung und resume.bat belegt; echter WSL-Lauf und halb erledigte Schritte offen) | `ins-06-state-atomic.md` 6/7/8, `installer-lock.Tests.ps1`, `installer-single-instance.Tests.ps1`, `state-recovery.Tests.ps1`, `installer-resume-distro.Tests.ps1` |
 | INS-05 Ereignisstrom | TEIL (Protokoll 2 mit konservativem Rueckweg belegt; harte Zeitlimits und Abschlussereignis offen) | `ins-05-event-stream.md`, `gui-protocol.Tests.ps1` |
 | INS-05 Abschluss/Warmup | TEIL (genau ein Abschlussereignis mit Exitcode, Warmup start/done um die Modellbereitschaft; Voice-/TTS-Warmup offen) | `ins-05-event-stream.md` 4, `gui-protocol.Tests.ps1` |
+| INS-05 Voice-Warmup/Lastfall | TEIL (voice-Warmup als Ereignis, 10 000 Zeilen in 0,68 s korrekt getrennt; Oberflaeche unter Last nur interaktiv pruefbar) | `ins-05-event-stream.md` 3, `gui-protocol.Tests.ps1` |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
@@ -259,6 +260,14 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   status: TEIL
 - remaining_work: Voice-/TTS-Warmup als eigener Typ, Verhalten bei abgestuerztem Prozess ohne Ereignis,
   Lastfall Paketspam
+### INS-05 Voice-Warmup und Lastfall (2026-10-22)
+- goal: auch die Ladephase des Sprachdienstes sichtbar machen und den Ereignisleser unter Paketspam belegen.
+- changed: `install-friday.ps1` (Schritt 14 meldet `warmup start/done` fuer `voice` mit Sekunden),
+  `gui-protocol.Tests.ps1` (Lastfall 10 000 gemischte Zeilen, Voice-Warmup-Lage).
+- observed: 2 500 Ereignisse und 7 500 Textzeilen korrekt getrennt, 0,68 s; Warmup-Ereignisse liegen zwischen
+  Start und der `listening`-Pruefung.
+- evidence_paths: `PROJECT_STATUS.md` (2026-10-22 INS-05 Teil 4), `ins-05-event-stream.md` 3; status: TEIL
+- remaining_work: Reaktionsfaehigkeit der Oberflaeche unter Last (interaktiv), wsl-Zeitlimit
 ## Next (in the order of master §8.1)
 
 1. **DASH-07.01/.02** — Hermes inventory (skills, accounts, sources, status) as the base for DASH-04.03 and
