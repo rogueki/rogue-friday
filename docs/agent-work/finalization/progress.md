@@ -1,6 +1,6 @@
 # Finalization progress — session handoff
 
-Last updated: 2026-10-22 13:20 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
+Last updated: 2026-10-22 13:55 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
 Read `baseline.md` first, then this page. Every status below is backed by a file in this folder.
 
 ## Status board
@@ -19,6 +19,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | INS-03 Anbieterfaehigkeiten | TEIL (Sonde+Katalogcheck, echte Authnachweise offen) | `ins-03-provider-capabilities.md`, `hermes_provider_auth.py`, `setup_hermes.sh`, `hermes_config_bridge.py` |
 | INS-02 Installer-Vertraege | PASS | `ins-02-installer-io.md`, `installer-io-contract.Tests.ps1`, `gui-installer.Tests.ps1` (Renderprobe 8 Reiter) |
 | INS-06 State/Resume/Mutex | TEIL (Sperre, Zustandssicherung, Fortsetzung und resume.bat belegt; echter WSL-Lauf und halb erledigte Schritte offen) | `ins-06-state-atomic.md` 6/7/8, `installer-lock.Tests.ps1`, `installer-single-instance.Tests.ps1`, `state-recovery.Tests.ps1`, `installer-resume-distro.Tests.ps1` |
+| INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
 | DASH-02 Vertraege | 02.01/02.02 PASS, 02.03/02.05 offen, 02.04 teilweise | `dash-02-contracts.md`, `authorization-contract.test.ts` (4 gruen), 176 Handler-/Event-Tests gruen |
 | DASH-04 Einstellungen ehrlich | 04.01/04.02 PASS, 04.04 Adapter-Haelfte PASS; 04.03/04.05 offen | `dash-04-settings.md`, `tests/e2e/settings-acceptance.spec.ts` (3 gruen), 92 Settings-Tests |
@@ -206,6 +207,19 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - evidence_paths: `ins-06-state-atomic.md` 6/7/8/9; status: TEIL
 - remaining_work: echter WSL-Lauf mit eigener Distro (INS-13), Wiederholbarkeit halb erledigter Schritte,
   systematische Parameterquotierung (Sonderzeichen wie `&`, sehr lange Pfade)
+### INS-07 Kooperativer Abbruch (2026-10-22)
+- goal: die GUI soll einen laufenden Installer an einer sicheren Grenze anhalten, statt ihn mit taskkill /T zu
+  erschlagen; Abbruch darf keine halben Artefakte und keine mitgerissenen Dienste hinterlassen.
+- changed: `installer/lib/installer-cancel.ps1` (neu, Abbruchbitte mit Laufkennung), `install-friday.ps1`
+  (Vorstart-Abbruch, `Confirm-NotCancelled` an 15 Schrittgrenzen und in `Native`/`Invoke-Pip`/`Download`,
+  gemeinsame `$InstallRunId`), `install-friday-gui.ps1` (`Request-GuiCancel`, `Stop-BackendGracefully` mit 25 s
+  Wartezeit, `FormClosing` ohne sofortiges taskkill).
+- observed: Modul- und Funktionsverhalten, Vollstaendigkeit aller Schrittbloecke und Runner, GUI-Reihenfolge und
+  echter Einstiegspunkt (passende Bitte → Exitcode 1 mit `[ABBRUCH]` ohne Schrittarbeit und ohne `resume.bat`;
+  fremde Laufkennung → Lauf laeuft weiter bis zur naechsten Pruefung).
+- evidence_paths: `ins-07-cooperative-cancel.md` 1-4; status: TEIL
+- remaining_work: Job-Objekte fuer gezielte Unterprozessverwaltung, Abbruch mitten in Download/pip belegen,
+  Resume-Pruefung unvollstaendiger Artefakte
 ## Next (in the order of master §8.1)
 
 1. **DASH-07.01/.02** — Hermes inventory (skills, accounts, sources, status) as the base for DASH-04.03 and

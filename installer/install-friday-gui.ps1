@@ -58,6 +58,9 @@ function Add-Text($panel, [string]$text, [int]$y, [int]$height = 42) {
     return $label
 }
 function Value([string]$name) { return $script:fields[$name].Text.Trim() }
+# Kooperativer Abbruch: dieselbe Bitte, die der Installer an seinen Schrittgrenzen prueft.
+. (Join-Path $PSScriptRoot 'lib\installer-cancel.ps1')
+$script:cancelGraceSeconds = 25
 function Checked([string]$name) { return [bool]$script:fields[$name].Checked }
 function BoolText([bool]$value) { if ($value) { return 'true' }; return 'false' }
 function Show-Error([string]$message) {
@@ -495,6 +498,34 @@ function Append-Log([string]$line) {
     $details.AppendText($line + "`r`n")
     if ($line -match '^\s*(Schritt \d+|\[GUI\]|\[FEHLER\]|\[OK\])') { $status.Text = $line.Trim() }
 }
+function Request-GuiCancel([string]$Reason) {
+    # Ohne laufenden Lauf und ohne Laufkennung gibt es niemanden, den die Bitte erreichen koennte.
+    if (-not $script:process -or $script:process.HasExited -or -not $script:runId) { return $false }
+    $targetRoot = ''
+    try { $targetRoot = [string](Value 'installRoot') } catch { }
+    if (-not $targetRoot) { return $false }
+    $flagPath = Request-InstallerCancel -Root $targetRoot -RunId $script:runId -Reason $Reason
+    if (-not $flagPath) { return $false }
+    Append-Log "[ABBRUCH] Bitte an den Lauf gesendet; der Installer haelt an der naechsten sicheren Grenze an."
+    return $true
+}
+function Stop-BackendGracefully([string]$Reason) {
+    # Erst bitten, dann warten, erst zuletzt beenden. Ein hartes Beenden mitten in Kopier-, pip- oder
+    # WSL-Schritten hinterlaesst halbe Artefakte und reisst Dienstprozesse mit.
+    if (-not $script:process -or $script:process.HasExited) { return }
+    if (Request-GuiCancel $Reason) {
+        $deadline = (Get-Date).AddSeconds($script:cancelGraceSeconds)
+        while (-not $script:process.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
+        if ($script:process.HasExited) {
+            $script:process.WaitForExit(5000) | Out-Null
+            Append-Log "[ABBRUCH] Der Installer hat an einer sicheren Grenze angehalten."
+            return
+        }
+        Append-Log "[ABBRUCH] Der Installer reagiert nicht auf die Bitte; der Prozess wird beendet."
+    }
+    try { if (-not $script:process.HasExited) { & taskkill.exe /PID $script:process.Id /T /F | Out-Null } } catch { }
+    $script:process.WaitForExit(5000) | Out-Null
+}
 function Start-Backend {
     if ($script:process) { return }
     try { $state = Test-Wizard } catch { Show-Error $_.Exception.Message; return }
@@ -559,7 +590,7 @@ function Start-Backend {
         $back.Enabled = $false; $next.Enabled = $false; $start.Enabled = $false
     } catch {
         if ($script:process) {
-            try { if (-not $script:process.HasExited) { & taskkill.exe /PID $script:process.Id /T /F | Out-Null } } catch { }
+            Stop-BackendGracefully 'Startfehler'
             $script:process.Dispose(); $script:process = $null
         }
         if ($script:configPath -and (Test-Path -LiteralPath $script:configPath)) { Remove-Item -LiteralPath $script:configPath -Force -ErrorAction SilentlyContinue }
@@ -626,7 +657,7 @@ $form.Add_FormClosing({
         $choice = [Windows.Forms.MessageBox]::Show('Die Installation läuft. Beim Schließen wird der aktuelle Installationsprozess beendet. Erledigte Schritte bleiben gespeichert. Schließen?',
             'Installation läuft', 'YesNo', 'Warning')
         if ($choice -ne 'Yes') { $_.Cancel = $true; return }
-        try { & taskkill.exe /PID $script:process.Id /T /F | Out-Null; $script:process.WaitForExit(5000) | Out-Null } catch { }
+        Stop-BackendGracefully 'Fenster geschlossen'
         if ($script:configPath -and (Test-Path -LiteralPath $script:configPath)) { Remove-Item -LiteralPath $script:configPath -Force -ErrorAction SilentlyContinue }
     }
 })

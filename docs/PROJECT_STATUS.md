@@ -530,3 +530,22 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   (fehlend, leer, nur Sperrdatei, fremde Datei in `run`, fremde Datei im Root, Datei namens `run`) und faehrt den
   echten Einstiegspunkt mit leerem Zielordner samt Umlaut an: der Lauf scheitert nicht an "nicht leer", sondern
   an der naechsten Pruefung (Ablageort im Zielordner). 17/17 Installer-Tests Exit 0.
+## 2026-10-22 INS-07 (Teil) Kooperativer Abbruch
+
+- **N-021 behoben**: das GUI-`FormClosing` beendete den Lauf sofort mit `taskkill /T /F` und wartete nur 5 s.
+  `/T` riss den gesamten Baum mit (wsl.exe, pip, pnpm, Dienststarter), halbe Artefakte blieben liegen, und der
+  Installer konnte selbst nicht aufräumen. Neu: `installer/lib/installer-cancel.ps1` schreibt eine Abbruchbitte
+  mit Laufkennung nach `<Root>\run\installer.cancel`; der Installer prüft sie an jeder Schrittgrenze (15 Blöcke)
+  und vor jedem Unterprozess (`Native`, `Invoke-Pip`, `Download`) und bricht über den normalen Ausgang ab
+  (Sperre und Aktivmarkierung weg, Zustand bleibt, `resume.bat` verweist auf den Fortschritt). Die GUI bittet
+  zuerst, wartet bis zu 25 s und beendet erst dann hart — mit Protokolleintrag.
+- **Nur die eigene Laufkennung zählt**: eine liegen gebliebene Bitte aus einem abgestürzten Lauf beendet keinen
+  neuen Lauf (PIDs wiederholen sich, Laufkennungen nicht).
+- **Nachweis**: `installer/tests/installer-cancel.Tests.ps1` (neu) prüft Modulverhalten, `Confirm-NotCancelled`
+  per AST mit Stub-`Stop-Install`, die Vollständigkeit aller 15 Schrittblöcke und der drei Unterprozess-Runner,
+  die GUI-Verdrahtung (kein `taskkill` mehr im `FormClosing`, Reihenfolge Bitte → Warten → Beenden) und am
+  echten Einstiegspunkt: passende Bitte vor dem Start → Exitcode 1, `[ABBRUCH]`, kein `resume.bat`, keine
+  Schrittarbeit; fremde Laufkennung → Lauf ignoriert sie und endet an der erwarteten Prüfung. 18/18
+  Installer-Tests Exit 0.
+- **Offen**: gezielte Unterprozessverwaltung (Job-Objekte statt Baum-Kill), Abbruch mitten in einem echten
+  Download/pip-Lauf, systematische Prüfung unvollständiger Artefakte beim Resume.
