@@ -1,6 +1,6 @@
 # Finalization progress — session handoff
 
-Last updated: 2026-10-22 21:25 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
+Last updated: 2026-10-22 17:55 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
 Read `baseline.md` first, then this page. Every status below is backed by a file in this folder.
 
 ## Status board
@@ -24,6 +24,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | INS-05 Voice-Warmup/Lastfall | TEIL (voice-Warmup als Ereignis, 10 000 Zeilen in 0,68 s korrekt getrennt; Oberflaeche unter Last nur interaktiv pruefbar) | `ins-05-event-stream.md` 3, `gui-protocol.Tests.ps1` |
 | INS-04 Stimmplaetze | TEIL (Kette komplett verdrahtet und strukturell belegt; es fehlen Audio-Messung und echter Installationslauf mit Option 3 -> INS-13) | `ins-04-voice-slots.md` 6 |
 | INS-08 Assistentenoberflaeche | TEIL (Layoutvertrag, Originalbild per Hash, rechte Flaeche mit 94 %, Kontrast am gerenderten Fenster gemessen, acht Seiten auf dem Rahmen, genau ein Balken, Details im Dialog, Skalierung 125/150/200 % am gezeichneten Fenster gemessen, Tastaturdurchlauf je Seite) | `ins-08-wizard-surface.md` 2-7, `gui-shell-layout.Tests.ps1`, `gui-wizard-pages.Tests.ps1`, `gui-dpi.Tests.ps1` |
+| INS-09 Grafische Aufnahme | TEIL (Aufnahme fordert jede Aktion als Datei an; Assistentenseite mit Aufforderung, Fortschritt, "Jetzt sprechen", "Anhören", "Überspringen" und Abbruch; Wiederaufnahme je Block; Profil vor der Aufnahme mit Pruefsummen gesichert; echte Mikrofonaufnahme offen) | `ins-09-voice-enrollment.md`, `gui-interaction.Tests.ps1`, `voice-profile-backup.Tests.ps1`, `gui-wizard-pages.Tests.ps1` (Selbsttest interaction=visible:True ok:True), `test_gui_interaction.py` |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
@@ -277,6 +278,27 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 2. **INS-02 .. INS-07** — installer follow-ups in the order of master §8.1.
 3. **DASH-04.05** recovery drill once a single-area misconfiguration can be staged in the acceptance copy.
 4. Parallel while read-only: the Studio comparison for DASH-14/KEEP-05.
+
+
+### INS-09
+
+- requirement_ids: INS-09; predecessor: INS-08
+- base_revision: `5230dc4`; result_revision: working tree (commit follows)
+- write_scope: `installer/` (voice, lib, tests, gui), `docs/agent-work/finalization/`
+- implementation_paths: `installer/voice/gui_interaction.py`, `installer/voice/enroll_record.py`,
+  `installer/lib/gui-interaction.ps1`, `installer/lib/voice-profile-backup.ps1`,
+  `installer/install-friday-gui.ps1`, `installer/install-friday.ps1`
+- test_command: `powershell -NoProfile -ExecutionPolicy Bypass -File installer/tests/gui-interaction.Tests.ps1`,
+  `py -3.11 -m unittest discover -s installer/voice/tests -p 'test_gui_interaction.py'`,
+  `... installer/tests/gui-wizard-pages.Tests.ps1`, `... installer/tests/voice-profile-backup.Tests.ps1`,
+  alle `installer/tests/*.Tests.ps1`
+- expected: Aufnahme ohne eigenes Fenster und ohne stdin; Seite mit Aufforderung/Fortschritt/Aktionen;
+  Abbruch beantwortet die Anfrage; altes Profil vor der Aufnahme gesichert
+- observed: 34 + 9 + 108 (Selbsttest `interaction=visible:True ok:True`) + 25 Zusicherungen PASS,
+  Installer-Suite 32/32 Exit 0 in 188 s
+- evidence_paths: `ins-09-voice-enrollment.md`; status: TEIL (echte Mikrofonaufnahme offen, N-037)
+- remaining_work: Aufnahme mit Geraet und hoerbarem Start, erzeugte Modelle/Embeddings, Wake-Phrase gegen
+  die Metadaten; danach INS-10
 
 ## Open risks / notes for the next session
 

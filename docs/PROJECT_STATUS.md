@@ -625,3 +625,20 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   Installer-Suite 20/20, Persona-Tests 8/8. Unbekannte Stimmen liefern weiterhin 400 (unveraendertes Verhalten).
 - **Offen**: Installer-Abbildung Option 3 -> `custom` (Zeilen 1329-1357, 1950), `voice_setup.py` (Zeilen 20, 108,
   127) und die Dashboard-Stimmenliste; danach die messbare Audioausgabe.
+## 2026-10-22 INS-09 Grafische Stimmaufnahme im Assistenten
+
+- **N-037 (neu)**: Die Aufnahme lief bisher in eigenen Dialogfenstern (`askokcancel` je Sample) bzw. auf der
+  Konsole; Aufforderung, Fortschritt, Wiederholung und Abbruch waren im Assistenten nicht sichtbar, und eine
+  zweite Aufnahme ueberschrieb das alte Profil ohne Sicherung.
+- Aufnahme und Assistent sprechen jetzt ueber zwei Dateien im Lauf-Ordner (`gui-interaction.json` und
+  `.response`, atomar geschrieben, Kennung muss passen, Aktionen `ok`/`replay`/`skip`/`cancel`). Die Aufnahme
+  fragt zuerst die Datei, dann (Rueckfall) Dialog bzw. Konsole; `replay` spielt die letzte WAV erneut,
+  `cancel` beendet mit Exitcode 2. Der Assistent zeigt eine eigene Aufnahmenseite mit Fortschritt
+  ("Aufnahme 3 von 44") und den drei Aktionen; "Abbrechen" beantwortet die Anfrage.
+- Vor jeder Aufnahme sichert `voice-profile-backup.ps1` das Profil mit Pruefsummen-Manifest; die
+  Wiederherstellung prueft jede Datei und schreibt nur fehlerfreie Sicherungen zurueck.
+- **Nachweis**: `gui-interaction.Tests.ps1` 34 Zusicherungen (inkl. Python-Gegenstelle und drei Gegenproben),
+  `test_gui_interaction.py` 9, `voice-profile-backup.Tests.ps1` 25, Selbsttest des Assistenten
+  `interaction=visible:True ok:True` in `gui-wizard-pages.Tests.ps1` (108), Installer-Suite 32/32 Exit 0.
+- **Offen**: echte Aufnahme mit Mikrofon/Headset (hoerbarer Start, vollstaendiger Durchlauf, erzeugte Modelle
+  und Embeddings, Wake-Phrase gegen die Metadaten). Der Sprechergrenzwert bleibt unveraendert.

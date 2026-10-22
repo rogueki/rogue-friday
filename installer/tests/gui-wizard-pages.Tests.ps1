@@ -74,6 +74,11 @@ Assert-True ($guiSource -match 'SelectNextControl') 'Der Tastaturdurchlauf nutzt
 Assert-True ($guiSource -match 'function Test-FocusReachable') 'Der Tastaturdurchlauf fehlt.'
 Assert-True ($guiSource -match 'erreicht den Abbruch nicht') 'Der Abbruch wird nicht per Tastatur gefordert.'
 
+# Die Aufnahmenseite ist Teil desselben Selbsttests: Anfrage lesen, Aktionen bedienen, Antwort schreiben.
+Assert-True ($testLine -match 'interaction=visible:True ok:True') "Der Selbsttest belegt die Aufnahmenseite nicht: $testLine"
+Assert-True ($guiSource -match 'Read-GuiInteractionRequest') 'Der Assistent liest keine Aufnahmeanfrage.'
+Assert-True ($guiSource -match "Complete-GuiInteraction 'ok'") 'Der Assistent beantwortet die Aufnahme nicht.'
+
 $screens = @()
 foreach ($index in 0..7) {
     $path = Join-Path $env:TEMP "friday-gui-page-$index.png"

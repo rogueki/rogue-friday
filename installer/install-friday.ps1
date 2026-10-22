@@ -73,6 +73,10 @@ if ($GuiMode) {
 . (Join-Path $PSScriptRoot 'lib\installer-lock.ps1')
 # Kooperativer Abbruch: Abbruchbitte der GUI als Datei mit Laufkennung (Begruendung im Modul).
 . (Join-Path $PSScriptRoot 'lib\installer-cancel.ps1')
+# Rueckkanal der Aufnahme: Anfrage und Antwort als Dateien, gelesen vom grafischen Assistenten.
+. (Join-Path $PSScriptRoot 'lib\gui-interaction.ps1')
+# Sicherung des Stimmprofils vor einer erneuten Aufnahme (Manifest mit Pruefsummen).
+. (Join-Path $PSScriptRoot 'lib\voice-profile-backup.ps1')
 # Zeitlimit je Download: ein haengender Abruf soll nicht bis zum Stillstandsalarm laufen.
 $script:DownloadTimeoutSeconds = 3600
 # Ereignisstrom fuer die GUI (Protokoll 2): eine JSON-Zeile je Ereignis, alter Text bleibt lesbar.
@@ -2066,14 +2070,25 @@ if (-not (IsDone 'enroll')) {
     if ($WakeShort) { Info "  • 26x ""$WP"", 18x ""$WakeShort"", 15 ähnlich klingende Wörter, 8 kurze Texte vorlesen" }
     else { Info "  • 44x ""$WP"", 15 ähnlich klingende Wörter (Teile und Varianten der Phrase), 8 kurze Texte vorlesen" }
     Info '  • Ruhige Umgebung, normal sprechen, nach jedem Piepton sprechen.'
-    Info 'Es öffnet sich gleich ein eigenes Fenster. Dort Enter drücken und den Anweisungen folgen.'
+    if ($GuiMode) { Info 'Der Assistent führt jetzt durch jede Aufnahme: Signal abwarten, sprechen, auf Wunsch anhören oder abbrechen.' }
+    else { Info 'Es öffnet sich gleich ein eigenes Fenster. Dort Enter drücken und den Anweisungen folgen.' }
     if (-not $GuiMode) { Read-Host '  Enter, wenn du bereit bist' }
+    # Vor einer erneuten Aufnahme das vorhandene Stimmprofil sichern: sonst ueberschreibt ein
+    # abgebrochener Durchlauf WAVs und Embedding ohne Rueckweg.
+    $profileBackup = Backup-VoiceProfile -Root $Root -Label 'vor-enrollment'
+    if ($profileBackup) { Info "Vorhandenes Stimmprofil gesichert: $profileBackup" }
     $vpy = "$Root\voice\.venv\Scripts\python.exe"
     $raw = "$Root\voice\profiles\owner\raw"
     while ($true) {
+        New-Item -ItemType Directory -Force "$Root\run" | Out-Null
+        # Jede Aufnahme fordert im Assistenten eine Aktion an; eine liegen gebliebene Anfrage wuerde sofort blockieren.
+        Clear-GuiInteraction $Root
         if ($GuiMode) {
-            & $vpy "$Root\voice\enroll_record.py" --name $AN --phrase $WP --gui 2>&1 | ForEach-Object { Info "$_" }
-            if ($LASTEXITCODE -ne 0) { Stop-Install 'Stimmaufnahme wurde abgebrochen oder ist fehlgeschlagen. Prüfe Mikrofon und Meldungen, dann den grafischen Assistenten erneut starten.' }
+            $interactionFile = "$Root\run\gui-interaction.json"
+            & $vpy "$Root\voice\enroll_record.py" --name $AN --phrase $WP --gui --interaction-file $interactionFile 2>&1 | ForEach-Object { Info "$_" }
+            $enrollExit = $LASTEXITCODE
+            Clear-GuiInteraction $Root
+            if ($enrollExit -ne 0) { Stop-Install 'Stimmaufnahme wurde abgebrochen oder ist fehlgeschlagen. Prüfe Mikrofon und Meldungen, dann den grafischen Assistenten erneut starten.' }
         } else {
             Start-Process -FilePath $vpy -ArgumentList "`"$Root\voice\enroll_record.py`" --name `"$AN`" --phrase `"$WP`"" -WorkingDirectory "$Root\voice" -Wait
         }

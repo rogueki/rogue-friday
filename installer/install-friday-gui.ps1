@@ -20,6 +20,8 @@ if (-not $isAdmin) {
 . (Join-Path $PSScriptRoot 'lib\installer-cancel.ps1')
 # Ereignisstrom des Installers (Protokoll 2); unbekannte Zeilen bleiben sichtbarer Text.
 . (Join-Path $PSScriptRoot 'lib\gui-protocol.ps1')
+# Rueckkanal der Stimmaufnahme: Anfrage und Antwort als Dateien (derselbe Vertrag wie in der Aufnahme).
+. (Join-Path $PSScriptRoot 'lib\gui-interaction.ps1')
 # Layoutvertrag, Bild und Rahmen der Oberflaeche.
 . (Join-Path $PSScriptRoot 'gui\layout.ps1')
 . (Join-Path $PSScriptRoot 'gui\background.ps1')
@@ -555,12 +557,116 @@ function Show-GuiPage([int]$index) {
     if ($isSummary) { Update-Summary }
 }
 
+# --- Stimmaufnahme: die Aufnahme fordert jede Aktion als Datei an, die Oberflaeche antwortet.
+# Ein eigenes Fenster oder eine unsichtbare Enter-Abfrage gibt es damit nicht mehr.
+$script:interactionId = ''
+$script:interactionRoot = ''
+$script:interactionProof = ''
+# Beantwortete Anfragen bleiben gemerkt: die Aufnahme loescht ihre Datei erst beim naechsten Schritt.
+$script:interactionAnswered = @{}
+$script:interactionPage = New-Object Windows.Forms.Panel
+$script:interactionPage.Name = 'interactionPage'
+$script:interactionPage.Dock = [Windows.Forms.DockStyle]::Fill
+$script:interactionPage.BackColor = [Drawing.Color]::Transparent
+$script:interactionPage.Visible = $false
+$shell.PageHost.Controls.Add($script:interactionPage)
+function New-InteractionLabel([int]$y, [int]$height, [int]$size, $style, [string]$color) {
+    $label = New-Object Windows.Forms.Label
+    $label.AutoSize = $false
+    $label.Location = New-Object Drawing.Point(0, [int]($y * $script:dpiScale))
+    $label.Size = New-Object Drawing.Size([int](540 * $script:dpiScale), [int]($height * $script:dpiScale))
+    $label.Font = New-GuiFont $size $style $script:dpiScale
+    $label.ForeColor = Get-GuiColor $color
+    $label.BackColor = [Drawing.Color]::Transparent
+    $script:interactionPage.Controls.Add($label)
+    return $label
+}
+$script:interactionTitle = New-InteractionLabel 0 44 20 ([Drawing.FontStyle]::Bold) $script:GuiLayout.PrimaryText
+$script:interactionPrompt = New-InteractionLabel 52 150 13 ([Drawing.FontStyle]::Regular) $script:GuiLayout.PrimaryText
+$script:interactionDetail = New-InteractionLabel 210 26 11 ([Drawing.FontStyle]::Regular) $script:GuiLayout.SecondaryText
+$script:interactionProgress = New-InteractionLabel 242 26 12 ([Drawing.FontStyle]::Bold) $script:GuiLayout.Accent
+$script:interactionHint = New-InteractionLabel 332 48 10 ([Drawing.FontStyle]::Regular) $script:GuiLayout.SecondaryText
+$script:interactionHint.Text = 'Sprich nach dem Signalton. Die Aufnahme bleibt lokal; "Anhören" spielt die letzte Aufnahme erneut ab.'
+function New-InteractionButton([string]$name, [string]$text, [int]$x, [int]$width, [scriptblock]$onClick) {
+    $button = New-Object Windows.Forms.Button
+    $button.Name = $name
+    $button.Text = $text
+    $button.Location = New-Object Drawing.Point([int]($x * $script:dpiScale), [int](278 * $script:dpiScale))
+    $button.Size = New-Object Drawing.Size([int]($width * $script:dpiScale), [int](42 * $script:dpiScale))
+    $button.BackColor = Get-GuiColor $script:GuiLayout.Surface
+    $button.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
+    $button.FlatStyle = 'Flat'
+    $button.Add_Click($onClick)
+    $script:interactionPage.Controls.Add($button)
+    return $button
+}
+$script:interactionOk = New-InteractionButton 'interactionOk' 'Jetzt sprechen' 0 190 { Complete-GuiInteraction 'ok' }
+$script:interactionReplay = New-InteractionButton 'interactionReplay' 'Anhören' 202 150 { Complete-GuiInteraction 'replay' }
+$script:interactionSkip = New-InteractionButton 'interactionSkip' 'Überspringen' 364 150 { Complete-GuiInteraction 'skip' }
+function Show-GuiInteraction([object]$Request) {
+    # Anfrage der Aufnahme anzeigen: Aufforderung, Fortschritt und nur die angebotenen Aktionen.
+    if (-not $Request) { return }
+    if ($script:interactionAnswered.ContainsKey([string]$Request.Id)) { return }
+    $script:interactionId = [string]$Request.Id
+    $script:interactionTitle.Text = if ($Request.Title) { [string]$Request.Title } else { 'Stimmaufnahme' }
+    $script:interactionPrompt.Text = [string]$Request.Prompt
+    $script:interactionDetail.Text = [string]$Request.Detail
+    if ($Request.Total -gt 0) { $script:interactionProgress.Text = "Aufnahme $($Request.Index) von $($Request.Total)" }
+    elseif ($Request.Index -gt 0) { $script:interactionProgress.Text = "Aufnahme $($Request.Index)" }
+    else { $script:interactionProgress.Text = '' }
+    $script:interactionReplay.Enabled = ($Request.Actions -contains 'replay')
+    $script:interactionSkip.Enabled = ($Request.Actions -contains 'skip')
+    $script:interactionPage.Visible = $true
+    $script:interactionPage.BringToFront()
+    $script:interactionOk.Focus() | Out-Null
+    Set-GuiShellPage $shell 'Stimmaufnahme' $script:interactionTitle.Text $script:interactionPrompt.Text $false $shell.ProgressBar.Value
+    $shell.BodyLabel.Text = $script:interactionDetail.Text
+    $shell.BackButton.Visible = $false
+    $shell.PrimaryButton.Visible = $false
+    $shell.CancelButton.Text = 'Abbrechen'
+    $shell.CancelButton.Enabled = $true
+}
+function Complete-GuiInteraction([string]$Action) {
+    # Antwort genau auf die offene Anfrage; ohne offene Anfrage passiert nichts.
+    if (-not $script:interactionId) { return }
+    $root = $script:interactionRoot
+    if (-not $root) { try { $root = [string](Value 'installRoot') } catch { $root = '' } }
+    $sent = Send-GuiInteractionResponse $root $script:interactionId $Action
+    $script:interactionAnswered[$script:interactionId] = $true
+    $requestPath = Join-Path (Join-Path $root 'run') 'gui-interaction.json'
+    if (Test-Path -LiteralPath $requestPath) { Remove-Item -LiteralPath $requestPath -Force -ErrorAction SilentlyContinue }
+    if ($sent) { Append-Log "[AUFNAHME] '$Action' an die Stimmaufnahme gesendet." }
+    else { Append-Log "[AUFNAHME] Die Antwort '$Action' konnte nicht zugestellt werden." }
+    $script:interactionId = ''
+    $script:interactionPage.Visible = $false
+    if ($script:process -and -not $script:process.HasExited) { Show-GuiPage 7 }
+}
+$script:interactionTimer = New-Object Windows.Forms.Timer
+$script:interactionTimer.Interval = 200
+$script:interactionTimer.Add_Tick({
+    $root = $script:interactionRoot
+    # Ohne laufenden Lauf und ohne ausdruecklichen Testordner wird nichts gelesen: eine liegen
+    # gebliebene Datei darf den Assistenten nicht vor dem Start blockieren.
+    if (-not $root) {
+        if (-not ($script:process -and -not $script:process.HasExited)) { return }
+        try { $root = [string](Value 'installRoot') } catch { $root = '' }
+        if (-not $root) { return }
+    }
+    $request = Read-GuiInteractionRequest $root
+    if (-not $request) { return }
+    if ($request.Id -eq $script:interactionId) { return }
+    if ($script:interactionAnswered.ContainsKey($request.Id)) { return }
+    Show-GuiInteraction $request
+})
+$script:interactionTimer.Start()
+
 $shell.BackButton.Add_Click({ Show-GuiPage ($script:pageIndex - 1) })
 $shell.PrimaryButton.Add_Click({
     if ($script:pageIndex -eq $script:pages.Count - 2) { Start-Backend; return }
     Show-GuiPage ($script:pageIndex + 1)
 })
 $shell.CancelButton.Add_Click({
+    if ($script:interactionId) { Complete-GuiInteraction 'cancel'; return }
     if ($script:process -and -not $script:process.HasExited) {
         if (-not (Request-GuiCancel 'Abbrechen im Assistenten')) { Show-Error 'Der Abbruch konnte nicht übermittelt werden.' }
         return
@@ -813,7 +919,7 @@ $timer.Add_Tick({
             $bitmap = New-Object Drawing.Bitmap($shell.Panel.Width, $shell.Panel.Height)
             try { $shell.Panel.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $bitmap.Width, $bitmap.Height))); $bitmap.Save($capture) }
             finally { $bitmap.Dispose() }
-            $script:guiTestMessage = "GUI_TEST mode=$Simulation exit=$exitCode status=$($status.Text) focus=$($script:focusSummary) screenshot=$capture"
+            $script:guiTestMessage = "GUI_TEST mode=$Simulation exit=$exitCode status=$($status.Text) focus=$($script:focusSummary) $($script:interactionProof) screenshot=$capture"
             $form.Close()
         }
     }
@@ -941,6 +1047,50 @@ if ($Simulation) {
         $script:fields.kimiKey.Text = 'synthetic-test-key'
         $script:fields.linuxPassword.Text = 'synthetic-test-password'
         $script:fields.linuxPasswordRepeat.Text = 'synthetic-test-password'
+        # Aufnahme-Interaktion: eine Anfrage im Lauf-Ordner muss die Aufnahmenseite zeigen und die Antwort schreiben.
+        $interactionRoot = Join-Path $env:TEMP ('friday-gui-interaction-' + [guid]::NewGuid().ToString('N'))
+        try {
+            New-Item -ItemType Directory -Path (Join-Path $interactionRoot 'run') -Force | Out-Null
+            $request = @{ v = 1; id = 'selftest0001'; kind = 'record'; title = 'Stimmaufnahme'
+                          prompt = 'Aufnahme 1 von 44: normal, ca. 50 cm' + [char]10 + [char]10 + 'Sage nach dem Signal: Hey Friday'
+                          detail = 'normal, ca. 50 cm vom Laptop'; block = 'wake_hey_friday'; index = 1; total = 44
+                          actions = @('ok', 'replay', 'skip', 'cancel'); created = (Get-Date).ToString('s') }
+            [IO.File]::WriteAllText((Join-Path $interactionRoot 'run\gui-interaction.json'),
+                ($request | ConvertTo-Json -Depth 4 -Compress), (New-Object Text.UTF8Encoding $false))
+            $script:interactionRoot = $interactionRoot
+            for ($wait = 0; $wait -lt 60 -and -not $script:interactionPage.Visible; $wait++) {
+                [Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50
+            }
+            if (-not $script:interactionPage.Visible) { throw 'Die Aufnahmenseite erscheint nicht.' }
+            if ($script:interactionPrompt.Text -notmatch 'Hey Friday') { throw 'Die Aufnahmeaufforderung wird nicht angezeigt.' }
+            if ($script:interactionProgress.Text -ne 'Aufnahme 1 von 44') { throw "Fortschritt falsch: '$($script:interactionProgress.Text)'" }
+            if ($shell.PrimaryButton.Visible -or $shell.BackButton.Visible) { throw 'Die Fusszeile zeigt waehrend der Aufnahme falsche Aktionen.' }
+            if ($shell.CancelButton.Text -ne 'Abbrechen') { throw 'Der Abbruch ist waehrend der Aufnahme nicht erreichbar.' }
+            $tour = Test-FocusReachable @{ Panel = $script:interactionPage } $form
+            foreach ($needed in @('interactionOk', 'interactionReplay', 'interactionSkip')) {
+                if ($tour -notcontains $needed) { throw "GUI Tastatur: Aufnahmenseite erreicht $needed nicht (erreicht: $($tour -join '.'))." }
+            }
+            if ($tour -notcontains 'cancelButton') { throw 'GUI Tastatur: Aufnahmenseite erreicht den Abbruch nicht.' }
+            [void]$script:interactionOk.PerformClick()
+            [Windows.Forms.Application]::DoEvents()
+            $answerFile = Join-Path $interactionRoot 'run\gui-interaction.json.response'
+            if (-not (Test-Path -LiteralPath $answerFile)) { throw 'Die Aufnahmeantwort wurde nicht geschrieben.' }
+            $answer = Get-Content -LiteralPath $answerFile -Raw | ConvertFrom-Json
+            if ($answer.id -ne 'selftest0001' -or $answer.action -ne 'ok') { throw "Falsche Antwort '$($answer.action)' auf '$($answer.id)'." }
+            if ($script:interactionPage.Visible) { throw 'Die Aufnahmenseite bleibt nach der Antwort sichtbar.' }
+            $script:interactionProof = 'interaction=visible:True ok:True'
+        } catch {
+            $script:guiTestMessage = "GUI_TEST mode=$Simulation error=aufnahme:$($_.Exception.Message)"
+            $script:guiExitCode = 1
+            if ($form.Visible) { $form.Close() }
+            return
+        } finally {
+            $script:interactionRoot = ''
+            $verifiedInteraction = [IO.Path]::GetFullPath($interactionRoot)
+            if ($verifiedInteraction.StartsWith(([IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) {
+                Remove-Item -LiteralPath $verifiedInteraction -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
         Show-GuiPage 6
         Start-Backend
     }

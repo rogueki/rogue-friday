@@ -122,7 +122,8 @@ foreach ($file in Get-ChildItem -Path (Join-Path $PSScriptRoot '..') -Recurse -F
         if ($content -match '^\s*[^#]*\binput\(') { $pythonPrompts += ('{0}:{1}' -f $file.Name, $line) }
     }
 }
-$allowedPython = @('enroll_record.py:35', 'enroll_record.py:228')
+# Nur die Aufnahme fragt auf der Konsole (Rueckfall ohne Assistent): Zeilen absichtlich fest benannt.
+$allowedPython = @('enroll_record.py:66', 'enroll_record.py:276')
 foreach ($entry in $pythonPrompts) {
     if ($entry -notin $allowedPython) { throw "Unexpected interactive python prompt: $entry" }
 }
