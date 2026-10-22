@@ -1,6 +1,6 @@
 # Finalization progress — session handoff
 
-Last updated: 2026-10-22 20:05 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
+Last updated: 2026-10-22 21:25 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
 Read `baseline.md` first, then this page. Every status below is backed by a file in this folder.
 
 ## Status board
@@ -23,7 +23,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | INS-05 Abschluss/Warmup | TEIL (genau ein Abschlussereignis mit Exitcode, Warmup start/done um die Modellbereitschaft; Voice-/TTS-Warmup offen) | `ins-05-event-stream.md` 4, `gui-protocol.Tests.ps1` |
 | INS-05 Voice-Warmup/Lastfall | TEIL (voice-Warmup als Ereignis, 10 000 Zeilen in 0,68 s korrekt getrennt; Oberflaeche unter Last nur interaktiv pruefbar) | `ins-05-event-stream.md` 3, `gui-protocol.Tests.ps1` |
 | INS-04 Stimmplaetze | TEIL (Kette komplett verdrahtet und strukturell belegt; es fehlen Audio-Messung und echter Installationslauf mit Option 3 -> INS-13) | `ins-04-voice-slots.md` 6 |
-| INS-08 Assistentenoberflaeche | TEIL (Layoutvertrag, Originalbild per Hash, rechte Flaeche mit 94 %, Kontrast am gerenderten Fenster gemessen, acht Seiten auf dem Rahmen, genau ein Balken, Details im Dialog; DPI > 100 % und echter Tastaturdurchlauf offen) | `ins-08-wizard-surface.md` 2-5, `gui-shell-layout.Tests.ps1`, `gui-wizard-pages.Tests.ps1` |
+| INS-08 Assistentenoberflaeche | TEIL (Layoutvertrag, Originalbild per Hash, rechte Flaeche mit 94 %, Kontrast am gerenderten Fenster gemessen, acht Seiten auf dem Rahmen, genau ein Balken, Details im Dialog, Skalierung 125/150/200 % am gezeichneten Fenster gemessen, Tastaturdurchlauf je Seite) | `ins-08-wizard-surface.md` 2-7, `gui-shell-layout.Tests.ps1`, `gui-wizard-pages.Tests.ps1`, `gui-dpi.Tests.ps1` |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |

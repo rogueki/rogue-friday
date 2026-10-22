@@ -6,7 +6,7 @@ function Update-GuiShellBackdrop($Shell) {
     # Setzt das fertig zusammengesetzte Hintergrundbild in der aktuellen Clientgroesse.
     $size = $Shell.Panel.ClientSize
     if ($size.Width -le 0 -or $size.Height -le 0) { return }
-    $layout = Get-GuiLayout $size
+    $layout = Get-GuiLayout $size $Shell.Scale
     $Shell.Layout = $layout
     $bitmap = New-GuiBackdropBitmap $Shell.Backdrop $size $layout.SplitX
     $previous = $Shell.Panel.BackgroundImage
@@ -18,11 +18,17 @@ function Update-GuiShellBackdrop($Shell) {
     $Shell.Content.Size = $layout.Content.Size
     $Shell.Footer.Location = $layout.Footer.Location
     $Shell.Footer.Size = $layout.Footer.Size
-    $Shell.PrimaryButton.Left = $Shell.Footer.Width - $script:GuiLayout.ContentPadding - $Shell.PrimaryButton.Width
-    $Shell.BackButton.Left = $Shell.PrimaryButton.Left - $script:GuiLayout.ButtonGap - $Shell.BackButton.Width
-    $Shell.CancelButton.Left = $script:GuiLayout.ContentPadding
+    $padding = if ($Shell.Layout.Padding) { $Shell.Layout.Padding } else { $script:GuiLayout.ContentPadding }
+    $Shell.PrimaryButton.Left = $Shell.Footer.Width - $padding - $Shell.PrimaryButton.Width
+    $Shell.BackButton.Left = $Shell.PrimaryButton.Left - [int][math]::Round($script:GuiLayout.ButtonGap * $Shell.Scale) - $Shell.BackButton.Width
+    $Shell.CancelButton.Left = $padding
+
+
+    # Aktionen senkrecht in der Fusszeile zentrieren; die Hoehe folgt der Skalierung.
+    $buttonY = [int](($Shell.Footer.Height - $Shell.PrimaryButton.Height) / 2)
+    foreach ($action in @($Shell.PrimaryButton, $Shell.BackButton, $Shell.CancelButton)) { $action.Top = $buttonY }
     $Shell.ProgressBar.Width = $Shell.Content.Width
-if ($Shell.PageHost) {
+    if ($Shell.PageHost) {
         $Shell.PageHost.Width = $Shell.Content.ClientSize.Width
         $Shell.PageHost.Height = [math]::Max(0, $Shell.Content.ClientSize.Height - $Shell.PageHost.Top)
     }
@@ -33,7 +39,8 @@ function New-GuiShell {
     param(
         [string]$BackdropPath = (Join-Path $PSScriptRoot '..\assets\installer_background.png'),
         [string[]]$AdditionalBackdropPaths = @(),
-        [System.Drawing.Size]$ClientSize = (New-Object System.Drawing.Size(1200, 760))
+        [System.Drawing.Size]$ClientSize = (New-Object System.Drawing.Size(1200, 760)),
+        [double]$Scale = 1.0
     )
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
@@ -43,7 +50,7 @@ function New-GuiShell {
     $form.Text = 'F.R.I.D.A.Y. Installation'
     $form.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
     $form.ClientSize = $ClientSize
-    $form.MinimumSize = New-Object System.Drawing.Size($script:GuiLayout.MinimumWidth, $script:GuiLayout.MinimumHeight)
+    $form.MinimumSize = New-Object System.Drawing.Size([int][math]::Round($script:GuiLayout.MinimumWidth * $Scale), [int][math]::Round($script:GuiLayout.MinimumHeight * $Scale))
     $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
     $form.BackColor = Get-GuiColor $script:GuiLayout.Surface
     $form.KeyPreview = $true
@@ -53,7 +60,7 @@ function New-GuiShell {
     $panel.Dock = [System.Windows.Forms.DockStyle]::Fill
     $form.Controls.Add($panel)
 
-    $layout = Get-GuiLayout $form.ClientSize
+    $layout = Get-GuiLayout $form.ClientSize $Scale
     $content = New-Object System.Windows.Forms.Panel
     $content.Name = 'contentPanel'
     $content.Location = $layout.Content.Location
@@ -67,17 +74,17 @@ function New-GuiShell {
     $stepLabel = New-Object System.Windows.Forms.Label
     $stepLabel.Name = 'stepLabel'
     $stepLabel.Location = New-Object System.Drawing.Point(0, 0)
-    $stepLabel.Size = New-Object System.Drawing.Size($content.Width, 22)
-    $stepLabel.Font = New-GuiFont $script:GuiLayout.HelpSize
+    $stepLabel.Size = New-Object System.Drawing.Size($content.Width, [int](22 * $Scale))
+    $stepLabel.Font = New-GuiFont $script:GuiLayout.HelpSize ([System.Drawing.FontStyle]::Regular) $Scale
     $stepLabel.ForeColor = Get-GuiColor $script:GuiLayout.SecondaryText
     $stepLabel.BackColor = $content.BackColor
     $content.Controls.Add($stepLabel)
 
     $titleLabel = New-Object System.Windows.Forms.Label
     $titleLabel.Name = 'titleLabel'
-    $titleLabel.Location = New-Object System.Drawing.Point(0, 28)
-    $titleLabel.Size = New-Object System.Drawing.Size($content.Width, 44)
-    $titleLabel.Font = New-GuiFont $script:GuiLayout.TitleSize ([System.Drawing.FontStyle]::Bold)
+    $titleLabel.Location = New-Object System.Drawing.Point(0, [int](28 * $Scale))
+    $titleLabel.Size = New-Object System.Drawing.Size($content.Width, [int](44 * $Scale))
+    $titleLabel.Font = New-GuiFont $script:GuiLayout.TitleSize ([System.Drawing.FontStyle]::Bold) $Scale
     $titleLabel.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
     $titleLabel.BackColor = $content.BackColor
     $titleLabel.TabStop = $true
@@ -85,9 +92,9 @@ function New-GuiShell {
 
     $bodyLabel = New-Object System.Windows.Forms.Label
     $bodyLabel.Name = 'bodyLabel'
-    $bodyLabel.Location = New-Object System.Drawing.Point(0, 78)
-    $bodyLabel.Size = New-Object System.Drawing.Size($content.Width, 64)
-    $bodyLabel.Font = New-GuiFont $script:GuiLayout.BodySize
+    $bodyLabel.Location = New-Object System.Drawing.Point(0, [int](78 * $Scale))
+    $bodyLabel.Size = New-Object System.Drawing.Size($content.Width, [int](64 * $Scale))
+    $bodyLabel.Font = New-GuiFont $script:GuiLayout.BodySize ([System.Drawing.FontStyle]::Regular) $Scale
     $bodyLabel.ForeColor = Get-GuiColor $script:GuiLayout.SecondaryText
     $bodyLabel.BackColor = $content.BackColor
     $content.Controls.Add($bodyLabel)
@@ -96,7 +103,7 @@ function New-GuiShell {
     $progress.Name = 'progressBar'
     $progress.Minimum = 0
     $progress.Maximum = 100
-    $progress.Height = $script:GuiLayout.ProgressHeight
+    $progress.Height = [int]($script:GuiLayout.ProgressHeight * $Scale)
     $progress.Width = $content.Width
     $progress.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
     $progress.TabStop = $false
@@ -110,7 +117,7 @@ function New-GuiShell {
     $detailsLink.LinkColor = Get-GuiColor $script:GuiLayout.Accent
     $detailsLink.ActiveLinkColor = Get-GuiColor $script:GuiLayout.Accent
     $detailsLink.BackColor = $content.BackColor
-    $detailsLink.Font = New-GuiFont $script:GuiLayout.HelpSize
+    $detailsLink.Font = New-GuiFont $script:GuiLayout.HelpSize ([System.Drawing.FontStyle]::Regular) $Scale
     $detailsLink.TabStop = $true
     $detailsLink.Visible = $false
     $content.Controls.Add($detailsLink)
@@ -131,8 +138,8 @@ function New-GuiShell {
     $cancel = New-Object System.Windows.Forms.Button
     $cancel.Name = 'cancelButton'
     $cancel.Text = 'Abbrechen'
-    $cancel.Size = New-Object System.Drawing.Size(120, $script:GuiLayout.ButtonHeight)
-    $cancel.Font = New-GuiFont $script:GuiLayout.BodySize
+    $cancel.Size = New-Object System.Drawing.Size([int](120 * $Scale), [int]($script:GuiLayout.ButtonHeight * $Scale))
+    $cancel.Font = New-GuiFont $script:GuiLayout.BodySize ([System.Drawing.FontStyle]::Regular) $Scale
     $cancel.BackColor = Get-GuiColor '#1F2937'
     $cancel.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
     $cancel.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
@@ -142,8 +149,8 @@ function New-GuiShell {
     $back = New-Object System.Windows.Forms.Button
     $back.Name = 'backButton'
     $back.Text = 'Zurück'
-    $back.Size = New-Object System.Drawing.Size(120, $script:GuiLayout.ButtonHeight)
-    $back.Font = New-GuiFont $script:GuiLayout.BodySize
+    $back.Size = New-Object System.Drawing.Size([int](120 * $Scale), [int]($script:GuiLayout.ButtonHeight * $Scale))
+    $back.Font = New-GuiFont $script:GuiLayout.BodySize ([System.Drawing.FontStyle]::Regular) $Scale
     $back.BackColor = Get-GuiColor '#1F2937'
     $back.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
     $back.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
@@ -153,8 +160,8 @@ function New-GuiShell {
     $primary = New-Object System.Windows.Forms.Button
     $primary.Name = 'primaryButton'
     $primary.Text = 'Weiter'
-    $primary.Size = New-Object System.Drawing.Size(140, $script:GuiLayout.ButtonHeight)
-    $primary.Font = New-GuiFont $script:GuiLayout.BodySize ([System.Drawing.FontStyle]::Bold)
+    $primary.Size = New-Object System.Drawing.Size([int](140 * $Scale), [int]($script:GuiLayout.ButtonHeight * $Scale))
+    $primary.Font = New-GuiFont $script:GuiLayout.BodySize ([System.Drawing.FontStyle]::Bold) $Scale
     $primary.BackColor = Get-GuiColor $script:GuiLayout.Accent
     $primary.ForeColor = Get-GuiColor '#0B1220'
     $primary.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
@@ -180,6 +187,7 @@ function New-GuiShell {
         CancelButton  = $cancel
         Backdrop      = $backdrop
         Layout        = $layout
+        Scale         = $Scale
     }
     $form.Tag = $shell
     $form.Add_Shown({ param($sender, $eventArgs) Update-GuiShellBackdrop $sender.Tag; $sender.Invalidate($true) })
@@ -198,16 +206,16 @@ function Set-GuiShellPage($Shell, [string]$Step, [string]$Title, [string]$Body, 
     $Shell.DetailsLink.Visible = $ShowProgress
     if ($ShowProgress) { $Shell.ProgressBar.Value = [math]::Max(0, [math]::Min(100, $Percent)) }
     if ($ShowProgress) {
-        $Shell.ProgressBar.Top = $Shell.BodyLabel.Top + $Shell.BodyLabel.Height + 12
-        $Shell.DetailsLink.Top = $Shell.ProgressBar.Top + $Shell.ProgressBar.Height + 8
+        $Shell.ProgressBar.Top = $Shell.BodyLabel.Top + $Shell.BodyLabel.Height + [int](12 * $Shell.Scale)
+        $Shell.DetailsLink.Top = $Shell.ProgressBar.Top + $Shell.ProgressBar.Height + [int](8 * $Shell.Scale)
     } else {
-        $Shell.DetailsLink.Top = $Shell.BodyLabel.Top + $Shell.BodyLabel.Height + 8
+        $Shell.DetailsLink.Top = $Shell.BodyLabel.Top + $Shell.BodyLabel.Height + [int](8 * $Shell.Scale)
     }
     $Shell.DetailsLink.Left = 0
     # Seiten beginnen unterhalb der Erklaerung bzw. unterhalb von Balken und Details.
     $anchorBottom = $Shell.BodyLabel.Top + $Shell.BodyLabel.Height
     if ($ShowProgress) { $anchorBottom = $Shell.DetailsLink.Top + $Shell.DetailsLink.Height }
-    $top = $anchorBottom + 16
+    $top = $anchorBottom + [int](16 * $Shell.Scale)
     $Shell.PageHost.Location = New-Object System.Drawing.Point(0, $top)
     $Shell.PageHost.Size = New-Object System.Drawing.Size($Shell.Content.ClientSize.Width, [math]::Max(0, $Shell.Content.ClientSize.Height - $top))
 }

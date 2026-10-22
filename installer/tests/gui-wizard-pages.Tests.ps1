@@ -1,4 +1,4 @@
-# Assistentenseiten: Schrittfolge, Seitenaufbau und echt gezeichnete Seiten.
+﻿# Assistentenseiten: Schrittfolge, Seitenaufbau und echt gezeichnete Seiten.
 # Die Seitenbilder entstehen im Simulationslauf der Oberflaeche selbst (kein Nachbau im Test).
 $ErrorActionPreference = 'Stop'
 $root = Join-Path $PSScriptRoot '..'
@@ -58,6 +58,22 @@ Assert-True ($exitCode -eq 0) "Der Simulationslauf endete mit Exitcode $exitCode
 Assert-True ([bool]$testLine) 'Der Simulationslauf meldet keinen Abschluss.'
 Assert-True ($testLine -match 'exit=0') "Der gemeldete Exitcode ist nicht 0: $testLine"
 
+# Tastaturdurchlauf: der Assistent selbst laeuft die Tabulatorreihenfolge jeder Seite durch.
+Assert-True ($testLine -match 'focus=(\d+=\d+,){7}\d+=\d+') "Der Lauf meldet keinen Tastaturdurchlauf: $testLine"
+$focusPairs = @([regex]::Matches(($testLine -split 'focus=')[1], '(\d+)=(\d+)') | ForEach-Object {
+    [pscustomobject]@{ Page = [int]$_.Groups[1].Value; Count = [int]$_.Groups[2].Value }
+})
+Assert-True ($focusPairs.Count -eq 8) "Der Tastaturdurchlauf meldet $($focusPairs.Count) Seiten statt acht."
+foreach ($pair in $focusPairs) {
+    Assert-True ($pair.Count -ge 1) "Seite $($pair.Page) erreicht per Tastatur kein einziges Bedienelement."
+}
+Assert-True (($focusPairs | Measure-Object -Property Count -Sum).Sum -ge 40) "Der Tastaturdurchlauf erreicht insgesamt zu wenige Bedienelemente."
+Assert-True (($focusPairs | Where-Object { $_.Page -eq 3 }).Count -ge 8) 'Die Seite mit den meisten Feldern erreicht zu wenige Bedienelemente.'
+# Der Durchlauf ist echt: er benutzt die WinForms-Tabulatorlogik, keine behauptete Liste.
+Assert-True ($guiSource -match 'SelectNextControl') 'Der Tastaturdurchlauf nutzt die Fokuslogik von WinForms nicht.'
+Assert-True ($guiSource -match 'function Test-FocusReachable') 'Der Tastaturdurchlauf fehlt.'
+Assert-True ($guiSource -match 'erreicht den Abbruch nicht') 'Der Abbruch wird nicht per Tastatur gefordert.'
+
 $screens = @()
 foreach ($index in 0..7) {
     $path = Join-Path $env:TEMP "friday-gui-page-$index.png"
@@ -107,4 +123,4 @@ for ($index = 1; $index -lt 8; $index++) {
     Assert-True ($differences -ge 20) "Seite $index unterscheidet sich kaum von Seite $($index - 1) ($differences Unterschiede)."
 }
 
-Write-Host "Assistentenseiten: PASS ($script:checks Zusicherungen, 8 Seiten gezeichnet)"
+Write-Host "Assistentenseiten: PASS ($script:checks Zusicherungen, 8 Seiten gezeichnet, Tastaturdurchlauf)"

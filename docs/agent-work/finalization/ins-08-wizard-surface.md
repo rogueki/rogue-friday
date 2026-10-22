@@ -110,9 +110,44 @@ Beide Dateien danach byte-identisch wiederhergestellt (SHA-256).
 
 Gesamtstand: **29/29 Installer-Tests Exit 0.**
 
-## 6. Weiterhin offen
+## 6. Nachtrag 2026-10-22: Skalierung und Tastatur
 
-1. Skalierung 125/150/200 % ist nicht gemessen; die Seiten sind auf 100 % abgenommen.
-2. Ein echter Tastaturdurchlauf mit Fokusring, Vorlesbarkeit und Reihenfolge durch einen Menschen steht aus.
+**Skalierung.** `Get-GuiLayout` nimmt einen Skalierungsfaktor; `New-GuiShell -Scale` skaliert Abstaende,
+Fusszeile, Schaltflaechen und Schriften mit. Der Assistent liest die Skalierung aus dem System
+(`Graphics.DpiX / 96`) und uebergibt sie, statt eine feste Groesse anzunehmen. Gemessen wird am gezeichneten
+Fenster: `gui-dpi.Tests.ps1` (149 Zusicherungen, Exit 0) prueft je Stufe 125/150/200 %:
+
+| Pruefung | Ergebnis |
+| --- | --- |
+| Vertrag | Innenabstand, Fusszeilhoehe, Inhaltsbeginn und Aufteilung wachsen mit dem Faktor; Inhalt bleibt im Fenster; die Mindestgroesse derselben Stufe geht auf |
+| Bild | links je >= 20 Farben des Originals |
+| Kontrast | Titel >= 7,0:1, Text >= 4,5:1 auf dem tatsaechlichen Hintergrund |
+| Schrift | der Titel wird in der skalierten Groesse gezeichnet |
+| Aktionen | rechtsbuendig, senkrecht zentriert, vollstaendig in der Fusszeile, Mindesthoehe mitgewachsen |
+| Ueberlauf | kein Bedienelement ragt aus seinem Bereich |
+
+**Tastatur.** Der Assistent laeuft im Selbsttest die echte WinForms-Tabulatorreihenfolge jeder Seite durch
+(`SelectNextControl`, `Get-FocusedControl`) - mit neutralem Installationsordner, damit kein vorhandener Zustand
+Felder sperrt. Fuer jede Seite gilt: jedes bedienbare Element wird erreicht, die Hauptaktion (Seiten 1-7) und
+der Abbruch (alle Seiten) sind erreichbar. Der Lauf meldet die Treffer je Seite (`focus=0=3,1=12,...`);
+`gui-wizard-pages.Tests.ps1` verlangt acht Seiten mit je mindestens einem Treffer, mindestens 40 insgesamt und
+mindestens acht auf der feldreichsten Seite. Seite 8 (Installation) hat keine eigenen Bedienfelder; dort startet
+der Durchlauf am Abbruch.
+
+**Gegenproben:** Innenabstand nicht skaliert -> „125% - Innenabstand ist 32 statt 40." Exit 1; Tabulatorlauf
+nach zwei Schritten abgebrochen -> Lauf Exit 1, Test „Der Simulationslauf endete mit Exitcode 1."; beide
+Dateien byte-identisch wiederhergestellt (SHA-256).
+
+Zusatzbefund: `Load-RootState` leert Passwort- und Schluesselfelder bewusst. Im Selbsttest duerfen die
+synthetischen Zugangsdaten deshalb erst **nach** dem Tastaturdurchlauf gesetzt werden, sonst blockiert die
+Meldung „Linux-Passwort fehlt oder die Wiederholung stimmt nicht." den Lauf als modaler Dialog.
+
+Gesamtstand: **30/30 Installer-Tests Exit 0.**
+
+## 7. Weiterhin offen
+
+1. Ein echter Wechsel der Anzeigeskalierung im Betrieb (Bildschirm mit 125/150/200 %) ist auf dieser Maschine
+   nicht herstellbar; gemessen ist die skalierte Geometrie und Typografie, nicht ein Systemwechsel.
+2. Vorlesbarkeit mit einem Screenreader und ein Fokusring-Durchlauf durch einen Menschen stehen aus.
 3. Der Dialog „Details" filtert noch nicht nach Schwere; er zeigt das Protokoll des Laufs.
 4. Die Zustandsmaschine des Plans (interaction-required fuer die Sprachaufnahme) kommt mit INS-09.

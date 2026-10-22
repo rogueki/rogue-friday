@@ -28,25 +28,34 @@ if (-not $isAdmin) {
 $script:cancelGraceSeconds = 25
 $script:fields = @{}
 
-$shell = New-GuiShell -AdditionalBackdropPaths @((Join-Path $PSScriptRoot '..\installer_background.png'))
+# Die Anzeigeskalierung kommt aus dem System, nicht aus einer Annahme: bei 150 % waechst das Fenster
+# mit und alle Abstaende und Schriften wachsen mit.
+$script:dpiScale = 1.0
+try {
+    $screenGraphics = [System.Drawing.Graphics]::FromHwnd([IntPtr]::Zero)
+    try { $script:dpiScale = [math]::Round($screenGraphics.DpiX / 96, 2) } finally { $screenGraphics.Dispose() }
+} catch { $script:dpiScale = 1.0 }
+if ($script:dpiScale -lt 1) { $script:dpiScale = 1.0 }
+$startSize = New-Object Drawing.Size([int](1200 * $script:dpiScale), [int](760 * $script:dpiScale))
+$shell = New-GuiShell -ClientSize $startSize -Scale $script:dpiScale -AdditionalBackdropPaths @((Join-Path $PSScriptRoot '..\installer_background.png'))
 $form = $shell.Form
-# Felder liegen auf einer 496 Pixel breiten Spalte; Beschriftung links, Eingabe rechts daneben.
-$script:labelWidth = 190
-$script:inputLeft = 196
-$script:inputWidth = 300
-$script:rowHeight = 38
+# Felder liegen in einer Spalte; Beschriftung links, Eingabe rechts daneben. Alle Masse skalieren.
+$script:labelWidth = [int](190 * $script:dpiScale)
+$script:inputLeft = [int](196 * $script:dpiScale)
+$script:inputWidth = [int](300 * $script:dpiScale)
+$script:rowHeight = [int](38 * $script:dpiScale)
 
 function Add-Row($panel, [string]$name, [string]$label, [int]$y, [string]$value = '', [bool]$password = $false) {
     $caption = New-Object Windows.Forms.Label
     $caption.Text = $label; $caption.Location = New-Object Drawing.Point(0, ($y + 3))
-    $caption.Size = New-Object Drawing.Size($script:labelWidth, 20)
+    $caption.Size = New-Object Drawing.Size($script:labelWidth, [int](20 * $script:dpiScale))
     $caption.BackColor = [Drawing.Color]::Transparent
     $caption.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
     $panel.Controls.Add($caption)
     $input = New-Object Windows.Forms.TextBox
     $input.Name = $name; $input.Text = $value
     $input.Location = New-Object Drawing.Point($script:inputLeft, $y)
-    $input.Size = New-Object Drawing.Size($script:inputWidth, 25)
+    $input.Size = New-Object Drawing.Size($script:inputWidth, [int](25 * $script:dpiScale))
     $input.UseSystemPasswordChar = $password
     $panel.Controls.Add($input)
     $script:fields[$name] = $input
@@ -56,7 +65,7 @@ function Add-Check($panel, [string]$name, [string]$label, [int]$y, [bool]$checke
     $box = New-Object Windows.Forms.CheckBox
     $box.Name = $name; $box.Text = $label; $box.Checked = $checked
     $box.Location = New-Object Drawing.Point(0, $y)
-    $box.Size = New-Object Drawing.Size(496, 27)
+    $box.Size = New-Object Drawing.Size([int](496 * $script:dpiScale), [int](27 * $script:dpiScale))
     $box.BackColor = [Drawing.Color]::Transparent
     $box.ForeColor = Get-GuiColor $script:GuiLayout.SecondaryText
     $panel.Controls.Add($box); $script:fields[$name] = $box
@@ -65,13 +74,13 @@ function Add-Check($panel, [string]$name, [string]$label, [int]$y, [bool]$checke
 function Add-Choice($panel, [string]$name, [string]$label, [int]$y, [string[]]$items, [int]$selected = 0) {
     $caption = New-Object Windows.Forms.Label
     $caption.Text = $label; $caption.Location = New-Object Drawing.Point(0, ($y + 3))
-    $caption.Size = New-Object Drawing.Size($script:labelWidth, 20)
+    $caption.Size = New-Object Drawing.Size($script:labelWidth, [int](20 * $script:dpiScale))
     $caption.BackColor = [Drawing.Color]::Transparent
     $caption.ForeColor = Get-GuiColor $script:GuiLayout.PrimaryText
     $panel.Controls.Add($caption)
     $box = New-Object Windows.Forms.ComboBox
     $box.Name = $name; $box.DropDownStyle = 'DropDownList'; $box.Location = New-Object Drawing.Point($script:inputLeft, $y)
-    $box.Size = New-Object Drawing.Size($script:inputWidth, 25)
+    $box.Size = New-Object Drawing.Size($script:inputWidth, [int](25 * $script:dpiScale))
     [void]$box.Items.AddRange($items)
     $box.SelectedIndex = $selected
     $panel.Controls.Add($box); $script:fields[$name] = $box
@@ -80,11 +89,48 @@ function Add-Choice($panel, [string]$name, [string]$label, [int]$y, [string[]]$i
 function Add-Text($panel, [string]$text, [int]$y, [int]$height = 42) {
     $label = New-Object Windows.Forms.Label
     $label.Text = $text; $label.Location = New-Object Drawing.Point(0, $y)
-    $label.Size = New-Object Drawing.Size(496, $height)
+    $label.Size = New-Object Drawing.Size([int](496 * $script:dpiScale), [int]($height * $script:dpiScale))
     $label.BackColor = [Drawing.Color]::Transparent
     $label.ForeColor = Get-GuiColor $script:GuiLayout.SecondaryText
     $panel.Controls.Add($label)
     return $label
+}
+function Get-FocusedControl($root) {
+    # WinForms meldet am Formular nur den obersten Container; fuer die Tastaturpruefung wird das
+    # tatsaechlich fokussierte Bedienelement gebraucht.
+    foreach ($child in $root.Controls) {
+        if ($child.Focused) { return $child }
+        $found = Get-FocusedControl $child
+        if ($found) { return $found }
+    }
+    return $null
+}
+function Test-FocusReachable($page, $form) {
+    # Laeuft die Tabulatorreihenfolge der Seite einmal durch und liefert die erreichten Namen.
+    $reachable = @()
+    $first = $null
+    foreach ($control in $page.Panel.Controls) {
+        if ($control.TabStop -and $control.Enabled -and $control.Visible -and
+            ($control -is [Windows.Forms.TextBox] -or $control -is [Windows.Forms.ComboBox] -or
+             $control -is [Windows.Forms.Button] -or $control -is [Windows.Forms.CheckBox])) {
+            $first = $control; break
+        }
+    }
+    if (-not $first) { $first = $form.CancelButton }
+    if (-not $first) { return $reachable }
+    $first.Select()
+    [System.Windows.Forms.Application]::DoEvents()
+    $watch = [Diagnostics.Stopwatch]::StartNew()
+    for ($step = 0; $step -lt 80 -and $watch.Elapsed.TotalSeconds -lt 8; $step++) {
+        $current = Get-FocusedControl $form
+        if (-not $current) { break }
+        if ($reachable -notcontains $current.Name) { $reachable += $current.Name }
+        [void]$form.SelectNextControl($current, $true, $true, $true, $true)
+        [System.Windows.Forms.Application]::DoEvents()
+        $next = Get-FocusedControl $form
+        if (-not $next -or $next.Name -eq $current.Name) { break }
+    }
+    return $reachable
 }
 function Value([string]$name) { return $script:fields[$name].Text.Trim() }
 function Checked([string]$name) { return [bool]$script:fields[$name].Checked }
@@ -190,6 +236,8 @@ $systemPage.Panel.Controls.Add((Add-Text $systemPage.Panel 'Benötigt: Windows m
 $refresh = New-Object Windows.Forms.Button; $refresh.Text = 'Erneut prüfen'
 $refresh.Location = New-Object Drawing.Point(0, 232); $refresh.Size = New-Object Drawing.Size(150, 30)
 $systemPage.Panel.Controls.Add($refresh)
+# Die Systempruefung ist teuer (WMI, nvidia-smi): sie laeuft beim Wechsel des Ordners, nicht bei jedem Fokuswechsel.
+$script:refreshedRoot = ''
 $refresh.Add_Click({
     try {
         $drive = (Value 'installRoot').Substring(0,1)
@@ -199,6 +247,7 @@ $refresh.Add_Click({
         $gpu = if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) { (& nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits 2>$null | Select-Object -First 1) } else { 'Keine NVIDIA-GPU erkannt' }
         $systemReport.Text = "Windows Build $([Environment]::OSVersion.Version.Build)`r`nRAM: $ram GB`r`n${drive}: $free GB frei`r`nGrafik: $gpu`r`nWSL: $([bool](Get-Command wsl.exe -ErrorAction SilentlyContinue))`r`nInternet wird beim Start vom Installer geprüft."
     } catch { $systemReport.Text = "Systemprüfung nicht vollständig: $($_.Exception.Message)" }
+    $script:refreshedRoot = Value 'installRoot'
 })
 
 $pathsPage = New-WizardPage 'pathsPage' 'Installationsort' 'Bei einer vorhandenen Installation werden die gespeicherten Werte übernommen; nichts wird still überschrieben.'
@@ -225,6 +274,12 @@ $browseRoot.Add_Click({
 [void](Add-Check $pathsPage.Panel 'disableForeignTasks' 'Bei Migration kollidierende alte Aufgaben deaktivieren' 280 $true)
 [void](Add-Check $pathsPage.Panel 'overwriteDashboardConfig' 'Abweichende Dashboard-Vorgabe nach Sicherung überschreiben' 310 $false)
 [void](Add-Text $pathsPage.Panel 'Bestehende Daten, Stimmprofile und Konfigurationen werden bei Fortsetzung berücksichtigt. Eine frühere JARVIS-Installation bleibt als Sicherung erhalten.' 346 56)
+# Beim Verlassen des Ordnerfelds wird die Systempruefung nur bei echter Aenderung neu gerechnet.
+$script:fields.installRoot.Add_Leave({
+    Update-PathFields
+    Load-RootState
+    if ($script:refreshedRoot -ne (Value 'installRoot')) { $refresh.PerformClick() }
+})
 function Update-PathFields {
     $custom = (Value 'installRoot') -ine 'C:\Friday'
     $script:fields.distroName.Enabled = $custom
@@ -238,7 +293,7 @@ function Update-PathFields {
         $script:fields.distroLocation.Text = '(Windows-Standardort)'
     }
 }
-$script:fields.installRoot.Add_Leave({ Update-PathFields; Load-RootState; $refresh.PerformClick() })
+
 
 $voicePage = New-WizardPage 'voicePage' 'Sprache & Stimme' 'Lokale Stimmen bleiben auf deinem PC; ElevenLabs braucht Internet und einen passenden Tarif.'
 [void](Add-Text $voicePage.Panel 'Wähle die Sprachverarbeitung und die Stimme. Die Gerätewahl gilt für die Aufnahme deiner Stimmproben.' 0 44)
@@ -758,7 +813,7 @@ $timer.Add_Tick({
             $bitmap = New-Object Drawing.Bitmap($shell.Panel.Width, $shell.Panel.Height)
             try { $shell.Panel.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $bitmap.Width, $bitmap.Height))); $bitmap.Save($capture) }
             finally { $bitmap.Dispose() }
-            $script:guiTestMessage = "GUI_TEST mode=$Simulation exit=$exitCode status=$($status.Text) screenshot=$capture"
+            $script:guiTestMessage = "GUI_TEST mode=$Simulation exit=$exitCode status=$($status.Text) focus=$($script:focusSummary) screenshot=$capture"
             $form.Close()
         }
     }
@@ -775,7 +830,16 @@ $form.Add_FormClosing({
 $form.Add_Shown({
     $form.Activate()
     Show-GuiPage 0
-    if ($Simulation) {
+if ($Simulation) {
+        $script:watchdog = New-Object Windows.Forms.Timer
+        $script:watchdog.Interval = 600000
+        $script:watchdog.Add_Tick({
+            $script:watchdog.Stop()
+            $script:guiTestMessage = "GUI_TEST mode=$Simulation error=zeitlimit"
+            $script:guiExitCode = 1
+            if ($form.Visible) { $form.Close() }
+        })
+        $script:watchdog.Start()
         $originalRoot = $script:fields.installRoot.Text
         $testRoot = Join-Path $env:TEMP ('friday-gui-resume-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path (Join-Path $testRoot 'config') -Force | Out-Null
@@ -806,10 +870,6 @@ $form.Add_Shown({
                 Remove-Item -LiteralPath $verified -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
-        $script:fields.useExistingKimi.Checked = $false
-        $script:fields.kimiKey.Text = 'synthetic-test-key'
-        $script:fields.linuxPassword.Text = 'synthetic-test-password'
-        $script:fields.linuxPasswordRepeat.Text = 'synthetic-test-password'
         foreach ($required in @('providerChoice', 'modelBaseUrl', 'modelName', 'openaiKey', 'anthropicKey', 'customKey')) {
             if (-not $script:fields.ContainsKey($required)) { throw "GUI provider field missing: $required" }
         }
@@ -832,6 +892,55 @@ $form.Add_Shown({
             $bitmap.Save((Join-Path $env:TEMP 'friday-gui-cloud.png'))
         } finally { $bitmap.Dispose() }
         $script:fields.voiceMode.SelectedIndex = 0
+        # Tastatur: jede Seite muss ihre Bedienelemente ohne Maus erreichen koennen. Geprueft wird die
+        # echte Tabulatorreihenfolge von WinForms, nicht eine behauptete Liste.
+        $focusSummary = @()
+        # Ein vorhandener Zustand sperrt Felder; fuer den Tastaturdurchlauf gilt ein neutraler Ordner,
+        # damit jede Seite wirklich bedienbar geprueft wird.
+        $walkRoot = Join-Path $env:TEMP ('friday-gui-focus-' + [guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $walkRoot -Force | Out-Null
+        $walkOriginalRoot = $script:fields.installRoot.Text
+        try {
+        $script:fields.installRoot.Text = $walkRoot
+        $script:configuredRoot = ''
+        Load-RootState
+        foreach ($index in 0..7) {
+            Show-GuiPage $index
+            [System.Windows.Forms.Application]::DoEvents()
+            $page = $script:pages[$index]
+            $tour = Test-FocusReachable $page $form
+            $expected = @($page.Panel.Controls | Where-Object {
+                $_.TabStop -and $_.Enabled -and $_.Visible -and
+                ($_ -is [Windows.Forms.TextBox] -or $_ -is [Windows.Forms.ComboBox] -or
+                 $_ -is [Windows.Forms.Button] -or $_ -is [Windows.Forms.CheckBox])
+            } | ForEach-Object { $_.Name })
+            $missing = @($expected | Where-Object { $tour -notcontains $_ })
+            if ($expected.Count -gt 0 -and $missing.Count -gt 0) { throw "GUI Tastatur: Seite $index erreicht $($missing -join ', ') nicht." }
+            # Ohne erreichbaren Abbruch ist die Tastaturbedienung unvollstaendig.
+            if ($tour -notcontains 'cancelButton') { throw "GUI Tastatur: Seite $index erreicht den Abbruch nicht (erreicht: $($tour -join '.'))." }
+            if ($index -lt 7 -and $tour -notcontains 'primaryButton') { throw "GUI Tastatur: Seite $index erreicht die Hauptaktion nicht (erreicht: $($tour -join '.'), primary sichtbar=$($shell.PrimaryButton.Visible) aktiv=$($shell.PrimaryButton.Enabled) tabstop=$($shell.PrimaryButton.TabStop))." }
+            $focusSummary += "$index=$($tour.Count)"
+        }
+        } catch {
+            $script:guiTestMessage = "GUI_TEST mode=$Simulation error=tastatur:$($_.Exception.Message)"
+            $script:guiExitCode = 1
+            if ($form.Visible) { $form.Close() }
+            return
+        } finally {
+            $script:fields.installRoot.Text = $walkOriginalRoot
+            $script:configuredRoot = ''
+            Load-RootState
+            $verifiedWalk = [IO.Path]::GetFullPath($walkRoot)
+            if ($verifiedWalk.StartsWith(([IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) {
+                Remove-Item -LiteralPath $verifiedWalk -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+        $script:focusSummary = ($focusSummary -join ',')
+        # Geheimnisse erst jetzt: Load-RootState im Tastaturdurchlauf leert Passwort- und Schluesselfelder.
+        $script:fields.useExistingKimi.Checked = $false
+        $script:fields.kimiKey.Text = 'synthetic-test-key'
+        $script:fields.linuxPassword.Text = 'synthetic-test-password'
+        $script:fields.linuxPasswordRepeat.Text = 'synthetic-test-password'
         Show-GuiPage 6
         Start-Backend
     }

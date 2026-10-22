@@ -43,24 +43,34 @@ function Get-GuiColor([string]$Hex) {
     return [System.Drawing.ColorTranslator]::FromHtml($Hex)
 }
 
-function New-GuiFont([double]$Size, [System.Drawing.FontStyle]$Style = [System.Drawing.FontStyle]::Regular) {
-    return New-Object System.Drawing.Font($script:GuiLayout.FontFamily, $Size, $Style, [System.Drawing.GraphicsUnit]::Point)
+function New-GuiFont([double]$Size, [System.Drawing.FontStyle]$Style = [System.Drawing.FontStyle]::Regular, [double]$Scale = 1.0) {
+    if ($Scale -le 0) { $Scale = 1.0 }
+    return New-Object System.Drawing.Font($script:GuiLayout.FontFamily, ($Size * $Scale), $Style, [System.Drawing.GraphicsUnit]::Point)
 }
 
-function Get-GuiLayout([System.Drawing.Size]$Client) {
+function Get-GuiLayout([System.Drawing.Size]$Client, [double]$Scale = 1.0) {
     # Rechnet den Vertrag auf die tatsaechliche Clientflaeche um: rechter Bereich, Inhalt, Footer.
-    # Der Footer bleibt immer erreichbar; bei schmaler Flaeche waechst der rechte Bereich nicht unter
-    # das Minimum, sondern die Bildspalte schrumpft zuerst.
-    $splitX = [int][math]::Min($script:GuiLayout.SplitX, [math]::Max(320, [int]($Client.Width * 0.45)))
-    $footerY = $Client.Height - $script:GuiLayout.FooterHeight
-    $contentX = $splitX + $script:GuiLayout.ContentPadding
-    $contentWidth = $Client.Width - $contentX - $script:GuiLayout.ContentPadding
-    $contentY = $script:GuiLayout.ContentTop
-    $contentHeight = $footerY - $contentY - $script:GuiLayout.ContentPadding
+    # $Scale ist die Anzeigeskalierung (1.0 = 100 %, 1.5 = 150 %): alle Abstaende wachsen mit, damit
+    # bei hoeherer DPI weder Text am Rand klebt noch Schaltflaechen aus der Fusszeile laufen.
+    if ($Scale -le 0) { $Scale = 1.0 }
+    $padding = [int][math]::Round($script:GuiLayout.ContentPadding * $Scale)
+    $footerHeight = [int][math]::Round($script:GuiLayout.FooterHeight * $Scale)
+    $top = [int][math]::Round($script:GuiLayout.ContentTop * $Scale)
+    $splitTarget = [int][math]::Round($script:GuiLayout.SplitX * $Scale)
+    $splitMin = [int][math]::Round(320 * $Scale)
+    $splitX = [int][math]::Min($splitTarget, [math]::Max($splitMin, [int]($Client.Width * 0.45)))
+    $footerY = $Client.Height - $footerHeight
+    $contentX = $splitX + $padding
+    $contentWidth = $Client.Width - $contentX - $padding
+    $contentHeight = $footerY - $top - $padding
     return [ordered]@{
+        Scale         = $Scale
         SplitX        = $splitX
-        Footer        = (New-Object System.Drawing.Rectangle(0, $footerY, $Client.Width, $script:GuiLayout.FooterHeight))
-        Content       = (New-Object System.Drawing.Rectangle($contentX, $contentY, [math]::Max(0, $contentWidth), [math]::Max(0, $contentHeight)))
+        Padding       = $padding
+        FooterHeight  = $footerHeight
+        ContentTop    = $top
+        Footer        = (New-Object System.Drawing.Rectangle(0, $footerY, $Client.Width, $footerHeight))
+        Content       = (New-Object System.Drawing.Rectangle($contentX, $top, [math]::Max(0, $contentWidth), [math]::Max(0, $contentHeight)))
         Backdrop      = (New-Object System.Drawing.Rectangle(0, 0, $Client.Width, $Client.Height))
     }
 }
