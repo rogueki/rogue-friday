@@ -71,3 +71,48 @@ verschiebt den Inhalt um deren Hoehe; gemessen wird deshalb am Clientbereich (`s
 3. Die „Details"-Ansicht ist als Verweis vorhanden, aber noch ohne Dialog mit gefilterten Protokollen.
 4. Der Bildvergleich mit dem Nutzer-Original ist ueber den Hash belegt, nicht ueber eine visuelle
    Abnahme durch den Nutzer.
+## 5. Nachtrag 2026-10-22: Seiten auf dem Rahmen
+
+Die acht Registerkarten sind ersetzt. `install-friday-gui.ps1` baut seine Seiten jetzt in der Seitenflaeche
+des Rahmens auf; die gesamte Ablauflogik (Zustand lesen, Fortsetzen, Pruefungen, Zugangsdaten, Start des
+Installers, Ereignisstrom, kooperativer Abbruch) ist unveraendert uebernommen.
+
+| Seite | Inhalt |
+| --- | --- |
+| Systempruefung | echter Befund zu Windows, RAM, freiem Platz, Grafik und WSL |
+| Installationsort | Ordner, Distributionsname, WSL-Ablage, fuenf dokumentierte Uebernahmeoptionen |
+| Sprache & Stimme | Sprachbetrieb, Stimme, Referenzdatei, Geraete |
+| Persoenlichkeit | Name, Wake Word, Anrede, Charakter, Antwortlaenge |
+| KI-Zugang | Anbieter, Basis-URL, Modellname, drei verdeckte Schluesselfelder |
+| Zugaenge | Linux-Benutzer und -Passwort, Kimi- und ElevenLabs-Schluessel |
+| Zusammenfassung | vollstaendige Zusammenfassung vor dem Start |
+| Installation | ein Schrittindikator, **ein** Fortschrittsbalken, eine Kurzmeldung, Details nur auf Klick |
+
+Der Fortschritt kommt aus der Schrittkennung des Ereignisses (`Get-GuiStepPercent`) gegen die
+Schrittfolge des Installers; unbekannte Schritte lassen den Balken stehen, statt einen erfundenen Wert
+zu zeigen. Das Protokoll liegt nicht mehr auf einer Seite: es sammelt im Hintergrund und erscheint
+ausschliesslich im Dialog hinter „Details". Die Fusszeile traegt Weiter/Installieren, Zurueck und
+Abbrechen; Abbrechen sendet die kooperative Abbruchbitte, nicht `taskkill`.
+
+**Nachweise:** `gui-wizard-pages.Tests.ps1` (90 Zusicherungen, Exit 0) prueft:
+
+| Bereich | Pruefung |
+| --- | --- |
+| Schrittfolge | die Reihenfolge der Oberflaeche ist Zeichen fuer Zeichen die des Installers (aus dessen Quelltext gelesen); keine Dubletten; erster Schritt < 10 %, letzter genau 100 %, unbekannt -1, monoton |
+| Aufbau | keine Registerkarten mehr; acht Seiten mit Titel und Erklaerung; Rahmen, Layoutvertrag und Bild eingebunden |
+| genau ein Balken | die Oberflaeche legt keinen eigenen Balken an, sie fuellt den des Rahmens |
+| Diagnose | kein dauerhaftes Protokollfeld; „Details" oeffnet einen Dialog; Abbrechen sendet die Abbruchbitte |
+| echte Seiten | Simulationslauf Exit 0; acht Bilder 1200x760; links je >= 20 Farben (Motiv), rechts je >= 200 helle Punkte (Felder und Schrift); jede Seite unterscheidet sich sichtbar von der vorigen |
+
+**Gegenproben:** vertauschte Schrittfolge in der Oberflaeche -> „Schrittfolge weicht ab: Installer
+[preflight,...,keepalive,hermes...]" Exit 1; eine Seite umbenannt -> „Seite 'keysPage' fehlt." Exit 1.
+Beide Dateien danach byte-identisch wiederhergestellt (SHA-256).
+
+Gesamtstand: **29/29 Installer-Tests Exit 0.**
+
+## 6. Weiterhin offen
+
+1. Skalierung 125/150/200 % ist nicht gemessen; die Seiten sind auf 100 % abgenommen.
+2. Ein echter Tastaturdurchlauf mit Fokusring, Vorlesbarkeit und Reihenfolge durch einen Menschen steht aus.
+3. Der Dialog „Details" filtert noch nicht nach Schwere; er zeigt das Protokoll des Laufs.
+4. Die Zustandsmaschine des Plans (interaction-required fuer die Sprachaufnahme) kommt mit INS-09.

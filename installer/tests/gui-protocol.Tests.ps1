@@ -66,7 +66,10 @@ if ($guiBody -notmatch "lib\\gui-protocol\.ps1") { throw 'GUI bindet den Ereigni
 if ($guiBody -match 'Append-Log \$task\.Result') { throw 'GUI schreibt Rohzeilen weiter direkt ins Protokoll.' }
 if (([regex]::Matches($guiBody, 'Receive-BackendLine \$task\.Result')).Count -ne 2) { throw 'Nicht beide Ausgabestroeme laufen ueber den Ereignisleser.' }
 if ($guiBody -notmatch "ConvertFrom-GuiEventLine") { throw 'GUI liest keine Ereignisse.' }
-if ($guiBody -match 'Percent|\d+ ?%') { throw 'GUI rechnet Prozent aus Text.' }
+# Fortschritt kommt ausschliesslich aus der Schrittkennung des Ereignisses, nie aus Protokolltext.
+if ($guiBody -notmatch 'Get-GuiStepPercent') { throw 'GUI leitet den Fortschritt nicht aus der Schrittfolge des Installers ab.' }
+if ($guiBody -match '-match[^\r\n]*\d+ ?%') { throw 'GUI rechnet Prozent aus Text.' }
+if ($guiBody -match 'Parse[^\r\n]*%') { throw 'GUI rechnet Prozent aus Text.' }
 
 # --- Echter Einstiegspunkt im GUI-Lauf: mindestens ein Ereignis, jede Ereigniszeile lesbar
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ("friday protocol-" + [guid]::NewGuid().ToString('N').Substring(0, 8))

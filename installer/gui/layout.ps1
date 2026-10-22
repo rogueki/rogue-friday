@@ -26,6 +26,19 @@ $script:GuiLayout = [ordered]@{
     DetailsHint        = 'Details'
 }
 
+# Reihenfolge der Installationsschritte. Sie ist die einzige Quelle fuer den einen Fortschrittsbalken
+# und wird im Test gegen die Schrittfolge des Installers geprueft, damit beide nicht auseinanderlaufen.
+$script:GuiStepOrder = @(
+    'preflight', 'files', 'wslfeature', 'power', 'persona', 'wslconfig', 'distro', 'linuxuser',
+    'keepalive', 'hermes', 'qwen', 'voicepython', 'enroll', 'voiceservice', 'dashboard'
+)
+
+function Get-GuiStepPercent([string]$Step) {
+    # Unbekannte Schritte lassen den Balken stehen, statt einen falschen Fortschritt zu behaupten.
+    $index = [array]::IndexOf($script:GuiStepOrder, $Step)
+    if ($index -lt 0) { return -1 }
+    return [int][math]::Round((($index + 1) / $script:GuiStepOrder.Count) * 100)
+}
 function Get-GuiColor([string]$Hex) {
     return [System.Drawing.ColorTranslator]::FromHtml($Hex)
 }

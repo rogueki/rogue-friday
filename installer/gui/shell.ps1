@@ -22,6 +22,10 @@ function Update-GuiShellBackdrop($Shell) {
     $Shell.BackButton.Left = $Shell.PrimaryButton.Left - $script:GuiLayout.ButtonGap - $Shell.BackButton.Width
     $Shell.CancelButton.Left = $script:GuiLayout.ContentPadding
     $Shell.ProgressBar.Width = $Shell.Content.Width
+if ($Shell.PageHost) {
+        $Shell.PageHost.Width = $Shell.Content.ClientSize.Width
+        $Shell.PageHost.Height = [math]::Max(0, $Shell.Content.ClientSize.Height - $Shell.PageHost.Top)
+    }
     $Shell.Panel.Invalidate()
 }
 
@@ -111,6 +115,12 @@ function New-GuiShell {
     $detailsLink.Visible = $false
     $content.Controls.Add($detailsLink)
 
+# Seitenflaeche unterhalb von Schritt, Titel und Erklaerung; die Seiten setzen dort ihre Felder.
+    $pageHost = New-Object System.Windows.Forms.Panel
+    $pageHost.Name = 'pageHost'
+    $pageHost.BackColor = [System.Drawing.Color]::Transparent
+    $pageHost.AutoScroll = $false
+    $content.Controls.Add($pageHost)
     $footer = New-Object System.Windows.Forms.Panel
     $footer.Name = 'footer'
     $footer.Location = $layout.Footer.Location
@@ -163,6 +173,7 @@ function New-GuiShell {
         TitleLabel    = $titleLabel
         BodyLabel     = $bodyLabel
         DetailsLink   = $detailsLink
+        PageHost      = $pageHost
         ProgressBar   = $progress
         PrimaryButton = $primary
         BackButton    = $back
@@ -193,4 +204,10 @@ function Set-GuiShellPage($Shell, [string]$Step, [string]$Title, [string]$Body, 
         $Shell.DetailsLink.Top = $Shell.BodyLabel.Top + $Shell.BodyLabel.Height + 8
     }
     $Shell.DetailsLink.Left = 0
+    # Seiten beginnen unterhalb der Erklaerung bzw. unterhalb von Balken und Details.
+    $anchorBottom = $Shell.BodyLabel.Top + $Shell.BodyLabel.Height
+    if ($ShowProgress) { $anchorBottom = $Shell.DetailsLink.Top + $Shell.DetailsLink.Height }
+    $top = $anchorBottom + 16
+    $Shell.PageHost.Location = New-Object System.Drawing.Point(0, $top)
+    $Shell.PageHost.Size = New-Object System.Drawing.Size($Shell.Content.ClientSize.Width, [math]::Max(0, $Shell.Content.ClientSize.Height - $top))
 }

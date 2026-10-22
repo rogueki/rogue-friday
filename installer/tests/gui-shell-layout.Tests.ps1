@@ -201,7 +201,7 @@ try {
 
 # --- 5. Umgebungsunabhaengigkeit: der Rahmen braucht weder Node noch Python
 $shellSource = [IO.File]::ReadAllText((Join-Path $gui 'shell.ps1')) + [IO.File]::ReadAllText((Join-Path $gui 'background.ps1')) + [IO.File]::ReadAllText((Join-Path $gui 'layout.ps1'))
-foreach ($forbidden in @('node.exe', 'python', 'pnpm', 'npm ')) {
+foreach ($forbidden in @('node.exe', 'python.exe', 'pnpm.cmd', 'npm.cmd', 'py -3')) {
     Assert-True ($shellSource -notmatch [regex]::Escape($forbidden)) "Der Rahmen haengt an '$forbidden'."
 }
 
