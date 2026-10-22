@@ -584,3 +584,21 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   in Download und Invoke-Pip. 20/20 Installer-Tests Exit 0.
 - **Offen**: keine Job-Objekte (Nachfahren von `cmd.exe` koennen kurz weiterlaufen), `wsl.exe`-Aufrufe nicht
   ueberwacht, Modell-Warmup und Dashboardwechsel nicht einzeln mit Zeitlimit belegt, Lastfall Paketspam.
+## 2026-10-22 INS-05 (Teil) Abschluss- und Warmup-Ereignisse
+
+- **N-024 behoben**: Der Ereignisstrom endete ohne Abschlussereignis, und der Modellstart lief als anonymer Teil
+  des Schritts `qwen`. Die GUI konnte damit den Ausgang eines Laufs nur am Prozessexit ablesen und einen langsamen
+  Modellstart nicht von einem haengenden Schritt unterscheiden. Neu: `Write-GuiRunDone($Code,$State)` schreibt
+  **genau ein** `run`-Ereignis mit `state` und `exitCode` (Einmal-Garantie ueber `$script:GuiRunDoneWritten`),
+  aufgerufen in `Stop-Install` (`failed`, Code 1) und am normalen Ende (`ok`, Code 0 bzw. 1 wenn die
+  Dashboardpruefung fehlschlaegt). Der Qwen-Start meldet `warmup start/done` (mit Sekunden) um die
+  Bereitschaftspruefung herum.
+- **GUI**: kennt `warmup` und `run` als Anzeigetypen, merkt sich `$script:sawRunDone` und schreibt beim Prozessende
+  `[HINWEIS] Der Installer hat kein Abschlussereignis gesendet; massgeblich ist der Exitcode.` - ein fehlendes
+  Abschlussereignis wird benannt, aber nicht als Erfolg oder Misserfolg umgedeutet.
+- **Nachweis**: `installer/tests/gui-protocol.Tests.ps1` prueft die Einmal-Garantie (zwei Aufrufe, eine Zeile,
+  erste gewinnt), die Meldung in `Stop-Install` und am Laufende, die Lage der Warmup-Ereignisse um
+  `start-qwen-server` und `Wait-Http` (nur im Qwen-Schritt) und im echten Einstiegspunkt genau ein
+  Abschlussereignis mit `state=failed`, `exitCode=1`. 20/20 Installer-Tests Exit 0.
+- **Offen**: Abschlussereignis fuer den Fall "Prozess abgestuerzt, ohne Ereignis" ist bewusst nur ein Hinweis
+  (kein zweiter Kanal); TTS-/Voice-Service-Warmup meldet noch kein eigenes Ereignis; Lastfall Paketspam.

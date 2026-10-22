@@ -60,14 +60,26 @@ liest die Präfixzeilen einfach als Text; eine neue GUI versteht beide Formen.
   Ereigniszeile ist mit `ConvertFrom-GuiEventLine` lesbar, und das Laufereignis nennt Laufkennung und Modus
   (`update-dashboard`) korrekt.
 
-Gesamtstand: **19/19 Installer-Tests Exit 0** (vorher 18).
+Gesamtstand nach diesem Schritt: **20/20 Installer-Tests Exit 0**.
 
-## 3. Offen in INS-05
+## 3. Abschluss- und Warmup-Ereignisse (Nachtrag, N-024)
 
-- **Harte Zeitlimits pro Schritt**: ein hängender Download oder pip-Lauf wird weiterhin nur durch die
-  Stillstandsmeldung sichtbar, nicht durch einen Abbruch nach Frist.
-- **Abschlussereignis**: es gibt `run`/`step`/`download`/`pip`, aber kein explizites `run done` mit Exitcode; die
-  GUI verlässt sich auf den Prozessexit. Für Protokoll 3 wäre ein Abschlussereignis sinnvoll.
-- **Modell-Warmup** ist als eigener Ereignistyp noch nicht benannt (läuft derzeit unter `step qwen`).
+- `Write-GuiRunDone($Code, $State)` schreibt **genau ein** `run`-Ereignis mit `state` und `exitCode`; die
+  Einmal-Garantie hält `$script:GuiRunDoneWritten`. Aufrufer: `Stop-Install` (`failed`, Code 1) und das normale
+  Ende (`ok`, Code 0, bzw. 1 wenn die Dashboardprüfung fehlschlägt).
+- Der Qwen-Start meldet `warmup start/done` (mit Sekunden) zwischen `start-qwen-server.ps1` und der
+  Antwortprüfung, damit ein langsamer Modellstart nicht als anonymer Teil des Schritts verschwindet.
+- Die GUI kennt beide Typen, merkt sich `$script:sawRunDone` und schreibt bei fehlendem Abschlussereignis
+  `[HINWEIS] Der Installer hat kein Abschlussereignis gesendet; massgeblich ist der Exitcode.`
+- Nachweis: `gui-protocol.Tests.ps1` prüft die Einmal-Garantie (zwei Aufrufe, eine Zeile, erste gewinnt), die
+  Aufrufstellen, die Lage der Warmup-Ereignisse (nur im Qwen-Schritt, zwischen Modellstart und `Wait-Http`) und im
+  echten Einstiegspunkt genau ein Abschlussereignis mit `state=failed`/`exitCode=1`.
+
+## 4. Offen in INS-05
+
+- **Harte Zeitlimits pro Schritt**: für Download (3600 s) und pip (gezieltes Beenden bei Abbruch) umgesetzt und in
+  `supervised-processes.md` belegt; weiterhin offen sind Zeitlimits für `wsl.exe`-Aufrufe.
+- **Voice-/TTS-Warmup** meldet noch kein eigenes Ereignis (bisher nur Qwen).
+- **Abgestürzter Prozess**: stirbt der Installer ohne Ereignis, bleibt nur der Exitcode plus der Hinweis der GUI.
 - Lange stille Phasen und Paketspam sind über den asynchronen Leser abgedeckt, aber nicht mit einem
   Lastfall-Test (z. B. 10 000 Zeilen in kurzer Zeit) belegt.

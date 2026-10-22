@@ -477,6 +477,7 @@ $script:simulationFile = $null
 $script:stdoutTask = $null
 $script:stderrTask = $null
 $script:guiExitCode = 0
+$script:sawRunDone = $false
 $script:redactions = @()
 $script:configPath = $null
 $script:runId = ''
@@ -505,6 +506,15 @@ function Format-GuiEvent([object]$Event) {
             return "Download $($Event.name) fertig"
         }
         'pip' { return "Pakete werden installiert ($($Event.label))" }
+        'warmup' {
+            if ("$($Event.state)" -eq 'start') { return "Modell $($Event.service) wird geladen" }
+            if ($Event.PSObject.Properties['seconds']) { return "Modell $($Event.service) bereit nach $($Event.seconds) s" }
+            return "Modell $($Event.service) bereit"
+        }
+        'run' {
+            if ("$($Event.state)" -eq 'start') { return "Lauf $($Event.run) gestartet ($($Event.mode))" }
+            return "Lauf beendet: $($Event.state) (Exitcode $($Event.exitCode))"
+        }
         default { return "Ereignis: $($Event.type)" }
     }
 }
@@ -512,6 +522,7 @@ function Receive-BackendLine([string]$Line) {
     $parsed = ConvertFrom-GuiEventLine $Line
     if ($parsed.Kind -ne 'event') { Append-Log $Line; return }
     $text = Format-GuiEvent $parsed.Event
+    if ($parsed.Event.type -eq 'run' -and $parsed.Event.state -ne 'start') { $script:sawRunDone = $true }
     if ("$($parsed.Event.type)" -eq 'step' -and "$($parsed.Event.state)" -eq 'start') { $status.Text = $text }
     Append-Log $text
 }
@@ -660,6 +671,8 @@ $timer.Add_Tick({
         }
         $exitCode = $script:process.ExitCode
         $script:guiExitCode = $exitCode
+        # Der Exitcode bleibt massgeblich; ein fehlendes Abschlussereignis wird nur benannt, nicht als Erfolg verkauft.
+        if (-not $script:sawRunDone) { Append-Log '[HINWEIS] Der Installer hat kein Abschlussereignis gesendet; massgeblich ist der Exitcode.' }
         if ($script:configPath -and (Test-Path -LiteralPath $script:configPath)) { Remove-Item -LiteralPath $script:configPath -Force -ErrorAction SilentlyContinue }
         if ($exitCode -eq 0) { $status.Text = 'Installation abgeschlossen. Dashboard und Dienste wurden geprüft.' }
         elseif ($exitCode -eq 10) { $status.Text = 'Windows-Neustart erforderlich. Nach der Anmeldung öffnet sich dieser Assistent erneut.'; $reboot.Enabled = $true }

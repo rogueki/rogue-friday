@@ -43,3 +43,10 @@ function Write-GuiEvent([string]$Type, [hashtable]$Data = @{}) {
     foreach ($key in $Data.Keys) { $payload[$key] = $Data[$key] }
     Write-Host (ConvertTo-GuiEventLine $payload)
 }
+$script:GuiRunDoneWritten = $false
+function Write-GuiRunDone([int]$Code, [string]$State) {
+    # Genau ein Abschlussereignis je Lauf: mehrere Abbruchpfade duerfen es nicht doppelt schreiben.
+    if ($script:GuiRunDoneWritten) { return }
+    $script:GuiRunDoneWritten = $true
+    Write-GuiEvent 'run' @{ state = $State; exitCode = $Code }
+}

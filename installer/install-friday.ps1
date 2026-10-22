@@ -137,6 +137,7 @@ function Info($text)  { Write-Host "  $text" }
 function Ok($text)    { Write-Host "  [OK] $text" -ForegroundColor Green }
 function Warn($text)  { Write-Host "  [!]  $text" -ForegroundColor Yellow }
 function Stop-Install($text) {
+    Write-GuiRunDone 1 'failed'
     Write-Host ""; Write-Host "  [FEHLER] $text" -ForegroundColor Red
     # Frueher stand hier nur "install-friday.bat erneut starten". Diese .bat startet das Skript ohne
     # Parameter und faellt damit auf C:\Friday + Standard-Distribution zurueck: bei einem eigenen
@@ -1859,11 +1860,14 @@ if (-not (IsDone 'qwen')) {
     $layers = if ($gpu.nvidia) { 99 } else { 0 }
     @{ ctx_size = $ctx; gpu_layers = $layers; port = $Ports.Qwen } | ConvertTo-Json | Set-Content "$Root\config\qwen.json" -Encoding Ascii
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$Inst\scripts\start-qwen-server.ps1"
+    # Warmup getrennt vom Schritt melden: der Modellstart braucht Sekunden bis Minuten, ohne Ausgabe.
+    Write-GuiEvent 'warmup' @{ state = 'start'; service = 'qwen' }
     if (-not (Wait-Http "http://127.0.0.1:$($Ports.Qwen)/v1/models" 120)) { Stop-Install "Qwen-Server startet nicht ($Root\logs\qwen-server.log)." }
     $body = @{ model = 'qwen3-router'; max_tokens = 10; chat_template_kwargs = @{ enable_thinking = $false }
                messages = @(@{ role = 'user'; content = 'Antworte nur mit LOCAL_OK' }) } | ConvertTo-Json -Depth 5
     $t = Measure-Command { $r = Invoke-RestMethod -Method Post "http://127.0.0.1:$($Ports.Qwen)/v1/chat/completions" -ContentType 'application/json' -Body $body -TimeoutSec 120 }
     Ok ("Qwen antwortet ({0:N1} s): {1}" -f $t.TotalSeconds, $r.choices[0].message.content.Trim())
+    Write-GuiEvent 'warmup' @{ state = 'done'; service = 'qwen'; seconds = [math]::Round($t.TotalSeconds, 1) }
     Register-UserTask 'FRIDAY_Qwen' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-qwen-server.ps1`"" 'Lokaler Qwen3-4B-Router für F.R.I.D.A.Y.'
     MarkDone 'qwen'
     }
@@ -2803,6 +2807,8 @@ Info 'Nächste Schritte (Telegram, E-Mail, Kalender): siehe ANLEITUNG.md'
 if (-not $CustomRoot) { Show-MigrationSummary }
 if ($DashProbe.Up -and (YesNo 'Command Center jetzt im Browser öffnen?')) { Start-Process $DashUrl }
 elseif (-not $DashProbe.Up) { Start-Process "http://127.0.0.1:$($Ports.Dashboard)" }
+$finalCode = if ($GuiMode -and -not $DashProbe.Up) { 1 } else { 0 }
+Write-GuiRunDone $finalCode 'ok'
 Exit-InstallerLock $InstallerLock
 Stop-Transcript | Out-Null
 if (-not $GuiMode) { Read-Host '  Enter zum Schließen' }

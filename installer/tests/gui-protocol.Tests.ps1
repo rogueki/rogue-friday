@@ -93,10 +93,17 @@ try {
         $read = ConvertFrom-GuiEventLine $eventLine
         if ($read.Kind -ne 'event') { throw "Ereigniszeile nicht lesbar: $eventLine" }
     }
-    $runEvent = $eventLines | ForEach-Object { (ConvertFrom-GuiEventLine $_).Event } | Where-Object { $_.type -eq 'run' } | Select-Object -First 1
+    $events = @($eventLines | ForEach-Object { (ConvertFrom-GuiEventLine $_).Event })
+    $runEvent = $events | Where-Object { $_.type -eq 'run' -and $_.state -eq 'start' } | Select-Object -First 1
     if (-not $runEvent) { throw 'Kein Laufereignis gemeldet.' }
     if ("$($runEvent.run)" -ne 'protocol-e2e') { throw "Laufereignis nennt die falsche Kennung: $($runEvent.run)" }
     if ("$($runEvent.mode)" -ne 'update-dashboard') { throw "Laufereignis nennt den falschen Modus: $($runEvent.mode)" }
+    # Der Lauf endet hier mit einem Fehler: genau ein Abschlussereignis mit Code 1.
+    $closingEvents = @($events | Where-Object { $_.type -eq 'run' -and $_.state -ne 'start' })
+    if ($closingEvents.Count -ne 1) { throw "Es wurden $($closingEvents.Count) Abschlussereignisse gemeldet statt genau einem." }
+    if ("$($closingEvents[0].state)" -ne 'failed' -or [int]$closingEvents[0].exitCode -ne 1) {
+        throw "Abschlussereignis nennt falsche Werte: state=$($closingEvents[0].state) exitCode=$($closingEvents[0].exitCode)"
+    }
 } finally {
     Remove-Item Env:\FRIDAY_INSTALL_RUN -ErrorAction SilentlyContinue
     $resolved = [IO.Path]::GetFullPath($fixture)
@@ -106,4 +113,41 @@ try {
     if (Test-Path -LiteralPath $resolved) { Remove-Item -LiteralPath $resolved -Recurse -Force }
 }
 
+# --- Abschluss- und Warmup-Ereignisse
+$env:FRIDAY_INSTALL_RUN = 'abschluss-test'
+$script:GuiRunDoneWritten = $false
+$doneLines = @(& {
+    Write-GuiRunDone 1 'failed'
+    Write-GuiRunDone 0 'ok'
+} 6>&1 | ForEach-Object { "$_" } | Where-Object { $_ -match 'FRIDAY-EVENT' })
+if ($doneLines.Count -ne 1) { throw "Abschlussereignis wurde $($doneLines.Count)x geschrieben statt genau einmal." }
+$doneEvent = (ConvertFrom-GuiEventLine $doneLines[0]).Event
+if (-not $doneEvent) { throw 'Abschlussereignis ist nicht lesbar.' }
+if ($doneEvent.type -ne 'run' -or $doneEvent.state -ne 'failed' -or [int]$doneEvent.exitCode -ne 1) {
+    throw "Abschlussereignis nennt falsche Werte: $($doneLines[0])"
+}
+Remove-Item Env:\FRIDAY_INSTALL_RUN -ErrorAction SilentlyContinue
+
+$body = Get-Content -LiteralPath $installer -Raw -Encoding UTF8
+$stopInstall = $body.Substring($body.IndexOf('function Stop-Install(', [StringComparison]::Ordinal), 300)
+if ($stopInstall -notmatch "Write-GuiRunDone 1 'failed'") { throw 'Abbruch meldet kein Abschlussereignis.' }
+$tail = $body.Substring($body.Length - 1500)
+if ($tail -notmatch 'Write-GuiRunDone \$finalCode') { throw 'Normales Ende meldet kein Abschlussereignis.' }
+# Nur im Qwen-Schritt pruefen: dieselbe Wait-Http-Zeile gibt es auch in der Migrationsphase.
+$qwenStart = $body.IndexOf("Title 'Schritt 11/15", [StringComparison]::Ordinal)
+if ($qwenStart -lt 0) { throw 'Qwen-Schritt nicht gefunden.' }
+# Feste Fensterbreite: "MarkDone 'qwen'" steht auch im Cloud-Zweig weiter oben.
+$qwenBlock = $body.Substring($qwenStart, [Math]::Min(5200, $body.Length - $qwenStart))
+$warmStart = $qwenBlock.IndexOf("state = 'start'; service = 'qwen'", [StringComparison]::Ordinal)
+$warmDone = $qwenBlock.IndexOf("state = 'done'; service = 'qwen'", [StringComparison]::Ordinal)
+$waitHttp = $qwenBlock.IndexOf('Wait-Http "http://127.0.0.1:$($Ports.Qwen)/v1/models" 120', [StringComparison]::Ordinal)
+$startServer = $qwenBlock.IndexOf('start-qwen-server.ps1', [StringComparison]::Ordinal)
+if ($warmStart -lt 0 -or $warmDone -lt 0) { throw 'Warmup-Ereignisse fehlen.' }
+if (-not ($startServer -lt $warmStart -and $warmStart -lt $waitHttp -and $waitHttp -lt $warmDone)) {
+    throw "Warmup-Ereignisse liegen nicht um den Modellstart (server=$startServer start=$warmStart wait=$waitHttp done=$warmDone)."
+}
+$guiBodyCheck = Get-Content -LiteralPath $gui -Raw -Encoding UTF8
+if ($guiBodyCheck -notmatch "'warmup'") { throw 'GUI kennt den Warmup-Ereignistyp nicht.' }
+if ($guiBodyCheck -notmatch '\$script:sawRunDone') { throw 'GUI merkt sich das Abschlussereignis nicht.' }
+if ($guiBodyCheck -notmatch 'kein Abschlussereignis') { throw 'GUI weist fehlendes Abschlussereignis nicht aus.' }
 Write-Host 'Ereignisstrom Protokoll 2: PASS'

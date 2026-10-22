@@ -1,6 +1,6 @@
 # Finalization progress — session handoff
 
-Last updated: 2026-10-22 14:30 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
+Last updated: 2026-10-22 14:40 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
 Read `baseline.md` first, then this page. Every status below is backed by a file in this folder.
 
 ## Status board
@@ -20,6 +20,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | INS-02 Installer-Vertraege | PASS | `ins-02-installer-io.md`, `installer-io-contract.Tests.ps1`, `gui-installer.Tests.ps1` (Renderprobe 8 Reiter) |
 | INS-06 State/Resume/Mutex | TEIL (Sperre, Zustandssicherung, Fortsetzung und resume.bat belegt; echter WSL-Lauf und halb erledigte Schritte offen) | `ins-06-state-atomic.md` 6/7/8, `installer-lock.Tests.ps1`, `installer-single-instance.Tests.ps1`, `state-recovery.Tests.ps1`, `installer-resume-distro.Tests.ps1` |
 | INS-05 Ereignisstrom | TEIL (Protokoll 2 mit konservativem Rueckweg belegt; harte Zeitlimits und Abschlussereignis offen) | `ins-05-event-stream.md`, `gui-protocol.Tests.ps1` |
+| INS-05 Abschluss/Warmup | TEIL (genau ein Abschlussereignis mit Exitcode, Warmup start/done um die Modellbereitschaft; Voice-/TTS-Warmup offen) | `ins-05-event-stream.md` 4, `gui-protocol.Tests.ps1` |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
@@ -246,6 +247,18 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - evidence_paths: `supervised-processes.md` 1-4; status: TEIL
 - remaining_work: Job-Objekte fuer Nachfahren, `wsl.exe`-Aufrufe ueberwachen, Modell-Warmup/Dashboardwechsel
   einzeln belegen, Lastfall Paketspam
+### INS-05 Abschluss- und Warmup-Ereignisse (2026-10-22)
+- goal: ein Lauf muss im Ereignisstrom sichtbar enden; ein langsamer Modellstart darf nicht als anonymer Teil des
+  Schritts verschwinden.
+- changed: `gui-protocol.ps1` (`Write-GuiRunDone` mit Einmal-Garantie), `install-friday.ps1` (`Stop-Install` meldet
+  `failed`/1, normales Ende `ok` mit `$finalCode`, qwen meldet `warmup start/done`), `install-friday-gui.ps1`
+  (`warmup`/`run`-Anzeige, `$script:sawRunDone`, Hinweis bei fehlendem Abschlussereignis).
+- observed: zwei Aufrufe erzeugen genau eine Zeile; echter Einstiegspunkt liefert genau ein Abschlussereignis mit
+  `state=failed`, `exitCode=1`; Warmup-Ereignisse liegen zwischen Modellstart und Antwortpruefung.
+- evidence_paths: `PROJECT_STATUS.md` (Abschnitt 2026-10-22 INS-05 Abschluss/Warmup), `gui-protocol.Tests.ps1`;
+  status: TEIL
+- remaining_work: Voice-/TTS-Warmup als eigener Typ, Verhalten bei abgestuerztem Prozess ohne Ereignis,
+  Lastfall Paketspam
 ## Next (in the order of master §8.1)
 
 1. **DASH-07.01/.02** — Hermes inventory (skills, accounts, sources, status) as the base for DASH-04.03 and
