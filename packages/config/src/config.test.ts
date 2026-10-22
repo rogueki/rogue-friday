@@ -111,10 +111,16 @@ describe('defaults', () => {
       ownerPasswordHash: { ref: 'env:FRIDAY_OWNER_PASSWORD_HASH', configured: false },
     });
     expect(config.realtime).toEqual({ ringBufferSize: 5000, heartbeatSeconds: 15 });
-    expect(config.ui).toEqual({ locale: 'de-DE', timezone: 'Europe/Berlin', assistantName: 'F.R.I.D.A.Y.', theme: 'friday-command-midnight', layout: 'friday-command-overview' });
+    expect(config.ui).toEqual({ locale: 'de-DE', timezone: 'Europe/Berlin', assistantName: 'F.R.I.D.A.Y.', theme: 'friday-command-midnight', layout: 'friday-command-overview', contentStudio: true });
     expect(config.dev).toEqual({ scenarioConsole: true, responseValidation: true });
     expect(config.files).toEqual({ dashboard: null, adapters: null });
     expect(config.warnings.some((w) => w.includes('dashboard.yaml not found'))).toBe(true);
+  });
+
+  it('delivers the Content Studio by default and keeps an explicit opt-out', () => {
+    expect(load({ dashboard: 'ui:\n  theme: friday-command-midnight\n' }).ui.contentStudio).toBe(true);
+    expect(load({ dashboard: 'ui:\n  contentStudio: false\n' }).ui.contentStudio).toBe(false);
+    expect(loadError({ dashboard: 'ui:\n  contentStudio: vielleicht\n' }).message).toContain('ui.contentStudio');
   });
 
   it('derives dev defaults from the data mode but honours explicit values', () => {

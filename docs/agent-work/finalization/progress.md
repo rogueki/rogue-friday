@@ -26,6 +26,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | INS-08 Assistentenoberflaeche | TEIL (Layoutvertrag, Originalbild per Hash, rechte Flaeche mit 94 %, Kontrast am gerenderten Fenster gemessen, acht Seiten auf dem Rahmen, genau ein Balken, Details im Dialog, Skalierung 125/150/200 % am gezeichneten Fenster gemessen, Tastaturdurchlauf je Seite) | `ins-08-wizard-surface.md` 2-7, `gui-shell-layout.Tests.ps1`, `gui-wizard-pages.Tests.ps1`, `gui-dpi.Tests.ps1` |
 | INS-09 Grafische Aufnahme | TEIL (Aufnahme fordert jede Aktion als Datei an; Assistentenseite mit Aufforderung, Fortschritt, "Jetzt sprechen", "Anhören", "Überspringen" und Abbruch; Wiederaufnahme je Block; Profil vor der Aufnahme mit Pruefsummen gesichert; echte Mikrofonaufnahme offen) | `ins-09-voice-enrollment.md`, `gui-interaction.Tests.ps1`, `voice-profile-backup.Tests.ps1`, `gui-wizard-pages.Tests.ps1` (Selbsttest interaction=visible:True ok:True), `test_gui_interaction.py` |
 | INS-10 Installerregressionen | PASS (wslpath-Filterung, 503 als Laden, Keepalive als Prozess, 900/120/60/3600 s getrennt, Pruefsummen mit Loeschung, Kindprozess-PATH, WSL-Update begrenzt und abschaltbar; je Regression eine isolierte Probe) | `ins-10-installer-regressions.md`, `installer-regressions.Tests.ps1` (60), `wsl-timeout.Tests.ps1`, `warmup-cancel.Tests.ps1` |
+| INS-11 Creator Studio im Command Center | TEIL (Lieferung, Menue und Sicherung belegt: Sync-Modul mit Hash, Creator-Studio-Artefakte im Ziel, Build-Ausgaben ausgeschlossen, Menue standardmaessig aktiv, Sicherung mit Manifest und lesbarer SQLite-Datenbank; physischer Lauf im frischen Zielordner -> INS-13) | `ins-11-dashboard-creator-studio.md`, `dashboard-sync-backup.Tests.ps1` (72), vitest content-studio (18) |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
@@ -320,6 +321,30 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - evidence_paths: `ins-10-installer-regressions.md`; status: PASS
 - remaining_work: reale Beobachtung der Fenster unter Last gehoert zu INS-13; echter haengender Download
   bleibt bei INS-07
+
+### INS-11
+
+- requirement_ids: INS-11; predecessor: INS-06, INS-10
+- base_revision: `279cd12`; result_revision: working tree (commit follows)
+- write_scope: `installer/` (lib, tests, install-friday.ps1), `packages/config`, `apps/control-api` (Standard und
+  zwei Tests), `config/dashboard.example.yaml`, `docs/agent-work/finalization/`
+- implementation_paths: `installer/lib/dashboard-sync.ps1`, `installer/lib/dashboard-backup.ps1`,
+  `installer/install-friday.ps1`, `packages/config/src/schemas/dashboard.schema.json`,
+  `apps/control-api/src/services/settings.ts`
+- test_command: `powershell -NoProfile -ExecutionPolicy Bypass -File installer/tests/dashboard-sync-backup.Tests.ps1`,
+  `node node_modules/vitest/vitest.mjs run --project node content-studio`, `... packages/config/src/config.test.ts`,
+  `... --project node settings`, `... --project web navModel ContentStudioPage`,
+  `node packages/contracts/scripts/check.mjs`, alle `installer/tests/*.Tests.ps1`
+- expected: Creator Studio kommt aus dem kanonischen Stand an, ist im frischen Ziel sichtbar, FFmpeg laeuft, die
+  Sicherung vor einem Update ist mit Manifest und Datenbank pruefbar
+- observed: 72 Zusicherungen PASS (realer robocopy-Lauf, echte SQLite-Datei ueber `node:sqlite` gesichert,
+  ueberschrieben, wiederhergestellt und wieder gelesen), content-studio 18 Tests, config 48, settings 72,
+  web 5, contracts:check bestanden, `tsc --noEmit` fuer control-api/config/web/contracts je 0,
+  Installer-Suite 34/34 Exit 0 in 477 s, FFmpeg real `ffmpeg version ...`
+- evidence_paths: `ins-11-dashboard-creator-studio.md`; status: TEIL
+- remaining_work: physischer Lauf in einen frischen Zielordner mit Browser (Menue, Route, Plan nach
+  Dienstneustart, Produktion mit synthetischen Medien) gehoert zu INS-13/REL-03; Wiederherstellung im laufenden
+  Betrieb als Betriebsprobe -> REL
 
 ## Open risks / notes for the next session
 

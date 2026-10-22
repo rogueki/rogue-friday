@@ -642,6 +642,24 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   `interaction=visible:True ok:True` in `gui-wizard-pages.Tests.ps1` (108), Installer-Suite 32/32 Exit 0.
 - **Offen**: echte Aufnahme mit Mikrofon/Headset (hoerbarer Start, vollstaendiger Durchlauf, erzeugte Modelle
   und Embeddings, Wake-Phrase gegen die Metadaten). Der Sprechergrenzwert bleibt unveraendert.
+## 2026-10-22 INS-11 Creator Studio im Command Center
+
+- Der Assistent lieferte das Creator Studio zwar mit, im frischen Zielordner war es aber unsichtbar: der Standard
+  `dashboard.contentStudioEnabled` war `false` und die vom Installer erzeugte `dashboard.yaml` kannte den Schalter
+  nicht. Jetzt gibt es `ui.contentStudio` im Konfigurationsschema (Standard `true`), die Einstellungen uebernehmen
+  den Wert, Installer-YAML und Beispielkonfiguration nennen ihn. Abschalten bleibt moeglich.
+- Kopie und Hash der Dashboard-Quellen liegen in `installer/lib/dashboard-sync.ps1`: `/MIR` fuer Quellordner
+  (Build-Ausgaben ausgeschlossen), `/E` fuer `config` mit Erhalt der lokalen `dashboard.yaml`/`adapters.yaml`.
+- Die Sicherung vor einem Update liegt in `installer/lib/dashboard-backup.ps1`: Manifest mit relativer Datei,
+  Groesse und SHA-256 je Datei, Pruefung vor dem Zurueckschreiben; der Installer sichert zusaetzlich
+  `data/dashboard.sqlite`, `-wal`, `-shm`, `dashboard-revision.json` und `audit-head.json`.
+- **Nachweis**: `dashboard-sync-backup.Tests.ps1` 72 Zusicherungen (realer robocopy-Lauf, echte SQLite-Datei
+  gesichert, ueberschrieben, wiederhergestellt und ueber `node:sqlite` wieder gelesen), vitest content-studio 18,
+  config 48, settings 72, web 5, `contracts:check` bestanden, `tsc --noEmit` 0, FFmpeg real, Installer-Suite
+  34/34 Exit 0 in 477 s.
+- **Offen**: physischer Lauf in einen frischen Zielordner mit Browser (Menue, Route, Plan nach Dienstneustart,
+  Produktion mit synthetischen Medien) -> INS-13/REL-03; Wiederherstellung im laufenden Betrieb -> REL.
+
 ## 2026-10-22 INS-10 Installerregressionen einzeln abgesichert
 
 - WSL-Update lief ohne Limit (`Native { wsl.exe --update }`). Jetzt `Invoke-CapturedProcess` mit 600 s,

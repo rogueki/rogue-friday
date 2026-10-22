@@ -27,6 +27,8 @@ describe("Content Studio paid provider operations", () => {
   it("rejects disabled, unauthorized, unconfirmed and CSRF-free requests before billing", async () => {
     const owner = api.client();
     await owner.loginDev("owner");
+    const initial = (await owner.get("/api/v1/settings")).json();
+    expect((await owner.patch("/api/v1/settings", { dashboard: { ...initial.data.dashboard, contentStudioEnabled: false } }, { headers: { "if-match": String(initial.data.version) } })).statusCode).toBe(200);
     expect((await owner.post(KIE, image, { headers: { "idempotency-key": "studio-disabled" } })).statusCode).toBe(403);
     const current = (await owner.get("/api/v1/settings")).json();
     const enabled = await owner.patch("/api/v1/settings", { dashboard: { ...current.data.dashboard, contentStudioEnabled: true } }, { headers: { "if-match": String(current.data.version) } });

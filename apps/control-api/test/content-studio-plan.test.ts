@@ -20,6 +20,8 @@ describe("Content Studio authoritative plan", () => {
     expect((await anonymous.get(ENDPOINT)).statusCode).toBe(401);
     const owner = api.client();
     await owner.loginDev("owner");
+    const initial = (await owner.get("/api/v1/settings")).json().data;
+    expect((await owner.patch("/api/v1/settings", { dashboard: { ...initial.dashboard, contentStudioEnabled: false } }, { headers: { "if-match": String(initial.version) } })).statusCode).toBe(200);
     expect((await owner.get(ENDPOINT)).statusCode).toBe(403);
     const settings = (await owner.get("/api/v1/settings")).json().data;
     expect((await owner.patch("/api/v1/settings", { dashboard: { ...settings.dashboard, contentStudioEnabled: true } }, { headers: { "if-match": String(settings.version) } })).statusCode).toBe(200);

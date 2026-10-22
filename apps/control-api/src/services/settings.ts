@@ -84,7 +84,7 @@ export function defaultSettingsAreas(config: FridayConfig): SettingsAreas {
       timeFormat: "24h",
       firstDayOfWeek: "monday",
     },
-    dashboard: { activeLayoutId: config.ui.layout, fontScale: 1, backgroundGrid: true, soundEffects: false, autoRefreshSeconds: 30, compact: false, contentStudioEnabled: false },
+    dashboard: { activeLayoutId: config.ui.layout, fontScale: 1, backgroundGrid: true, soundEffects: false, autoRefreshSeconds: 30, compact: false, contentStudioEnabled: config.ui.contentStudio },
     theme: { activeThemeId: config.ui.theme, cyanIntensity: 1, panelOpacity: 0.72, goldIntensity: 1 },
     orb: {
       preset: "gold-reference",

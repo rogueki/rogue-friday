@@ -85,6 +85,10 @@ if ($GuiMode) {
 . (Join-Path $PSScriptRoot 'lib\download-integrity.ps1')
 # Auswertung der wslpath-Antwort: Warnzeilen filtern, erst danach den Exitcode bewerten.
 . (Join-Path $PSScriptRoot 'lib\wsl-path.ps1')
+# Dashboard-Quellen: Inhaltshash und Kopie ins Ziel (kanonischer Stand, keine Build-Ausgaben).
+. (Join-Path $PSScriptRoot 'lib\dashboard-sync.ps1')
+# Dashboard-Sicherung: Manifest mit Pruefsummen, pruefbare Wiederherstellung inklusive Datenbank.
+. (Join-Path $PSScriptRoot 'lib\dashboard-backup.ps1')
 # Zeitlimit je Download: ein haengender Abruf soll nicht bis zum Stillstandsalarm laufen.
 $script:DownloadTimeoutSeconds = 3600
 # Ereignisstrom fuer die GUI (Protokoll 2): eine JSON-Zeile je Ereignis, alter Text bleibt lesbar.
@@ -2290,42 +2294,14 @@ function Ensure-FFmpeg {
     return $true
 }
 function Get-SourceHash([string]$src) {
-    # Inhaltshash ueber alles, was ins Ziel kopiert wird (ohne Build-Ausgaben und ohne die lokalen Konfigurationsdateien).
-    $files = New-Object System.Collections.Generic.List[string]
-    foreach ($f in $DashRootFiles) { if (Test-Path "$src\$f") { $files.Add("$src\$f") } }
-    $stack = New-Object System.Collections.Generic.Stack[string]
-    foreach ($d in ($DashSyncDirs + 'config')) { if (Test-Path "$src\$d") { $stack.Push("$src\$d") } }
-    while ($stack.Count -gt 0) {
-        $cur = $stack.Pop()
-        $di = New-Object IO.DirectoryInfo $cur
-        foreach ($sub in $di.GetDirectories()) { if ($DashExcludeDirs -notcontains $sub.Name) { $stack.Push($sub.FullName) } }
-        foreach ($fi in $di.GetFiles()) { $files.Add($fi.FullName) }
-    }
-    $files.Sort([StringComparer]::Ordinal)
-    $sb = New-Object Text.StringBuilder
-    foreach ($f in $files) {
-        $rel = $f.Substring($src.Length).TrimStart('\')
-        if ($rel -in 'config\dashboard.yaml', 'config\adapters.yaml') { continue }
-        [void]$sb.Append($rel).Append(':').Append((Get-FileHash $f -Algorithm SHA256).Hash).Append("`n")
-    }
-    $sha = [Security.Cryptography.SHA256]::Create()
-    return (-join ($sha.ComputeHash((New-Object Text.UTF8Encoding $false).GetBytes($sb.ToString())) | ForEach-Object { $_.ToString('x2') }))
+    # Inhaltshash ueber alles, was ins Ziel kopiert wird (ohne Build-Ausgaben und ohne die lokalen
+    # Konfigurationsdateien des Benutzers). Die Dateiliste liegt in lib\dashboard-sync.ps1.
+    return (Get-DashboardSourceHash -Source $src -RootFiles $DashRootFiles -Dirs ($DashSyncDirs + 'config') `
+        -ExcludeDirs $DashExcludeDirs -PreserveFiles @('config\dashboard.yaml', 'config\adapters.yaml'))
 }
 function Sync-DashSource([string]$src) {
-    New-Item -ItemType Directory -Force $Dash | Out-Null
-    foreach ($f in $DashRootFiles) { if (Test-Path "$src\$f") { Copy-Item "$src\$f" "$Dash\$f" -Force } }
-    foreach ($d in $DashSyncDirs) {
-        if (-not (Test-Path "$src\$d")) { continue }
-        # /MIR spiegelt (entfernt Veraltetes); ausgeschlossene Ordner (node_modules, dist, out, ...) bleiben im Ziel unberuehrt.
-        & robocopy.exe "$src\$d" "$Dash\$d" /MIR /XD @DashExcludeDirs /XF '*.log' /NFL /NDL /NJH /NJS /NP | Out-Null
-        if ($LASTEXITCODE -ge 8) { Stop-Dashboard "Kopieren von '$d' nach $Dash fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
-    }
-    if (Test-Path "$src\config") {
-        # Ohne /MIR und ohne dashboard.yaml/adapters.yaml: lokale Konfiguration des Benutzers bleibt erhalten.
-        & robocopy.exe "$src\config" "$Dash\config" /E /XF dashboard.yaml adapters.yaml /NFL /NDL /NJH /NJS /NP | Out-Null
-        if ($LASTEXITCODE -ge 8) { Stop-Dashboard "Kopieren von 'config' nach $Dash fehlgeschlagen (robocopy-Code $LASTEXITCODE)." }
-    }
-    foreach ($d in 'config', 'data', 'backups') { New-Item -ItemType Directory -Force "$Dash\$d" | Out-Null }
+    Sync-DashboardSource -Source $src -Target $Dash -RootFiles $DashRootFiles -Dirs $DashSyncDirs `
+        -ExcludeDirs $DashExcludeDirs -PreserveFiles @('config\dashboard.yaml', 'config\adapters.yaml') | Out-Null
     New-Item -ItemType Directory -Force "$Root\logs\dashboard" | Out-Null
 }
 function Invoke-Pnpm([string[]]$pnpmArgs) {
@@ -2493,6 +2469,9 @@ ui:
   assistantName: "$AN" # Anzeigename; settings.profile.assistantName (in der Oberflaeche geaendert) hat Vorrang
   theme: friday-command-midnight
   layout: friday-command-overview
+  # Creator Studio gehoert zum Standardpaket: Menueeintrag und API sind ohne Zusatzschritt da.
+  # Abschalten: contentStudio: false (oder in der Oberflaeche unter Einstellungen).
+  contentStudio: true
 
 dev:
   scenarioConsole: false
@@ -2610,24 +2589,27 @@ function Set-DashboardOwnerPassword {
     Info "Öffne nach dem Start $DashUrl. Dort legst du Name, Benutzername und Passwort beim ersten Login selbst fest."
 }
 function Backup-CustomDashboard {
-    $backup = "$Root\backups\dashboard-update-$(Get-Date -Format yyyyMMdd-HHmmss)"
+    # Vor dem Update: Build, Konfiguration UND Datenbank sichern; das Manifest macht die Wiederherstellung
+    # pruefbar (Groesse und Pruefsumme je Datei).
+    $entries = @(
+        @{ Source = "$Dash\config\dashboard.yaml"; Relative = 'config\dashboard.yaml' },
+        @{ Source = "$Dash\config\adapters.yaml"; Relative = 'config\adapters.yaml' },
+        @{ Source = $DashHashFile; Relative = 'config\dashboard_owner.hash' },
+        @{ Source = $StateFile; Relative = 'config\install-state.json' },
+        @{ Source = "$Dash\apps\control-api\dist"; Relative = 'apps\control-api\dist' },
+        @{ Source = "$Dash\apps\web\out"; Relative = 'apps\web\out' },
+        @{ Source = "$Dash\data\dashboard.sqlite"; Relative = 'data\dashboard.sqlite' },
+        @{ Source = "$Dash\data\dashboard.sqlite-wal"; Relative = 'data\dashboard.sqlite-wal' },
+        @{ Source = "$Dash\data\dashboard.sqlite-shm"; Relative = 'data\dashboard.sqlite-shm' },
+        @{ Source = "$Dash\data\dashboard-revision.json"; Relative = 'data\dashboard-revision.json' },
+        @{ Source = "$Dash\data\audit-head.json"; Relative = 'data\audit-head.json' }
+    )
     try {
-        New-Item -ItemType Directory -Path $backup -ErrorAction Stop | Out-Null
-        foreach ($entry in @(
-            @{ Source = "$Dash\config\dashboard.yaml"; Relative = 'config\dashboard.yaml' },
-            @{ Source = "$Dash\config\adapters.yaml"; Relative = 'config\adapters.yaml' },
-            @{ Source = $DashHashFile; Relative = 'config\dashboard_owner.hash' },
-            @{ Source = $StateFile; Relative = 'config\install-state.json' },
-            @{ Source = "$Dash\apps\control-api\dist"; Relative = 'apps\control-api\dist' },
-            @{ Source = "$Dash\apps\web\out"; Relative = 'apps\web\out' }
-        )) {
-            if (-not (Test-Path -LiteralPath $entry.Source)) { continue }
-            $target = Join-Path $backup $entry.Relative
-            New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force -ErrorAction Stop | Out-Null
-            Copy-Item -LiteralPath $entry.Source -Destination $target -Recurse -Force -ErrorAction Stop
-        }
-    } catch { Stop-Dashboard "Dashboard-Sicherung vor dem Update fehlgeschlagen: $($_.Exception.Message)" }
-    Ok "Vorheriger Dashboard-Build und Konfiguration gesichert: $backup"
+        $backup = Backup-DashboardState -BackupRoot "$Root\backups" -Entries $entries -Reason 'Dashboard-Update'
+    } catch {
+        Stop-Dashboard "Dashboard-Sicherung vor dem Update fehlgeschlagen: $($_.Exception.Message)"
+    }
+    Ok "Vorheriger Dashboard-Build, Konfiguration und Datenbank gesichert: $backup"
 }
 function Install-Dashboard {
     Write-DashLog "=== Dashboard-Schritt gestartet ($(Get-Date -Format s)) ==="
