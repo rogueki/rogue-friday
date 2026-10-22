@@ -113,3 +113,14 @@ Bridge-Parser-Test in WSL (4 Pruefungen).
 Noch offen: UI im Adapterdetail (OpenAI/Anthropic als Hauptauswahl, "Erweitert", hinzufuegen/erneuern/trennen,
 Abo vs. API-Key), Schreiboperationen (add/remove/reset/logout) mit sicherer Key-Uebergabe ueber stdin und
 Rueckleseprobe, danach 07.04 bis 07.06.
+
+## 9 Zwischenstand 2026-10-23 (Commit `0b17a1f`)
+
+Die Zugangsliste ist jetzt auch sichtbar: `HermesAccessArea` steht oben im Hermes-Konfigurationsbereich und
+zeigt je Anbieter die Anzahl, je Zugang Index, Label, Typ ("API-Key" oder "Abo-Anmeldung"), maskierte Quelle
+(`env:NAME`, `gh_cli`, oauth-store) und den Aktivstatus. Ein Schluesselwert wird nie angezeigt.
+Laden, Fehler (mit "Erneut lesen") und die leere Liste sind eigene, ehrliche Zustaende - keine erfundenen
+Zeilen. Nachweise: 3 Komponententests, volle web-Suite 86/677, typecheck und lint 0 Fehler.
+
+Noch offen: Hinzufuegen/Erneuern/Trennen (Vertrag + Bridge `auth add/remove/reset/logout` mit Key ueber
+stdin) und die Trennung OpenAI/Anthropic vs. "Erweitert".
