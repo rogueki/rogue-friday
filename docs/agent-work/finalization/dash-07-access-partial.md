@@ -85,3 +85,15 @@ jede Abnahme unbelegt.
 - Abo vs. API-Key: `copilot`/`gh_cli` und `env:KIMI_API_KEY` sind API-Keys; `--type oauth` ist der Abo-/
   Login-Weg. Die Friday-Oberflaeche muss beide getrennt beschriften und den OAuth-Weg ueber den Hermes-Flow
   fuehren (07.04), nicht ueber einen eigenen Client.
+
+## 7 Zwischenstand 2026-10-23 (Commit `9cc8a81`)
+
+Der Backend-Leseweg fuer Zugaenge steht: `hermes auth list` wird rein lesend ueber den Config-Bridge
+(`auth-list`) gelesen und streng geparst. Der Parser liefert Provider, Anzahl, Index, Label, Typ, maskierte
+Quelle (`env:NAME`, `gh_cli`) und die aktive Markierung; ein unbekanntes Format oder eine abweichende Anzahl
+endet als `auth_list_format` statt als leere Liste. Ein Key wird nie ausgegeben.
+Nachweis: `installer/wsl/tests/test_hermes_auth_list.py` in WSL - 4 Pruefungen bestanden.
+
+Noch offen fuer 07.03: Vertrag (`GET/POST /settings/hermes-access`), Service-/Handler-Anbindung,
+UI im Adapterdetail (OpenAI/Anthropic als Hauptauswahl, "Erweitert", hinzufuegen/erneuern/trennen,
+Abo vs. API-Key) und der echte Add-/Remove-Nachweis. Erst danach 07.04 bis 07.06.
