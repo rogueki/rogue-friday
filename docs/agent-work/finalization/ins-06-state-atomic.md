@@ -152,3 +152,24 @@ Root. Ein leerer Ordner waere damit als "nicht leer" abgewiesen worden (N-020).
 - `installer/tests/fresh-root.Tests.ps1` deckt sechs Faelle der Funktion ab und faehrt zusaetzlich den echten
   Einstiegspunkt mit leerem Zielordner samt Umlaut an; der Lauf erreicht die naechste Pruefung statt an
   "nicht leer" zu scheitern.
+## 10. Nachtrag 2026-10-22: Wiederholbarkeit halb erledigter Schritte
+
+Ein Lauf, der mitten in einem Schritt abbricht, hinterlaesst Artefakte, aber keinen Fortschrittseintrag
+(`MarkDone` kommt zuletzt). Ein erneuter Lauf muss diese Artefakte akzeptieren, den gespeicherten Fortschritt
+nicht zuruecksetzen und den Schritt wiederholen koennen.
+
+**Nachweis `installer/tests/step-repeatability.Tests.ps1` (neu, PASS):**
+
+- Fortschritt ist idempotent: `MarkDone` zweimal fuer denselben Schritt erzeugt keinen Doppeleintrag, auch nicht
+  nach dem erneuten Laden aus der Datei.
+- Echter Einstiegspunkt mit halb erledigten Artefakten: Zielordner mit vorhandener `config/voice.json`, halber
+  Modellkopie (`models/tts/de_DE-kerstin-low.onnx`) und halb kopiertem `voice/partial/voice_persona.py`, Zustand
+  mit `done = preflight, files`. Der Lauf endet an der erwarteten Pruefung "unvollstaendig", **nicht** an
+  "nicht leer", und laesst Fortschritt (`done` bleibt bei zwei Eintraegen), Distributionsname und Artefakte
+  unveraendert.
+- Die teuren Schritte sind wiederholbar: `setup_root.sh` prueft den Benutzer vor dem Anlegen (`id "$U" ||
+  useradd`), legt Verzeichnisse mit `-p` an; `prepare_voice_pairs.py` ueberschreibt weder Modellkopie noch
+  vorhandene Referenz; die Aufgabenregistrierung nutzt `-Force`.
+
+Damit ist der Punkt "Ruecksetzen halb erledigter Schritte" aus Abschnitt 7 belegt. Offen bleibt die
+systematische Quotierung (`&`, sehr lange Pfade), die als eigener Punkt weiterlaeuft.
