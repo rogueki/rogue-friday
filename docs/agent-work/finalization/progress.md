@@ -199,7 +199,11 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   dieser Form laeuft. Dabei zwei Defekte gefunden und behoben: N-018 (resume.bat in Windows-1252 geschrieben,
   cmd liest OEM - Umlaute verstuemmelt) und N-019 (Distro wurde erst nach der Widerspruchspruefung uebernommen,
   resume.bat schlug `Ubuntu` vor). 16/16 Installer-Tests Exit 0.
-- evidence_paths: `ins-06-state-atomic.md`; status: TEIL
+- nachtrag 2: `fresh-root.Tests.ps1` (neu) sichert die Erstanlage mit eigenem Root ab. Grund: die eigene Sperrdatei
+  unter `<Root>\run` entstand vor der Leerpruefung, sodass ein leerer Zielordner als "nicht leer" abgewiesen worden
+  waere (N-020, eigene Regression). `Test-FreshRootEmpty` ignoriert nur die eigene Sperrdatei; sechs Funktionsfaelle
+  plus echter Einstiegspunkt mit Umlautpfad. 17/17 Installer-Tests Exit 0.
+- evidence_paths: `ins-06-state-atomic.md` 6/7/8/9; status: TEIL
 - remaining_work: echter WSL-Lauf mit eigener Distro (INS-13), Wiederholbarkeit halb erledigter Schritte,
   systematische Parameterquotierung (Sonderzeichen wie `&`, sehr lange Pfade)
 ## Next (in the order of master §8.1)

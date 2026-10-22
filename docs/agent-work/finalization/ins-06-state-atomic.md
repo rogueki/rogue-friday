@@ -141,3 +141,14 @@ Stand der offenen Punkte aus Abschnitt 7:
   Installationswurzeln existiert daneben in `dashboard-task-migration.Tests.ps1`.
 - Ruecksetzen halb erledigter Schritte und systematische Quotierung (Zeichen wie `&`, sehr lange Pfade) bleiben
   offen.
+## 9. Nachtrag 2026-10-22: Sperrdatei und Leerpruefung
+
+Die eigene Sperre aus Abschnitt 6 haette fast die Erstanlage mit eigenem Root verhindert: `Enter-InstallerLock`
+legt `<Root>\run\installer.lock.json` an, die Leerpruefung fuer frische Zielordner zaehlte aber jedes Element im
+Root. Ein leerer Ordner waere damit als "nicht leer" abgewiesen worden (N-020).
+
+- `Test-FreshRootEmpty` prueft den Ordner jetzt selbst und ignoriert genau ein `run`-Verzeichnis, das ausser der
+  eigenen `installer.lock.json` nichts enthaelt. Alles andere bleibt belegt.
+- `installer/tests/fresh-root.Tests.ps1` deckt sechs Faelle der Funktion ab und faehrt zusaetzlich den echten
+  Einstiegspunkt mit leerem Zielordner samt Umlaut an; der Lauf erreicht die naechste Pruefung statt an
+  "nicht leer" zu scheitern.

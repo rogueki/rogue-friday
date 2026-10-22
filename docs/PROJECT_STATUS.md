@@ -521,4 +521,12 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   Einstiegspunkt: Fortsetzung ohne `-DistroName` uebernimmt Distribution und Ablageort aus dem Zustand,
   widersprechende Angaben brechen mit Klartext ab, der Zustand bleibt unveraendert, und `resume.bat` zitiert den
   Pfad mit Leerzeichen und Umlaut und laeuft in dieser Form (findet den Zustand wieder). 16/16 Installer-Tests
-  Exit 0.
+  Exit 0.- **N-020 behoben (eigene Regression aus N-016)**: Die Sperrdatei liegt unter `<Root>\run` und entstand vor der
+  Pruefung "der frische InstallRoot ist nicht leer". Damit haette jeder frische eigene Zielordner die Meldung
+  "nicht leer" bekommen - eine Erstanlage waere unmoeglich gewesen. Die Leerpruefung sitzt jetzt in
+  `Test-FreshRootEmpty` und ignoriert ausschliesslich ein `run`-Verzeichnis, das nur die eigene
+  `installer.lock.json` enthaelt; jede andere Datei zaehlt weiter als belegt.
+- **Nachweis (frische Wurzel)**: `installer/tests/fresh-root.Tests.ps1` (neu) prueft sechs Faelle der Funktion
+  (fehlend, leer, nur Sperrdatei, fremde Datei in `run`, fremde Datei im Root, Datei namens `run`) und faehrt den
+  echten Einstiegspunkt mit leerem Zielordner samt Umlaut an: der Lauf scheitert nicht an "nicht leer", sondern
+  an der naechsten Pruefung (Ablageort im Zielordner). 17/17 Installer-Tests Exit 0.

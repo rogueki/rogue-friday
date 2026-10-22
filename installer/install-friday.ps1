@@ -887,6 +887,18 @@ function Show-MigrationSummary {
 }
 
 $CustomRoot = $Root -ine 'C:\Friday'
+function Test-FreshRootEmpty([string]$Path) {
+    # Der Installer legt seine Sperrdatei unter <Root>\run ab, bevor diese Pruefung greift. Sie darf
+    # einen wirklich leeren Zielordner nicht wie fremde Daten aussehen lassen - sonst waere jede frische
+    # Installation mit eigenem Root unmoeglich. Alles andere zaehlt weiter als belegt.
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return $true }
+    foreach ($item in @(Get-ChildItem -LiteralPath $Path -Force)) {
+        if ($item.Name -ine 'run' -or -not $item.PSIsContainer) { return $false }
+        $inner = @(Get-ChildItem -LiteralPath $item.FullName -Force | Where-Object { $_.Name -ine 'installer.lock.json' })
+        if ($inner.Count -gt 0) { return $false }
+    }
+    return $true
+}
 if ($CustomRoot) {
     if (-not (Test-Path -LiteralPath "$Root\config\install-state.json" -PathType Leaf) -and
         ($UpdateDashboard -or $ChangeVoice -or $ChangeName)) {
@@ -897,8 +909,7 @@ if ($CustomRoot) {
         Stop-Install 'Frische Installation ausserhalb C:\Friday erfordert -DistroName und -DistroLocation.'
     }
     if (-not (Test-Path -LiteralPath "$Root\config\install-state.json" -PathType Leaf) -and
-        (Test-Path -LiteralPath $Root -PathType Container) -and
-        (Get-ChildItem -LiteralPath $Root -Force | Select-Object -First 1)) {
+        -not (Test-FreshRootEmpty $Root)) {
         Stop-Install "Der frische InstallRoot ist nicht leer: $Root. Bestehende Daten werden nicht ueberschrieben."
     }
 } else {
