@@ -190,6 +190,30 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - remaining_work: 04.03 search over source/status needs the DASH-07 inventory; 04.04 needs a stack with a
   skills catalog and a Hermes bridge for the "two skills" half; 04.05 recovery drill
 
+### DASH-05
+
+- requirement_ids: DASH-05.01/05.02 (PASS), DASH-05.03/05.04/05.05/05.06 (open)
+- predecessor: DASH-03, DASH-04
+- base_revision: `1f05c65`; result_revision: `9583e00` (Code), `7554f07` (Nachweise)
+- implementation_paths: `apps/web/src/features/communication/{channelList.ts,channelList.test.ts,ChannelRail.tsx,
+  CommunicationPage.tsx,HimalayaMailbox.tsx,MessengerCompose.tsx,labels.ts,communication.test.tsx}`,
+  `apps/web/src/features/memory/kit/channelStatus.tsx`, `apps/web/src/i18n/modules/b.{de,en}.ts`,
+  `packages/contracts/schemas/communication/channel-kind.schema.json`, `packages/generated-sdk/src/generated/*`,
+  `packages/mock-data/src/seed/{communication.ts,story.ts}`, `tests/e2e/communication.spec.ts`
+- test_command: `vitest run --project web communication`, `vitest run --project web --maxWorkers=2`,
+  `vitest run --project node --maxWorkers=2`, `tsc -p apps/web`, `tsc -p apps/control-api`,
+  `pnpm contracts:check`, `pnpm build:app`, `playwright test tests/e2e/communication.spec.ts`
+- expected: die Kommunikation zeigt genau sechs Standardkanaele in der Reihenfolge der Spezifikation, SMS ist kein
+  Filter, oberhalb der Kanaele steht kein Mail- oder Messenger-Formular, das Postfach erscheint im E-Mail-Kanal und
+  der Messenger-Schritt im Messenger-Kanal
+- observed: `channelList.test.ts` 4 Tests (Reihenfolge, Ausblenden, Sortierung, Gruppierung); `communication.test.tsx`
+  20 Tests inklusive sechs Eintraegen und Platzierung von Postfach/Messenger; volle Laeufe web 81 Dateien/648 Tests
+  und node 191 Dateien/2789 Tests gruen; `contracts:check` inklusive breaking gruen; Browser 2/2 in 23,7 s mit
+  390/1024/1920 px ohne horizontalen Overflow
+- evidence_paths: `dash-05-communication.md`; status: PASS fuer 05.01 und 05.02
+- remaining_work: 05.03 gefuehrter E-Mail-Wizard (heute flaches Formular), 05.04 Mehrkonten/Alias/UIDVALIDITY/
+  Sendjournal gegen die Anforderung pruefen, 05.05 zwei echte Testpostfaecher, 05.06 Wizardabbruch und Sendetimeout
+
 ### INS-06
 
 - requirement_ids: INS-06; predecessor: INS-02
