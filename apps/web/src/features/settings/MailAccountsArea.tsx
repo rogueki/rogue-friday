@@ -5,6 +5,7 @@ import type { MailAccount, MailAccountWrite, MailAccountsResponse } from "@frida
 import { useEffect, useState } from "react";
 import { call } from "@/lib/api/call";
 import { getApiClient } from "@/lib/api/client";
+import { MailAccountWizard } from "./MailAccountWizard";
 
 const blank: MailAccountWrite = {
   displayName: "Mail Postfach", email: "", senderName: "", aliases: [], signature: "",
@@ -50,7 +51,8 @@ export function MailAccountsArea({ owner }: { owner: boolean }) {
       <option value="">Neues Konto</option>{accounts.map((item) => <option key={item.id} value={item.id}>{item.displayName} · {item.email}</option>)}
     </select></label>
     {current && <p>Revision {current.revision}; {current.authMode === "password" ? `IMAP-Passwort ${current.secretState.imapPassword ? "vorhanden" : "fehlt"}; SMTP-Passwort ${current.secretState.smtpPassword ? "vorhanden" : "fehlt"}` : `OAuth ${current.secretState.oauthRefreshToken ? "autorisiert; IMAP/SMTP noch separat prüfen" : "nicht autorisiert"}`}. {query.data?.data.defaultAccountId === current.id ? "Standardkonto." : ""}</p>}
-    <form onSubmit={(event) => { event.preventDefault(); void run(async () => {
+    {!current && <MailAccountWizard onCreated={(account) => { setSelected(account.id); void query.refetch(); }} />}
+    {current && <form onSubmit={(event) => { event.preventDefault(); void run(async () => {
       if (current) return call(getApiClient().PUT("/api/v1/integrations/mail/accounts/{accountId}", { params: { path: { accountId: current.id }, header: { "If-Match": String(current.revision) } }, body: form }));
       return call(getApiClient().POST("/api/v1/integrations/mail/accounts", { body: form }));
     }, "Konto gespeichert. Verbindung noch nicht geprüft."); }}>
@@ -86,7 +88,7 @@ export function MailAccountsArea({ owner }: { owner: boolean }) {
         </>}
       </div>
       <button type="submit" disabled={busy}>Konto speichern</button>
-    </form>
+    </form>}
     {current && <div>
       {current.authMode !== "password" && <>
         <button type="button" disabled={busy || dirty} onClick={() => void run(async () => {

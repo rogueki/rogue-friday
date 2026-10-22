@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/mail-connection-test-response.schema.json",
+  "title": "MailConnectionTestResponse",
+  "type": "object",
+  "properties": {
+    "contractVersion": {
+      "$ref": "../common/contract-version.schema.json"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "auth",
+            "tls",
+            "network",
+            "protocol"
+          ]
+        }
+      },
+      "required": [
+        "ok",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "freshness": {
+      "$ref": "../common/freshness.schema.json"
+    }
+  },
+  "required": [
+    "contractVersion",
+    "data",
+    "freshness"
+  ],
+  "additionalProperties": false
+}

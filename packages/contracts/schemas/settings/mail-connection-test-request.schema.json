@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/settings/mail-connection-test-request.schema.json",
+  "title": "MailConnectionTestRequest",
+  "description": "Verbindungstest fuer einen noch nicht gespeicherten Postfach-Entwurf. Der Server verbindet sich einmalig, meldet Erfolg oder einen erklaerbaren Grund und speichert nichts.",
+  "type": "object",
+  "properties": {
+    "protocol": {
+      "type": "string",
+      "enum": [
+        "imap",
+        "smtp"
+      ]
+    },
+    "host": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 253,
+      "pattern": "^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$"
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "security": {
+      "type": "string",
+      "enum": [
+        "tls",
+        "start-tls"
+      ]
+    },
+    "username": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320
+    },
+    "password": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    }
+  },
+  "required": [
+    "protocol",
+    "host",
+    "port",
+    "security",
+    "username",
+    "password"
+  ],
+  "additionalProperties": false
+}

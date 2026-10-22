@@ -225,6 +225,7 @@ describe("REST route coverage", () => {
       "getWakeEnrollment", "startWakeEnrollment", "addWakeEnrollmentSample", "trainWakeEnrollment", "discardWakeEnrollment",
       "listVoiceSttModels", "startVoiceSttModelDownload", "cancelVoiceSttModelDownload",
       "testHermesApproval",
+  "testMailConnection",
     ].sort();
     const mocked = ROUTES.map((route) => route.operationId).sort();
     expect(contract.filter((id) => !mocked.includes(id))).toEqual(liveOnly);

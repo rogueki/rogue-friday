@@ -560,7 +560,7 @@ export function restoreMigrationBackup(backup: MigrationBackup | string, target:
   } catch (error) {
     throw new Error(`Sicherung ${file} ist keine lesbare Datenbank: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
-  let integrity = "";
+  let integrity: string;
   try {
     integrity = String((probe.prepare("PRAGMA integrity_check").get() as { integrity_check: string }).integrity_check);
     const tables = probe.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'").get();

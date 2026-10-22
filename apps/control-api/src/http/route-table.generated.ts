@@ -13178,6 +13178,62 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "testMailConnection",
+    "method": "POST",
+    "path": "/api/v1/settings/mail-connection-test",
+    "tag": "settings",
+    "capability": "meta.read",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": false,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "MailConnectionTestRequest"
+    },
+    "maxBodyBytes": 8192,
+    "responses": [
+      {
+        "status": 200,
+        "schema": "MailConnectionTestResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 400,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 503,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "sendHimalayaMessage",
     "method": "POST",
     "path": "/api/v1/communication/himalaya/send",

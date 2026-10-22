@@ -984,6 +984,8 @@ export interface FridayModelMap {
   MailAttachmentResponse: MailAttachmentResponse;
   MailChangeRequest: MailChangeRequest;
   MailCheckResponse: MailCheckResponse;
+  MailConnectionTestRequest: MailConnectionTestRequest;
+  MailConnectionTestResponse: MailConnectionTestResponse;
   MailDraftRequest: MailDraftRequest;
   MailDraftResponse: MailDraftResponse;
   MailEnvelopesResponse: MailEnvelopesResponse;
@@ -4146,6 +4148,25 @@ export interface MailCheckResponse {
       name: string;
       role: string | null;
     }[];
+  };
+  freshness: Freshness;
+}
+/**
+ * Verbindungstest fuer einen noch nicht gespeicherten Postfach-Entwurf. Der Server verbindet sich einmalig, meldet Erfolg oder einen erklaerbaren Grund und speichert nichts.
+ */
+export interface MailConnectionTestRequest {
+  protocol: "imap" | "smtp";
+  host: string;
+  port: number;
+  security: "tls" | "start-tls";
+  username: string;
+  password: string;
+}
+export interface MailConnectionTestResponse {
+  contractVersion: ContractVersion;
+  data: {
+    ok: boolean;
+    reason: "ok" | "auth" | "tls" | "network" | "protocol";
   };
   freshness: Freshness;
 }

@@ -7146,6 +7146,34 @@ paths:
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/mail-connection-test:
+    post:
+      operationId: testMailConnection
+      x-max-body-bytes: 8192
+      tags: [settings]
+      summary: Test one unsaved IMAP or SMTP candidate without storing it or sending a message
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailConnectionTestRequest"
+      responses:
+        "200":
+          description: Connection outcome with an explainable reason; nothing is stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailConnectionTestResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/communication/himalaya/send:
     post:
       operationId: sendHimalayaMessage
@@ -9208,6 +9236,10 @@ components:
       $ref: ../schemas/settings/himalaya-account-response.schema.json
     HimalayaSmtpCheckResponse:
       $ref: ../schemas/settings/himalaya-smtp-check-response.schema.json
+    MailConnectionTestRequest:
+      $ref: ../schemas/settings/mail-connection-test-request.schema.json
+    MailConnectionTestResponse:
+      $ref: ../schemas/settings/mail-connection-test-response.schema.json
     HimalayaMailboxListResponse:
       $ref: ../schemas/communication/himalaya-mailbox-list-response.schema.json
     HimalayaEnvelopeListResponse:
