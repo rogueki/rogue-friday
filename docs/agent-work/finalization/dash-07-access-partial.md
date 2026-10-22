@@ -97,3 +97,19 @@ Nachweis: `installer/wsl/tests/test_hermes_auth_list.py` in WSL - 4 Pruefungen b
 Noch offen fuer 07.03: Vertrag (`GET/POST /settings/hermes-access`), Service-/Handler-Anbindung,
 UI im Adapterdetail (OpenAI/Anthropic als Hauptauswahl, "Erweitert", hinzufuegen/erneuern/trennen,
 Abo vs. API-Key) und der echte Add-/Remove-Nachweis. Erst danach 07.04 bis 07.06.
+
+## 8 Zwischenstand 2026-10-23 (Commit `de12b5c`)
+
+Der Leseweg reicht jetzt bis zur API: `GET /api/v1/settings/hermes-access` (owner) liefert Provider, Anzahl,
+Index, Label, Typ, maskierte Quelle und Aktivmarkierung; Vertrag, SDK und Routentabelle sind generiert.
+Der Service weist doppelte Provider, abweichende Anzahlen, fremde Typen und Key-Muster in Label/Quelle ab und
+erklaert ein unlesbares CLI-Format als `ADAPTER_UNAVAILABLE` statt als leere Liste. Der Handler auditiert
+`settings.hermes_access_read` mit Providernamen, nie mit Werten.
+
+Nachweise: 4 Service-Tests (`hermes-access.test.ts`), 1 Routentest (401/403/200 ohne Key-Materialien) in
+`hermes-config-routes.test.ts` (14 Tests gruen), `pnpm contracts:check`, `pnpm typecheck`, `pnpm lint` (0 Fehler),
+Bridge-Parser-Test in WSL (4 Pruefungen).
+
+Noch offen: UI im Adapterdetail (OpenAI/Anthropic als Hauptauswahl, "Erweitert", hinzufuegen/erneuern/trennen,
+Abo vs. API-Key), Schreiboperationen (add/remove/reset/logout) mit sicherer Key-Uebergabe ueber stdin und
+Rueckleseprobe, danach 07.04 bis 07.06.
