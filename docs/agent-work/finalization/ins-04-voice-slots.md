@@ -60,12 +60,27 @@ Damit ist die **Auswahl** vollständig und validiert, der **Stimmplatz** aber ni
 - Tests: `test_voice_persona.py` deckt den eigenen Platz ab (resolve nur mit eigener Referenz, eigene
   Streaming-Datei, Piper-Basis, kein Film-Filter, kein Paket-Fallback, Server liefert `custom`) - 8/8 gruen.
 
-### Offen
+### Offen - vollstaendige Liste der Zwei-Stimmen-Stellen (Stand 2026-10-22, per Suche geprueft)
 
-- Installer-Verdrahtung (Option 3 -> `voice_choice = 'custom'`, Kopie der validierten Datei nach
-  `config/voice-references/custom-reference.*`, Zustandspruefungen), `update-voice-personas.ps1`
-  (`$pairs`), `friday_voice.py` und die Dashboard-Stimmenliste.
-- Messbare Audioausgabe fuer alle drei Plaetze.
+Alle folgenden Stellen kennen heute nur `friday-female` und `classic` und muessen `custom` mitziehen. Die Liste
+ist die Abarbeitungsreihenfolge:
+
+| Datei:Zeile | Was dort passiert | Aenderung |
+|---|---|---|
+| `install-friday.ps1:1354` | `$newChoice` bildet nur 1/2 ab, 3 wird zum weiblichen Platz | `'3'` -> `'custom'` |
+| `install-friday.ps1:1357` | Referenzabfrage nur fuer die zwei alten Plaetze | `custom` aufnehmen |
+| `install-friday.ps1:1329-1330`, `1334` | Zustandspruefung setzt unbekannte Auswahl auf `friday-female` | `custom` als gueltig behandeln (nur im ElevenLabs-Modus zuruecksetzen, dort gibt es keine eigene Voice ID) |
+| `install-friday.ps1:1346` | Standardauswahl je Zustand | `custom` -> `'3'` |
+| `install-friday.ps1:250` | `Find-VoiceReference` kennt keine Paketreferenz fuer `custom` | bewusst so lassen, aber im Kommentar begruenden |
+| `install-friday.ps1:1950-1952` | Streaming-Paare werden nur bei beiden alten Plaetzen geprueft | `custom` optional mitpruefen |
+| ~~`update-voice-personas.ps1:15`, `:132`~~ | `$pairs` und Sicherungsliste | **erledigt**: `custom` in `$pairs` und in der Sicherungsliste |
+| `voice_setup.py:20` | `--voice-choice` erlaubt nur zwei Werte | `custom` ergaenzen |
+| `voice_setup.py:108`, `:127` | Piper-Basiswahl und "eigene Datei vorhanden" | `custom` wie den weiblichen Platz behandeln, aber eigene Referenzdatei |
+| ~~`friday_voice.py:2264`~~ | Endpunkt akzeptierte nur zwei Stimmen | **erledigt**: prueft jetzt gegen `voice_persona.CHOICES` statt gegen eine eigene Liste |
+| Dashboard-Stimmenliste (TS) | zwei Eintraege | dritter Eintrag, ohne eigene Referenz deaktiviert mit Begruendung |
+
+Danach: messbare Audioausgabe fuer alle drei Plaetze (Dauer > 0,3 s, Amplitude ueber Stille), Wechsel hin und
+zurueck laesst die beiliegende Referenz byte-gleich.
 
 Bewusst **keine** Zwischenstufe, in der Option 3 auf `custom` zeigt, bevor diese vier Stellen mitziehen: sonst
 waere die Auswahl erreichbar, die Stimme aber nicht installiert.

@@ -614,3 +614,14 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   Umschalten auf Ereignis bei unbekannter Version.
 - **Offen**: Die tatsaechliche Reaktionsfaehigkeit der Fensteroberflaeche unter dieser Last ist headless nicht
   belegbar (dafuer braucht es eine interaktive Sitzung); `wsl.exe`-Aufrufe haben weiterhin kein Zeitlimit.
+## 2026-10-22 INS-04 (Teil 2) Stimm-Endpunkt und Persona-Update kennen den dritten Platz
+
+- **N-026 (Fortsetzung)**: Der Endpunkt `/control/voice` prueft die erlaubten Stimmen gegen eine eigene
+  Zwei-Werte-Liste statt gegen `voice_persona.CHOICES`; ein dritter Platz waere dort mit HTTP 400 abgewiesen
+  worden, obwohl die Persona-Ebene ihn kennt. Jetzt ist `CHOICES` die einzige Quelle.
+- `update-voice-personas.ps1` sichert und erneuert zusaetzlich `custom-streaming.wav` und
+  `custom-reference.txt`, damit ein Stimmen-Update eine eigene Aufnahme nicht verwirft.
+- **Nachweis**: `dashboard-update-voice-integration.Tests.ps1` und `dashboard-update-progress.Tests.ps1` gruen,
+  Installer-Suite 20/20, Persona-Tests 8/8. Unbekannte Stimmen liefern weiterhin 400 (unveraendertes Verhalten).
+- **Offen**: Installer-Abbildung Option 3 -> `custom` (Zeilen 1329-1357, 1950), `voice_setup.py` (Zeilen 20, 108,
+  127) und die Dashboard-Stimmenliste; danach die messbare Audioausgabe.
