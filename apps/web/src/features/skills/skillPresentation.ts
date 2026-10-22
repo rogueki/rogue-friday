@@ -38,11 +38,13 @@ export function officialReference(value: string): string | null {
   }
 }
 
-export function visibleSkills(catalog: readonly SkillCatalogEntry[], search: string, source = "all", stateFilter = "all"): SkillCatalogEntry[] {
+export function visibleSkills(catalog: readonly SkillCatalogEntry[], search: string, source = "all",
+  stateFilter = "all", category = "all"): SkillCatalogEntry[] {
   const needle = search.trim().toLocaleLowerCase();
   return catalog.filter((skill) =>
     (!needle || `${skill.name} ${skill.description} ${skill.category}`.toLocaleLowerCase().includes(needle)) &&
     (source === "all" || skill.source === source) &&
+    (category === "all" || skill.category === category) &&
     (stateFilter === "all" || (stateFilter === "enabled" ? skill.enabled === true : stateFilter === "missing" ? skill.discovered === false : skill.discovered === null)),
   );
 }

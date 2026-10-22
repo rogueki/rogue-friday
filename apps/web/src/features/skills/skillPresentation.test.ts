@@ -53,3 +53,14 @@ describe("skill status presentation", () => {
     expect(isOnboardingSnoozed()).toBe(false);
   });
 });
+
+it("narrows the catalog to one category without dropping the other filters", () => {
+  const catalog = [
+    { id: "a", name: "Mail", description: "Postfach", category: "Kommunikation", source: "friday", enabled: true, discovered: true },
+    { id: "b", name: "Kalender", description: "Termine", category: "Produktivität", source: "friday", enabled: true, discovered: true },
+    { id: "c", name: "Notizen", description: "Ideen", category: "Produktivität", source: "hermes", enabled: false, discovered: true },
+  ] as never;
+  expect(visibleSkills(catalog, "", "all", "all", "Produktivität").map((skill) => skill.id)).toEqual(["b", "c"]);
+  expect(visibleSkills(catalog, "", "friday", "all", "Produktivität").map((skill) => skill.id)).toEqual(["b"]);
+  expect(visibleSkills(catalog, "", "all", "all", "all")).toHaveLength(3);
+});
