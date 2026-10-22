@@ -182,3 +182,20 @@ it("keeps the sent copy pending visible and never resends when only the archive 
   expect(screen.getByRole("button", { name: "Nur Gesendet-Kopie ergänzen" })).toBeInTheDocument();
   expect(fake.to("POST", "/api/v1/integrations/mail/accounts/work/send")).toHaveLength(2);
 });
+
+it("reports a timed-out confirmed send as unknown and never retries it", async () => {
+  const user = userEvent.setup();
+  const previewId = "corr_0000000000000000000000ml9";
+  const fake = routedFetch({ [SEND_PATH]: (_url: URL, request: Request) => {
+    if (request.headers.get("x-action-preview-id") === previewId) throw new TypeError("Failed to fetch");
+    return previewRequired("E-Mail an erik@example.test senden? Betreff: „Projektstatus“", previewId);
+  } });
+  renderWithProviders(<><MailCompose account={ACCOUNT} mode="new" onClose={vi.fn()} /><StagedWriteConfirmHost /></>,
+    { fetchImpl: fake.fetch });
+  await fillAndSend(user);
+  const confirm = await screen.findByRole("alertdialog");
+  await user.click(within(confirm).getByRole("button", { name: "Bestätigen" }));
+  expect(await screen.findByText("Antwort unbekannt. Bitte beim Anbieter prüfen, bevor du erneut sendest.")).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+  expect(fake.to("POST", "/api/v1/integrations/mail/accounts/work/send")).toHaveLength(2);
+});

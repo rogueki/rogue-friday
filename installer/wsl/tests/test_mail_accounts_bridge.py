@@ -10,6 +10,7 @@ import base64
 import email
 from email import policy
 import importlib.util
+import io
 import os
 import sys
 import types
@@ -233,4 +234,13 @@ expect_error("invalid_attachment", module.run, {"action": "attachment", "account
 expect_error("account_not_found", module.run, {"action": "check-imap", "accountId": "privat"})
 expect_error("invalid_account", module.run, {"action": "check-imap", "accountId": "Gross Geschrieben"})
 
-print("mail_accounts bridge: 24 Pruefungen bestanden")
+# 9. Kein Loeschpfad fuer Nachrichten oder Entwuerfe: die Bruecke kennt weder EXPUNGE noch \\Deleted,
+#    markiert nur \\Flagged und legt Entwuerfe ausschliesslich per append ab.
+source = io.open(SCRIPT, encoding="utf-8").read()
+assert "EXPUNGE" not in source.upper(), "expunge gefunden"
+assert "\\\\Deleted" not in source, "Deleted-Flag gefunden"
+assert source.count('client.uid("store"') == 1, source.count('client.uid("store"')
+assert '"+FLAGS.SILENT"' in source and "(\\\\Flagged)" in source
+expect_error("invalid_action", module.run, {"action": "delete-message", "accountId": "work", "mailbox": "INBOX", "uid": "17"})
+
+print("mail_accounts bridge: 25 Pruefungen bestanden")

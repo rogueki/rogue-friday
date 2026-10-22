@@ -1,6 +1,6 @@
 "use client";
 
-import { createIdempotencyKey, type MailAccount, type MailMessageResponse, type MailSendRequest, type MailSendResponse } from "@friday/sdk";
+import { createIdempotencyKey, isFridayApiError, type MailAccount, type MailMessageResponse, type MailSendRequest, type MailSendResponse } from "@friday/sdk";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { call } from "@/lib/api/call";
@@ -79,6 +79,14 @@ export function MailCompose({ account, original, mode, onClose }: {
       successMessage: "E-Mail versendet.",
       subject: subject || "E-Mail",
       invalidateKeys: [["mail-accounts", account.id, "receipts"]],
+      onFailed: (error) => {
+        // A confirmed send that fails in transport may still have reached the provider. Never imply a retry.
+        const explained = isFridayApiError(error) && error.status >= 400 && error.status < 500 ? error.message
+          : "Antwort unbekannt. Bitte beim Anbieter prüfen, bevor du erneut sendest.";
+        setResult(explained);
+        if (!(isFridayApiError(error) && error.status >= 400 && error.status < 500)) setSendState("uncertain");
+        void queryClient.invalidateQueries({ queryKey: ["mail-accounts", account.id, "receipts"] });
+      },
       onExecuted: (response) => {
         const data = (response as MailSendResponse).data;
         setReceiptId(data.receiptId);

@@ -140,3 +140,26 @@ describe("integrated mailbox", () => {
     expect(clicked).toHaveBeenCalledTimes(1);
   });
 });
+
+  it("lists the stored accounts again after a restart instead of keeping them in memory", async () => {
+    const user = userEvent.setup();
+    const fake = routedFetch({
+      ...sessionRoute,
+      "GET /api/v1/integrations/mail/accounts": single({ accounts: [WORK, PRIVATE], defaultAccountId: "work", revision: 1 }),
+      "GET /api/v1/integrations/mail/accounts/work/folders": single({ folders: [{ id: "INBOX", name: "Posteingang", role: null }] }),
+      "GET /api/v1/integrations/mail/accounts/work/envelopes": single(envelope("17", "Nach dem Neustart", "42")),
+    });
+    const first = renderWithProviders(<HimalayaMailbox />, { fetchImpl: fake.fetch });
+    await openMailbox(user, "work");
+    await user.selectOptions(await screen.findByLabelText("Ordner"), "INBOX");
+    expect(await screen.findByRole("button", { name: /Nach dem Neustart/ })).toBeInTheDocument();
+    first.unmount();
+    renderWithProviders(<HimalayaMailbox />, { fetchImpl: fake.fetch });
+    await openMailbox(user, "work");
+    expect(within(await screen.findByLabelText("Konto")).getByRole("option", { name: /Geschäft/ })).toBeInTheDocument();
+    expect(within(await screen.findByLabelText("Konto")).getByRole("option", { name: /Privat/ })).toBeInTheDocument();
+    await user.selectOptions(await screen.findByLabelText("Ordner"), "INBOX");
+    expect(await screen.findByRole("button", { name: /Nach dem Neustart/ })).toBeInTheDocument();
+    // The second mount read accounts and folders from the API again; nothing survived only in component state.
+    expect(fake.to("GET", "/api/v1/integrations/mail/accounts").length).toBeGreaterThanOrEqual(2);
+  });

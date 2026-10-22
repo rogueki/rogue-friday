@@ -28,6 +28,8 @@ export interface StagedWrite {
   invalidateKeys: readonly (readonly unknown[])[];
   /** Receives the parsed success response, e.g. a send receipt the caller keeps working with. */
   onExecuted?: (response: unknown) => void;
+  /** Called when the write did not execute: before staging or after confirmation. */
+  onFailed?: (error: unknown) => void;
 }
 
 export type StagedWriteOutcome = "executed" | "preview" | "approval" | "failed";
@@ -140,6 +142,7 @@ export function useRunStagedWrite(): (write: StagedWrite) => Promise<StagedWrite
         if (isFridayApiError(error) && error.code === "CONFLICT") {
           for (const key of write.invalidateKeys) void queryClient.invalidateQueries({ queryKey: key });
         }
+        write.onFailed?.(error);
         return "failed";
       } finally {
         setBusy(false);
@@ -205,6 +208,7 @@ export function StagedWriteConfirmHost() {
           for (const key of pending.write.invalidateKeys)
             void queryClient.invalidateQueries({ queryKey: key });
         }
+        pending.write.onFailed?.(error);
       }
     } finally {
       setBusy(false);

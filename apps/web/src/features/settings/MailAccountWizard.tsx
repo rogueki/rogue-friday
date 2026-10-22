@@ -224,6 +224,9 @@ export function MailAccountWizard({ onCreated }: { onCreated?: (account: MailAcc
   return <section aria-label="Postfach einrichten" className="st-wizard">
     <h3>Neues Postfach einrichten</h3>
     <p>Der Assistent speichert erst im letzten Schritt. Verbindungsprüfungen senden keine E-Mail.</p>
+    <button type="button" disabled={busy} onClick={() => { reset(); setMessage("Einrichtung verworfen. Es wurde nichts gespeichert."); }}>
+      Einrichtung verwerfen
+    </button>
     <ol className="st-wizard__steps">
       {STEPS.map((entry, index) => <li key={entry.id} aria-current={index === stepIndex ? "step" : undefined}>
         <span>{index + 1}. {entry.label}</span>

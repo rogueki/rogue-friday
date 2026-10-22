@@ -204,3 +204,26 @@ describe("mail account wizard", () => {
     expect(screen.getByRole("button", { name: "Weiter" })).not.toBeDisabled();
   });
 });
+
+it("discards an aborted setup without storing or partially activating anything", async () => {
+  const onCreated = vi.fn();
+  const { paths, bodies } = harness({ created: onCreated });
+  await enterAddress("erik@gmx.de");
+  next();
+  fireEvent.change(screen.getByLabelText("Kontoname"), { target: { value: "Abgebrochen" } });
+  fireEvent.change(screen.getByLabelText("Absendername"), { target: { value: "Erik" } });
+  next();
+  next();
+  fireEvent.change(screen.getByLabelText("Passwort / App-Passwort"), { target: { value: "synthetisches-passwort" } });
+  next();
+  fireEvent.click(screen.getByRole("button", { name: "IMAP-Verbindung prüfen" }));
+  expect(await screen.findByText(/IMAP: Verbindung und Anmeldung bestätigt/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Einrichtung verwerfen" }));
+  expect(await screen.findByText(/Einrichtung verworfen. Es wurde nichts gespeichert/)).toBeTruthy();
+  expect(screen.getByLabelText("E-Mail-Adresse")).toHaveValue("");
+  expect(screen.getByText("Schritt 1 von 7: Adresse")).toBeInTheDocument();
+  expect(paths.filter((path) => path === "POST /api/v1/integrations/mail/accounts")).toHaveLength(0);
+  expect(paths.filter((path) => path.endsWith("/default"))).toHaveLength(0);
+  expect(bodies.every((body) => (body as { account?: unknown }).account === undefined)).toBe(true);
+  expect(onCreated).not.toHaveBeenCalled();
+});

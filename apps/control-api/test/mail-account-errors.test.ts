@@ -61,6 +61,18 @@ describe("mail runner error mapping", () => {
     expect(unknown.message).toContain("nicht erreichbar");
   });
 
+  it("explains an expired token and a missing OAuth scope without leaking details", async () => {
+    const expired = await codeOf(service(async () => {
+      throw new Error("mail_runner_6:oauth_refresh_failed");
+    }).check("work", "imap"));
+    expect(expired.code).toBe("VALIDATION_FAILED");
+    expect(expired.message).toContain("OAuth-Token konnte nicht erneuert werden");
+    expect(expired.message).toContain("Konto erneut verbinden");
+    const scope = await codeOf(service(async () => ({ error: "oauth_scope_missing" })).check("work", "smtp"));
+    expect(scope.code).toBe("VALIDATION_FAILED");
+    expect(scope.message).toContain("Berechtigung für IMAP und SMTP");
+  });
+
   it("maps a revision conflict and a missing account before the generic fallback", async () => {
     const revision = await codeOf(service(async () => ({ error: "revision_conflict" })).upsert(
       { displayName: "Geschäft", email: "sender@example.test", senderName: "Sender", aliases: [], signature: "",

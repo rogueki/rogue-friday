@@ -88,6 +88,9 @@ export class MailAccountsService {
     if (result.error) {
       if (result.error === "revision_conflict") throw conflict("Das Mail Postfach wurde inzwischen geändert. Bitte neu laden.");
       if (result.error === "uidvalidity_conflict") throw conflict("Der Ordner wurde neu aufgebaut. Bitte Nachrichten neu laden.");
+      if (result.error === "oauthRefreshToken_missing") throw validationFailed("OAuth-Autorisierung fehlt. Konto verbinden.");
+      if (result.error === "oauth_refresh_failed") throw validationFailed("OAuth-Token konnte nicht erneuert werden. Konto erneut verbinden.");
+      if (result.error === "oauth_scope_missing") throw validationFailed("OAuth-Berechtigung für IMAP und SMTP fehlt. Konto erneut verbinden.");
       if (result.error === "invalid_sender") throw validationFailed("Der Absender gehört nicht zu diesem Konto.",
         [{ path: "from", message: "Konto-Adresse oder einen hinterlegten Alias wählen" }]);
       if (result.error === "invalid_recipients") throw validationFailed("Empfängeradresse fehlt oder ist ungültig.",
