@@ -68,3 +68,20 @@ Stand: 2026-10-23. Nachweisbasis: aktueller Arbeitsbaum auf `feat/friday-finaliz
 
 Keine Erfolgsmeldung für 07.03 bis 07.06: die Flächen fehlen nachweislich, und ohne echten Modellaufruf wäre
 jede Abnahme unbelegt.
+
+## 6 CLI-Fakten fuer die Umsetzung (rein lesend, 2026-10-23)
+
+- `hermes auth add <provider> [--type oauth|api-key|api_key] [--label L] [--api-key K]
+  [--portal-url U] [--inference-url U] [--client-id ID] [--scope S] [--no-browser] [--timeout T] [--insecure]
+  [--ca-bundle P]` - ohne `--api-key` fragt die CLI sicher ab.
+- `hermes auth list [provider]` (Textausgabe, keine JSON-Option), `hermes auth status <provider>`,
+  `hermes auth remove <index|id|label>`, `hermes auth reset <provider>`, `hermes auth logout <provider>`.
+- Beispielausgabe `hermes auth list`: `copilot (1 credentials):` / `  #1  gh auth token   api_key gh_cli ←`.
+  Die Ausgabe ist damit parsebar, aber formatabhaengig; ein nichterkanntes Format muss als Fehler sichtbar
+  werden, nicht als leere Liste.
+- Sicherheit: ein Key darf nicht als Argument in der Prozessliste landen. Die Bridge muss den Key ueber
+  stdin an die Abfrage geben (die CLI fragt ohne `--api-key`), nicht ueber `--api-key`; die Antwort darf
+  keinen Key enthalten, nur maskierte Herkunft (`env:NAME`, `api_key`, `oauth`).
+- Abo vs. API-Key: `copilot`/`gh_cli` und `env:KIMI_API_KEY` sind API-Keys; `--type oauth` ist der Abo-/
+  Login-Weg. Die Friday-Oberflaeche muss beide getrennt beschriften und den OAuth-Weg ueber den Hermes-Flow
+  fuehren (07.04), nicht ueber einen eigenen Client.
