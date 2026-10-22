@@ -89,3 +89,26 @@ abgesichert).
 - **Resume prüft unvollständige Artefakte**: der Zustand schützt erledigte Schritte, heruntergeladene
   `.part`-Reste und halb entpackte Pakete werden noch nicht systematisch geprüft.
 - Modellstart und DB-/Dashboardwechsel: durch die Prüfung in `Native` abgedeckt, aber nicht einzeln belegt.
+## 5. Nachtrag 2026-10-22: Abbruch mitten im Modell-Warmup
+
+Waehrend des Modellstarts wartete der Installer bis zu 120 s (`Wait-Http`), beim Sprachdienst bis zu 180 s in
+einer eigenen Schleife. Beide Schleifen prueften die Abbruchbitte nicht: ein Abbruch wirkte erst nach dem
+Warmup, obwohl er sofort gemeint ist - und in dieser Zeit lief der Dienst unbeaufsichtigt weiter (N-030).
+
+Beide Schleifen rufen jetzt zu Beginn jeder Runde `Confirm-NotCancelled` auf. Damit gilt dieselbe Grenze wie vor
+jedem Unterprozess: die Bitte wirkt beim naechsten Durchlauf (rund 2-3 s), nicht erst am Ende des Timeouts.
+
+**Nachweis `installer/tests/warmup-cancel.Tests.ps1` (neu, PASS)** - echter Wartebaustein gegen einen nicht
+antwortenden Port (`127.0.0.1:9`):
+
+| Fall | Erwartung | Ergebnis |
+| --- | --- | --- |
+| keine Abbruchbitte | Warten laeuft in sein Zeitlimit, meldet `false` | PASS |
+| Abbruchbitte fremder Laufkennung | wird ignoriert, kein Abbruch | PASS |
+| eigene Abbruchbitte | Abbruch sofort (< 30 s statt 120 s), Meldung mit Grund, Bitte wird entfernt | PASS |
+| Warteschleife des Sprachdienstes | prueft denselben Punkt | PASS (strukturell) |
+
+Gegenprobe: mit entfernter Pruefung in `Wait-Http` scheitert der Test mit "Abbruch im Warmup wurde nicht befolgt.";
+die Datei wurde danach byte-identisch wiederhergestellt (SHA256 verglichen).
+
+Gesamtstand: **25/25 Installer-Tests Exit 0** (vorher 24).

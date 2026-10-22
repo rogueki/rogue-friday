@@ -366,6 +366,9 @@ function Wait-Http($url, $seconds, $headers = @{}) {
     # "PS>TerminatingError(Invoke-WebRequest): ..." ins Transcript - das sah wie ein Abbruch aus.
     $until = (Get-Date).AddSeconds($seconds)
     while ((Get-Date) -lt $until) {
+        # Modell- und Sprachstart warten hier bis zu mehrere Minuten: ohne diese Pruefung wirkte eine
+        # Abbruchbitte erst nach dem Warmup, obwohl sie sofort gemeint ist.
+        Confirm-NotCancelled
         $response = $null
         try {
             $request = [Net.WebRequest]::Create($url)
@@ -2096,6 +2099,7 @@ if (-not (IsDone 'voiceservice')) {
     $voiceWarmupStart = Get-Date
     $ok = $false
     foreach ($i in 1..90) {
+        Confirm-NotCancelled
         try { if ((Invoke-RestMethod "http://127.0.0.1:$($Ports.Voice)" -TimeoutSec 2).state -eq 'listening') { $ok = $true; break } } catch {}
         Start-Sleep 2
     }
