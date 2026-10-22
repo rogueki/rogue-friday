@@ -110,3 +110,34 @@ Alle 15 Installer-Tests gruen (`installer/tests/*.Tests.ps1`, Exit 0), inklusive
   wiederholbar ist (Distro-Anlage, Enrollment, Voice-Dateien), ist nicht je Schritt geprueft.
 - Parameterquotierung fuer Roots mit Leerzeichen/Umlaut ist im Einzelinstanz-Test mitgetestet, aber nicht
   systematisch (Anfuehrungszeichen, `&`, sehr lange Pfade).
+## 8. Nachtrag 2026-10-22: Fortsetzungsbefehl und Distributionsuebernahme
+
+Beim Ausfuehren von `resume.bat` auf einem Pfad mit Umlaut (Teil des INS-06-Kriteriums
+"Parameterquotierung") kamen zwei echte Defekte heraus:
+
+- **N-018**: `resume.bat` wurde mit `[Text.Encoding]::Default` (Windows-1252) geschrieben, cmd liest
+  Batchdateien aber in der Konsolencodepage. Der Umlaut im Zielpfad wurde verstuemmelt, der Befehl fand
+  `install-state.json` nicht und landete in der Pruefung "Der frische InstallRoot ist nicht leer" - also einer
+  falschen Diagnose fuer einen laufenden Vorgang. Jetzt `chcp 65001` als zweite Zeile plus UTF-8 ohne BOM.
+- **N-019**: `$Distro`/`$DistroLocation` wurden erst **nach** der Widerspruchspruefung aus dem Zustand
+  uebernommen. Ein Abbruch davor schrieb `-DistroName "Ubuntu"` in `resume.bat` und damit die Umleitung auf die
+  Standarddistribution, die INS-06 ausdruecklich ausschliesst. Uebernahme jetzt am Anfang des Custom-Root-Blocks.
+
+Nachweis `installer/tests/installer-resume-distro.Tests.ps1` (neu, PASS):
+
+- Zustand mit `distro_name=FRIDAY-Test` und eigenem Ablageort; Aufruf ohne `-DistroName` uebernimmt beides und
+  endet an der naechsten Pruefung (unvollstaendige Installation fuer ein gezieltes Update), ohne WSL aufzurufen.
+- Aufruf mit widersprechendem `-DistroName`/`-DistroLocation` bricht mit "widersprechen dem gespeicherten
+  Zustand" ab, nennt den gespeicherten Namen und laesst den Zustand unveraendert.
+- `resume.bat` zitiert den Zielordner mit Leerzeichen und Umlaut, nennt `FRIDAY-Test` (nicht `Ubuntu`) und
+  laeuft in dieser Form: der Lauf findet den Zustand wieder (kein Hinweis auf eine frische Installation).
+
+Stand der offenen Punkte aus Abschnitt 7:
+
+- Fortsetzung mit identischer Distro/Location: auf Argument- und Zustandsebene belegt; ein echter WSL-Lauf
+  bleibt INS-13 vorbehalten.
+- Aufgabenkonflikt: der Fortsetzungslauf bricht auf diesem Host an "FRIDAY_Dashboard gehoert zu einem anderen
+  Installationspfad" ab - fremde Aufgaben werden also nicht ueberschrieben. Ein eigener Test mit zwei
+  Installationswurzeln existiert daneben in `dashboard-task-migration.Tests.ps1`.
+- Ruecksetzen halb erledigter Schritte und systematische Quotierung (Zeichen wie `&`, sehr lange Pfade) bleiben
+  offen.

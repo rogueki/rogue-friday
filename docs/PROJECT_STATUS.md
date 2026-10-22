@@ -508,3 +508,17 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
 - **Offen in INS-06**: Fortsetzung mit identischer Distro/Location als echter Lauf, Konflikt mit der geplanten
   Aufgabe `FRIDAY_Installation_fortsetzen`, Wiederholbarkeit jedes halb erledigten Schritts, systematische
   Parameterquotierung.
+- **N-018 behoben** (gefunden beim Ausfuehren von `resume.bat` auf einem Pfad mit Umlaut): der Fortsetzungsbefehl
+  wurde mit `[Text.Encoding]::Default` (Windows-1252) geschrieben, cmd liest Batchdateien aber in der
+  Konsolencodepage. Der Umlaut im Zielpfad wurde verstuemmelt, der Befehl fand `install-state.json` nicht und
+  landete in der Pruefung fuer eine frische Installation. Jetzt `chcp 65001` plus UTF-8 ohne BOM; der Test fuehrt
+  `resume.bat` aus und belegt, dass der Zustand wieder gefunden wird.
+- **N-019 behoben**: `$Distro`/`$DistroLocation` wurden erst nach der Widerspruchspruefung aus dem Zustand
+  uebernommen. Ein Abbruch davor (etwa widersprechende `-DistroName`) schrieb `-DistroName "Ubuntu"` in
+  `resume.bat` - genau die Umleitung auf die Standarddistribution, die INS-06 ausschliesst. Die Uebernahme steht
+  jetzt am Anfang des Custom-Root-Blocks.
+- **Nachweis (Fortsetzung)**: `installer/tests/installer-resume-distro.Tests.ps1` (neu) belegt am echten
+  Einstiegspunkt: Fortsetzung ohne `-DistroName` uebernimmt Distribution und Ablageort aus dem Zustand,
+  widersprechende Angaben brechen mit Klartext ab, der Zustand bleibt unveraendert, und `resume.bat` zitiert den
+  Pfad mit Leerzeichen und Umlaut und laeuft in dieser Form (findet den Zustand wieder). 16/16 Installer-Tests
+  Exit 0.

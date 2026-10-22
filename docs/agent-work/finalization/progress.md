@@ -18,7 +18,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | INS-04 Stimmen | TEIL (drei Optionen + Dateipruefung, Hoerprobe offen) | `ins-04-voice-choice.md`, `voice-reference.Tests.ps1` |
 | INS-03 Anbieterfaehigkeiten | TEIL (Sonde+Katalogcheck, echte Authnachweise offen) | `ins-03-provider-capabilities.md`, `hermes_provider_auth.py`, `setup_hermes.sh`, `hermes_config_bridge.py` |
 | INS-02 Installer-Vertraege | PASS | `ins-02-installer-io.md`, `installer-io-contract.Tests.ps1`, `gui-installer.Tests.ps1` (Renderprobe 8 Reiter) |
-| INS-06 State/Resume/Mutex | TEIL (Sperre und Zustandssicherung belegt, Neustart-/Aufgabenkonflikt offen) | `ins-06-state-atomic.md` 6/7, `installer-lock.Tests.ps1`, `installer-single-instance.Tests.ps1`, `state-recovery.Tests.ps1` |
+| INS-06 State/Resume/Mutex | TEIL (Sperre, Zustandssicherung, Fortsetzung und resume.bat belegt; echter WSL-Lauf und halb erledigte Schritte offen) | `ins-06-state-atomic.md` 6/7/8, `installer-lock.Tests.ps1`, `installer-single-instance.Tests.ps1`, `state-recovery.Tests.ps1`, `installer-resume-distro.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
 | DASH-02 Vertraege | 02.01/02.02 PASS, 02.03/02.05 offen, 02.04 teilweise | `dash-02-contracts.md`, `authorization-contract.test.ts` (4 gruen), 176 Handler-/Event-Tests gruen |
 | DASH-04 Einstellungen ehrlich | 04.01/04.02 PASS, 04.04 Adapter-Haelfte PASS; 04.03/04.05 offen | `dash-04-settings.md`, `tests/e2e/settings-acceptance.spec.ts` (3 gruen), 92 Settings-Tests |
@@ -193,9 +193,15 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   laesst beide Prozesse parallel laufen; `install-state.json.bak` wird nach jedem Speichern geschrieben, eine
   abgeschnittene oder strukturell falsche Datei wird aus der Sicherung wiederhergestellt, ohne Sicherung bricht
   der Installer mit Klartext ab; 15/15 Installer-Tests Exit 0
+- nachtrag: `installer-resume-distro.Tests.ps1` (neu) belegt zusaetzlich, dass die Fortsetzung ohne `-DistroName`
+  Distribution und Ablageort aus dem Zustand uebernimmt, widersprechende Angaben mit Klartext abbricht, den
+  Zustand unveraendert laesst und dass `resume.bat` einen Pfad mit Leerzeichen und Umlaut korrekt zitiert und in
+  dieser Form laeuft. Dabei zwei Defekte gefunden und behoben: N-018 (resume.bat in Windows-1252 geschrieben,
+  cmd liest OEM - Umlaute verstuemmelt) und N-019 (Distro wurde erst nach der Widerspruchspruefung uebernommen,
+  resume.bat schlug `Ubuntu` vor). 16/16 Installer-Tests Exit 0.
 - evidence_paths: `ins-06-state-atomic.md`; status: TEIL
-- remaining_work: Fortsetzung mit identischer Distro/Location als echter Lauf, Konflikt mit
-  `FRIDAY_Installation_fortsetzen`, Wiederholbarkeit halb erledigter Schritte, systematische Parameterquotierung
+- remaining_work: echter WSL-Lauf mit eigener Distro (INS-13), Wiederholbarkeit halb erledigter Schritte,
+  systematische Parameterquotierung (Sonderzeichen wie `&`, sehr lange Pfade)
 ## Next (in the order of master §8.1)
 
 1. **DASH-07.01/.02** — Hermes inventory (skills, accounts, sources, status) as the base for DASH-04.03 and

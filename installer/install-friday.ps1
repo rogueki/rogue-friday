@@ -140,8 +140,11 @@ function Stop-Install($text) {
     $resumeCmd = 'powershell.exe ' + ($resumeArgs -join ' ')
     if (-not $GuiMode -and $Root -and (Test-Path -LiteralPath $Root)) {
         try {
-            $resumeBat = "@echo off`r`n" + $resumeCmd + "`r`n"
-            [IO.File]::WriteAllText((Join-Path $Root 'resume.bat'), $resumeBat, [Text.Encoding]::Default)
+            # chcp 65001 plus UTF-8 ohne BOM: cmd liest die Datei sonst in der OEM-Codepage und
+            # verstuemmelt Umlaute im Zielpfad, wodurch der Fortsetzungsbefehl den Zustand nicht mehr
+            # findet und eine frische Installation an einem falschen Pfad prueft (real reproduziert).
+            $resumeBat = "@echo off`r`nchcp 65001>nul`r`n" + $resumeCmd + "`r`n"
+            [IO.File]::WriteAllText((Join-Path $Root 'resume.bat'), $resumeBat, (New-Object Text.UTF8Encoding($false)))
         } catch { }
     }
     Write-Host "  So geht es an dieser Stelle weiter:" -ForegroundColor Yellow
@@ -994,6 +997,13 @@ function Test-TaskForInstallRoot($task) {
     return $false
 }
 if ($CustomRoot) {
+    # Zuerst die gespeicherte Distribution uebernehmen: jede Meldung und jeder Fortsetzungsbefehl
+    # (resume.bat) muss die echte Distribution nennen, nicht den Standardnamen. Sonst haette ein
+    # Abbruch vor der Uebernahme "Ubuntu" vorgeschlagen und den eigenen Ablageort verschluckt.
+    if ($ExistingState) {
+        if ($State.distro_name) { $Distro = [string]$State.distro_name }
+        if ($State.distro_location) { $DistroLocation = [string]$State.distro_location }
+    }
     if ($ExistingState -and (-not $State.distro_name -or -not $State.distro_location -or -not $State.ports)) {
         Stop-Install 'Der gespeicherte Zustand enthaelt keine benannte Distribution, deren Ablageort oder Portbelegung. Update abgebrochen.'
     }
@@ -1004,10 +1014,7 @@ if ($CustomRoot) {
     if ($ExistingState -and $DistroName -and ($DistroName -ne $State.distro_name -or $DistroLocation -ine $State.distro_location)) {
         Stop-Install "DistroName/DistroLocation widersprechen dem gespeicherten Zustand ($($State.distro_name), $($State.distro_location))."
     }
-    if ($ExistingState) {
-        $Distro = [string]$State.distro_name
-        $DistroLocation = [string]$State.distro_location
-    } else {
+    if (-not $ExistingState) {
         $Distro = $DistroName
         $State.distro_name = $Distro
         $State.distro_location = $DistroLocation
