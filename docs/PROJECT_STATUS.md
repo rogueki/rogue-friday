@@ -567,3 +567,20 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   Laufereignis mit Kennung und Modus. 19/19 Installer-Tests Exit 0.
 - **Offen**: harte Zeitlimits pro Schritt, explizites Abschlussereignis mit Exitcode, eigener Ereignistyp fuer den
   Modell-Warmup, Lastfall mit Paketspam.
+## 2026-10-22 INS-05/INS-07 (Teil) Ueberwachte Unterprozesse
+
+- **N-023 behoben**: `Download` rief `curl.exe` ohne Zeitlimit und ohne Abbruchpruefung auf; `Invoke-Pip` pollte bis
+  120 Minuten ohne Abbruchweg, und der einzige Notausstieg war `taskkill /T /F` (Baum-Kill). Neu:
+  `installer/lib/process-supervisor.ps1` mit `ConvertTo-WindowsArgument` (CreateProcess-Quotierung) und
+  `Invoke-SupervisedProcess` (Start ueber `ProcessStartInfo`, Polling, hartes Zeitlimit, Abbruchpruefung, gezieltes
+  `Stop-Process -Id` **nur** des gestarteten Prozesses, Exitcode erst nach abgeschlossenem `WaitForExit`).
+- **Verdrahtung**: `Download` laeuft ueber den Supervisor (`$script:DownloadTimeoutSeconds = 3600`,
+  `CancelCheck` gegen die Abbruchbitte, Warnung bei Zeitlimit, Fortsetzen ueber `curl -C -`); `Invoke-Pip` beendet
+  bei Abbruch gezielt `cmd.exe` statt des ganzen Baums. Bewusst keine Streamumleitung: `Start-Process -PassThru`
+  liefert in PowerShell 5.1 mit Umleitung keinen Exitcode (reproduziert).
+- **Nachweis**: `installer/tests/process-supervisor.Tests.ps1` (neu) prueft die Quotierung durch einen echten
+  Kindprozess (Leerzeichen, Umlaut, Anfuehrungszeichen, abschliessender Backslash), Exitcode 7, hartes Zeitlimit
+  (eigener Prozess weg, fremder Bruderprozess lebt weiter), Abbruch waehrend des Laufs (dito) und die Verdrahtung
+  in Download und Invoke-Pip. 20/20 Installer-Tests Exit 0.
+- **Offen**: keine Job-Objekte (Nachfahren von `cmd.exe` koennen kurz weiterlaufen), `wsl.exe`-Aufrufe nicht
+  ueberwacht, Modell-Warmup und Dashboardwechsel nicht einzeln mit Zeitlimit belegt, Lastfall Paketspam.

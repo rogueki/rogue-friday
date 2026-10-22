@@ -73,8 +73,12 @@ if ($GuiMode) {
 . (Join-Path $PSScriptRoot 'lib\installer-lock.ps1')
 # Kooperativer Abbruch: Abbruchbitte der GUI als Datei mit Laufkennung (Begruendung im Modul).
 . (Join-Path $PSScriptRoot 'lib\installer-cancel.ps1')
+# Zeitlimit je Download: ein haengender Abruf soll nicht bis zum Stillstandsalarm laufen.
+$script:DownloadTimeoutSeconds = 3600
 # Ereignisstrom fuer die GUI (Protokoll 2): eine JSON-Zeile je Ereignis, alter Text bleibt lesbar.
 . (Join-Path $PSScriptRoot 'lib\gui-protocol.ps1')
+# Ueberwachte Unterprozesse: hartes Zeitlimit und gezieltes Beenden genau des gestarteten Prozesses.
+. (Join-Path $PSScriptRoot 'lib\process-supervisor.ps1')
 
 if ($GuiSimulation) {
     if (-not $GuiMode -or -not $GuiConfig.simulation -or $env:FRIDAY_GUI_TEST -ne '1') { throw 'Simulation nur im lokalen GUI-Testmodus.' }
@@ -385,6 +389,11 @@ function Invoke-Pip([string]$Python, [string[]]$PipArgs, [string]$Label) {
         $mins = [math]::Floor(((Get-Date) - $start).TotalMinutes)
         Write-Host ("`r  laeuft weiter ... {0} min" -f $mins).PadRight(48) -NoNewline
         if ($proc.HasExited -and (Test-Path -LiteralPath $marker)) { break }
+        if (Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId) {
+            # Gezielt nur den gestarteten Prozess beenden; kein taskkill /T, das fremde Kinder mitreisst.
+            try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch { }
+            Confirm-NotCancelled
+        }
         if (((Get-Date) - $start).TotalMinutes -gt 120) { break }
         Start-Sleep -Seconds 5
     }
@@ -449,8 +458,12 @@ function Download($url, $file) {
     Confirm-NotCancelled
     $downloadName = Split-Path -Path $file -Leaf
     Write-GuiEvent 'download' @{ state = 'start'; name = $downloadName }
-    & curl.exe -L --fail --retry 5 -C - -s -o $file $url
-    $downloadOk = ($LASTEXITCODE -eq 0)
+    $run = Invoke-SupervisedProcess -FilePath 'curl.exe' -TimeoutSeconds $script:DownloadTimeoutSeconds -PollMilliseconds 500 `
+        -Arguments @('-L', '--fail', '--retry', '5', '-C', '-', '-s', '-o', $file, $url) `
+        -CancelCheck { Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId }
+    if ($run.Cancelled) { Confirm-NotCancelled }
+    if ($run.TimedOut) { Warn "Download $downloadName nach $($script:DownloadTimeoutSeconds) s abgebrochen; ein erneuter Lauf setzt an der vorhandenen Datei fort." }
+    $downloadOk = ($run.ExitCode -eq 0)
     Write-GuiEvent 'download' @{ state = $(if ($downloadOk) { 'done' } else { 'failed' }); name = $downloadName }
     return $downloadOk
 }
