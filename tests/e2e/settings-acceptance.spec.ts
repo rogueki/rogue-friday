@@ -64,6 +64,54 @@ test("two adapters in a row: keeping and discarding the draft, saving and readin
   await expect(latency(page)).toHaveValue("333");
 });
 
+test("two skills one after another: only the selected skill's accounts, shared keys named once, keyboard driven", async ({ page }) => {
+  await open(page, "/settings?area=skillAccounts");
+  const list = page.getByRole("list", { name: "Skills mit Kontenbedarf" });
+  await expect(list).toBeVisible();
+  const entries = list.getByRole("button");
+  expect(await entries.count()).toBeGreaterThanOrEqual(2);
+
+  // Der erste Skill: rechts steht genau sein Name, und die Detailansicht fragt keinen Schluessel erneut ab.
+  const firstName = (await entries.nth(0).locator(".sk-workbench__name").innerText()).trim();
+  await entries.nth(0).click();
+  await expect(page.getByRole("heading", { name: firstName, exact: true })).toBeVisible();
+  await expect(list.getByRole("button").nth(0)).toHaveAttribute("aria-pressed", "true");
+  const detail = page.locator(".sk-workbench__detail");
+  await expect(detail).toBeVisible();
+  expect(await detail.locator("input, textarea").count()).toBe(0);
+
+  // Der zweite Skill: die Auswahl wechselt, die Detailansicht nennt den neuen Namen.
+  const secondName = (await entries.nth(1).locator(".sk-workbench__name").innerText()).trim();
+  await entries.nth(1).click();
+  await expect(page.getByRole("heading", { name: secondName, exact: true })).toBeVisible();
+  await expect(list.getByRole("button").nth(0)).toHaveAttribute("aria-pressed", "false");
+  await expect(list.getByRole("button").nth(1)).toHaveAttribute("aria-pressed", "true");
+
+  // Suche und Zustandsfilter schraenken die Liste ein und lassen sich zuruecknehmen.
+  const search = page.getByLabel(/Skill suchen/);
+  await search.fill("zzz-kein-skill");
+  await expect(page.getByText(/Kein Skill passt zur Suche/)).toBeVisible();
+  await search.fill("");
+  await expect(entries.first()).toBeVisible();
+
+  // Tastatur: Fokus in der Liste, Enter waehlt, Pfeil ab wechselt die Auswahl.
+  await entries.nth(0).focus();
+  await page.keyboard.press("Enter");
+  const pressedAfterEnter = await list.locator('button[aria-pressed="true"]').first().innerText();
+  await page.keyboard.press("ArrowDown");
+  const pressedAfterArrow = await list.locator('button[aria-pressed="true"]').first().innerText();
+  expect(pressedAfterArrow).not.toBe(pressedAfterEnter);
+
+  // Drei Breiten ohne waagerechten Ueberlauf, auch mit der neuen Master-Detail-Ansicht.
+  for (const width of [390, 1024, 1920]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await open(page, "/settings?area=skillAccounts");
+    await expect(page.getByRole("list", { name: "Skills mit Kontenbedarf" })).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow, `horizontal overflow at ${String(width)} px`).toBeLessThanOrEqual(1);
+  }
+});
+
 test("a read-only role sees the configuration but cannot change or save it", async ({ page }) => {
   const login = await page.request.post(`${API_BASE}/auth/login`, { data: { username: devUser("viewer"), password: DEV_PASSWORD } });
   expect(login.status()).toBe(200);

@@ -642,6 +642,23 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   `interaction=visible:True ok:True` in `gui-wizard-pages.Tests.ps1` (108), Installer-Suite 32/32 Exit 0.
 - **Offen**: echte Aufnahme mit Mikrofon/Headset (hoerbarer Start, vollstaendiger Durchlauf, erzeugte Modelle
   und Embeddings, Wake-Phrase gegen die Metadaten). Der Sprechergrenzwert bleibt unveraendert.
+## 2026-10-22 DASH-04.03/04.04/04.05 Skillkonten als Master-Detail
+
+- Die Skillkonten-Seite hat jetzt links eine Skillliste mit Name, Quelle (Friday/Hermes) und Zustand, durchsuchbar
+  ueber Name, Quelle, Kategorie und Zustandstext, plus exakten Zustandsfilter; rechts stehen **nur** die Konten des
+  gewaehlten Skills (Pflicht und optional getrennt).
+- Ein von mehreren Skills benoetigter Schluessel wird als "Geteilt mit ..." benannt; die Detailansicht hat bewusst
+  **kein** Eingabefeld, damit derselbe Wert nicht doppelt eingegeben wird.
+- Tiefenlink `?area=skillAccounts&skill=<id>`; Tastatur: Enter waehlt, Pfeil ab/auf wechselt, der Fokus bleibt in der
+  Liste.
+- **Nachweis**: `vitest run --project web features/settings` 18 Dateien / 101 Tests gruen, `tsc` 0 Fehler. Browser:
+  `pnpm build:app` + `playwright test tests/e2e/settings-acceptance.spec.ts` -> 4 Tests gruen in 48,2 s (zwei Adapter,
+  zwei Skills, Draft behalten/verwerfen, Reload-Rueckleseprobe, lesende Rolle, 390/1024/1920 px, Tastatur).
+- E2E-Stack hat jetzt einen Skillkatalog: `tests/e2e/fixtures/skills/` (zwei Skills, gemeinsames CalDAV-Konto),
+  gesetzt ueber `FRIDAY_SKILLS_CATALOG_PATH` in `tests/e2e/stack.ts`. Nicht im Produktivpfad.
+- Recovery belegt: ein kaputter Katalog (`/skills` 500) meldet den Fehler nur im Skillbereich; andere Bereiche bleiben
+  editierbar und speichern.
+
 ## 2026-10-22 DASH-02.05 Sicherung vor Migration und Vertragsversion
 
 - `openDatabase` sichert eine **bestehende** Datenbank vor ausstehenden Migrationen: WAL-Checkpoint, Kopie nach

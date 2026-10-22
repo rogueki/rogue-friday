@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "inventory_count": 2,
+  "skills": {
+    "Kalender": {
+      "required_integrations": ["caldav"],
+      "conditional_integrations": [],
+      "setup_de": "Kalenderkonto mit CalDAV-Zugang fuer Termine."
+    },
+    "Reiseplanung": {
+      "required_integrations": ["caldav"],
+      "conditional_integrations": ["gmx"],
+      "setup_de": "Reiseplanung liest Termine und optional Bestaetigungen aus dem Postfach."
+    }
+  },
+  "integrations": {
+    "caldav": {
+      "account": "required",
+      "setup_de": "CalDAV-Adresse, Benutzer und Passwort im Kalenderbereich hinterlegen.",
+      "reference": "https://www.rfc-editor.org/rfc/rfc4791",
+      "settings_target": "Einstellungen > Adapter > Kalender"
+    },
+    "gmx": {
+      "account": "conditional",
+      "setup_de": "Postfach nur noetig, wenn Bestaetigungen automatisch gelesen werden sollen.",
+      "reference": "",
+      "settings_target": "Einstellungen > Skill-Konten > Mail"
+    }
+  }
+}

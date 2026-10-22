@@ -1,0 +1,16 @@
+{
+  "skills": [
+    {
+      "id": "Kalender",
+      "category": "Produktivitaet",
+      "description": "Liest und plant Termine im verbundenen CalDAV-Konto.",
+      "version": "1.0.0"
+    },
+    {
+      "id": "Reiseplanung",
+      "category": "Produktivitaet",
+      "description": "Baut Reiseablaeufe aus Terminen und optionalen Bestaetigungen.",
+      "version": "1.0.0"
+    }
+  ]
+}

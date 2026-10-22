@@ -19,6 +19,8 @@ if (process.env.FRIDAY_E2E_BUILD === "1" || !existsSync(main) || !existsSync(joi
 }
 
 const dir = resolve(process.env.FRIDAY_E2E_DIR ?? join(tmpdir(), "friday-e2e"));
+// A real registry layout with two skills that share one CalDAV account, so the skill account area has content.
+const skillsFixture = join(root, "tests", "e2e", "fixtures", "skills");
 rmSync(dir, { recursive: true, force: true });
 const configDir = join(dir, "config");
 for (const sub of ["config", "data", "logs"]) mkdirSync(join(dir, sub), { recursive: true });
@@ -50,7 +52,7 @@ const logFd = openSync(join(dir, "control-api.log"), "w");
 const api = spawn(process.execPath, [main], {
   cwd: root,
   stdio: ["ignore", logFd, logFd],
-  env: { ...process.env, FRIDAY_CONFIG_DIR: configDir, FRIDAY_DATA_MODE: "mock", FRIDAY_AUTH_MODE: "dev", FRIDAY_PORT: String(API_PORT) },
+  env: { ...process.env, FRIDAY_CONFIG_DIR: configDir, FRIDAY_DATA_MODE: "mock", FRIDAY_AUTH_MODE: "dev", FRIDAY_SKILLS_CATALOG_PATH: skillsFixture, FRIDAY_PORT: String(API_PORT) },
 });
 api.on("exit", (code) => {
   console.error(`[stack] Control API beendet (Code ${String(code)}), Log: ${join(dir, "control-api.log")}`);

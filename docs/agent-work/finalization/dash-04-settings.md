@@ -66,6 +66,53 @@ version of 3.
 `PATCH /settings/adapters/{id}` (`restoreAdapters`), because `adapters` is a read-only mirror inside the
 settings payload and `PATCH /settings` rejects it with 422 `additionalProperties`.
 
+## 6. Nachtrag 2026-10-22: Skillkonten als Master-Detail (DASH-04.03/04.04/04.05)
+
+### Befund
+
+Die Skillkonten-Seite war **integrationszentriert**: eine flache Suche ueber alle Integrationen, und die Kontoanforderung
+eines Skills war nur als Fliestext ("Benoetigt von: ...") sichtbar. Man konnte nicht vom Skill aus lesen, welche Konten
+er braucht, und ein von mehreren Skills genutzter Schluessel wurde nirgends als geteilt gekennzeichnet.
+
+### Umsetzung
+
+| Teil | Datei | Inhalt |
+|---|---|---|
+| Reine Logik | `apps/web/src/features/settings/skillAccountPlan.ts` | `skillAccounts`, `skillState` (bereit / Pflichtkonto fehlt / unbekannt / deaktiviert / unbeobachtet), `skillSummaries` (offene Faelle zuerst), `filterSkills` (Name, Quelle, Kategorie, Zustandstext + exakter Zustandsfilter), `sharedWith` / `sharedAccountIds` |
+| Bedienoberflaeche | `SkillAccountWorkbench.tsx` | Links Suche + Zustandsfilter + Liste mit Name, Quelle (Friday/Hermes) und Zustand; rechts **nur** die Konten des gewaehlten Skills, Pflicht und optional getrennt, "Geteilt mit ..." mit dem Hinweis, dass ein hinterlegter Schluessel nicht erneut abgefragt wird. Kein Eingabefeld in der Detailansicht - die Schluesselfelder bleiben genau einmal weiter unten auf der Seite |
+| Einbindung | `SkillAccountsArea.tsx` | Abschnitt "Skills und ihre Konten" ueber dem Integrationskatalog; Tiefenlink `?area=skillAccounts&skill=<id>` ueber `router.replace` |
+| Stil | `features/skills/skills.css` | `.sk-workbench*`, `.sk-badge--friday/--hermes`, Zustandsfarben, einspaltig unter 1024 px |
+
+Kontraktseitig wurde nichts geaendert: die Ansicht liest ausschliesslich `/api/v1/skills`, das bereits `source`,
+`enabled`, `discovered` und `integrationDetails[].configured` liefert.
+
+### Nachweise
+
+| Pruefung | Ergebnis |
+|---|---|
+| `skillAccountPlan.test.ts` | 6 Tests: Zustaende inkl. unbekannt/deaktiviert/unbeobachtet, Sortierung, Suche ueber Name/Quelle/Zustandstext, Zustandsfilter, geteilte Konten |
+| `SkillAccountWorkbench.test.tsx` | 5 Tests: Liste mit Quelle und Zustand, rechts nur die Konten des gewaehlten Skills, "Geteilt mit Termine" ohne zweites Eingabefeld, Suche/Filter/Leerzustand, Tastatur (Enter, Pfeil ab, Fokus bleibt in der Liste), Nur-Lese-Hinweis und leerer Katalog |
+| `SkillAccountsResilience.test.tsx` | 2 Tests (DASH-04.05): kaputter Katalog zeigt den Fehler nur im Skillbereich und erfindet keine Konten; der Profilbereich bleibt editierbar und speichert, ohne den Katalog anzufragen |
+| `vitest run --project web features/settings` | **18 Dateien, 101 Tests gruen** |
+| `tsc -p apps/web/tsconfig.json --noEmit` | 0 Fehler |
+| Browser (DASH-04.04) | `pnpm build:app` + `playwright test tests/e2e/settings-acceptance.spec.ts` → **4 Tests gruen in 48,2 s**, davon der neue Skilltest 20,1 s |
+
+Der Browserlauf prueft real: zwei Skills nacheinander auswaehlen (`aria-pressed` wechselt), die Detailansicht nennt
+jeweils nur den gewaehlten Skill, enthaelt **kein** Eingabefeld, Suche bis zum Leerzustand und zurueck, Tastatur
+(Enter waehlt, Pfeil ab wechselt die Auswahl), und 390/1024/1920 px ohne waagerechten Ueberlauf
+(`scrollWidth - innerWidth <= 1`).
+
+### Testdaten fuer den E2E-Stack
+
+Der Stack hatte keinen Skillkatalog (`FRIDAY_SKILLS_CATALOG_PATH` unset), die Seite zeigte daher "Der Skillkatalog ist
+leer". Neu: `tests/e2e/fixtures/skills/{integration_setup.json,skills.json}` im echten Registry-Format mit zwei Skills
+("Kalender", "Reiseplanung"), die sich das CalDAV-Konto teilen; `tests/e2e/stack.ts` setzt
+`FRIDAY_SKILLS_CATALOG_PATH` darauf. Kein Produktivpfad betroffen, kein Mock in der Anwendung - die Dateien sind
+Eingabedaten fuer den Testserver.
+
+Fallstrick fuer spaetere Aenderungen: `SkillsService.catalog()` verwirft einen Katalog, wenn `inventory_count` fehlt
+(`Number(undefined)` ist NaN) - der Fixture muss die Anzahl also nennen.
+
 ## 5. Still open for DASH-04
 
 - **04.03** skill-account search by *source* and *status*: the filter covers id and setup text only. The source

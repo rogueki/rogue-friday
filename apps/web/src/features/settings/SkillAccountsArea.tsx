@@ -3,7 +3,7 @@
 import type { CodingCliStatusResponse, ContentStudioKeysResponse, HermesSkillKeyCheckResponse, HermesSkillKeysResponse, ObsidianVaultResponse, WikiPathResponse, SkillCatalogEntry } from "@friday/sdk";
 import { IntegrationRequirements } from "../skills/IntegrationRequirements";
 import { ErrorState, Skeleton } from "@friday/ui";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { officialReference } from "@/features/skills/skillPresentation";
@@ -12,6 +12,7 @@ import { getApiClient } from "@/lib/api/client";
 import { useSkillsCatalog } from "@/lib/api/domains/skills";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { useSettingsDrafts } from "./SettingsDrafts";
+import { SkillAccountWorkbench } from "./SkillAccountWorkbench";
 import { MailAccountsArea } from "./MailAccountsArea";
 import { TelegramGatewaySetup } from "./TelegramGatewaySetup";
 import { MessagingGatewaySetup } from "./MessagingGatewaySetup";
@@ -198,7 +199,9 @@ export function accountSetupView(item: Integration, keys: KeyStatus, hermes: Her
 
 export function SkillAccountsArea() {
   const params = useSearchParams();
+  const router = useRouter();
   const selectedIntegration = params.get("integration");
+  const selectedSkill = params.get("skill");
   const queryClient = useQueryClient();
   const { role } = useSettingsDrafts();
   const query = useSkillsCatalog();
@@ -317,6 +320,17 @@ export function SkillAccountsArea() {
     <p>Konten und lokale Voraussetzungen für die Skills. Ein gespeicherter Schlüssel oder aktivierter Skill belegt noch keine erfolgreiche Anmeldung beim Anbieter.</p>
     <p className="sk-warning">Für Telefonie stehen CloudTalk Desktop mit aktivierter Auto-Dial-Option, ein CloudTalk-API-Pfad und ein optionaler Asterisk-SIP-Rufpfad bereit. Friday erhält über den Desktop-Link keinen Gesprächsstatus oder Audiozugriff.</p>
     <p><a href="/onboarding">Einführung fortsetzen</a> · <a href="/skills">Alle Skills ansehen</a></p>
+    <section aria-labelledby="skill-account-workbench-title">
+      <h3 id="skill-account-workbench-title">Skills und ihre Konten</h3>
+      <p>Links der Skill mit Quelle und Zustand, rechts nur seine Konten und Abhängigkeiten. Ein Schlüssel, den mehrere
+        Skills brauchen, wird einmal hinterlegt; die Seite nennt die anderen Skills.</p>
+      <SkillAccountWorkbench
+        skills={query.data?.data ?? []}
+        role={role}
+        selectedId={selectedSkill ?? null}
+        onSelect={(id) => router.replace(`/settings?area=skillAccounts&skill=${encodeURIComponent(id)}`, { scroll: false })}
+      />
+    </section>
     <section aria-labelledby="coding-cli-setup-title">
       <h3 id="coding-cli-setup-title">Coding-CLIs in Friday-Ubuntu</h3>
       <p>ChatGPT Plus/Pro kann Codex CLI anmelden; Claude Pro/Max kann Claude Code anmelden. PowerShell im Friday-Installationsordner: <code>.\installer\setup-coding-cli.ps1 -Cli codex -Login -InstallRoot 'C:\Friday'</code> oder <code>.\installer\setup-coding-cli.ps1 -Cli claude -Login -InstallRoot 'C:\Friday'</code>. Den tatsächlichen Installationspfad einsetzen. Die Anmeldung erfolgt interaktiv beim Anbieter; Friday fragt kein Abo-Passwort ab. Diese CLI-Anmeldung gilt für Coding-Skills, nicht automatisch für Fridays allgemeinen Modellanbieter.</p>
