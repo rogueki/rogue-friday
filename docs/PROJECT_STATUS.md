@@ -773,3 +773,22 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   `docs/agent-work/finalization/dash-05-email-wizard.md`.
 - **Offen**: DASH-05.04 Abnahme (Mehrkonten/Alias/UIDVALIDITY/Sent-Kopie/Sendjournal), DASH-05.05 mit zwei
   echten Testpostfaechern, DASH-05.06 Abbruch- und Timeout-Probe.
+
+## 2026-10-22 DASH-05.04 Mehrkonten, Alias, UIDVALIDITY und Versandjournal
+
+- Mehrere Konten bleiben getrennt: die Bridge bedient nur bekannte Konto-IDs, die API prueft die Aufrufe je
+  Konto, die Postfach-UI zeigt je Konto eigene Ordner und Nachrichten.
+- Lesen markiert nichts als gelesen: ein neuer Brueckentest (24 Zusicherungen, ohne echten Server) belegt
+  `readonly=True` und `BODY.PEEK` fuer Listen und Nachrichten; nur `change` selektiert schreibend.
+- Ordner/UIDVALIDITY: veraltete UIDVALIDITY ergibt 409 mit Hinweis auf neu zu ladende Nachrichten;
+  die UI holt Nachrichten immer mit der UIDVALIDITY der Liste.
+- Entwuerfe, Anhaenge und UTF-8: Betreff/Emoji/Anhang bleiben erhalten, derselbe Entwurf wird nicht doppelt
+  angehaengt, Alias-Absender sind erlaubt, fremde Absender werden mit Feldhinweis `from` abgelehnt.
+- Versandjournal: offene Belege mit Aktion "Gesendet-Ordner pruefen" ohne Versand; Replay derselben Vorschau
+  ruft SMTP nicht erneut auf, der Archiv-Nachtrag ergaenzt nur die Sent-Kopie.
+- Dabei behoben: die Anhangspruefung testete zuerst die Gesamtsumme (Meldung "je Datei" war unerreichbar),
+  und `invalid_sender`/`invalid_recipients` fielen in die allgemeine Verbindungsmeldung.
+- **Nachweis**: Bridge 24, API-Routen 5, Fehlerabbildung 4, Bridge/Action-Intent 21, Compose 7, Postfach-UI 3;
+  web 84/666, node 2800 (60 skipped, Exit 0), lint 0 Fehler, typecheck, build:app 0, Browser 2/2 in 27,4 s.
+  Details: `docs/agent-work/finalization/dash-05-mail-accounts.md`.
+- **Offen**: DASH-05.05 mit zwei echten kontrollierten Testpostfaechern, DASH-05.06 Abbruch-/Timeout-Probe.

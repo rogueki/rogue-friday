@@ -237,6 +237,25 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   `pnpm lint` (0 Fehler), `pnpm typecheck`, `build:app` und Browser 2/2 in 33,2 s gruen
 - evidence_paths: `dash-05-email-wizard.md`; status: PASS fuer DASH-05.03
 - remaining_work: 05.04 Abnahme, 05.05 echte Testpostfaecher, 05.06 Abbruch-/Timeout-Probe
+### DASH-05.04
+
+- requirement_ids: DASH-05.04; predecessor: DASH-05.03
+- base_revision: `1f062cf`; result_revision: folgt mit dem Commit dieses Blocks
+- implementation_paths: `installer/wsl/mail_accounts.py`, `installer/wsl/tests/test_mail_accounts_bridge.py`
+  (neu), `apps/control-api/src/services/mail-accounts.ts`,
+  `apps/control-api/test/{mail-accounts-routes,mail-account-errors}.test.ts`,
+  `apps/web/src/features/communication/{MailCompose.tsx,MailCompose.test.tsx,HimalayaMailbox.test.tsx}`
+- test_command: `py -3.11 installer/wsl/tests/test_mail_accounts_bridge.py`,
+  `vitest --project node mail-accounts-routes mail-account-errors mail-bridge mail-action-intent`,
+  `vitest --project web MailCompose HimalayaMailbox`, volle web- und node-Laeufe, `pnpm lint`,
+  `pnpm typecheck`, `pnpm build:app`, `playwright test tests/e2e/mail-wizard.spec.ts`
+- expected: mehrere Konten ohne Vermischung, Alias als Absender, Ordner/UIDVALIDITY, Anhaenge und UTF-8,
+  Entwuerfe und Sent-Kopie, Lesen ohne stilles Als-gelesen-Markieren, Versandjournal und kein Doppelversand
+- observed: Bridge 24 Zusicherungen inklusive Lesemodus und echter Gegenproben; API-Routen 5 und
+  Fehlerabbildung 4; Compose 7 und Postfach-UI 3; web 84/666, node 2800 (60 skipped) gruen; lint 0 Fehler,
+  typecheck, build:app und Browser 2/2 in 27,4 s gruen
+- evidence_paths: `dash-05-mail-accounts.md`; status: PASS fuer DASH-05.04 (ohne echte Postfaecher)
+- remaining_work: 05.05 echte Testpostfaecher und Fehlererklaerung, 05.06 Abbruch/Timeout
 ### INS-06
 
 - requirement_ids: INS-06; predecessor: INS-02
