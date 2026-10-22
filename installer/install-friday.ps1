@@ -77,6 +77,8 @@ if ($GuiMode) {
 $script:DownloadTimeoutSeconds = 3600
 # Ereignisstrom fuer die GUI (Protokoll 2): eine JSON-Zeile je Ereignis, alter Text bleibt lesbar.
 . (Join-Path $PSScriptRoot 'lib\gui-protocol.ps1')
+# Job-Objekte: damit beendet ein Zeitlimit auch Enkelprozesse des eigenen Aufrufs (pip -> python).
+. (Join-Path $PSScriptRoot 'lib\job-object.ps1')
 # Ueberwachte Unterprozesse: hartes Zeitlimit und gezieltes Beenden genau des gestarteten Prozesses.
 . (Join-Path $PSScriptRoot 'lib\process-supervisor.ps1')
 
@@ -423,22 +425,44 @@ function Invoke-Pip([string]$Python, [string[]]$PipArgs, [string]$Label) {
                   'set RC=%ERRORLEVEL%',
                   ('> "' + $marker + '" echo %RC%')) -join "`r`n") + "`r`n"
     [IO.File]::WriteAllText($cmdFile, $cmdBody, [Text.Encoding]::Default)
-    $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c', "`"$cmdFile`"") -NoNewWindow -PassThru
+    # cmd startet python als Kindprozess. Ein Abbruch, der nur cmd beendet, liesse pip weiterlaufen und
+    # das venv halb geschrieben zurueck. Darum laeuft der gesamte Baum in einem Job-Objekt, das nur
+    # Prozesse dieses Aufrufs enthaelt.
+    $job = New-ProcessJob
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = 'cmd.exe'
+    $startInfo.Arguments = '/c "' + $cmdFile + '"'
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $proc = $null
+    try { $proc = [System.Diagnostics.Process]::Start($startInfo) } catch { }
+    if (-not $proc) { Close-ProcessJob $job; Remove-Item -LiteralPath $cmdFile -Force -ErrorAction SilentlyContinue; return 1 }
+    if ($job -ne [IntPtr]::Zero) { [void](Add-ProcessToJob $job $proc) }
     $start = Get-Date
+    $aborted = $false
     while (-not (Test-Path -LiteralPath $marker)) {
         $mins = [math]::Floor(((Get-Date) - $start).TotalMinutes)
         Write-Host ("`r  laeuft weiter ... {0} min" -f $mins).PadRight(48) -NoNewline
         if ($proc.HasExited -and (Test-Path -LiteralPath $marker)) { break }
         if (Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId) {
-            # Gezielt nur den gestarteten Prozess beenden; kein taskkill /T, das fremde Kinder mitreisst.
-            try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch { }
-            Confirm-NotCancelled
+            $aborted = $true
+            break
         }
-        if (((Get-Date) - $start).TotalMinutes -gt 120) { break }
+        if (((Get-Date) - $start).TotalMinutes -gt 120) { $aborted = $true; break }
         Start-Sleep -Seconds 5
     }
+    if ($aborted) {
+        # Der Job nimmt Enkelprozesse mit; ohne Job bleibt es beim gezielten Beenden von cmd.
+        if (-not (Stop-ProcessJob $job)) {
+            try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch { }
+        }
+        try { $proc.WaitForExit(5000) | Out-Null } catch { }
+    }
+    Close-ProcessJob $job
     Write-Host ("`r  abgeschlossen nach {0} s" -f [math]::Round(((Get-Date) - $start).TotalSeconds)).PadRight(48)
     Remove-Item -LiteralPath $cmdFile -Force -ErrorAction SilentlyContinue
+    # Ein Abbruch wirkt hier als Abbruch des Laufs, nicht als pip-Fehler mit falscher Ursache.
+    if ($aborted) { Confirm-NotCancelled; return 1 }
     if (-not (Test-Path -LiteralPath $marker)) { return 1 }
     $code = 1
     try { $code = [int](Get-Content -LiteralPath $marker -Raw).Trim() } catch { $code = 1 }

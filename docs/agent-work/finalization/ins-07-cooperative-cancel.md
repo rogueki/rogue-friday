@@ -112,3 +112,35 @@ Gegenprobe: mit entfernter Pruefung in `Wait-Http` scheitert der Test mit "Abbru
 die Datei wurde danach byte-identisch wiederhergestellt (SHA256 verglichen).
 
 Gesamtstand: **25/25 Installer-Tests Exit 0** (vorher 24).
+## 6. Nachtrag 2026-10-22: Enkelprozesse im Job-Objekt
+
+`Invoke-Pip` startete `cmd.exe`, das seinerseits `python.exe` startet. Ein Abbruch beendete nur `cmd.exe`;
+`python` lief als Waise weiter und schrieb das venv halb fertig - der Abbruch war damit nur scheinbar wirksam
+(N-031). Dieselbe Luecke hatten alle ueberwachten Aufrufe (`Invoke-SupervisedProcess`,
+`Invoke-CapturedProcess`).
+
+Neu ist `installer/lib/job-object.ps1`: `New-ProcessJob`, `Add-ProcessToJob`, `Stop-ProcessJob`,
+`Close-ProcessJob`. Das Job-Objekt traegt `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, damit auch ein abgestuerzter
+Installer keine Reste hinterlaesst. Ein Job enthaelt ausschliesslich Prozesse, die dieser Aufruf selbst
+gestartet hat - fremde Prozesse und die WSL-Distribution bleiben unberuehrt. Ohne Job-Unterstuetzung faellt der
+Code auf das gezielte Beenden des direkten Prozesses zurueck.
+
+**Nachweise (PASS):**
+
+| Test | Inhalt |
+| --- | --- |
+| `job-tree.Tests.ps1` | Zeitlimit und Abbruchbitte beenden den echten Baum (powershell -> ping); Gegenprobe ohne Job zeigt, dass der Enkel sonst weiterlebt; Bibliothek selbst (Handle, Zuordnung, Beenden, Schliessen) |
+| `pip-cancel.Tests.ps1` | echte `Invoke-Pip`-Funktion mit Stellvertreter-Interpreter: Kontrolllauf schreibt die Markierung, abgebrochener Lauf nicht; kein ping-Kind bleibt zurueck; pip-Ereignis wird gemeldet |
+| `process-supervisor.Tests.ps1`, `wsl-timeout.Tests.ps1` | laden jetzt auch die Job-Bibliothek und pruefen die Verdrahtung (Job anlegen, zuordnen, beenden, Handle freigeben) |
+
+Gegenproben: ohne `New-ProcessJob` in `Invoke-Pip` scheitert `pip-cancel` mit "Nach dem Abbruch lief der
+pip-Baum weiter und schrieb sein Ergebnis."; die Datei wurde byte-identisch wiederhergestellt (SHA256).
+
+Gesamtstand: **27/27 Installer-Tests Exit 0** (vorher 25).
+
+## 7. Nachtrag 2026-10-22: fehlende Byte-Order-Marken
+
+`installer/scripts/update-memory-bridge.ps1` und `installer/scripts/update-voice-personas.ps1` enthielten
+Nicht-ASCII-Zeichen ohne UTF-8-BOM. PowerShell 5.1 liest solche Dateien als ANSI, wodurch Umlaute in
+Ausgaben und Pfaden verstuemmelt werden (N-032). Beide Dateien sind jetzt UTF-8 mit BOM; `ParseFile` meldet
+fuer beide keine Fehler mehr.

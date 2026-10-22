@@ -3,6 +3,8 @@
 $ErrorActionPreference = 'Stop'
 $lib = Join-Path $PSScriptRoot '..\lib\process-supervisor.ps1'
 . $lib
+# Job-Objekte gehoeren zum echten Aufbau des Supervisors (Enkelprozesse beenden).
+. (Join-Path $PSScriptRoot '..\lib\job-object.ps1')
 
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ("friday supervisor-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
 try {
@@ -65,8 +67,13 @@ try {
     if ($downloadBody -notmatch 'CancelCheck') { throw 'Download prueft die Abbruchbitte waehrend des Laufs nicht.' }
     if ($downloadBody -notmatch 'TimedOut') { throw 'Download meldet ein Zeitlimit nicht.' }
     if ($downloadBody -match 'curl\.exe.*\n.*\$LASTEXITCODE') { throw 'Download startet curl weiterhin unueberwacht.' }
-    $pipBody = $body.Substring($body.IndexOf('function Invoke-Pip(', [StringComparison]::Ordinal), 2000)
-    if ($pipBody -notmatch 'Stop-Process -Id \$proc\.Id') { throw 'pip beendet bei Abbruch nicht gezielt seinen Prozess.' }
+    $pipBody = $body.Substring($body.IndexOf('function Invoke-Pip(', [StringComparison]::Ordinal), 3600)
+    # pip laeuft jetzt in einem Job-Objekt: der Abbruch beendet den ganzen Aufruf (cmd + python), ohne
+    # fremde Prozesse anzutasten. Der gezielte Griff auf cmd bleibt nur der Rueckfall ohne Job-Unterstuetzung.
+    if ($pipBody -notmatch 'New-ProcessJob') { throw 'pip laeuft nicht in einem Job-Objekt.' }
+    if ($pipBody -notmatch 'Add-ProcessToJob') { throw 'pip ordnet den Prozess dem Job nicht zu.' }
+    if ($pipBody -notmatch 'Stop-ProcessJob') { throw 'pip beendet den Job bei Abbruch nicht.' }
+    if ($pipBody -notmatch 'Close-ProcessJob') { throw 'pip gibt das Job-Handle nicht frei.' }
     if ($pipBody -match 'taskkill\.exe') { throw 'pip beendet weiterhin den ganzen Baum.' }
 
     Write-Host 'Ueberwachte Unterprozesse: PASS'

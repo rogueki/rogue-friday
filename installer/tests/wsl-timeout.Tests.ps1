@@ -4,6 +4,8 @@
 $ErrorActionPreference = 'Stop'
 $lib = Join-Path $PSScriptRoot '..\lib\process-supervisor.ps1'
 . $lib
+# Job-Objekte gehoeren zum echten Aufbau des Supervisors (Enkelprozesse beenden).
+. (Join-Path $PSScriptRoot '..\lib\job-object.ps1')
 $script = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '..\install-friday.ps1'))
 $cmd = Join-Path $env:SystemRoot 'System32\cmd.exe'
 

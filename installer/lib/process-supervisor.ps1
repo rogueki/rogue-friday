@@ -57,7 +57,16 @@ function Invoke-SupervisedProcess {
     if (-not $process) { return $result }
     $result.Started = $true
     $result.Pid = $process.Id
-    $deadline = if ($TimeoutSeconds -gt 0) { $started.AddSeconds($TimeoutSeconds) } else { [datetime]::MaxValue }
+    # Der Job haelt den gesamten Aufruf zusammen; ohne Job-Bibliothek bleibt es beim gezielten Beenden.
+    $job = [IntPtr]::Zero
+    $jobApi = [bool](Get-Command New-ProcessJob -ErrorAction SilentlyContinue) -and
+        [bool](Get-Command Add-ProcessToJob -ErrorAction SilentlyContinue) -and
+        [bool](Get-Command Stop-ProcessJob -ErrorAction SilentlyContinue) -and
+        [bool](Get-Command Close-ProcessJob -ErrorAction SilentlyContinue)
+    if ($jobApi) {
+        $job = New-ProcessJob
+        if ($job -ne [IntPtr]::Zero) { [void](Add-ProcessToJob $job $process) }
+    }    $deadline = if ($TimeoutSeconds -gt 0) { $started.AddSeconds($TimeoutSeconds) } else { [datetime]::MaxValue }
     while (-not $process.HasExited) {
         if ($CancelCheck -and (& $CancelCheck)) { $result.Cancelled = $true; break }
         if ((Get-Date) -ge $deadline) { $result.TimedOut = $true; break }
@@ -65,8 +74,12 @@ function Invoke-SupervisedProcess {
         Start-Sleep -Milliseconds ([math]::Max(50, $PollMilliseconds))
     }
     if ($result.Cancelled -or $result.TimedOut) {
-        # Nur der gestartete Prozess wird beendet; sein PID gehoert nachweislich zu diesem Aufruf.
-        try { Stop-Process -Id $process.Id -Force -ErrorAction Stop } catch { }
+        # Ein Zeitlimit oder eine Abbruchbitte gilt fuer den ganzen Aufruf: Werkzeuge wie pip starten
+        # eigene Kinder (python), die ein Beenden nur des direkten Prozesses als Waise zurueckliesse.
+        # Der Job enthaelt ausschliesslich Prozesse dieses Aufrufs - fremde bleiben unberuehrt.
+        if (-not $jobApi -or -not (Stop-ProcessJob $job)) {
+            try { Stop-Process -Id $process.Id -Force -ErrorAction Stop } catch { }
+        }
         try { $process.WaitForExit(5000) | Out-Null } catch { }
     }
     if ($process.HasExited) {
@@ -76,6 +89,7 @@ function Invoke-SupervisedProcess {
     }
     $result.Seconds = [int]((Get-Date) - $started).TotalSeconds
     try { $process.Dispose() } catch { }
+    if ($jobApi -and $job -ne [IntPtr]::Zero) { Close-ProcessJob $job }
     return $result
 }
 function Invoke-CapturedProcess {
@@ -116,7 +130,16 @@ function Invoke-CapturedProcess {
     if (-not $process) { return $result }
     $result.Started = $true
     $result.Pid = $process.Id
-    # Asynchron lesen, sonst blockiert ein voller Pipe-Puffer den Kindprozess.
+    # Der Job haelt den gesamten Aufruf zusammen; ohne Job-Bibliothek bleibt es beim gezielten Beenden.
+    $job = [IntPtr]::Zero
+    $jobApi = [bool](Get-Command New-ProcessJob -ErrorAction SilentlyContinue) -and
+        [bool](Get-Command Add-ProcessToJob -ErrorAction SilentlyContinue) -and
+        [bool](Get-Command Stop-ProcessJob -ErrorAction SilentlyContinue) -and
+        [bool](Get-Command Close-ProcessJob -ErrorAction SilentlyContinue)
+    if ($jobApi) {
+        $job = New-ProcessJob
+        if ($job -ne [IntPtr]::Zero) { [void](Add-ProcessToJob $job $process) }
+    }    # Asynchron lesen, sonst blockiert ein voller Pipe-Puffer den Kindprozess.
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
     $stderrTask = $process.StandardError.ReadToEndAsync()
     if ($startInfo.RedirectStandardInput) {
@@ -132,7 +155,10 @@ function Invoke-CapturedProcess {
         Start-Sleep -Milliseconds ([math]::Max(50, $PollMilliseconds))
     }
     if ($result.Cancelled -or $result.TimedOut) {
-        try { Stop-Process -Id $process.Id -Force -ErrorAction Stop } catch { }
+        # Auch hier gilt das Zeitlimit fuer den ganzen Aufruf; ohne Job bleibt es beim direkten Prozess.
+        if (-not $jobApi -or -not (Stop-ProcessJob $job)) {
+            try { Stop-Process -Id $process.Id -Force -ErrorAction Stop } catch { }
+        }
         try { $process.WaitForExit(5000) | Out-Null } catch { }
     }
     if ($process.HasExited) {
@@ -144,5 +170,6 @@ function Invoke-CapturedProcess {
     }
     $result.Seconds = [int]((Get-Date) - $started).TotalSeconds
     try { $process.Dispose() } catch { }
+    if ($jobApi -and $job -ne [IntPtr]::Zero) { Close-ProcessJob $job }
     return $result
 }
