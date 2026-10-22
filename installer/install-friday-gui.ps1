@@ -607,6 +607,7 @@ $timer.Add_Tick({
         if ($script:configPath -and (Test-Path -LiteralPath $script:configPath)) { Remove-Item -LiteralPath $script:configPath -Force -ErrorAction SilentlyContinue }
         if ($exitCode -eq 0) { $status.Text = 'Installation abgeschlossen. Dashboard und Dienste wurden geprüft.' }
         elseif ($exitCode -eq 10) { $status.Text = 'Windows-Neustart erforderlich. Nach der Anmeldung öffnet sich dieser Assistent erneut.'; $reboot.Enabled = $true }
+        elseif ($exitCode -eq 20) { $status.Text = 'Es läuft bereits eine Installation. Bitte dort abschließen oder beenden; dieser Start hat nichts geändert.'; $retry.Enabled = $true }
         else { $status.Text = "Installation angehalten (Fehlercode $exitCode). Details prüfen, dann erneut versuchen."; $retry.Enabled = $true }
         $script:process.Dispose(); $script:process = $null
         $script:redactions = @()

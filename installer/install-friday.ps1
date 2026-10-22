@@ -69,6 +69,8 @@ if ($GuiMode) {
 }
 # Data-mode migration lives in its own module so installer/test/data-mode.test.ps1 can prove it without a full run.
 . (Join-Path $PSScriptRoot 'lib\data-mode.ps1')
+# Einzelinstanz: benannter Mutex plus Sperrdatei mit PID und Startzeit (Begruendung im Modul).
+. (Join-Path $PSScriptRoot 'lib\installer-lock.ps1')
 
 if ($GuiSimulation) {
     if (-not $GuiMode -or -not $GuiConfig.simulation -or $env:FRIDAY_GUI_TEST -ne '1') { throw 'Simulation nur im lokalen GUI-Testmodus.' }
@@ -148,6 +150,7 @@ function Stop-Install($text) {
     # Marker entfernen: ein -NoExit-Fenster hielt ihn mit lebendem PID, Watchdogs hielten den Installer
     # dadurch faelschlich fuer laufend.
     if ($ActiveFile) { Remove-Item -LiteralPath $ActiveFile -Force -ErrorAction SilentlyContinue }
+    Exit-InstallerLock $InstallerLock
     try { Stop-Transcript | Out-Null } catch { }
     if (-not $GuiMode) { Read-Host "  Enter zum Beenden" }
     exit 1
@@ -435,6 +438,29 @@ function Download($url, $file) {
     return $LASTEXITCODE -eq 0
 }
 function Sha256($file) { return (Get-FileHash $file -Algorithm SHA256).Hash.ToLower() }
+
+# ---------------------------------------------------------------- Einzelinstanz
+# Vor jeder Aenderung an Zustand, Aufgaben oder Diensten: zwei Laeufe duerfen den Fortschritt nicht
+# abwechselnd ersetzen. Der zweite Start aendert nichts und endet mit eigenem Exitcode, damit GUI und
+# geplante Aufgabe den Unterschied zwischen "laeuft schon" und "fehlgeschlagen" sehen.
+$InstallerMode = if ($UpdateDashboard) { 'update-dashboard' } elseif ($ChangeVoice) { 'change-voice' } elseif ($ChangeName) { 'change-name' } elseif ($GuiMode) { 'gui' } else { 'install' }
+$InstallerLock = Enter-InstallerLock -Root $Root -RunId ([string]$env:FRIDAY_INSTALL_RUN) -Mode $InstallerMode
+if (-not $InstallerLock.Acquired) {
+    Write-Host ""
+    Write-Host "  [BELEGT] Es laeuft bereits eine Installation." -ForegroundColor Yellow
+    Write-Host "  $(Format-InstallerLockHolder $InstallerLock.Holder)" -ForegroundColor Yellow
+    Write-Host "  Dieser Start wurde nicht begonnen; es wurde nichts geaendert." -ForegroundColor Yellow
+    # Kein Warten auf Eingabe bei -Resume: der Weg laeuft auch aus der geplanten Aufgabe, wo niemand
+    # Enter druecken kann. Doppelklick ohne -Resume behaelt die Pause, damit die Meldung lesbar bleibt.
+    if (-not $GuiMode -and -not $Resume) { Read-Host "  Enter zum Beenden" }
+    exit $script:InstallerAlreadyRunningExitCode
+}
+if ($InstallerLock.Stale) {
+    Warn ("Voriger Lauf (PID $($InstallerLock.Stale.pid)) endete ohne Aufraeumen; seine Schritte werden erneut geprueft.")
+}
+# Sicherheitsnetz fuer alle Ausgaenge (auch exit 10): die Datei verschwindet mit dem Prozess.
+$lockPathLiteral = "$($InstallerLock.Path)".Replace("'", "''")
+Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action ([scriptblock]::Create("Remove-Item '$lockPathLiteral' -Force -ErrorAction SilentlyContinue")) | Out-Null
 
 if (Get-ScheduledTask -TaskName $ResumeTask -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName $ResumeTask -Confirm:$false
@@ -921,9 +947,44 @@ if (-not $Resume -and -not $PSBoundParameters.ContainsKey('InstallRoot')) {
 # ---------------------------------------------------------------- Fortschritt
 $StateFile = "$Root\config\install-state.json"
 $State = @{ done = @() }
+function Read-InstallerState([string]$Path) {
+    # Liefert $null, wenn die Datei fehlt, leer, kein JSON-Objekt oder ohne done[] ist. Eine halb
+    # geschriebene Datei darf nie als "noch nichts erledigt" durchgehen, sonst beginnt die
+    # Installation von vorn und ueberschreibt vorhandene Schritte.
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+    try { $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 } catch { return $null }
+    if (-not $raw -or -not $raw.Trim()) { return $null }
+    try { $parsed = $raw | ConvertFrom-Json } catch { return $null }
+    if (-not $parsed -or $parsed -isnot [System.Management.Automation.PSCustomObject]) { return $null }
+    if (-not $parsed.PSObject.Properties['done']) { return $null }
+    return $parsed
+}
+function Import-InstallerState([string]$Path) {
+    # Source: 'live' (unveraendert gelesen), 'backup' (Sicherung wiederhergestellt), $null (nichts brauchbar).
+    $result = @{ State = $null; Source = $null; Damaged = $null }
+    $live = Read-InstallerState $Path
+    if ($live) { $result.State = $live; $result.Source = 'live'; return $result }
+    if (Test-Path -LiteralPath $Path -PathType Leaf) { $result.Damaged = $Path }
+    $backup = Read-InstallerState "$Path.bak"
+    if ($backup) {
+        # Die Sicherung ist der letzte vollstaendig geschriebene Stand; sie ersetzt die kaputte Datei,
+        # damit auch spaetere Laeufe wieder eine lesbare Grundlage haben.
+        Copy-Item -LiteralPath "$Path.bak" -Destination $Path -Force
+        $result.State = $backup
+        $result.Source = 'backup'
+    }
+    return $result
+}
 $ExistingState = Test-Path -LiteralPath $StateFile -PathType Leaf
 if ($ExistingState) {
-    (Get-Content $StateFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $State[$_.Name] = $_.Value }
+    $importedState = Import-InstallerState $StateFile
+    if (-not $importedState.State) {
+        Stop-Install "Der gespeicherte Fortschritt ist unlesbar ($StateFile) und auch die Sicherung $StateFile.bak hilft nicht. Bitte die Datei aus einer eigenen Sicherung zurueckholen; ohne Zustand wuerde die Installation von vorn beginnen."
+    }
+    if ($importedState.Source -eq 'backup') {
+        Warn "Der gespeicherte Fortschritt war unlesbar; die Sicherung $StateFile.bak wurde wiederhergestellt."
+    }
+    $importedState.State.PSObject.Properties | ForEach-Object { $State[$_.Name] = $_.Value }
 }
 function IsDone($n) { return @($State.done) -contains $n }
 function Test-TaskForInstallRoot($task) {
@@ -1032,6 +1093,9 @@ function Save-State {
     } else {
         [IO.File]::Move($temporary, $StateFile)
     }
+    # Sicherung des zuletzt vollstaendig geschriebenen Stands. Ohne sie waere eine durch
+    # Datentraegerfehler oder Fremdeingriff unlesbare Datei der Verlust des gesamten Fortschritts.
+    try { [IO.File]::Copy($StateFile, "$StateFile.bak", $true) } catch { }
 }
 function MarkDone($n) { $State.done = @(@($State.done) + $n | Select-Object -Unique); Save-State }
 if ($GuiMode -and -not (IsDone 'voicepython')) {
@@ -2648,6 +2712,7 @@ Info 'Nächste Schritte (Telegram, E-Mail, Kalender): siehe ANLEITUNG.md'
 if (-not $CustomRoot) { Show-MigrationSummary }
 if ($DashProbe.Up -and (YesNo 'Command Center jetzt im Browser öffnen?')) { Start-Process $DashUrl }
 elseif (-not $DashProbe.Up) { Start-Process "http://127.0.0.1:$($Ports.Dashboard)" }
+Exit-InstallerLock $InstallerLock
 Stop-Transcript | Out-Null
 if (-not $GuiMode) { Read-Host '  Enter zum Schließen' }
 if ($GuiMode -and -not $DashProbe.Up) { exit 1 }

@@ -1,6 +1,6 @@
 # Finalization progress — session handoff
 
-Last updated: 2026-10-21 23:05 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
+Last updated: 2026-10-22 13:20 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
 Read `baseline.md` first, then this page. Every status below is backed by a file in this folder.
 
 ## Status board
@@ -18,6 +18,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | INS-04 Stimmen | TEIL (drei Optionen + Dateipruefung, Hoerprobe offen) | `ins-04-voice-choice.md`, `voice-reference.Tests.ps1` |
 | INS-03 Anbieterfaehigkeiten | TEIL (Sonde+Katalogcheck, echte Authnachweise offen) | `ins-03-provider-capabilities.md`, `hermes_provider_auth.py`, `setup_hermes.sh`, `hermes_config_bridge.py` |
 | INS-02 Installer-Vertraege | PASS | `ins-02-installer-io.md`, `installer-io-contract.Tests.ps1`, `gui-installer.Tests.ps1` (Renderprobe 8 Reiter) |
+| INS-06 State/Resume/Mutex | TEIL (Sperre und Zustandssicherung belegt, Neustart-/Aufgabenkonflikt offen) | `ins-06-state-atomic.md` 6/7, `installer-lock.Tests.ps1`, `installer-single-instance.Tests.ps1`, `state-recovery.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
 | DASH-02 Vertraege | 02.01/02.02 PASS, 02.03/02.05 offen, 02.04 teilweise | `dash-02-contracts.md`, `authorization-contract.test.ts` (4 gruen), 176 Handler-/Event-Tests gruen |
 | DASH-04 Einstellungen ehrlich | 04.01/04.02 PASS, 04.04 Adapter-Haelfte PASS; 04.03/04.05 offen | `dash-04-settings.md`, `tests/e2e/settings-acceptance.spec.ts` (3 gruen), 92 Settings-Tests |
@@ -175,6 +176,26 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - remaining_work: 04.03 search over source/status needs the DASH-07 inventory; 04.04 needs a stack with a
   skills catalog and a Hermes bridge for the "two skills" half; 04.05 recovery drill
 
+### INS-06
+
+- requirement_ids: INS-06; predecessor: INS-02
+- implementation_paths: `installer/lib/installer-lock.ps1` (neu), `installer/install-friday.ps1`,
+  `installer/install-friday-gui.ps1`
+- test_command: `powershell -File installer/tests/installer-lock.Tests.ps1`,
+  `installer/tests/installer-single-instance.Tests.ps1`, `installer/tests/state-recovery.Tests.ps1`,
+  `installer/tests/state-atomic.Tests.ps1` und die uebrigen `installer/tests/*.Tests.ps1`
+- expected: ein zweiter Start aendert nichts und wird als solcher erkannt; eine wiederverwendete PID gilt nicht
+  als laufender Installer; eine tote Sperre blockiert nicht dauerhaft; ein unlesbarer Zustand kostet den
+  Fortschritt nicht
+- observed: Mutex `Global\FRIDAY-Installer` plus Sperrdatei mit PID/Startzeit; zwei echte Prozesse - genau einer
+  arbeitet, der andere nennt dessen PID; der echte Einstiegspunkt endet mit Exitcode 20 und schreibt weder
+  `resume.bat` noch Protokoll; nach dem Ende ist die Sperre sofort wieder frei; Negativkontrolle ohne `WaitOne`
+  laesst beide Prozesse parallel laufen; `install-state.json.bak` wird nach jedem Speichern geschrieben, eine
+  abgeschnittene oder strukturell falsche Datei wird aus der Sicherung wiederhergestellt, ohne Sicherung bricht
+  der Installer mit Klartext ab; 15/15 Installer-Tests Exit 0
+- evidence_paths: `ins-06-state-atomic.md`; status: TEIL
+- remaining_work: Fortsetzung mit identischer Distro/Location als echter Lauf, Konflikt mit
+  `FRIDAY_Installation_fortsetzen`, Wiederholbarkeit halb erledigter Schritte, systematische Parameterquotierung
 ## Next (in the order of master §8.1)
 
 1. **DASH-07.01/.02** — Hermes inventory (skills, accounts, sources, status) as the base for DASH-04.03 and

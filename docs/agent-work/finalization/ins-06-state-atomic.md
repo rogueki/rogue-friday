@@ -54,3 +54,59 @@ Geplanter Zuschnitt (lokal pruefbar, ohne Audio, Cloud oder WSL):
    blockiert (PID allein ist kein Beweis — PIDs werden wiederverwendet),
 3. Test: zwei gleichzeitige Prozesse, genau einer darf laufen, der andere bricht mit definiertem Exitcode ab;
    danach Sperre freigeben und erneuter Start besteht.
+
+## 6. Umsetzung 2026-10-22 (Runde 13): Sperre, Exitcode 20 und Zustandssicherung
+
+`installer/lib/installer-lock.ps1` (neu, vom Installer geladen):
+
+- `Enter-InstallerLock` nimmt einen benannten Mutex `Global\FRIDAY-Installer` mit 2 s Warteversuch; ohne
+  `SeCreateGlobalPrivilege` (nicht erhoehte Sitzung) faellt er auf `Local\FRIDAY-Installer` zurueck. Ein
+  abgestuerzter Vorbesitzer hinterlaesst eine "abandoned" Sperre, die Windows freigibt und die als Erfolg
+  gewertet wird - eine tote Sperre blockiert also nie dauerhaft.
+- Die Sperrdatei `run\installer.lock.json` traegt PID, Startzeit, Laufkennung, Art und InstallRoot. Der
+  zweite Start nennt damit den laufenden Prozess (PID, Startzeit) statt nur "belegt" zu melden.
+- `Test-InstallerLockHolderAlive` vergleicht PID **und** Startzeit (Toleranz 2 s): eine wiederverwendete PID
+  gilt nicht als laufender Installer.
+- Der zweite Start endet mit Exitcode 20 und aendert nichts; die GUI unterscheidet 20 ("Es laeuft bereits
+  eine Installation") von einem Fehler. Freigabe erfolgt in `Stop-Install`, am regulaeren Ende und ueber
+  das `PowerShell.Exiting`-Ereignis.
+
+Abweichung vom Zuschnitt oben: PID und Startzeit liegen in `run\installer.lock.json` statt in
+`install-state.json`. Grund: die Sperre muss **vor** dem Laden des Zustands stehen, und der unterlegene
+Prozess darf die Zustandsdatei des laufenden Laufs nicht beschreiben. Inhaltlich sind es dieselben Felder.
+
+Zustandssicherung (`Read-InstallerState` / `Import-InstallerState`, `Save-State`):
+
+- `Save-State` legt nach jedem erfolgreichen Ersetzen `install-state.json.bak` an (letzter vollstaendig
+  geschriebener Stand).
+- Beim Start wird die Datei geprueft: fehlt sie, ist sie leer, kein JSON-Objekt oder ohne `done[]`, wird die
+  Sicherung zurueckgespielt und die Wiederherstellung gemeldet. Ist auch die Sicherung unbrauchbar, bricht
+  der Installer mit Klartext ab, statt still von vorn zu beginnen (Fortschritt und Entscheidungen bleiben
+  erhalten).
+- Gueltiges JSON ohne `done[]` gilt ebenfalls als beschaedigt; ein halb geschriebener Zustand darf nie als
+  "noch nichts erledigt" durchgehen.
+
+Nachweise (alle in dieser Umgebung ausgefuehrt, Windows 11, Installer als PowerShell-5.1-Kindprozess):
+
+| Test | Inhalt | Ergebnis |
+|---|---|---|
+| `installer/tests/installer-lock.Tests.ps1` | Sperre nehmen/freigeben/erneut nehmen; Sperrdatei mit eigener PID und Startzeit; PID-Reuse (gleiche PID, andere Startzeit) und tote PID gelten nicht als Halter; zwei echte Prozesse: genau einer arbeitet, der andere nennt dessen PID; nach dem Ende sofort wieder frei; Verdrahtung im Installer vor Zustand/Migration/Aufgaben | PASS |
+| `installer/tests/installer-single-instance.Tests.ps1` | echter Einstiegspunkt: Halter haelt die Sperre, `install-friday.ps1 -InstallRoot "<Pfad mit Leerzeichen und Umlaut>" -UpdateDashboard` endet mit 20, meldet `[BELEGT]` samt Halter-PID und legt weder `resume.bat` noch Protokoll an; ohne Halter laeuft derselbe Aufruf bis zur erwarteten Pruefung (kein Fehlalarm) | PASS |
+| `installer/tests/state-recovery.Tests.ps1` | fehlende Datei, abgeschnittenes JSON, JSON ohne `done[]`, Wiederherstellung aus `.bak`, unbrauchbare Sicherung ergibt klares Ergebnis ohne erfundenen Zustand, Abbruchpfad im Installer | PASS |
+
+Negativkontrolle: mit einer Kopie des Moduls ohne `WaitOne` (Sperre wirkungslos) arbeiten beide Prozesse
+gleichzeitig (`A=True B=True`) - der Zwei-Prozess-Test ist also nicht leer.
+
+Alle 15 Installer-Tests gruen (`installer/tests/*.Tests.ps1`, Exit 0), inklusive der zuvor bestehenden
+`state-atomic`, `gui-installer`, `gui-run-tracker`, `installer-io-contract`, `voice-reference`.
+
+## 7. Offen in INS-06
+
+- Fortsetzung nach Abbruch mit identischer Distro/Location als echter Lauf (der Code traegt beides im Zustand
+  und bricht bei Abweichung ab; ein Nachweis am Einstiegspunkt fehlt).
+- Konflikt mit der geplanten Aufgabe `FRIDAY_Installation_fortsetzen` (Start waehrend eines laufenden
+  Installers) ist nicht separat belegt.
+- Ruecksetzen halb erledigter Schritte: derzeit laufen Schritte ohne `done` erneut; ob jeder Schritt dabei
+  wiederholbar ist (Distro-Anlage, Enrollment, Voice-Dateien), ist nicht je Schritt geprueft.
+- Parameterquotierung fuer Roots mit Leerzeichen/Umlaut ist im Einzelinstanz-Test mitgetestet, aber nicht
+  systematisch (Anfuehrungszeichen, `&`, sehr lange Pfade).

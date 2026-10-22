@@ -484,3 +484,27 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
 - **Nachweis**: `installer/tests/state-atomic.Tests.ps1` (neu) prueft vollstaendigen Inhalt, Ersetzen statt
   Anhaengen und das Fehlen von Restdateien.
 - **Offen**: Mutex gegen Parallellauf, Konflikte mit der geplanten Aufgabe, Ruecksetzen halb erledigter Schritte.
+
+## 2026-10-22 INS-06 (Teil) Installer-Einzelinstanz und Zustandssicherung
+
+- **N-016 behoben**: `install-friday.ps1` hatte keine eigene Sperre; belegt war nur ein Kommentar, der den
+  Launchern Mutexe zuschrieb (die Dienst-Launcher halten tatsaechlich `Local\FRIDAY_*Launcher`, der Installer
+  selbst keinen). Zwei Laeufe (Assistent und geplante Aufgabe oder ein zweiter Doppelklick) konnten den Zustand
+  abwechselnd ersetzen - die Schrittmarken vermischten sich, der letzte Lauf gewann.
+  Neu: `installer/lib/installer-lock.ps1` mit benanntem Mutex `Global\FRIDAY-Installer` (2 s Warteversuch,
+  Fallback `Local\` ohne Global-Privileg), Sperrdatei `run\installer.lock.json` mit PID, Startzeit,
+  Laufkennung, Art und InstallRoot, Stale-Erkennung ueber PID **und** Startzeit (PID-Reuse), Exitcode 20 fuer den
+  zweiten Start, GUI-Meldung fuer 20, Freigabe in `Stop-Install`, am regulaeren Ende und per
+  `PowerShell.Exiting`-Ereignis.
+- **N-017 behoben**: eine unlesbare `install-state.json` lief ungeschuetzt durch `ConvertFrom-Json`; je nach
+  Schaeden kam ein Fehlerabbruch oder ein Zustand ohne `done[]` - also ein Neustart von vorn - heraus.
+  Neu: `install-state.json.bak` nach jedem erfolgreichen Speichern, `Read-InstallerState`/`Import-InstallerState`
+  mit struktureller Pruefung, Wiederherstellung aus der Sicherung mit Meldung, sonst Abbruch mit Klartext.
+- **Nachweis**: `installer/tests/installer-lock.Tests.ps1` (zwei echte Prozesse, PID-Reuse, Verdrahtung),
+  `installer/tests/installer-single-instance.Tests.ps1` (echter Einstiegspunkt mit Halter-Prozess und
+  InstallRoot mit Leerzeichen/Umlaut: Exitcode 20, keine Aenderung; ohne Halter kein Fehlalarm) und
+  `installer/tests/state-recovery.Tests.ps1` (Wiederherstellung und Abbruchpfad). 15/15 Installer-Tests Exit 0.
+  Negativkontrolle ohne `WaitOne` laesst beide Prozesse gleichzeitig arbeiten - der Test ist nicht leer.
+- **Offen in INS-06**: Fortsetzung mit identischer Distro/Location als echter Lauf, Konflikt mit der geplanten
+  Aufgabe `FRIDAY_Installation_fortsetzen`, Wiederholbarkeit jedes halb erledigten Schritts, systematische
+  Parameterquotierung.

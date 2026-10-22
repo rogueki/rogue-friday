@@ -27,7 +27,10 @@ try {
     if (@($again.done) -notcontains 'wslfeature' -or $again.voice_choice -ne 'friday-female') { throw 'Zweites Speichern hat den Zustand nicht ersetzt.' }
     if (@($again.done).Count -ne 3) { throw 'Doppelte oder fehlende Schritte im Zustand.' }
     if (Test-Path -LiteralPath "$($script:StateFile).tmp") { throw 'Temporaerdatei blieb nach dem Ersetzen liegen.' }
-    if (@(Get-ChildItem -LiteralPath (Split-Path -Parent $script:StateFile)).Count -ne 1) { throw 'Es liegen mehrere Zustandsdateien herum.' }
+    $files = @(Get-ChildItem -LiteralPath (Split-Path -Parent $script:StateFile) | Select-Object -ExpandProperty Name | Sort-Object)
+    if (($files -join ',') -ne 'install-state.json,install-state.json.bak') { throw "Unerwartete Dateien neben dem Zustand: $($files -join ', ')" }
+    $backup = Get-Content -LiteralPath "$($script:StateFile).bak" -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (@($backup.done).Count -ne 3 -or $backup.voice_choice -ne 'friday-female') { throw 'Sicherung entspricht nicht dem zuletzt gespeicherten Zustand.' }
     Write-Host 'Atomarer Installationszustand: PASS'
 } finally {
     $resolved = [IO.Path]::GetFullPath($fixture)
