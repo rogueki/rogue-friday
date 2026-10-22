@@ -673,6 +673,8 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   nachgebaut) und `contract-version-compat.test.ts` (4 Tests); Node-Suite mit `--maxWorkers=2` gruen, `tsc` 0 Fehler.
 - Hinweis fuer Folgesessions: die Node-Suite nur mit `--maxWorkers=2` fahren; mit voller Parallelitaet laufen
   bekannte Integrationstests in ihr 5-Sekunden-Zeitlimit (keine Regression, siehe `dash-02-migration-recovery.md`).
+  Dasselbe gilt fuer `--project web`: mit voller Parallelitaet laufen `approvals.test.tsx` und
+  `ContentStudioPage.test.tsx` in ihr Zeitlimit (einzeln 26/26 gruen), deshalb auch dort `--maxWorkers=2`.
 
 ## 2026-10-22 DASH-02.03/02.04 Vertraege abgeschlossen
 
