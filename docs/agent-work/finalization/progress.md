@@ -1,6 +1,6 @@
 # Finalization progress — session handoff
 
-Last updated: 2026-10-22 17:55 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
+Last updated: 2026-10-22 18:58 (Europe/Paris). Branch `feat/friday-finalization-20261021`, base `e98cbf5`.
 Read `baseline.md` first, then this page. Every status below is backed by a file in this folder.
 
 ## Status board
@@ -25,6 +25,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | INS-04 Stimmplaetze | TEIL (Kette komplett verdrahtet und strukturell belegt; es fehlen Audio-Messung und echter Installationslauf mit Option 3 -> INS-13) | `ins-04-voice-slots.md` 6 |
 | INS-08 Assistentenoberflaeche | TEIL (Layoutvertrag, Originalbild per Hash, rechte Flaeche mit 94 %, Kontrast am gerenderten Fenster gemessen, acht Seiten auf dem Rahmen, genau ein Balken, Details im Dialog, Skalierung 125/150/200 % am gezeichneten Fenster gemessen, Tastaturdurchlauf je Seite) | `ins-08-wizard-surface.md` 2-7, `gui-shell-layout.Tests.ps1`, `gui-wizard-pages.Tests.ps1`, `gui-dpi.Tests.ps1` |
 | INS-09 Grafische Aufnahme | TEIL (Aufnahme fordert jede Aktion als Datei an; Assistentenseite mit Aufforderung, Fortschritt, "Jetzt sprechen", "Anhören", "Überspringen" und Abbruch; Wiederaufnahme je Block; Profil vor der Aufnahme mit Pruefsummen gesichert; echte Mikrofonaufnahme offen) | `ins-09-voice-enrollment.md`, `gui-interaction.Tests.ps1`, `voice-profile-backup.Tests.ps1`, `gui-wizard-pages.Tests.ps1` (Selbsttest interaction=visible:True ok:True), `test_gui_interaction.py` |
+| INS-10 Installerregressionen | PASS (wslpath-Filterung, 503 als Laden, Keepalive als Prozess, 900/120/60/3600 s getrennt, Pruefsummen mit Loeschung, Kindprozess-PATH, WSL-Update begrenzt und abschaltbar; je Regression eine isolierte Probe) | `ins-10-installer-regressions.md`, `installer-regressions.Tests.ps1` (60), `wsl-timeout.Tests.ps1`, `warmup-cancel.Tests.ps1` |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
@@ -299,6 +300,26 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - evidence_paths: `ins-09-voice-enrollment.md`; status: TEIL (echte Mikrofonaufnahme offen, N-037)
 - remaining_work: Aufnahme mit Geraet und hoerbarem Start, erzeugte Modelle/Embeddings, Wake-Phrase gegen
   die Metadaten; danach INS-10
+
+
+### INS-10
+
+- requirement_ids: INS-10; predecessor: INS-05, INS-06, INS-09
+- base_revision: `9198cdf`; result_revision: working tree (commit follows)
+- write_scope: `installer/` (lib, tests, install-friday.ps1), `docs/agent-work/finalization/`
+- implementation_paths: `installer/lib/wait-http.ps1`, `installer/lib/wsl-keepalive.ps1`,
+  `installer/lib/download-integrity.ps1`, `installer/lib/wsl-path.ps1`, `installer/install-friday.ps1`
+- test_command: `powershell -NoProfile -ExecutionPolicy Bypass -File installer/tests/installer-regressions.Tests.ps1`,
+  `... installer/tests/wsl-timeout.Tests.ps1`, `... installer/tests/warmup-cancel.Tests.ps1`, alle
+  `installer/tests/*.Tests.ps1`
+- expected: jede Regression einzeln nachweisbar; fremde WSL-Konfiguration, Ports und Aufgaben unveraendert;
+  Download und Dienstbereitschaft getrennt diagnostizierbar
+- observed: 60 Zusicherungen PASS (echter HTTP-Server, echter `cmd /c where`-Kindprozess, Pruefsummen,
+  Zeitfenster), Gegenprobe 503 -> Exit 1 und byte-identisch wiederhergestellt, Installer-Suite 33/33 in 453 s,
+  laufende Control API antwortet `ready`
+- evidence_paths: `ins-10-installer-regressions.md`; status: PASS
+- remaining_work: reale Beobachtung der Fenster unter Last gehoert zu INS-13; echter haengender Download
+  bleibt bei INS-07
 
 ## Open risks / notes for the next session
 

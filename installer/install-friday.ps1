@@ -16,7 +16,7 @@
 #>
 param([switch]$Resume, [switch]$ChangeName, [switch]$ChangeVoice, [switch]$UpdateDashboard,
       [string]$InstallRoot = 'C:\Friday', [string]$DistroName = '', [string]$DistroLocation = '',
-      [string]$GuiConfigPath = '', [switch]$GuiSimulation)
+      [string]$GuiConfigPath = '', [switch]$GuiSimulation, [switch]$SkipWslUpdate)
 
 if ($InstallRoot -notmatch '^[A-Za-z]:\\[^<>:"|?*]+$' -or $InstallRoot -match '[\\/]\.\.?([\\/]|$)|[\x00-\x1F]' -or
     ([bool]$DistroName -ne [bool]$DistroLocation) -or
@@ -77,6 +77,14 @@ if ($GuiMode) {
 . (Join-Path $PSScriptRoot 'lib\gui-interaction.ps1')
 # Sicherung des Stimmprofils vor einer erneuten Aufnahme (Manifest mit Pruefsummen).
 . (Join-Path $PSScriptRoot 'lib\voice-profile-backup.ps1')
+# Bereitschaft eines lokalen Dienstes: 503 ("Loading model") ist Laden, nicht Fehler.
+. (Join-Path $PSScriptRoot 'lib\wait-http.ps1')
+# Keepalive zaehlt nur als echter wsl.exe-Prozess, nicht als "bereit"-Aufgabe.
+. (Join-Path $PSScriptRoot 'lib\wsl-keepalive.ps1')
+# Pruefsummen geladener Dateien: falsche Datei wird geloescht statt weiterverwendet.
+. (Join-Path $PSScriptRoot 'lib\download-integrity.ps1')
+# Auswertung der wslpath-Antwort: Warnzeilen filtern, erst danach den Exitcode bewerten.
+. (Join-Path $PSScriptRoot 'lib\wsl-path.ps1')
 # Zeitlimit je Download: ein haengender Abruf soll nicht bis zum Stillstandsalarm laufen.
 $script:DownloadTimeoutSeconds = 3600
 # Ereignisstrom fuer die GUI (Protokoll 2): eine JSON-Zeile je Ereignis, alter Text bleibt lesbar.
@@ -351,13 +359,14 @@ function Get-WslPath([string]$WindowsPath, [switch]$Soft) {
         if ($Soft) { return $null }
         Stop-Install "WSL reagiert nicht auf die Pfadumwandlung (Zeitlimit 60 s): $WindowsPath"
     }
-    # Erste Zeile, die ein Linux-Pfad ist (WSL stellt ggf. Warnungen voran).
-    $linuxPath = @("$($run.StdOut)" -split "`r?`n") | Where-Object { "$_".Trim().StartsWith('/') } | Select-Object -First 1
+    # Vollstaendige Ausgabe auswerten, erst danach den Exitcode: WSL stellt Warnungen voran und
+    # beendet sich trotzdem mit 0 - die erste Zeile ist nicht automatisch der Pfad.
+    $linuxPath = Select-WslPathOutput (Split-WslOutput "$($run.StdOut)")
     if ($run.ExitCode -ne 0 -or -not $linuxPath) {
         if ($Soft) { return $null }
         Stop-Install "WSL kann den Installationspfad nicht einbinden: $WindowsPath"
     }
-    return "$linuxPath".Trim()
+    return [string]$linuxPath
 }
 function Assert-CustomDistroLocation {
     $registration = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss' -ErrorAction SilentlyContinue |
@@ -370,34 +379,21 @@ function Wait-Http($url, $seconds, $headers = @{}) {
     # Bewusst ohne Invoke-WebRequest: waehrend des Modellstarts antwortet der Server erwartbar mit
     # HTTP 503 ({"error":{"message":"Loading model"}}), und PowerShell schrieb diese Fehlversuche als
     # "PS>TerminatingError(Invoke-WebRequest): ..." ins Transcript - das sah wie ein Abbruch aus.
-    $until = (Get-Date).AddSeconds($seconds)
-    while ((Get-Date) -lt $until) {
-        # Modell- und Sprachstart warten hier bis zu mehrere Minuten: ohne diese Pruefung wirkte eine
-        # Abbruchbitte erst nach dem Warmup, obwohl sie sofort gemeint ist.
-        Confirm-NotCancelled
-        $response = $null
-        try {
-            $request = [Net.WebRequest]::Create($url)
-            $request.Method = 'GET'
-            $request.Timeout = 3000
-            $request.Proxy = $null
-            foreach ($name in $headers.Keys) { $request.Headers[$name] = $headers[$name] }
-            $response = $request.GetResponse()
-            return $true
-        } catch {
-            Start-Sleep 3
-        } finally {
-            if ($response) { $response.Close() }
-        }
+    # 503 zaehlt deshalb als "laedt" und wird getrennt von "nicht erreichbar" gemeldet.
+    $result = Wait-HttpEndpoint -Url $url -Seconds $seconds -Headers $headers -PollSeconds 3 `
+        -CancelCheck { Confirm-NotCancelled }
+    if ($result.Ok) { return $true }
+    if ($result.Classification -eq 'loading') {
+        Warn "Dienst antwortet nach $($result.Seconds) s weiterhin mit HTTP 503 (laedt noch): $url"
+    } else {
+        Warn "Dienst nicht erreichbar nach $($result.Seconds) s ($($result.Classification)): $url"
     }
     return $false
 }
 function Test-WslKeepalive {
-    $procs = Get-CimInstance Win32_Process -Filter "Name='wsl.exe'" -ErrorAction SilentlyContinue
-    foreach ($proc in $procs) {
-        if ($proc.CommandLine -match [regex]::Escape("-d $Distro ") -and $proc.CommandLine -match 'sleep\s+infinity') { return $true }
-    }
-    return $false
+    # Nur ein laufender wsl.exe-Prozess mit "sleep infinity" haelt die VM wach; eine eingerichtete Aufgabe
+    # kann "bereit" melden, ohne dass die VM laeuft (Regression 2026-10-21).
+    return ((Get-WslKeepaliveProcess -Distro $Distro).Count -gt 0)
 }
 function Assert-WslKeepalive {
     # Ohne laufenden Keepalive faehrt die WSL-VM nach ~60 s Idle herunter und reisst den gerade
@@ -1575,7 +1571,18 @@ if (-not (IsDone 'wslfeature')) {
         if ($GuiMode) { exit 10 }
         exit
     }
-    Native { wsl.exe --update } | Out-Null
+    # WSL-Update nur, wenn es nicht abgeschaltet wurde, mit Zeitlimit und ohne Abbruch des Laufs:
+    # eine alte, aber funktionierende WSL darf die Installation nicht blockieren (Regression 2026-10-22).
+    if ($SkipWslUpdate) {
+        Info 'WSL-Update uebersprungen (--SkipWslUpdate).'
+    } else {
+        $updateRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--update') -TimeoutSeconds 600
+        if ($updateRun.TimedOut) {
+            Warn 'WSL-Update nach 600 s abgebrochen; die vorhandene WSL bleibt in Benutzung.'
+        } elseif ($updateRun.ExitCode -ne 0) {
+            Warn "WSL-Update meldete Exitcode $($updateRun.ExitCode); die vorhandene WSL bleibt in Benutzung."
+        }
+    }
     $versionRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--version') -TimeoutSeconds 120
 Ok "WSL bereit: $(@("$($versionRun.StdOut)" -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 1))"
     MarkDone 'wslfeature'
@@ -1917,7 +1924,7 @@ if (-not (IsDone 'qwen')) {
     foreach ($a in $assets) {
         $zip = "$Root\cache\$($a.name)"
         if (-not (Download $a.browser_download_url $zip)) { Stop-Install "Download fehlgeschlagen: $($a.name)" }
-        if ($a.digest -and ("sha256:" + (Sha256 $zip)) -ne $a.digest) { Remove-Item $zip -Force; Stop-Install "Prüfsumme falsch: $($a.name) - Datei gelöscht, erneut starten." }
+        if ($a.digest -and -not (Assert-FileSha256 $zip $a.digest "Archiv $($a.name)")) { Stop-Install "Prüfsumme falsch: $($a.name) - Datei gelöscht, erneut starten." }
         Expand-Archive $zip -DestinationPath "$Root\llama.cpp" -Force
         Ok "$($a.name) ($($rel.tag_name)) geprüft und entpackt"
     }
@@ -1925,7 +1932,7 @@ if (-not (IsDone 'qwen')) {
     New-Item -ItemType Directory -Force (Split-Path $model) | Out-Null
     Info 'Lade Qwen3-4B (2,5 GB) …'
     if (-not (Download 'https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf' $model)) { Stop-Install 'Qwen-Download fehlgeschlagen.' }
-    if ((Sha256 $model) -ne '7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5') { Remove-Item $model; Stop-Install 'Qwen-Prüfsumme falsch – erneut starten.' }
+    if (-not (Assert-FileSha256 $model '7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5' 'Qwen-Modell')) { Stop-Install 'Qwen-Prüfsumme falsch – erneut starten.' }
     Ok 'Qwen3-4B geprüft'
     $ctx = if ($gpu.nvidia -and [int]$gpu.vram_mb -gt 7000) { 8192 } else { 4096 }
     $layers = if ($gpu.nvidia) { 99 } else { 0 }

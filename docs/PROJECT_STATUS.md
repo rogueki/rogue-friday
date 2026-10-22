@@ -642,3 +642,16 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   `interaction=visible:True ok:True` in `gui-wizard-pages.Tests.ps1` (108), Installer-Suite 32/32 Exit 0.
 - **Offen**: echte Aufnahme mit Mikrofon/Headset (hoerbarer Start, vollstaendiger Durchlauf, erzeugte Modelle
   und Embeddings, Wake-Phrase gegen die Metadaten). Der Sprechergrenzwert bleibt unveraendert.
+## 2026-10-22 INS-10 Installerregressionen einzeln abgesichert
+
+- WSL-Update lief ohne Limit (`Native { wsl.exe --update }`). Jetzt `Invoke-CapturedProcess` mit 600 s,
+  Zeitueberschreitung und Exitcode nur als Warnung, Abschalten per `-SkipWslUpdate`.
+- Fuenf bereits behobene Regressionen waren nicht einzeln geprueft; sie liegen jetzt in eigenen Modulen und
+  werden ohne Installationslauf geprueft: `wsl-path.ps1` (Warnzeilen filtern, Ausgabe vor Exitcode),
+  `wait-http.ps1` (503 ist Laden, getrennt von "nicht erreichbar"), `wsl-keepalive.ps1` (nur ein echter
+  Prozess zaehlt, keine "bereit"-Aufgabe), `download-integrity.ps1` (Pruefsumme, falsche Datei wird geloescht).
+- Die Zeitfenster bleiben getrennt: TTS 900 s, Modell 120 s, Dashboard 60 s, Download 3600 s.
+- **Nachweis**: `installer-regressions.Tests.ps1` 60 Zusicherungen (echter HTTP-Server, echter
+  `cmd /c where`-Kindprozess mit nachgestelltem PATH-Fehler, Pruefsummen, Gegenproben), Gegenprobe 503 -> Exit 1
+  und byte-identisch wiederhergestellt, `wsl-timeout` und `warmup-cancel` gruen, Installer-Suite 33/33.
+- **Offen**: Beobachtung der Fenster unter realer Last (INS-13), echter haengender Download (INS-07).

@@ -58,11 +58,17 @@ $expected = @{
 foreach ($name in $expected.Keys) {
     if (-not $script.Contains($expected[$name])) { throw "Verdrahtung fehlt: $name ($($expected[$name]))." }
 }
-# Bewusste Ausnahme: die vier Einrichtungsaufrufe von WSL selbst (Feature, Update, Distributionsdownload)
-# laufen ueber Native, weil sie ihren Fortschritt live schreiben. Sie sind hier festgenagelt, damit kein
-# weiterer Aufruf unbemerkt ohne Limit dazukommt.
+# Bewusste Ausnahme: die drei Einrichtungsaufrufe von WSL selbst (Feature, Distributionsdownload) laufen
+# ueber Native, weil sie ihren Fortschritt live schreiben. Sie sind hier festgenagelt, damit kein weiterer
+# Aufruf unbemerkt ohne Limit dazukommt. Das WSL-Update ist seit INS-10 gebunden und deshalb nicht mehr dabei.
 $native = ([regex]::Matches($script, 'Native \{ wsl\.exe')).Count
-if ($native -ne 4) { throw "Ungebundene WSL-Einrichtungsaufrufe: $native (erwartet 4)." }
+if ($native -ne 3) { throw "Ungebundene WSL-Einrichtungsaufrufe: $native (erwartet 3)." }
+# Das Update muss ein Zeitlimit haben, abbrechbar sein und sich abschalten lassen.
+if ($script -notmatch "Invoke-CapturedProcess -FilePath 'wsl\.exe' -Arguments @\('--update'\) -TimeoutSeconds 600") {
+    throw 'Das WSL-Update laeuft nicht mit Zeitlimit 600 s.'
+}
+if ($script -notmatch '\[switch\]\$SkipWslUpdate') { throw 'Das WSL-Update laesst sich nicht abschalten.' }
+if ($script -match 'Native \{ wsl\.exe --update') { throw 'Das WSL-Update laeuft weiterhin ohne Limit.' }
 if ($script -notmatch 'Native \{ wsl\.exe --install Ubuntu-24\.04 --name \$Distro --no-launch --web-download \}') {
     throw 'Der Distributionsdownload ohne eigenes Verzeichnis fehlt oder wurde umgebaut - Limit pruefen.'
 }

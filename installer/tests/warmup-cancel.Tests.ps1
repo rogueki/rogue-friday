@@ -23,6 +23,16 @@ foreach ($name in @('Get-InstallerCancelPath', 'Request-InstallerCancel', 'Read-
     if (-not $definition) { throw "$name fehlt in installer-cancel.ps1." }
     Invoke-Expression $definition.Extent.Text
 }
+# Wait-Http delegiert die Abfrage an lib\wait-http.ps1 (503 ist Laden, nicht Fehler) - das Modul muss
+# mitgeladen werden, sonst prueft der Test nur einen Aufruf ins Leere.
+$waitLib = Join-Path $PSScriptRoot '..\lib\wait-http.ps1'
+$waitLibAst = [System.Management.Automation.Language.Parser]::ParseFile($waitLib, [ref]$libTokens, [ref]$libErrors)
+if ($libErrors.Count) { throw "wait-http.ps1 hat Parserfehler: $($libErrors[0].Message)" }
+foreach ($name in @('Invoke-HttpProbe', 'Wait-HttpEndpoint')) {
+    $definition = $waitLibAst.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
+    if (-not $definition) { throw "$name fehlt in wait-http.ps1." }
+    Invoke-Expression $definition.Extent.Text
+}
 foreach ($name in @('Wait-Http', 'Confirm-NotCancelled')) {
     $definition = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
     if (-not $definition) { throw "$name fehlt." }
@@ -32,6 +42,9 @@ foreach ($name in @('Wait-Http', 'Confirm-NotCancelled')) {
 # Statt den Installer zu beenden: merken, dass der Abbruch gegriffen hat.
 $script:CancelHits = 0
 function Stop-Install([string]$text) { $script:CancelHits++; throw "CANCELLED: $text" }
+# Warn() meldet im Installer nur; im Test sammelt es die Meldungen, damit der Grund pruefbar bleibt.
+$script:Warnings = New-Object System.Collections.ArrayList
+function Warn([string]$text) { [void]$script:Warnings.Add($text) }
 
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ("friday-warmup-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
 try {
@@ -43,6 +56,10 @@ try {
     $elapsed = Measure-Command { $script:noCancel = Wait-Http 'http://127.0.0.1:9/' 2 }
     if ($script:noCancel) { throw 'Ein nicht antwortender Port galt als erreichbar.' }
     if ($elapsed.TotalSeconds -gt 20) { throw "Warten ohne Abbruch dauerte $([math]::Round($elapsed.TotalSeconds,1)) s statt rund 2 s." }
+    if ($script:Warnings.Count -lt 1) { throw 'Der Wartebaustein meldet den Grund des Fehlschlags nicht.' }
+    if (-not ($script:Warnings[$script:Warnings.Count - 1] -match 'nicht erreichbar')) {
+        throw "Der Wartebaustein nennt den Grund nicht: $($script:Warnings[$script:Warnings.Count - 1])"
+    }
 
     # Abbruch einer fremden Laufkennung darf diesen Lauf nicht beenden.
     Request-InstallerCancel -Root $fixture -RunId 'fremder-lauf' -Reason 'Test' | Out-Null
