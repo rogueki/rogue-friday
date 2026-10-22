@@ -6902,6 +6902,26 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/settings/hermes-access:
+    get:
+      operationId: getHermesAccess
+      tags: [settings]
+      summary: Read pooled Hermes provider credentials without exposing any secret
+      responses:
+        "200":
+          description: Provider credentials with source markers only; never a key value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HermesAccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/settings/hermes-model-catalog:
     get:
       operationId: getHermesModelCatalog
@@ -9740,6 +9760,8 @@ components:
       $ref: ../schemas/integrations/hermes-mcp-oauth-response.schema.json
     HermesModelCatalog:
       $ref: ../schemas/integrations/hermes-model-catalog.schema.json
+    HermesAccessResponse:
+      $ref: ../schemas/integrations/hermes-access-response.schema.json
     HermesModelCatalogResponse:
       $ref: ../schemas/integrations/hermes-model-catalog-response.schema.json
     DurableMemoryStatus:

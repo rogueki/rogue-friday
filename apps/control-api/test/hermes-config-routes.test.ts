@@ -478,3 +478,26 @@ it("requires owner intent, CSRF and revision for installed-plugin activation", a
     await api.close();
   }
 });
+
+it("exposes the owner-only Hermes access list without any key material", async () => {
+  const api = await startTestApi({ responseValidation: "throw" });
+  try {
+    const read = vi.spyOn(api.runtime.hermesConfig, "access").mockResolvedValue({
+      providers: [{ provider: "copilot", count: 1,
+        credentials: [{ index: 1, label: "gh auth token", type: "api_key", source: "gh_cli", active: true }] }],
+    });
+    const owner = api.client();
+    const viewer = api.client();
+    await owner.loginDev("owner");
+    await viewer.loginDev("viewer");
+    expect((await api.client().get("/api/v1/settings/hermes-access")).statusCode).toBe(401);
+    expect((await viewer.get("/api/v1/settings/hermes-access")).statusCode).toBe(403);
+    const result = await owner.get("/api/v1/settings/hermes-access");
+    expect(result.statusCode).toBe(200);
+    expect(result.json().data.providers[0].credentials[0].source).toBe("gh_cli");
+    expect(JSON.stringify(result.json())).not.toContain("api_key ");
+    expect(read).toHaveBeenCalledTimes(1);
+  } finally {
+    await api.close();
+  }
+});

@@ -277,6 +277,45 @@ export class HermesConfigService {
     return raw;
   }
 
+  async access() {
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["auth-list"], undefined, 20000, 512000);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("auth_list_format"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Die Hermes-Zugaenge konnten nicht gelesen werden: die CLI-Ausgabe hat ein unbekanntes Format." });
+      throw unavailable();
+    }
+    if (!Array.isArray(raw.providers) || raw.providers.length > 64) throw unavailable();
+    const seen = new Set<string>();
+    const providers = raw.providers.map((entry) => {
+      const provider = entry as Record<string, unknown>;
+      if (!provider || typeof provider !== "object" || typeof provider.provider !== "string" ||
+          !/^[A-Za-z0-9_.-]{1,64}$/.test(provider.provider) || seen.has(provider.provider) ||
+          !Array.isArray(provider.credentials) || provider.credentials.length < 1 ||
+          provider.credentials.length > 100 || provider.count !== provider.credentials.length) throw unavailable();
+      seen.add(provider.provider);
+      const credentials = provider.credentials.map((item) => {
+        const credential = item as Record<string, unknown>;
+        if (!credential || typeof credential !== "object" || !Number.isInteger(credential.index) ||
+            (credential.index as number) < 1 || typeof credential.label !== "string" ||
+            credential.label.length < 1 || credential.label.length > 200 ||
+            !["api_key", "oauth"].includes(String(credential.type)) ||
+            typeof credential.source !== "string" || credential.source.length < 1 ||
+            credential.source.length > 200 || typeof credential.active !== "boolean") throw unavailable();
+        // A misbehaving CLI must not be able to smuggle a key through label or source.
+        if (/(?:sk-|ghp_|xox[bp]-)[A-Za-z0-9_-]{8,}/.test(`${credential.label} ${credential.source}`))
+          throw unavailable();
+        return { index: credential.index as number, label: credential.label, type: credential.type as "api_key" | "oauth",
+          source: credential.source, active: credential.active };
+      });
+      return { provider: provider.provider, count: credentials.length, credentials };
+    });
+    return { providers };
+  }
+
   private target(): { script: string; distro: string; user: string } {
     if (process.platform !== "win32")
       return { script: nativeRunnerScript(this.dataDir, "hermes_config_bridge.py").script,

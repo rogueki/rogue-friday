@@ -2746,6 +2746,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/hermes-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read pooled Hermes provider credentials without exposing any secret */
+        get: operations["getHermesAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/hermes-config": {
         parameters: {
             query?: never;
@@ -6533,6 +6550,27 @@ export interface components {
          * @enum {string}
          */
         HealthStatus: "online" | "degraded" | "offline" | "unknown" | "paused";
+        /** HermesAccess */
+        "hermes-access.schema": {
+            providers: {
+                count: number;
+                credentials: {
+                    active: boolean;
+                    index: number;
+                    label: string;
+                    source: string;
+                    /** @enum {unknown} */
+                    type: "api_key" | "oauth";
+                }[];
+                provider: string;
+            }[];
+        };
+        /** HermesAccessResponse */
+        HermesAccessResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["hermes-access.schema"];
+            freshness: components["schemas"]["Freshness"];
+        };
         /** HermesApprovalTestRequest */
         HermesApprovalTestRequest: {
             command: string;
@@ -17098,6 +17136,29 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getHermesAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider credentials with source markers only; never a key value */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HermesAccessResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/integrations/hermes-access.schema.json",
+  "title": "HermesAccess",
+  "type": "object",
+  "properties": {
+    "providers": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "credentials": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "type": {
+                  "enum": [
+                    "api_key",
+                    "oauth"
+                  ]
+                },
+                "source": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "active": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "index",
+                "label",
+                "type",
+                "source",
+                "active"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "provider",
+          "count",
+          "credentials"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "providers"
+  ],
+  "additionalProperties": false
+}

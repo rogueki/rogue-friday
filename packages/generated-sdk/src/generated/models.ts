@@ -924,6 +924,8 @@ export interface FridayModelMap {
   HealthcheckResult: HealthcheckResult;
   HealthcheckResultResponse: HealthcheckResultResponse;
   HealthStatus: HealthStatus;
+  HermesAccess: HermesAccess;
+  HermesAccessResponse: HermesAccessResponse;
   HermesApprovalTestRequest: HermesApprovalTestRequest;
   HermesApprovalTestResponse: HermesApprovalTestResponse;
   HermesConfigPatch: HermesConfigPatch;
@@ -3398,6 +3400,24 @@ export interface HealthcheckResult {
 export interface HealthcheckResultResponse {
   contractVersion: ContractVersion;
   data: HealthcheckResult;
+  freshness: Freshness;
+}
+export interface HermesAccess {
+  providers: {
+    provider: string;
+    count: number;
+    credentials: {
+      index: number;
+      label: string;
+      type: "api_key" | "oauth";
+      source: string;
+      active: boolean;
+    }[];
+  }[];
+}
+export interface HermesAccessResponse {
+  contractVersion: ContractVersion;
+  data: HermesAccess;
   freshness: Freshness;
 }
 export interface HermesApprovalTestRequest {

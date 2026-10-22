@@ -81,6 +81,12 @@ export const hermesConfigHandlers: Partial<Record<OperationId, Handler>> = {
     return { status: 200, body: single(await ctx.runtime.hermesConfig.modelCatalog(
       typeof providerId === "string" ? providerId : undefined)) };
   },
+  async getHermesAccess(ctx) {
+    const result = await ctx.runtime.hermesConfig.access();
+    ctx.audit.action = "settings.hermes_access_read";
+    ctx.audit.after = { providers: result.providers.map((item) => item.provider) };
+    return { status: 200, body: single(result) };
+  },
   async getHermesConfig(ctx) {
     return { status: 200, body: single(await ctx.runtime.hermesConfig.status()) };
   },
