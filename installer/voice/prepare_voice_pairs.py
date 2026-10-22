@@ -9,10 +9,32 @@ import shutil
 from pathlib import Path
 
 
+BUNDLED_REFERENCES = {"friday-female": "friday_ref", "classic": "jarvis_ref"}
+
+
+def reference_sources(reference_dir: Path, package: Path) -> dict[str, list[Path]]:
+    """Referenzkandidaten je Stimmplatz. Der eigene Platz hat bewusst keine Paket-Referenz: er entsteht nur
+    aus der Aufnahme des Nutzers, damit ein fehlendes Update nie eine fremde Stimme unterschiebt."""
+    return {
+        "friday-female": [reference_dir / "friday-female-reference.wav",
+                          reference_dir / "friday-female-reference.mp3",
+                          reference_dir / "female-reference.mp3",
+                          package / "voice_models" / "friday_ref.wav"],
+        "classic": [reference_dir / "classic-reference.wav",
+                    reference_dir / "classic-reference.mp3",
+                    package / "voice_models" / "jarvis_ref.wav"],
+        "custom": [reference_dir / "custom-reference.wav",
+                   reference_dir / "custom-reference.mp3"],
+    }
+
+
+def bundled_reference(package: Path, choice: str) -> Path | None:
+    name = BUNDLED_REFERENCES.get(choice)
+    return package / "voice_models" / name if name else None
+
 def prepare(root: Path, package: Path) -> dict[str, bool]:
     import soundfile as sf
     from scipy.signal import resample_poly
-    from faster_whisper import WhisperModel
     from huggingface_hub import hf_hub_download
 
     tts_dir = root / "models" / "tts"
@@ -26,15 +48,7 @@ def prepare(root: Path, package: Path) -> dict[str, bool]:
 
     reference_dir = root / "config" / "voice-references"
     reference_dir.mkdir(parents=True, exist_ok=True)
-    sources = {
-        "friday-female": [reference_dir / "friday-female-reference.wav",
-                          reference_dir / "friday-female-reference.mp3",
-                          reference_dir / "female-reference.mp3",
-                          package / "voice_models" / "friday_ref.wav"],
-        "classic": [reference_dir / "classic-reference.wav",
-                    reference_dir / "classic-reference.mp3",
-                    package / "voice_models" / "jarvis_ref.wav"],
-    }
+    sources = reference_sources(reference_dir, package)
     transcriber = None
     available = {}
     for choice, candidates in sources.items():
@@ -59,13 +73,15 @@ def prepare(root: Path, package: Path) -> dict[str, bool]:
         txt = reference_dir / f"{choice}-reference.txt"
         sf.write(wav, audio, 24000, subtype="PCM_16")
         if not txt.is_file() or not txt.read_text(encoding="utf-8").strip():
-            bundled = package / "voice_models" / ("friday_ref" if choice == "friday-female" else "jarvis_ref")
-            bundled_wav = bundled.with_suffix(".wav")
-            bundled_txt = bundled.with_suffix(".txt")
-            if bundled_wav.is_file() and bundled_txt.is_file() and hashlib.sha256(source.read_bytes()).digest() == hashlib.sha256(bundled_wav.read_bytes()).digest():
+            bundled = bundled_reference(package, choice)
+            bundled_wav = bundled.with_suffix(".wav") if bundled else None
+            bundled_txt = bundled.with_suffix(".txt") if bundled else None
+            if bundled_wav and bundled_txt and bundled_wav.is_file() and bundled_txt.is_file() and hashlib.sha256(source.read_bytes()).digest() == hashlib.sha256(bundled_wav.read_bytes()).digest():
                 words = bundled_txt.read_text(encoding="utf-8").strip()
             else:
                 if transcriber is None:
+                    # Nur bei Bedarf importieren: liegt ein Referenztext vor, wird kein Whisper gebraucht.
+                    from faster_whisper import WhisperModel
                     transcriber = WhisperModel("small", device="cpu", compute_type="int8",
                                                 download_root=str(root / "models" / "whisper"))
                 segments, _ = transcriber.transcribe(str(wav), beam_size=5, vad_filter=True)

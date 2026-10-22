@@ -24,7 +24,7 @@ class Response:
         return False
 
     def read(self):
-        return json.dumps({"voices": ["friday-female", "classic"]}).encode()
+        return json.dumps({"voices": ["friday-female", "classic", "custom"]}).encode()
 
 
 class VoicePersonaTest(unittest.TestCase):
@@ -111,12 +111,61 @@ class VoicePersonaTest(unittest.TestCase):
             custom_text.write_text("Lokal eingestellter Referenztext\n", encoding="utf-8")
             original = hashlib.sha256(custom.read_bytes()).digest()
             available = prepare_voice_pairs.prepare(root, package)
-            self.assertEqual(available, {"friday-female": True, "classic": True})
+            # Der eigene Platz entsteht nur aus einer Aufnahme des Nutzers; ohne sie meldet prepare False.
+            self.assertEqual(available, {"friday-female": True, "classic": True, "custom": False})
             self.assertEqual(hashlib.sha256(custom.read_bytes()).digest(), original)
             self.assertEqual(custom_text.read_text(encoding="utf-8"), "Lokal eingestellter Referenztext\n")
-            for choice in available:
+            for choice, prepared in available.items():
+                if not prepared:
+                    continue
                 self.assertTrue((refs / f"{choice}-reference.wav").is_file())
                 self.assertTrue((refs / f"{choice}-reference.txt").read_text(encoding="utf-8").strip())
+
+
+    def test_own_voice_uses_its_own_slot_and_never_the_female_reference(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            refs = root / "config" / "voice-references"
+            models = root / "models" / "tts"
+            refs.mkdir(parents=True)
+            models.mkdir(parents=True)
+            (models / "de_DE-kerstin-low.onnx").write_bytes(b"piper")
+            cfg = {"voice_mode": "local", "tts_backend": "streaming_qwen",
+                   "tts_url": "http://127.0.0.1:43795/tts/stream", "wake_phrase": "Hey Friday"}
+            with patch.object(voice_persona.urllib.request, "urlopen", return_value=Response()):
+                with self.assertRaises(voice_persona.PersonaUnavailable):
+                    voice_persona.resolve(cfg, temp, "custom")
+            (refs / "custom-reference.wav").write_bytes(b"own recording")
+            (refs / "custom-streaming.wav").write_bytes(b"streaming")
+            (refs / "custom-reference.txt").write_text("Eigene Woerter", encoding="utf-8")
+            with patch.object(voice_persona.urllib.request, "urlopen", return_value=Response()):
+                own = voice_persona.resolve(cfg, temp, "custom")
+            self.assertEqual(own["tts_voice_choice"], "custom")
+            self.assertEqual(own["tts_reference"], str(refs / "custom-streaming.wav"))
+            self.assertEqual(own["tts_voice"], str(models / "de_DE-kerstin-low.onnx"))
+            self.assertFalse(own["tts_film_filter"])
+            self.assertEqual(own["wake_phrase"], "Hey Friday")
+
+    def test_own_slot_has_no_package_fallback(self):
+        package = VOICE.parent
+        reference_dir = Path("refs")
+        sources = prepare_voice_pairs.reference_sources(reference_dir, package)
+        self.assertEqual(set(sources), {"friday-female", "classic", "custom"})
+        self.assertFalse([path for path in sources["custom"] if path.parent == package / "voice_models"])
+        self.assertIsNone(prepare_voice_pairs.bundled_reference(package, "custom"))
+        self.assertEqual(prepare_voice_pairs.bundled_reference(package, "classic").name, "jarvis_ref")
+        self.assertEqual(prepare_voice_pairs.bundled_reference(package, "friday-female").name, "friday_ref")
+
+    def test_fast_tts_serves_the_own_slot_when_installed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            (folder / "custom.wav").write_bytes(b"own")
+            (folder / "custom.txt").write_text("Eigene Woerter", encoding="utf-8")
+            voices = server.load_voice_clones(folder)
+            self.assertEqual(sorted(voices), ["custom"])
+            self.assertEqual(server.select_voice("custom", voices, {})["ref_text"], "Eigene Woerter")
+            with self.assertRaises(KeyError):
+                server.select_voice("classic", voices, {})
 
 
 if __name__ == "__main__":

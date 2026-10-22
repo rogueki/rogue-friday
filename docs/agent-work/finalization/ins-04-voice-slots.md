@@ -45,7 +45,32 @@ Damit ist die **Auswahl** vollständig und validiert, der **Stimmplatz** aber ni
 - Wechsel: nach Hin- und Zurückwechseln ist die F.R.I.D.A.Y.-Referenz byte-gleich mit der beiliegenden Datei.
 - Konsistenz: Persona, Wake-Konfiguration und `voice_choice` im Zustand nennen denselben Platz.
 
-## 4. Reihenfolge der Umsetzung
+## 4. Fortschritt
+
+### Erledigt (2026-10-22): Python-Seite
+
+- `voice_persona.CHOICES` enthaelt `custom`; `PIPER_FALLBACK` ordnet jedem Platz seine Basisstimme zu
+  (`custom` nutzt dieselbe Piper-Basis wie der weibliche Platz, unterscheidet sich aber durch seine eigene
+  Referenz). Der eigene Platz bekommt **keinen** stillen Fallback auf die weibliche Referenz.
+- `prepare_voice_pairs`: Referenzquellen und Paketreferenz sind jetzt pruefbare Helfer
+  (`reference_sources`, `bundled_reference`). `custom` hat bewusst keine Paket-Referenz; ohne eigene Aufnahme
+  meldet `prepare` `False` statt eine fremde Stimme zu unterschieben. Der Whisper-Import ist auf den Fall
+  "kein Referenztext vorhanden" verschoben.
+- `fast_tts/server.py` laedt und liefert den dritten Platz, sobald `custom.wav`/`custom.txt` vorliegen.
+- Tests: `test_voice_persona.py` deckt den eigenen Platz ab (resolve nur mit eigener Referenz, eigene
+  Streaming-Datei, Piper-Basis, kein Film-Filter, kein Paket-Fallback, Server liefert `custom`) - 8/8 gruen.
+
+### Offen
+
+- Installer-Verdrahtung (Option 3 -> `voice_choice = 'custom'`, Kopie der validierten Datei nach
+  `config/voice-references/custom-reference.*`, Zustandspruefungen), `update-voice-personas.ps1`
+  (`$pairs`), `friday_voice.py` und die Dashboard-Stimmenliste.
+- Messbare Audioausgabe fuer alle drei Plaetze.
+
+Bewusst **keine** Zwischenstufe, in der Option 3 auf `custom` zeigt, bevor diese vier Stellen mitziehen: sonst
+waere die Auswahl erreichbar, die Stimme aber nicht installiert.
+
+## 5. Reihenfolge der Umsetzung
 
 Python-Seite zuerst (Persona + Referenzpaare) mit eigenen Tests, danach Installer-Verdrahtung, dann
 Dashboard-Liste, zuletzt die messbare Audioausgabe für alle drei Plätze. Kein Zwischenstand, in dem Option 3
