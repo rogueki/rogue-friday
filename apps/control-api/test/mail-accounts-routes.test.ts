@@ -99,3 +99,49 @@ it("marks a first draft response and its replay without a second provider append
     expect(draft).toHaveBeenCalledTimes(1);
   } finally { await api.close(); }
 });
+
+it("reads every account only through its own id and leaves the others untouched", async () => {
+  const api = await startTestApi({ authMode: "local", ownerPassword: "synthetic-test-password", responseValidation: "throw" });
+  try {
+    const privat = { ...account, id: "privat", displayName: "Privat", email: "privat@example.test", aliases: ["alias@example.test"] } as MailAccount;
+    vi.spyOn(api.runtime.mailAccounts, "list").mockResolvedValue({ revision: 1, defaultAccountId: "work", accounts: [account, privat] });
+    const messageOf = vi.spyOn(api.runtime.mailAccounts, "message").mockImplementation(async (accountId, mailbox, uid, uidValidity) => ({
+      mailbox, uid, uidValidity, subject: accountId === "privat" ? "Privat" : "Arbeit", from: "Absender <absender@example.test>",
+      to: accountId === "privat" ? "privat@example.test" : "sender@example.test", date: "Thu, 22 Oct 2026 10:00:00 +0000",
+      messageId: `<${uid}@example.test>`, replyTo: "", references: "", bodyText: "Synthetischer Text", attachments: [] }));
+    const owner = api.client();
+    await owner.loginOwner("synthetic-test-password");
+    const work = await owner.get("/api/v1/integrations/mail/accounts/work/message?mailbox=INBOX&uid=17&uidValidity=42");
+    expect(work.statusCode, work.body).toBe(200);
+    expect(work.json().data.subject).toBe("Arbeit");
+    const other = await owner.get("/api/v1/integrations/mail/accounts/privat/message?mailbox=INBOX&uid=3&uidValidity=77");
+    expect(other.statusCode, other.body).toBe(200);
+    expect(other.json().data.subject).toBe("Privat");
+    expect(messageOf.mock.calls).toEqual([["work", "INBOX", "17", "42"], ["privat", "INBOX", "3", "77"]]);
+    expect(messageOf).toHaveBeenCalledTimes(2);
+  } finally { await api.close(); }
+});
+
+it("rejects a foreign sender before any preview and accepts the stored alias", async () => {
+  const api = await startTestApi({ authMode: "local", ownerPassword: "synthetic-test-password", responseValidation: "throw" });
+  try {
+    const withAlias = { ...account, aliases: ["alias@example.test"] } as MailAccount;
+    vi.spyOn(api.runtime.mailAccounts, "list").mockResolvedValue({ revision: 1, defaultAccountId: "work", accounts: [withAlias] });
+    const send = vi.spyOn(api.runtime.mailAccounts, "send").mockResolvedValue({ state: "sent", archivePending: false });
+    const draft = vi.spyOn(api.runtime.mailAccounts, "draft").mockResolvedValue({ state: "drafted", messageId: "<friday-" + "d".repeat(64) + "@friday.local>", alreadyPresent: false });
+    const owner = api.client();
+    await owner.loginOwner("synthetic-test-password");
+    const base = "/api/v1/integrations/mail/accounts/work";
+    const foreign = { ...message, from: "fremd@example.test" };
+    const rejected = await owner.post(base + "/send", foreign);
+    expect(rejected.statusCode, rejected.body).toBe(422);
+    expect(rejected.json().error.message).toContain("Absenderadresse gehört nicht");
+    expect(rejected.json().error.details.fieldErrors).toEqual([]);
+    expect(send).not.toHaveBeenCalled();
+    const alias = await owner.post(base + "/draft", { ...message, from: "alias@example.test" },
+      { headers: { "Idempotency-Key": "synthetic-draft-key-1" } });
+    expect(alias.statusCode, alias.body).toBe(200);
+    expect(alias.json().data.state).toBe("drafted");
+    expect(draft).toHaveBeenCalledTimes(1);
+  } finally { await api.close(); }
+});

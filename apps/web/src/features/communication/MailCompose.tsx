@@ -40,10 +40,10 @@ export function MailCompose({ account, original, mode, onClose }: {
     if (!files) return;
     const next: NonNullable<MailSendRequest["attachments"]> = [];
     for (const file of Array.from(files).slice(0, 5)) {
+      if (file.size > 5 * 1024 * 1024) { setResult("Anhang zu groß (maximal 5 MB je Datei)."); return; }
       if (next.reduce((total, item) => total + Math.floor(item.data.length * 3 / 4), 0) + file.size > 5 * 1024 * 1024) {
         setResult("Anhänge zusammen zu groß (maximal 5 MB)."); return;
       }
-      if (file.size > 5 * 1024 * 1024) { setResult("Anhang zu groß (maximal 5 MB je Datei)."); return; }
       const bytes = new Uint8Array(await file.arrayBuffer());
       let binary = "";
       for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
