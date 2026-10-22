@@ -642,6 +642,21 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   `interaction=visible:True ok:True` in `gui-wizard-pages.Tests.ps1` (108), Installer-Suite 32/32 Exit 0.
 - **Offen**: echte Aufnahme mit Mikrofon/Headset (hoerbarer Start, vollstaendiger Durchlauf, erzeugte Modelle
   und Embeddings, Wake-Phrase gegen die Metadaten). Der Sprechergrenzwert bleibt unveraendert.
+## 2026-10-22 DASH-02.05 Sicherung vor Migration und Vertragsversion
+
+- `openDatabase` sichert eine **bestehende** Datenbank vor ausstehenden Migrationen: WAL-Checkpoint, Kopie nach
+  `<datenbank>.pre-migrate-<stempel>.bak`, die letzten drei Staende bleiben liegen. Frische Installationen und
+  In-Memory-Datenbanken erzeugen keine Datei.
+- `restoreMigrationBackup` prueft `PRAGMA integrity_check` und die vorhandene `schema_migrations`-Tabelle, bevor es
+  kopiert; eine beschaedigte Kopie bricht ab, ohne die Datenbank anzutasten. `-wal`/`-shm` werden entfernt; es wird
+  nie eine neue Datenbank angelegt.
+- Optionaler Header `X-Friday-Contract-Version`: fremde Hauptversion -> 409 mit `reason=contract_version_unsupported`
+  und Meldung samt unterstuetzter Version, unlesbare Version -> 400; ohne Header unveraendertes Verhalten.
+- **Nachweis**: `db-migration-backup.test.ts` (4 Tests, echte Dateien, Zustand vor der letzten Migration
+  nachgebaut) und `contract-version-compat.test.ts` (4 Tests); Node-Suite mit `--maxWorkers=2` gruen, `tsc` 0 Fehler.
+- Hinweis fuer Folgesessions: die Node-Suite nur mit `--maxWorkers=2` fahren; mit voller Parallelitaet laufen
+  bekannte Integrationstests in ihr 5-Sekunden-Zeitlimit (keine Regression, siehe `dash-02-migration-recovery.md`).
+
 ## 2026-10-22 DASH-02.03/02.04 Vertraege abgeschlossen
 
 - UI-PATCH und bestaetigter Sprachdialog laufen beide ueber `settingsHandlers.updateSettings`; neuer Test

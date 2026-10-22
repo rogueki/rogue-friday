@@ -8,6 +8,12 @@ import type { ApiPipeline } from "./pipeline";
 import { ROUTE_TABLE } from "./route-table.generated";
 import { StaticWeb } from "./static";
 import { DashboardUpdateService } from "../services/dashboard-update";
+import {
+  CONTRACT_VERSION_HEADER,
+  isContractVersionSupported,
+  parseContractVersion,
+  supportedContractVersions,
+} from "../contract-version";
 
 const API_PREFIX = "/api";
 const toFastifyPath = (template: string): string => template.slice(API_PREFIX.length).replace(/\{(\w+)\}/g, ":$1");
@@ -58,6 +64,30 @@ export function configureHttp(fastify: FastifyInstance, runtime: Runtime, pipeli
       return runWithCorrelation(correlationId, () =>
         sendError(reply, new ApiError({ code: "FORBIDDEN", message: "Ungültiger Origin.", details: { reason: "origin_not_allowed" } })),
       );
+    }
+    // Ein Client, der seine Vertragsversion nennt, bekommt bei einer fremden Hauptversion eine klare Antwort statt
+    // einer stillen Fehldeutung. Ohne diesen Header bleibt das Verhalten unveraendert.
+    const declaredVersion = request.headers[CONTRACT_VERSION_HEADER];
+    if (declaredVersion !== undefined) {
+      if (parseContractVersion(declaredVersion) === null) {
+        return runWithCorrelation(correlationId, () =>
+          sendError(reply, new ApiError({
+            code: "VALIDATION_FAILED",
+            status: 400,
+            message: `Die Vertragsversion im Header ${CONTRACT_VERSION_HEADER} ist keine Version der Form x.y.z.`,
+            details: { reason: "contract_version_malformed", received: String(declaredVersion), supported: supportedContractVersions() },
+          })),
+        );
+      }
+      if (!isContractVersionSupported(declaredVersion)) {
+        return runWithCorrelation(correlationId, () =>
+          sendError(reply, new ApiError({
+            code: "CONFLICT",
+            message: `Diese Installation spricht Vertragsversion ${supportedContractVersions()}. Bitte den Client aktualisieren; es wurde nichts geändert.`,
+            details: { reason: "contract_version_unsupported", received: String(declaredVersion), supported: supportedContractVersions() },
+          })),
+        );
+      }
     }
     return undefined;
   });
