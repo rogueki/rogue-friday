@@ -362,7 +362,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -371,6 +371,38 @@ def main():
         print(json.dumps({"error": "hermes_not_installed"}))
         return 5
     return locked_main(home, source, cli)
+
+
+def parse_auth_list(text):
+    """Parse `hermes auth list` text. Never returns a key: only type and source marker."""
+    providers = []
+    current = None
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        if not line.strip():
+            continue
+        header = re.fullmatch(r"([A-Za-z0-9_.-]+) \((\d+) credentials?\):", line.strip())
+        if header:
+            current = {"provider": header.group(1), "count": int(header.group(2)), "credentials": []}
+            providers.append(current)
+            continue
+        entry = re.fullmatch(r"\s*#(\d+)\s{2,}(.+?)\s{2,}(api[_-]key|oauth(?:_token)?)\s+(\S+?)(\s*←)?\s*", line)
+        if entry and current is not None:
+            label = entry.group(2).strip()
+            kind = entry.group(3).replace("-", "_")
+            source = entry.group(4)
+            if not label or len(label) > 200 or len(source) > 200:
+                raise ValueError("auth_list_format")
+            current["credentials"].append({"index": int(entry.group(1)), "label": label,
+                                           "type": kind, "source": source, "active": bool(entry.group(5))})
+            continue
+        raise ValueError("auth_list_format")
+    if not providers:
+        raise ValueError("auth_list_format")
+    for provider in providers:
+        if provider["count"] != len(provider["credentials"]):
+            raise ValueError("auth_list_format")
+    return {"providers": providers}
 
 
 def locked_main(home, source, cli):
@@ -383,6 +415,13 @@ def locked_main(home, source, cli):
             raise ValueError("hermes_config_failed")
         return result.stdout.strip()
 
+    if sys.argv[1] == "auth-list":
+        result = subprocess.run([str(cli), "auth", "list"], capture_output=True, text=True, timeout=15)
+        if result.returncode:
+            print(json.dumps({"error": "auth_list_failed"}))
+            return 6
+        print(json.dumps(parse_auth_list(result.stdout)))
+        return 0
     config_path = Path(call("path"))
     commit = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3)
     source_revision = commit.stdout.strip() if commit.returncode == 0 else None
