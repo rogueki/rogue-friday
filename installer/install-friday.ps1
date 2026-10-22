@@ -299,22 +299,43 @@ function Native([scriptblock]$cmd) {
     Confirm-NotCancelled
     & $cmd 2>&1 | ForEach-Object { "$_" }
 }
-function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '') {
+function Wsl-Run([string]$User, [string]$Script, [string]$StdIn = '', [int]$TimeoutSeconds = 1800) {
     # Skriptdateien statt Befehlszeilen: wsl.exe wuerde $VARIABLEN sonst vorzeitig expandieren.
     $wslEnv = @("FRIDAY_INSTALLER=$WslInstPath", "FRIDAY_CONFIG=$WslConfigPath", "FRIDAY_ROOT=$WslRootPath",
                 "FRIDAY_DASH_PORT=$($Ports.Dashboard)", "FRIDAY_API_PORT=$($Ports.HermesApi)",
                 "FRIDAY_QWEN_PORT=$($Ports.Qwen)", "FRIDAY_CALENDAR_PORT=$DashPort", "FRIDAY_MAIL_PORT=$DashPort", "FRIDAY_MEMORY_PORT=$DashPort")
-    $out = if ($StdIn) { $StdIn | & wsl.exe -d $Distro -u $User --exec env @wslEnv bash $Script 2>&1 } else { & wsl.exe -d $Distro -u $User --exec env @wslEnv bash $Script 2>&1 }
-    $lines = @($out | ForEach-Object { "$_" })
+    # Zeitlimit und Abbruchbitte gelten fuer den gesamten WSL-Aufruf; ohne Limit konnte ein haengendes
+    # Skript den Installer unbegrenzt blockieren.
+    $arguments = @('-d', $Distro, '-u', $User, '--exec', 'env') + $wslEnv + @('bash', $Script)
+    $run = if ($StdIn) {
+        Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments $arguments -TimeoutSeconds $TimeoutSeconds -StdIn $StdIn -CancelCheck { Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId }
+    } else {
+        Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments $arguments -TimeoutSeconds $TimeoutSeconds -CancelCheck { Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId }
+    }
+    $lines = @()
+    foreach ($stream in @($run.StdOut, $run.StdErr)) {
+        if ($stream) { $lines += @("$stream" -split "`r?`n" | Where-Object { $_ -ne '' }) }
+    }
     $lines | ForEach-Object { Write-Host "     $_" -ForegroundColor DarkGray }
+    if ($run.TimedOut) {
+        Stop-Install "WSL-Schritt '$Script' hat das Zeitlimit von $TimeoutSeconds Sekunden ueberschritten."
+    }
+    if ($run.Cancelled) { Stop-Install 'Installation abgebrochen.' }
     return ($lines -join "`n")
 }
-function Get-WslPath([string]$WindowsPath) {
-    $output = @(& wsl.exe -d $Distro -u root --exec wslpath -a -u $WindowsPath 2>$null)
-    $exitCode = $LASTEXITCODE
+function Get-WslPath([string]$WindowsPath, [switch]$Soft) {
+    # wslpath antwortet normalerweise in Millisekunden; haengt der Aufruf, darf er den Lauf nicht sperren.
+    $run = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-d', $Distro, '-u', 'root', '--exec', 'wslpath', '-a', '-u', $WindowsPath) -TimeoutSeconds 60
+    if ($run.TimedOut) {
+        if ($Soft) { return $null }
+        Stop-Install "WSL reagiert nicht auf die Pfadumwandlung (Zeitlimit 60 s): $WindowsPath"
+    }
     # Erste Zeile, die ein Linux-Pfad ist (WSL stellt ggf. Warnungen voran).
-    $linuxPath = $output | Where-Object { "$_".Trim().StartsWith('/') } | Select-Object -First 1
-    if ($exitCode -ne 0 -or -not $linuxPath) { Stop-Install "WSL kann den Installationspfad nicht einbinden: $WindowsPath" }
+    $linuxPath = @("$($run.StdOut)" -split "`r?`n") | Where-Object { "$_".Trim().StartsWith('/') } | Select-Object -First 1
+    if ($run.ExitCode -ne 0 -or -not $linuxPath) {
+        if ($Soft) { return $null }
+        Stop-Install "WSL kann den Installationspfad nicht einbinden: $WindowsPath"
+    }
     return "$linuxPath".Trim()
 }
 function Assert-CustomDistroLocation {
@@ -1488,7 +1509,7 @@ Sync-VoiceFiles
 if (-not (IsDone 'wslfeature')) {
     Enter-Step 'wslfeature'
     Title 'Schritt 3/15 – WSL2 (Linux-Subsystem) vorbereiten'
-    & wsl.exe --status *> $null
+    Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--status') -TimeoutSeconds 120 | Out-Null
     if ($LASTEXITCODE -ne 0) {
         Info 'WSL wird installiert …'
         Native { wsl.exe --install --no-distribution } | ForEach-Object { Info $_ }
@@ -1509,7 +1530,8 @@ if (-not (IsDone 'wslfeature')) {
         exit
     }
     Native { wsl.exe --update } | Out-Null
-    Ok "WSL bereit: $((& wsl.exe --version | Select-Object -First 1))"
+    $versionRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--version') -TimeoutSeconds 120
+Ok "WSL bereit: $(@("$($versionRun.StdOut)" -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 1))"
     MarkDone 'wslfeature'
 }
 
@@ -1563,7 +1585,7 @@ if (-not (IsDone 'wslconfig')) {
     else { Warn 'Windows-Build < 22621: "mirrored networking" nicht verfügbar – Windows erreicht WSL-Dienste evtl. nur eingeschränkt.' }
     $lines += @('', '[experimental]', 'autoMemoryReclaim=gradual')
     Set-Content -Path $cfgFile -Value $lines -Encoding Ascii
-    & wsl.exe --shutdown
+    Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--shutdown') -TimeoutSeconds 120 | Out-Null
     Ok "WSL: $mem GB RAM, $cpu Threads, 8 GB Swap."
     MarkDone 'wslconfig'
 }
@@ -1572,7 +1594,9 @@ if (-not (IsDone 'wslconfig')) {
 if (-not (IsDone 'distro')) {
     Enter-Step 'distro'
     Title 'Schritt 7/15 – Ubuntu 24.04 installieren'
-    $existing = @(& wsl.exe -l -q 2>$null | ForEach-Object { ("$_" -replace "`0", '').Trim() } | Where-Object { $_ })
+    # Verteilte Liste ueber das Zeitlimit geholt: ein haengendes wsl.exe blockierte sonst die Frage nach der Distribution.
+    $listRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-l', '-q') -TimeoutSeconds 120
+    $existing = @(("$($listRun.StdOut)" -split "`r?`n") | ForEach-Object { ("$_" -replace "`0", '').Trim() } | Where-Object { $_ })
     if ($existing -contains $Distro) {
         if ($CustomRoot -and -not $State.distro_requested) { Stop-Install "Die WSL-Distribution '$Distro' existiert bereits. Frische Installation darf sie nicht uebernehmen." }
         if (-not (YesNo "Es gibt bereits eine WSL-Distribution '$Distro'. Diese verwenden?")) { Stop-Install "Bitte vorhandenes '$Distro' sichern/entfernen oder umbenennen." }
@@ -1587,7 +1611,9 @@ if (-not (IsDone 'distro')) {
         } else {
             Native { wsl.exe --install Ubuntu-24.04 --name $Distro --no-launch --web-download } | ForEach-Object { Info $_ }
         }
-        $existing = @(& wsl.exe -l -q 2>$null | ForEach-Object { ("$_" -replace "`0", '').Trim() } | Where-Object { $_ })
+        # Verteilte Liste ueber das Zeitlimit geholt: ein haengendes wsl.exe blockierte sonst die Frage nach der Distribution.
+    $listRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-l', '-q') -TimeoutSeconds 120
+    $existing = @(("$($listRun.StdOut)" -split "`r?`n") | ForEach-Object { ("$_" -replace "`0", '').Trim() } | Where-Object { $_ })
         if ($existing -notcontains $Distro) { Stop-Install 'Ubuntu konnte nicht installiert werden (siehe Meldung oben).' }
     }
     if ($CustomRoot) { Assert-CustomDistroLocation }
@@ -1624,10 +1650,12 @@ if (-not (IsDone 'linuxuser')) {
     $out = Wsl-Run 'root' "$WslInstPath/wsl/setup_root.sh" "$user`n$p1"
     $p1 = $null; $p2 = $null
     if ($out -notmatch 'ROOT_SETUP_DONE') { Stop-Install 'Ubuntu-Grundeinrichtung fehlgeschlagen.' }
-    & wsl.exe --terminate $Distro | Out-Null
+    Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('--terminate', $Distro) -TimeoutSeconds 120 | Out-Null
     Start-Sleep 3
-    $who = (& wsl.exe -d $Distro --exec whoami 2>$null | Select-Object -First 1)
-    $pid1 = (& wsl.exe -d $Distro --exec ps -p 1 -o comm= 2>$null | Select-Object -First 1)
+    $whoRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-d', $Distro, '--exec', 'whoami') -TimeoutSeconds 60
+    $initRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-d', $Distro, '--exec', 'ps', '-p', '1', '-o', 'comm=') -TimeoutSeconds 60
+    $who = @("$($whoRun.StdOut)" -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 1)
+    $pid1 = @("$($initRun.StdOut)" -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 1)
     if ("$who".Trim() -ne $user -or "$pid1".Trim() -ne 'systemd') { Stop-Install "Prüfung fehlgeschlagen (Benutzer='$who', PID1='$pid1')." }
     $State.linux_user = $user
     Ok "Benutzer '$user' aktiv, systemd läuft."
@@ -1956,20 +1984,23 @@ if (-not (IsDone 'voicepython')) {
         }
         $linuxPaths = @()
         foreach ($windowsPath in $windowsPaths) {
-            $pathOutput = @(& wsl.exe -d $Distro -u $State.linux_user --exec wslpath -a -u $windowsPath 2>&1)
-            $exitCode = $LASTEXITCODE
-            # WSL kann vor dem Pfad Warnungen ausgeben (z. B. wsl2.localhostForwarding bei gespiegeltem Netzwerk).
-            # Frueher wurde blind die erste Zeile genommen, wodurch der Lauf daran abbrach.
-            $linuxPath = $pathOutput | Where-Object { "$_".Trim().StartsWith('/') } | Select-Object -First 1
-            if ($exitCode -ne 0 -or -not $linuxPath) { Stop-Install "WSL-Pfad konnte nicht aufgeloest werden: $windowsPath" }
-            $linuxPaths += "$linuxPath".Trim()
+            # WSL kann vor dem Pfad Warnungen ausgeben (z. B. wsl2.localhostForwarding bei gespiegeltem Netzwerk);
+            # Get-WslPath nimmt die erste Linux-Zeile und bricht bei Zeitueberschreitung ab.
+            $linuxPath = Get-WslPath $windowsPath
+            if (-not $linuxPath) { Stop-Install "WSL-Pfad konnte nicht aufgeloest werden: $windowsPath" }
+            $linuxPaths += $linuxPath
         }
         Assert-WslKeepalive
         $ttsArgs = @($linuxPaths[0], $linuxPaths[1], $linuxPaths[2], [string]$ttsPort)
         if ($linuxPaths.Count -eq 7) { $ttsArgs += $linuxPaths[3..6] }
-        & wsl.exe -d $Distro -u $State.linux_user --exec bash @ttsArgs 2>&1 |
-            ForEach-Object { Info "$_" }
-        if ($LASTEXITCODE -ne 0) { Stop-Install 'Lokaler TTS-Dienst konnte nicht installiert werden.' }
+        # Das Installationsskript des TTS-Dienstes laedt Pakete nach und braucht daher ein eigenes Limit.
+        $ttsRun = Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments (@('-d', $Distro, '-u', $State.linux_user, '--exec', 'bash') + $ttsArgs) -TimeoutSeconds 1800 -CancelCheck { Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId }
+        foreach ($stream in @($ttsRun.StdOut, $ttsRun.StdErr)) {
+            if ($stream) { @("$stream" -split "`r?`n") | Where-Object { $_ -ne '' } | ForEach-Object { Info "$_" } }
+        }
+        if ($ttsRun.TimedOut) { Stop-Install 'Der lokale TTS-Dienst wurde nicht innerhalb von 30 Minuten installiert.' }
+        if ($ttsRun.Cancelled) { Stop-Install 'Installation abgebrochen.' }
+        if ($ttsRun.ExitCode -ne 0) { Stop-Install 'Lokaler TTS-Dienst konnte nicht installiert werden.' }
         # Kaltstart inkl. Modellpruefung und CUDA-Graphs braucht bis ~150 s, mit Download deutlich mehr.
         Info 'Lade die Stimme (Modell wird in den Grafikspeicher geladen, kann einige Minuten dauern) …'
         if (-not (Wait-Http "http://127.0.0.1:$ttsPort/health" 900)) {
@@ -1979,7 +2010,7 @@ if (-not (IsDone 'voicepython')) {
         Ok "Lokaler TTS-Dienst bereit (Port $ttsPort)."
     } else {
         # Beim Stimmenwechsel auf Piper/Legacy bleibt sonst das alte GPU-Modell geladen.
-        & wsl.exe -d $Distro -u $State.linux_user --exec systemctl --user stop friday-tts.service 2>$null | Out-Null
+        Invoke-CapturedProcess -FilePath 'wsl.exe' -Arguments @('-d', $Distro, '-u', $State.linux_user, '--exec', 'systemctl', '--user', 'stop', 'friday-tts.service') -TimeoutSeconds 120 | Out-Null
     }
     Ok 'Sprachmodelle bereit.'
     MarkDone 'voicepython'

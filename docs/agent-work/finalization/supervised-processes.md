@@ -64,3 +64,30 @@ Gesamtstand: **20/20 Installer-Tests Exit 0** (vorher 19).
 - **Modell-Warmup und DB-/Dashboardwechsel** sind über `Native`/`Enter-Step` abgedeckt, aber nicht einzeln mit
   Zeitlimit und Abbruch belegt.
 - **Lastfall** (Paketspam, sehr lange stille Phase) ist weiterhin nur über den asynchronen Leser abgedeckt.
+## 2026-10-22 wsl.exe unter Zeitlimit
+
+`Invoke-SupervisedProcess` startet Prozesse ohne Umleitung (die Werkzeuge schreiben ihre Protokolle selbst).
+Fuer Aufrufe, deren Ausgabe der Installer auswertet, kam `Invoke-CapturedProcess` dazu: umgeleitete Ausgabe,
+optional Standardeingabe, asynchrones Lesen (kein Pipe-Deadlock), Zeitlimit fuer den gesamten Aufruf, Abbruchbitte
+und gezieltes Beenden genau des gestarteten Prozesses.
+
+Verdrahtet in `install-friday.ps1`:
+
+| Aufruf | Limit |
+|---|---|
+| `Wsl-Run` (Skripte in der Distribution, mit Passworteingabe) | 1800 s, Abbruchbitte |
+| `Get-WslPath` / Pfadumwandlung fuer den TTS-Dienst | 60 s |
+| `wsl.exe --exec whoami` / `ps -p 1` (Distribution bereit?) | 60 s |
+| `install_wsl.sh` des TTS-Dienstes | 1800 s, Abbruchbitte |
+| `--status`, `--version`, `--shutdown`, `--terminate`, `-l -q`, `systemctl stop` | 120 s |
+
+Bewusste Ausnahme bleiben die vier Einrichtungsaufrufe von WSL selbst (Feature aktivieren, Update,
+Distributionsdownload): sie schreiben ihren Fortschritt live, und ein Limit braucht dort einen mitlesenden
+Starter. Der Test `installer/tests/wsl-timeout.Tests.ps1` nagelt die Zahl auf vier fest, damit kein weiterer
+Aufruf unbemerkt ohne Limit dazukommt.
+
+**Nachweis:** `wsl-timeout.Tests.ps1` PASS - Ausgabe und Exitcode (auch 7), Standardeingabe, Zeitlimit beendet den
+haengenden Aufruf nach ~2 s, waehrend ein fremder `ping` weiterlaeuft, Abbruchbitte waehrend des Laufs, und die
+Verdrahtung aller sieben Stellen. Gegenprobe: ein zusaetzlicher `& wsl.exe`-Aufruf laesst den Test mit
+"Es gibt noch einen direkten wsl.exe-Aufruf ohne Zeitlimit." scheitern (geprueft, danach zurueckgesetzt).
+Installer-Suite 22/22 Exit 0.
