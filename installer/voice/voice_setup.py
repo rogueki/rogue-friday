@@ -17,7 +17,7 @@ args = argparse.ArgumentParser()
 args.add_argument("root", nargs="?", default=r"C:\Friday")
 args.add_argument("--voice-mode", choices=("local", "elevenlabs"), default="local")
 args.add_argument("--elevenlabs-voice-id", default="21m00Tcm4TlvDq8ikWAM")
-args.add_argument("--voice-choice", choices=("friday-female", "classic"), default="classic")
+args.add_argument("--voice-choice", choices=("friday-female", "classic", "custom"), default="classic")
 args.add_argument("--voice-reference", default="")
 args.add_argument("--fast-tts", action="store_true")
 args.add_argument("--fast-tts-port", type=int, default=43795)
@@ -105,10 +105,13 @@ else:
     tts = os.path.join(MODELS, "tts")
     os.makedirs(tts, exist_ok=True)
     custom = os.path.join(ROOT, "installer", "voice_models", "jarvis_de.onnx")
-    if options.voice_choice == "friday-female":
+    if options.voice_choice in ("friday-female", "custom"):
         name, folder = "de_DE-kerstin-low", "de/de_DE/kerstin/low"
         film_filter = False
-        print("   F.R.I.D.A.Y.: Kerstin als lokale Ausfallstimme (weiblich, Deutsch)")
+        if options.voice_choice == "custom":
+            print("   Eigene Stimme: Kerstin als lokale Ausfallstimme, Referenz kommt aus der Aufnahme")
+        else:
+            print("   F.R.I.D.A.Y.: Kerstin als lokale Ausfallstimme (weiblich, Deutsch)")
     elif os.path.exists(custom):
         if not os.path.exists(custom + ".json"):
             raise FileNotFoundError("jarvis_de.onnx.json fehlt neben der eigenen J.A.R.V.I.S.-Stimme")
@@ -124,7 +127,7 @@ else:
             print("   Klassisch: eigene Referenz mit Qwen3-TTS; Thorsten als Ausfallstimme")
         else:
             print("   Klassisch: Thorsten (maennlich) mit Filmfilter; keine eigene J.A.R.V.I.S.-Datei vorhanden")
-    if options.voice_choice == "friday-female" or not os.path.exists(custom):
+    if options.voice_choice in ("friday-female", "custom") or not os.path.exists(custom):
         for ext in (".onnx", ".onnx.json"):
             dst = os.path.join(tts, name + ext)
             if not os.path.exists(dst):

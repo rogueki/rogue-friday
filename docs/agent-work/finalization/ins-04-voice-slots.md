@@ -67,17 +67,17 @@ ist die Abarbeitungsreihenfolge:
 
 | Datei:Zeile | Was dort passiert | Aenderung |
 |---|---|---|
-| `install-friday.ps1:1354` | `$newChoice` bildet nur 1/2 ab, 3 wird zum weiblichen Platz | `'3'` -> `'custom'` |
-| `install-friday.ps1:1357` | Referenzabfrage nur fuer die zwei alten Plaetze | `custom` aufnehmen |
-| `install-friday.ps1:1329-1330`, `1334` | Zustandspruefung setzt unbekannte Auswahl auf `friday-female` | `custom` als gueltig behandeln (nur im ElevenLabs-Modus zuruecksetzen, dort gibt es keine eigene Voice ID) |
-| `install-friday.ps1:1346` | Standardauswahl je Zustand | `custom` -> `'3'` |
+| ~~`install-friday.ps1:1354`~~ | `$newChoice` bildete nur 1/2 ab, 3 wurde zum weiblichen Platz | **erledigt**: `'3'` -> `'custom'` |
+| ~~`install-friday.ps1:1357`~~ | Referenzabfrage nur fuer die zwei alten Plaetze | **erledigt**: `custom` aufgenommen |
+| ~~`install-friday.ps1:1334`~~ | Zustandspruefung setzte unbekannte Auswahl auf `friday-female` | **erledigt**: `custom` gilt als gueltig; im ElevenLabs-Modus bleibt das Zuruecksetzen (dort gibt es keine eigene Voice ID) |
+| ~~`install-friday.ps1:1346`~~ | Standardauswahl je Zustand | **erledigt**: `custom` -> `'3'` |
 | `install-friday.ps1:250` | `Find-VoiceReference` kennt keine Paketreferenz fuer `custom` | bewusst so lassen, aber im Kommentar begruenden |
-| `install-friday.ps1:1950-1952` | Streaming-Paare werden nur bei beiden alten Plaetzen geprueft | `custom` optional mitpruefen |
+| ~~`install-friday.ps1:1955-1958`~~ | Streaming-Paare wurden nur bei beiden alten Plaetzen geprueft | **erledigt**: eigener Platz wird mitgegeben, wenn `prepare` ihn als vorhanden meldet |
 | ~~`update-voice-personas.ps1:15`, `:132`~~ | `$pairs` und Sicherungsliste | **erledigt**: `custom` in `$pairs` und in der Sicherungsliste |
-| `voice_setup.py:20` | `--voice-choice` erlaubt nur zwei Werte | `custom` ergaenzen |
-| `voice_setup.py:108`, `:127` | Piper-Basiswahl und "eigene Datei vorhanden" | `custom` wie den weiblichen Platz behandeln, aber eigene Referenzdatei |
+| ~~`voice_setup.py:20`~~ | `--voice-choice` erlaubte nur zwei Werte | **erledigt** |
+| ~~`voice_setup.py:108`, `:130`~~ | Piper-Basiswahl | **erledigt**: eigener Platz nutzt die weibliche Basisstimme, Referenz kommt aus der Aufnahme (`custom-reference.*`) |
 | ~~`friday_voice.py:2264`~~ | Endpunkt akzeptierte nur zwei Stimmen | **erledigt**: prueft jetzt gegen `voice_persona.CHOICES` statt gegen eine eigene Liste |
-| Dashboard-Stimmenliste (TS) | zwei Eintraege | dritter Eintrag, ohne eigene Referenz deaktiviert mit Begruendung |
+| ~~Dashboard-Stimmenliste (TS)~~ | zwei Eintraege | **erledigt**: `VoicePersona`/`VOICE_PERSONAS` und die Ermittlung der installierten Stimme kennen `custom`; der Vertrag fuehrt `ttsVoice` als freien String, daher keine Contract-Aenderung |
 
 Danach: messbare Audioausgabe fuer alle drei Plaetze (Dauer > 0,3 s, Amplitude ueber Stille), Wechsel hin und
 zurueck laesst die beiliegende Referenz byte-gleich.
@@ -90,3 +90,34 @@ waere die Auswahl erreichbar, die Stimme aber nicht installiert.
 Python-Seite zuerst (Persona + Referenzpaare) mit eigenen Tests, danach Installer-Verdrahtung, dann
 Dashboard-Liste, zuletzt die messbare Audioausgabe für alle drei Plätze. Kein Zwischenstand, in dem Option 3
 wählbar ist, aber nicht funktioniert.
+## 6. Abschluss (2026-10-22)
+
+Option 3 der Installerauswahl belegt jetzt den eigenen Platz `custom`. Die Kette ist vollstaendig verdrahtet:
+
+- Auswahl: `install-friday.ps1` bildet `3` auf `custom` ab, merkt sich die Referenz unter
+  `voice_reference_custom` (und weiterhin `voice_reference_own`) und laesst die beiliegenden Referenzen
+  unberuehrt.
+- Installation: `voice_setup.py` akzeptiert `custom`, nutzt die weibliche Piper-Basis als Ausfallstimme und
+  kopiert die Aufnahme nach `config/voice-references/custom-reference.<ext>`; `prepare_voice_pairs.py` erzeugt
+  daraus das Streaming-Paar und den Referenztext.
+- Dienst: `fast_tts/server.py` liefert den Platz, sobald das Paar vorhanden ist; `voice_persona` loest ihn auf;
+  `/control/voice` prueft gegen `CHOICES`.
+- Steuerung: `VoicePersona`/`VOICE_PERSONAS` enthalten `custom`, und die Ermittlung der installierten Stimme
+  prueft gegen diese Liste statt gegen eine zweite Kopie.
+- Update: `update-voice-personas.ps1` sichert die Paare des eigenen Platzes.
+
+**Nachweis (aktuell, diese Sitzung):**
+
+| Pruefung | Ergebnis |
+|---|---|
+| `installer/tests/voice-slots.Tests.ps1` | PASS - Verdrahtung aller elf Stellen; Gegenprobe: mit zurueckgedrehter Abbildung schlaegt die Zusicherung an |
+| Installer-Suite | 21/21 Exit 0 |
+| `test_voice_persona.py` | 8/8 OK |
+| `voice-persona.test.ts` | 4/4 (enthaelt `VOICE_PERSONAS`-Reihenfolge und `custom`-Aufruf) |
+| `vitest run apps/control-api` | 125 Dateien / 1060 Tests bestanden |
+| `tsc -p apps/control-api` | Exit 0 |
+| `eslint` auf den drei geaenderten Dateien | Exit 0 |
+
+**Rest fuer PASS:** messbare Audioausgabe fuer alle drei Plaetze (Dauer > 0,3 s, Amplitude ueber Stille,
+Referenz nach Rueckwechsel byte-gleich) und ein echter Installationslauf, der Option 3 waehlt. Beides braucht
+GPU und den laufenden Sprachdienst und gehoert damit zu INS-13/REL-03; bis dahin bleibt INS-04 `TEIL`.

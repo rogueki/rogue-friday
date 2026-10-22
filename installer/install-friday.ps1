@@ -1331,7 +1331,7 @@ if ($State.voice_mode -eq 'elevenlabs' -and $State.voice_choice -notin @('friday
     Save-State
 }
 if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
-    ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic'))) {
+    ($ChangeVoice -or $State.voice_choice -notin @('friday-female', 'classic', 'custom'))) {
     Title 'Ausgabestimme wählen'
     Info '1  F.R.I.D.A.Y. (weiblich)'
     Info '2  J.A.R.V.I.S. (männlich)'
@@ -1343,18 +1343,18 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
         -not (Test-Path "$Inst\voice_models\jarvis_de.onnx")) {
         Warn 'Ohne eigene J.A.R.V.I.S.-Referenz/ONNX klingt Option 2 heller (Thorsten mit Filmfilter).'
     }
-    $defaultChoice = if ($State.voice_choice -eq 'classic') { '2' } elseif ($State.voice_choice -eq 'friday-female') { '1' } elseif ($AN -eq 'Jarvis') { '2' } else { '1' }
+    $defaultChoice = if ($State.voice_choice -eq 'classic') { '2' } elseif ($State.voice_choice -eq 'custom') { '3' } elseif ($State.voice_choice -eq 'friday-female') { '1' } elseif ($AN -eq 'Jarvis') { '2' } else { '1' }
     do {
         $answer = $(if ($GuiMode) { Gui-Answer 'voiceChoice' } else { Read-Host "  Stimme [1-3, Standard $defaultChoice]" }).Trim()
         if (-not $answer) { $answer = $defaultChoice }
     } while ($answer -notin @('1', '2', '3'))
-    # Option 3 nutzt denselben Stimmplatz wie F.R.I.D.A.Y.: der Qwen-Klon entsteht ohnehin aus der
-    # Referenzdatei. Ein eigener Platz muesste fast_tts, prepare_voice_pairs und die Stimmenliste im
-    # Dashboard mitziehen - die Referenz ist der eigentliche Unterschied.
-    $newChoice = if ($answer -eq '2') { 'classic' } else { 'friday-female' }
-    $ownReference = ($answer -eq '3')
+    # Option 3 hat einen eigenen Stimmplatz (custom): Persona, Referenzpaare, fast_tts und der Stimm-Endpunkt
+    # kennen ihn. Damit bleibt die beiliegende Referenz unberuehrt, wenn spaeter auf F.R.I.D.A.Y. zurueck
+    # gewechselt wird.
+    $newChoice = if ($answer -eq '2') { 'classic' } elseif ($answer -eq '3') { 'custom' } else { 'friday-female' }
+    $ownReference = ($newChoice -eq 'custom')
     $reference = ''
-    if ($State.voice_mode -eq 'local' -and $newChoice -in @('friday-female', 'classic')) {
+    if ($State.voice_mode -eq 'local' -and $newChoice -in @('friday-female', 'classic', 'custom')) {
         $choiceReference = $State["voice_reference_$newChoice"]
         if (-not $choiceReference -and $State.voice_choice -eq $newChoice) { $choiceReference = $State.voice_reference }
         if ($ownReference) {
@@ -1378,14 +1378,11 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
     $changed = $State.voice_choice -ne $newChoice -or $State.voice_reference -ne $reference
     $State.voice_choice = $newChoice
     $State.voice_reference = $reference
-    if ($ownReference) {
-        # Die eigene Stimme belegt den weiblichen Stimmplatz (fast_tts und die Stimmenliste kennen nur
-        # zwei Plaetze), darf dessen gespeicherte Referenz aber nicht ueberschreiben: sonst liefert ein
-        # Zurueckwechseln auf F.R.I.D.A.Y. die eigene Aufnahme statt der beiliegenden Stimme.
-        $State['voice_reference_own'] = $reference
-    } else {
-        $State["voice_reference_$newChoice"] = $reference
-    }
+    # Der eigene Platz speichert seine Referenz unter seinem eigenen Schluessel, damit ein erneuter Lauf sie
+    # wiederfindet und ein Zurueckwechseln die beiliegende Stimme unberuehrt laesst. voice_reference_own bleibt
+    # als Altlast-Alias erhalten.
+    $State["voice_reference_$newChoice"] = $reference
+    if ($ownReference) { $State['voice_reference_own'] = $reference }
     if (($changed -or $ChangeVoice) -and (IsDone 'voicepython')) {
         $State.done = @(@($State.done) | Where-Object { $_ -notin @('voicepython', 'voiceservice') })
         Warn 'Die Ausgabestimme wird neu eingerichtet; vorhandene persönliche Aufnahmen bleiben erhalten.'
@@ -1951,6 +1948,11 @@ if (-not (IsDone 'voicepython')) {
             $referenceDir = "$Root\config\voice-references"
             $windowsPaths += @("$referenceDir\friday-female-streaming.wav", "$referenceDir\friday-female-reference.txt",
                                "$referenceDir\classic-streaming.wav", "$referenceDir\classic-reference.txt")
+        }
+        if ($pairs.custom) {
+            # Der eigene Platz wird nur mitgegeben, wenn wirklich eine eigene Aufnahme vorbereitet wurde.
+            $referenceDir = "$Root\config\voice-references"
+            $windowsPaths += @("$referenceDir\custom-streaming.wav", "$referenceDir\custom-reference.txt")
         }
         $linuxPaths = @()
         foreach ($windowsPath in $windowsPaths) {

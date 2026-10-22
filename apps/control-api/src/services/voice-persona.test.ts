@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Runtime } from "../runtime/types";
-import { applyVoicePersona } from "./voice-persona";
+import { applyVoicePersona, VOICE_PERSONAS } from "./voice-persona";
 
 const runtime = (baseUrl = "http://127.0.0.1:43794") => ({
   config: { adapters: { voice: { provider: "friday-voice-http", config: { baseUrl } } } },
@@ -32,5 +32,12 @@ describe("voice persona bridge", () => {
     await expect(applyVoicePersona(runtime(), "friday-female")).rejects.toThrow("Stimmen-Update");
     send.mockResolvedValueOnce(new Response(JSON.stringify({ applied: false, message: "Referenz fehlt" }), { status: 409 }));
     await expect(applyVoicePersona(runtime(), "classic")).rejects.toThrow("Referenz fehlt");
+  });
+  it("carries the own voice as a third persona and sends it unchanged", async () => {
+    expect(VOICE_PERSONAS).toEqual(["friday-female", "classic", "custom"]);
+    const send = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ applied: true, voice: "custom" }), { status: 200 }));
+    await applyVoicePersona(runtime(), "custom");
+    const [, options] = send.mock.calls[0]!;
+    expect(JSON.parse(String(options?.body))).toEqual({ voice: "custom" });
   });
 });
