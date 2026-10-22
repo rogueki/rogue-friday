@@ -2088,6 +2088,7 @@ export interface CalendarAccountAction {
     | "select"
     | "default"
     | "check"
+    | "write-test"
     | "events"
     | "create"
     | "update"

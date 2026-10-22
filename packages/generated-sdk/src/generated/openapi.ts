@@ -4981,7 +4981,7 @@ export interface components {
             };
             accountId?: string;
             /** @enum {unknown} */
-            action: "upsert" | "delete" | "discover" | "select" | "default" | "check" | "events" | "create" | "update" | "delete-event";
+            action: "upsert" | "delete" | "discover" | "select" | "default" | "check" | "write-test" | "events" | "create" | "update" | "delete-event";
             calendarId?: string;
             defaultCalendarId?: string | null;
             etag?: string;

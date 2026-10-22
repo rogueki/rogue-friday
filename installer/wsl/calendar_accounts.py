@@ -750,7 +750,7 @@ def main(request: dict, http: CalDavHttp | None = None) -> dict:
                            "etag": "", "data": payload.decode("utf-8")}], "readOnly": True}
     password = read_secret(account["id"])
     cal_id = request.get("calendarId") or account.get("defaultCalendarId")
-    calendar = calendar_for(account, cal_id, write=action in ("create", "update", "delete-event"))
+    calendar = calendar_for(account, cal_id, write=action in ("create", "update", "delete-event", "write-test"))
     if action == "events":
         return {"items": list_events(http, account, calendar, password, request["from"], request["to"]), "readOnly": not calendar["canWrite"]}
     if action == "check":
@@ -762,6 +762,37 @@ def main(request: dict, http: CalDavHttp | None = None) -> dict:
                 "canWrite": privileges is not None and (privileges.find(".//" + DAV + "all") is not None or
                                                          privileges.find(".//" + DAV + "write") is not None or
                                                          privileges.find(".//" + DAV + "write-content") is not None)}
+    if action == "write-test":
+        # Explicit probe only: one uniquely named event, read back, then removed again.
+        if account["kind"] != "caldav" or not calendar["canWrite"]:
+            raise ValueError("read_only")
+        uid = "friday-selftest-" + os.urandom(8).hex()
+        target = href(calendar["url"], uid + ".ics")
+        start = dt.datetime.now(dt.timezone.utc).replace(microsecond=0) + dt.timedelta(days=365)
+        probe = {"title": "Friday Schreibtest", "start": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                 "end": (start + dt.timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ")}
+        status, headers, _ = http.request(target, "PUT", account["username"], password,
+                                          document(probe, uid + "@friday.local"),
+                                          {"Content-Type": "text/calendar; charset=utf-8", "If-None-Match": "*"})
+        read_headers: dict = {}
+        try:
+            if status not in (201, 204):
+                raise ValueError("write_failed")
+            read_status, read_headers, read_body = http.request(target, "GET", account["username"], password)
+            if read_status != 200 or uid.encode() not in read_body:
+                raise ValueError("write_not_confirmed")
+        finally:
+            etag = read_headers.get("etag") or headers.get("etag")
+            cleaned = False
+            if etag:
+                try:
+                    removed, _, _ = http.request(target, "DELETE", account["username"], password, headers={"If-Match": etag})
+                    cleaned = removed in (200, 204, 404)
+                except (OSError, TimeoutError, ssl.SSLError):
+                    cleaned = False
+        if not cleaned:
+            raise ValueError("cleanup_failed")
+        return {"ok": True, "calendarId": calendar["id"], "uid": uid, "cleaned": True}
     if action == "create":
         uid = request.get("uid")
         if not isinstance(uid, str) or not re.fullmatch(r"[a-f0-9]{32}", uid):

@@ -13,6 +13,7 @@ import { Section } from "./controls";
 import { SchemaForm } from "./SchemaForm";
 import { asFieldSchema, jsonEqual, secretPropertyNames, stripSecrets, validateConfig } from "./schemaLogic";
 import { useSettingsDrafts } from "./SettingsDrafts";
+import { CalendarAccountWizard } from "./CalendarAccountWizard";
 
 function AdapterForm({ adapter }: { adapter: AdapterConfigSettings }) {
   const { t, locale } = useT();
@@ -266,6 +267,7 @@ export function AdaptersArea({ selectedId, onSelect }: { selectedId: string | nu
         <p role="status">{calendar.provider === "caldav-calendar" && (calendar.config.mode === "caldav" ? calendar.secretFields.calendarUrl?.configured && calendar.secretFields.username?.configured && calendar.secretFields.password?.configured : calendar.secretFields.feedUrl?.configured) ? (calendar.config.mode === "caldav" ? "CalDAV-Zugang hinterlegt; Lesen und Terminanlage hängen vom Anbieterzugriff ab. Verbindung separat testen." : "ICS-Zugang hinterlegt (nur lesen); Verbindung separat testen.") : live ? "Noch kein Kalenderzugang hinterlegt. Im Live-Betrieb bleibt die Kalenderansicht leer, bis ein Zugang hinterlegt und erfolgreich getestet ist." : dataMode ? "Noch kein Kalenderzugang hinterlegt; die Kalenderansicht verwendet Simulation." : ""}</p>
         {calendarMessage ? <p role="status">{calendarMessage}</p> : null}
       </section> : null}
+      {selected?.category === "calendar" ? <CalendarAccountWizard onSaved={() => { void query.refetch(); }} /> : null}
       {unconfigured.length > 0 ? (
         <section aria-labelledby="unconfigured-title" className="st-adapter">
           <h3 id="unconfigured-title">Nicht eingerichtete Bereiche</h3>
