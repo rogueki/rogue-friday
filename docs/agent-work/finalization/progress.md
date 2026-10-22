@@ -277,6 +277,25 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   Konten-/Ordnerabfrage. Web 84/669, node 2801 (60 skipped) gruen, lint/typecheck/build 0, Browser 2/2
 - evidence_paths: `dash-05-recovery.md`; status: PASS fuer DASH-05.06, TEIL fuer DASH-05.05
 - remaining_work: 05.05 zwei echte kontrollierte Testpostfaecher, danach DASH-06
+### DASH-06
+
+- requirement_ids: DASH-06.01/06.02/06.03/06.05 (PASS), DASH-06.04 (TEIL); predecessor: DASH-05
+- base_revision: `90d383b`; result_revision: folgt mit dem Commit dieses Blocks
+- implementation_paths: `apps/web/src/features/settings/CalendarAccountWizard.tsx` (neu),
+  `apps/web/src/features/settings/AdaptersArea.tsx`, `apps/web/src/features/calendar/CalendarPage.tsx`
+  (Kontoblock entfernt, `CalendarAccounts.tsx` geloescht), `packages/contracts/schemas/integrations/
+  calendar-account-action.schema.json`, generiertes SDK, `apps/control-api/src/services/calendar-accounts.ts`,
+  `installer/wsl/calendar_accounts.py`, `installer/wsl/test_calendar_accounts.py`,
+  `apps/web/src/features/settings/CalendarAccountWizard.test.tsx` (neu)
+- test_command: `python3 test_calendar_accounts.py` in WSL, `vitest --project web CalendarAccountWizard`,
+  `vitest --project node calendar`, volle web-Suite, `pnpm lint`, `pnpm typecheck`, `pnpm build:app`,
+  `playwright test settings.spec.ts settings-acceptance.spec.ts`
+- expected: Wizard im Adapterdetail, zwei Kalender mit Rechten, echter CRUD-Fixture, read-only verhindert
+  Schreiben, ETag-Konflikt ohne fremden Verlust, DST/Serien/Ganztag, sauberer Schreibtest, Recovery
+- observed: 11/11 Fixture-Tests inklusive Schreibtest/Aufraeumen/Kontoentfernen/Recovery, 5/5 Wizard,
+  60/60 Kalender-API, web 85/674, lint/typecheck/build 0, Settings-Browser 10/10
+- evidence_paths: `dash-06-calendar-accounts.md`; status: PASS ausser 06.04 (TEIL, realer Anbieter fehlt)
+- remaining_work: 06.04 realer Anbieter, danach DASH-07
 ### INS-06
 
 - requirement_ids: INS-06; predecessor: INS-02

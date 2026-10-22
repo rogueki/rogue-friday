@@ -809,3 +809,21 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   (60 skipped, Exit 0), lint/typecheck/build 0, Browser 2/2 in 24,4 s.
   Details: `docs/agent-work/finalization/dash-05-recovery.md`.
 - **Offen**: DASH-05.05 mit echten Testpostfaechern; danach DASH-06.
+
+## 2026-10-23 DASH-06 Kalenderkonten im Adapterdetail
+
+- Der Kontoblock ist von der Kalenderseite in das Kalender-Adapterdetail umgezogen: sechs Schritte
+  (Typ, Zugang, Discovery, Kalender/Rechte, Standard/Sync/Zeitzone, Pruefen/Uebernehmen). Die Kalenderseite
+  zeigt nur noch Ansichten, Termine und Filter; `CalendarAccounts.tsx` ist entfernt.
+- Discovery nutzt Principal und Home-Set, listet Rechte je Kalender und verweigert Rechte aus fehlerhaften
+  propstat-Antworten. ICS bleibt fest lesend (kein Schreibziel, kein Schreibtest).
+- Neu: ausdruecklicher Schreibtest in der Bridge (eindeutige Kennung, Ruecklesepruefung, Aufraeumen im
+  finally), vertraglich als `write-test` verankert, im Service erklaerend abgebildet und nur auf Klick
+  ausgeloest.
+- Kontoentfernen und Abbruch loeschen keine Termine und keine Serverkalender; ein neuer Test prueft, dass
+  `delete` keinen HTTP-DELETE sendet. Discovery-Fehler lassen das bisherige Standardkonto samt Kalendern
+  unangetastet.
+- **Nachweis**: CalDAV-Fixture 11/11 in WSL, Wizard 5/5, Kalender-API 60/60, web 85/674, lint/typecheck/build 0,
+  Settings-Browser 10/10. Details: `docs/agent-work/finalization/dash-06-calendar-accounts.md`.
+- **Offen**: DASH-06.04 TEIL - echte CRUD gegen einen realen Anbieter (keine Zugangsdaten hier); Wizard 06.02,
+  Discovery/Schreibtest 06.03 und Recovery 06.05 sind belegt. Als Naechstes DASH-07.
