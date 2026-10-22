@@ -1,0 +1,70 @@
+# DASH-07.03 bis 07.06 - Zugangsfläche, OAuth, Abnahme und Recovery (Teilstand)
+
+Stand: 2026-10-23. Nachweisbasis: aktueller Arbeitsbaum auf `feat/friday-finalization-20261021`.
+
+## 1 Was heute existiert und belegt ist
+
+- `GET/PATCH /settings/hermes-config` mit 82 typisierten Feldern (`HERMES_CONFIG_FIELDS`) und echten
+  Konsumenten je Feld; Secrets maskiert; PATCH mit erwarteter Revision, Rückleseprobe.
+  Belege: `apps/control-api/test/hermes-config.test.ts` (u. a. "returns only allowlisted resolved values and
+  installed manifests without credential leakage"), `hermes-config-routes.test.ts`.
+- Modellfelder `model.provider`, `model.default`, Fallback-Kette (`fallback_model`,
+  `fallback.min_switch_reset_seconds`) in `HermesConfigArea`; Änderungen werden über den generierten Vertrag
+  geschrieben und zurückgelesen.
+- Provider-Katalog über `GET /settings/hermes-model-catalog` (9168 Modelle im Picker-Cache, 232 Provider).
+- MCP-OAuth asynchron über `POST /settings/hermes-config/mcp-oauth` (Probe/Status), kein eigener OAuth-Client.
+- Versionabweichung: ein Konflikt zwischen erwarteter und tatsächlicher Revision/`sourceRevision` endet als
+  `CONFLICT` und stoppt genau diese Mutation (`hermes-config.test.ts`, `store_revision_conflict`).
+
+## 2 Was fehlt (Stand nach Inventar `dash-07-hermes-inventory.md`)
+
+- **07.03**: keine Friday-Fläche für `hermes auth add/list/remove/reset/logout`, also kein Anzeigen bestehender
+  Zugänge, kein Hinzufügen, Erneuern und Trennen, keine Unterscheidung Abo/OAuth gegen API-Key, keine
+  Pool-Prioritäten/Mehrfachkeys. Ebenso fehlen Customendpoints (`model.base_url`), lokale Modelle,
+  `memory.*`-Felder und eine Benachrichtigungskopplung. Die drei vorhandenen Key-Felder decken nur drei
+  Provider ab und sind kein Zugangsmanagement.
+- **07.04**: kein Provider-OAuth-/Deviceflow. Der Hermes-Flow (`hermes auth add … --type oauth`,
+  `model --no-browser`) ist nicht angebunden; Browserrückkehr, Code, Ablauf und Abbruch fehlen. MCP-OAuth ist
+  vorhanden, aber ein anderer Flow.
+- **07.05**: keine Inventarzeile mit "native Fläche + wirksame Operation" für die oben genannten Bereiche; ein
+  echter Modellaufruf ist auf diesem Rechner nicht belegt (siehe 3.).
+- **07.06**: "fehlgeschlagener neuer Login verändert den Standardzugang nicht" und "Abbruch löscht nur den
+  kurzlebigen Flow" setzen 07.03/07.04 voraus; die Versionsabweichung ist dagegen bereits belegt.
+
+## 3 Befund zur Umgebung (2026-10-23, rein lesend)
+
+- Auf diesem Rechner ist Hermes **direkt erreichbar**: `C:\Users\ByteNinja\AppData\Local\hermes\bin\hermes.exe`,
+  Version `v0.20.5 (2026.8.19)`; zusätzlich `hermes` in der WSL-Distro `Friday-Ubuntu`
+  (`/home/byteninja/.local/bin/hermes`).
+- Das weicht von der Inventarbasis ab (dort `v0.22.2` in Distro `FRIDAY-2`). Die Versionsangabe ist damit
+  installationsabhängig; Friday muss sie je Laufzeit lesen und in der Oberfläche nennen, statt eine feste
+  Version zu behaupten.
+- `hermes auth list` zeigt zwei Provider mit je einem Key (`copilot` → `gh_cli`, `kimi-coding` →
+  `env:KIMI_API_KEY`); `hermes auth --help` listet `add/list/remove/reset/status/logout/spotify`.
+  Die CLI-Fläche ist also vorhanden - die Friday-Fläche fehlt.
+- Ein echter Modellaufruf wurde **nicht** ausgeführt (kein Verbrauch, keine Änderung). Die Inventarnotiz N-008
+  (403 beim einzigen früheren Kandidaten) bleibt damit offen und ist Voraussetzung für 07.05.
+
+## 4 Konsequenz
+
+07.03 bis 07.06 bleiben **TEIL**. Nächster konkreter Schritt (nächste Runde):
+
+1. Vertrag für Zugänge: `GET /settings/hermes-access` (Liste mit Provider, Art Abo/Key, maskiert, Priorität),
+   `POST /settings/hermes-access` (add, Key nur nach ausdrücklicher Übernahme), `POST .../renew`,
+   `DELETE .../{id}`; Abbildung auf `hermes auth add/remove/reset/logout` mit Rückleseprobe.
+2. UI im Adapterdetail: OpenAI/Anthropic als Hauptauswahl, "Erweitert" für weitere Provider; vorhandene
+   Zugänge mit Status; Test/Erneuern/Trennen; Abo und API-Key getrennt beschriften.
+3. Erst danach 07.04 (Flow über Hermes), 07.05 (echter Modellaufruf + Worker-Modellversion) und 07.06
+   (Login-Fehler/Abbruch).
+
+## 5 Nachweise dieses Teilstands
+
+| Pruefung | Ergebnis |
+| --- | --- |
+| `vitest --project node hermes` (in der vollen Suite) | grün; 2801 Tests, 60 skipped, Exit 0 |
+| `vitest --project web` | 85 Dateien / 674 Tests grün |
+| `pnpm lint` / `pnpm typecheck` / `pnpm build:app` | 0 Fehler / 0 / 0 |
+| `hermes --version`, `hermes auth list`, `hermes auth --help` | rein lesend erfasst; v0.20.5, zwei Key-Provider, CLI-Fläche vorhanden |
+
+Keine Erfolgsmeldung für 07.03 bis 07.06: die Flächen fehlen nachweislich, und ohne echten Modellaufruf wäre
+jede Abnahme unbelegt.

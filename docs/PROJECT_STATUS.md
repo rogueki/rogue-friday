@@ -827,3 +827,17 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   Settings-Browser 10/10. Details: `docs/agent-work/finalization/dash-06-calendar-accounts.md`.
 - **Offen**: DASH-06.04 TEIL - echte CRUD gegen einen realen Anbieter (keine Zugangsdaten hier); Wizard 06.02,
   Discovery/Schreibtest 06.03 und Recovery 06.05 sind belegt. Als Naechstes DASH-07.
+
+## 2026-10-23 DASH-07.03-07.06 Teilstand: Hermes-Zugaenge
+
+- Belegt vorhanden: `GET/PATCH /settings/hermes-config` (82 Felder, maskierte Secrets, Revisionspruefung),
+  Modell-/Fallback-Felder, Modellkatalog, MCP-OAuth, `CONFLICT` bei Versionsabweichung.
+- Fehlend und deshalb offen: Friday-Flaeche fuer `hermes auth add/list/remove/reset/logout` (Zugaenge
+  anzeigen, hinzufuegen, erneuern, trennen, Abo vs. API-Key), Customendpoints, lokale Modelle, `memory.*`,
+  Provider-OAuth/Deviceflow sowie der echte Modellaufruf fuer 07.05.
+- Umgebungsbefund: Hermes ist auf diesem Rechner erreichbar (`hermes.exe` v0.20.5, zusaetzlich in
+  `Friday-Ubuntu`); `hermes auth list` zeigt zwei Key-Provider. Die Inventarbasis (v0.22.2 in `FRIDAY-2`)
+  weicht ab - die Version muss je Laufzeit gelesen werden. Kein Modellaufruf ausgefuehrt.
+- **Nachweis**: rein lesende CLI-Abfragen, node 2801/60 skipped, web 85/674, lint/typecheck/build 0.
+  Details: `docs/agent-work/finalization/dash-07-access-partial.md`.
+- **Offen**: 07.03 Zugaenge-Vertrag und UI, 07.04 Flow, 07.05 Modellaufruf/Worker-Version, 07.06 Login-Recovery.

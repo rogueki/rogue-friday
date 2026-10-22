@@ -296,6 +296,21 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   60/60 Kalender-API, web 85/674, lint/typecheck/build 0, Settings-Browser 10/10
 - evidence_paths: `dash-06-calendar-accounts.md`; status: PASS ausser 06.04 (TEIL, realer Anbieter fehlt)
 - remaining_work: 06.04 realer Anbieter, danach DASH-07
+### DASH-07.03-07.06
+
+- requirement_ids: DASH-07.03, 07.04, 07.05, 07.06 (alle TEIL); predecessor: DASH-07.01/07.02
+- base_revision: `6ab6376`; result_revision: folgt mit dem Commit dieses Blocks
+- implementation_paths: keine neuen Produktpfade; Bestand in `apps/control-api/src/services/hermes-config.ts`,
+  `apps/web/src/features/settings/HermesConfigArea.tsx`, Vertrag `packages/contracts/openapi/friday-api.yaml`
+- test_command: volle node-/web-Suite, `pnpm lint`, `pnpm typecheck`, `pnpm build:app`; rein lesend
+  `hermes --version`, `hermes auth list`, `hermes auth --help`
+- expected: Zugaenge anzeigen/hinzufuegen/erneuern/trennen, Abo vs. Key, OAuth-Flow, echter Modellaufruf
+- observed: diese Flaechen fehlen; vorhanden sind Konfigfelder, Katalog, MCP-OAuth und Revisionskonflikt.
+  Hermes ist lokal erreichbar (v0.20.5), `auth`-CLI-Flaeche vorhanden, aber nicht angebunden; kein
+  Modellaufruf ausgefuehrt
+- evidence_paths: `dash-07-access-partial.md`, `dash-07-hermes-inventory.md`; status: TEIL (blockiert durch
+  fehlende Flaeche, nicht durch Umgebung)
+- remaining_work: 07.03 Vertrag+UI, 07.04 Flow, 07.05 Modellaufruf, 07.06 Recovery
 ### INS-06
 
 - requirement_ids: INS-06; predecessor: INS-02
