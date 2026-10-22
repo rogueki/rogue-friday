@@ -60,6 +60,8 @@ function Add-Text($panel, [string]$text, [int]$y, [int]$height = 42) {
 function Value([string]$name) { return $script:fields[$name].Text.Trim() }
 # Kooperativer Abbruch: dieselbe Bitte, die der Installer an seinen Schrittgrenzen prueft.
 . (Join-Path $PSScriptRoot 'lib\installer-cancel.ps1')
+# Ereignisstrom des Installers (Protokoll 2); unbekannte Zeilen bleiben sichtbarer Text.
+. (Join-Path $PSScriptRoot 'lib\gui-protocol.ps1')
 $script:cancelGraceSeconds = 25
 function Checked([string]$name) { return [bool]$script:fields[$name].Checked }
 function BoolText([bool]$value) { if ($value) { return 'true' }; return 'false' }
@@ -490,6 +492,29 @@ function Test-RunStalled([object]$LastOutput, [object]$Now, [int]$Minutes = 15) 
     return ($Now - $LastOutput).TotalMinutes -ge $Minutes
 }
 $timer = New-Object Windows.Forms.Timer; $timer.Interval = 150
+function Format-GuiEvent([object]$Event) {
+    # Nur echte Felder, keine aus Text geratenen Prozentzahlen oder Erfolge.
+    switch ([string]$Event.type) {
+        'step' {
+            if ("$($Event.state)" -eq 'start') { return "Schritt $($Event.step) gestartet" }
+            return "Schritt $($Event.step) abgeschlossen"
+        }
+        'download' {
+            if ("$($Event.state)" -eq 'start') { return "Download $($Event.name) laeuft" }
+            if ("$($Event.state)" -eq 'failed') { return "Download $($Event.name) fehlgeschlagen" }
+            return "Download $($Event.name) fertig"
+        }
+        'pip' { return "Pakete werden installiert ($($Event.label))" }
+        default { return "Ereignis: $($Event.type)" }
+    }
+}
+function Receive-BackendLine([string]$Line) {
+    $parsed = ConvertFrom-GuiEventLine $Line
+    if ($parsed.Kind -ne 'event') { Append-Log $Line; return }
+    $text = Format-GuiEvent $parsed.Event
+    if ("$($parsed.Event.type)" -eq 'step' -and "$($parsed.Event.state)" -eq 'start') { $status.Text = $text }
+    Append-Log $text
+}
 function Append-Log([string]$line) {
     $script:lastOutputAt = Get-Date
     foreach ($secret in $script:redactions) {
@@ -607,7 +632,7 @@ $timer.Add_Tick({
         $read = 0
         while ($task -and $task.IsCompleted -and $read -lt 100) {
             if ($null -eq $task.Result) { $task = $null; break }
-            Append-Log $task.Result
+            Receive-BackendLine $task.Result
             $task = $reader.ReadLineAsync(); $read++
         }
         Set-Variable -Name $taskName -Scope Script -Value $task
@@ -629,7 +654,7 @@ $timer.Add_Tick({
                     break
                 }
                 if ($null -eq $task.Result) { break }
-                Append-Log $task.Result
+                Receive-BackendLine $task.Result
                 $task = $reader.ReadLineAsync()
             }
         }

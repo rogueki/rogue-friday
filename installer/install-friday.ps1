@@ -73,6 +73,8 @@ if ($GuiMode) {
 . (Join-Path $PSScriptRoot 'lib\installer-lock.ps1')
 # Kooperativer Abbruch: Abbruchbitte der GUI als Datei mit Laufkennung (Begruendung im Modul).
 . (Join-Path $PSScriptRoot 'lib\installer-cancel.ps1')
+# Ereignisstrom fuer die GUI (Protokoll 2): eine JSON-Zeile je Ereignis, alter Text bleibt lesbar.
+. (Join-Path $PSScriptRoot 'lib\gui-protocol.ps1')
 
 if ($GuiSimulation) {
     if (-not $GuiMode -or -not $GuiConfig.simulation -or $env:FRIDAY_GUI_TEST -ne '1') { throw 'Simulation nur im lokalen GUI-Testmodus.' }
@@ -363,6 +365,7 @@ function Invoke-Pip([string]$Python, [string[]]$PipArgs, [string]$Label) {
     # das Terminal still blieb. Jetzt laeuft pip im Hintergrund und der Installer meldet im Takt weiter.
     # Der Exitcode kommt ueber eine cmd-Datei: Start-Process liefert ihn in PowerShell 5.1 nicht zuverlaessig.
     Confirm-NotCancelled
+    Write-GuiEvent 'pip' @{ state = 'start'; label = $Label }
     $log = "$Root\logs\pip-$Label.log"
     $marker = "$log.code"
     $cmdFile = "$Root\logs\pip-$Label.cmd"
@@ -444,8 +447,12 @@ function Stop-VoiceService { Stop-LauncherService 'FRIDAY_Voice' 'start-friday-v
 function Test-VoiceServiceRunning { return ((Get-LauncherProcesses 'start-friday-voice.ps1' '*friday_voice.py*' $ProcessRoots).Count -gt 0) }
 function Download($url, $file) {
     Confirm-NotCancelled
+    $downloadName = Split-Path -Path $file -Leaf
+    Write-GuiEvent 'download' @{ state = 'start'; name = $downloadName }
     & curl.exe -L --fail --retry 5 -C - -s -o $file $url
-    return $LASTEXITCODE -eq 0
+    $downloadOk = ($LASTEXITCODE -eq 0)
+    Write-GuiEvent 'download' @{ state = $(if ($downloadOk) { 'done' } else { 'failed' }); name = $downloadName }
+    return $downloadOk
 }
 function Sha256($file) { return (Get-FileHash $file -Algorithm SHA256).Hash.ToLower() }
 
@@ -479,6 +486,13 @@ if (Test-InstallerCancelRequested -Root $Root -RunId $InstallRunId) {
     # Wie bei der Sperre: kein Warten auf Eingabe, wenn der Weg aus einer geplanten Aufgabe kommt.
     if (-not $GuiMode -and -not $Resume) { Read-Host "  Enter zum Beenden" }
     exit 1
+}
+# Laufbeginn melden, damit die GUI Laufkennung und Modus aus dem Ereignisstrom kennt.
+Write-GuiEvent 'run' @{ state = 'start'; mode = $InstallerMode; run = $InstallRunId }
+function Enter-Step([string]$Name) {
+    # Schrittgrenze: Abbruch pruefen und den Schritt als Ereignis melden (die GUI zeigt nur echte Daten).
+    Confirm-NotCancelled
+    Write-GuiEvent 'step' @{ state = 'start'; step = $Name }
 }
 function Confirm-NotCancelled {
     # Wird vor jedem Schritt und vor jedem Unterprozess aufgerufen: die Abbruchbitte wirkt an der
@@ -1143,7 +1157,10 @@ function Save-State {
     # Datentraegerfehler oder Fremdeingriff unlesbare Datei der Verlust des gesamten Fortschritts.
     try { [IO.File]::Copy($StateFile, "$StateFile.bak", $true) } catch { }
 }
-function MarkDone($n) { $State.done = @(@($State.done) + $n | Select-Object -Unique); Save-State }
+function MarkDone($n) {
+    $State.done = @(@($State.done) + $n | Select-Object -Unique); Save-State
+    Write-GuiEvent 'step' @{ state = 'done'; step = $n }
+}
 if ($GuiMode -and -not (IsDone 'voicepython')) {
     # The one-use GUI request is removed before provisioning. Preserve only
     # nonsecret answers so a WSL reboot can restore decisions made in the wizard.
@@ -1364,7 +1381,7 @@ if (-not $UpdateDashboard -and $State.voice_mode -ne 'elevenlabs' -and
 
 # ================================================================ 1 Systemcheck
 if (-not (IsDone 'preflight')) {
-    Confirm-NotCancelled
+    Enter-Step 'preflight'
     Title 'Schritt 1/15 – Systemcheck'
     $build = [Environment]::OSVersion.Version.Build
     $ramGB = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
@@ -1405,7 +1422,7 @@ if ($State.voice_mode -eq 'local' -and (-not $State.gpu.nvidia -or [int]$State.g
 # Bei jedem Start synchronisieren, solange das Skript nicht aus dem Ziel-Installerordner laeuft: ein aktualisiertes Paket
 # muss die dort liegenden Kopien (WSL-Skripte, Voice-Dateien) ersetzen, auch wenn der Schritt schon erledigt ist.
 if (-not (IsDone 'files') -or $PSScriptRoot -ne $Inst) {
-    Confirm-NotCancelled
+    Enter-Step 'files'
     Title "Schritt 2/15 – Installationsdateien nach $Root kopieren"
     if ($PSScriptRoot -ne $Inst) {
         & robocopy.exe $PSScriptRoot $Inst /E /NFL /NDL /NJH /NJS /NP | Out-Null
@@ -1458,7 +1475,7 @@ Sync-VoiceFiles
 
 # ================================================================ 3 WSL-Grundlage (ggf. Neustart)
 if (-not (IsDone 'wslfeature')) {
-    Confirm-NotCancelled
+    Enter-Step 'wslfeature'
     Title 'Schritt 3/15 – WSL2 (Linux-Subsystem) vorbereiten'
     & wsl.exe --status *> $null
     if ($LASTEXITCODE -ne 0) {
@@ -1487,7 +1504,7 @@ if (-not (IsDone 'wslfeature')) {
 
 # ================================================================ 4 Energie
 if (-not (IsDone 'power')) {
-    Confirm-NotCancelled
+    Enter-Step 'power'
     Title 'Schritt 4/15 – Energieoptionen (am Netzteil immer wach bleiben)'
     & powercfg /change standby-timeout-ac 0
     & powercfg /change hibernate-timeout-ac 0
@@ -1499,7 +1516,7 @@ if (-not (IsDone 'power')) {
 
 # ================================================================ 5 Persönlichkeit
 if (-not (IsDone 'persona')) {
-    Confirm-NotCancelled
+    Enter-Step 'persona'
     Title "Schritt 5/15 – Deine Wünsche an $AN"
     $name = ''
     while (-not $name) { $name = Ask 'Wie heißt du (Vorname)?' }
@@ -1524,7 +1541,7 @@ if (-not (IsDone 'persona')) {
 
 # ================================================================ 6 .wslconfig
 if (-not (IsDone 'wslconfig')) {
-    Confirm-NotCancelled
+    Enter-Step 'wslconfig'
     Title 'Schritt 6/15 – WSL-Ressourcen festlegen'
     $mem = [math]::Max(4, [math]::Min(16, [math]::Floor($State.ram_gb / 2)))
     $cpu = [math]::Max(2, [math]::Min(10, $State.cores - 2))
@@ -1542,7 +1559,7 @@ if (-not (IsDone 'wslconfig')) {
 
 # ================================================================ 7 Ubuntu
 if (-not (IsDone 'distro')) {
-    Confirm-NotCancelled
+    Enter-Step 'distro'
     Title 'Schritt 7/15 – Ubuntu 24.04 installieren'
     $existing = @(& wsl.exe -l -q 2>$null | ForEach-Object { ("$_" -replace "`0", '').Trim() } | Where-Object { $_ })
     if ($existing -contains $Distro) {
@@ -1576,7 +1593,7 @@ if ($CustomRoot) {
 
 # ================================================================ 8 Linux-Benutzer
 if (-not (IsDone 'linuxuser')) {
-    Confirm-NotCancelled
+    Enter-Step 'linuxuser'
     Title 'Schritt 8/15 – Linux-Benutzer anlegen'
     Info "$AN läuft in Ubuntu unter einem eigenen Benutzer. Name: nur Kleinbuchstaben/Zahlen."
     $suggest = ($env:USERNAME.ToLower() -replace '[^a-z0-9_-]', '')
@@ -1608,7 +1625,7 @@ if (-not (IsDone 'linuxuser')) {
 
 # ================================================================ 9 WSL wach halten
 if (-not (IsDone 'keepalive')) {
-    Confirm-NotCancelled
+    Enter-Step 'keepalive'
     Title 'Schritt 9/15 – WSL dauerhaft aktiv halten'
     Register-UserTask 'FRIDAY_WSL_Keepalive' "`"$Inst\scripts\wsl-keepalive.vbs`" `"$Distro`"" 'Hält Ubuntu/WSL für Hermes dauerhaft aktiv'
     Start-ScheduledTask -TaskName 'FRIDAY_WSL_Keepalive'
@@ -1619,7 +1636,7 @@ if (-not (IsDone 'keepalive')) {
 
 # ================================================================ 10 Hermes + Kimi
 if (-not (IsDone 'hermes')) {
-    Confirm-NotCancelled
+    Enter-Step 'hermes'
     Title 'Schritt 10/15 – Hermes Agent + KI-Anbieter'
     # Der Anbieter kommt aus dem Installer statt fest verdrahtet aus Kimi. Verknuepft wird ueber Hermes'
     # eigene Konfiguration (~/.hermes/.env + `hermes config set`) - kein eigener Auth-Stack, damit wir
@@ -1791,7 +1808,7 @@ if (-not $ChangeVoice) {
 
 # ================================================================ 11 Qwen lokal
 if (-not (IsDone 'qwen')) {
-    Confirm-NotCancelled
+    Enter-Step 'qwen'
     if ($State.voice_mode -eq 'elevenlabs') {
         Info 'Cloud-Modus: lokaler Qwen-Download und -Dienst entfallen.'
         MarkDone 'qwen'
@@ -1841,7 +1858,7 @@ if (-not (IsDone 'qwen')) {
 
 # ================================================================ 12 Python + Sprachpakete
 if (-not (IsDone 'voicepython')) {
-    Confirm-NotCancelled
+    Enter-Step 'voicepython'
     Title 'Schritt 12/15 – Sprachsteuerung installieren (Python + Modelle)'
     $py = $null
     # Ohne Python-Launcher wirft der Aufruf nur einen Befehl-nicht-gefunden-Fehler und laesst $LASTEXITCODE unveraendert (alter Wert 0).
@@ -1951,7 +1968,7 @@ if (-not (IsDone 'voicepython')) {
 
 # ================================================================ 13 Stimme einlernen
 if (-not (IsDone 'enroll')) {
-    Confirm-NotCancelled
+    Enter-Step 'enroll'
     Title "Schritt 13/15 – $AN lernt deine Stimme"
     Info "$AN reagiert nur auf DEINE Stimme. Dafür nimmst du jetzt einige Sätze auf (ca. 10–12 Minuten):"
     if ($WakeShort) { Info "  • 26x ""$WP"", 18x ""$WakeShort"", 15 ähnlich klingende Wörter, 8 kurze Texte vorlesen" }
@@ -2001,7 +2018,7 @@ if (-not (IsDone 'enroll')) {
 
 # ================================================================ 14 Sprachdienst + Abschluss
 if (-not (IsDone 'voiceservice')) {
-    Confirm-NotCancelled
+    Enter-Step 'voiceservice'
     Title "Schritt 14/15 – $AN starten"
     Register-UserTask 'FRIDAY_Voice' "`"$Inst\scripts\hidden.vbs`" `"$Inst\scripts\start-friday-voice.ps1`"" "$AN Sprachsteuerung ($WP)" 45
     # Läuft noch ein Sprachdienst mit alter Konfiguration (Namenswechsel), erst Neustartschleife und Python beenden:
@@ -2584,7 +2601,7 @@ function Install-Dashboard {
 
 Set-DashPort
 if (-not (IsDone 'dashboard') -or $UpdateDashboard) {
-    Confirm-NotCancelled
+    Enter-Step 'dashboard'
     Title 'Schritt 15/15 – F.R.I.D.A.Y. Command Center (Dashboard) einrichten'
     try { Install-Dashboard }
     catch {

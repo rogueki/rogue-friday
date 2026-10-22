@@ -56,13 +56,20 @@ try {
     # --- Verdrahtung im Installer: jede Schrittgrenze und jeder Unterprozess prueft die Bitte
     $body = Get-Content -LiteralPath $installer -Raw -Encoding UTF8
     if ($body -notmatch "lib\\installer-cancel\.ps1") { throw 'Abbruchmodul wird nicht eingebunden.' }
-    $stepBlocks = [regex]::Matches($body, "if \(-not \(IsDone '[a-z]+'\)[^\r\n]*\{\r\n(    [^\r\n]*)")
+    $stepBlocks = [regex]::Matches($body, "if \(-not \(IsDone '([a-z]+)'\)[^\r\n]*\{\r\n    (Enter-Step '([a-z]+)'|Confirm-NotCancelled)")
     if ($stepBlocks.Count -lt 15) { throw "Es wurden nur $($stepBlocks.Count) Schrittbloecke gefunden." }
     foreach ($match in $stepBlocks) {
-        if ($match.Groups[1].Value.Trim() -ne 'Confirm-NotCancelled') {
+        $first = $match.Groups[2].Value.Trim()
+        # Entweder direkt die Pruefung oder der Schrittaufruf, der sie als erste Anweisung enthaelt.
+        if ($first -notmatch "^Confirm-NotCancelled$" -and $first -notmatch "^Enter-Step '([a-z]+)'$") {
             throw "Schritt ohne Abbruchpruefung: $($match.Value.Split("`n")[0].Trim())"
         }
+        if ($first -match "^Enter-Step '([a-z]+)'$" -and $Matches[1] -ne $match.Groups[1].Value) {
+            throw "Schritt meldet den falschen Namen: $($match.Groups[1].Value) -> $($Matches[1])"
+        }
     }
+    $enterStep = $body.Substring($body.IndexOf('function Enter-Step', [StringComparison]::Ordinal), 220)
+    if ($enterStep -notmatch 'Confirm-NotCancelled') { throw 'Enter-Step prueft die Abbruchbitte nicht.' }
     foreach ($runner in @('function Native(', 'function Invoke-Pip(', 'function Download(')) {
         $position = $body.IndexOf($runner, [StringComparison]::Ordinal)
         if ($position -lt 0) { throw "$runner fehlt." }

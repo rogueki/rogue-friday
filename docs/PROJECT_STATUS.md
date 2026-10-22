@@ -549,3 +549,21 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   Installer-Tests Exit 0.
 - **Offen**: gezielte Unterprozessverwaltung (Job-Objekte statt Baum-Kill), Abbruch mitten in einem echten
   Download/pip-Lauf, systematische Prüfung unvollständiger Artefakte beim Resume.
+## 2026-10-22 INS-05 (Teil) Ereignisstrom Protokoll 2
+
+- **N-022 behoben**: Der Fortschritt der GUI hing an Textmustern (`^\s*Schritt \d+|\[GUI\]|\[FEHLER\]|\[OK\]`), und
+  der stderr-Strom ging am Zeilenleser vorbei direkt ins Protokoll. Zeilenfragmente, Fremdausgaben von pip/curl/pnpm
+  und mehrzeilige Werte konnten den Status verfaelschen; Download, Paketinstallation und Schritt waren nicht
+  unterscheidbar. Neu: `installer/lib/gui-protocol.ps1` mit Protokoll 2 — je eine Zeile
+  `[FRIDAY-EVENT]{"v":2,"type":…}`, geschrieben nur im GUI-Lauf. Der Installer meldet `run`, `step start/done`
+  (alle 15 Schritte ueber `Enter-Step` und `MarkDone`), `download start/done/failed` und `pip start`.
+- **Rueckweg bleibt konservativ**: unbekannte Version, kaputtes JSON, fehlende Felder, Zeilenfragmente und Klartext
+  werden als Text angezeigt, nie still verschluckt und nie geraten. Die GUI erzeugt Anzeigetexte nur aus Feldern
+  und rechnet keine Prozentwerte aus Text; beide Ausgabestroeme laufen ueber `Receive-BackendLine`.
+- **Nachweis**: `installer/tests/gui-protocol.Tests.ps1` (neu) prueft Erzeugung und Rueckweg inklusive Umlauten,
+  Quotes und Backslash, neun Gegenfaelle (Klartext, leer, Praefix ohne JSON, kaputtes JSON, Zeilenfragment,
+  unbekannte Version, fehlende Version, Version als Text, JSON ohne Objekt), die Vollstaendigkeit und
+  Namensgleichheit aller 15 Schrittbloecke, beide GUI-Stroeme und am echten Einstiegspunkt ein lesbares
+  Laufereignis mit Kennung und Modus. 19/19 Installer-Tests Exit 0.
+- **Offen**: harte Zeitlimits pro Schritt, explizites Abschlussereignis mit Exitcode, eigener Ereignistyp fuer den
+  Modell-Warmup, Lastfall mit Paketspam.
