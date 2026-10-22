@@ -852,3 +852,14 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
 - **Offen (07.03)**: Hinzufuegen/Erneuern/Trennen (`auth add/remove/reset/logout`, Key ueber stdin) und die
   Trennung OpenAI/Anthropic als Hauptauswahl gegen "Erweitert". Beides braucht echte Credentials und eine
   sichere, verifizierte CLI-Interaktion; ohne diese bleibt es TEIL. Ledger N-050 teilweise.
+
+## 2026-10-23 DASH-10.02 Teilstand: Skillkatalog-Filter
+
+- Kategoriefilter ergaenzt (`visibleSkills` + Auswahlfeld in `SkillsPage`, Optionen aus dem geladenen Katalog);
+  Suche, Herkunft, Kategorie und Status wirken kombiniert. Nachweis: `skillPresentation`/`SkillsPage` 9/9,
+  Web-Typecheck und Lint 0.
+- **Noch offen fuer 10.02**: die Detailansicht laedt kein `SKILL.md` - es gibt weder einen Detail-Endpunkt noch
+  eine Sanitizing-Strecke; Quellen-/Versions-/Trust-Angaben sind im Katalog nur teilweise getrennt sichtbar.
+- **10.03-10.07 unangetastet**: der per-Skill-Schalter (opt-in/opt-out) und die CLI-Operationen
+  (`inspect/search/install/update/check/audit/uninstall/trust`) sind nicht belegt; Vorgehen laut Plan erst nach
+  Quell-/CLI-Analyse und Readbackprobe.
