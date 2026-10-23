@@ -918,3 +918,24 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   CLI-Spalte `Source`, die `external` als `local` fuehrt. Naechste Verbesserung: `origin` daraus speisen und um
   `external` erweitern.
 - **Naechster Schritt**: DASH-10.04 (typisierte Skill-CLI-Operationen je Version).
+
+## 2026-10-23 DASH-10.04: Typisierte Skill-Operationen (Teil)
+
+- **Faehigkeitsmatrix** beider real installierten Staende (Windows-CLI v0.20.5, WSL-Checkout v0.22.2): nur
+  `hermes skills search` und `hermes skills list-modified` bieten `--json`. `inspect`, `browse`, `check`,
+  `audit`, `diff`, `tap list` liefern Rich-Text, `install/update/uninstall/reset/trust/untrust/tap add|remove`
+  sind Mutationen, `config` ist eine TUI. Damit wird **keine** Rich-Tabelle geparst.
+- **Zwei neue typisierte Operationen** (276 insgesamt): `GET /api/v1/skills/hub/search?query=&source=&limit=`
+  ueber die Bridge-Aktion `hub-search` (`--json --limit`, optional `--source`, Timeout 60 s) und
+  `GET /api/v1/skills/modified` ueber `modified-list`. Die Parser akzeptieren ausschliesslich die dokumentierten
+  Felder (zusaetzliche Felder neuerer Versionen werden ignoriert, nie erfunden); Duplikate und Fremdformen
+  werden abgelehnt. Eingaben werden vor dem CLI-Aufruf geprueft (1–120 Zeichen, Quellenmuster, Limit 1–50);
+  Format- und Zeitfehler enden als `ADAPTER_UNAVAILABLE`, nie als leere Trefferliste.
+- **Nachweise**: 9 Python-Pruefungen (WSL), 3 Routentests mit `responseValidation: "throw"`,
+  Vertragswaechter auf 276 gezogen, `contracts:check`/`typecheck`/`lint`/`build` 0. Live lieferte
+  `search hermes --json --limit 2` echte Treffer, `list-modified --json` den Wert `[]`.
+- **Offen (TEIL)**: Textdarstellung fuer `inspect/browse/check/audit/diff/tap list`, alle Mutationen und das
+  Verhalten bei nicht erreichbarem `skills.external_dirs`.
+- **Neues Issue N-051**: der Test `messenger-inbound-routes` faellt mit 503 „Event ID conflict" beim zweiten
+  identischen Empfang — reproduzierbar auch auf `2356c5e` und mit geleertem Arbeitsbaum, also vorbestehend und
+  unabhaengig von diesem Block; im Ledger offen.

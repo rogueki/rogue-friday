@@ -33,6 +33,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | INS-12 Starter und Abbruch | TEIL (Doppelklick startet die Oberflaeche, CLI-Modus dokumentiert, Parameter kommen durch cmd und cscript unveraendert an, Abbruch der Windows-Abfrage ohne Aenderung, Simulation nur im Testmodus; echter Dialog und Start aus dem ZIP -> INS-13) | `ins-12-launcher.md`, `launcher.Tests.ps1` (49) |
 | DASH-10.02 Skill-Inventar | TEIL (191 Skills live aus `hermes skills list`: 119 local / 72 builtin / 0 hub; Herkunft und Trust als eigene Vertragsfelder, Service-Merge mit CLI-Fallback, Detail laedt Markdown erst bei Auswahl als Text, Filter fuer Suche/Quelle/Herkunft/Kategorie/Status, 60er-Blocks mit Nachladen; echter Hub-Skill fehlt auf diesem Host) | `dash-10-02-skill-inventory.md`, `test_skills_list.py` (9), `skills-onboarding.test.ts` (20), `skills-inventory-route.test.ts` (1), `SkillsPage.test.tsx` (4) |
 | DASH-10.03 per-Skill-Schalter | PASS (Schalter = `skills.disabled`, nur ueber `save_disabled_skills`/`PUT /api/skills/toggle`; `opt-in/opt-out` sind Seeding-Schalter; Readbackprobe im wegwerfbaren Profil 72->71->72 mit Zeile `arxiv disabled`, Default-Profil unveraendert; Friday bestaetigt jede Aenderung durch erneutes Lesen, Test fuer ausbleibende Bestaetigung) | `dash-10-03-skill-enable.md`, `skills-onboarding.test.ts` (21) |
+| DASH-10.04 Skill-Operationen | TEIL (Faehigkeitsmatrix beider CLI-Staende: nur `search` und `list-modified` liefern `--json`; beide typisiert als `searchSkillHub` und `listModifiedSkills` mit strengen Parsern und Eingabepruefung, 276 Operationen; Textoperationen und Mutationen offen) | `dash-10-04-skill-operations.md`, `test_hub_search.py` (9), `skills-hub-route.test.ts` (3) |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
@@ -543,6 +544,32 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - evidence_paths: `dash-10-03-skill-enable.md`; status: PASS
 - remaining_work: Bedienung im Gesamtablauf = DASH-10.06; `origin` aus `provenance` speisen (external/hub) als
   naechste Verbesserung
+
+### DASH-10.04 (2026-10-23)
+
+- requirement_ids: DASH-10.04; predecessor: DASH-10.03
+- base_revision: `918cd7d`; result_revision: `8fa986d` (Code), Doku folgt
+- implementation_paths: `installer/wsl/hermes_config_bridge.py` (`hub-search`, `modified-list`,
+  `parse_hub_search`, `parse_modified_skills`), `installer/wsl/tests/test_hub_search.py` (neu),
+  `packages/contracts/schemas/skills/{hub-search,modified-skills}*.schema.json` (neu),
+  `packages/contracts/openapi/friday-api.yaml`, `apps/control-api/src/services/hermes-config.ts`,
+  `apps/control-api/src/handlers/skills.ts`, `apps/control-api/test/skills-hub-route.test.ts` (neu)
+- test_command: `python3 tests/test_hub_search.py` (WSL), `vitest --project node skills-hub-route`,
+  `vitest --project node contract.test api.test openapi-additions`, `pnpm contracts:check`, `pnpm typecheck`,
+  `pnpm lint`, `pnpm build`
+- expected: nur Operationen mit maschinenlesbarer Ausgabe typisiert abbilden, Rich-Tabellen nicht parsen,
+  Faehigkeiten je CLI-Version belegen
+- observed: Matrix beider installierter Staende (v0.20.5 Windows, v0.22.2 FRIDAY-2) zeigt `--json` nur bei
+  `search` und `list-modified`; alles andere ist Tabelle oder Mutation. Umgesetzt: Hub-Suche und Liste lokal
+  geaenderter Skills mit strengen Parsern, Eingabepruefung vor dem CLI-Aufruf, ADAPTER_UNAVAILABLE bei Format-
+  oder Zeitfehler; 276 Operationen. 9 Python-Pruefungen, 3 Routentests mit Schema-Validierung, Vertragswaechter
+  nachgezogen, Gates 0. Live: `search hermes --json --limit 2` lieferte echte Treffer, `list-modified --json` = `[]`
+- evidence_paths: `dash-10-04-skill-operations.md`; status: TEIL (Textoperationen und Mutationen offen)
+- nachtrag: ein **vorbestehender** roter Test (`messenger-inbound-routes`, 503 "Event ID conflict" beim zweiten
+  identischen Empfang) ist reproduzierbar auch auf `2356c5e` und mit geleertem Arbeitsbaum; als **N-051** im
+  Ledger offen, nicht durch diesen Block verursacht
+- remaining_work: Textdarstellung fuer `inspect/browse/check/audit/diff/tap list`, Mutationen, nicht erreichbares
+  `external_dirs`
 
 ## Open risks / notes for the next session
 
