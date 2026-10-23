@@ -784,3 +784,11 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   run-scoped Stop, Status-/Heartbeat-Events).
 - evidence_paths: `dash-15-01-agenten-integrationsflaeche.md`.
 - status: PASS
+
+### DASH-17 Voruntersuchung (2026-10-23)
+- observed: Automations-Port im Vertrag vollstaendig; kein Live-Adapter (`adapters/` ohne automations), `mock-automations`
+  nur in Mock-Welt, Beispielkonfiguration und Vertragsbeispielen. Reale Quelle waere `hermes cron` (list/create/edit/
+  pause/resume/run/runs/incidents/tick), aber `cron list`/`cron runs` haben keinen JSON-Modus - Adapter braucht erst
+  eine belastbare Datenquelle statt Textparsing.
+- evidence_paths: `dash-17-status.md`.
+- status: offen (17.01-17.05), Audit-Seite von 17.03 durch 23 Audit-Tests belegt
