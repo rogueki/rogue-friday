@@ -744,3 +744,13 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - evidence_paths: `dash-14-05-14-06-studio-abnahme.md`, `content-studio-restart.test.ts`,
   `live-studio-restart-proof.mjs`.
 - status: PASS (14.05 und 14.06)
+
+### DASH-14.02/14.01 Funktionsmatrix und Integrationsflaeche (2026-10-23)
+- goal: Studio-Worktree gegen Completion vergleichen, nur tatsaechlich fehlende Verbesserungen uebernehmen, keinen
+  aelteren Stand ueber juengeren Code mergen.
+- observed: neun Funktionsflaechen verglichen (Ideen/Plan, Postingkalender, Medienwerkstatt, Produktionsworkspace,
+  Provider/Keys, Onboarding, Skills, Persistenz, Betrieb/Build); Completion ist in jeder Flaeche Obermenge, kein
+  Schlüsselwort kommt nur im Studio vor, kein Merge noetig. Route, Module, Services, Vertraege und Build liegen im
+  Completion-Baum (14.01).
+- evidence_paths: `dash-14-02-studio-matrix.md`, Dateilisten in beiden Baeumen.
+- status: PASS (14.02 und 14.01)
