@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Inspect/audit/diff pass raw CLI text through unchanged: no table parsing, capped, never empty."""
+import io
+import json
+import stat
 import sys
+import tempfile
+from contextlib import redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -58,3 +63,23 @@ for bad in (None, 17, b"bytes"):
 assert bridge.SKILL_REPORT_TIMEOUTS == {"inspect": 90, "audit": 90, "diff": 30}, bridge.SKILL_REPORT_TIMEOUTS
 
 print("skill-report: 10 checks passed")
+
+# 8. A refusal by the CLI keeps its reason: the operator needs the text, not just "failed".
+ROOT = Path(tempfile.mkdtemp(prefix="friday-report-reason-"))
+HOME = ROOT / "home"
+(HOME).mkdir()
+(ROOT / "bin").mkdir()
+FAILING = ROOT / "bin" / "fail"
+FAILING.write_text("#!/bin/sh\necho \"Error: skill 'arxiv' is not tracked\" >&2\nexit 1\n", encoding="utf-8")
+FAILING.chmod(FAILING.stat().st_mode | stat.S_IEXEC)
+sys.argv = ["hermes_config_bridge.py", "skill-report"]
+sys.stdin = io.StringIO(json.dumps({"action": "diff", "name": "arxiv"}))
+buffer = io.StringIO()
+with redirect_stdout(buffer):
+    code = bridge.locked_main(HOME, HOME / "hermes-agent", FAILING)
+payload = json.loads(buffer.getvalue().strip().splitlines()[-1])
+assert code == 6 and payload["error"] == "skill_diff_failed", payload
+assert "not tracked" in payload["detail"], payload
+
+print("skill-report-reason: 3 checks passed")
+

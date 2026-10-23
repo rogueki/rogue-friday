@@ -1,6 +1,6 @@
 "use client";
 
-import type { ModifiedSkillsResponse, OnboardingResponse, OnboardingUpdate, SkillCatalogResponse, SkillHubSearchResponse, SkillMarkdownResponse, SkillResponse, PowerPointDeckRequest, PowerPointDeckResponse, PowerPointDeckListResponse } from "@friday/sdk";
+import type { ModifiedSkillsResponse, SkillReportResponse, OnboardingResponse, OnboardingUpdate, SkillCatalogResponse, SkillHubSearchResponse, SkillMarkdownResponse, SkillResponse, PowerPointDeckRequest, PowerPointDeckResponse, PowerPointDeckListResponse } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
@@ -47,6 +47,16 @@ export const useSkillMarkdown = (id: string | null, enabled = true) => useQuery(
   staleTime: 60_000,
 });
 
+
+/** The CLI diff of one skill; 409 means the CLI refused and carries its reason in the error message. */
+export const useSkillDiff = (name: string | null) => useQuery({
+  queryKey: ["skills", "diff", name],
+  queryFn: (): Promise<SkillReportResponse> => call(getApiClient().GET("/api/v1/skills/{name}/diff",
+    { params: { path: { name: name ?? "" } } })),
+  enabled: name !== null,
+  staleTime: 0,
+  retry: false,
+});
 
 export const useOnboarding = (enabled = true) => useQuery({ ...skillsQueries.onboarding(), enabled });
 

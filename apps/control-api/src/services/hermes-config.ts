@@ -408,6 +408,12 @@ export class HermesConfigService {
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die CLI hat keinen Bericht geliefert." });
       if (message.includes("skill_report_format"))
         throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Skill-Bericht hat ein unbekanntes Format." });
+      if (message.includes(`skill_${action}_failed`)) {
+        // The CLI usually has a precise reason ("not tracked", "unknown skill"); hide it and the operator is stuck.
+        const detail = /"detail":\s*"((?:[^"\\]|\\.)*)"/.exec(message)?.[1]?.replace(/\\n/g, " ").trim();
+        throw conflict(`Die CLI hat den Bericht abgelehnt${detail ? `: ${detail.slice(0, 300)}` : "."}`,
+          { action, name, cliDetail: detail?.slice(0, 600) ?? null });
+      }
       if (message.includes("invalid_request")) throw validationFailed("Ungueltiger Skill-Name.");
       throw unavailable();
     }

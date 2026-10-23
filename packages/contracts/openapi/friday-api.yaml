@@ -6155,6 +6155,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          description: The CLI refused the report and its reason is passed on unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
         "503":
@@ -6185,6 +6191,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          description: The CLI refused the report and its reason is passed on unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
         "503":
@@ -6196,7 +6208,7 @@ paths:
       operationId: getSkillDiff
       tags: [skills]
       summary: Show the CLI diff between the local skill and its packaged version as text
-      description: The CLI documents no JSON for diff, so the unified diff is passed through unchanged and capped; local changes stay visible instead of being claimed as applied.
+      description: The CLI documents no JSON for diff, so the unified diff is passed through unchanged and capped; local changes stay visible instead of being claimed as applied. A refusal by the CLI (for example an untracked skill) answers 409 with the CLI's own reason.
       parameters:
         - name: name
           in: path
@@ -6215,6 +6227,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          description: The CLI refused the report and its reason is passed on unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
         "503":

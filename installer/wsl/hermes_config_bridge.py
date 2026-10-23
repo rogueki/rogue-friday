@@ -737,7 +737,9 @@ def locked_main(home, source, cli):
             print(json.dumps({"error": "skill_%s_timeout" % action}))
             return 7
         if result.returncode:
-            print(json.dumps({"error": "skill_%s_failed" % action}))
+            # The CLI explains refusals on stdout/stderr (e.g. "not tracked"); that reason belongs to the operator.
+            print(json.dumps({"error": "skill_%s_failed" % action,
+                              "detail": (result.stdout + result.stderr).strip()[-600:]}))
             return 6
         print(json.dumps(parse_skill_report(result.stdout, action, name)))
         return 0

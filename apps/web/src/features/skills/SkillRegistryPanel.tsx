@@ -2,12 +2,15 @@
 
 import { Button } from "@friday/ui";
 import { useState } from "react";
-import { useModifiedSkills, useSkillHubSearch } from "@/lib/api/domains/skills";
+import { useModifiedSkills, useSkillDiff, useSkillHubSearch } from "@/lib/api/domains/skills";
 
 /**
  * Registry search and the locally modified bundled skills. Both are read-only: installing a
- * registry hit and overwriting a modified skill are separate, unbuilt steps (DASH-10.07), so the
- * panel states that instead of offering a button that would do nothing.
+ * registry hit stays a separate confirmed step (DASH-10.07), so the panel states that instead of
+ * offering a button that would do nothing.
+ *
+ * A modified skill can be inspected as a diff. The API forwards the CLI text unchanged - including
+ * its refusal, which is the interesting part when the CLI cannot produce a diff at all.
  */
 export function SkillRegistryPanel() {
   const [draft, setDraft] = useState("");
@@ -15,6 +18,7 @@ export function SkillRegistryPanel() {
   const search = useSkillHubSearch(query);
   const modified = useModifiedSkills();
   const names = modified.data?.data.names ?? [];
+  const [diffName, setDiffName] = useState<string | null>(null);
   return <section className="sk-registry" aria-labelledby="sk-registry-title">
     <div className="sk-registry__head">
       <h2 id="sk-registry-title">Registry durchsuchen</h2>
@@ -47,7 +51,28 @@ export function SkillRegistryPanel() {
         : names.length === 0 ? <p className="sk-muted" role="status">Keine mitgelieferten Skills wurden lokal geändert.</p>
         : <><p className="sk-warning" role="status">{names.length} mitgelieferte Skills weichen lokal ab; ein Update
           überspringt sie, bis sie zurückgesetzt oder bewusst überschrieben werden. Lokale Änderungen an
-          Hub-Skills erscheinen hier nicht, sie werden aber beim Update ebenso erkannt.</p><ul>{names.map((name) => <li key={name}><code>{name}</code></li>)}</ul></>}
+          Hub-Skills erscheinen hier nicht, sie werden aber beim Update ebenso erkannt.</p><ul className="sk-diff-list">{names.map((name) => <li key={name}>
+            <code>{name}</code>
+            <Button type="button" variant="ghost" aria-expanded={diffName === name}
+              onClick={() => setDiffName(diffName === name ? null : name)}>
+              {diffName === name ? "Diff schließen" : "Diff anzeigen"}
+            </Button>
+            {diffName === name ? <SkillDiff name={name} /> : null}
+          </li>)}</ul></>}
     </section>
   </section>;
+}
+
+/** One diff, as the CLI printed it. A refusal is shown verbatim; it is the reason the operator came for. */
+function SkillDiff({ name }: { name: string }) {
+  const diff = useSkillDiff(name);
+  if (diff.isPending) return <p className="sk-muted" role="status">Diff wird gelesen …</p>;
+  if (diff.isError)
+    return <p role="alert" className="sk-warning">{diff.error instanceof Error && diff.error.message.trim() !== ""
+      ? diff.error.message : "Für diesen Skill ist kein Diff verfügbar."}</p>;
+  const { text, truncated, bytes } = diff.data.data;
+  return <div className="sk-diff">
+    <div className="sk-diff__meta">{bytes.toLocaleString("de-DE")} Byte{truncated ? ", gekürzt" : ""}</div>
+    <pre className="sk-diff__text" tabIndex={0} aria-label={`Diff für ${name}`}>{text}</pre>
+  </div>;
 }

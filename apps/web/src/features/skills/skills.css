@@ -117,3 +117,34 @@
 .sk-registry__hits li { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-left: 2px solid var(--friday-border-active); }
 .sk-registry__hits p { margin: 0; }
 .sk-registry__hits code { color: var(--friday-muted); font-size: var(--jv-fs-xs); overflow-wrap: anywhere; }
+
+.sk-diff-list > li {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.sk-diff {
+  width: 100%;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-2);
+  background: var(--surface-sunken);
+}
+
+.sk-diff__meta {
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+}
+
+.sk-diff__text {
+  margin: 0;
+  padding: var(--space-3);
+  max-height: 22rem;
+  overflow: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--font-size-1);
+  line-height: 1.5;
+  white-space: pre;
+}
