@@ -978,3 +978,19 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   `contracts:check`/`typecheck`/`lint`/`build` 0.
 - **Neues Issue N-052**: der Router prueft Pfadparameter nur auf Praesenz und Laenge (max. 128), nicht auf das im
   Vertrag dokumentierte Muster. Ein Name wie `-..` wird deshalb erst im Dienst abgelehnt; im Ledger offen.
+
+## 2026-10-23 DASH-10.06: Abnahme im wegwerfbaren Profil
+
+- **Hub-Fall real geprueft** (Profil `friday-accept`, danach geloescht): `skills install
+  skills-sh/anthropics/skills/skill-creator --yes` durchlief Quarantaene und Sicherheitsscan
+  (Verdict CAUTION, `ALLOWED` fuer eine trusted-Quelle), installierte drei Dateien, und ein **neuer Prozess**
+  listet den Skill als `enabled`.
+- **Lokale Aenderung wird nicht still ueberschrieben**: nach einem Edit an `SKILL.md` meldet
+  `skills update skill-creator` „Skipping … you have local edits (update would overwrite them)" und laesst die
+  Zeile stehen; `--force` ueberschreibt bewusst. Damit ist der Wiederherstellungsweg belegt, aber ausdruecklich.
+- **Builtin und Friday-Skill**: Ansehen ueber Inventar/`SKILL.md`, Verwalten ueber den Schalter aus DASH-10.03,
+  Readback in neuem Prozess unveraendert (Belege in `dash-10-02`/`dash-10-03`).
+- **Neue Grenzen im Ledger**: N-053 (`inspect` loest gegen die Registries auf, bei Namenskollision mehrdeutig),
+  N-054 (`diff` nur fuer getrackte Skills, unser 503 verschweigt den CLI-Text), N-055 (`list-modified` fuehrt
+  keine Hub-Aenderungen).
+- **Offen**: fehlendes externes Laufwerk, Nachweis am laufenden Operator-System (dort wurde nichts veraendert).

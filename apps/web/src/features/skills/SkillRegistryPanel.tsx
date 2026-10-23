@@ -46,7 +46,8 @@ export function SkillRegistryPanel() {
         : modified.isPending ? <p className="sk-muted" role="status">Liste wird gelesen …</p>
         : names.length === 0 ? <p className="sk-muted" role="status">Keine mitgelieferten Skills wurden lokal geändert.</p>
         : <><p className="sk-warning" role="status">{names.length} mitgelieferte Skills weichen lokal ab; ein Update
-          überspringt sie, bis sie zurückgesetzt oder bewusst überschrieben werden.</p><ul>{names.map((name) => <li key={name}><code>{name}</code></li>)}</ul></>}
+          überspringt sie, bis sie zurückgesetzt oder bewusst überschrieben werden. Lokale Änderungen an
+          Hub-Skills erscheinen hier nicht, sie werden aber beim Update ebenso erkannt.</p><ul>{names.map((name) => <li key={name}><code>{name}</code></li>)}</ul></>}
     </section>
   </section>;
 }

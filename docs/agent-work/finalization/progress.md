@@ -35,6 +35,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | DASH-10.03 per-Skill-Schalter | PASS (Schalter = `skills.disabled`, nur ueber `save_disabled_skills`/`PUT /api/skills/toggle`; `opt-in/opt-out` sind Seeding-Schalter; Readbackprobe im wegwerfbaren Profil 72->71->72 mit Zeile `arxiv disabled`, Default-Profil unveraendert; Friday bestaetigt jede Aenderung durch erneutes Lesen, Test fuer ausbleibende Bestaetigung) | `dash-10-03-skill-enable.md`, `skills-onboarding.test.ts` (21) |
 | DASH-10.04 Skill-Operationen | TEIL (Faehigkeitsmatrix beider CLI-Staende: nur `search` und `list-modified` liefern `--json`; beide typisiert, zusaetzlich `inspect`/`audit`/`diff` als unveraenderter Text mit Kuerzung und Leerbericht-Fehler, 279 Operationen; Mutationen und `external_dirs`-Verhalten offen) | `dash-10-04-skill-operations.md`, `test_hub_search.py` (9), `test_skill_report.py` (9), `skills-hub-route.test.ts` (3), `skills-report-route.test.ts` (4) |
 | DASH-10.05 Registry-Flaeche | TEIL (Panel zeigt Treffer mit Quelle/Trust/Kennung/Beschreibung und die lokal geaenderten Skills, die Updates ueberspringen; kein Installationsknopf, Grund genannt. Voraussetzungen/Auditbefund je Treffer, Diff/Konflikt und Installation offen) | `dash-10-05-skill-registry-ui.md`, `SkillRegistryPanel.test.tsx` (3), web 88/685 |
+| DASH-10.06 Abnahme Skill-Lebenszyklus | TEIL (Builtin, Friday- und Hub-Skill angesehen und verwaltet, Zustand ueberlebt neuen Prozess; Hub-Installation real in wegwerfbarem Profil mit Quarantaene und Scan, lokale Aenderung wird ohne `--force` nicht ueberschrieben, mit `--force` bewusst schon; fehlendes Laufwerk und Fehlertexte offen) | `dash-10-06-acceptance.md`, Befunde N-053/N-054/N-055 |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
@@ -607,6 +608,21 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - evidence_paths: `dash-10-04-skill-operations.md` (Abschnitt 8); status: TEIL (Mutationen und das Verhalten bei
   nicht erreichbarem `external_dirs` bleiben offen)
 - nebenfund: Router prueft Pfadparameter nur auf Laenge, nicht auf das Vertragsmuster -> Ledger N-052
+
+### DASH-10.06 (2026-10-23): Abnahme im wegwerfbaren Profil
+
+- base_revision: `0703ce2`; result_revision: working tree (Commit folgt)
+- umgebung: Windows-CLI v0.20.5 (Operator-Profil unveraendert) und WSL v0.22.2; Hub-Fall in `friday-accept`
+- ablauf: Profil erzeugt -> `skills search skill-creator --json` -> `skills install ... --yes`
+  (Quarantaene + Scan, Verdict CAUTION, `ALLOWED` fuer trusted source, 3 Dateien) -> Readback in neuem Prozess
+  (`enabled`) -> lokale Zeile an `SKILL.md` -> `skills update` ueberspringt mit Begruendung -> `--force`
+  ueberschreibt bewusst -> Profil und Wrapper entfernt, `hermes profile list` zeigt nur `default`
+- observed: Ansehen/Verwalten/Readback fuer alle drei Herkuenfte belegt; modifizierter Skill wird nicht still
+  ueberschrieben
+- grenzen: `skills diff` nur fuer getrackte Skills (N-054), `list-modified` fuehrt keine Hub-Aenderungen (N-055),
+  `inspect` loest weiter gegen die Registries auf und ist bei Namenskollision mehrdeutig (N-053), fehlendes
+  externes Laufwerk nicht geprueft
+- evidence_paths: `dash-10-06-acceptance.md`; status: TEIL
 
 ## Open risks / notes for the next session
 

@@ -53,3 +53,10 @@ Die Suche läuft ausschließlich auf ausdrückliche Eingabe (`query.trim().lengt
 - **Installation/Aktualisierung** selbst fehlt (DASH-10.07).
 - **Wiederverwendung bereits eingerichteter Referenzen** beim Anlegen eines neuen Kontos ist im
   Friday-Katalog vorbereitet (`integrationDetails`), aber nicht als geführter Schritt belegt.
+
+## 6. Nachtrag 2026-10-23 (Befund aus DASH-10.06)
+
+Die Liste `GET /api/v1/skills/modified` stammt aus `hermes skills list-modified` und fuehrt **nur mitgelieferte**
+Skills. Im Abnahmelauf (DASH-10.06) erkannte `skills update` eine lokale Aenderung an einem **Hub**-Skill korrekt
+und uebersprang sie, `list-modified --json` blieb aber `[]`. Die Flaeche sagt das jetzt ausdruecklich: lokale
+Aenderungen an Hub-Skills erscheinen dort nicht, werden beim Update aber ebenso erkannt (Ledger **N-055**).
