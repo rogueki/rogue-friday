@@ -732,3 +732,15 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   inkl. Artefakt-Download und Idempotenz durch 7 Produktionstests belegt; kein bezahlter Testlauf.
 - evidence_paths: `dash-14-03-studio-standard.md`, `navModel.test.tsx`, `content-studio-production.test.ts`.
 - status: PASS
+
+### DASH-14.05/14.06 Studio-Abnahme und Recovery (2026-10-23)
+- goal: neue Zielinstallation ohne manuellen Checkout, Plan/Medienjobs ueber Neustart, ruecksetzbare Integration,
+  unklarer Produktionsausgang ohne Doppelung.
+- changed: `apps/control-api/test/content-studio-restart.test.ts` (zwei API-Laeufe auf demselben Datenwurzelverzeichnis),
+  `scripts/finalization/live-studio-restart-proof.mjs`.
+- observed: Neustart-Test gruen (Plan-Revision 1, genau eine Auftragszeile `completed`, Artefakt-Bytes identisch); live
+  Plan-Revision 3 nach Prozessneustart identisch, Auftrag ohne Schluessel 503 ohne Phantomzeile; Studio aus -> 403,
+  wieder an -> dieselbe Revision; Idempotenz/`provider_unknown` verhindern Doppelauftraege; Installer baut `build:app`.
+- evidence_paths: `dash-14-05-14-06-studio-abnahme.md`, `content-studio-restart.test.ts`,
+  `live-studio-restart-proof.mjs`.
+- status: PASS (14.05 und 14.06)
