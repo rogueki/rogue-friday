@@ -857,3 +857,16 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - decision: Automations-Adapter geht gegen die Dashboard-HTTP-API (kein CLI-Parsing, kein state.db-Zugriff).
 - evidence_paths: `dash-17-02-hermes-cron-api.md` (Abschnitte 4-6).
 - status: Befund + Datenquelle belegt; Adapterimplementierung und Abnahme 17.04 offen
+
+### DASH-17.02 abgeschlossen (2026-10-23) - PASS
+- changed: `CronApi` + `HermesAutomationsAdapter` (AutomationPort) auf der Hermes-Cron-Dashboard-API; vierte Kategorie
+  `automations` in Manifest und Factory `hermes-automations`; Allowlist in beiden Beispielkonfigurationen und im
+  Installer; Cron-Endpunkte im Fake-Hermes (Jobs starten pausiert wie im Original).
+- tests: neue `automations.test.ts` 7 Tests (Contract-valid via `validatePortResult`, Trigger/Aktionen/Paused, Filter,
+  NOT_FOUND, Run-Historie nach Trigger, Anlegen+Resume nur bei enabled, Testlauf dryRun false, Pause/Resume,
+  CONFLICT bei altem If-Match, leerer Zustand). `adapters/hermes` gesamt 200 bestanden; `real-adapters` 11 bestanden
+  (automations -> hermes-automations). typecheck + lint gruen.
+- contract: keine neuen Operationen (Port und Schemata existierten); Capabilities `automations.*` nur fuer belegte
+  Vorgaenge, `versions` und `pauseAll` bewusst nicht angeboten.
+- evidence_paths: `dash-17-02-automations-adapter.md`, `dash-17-02-hermes-cron-api.md`.
+- status: PASS (Abnahme 17.04 weiter offen)

@@ -54,12 +54,13 @@ describe("real adapters behind the Control API (hybrid)", () => {
     expect(byCategory.tasks?.manifest.id).toBe("hermes-tasks");
     expect(byCategory.activity?.manifest.id).toBe("hermes-activity");
     expect(byCategory.agents?.manifest.id).toBe("hermes-agents");
+    expect(byCategory.automations?.manifest.id).toBe("hermes-automations");
     expect(byCategory.voice?.manifest.id).toBe("friday-voice-http");
     expect(byCategory.system?.manifest.id).toBe("local-system");
-    for (const category of ["memory", "approvals", "communication", "calendar", "automations", "research", "files", "notifications", "audit", "commands"]) {
+    for (const category of ["memory", "approvals", "communication", "calendar", "research", "files", "notifications", "audit", "commands"]) {
       expect(byCategory[category]?.manifest.id, category).toBe(`mock-${category}`);
     }
-    for (const category of ["tasks", "activity", "agents", "voice", "system"]) expect(byCategory[category]?.health.status, category).toBe("online");
+    for (const category of ["tasks", "activity", "agents", "automations", "voice", "system"]) expect(byCategory[category]?.health.status, category).toBe("online");
   });
 
   it("serves Hermes tasks and agents, voice status and system data through the contract", async () => {
@@ -222,6 +223,7 @@ describe("allowlist wiring", () => {
       expect(entries.map((entry) => `${entry.manifest.category}:${entry.manifest.id}`).sort()).toEqual([
         "activity:hermes-activity",
         "agents:hermes-agents",
+        "automations:hermes-automations",
         "system:local-system",
         "tasks:hermes-tasks",
         "voice:friday-voice-http",

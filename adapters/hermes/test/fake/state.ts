@@ -124,6 +124,42 @@ export interface FakeSession {
   messages: FakeMessage[];
 }
 
+export interface FakeCronJob {
+  id: string;
+  name: string;
+  prompt: string;
+  script: string | null;
+  no_agent: boolean;
+  skills: string[];
+  model: string | null;
+  provider: string | null;
+  schedule: { kind: string; expr?: string; display?: string };
+  schedule_display: string;
+  repeat: { times: number | null; completed: number };
+  enabled: boolean;
+  state: string;
+  paused_reason: string | null;
+  created_at: string;
+  next_run_at: string | null;
+  last_run_at: string | null;
+  last_status: string | null;
+  last_error: string | null;
+  deliver: string;
+  workdir: string | null;
+  enabled_toolsets: string[] | null;
+  profile_name: string;
+}
+
+export interface FakeCronRun {
+  id: string;
+  title: string;
+  preview: string;
+  started_at: number;
+  ended_at: number;
+  input_tokens: number;
+  output_tokens: number;
+}
+
 /** `manual` transition matrix of the default workflow (kanban_workflow.py). */
 const TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
   triage: ["todo", "ready"],
@@ -182,6 +218,10 @@ export class HermesState {
   archiveWorkerSurvives = false;
   beforeLifecycleMutation: (() => void) | undefined;
   readonly sessions: FakeSession[] = [];
+  readonly cronJobs = new Map<string, FakeCronJob>();
+  readonly cronRuns = new Map<string, FakeCronRun[]>();
+  private cronCounter = 0;
+  private cronRunCounter = 0;
   readonly toolsets: Array<{ name: string; enabled: boolean }> = [
     { name: "web", enabled: true },
     { name: "kanban", enabled: false },
@@ -201,6 +241,72 @@ export class HermesState {
   tick(): number {
     this.clock += 1;
     return this.clock;
+  }
+
+  /** Creates a cron job the way the dashboard API does (cron jobs start paused for operator approval). */
+  createCronJob(partial: Partial<FakeCronJob> = {}): FakeCronJob {
+    this.cronCounter += 1;
+    const id = `cron${String(this.cronCounter).padStart(8, "0")}`;
+    const job: FakeCronJob = {
+      id,
+      name: `Job ${this.cronCounter}`,
+      prompt: "",
+      script: null,
+      no_agent: false,
+      skills: [],
+      model: null,
+      provider: null,
+      schedule: { kind: "cron", expr: "0 3 * * *", display: "0 3 * * *" },
+      schedule_display: "0 3 * * *",
+      repeat: { times: null, completed: 0 },
+      enabled: false,
+      state: "paused",
+      paused_reason: "Created paused; awaiting operator approval.",
+      created_at: this.nowIso(),
+      next_run_at: null,
+      last_run_at: null,
+      last_status: null,
+      last_error: null,
+      deliver: "local",
+      workdir: null,
+      enabled_toolsets: null,
+      profile_name: "default",
+      ...partial,
+    };
+    this.cronJobs.set(id, job);
+    return job;
+  }
+
+  /** One trigger: records a run, advances the repeat counter and schedules the next fire. */
+  triggerCronJob(id: string): FakeCronJob {
+    const job = this.cronJobs.get(id);
+    if (!job) throw new HttpFail(404, { detail: "Job not found" });
+    this.cronRunCounter += 1;
+    const at = Math.floor(this.now() / 1000);
+    const run: FakeCronRun = {
+      id: `cron_output:${id}:${this.cronRunCounter}`,
+      title: `COMPLETED · # Cron Job: ${job.name} --- ${job.script ?? job.prompt}`,
+      preview: `# Cron Job: ${job.name} --- ${job.script ?? job.prompt}`,
+      started_at: at,
+      ended_at: at,
+      input_tokens: 0,
+      output_tokens: 0,
+    };
+    const runs = this.cronRuns.get(id) ?? [];
+    runs.unshift(run);
+    this.cronRuns.set(id, runs);
+    job.repeat.completed += 1;
+    job.enabled = true;
+    job.state = "scheduled";
+    job.paused_reason = null;
+    job.last_run_at = this.nowIso();
+    job.last_status = "ok";
+    job.next_run_at = new Date(this.now() + 86_400_000).toISOString();
+    return job;
+  }
+
+  nowIso(): string {
+    return new Date(this.now()).toISOString();
   }
 
   now(): number {

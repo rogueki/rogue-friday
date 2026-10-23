@@ -2509,6 +2509,7 @@ allowlist:
   hermes-tasks: "@friday/adapter-hermes"
   hermes-activity: "@friday/adapter-hermes"
   hermes-agents: "@friday/adapter-hermes"
+  hermes-automations: "@friday/adapter-hermes"
   friday-voice-http: "@friday/adapter-voice-http"
   local-system: "@friday/adapter-system-local"
   caldav-calendar: "@friday/adapter-calendar-placeholder"

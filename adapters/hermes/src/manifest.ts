@@ -1,10 +1,10 @@
 import { CONTRACT_VERSION, type AdapterManifest } from "@friday/sdk";
 
-/** Hermes spans three port categories; there is ONE adapter per category (see README). */
-export type HermesCategory = "tasks" | "activity" | "agents";
+/** Hermes spans four port categories; there is ONE adapter per category (see README). */
+export type HermesCategory = "tasks" | "activity" | "agents" | "automations";
 
 export const PROVIDER_SYSTEM = "hermes";
-export const HERMES_CATEGORIES: readonly HermesCategory[] = ["tasks", "activity", "agents"];
+export const HERMES_CATEGORIES: readonly HermesCategory[] = ["tasks", "activity", "agents", "automations"];
 
 export const adapterIdFor = (category: HermesCategory): string => `hermes-${category}`;
 export const configSchemaIdFor = (category: HermesCategory): string =>
@@ -14,6 +14,7 @@ const NAMES: Readonly<Record<HermesCategory, string>> = {
   tasks: "Hermes Aufgaben",
   activity: "Hermes Aktivität",
   agents: "Hermes Agenten",
+  automations: "Hermes Automationen",
 };
 
 /**
@@ -24,6 +25,15 @@ const CAPABILITIES: Readonly<Record<HermesCategory, readonly string[]>> = {
   tasks: ["tasks.read", "tasks.create", "tasks.update", "tasks.cancel", "tasks.retry", "tasks.stream"],
   activity: ["activity.read", "activity.stream", "activity.backfill"],
   agents: ["agents.read", "agents.stop"],
+  // No version history and no conditions in Hermes cron; those capabilities stay unadvertised on purpose.
+  automations: [
+    "automations.read",
+    "automations.create",
+    "automations.update",
+    "automations.test",
+    "automations.enable",
+    "automations.disable",
+  ],
 };
 
 /** Secret fields are resolved by the registry (`env:NAME` / `wincred:TARGET`) and only reachable through `getSecret`. */

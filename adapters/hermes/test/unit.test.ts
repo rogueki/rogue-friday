@@ -210,6 +210,7 @@ describe("configuration and manifests", () => {
       "hermes-tasks",
       "hermes-activity",
       "hermes-agents",
+      "hermes-automations",
     ]);
     for (const factory of hermesFactories) {
       expect(factory.providerId).toBe(adapterIdFor(factory.category));

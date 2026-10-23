@@ -1,12 +1,15 @@
 import type { AdapterFactory } from "@friday/adapter-core";
 import { HermesActivityAdapter } from "./activity-adapter";
 import { HermesAgentsAdapter } from "./agents-adapter";
+import { HermesAutomationsAdapter } from "./automations-adapter";
 import type { HermesAdapterOptions } from "./base";
 import { adapterIdFor, configSchemaFor, type HermesCategory } from "./manifest";
 import { HermesTasksAdapter } from "./tasks-adapter";
 
 export { HermesActivityAdapter } from "./activity-adapter";
 export { HermesAgentsAdapter } from "./agents-adapter";
+export { HermesAutomationsAdapter } from "./automations-adapter";
+export { CronApi } from "./cron-api";
 export { HermesTasksAdapter, taskEventType } from "./tasks-adapter";
 export type { HermesAdapterOptions } from "./base";
 export {
@@ -28,7 +31,7 @@ function createFactory<C extends HermesCategory>(
   category: C,
   create: (
     options?: HermesAdapterOptions,
-  ) => HermesTasksAdapter | HermesActivityAdapter | HermesAgentsAdapter,
+  ) => HermesTasksAdapter | HermesActivityAdapter | HermesAgentsAdapter | HermesAutomationsAdapter,
 ): AdapterFactory<C> {
   return {
     providerId: adapterIdFor(category),
@@ -44,10 +47,15 @@ export const hermesActivityFactory = createFactory(
   (options) => new HermesActivityAdapter(options),
 );
 export const hermesAgentsFactory = createFactory("agents", (options) => new HermesAgentsAdapter(options));
+export const hermesAutomationsFactory = createFactory(
+  "automations",
+  () => new HermesAutomationsAdapter(),
+);
 
 /** All Hermes provider factories; register each under its `providerId` (allowlist). */
 export const hermesFactories: readonly AdapterFactory<HermesCategory>[] = [
   hermesTasksFactory,
   hermesActivityFactory,
   hermesAgentsFactory,
+  hermesAutomationsFactory,
 ];

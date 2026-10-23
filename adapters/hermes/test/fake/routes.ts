@@ -487,7 +487,123 @@ export function dashboardRoutes(state: HermesState): RouteDef[] {
         return json(eventPayload(board, since));
       }),
     },
+    // ---- cron (automations) -----------------------------------------------------------------------------------------
+    {
+      method: "GET",
+      pattern: "/api/cron/jobs",
+      handler: authed(() => json([...state.cronJobs.values()])),
+    },
+    {
+      method: "GET",
+      pattern: "/api/cron/delivery-targets",
+      handler: authed(() =>
+        json({ targets: [{ id: "local", name: "Local (save only)", home_target_set: true }] }),
+      ),
+    },
+    {
+      method: "GET",
+      pattern: "/api/cron/jobs/:id",
+      handler: authed((request) => json(cronJob(state, request.params.id ?? ""))),
+    },
+    {
+      method: "GET",
+      pattern: "/api/cron/jobs/:id/runs",
+      handler: authed((request) => {
+        cronJob(state, request.params.id ?? "");
+        return json({ runs: state.cronRuns.get(request.params.id ?? "") ?? [], limit: num(request.query.limit) ?? 20 });
+      }),
+    },
+    {
+      method: "POST",
+      pattern: "/api/cron/jobs",
+      handler: authed((request) => {
+        const body = (request.body ?? {}) as Record<string, unknown>;
+        if (typeof body.schedule !== "string" || body.schedule === "") {
+          throw new HttpFail(400, { detail: "schedule is required" });
+        }
+        if (typeof body.script === "string" && body.script.startsWith("/")) {
+          throw new HttpFail(400, { detail: `script does not exist: ${body.script}` });
+        }
+        const job = state.createCronJob({
+          name: typeof body.name === "string" && body.name ? body.name : `Job ${state.cronJobs.size + 1}`,
+          prompt: typeof body.prompt === "string" ? body.prompt : "",
+          script: typeof body.script === "string" ? body.script : null,
+          no_agent: body.no_agent === true,
+          skills: Array.isArray(body.skills) ? (body.skills as string[]) : [],
+          model: typeof body.model === "string" ? body.model : null,
+          provider: typeof body.provider === "string" ? body.provider : null,
+          schedule: { kind: "cron", expr: body.schedule, display: body.schedule },
+          schedule_display: body.schedule,
+          deliver: typeof body.deliver === "string" ? body.deliver : "local",
+          workdir: typeof body.workdir === "string" ? body.workdir : null,
+          enabled: body.paused === false,
+          state: body.paused === false ? "scheduled" : "paused",
+        });
+        state.createdCount += 0;
+        return json(job);
+      }),
+    },
+    {
+      method: "PUT",
+      pattern: "/api/cron/jobs/:id",
+      handler: authed((request) => {
+        const job = cronJob(state, request.params.id ?? "");
+        const updates = ((request.body ?? {}) as { updates?: Record<string, unknown> }).updates ?? {};
+        if (typeof updates.name === "string") job.name = updates.name;
+        if (typeof updates.prompt === "string") job.prompt = updates.prompt;
+        if (typeof updates.schedule === "string") {
+          job.schedule = { kind: "cron", expr: updates.schedule, display: updates.schedule };
+          job.schedule_display = updates.schedule;
+        }
+        if (typeof updates.script === "string") job.script = updates.script;
+        if (typeof updates.deliver === "string") job.deliver = updates.deliver;
+        return json(job);
+      }),
+    },
+    {
+      method: "POST",
+      pattern: "/api/cron/jobs/:id/pause",
+      handler: authed((request) => {
+        const job = cronJob(state, request.params.id ?? "");
+        job.enabled = false;
+        job.state = "paused";
+        job.paused_reason = "Paused by request.";
+        return json(job);
+      }),
+    },
+    {
+      method: "POST",
+      pattern: "/api/cron/jobs/:id/resume",
+      handler: authed((request) => {
+        const job = cronJob(state, request.params.id ?? "");
+        job.enabled = true;
+        job.state = "scheduled";
+        job.paused_reason = null;
+        job.next_run_at = new Date(state.now() + 86_400_000).toISOString();
+        return json(job);
+      }),
+    },
+    {
+      method: "POST",
+      pattern: "/api/cron/jobs/:id/trigger",
+      handler: authed((request) => json(state.triggerCronJob(request.params.id ?? ""))),
+    },
+    {
+      method: "DELETE",
+      pattern: "/api/cron/jobs/:id",
+      handler: authed((request) => {
+        cronJob(state, request.params.id ?? "");
+        state.cronJobs.delete(request.params.id ?? "");
+        return json({ ok: true });
+      }),
+    },
   ];
+}
+
+function cronJob(state: HermesState, id: string) {
+  const job = state.cronJobs.get(id);
+  if (!job) throw new HttpFail(404, { detail: "Job not found" });
+  return job;
 }
 
 export function eventPayload(board: FakeBoard, since: number): { events: unknown[]; cursor: number } {
