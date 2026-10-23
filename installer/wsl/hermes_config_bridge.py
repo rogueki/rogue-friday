@@ -444,8 +444,10 @@ def parse_auth_list(text):
 
 
 SKILL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
-SKILL_ORIGINS = {"builtin", "local", "hub"}
-SKILL_TRUST = {"builtin", "local", "project"}
+# The table names the registry a skill came from ("builtin", "local", "skills.sh", "clawhub", ...) and the trust
+# the checker assigned ("builtin", "local", "trusted", "community", ...). Both vocabularies grow with every registry,
+# so a bounded token is checked instead of a fixed set; the row layout itself stays strictly parsed.
+SKILL_SOURCE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")
 SKILL_STATES = {"enabled", "disabled"}
 
 
@@ -457,9 +459,11 @@ def parse_skills_list(text):
     names = set()
     for raw in text.splitlines():
         line = raw.rstrip()
-        if not line.startswith("\u2502"):
+        # v0.20.5 draws the header with light borders (U+2502), v0.22.2 with heavy ones (U+2503); both layouts
+        # carry the same five columns, so the parser accepts either and rejects everything else.
+        if not line or line[0] not in ("\u2502", "\u2503"):
             continue
-        cells = [cell.strip() for cell in line.split("\u2502")]
+        cells = [cell.strip() for cell in re.split("[\u2502\u2503]", line)]
         if len(cells) != 7 or cells[0] or cells[6]:
             raise ValueError("skills_list_format")
         values = cells[1:6]
@@ -473,7 +477,8 @@ def parse_skills_list(text):
         name, category, origin, trust, state = values
         if SKILL_NAME.fullmatch(name) is None or len(category) > 64 or name in names:
             raise ValueError("skills_list_format")
-        if origin not in SKILL_ORIGINS or trust not in SKILL_TRUST or state not in SKILL_STATES:
+        if SKILL_SOURCE_TOKEN.fullmatch(origin) is None or SKILL_SOURCE_TOKEN.fullmatch(trust) is None or \
+                state not in SKILL_STATES:
             raise ValueError("skills_list_format")
         names.add(name)
         skills.append({"name": name, "category": category, "origin": origin,
@@ -543,10 +548,14 @@ SKILL_MUTATION_TEXT_LIMIT = 4096
 SKILL_MUTATION_TIMEOUT = 180
 
 
-def skill_list_rows(cli):
-    """The inventory, read the same way as the `skills-list` action and parsed by the same strict parser."""
+def skill_list_rows(cli, timeout=120):
+    """The inventory, read the same way as the `skills-list` action and parsed by the same strict parser.
+
+    The first call in a fresh profile refreshes the catalog, which takes far longer than the 30 s the plain
+    inventory allows; a mutation reads the list twice and must not fail on that cold start.
+    """
     result = subprocess.run([str(cli), "skills", "list", "--source", "all"], capture_output=True,
-                            text=True, timeout=30, env=dict(os.environ, COLUMNS="400"))
+                            text=True, timeout=timeout, env=dict(os.environ, COLUMNS="400"))
     if result.returncode:
         raise ValueError("skills_list_failed")
     return parse_skills_list(result.stdout)
@@ -685,7 +694,10 @@ def locked_main(home, source, cli):
         present_before = any(row["name"] == name for row in before["skills"])
         snapshot = snapshot_skill(home, action, name)
         argv = [str(cli), "skills", action]
-        argv.extend([identifier, "--yes"] if action == "install" else [name])
+        # install and uninstall ask for confirmation; without a TTY the prompt would block a headless invocation.
+        # update has no prompt and rejects the flag, so it gets the plain name.
+        argv.extend([identifier, "--yes"] if action == "install" else
+                    [name, "--yes"] if action == "uninstall" else [name])
         if force:
             argv.append("--force")
         try:

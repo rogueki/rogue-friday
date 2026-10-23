@@ -36,6 +36,8 @@ def table(items):
 if args[:2] == ["skills", "list"]:
     table(rows)
     sys.exit(0)
+with open(root / "argv.log", "a", encoding="utf-8") as log:
+    log.write(json.dumps(args) + "\\n")
 action = args[1]
 if action == "install":
     name = args[2].rsplit("/", 1)[-1]
@@ -145,3 +147,13 @@ for bad in ({"action": "remove", "name": "demo", "identifier": None, "force": Fa
         raise AssertionError("accepted a bad request: %r" % (bad,))
 
 print("skill-mutate: 15 checks passed")
+# 6. The exact argv: install and uninstall need the confirmation flag, update rejects it.
+logged = (HOME / "argv.log").read_text(encoding="utf-8").strip().splitlines()
+argv = [json.loads(line) for line in logged if "skills" in line]
+assert ["skills", "install", "skills-sh/x/fresh", "--yes", "--force"] in argv, argv
+assert ["skills", "update", "demo"] in argv, argv
+assert ["skills", "uninstall", "fresh", "--yes"] in argv, argv
+assert not any(entry[:2] == ["skills", "update"] and "--yes" in entry for entry in argv), argv
+
+print("skill-mutate-argv: 4 checks passed")
+

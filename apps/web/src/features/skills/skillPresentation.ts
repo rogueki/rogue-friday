@@ -1,17 +1,21 @@
 import type { SkillCatalogEntry } from "@friday/sdk";
 
-const ORIGIN_LABELS: Record<SkillCatalogEntry["origin"], string> = {
+// Hermes names the registry a skill came from ("skills.sh", "clawhub", ...) and the trust its checker assigned
+// ("trusted", "community", ...). The vocabulary grows with every registry, so unknown tokens are shown verbatim
+// instead of being labelled "Unbekannt" — the operator can act on the real name.
+const ORIGIN_LABELS: Record<string, string> = {
   friday: "Friday-Paket", builtin: "Hermes mitgeliefert", local: "Lokal installiert",
   hub: "Hub-Installation", unknown: "Unbekannt",
 };
 
-const TRUST_LABELS: Record<SkillCatalogEntry["trust"], string> = {
-  builtin: "Mitgeliefert", local: "Lokal", project: "Projektfreigabe", unknown: "Unbekannt",
+const TRUST_LABELS: Record<string, string> = {
+  builtin: "Mitgeliefert", local: "Lokal", project: "Projektfreigabe", trusted: "Vertrauenswürdige Quelle",
+  community: "Community", unknown: "Unbekannt",
 };
 
 /** Origin is where the skill lives; trust is what lets Hermes load it. Both stay separate from activation. */
-export const originLabel = (origin: SkillCatalogEntry["origin"]): string => ORIGIN_LABELS[origin];
-export const trustLabel = (trust: SkillCatalogEntry["trust"]): string => TRUST_LABELS[trust];
+export const originLabel = (origin: SkillCatalogEntry["origin"]): string => ORIGIN_LABELS[origin] ?? origin;
+export const trustLabel = (trust: SkillCatalogEntry["trust"]): string => TRUST_LABELS[trust] ?? trust;
 
 export function skillState(skill: SkillCatalogEntry): { label: string; tone: "green" | "amber" | "red"; detail: string } {
   if (skill.discovered === false) return { label: "Nicht gefunden", tone: "red", detail: "Im Paket enthalten, aber in der laufenden Hermes-Instanz nicht gefunden." };

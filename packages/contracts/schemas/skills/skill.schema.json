@@ -6,8 +6,8 @@
   "properties": {
     "id": { "type": "string", "pattern": "^(friday|hermes):[a-z0-9][a-z0-9_-]*$" },
     "source": { "enum": ["friday", "hermes"] },
-    "origin": { "enum": ["friday", "builtin", "local", "hub", "unknown"] },
-    "trust": { "enum": ["builtin", "local", "project", "unknown"] },
+    "origin": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$" },
+    "trust": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$" },
     "name": { "type": "string", "minLength": 1 },
     "category": { "type": "string" },
     "description": { "type": "string" },
