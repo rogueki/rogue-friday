@@ -1017,14 +1017,14 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
 | Aufgabe | Stand | Beleg |
 |---|---|---|
 | DASH-10.03 Skill-Schalter | **PASS** | Schalter ueber `skills.disabled`, Readback 72 -> 71 -> 72 im wegwerfbaren Profil |
-| DASH-10.04 Skill-Operationen | TEIL | Hub-Suche und lokal geaenderte Liste typisiert; `inspect`/`audit`/`diff` als unveraenderter Text (gemessen: diff < 1 s, inspect 37 s); fehlende Wurzel wird gemeldet |
+| DASH-10.04 Skill-Operationen | **PASS** | Hub-Suche und lokal geaenderte Liste typisiert; `inspect`/`audit`/`diff` als unveraenderter Text (gemessen: diff < 1 s, inspect 37 s); fehlende Wurzel wird gemeldet |
 | DASH-10.05 Registry-Flaeche | TEIL | Panel mit Treffern, Quelle/Trust, lokal geaenderten Skills; kein Installationsknopf, Grund genannt |
 | DASH-10.06 Abnahme | TEIL | Hub-Skill real installiert (Quarantaene + Scan), Readback in neuem Prozess, lokale Aenderung nicht still ueberschrieben |
 | DASH-10.07 Recovery | TEIL | `POST /api/v1/skills/{name}/mutations` mit Schnappschuss, erneutem Lesen und Wiederherstellung; echter CLI-Lauf offen |
 
 **Vertrag**: 280 Operationen. **Suite**: 200 Dateien / 2829 Tests gruen (60 uebersprungen). **Gates**: 0.
 
-**Offen nach Abschnitt 8.1** (36 von 141 Aufgaben erledigt, 105 offen):
+**Offen nach Abschnitt 8.1** (34 von 131 Aufgaben erledigt, 97 offen):
 - DASH-05.05, DASH-06.04, DASH-07.03–07.06
 - DASH-08.01–08.05 und DASH-09.01–09.06 (brauchen echte Mail-, Kalender- und Messenger-Zugaenge)
 - DASH-10.01, 10.02, 10.04–10.07 (jeweils der in den Detailberichten genannte Rest)
