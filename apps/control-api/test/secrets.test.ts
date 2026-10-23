@@ -134,8 +134,9 @@ describe("secret hygiene", () => {
         if (spec.operationId === "downloadFile" || spec.operationId === "getObsidianVault" || spec.operationId === "getWikiPath" || spec.operationId === "getHimalayaAccount" || spec.operationId === "listHimalayaMailboxes" || spec.operationId === "listHimalayaEnvelopes" || spec.operationId === "getHimalayaMessage" || spec.operationId === "getCodingCliStatus" || spec.operationId === "getHermesSkillKeys" || spec.operationId === "getTelegramGateway" || spec.operationId === "getDiscordGateway" || spec.operationId === "getWhatsappGateway" || spec.operationId === "getTelephony") continue;
         const response = record(spec.operationId, await owner.get(pathOf(spec), spec.operationId === "exportAudit" ? { query: { format: "json" } } :
           spec.operationId === "searchLocations" ? { query: { q: "Berlin" } } :
-          spec.operationId === "searchDurableMemory" ? { query: { query: "synthetic", identityId: stableUserId("owner") } } : {}));
-        if (["getHermesModelCatalog", "getHermesAccess", "getSkillMarkdown", "getWakeEnrollment", "listVoiceSttModels"].includes(spec.operationId)) {
+          spec.operationId === "searchDurableMemory" ? { query: { query: "synthetic", identityId: stableUserId("owner") } } :
+          spec.operationId === "searchSkillHub" ? { query: { query: "hermes" } } : {}));
+        if (["getHermesModelCatalog", "getHermesAccess", "getSkillMarkdown", "searchSkillHub", "listModifiedSkills", "getWakeEnrollment", "listVoiceSttModels"].includes(spec.operationId)) {
           expect(response.statusCode, spec.operationId).toBe(503);
           expect((JSON.parse(response.body) as { error: { code: string } }).error.code).toBe("ADAPTER_UNAVAILABLE");
         } else expect(response.statusCode, spec.operationId).toBe(200);

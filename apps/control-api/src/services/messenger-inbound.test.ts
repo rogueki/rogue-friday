@@ -122,4 +122,22 @@ describe("post-admission messenger identity and memory gate", () => {
     expect(db.prepare("SELECT COUNT(*) AS n FROM messenger_inbound_events").get()).toEqual({ n: 0 });
     db.close();
   });
+
+  it("treats a re-delivered message as captured instead of surfacing the memory conflict", () => {
+    const db = new DatabaseSync(":memory:");
+    let calls = 0;
+    const memory = { getSettings: () => ({ enabled: true, privateMode: false, channels: { messenger: true } }),
+      capture: () => {
+        calls += 1;
+        if (calls > 1) throw new Error("Event ID conflict");
+        return { accepted: true, pending: false };
+      }, search: () => [] } as unknown as DurableMemoryService;
+    const service = new MessengerInboundService(db, memory);
+    service.receive(message);
+    service.link(service.observations()[0]!.id, stableUserId("owner"));
+    expect(service.receive(message).reason).toBe("captured");
+    expect(service.receive(message)).toEqual({ reason: "captured", eventId: expect.stringMatching(/^messenger-/) });
+    expect(db.prepare("SELECT COUNT(*) AS n FROM messenger_inbound_events").get()).toEqual({ n: 1 });
+    db.close();
+  });
 });
