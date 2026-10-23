@@ -1,6 +1,6 @@
 # DASH-15 — Sieben Domain-Agenten als echte Profile
 
-**Datum:** 2026-10-23 · **Status:** 15.05 PASS, 15.02 TEIL (Lücken benannt), 15.01/15.03/15.04 offen
+**Datum:** 2026-10-23 · **Status:** 15.02 und 15.05 PASS, 15.01/15.03/15.04 offen
 
 ## 1. Angelegt (echte Hermes-Konfiguration, kein Kartenmodell)
 
@@ -40,9 +40,25 @@ Jedes Profil hat eine echte `config.yaml` und eine `SOUL.md`:
 Verifiziert mit `hermes profile show <name>`: Modell, Pfad, Gateway-Zustand und `SOUL.md: exists` werden von Hermes
 selbst aus der echten Konfiguration gelesen.
 
-**Noch offen in 15.02:** eine *domänenspezifische* Tool-/Skill-Allowlist je Profil (aktuell verweist
-`skills.external_dirs` auf den gemeinsamen Friday-Skillordner, Hermes kennt keine reine Allowlist-Datei) und ein
-explizit gesetztes Arbeitsverzeichnis statt des Profilstandards.
+### Skill-Sets und Arbeitsverzeichnis je Profil
+
+Beides ist jetzt real gesetzt und von Hermes selbst gelesen:
+
+| Profil | Skills | Quellkategorien (Symlinks in den gemeinsamen Skillbaum) |
+| --- | --- | --- |
+| tasks | 26 | office, executive, core |
+| communication | 12 | communication, voice |
+| calendar | 19 | calendar, travel, austria |
+| automations | 17 | system, core |
+| research | 22 | research, knowledge, finance, funding |
+| alerts | 10 | system, weather |
+| audit | 16 | system, office |
+
+Die Skills sind **Symlinks** auf `/mnt/d/Dokumente/F.R.I.D.A.Y/skills/friday-skills/skills/<kategorie>/<skill>` — eine
+Quelle, keine Kopien, kein doppelter Pflegestand. `hermes profile show calendar` meldet danach `Skills: 19`.
+
+Arbeitsverzeichnis: `terminal.cwd` zeigt je Profil auf dessen eigenes `workspace/`; `hermes --profile tasks config get
+terminal` liest `cwd: /home/ubuntu/.hermes/profiles/tasks/workspace` zurück (Hermes-Schlüssel `terminal.cwd`).
 
 ## 3. Recovery: ein kaputtes Profil reisst nicht die anderen mit (15.05, PASS)
 
@@ -68,7 +84,7 @@ verification: could not parse plugin selection: .../alerts/config.yaml
 `calendar` bleibt vollständig; nach dem Zurückspielen ist `alerts` wieder `k3 (kimi-coding)`. Ein ungültiges Profil
 deaktiviert also nur sich selbst, und es entsteht keine Ersatzkarte mit erfundenem Status.
 
-## 4. Was für 15.03/15.04 noch fehlt
+## 4. Was für 15.03/15.04 noch fehlt (15.02 ist vollständig)
 
 - Die Profile sind **definiert**, aber noch nicht als laufende Worker gegen eine Aufgabe belegt: dafür muss der
   Hermes-API-Server (Port 43693 im Live-Setup) laufen und der `agents`-Adapter konfiguriert sein. In der

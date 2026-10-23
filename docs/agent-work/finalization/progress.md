@@ -767,3 +767,12 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   Hermes-API-Server antwortet `/api/v1/agents` mit 403 CAPABILITY_MISSING statt erfundener Agenten.
 - evidence_paths: `dash-15-domain-agenten.md`.
 - status: 15.05 PASS, 15.02 TEIL (Skill-Allowlist je Domaene, explizites Arbeitsverzeichnis offen)
+
+### DASH-15.02 vollstaendig (2026-10-23)
+- changed: domaenenspezifische Skill-Sets je Profil als Symlinks in den gemeinsamen Friday-Skillbaum (tasks 26,
+  communication 12, calendar 19, automations 17, research 22, alerts 10, audit 16 Skills) und explizites
+  `terminal.cwd` auf das jeweilige Profil-`workspace/`.
+- observed: `hermes profile show calendar` meldet `Skills: 19`; `hermes --profile tasks config get terminal` liest
+  `cwd: /home/ubuntu/.hermes/profiles/tasks/workspace`. Keine Kopien, eine Quelle.
+- evidence_paths: `dash-15-domain-agenten.md`.
+- status: PASS (15.02)
