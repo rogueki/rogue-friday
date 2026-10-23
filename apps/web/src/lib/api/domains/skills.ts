@@ -1,6 +1,6 @@
 "use client";
 
-import type { OnboardingResponse, OnboardingUpdate, SkillCatalogResponse, SkillMarkdownResponse, SkillResponse, PowerPointDeckRequest, PowerPointDeckResponse, PowerPointDeckListResponse } from "@friday/sdk";
+import type { ModifiedSkillsResponse, OnboardingResponse, OnboardingUpdate, SkillCatalogResponse, SkillHubSearchResponse, SkillMarkdownResponse, SkillResponse, PowerPointDeckRequest, PowerPointDeckResponse, PowerPointDeckListResponse } from "@friday/sdk";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { call } from "../call";
 import { getApiClient } from "../client";
@@ -21,6 +21,24 @@ export const skillsQueries = {
 };
 
 export const useSkillsCatalog = (enabled = true) => useQuery({ ...skillsQueries.catalog(), enabled });
+
+/** Registry search is a real CLI call with a network timeout; it only runs for an explicit query. */
+export const useSkillHubSearch = (query: string, enabled = true) => useQuery({
+  queryKey: ["skills", "hub-search", query],
+  queryFn: (): Promise<SkillHubSearchResponse> => call(getApiClient().GET("/api/v1/skills/hub/search",
+    { params: { query: { query, limit: 10 } } })),
+  enabled: enabled && query.trim().length > 0,
+  staleTime: 60_000,
+  retry: false,
+});
+
+export const useModifiedSkills = (enabled = true) => useQuery({
+  queryKey: ["skills", "modified"],
+  queryFn: (): Promise<ModifiedSkillsResponse> => call(getApiClient().GET("/api/v1/skills/modified")),
+  enabled,
+  staleTime: 60_000,
+  retry: false,
+});
 export const useSkillMarkdown = (id: string | null, enabled = true) => useQuery({
   queryKey: ["skills", "markdown", id],
   queryFn: (): Promise<SkillMarkdownResponse> => call(getApiClient().GET("/api/v1/skills/{id}/markdown",

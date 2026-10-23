@@ -13,6 +13,9 @@ vi.mock("@/lib/api/domains/skills", () => ({
   useSetSkillActivation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSkillMarkdown: (id: string | null) => ({ data: id ? { data: { id, content: "# Anleitung", bytes: 11 } } : undefined,
     isPending: false, isError: false, error: null }),
+  useSkillHubSearch: () => ({ data: undefined, isPending: false, isError: false, isFetching: false, error: null }),
+  useModifiedSkills: () => ({ data: { data: { names: [], observedAt: new Date().toISOString() } },
+    isPending: false, isError: false, error: null }),
 }));
 vi.mock("./CodingRunsArea", () => ({ CodingRunsArea: () => null }));
 
