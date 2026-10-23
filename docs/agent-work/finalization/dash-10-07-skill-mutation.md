@@ -49,13 +49,35 @@ Damit ist „fehlgeschlagene Aktivierung meldet den alten Zustand" doppelt abged
 - **„Nicht still überschrieben."** `force` ist der einzige Weg, lokale Änderungen zu überschreiben; ohne `force`
   überspringt die CLI sie (belegt in `dash-10-06-acceptance.md`, Abschnitt 3).
 
-## 5. Offen (bewusst nicht behauptet)
+## 5. Live-Beleg im wegwerfbaren Profil (2026-10-23)
 
-- **Kein echter CLI-Lauf gegen ein wegwerfbares Profil in dieser Runde.** Der Versuch, `HERMES_HOME` als Isolation zu
-  nutzen, brach an der Shell-Quotierung ab und wurde verworfen; die Bridge- und API-Beweise oben nutzen einen echten
-  Unterprozess, aber nicht die echte Hermes-CLI. Der Lauf ist der nächste Schritt.
-- **`enabled` nach einer Mutation** wird aus der Liste gelesen; ein Toggle-Rollback (Aktivierung schlägt fehl,
-  Deaktivierung greift) ist nicht Teil dieses Schnitts.
+Wegwerfprofil in WSL (`hermes profile create friday-mut2`, danach geloescht und `purge-identity` ausgefuehrt), echte
+CLI v0.22.2, Aufruf ueber die Bridge mit `home=~/.hermes/profiles/friday-mut2` und `cli=~/.local/bin/friday-mut2`:
 
-Ergebnis: **TEIL** — der wiederherstellbare Schnappschuss ist implementiert, getestet und über die API erreichbar;
-der echte CLI-Lauf und der Nachweis „keine geteilten Accounts angetastet" fehlen noch.
+| Schritt | Ergebnis |
+|---|---|
+| Install `skills-sh/anthropics/skills/skill-creator` | rc 0, `installed: true`, `snapshot: null` (vorher nichts da); Text enthaelt Quarantaene und Sicherheitsscan (Verdict CAUTION, HIGH exfiltration in `scripts/improve_description.py:33`) |
+| Update ohne `force` | rc 0, `No updates available.`, die lokale Zeile bleibt stehen |
+| Update mit `force` | rc 0, `No updates available.` — es gab keine Upstream-Aenderung zu ueberschreiben (der Skip-Fall mit echter Aenderung ist in `dash-10-06-acceptance.md` belegt) |
+| Uninstall | rc 0, `installed: false`, Verzeichnis weg, Schnappschuss `…-uninstall-skill-creator` mit vollstaendigem `skill/0`-Payload |
+| Zugaenge | SHA-256 von `.env` vor und nach allen Schritten identisch (`7abdeac1cde97548…`), `config.toml` gibt es im Profil nicht — **Entfernen fasst geteilte Zugaenge nicht an** |
+| Bilanz | 53 Skills vorher, 53 nachher; acht Schnappschuesse, jeder mit Payload |
+
+## 6. Zwei echte Fehler, die erst dieser Lauf gezeigt hat
+
+1. **Inventar-Tabelle war versionsspezifisch geparst.** v0.22.2 zeichnet den Kopf mit schweren Rahmen (`┃`) und
+   nennt in `Source`/`Trust` Registrierungsnamen und Vertrauensstufen (`skills.sh`, `trusted`), nicht die feste Menge
+   `builtin|local|hub`. Der strenge Parser lehnte deshalb ab — sobald ein Hub-Skill installiert war, wurde das
+   **gesamte** Inventar unlesbar. Der Parser akzeptiert jetzt beide Rahmenarten und prueft `Source`/`Trust` gegen ein
+   begrenztes Token (`^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$`); der Vertrag (`skill.schema.json`) wurde von `enum` auf
+   dasselbe Muster gewidmet, damit die Antwort nicht an der Validierung scheitert. Die Oberflaeche zeigt unbekannte
+   Tokens im Klartext statt „Unbekannt". Ledger **N-057**.
+2. **Bestaetigungsflags unterscheiden sich pro Aktion.** `install` und `uninstall` brauchen `--yes`; `update` kennt
+   das Flag nicht und endet damit als Fehler (real beobachtet: rc 6, Wiederherstellung des Schnappschusses). Die
+   Bridge setzt es jetzt nur fuer `install` und `uninstall`. Ledger **N-058**.
+
+## 7. Offen (bewusst nicht behauptet)
+
+- **Toggle-Rollback** (Aktivierung schlaegt fehl, Deaktivierung greift) ist nicht Teil dieses Schnitts.
+- **Update mit echter Upstream-Aenderung** im Live-Profil wurde nicht erzeugt; belegt ist der Skip-Fall aus einem
+  frueheren Lauf und das Verhalten „keine Aenderung" aus diesem.
