@@ -863,3 +863,13 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
 - **10.03-10.07 unangetastet**: der per-Skill-Schalter (opt-in/opt-out) und die CLI-Operationen
   (`inspect/search/install/update/check/audit/uninstall/trust`) sind nicht belegt; Vorgehen laut Plan erst nach
   Quell-/CLI-Analyse und Readbackprobe.
+
+## 2026-10-23 Gate-Zertifizierung des aktuellen Baums
+
+- `pnpm contracts:check` 0, `pnpm typecheck` 0, `pnpm lint` 0 Fehler (3 bestehende Warnungen), `pnpm build` 0,
+  node-Suite 194 Dateien / 2806 Tests (60 skipped), web-Suite 86 Dateien / 677 Tests.
+- Der neue Endpunkt `getHermesAccess` hat vier Vertrags-/Abdeckungswaechter ausgeloest; sie wurden bewusst
+  nachgezogen: 273 released operations, live-only-Liste im Mock-Datenpaket (kein gemockter Hermes-Zugang),
+  503-Erwartung im Secret-Hygiene-Test, fokussierte Vertragsprobe 80 statt 79 (Commit `4a64828`).
+- Keine Abschwaechung der Zaehlungen, keine erfundenen Antworten: der Endpunkt bleibt im Test ohne Hermes
+  ehrlich bei ADAPTER_UNAVAILABLE.
