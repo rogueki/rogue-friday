@@ -643,7 +643,7 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - nebenfund: vitest-Default von 5 s reichte fuer die Routen-Sweeps unter zwei Workern nicht (Ledger **N-056**,
   behoben durch `testTimeout`/`hookTimeout` 20 s)
 
-| DASH-10.07 Recovery | TEIL (Bridge kopiert das Skill-Verzeichnis vor jeder Mutation in `~/.hermes/friday-snapshots`, liest den Zustand nach dem CLI-Lauf erneut und spielt den Schnappschuss bei jedem Fehler zurueck; `POST /api/v1/skills/{name}/mutations` mit Audit, 280 Operationen; echter CLI-Lauf und Account-Nachweis offen) | `dash-10-07-skill-mutation.md`, `test_skill_mutate.py` (15), `skills-mutation-route.test.ts` (4) |
+| DASH-10.07 Recovery | **PASS** (Bridge kopiert das Skill-Verzeichnis vor jeder Mutation in `~/.hermes/friday-snapshots`, liest den Zustand nach dem CLI-Lauf erneut und spielt den Schnappschuss bei jedem Fehler zurueck; `POST /api/v1/skills/{name}/mutations` mit Audit, 280 Operationen; live im wegwerfbaren Profil belegt: Install mit Quarantaene/Scan, Update, Uninstall mit Schnappschuss-Payload, `.env`-Hash unveraendert; fehlgeschlagene Aktivierung meldet den alten Zustand als 409 mit `observed`) | `dash-10-07-skill-mutation.md`, `test_skill_mutate.py` (15), `skills-mutation-route.test.ts` (4) |
 ### DASH-10.04 Nachtrag (2026-10-23): fehlende Skill-Wurzel
 
 - base_revision: `aac703c`; result_revision: `e1729b6`

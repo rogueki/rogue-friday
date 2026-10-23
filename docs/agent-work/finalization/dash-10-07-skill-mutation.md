@@ -76,8 +76,16 @@ CLI v0.22.2, Aufruf ueber die Bridge mit `home=~/.hermes/profiles/friday-mut2` u
    das Flag nicht und endet damit als Fehler (real beobachtet: rc 6, Wiederherstellung des Schnappschusses). Die
    Bridge setzt es jetzt nur fuer `install` und `uninstall`. Ledger **N-058**.
 
-## 7. Offen (bewusst nicht behauptet)
+## 7. Fehlgeschlagene Aktivierung meldet den alten Zustand
 
-- **Toggle-Rollback** (Aktivierung schlaegt fehl, Deaktivierung greift) ist nicht Teil dieses Schnitts.
+Der Auftrag verlangt das ausdruecklich. `SkillsService.toggle` liest den Zustand vor und nach dem Schalter; wird die
+Aenderung nicht bestaetigt, endet der Aufruf jetzt mit `409 CONFLICT` und nennt den Zustand, der **tatsaechlich**
+gilt: `details: { skillId, requested, observed }` und im Text „beobachtet: deaktiviert|aktiviert|unbekannt". Belegt
+durch `skills-onboarding.test.ts` (22 Tests, davon einer genau fuer diesen Fall). Vorher endete der Fall als
+allgemeiner 503 ohne Aussage.
+
+## 8. Offen (bewusst nicht behauptet)
+
+- **Update mit echter Upstream-Aenderung** im Live-Profil wurde nicht erzeugt (siehe Abschnitt 5).
 - **Update mit echter Upstream-Aenderung** im Live-Profil wurde nicht erzeugt; belegt ist der Skip-Fall aus einem
   frueheren Lauf und das Verhalten „keine Aenderung" aus diesem.
