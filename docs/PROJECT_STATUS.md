@@ -939,3 +939,17 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
 - **Neues Issue N-051**: der Test `messenger-inbound-routes` faellt mit 503 „Event ID conflict" beim zweiten
   identischen Empfang — reproduzierbar auch auf `2356c5e` und mit geleertem Arbeitsbaum, also vorbestehend und
   unabhaengig von diesem Block; im Ledger offen.
+## 2026-10-23 DASH-10.05: Registry-Suche und lokale Aenderungen in der Oberflaeche
+
+- **Neue Flaeche** `SkillRegistryPanel` auf der Skillseite (nur `owner`, nur online): Registry-Suche ueber
+  `GET /api/v1/skills/hub/search` zeigt je Treffer Name, Quelle, Trust-Stufe, Kennung und Beschreibung; die Liste
+  lokal geaenderter Skills kommt aus `GET /api/v1/skills/modified` und warnt, dass ein Update diese Skills
+  ueberspringt. Ein Installationsknopf fehlt bewusst; der Grund (Bestaetigungs- und Wiederherstellungsweg fehlt
+  noch) steht im Panel.
+- **Keine erfundenen Zustaende**: Suche laeuft nur auf ausdrueckliche Eingabe, `retry: false`, Leer- und
+  Fehlermeldung getrennt; ein Registry-Ausfall erzeugt eine Fehlermeldung, keine Trefferliste.
+- **Nachweise**: 3 neue UI-Tests (Treffer ohne Installationsknopf, Leermeldung, Warnung plus Leerzustand),
+  SkillsPage 4 gruen, web-Suite 88 Dateien / 685 Tests, `typecheck` und `lint` 0.
+- **Offen (TEIL)**: Voraussetzungen und Auditbefund je Treffer (`inspect`/`audit` liefern kein JSON), Diff/Konflikt
+  vor einem Update, die Installation/Aktualisierung selbst (DASH-10.07) und die gefuehrte Wiederverwendung
+  bereits eingerichteter Referenzen.

@@ -34,6 +34,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | DASH-10.02 Skill-Inventar | TEIL (191 Skills live aus `hermes skills list`: 119 local / 72 builtin / 0 hub; Herkunft und Trust als eigene Vertragsfelder, Service-Merge mit CLI-Fallback, Detail laedt Markdown erst bei Auswahl als Text, Filter fuer Suche/Quelle/Herkunft/Kategorie/Status, 60er-Blocks mit Nachladen; echter Hub-Skill fehlt auf diesem Host) | `dash-10-02-skill-inventory.md`, `test_skills_list.py` (9), `skills-onboarding.test.ts` (20), `skills-inventory-route.test.ts` (1), `SkillsPage.test.tsx` (4) |
 | DASH-10.03 per-Skill-Schalter | PASS (Schalter = `skills.disabled`, nur ueber `save_disabled_skills`/`PUT /api/skills/toggle`; `opt-in/opt-out` sind Seeding-Schalter; Readbackprobe im wegwerfbaren Profil 72->71->72 mit Zeile `arxiv disabled`, Default-Profil unveraendert; Friday bestaetigt jede Aenderung durch erneutes Lesen, Test fuer ausbleibende Bestaetigung) | `dash-10-03-skill-enable.md`, `skills-onboarding.test.ts` (21) |
 | DASH-10.04 Skill-Operationen | TEIL (Faehigkeitsmatrix beider CLI-Staende: nur `search` und `list-modified` liefern `--json`; beide typisiert als `searchSkillHub` und `listModifiedSkills` mit strengen Parsern und Eingabepruefung, 276 Operationen; Textoperationen und Mutationen offen) | `dash-10-04-skill-operations.md`, `test_hub_search.py` (9), `skills-hub-route.test.ts` (3) |
+| DASH-10.05 Registry-Flaeche | TEIL (Panel zeigt Treffer mit Quelle/Trust/Kennung/Beschreibung und die lokal geaenderten Skills, die Updates ueberspringen; kein Installationsknopf, Grund genannt. Voraussetzungen/Auditbefund je Treffer, Diff/Konflikt und Installation offen) | `dash-10-05-skill-registry-ui.md`, `SkillRegistryPanel.test.tsx` (3), web 88/685 |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
 | DASH-07 Hermes-Paritaet | 07.01/07.02 PASS, 07.03-07.06 offen | `dash-07-hermes-inventory.md`, Live-Inventar Hermes 0.22.2 |
@@ -570,6 +571,25 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   Ledger offen, nicht durch diesen Block verursacht
 - remaining_work: Textdarstellung fuer `inspect/browse/check/audit/diff/tap list`, Mutationen, nicht erreichbares
   `external_dirs`
+
+### DASH-10.05 (2026-10-23)
+
+- requirement_ids: DASH-10.05; predecessor: DASH-10.04
+- base_revision: `faf3588`; result_revision: working tree (Commit folgt)
+- implementation_paths: `apps/web/src/features/skills/SkillRegistryPanel.tsx` (neu),
+  `apps/web/src/lib/api/domains/skills.ts` (`useSkillHubSearch`, `useModifiedSkills`),
+  `apps/web/src/features/skills/SkillsPage.tsx` (Panel gemountet), `skills.css`,
+  `apps/web/src/features/skills/SkillRegistryPanel.test.tsx` (neu)
+- test_command: `vitest --project web SkillRegistryPanel SkillsPage`, volle web-Suite, `pnpm typecheck`, `pnpm lint`
+- expected: vor einer Installation Quelle und Trust je Treffer zeigen, lokal geaenderte Skills benennen,
+  keinen Installationsknopf anbieten, den Grund nennen
+- observed: Registry-Suche mit Name/Quelle/Trust/Kennung/Beschreibung aus der typisierten Operation, ehrliche
+  Leer- und Fehlermeldung, Liste lokal geaenderter Skills mit Warnung (Updates ueberspringen sie), statischer
+  Hinweis auf den fehlenden Bestaetigungs-/Recovery-Weg; 3 neue UI-Tests, SkillsPage 4 gruen, web 88/685
+- evidence_paths: `dash-10-05-skill-registry-ui.md`; status: TEIL (Voraussetzungen/Auditbefund je Treffer,
+  Diff/Konflikt, Installation und gefuehrte Kontowiederverwendung offen)
+- remaining_work: `inspect`/`audit` liefern kein JSON (nur Text oder Verzicht), `diff` als Text anzeigen,
+  Installation/Aktualisierung = DASH-10.07
 
 ## Open risks / notes for the next session
 
