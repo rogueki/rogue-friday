@@ -1,6 +1,6 @@
 import { authorize, type Role } from "@friday/auth";
 import { isAdapterError } from "@friday/adapter-core";
-import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type VoiceStatusResponse } from "@friday/sdk";
+import { CONTRACT_VERSION, type ActivityEvent, type Approval, type AuditEvent, type CommandResponse, type ContentPlanState, type Freshness, type Notification, type Settings, type Task, type TaskStatus, type VoiceStatusResponse } from "@friday/sdk";
 import { createId } from "@friday/observability";
 import type { HandlerResult, RequestContext } from "../http/context";
 import { ApiError, forbidden, validationFailed } from "../util/errors";
@@ -12,6 +12,8 @@ const ROLE_RANK: Record<Role, number> = { viewer: 0, operator: 1, owner: 2 };
 export type ReadQueryIntent =
   | { kind: "settings.get"; area?: SettingsReadArea }
   | { kind: "contentStudio.plan" }
+  | { kind: "tasks.list"; status?: TaskStatus[] }
+  | { kind: "tasks.get"; id: string }
   | { kind: "activity.list"; status?: string; lookbackHours?: number }
   | { kind: "activity.get"; id: string }
   | { kind: "notifications.list"; status?: Array<"open" | "acknowledged" | "snoozed" | "resolved"> }
@@ -42,22 +44,27 @@ const SETTINGS_AREA_PATTERNS: Array<{ area: SettingsReadArea; pattern: RegExp }>
   { area: "security", pattern: /\b(security|sicherheit|zugriffsschutz)\b/ },
 ];
 const FAMILY_PATTERNS = [
+  { family: "tasks", pattern: /\b(aufgabe|aufgaben|task|tasks|todo|todos)\b/ },
   { family: "activity", pattern: /\b(activity|activities|aktivitaet|aktivitaeten|aktivitaetsverlauf)\b/ },
   { family: "notifications", pattern: /\b(alert|alerts|notification|notifications|benachrichtigung|benachrichtigungen|meldung|meldungen)\b/ },
   { family: "approvals", pattern: /\b(approval|approvals|freigabe|freigaben)\b/ },
   { family: "audit", pattern: /\b(audit|auditprotokoll|pruefprotokoll|auditlog)\b/ },
 ] as const;
-export const READ_STATUS_ALIASES: Array<{ terms: string[]; mapsTo: Partial<Record<"activity" | "notifications" | "approvals" | "audit", string>> }> = [
-  { terms: ["failed", "failure", "fehlgeschlagen", "fehlgeschlagene", "fehlgeschlagenen", "fehler", "fehlerhaft"], mapsTo: { activity: "failed", approvals: "failed", audit: "failure" } },
-  { terms: ["running", "laeuft", "laufend", "in arbeit"], mapsTo: { activity: "running" } },
+export const READ_STATUS_ALIASES: Array<{ terms: string[]; mapsTo: Partial<Record<"tasks" | "activity" | "notifications" | "approvals" | "audit", string>> }> = [
+  { terms: ["failed", "failure", "fehlgeschlagen", "fehlgeschlagene", "fehlgeschlagenen", "fehler", "fehlerhaft"], mapsTo: { tasks: "failed", activity: "failed", approvals: "failed", audit: "failure" } },
+  { terms: ["running", "laeuft", "laufend", "laufende", "laufenden", "in arbeit"], mapsTo: { tasks: "running", activity: "running" } },
+  { terms: ["waiting", "wartend", "wartende", "wartenden", "wartet"], mapsTo: { tasks: "waiting" } },
+  { terms: ["review", "pruefung"], mapsTo: { tasks: "review" } },
+  { terms: ["ready", "bereit"], mapsTo: { tasks: "ready" } },
+  { terms: ["triage", "eingang"], mapsTo: { tasks: "triage" } },
   { terms: ["started", "gestartet"], mapsTo: { activity: "started" } },
-  { terms: ["succeeded", "successful", "erfolgreich", "abgeschlossen"], mapsTo: { activity: "succeeded", audit: "success" } },
-  { terms: ["cancelled", "canceled", "abgebrochen"], mapsTo: { activity: "cancelled", approvals: "cancelled" } },
+  { terms: ["succeeded", "successful", "erfolgreich", "abgeschlossen", "abgeschlossene", "abgeschlossenen"], mapsTo: { tasks: "done", activity: "succeeded", audit: "success" } },
+  { terms: ["cancelled", "canceled", "abgebrochen", "abgebrochene", "abgebrochenen"], mapsTo: { tasks: "cancelled", activity: "cancelled", approvals: "cancelled" } },
   { terms: ["info", "informational", "information", "informativ"], mapsTo: { activity: "info" } },
-  { terms: ["open", "offen", "offene", "aktiv"], mapsTo: { notifications: "open", approvals: "pending" } },
+  { terms: ["open", "offen", "offene", "offenen", "aktiv"], mapsTo: { tasks: "open", notifications: "open", approvals: "pending" } },
   { terms: ["acknowledged", "acknowledge", "bestaetigt", "quittiert"], mapsTo: { notifications: "acknowledged" } },
   { terms: ["snoozed", "zurueckgestellt", "pausiert"], mapsTo: { notifications: "snoozed" } },
-  { terms: ["resolved", "geloest", "erledigt"], mapsTo: { notifications: "resolved" } },
+  { terms: ["resolved", "geloest", "erledigt", "erledigte", "erledigten"], mapsTo: { tasks: "done", notifications: "resolved" } },
   { terms: ["pending", "ausstehend", "ausstehende"], mapsTo: { approvals: "pending", audit: "pending" } },
   { terms: ["approved", "genehmigt", "freigegeben"], mapsTo: { approvals: "approved" } },
   { terms: ["rejected", "abgelehnt"], mapsTo: { approvals: "rejected" } },
@@ -67,7 +74,7 @@ export const READ_STATUS_ALIASES: Array<{ terms: string[]; mapsTo: Partial<Recor
   { terms: ["success", "erfolgreich"], mapsTo: { audit: "success" } },
 ];
 const STATUS_WORDS = new Set(READ_STATUS_ALIASES.flatMap(({ terms }) => terms.filter((term) => !term.includes(" "))));
-const ID_PATTERN = /\b(act|ntf|appr|aud)_[0-9A-Za-z]{26}\b/g;
+const ID_PATTERN = /\b(act|ntf|appr|aud|task)_[0-9A-Za-z]{26}\b/g;
 
 function normalize(text: string): string {
   return text.toLowerCase().replace(/[äæ]/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
@@ -133,7 +140,7 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   }
   const families = FAMILY_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ family }) => family);
   if (families.length === 0) return null;
-  if (families.length > 1) return { kind: "clarify", message: "Meinst du Activity, Benachrichtigungen, Freigaben oder Audit? Bitte nur einen Bereich nennen." };
+  if (families.length > 1) return { kind: "clarify", message: "Meinst du Aufgaben, Activity, Benachrichtigungen, Freigaben oder Audit? Bitte nur einen Bereich nennen." };
 
   const family = families[0]!;
   if (/\b(create|add|update|change|delete|remove|approve|reject|start|stop|pause|resume|erstelle|erstellen|hinzufuegen|aendere|aendern|loesche|entferne|genehmige|genehmigen|lehne|ablehnen|starte|starten|stoppe|stoppen|pausiere|pausieren)\b/.test(text))
@@ -143,8 +150,8 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   if (ids.length > 1) return { kind: "clarify", message: "Bitte nenne nur eine vollständige Kennung." };
   const id = ids[0];
   if (id) {
-    const expected = family === "activity" ? "act" : family === "notifications" ? "ntf" : family === "approvals" ? "appr" : "aud";
-    if (id.prefix !== expected) return { kind: "clarify", message: "Die Kennung gehört zu einem anderen Bereich. Bitte Activity, Benachrichtigung, Freigabe oder Audit passend zur Kennung nennen." };
+    const expected = family === "tasks" ? "task" : family === "activity" ? "act" : family === "notifications" ? "ntf" : family === "approvals" ? "appr" : "aud";
+    if (id.prefix !== expected) return { kind: "clarify", message: "Die Kennung gehört zu einem anderen Bereich. Bitte Aufgabe, Activity, Benachrichtigung, Freigabe oder Audit passend zur Kennung nennen." };
   }
 
   const openIdCue = Boolean(id && /^open\b/.test(text));
@@ -160,7 +167,7 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   const periodMatches = [...text.matchAll(LOOKBACK_PATTERN)];
   if (periodMatches.length > 1) return { kind: "clarify", message: "Bitte nur einen Zeitraum angeben." };
   const periodNumber = periodMatches[0]?.[1];
-  const allowedWords = new Set(("zeige zeig liste list show search suche such find finde get open abruf abrufe hole detail details mir den die das der des im in von fuer und oder bei was what which welche welcher welches ist sind wurde wurden aktuell aktuelle aktuellen recent latest letzte letzten last today yesterday heute gestern hours hour stunden stunde days day tage tag weeks week wochen woche activity activities aktivitaet aktivitaeten aktivitaetsverlauf ereignis ereignisse verlauf event events record records entries eintrag eintraege benachrichtigung benachrichtigungen meldung meldungen alert alerts notification notifications approval approvals freigabe freigaben audit auditprotokoll pruefprotokoll auditlog logs log security sicherheit export exportieren exportiere download").split(/\s+/));
+  const allowedWords = new Set(("zeige zeig liste list show search suche such find finde get open abruf abrufe hole detail details mir meine meinen mein my den die das der des im in von fuer und oder bei aufgabe aufgaben task tasks todo todos was what which welche welcher welches ist sind wurde wurden aktuell aktuelle aktuellen recent latest letzte letzten last today yesterday heute gestern hours hour stunden stunde days day tage tag weeks week wochen woche activity activities aktivitaet aktivitaeten aktivitaetsverlauf ereignis ereignisse verlauf event events record records entries eintrag eintraege benachrichtigung benachrichtigungen meldung meldungen alert alerts notification notifications approval approvals freigabe freigaben audit auditprotokoll pruefprotokoll auditlog logs log security sicherheit export exportieren exportiere download").split(/\s+/));
   for (const statusWord of STATUS_WORDS) allowedWords.add(statusWord);
   for (const alias of READ_STATUS_ALIASES.flatMap(({ terms }) => terms.filter((term) => term.includes(" ") && statusTermPattern(term).test(text))))
     for (const word of alias.split(" ")) allowedWords.add(word);
@@ -173,6 +180,7 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   if (id) {
     if (statuses.length > 0 || hasForeignStatus(statusText, family) || hours !== undefined || /\b(recent|latest|aktuell|aktuelle|recenten)\b/.test(text))
       return { kind: "clarify", message: "Eine Kennung kann nicht mit einem Listenfilter oder Zeitraum kombiniert werden. Bitte nur die Kennung nennen." };
+    if (family === "tasks") return { kind: "tasks.get", id: id.id };
     if (family === "activity") return { kind: "activity.get", id: id.id };
     if (family === "notifications") return { kind: "notifications.unsupportedDetail", id: id.id };
     if (family === "approvals") return { kind: "approvals.get", id: id.id };
@@ -180,10 +188,18 @@ export function parseReadQueryIntent(input: string): ReadQueryIntent | null {
   }
   if (hours && family !== "activity" && family !== "audit")
     return { kind: "clarify", message: "Der Lesepfad unterstützt hier keinen Zeitraumfilter. Bitte einen Status oder eine andere Abfrage angeben." };
+  if (family === "tasks") return { kind: "tasks.list", ...(statuses[0] ? { status: taskStatuses(statuses[0]) } : {}) };
   if (family === "activity") return { kind: "activity.list", ...(statuses[0] ? { status: statuses[0] } : {}), ...(hours ? { lookbackHours: hours } : {}) };
   if (family === "notifications") return { kind: "notifications.list", ...(statuses[0] ? { status: [statuses[0] as "open" | "acknowledged" | "snoozed" | "resolved"] } : {}) };
   if (family === "approvals") return { kind: "approvals.list", ...(statuses[0] ? { status: [statuses[0] as "pending" | "approved" | "rejected" | "expired" | "cancelled" | "executed" | "failed"] } : {}) };
   return { kind: "audit.list", ...(statuses[0] ? { result: [statuses[0] as "success" | "failure" | "denied" | "pending"] } : {}), ...(hours ? { lookbackHours: hours } : {}), ...(/\b(security|sicherheit)\b/.test(text) ? { securityOnly: true } : {}) };
+}
+
+/** "offene Aufgaben" means everything that is not closed; an explicit status stays one-to-one. */
+const OPEN_TASK_STATUSES: TaskStatus[] = ["todo", "ready", "running", "waiting", "review"];
+
+function taskStatuses(status: string): TaskStatus[] {
+  return status === "open" ? OPEN_TASK_STATUSES : [status as TaskStatus];
 }
 
 function requireReadRole(ctx: RequestContext, resource: string, requiredRole: Role): void {
@@ -302,6 +318,7 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
   if (intent.kind === "clarify") return baseResponse(ctx, intent.message, "rejected");
   if (intent.kind === "settings.get") requireReadRole(ctx, "settings", "viewer");
   if (intent.kind === "contentStudio.plan") requireReadRole(ctx, "content-studio-plan", "owner");
+  if (intent.kind.startsWith("tasks.")) requireReadRole(ctx, "tasks", "viewer");
   if (intent.kind.startsWith("activity.")) requireReadRole(ctx, "activity", "viewer");
   if (intent.kind.startsWith("notifications.")) requireReadRole(ctx, "notifications", "viewer");
   if (intent.kind.startsWith("approvals.")) requireReadRole(ctx, "approvals", "viewer");
@@ -335,6 +352,15 @@ export async function executeReadQuery(ctx: RequestContext, intent: ReadQueryInt
       return baseResponse(ctx, `Gespeicherter Content-Studio-Plan, Revision ${state.revision}: ${state.plan.content.length} Ideen und ${state.plan.postings.length} Postings. ${[
         ...ideas.map((item) => `Idee: ${item}`), ...postings.map((item) => `Posting: ${item}`),
       ].join("; ") || "Keine Einträge."}${more ? " (weitere vorhanden)" : ""}`);
+    }
+    case "tasks.list": {
+      const page = await ctx.runtime.registry.getPort("tasks").listTasks({ limit: MAX_RESULTS, sort: "priority", ...(intent.status ? { status: intent.status } : {}) }, ctx.call);
+      return baseResponse(ctx, listMessage("Aufgaben", page.items, page.pageInfo.hasNextPage,
+        (task: Task) => idStatus(task.id, `${task.status}/${task.priority} ${task.title}`, task.updatedAt)));
+    }
+    case "tasks.get": {
+      const task = (await ctx.runtime.registry.getPort("tasks").getTask({ id: intent.id }, ctx.call)).data;
+      return baseResponse(ctx, `Aufgabe ${task.id}: ${task.title}, ${task.status}/${task.priority}, aktualisiert ${task.updatedAt}.`);
     }
     case "activity.list": {
       const page = await ctx.runtime.registry.getPort("activity").listActivity({ limit: MAX_RESULTS, ...(intent.status ? { status: intent.status } : {}), ...boundedPeriod(ctx, intent.lookbackHours) }, ctx.call);

@@ -74,6 +74,9 @@ describe("read-only command intent parsing", () => {
       expect(intent?.kind, `${term} -> ${family}`).toBe(`${family}.list`);
       if (family === "activity") expect(intent).toMatchObject({ status });
       else if (family === "audit") expect(intent).toMatchObject({ result: [status] });
+      else if (family === "tasks") expect(intent).toMatchObject({
+        status: status === "open" ? ["todo", "ready", "running", "waiting", "review"] : [status],
+      });
       else expect(intent).toMatchObject({ status: [status] });
     }
     expect(parseReadQueryIntent("Zeige Aktivitäten, die fehlgeschlagen sind"))

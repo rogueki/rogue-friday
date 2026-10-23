@@ -936,3 +936,15 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   -> Freitext-/Modellpfad. Nicht hier behoben, sondern an 18.03 uebergeben.
 - evidence_paths: `dash-18-01-voice-parity.md`, `dash-18-01-befunde.md`.
 - status: PASS
+
+### DASH-18.03 TEIL (2026-10-23) - Lese-Intent fuer Aufgaben
+- Luecke aus 18.01 geschlossen: `tasks.list`/`tasks.get` in `read-query-intent.ts` (Familie `tasks`, Statuswhitelist,
+  "offen" = todo|ready|running|waiting|review, expliziter Status 1:1, fremder Status -> Rueckfrage, Lesen+Aendern
+  gemischt -> Rueckfrage, Rolle viewer, `listTasks` limit 5 sort priority).
+- Wortliste akzeptiert meine/meinen/mein/my und die Flexionen offenen/laufenden/wartenden/erledigten/abgebrochenen/
+  abgeschlossenen (entspannt auch die bestehenden Lesebereiche, deren Zuordnung unveraendert bleibt).
+- Nachweis: `read-tasks.test.ts` (3) vergleicht die Sprachantwort mit `GET /api/v1/tasks`; `task-read-intent.test.ts` (6);
+  bestehender Parser-Test um die tasks-Spalte ergaenzt (5). Paritaetsmatrix neu erzeugt: Aufgaben = lesen + schreiben.
+- Vollsuite parallel: 2 Fehlschlaege (messenger-inbound-routes, secrets) - beide unter Last; seriell 4 Dateien/22 Tests
+  gruen. Serienlauf der Gesamtsuite laeuft.
+- status: TEIL (18.03 bleibt offen: Kalender-Lesepfad, weitere Lese-Intents, Persistenz-/Fehlerfallspalten je Funktion)
