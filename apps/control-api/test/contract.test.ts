@@ -548,7 +548,7 @@ describe("contract: all operations", () => {
   });
 
   it("covers mock-platform operations with contract-valid success responses", () => {
-    expect(ROUTE_TABLE).toHaveLength(272);
+    expect(ROUTE_TABLE).toHaveLength(273);
     // Hermes-backed Skills/Onboarding routes have focused API tests instead of mock-platform success fixtures.
     const focusedRoutes = new Set(["searchLocations", "getCurrentWeather", "getBrowserAudioAvailability", "getLinuxVoiceEnrollment", "addLinuxVoiceSample", "startLinuxVoiceTraining", "listSkills", "setSkillActivation", "createPowerPointDeck", "createVoicePowerPointDeck", "listPowerPointDecks", "downloadPowerPointDeck", "getOnboarding", "putOnboarding", "getObsidianVault", "putObsidianVault", "getWikiPath", "putWikiPath", "getHimalayaAccount", "putHimalayaAccount", "checkHimalayaSmtp", "listHimalayaMailboxes", "listHimalayaEnvelopes", "getHimalayaMessage", "sendHimalayaMessage", "previewVoiceMail", "confirmVoiceMail", "previewCalDavEvent", "createCalendarEvent", "createLocalCalendarEvent", "updateLocalCalendarEvent", "deleteLocalCalendarEvent", "previewVoiceLocalCalendar", "confirmVoiceLocalCalendar", "getHermesSkillKeys", "updateHermesSkillKey", "checkHermesSkillKey", "createCodingRun", "getCodingRun", "stopCodingRun", "getCodingCliStatus", "getCodingVoiceRepository", "putCodingVoiceRepository", "createVoiceCodingRun", "getTelegramGateway", "putTelegramGateway", "getDiscordGateway", "putDiscordGateway", "getWhatsappGateway", "putWhatsappGateway", "getCloudTalk", "putCloudTalk", "previewCloudTalkCall", "originateCloudTalkCall", "getTelephony", "putTelephony", "previewTelephonyCall", "originateTelephonyCall", "getTelephonyCall", "hangupTelephonyCall"]);
     // Native/provider integration operations have dedicated route, protocol and auth tests with synthetic providers.
@@ -556,7 +556,7 @@ describe("contract: all operations", () => {
       "captureDurableMemoryEvent", "changeMailMessage", "checkMailAccount", "completeGoogleMailOAuth", "testMailConnection",
       "confirmVoiceConnectedCalendar", "correctDurableMemoryEvent", "createMailAccount", "deleteMailAccount",
       "forgetDurableMemoryEvent", "getDurableMemoryStatus", "getMailAttachment", "getMailMessage",
-      "getHermesConfig", "getHermesModelCatalog", "manageHermesMcpOAuth", "getVoiceIntegrationStatus", "getWhatsappPairing", "listCalendarAccounts", "listHermesCronJobs", "mutateHermesCronJob", "listMailAccounts",
+      "getHermesConfig", "getHermesModelCatalog", "getHermesAccess", "manageHermesMcpOAuth", "getVoiceIntegrationStatus", "getWhatsappPairing", "listCalendarAccounts", "listHermesCronJobs", "mutateHermesCronJob", "listMailAccounts",
       "listMailEnvelopes", "listMailFolders", "listMailReceipts", "logoutWhatsappGateway", "pollMailOAuth",
       "patchHermesConfig", "probeHermesMcp", "testHermesApproval", "previewVoiceConnectedCalendar", "putDurableMemorySettings", "reconcileMailArchive", "reconnectWhatsappGateway",
       "reindexDurableMemory", "restoreDurableMemory", "retryDurableMemory", "reviewMailReceipt",
@@ -570,7 +570,7 @@ describe("contract: all operations", () => {
       "createResearchProject", "getResearchProvider", "updateResearchProvider",
       "getWakeEnrollment", "startWakeEnrollment", "addWakeEnrollmentSample", "trainWakeEnrollment", "discardWakeEnrollment",
       "listVoiceSttModels", "startVoiceSttModelDownload", "cancelVoiceSttModelDownload"]);
-    expect(integrationFocusedRoutes.size).toBe(79);
+    expect(integrationFocusedRoutes.size).toBe(80);
     for (const operationId of integrationFocusedRoutes) expect(ROUTE_TABLE.some((spec) => spec.operationId === operationId), operationId).toBe(true);
     expect(probe.uncovered().filter((id) => !focusedRoutes.has(id) && !integrationFocusedRoutes.has(id)), "Operationen ohne erfolgreichen, vertragsgültigen Aufruf").toEqual([]);
     expect(probe.problems).toEqual([]);
