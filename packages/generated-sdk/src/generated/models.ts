@@ -1133,6 +1133,8 @@ export interface FridayModelMap {
   SkillHubSearchResponse: SkillHubSearchResponse;
   SkillMarkdown: SkillMarkdown;
   SkillMarkdownResponse: SkillMarkdownResponse;
+  SkillReport: SkillReport;
+  SkillReportResponse: SkillReportResponse;
   SkillResponse: SkillResponse;
   SourceDescriptor: SourceDescriptor;
   StorageVolume: StorageVolume;
@@ -5907,6 +5909,19 @@ export interface SkillMarkdown {
 export interface SkillMarkdownResponse {
   contractVersion: ContractVersion;
   data: SkillMarkdown;
+  freshness: Freshness;
+}
+export interface SkillReport {
+  action: "inspect" | "audit" | "diff";
+  name: string;
+  text: string;
+  bytes: number;
+  truncated: boolean;
+  observedAt: string | null;
+}
+export interface SkillReportResponse {
+  contractVersion: ContractVersion;
+  data: SkillReport;
   freshness: Freshness;
 }
 export interface SkillResponse {

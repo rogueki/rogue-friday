@@ -3250,6 +3250,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/skills/{name}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show the CLI audit report for one skill as text
+         * @description The CLI documents no JSON for audit, so the report is passed through unchanged and capped; no table parsing.
+         */
+        get: operations["getSkillAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/{name}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show the CLI diff between the local skill and its packaged version as text
+         * @description The CLI documents no JSON for diff, so the unified diff is passed through unchanged and capped; local changes stay visible instead of being claimed as applied.
+         */
+        get: operations["getSkillDiff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/{name}/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show the CLI inspection report for one skill as text
+         * @description The CLI documents no JSON for inspect, so the report is passed through unchanged and capped; no table parsing.
+         */
+        get: operations["getSkillInspection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/skills/hub/search": {
         parameters: {
             query?: never;
@@ -9722,6 +9782,17 @@ export interface components {
             content: string;
             id: string;
         };
+        /** SkillReport */
+        "skill-report.schema": {
+            /** @enum {string} */
+            action: "inspect" | "audit" | "diff";
+            bytes: number;
+            name: string;
+            /** Format: date-time */
+            observedAt: string | null;
+            text: string;
+            truncated: boolean;
+        };
         /** SkillActivationRequest */
         SkillActivationRequest: {
             enabled: boolean;
@@ -9801,6 +9872,12 @@ export interface components {
         SkillMarkdownResponse: {
             contractVersion: components["schemas"]["ContractVersion"];
             data: components["schemas"]["skill-markdown.schema"];
+            freshness: components["schemas"]["Freshness"];
+        };
+        /** SkillReportResponse */
+        SkillReportResponse: {
+            contractVersion: components["schemas"]["ContractVersion"];
+            data: components["schemas"]["skill-report.schema"];
             freshness: components["schemas"]["Freshness"];
         };
         /** SkillResponse */
@@ -18465,6 +18542,84 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSkillAudit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Raw CLI text, unchanged and never parsed into fields */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillReportResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSkillDiff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Raw CLI text, unchanged and never parsed into fields */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillReportResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSkillInspection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Raw CLI text, unchanged and never parsed into fields */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillReportResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };

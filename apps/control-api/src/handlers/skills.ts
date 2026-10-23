@@ -14,6 +14,16 @@ async function requirePowerPoint(ctx: Parameters<Handler>[0]): Promise<void> {
   }
 }
 
+async function skillReport(ctx: Parameters<Handler>[0], action: "inspect" | "audit" | "diff",
+  auditAction: string) {
+  const name = typeof ctx.pathParams.name === "string" ? ctx.pathParams.name : "";
+  const result = await ctx.runtime.hermesConfig.skillReport(action, name);
+  ctx.audit.action = auditAction;
+  ctx.audit.after = { name: result.name, bytes: result.bytes, truncated: result.truncated };
+  return { status: 200 as const, body: single({ action: result.action, name: result.name, text: result.text,
+    bytes: result.bytes, truncated: result.truncated, observedAt: result.observedAt }) };
+}
+
 export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
   async searchSkillHub(ctx) {
     const query = typeof ctx.query.query === "string" ? ctx.query.query : "";
@@ -24,6 +34,9 @@ export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
     ctx.audit.after = { query: result.query, source: result.source, hits: result.results.length };
     return { status: 200, body: single(result) };
   },
+  async getSkillInspection(ctx) { return skillReport(ctx, "inspect", "skills.inspected"); },
+  async getSkillAudit(ctx) { return skillReport(ctx, "audit", "skills.audited"); },
+  async getSkillDiff(ctx) { return skillReport(ctx, "diff", "skills.diffed"); },
   async listModifiedSkills(ctx) {
     const result = await ctx.runtime.hermesConfig.modifiedSkills();
     ctx.audit.action = "skills.modified_listed";

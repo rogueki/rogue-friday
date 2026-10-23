@@ -5991,6 +5991,96 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/skills/{name}/inspect:
+    get:
+      operationId: getSkillInspection
+      tags: [skills]
+      summary: Show the CLI inspection report for one skill as text
+      description: The CLI documents no JSON for inspect, so the report is passed through unchanged and capped; no table parsing.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+      responses:
+        "200":
+          description: Raw CLI text, unchanged and never parsed into fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/{name}/audit:
+    get:
+      operationId: getSkillAudit
+      tags: [skills]
+      summary: Show the CLI audit report for one skill as text
+      description: The CLI documents no JSON for audit, so the report is passed through unchanged and capped; no table parsing.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+      responses:
+        "200":
+          description: Raw CLI text, unchanged and never parsed into fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
+  /api/v1/skills/{name}/diff:
+    get:
+      operationId: getSkillDiff
+      tags: [skills]
+      summary: Show the CLI diff between the local skill and its packaged version as text
+      description: The CLI documents no JSON for diff, so the unified diff is passed through unchanged and capped; local changes stay visible instead of being claimed as applied.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+      responses:
+        "200":
+          description: Raw CLI text, unchanged and never parsed into fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.read
+      x-required-role: owner
   /api/v1/skills/hub/search:
     get:
       operationId: searchSkillHub
@@ -9447,6 +9537,8 @@ components:
       $ref: ../schemas/skills/hub-search-response.schema.json
     ModifiedSkillsResponse:
       $ref: ../schemas/skills/modified-skills-response.schema.json
+    SkillReportResponse:
+      $ref: ../schemas/skills/skill-report-response.schema.json
     SkillResponse:
       $ref: ../schemas/skills/skill-response.schema.json
     OnboardingUpdate:

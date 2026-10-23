@@ -362,7 +362,7 @@ def run_runtime_child(command, request, timeout):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("status", "update", "credential-update", "plugin-activation", "mcp-http", "mcp-activation", "mcp-bearer", "mcp-probe", "auth-list", "skills-list", "skill-md", "hub-search", "modified-list", "skill-report", "mcp-oauth-start", "mcp-oauth-status", "mcp-oauth-cancel", "model-catalog", "provider-auth", "approval-test"):
         return 2
     home = Path.home() / ".hermes"
     source = home / "hermes-agent"
@@ -509,6 +509,24 @@ def parse_hub_search(text, query, source):
     return {"query": query, "source": source, "results": results}
 
 
+SKILL_REPORT_LIMIT = 65536
+
+
+def parse_skill_report(text, action, name):
+    """The CLI documents no JSON for inspect/audit/diff, so the raw text is passed through unchanged.
+    It is capped instead of parsed: a table that changes shape between versions must never be turned
+    into invented fields."""
+    if not isinstance(text, str):
+        raise ValueError("skill_report_format")
+    body = text.strip("\n")
+    if body.strip() == "":
+        raise ValueError("skill_report_empty")
+    truncated = len(body) > SKILL_REPORT_LIMIT
+    body = body[:SKILL_REPORT_LIMIT]
+    return {"action": action, "name": name, "text": body, "bytes": len(text.encode("utf-8")),
+            "truncated": truncated}
+
+
 def parse_modified_skills(text):
     """Parse `hermes skills list-modified --json`: a flat array of skill names or nothing."""
     try:
@@ -540,6 +558,26 @@ def locked_main(home, source, cli):
         if not isinstance(request, dict) or set(request) != {"id"}:
             raise ValueError("invalid_request")
         print(json.dumps(read_skill_markdown(home, source, request["id"])))
+        return 0
+    if sys.argv[1] == "skill-report":
+        request = json.load(sys.stdin)
+        if not isinstance(request, dict) or set(request) != {"action", "name"}:
+            raise ValueError("invalid_request")
+        action = request["action"]
+        if action not in ("inspect", "audit", "diff"):
+            raise ValueError("invalid_request")
+        name = request["name"]
+        if not isinstance(name, str) or SKILL_NAME.fullmatch(name) is None:
+            raise ValueError("invalid_request")
+        try:
+            result = subprocess.run([str(cli), "skills", action, name], capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            print(json.dumps({"error": "skill_%s_timeout" % action}))
+            return 7
+        if result.returncode:
+            print(json.dumps({"error": "skill_%s_failed" % action}))
+            return 6
+        print(json.dumps(parse_skill_report(result.stdout, action, name)))
         return 0
     if sys.argv[1] == "hub-search":
         request = json.load(sys.stdin)

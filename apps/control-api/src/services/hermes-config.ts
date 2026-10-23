@@ -355,6 +355,31 @@ export class HermesConfigService {
     return { names, at: new Date().toISOString() };
   }
 
+  async skillReport(action: "inspect" | "audit" | "diff", name: string) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(name)) throw validationFailed("Ungueltiger Skill-Name.");
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["skill-report"], JSON.stringify({ action, name }),
+        65000, 262144);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes(`skill_${action}_timeout`))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Skill-Bericht hat nicht rechtzeitig geantwortet." });
+      if (message.includes("skill_report_empty"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Die CLI hat keinen Bericht geliefert." });
+      if (message.includes("skill_report_format"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE", message: "Der Skill-Bericht hat ein unbekanntes Format." });
+      if (message.includes("invalid_request")) throw validationFailed("Ungueltiger Skill-Name.");
+      throw unavailable();
+    }
+    if (raw.action !== action || raw.name !== name || typeof raw.text !== "string" || raw.text.length > 65536 ||
+        raw.text.trim() === "" || !Number.isInteger(raw.bytes) || (raw.bytes as number) < 0 ||
+        typeof raw.truncated !== "boolean") throw unavailable();
+    return { action, name, text: raw.text, bytes: raw.bytes as number, truncated: raw.truncated,
+      observedAt: new Date().toISOString() };
+  }
+
   async skillInventory(): Promise<{ entries: HermesInventoryEntry[]; at: string }> {
     const { script, distro, user } = this.target();
     let raw: Record<string, unknown>;
