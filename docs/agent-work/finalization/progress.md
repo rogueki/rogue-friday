@@ -754,3 +754,16 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   Completion-Baum (14.01).
 - evidence_paths: `dash-14-02-studio-matrix.md`, Dateilisten in beiden Baeumen.
 - status: PASS (14.02 und 14.01)
+
+### DASH-15.02/15.05 Domain-Agenten als echte Profile (2026-10-23)
+- goal: sieben stabile Domain-Profile als echte Workerrollen statt sieben Karten; ein ungueltiges Profil darf nur
+  sich selbst deaktivieren.
+- changed: sieben Hermes-Profile (`tasks`, `communication`, `calendar`, `automations`, `research`, `alerts`, `audit`)
+  mit `config.yaml` (Modellroute, Turns, Timeout, Tool-Call-Grenze) und `SOUL.md` (Rolle, erlaubte/verbotene
+  Domaenen, Datenzugriff, Eskalation, Ergebnisformat); Skript `scripts/finalization/live-agent-profiles-proof.mjs`.
+- observed: `hermes profile list` zeigt alle sieben mit Modell `k3`; `hermes profile show` liest Modell und SOUL.md.
+  Mit absichtlich zerstoertem `alerts/config.yaml` meldet Hermes "Skipping broken secondary profile", zeigt `alerts`
+  ohne Modell und laesst die uebrigen sechs unberuehrt; nach Wiederherstellung ist `alerts` wieder gesund. Ohne
+  Hermes-API-Server antwortet `/api/v1/agents` mit 403 CAPABILITY_MISSING statt erfundener Agenten.
+- evidence_paths: `dash-15-domain-agenten.md`.
+- status: 15.05 PASS, 15.02 TEIL (Skill-Allowlist je Domaene, explizites Arbeitsverzeichnis offen)
