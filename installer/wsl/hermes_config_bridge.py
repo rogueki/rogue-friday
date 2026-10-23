@@ -259,11 +259,17 @@ EXCLUDED_SKILL_DIRS = frozenset((".git", ".github", ".hub", ".archive", ".curato
 SKILL_SUPPORT_DIRS = frozenset(("references", "templates", "assets", "scripts"))
 
 
-def installed_skills(roots):
-    """Profile roots, with the same recursive/pruned SKILL.md scan as agent.skill_utils."""
+def installed_skills(roots, report_missing=False):
+    """Profile roots, with the same recursive/pruned SKILL.md scan as agent.skill_utils.
+
+    A configured external dir on an unplugged drive simply is not there. The inventory asks for that to be
+    reported instead of silently dropping every skill behind it; the validation callers do not.
+    """
     result, errors = {}, []
     for root in roots:
         if not root.exists():
+            if report_missing:
+                errors.append("skill_root_missing")
             continue
         if not root.is_dir():
             errors.append("skill_root_unreadable")
@@ -1268,7 +1274,7 @@ def locked_main(home, source, cli):
         if not valid_field_value(key, values[key], spec) and values[key] is not None:
             values[key] = None
     roots, root_errors = inventory_roots(home, call)
-    skill_names, skill_errors = installed_skills(roots)
+    skill_names, skill_errors = installed_skills(roots, report_missing=True)
     if not isinstance(disabled_skills, list) or not all(isinstance(name, str) for name in disabled_skills):
         disabled_skills = None
         skill_errors.append("skill_activation_unknown")
