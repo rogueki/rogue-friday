@@ -60,3 +60,25 @@ Die Liste `GET /api/v1/skills/modified` stammt aus `hermes skills list-modified`
 Skills. Im Abnahmelauf (DASH-10.06) erkannte `skills update` eine lokale Aenderung an einem **Hub**-Skill korrekt
 und uebersprang sie, `list-modified --json` blieb aber `[]`. Die Flaeche sagt das jetzt ausdruecklich: lokale
 Aenderungen an Hub-Skills erscheinen dort nicht, werden beim Update aber ebenso erkannt (Ledger **N-055**).
+
+## 7. Diff-Ansicht je lokal geaendertem Skill (2026-10-23)
+
+Jeder in `GET /api/v1/skills/modified` genannte Skill bekommt einen Schalter **Diff anzeigen**. Er ruft
+`GET /api/v1/skills/{name}/diff` ab und zeigt den Unified Diff unveraendert in einem `<pre>` (monospace, scrollbar,
+per Tastatur fokussierbar), dazu Groesse in Byte und den Hinweis „gekuerzt", wenn die 65536-Grenze greift. Erneutes
+Druecken schliesst die Ansicht wieder; `aria-expanded` und die Beschriftung folgen dem Zustand.
+
+**Der lehrreiche Teil ist der Fehlerfall.** `hermes skills diff` funktioniert nur fuer *mitgelieferte* Skills. Bei
+allem anderen antwortet die CLI mit einer genauen Begruendung — und die wurde vorher verschluckt: die API meldete
+generisch `503 ADAPTER_UNAVAILABLE` (**N-054**). Jetzt reicht die Bridge den CLI-Text als `detail` durch, der Service
+antwortet **409 CONFLICT** mit dieser Begruendung im Fehlertext (und `{action, name, cliDetail}` in den Details), und
+die Oberflaeche zeigt sie im Warnhinweis. Ein kaputter Adapter bleibt weiterhin `503`; die Grenze ist getestet
+(`skills-report-reason.test.ts`).
+
+**Belegt durch:** `SkillRegistryPanel.test.tsx` (5 Tests: Diff oeffnen/schliessen mit Inhalt und Byte-Zahl, Fehlerfall
+mit CLI-Begruendung, Registry-Treffer ohne Installationsknopf), `skills-report-reason.test.ts` (2 Tests: 409 mit Grund,
+503 bei kaputtem Adapter), `test_skill_report.py` (13 Pruefungen, davon 3 fuer den durchgereichten Grund), OpenAPI mit
+`409` fuer `inspect`, `audit` und `diff`.
+
+**Weiterhin offen fuer DASH-10.05:** Voraussetzungen und Auditbefund *je Registry-Treffer* (die CLI liefert dafuer
+kein JSON, siehe Abschnitt 5) und der gefuehrte Wiederverwendungsschritt fuer bereits eingerichtete Referenzen.
