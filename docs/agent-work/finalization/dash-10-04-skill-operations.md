@@ -130,3 +130,31 @@ alten Verhalten, weil dort ein optionaler Pfad nichts bedeutet.
 
 Belegt durch `installer/wsl/tests/test_skill_roots.py` (12 Pruefungen): fehlende Wurzel, optionale Wurzel ohne
 Meldung, Datei statt Verzeichnis, unlesbares Verzeichnis und unlesbares Manifest.
+
+## 8.2 Die restlichen Textbefehle: browse, check, tap list (2026-10-23)
+
+`GET /api/v1/skills/reports?command=browse|check|tap-list` (281. Operation) gibt den CLI-Text unveraendert weiter
+(65536 Zeichen Grenze, `bytes`, `truncated`), ohne ihn in Felder zu zerlegen. Jeder Befehl nimmt nur seine eigenen
+Parameter; alles andere wird vor dem CLI-Aufruf abgelehnt:
+
+| Befehl | Parameter | Ablehnung |
+|---|---|---|
+| `browse` | `page` (1..50), `size` (1..50), `source` (Token) | ohne page/size, mit `name`, fremde Werte |
+| `check` | optional `name` | mit page/size/source |
+| `tap-list` | keine | jeder Parameter |
+
+Ablauf der Ablehnung: Schemafehler beantwortet der Query-Validator mit **400** (bestehendes Verhalten, Ledger N-052),
+einen fuer den Befehl falschen Parameter der Handler mit **422** (belegt in `skills-command-route.test.ts`).
+
+**Live gegen die echte CLI (FRIDAY-2, v0.22.2, Standardprofil):**
+
+| Befehl | Antwort | Dauer |
+|---|---|---|
+| `tap-list` | `No custom taps configured. Using default sources only.` | ueber 30 s (alter Wert), danach 90 s Budget |
+| `check` | `No hub-installed skills to check.` | unter dem Budget |
+| `browse` (page 1, size 5, skills-sh) | `Skills Hub - Browse - skills-sh (200 skills loaded, 1 source(s) still loading, page 1/40)` | 65 s |
+
+`browse` braucht 65 s fuer 200 Skills aus einer Quelle, weil die CLI die Registrierungen erst laedt. Der erste
+`tap-list`-Lauf lief nach 30 s in `skill_command_timeout` (rc 7): der Befehl loest seine GitHub-Taps ueber
+das Netzwerk auf. Das Budget der Bridge betraegt seitdem 90 s, das des Dienstes 95 s — ein Timeout wird gemeldet, nie
+still verkuerzt.
