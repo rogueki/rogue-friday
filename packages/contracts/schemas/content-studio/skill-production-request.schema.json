@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friday.local/schemas/content-studio/skill-production-request.schema.json",
+  "title": "SkillContentProductionRequest",
+  "type": "object",
+  "properties": {
+    "ideaId": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "planRevision": { "type": "integer", "minimum": 1 },
+    "voiceId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+    "skillId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{1,119}$" },
+    "confirmed": { "const": true }
+  },
+  "required": ["ideaId", "planRevision", "skillId", "confirmed"],
+  "additionalProperties": false
+}

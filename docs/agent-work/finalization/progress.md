@@ -823,3 +823,18 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   Studio-Bezug, es gibt keinen Studio-Skill-Bridge-Service. Nur der Voice-Teil (ElevenLabs-Sprachroute) existiert.
 - evidence_paths: `keep-05-studio-paritaet.md`.
 - status: TEIL (kein Haekchen)
+
+### KEEP-05 abgeschlossen (2026-10-23) - PASS
+- changed: Skill-Bridge contract-first eingefuehrt (Schema `skill-production-request`, Pfad
+  `POST /api/v1/content-studio/skill-production-jobs`, operationId `createSkillContentProductionJob`,
+  `x-capability: meta.read`, `x-required-role: owner`); Handler `createSkillContentProductionJob` delegiert an den
+  bestehenden Produktionsservice, Idempotenzschluessel pro Skill namensraeumig, Audit
+  `content_studio.skill_production_started` mit `jobId`/`ideaId`/`skillId`.
+- tests: neue `content-studio-skill-bridge.test.ts` 5 Tests (Idempotenz/Replay, 409 stale revision, 404 unknown idea,
+  422 malformed skillId, 401 ohne Sitzung, 422 ohne Bestaetigung, Audit-Eintrag durabel). Zusaetzlich 19 Node-Studio-,
+  11 Web-Studio-Tests, 381 Contract-/Auth-/OpenAPI-Tests, `pnpm contracts:check`, `typecheck`, `lint`,
+  `test:conformance` (415) bestanden.
+- contract: Operationszahl bewusst 282 -> 283 (`openapi-additions.test.ts`, `contract.test.ts`), Mock-Plattform
+  fuehrt die Route als live-only.
+- evidence_paths: `keep-05-studio-paritaet.md`.
+- status: PASS

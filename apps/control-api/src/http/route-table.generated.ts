@@ -10741,6 +10741,62 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
     ]
   },
   {
+    "operationId": "createSkillContentProductionJob",
+    "method": "POST",
+    "path": "/api/v1/content-studio/skill-production-jobs",
+    "tag": "settings",
+    "capability": "meta.read",
+    "role": "owner",
+    "requiresSession": true,
+    "pathParams": [],
+    "query": [],
+    "acceptsIfMatch": false,
+    "acceptsIdempotencyKey": true,
+    "csrf": true,
+    "requestBody": {
+      "required": true,
+      "schema": "SkillContentProductionRequest"
+    },
+    "maxBodyBytes": 4096,
+    "responses": [
+      {
+        "status": 202,
+        "schema": "ContentProductionJobResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 401,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 422,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      }
+    ]
+  },
+  {
     "operationId": "getContentProductionJob",
     "method": "GET",
     "path": "/api/v1/content-studio/production-jobs/{id}",
@@ -11246,6 +11302,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         ]
       },
       {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
         "status": 422,
         "schema": "ErrorResponse",
         "contentTypes": [
@@ -11301,6 +11364,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
         ]
       },
       {
+        "status": 409,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
         "status": 422,
         "schema": "ErrorResponse",
         "contentTypes": [
@@ -11350,6 +11420,13 @@ export const ROUTE_TABLE: readonly RouteSpec[] = [
       },
       {
         "status": 403,
+        "schema": "ErrorResponse",
+        "contentTypes": [
+          "application/json"
+        ]
+      },
+      {
+        "status": 409,
         "schema": "ErrorResponse",
         "contentTypes": [
           "application/json"

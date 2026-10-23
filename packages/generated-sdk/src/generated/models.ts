@@ -1131,6 +1131,7 @@ export interface FridayModelMap {
   SkillCatalogResponse: SkillCatalogResponse;
   SkillCommandReport: SkillCommandReport;
   SkillCommandReportResponse: SkillCommandReportResponse;
+  SkillContentProductionRequest: SkillContentProductionRequest;
   SkillGovernance: SkillGovernance;
   SkillGovernanceRequest: SkillGovernanceRequest;
   SkillGovernanceResponse: SkillGovernanceResponse;
@@ -5912,6 +5913,13 @@ export interface SkillCommandReportResponse {
   contractVersion: ContractVersion;
   data: SkillCommandReport;
   freshness: Freshness;
+}
+export interface SkillContentProductionRequest {
+  ideaId: string;
+  planRevision: number;
+  voiceId?: string;
+  skillId: string;
+  confirmed: true;
 }
 export interface SkillGovernance {
   action: "trust" | "untrust" | "tap-add" | "tap-remove" | "reset";

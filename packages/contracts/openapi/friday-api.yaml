@@ -5866,6 +5866,46 @@ paths:
       x-capability: meta.read
       x-required-role: owner
       x-max-body-bytes: 4096
+  /api/v1/content-studio/skill-production-jobs:
+    post:
+      operationId: createSkillContentProductionJob
+      tags:
+        - settings
+      summary: Start automatic production for one planned idea from a skill or voice command
+      description: >-
+        Same guarantees as the manual production route (confirmation, plan revision, Idempotency-Key), plus the
+        identifier of the triggering skill so the audit trail records who started the job.
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkillContentProductionRequest"
+      responses:
+        "202":
+          description: Durable production job started from a skill
+          headers:
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentProductionJobResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+      x-capability: meta.read
+      x-required-role: owner
+      x-max-body-bytes: 4096
   /api/v1/content-studio/production-jobs/{id}:
     get:
       operationId: getContentProductionJob
@@ -9721,6 +9761,8 @@ components:
       $ref: ../schemas/content-studio/plan-state-response.schema.json
     ContentProductionRequest:
       $ref: ../schemas/content-studio/production-request.schema.json
+    SkillContentProductionRequest:
+      $ref: ../schemas/content-studio/skill-production-request.schema.json
     ContentProductionJob:
       $ref: ../schemas/content-studio/production-job.schema.json
     ContentProductionJobResponse:
