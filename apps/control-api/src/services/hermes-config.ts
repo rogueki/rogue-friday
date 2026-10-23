@@ -355,6 +355,43 @@ export class HermesConfigService {
     return { names, at: new Date().toISOString() };
   }
 
+  async mutateSkill(action: "install" | "update" | "uninstall", name: string, identifier: string | undefined,
+    force: boolean) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(name)) throw validationFailed("Ungueltiger Skill-Name.");
+    if (action === "install") {
+      if (typeof identifier !== "string" || identifier.length < 3 || identifier.length > 300 || /\s/.test(identifier))
+        throw validationFailed("Zum Installieren wird eine Skill-Kennung gebraucht.");
+    } else if (identifier !== undefined) {
+      throw validationFailed("Eine Kennung ist nur beim Installieren erlaubt.");
+    }
+    const { script, distro, user } = this.target();
+    let raw: Record<string, unknown>;
+    try {
+      raw = await this.invoke(script, distro, user, ["skill-mutate"],
+        JSON.stringify({ action, name, identifier: identifier ?? null, force }), 195000, 262144);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("skill_mutation_timeout"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Die Skill-Aenderung hat nicht rechtzeitig geantwortet; der alte Stand wurde wiederhergestellt." });
+      if (message.includes("skill_mutation_failed"))
+        throw new ApiError({ code: "ADAPTER_UNAVAILABLE",
+          message: "Die CLI hat die Skill-Aenderung nicht bestaetigt; der alte Stand wurde wiederhergestellt." });
+      if (message.includes("invalid_request")) throw validationFailed("Ungueltige Skill-Aenderung.");
+      throw unavailable();
+    }
+    if (raw.action !== action || raw.name !== name || typeof raw.installed !== "boolean" ||
+        (raw.enabled !== null && typeof raw.enabled !== "boolean") ||
+        (raw.snapshot !== null && (typeof raw.snapshot !== "string" || raw.snapshot.length > 200)) ||
+        typeof raw.text !== "string" || raw.text.length > 4096 || !Number.isInteger(raw.bytes) ||
+        (raw.bytes as number) < 0) throw unavailable();
+    const expected = action !== "uninstall";
+    if (raw.installed !== expected) throw unavailable();
+    return { action, name, installed: raw.installed, enabled: raw.enabled as boolean | null,
+      snapshot: raw.snapshot as string | null, text: raw.text, bytes: raw.bytes as number,
+      observedAt: new Date().toISOString() };
+  }
+
   async skillReport(action: "inspect" | "audit" | "diff", name: string) {
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(name)) throw validationFailed("Ungueltiger Skill-Name.");
     const { script, distro, user } = this.target();

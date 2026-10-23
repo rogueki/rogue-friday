@@ -5991,6 +5991,48 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
       x-capability: meta.read
       x-required-role: owner
+  /api/v1/skills/{name}/mutations:
+    post:
+      operationId: mutateSkill
+      tags: [skills]
+      summary: Install, update or remove one skill with a snapshot that can be restored
+      description: |
+        The bridge copies the installed skill directory into ~/.hermes/friday-snapshots before the CLI runs and
+        replays the copy when the CLI fails or the read-back does not match. Nothing runs before the request passed
+        validation; `identifier` is required for `install` and forbidden for the other actions. `force` is passed
+        through as `--force`, which is the only way to overwrite local edits.
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkillMutationRequest"
+      responses:
+        "200":
+          description: Freshly observed state after the mutation, with the snapshot that allows a manual restore
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillMutationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      x-capability: meta.write
+      x-required-role: owner
   /api/v1/skills/{name}/inspect:
     get:
       operationId: getSkillInspection
@@ -9539,6 +9581,10 @@ components:
       $ref: ../schemas/skills/modified-skills-response.schema.json
     SkillReportResponse:
       $ref: ../schemas/skills/skill-report-response.schema.json
+    SkillMutationRequest:
+      $ref: ../schemas/skills/skill-mutation-request.schema.json
+    SkillMutationResponse:
+      $ref: ../schemas/skills/skill-mutation-response.schema.json
     SkillResponse:
       $ref: ../schemas/skills/skill-response.schema.json
     OnboardingUpdate:

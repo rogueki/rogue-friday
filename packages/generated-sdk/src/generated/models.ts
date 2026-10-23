@@ -1133,6 +1133,9 @@ export interface FridayModelMap {
   SkillHubSearchResponse: SkillHubSearchResponse;
   SkillMarkdown: SkillMarkdown;
   SkillMarkdownResponse: SkillMarkdownResponse;
+  SkillMutation: SkillMutation;
+  SkillMutationRequest: SkillMutationRequest;
+  SkillMutationResponse: SkillMutationResponse;
   SkillReport: SkillReport;
   SkillReportResponse: SkillReportResponse;
   SkillResponse: SkillResponse;
@@ -5909,6 +5912,26 @@ export interface SkillMarkdown {
 export interface SkillMarkdownResponse {
   contractVersion: ContractVersion;
   data: SkillMarkdown;
+  freshness: Freshness;
+}
+export interface SkillMutation {
+  action: "install" | "update" | "uninstall";
+  name: string;
+  installed: boolean;
+  enabled: boolean | null;
+  snapshot: string | null;
+  text: string;
+  bytes: number;
+  observedAt: string | null;
+}
+export interface SkillMutationRequest {
+  action: "install" | "update" | "uninstall";
+  identifier?: string | null;
+  force?: boolean;
+}
+export interface SkillMutationResponse {
+  contractVersion: ContractVersion;
+  data: SkillMutation;
   freshness: Freshness;
 }
 export interface SkillReport {

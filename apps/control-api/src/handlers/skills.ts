@@ -14,6 +14,21 @@ async function requirePowerPoint(ctx: Parameters<Handler>[0]): Promise<void> {
   }
 }
 
+async function mutateSkill(ctx: Parameters<Handler>[0]) {
+  const name = typeof ctx.pathParams.name === "string" ? ctx.pathParams.name : "";
+  const body = ctx.body as { action?: unknown; identifier?: unknown; force?: unknown } | undefined;
+  const action = body?.action;
+  if (action !== "install" && action !== "update" && action !== "uninstall")
+    throw validationFailed("Unbekannte Skill-Aenderung.");
+  const identifier = typeof body?.identifier === "string" ? body.identifier : undefined;
+  const force = body?.force === true;
+  const result = await ctx.runtime.hermesConfig.mutateSkill(action, name, identifier, force);
+  ctx.audit.action = `skills.${action}ed`;
+  ctx.audit.after = { name: result.name, installed: result.installed, enabled: result.enabled,
+    snapshot: result.snapshot, force };
+  return { status: 200 as const, body: single(result) };
+}
+
 async function skillReport(ctx: Parameters<Handler>[0], action: "inspect" | "audit" | "diff",
   auditAction: string) {
   const name = typeof ctx.pathParams.name === "string" ? ctx.pathParams.name : "";
@@ -25,6 +40,8 @@ async function skillReport(ctx: Parameters<Handler>[0], action: "inspect" | "aud
 }
 
 export const skillsHandlers: Partial<Record<OperationId, Handler>> = {
+  mutateSkill,
+
   async searchSkillHub(ctx) {
     const query = typeof ctx.query.query === "string" ? ctx.query.query : "";
     const source = typeof ctx.query.source === "string" ? ctx.query.source : undefined;
