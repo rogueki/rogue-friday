@@ -491,7 +491,11 @@ export function dashboardRoutes(state: HermesState): RouteDef[] {
     {
       method: "GET",
       pattern: "/api/cron/jobs",
-      handler: authed(() => json([...state.cronJobs.values()])),
+      handler: authed(() =>
+        state.cronStatus
+          ? json({ detail: "rate limited" }, state.cronStatus)
+          : json([...state.cronJobs.values()]),
+      ),
     },
     {
       method: "GET",

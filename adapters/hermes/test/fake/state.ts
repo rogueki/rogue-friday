@@ -219,6 +219,9 @@ export class HermesState {
   beforeLifecycleMutation: (() => void) | undefined;
   readonly sessions: FakeSession[] = [];
   readonly cronJobs = new Map<string, FakeCronJob>();
+
+  /** Injects a status for the cron list so error mapping can be tested. */
+  cronStatus: number | undefined;
   readonly cronRuns = new Map<string, FakeCronRun[]>();
   private cronCounter = 0;
   private cronRunCounter = 0;

@@ -870,3 +870,20 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   Vorgaenge, `versions` und `pauseAll` bewusst nicht angeboten.
 - evidence_paths: `dash-17-02-automations-adapter.md`, `dash-17-02-hermes-cron-api.md`.
 - status: PASS (Abnahme 17.04 weiter offen)
+
+### DASH-17.04 abgeschlossen (2026-10-23) - PASS
+- changed: neue Abnahme `apps/control-api/test/automations-live-hermes.test.ts` (2 Tests, selbst-ueberspringend ohne
+  erreichbaren Hermes), Fake-Hook `state.cronStatus` fuer die 429-Abbildung, zusaetzlicher Unit-Test
+  "maps a rate-limited upstream to RATE_LIMITED".
+- runtime: echte Control-API im Modus live gegen Hermes 0.22.2 (127.0.0.1:43791); echte Skript-Automationen
+  (`no_agent`), damit die Kette ohne Modellaufruf belegt ist: anlegen (nach Vorschau-Bestaetigung), ausloesen
+  (dryRun false, succeeded), Laufhistorie (genau ein Lauf), deaktivieren, API-Neustart und Wiederfinden (paused true).
+  Fehlerfall: Skript mit Exitcode 3 -> Lauf failed. DST-kritischer Ausdruck 30 2 * * * kommt byte-identisch zurueck.
+  429 -> RATE_LIMITED im Fake. Aufraeumen: Hermes-Jobs danach entfernt, Liste leer.
+- tests: live 2 bestanden, adapters/hermes 8 Automations-Tests, gesamt 214 bestanden / 4 uebersprungen (11 Dateien),
+  typecheck + lint gruen.
+- findings: Automations-Schreibzugriffe sind zweistufig (403 APPROVAL_REQUIRED mit previewId, dann
+  `x-action-preview-id`); der Contract hat kein DELETE fuer Automationen (405) - deaktivieren ist der Produktweg;
+  Hermes fuehrt Trigger synchron aus, Agentenjobs brauchen einen hoeheren Timeout als 10 s.
+- evidence_paths: `dash-17-04-acceptance.md`, `dash-17-02-automations-adapter.md`.
+- status: PASS

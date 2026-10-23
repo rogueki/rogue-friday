@@ -185,6 +185,20 @@ describe("automations on Hermes cron", () => {
     expect(updated.data.name).toBe("Umbenannt");
   });
 
+  it("maps a rate-limited upstream to RATE_LIMITED and stays non-destructive", async () => {
+    const { adapter, call } = await open();
+    fake.state.createCronJob({ name: "Nicht erreichbar" });
+    fake.state.cronStatus = 429;
+
+    const error = await rejection(adapter.listAutomations({}, call()));
+    expect(error.code).toBe("RATE_LIMITED");
+    expect(error.retryable).toBe(true);
+
+    fake.state.cronStatus = undefined;
+    const page = await adapter.listAutomations({}, call());
+    expect(page.items.map((automation) => automation.name)).toEqual(["Nicht erreichbar"]);
+  });
+
   it("reports upstream failures as adapter errors instead of inventing automations", async () => {
     const { adapter, call } = await open();
     fake.state.cronJobs.clear();
