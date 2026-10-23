@@ -644,6 +644,17 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   behoben durch `testTimeout`/`hookTimeout` 20 s)
 
 | DASH-10.07 Recovery | TEIL (Bridge kopiert das Skill-Verzeichnis vor jeder Mutation in `~/.hermes/friday-snapshots`, liest den Zustand nach dem CLI-Lauf erneut und spielt den Schnappschuss bei jedem Fehler zurueck; `POST /api/v1/skills/{name}/mutations` mit Audit, 280 Operationen; echter CLI-Lauf und Account-Nachweis offen) | `dash-10-07-skill-mutation.md`, `test_skill_mutate.py` (15), `skills-mutation-route.test.ts` (4) |
+### DASH-10.04 Nachtrag (2026-10-23): fehlende Skill-Wurzel
+
+- base_revision: `aac703c`; result_revision: `e1729b6`
+- implementation_paths: `installer/wsl/hermes_config_bridge.py` (`installed_skills(..., report_missing=True)`),
+  `installer/wsl/tests/test_skill_roots.py` (neu)
+- expected: ein konfiguriertes, aber fehlendes `external_dirs` wird gemeldet statt still uebersprungen
+- observed: `skill_root_missing` in `inventory.reasons`, `skillsComplete: false`, gesunde Wurzeln liefern weiter;
+  12 Pruefungen gruen, `typecheck` und die 38 Hermes-Konfigurationstests unveraendert gruen
+- evidence_paths: `dash-10-04-skill-operations.md` Abschnitt 8.2; status: TEIL (die Skills selbst bleiben
+  natuerlich unsichtbar, solange das Laufwerk fehlt)
+
 ## Open risks / notes for the next session
 
 - The running installation must not be rebuilt or restarted from this branch without a rollback plan

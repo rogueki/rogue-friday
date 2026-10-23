@@ -119,3 +119,14 @@ version.","bytes":36,"truncated":false}`.
 Daraus folgt eine **Grenze**, die im Vertrag noch fehlt: die API nimmt nur einen Namen entgegen, waehrend die CLI
 bei Namenskollision eine vollstaendige Kennung verlangt. Der Text macht das ehrlich sichtbar (statt eines
 erfundenen Berichts), die Bedienung bleibt aber offen — Ledger **N-053**.
+
+### 8.2 Nachtrag 2026-10-23: nicht erreichbare Skill-Wurzel
+
+`skills.external_dirs` kann auf ein Laufwerk zeigen, das gerade nicht da ist. `installed_skills` uebersprang solche
+Pfade bisher stumm, das Inventar meldete trotzdem `skillsComplete: true` — die Skills waren einfach weg. Jetzt
+meldet der Inventaraufruf `skill_root_missing`; die Begruendung steht in `inventory.reasons`, `skillsComplete` wird
+false, und die gesunden Wurzeln liefern weiter. Die Validierungsaufrufe bleiben ueber `report_missing=False` beim
+alten Verhalten, weil dort ein optionaler Pfad nichts bedeutet.
+
+Belegt durch `installer/wsl/tests/test_skill_roots.py` (12 Pruefungen): fehlende Wurzel, optionale Wurzel ohne
+Meldung, Datei statt Verzeichnis, unlesbares Verzeichnis und unlesbares Manifest.
