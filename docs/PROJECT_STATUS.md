@@ -965,3 +965,16 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
   node-Suite 198 Dateien / 2821 Tests gruen (60 uebersprungen), `contracts:check`/`typecheck`/`lint`/`build` 0.
 - `secrets.test.ts` deckt die neuen Operationen `searchSkillHub` und `listModifiedSkills` ab (Suchbegriff bzw.
   503-Liste), damit der Geheimnis-Scan alle GET-Routen weiter prueft.
+
+## 2026-10-23 DASH-10.04 Nachtrag: inspect, audit und diff als unveraenderter Text
+
+- **Drei weitere Operationen** (279 insgesamt): `GET /api/v1/skills/{name}/inspect`, `.../audit`, `.../diff` ueber
+  die Bridge-Aktion `skill-report`. Die CLI liefert fuer diese Befehle kein JSON, deshalb wird der Bericht
+  woertlich durchgereicht: hoechstens 65536 Zeichen, `truncated` markiert die Kuerzung, `bytes` nennt die volle
+  Groesse. Ein leerer Bericht wird als `ADAPTER_UNAVAILABLE` gemeldet, nie als leerer Erfolg; ein Zeitlimit
+  (60 s) ebenso.
+- **Nachweise**: 9 Python-Pruefungen (`test_skill_report.py`), 4 Routentests mit `responseValidation: "throw"`,
+  Vertragswaechter auf 279 gezogen, volle node-Suite 199 Dateien / 2825 Tests gruen (60 uebersprungen),
+  `contracts:check`/`typecheck`/`lint`/`build` 0.
+- **Neues Issue N-052**: der Router prueft Pfadparameter nur auf Praesenz und Laenge (max. 128), nicht auf das im
+  Vertrag dokumentierte Muster. Ein Name wie `-..` wird deshalb erst im Dienst abgelehnt; im Ledger offen.

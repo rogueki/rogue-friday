@@ -33,7 +33,7 @@ Read `baseline.md` first, then this page. Every status below is backed by a file
 | INS-12 Starter und Abbruch | TEIL (Doppelklick startet die Oberflaeche, CLI-Modus dokumentiert, Parameter kommen durch cmd und cscript unveraendert an, Abbruch der Windows-Abfrage ohne Aenderung, Simulation nur im Testmodus; echter Dialog und Start aus dem ZIP -> INS-13) | `ins-12-launcher.md`, `launcher.Tests.ps1` (49) |
 | DASH-10.02 Skill-Inventar | TEIL (191 Skills live aus `hermes skills list`: 119 local / 72 builtin / 0 hub; Herkunft und Trust als eigene Vertragsfelder, Service-Merge mit CLI-Fallback, Detail laedt Markdown erst bei Auswahl als Text, Filter fuer Suche/Quelle/Herkunft/Kategorie/Status, 60er-Blocks mit Nachladen; echter Hub-Skill fehlt auf diesem Host) | `dash-10-02-skill-inventory.md`, `test_skills_list.py` (9), `skills-onboarding.test.ts` (20), `skills-inventory-route.test.ts` (1), `SkillsPage.test.tsx` (4) |
 | DASH-10.03 per-Skill-Schalter | PASS (Schalter = `skills.disabled`, nur ueber `save_disabled_skills`/`PUT /api/skills/toggle`; `opt-in/opt-out` sind Seeding-Schalter; Readbackprobe im wegwerfbaren Profil 72->71->72 mit Zeile `arxiv disabled`, Default-Profil unveraendert; Friday bestaetigt jede Aenderung durch erneutes Lesen, Test fuer ausbleibende Bestaetigung) | `dash-10-03-skill-enable.md`, `skills-onboarding.test.ts` (21) |
-| DASH-10.04 Skill-Operationen | TEIL (Faehigkeitsmatrix beider CLI-Staende: nur `search` und `list-modified` liefern `--json`; beide typisiert als `searchSkillHub` und `listModifiedSkills` mit strengen Parsern und Eingabepruefung, 276 Operationen; Textoperationen und Mutationen offen) | `dash-10-04-skill-operations.md`, `test_hub_search.py` (9), `skills-hub-route.test.ts` (3) |
+| DASH-10.04 Skill-Operationen | TEIL (Faehigkeitsmatrix beider CLI-Staende: nur `search` und `list-modified` liefern `--json`; beide typisiert, zusaetzlich `inspect`/`audit`/`diff` als unveraenderter Text mit Kuerzung und Leerbericht-Fehler, 279 Operationen; Mutationen und `external_dirs`-Verhalten offen) | `dash-10-04-skill-operations.md`, `test_hub_search.py` (9), `test_skill_report.py` (9), `skills-hub-route.test.ts` (3), `skills-report-route.test.ts` (4) |
 | DASH-10.05 Registry-Flaeche | TEIL (Panel zeigt Treffer mit Quelle/Trust/Kennung/Beschreibung und die lokal geaenderten Skills, die Updates ueberspringen; kein Installationsknopf, Grund genannt. Voraussetzungen/Auditbefund je Treffer, Diff/Konflikt und Installation offen) | `dash-10-05-skill-registry-ui.md`, `SkillRegistryPanel.test.tsx` (3), web 88/685 |
 | INS-05/INS-07 Ueberwachte Unterprozesse | TEIL (Quotierung, Zeitlimit und gezieltes Beenden mit echten Kindprozessen belegt; keine Job-Objekte, wsl-Aufrufe offen) | `supervised-processes.md`, `process-supervisor.Tests.ps1` |
 | INS-07 Kooperativer Abbruch | TEIL (Abbruchbitte, Schrittgrenzen und GUI-Bitte belegt; harter Notausstieg nur nach Wartezeit) | `ins-07-cooperative-cancel.md`, `installer-cancel.Tests.ps1` |
@@ -590,6 +590,23 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   Diff/Konflikt, Installation und gefuehrte Kontowiederverwendung offen)
 - remaining_work: `inspect`/`audit` liefern kein JSON (nur Text oder Verzicht), `diff` als Text anzeigen,
   Installation/Aktualisierung = DASH-10.07
+
+### DASH-10.04 Nachtrag (2026-10-23): inspect/audit/diff als Text
+
+- base_revision: `87a2faa`; result_revision: working tree (Commit folgt)
+- implementation_paths: `installer/wsl/hermes_config_bridge.py` (`skill-report`, `parse_skill_report`,
+  `SKILL_REPORT_LIMIT`), `installer/wsl/tests/test_skill_report.py` (neu),
+  `packages/contracts/schemas/skills/skill-report{,-response}.schema.json` (neu),
+  `packages/contracts/openapi/friday-api.yaml`, `apps/control-api/src/services/hermes-config.ts` (`skillReport`),
+  `apps/control-api/src/handlers/skills.ts` (drei Handler), `apps/control-api/test/skills-report-route.test.ts` (neu)
+- test_command: `python3 tests/test_skill_report.py` (WSL), `vitest --project node skills-report-route`,
+  `vitest --project node contract.test openapi-additions api.test`, volle node-Suite, Gates
+- expected: die drei Berichte unveraendert ausliefern, nichts parsen, leere Berichte als Fehler behandeln
+- observed: 279 Operationen, Text auf 65536 Zeichen gekuerzt mit `truncated` und Bytezahl, Leerbericht ->
+  `ADAPTER_UNAVAILABLE`, Zeitlimit 60 s; 9 Python-Pruefungen, 4 Routentests, Waechter nachgezogen, Gates 0
+- evidence_paths: `dash-10-04-skill-operations.md` (Abschnitt 8); status: TEIL (Mutationen und das Verhalten bei
+  nicht erreichbarem `external_dirs` bleiben offen)
+- nebenfund: Router prueft Pfadparameter nur auf Laenge, nicht auf das Vertragsmuster -> Ledger N-052
 
 ## Open risks / notes for the next session
 

@@ -72,3 +72,35 @@ Textdarstellung, siehe 10.05/10.06) und alle Mutationen (`install`, `update`, `u
 - Externe Verzeichnisse: `skills.external_dirs` zeigt auf
   `C:/Users/ByteNinja/Downloads/JARVIS_Installer/Skills/skills`; ein nicht erreichbarer Pfad
   muss als „nicht verfügbar" erscheinen, nicht als leerer Katalog — offener Punkt für 10.06.
+
+## 8. Nachtrag 2026-10-23: Lesende Berichte als Text (inspect, audit, diff)
+
+Die Faehigkeitsmatrix (Abschnitt 3) zeigt fuer `inspect`, `audit` und `diff` keine JSON-Ausgabe. Statt die
+Tabellen zu erraten, werden die drei Berichte unveraendert als Text ausgeliefert:
+
+| Operation | Pfad | CLI-Aufruf | Antwort |
+|---|---|---|---|
+| `getSkillInspection` | `GET /api/v1/skills/{name}/inspect` | `hermes skills inspect <name>` | Rohtext, max. 65536 Zeichen, `truncated` markiert Kuerzung |
+| `getSkillAudit` | `GET /api/v1/skills/{name}/audit` | `hermes skills audit <name>` | dito |
+| `getSkillDiff` | `GET /api/v1/skills/{name}/diff` | `hermes skills diff <name>` | dito, Unified Diff unveraendert |
+
+Regeln, die der Parser durchsetzt (`parse_skill_report` in `installer/wsl/hermes_config_bridge.py`):
+
+- Nur Text wird angenommen; `None`, Bytes oder Zahlen enden als `skill_report_format`.
+- Ein leerer oder reiner Leerraum-Bericht endet als `skill_report_empty` (Exit 6) und wird im Dienst zu
+  `ADAPTER_UNAVAILABLE` — nie zu einem leeren Erfolg.
+- Groessere Berichte werden auf 65536 Zeichen gekuerzt und mit `truncated: true` sowie der vollen Bytezahl
+  ausgeliefert; der Inhalt selbst wird nicht umgeschrieben.
+- Ein Zeitlimit (60 s) endet als `skill_<action>_timeout` (Exit 7).
+
+Nachweise:
+
+| Nachweis | Ergebnis |
+|---|---|
+| `installer/wsl/tests/test_skill_report.py` (neu) | 9 Pruefungen: unveraenderter Text, Diff-Layout, Kuerzung samt Bytezahl, Leerberichte, Nicht-Text |
+| `apps/control-api/test/skills-report-route.test.ts` (neu) | 4 Tests: 200-Form fuer alle drei Aktionen mit `responseValidation: "throw"`, 400 fuer ueberlange Namen ohne Handleraufruf, Namenspruefung vor dem CLI-Aufruf, Leerbericht als `ADAPTER_UNAVAILABLE`, kein erfundener Text |
+| Vertragswaechter | 279 Operationen in `contract.test.ts`, `openapi-additions.test.ts`, `mock-data/test/api.test.ts` |
+| Gates | `contracts:check`, `typecheck`, `lint`, `build` = 0 |
+
+Bewusste Grenze: der Router prueft Pfadparameter nur auf Laenge, nicht auf das Vertragsmuster — ein Name wie
+`-..` wird deshalb erst im Dienst abgelehnt (Ledger **N-052**).
