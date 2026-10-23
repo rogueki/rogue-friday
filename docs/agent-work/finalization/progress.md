@@ -847,3 +847,13 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
 - blocked: produktiver Adapter braucht ein Web-Credential (401); Laufzeitabnahme 17.04 bleibt damit offen.
 - evidence_paths: `dash-17-02-hermes-cron-api.md`, `dash-17-status.md` (korrigiert).
 - status: Befund dokumentiert, DASH-17.02 weiterhin offen
+
+### DASH-17.02 Datenquelle erprobt: Hermes-Cron-API mit Dashboard-Token (2026-10-23)
+- observed: `GET /` liefert `__HERMES_SESSION_TOKEN__`; `X-Hermes-Session-Token` macht `/api/cron/jobs` von 401 zu 200.
+  Adapterbasis kann das schon (`scrapedTokenCredential`, `dashboardAuth: "scrape"`).
+- lifecycle (live, `no_agent`-Skriptjob, danach geloescht): create 200 (`state:"paused"`, "awaiting operator approval"),
+  get 200, trigger 200 (`last_status:"ok"`, `repeat.completed:1`, `next_run_at` gesetzt), runs 200 (ein Lauf,
+  preview `friday-probe-ok`), pause 200, resume 200, delete 200 `{"ok":true}`, danach Liste `[]`.
+- decision: Automations-Adapter geht gegen die Dashboard-HTTP-API (kein CLI-Parsing, kein state.db-Zugriff).
+- evidence_paths: `dash-17-02-hermes-cron-api.md` (Abschnitte 4-6).
+- status: Befund + Datenquelle belegt; Adapterimplementierung und Abnahme 17.04 offen

@@ -53,13 +53,53 @@ CronJobCreate:
 `schedule` ist ein String (Cron-Ausdruck, Intervall oder Einmal-Zeitpunkt), `repeat` akzeptiert `forever`/`once`/`N`,
 `deliver` nennt das Zustellziel. Das ist die Grundlage für Trigger, Zeitzonen und Zustellaktionen in 17.02.
 
-## 4. Offener Punkt vor der Adapter-Implementierung
+## 4. Credential: das Dashboard-Token genügt (verifiziert)
 
-`/api/cron/jobs` antwortet **401 Unauthorized**. Für einen produktiven Adapter muss F.R.I.D.A.Y. ein gültiges
-Dashboard-Credential haben (Passwort-/OAuth-Sitzung oder ein vom Installer hinterlegtes Token). Im Hermes-Home liegen
-`auth.json` (Provider-Zugangsdaten) und `config.yaml`, aber kein offensichtliches Web-Session-Token; das müsste über
-den vorgesehenen Auth-Fluss (`/api/auth/*`, nicht Teil der Cron-Routen) bezogen und wie die übrigen Hermes-Geheimnisse
-in der Friday-Konfiguration referenziert werden (`file:`-Referenz, keine Klartextkopie im Repo).
+Der frühere Verdacht, es fehle ein Web-Credential, ist widerlegt. Hermes injiziert auf Loopback-Antworten von `GET /`
+ein Session-Token (`window.__HERMES_SESSION_TOKEN__="…"`), und dieses Token authentifiziert die Cron-API:
 
-Ohne dieses Credential bleibt die **Laufzeitabnahme** von DASH-17.04 blockiert; der Adapter selbst kann gegen die
-dokumentierte API mit synthetischen Antworten gebaut und getestet werden.
+```
+curl http://127.0.0.1:43791/ | grep __HERMES_SESSION_TOKEN__   -> Token (43 Zeichen)
+GET /api/cron/jobs?profile=all  ohne Header                   -> 401
+GET /api/cron/jobs?profile=all  mit "X-Hermes-Session-Token"  -> 200, []
+GET /api/cron/jobs?profile=all  mit "Authorization: Bearer"   -> 200, []
+```
+
+Genau diesen Weg implementiert die Adapterbasis bereits (`scrapedTokenCredential` in `adapters/hermes/src/clients.ts`,
+Modus `dashboardAuth: "scrape"`). Es braucht also kein zusätzliches Geheimnis und keinen Eingriff in die
+Hermes-Installation.
+
+## 5. Voller Lebenszyklus am laufenden Dienst (2026-10-23, `no_agent`-Skriptjob)
+
+Ein kontrollierter Testjob ohne Modellkosten, danach restlos entfernt:
+
+| Schritt | Aufruf | Beobachtung |
+| --- | --- | --- |
+| Anlegen | `POST /api/cron/jobs` `{schedule:"0 3 * * *", name:"friday-probe", no_agent:true, script:"friday-probe.sh", paused:true}` | 200, `id:"cbed3f05413e"`, `enabled:false`, `state:"paused"`, `paused_reason:"Created paused; awaiting operator approval."` |
+| Lesen | `GET /api/cron/jobs/{id}` | identischer Datensatz inkl. `schedule:{kind:"cron",expr,display}` |
+| Auslösen | `POST /api/cron/jobs/{id}/trigger` | 200, `state:"scheduled"`, `repeat.completed:1`, `last_run_at` gesetzt, `last_status:"ok"`, `next_run_at:"2026-10-24T03:00:00+02:00"` |
+| Laufhistorie | `GET /api/cron/jobs/{id}/runs?limit=5` | ein Lauf `cron_output:…:2026-10-23_17-45-26`, `preview` enthält `friday-probe-ok`, `started_at`/`ended_at` als Epoche |
+| Pausieren | `POST /api/cron/jobs/{id}/pause` | 200 |
+| Fortsetzen | `POST /api/cron/jobs/{id}/resume` | 200 |
+| Löschen | `DELETE /api/cron/jobs/{id}` | 200 `{"ok":true}` |
+| Nachher | `GET /api/cron/jobs?profile=all` | `[]` |
+
+Zwei sicherheitsrelevante Eigenschaften sind damit belegt und für den Adapter verbindlich:
+
+1. **Neue Jobs starten pausiert** (`state:"paused"`, Begründung „awaiting operator approval"). Der Adapter darf ein
+   Anlegen daher nicht als „aktiv" melden; Aktivieren ist ein eigener Schritt (`enableAutomation`).
+2. **Ein Trigger startet den Lauf und plant zugleich den nächsten Termin** (`next_run_at`). Die Antwort enthält damit
+   beides — Laufbeleg und Folgeplan —, was `testAutomation` und `enableAutomation` sauber trennbar macht.
+
+Damit ist die Datenquelle für DASH-17.02 entschieden und erprobt: **Hermes-Cron über die Dashboard-HTTP-API mit
+gescraptem Session-Token**, nicht CLI-Textparsing und nicht Direktzugriff auf `state.db`.
+
+## 6. Was daraus für den Adapter folgt
+
+- Trigger: `schedule.kind` `cron`/`interval`/`once` → `automation-trigger.schema.json`; `display` liefert die
+  menschenlesbare Form, `next_run_at`/`last_run_at` die Zeitpunkte inklusive Zone.
+- Aktionen: `script` (ohne Modell), `prompt`+`skills`+`model`/`provider` (Agentenlauf), `deliver` (Zustellziel aus
+  `/api/cron/delivery-targets`).
+- Läufe: `runs[]` mit `started_at`/`ended_at` (Epoche), `title`/`preview`, `input_tokens`/`output_tokens` → `automation-run.schema.json`.
+- Rechte: die F.R.I.D.A.Y.-Rollen bleiben vorgelagert (`automations.create`/`.update`/`.test`/`.enable`); Hermes kennt
+  keine F.R.I.D.A.Y.-Rollen, nur das Dashboard-Token.
