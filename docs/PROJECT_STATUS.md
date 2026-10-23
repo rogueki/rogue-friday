@@ -1047,3 +1047,10 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
 **Offene Befunde im Ledger**: N-052 (Router prueft Pfadparameter nur auf Laenge), N-053 (`inspect` loest gegen die
 Registrierungen auf), N-054 (`diff` nur fuer getrackte Skills, unser 503 verschweigt den CLI-Text), N-055
 (`list-modified` fuehrt keine Hub-Aenderungen). N-056 (vitest-Zeitlimits) ist behoben.
+
+## 2026-10-23 — DASH-10.06 Laufzeitnachweis (DSH)
+
+- Skill-Verwaltung am laufenden System geprueft: echte Control API (dataMode live, eigenes Datenwurzelverzeichnis mit install-state.json, Distro FRIDAY-2) las per HTTP 159 Skills (53 builtin, 106 external) in 67,3 s; diff, inspect (Kennung 2,3 s / Name 110,6 s), tap-list und Ablehnungstexte echt; command=config -> 400.
+- Sieben nur im Betrieb sichtbare Defekte gefunden und behoben: origin external (N-064), Runner-Limit 35 s (N-065), zwei Budgets unter der realen CLI-Laufzeit (N-066/N-067), UTF-8-BOM auf stdin (N-068), Fehlertexte ohne Grund (N-069), Budgets ohne Abstand (N-070). Commits 5a1a8f1 (Code) und 2de834f (Doku).
+- DASH-10.06 bleibt TEIL: kein Hub-Skill auf dem Profil, Neustart-Gleichheit und fehlendes Laufwerk nicht live, Operator-System ohne FRIDAY_SKILLS_CATALOG_PATH.
+- Naechster Schritt: Neustart-Readback und Fehlerfall "Laufwerk fehlt" am selben Aufbau; danach restliche Abschnitte 8.1.
