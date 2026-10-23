@@ -953,3 +953,15 @@ Belege liegen vollständig unter `docs/agent-work/finalization/` – `baseline.m
 - **Offen (TEIL)**: Voraussetzungen und Auditbefund je Treffer (`inspect`/`audit` liefern kein JSON), Diff/Konflikt
   vor einem Update, die Installation/Aktualisierung selbst (DASH-10.07) und die gefuehrte Wiederverwendung
   bereits eingerichteter Referenzen.
+
+## 2026-10-23 N-051 geschlossen: Wiederzustellung im Messenger
+
+- **Fehler**: ein erneut zugestelltes Messenger-Ereignis (gleiche Nachricht, neuer Empfangszeitpunkt) wurde mit
+  `503 INTERNAL "Event ID conflict"` beantwortet. Ursache: das dauerhafte Gedaechtnis lehnt einen bekannten
+  Ereignisausweis mit abweichendem Inhalt ab, und der Zeitstempel der zweiten Zustellung weicht ab.
+- **Fix**: `MessengerInboundService` wertet genau diesen Konflikt als `captured`; der zuerst gespeicherte Stand
+  bleibt unveraendert, andere Capture-Fehler werden weiter geworfen. Gleiches Verhalten fuer Assistenten-Wendungen.
+- **Belege**: neuer Diensttest (Konflikt -> `captured`, genau eine Zeile), Dienst 7/7, Routentest 6/6, volle
+  node-Suite 198 Dateien / 2821 Tests gruen (60 uebersprungen), `contracts:check`/`typecheck`/`lint`/`build` 0.
+- `secrets.test.ts` deckt die neuen Operationen `searchSkillHub` und `listModifiedSkills` ab (Suchbegriff bzw.
+  503-Liste), damit der Geheimnis-Scan alle GET-Routen weiter prueft.
