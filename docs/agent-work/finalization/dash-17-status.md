@@ -38,11 +38,11 @@ hermes cron runs [--limit N] [job_id]
 Das deckt Zeitpläne, Pausieren, manuelles Auslösen, Historie und Incidents ab — also genau die Vorgänge, die der Port
 verlangt.
 
-**Blocker für einen sauberen Adapter:** `hermes cron list` und `hermes cron runs` haben **keinen JSON-Modus**
-(geprüft über `--help`), die Ausgabe ist eine Texttabelle. Ein Adapter müsste entweder die Tabelle parsen (brüchig)
-oder die durable Quelle (`state.db` des Profils) lesen (Kopplung an Interna) oder über den Hermes-HTTP-API-Server
-gehen, der ohne laufenden Dienst nicht erreichbar ist. Diese Entscheidung ist bewusst offen gelassen, statt eine
-brüchige Textanalyse als „Integration" zu verkaufen.
+**Korrektur (2026-10-23):** Die CLI hat keinen JSON-Modus, der **HTTP-API-Server** aber sehr wohl. Auf `FRIDAY-2`
+läuft ein Dashboard-Prozess auf `127.0.0.1:43791`; `GET /api/cron/jobs?profile=all` liefert JSON (ohne Credential
+`401`), und die Endpunkte decken Liste, Detail, Laufhistorie, Anlegen, Ändern, Pausieren, Fortsetzen, Auslösen und
+Löschen ab. Details: `dash-17-02-hermes-cron-api.md`. Damit ist Textparsing vom Tisch; offen ist nur noch ein
+Web-Credential für den Adapter (und damit die Laufzeitabnahme von 17.04).
 
 ## 4. Was für die Abnahme fehlt
 

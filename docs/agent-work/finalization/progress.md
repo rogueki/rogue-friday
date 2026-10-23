@@ -838,3 +838,12 @@ py -3 -c "import csv,collections; rows=list(csv.DictReader(open(r'docs/agent-wor
   fuehrt die Route als live-only.
 - evidence_paths: `keep-05-studio-paritaet.md`.
 - status: PASS
+
+### DASH-17.02 Hermes-Cron-API verifiziert (2026-10-23)
+- goal: belastbare Datenquelle fuer den Automations-Adapter statt CLI-Textparsing.
+- observed: auf FRIDAY-2 laeuft der Hermes-Dashboard-Dienst (PID 427, 127.0.0.1:43791); `/api/health` 200,
+  `/api/cron/jobs?profile=all` 401 ohne Credential. Endpunkte: Liste/Detail/Runs/Create/Update/Pause/Resume/Trigger/
+  Delete/Delivery-Targets; Payload `CronJobCreate` mit schedule/deliver/repeat/skills/workdir/no_agent.
+- blocked: produktiver Adapter braucht ein Web-Credential (401); Laufzeitabnahme 17.04 bleibt damit offen.
+- evidence_paths: `dash-17-02-hermes-cron-api.md`, `dash-17-status.md` (korrigiert).
+- status: Befund dokumentiert, DASH-17.02 weiterhin offen
